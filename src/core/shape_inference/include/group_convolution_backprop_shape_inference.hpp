@@ -53,7 +53,8 @@ std::vector<TRShape> shape_infer(const GroupConvolutionBackpropData* op,
     }
     const auto num_spatial = convolution::calculate_num_spatial(op, input_shapes, *out_spatial_shape);
 
-    TRShape output_shape;
+    auto output_shapes = std::vector<TRShape>(1);
+    auto& output_shape = output_shapes[0];
     if (num_spatial != util::num_spatial_undefined) {
         const auto& data_shape = input_shapes[0];
         const auto& filters_shape = input_shapes[1];
@@ -111,7 +112,7 @@ std::vector<TRShape> shape_infer(const GroupConvolutionBackpropData* op,
         output_shape = PartialShape::dynamic();
     }
 
-    return {output_shape};
+    return output_shapes;
 }
 }  // namespace v1
 }  // namespace op

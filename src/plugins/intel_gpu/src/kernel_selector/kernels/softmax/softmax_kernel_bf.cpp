@@ -115,7 +115,7 @@ JitConstants SoftmaxKernel_bf::GetJitConstants(const softmax_params& params, Dis
 
     if (params.has_dynamic_tensors()) {
         const auto& input = params.inputs[0];
-        DimensionAccessHelper dims(input);
+        DimensionAccessHelperJit dims(input);
         auto softmax_dim_y_bfyx = (params.dim == SoftmaxDim::Y && input.GetLayout() == DataLayout::bfyx);
         auto softmax_dim_x_bfyx = (params.dim == SoftmaxDim::X && input.GetLayout() == DataLayout::bfyx);
         const std::string lws_0 = "get_local_size(0)";

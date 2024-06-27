@@ -22,7 +22,8 @@ INSTANTIATE_TEST_SUITE_P(ov_compiled_model_mandatory, OVClassCompiledModelProper
                         OVClassCompiledModelPropertiesIncorrectTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> default_properties = {
-        {ov::enable_profiling(false)}
+        {ov::enable_profiling(false)},
+        {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}
 };
 
 INSTANTIATE_TEST_SUITE_P(ov_compiled_model_mandatory, OVClassCompiledModelPropertiesDefaultTests,

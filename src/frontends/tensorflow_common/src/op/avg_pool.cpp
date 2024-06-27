@@ -15,11 +15,11 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_avg_pool_op(const NodeContext& node) {
-    default_op_checks(node, 1, {"AvgPool", "AvgPool3D"});
+    default_op_checks(node, 1, {"AvgPool", "AvgPool3D", "AVERAGE_POOL_2D"});
     auto op_type = node.get_op_type();
     auto input = node.get_input(0);
 
-    auto spatial_dim = (op_type == "AvgPool") ? 2 : 3;
+    auto spatial_dim = (op_type == "AvgPool" || op_type == "AVERAGE_POOL_2D") ? 2 : 3;
 
     // retrieve attributes for AvgPool operation
     auto tf_strides = node.get_attribute<std::vector<int64_t>>("strides");

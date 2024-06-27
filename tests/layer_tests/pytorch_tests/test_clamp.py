@@ -59,27 +59,34 @@ class TestClampMin(PytorchLayerTest):
         import numpy as np
         return (np.random.randn(1, 3, 224, 224).astype(np.float32),)
 
-    def create_model(self, minimum, as_tensor=False):
+    def create_model(self, minimum, as_tensor=False, inplace=False):
         import torch
 
         class aten_clamp_min(torch.nn.Module):
-            def __init__(self, minimum, as_tensor):
+            def __init__(self, minimum, as_tensor, inplace):
                 super(aten_clamp_min, self).__init__()
                 self.min = torch.tensor(minimum) if as_tensor else minimum
+                if inplace:
+                    self.forward = self.forward_inplace
 
             def forward(self, x):
                 return torch.clamp_min(x, self.min)
 
-        ref_net = None
-        op_name = "aten::clamp_min"
-        return aten_clamp_min(minimum, as_tensor), ref_net, op_name
+            def forward_inplace(self, x):
+                torch.clamp_min_(x, self.min)
+                return x
+
+        op_name = "aten::clamp_min_" if inplace else "aten::clamp_min"
+        return aten_clamp_min(minimum, as_tensor, inplace), None, op_name
 
     @pytest.mark.parametrize("minimum", [0., 1., -1., 0.5, 2])
     @pytest.mark.parametrize("as_tensor", [True, False])
+    @pytest.mark.parametrize("inplace", [True, False])
     @pytest.mark.nightly
+    @pytest.mark.precommit
     @pytest.mark.precommit_fx_backend
-    def test_clamp_min(self, minimum, as_tensor, ie_device, precision, ir_version):
-        self._test(*self.create_model(minimum, as_tensor), ie_device,
+    def test_clamp_min(self, minimum, as_tensor, inplace, ie_device, precision, ir_version):
+        self._test(*self.create_model(minimum, as_tensor, inplace), ie_device,
                    precision, ir_version, use_convert_model=True, trace_model=True)
 
 
@@ -88,27 +95,33 @@ class TestClampMax(PytorchLayerTest):
         import numpy as np
         return (np.random.randn(1, 3, 224, 224).astype(np.float32),)
 
-    def create_model(self, maximum, as_tensor=False):
+    def create_model(self, maximum, as_tensor=False, inplace=False):
         import torch
 
         class aten_clamp_max(torch.nn.Module):
-            def __init__(self, maximum, as_tensor):
+            def __init__(self, maximum, as_tensor, inplace):
                 super(aten_clamp_max, self).__init__()
                 self.max = torch.tensor(maximum) if as_tensor else maximum
+                if inplace:
+                    self.forward = self.forward_inplace
 
             def forward(self, x):
                 return torch.clamp_max(x, self.max)
 
-        ref_net = None
-        op_name = "aten::clamp_max"
-        return aten_clamp_max(maximum, as_tensor), ref_net, op_name
+            def forward_inplace(self, x):
+                torch.clamp_max_(x, self.max)
+                return x
+
+        op_name = "aten::clamp_max_" if inplace else "aten::clamp_max"
+        return aten_clamp_max(maximum, as_tensor, inplace), None, op_name
 
     @pytest.mark.parametrize("maximum", [0., 1., -1., 0.5, 2])
     @pytest.mark.parametrize("as_tensor", [True, False])
+    @pytest.mark.parametrize("inplace", [skip_if_export(True), False])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
-    def test_clamp(self, maximum, as_tensor, ie_device, precision, ir_version):
-        self._test(*self.create_model(maximum, as_tensor), ie_device,
+    def test_clamp_max(self, maximum, as_tensor, inplace, ie_device, precision, ir_version):
+        self._test(*self.create_model(maximum, as_tensor, inplace), ie_device,
                    precision, ir_version, use_convert_model=True, trace_model=True)

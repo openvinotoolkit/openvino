@@ -8,6 +8,7 @@
 #include "convolution_kernel_bfyx_gemm_like.h"
 #include "convolution_kernel_bfyx_direct_10_12_16.h"
 #include "convolution_kernel_bfyx_os_iyx_osv16.h"
+#include "convolution_kernel_bfyx_os_iyx_osv32.h"
 #include "convolution_kernel_bfyx_iyxo.h"
 #include "convolution_kernel_yxfb_ref.h"
 #include "convolution_kernel_yxfb_yxio_b16.h"
@@ -29,8 +30,7 @@
 #include "convolution_kernel_b_fs_yx_fsv16.h"
 #include "convolution_kernel_bfyx_to_b_fs_yx_fsv16.h"
 #include "deformable_convolution_kernel_bfyx_ref.h"
-#include "deformable_convolution_kernel_bfyx_conv.h"
-#include "deformable_convolution_kernel_bfyx_interp.h"
+#include "deformable_convolution_kernel_bfyx_opt.h"
 #include "convolution_kernel_b_fs_zyx_fsv16_fp32.h"
 #include "convolution_kernel_b_fs_zyx_fsv16_fp16.h"
 #include "convolution_kernel_imad_b_fs_yx_fsv4_1x1.h"
@@ -50,7 +50,6 @@
 namespace kernel_selector {
 convolution_kernel_selector::convolution_kernel_selector() {
     Attach<ConvolutionKernel_Ref>();
-    Attach<DeformableConvolutionKernel_bfyx_Ref>();
 
     // b_fs_yx_fsv16 and b_fs_zyx_fsv16 int8
     Attach<Convolution_kernel_b_fs_yx_fsv16_imad_1x1>();
@@ -80,6 +79,7 @@ convolution_kernel_selector::convolution_kernel_selector() {
     Attach<ConvolutionKernel_bfyx_GEMMLike>();
     Attach<ConvolutionKernel_bfyx_Direct_10_10_12>();
     Attach<ConvolutionKernel_bfyx_os_iyx_osv16>();
+    Attach<ConvolutionKernel_bfyx_os_iyx_osv32>();
     Attach<ConvolutionKernel_bfyx_iyxo>();
     Attach<ConvolutionKernel_bfyx_1x1>();
     Attach<ConvolutionKernel_bfyx_1x1_gemm_buf>();
@@ -108,27 +108,13 @@ convolution_kernel_selector::convolution_kernel_selector() {
     Attach<ConvolutionKernel_mmad_b_fs_yx_fsv32_dw>();
     Attach<ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32>();
     Attach<ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw>();
+
+    Attach<DeformableConvolutionKernel_bfyx_Ref>();
+    Attach<DeformableConvolutionKernel_bfyx_opt>();
 }
 
 KernelsData convolution_kernel_selector::GetBestKernels(const Params& params) const {
     return GetAutoTuneBestKernel(params, KernelType::CONVOLUTION);
 }
-
-deformable_conv_kernel_selector::deformable_conv_kernel_selector() {
-    Attach<DeformableConvolutionKernel_bfyx_conv>();
-}
-
-KernelsData deformable_conv_kernel_selector::GetBestKernels(const Params& params) const {
-    return GetAutoTuneBestKernel(params, KernelType::CONVOLUTION);
-}
-
-deformable_interp_kernel_selector::deformable_interp_kernel_selector() {
-    Attach<DeformableConvolutionKernel_bfyx_interp>();
-}
-
-KernelsData deformable_interp_kernel_selector::GetBestKernels(const Params& params) const {
-    return GetAutoTuneBestKernel(params, KernelType::CONVOLUTION);
-}
-
 
 }  // namespace kernel_selector

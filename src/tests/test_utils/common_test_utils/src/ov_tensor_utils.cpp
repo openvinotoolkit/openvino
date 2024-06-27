@@ -5,6 +5,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 
 #include "common_test_utils/data_utils.hpp"
+#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/constant.hpp"
 #include "precomp.hpp"
@@ -21,16 +22,31 @@ ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
                                   const ov::Shape& shape,
                                   const InputGenerateData& inGenData) {
     auto tensor = ov::Tensor(element_type, shape);
+    auto size = shape_size(shape);
 
 #define CASE(X)                                                  \
     case X:                                                      \
         fill_data_random(tensor.data<fundamental_type_for<X>>(), \
-                         shape_size(shape),                      \
+                         size,                                   \
                          inGenData.range,                        \
                          inGenData.start_from,                   \
                          inGenData.resolution,                   \
                          inGenData.seed);                        \
         break;
+
+#define CASE_CONVERT(X)                                          \
+    case X: {                                                    \
+        auto input = std::vector<fundamental_type_for<X>>(size); \
+        fill_data_random(input.data(),                           \
+                         size,                                   \
+                         inGenData.range,                        \
+                         inGenData.start_from,                   \
+                         inGenData.resolution,                   \
+                         inGenData.seed);                        \
+        auto iter = element::iterator<X>(tensor.data());         \
+        std::copy(input.begin(), input.end(), iter);             \
+        break;                                                   \
+    }
 
     switch (element_type) {
         CASE(ov::element::i8)
@@ -45,25 +61,23 @@ ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
         CASE(ov::element::f16)
         CASE(ov::element::f32)
         CASE(ov::element::f64)
+        CASE_CONVERT(ov::element::u6)
+        CASE_CONVERT(ov::element::u4)
+        CASE_CONVERT(ov::element::u3)
+        CASE_CONVERT(ov::element::u2)
+        CASE_CONVERT(ov::element::u1)
+        CASE_CONVERT(ov::element::i4)
+        CASE_CONVERT(ov::element::nf4)
+        CASE_CONVERT(ov::element::f8e4m3)
+        CASE_CONVERT(ov::element::f8e5m2)
     case ov::element::boolean:
         fill_data_boolean(static_cast<fundamental_type_for<ov::element::boolean>*>(tensor.data()),
-                          tensor.get_size(),
+                          size,
                           inGenData.seed);
-        break;
-    case ov::element::Type_t::u1:
-    case ov::element::Type_t::i4:
-    case ov::element::Type_t::u4:
-    case ov::element::Type_t::nf4:
-        fill_data_random(static_cast<uint8_t*>(tensor.data()),
-                         tensor.get_byte_size(),
-                         inGenData.range,
-                         inGenData.start_from,
-                         inGenData.resolution,
-                         inGenData.seed);
         break;
     case ov::element::Type_t::string:
         fill_random_string(static_cast<std::string*>(tensor.data()),
-                           tensor.get_size(),
+                           size,
                            inGenData.range,
                            inGenData.start_from,
                            inGenData.seed);
@@ -259,6 +273,7 @@ ov::Tensor create_and_fill_tensor_real_distribution(const ov::element::Type elem
     case ov::element::Type_t::u1:
     case ov::element::Type_t::i4:
     case ov::element::Type_t::u4:
+    case ov::element::Type_t::nf4:
         fill_data_ptr_real_random_float(static_cast<uint8_t*>(tensor.data()), tensor.get_byte_size(), min, max, seed);
         break;
     default:
@@ -315,7 +330,7 @@ ov::Tensor create_and_fill_tensor_consistently(const ov::element::Type element_t
 namespace tensor_comparation {
 constexpr double eps = std::numeric_limits<double>::epsilon();
 
-inline double less(double a, double b) {
+inline bool less(const double a, const double b) {
     if (std::isnan(a) || std::isnan(b)) {
         return false;
     } else if (std::isinf(b) && std::isinf(b)) {
@@ -329,7 +344,7 @@ inline double less(double a, double b) {
     return std::fabs(a - b) > eps && a < b;
 }
 
-inline double equal(double a, double b) {
+inline bool equal(const double a, const double b) {
     if (std::isnan(a) || std::isnan(b)) {
         return false;
     } else if (std::isinf(b) && std::isinf(b)) {
@@ -343,12 +358,12 @@ inline double equal(double a, double b) {
     return std::fabs(b - a) <= eps;
 }
 
-inline double less_or_equal(double a, double b) {
+inline bool less_or_equal(double a, double b) {
     return less(a, b) || equal(a, b);
 }
 
 template <typename T1, typename T2>
-inline bool is_value_suitable_for_comparation(double value1, double value2) {
+inline bool is_value_suitable_for_comparation(const double value1, const double value2) {
     bool res = true;
     auto max_val1 = std::numeric_limits<T1>::max();
     auto min_val1 = std::numeric_limits<T1>::lowest();
@@ -415,10 +430,6 @@ public:
         mvn_results /= tensor_size ? tensor_size : 1;
         if (!incorrect_values_abs.empty() && equal(1.f, topk_threshold) ||
             incorrect_values_abs.size() > static_cast<int>(std::floor(topk_threshold * tensor_size))) {
-#ifdef NDEBUG
-            std::string msg = "[ COMPARATION ] COMPARATION IS FAILED!";
-            msg += "  Use DEBUG mode to print `incorrect_values_abs` and get detailed information!";
-#else
             std::string msg = "[ COMPARATION ] COMPARATION IS FAILED! incorrect elem counter: ";
             msg += std::to_string(incorrect_values_abs.size());
             msg += " among ";
@@ -426,11 +437,14 @@ public:
             msg += " shapes.";
             for (auto val : incorrect_values_abs) {
                 std::cout << "\nExpected: " << val.expected_value << " Actual: " << val.actual_value
+                          << " Coordinate: " << val.coordinate
                           << " Diff: " << std::fabs(val.expected_value - val.actual_value)
                           << " calculated_abs_threshold: " << val.threshold << " abs_threshold: " << abs_threshold
                           << " rel_threshold: " << rel_threshold << "\n";
-            }
+#ifdef NDEBUG
+                break;
 #endif
+            }
             throw std::runtime_error(msg);
         } else if (!less_or_equal(mvn_results, mvn_threshold)) {
             std::string msg = "[ COMPARATION ] COMPARATION IS FAILED due to MVN THRESHOLD: ";
@@ -610,6 +624,8 @@ void compare(const ov::Tensor& expected,
             CASE0(X, ov::element::Type_t::u16)           \
             CASE0(X, ov::element::Type_t::u32)           \
             CASE0(X, ov::element::Type_t::u64)           \
+            CASE0(X, ov::element::Type_t::f8e4m3)        \
+            CASE0(X, ov::element::Type_t::f8e5m2)        \
         default:                                         \
             OPENVINO_THROW("Unsupported element type: ", \
                            "expected ",                  \
@@ -636,6 +652,8 @@ void compare(const ov::Tensor& expected,
         CASE(ov::element::Type_t::u16)
         CASE(ov::element::Type_t::u32)
         CASE(ov::element::Type_t::u64)
+        CASE(ov::element::Type_t::f8e4m3)
+        CASE(ov::element::Type_t::f8e5m2)
     case ov::element::Type_t::string:
         compare_str(expected, actual);
         break;

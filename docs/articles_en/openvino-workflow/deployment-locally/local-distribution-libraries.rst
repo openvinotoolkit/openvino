@@ -35,7 +35,7 @@ Libraries for Pluggable Components
 
 The picture below presents dependencies between the OpenVINO Runtime core and pluggable libraries:
 
-.. image:: ../../_static/images/deployment_full.svg
+.. image:: ../../assets/images/deployment_full.svg
 
 Libraries for Compute Devices
 +++++++++++++++++++++++++++++

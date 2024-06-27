@@ -306,7 +306,8 @@ InfoForFFTCalculation get_info_for_calculation(const Shape& input_data_shape,
     const int64_t complex_data_rank = static_cast<int64_t>(input_data_shape.size() - 1);
 
     const auto reversed_output_shape = fft_common::reverse_shape_of_emulated_complex_tensor(output_shape);
-    auto fft_axes = get_axes(axes_data, axes_data_shape, complex_data_rank);
+    auto& fft_axes = result.fft_axes;
+    fft_axes = get_axes(axes_data, axes_data_shape, complex_data_rank);
     fft_axes = fft_common::reverse_fft_axes(fft_axes, complex_data_rank);
 
     const int64_t fft_rank = fft_axes.size();
@@ -320,30 +321,22 @@ InfoForFFTCalculation get_info_for_calculation(const Shape& input_data_shape,
     const auto outer_strides = fft_common::compute_strides(outer_lengths);
     const int64_t outer_size = outer_strides[outer_rank];
 
-    const int64_t buffer_size = compute_buffer_size(fft_lengths);
-
     const auto output_strides = fft_common::compute_strides(reversed_output_shape);
-    const auto output_fft_strides = get_lengths(output_strides, fft_axes);
-    const auto output_outer_strides = get_lengths(output_strides, outer_axes);
     const auto reversed_input_shape = fft_common::reverse_shape_of_emulated_complex_tensor(input_data_shape);
-    const auto input_fft_lengths = get_lengths(reversed_input_shape, fft_axes);
     const auto input_strides = fft_common::compute_strides(reversed_input_shape);
-    const auto input_fft_strides = get_lengths(input_strides, fft_axes);
-    const auto input_outer_strides = get_lengths(input_strides, outer_axes);
 
-    result.fft_axes = fft_axes;
     result.fft_lengths = fft_lengths;
     result.fft_strides = fft_strides;
     result.outer_strides = outer_strides;
-    result.output_fft_strides = output_fft_strides;
-    result.output_outer_strides = output_outer_strides;
-    result.input_fft_lengths = input_fft_lengths;
-    result.input_fft_strides = input_fft_strides;
-    result.input_outer_strides = input_outer_strides;
+    result.output_fft_strides = get_lengths(output_strides, fft_axes);
+    result.output_outer_strides = get_lengths(output_strides, outer_axes);
+    result.input_fft_lengths = get_lengths(reversed_input_shape, fft_axes);
+    result.input_fft_strides = get_lengths(input_strides, fft_axes);
+    result.input_outer_strides = get_lengths(input_strides, outer_axes);
     result.fft_rank = fft_rank;
     result.fft_size = fft_size;
     result.outer_size = outer_size;
-    result.buffer_size = buffer_size;
+    result.buffer_size = compute_buffer_size(fft_lengths);
 
     return result;
 }

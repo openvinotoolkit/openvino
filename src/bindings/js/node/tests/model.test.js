@@ -94,3 +94,21 @@ describe('Node.js getFriendlyName() / setFriendlyName()', () => {
     });
   });
 });
+
+describe('Model.getOutputSize()', () => {
+
+  it('should return a number indicating number of outputs for the model', () => {
+    const result = model.getOutputSize();
+    assert.strictEqual(typeof result, 'number', 'getOutputSize() should return a number');
+  });
+
+  it('should not accept any arguments', () => {
+    assert.throws(() => {
+      model.getOutputSize('unexpected argument');
+    }, /^Error: getOutputSize\(\) does not accept any arguments\.$/, 'Expected getOutputSize to throw an error when called with arguments');
+  });
+
+  it('should return 1 for the default model', () => {
+    assert.strictEqual(model.getOutputSize(), 1, 'Expected getOutputSize to return 1 for the default model');
+  });
+});

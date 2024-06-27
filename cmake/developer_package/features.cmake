@@ -5,8 +5,11 @@
 include(options)
 include(target_flags)
 
-set (CPACK_GENERATOR "TGZ" CACHE STRING "Cpack generator for OpenVINO")
-list (APPEND OV_OPTIONS CPACK_GENERATOR)
+if(WIN32)
+    set (CPACK_GENERATOR "ZIP" CACHE STRING "Cpack generator for OpenVINO")
+else()
+    set (CPACK_GENERATOR "TGZ" CACHE STRING "Cpack generator for OpenVINO")
+endif()
 
 ov_dependent_option (ENABLE_LTO "Enable Link Time Optimization" OFF "LINUX;NOT ARM;CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.9" OFF)
 
@@ -18,7 +21,7 @@ else()
     ov_option(USE_BUILD_TYPE_SUBFOLDER "Create dedicated sub-folder per build type for output binaries" ON)
 endif()
 
-if(DEFINED ENV{CI_BUILD_NUMBER} AND NOT CMAKE_CROSSCOMPILING)
+if(DEFINED ENV{CI_BUILD_NUMBER} AND NOT (CMAKE_CROSSCOMPILING AND CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.4))
     set(CMAKE_COMPILE_WARNING_AS_ERROR_DEFAULT ON)
 else()
     set(CMAKE_COMPILE_WARNING_AS_ERROR_DEFAULT OFF)

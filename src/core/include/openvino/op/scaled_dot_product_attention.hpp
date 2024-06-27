@@ -50,6 +50,10 @@ public:
         return m_causal;
     }
 
+    void set_causal(bool causal) {
+        m_causal = causal;
+    }
+
 private:
     bool m_causal = false;
 };

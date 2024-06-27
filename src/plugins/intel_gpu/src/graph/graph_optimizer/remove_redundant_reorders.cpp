@@ -649,7 +649,7 @@ void remove_redundant_reorders::run(program& p) {
         // In case of new shape infer we should not shrink reshapes chain if first reshape changes input rank, e.g.
         // [a, b] -> reshape1 -> [a1, b1, c1] -> reshape2 -> [a2, b2, 0] and any of the reshapes has special_zero=true
         // Configuration above will fail if we remove reshape1 node as attempt to handle special zero will fail due to small rank of input
-        if (p.get_config().get_property(ov::intel_gpu::allow_new_shape_infer) &&
+        if (p.is_new_shape_infer() &&
             reshape_node.get_output_pshape().size() != dep_node.get_input_pshape().size() &&
             (reshape_node.get_primitive()->special_zero || reshape_input_node.get_primitive()->special_zero))
             continue;

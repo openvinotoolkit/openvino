@@ -259,7 +259,8 @@ class KVCacheTests: public ::testing::Test {
                                                 ov::element::Type model_element_type = ov::element::f16,
                                                 size_t num_iter = 10,
                                                 size_t num_groups = 1,
-                                                bool set_state_on_each_iter = false) {
+                                                bool set_state_on_each_iter = false,
+                                                int32_t initial_batch = -1) {
     #if defined(ANDROID)
         GTEST_SKIP();
     #endif
@@ -320,22 +321,11 @@ class KVCacheTests: public ::testing::Test {
 
         auto beam_idx_shape = ov::Shape{batch};
 
-        auto beam_idx_data_0 = ov::Tensor(ov::element::i32, beam_idx_shape);
-        auto beam_idx_data_1 = ov::Tensor(ov::element::i32, beam_idx_shape);
-        for (size_t i = 0; i < batch; i++) {
-            beam_idx_data_0.data<int32_t>()[i] = i;
-            beam_idx_data_1.data<int32_t>()[i] = batch - i - 1;
-        }
-
-        std::vector<ov::Tensor> beam_idx_data_array = {
-            beam_idx_data_0,
-            beam_idx_data_1,
-        };
-
-        auto get_ref_results = [&ref_model, fuse_cache_reorder, &beam_idx_shape](const ov::Tensor& kv_cache,
-                                                                                 const ov::Tensor& new_token_data,
-                                                                                 const ov::Tensor& matmul_data,
-                                                                                 const ov::Tensor& beam_idx_data) {
+        auto get_ref_results = [&ref_model, fuse_cache_reorder](const ov::Tensor& kv_cache,
+                                                                const ov::Tensor& new_token_data,
+                                                                const ov::Tensor& matmul_data,
+                                                                const ov::Tensor& beam_idx_data,
+                                                                const ov::Shape& beam_idx_shape) {
             auto input0 = ref_model->get_parameters().at(0);
             auto input1 = ref_model->get_parameters().at(1);
             auto input2 = ref_model->get_parameters().at(2);
@@ -387,9 +377,11 @@ class KVCacheTests: public ::testing::Test {
             ov::Tensor ref_kv_cache;
             size_t cache_size = 0;
             {
-                const ov::Shape new_token_size_initial = {batch, context_size, n_heads / num_groups, n_features};
-                const ov::Shape kv_cache_size_initial = {batch, n_heads / num_groups, cache_size, n_features};
-                const ov::Shape matmul_in_size_initial = {batch, n_heads, context_size, context_size};
+                // first infer
+                size_t init_batch = initial_batch == -1 ? batch : static_cast<size_t>(initial_batch);
+                const ov::Shape new_token_size_initial = {init_batch, context_size, n_heads / num_groups, n_features};
+                const ov::Shape kv_cache_size_initial = {init_batch, n_heads / num_groups, cache_size, n_features};
+                const ov::Shape matmul_in_size_initial = {init_batch, n_heads, context_size, context_size};
 
                 auto new_token_data = ov::test::utils::create_and_fill_tensor(element_type, new_token_size_initial);
                 auto matmul_data = ov::test::utils::create_and_fill_tensor(element_type, matmul_in_size_initial);
@@ -400,13 +392,19 @@ class KVCacheTests: public ::testing::Test {
                 new_token_data.copy_to(new_token_input);
                 matmul_data.copy_to(matmul_input);
 
+                auto init_beam_idx_shape = ov::Shape{init_batch};
+                auto init_beam_idx_data_0 = ov::Tensor(ov::element::i32, init_beam_idx_shape);
+                for (size_t i = 0; i < init_batch; i++) {
+                    init_beam_idx_data_0.data<int32_t>()[i] = 0;
+                }
+
                 if (fuse_cache_reorder) {
-                    infer_request.set_tensor(input2, beam_idx_data_array[0]);
+                    infer_request.set_tensor(input2, init_beam_idx_data_0);
                 }
 
                 ref_kv_cache = ov::Tensor(element_type, kv_cache_size_initial);
 
-                auto ref_results = get_ref_results(ref_kv_cache, new_token_data, matmul_data, beam_idx_data_array[0]);
+                auto ref_results = get_ref_results(ref_kv_cache, new_token_data, matmul_data, init_beam_idx_data_0, init_beam_idx_shape);
                 ref_kv_cache = ref_results[0];
 
                 infer_request.infer();
@@ -416,6 +414,22 @@ class KVCacheTests: public ::testing::Test {
                 cache_size += context_size;
             }
 
+            auto beam_idx_data_0 = ov::Tensor(ov::element::i32, beam_idx_shape);
+            auto beam_idx_data_1 = ov::Tensor(ov::element::i32, beam_idx_shape);
+            auto beam_idx_data_2 = ov::Tensor(ov::element::i32, beam_idx_shape);
+            auto beam_idx_data_init = ov::Tensor(ov::element::i32, beam_idx_shape);
+            for (size_t i = 0; i < batch; i++) {
+                beam_idx_data_0.data<int32_t>()[i] = i;
+                beam_idx_data_1.data<int32_t>()[i] = batch - i - 1;
+                beam_idx_data_2.data<int32_t>()[i] = 0;
+            }
+
+            std::vector<ov::Tensor> beam_idx_data_array = {
+                beam_idx_data_0,
+                beam_idx_data_1,
+                beam_idx_data_2,
+            };
+
             const size_t input_tokens = 1;
             const ov::Shape new_token_size = {batch, input_tokens, n_heads / num_groups, n_features};
             size_t context_length = cache_size + input_tokens;
@@ -423,11 +437,11 @@ class KVCacheTests: public ::testing::Test {
                 ov::Shape matmul_in_size_loop = {batch, n_heads, input_tokens, context_length};
                 auto new_token_data = ov::test::utils::create_and_fill_tensor(element_type, new_token_size);
                 auto matmul_data = ov::test::utils::create_and_fill_tensor(element_type, matmul_in_size_loop);
+                size_t beam_idx_array_idx = i == 0 ? 2 : i % 2;
                 if (fuse_cache_reorder) {
-                    infer_request.set_tensor(input2, beam_idx_data_array[i % beam_idx_data_array.size()]);
+                    infer_request.set_tensor(input2, beam_idx_data_array[beam_idx_array_idx]);
                 }
-
-                auto ref_results = get_ref_results(ref_kv_cache, new_token_data, matmul_data, beam_idx_data_array[i % beam_idx_data_array.size()]);
+                auto ref_results = get_ref_results(ref_kv_cache, new_token_data, matmul_data, beam_idx_data_array[beam_idx_array_idx], beam_idx_shape);
                 ref_kv_cache = ref_results[0];
 
                 new_token_input.set_shape(new_token_data.get_shape());
@@ -498,6 +512,15 @@ TEST_F(KVCacheTests, smoke_multipleIterations_stateful_gather_with_initializer_f
 TEST_F(KVCacheTests, smoke_multipleIterations_stateful_gather_with_initializer_batch_3) {
     this->test_smoke_multipleIterations_stateful(false, true, true, 3);
 }
+
+TEST_F(KVCacheTests, smoke_multipleIterations_stateful_gather_with_initializer_batch_1_3) {
+    this->test_smoke_multipleIterations_stateful(false, true, true, 3, 2, ov::element::f16, 10, 1, false, 1);
+}
+
+TEST_F(KVCacheTests, smoke_multipleIterations_stateful_gather_with_initializer_batch_1_5) {
+    this->test_smoke_multipleIterations_stateful(false, true, true, 5, 2, ov::element::f16, 10, 1, false, 1);
+}
+
 
 TEST_F(KVCacheTests, smoke_multipleIterations_stateful_same_shape_after_reset) {
     this->test_smoke_multipleIterations_stateful(false, false, false, 1, 2, ov::element::f16, 0);

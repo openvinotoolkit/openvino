@@ -16,18 +16,27 @@ const std::vector<std::pair<std::vector<ov::element::Type>, std::vector<ov::elem
         { { ov::element::f32 }, { ov::element::bf16 } },
         { { ov::element::f32 }, { ov::element::u8 } },
         { { ov::element::f32 }, { ov::element::i8 } },
+        { { ov::element::f32 }, { ov::element::f16 } },
+
+        { { ov::element::f16 }, { ov::element::f32 } },
+        { { ov::element::f16 }, { ov::element::bf16 } },
+        { { ov::element::f16 }, { ov::element::i8 } },
+        { { ov::element::f16 }, { ov::element::u8 } },
 
         { { ov::element::bf16 }, { ov::element::f32 } },
         { { ov::element::bf16 }, { ov::element::i8 } },
         { { ov::element::bf16 }, { ov::element::u8 } },
+        { { ov::element::bf16 }, { ov::element::f16 } },
 
         { { ov::element::i8 }, { ov::element::f32 } },
         { { ov::element::i8 }, { ov::element::bf16 } },
         { { ov::element::i8 }, { ov::element::u8 }  },
+        { { ov::element::i8 }, { ov::element::f16 }  },
 
         { { ov::element::u8 }, { ov::element::f32 } },
         { { ov::element::u8 }, { ov::element::bf16 } },
         { { ov::element::u8 }, { ov::element::i8 } },
+        { { ov::element::u8 }, { ov::element::f16 } },
 };
 
 const std::vector<std::vector<ov::test::InputShape>> inputShapes_Convert = {
@@ -56,9 +65,11 @@ const std::vector<std::pair<std::vector<ov::element::Type>, std::vector<ov::elem
 
         { { ov::element::i8 }, { ov::element::f32 } },
         { { ov::element::i8 }, { ov::element::bf16 } },
+        { { ov::element::i8 }, { ov::element::f16 } },
 
         { { ov::element::u8 }, { ov::element::f32 } },
         { { ov::element::u8 }, { ov::element::bf16 } },
+        { { ov::element::u8 }, { ov::element::f16 } },
 };
 
 const std::vector<std::vector<ov::test::InputShape>> inputShapes_ConvertInput = {

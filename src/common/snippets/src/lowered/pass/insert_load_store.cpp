@@ -18,16 +18,7 @@ namespace pass {
 InsertLoadStore::InsertLoadStore(size_t vector_size) : m_vector_size(vector_size) {}
 
 size_t InsertLoadStore::get_count(const ExpressionPort& port) const {
-    const auto layout = port.get_descriptor_ptr()->get_layout();
-    const auto shape = port.get_descriptor_ptr()->get_shape();
-    size_t last_dim_idx = 0;
-    if (port.get_type() == ExpressionPort::Type::Input)
-        last_dim_idx = utils::get_input_dim_idx(layout, 0);
-    else if (port.get_type() == ExpressionPort::Type::Output)
-        last_dim_idx = utils::get_output_dim_idx(layout, 0);
-    else
-        OPENVINO_THROW("Unsupported type of expression port");
-    const auto dim = shape[last_dim_idx];
+    const auto dim = port.get_descriptor_ptr()->get_shape()[utils::get_dim_idx(port, 0)];
     return utils::is_dynamic_value(dim) ? m_vector_size : std::min(dim, m_vector_size);
 }
 
@@ -67,7 +58,9 @@ bool InsertLoadStore::insert_store(LinearIR& linear_ir, const LinearIR::constExp
 
     const auto& loop_ids = parent_expr->get_loop_ids();
     const auto store = std::make_shared<op::Store>(parent->output(port), get_count(data_expr->get_input_port(0)));
-    const auto& insertion_pos = linear_ir.find_after(std::reverse_iterator<LinearIR::constExprIt>(data_expr_it), parent_expr).base();
+    const auto insertion_it =
+        linear_ir.find_after(std::reverse_iterator<LinearIR::constExprIt>(data_expr_it), parent_expr);
+    const auto& insertion_pos = insertion_it.base();
     linear_ir.insert_node(store, std::vector<ExpressionPort>{ parent_output }, loop_ids, true, insertion_pos, { data_expr->get_input_port(0) });
     return true;
 }

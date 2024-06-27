@@ -13,6 +13,8 @@
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "utils/ngraph_utils.hpp"
 #include <partitioned_mem_mgr.h>
+#include "openvino/op/split.hpp"
+#include "openvino/op/variadic_split.hpp"
 
 #define THROW_ERROR(...) OPENVINO_THROW("Split layer with name '", getName(), "' ", __VA_ARGS__)
 
@@ -166,7 +168,8 @@ void Split::initSupportedPrimitiveDescriptors() {
     const auto& parentdDims = inputShapes[0].getDims();
     if (parentdDims[axis] != Shape::UNDEFINED_DIM &&
         std::all_of(parentdDims.begin(), parentdDims.begin() + axis, [](size_t dim) { return  dim == 1; }) &&
-        std::all_of(outputShapes.begin(), outputShapes.end(), [=](const Shape& shape){ return shape.getDims()[axis] != Shape::UNDEFINED_DIM; })) {
+        std::all_of(outputShapes.begin(), outputShapes.end(),
+            [OV_CAPTURE_CPY_AND_THIS](const Shape& shape){ return shape.getDims()[axis] != Shape::UNDEFINED_DIM; })) {
         for (auto refPdIndex : pdIndexesToReuse) {
             auto config = supportedPrimitiveDescriptors[refPdIndex].getConfig();
 

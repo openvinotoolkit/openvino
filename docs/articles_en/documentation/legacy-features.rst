@@ -59,6 +59,9 @@ offering.
     until they are fully removed.
 |   :doc:`See the Open Model ZOO documentation <legacy-features/model-zoo>`
 |   `Check the OMZ GitHub project <https://github.com/openvinotoolkit/open_model_zoo>`__
+|   As for public model databases, `Hugging Face <https://huggingface.co/OpenVINO>`__ has
+    become the recommended model source for OpenVINO.
+
 
 
 
@@ -96,24 +99,16 @@ Discontinued:
          .. tab-item:: Python
             :sync: py
 
-            .. doxygensnippet:: docs/snippets/export_compiled_model.py
+            .. doxygensnippet:: docs/articles_en/assets/snippets/export_compiled_model.py
                :language: python
                :fragment: [export_compiled_model]
 
          .. tab-item:: C++
             :sync: cpp
 
-            .. doxygensnippet:: docs/snippets/export_compiled_model.cpp
+            .. doxygensnippet:: docs/articles_en/assets/snippets/export_compiled_model.cpp
                :language: cpp
                :fragment: [export_compiled_model]
-
-.. dropdown:: DL Workbench
-
-   |   *New solution:* DevCloud version
-   |   *Old solution:* local distribution discontinued in OpenVINO 2022.3
-   |      The stand-alone version of DL Workbench, a GUI tool for previewing and benchmarking
-          deep learning models, has been discontinued. You can use its cloud version:
-   |      `Intel® Developer Cloud for the Edge <https://www.intel.com/content/www/us/en/developer/tools/devcloud/edge/overview.html>`__.
 
 .. dropdown:: TensorFlow integration (OVTF)
 

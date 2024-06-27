@@ -54,7 +54,11 @@ std::vector<TRShape> cell_base_shape_infer(const op::util::RNNCellBase* op,
     using DimType = typename TShape::value_type;
 
     // Merge batch_size dimension across all inputs to evaluate output[0] dimension
-    DimType merged_batch_size = x_pshape.rank().is_static() ? x_pshape[0] : DimType();
+    auto output_shapes = std::vector<TRShape>(1);
+    output_shapes[0].push_back(x_pshape.rank().is_static() ? x_pshape[0] : DimType());
+    output_shapes[0].push_back(ht_pshape.rank().is_static() ? ht_pshape[1] : DimType());
+    auto& merged_batch_size = output_shapes[0][0];
+    auto& merged_hidden_size = output_shapes[0][1];
     for (size_t i = 1; i <= num_state_nodes; ++i) {
         NODE_VALIDATION_CHECK(op,
                               DimType::merge(merged_batch_size,
@@ -65,7 +69,6 @@ std::vector<TRShape> cell_base_shape_infer(const op::util::RNNCellBase* op,
 
     // Merge hidden_size dimension across all inputs to evaluate output dimension
     // `hidden_size` attribute is not used for backward compatibility
-    DimType merged_hidden_size = ht_pshape.rank().is_static() ? ht_pshape[1] : DimType();
     for (size_t i = 2; i <= num_state_nodes; ++i) {
         if (input_shapes[i].rank().is_static()) {
             NODE_VALIDATION_CHECK(op,
@@ -124,7 +127,8 @@ std::vector<TRShape> cell_base_shape_infer(const op::util::RNNCellBase* op,
         }
     }
 
-    return {num_state_nodes, TRShape{merged_batch_size, merged_hidden_size}};
+    output_shapes.resize(num_state_nodes, output_shapes[0]);
+    return output_shapes;
 }
 
 // Output shapes layout:
@@ -139,9 +143,6 @@ std::vector<TRShape> seq_base_shape_infer(const op::util::RNNCellBase* op,
                                           bool linear_before_reset = false) {
     const auto num_inputs = 5 + num_state_nodes;
     NODE_VALIDATION_CHECK(op, input_shapes.size() >= num_inputs, "Incorrect number of shapes has been provided.");
-
-    std::vector<TRShape> output_shapes;
-    output_shapes.reserve(1 + num_state_nodes);
 
     std::vector<Rank> expected_in_ranks;
     expected_in_ranks.reserve(num_inputs);
@@ -158,9 +159,14 @@ std::vector<TRShape> seq_base_shape_infer(const op::util::RNNCellBase* op,
     const auto& b_pshape = input_shapes[4 + num_state_nodes];
 
     using DimType = typename TShape::value_type;
+    // Y output
+    auto output_shapes = std::vector<TRShape>{{x_pshape.rank().is_static() ? x_pshape[0] : DimType(),
+                                               DimType(),
+                                               x_pshape.rank().is_static() ? x_pshape[1] : DimType(),
+                                               ht_pshape.rank().is_static() ? ht_pshape[2] : DimType()}};
 
     // Merge batch_size dimension across all inputs to evaluate output[0] dimension
-    DimType merged_batch_size = x_pshape.rank().is_static() ? x_pshape[0] : DimType();
+    auto& merged_batch_size = output_shapes[0][0];
     for (size_t i = 1; i <= 1 + num_state_nodes; ++i) {
         if (input_shapes[i].rank().is_static()) {
             NODE_VALIDATION_CHECK(op,
@@ -171,7 +177,7 @@ std::vector<TRShape> seq_base_shape_infer(const op::util::RNNCellBase* op,
 
     // Merge hidden_size dimension across all inputs to evaluate output dimension
     // `hidden_size` attribute is not used for backward compatibility
-    DimType merged_hidden_size = ht_pshape.rank().is_static() ? ht_pshape[2] : DimType();
+    auto& merged_hidden_size = output_shapes[0][3];
     for (size_t i = 2; i <= num_state_nodes; ++i) {
         if (input_shapes[i].rank().is_static()) {
             NODE_VALIDATION_CHECK(op,
@@ -187,19 +193,18 @@ std::vector<TRShape> seq_base_shape_infer(const op::util::RNNCellBase* op,
     }
 
     // Validate num_directions dimension across all inputs
-    size_t valid_num_directions;
+    auto& merged_num_directions = output_shapes[0][1];
     const auto m_direction = direction;
     if (m_direction == op::RecurrentSequenceDirection::FORWARD ||
         m_direction == op::RecurrentSequenceDirection::REVERSE) {
-        valid_num_directions = 1;
+        merged_num_directions = 1;
     } else if (m_direction == op::RecurrentSequenceDirection::BIDIRECTIONAL) {
-        valid_num_directions = 2;
+        merged_num_directions = 2;
     } else {
         NODE_VALIDATION_CHECK(op, false, "Attribute direction must be FORWARD or REVERSE or BIDIRECTIONAL.");
     }
 
     bool is_num_dir_valid = true;
-    DimType merged_num_directions = DimType(valid_num_directions);
     for (size_t i = 1; i <= num_state_nodes; ++i) {
         is_num_dir_valid &= DimType::merge(merged_num_directions,
                                            merged_num_directions,
@@ -260,11 +265,6 @@ std::vector<TRShape> seq_base_shape_infer(const op::util::RNNCellBase* op,
         }
     }
 
-    // Y output
-    output_shapes.push_back(TRShape{merged_batch_size,
-                                    merged_num_directions,
-                                    x_pshape.rank().is_static() ? x_pshape[1] : DimType(),
-                                    merged_hidden_size});
     // Ho, Co outputs
     output_shapes.insert(output_shapes.end(),
                          num_state_nodes,

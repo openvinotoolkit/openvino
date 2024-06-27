@@ -135,7 +135,7 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
         return ro_properties;
     };
     const auto& default_rw_properties = []() {
-        std::vector<ov::PropertyName> rw_properties{ov::device::id, ov::enable_profiling};
+        std::vector<ov::PropertyName> rw_properties{ov::device::id, ov::enable_profiling, ov::hint::performance_mode};
         return rw_properties;
     };
     if (ov::model_name == name) {
@@ -153,11 +153,11 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
         auto ro_properties = default_ro_properties();
         auto rw_properties = default_rw_properties();
 
-        std::vector<ov::PropertyName> supported_properties;
+        auto supported_properties = decltype(ov::supported_properties)::value_type();
         supported_properties.reserve(ro_properties.size() + rw_properties.size());
         supported_properties.insert(supported_properties.end(), ro_properties.begin(), ro_properties.end());
         supported_properties.insert(supported_properties.end(), rw_properties.begin(), rw_properties.end());
-        return decltype(ov::supported_properties)::value_type(supported_properties);
+        return supported_properties;
     }
 
     return m_cfg.Get(name);

@@ -27,10 +27,10 @@ bool is_planar_layout(const std::vector<size_t>& layout) {
 //  Directly connected Buffers store data densely, so strides are defined by subternsor dims
 //  Indirectly connected Buffers (with loops between the expr and Buffer) store data according
 //  to their shape and layout
-bool has_directly_connected_buffer(const ExpressionPort& port, const snippets::lowered::LinearIR::LoopManagerPtr& loop_mngr) {
+bool has_directly_connected_buffer(const ExpressionPort& port, const snippets::lowered::LoopManagerPtr& loop_mngr) {
     auto accepted_loops = [&loop_mngr, &port](const std::vector<size_t>& orig, const std::vector<size_t>& connect) {
         size_t connect_idx = 0;
-        auto pred = [&port](const snippets::lowered::LinearIR::LoopManager::LoopPort& loop_port ) {
+        auto pred = [&port](const snippets::lowered::LoopPort& loop_port ) {
             return *loop_port.expr_port == port;
         };
         for (const auto orig_loop : orig) {
@@ -43,8 +43,8 @@ bool has_directly_connected_buffer(const ExpressionPort& port, const snippets::l
             // This is the case for Brgemm K-blocking loops, for example.
             const auto loop_info = loop_mngr->get_loop_info(orig_loop);
             const auto& border_points = port.get_type() == ExpressionPort::Type::Input ?
-                                                           loop_info->get_entry_points() :
-                                                           loop_info->get_exit_points();
+                                                           loop_info->get_input_ports() :
+                                                           loop_info->get_output_ports();
             const auto& found = std::find_if(border_points.begin(), border_points.end(), pred);
             if (found == border_points.end() || found->is_incremented)
                 return false;
@@ -64,7 +64,7 @@ bool has_directly_connected_buffer(const ExpressionPort& port, const snippets::l
     return has_buffer;
 }
 
-size_t get_leading_dim(ExpressionPort port, const snippets::lowered::LinearIR::LoopManagerPtr& loop_mngr) {
+size_t get_leading_dim(ExpressionPort port, const snippets::lowered::LoopManagerPtr& loop_mngr) {
     const auto& port_desc = port.get_descriptor_ptr();
     auto layout = port_desc->get_layout();
     auto shape = port_desc->get_shape();

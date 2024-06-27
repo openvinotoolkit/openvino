@@ -38,13 +38,13 @@ def stack(axis, input1, input2, input3):
             fetch_list=[out])
 
         if (axis == None):
-            saveModel("stack_test_none_axis", exe, feedkeys=['data1', 'data2', 'data3'], fetchlist=[out], inputs=[
+            saveModel("stack_test_none_axis", exe, feed_vars=[data1, data2, data3], fetchlist=[out], inputs=[
                 input1, input2, input3], outputs=[outs[0]], target_dir=sys.argv[1])
         elif (axis < 0):
-            saveModel("stack_test_neg_axis", exe, feedkeys=['data1', 'data2', 'data3'], fetchlist=[out], inputs=[
+            saveModel("stack_test_neg_axis", exe, feed_vars=[data1, data2, data3], fetchlist=[out], inputs=[
                 input1, input2, input3], outputs=[outs[0]], target_dir=sys.argv[1])
         else:
-            saveModel("stack_test_" + str(input1.dtype), exe, feedkeys=['data1', 'data2', 'data3'], fetchlist=[out], inputs=[
+            saveModel("stack_test_" + str(input1.dtype), exe, feed_vars=[data1, data2, data3], fetchlist=[out], inputs=[
                 input1, input2, input3], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]

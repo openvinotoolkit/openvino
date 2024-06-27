@@ -54,6 +54,8 @@ public:
      */
     virtual std::shared_ptr<ov::Model> read_model(const std::string& model_path, const std::string& bin_path) const = 0;
 
+    virtual ov::AnyMap create_compile_config(const std::string& device_name, const ov::AnyMap& origConfig) const = 0;
+
     /**
      * @brief Creates a compiled mdel from a model object.
      *

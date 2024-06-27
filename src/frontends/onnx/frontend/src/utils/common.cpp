@@ -65,6 +65,8 @@ const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
         return ov::element::dynamic;
     case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
         return ov::element::bf16;
+    case TensorProto_DataType::TensorProto_DataType_STRING:
+        return ov::element::string;
     }
     ONNX_UNSUPPORTED_DATA_TYPE(
         onnx_type,

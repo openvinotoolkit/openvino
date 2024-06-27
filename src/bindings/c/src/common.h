@@ -209,5 +209,6 @@ struct mem_istream : virtual mem_stringbuf, std::istream {
 };
 
 char* str_to_char_array(const std::string& str);
+ov_element_type_e find_ov_element_type_e(ov::element::Type type);
 ov::element::Type get_element_type(ov_element_type_e type);
 void dup_last_err_msg(const char* msg);

@@ -29,9 +29,13 @@ Property addon
    PreProcessSteps <./openvino-node/interfaces/PreProcessSteps>
    Tensor <./openvino-node/interfaces/Tensor>
    TensorConstructor <./openvino-node/interfaces/TensorConstructor>
-
+   Dimension <./openvino-node/types/Dimension>
+   elementTypeString <./openvino-node/types/elementTypeString>
+   SupportedTypedArray <./openvino-node/types/SupportedTypedArray>
 
 The **openvino-node** package exports ``addon`` which contains the following properties:
+
+.. rubric:: Interface NodeAddon
 
 .. code-block:: ts
 
@@ -46,85 +50,93 @@ The **openvino-node** package exports ``addon`` which contains the following pro
        };
    }
 
-- Defined in
-  `addon.ts:164 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L164>`__
+* **Defined in:**
+  `addon.ts:591 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L192>`__
+
 
 Properties
 #####################
 
+
 .. rubric:: Core
 
+.. container:: m-4
 
-.. code-block:: ts
+   .. code-block:: ts
 
-   Core: CoreConstructor
+      Core: CoreConstructor
 
-.. rubric:: Type declaration
+   * **Type declaration:**
 
-- CoreConstructor: :doc:`CoreConstructor <./openvino-node/interfaces/CoreConstructor>`
--  Defined in
-   `addon.ts:165 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L165>`__
+     - CoreConstructor: :doc:`CoreConstructor <./openvino-node/interfaces/CoreConstructor>`
+
+   -  **Defined in:**
+      `addon.ts:592 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L592>`__
 
 
 .. rubric:: PartialShape
 
+.. container:: m-4
 
+   .. code-block:: ts
 
-.. code-block:: ts
+      PartialShape: PartialShapeConstructor
 
-   PartialShape: PartialShapeConstructor
+   * **Type declaration:**
 
-.. rubric:: Type declaration
+     - PartialShapeConstructor: :doc:`PartialShapeConstructor <./openvino-node/interfaces/PartialShapeConstructor>`
 
-- PartialShapeConstructor: :doc:`PartialShapeConstructor <./openvino-node/interfaces/PartialShapeConstructor>`
--  Defined in
-   `addon.ts:167 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L167>`__
+   -  **Defined in:**
+      `addon.ts:594 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L594>`__
 
 .. rubric:: Tensor
 
+.. container:: m-4
 
-.. code-block:: ts
+   .. code-block:: ts
 
-  Tensor: TensorConstructor
+      Tensor: TensorConstructor
 
-.. rubric:: Type declaration
+   * **Type declaration:**
 
-- TensorConstructor: :doc:`TensorConstructor <./openvino-node/interfaces/TensorConstructor>`
+     - TensorConstructor: :doc:`TensorConstructor <./openvino-node/interfaces/TensorConstructor>`
 
--  Defined in
-   `addon.ts:166 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L166>`__
+   -  **Defined in:**
+      `addon.ts:593 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L593>`__
+
 
 .. rubric:: element
 
+.. container:: m-4
 
+   .. code-block:: ts
 
-.. code-block:: ts
+      element: typeof element
 
-   element: typeof element
+   * **Type declaration:**
 
-.. rubric:: Type declaration
+     - element: typeof :doc:`element <./openvino-node/enums/element>`
 
-- element:typeof :doc:`element <./openvino-node/enums/element>`
--  Defined in
-   `addon.ts:173 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L173>`__
+   -  **Defined in:**
+      `addon.ts:600 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L600>`__
+
 
 .. rubric:: preprocess
 
+.. container:: m-4
 
+   .. code-block:: ts
 
-.. code-block:: ts
+      preprocess: {
+          PrePostProcessor: PrePostProcessorConstructor;
+          resizeAlgorithm: typeof resizeAlgorithm;
+      }
 
-   preprocess: {
-       PrePostProcessor: PrePostProcessorConstructor;
-       resizeAlgorithm: typeof resizeAlgorithm;
-   }
+   * **Type declaration:**
 
+     - PrePostProcessor: :doc:`PrePostProcessorConstructor <./openvino-node/interfaces/PrePostProcessorConstructor>`
+     - resizeAlgorithm: typeof :doc:`resizeAlgorithm <./openvino-node/enums/resizeAlgorithm>`
 
-.. rubric:: Type declaration
+   -  **Defined in:**
+      `addon.ts:596 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L596>`__
 
-
-- PrePostProcessor: :doc:`PrePostProcessorConstructor <./openvino-node/interfaces/PrePostProcessorConstructor>`
-- resizeAlgorithm:typeof :doc:`resizeAlgorithm <./openvino-node/enums/resizeAlgorithm>`
-
--  Defined in
-   `addon.ts:169 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L169>`__

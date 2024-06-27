@@ -12,7 +12,8 @@ template <class T, class TRShape = result_shape_t<T>>
 std::vector<TRShape> shape_infer(const MatMul* op, const std::vector<T>& input_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2);
 
-    auto arg0_shape = input_shapes[0], arg1_shape = input_shapes[1];
+    const auto& arg0_shape = input_shapes[0];
+    const auto& arg1_shape = input_shapes[1];
     if (arg0_shape.rank().is_dynamic() || arg1_shape.rank().is_dynamic()) {
         return {ov::PartialShape::dynamic()};
     }

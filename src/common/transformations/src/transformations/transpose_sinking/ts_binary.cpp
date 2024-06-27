@@ -9,6 +9,10 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/binary_elementwise_arithmetic.hpp"
+#include "openvino/op/util/binary_elementwise_comparison.hpp"
+#include "openvino/op/util/binary_elementwise_logical.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -26,7 +30,7 @@ TSBinaryForward::TSBinaryForward() : TSForwardBase() {
                    op::util::BinaryElementwiseComparison,
                    op::util::BinaryElementwiseLogical,
                    ov::op::v0::PRelu,
-                   ov::op::v0::FakeQuantize>(true);
+                   ov::op::v0::FakeQuantize>();
     transpose_sinking(matcher_name);
 }
 

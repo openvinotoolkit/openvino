@@ -85,7 +85,7 @@ TransformInnerSplitLoop::TransformInnerSplitLoop(size_t tail_size) : RangedPass(
 bool TransformInnerSplitLoop::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
     const auto& expr = *end;
     const auto node = expr->get_node();
-    const auto loop_end = ov::as_type_ptr<op::LoopEndStatic>(node);
+    const auto loop_end = ov::as_type_ptr<op::LoopEnd>(node);
     OPENVINO_ASSERT(loop_end, "the last operation in range must be LoopEnd");
 
     const auto& loop_manager = linear_ir.get_loop_manager();
@@ -97,13 +97,16 @@ bool TransformInnerSplitLoop::run(LinearIR& linear_ir, LinearIR::constExprIt beg
     bool modified = false;
     for (auto it = begin; it != end; ++it) {
         const auto& expr = *it;
-        const auto inner_loop_end = ov::as_type_ptr<op::LoopEndStatic>(expr->get_node());
+        const auto inner_loop_end = ov::as_type_ptr<op::LoopEnd>(expr->get_node());
         if (!inner_loop_end)
             continue;
-        const auto inner_loop_info = loop_manager->get_loop_info(inner_loop_end->get_id());
+        // There is already ExpandedLoopInfo
+        const auto inner_loop_info = loop_manager->get_loop_info<ExpandedLoopInfo>(inner_loop_end->get_id());
         const auto inner_dim_idx = inner_loop_info->get_dim_idx();
         if (inner_dim_idx != current_dim_idx)
             continue;
+        // TODO [141735] : At the moment Splitted loops are not supported in dynamic case
+        OPENVINO_ASSERT(!inner_loop_end->has_dynamic_params(), "inner loop must be static in TransformInnerSplitLoop");
         const auto inner_loop_begin = inner_loop_end->get_loop_begin();
         const auto inner_loop_work_amount = static_cast<int64_t>(inner_loop_end->get_work_amount());
         const auto inner_loop_increment = inner_loop_end->get_increment();
@@ -112,6 +115,9 @@ bool TransformInnerSplitLoop::run(LinearIR& linear_ir, LinearIR::constExprIt beg
             offset = offset / inner_loop_work_amount * static_cast<int64_t>(m_tail_size);
         }
         inner_loop_end->set_work_amount(m_tail_size);
+        // Since the loop has work amount equal to increment of outer loop, not broadcasted dimension,
+        // we should set `work_amount_const = true` to avoid rewriting in common loop intiialization passes (for example, `InitLoops`)
+        inner_loop_info->set_work_amount_const(true);
         // TODO: if m_tail_size more than inner loop increment,
         // handlers of the inner loop must be reset with new tail size
         inner_loop_end->set_increment(std::min(inner_loop_increment, m_tail_size));
@@ -119,7 +125,7 @@ bool TransformInnerSplitLoop::run(LinearIR& linear_ir, LinearIR::constExprIt beg
         const auto inner_loop_begin_it = std::find(begin, it, linear_ir.get_expr_by_node(inner_loop_begin));
         const auto inner_loop_end_it = std::next(it);
         OPENVINO_ASSERT(inner_loop_begin_it != it, "LoopBegin has not been found!");
-        const auto& last_iter_handlers = inner_loop_info->get_handlers().get_last_iter_handlers();
+        const auto& last_iter_handlers = inner_loop_info->get_unified_loop_info()->get_handlers().get_passes<SpecificLoopIterType::LAST_ITER>();
         last_iter_handlers.run(linear_ir, std::next(inner_loop_begin_it), inner_loop_end_it);
         modified = true;
     }

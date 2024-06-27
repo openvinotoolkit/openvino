@@ -4,6 +4,7 @@
 
 #pragma once
 #include "primitive.hpp"
+#include "openvino/op/generate_proposals.hpp"
 #include <vector>
 
 namespace cldnn {
@@ -43,32 +44,35 @@ struct generate_proposals
             primitive_base{id, inputs, {output_padding}},
             output_rois_scores{inputs[4].pid},
             output_rois_num{inputs[5].pid},
-            min_size{min_size},
-            nms_threshold{nms_threshold},
-            pre_nms_count{pre_nms_count},
-            post_nms_count{post_nms_count},
-            normalized{normalized},
-            nms_eta{nms_eta},
-            roi_num_type{roi_num_type} {}
+            roi_num_type{roi_num_type} {
+        attrs.min_size = min_size;
+        attrs.nms_threshold = nms_threshold;
+        attrs.pre_nms_count = pre_nms_count;
+        attrs.post_nms_count = post_nms_count;
+        attrs.normalized = normalized;
+        attrs.nms_eta = nms_eta;
+    }
+
+    generate_proposals(const primitive_id& id,
+                       const std::vector<input_info>& inputs,
+                       const ov::op::v9::GenerateProposals::Attributes& attrs) :
+            primitive_base{id, inputs, {}},
+            attrs{attrs} {}
+
+    ov::op::v9::GenerateProposals::Attributes attrs;
 
     primitive_id output_rois_scores;
     primitive_id output_rois_num;
-    float min_size = 0.0f;
-    float nms_threshold = 0.0f;
-    int64_t pre_nms_count = 0;
-    int64_t post_nms_count = 0;
-    bool normalized = false;
-    float nms_eta = 0.0f;
     data_types roi_num_type = data_types::undefined;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
-        seed = hash_combine(seed, min_size);
-        seed = hash_combine(seed, nms_threshold);
-        seed = hash_combine(seed, pre_nms_count);
-        seed = hash_combine(seed, post_nms_count);
-        seed = hash_combine(seed, normalized);
-        seed = hash_combine(seed, nms_eta);
+        seed = hash_combine(seed, attrs.min_size);
+        seed = hash_combine(seed, attrs.nms_threshold);
+        seed = hash_combine(seed, attrs.pre_nms_count);
+        seed = hash_combine(seed, attrs.post_nms_count);
+        seed = hash_combine(seed, attrs.normalized);
+        seed = hash_combine(seed, attrs.nms_eta);
         seed = hash_combine(seed, roi_num_type);
         seed = hash_combine(seed, output_rois_scores.empty());
         seed = hash_combine(seed, output_rois_num.empty());
@@ -82,12 +86,12 @@ struct generate_proposals
         auto rhs_casted = downcast<const generate_proposals>(rhs);
 
         #define cmp_fields(name) name == rhs_casted.name
-        return cmp_fields(min_size) &&
-               cmp_fields(nms_threshold) &&
-               cmp_fields(pre_nms_count) &&
-               cmp_fields(post_nms_count) &&
-               cmp_fields(normalized) &&
-               cmp_fields(nms_eta) &&
+        return cmp_fields(attrs.min_size) &&
+               cmp_fields(attrs.nms_threshold) &&
+               cmp_fields(attrs.pre_nms_count) &&
+               cmp_fields(attrs.post_nms_count) &&
+               cmp_fields(attrs.normalized) &&
+               cmp_fields(attrs.nms_eta) &&
                cmp_fields(roi_num_type) &&
                cmp_fields(output_rois_scores.empty()) &&
                cmp_fields(output_rois_num.empty());
@@ -98,12 +102,12 @@ struct generate_proposals
         primitive_base<generate_proposals>::save(ob);
         ob << output_rois_scores;
         ob << output_rois_num;
-        ob << min_size;
-        ob << nms_threshold;
-        ob << pre_nms_count;
-        ob << post_nms_count;
-        ob << normalized;
-        ob << nms_eta;
+        ob << attrs.min_size;
+        ob << attrs.nms_threshold;
+        ob << attrs.pre_nms_count;
+        ob << attrs.post_nms_count;
+        ob << attrs.normalized;
+        ob << attrs.nms_eta;
         ob << make_data(&roi_num_type, sizeof(data_types));
     }
 
@@ -111,12 +115,12 @@ struct generate_proposals
         primitive_base<generate_proposals>::load(ib);
         ib >> output_rois_scores;
         ib >> output_rois_num;
-        ib >> min_size;
-        ib >> nms_threshold;
-        ib >> pre_nms_count;
-        ib >> post_nms_count;
-        ib >> normalized;
-        ib >> nms_eta;
+        ib >> attrs.min_size;
+        ib >> attrs.nms_threshold;
+        ib >> attrs.pre_nms_count;
+        ib >> attrs.post_nms_count;
+        ib >> attrs.normalized;
+        ib >> attrs.nms_eta;
         ib >> make_data(&roi_num_type, sizeof(data_types));
     }
 

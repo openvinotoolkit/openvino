@@ -1,18 +1,18 @@
 name: 'Dependency Review'
-on: [pull_request]
+on: [pull_request, merge_group]
 
-permissions:
-  contents: read
+permissions: read-all
 
 jobs:
   dependency-review:
     runs-on: ubuntu-latest
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Dependency Review
-        uses: actions/dependency-review-action@v4
+        uses: actions/dependency-review-action@72eb03d02c7872a771aacd928f3123ac62ad6d3a # v4.3.3
         with:
           config-file: './.github/dependency_review.yml'
-          allow-dependencies-licenses: 'pkg:pypi/PyGithub@2.2.0,pkg:pypi/psycopg2-binary'
+          base-ref: ${{ github.pull_request.base.sha || github.event.merge_group.base_ref }}
+          head-ref: ${{ github.pull_request.head.sha || github.ref }}

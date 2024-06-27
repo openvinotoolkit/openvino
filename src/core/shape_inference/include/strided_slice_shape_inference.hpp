@@ -61,12 +61,12 @@ std::vector<TRShape> shape_infer(const StridedSlice* op,
     const auto begin = get_input_bounds<TRShape, int64_t>(op, 1, ta);
     const auto end = get_input_bounds<TRShape, int64_t>(op, 2, ta);
 
-    std::unique_ptr<std::vector<int64_t>> strides;
+    ov::optional<std::vector<int64_t>> strides;
     if (input_shapes.size() > 3) {
         strides = get_input_const_data_as<TRShape, int64_t>(op, 3, ta);
     } else if (begin) {
         // generate default strides
-        strides.reset(new std::vector<int64_t>(begin->size(), 1));
+        strides.emplace(begin->size(), 1);
     }
 
     // compute and check a number of axes for which begin, end, and strides are defined

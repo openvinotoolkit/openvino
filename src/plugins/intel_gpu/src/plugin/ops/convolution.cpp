@@ -273,8 +273,8 @@ static void DeformableConvolutionImpl(ProgramBuilder& p,
                                       const ov::Strides& strides,
                                       const ov::Strides& dilations,
                                       const ov::CoordinateDiff& padding,
-                                      std::int64_t deformableGroupsNum,
-                                      bool bilinearInterpolationPad = false) {
+                                      std::int64_t deformable_groups_num,
+                                      bool bilinear_interpolation_pad = false) {
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
     auto outDims = op->get_output_shape(0);
@@ -282,62 +282,20 @@ static void DeformableConvolutionImpl(ProgramBuilder& p,
     cldnn::primitive_id weights = inputs[2].pid;
     // Remove weights from inputs
     inputs.erase(inputs.begin() + 2);
-    auto device_info = p.get_engine().get_device_info();
-    bool supports_subgroups = device_info.supports_khr_subgroups || device_info.supports_intel_subgroups;
-    if (groups == 1 && supports_subgroups) {
-        std::string defConvLayerNameInterp = layerName + "_interp";
-        std::string defConvLayerNameConv = layerName;
-        cldnn::tensor kernel;
-        auto weights_shape = op->get_input_shape(2);
-        size_t nonSpatialDimsNum = 2;
-        if (weights_shape.size() == 3) {
-            kernel = cldnn::tensor(cldnn::batch(1),
-                                   cldnn::feature(1),
-                                   cldnn::spatial(weights_shape[nonSpatialDimsNum + 2],
-                                                  weights_shape[nonSpatialDimsNum + 1],
-                                                  weights_shape[nonSpatialDimsNum + 0]));
-        } else {
-            kernel = cldnn::tensor(cldnn::batch(1),
-                                   cldnn::feature(1),
-                                   cldnn::spatial(weights_shape[nonSpatialDimsNum + 1],
-                                                  weights_shape[nonSpatialDimsNum + 0],
-                                                  1));
-        }
+    auto convPrim = cldnn::convolution(layerName,
+                                       inputs,
+                                       weights,
+                                       "",
+                                       true,
+                                       groups,
+                                       deformable_groups_num,
+                                       strides,
+                                       dilations,
+                                       padding,
+                                       padding,
+                                       bilinear_interpolation_pad);
 
-        auto defConvPrimInterp = cldnn::deformable_interp(defConvLayerNameInterp,
-                                                          inputs,
-                                                          groups,
-                                                          deformableGroupsNum,
-                                                          strides,
-                                                          padding,
-                                                          dilations,
-                                                          tensor_from_dims(outDims),
-                                                          kernel,
-                                                          bilinearInterpolationPad);
-        p.add_primitive(*op, defConvPrimInterp);
-        auto defConvPrim = cldnn::deformable_conv(defConvLayerNameConv,
-                                                  defConvLayerNameInterp,
-                                                  { weights },
-                                                  {},
-                                                  groups,
-                                                  tensor_from_dims(outDims));
-        p.add_primitive(*op, defConvPrim);
-    } else {
-        auto convPrim = cldnn::convolution(layerName,
-                                           inputs,
-                                           weights,
-                                           "",
-                                           true,
-                                           groups,
-                                           deformableGroupsNum,
-                                           strides,
-                                           dilations,
-                                           padding,
-                                           padding,
-                                           bilinearInterpolationPad);
-
-        p.add_primitive(*op, convPrim);
-    }
+    p.add_primitive(*op, convPrim);
 }
 
 static void CreateDeformableConvolutionOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::DeformableConvolution>& op) {

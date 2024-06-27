@@ -18,6 +18,7 @@ class TRANSFORMATIONS_API GroupedGatherElimination;
 class TRANSFORMATIONS_API GatherNopElimination;
 class TRANSFORMATIONS_API SimplifyGatherShapeOf;
 class TRANSFORMATIONS_API SimplifySecondInputOfReshape;
+class TRANSFORMATIONS_API AbsSinking;
 
 }  // namespace pass
 }  // namespace ov
@@ -79,4 +80,16 @@ class ov::pass::SimplifySecondInputOfReshape : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("SimplifySecondInputOfReshape", "0");
     SimplifySecondInputOfReshape();
+};
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief AbsSinking optimizes out the Abs which input is non negative. Has a special case for Concat -> Abs graph, it
+ * moves Abs up through Concat to its inputs, tries to constant fold new Abs ops. In case folding fails applies
+ * optimization to the leftover Abs ops
+ */
+class ov::pass::AbsSinking : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("AbsSinking", "0");
+    AbsSinking();
 };

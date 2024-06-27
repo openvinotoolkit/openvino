@@ -94,7 +94,7 @@ void ov::op::util::FrameworkNode::validate_and_infer_types() {
                 pshape = shape_map.at(output_index);
             }
             if (PartialShape::merge_into(pshape, node_result.get_partial_shape())) {
-                shape_map[output_index] = pshape;
+                shape_map[output_index] = std::move(pshape);
             } else {
                 shape_map[output_index] = PartialShape::dynamic();
             }

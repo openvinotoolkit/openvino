@@ -15,8 +15,8 @@ namespace pass {
 
 /**
  * @interface InsertBuffers
- * @brief The pass inserts Buffer between exit points of one loop (or Brgemm) and
- *        entry points of another loop (or Brgemm) to store intermediate data.
+ * @brief The pass inserts Buffer between output ports of one loop (or Brgemm) and
+ *        input ports of another loop (or Brgemm) to store intermediate data.
  *        The pass should be called after FuseLoops.
  * @param m_buffer_allocation_rank - rank of shape for memory allocation: shape[shape_rank - normalize(m_allocation_rank) : shape_rank]
  * @ingroup snippets
@@ -24,7 +24,7 @@ namespace pass {
 class InsertBuffers : public RangedPass {
 public:
     OPENVINO_RTTI("InsertBuffers", "RangedPass")
-    InsertBuffers(int32_t buffer_allocation_rank);
+    InsertBuffers() = default;
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 
 private:
@@ -39,8 +39,6 @@ private:
                                                     const LoopManagerPtr& loop_manager,
                                                     const ExpressionPtr& expr,
                                                     const ExpressionPtr& down_expr);
-
-    int32_t m_buffer_allocation_rank;
 };
 
 } // namespace pass

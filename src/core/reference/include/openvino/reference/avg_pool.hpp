@@ -131,8 +131,8 @@ void avg_pool(const T* const arg,
         include_padding_in_avg_computation && (std::any_of(padding_below.begin(), padding_below.end(), not_zero) ||
                                                std::any_of(padding_above.begin(), padding_above.end(), not_zero));
 
-    Shape arg_shape_3D{arg_shape};
-    Shape out_shape_3D{out_shape};
+    Shape arg_shape_5D{arg_shape};
+    Shape out_shape_5D{out_shape};
     Shape window_shape_3D{window_shape};
     Strides window_movement_strides_3D{window_movement_strides};
     Shape padding_below_3D{padding_below};
@@ -140,8 +140,8 @@ void avg_pool(const T* const arg,
 
     if (window_shape.size() < 3) {
         const size_t dim_diff = 3 - window_shape.size();
-        arg_shape_3D.insert(std::next(arg_shape_3D.begin(), 2), dim_diff, 1);
-        out_shape_3D.insert(std::next(out_shape_3D.begin(), 2), dim_diff, 1);
+        arg_shape_5D.insert(std::next(arg_shape_5D.begin(), 2), dim_diff, 1);
+        out_shape_5D.insert(std::next(out_shape_5D.begin(), 2), dim_diff, 1);
         window_shape_3D.insert(window_shape_3D.begin(), dim_diff, 1);
         window_movement_strides_3D.insert(window_movement_strides_3D.begin(), dim_diff, 1);
         padding_below_3D.insert(padding_below_3D.begin(), dim_diff, 0);
@@ -160,8 +160,8 @@ void avg_pool(const T* const arg,
             T* out_channel_first_elem = out + b * out_batch_elems + c * out_channel_elems;
             kernel::avg_pool_3d(data_channel_first_elem,
                                 out_channel_first_elem,
-                                arg_shape_3D,
-                                out_shape_3D,
+                                arg_shape_5D,
+                                out_shape_5D,
                                 window_shape_3D,
                                 window_movement_strides_3D,
                                 padding_below_3D,

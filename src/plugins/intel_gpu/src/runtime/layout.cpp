@@ -7,12 +7,14 @@
 #include <list>
 #include <vector>
 #include <algorithm>
+#include "openvino/core/dimension.hpp"
+#include "openvino/core/partial_shape.hpp"
 
 namespace cldnn {
 static inline bool check_redundant_1d_along_feature(layout const& l1, layout const& l2);
 namespace {
 
-std::vector<int32_t> convert_dimensions(const std::vector<int32_t>& sizes, std::string in_order, std::string out_order) {
+std::vector<int32_t> convert_dimensions(const std::vector<int32_t>& sizes, const std::string& in_order, const std::string& out_order) {
     std::vector<int32_t> new_sizes(out_order.size(), {-1});
     for (size_t out_idx = 0; out_idx < out_order.size(); ++out_idx) {
         auto channel = out_order[out_idx];
@@ -231,7 +233,7 @@ bool layout::is_static() const {
     return !is_dynamic();
 }
 
-ov::PartialShape layout::get_partial_shape() const {
+const ov::PartialShape& layout::get_partial_shape() const {
     return size;
 }
 
@@ -501,23 +503,36 @@ bool layout::identical(const layout& other) const {
     return ret;
 }
 
-ov::PartialShape layout::transform(const ov::PartialShape& pshape, cldnn::format old_fmt, cldnn::format new_fmt) {
+ov::PartialShape layout::transform(const ov::PartialShape& pshape, const cldnn::format& old_fmt, const cldnn::format& new_fmt) {
     if (old_fmt == new_fmt) {
         return pshape;
     }
 
+    // shortcut for transform to max rank default fmt which is used in fill_shape_info_data to improve perf
+    if (format::is_default_format(old_fmt) && new_fmt == format::bfvuwzyx) {
+        ov::PartialShape res = pshape;
+        // This part is necessary because we treat 3D layouts as "bfy", not as "bfx".
+        if (res.size() == 3)
+            res.push_back(1);
+        size_t num_to_insert = layout::max_rank() - res.size();
+        size_t pos_to_insert = std::min<size_t>(res.size(), 2);
+        res.insert(res.begin() + pos_to_insert, num_to_insert, 1);
+
+        return res;
+    }
+
     int32_t default_size = -1;
-    auto shape = pshape.to_shape();
     std::vector<int32_t> dims;
-    for (auto dim : shape) {
-        dims.push_back(static_cast<int32_t>(dim));
+    dims.reserve(pshape.size());
+    for (auto dim : pshape) {
+        dims.push_back(static_cast<int32_t>(dim.get_length()));
     }
 
     const cldnn::format default_fmt = cldnn::format::bfvuwzyx;
     auto old_sizes = convert_dimensions(dims, old_fmt.order(), default_fmt.internal_order()); // convert to internal order (bfxyzwuv)
 
-    auto val_order = default_fmt.internal_order();
-    auto new_order = new_fmt.internal_order();
+    const auto& val_order = default_fmt.internal_order();
+    const auto& new_order = new_fmt.internal_order();
     const auto& new_traits = new_fmt.traits();
 
     std::vector<int32_t> new_sizes(old_sizes.size(), {default_size});
@@ -566,8 +581,12 @@ ov::PartialShape layout::transform(const ov::PartialShape& pshape, cldnn::format
             new_dims[idx] *= -1;
     }
 
-    ov::Shape new_shape(new_dims.begin(), new_dims.end());
-    return ov::PartialShape(new_shape);
+    ov::PartialShape res;
+    res.reserve(new_dims.size());
+    for (size_t i = 0; i < new_dims.size(); i++) {
+        res.push_back(ov::Dimension(new_dims[i]));
+    }
+    return res;
 }
 
 // Check a reorder is 1d along feature axis. Or feature size fits to inner block size of feature axis

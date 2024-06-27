@@ -13,7 +13,7 @@ namespace pass {
 
 /**
  * @interface InitBuffersDefault
- * @brief The pass inits Buffer expressions in LinearIR default (non-optimized): sets unique offsets and ID to Buffers.
+ * @brief The pass inits Buffer expressions in LinearIR default (non-optimized): sets unique offsets and reg groups to Buffers.
  * @ingroup snippets
  */
 

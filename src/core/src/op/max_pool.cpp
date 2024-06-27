@@ -204,9 +204,9 @@ bool MaxPool::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
     const auto input_shapes = std::vector<PartialShape>{inputs[0].get_shape()};
     auto pads_begin = m_pads_begin;
     auto pads_end = m_pads_end;
-    const auto output_shape = shape_infer(this, input_shapes, pads_begin, pads_end).front();
+    const auto output_shapes = shape_infer(this, input_shapes, pads_begin, pads_end);
 
-    outputs[0].set_shape(output_shape.get_shape());
+    outputs[0].set_shape(output_shapes[0].get_shape());
     using namespace ov::element;
     return IF_TYPE_OF_CONVERT_TENSORS(v1_MaxPool_evaluate,
                                       this,
@@ -421,9 +421,9 @@ bool MaxPool::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
     const auto input_shapes = std::vector<PartialShape>{inputs[0].get_shape()};
     auto pads_begin = m_pads_begin;
     auto pads_end = m_pads_end;
-    const auto output_shape = shape_infer(this, input_shapes, pads_begin, pads_end).front();
+    const auto output_shapes = shape_infer(this, input_shapes, pads_begin, pads_end);
 
-    outputs[0].set_shape(output_shape.get_shape());
+    outputs[0].set_shape(output_shapes[0].get_shape());
 
     return ov::op::maxpool::evaluate_util(this, outputs, inputs, get_dilations(), get_axis());
 }

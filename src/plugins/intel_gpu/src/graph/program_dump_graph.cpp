@@ -262,14 +262,22 @@ void dump_graph_init(std::ofstream& graph,
         }
         graph << "];\n";
 
+        // To print duplicated connection port between two nodes.
+        // <user_node, user's input port>
+        std::set<std::pair<program_node *, int>> marked_connection;
+
         for (auto& user : node->get_users()) {
             bool doubled = true;
             auto it = user->get_dependencies().begin();
             while (it != user->get_dependencies().end()) {
-                if (it->first == node)
+                int input_port = it - user->get_dependencies().begin();
+                if (it->first == node && marked_connection.find({node, input_port}) == marked_connection.end()) {
+                    marked_connection.emplace(user, input_port);
                     break;
+                }
                 ++it;
             }
+
             if (it == user->get_dependencies().end())
                 doubled = false;
             graph << "    " << get_node_id(node) << " -> " << get_node_id(user)

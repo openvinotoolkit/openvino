@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/ops.hpp"
 
@@ -326,4 +327,14 @@ TEST(type_prop, gather_elements_incosistent_interval_shapes) {
     } catch (...) {
         FAIL() << "Shape inconsistency check for dynamic PartialShape failed for unexpected reason";
     }
+}
+
+TEST(type_prop, gather_elements_data_rank_dynamic_indicies_incorrect_rank) {
+    constexpr int64_t axis = 0;
+    const auto data = std::make_shared<v0::Parameter>(element::i8, PartialShape::dynamic());
+    const auto indices = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+
+    OV_EXPECT_THROW(std::ignore = std::make_shared<v6::GatherElements>(data, indices, axis),
+                    NodeValidationFailure,
+                    HasSubstr("indices rank must be >= 1"));
 }

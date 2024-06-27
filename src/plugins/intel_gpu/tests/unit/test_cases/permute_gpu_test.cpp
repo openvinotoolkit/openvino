@@ -2248,18 +2248,40 @@ TEST_P(permute_tile_fsv_5d, i64_cached) {
 
 class permute_f_y_axes_tile: public TiledPermuteTest {};
 
-// Test cases are disabled because permute_f_y_axes_tile kernel itself is disabled for accuracy issue
-// INSTANTIATE_TEST_SUITE_P(smoke_permute_f_y_axes_tile,
-//                          permute_f_y_axes_tile,
-//                          ::testing::ValuesIn(std::vector<TiledPermuteParam>{
-//                              {{1, 4, 8, 1}, format::bfyx},                // permute_f_y_axes
-//                              {{1, 64, 32, 1}, format::bfyx},              // permute_f_y_axes
-//                              {{1, 32, 256, 512}, format::b_fs_yx_fsv32},  // THREE_DIM_TRANSPOSE
-//                              {{1, 32, 256, 512}, format::bfyx},           // PERMUTE_SIMPLE_MEM_COPY
-//                              {{1, 256, 256, 1}, format::b_fs_yx_fsv32},   // permute_f_y_axes
-//                              {{1, 32, 16, 4}, format::b_fs_yx_fsv16},     // THREE_DIM_TRANSPOSE
-//                          }),
-//                          TiledPermuteTest::PrintToStringParamName);
+INSTANTIATE_TEST_SUITE_P(smoke_permute_f_y_axes_tile,
+                         permute_f_y_axes_tile,
+                         ::testing::ValuesIn(std::vector<TiledPermuteParam>{
+                             {{1, 4, 8, 1}, format::bfyx},                // permute_f_y_axes
+                             {{1, 64, 32, 1}, format::bfyx},              // permute_f_y_axes
+                             {{1, 32, 256, 512}, format::b_fs_yx_fsv32},  // THREE_DIM_TRANSPOSE
+                             {{1, 32, 256, 512}, format::bfyx},           // PERMUTE_SIMPLE_MEM_COPY
+                             {{1, 256, 256, 1}, format::b_fs_yx_fsv32},   // permute_f_y_axes
+                             {{1, 32, 16, 4}, format::b_fs_yx_fsv16},     // THREE_DIM_TRANSPOSE
+                             //4 batch version
+                             {{4, 4, 4, 1}, format::bfyx},                // permute_f_y_axes
+                             //32 batch version
+                             {{32, 4, 8, 1}, format::bfyx},                // permute_f_y_axes
+                             {{32, 64, 32, 1}, format::bfyx},              // permute_f_y_axes
+                             {{32, 128, 196, 1}, format::bfyx},              // permute_f_y_axes
+                             {{32, 196, 4, 16}, format::bfyx},              // permute_f_y_axes
+                             {{32, 196, 4, 32}, format::bfyx},              // permute_f_y_axes
+                             {{32, 4, 196, 32}, format::bfyx},              // permute_f_y_axes
+                             {{32, 196, 128, 1}, format::bfyx},              // permute_f_y_axes
+                             {{32, 196, 8, 16}, format::bfyx},              // permute_f_y_axes
+                             {{16, 32, 128, 512}, format::b_fs_yx_fsv32},  // THREE_DIM_TRANSPOSE
+                             {{16, 32, 128, 512}, format::bfyx},           // PERMUTE_SIMPLE_MEM_COPY
+                             {{32, 256, 256, 1}, format::b_fs_yx_fsv32},   // permute_f_y_axes
+                             {{32, 32, 16, 4}, format::b_fs_yx_fsv16},     // THREE_DIM_TRANSPOSE
+                             {{32, 16, 16, 16}, format::bfyx}, 
+                             {{32, 16, 8, 16}, format::bfyx}, 
+                             {{32, 16, 16, 64}, format::bfyx},
+                             {{32, 16, 8, 32}, format::bfyx}, 
+                             {{32, 8, 16, 32}, format::bfyx},
+                             {{32, 196, 8, 64}, format::bfyx},           // permute_f_y_axes
+                             {{1, 512, 30, 1}, format::bfyx},            // fix for JTIMES=0
+                             {{1, 2, 512, 10}, format::bfyx},            //case trying to set vec size(4) bigger than x divisor(2) in case of f16
+                         }),
+                         TiledPermuteTest::PrintToStringParamName);
 
 TEST_P(permute_f_y_axes_tile, combined) {
     auto p = GetParam();
@@ -2273,14 +2295,53 @@ TEST_P(permute_f_y_axes_tile, combined) {
 
 struct TiledPerformancePermuteTest : TiledPermuteTest
 {
+    static double get_exectime(const std::map<cldnn::primitive_id, cldnn::network_output>& outputs,
+                                const std::string& primitive_id)
+    {
+        using namespace std::chrono;
+        std::shared_ptr<event> e = outputs.at(primitive_id).get_event();
+        e->wait(); // should ensure execution completion, if not segfault will occur
+        double avg_time = 0.0;
+        auto intervals = e->get_profiling_info();
+        for (const auto& q : intervals)
+        {
+            if (q.stage != instrumentation::profiling_stage::executing) {
+                continue;
+            }
+            avg_time = duration_cast<duration<double, microseconds::period>>(q.value->value()).count();
+            break;
+        }
+        return avg_time;
+    }
+
+    static void print_all_perf(std::map<primitive_id, network_output> outputs)
+    {
+        std::cout << "Print last run time" << std::endl;
+        using namespace std::chrono;
+        for( const auto &n : outputs ) {
+            std::shared_ptr<event> e = n.second.get_event();
+            auto intervals = e->get_profiling_info();
+            double time = 0.0;
+            for (const auto& q : intervals)
+            {
+                if (q.stage == instrumentation::profiling_stage::executing) {
+                    continue;
+                }
+                time = duration_cast<duration<double, microseconds::period>>(q.value->value()).count();
+                break;
+            }
+            std::cout << n.first << ":" << time << std::endl;
+        }
+        std::cout << std::endl;
+    }
+    
     template<data_types Data_Type>
     void execute_perf_test(const std::vector<cldnn::tensor::value_type>& sizes, cldnn::format format_fsv,
                             const std::string & kernel_name, std::vector<uint16_t> permute_order)
     {
         auto& engine = get_test_engine();
-        // convert ov::float16 to ov::float16
-        using type_ = typename ov::element_type_traits<Data_Type>::value_type;
-        using type = typename std::conditional<std::is_same<type_, ov::float16>::value, ov::float16, type_>::type;
+        // convert half_t to FLOAT16
+        using type = typename ov::element_type_traits<Data_Type>::value_type;
 
         std::vector<cldnn::tensor::value_type> internal_sizes(sizes);
         std::swap(internal_sizes.at(2), internal_sizes.back());
@@ -2342,11 +2403,11 @@ struct TiledPerformancePermuteTest : TiledPermuteTest
         double exectime_opt = 0.f;
         for (int i = 0; i < r; ++i) {
             output_permute_opt = network_tile.execute();
-            auto t_opt = get_profiling_exectime(output_permute_opt, "output");
+            auto t_opt = get_exectime(output_permute_opt, "output");
             exectime_opt += t_opt;
 
             output_permute_ref = network_ref.execute();
-            auto t_ref = get_profiling_exectime(output_permute_ref, "output");
+            auto t_ref = get_exectime(output_permute_ref, "output");
             exectime_ref += t_ref;
         }
         exectime_ref /= r;
@@ -2365,13 +2426,16 @@ struct TiledPerformancePermuteTest : TiledPermuteTest
                   << frm_str << " " << input_type << " " << exectime_opt << std::endl;
 
     }
+    
 };
+
 
 // No need to run performance tests on CI
 TEST_P(TiledPerformancePermuteTest, DISABLED_f32) {
     auto p = GetParam();
     execute_perf_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_f_y_axes", {0, 2, 1, 3});
 }
+
 
 INSTANTIATE_TEST_SUITE_P(, TiledPerformancePermuteTest,
     ::testing::ValuesIn(std::vector<TiledPermuteParam> {

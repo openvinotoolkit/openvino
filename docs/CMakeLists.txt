@@ -33,6 +33,7 @@ function(build_docs)
     set(DOXYGEN_MAPPING_SCRIPT "${SCRIPTS_DIR}/create_mapping.py")
     set(DOCS_MAPPING_SCRIPT "${SCRIPTS_DIR}/create_doc_mapping.py")
     set(BREATHE_APIDOC_SCRIPT "${SCRIPTS_DIR}/apidoc.py")
+    set(OV_INSTALLATION_SCRIPT "${SCRIPTS_DIR}/install_appropriate_openvino_version.py")
 
     # Doxygen/Sphinx setup
     set(DOXYGEN_XML_OUTPUT "${DOCS_BUILD_DIR}/xml")
@@ -62,7 +63,9 @@ function(build_docs)
 
     if(${ENABLE_PYTHON_API})
         list(APPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "STARTED preprocessing OpenVINO Python API")
-        list(APPEND commands COMMAND ${Python3_EXECUTABLE} -m pip install openvino)
+        list(APPEND commands COMMAND ${Python3_EXECUTABLE} ${OV_INSTALLATION_SCRIPT}
+        --ov_dir=${SPHINX_SETUP_DIR}
+        --python=${Python3_EXECUTABLE})
         list(APPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "FINISHED preprocessing OpenVINO Python API")
     endif()
 

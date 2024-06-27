@@ -92,7 +92,7 @@ Once you have downloaded the pretrained model files, you will have the ``lm_1b``
 
 
 
-.. image:: ./../../../../../../_static/images/lm_1b.svg
+.. image:: ../../../../../../assets/images/lm_1b.svg
 
 The frozen model still has two variables: ``Variable`` and ``Variable_1``.
 It means that the model keeps training those variables at each inference.

@@ -56,7 +56,7 @@ std::vector<TRShape> shape_infer(const MatrixNms* op, const std::vector<TShape>&
             }
             num_boxes *= scores_shape[0];
             const auto& selected_boxes =
-                std::is_same<TRShape, PartialShape>::value ? TDim(0, num_boxes.get_max_length()) : num_boxes;
+                std::is_same<TRShape, PartialShape>::value ? TDim(0, num_boxes.get_max_length()) : std::move(num_boxes);
 
             std::for_each(output_shapes.begin(), output_shapes.begin() + 2, [&selected_boxes](TRShape& s) {
                 s[0] = selected_boxes;

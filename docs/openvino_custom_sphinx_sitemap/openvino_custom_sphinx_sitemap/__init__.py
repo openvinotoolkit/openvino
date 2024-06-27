@@ -27,6 +27,9 @@ def setup(app):
     app.connect("builder-inited", record_builder_type)
     app.connect("html-page-context", add_html_link)
     app.connect('build-finished', create_sitemap)
+    app.parallel_safe = True
+    app.parallel_read_safe = True
+    app.parallel_write_safe = True
     return setup
 
 
@@ -61,18 +64,23 @@ def create_sitemap(app, exception):
         for item in urlset:
             root.set(*item)
 
-    locales = get_locales(app, exception)
+    locales = get_locales(app)
 
     if app.builder.config.version:
         version = app.builder.config.version + '/'
     else:
         version = ""
 
-    for link in app.sitemap_links:
+    while True:
+        try:
+            link = app.env.app.sitemap_links.get_nowait()  # type: ignore
+        except queue.Empty:
+            break
+
         url = ET.SubElement(root, "url")
         scheme = app.config.sitemap_url_scheme
         if app.builder.config.language:
-            lang = app.builder.config.language + '/'
+            lang = app.builder.config.language + "/"
         else:
             lang = ""
 
@@ -87,18 +95,15 @@ def create_sitemap(app, exception):
                 for tag_name, tag_value in values.items():
                     ET.SubElement(namespace_element, tag_name).text = tag_value
 
-        if len(app.locales) > 0:
-            for lang in locales:
-                lang = lang + '/'
-                linktag = ET.SubElement(
-                    url,
-                    "{http://www.w3.org/1999/xhtml}link"
-                )
-                linktag.set("rel", "alternate")
-                linktag.set("hreflang",  hreflang_formatter(lang.rstrip('/')))
-                linktag.set("href", site_url + scheme.format(
-                    lang=lang, version=version, link=link
-                ))
+        for lang in locales:
+            lang = lang + "/"
+            ET.SubElement(
+                url,
+                "{http://www.w3.org/1999/xhtml}link",
+                rel="alternate",
+                hreflang=hreflang_formatter(lang.rstrip("/")),
+                href=site_url + scheme.format(lang=lang, version=version, link=link),
+            )
 
     filename = Path(app.outdir) / app.config.sitemap_filename
     ET.ElementTree(root).write(filename,

@@ -118,7 +118,7 @@ private:
     // X5     | [not used]   | RSI | d_bias
     // X6     | [not used]   | RBP | d_weights
     // X7     | [not used]   | RSP | <stack pointer>
-    // X8     | [not used]   | R8  | src ptr
+    // X8     | temporary    | R8  | src ptr
     // X9     | work amount  | R9  | src ptr
     // X10    | ker temporary| R10 | src ptr
     // X11    | ker temporary| R11 | src ptr
@@ -163,7 +163,11 @@ private:
             OPENVINO_THROW("aux gpr register " + std::to_string(idx) + " is not supported");
         }
 
-        return XReg(13 + idx);
+        if (idx == 0) {
+            return XReg(8);
+        }
+
+        return XReg(13 + idx - 1);
     }
 
     // Vector registers mapping
@@ -179,13 +183,14 @@ private:
     // 15      | aux
     // 16      | aux
     // 17      | aux
-    // 18      | src
+    // 18      | aux
     // 19      | src
     // 20      | src
     // 21      | src
     // 22      | src
     // 23      | src
-    // 24-31   | [not used]
+    // 24      | src
+    // 25-31   | [not used]
 
 
     TReg vmm_dst {9};
@@ -194,18 +199,18 @@ private:
         if (idx > MAX_ELTWISE_INPUTS) {
             OPENVINO_THROW("source vector register " + std::to_string(idx) + " is not supported");
         }
-        return TReg(18 + idx);
+        return TReg(19 + idx);
     }
 
     inline SReg get_scl_reg(const uint32_t idx) {
         if (idx > MAX_ELTWISE_INPUTS) {
             OPENVINO_THROW("source scalar register " + std::to_string(idx) + " is not supported");
         }
-        return SReg(18 + idx);
+        return SReg(19 + idx);
     }
 
     inline TReg get_aux_vmm(const uint32_t idx) {
-        if (idx > 7) {
+        if (idx > 8) {
             OPENVINO_THROW("aux vector register " + std::to_string(idx) + " is not supported");
         }
         return TReg(10 + idx);

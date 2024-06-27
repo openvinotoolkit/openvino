@@ -1,0 +1,113 @@
+table.dataTable.stripe tbody tr.odd,
+table.dataTable.display tbody tr.odd {
+    background: var(--sd-color-info-bg) !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+    background: var(--bttn-act-bg-hover) !important;
+    color: white !important;
+    border-color: var(--bttn-act-bg-hover) !important;
+    border-radius: 0px !important;
+    border: 1px !important
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+    background-color: var(--bttn-act-bg-active) !important;
+    border-color: var(--bttn-act-bg-active) !important;
+    border-radius: 0px !important;
+    color: white !important;
+    border: 1px !important
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
+    color: #666 !important;
+    background-color: transparent !important;
+    border-radius: 0px !important;
+    border: 1px !important;
+}
+
+tbody,
+td,
+tfoot,
+th,
+thead,
+tr {
+    border: 0 !important;
+}
+
+.dataTables_filter input {
+    border-radius: 0px !important;
+}
+
+.dataTables_length select {
+    border-radius: 0px !important;
+}
+
+.column-container {
+    display: inline-block;
+    position: relative;
+    padding-left: 20px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* Hide the browser's default checkbox */
+.column-container input {
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+/* Create a custom checkbox */
+.checkmark {
+    top: 5px;
+    left: 0;
+    height: 15px;
+    width: 15px;
+    border: #0054AE 2px solid;
+}
+
+/* On mouse-over, add a grey background color */
+.column-container:hover input~.checkmark {
+    background-color: #ccc;
+}
+
+/* When the checkbox is checked, add a blue background */
+.column-container input:checked~.checkmark {
+    background-color: #0054AE;
+}
+
+.column-container input:disabled~.checkmark {
+    background: #d3d3d3;
+    border: 2px solid #8C8C8C;
+}
+
+/* Create the checkmark/indicator (hidden when not checked) */
+.checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+}
+
+/* Show the checkmark when checked */
+.column-container input:checked~.checkmark:after {
+    display: block;
+}
+
+/* Style the checkmark/indicator */
+.column-container .checkmark:after {
+    left: 3px;
+    top: 0;
+    width: 5px;
+    height: 9px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    -webkit-transform: rotate(45deg);
+    -ms-transform: rotate(45deg);
+    transform: rotate(45deg);
+}

@@ -105,7 +105,7 @@ public:
         const auto params_hash = prim_inst->get_impl_params()->hash();
 
         ASSERT_EQ(primitive_hash, 8439414674502129643UL);
-        ASSERT_EQ(params_hash, 9235751886952244871UL);
+        ASSERT_EQ(params_hash, 18030913546439900045UL);
     }
 
     void test_gemm_basic(bool is_caching_test) {
@@ -127,8 +127,8 @@ public:
 
         const auto primitive_hash = primitve->hash();
         const auto params_hash = prim_inst->get_impl_params()->hash();
-        ASSERT_EQ(primitive_hash, 15839977233203008631UL);
-        ASSERT_EQ(params_hash, 15375157605915685928UL);
+        ASSERT_EQ(primitive_hash, 13388149315122571178UL);
+        ASSERT_EQ(params_hash, 2108356776161884759UL);
     }
 
     void test_permute_basic(bool is_caching_test) {
@@ -176,7 +176,7 @@ public:
         const auto params_hash = prim_inst->get_impl_params()->hash();
 
         ASSERT_EQ(primitive_hash, 16293979194373117693UL);
-        ASSERT_EQ(params_hash, 15950979219660866859UL);
+        ASSERT_EQ(params_hash, 3339057685641907457UL);
     }
 
     void test_reshape_basic(bool is_caching_test) {
@@ -225,7 +225,7 @@ public:
         const auto params_hash = prim_inst->get_impl_params()->hash();
 
         ASSERT_EQ(primitive_hash, 13549661972131371304UL);
-        ASSERT_EQ(params_hash, 7127098854451559675UL);
+        ASSERT_EQ(params_hash, 17196242702975187963UL);
     }
 
     void test_quantize_basic(bool is_caching_test) {

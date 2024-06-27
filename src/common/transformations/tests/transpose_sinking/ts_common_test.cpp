@@ -1636,7 +1636,6 @@ auto test_backward_reshape_unsqueeze = []() {
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReshapeUnsqueezeBackward,
                          TSTestFixture,
                          test_backward_reshape_unsqueeze());
-
 }  // namespace common
 }  // namespace testing
 }  // namespace transpose_sinking

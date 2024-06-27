@@ -21,7 +21,7 @@ namespace {
 #    define NUMA_ALL -1
 
 struct LinuxCpuStreamTypeCase {
-    bool _cpu_reservation;
+    bool _cpu_pinning;
     int _numa_nodes;
     std::vector<std::vector<int>> _cpu_mapping_table;
     std::vector<std::vector<int>> _proc_type_table;
@@ -65,7 +65,7 @@ public:
             int test_numa_node_id;
             int test_max_threads_per_core;
             get_cur_stream_info(i,
-                                test_data._cpu_reservation,
+                                test_data._cpu_pinning,
                                 test_data._proc_type_table,
                                 test_data._streams_info_table,
                                 test_stream_type,
@@ -89,7 +89,7 @@ public:
 };
 
 LinuxCpuStreamTypeCase _2sockets_72cores_nobinding_36streams = {
-    false,  // param[in]: cpu_reservation
+    false,  // param[in]: cpu_pinning
     2,      // param[in]: number of numa nodes
     // param[in]: cpu_mapping_table, {PROCESSOR_ID, SOCKET_ID, CORE_ID, CORE_TYPE, GROUP_ID, Used}
     {

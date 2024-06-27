@@ -32,7 +32,7 @@ public:
                         const std::vector<ov::Output<const ov::Node>>& outputs,
                         bool set_default_callback = true,
                         py::object userdata = py::none())
-        : m_request{std::move(request)},
+        : m_request{InferRequestWrapper::wrap_infer_request_to_sp(std::move(request))},
           m_inputs{inputs},
           m_outputs{outputs},
           m_userdata{userdata} {
@@ -44,7 +44,7 @@ public:
             // Bump reference counter
             auto end_time = m_end_time;
             // Set standard callback which saves "end-time" for inference call
-            m_request.set_callback([end_time](std::exception_ptr exception_ptr) {
+            m_request->set_callback([end_time](std::exception_ptr exception_ptr) {
                 *end_time = Time::now();
                 try {
                     if (exception_ptr) {
@@ -73,7 +73,7 @@ public:
     }
 
     // Original ov::InferRequest class that is held by this wrapper
-    ov::InferRequest m_request;
+    std::shared_ptr<ov::InferRequest> m_request;
     // Inputs and Outputs inherrited from ov::CompiledModel
     std::vector<ov::Output<const ov::Node>> m_inputs;
     std::vector<ov::Output<const ov::Node>> m_outputs;
@@ -91,10 +91,17 @@ private:
         tensors.reserve(v.size());
 
         for (auto&& node : v) {
-            tensors.push_back(m_request.get_tensor(node));
+            tensors.push_back(m_request->get_tensor(node));
         }
 
         return tensors;
+    }
+
+    static std::shared_ptr<ov::InferRequest> wrap_infer_request_to_sp(ov::InferRequest request) {
+        return std::shared_ptr<ov::InferRequest>(new ov::InferRequest(std::move(request)), [](ov::InferRequest* request) {
+                py::gil_scoped_release release;
+                delete request;
+        });
     }
 };
 

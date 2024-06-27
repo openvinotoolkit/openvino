@@ -5,6 +5,7 @@
 
 #include "node/include/addon.hpp"
 #include "node/include/errors.hpp"
+#include "node/include/helper.hpp"
 #include "node/include/node_output.hpp"
 
 ModelWrap::ModelWrap(const Napi::CallbackInfo& info)
@@ -20,8 +21,10 @@ Napi::Function ModelWrap::get_class(Napi::Env env) {
                         InstanceMethod("output", &ModelWrap::get_output),
                         InstanceMethod("input", &ModelWrap::get_input),
                         InstanceMethod("isDynamic", &ModelWrap::is_dynamic),
+                        InstanceMethod("getOutputSize", &ModelWrap::get_output_size),
                         InstanceMethod("setFriendlyName", &ModelWrap::set_friendly_name),
                         InstanceMethod("getFriendlyName", &ModelWrap::get_friendly_name),
+                        InstanceMethod("getOutputShape", &ModelWrap::get_output_shape),
                         InstanceAccessor<&ModelWrap::get_inputs>("inputs"),
                         InstanceAccessor<&ModelWrap::get_outputs>("outputs")});
 }
@@ -131,6 +134,16 @@ Napi::Value ModelWrap::is_dynamic(const Napi::CallbackInfo& info) {
     return Napi::Boolean::New(env, result);
 }
 
+Napi::Value ModelWrap::get_output_size(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    if (info.Length() > 0) {
+        reportError(env, "getOutputSize() does not accept any arguments.");
+        return env.Undefined();
+    }
+    const auto size = static_cast<double>(_model->get_output_size());
+    return Napi::Number::New(env, size);
+}
+
 Napi::Value ModelWrap::set_friendly_name(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
     try {
@@ -153,4 +166,20 @@ Napi::Value ModelWrap::get_friendly_name(const Napi::CallbackInfo& info) {
     }
     const auto friendly_name = _model->get_friendly_name();
     return Napi::String::New(env, friendly_name);
+}
+
+Napi::Value ModelWrap::get_output_shape(const Napi::CallbackInfo& info) {
+    if (info.Length() != 1 || !info[0].IsNumber()) {
+        reportError(info.Env(), "Invalid argument. Expected a single number.");
+        return info.Env().Undefined();
+    }
+
+    try {
+        auto idx = info[0].As<Napi::Number>().Int32Value();
+        auto output = _model->output(idx);
+        return cpp_to_js<ov::Shape, Napi::Array>(info, output.get_shape());
+    } catch (const std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
+    }
 }

@@ -1,6 +1,8 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -32,6 +34,10 @@ class TestRint(CommonTFLayerTest):
     @pytest.mark.parametrize("input_type", [np.float32, np.float64])
     @pytest.mark.precommit
     @pytest.mark.nightly
+    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
+                                                                                                     'aarch64',
+                                                                                                     'arm64', 'ARM64'],
+                       reason='Ticket - 126314, 132699')
     def test_rint_basic(self, input_shape, input_type, ie_device, precision,
                         ir_version, temp_dir, use_legacy_frontend):
         self._test(*self.create_tf_rint_net(input_shape, input_type),

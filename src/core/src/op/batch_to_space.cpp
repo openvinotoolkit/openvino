@@ -50,8 +50,8 @@ void BatchToSpace::validate_and_infer_types() {
                           "block_shape and crops inputs must have integer element type. Got: ",
                           inputs_integer_et);
 
-    const auto output_shape = shape_infer(this, ov::util::get_node_input_partial_shapes(*this)).front();
-    set_output_type(0, data_et, output_shape);
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
+    set_output_type(0, data_et, output_shapes[0]);
 }
 
 std::shared_ptr<Node> BatchToSpace::clone_with_new_inputs(const OutputVector& new_args) const {

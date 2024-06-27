@@ -104,6 +104,7 @@ struct crop : public primitive_base<crop> {
     /// @param reference_input Reference input tensor with the required dimensions.
     /// @param offsets Input offsets.
     /// @param output_idx Output data index of splited output.
+    /// @param axis Axis along data to split.
     /// @param num_splits The number of pieces that the data tensor should be split into.
     crop(const primitive_id& id,
          const std::vector<input_info>& inputs,
@@ -111,10 +112,11 @@ struct crop : public primitive_base<crop> {
          const tensor& offsets,
          const crop_ngraph_op_mode op_mode,
          const int output_idx,
+         const int64_t axis = -1,
          const size_t num_splits = 1,
          const padding& output_padding = padding())
-        : primitive_base(id, inputs, {output_padding}), reference_input(reference_input),
-            offsets(offsets), output_idx(output_idx), num_splits(num_splits), op_mode(op_mode) {}
+        : primitive_base(id, inputs, {output_padding}), reference_input(reference_input), offsets(offsets),
+            output_idx(output_idx), axis(axis), num_splits(num_splits), op_mode(op_mode) {}
 
     /// @brief Reference input tensor with the required dimensions.
     tensor reference_input;
@@ -122,6 +124,8 @@ struct crop : public primitive_base<crop> {
     tensor offsets;
     /// @brief data index of splited output.
     int output_idx = 0;
+    /// @brief axis along data to split
+    int64_t axis = -1;
     /// @brief num_splits which Split has number of split as property
     size_t num_splits = 1;
     /// @brief original ngraph operation type
@@ -132,6 +136,7 @@ struct crop : public primitive_base<crop> {
         seed = hash_combine(seed, reference_input.hash());
         seed = hash_combine(seed, offsets.hash());
         seed = hash_combine(seed, output_idx);
+        seed = hash_combine(seed, axis);
         seed = hash_combine(seed, num_splits);
         seed = hash_combine(seed, op_mode);
         return seed;
@@ -146,6 +151,7 @@ struct crop : public primitive_base<crop> {
         return reference_input == rhs_casted.reference_input &&
                offsets == rhs_casted.offsets &&
                output_idx == rhs_casted.output_idx &&
+               axis == rhs_casted.axis &&
                num_splits == rhs_casted.num_splits &&
                op_mode == rhs_casted.op_mode;
     }
@@ -155,6 +161,7 @@ struct crop : public primitive_base<crop> {
         ob << reference_input;
         ob << offsets;
         ob << output_idx;
+        ob << axis;
         ob << num_splits;
         ob << make_data(&op_mode, sizeof(crop_ngraph_op_mode));
     }
@@ -164,6 +171,7 @@ struct crop : public primitive_base<crop> {
         ib >> reference_input;
         ib >> offsets;
         ib >> output_idx;
+        ib >> axis;
         ib >> num_splits;
         ib >> make_data(&op_mode, sizeof(crop_ngraph_op_mode));
     }

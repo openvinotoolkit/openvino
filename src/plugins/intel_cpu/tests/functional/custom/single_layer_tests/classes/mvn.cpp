@@ -5,8 +5,10 @@
 #include "mvn.hpp"
 #include "gtest/gtest.h"
 #include "utils/cpu_test_utils.hpp"
+#include "utils/general_utils.h"
 
 using namespace CPUTestUtils;
+using namespace ov::intel_cpu;
 
 namespace ov {
 namespace test {
@@ -116,11 +118,10 @@ void MvnLayerCPUTest::SetUp() {
         mvn->set_reduction_axes(axes);
     }
 
-    rel_threshold = 0.015f;
-    if (additionalConfig[ov::hint::inference_precision.name()] == ov::element::f16) {
-        //FIXME: ref and acl mvn implementation has accuracy issues on fp16 (#116344)
-        abs_threshold = .05f;
-        rel_threshold = 250.f;
+    rel_threshold = 5e-4;
+    if (one_of(additionalConfig[ov::hint::inference_precision.name()], ov::element::f16, ov::element::bf16)) {
+        rel_threshold = 1e-2;
+        abs_threshold = .03f;
     }
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
     updateSelectedType(getPrimitiveType(), netPrecision, configuration);

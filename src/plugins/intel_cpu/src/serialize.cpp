@@ -6,6 +6,7 @@
 #include <pugixml.hpp>
 
 #include "openvino/pass/serialize.hpp"
+#include "openvino/util/codec_xor.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
@@ -24,7 +25,8 @@ static void setInfo(pugi::xml_node& root, std::shared_ptr<ov::Model>& model) {
     }
 }
 
-ModelSerializer::ModelSerializer(std::ostream& ostream) : _ostream(ostream) {}
+ModelSerializer::ModelSerializer(std::ostream& ostream)
+    : _ostream(ostream) {}
 
 void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
     auto serializeInfo = [&](std::ostream& stream) {
@@ -40,7 +42,7 @@ void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
         xml_doc.save(stream);
     };
 
-    ov::pass::StreamSerialize serializer(_ostream, serializeInfo);
+    ov::pass::StreamSerialize serializer(_ostream, serializeInfo, ov::util::codec_xor);
     serializer.run_on_model(std::const_pointer_cast<ov::Model>(model->clone()));
 }
 
@@ -98,6 +100,7 @@ void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
     _istream.seekg(hdr.model_offset);
     xmlString.resize(hdr.model_size);
     _istream.read(const_cast<char*>(xmlString.c_str()), hdr.model_size);
+    xmlString = ov::util::codec_xor(xmlString);
 
     model = _model_builder(xmlString, std::move(dataBlob));
 

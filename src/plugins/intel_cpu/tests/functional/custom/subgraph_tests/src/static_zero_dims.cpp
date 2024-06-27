@@ -30,7 +30,7 @@ protected:
 
         auto relu1 = std::make_shared<ov::op::v0::Relu>(varSplit->output(0));
 
-        auto numInRoi = ov::test::utils::deprecated::make_constant(ngPrc, {0}, std::vector<float>{}, false);
+        auto numInRoi = ov::op::v0::Constant::create(ngPrc, {0}, std::vector<float>{});
         auto expDet = std::make_shared<ov::op::v6::ExperimentalDetectronTopKROIs>(varSplit->output(1), numInRoi, 10);
         auto relu2 = std::make_shared<ov::op::v0::Relu>(expDet);
 

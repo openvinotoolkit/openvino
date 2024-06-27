@@ -542,6 +542,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::intel_gpu::hint::host_task_priority.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::hint::queue_priority.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::hint::queue_throttle.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::intel_gpu::hint::enable_sdpa_optimization.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::disable_winograd_convolution.name(), PropertyMutability::RW},
         ov::PropertyName{ov::cache_dir.name(), PropertyMutability::RW},
@@ -554,6 +555,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::enable_cpu_pinning.name(), PropertyMutability::RW},
         ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RW}
     };
 
     return supported_properties;

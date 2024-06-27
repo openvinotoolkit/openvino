@@ -5,6 +5,7 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/plugin.hpp"
 
+#include "openvino/op/add.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/constant.hpp"

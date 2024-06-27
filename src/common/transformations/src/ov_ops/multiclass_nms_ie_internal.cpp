@@ -13,7 +13,7 @@ using namespace ov;
 op::internal::MulticlassNmsIEInternal::MulticlassNmsIEInternal(const Output<Node>& boxes,
                                                                const Output<Node>& scores,
                                                                const op::util::MulticlassNmsBase::Attributes& attrs)
-    : opset9::MulticlassNms(boxes, scores, attrs) {
+    : ov::op::v9::MulticlassNms(boxes, scores, attrs) {
     constructor_validate_and_infer_types();
 }
 
@@ -21,7 +21,7 @@ op::internal::MulticlassNmsIEInternal::MulticlassNmsIEInternal(const Output<Node
                                                                const Output<Node>& scores,
                                                                const Output<Node>& roisnum,
                                                                const op::util::MulticlassNmsBase::Attributes& attrs)
-    : opset9::MulticlassNms(boxes, scores, roisnum, attrs) {
+    : ov::op::v9::MulticlassNms(boxes, scores, roisnum, attrs) {
     constructor_validate_and_infer_types();
 }
 

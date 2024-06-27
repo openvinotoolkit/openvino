@@ -478,6 +478,25 @@ const std::vector<InputShape>& inputShapes4D_Large() {
     return inputShapes4D_Large;
 }
 
+const CPUSpecificParams& expectedCpuConfigAnyLayout() {
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    static const CPUSpecificParams acl = CPUSpecificParams{{}, {}, {"acl"}, "acl"};
+    return acl;
+#else
+    static const CPUSpecificParams ref = CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"};
+    return ref;
+#endif
+}
+
+const std::vector<CPUSpecificParams>& vecCpuConfigsFusing_4D() {
+    const auto sse42_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_sse42"}, "jit_sse42"};
+    const auto avx2_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx2"}, "jit_avx2"};
+    const auto avx512_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx512"}, "jit_avx512"};
+    const auto acl_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"acl"}, "acl"};
+
+    static const std::vector<CPUSpecificParams> vecCpuConfigsFusing_4D = {sse42_nhwc, avx2_nhwc, avx512_nhwc, acl_nhwc, expectedCpuConfigAnyLayout()};
+    return vecCpuConfigsFusing_4D;
+}
 
 }  // namespace Pooling
 }  // namespace test

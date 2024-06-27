@@ -19,16 +19,23 @@ const std::map<ov_element_type_e, ov::element::Type> element_type_map = {
     {ov_element_type_e::I32, ov::element::i32},
     {ov_element_type_e::I64, ov::element::i64},
     {ov_element_type_e::U1, ov::element::u1},
+    {ov_element_type_e::U2, ov::element::u2},
+    {ov_element_type_e::U3, ov::element::u3},
     {ov_element_type_e::U4, ov::element::u4},
+    {ov_element_type_e::U6, ov::element::u6},
     {ov_element_type_e::U8, ov::element::u8},
     {ov_element_type_e::U16, ov::element::u16},
     {ov_element_type_e::U32, ov::element::u32},
     {ov_element_type_e::U64, ov::element::u64},
     {ov_element_type_e::NF4, ov::element::nf4},
     {ov_element_type_e::F8E4M3, ov::element::f8e4m3},
-    {ov_element_type_e::F8E5M3, ov::element::f8e5m2}};
+    {ov_element_type_e::F8E5M3, ov::element::f8e5m2},
+    {ov_element_type_e::STRING, ov::element::string},
+    {ov_element_type_e::F4E2M1, ov::element::f4e2m1},
+    {ov_element_type_e::F8E8M0, ov::element::f8e8m0},
+};
 
-inline ov_element_type_e find_ov_element_type_e(ov::element::Type type) {
+ov_element_type_e find_ov_element_type_e(ov::element::Type type) {
     for (auto iter = element_type_map.begin(); iter != element_type_map.end(); iter++) {
         if (iter->second == type) {
             return iter->first;

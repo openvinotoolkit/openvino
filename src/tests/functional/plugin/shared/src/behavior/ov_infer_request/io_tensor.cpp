@@ -380,9 +380,9 @@ bool OVInferRequestCheckTensorPrecision::compareTensors(const ov::Tensor& t1, co
         // Remote tensor
         data2 = nullptr;
     }
+    const auto strides_eq = (t1.get_element_type().bitwidth() >= 8 && t2.get_element_type().bitwidth() >= 8) ?  t1.get_strides() == t2.get_strides() : true;
     return t1.get_element_type() == t2.get_element_type() && t1.get_shape() == t2.get_shape() &&
-           t1.get_byte_size() == t2.get_byte_size() && t1.get_size() == t2.get_size() &&
-           t1.get_strides() == t2.get_strides() && data1 == data2;
+               t1.get_byte_size() == t2.get_byte_size() && t1.get_size() == t2.get_size() && strides_eq && data1 == data2;
 }
 
 void OVInferRequestCheckTensorPrecision::createInferRequest() {

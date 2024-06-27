@@ -139,7 +139,7 @@ std::vector<ov::Tensor> MemoryLayerTest::calculate_refs() {
     auto start_time = std::chrono::system_clock::now();
 
     update_ref_model();
-    match_parameters();
+    match_parameters(function->get_parameters(), functionRefs->get_parameters());
 
     auto compiledModelRef = core->compile_model(functionRefs, ov::test::utils::DEVICE_TEMPLATE, {{ ov::template_plugin::disable_transformations(true) }});
     auto inferRequestRef = compiledModelRef.create_infer_request();

@@ -298,6 +298,11 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
         paddingR = groupConvolutionOp->get_pads_end();
         autoPadding = one_of(groupConvolutionOp->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
     }
+    // Only apply this heuristic logic on FP32 IR. IC=1 ,OC=1 would disable brgconv on avx2.
+    const bool isAvx2FP32 = !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
+                                dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
+                                    !context->isGraphQuantized();
+    useJitPlanar = ((IC == 1 && groupOC * groupNum == 1) && isAvx2FP32);
 }
 
 bool Convolution::canBeExecutedInInt8() const {
@@ -332,8 +337,7 @@ ov::element::Type Convolution::fusedEltwisePrecision(const NodePtr& fusingNode) 
 }
 
 const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
-    static const auto priorities = [] {
-        std::vector<impl_desc_type> priorities = {
+    static const std::vector<impl_desc_type> priorities = {
             impl_desc_type::unknown,
             impl_desc_type::dw_acl,
             impl_desc_type::winograd_acl,
@@ -346,14 +350,14 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
             impl_desc_type::jit_avx512_amx,
             impl_desc_type::brgconv_avx512_1x1,
             impl_desc_type::brgconv_avx512,
-            impl_desc_type::jit_uni_dw,
-            impl_desc_type::jit_uni_1x1,
-            impl_desc_type::jit_uni,
             impl_desc_type::jit_avx512_dw,
             impl_desc_type::jit_avx512_1x1,
             impl_desc_type::jit_avx512,
             impl_desc_type::brgconv_avx2_1x1,
             impl_desc_type::brgconv_avx2,
+            impl_desc_type::jit_uni_dw,
+            impl_desc_type::jit_uni_1x1,
+            impl_desc_type::jit_uni,
             impl_desc_type::jit_avx2_dw,
             impl_desc_type::jit_avx2_1x1,
             impl_desc_type::jit_avx2,
@@ -373,24 +377,21 @@ const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {
             impl_desc_type::ref_any,
             impl_desc_type::ref,
         };
-        if (!isBrgConvAvailable()) {
-            priorities.erase(std::remove_if(priorities.begin(),
-                                            priorities.end(),
-                                            [](impl_desc_type type) {
-                                                return type & impl_desc_type::brgconv;
-                                            }),
-                             priorities.end());
-        }
+        if (isBrgConvAvailable())
+            return priorities;
 
-        return priorities;
-    }();
-
-    return priorities;
+        static const std::vector<impl_desc_type> priorities_wo_brgemm = [&] {
+            std::vector<impl_desc_type>result;
+            std::copy_if(priorities.begin(), priorities.end(), std::back_inserter(result),
+                [](impl_desc_type type) { return !(type & impl_desc_type::brgconv); });
+            return result;}();
+        return priorities_wo_brgemm;
 }
 
 const bool Convolution::isBrgConvAvailable() {
-    static const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ||
-                                           dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2);
+    //When avx2 brgconv heuristic case,  disable brgconv to WA the regression.
+    const bool isBrgConvAvailable = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
+                                           !useJitPlanar;
     return isBrgConvAvailable;
 }
 
@@ -511,12 +512,13 @@ void Convolution::getSupportedDescriptors() {
     if (canBeExecutedInInt8()) {
         DEBUG_LOG(getName(), "Creating I8 descriptor");
 
-        SetPostOpsAndZeroPoints(attrs);
-
         // so far oneDNN INT8 convolution only support s8,u8,s32,f32,bf16 output types
         if (outputDataType == memory::data_type::f16) {
             outputDataType = memory::data_type::f32;
+            eltwisePrecision = ov::element::f32;
         }
+
+        SetPostOpsAndZeroPoints(attrs);
 
         in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getInputShapeAtPort(0), inputDataType, nspc);
         out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(getOutputShapeAtPort(0), outputDataType, nspc);
@@ -1151,12 +1153,13 @@ bool Convolution::isNspcAvailable() const {
             return false;
         }
     }
-
+    // AVX2 heuristic
+    if (useJitPlanar)
+        return false;
     // A bunch of heuristics are designed to cut off not optimal nspc convolution applications
     auto inpDims = getInputShapeAtPort(0).getDims();
     auto outDims = getOutputShapeAtPort(0).getDims();
     auto ndims = inpDims.size();
-
     if (isDepthWise()) {
         // 1d equivalent cases are painfully slow
         if (inpDims.size() == 3 || 1 == inpDims[inpDims.size() - 2]) {
@@ -1430,10 +1433,8 @@ void Convolution::prepareParams() {
     primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
 
 #ifdef CPU_DEBUG_CAPS
-    if (result.second == CacheEntryBase::LookUpStatus::Miss) {
-        auto pd = execPtr->getPrimitiveDesc();
-        DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
-    }
+    auto pd = execPtr->getPrimitiveDesc();
+    DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
 #endif
 }
 

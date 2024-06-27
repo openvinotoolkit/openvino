@@ -8,6 +8,7 @@
 
 #include <string>
 
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/manager.hpp"
@@ -58,4 +59,22 @@ TEST(TransformationTests, TestModelTensorsConsistencyUseShapesFalse) {
 
     model->validate_nodes_and_infer_types();
     EXPECT_TRUE(model->outputs()[0].get_names() == new_tensors);
+}
+
+TEST_F(TransformationTestsF, SqueezeRemainsSqueezeAfterMOC) {
+    {
+        using namespace ov::op;
+        auto input = std::make_shared<v0::Parameter>(element::f32, Shape{30});
+        auto shape = v0::Constant::create(element::i64, Shape{5}, {2, 3, 1, 5, 1});
+        auto reshape = std::make_shared<v1::Reshape>(input, shape, false);
+        auto unsqueeze_axes = v0::Constant::create(element::i64, Shape{1}, {0});
+        auto unsqueeze = std::make_shared<v0::Unsqueeze>(reshape, unsqueeze_axes);
+
+        auto squeeze_axes = v0::Constant::create(element::i64, Shape{2}, {3, 5});
+        auto squeeze = std::make_shared<v0::Squeeze>(unsqueeze, squeeze_axes);
+
+        auto res = std::make_shared<v0::Result>(squeeze);
+        model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{input});
+        manager.register_pass<ov::pass::MOCTransformations>(false);
+    }
 }

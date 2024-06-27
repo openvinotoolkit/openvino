@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "itt.hpp"
+#include "openvino/op/ops.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -16,6 +17,8 @@
 #include "transformations/control_flow/unroll_if.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
+#include "transformations/op_conversions/convert_avgpool_downgrade.hpp"
+#include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
 
 namespace {
@@ -66,6 +69,8 @@ void transform_model(const std::shared_ptr<ov::Model>& model) {
     passManager.register_pass<ov::pass::CommonOptimizations>();
     // Disable some transformations
     passManager.get_pass_config()->disable<ov::pass::UnrollIf>();
+    passManager.get_pass_config()->disable<ov::pass::ConvertMaxPool14ToMaxPool8>();
+    passManager.get_pass_config()->disable<ov::pass::ConvertAvgPool14ToAvgPool1>();
     // This transformation changes output name
     passManager.get_pass_config()->disable<ov::pass::ConvertReduceSumToPooling>();
     // Register any other transformations
@@ -270,38 +275,31 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         supported_properties.reserve(ro_properties.size() + rw_properties.size());
         supported_properties.insert(supported_properties.end(), ro_properties.begin(), ro_properties.end());
         supported_properties.insert(supported_properties.end(), rw_properties.begin(), rw_properties.end());
-        return decltype(ov::supported_properties)::value_type(supported_properties);
+        return supported_properties;
     } else if (ov::internal::supported_properties == name) {
         return decltype(ov::internal::supported_properties)::value_type{
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW}};
     } else if (ov::available_devices == name) {
         // TODO: fill list of available devices
-        std::vector<std::string> available_devices = {""};
-        return decltype(ov::available_devices)::value_type(available_devices);
+        return decltype(ov::available_devices)::value_type{{""}};
     } else if (ov::device::full_name == name) {
-        std::string device_name = "Template Device Full Name";
-        return decltype(ov::device::full_name)::value_type(device_name);
+        return decltype(ov::device::full_name)::value_type{"Template Device Full Name"};
     } else if (ov::device::architecture == name) {
         // TODO: return device architecture for device specified by DEVICE_ID config
-        std::string arch = get_device_name();
-        return decltype(ov::device::architecture)::value_type(arch);
+        return decltype(ov::device::architecture)::value_type{get_device_name()};
     } else if (ov::device::type == name) {
-        return decltype(ov::device::type)::value_type(ov::device::Type::INTEGRATED);
+        return decltype(ov::device::type)::value_type{ov::device::Type::INTEGRATED};
     } else if (ov::internal::caching_properties == name) {
-        std::vector<ov::PropertyName> caching_properties = {ov::device::architecture};
-        return decltype(ov::internal::caching_properties)::value_type(caching_properties);
+        return decltype(ov::internal::caching_properties)::value_type{ov::device::architecture};
     } else if (ov::device::capabilities == name) {
         // TODO: fill actual list of supported capabilities: e.g. Template device supports only FP32 and EXPORT_IMPORT
-        std::vector<std::string> capabilities = {ov::device::capability::FP32, ov::device::capability::EXPORT_IMPORT};
-        return decltype(ov::device::capabilities)::value_type(capabilities);
+        return decltype(ov::device::capabilities)::value_type{ov::device::capability::FP32,
+                                                              ov::device::capability::EXPORT_IMPORT};
     } else if (ov::execution_devices == name) {
-        std::string dev = get_device_name();
-        return decltype(ov::execution_devices)::value_type{dev};
+        return decltype(ov::execution_devices)::value_type{get_device_name()};
     } else if (ov::range_for_async_infer_requests == name) {
-        // TODO: fill with actual values
-        using uint = unsigned int;
-        return decltype(ov::range_for_async_infer_requests)::value_type(std::make_tuple(uint{1}, uint{1}, uint{1}));
+        return decltype(ov::range_for_async_infer_requests)::value_type{1, 1, 1};
     } else {
         return m_cfg.Get(name);
     }

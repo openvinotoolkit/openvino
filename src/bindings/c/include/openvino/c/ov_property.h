@@ -99,8 +99,9 @@ ov_property_key_cache_dir;
 
 /**
  * @brief Read-write property<string> to select the cache mode between optimize_size and optimize_speed.
- * If optimize_size is selected, smaller cache files will be created.
- * And if optimize_speed is selected, loading time will decrease but the cache file size will increase.
+ * If optimize_size is selected(default), smaller cache files will be created.
+ * If optimize_speed is selected, loading time will decrease but the cache file size will increase.
+ * This is only supported from GPU.
  * @ingroup ov_property_c_api
  */
 OPENVINO_C_VAR(const char*)

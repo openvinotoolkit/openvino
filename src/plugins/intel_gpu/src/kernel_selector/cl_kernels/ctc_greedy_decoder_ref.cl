@@ -7,9 +7,7 @@
 KERNEL(ctc_greedy_decoder_ref)(const __global INPUT0_TYPE* probabilities
                               ,const __global INPUT1_TYPE* sequence_indicators
                                     ,__global OUTPUT_TYPE* output_sequences
-#ifdef LEGACY_MULTIPLE_OUTPUTS
-                                    ,__global INPUT2_TYPE* second_output
-#elif NEW_MULTIPLE_OUTPUTS
+#if defined OUTPUT1_TYPE
                                     ,__global OUTPUT1_TYPE* second_output
 #endif
                               )
@@ -25,13 +23,13 @@ KERNEL(ctc_greedy_decoder_ref)(const __global INPUT0_TYPE* probabilities
 
         for (int t = 0; t < T_; ++t) {
             // get maximum probability and its index
-#if defined LEGACY_MULTIPLE_OUTPUTS || defined NEW_MULTIPLE_OUTPUTS
+#if defined OUTPUT1_TYPE
             if (t >= sequence_indicators[n]) break;
 #else
             if (sequence_indicators[t * N_ + n] == 0) break;
 #endif
             int max_class_idx = 0;
-#if defined LEGACY_MULTIPLE_OUTPUTS || defined NEW_MULTIPLE_OUTPUTS
+#if defined OUTPUT1_TYPE
             const __global INPUT0_TYPE* probs = probabilities + n * C_ * T_ + t * C_;
 #else
             const __global INPUT0_TYPE* probs = probabilities + t * C_ * N_ + n * C_;
@@ -53,7 +51,7 @@ KERNEL(ctc_greedy_decoder_ref)(const __global INPUT0_TYPE* probabilities
 
             prev_class_idx = max_class_idx;
         }
-#if defined LEGACY_MULTIPLE_OUTPUTS || defined NEW_MULTIPLE_OUTPUTS
+#if defined OUTPUT1_TYPE
         second_output[n] = output_index - n * T_;
 #endif
     }

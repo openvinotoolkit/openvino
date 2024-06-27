@@ -10,7 +10,9 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/swish.hpp"
+#include "openvino/op/gelu.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -19,6 +21,7 @@ namespace intel_gpu {
 
 SwiGLUFusion::SwiGLUFusion() {
     using namespace ov::pass::pattern;
+    using ov::pass::pattern::op::Or;
 
     auto last_dim_static = [](const ov::Output<ov::Node>& output) {
         auto out_ps = output.get_node()->get_output_partial_shape(0);
@@ -37,22 +40,48 @@ SwiGLUFusion::SwiGLUFusion() {
 
     // Swish(Xw) = Xw * (1.0 + exp(-beta * Xw))
     auto swish_m = wrap_type<ov::op::v4::Swish>({variadic_split_m->output(0)});
+    auto gelu_m = wrap_type<ov::op::v7::Gelu>({variadic_split_m->output(0)});
 
     // Mul(Xw, Xv) = Swish(Xw) * Xv
-    auto mul_m = wrap_type<ov::op::v1::Multiply>({swish_m, variadic_split_m->output(1)});
+    auto glu_m = std::make_shared<Or>(OutputVector{swish_m, gelu_m});
+    auto mul_m = wrap_type<ov::op::v1::Multiply>({glu_m, variadic_split_m->output(1)});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         OPENVINO_ASSERT(pattern_map.count(mul_m));
-        OPENVINO_ASSERT(pattern_map.count(swish_m));
+        OPENVINO_ASSERT(pattern_map.count(swish_m) || pattern_map.count(gelu_m));
         OPENVINO_ASSERT(pattern_map.count(variadic_split_m));
         OPENVINO_ASSERT(pattern_map.count(split_lengths_const_m));
         OPENVINO_ASSERT(pattern_map.count(axis_const_m));
         auto mul = std::dynamic_pointer_cast<ov::op::v1::Multiply>(pattern_map.at(mul_m).get_node_shared_ptr());
         if (!mul || transformation_callback(mul))
             return false;
-        if (mul->input_value(1).get_index() != 1)
-            return false;
+
+        auto isSwiGLU = pattern_map.count(swish_m);
+        auto isGeGLU = pattern_map.count(gelu_m);
+        size_t split_to_glu_idx = 0;
+        ov::intel_gpu::op::SwiGLU::GluType glu_type = ov::intel_gpu::op::SwiGLU::GluType::Swish;
+
+        if (isSwiGLU) {
+            auto swish = std::dynamic_pointer_cast<ov::op::v4::Swish>(pattern_map.at(swish_m).get_node_shared_ptr());
+            glu_type = ov::intel_gpu::op::SwiGLU::GluType::Swish;
+            split_to_glu_idx = swish->input_value(0).get_index();
+
+            size_t split_in_idx = ov::is_type<ov::op::v4::Swish>(mul->get_input_node_shared_ptr(0)) ? 1 : 0;
+            if (mul->input_value(split_in_idx).get_index() == split_to_glu_idx)
+                return false;
+        } else if (isGeGLU) {
+            auto gelu = std::dynamic_pointer_cast<ov::op::v7::Gelu>(pattern_map.at(gelu_m).get_node_shared_ptr());
+            glu_type = (gelu->get_approximation_mode() == ov::op::GeluApproximationMode::ERF) ? ov::intel_gpu::op::SwiGLU::GluType::Gelu
+                                                                                              : ov::intel_gpu::op::SwiGLU::GluType::Gelu_Tanh;
+            split_to_glu_idx = gelu->input_value(0).get_index();
+
+            size_t split_in_idx = ov::is_type<ov::op::v7::Gelu>(mul->get_input_node_shared_ptr(0)) ? 1 : 0;
+            if (mul->input_value(split_in_idx).get_index() == split_to_glu_idx)
+                return false;
+        } else {
+            OPENVINO_THROW("'glu_type' not initialized");
+        }
 
         auto variadic_split = std::dynamic_pointer_cast<ov::op::v1::VariadicSplit>(pattern_map.at(variadic_split_m).get_node_shared_ptr());
         auto variadic_split_in_ps = variadic_split->get_input_partial_shape(0);
@@ -78,6 +107,8 @@ SwiGLUFusion::SwiGLUFusion() {
         auto swiglu = std::make_shared<op::SwiGLU>(data,
                                                    axis_value,
                                                    split_lengths_value,
+                                                   glu_type,
+                                                   split_to_glu_idx,
                                                    output_type);
         swiglu->set_friendly_name(m.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), swiglu);

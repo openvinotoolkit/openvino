@@ -58,6 +58,8 @@ class typed_primitive_inst<multiclass_nms> : public typed_primitive_inst_base<mu
     using parent::parent;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(multiclass_nms_node const& /*node*/, const kernel_impl_params& impl_param);
     static layout calc_output_layout(const multiclass_nms_node& node, const kernel_impl_params& impl_param);
     static std::string to_string(const multiclass_nms_node& node);
 

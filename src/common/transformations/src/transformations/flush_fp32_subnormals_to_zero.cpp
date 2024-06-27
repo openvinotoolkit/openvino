@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "itt.hpp"
-#include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -20,10 +19,10 @@ using namespace pass;
 ov::pass::FlushFP32SubnormalsToZero::FlushFP32SubnormalsToZero() {
     MATCHER_SCOPE(FlushFP32SubnormalsToZero);
 
-    auto node_pattern = pattern::wrap_type<opset10::Constant>();
+    auto node_pattern = pattern::wrap_type<ov::op::v0::Constant>();
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto node = dynamic_pointer_cast<ov::opset10::Constant>(m.get_match_root());
+        auto node = dynamic_pointer_cast<ov::op::v0::Constant>(m.get_match_root());
 
         if (!node)
             return false;
@@ -43,7 +42,7 @@ ov::pass::FlushFP32SubnormalsToZero::FlushFP32SubnormalsToZero() {
         if (!has_subnormals)
             return false;
 
-        auto new_constant = std::make_shared<ov::opset8::Constant>(ov::element::f32, node->get_shape());
+        auto new_constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32, node->get_shape());
         auto* dst_data = const_cast<float*>(new_constant->get_data_ptr<float>());
 
         for (size_t i = 0; i < size; ++i) {

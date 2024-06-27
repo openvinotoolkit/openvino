@@ -157,11 +157,10 @@ TEST(type_prop, fake_convert_basic_unsupported_shape_not_unidirectional_broadcas
     const auto scale = std::make_shared<Parameter>(element::f32, PartialShape{1, 1, 3, 1});
     const auto shift = std::make_shared<Parameter>(element::f32, PartialShape{1, 1, 3, 1});
 
-    OV_EXPECT_THROW(
-        const auto op = std::make_shared<op::v13::FakeConvert>(data, scale, shift),
-        AssertFailure,
-        testing::HasSubstr(
-            "FakeConvert support only unidirectional broadcasting, inputs cannot be broadcastd into data."));
+    OV_EXPECT_THROW(const auto op = std::make_shared<op::v13::FakeConvert>(data, scale, shift),
+                    AssertFailure,
+                    testing::HasSubstr(
+                        "FakeConvert support only unidirectional broadcasting, inputs cannot be broadcast into data."));
 }
 TEST(type_prop, fake_convert_basic_unsupported_mixed_types) {
     const auto data = std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 8, 6});

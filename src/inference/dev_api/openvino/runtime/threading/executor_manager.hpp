@@ -78,10 +78,9 @@ public:
      * @param core_type cpu core type
      * @param task task to be performed
      */
-    virtual void execute_task_by_streams_executor(ov::threading::IStreamsExecutor::Config::PreferredCoreType core_type,
-                                                  ov::threading::Task task) = 0;
+    virtual void execute_task_by_streams_executor(ov::hint::SchedulingCoreType core_type, ov::threading::Task task) = 0;
 };
 
-OPENVINO_API std::shared_ptr<ExecutorManager> executor_manager();
+OPENVINO_RUNTIME_API std::shared_ptr<ExecutorManager> executor_manager();
 }  // namespace threading
 }  // namespace ov

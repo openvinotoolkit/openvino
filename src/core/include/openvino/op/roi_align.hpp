@@ -63,7 +63,7 @@ private:
     PoolingMode mode_from_string(const std::string& mode) const;
 
 private:
-    PoolingMode m_mode;
+    PoolingMode m_mode = PoolingMode::AVG;
 };
 }  // namespace v3
 
@@ -124,8 +124,8 @@ public:
 
 private:
     PoolingMode mode_from_string(const std::string& mode) const;
-    PoolingMode m_mode;
-    AlignedMode m_aligned_mode;
+    PoolingMode m_mode = PoolingMode::AVG;
+    AlignedMode m_aligned_mode = AlignedMode::ASYMMETRIC;
 };
 }  // namespace v9
 }  // namespace op

@@ -6,7 +6,7 @@ import os
 import sys
 from functools import wraps
 from typing import Callable, Any
-import warnings
+from pathlib import Path
 
 
 def _add_openvino_libs_to_search_path() -> None:
@@ -39,10 +39,20 @@ def _add_openvino_libs_to_search_path() -> None:
                 os.add_dll_directory(os.path.abspath(lib_path))
 
 
-def add_openvino_libs_to_path() -> None:
-    warnings.warn("add_openvino_libs_to_path function was implemented for internal usage only "
-                  "and will be removed in the 2023.2 release.", DeprecationWarning, stacklevel=2)
-    _add_openvino_libs_to_search_path()
+def get_cmake_path() -> str:
+    """Searches for the directory containing CMake files within the package install directory.
+
+    :return: The path to the directory containing CMake files, if found. Otherwise, returns empty string.
+    :rtype: str
+    """
+    package_path = Path(__file__).parent
+    cmake_file = "OpenVINOConfig.cmake"
+
+    for dirpath, _, filenames in os.walk(package_path):
+        if cmake_file in filenames:
+            return dirpath
+
+    return ""
 
 
 def deprecated(name: Any = None, version: str = "", message: str = "", stacklevel: int = 2) -> Callable[..., Any]:

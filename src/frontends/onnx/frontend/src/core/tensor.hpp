@@ -163,12 +163,14 @@ public:
             return ov::element::u64;
         case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
             return ov::element::bf16;
+        case TensorProto_DataType::TensorProto_DataType_STRING:
+            return ov::element::string;
         case TensorProto_DataType::TensorProto_DataType_UNDEFINED:
             FRONT_END_THROW("Data type is Undefined");
         default:
             ONNX_UNSUPPORTED_DATA_TYPE(m_tensor_proto->data_type(),
                                        "BOOL, BFLOAT16, FLOAT, FLOAT16, DOUBLE, INT4, INT8, INT16, INT32, INT64, "
-                                       "UINT4, UINT8, UINT16, UINT32, UINT64");
+                                       "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
         }
     }
 
@@ -211,10 +213,12 @@ public:
             return make_ov_constant<uint64_t>(ov::element::u64);
         case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
             return make_ov_constant<ov::bfloat16>(ov::element::bf16);
+        case TensorProto_DataType::TensorProto_DataType_STRING:
+            return make_ov_constant<std::string>(ov::element::string);
         default:
             ONNX_UNSUPPORTED_DATA_TYPE(m_tensor_proto->data_type(),
                                        "BOOL, BFLOAT16, FLOAT, FLOAT16, DOUBLE, INT4, INT8, INT16, INT32, INT64, "
-                                       "UINT4, UINT8, UINT16, UINT32, UINT64");
+                                       "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
         }
     }
 
@@ -344,8 +348,10 @@ private:
             return m_tensor_proto->uint64_data_size();
         case TensorProto_DataType::TensorProto_DataType_DOUBLE:
             return m_tensor_proto->double_data_size();
+        case TensorProto_DataType::TensorProto_DataType_STRING:
+            return m_tensor_proto->string_data_size();
         }
-        ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "FLOAT, INT32, INT64, UINT64, DOUBLE");
+        ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "FLOAT, INT32, INT64, UINT64, DOUBLE, STRING");
     }
 
     const TensorProto* m_tensor_proto;
@@ -396,6 +402,9 @@ std::vector<uint64_t> Tensor::get_data() const;
 
 template <>
 std::vector<char> Tensor::get_data() const;
+
+template <>
+std::vector<std::string> Tensor::get_data() const;
 
 }  // namespace onnx
 }  // namespace frontend

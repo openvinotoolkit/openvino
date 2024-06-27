@@ -117,6 +117,7 @@ struct gemm : public primitive_base<gemm> {
          const std::vector<int64_t>& output_transpose_order,
          bool indirect_a,
          bool indirect_b,
+         int64_t indirect_axis,
          const float alpha = 1.0f,
          const float beta = 0.0f,
          const padding& output_padding = padding())
@@ -130,7 +131,8 @@ struct gemm : public primitive_base<gemm> {
           weight_rank(input1_transpose_order.size()),
           beam_table(beam_table),
           indirect_a(indirect_a),
-          indirect_b(indirect_b) {
+          indirect_b(indirect_b),
+          indirect_axis(indirect_axis) {
         if (inputs.size() != 2 && inputs.size() != 3) {
             throw std::invalid_argument("Invalid inputs count - gemm expects either two or three inputs");
         }
@@ -162,6 +164,7 @@ struct gemm : public primitive_base<gemm> {
     input_info beam_table = {};
     bool indirect_a = false;
     bool indirect_b = false;
+    int64_t indirect_axis = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -169,6 +172,7 @@ struct gemm : public primitive_base<gemm> {
         seed = hash_combine(seed, transpose_input1);
         seed = hash_combine(seed, indirect_a);
         seed = hash_combine(seed, indirect_b);
+        seed = hash_combine(seed, indirect_axis);
         seed = hash_range(seed, input0_transpose_order.begin(), input0_transpose_order.end());
         seed = hash_range(seed, input1_transpose_order.begin(), input1_transpose_order.end());
         seed = hash_range(seed, output_transpose_order.begin(), output_transpose_order.end());
@@ -189,6 +193,7 @@ struct gemm : public primitive_base<gemm> {
                beta == rhs_casted.beta &&
                indirect_a == rhs_casted.indirect_a &&
                indirect_b == rhs_casted.indirect_b &&
+               indirect_axis == rhs_casted.indirect_axis &&
                input_rank == rhs_casted.input_rank &&
                weight_rank == rhs_casted.weight_rank;
     }
@@ -206,6 +211,7 @@ struct gemm : public primitive_base<gemm> {
         ob << weight_rank;
         ob << indirect_a;
         ob << indirect_b;
+        ob << indirect_axis;
         ob << beam_table.pid;
         ob << beam_table.idx;
     }
@@ -223,6 +229,7 @@ struct gemm : public primitive_base<gemm> {
         ib >> weight_rank;
         ib >> indirect_a;
         ib >> indirect_b;
+        ib >> indirect_axis;
         ib >> beam_table.pid;
         ib >> beam_table.idx;
     }

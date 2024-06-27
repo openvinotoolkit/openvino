@@ -13,7 +13,6 @@ import tensorflow.compat.v1 as tf_v1
 import tensorflow_hub as hub
 # noinspection PyUnresolvedReferences
 import tensorflow_text  # do not delete, needed for text models
-from models_hub_common.constants import tf_hub_cache_dir, hf_cache_dir
 from models_hub_common.test_convert_model import TestConvertModel
 from models_hub_common.utils import get_models_list
 from openvino import Core
@@ -129,12 +128,6 @@ class TestTFHubConvertModel(TestConvertModel):
                     pass
 
     def teardown_method(self):
-        # remove all downloaded files for TF Hub models
-        self.clean_dir(tf_hub_cache_dir)
-
-        # remove all downloaded files for HF models
-        self.clean_dir(hf_cache_dir)
-
         # deallocate memory after each test case
         gc.collect()
 

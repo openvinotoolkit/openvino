@@ -11,20 +11,19 @@ namespace test {
 namespace snippets {
 
 typedef std::tuple<
-        ov::PartialShape,            // Input 0 Shape
-        std::vector<int>,            // Transpose order
-        size_t,                      // Expected num nodes
-        size_t,                      // Expected num subgraphs
-        std::string                  // Target Device
+        InputShape,            // Input 0 Shape
+        std::vector<int>,      // Transpose order
+        size_t,                // Expected num nodes
+        size_t,                // Expected num subgraphs
+        std::string            // Target Device
 > TransposeParams;
 
 typedef std::tuple<
-        ov::PartialShape,            // Input 0 Shape
-        ov::PartialShape,            // Input 1 Shape
-        std::vector<int>,            // Transpose order
-        size_t,                      // Expected num nodes
-        size_t,                      // Expected num subgraphs
-        std::string                  // Target Device
+        std::pair<InputShape, InputShape>, // Input Shapes
+        std::vector<int>,                  // Transpose order
+        size_t,                            // Expected num nodes
+        size_t,                            // Expected num subgraphs
+        std::string                        // Target Device
 > TransposeMulParams;
 
 class Transpose : public testing::WithParamInterface<ov::test::snippets::TransposeParams>,

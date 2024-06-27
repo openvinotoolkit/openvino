@@ -6,7 +6,7 @@ Additional Resources
 
 
 .. meta::
-   :description: Learn more about OpenVINO from benchmark results, case studies 
+   :description: Learn more about OpenVINO from benchmark results, case studies
                  and lists of supported models, operations and devices.
 
 .. toctree::
@@ -14,7 +14,7 @@ Additional Resources
    :hidden:
 
    additional-resources/glossary
-   additional-resources/legal-information
+   Legal and Responsible AI Information <./additional-resources/legal-information>
    additional-resources/telemetry
    Case Studies <https://www.intel.com/openvino-success-stories>
 
@@ -23,9 +23,9 @@ Additional Resources
 
 :doc:`Glossary <additional-resources/glossary>` contains terms used in OpenVINO.
 
-:doc:`Legal Information <additional-resources/legal-information>` has trademark information and other legal statements.
+:doc:`Legal and Responsible AI Information <additional-resources/legal-information>` provides trademark information and other legal statements.
 
-:doc:`OpenVINO™ Telemetry <additional-resources/telemetry>` has detailed information on the telemetry data collection. 
+:doc:`OpenVINO™ Telemetry <additional-resources/telemetry>` has detailed information on the telemetry data collection.
 
 `Case Studies <https://www.intel.com/openvino-success-stories>`__ are articles about real-world examples of OpenVINO™ usage.
 

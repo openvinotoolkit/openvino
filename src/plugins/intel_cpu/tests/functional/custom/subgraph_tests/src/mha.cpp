@@ -51,31 +51,31 @@ static std::shared_ptr<ov::Model> initMHASubgraph0(std::vector<ov::PartialShape>
     constantShapes.push_back(ov::Shape({inputDynamicShapes[0].get_shape().size()}));
 
     std::vector<int64_t> transpose0ConstData = {0, 2, 1, 3};
-    auto transpose0Const = ov::test::utils::deprecated::make_constant(ElementType::i64, constantShapes[0], transpose0ConstData);
+    auto transpose0Const = ov::op::v0::Constant::create(ElementType::i64, constantShapes[0], transpose0ConstData);
 
     std::vector<int64_t> transpose1ConstData = {0, 2, 3, 1};
-    auto transpose1Const = ov::test::utils::deprecated::make_constant(ElementType::i64, constantShapes[1], transpose1ConstData);
+    auto transpose1Const = ov::op::v0::Constant::create(ElementType::i64, constantShapes[1], transpose1ConstData);
 
     std::vector<float> mulConstData(ov::shape_size(constantShapes[2]));
-    auto mulConst = ov::test::utils::deprecated::make_constant(inputPrecisions[0], constantShapes[2], mulConstData, true);
+    auto mulConst = ov::test::utils::make_constant(inputPrecisions[0], constantShapes[2]);
 
     std::vector<int64_t> reshape0ConstData = {
         static_cast<int64_t>(inputDynamicShapes[0].get_shape()[0] * inputDynamicShapes[0].get_shape()[1] *
                              inputDynamicShapes[0].get_shape()[2]),
         -1};
-    auto reshape0Const = ov::test::utils::deprecated::make_constant(ElementType::i64, constantShapes[3], reshape0ConstData);
+    auto reshape0Const = ov::op::v0::Constant::create(ElementType::i64, constantShapes[3], reshape0ConstData);
 
     std::vector<int64_t> reshape1ConstData = {static_cast<int64_t>(inputDynamicShapes[0].get_shape()[0]),
                                               static_cast<int64_t>(inputDynamicShapes[0].get_shape()[2]),
                                               static_cast<int64_t>(inputDynamicShapes[0].get_shape()[1]),
                                               static_cast<int64_t>(inputDynamicShapes[0].get_shape()[1])};
-    auto reshape1Const = ov::test::utils::deprecated::make_constant(ElementType::i64, constantShapes[4], reshape1ConstData);
+    auto reshape1Const = ov::op::v0::Constant::create(ElementType::i64, constantShapes[4], reshape1ConstData);
 
     std::vector<int64_t> transpose2ConstData = {0, 2, 1, 3};
-    auto transpose2Const = ov::test::utils::deprecated::make_constant(ElementType::i64, constantShapes[5], transpose2ConstData);
+    auto transpose2Const = ov::op::v0::Constant::create(ElementType::i64, constantShapes[5], transpose2ConstData);
 
     std::vector<int64_t> transpose3ConstData = {0, 2, 1, 3};
-    auto transpose3Const = ov::test::utils::deprecated::make_constant(ElementType::i64, constantShapes[6], transpose3ConstData);
+    auto transpose3Const = ov::op::v0::Constant::create(ElementType::i64, constantShapes[6], transpose3ConstData);
 
     float transA = false;
     float transB = false;
@@ -121,16 +121,16 @@ static std::shared_ptr<ov::Model> initMHASubgraph1(std::vector<ov::PartialShape>
     constantShapes.push_back(ov::Shape({inputDynamicShapes[0].get_shape().size()}));
 
     std::vector<int64_t> transpose0ConstData = {0, 2, 1, 3};
-    auto transpose0Const = ov::test::utils::deprecated::make_constant(ElementType::i64, constantShapes[0], transpose0ConstData);
+    auto transpose0Const = ov::op::v0::Constant::create(ElementType::i64, constantShapes[0], transpose0ConstData);
 
     std::vector<int64_t> transpose1ConstData = {0, 2, 3, 1};
-    auto transpose1Const = ov::test::utils::deprecated::make_constant(ElementType::i64, constantShapes[1], transpose1ConstData);
+    auto transpose1Const = ov::op::v0::Constant::create(ElementType::i64, constantShapes[1], transpose1ConstData);
 
     std::vector<int64_t> transpose2ConstData = {0, 2, 1, 3};
-    auto transpose2Const = ov::test::utils::deprecated::make_constant(ElementType::i64, constantShapes[0], transpose2ConstData);
+    auto transpose2Const = ov::op::v0::Constant::create(ElementType::i64, constantShapes[0], transpose2ConstData);
 
     std::vector<int64_t> transpose3ConstData = {0, 2, 1, 3};
-    auto transpose3Const = ov::test::utils::deprecated::make_constant(ElementType::i64, constantShapes[1], transpose3ConstData);
+    auto transpose3Const = ov::op::v0::Constant::create(ElementType::i64, constantShapes[1], transpose3ConstData);
 
     float transA = false;
     float transB = false;
@@ -336,28 +336,28 @@ static std::shared_ptr<ov::Model> initMHAQuantSubgraph0(std::vector<ov::PartialS
     constantShapes.push_back(ov::Shape({inputDynamicShapes[0].get_shape().size()}));
 
     std::vector<int64_t> transpose0ConstData = {0, 2, 1, 3};
-    auto transpose0Const = ov::test::utils::deprecated::make_constant(ElementType::i64, constantShapes[0], transpose0ConstData);
+    auto transpose0Const = ov::op::v0::Constant::create(ElementType::i64, constantShapes[0], transpose0ConstData);
 
     std::vector<int64_t> transpose1ConstData = {0, 2, 3, 1};
-    auto transpose1Const = ov::test::utils::deprecated::make_constant(ElementType::i64, constantShapes[1], transpose1ConstData);
+    auto transpose1Const = ov::op::v0::Constant::create(ElementType::i64, constantShapes[1], transpose1ConstData);
 
     std::vector<int64_t> reshape0ConstData = {
         static_cast<int64_t>(inputDynamicShapes[0].get_shape()[0] * inputDynamicShapes[0].get_shape()[1] *
                              inputDynamicShapes[0].get_shape()[2]),
         -1};
-    auto reshape0Const = ov::test::utils::deprecated::make_constant(ElementType::i64, constantShapes[2], reshape0ConstData);
+    auto reshape0Const = ov::op::v0::Constant::create(ElementType::i64, constantShapes[2], reshape0ConstData);
 
     std::vector<int64_t> reshape1ConstData = {static_cast<int64_t>(inputDynamicShapes[0].get_shape()[0]),
                                               static_cast<int64_t>(inputDynamicShapes[0].get_shape()[2]),
                                               static_cast<int64_t>(inputDynamicShapes[0].get_shape()[1]),
                                               static_cast<int64_t>(inputDynamicShapes[0].get_shape()[1])};
-    auto reshape1Const = ov::test::utils::deprecated::make_constant(ElementType::i64, constantShapes[3], reshape1ConstData);
+    auto reshape1Const = ov::op::v0::Constant::create(ElementType::i64, constantShapes[3], reshape1ConstData);
 
     std::vector<int64_t> transpose2ConstData = {0, 2, 1, 3};
-    auto transpose2Const = ov::test::utils::deprecated::make_constant(ElementType::i64, constantShapes[4], transpose2ConstData);
+    auto transpose2Const = ov::op::v0::Constant::create(ElementType::i64, constantShapes[4], transpose2ConstData);
 
     std::vector<int64_t> transpose3ConstData = {0, 2, 1, 3};
-    auto transpose3Const = ov::test::utils::deprecated::make_constant(ElementType::i64, constantShapes[5], transpose3ConstData);
+    auto transpose3Const = ov::op::v0::Constant::create(ElementType::i64, constantShapes[5], transpose3ConstData);
 
     float transA = false;
     float transB = false;
@@ -464,19 +464,19 @@ static std::shared_ptr<ov::Model> initMHAQuantSubgraph1(const std::vector<ov::Pa
     constantShapes.push_back(ov::Shape({1}));
 
     std::vector<int64_t> transpose0ConstData = {0, 2, 1, 3};
-    auto transpose0Const = ov::test::utils::deprecated::make_constant(ElementType::i64, constantShapes[0], transpose0ConstData);
+    auto transpose0Const = ov::op::v0::Constant::create(ElementType::i64, constantShapes[0], transpose0ConstData);
 
     std::vector<int64_t> transpose1ConstData = {0, 2, 3, 1};
-    auto transpose1Const = ov::test::utils::deprecated::make_constant(ElementType::i64, constantShapes[1], transpose1ConstData);
+    auto transpose1Const = ov::op::v0::Constant::create(ElementType::i64, constantShapes[1], transpose1ConstData);
 
     std::vector<int64_t> transpose2ConstData = {0, 2, 1, 3};
-    auto transpose2Const = ov::test::utils::deprecated::make_constant(ElementType::i64, constantShapes[2], transpose2ConstData);
+    auto transpose2Const = ov::op::v0::Constant::create(ElementType::i64, constantShapes[2], transpose2ConstData);
 
     std::vector<int64_t> transpose3ConstData = {0, 2, 1, 3};
-    auto transpose3Const = ov::test::utils::deprecated::make_constant(ElementType::i64, constantShapes[3], transpose3ConstData);
+    auto transpose3Const = ov::op::v0::Constant::create(ElementType::i64, constantShapes[3], transpose3ConstData);
 
     std::vector<float> mulConstData(ov::shape_size(constantShapes[4]));
-    auto mulConst = ov::test::utils::deprecated::make_constant(inputPrecisions[0], constantShapes[4], mulConstData, true);
+    auto mulConst = ov::test::utils::make_constant(inputPrecisions[0], constantShapes[4]);
 
     float transA = false;
     float transB = false;

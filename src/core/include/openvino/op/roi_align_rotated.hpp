@@ -8,13 +8,13 @@
 
 namespace ov {
 namespace op {
-namespace v14 {
+namespace v15 {
 /// \brief ROIAlignRotated operation.
 ///
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API ROIAlignRotated : public util::ROIAlignBase {
 public:
-    OPENVINO_OP("ROIAlignRotated", "opset14", util::ROIAlignBase);
+    OPENVINO_OP("ROIAlignRotated", "opset15", util::ROIAlignBase);
 
     ROIAlignRotated() = default;
     /// \brief Constructs a ROIAlignRotated operation.
@@ -55,8 +55,8 @@ public:
     }
 
 private:
-    bool m_clockwise_mode;
+    bool m_clockwise_mode{};
 };
-}  // namespace v14
+}  // namespace v15
 }  // namespace op
 }  // namespace ov

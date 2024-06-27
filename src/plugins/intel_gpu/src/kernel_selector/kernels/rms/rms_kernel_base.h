@@ -27,11 +27,12 @@ public:
     struct DispatchData : public CommonDispatchData {
         size_t dataSize;
         size_t dataCount;
-        size_t slmSize;
         size_t maxSlmSize;
         size_t leftovers;
+        size_t itemsNum;
+        size_t subgroupBlockSize;
 
-        DispatchData() : dataSize(0), dataCount(0), slmSize(0), maxSlmSize(0), leftovers(0) {}
+        DispatchData() : dataSize(0), dataCount(0), maxSlmSize(0), leftovers(0), itemsNum(0), subgroupBlockSize(0) {}
     };
 
 protected:

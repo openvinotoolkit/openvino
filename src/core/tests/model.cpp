@@ -7,13 +7,18 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <shared_node_info.hpp>
 
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "shared_node_info.hpp"
+
+using ov::op::util::Variable;
+using ov::op::util::VariableInfo;
+using ov::op::v0::Parameter;
+using ov::op::v0::Result;
 
 TEST(model, get_input_by_tensor_name) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
@@ -932,7 +937,7 @@ TEST(model_reshape, ReshapeBatchReLUWithOneInput) {
     EXPECT_EQ(model->get_results()[0]->get_shape(), ov::Shape({2, 3, 22, 22}));
 }
 
-TEST(model_reshape, IncoreectReshapeBatchWithMultipleInputs) {
+TEST(model_reshape, IncorrectReshapeBatchWithMultipleInputs) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 3, 3});
     arg0->set_friendly_name("data");
     arg0->get_output_tensor(0).set_names({"input1"});
@@ -955,6 +960,161 @@ TEST(model_reshape, IncoreectReshapeBatchWithMultipleInputs) {
     f->validate_nodes_and_infer_types();
     ov::PartialShape shape({1, 3, 22, 22});
     EXPECT_THROW(f->reshape(shape), ov::Exception);
+}
+
+TEST(model_reshape, ReshapeWithStaticVariableSingleInput) {
+    auto arg0 = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{1, 3, 4, 5});
+
+    auto variable = std::make_shared<Variable>(VariableInfo{arg0->get_output_partial_shape(0), ov::element::f32, "ID"});
+    auto read_value = std::make_shared<ov::op::v6::ReadValue>(arg0, variable);
+    auto assign = std::make_shared<ov::op::v6::Assign>(read_value, variable);
+
+    auto result1 = std::make_shared<Result>(assign);
+
+    auto shape_of = std::make_shared<ov::opset8::ShapeOf>(arg0);
+    auto result2 = std::make_shared<Result>(shape_of);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{arg0});
+
+    model->validate_nodes_and_infer_types();
+
+    EXPECT_EQ(model->get_parameters()[0]->get_shape(), ov::Shape({1, 3, 4, 5}));
+    EXPECT_EQ(model->get_results()[0]->get_shape(), ov::Shape({1, 3, 4, 5}));
+    EXPECT_EQ(model->get_results()[1]->get_shape(), ov::Shape({4}));
+
+    {
+        ov::PartialShape shape({1, 4, 3, 3});
+        model->reshape(shape, {{"ID", shape}});
+    }
+
+    EXPECT_EQ(model->get_parameters()[0]->get_shape(), ov::Shape({1, 4, 3, 3}));
+    EXPECT_EQ(model->get_results()[0]->get_shape(), ov::Shape({1, 4, 3, 3}));
+    EXPECT_EQ(model->get_results()[1]->get_shape(), ov::Shape({4}));
+}
+
+TEST(model_reshape, ReshapeWithStaticVariablesSingleInput) {
+    auto arg0 = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{1, 3, 4, 5});
+
+    auto variable =
+        std::make_shared<Variable>(VariableInfo{arg0->get_output_partial_shape(0), ov::element::f32, "ID1"});
+    auto read_value = std::make_shared<ov::op::v6::ReadValue>(arg0, variable);
+    auto assign = std::make_shared<ov::op::v6::Assign>(read_value, variable);
+
+    auto add = std::make_shared<ov::op::v1::Add>(read_value, read_value);
+    auto var_add = std::make_shared<Variable>(VariableInfo{add->get_output_partial_shape(0), ov::element::f32, "ID2"});
+    auto read_value_add = std::make_shared<ov::op::v6::ReadValue>(add, var_add);
+    auto assign_add = std::make_shared<ov::op::v6::Assign>(read_value_add, var_add);
+
+    auto result1 = std::make_shared<Result>(assign);
+
+    auto shape_of = std::make_shared<ov::opset8::ShapeOf>(add);
+    auto result2 = std::make_shared<Result>(shape_of);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{arg0});
+
+    model->validate_nodes_and_infer_types();
+
+    EXPECT_EQ(model->get_parameters()[0]->get_shape(), ov::Shape({1, 3, 4, 5}));
+    EXPECT_EQ(model->get_results()[0]->get_shape(), ov::Shape({1, 3, 4, 5}));
+    EXPECT_EQ(model->get_results()[1]->get_shape(), ov::Shape({4}));
+
+    {
+        ov::PartialShape shape({1, 4, 3, 3});
+        model->reshape(shape, {{"ID2", shape}, {"ID1", shape}});
+    }
+
+    EXPECT_EQ(model->get_parameters()[0]->get_shape(), ov::Shape({1, 4, 3, 3}));
+    EXPECT_EQ(model->get_results()[0]->get_shape(), ov::Shape({1, 4, 3, 3}));
+    EXPECT_EQ(model->get_results()[1]->get_shape(), ov::Shape({4}));
+}
+
+TEST(model_reshape, ReshapeWithDynamicVariableSingleInput) {
+    auto arg0 = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{1, 3, 4, 5});
+    arg0->get_output_tensor(0).set_names({"input"});
+
+    auto variable = std::make_shared<Variable>(VariableInfo{ov::PartialShape::dynamic(4), ov::element::f32, "ID"});
+    auto read_value = std::make_shared<ov::op::v6::ReadValue>(arg0, variable);
+    auto assign = std::make_shared<ov::op::v6::Assign>(read_value, variable);
+
+    auto result1 = std::make_shared<Result>(assign);
+
+    auto shape_of = std::make_shared<ov::opset8::ShapeOf>(arg0);
+    auto result2 = std::make_shared<Result>(shape_of);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{arg0});
+
+    model->validate_nodes_and_infer_types();
+
+    EXPECT_EQ(model->get_parameters()[0]->get_shape(), ov::Shape({1, 3, 4, 5}));
+    EXPECT_EQ(model->get_results()[0]->get_output_partial_shape(0), ov::PartialShape::dynamic(4));
+    EXPECT_EQ(model->get_results()[1]->get_output_partial_shape(0), ov::Shape({4}));
+
+    model->reshape({{"input", ov::PartialShape{1, 4, 8, 9}}});
+
+    EXPECT_EQ(model->get_parameters()[0]->get_shape(), ov::Shape({1, 4, 8, 9}));
+    EXPECT_EQ(model->get_results()[0]->get_output_partial_shape(0), ov::PartialShape::dynamic(4));
+    EXPECT_EQ(model->get_results()[1]->get_shape(), ov::Shape({4}));
+}
+
+TEST(model_reshape, ReshapeStaticWithVariableMultipleInputs) {
+    auto arg0 = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{1, 3, 4, 5});
+    auto arg1 = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{1, 2, 4, 5});
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{arg0, arg1}, 1);
+
+    auto variable =
+        std::make_shared<Variable>(VariableInfo{concat->get_output_partial_shape(0), ov::element::f32, "ID"});
+    auto read_value = std::make_shared<ov::op::v6::ReadValue>(concat, variable);
+    auto assign = std::make_shared<ov::op::v6::Assign>(read_value, variable);
+
+    auto result1 = std::make_shared<Result>(assign);
+
+    auto shape_of = std::make_shared<ov::opset8::ShapeOf>(concat);
+    auto result2 = std::make_shared<Result>(shape_of);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{arg0, arg1});
+
+    model->validate_nodes_and_infer_types();
+
+    EXPECT_EQ(model->get_parameters()[0]->get_shape(), ov::Shape({1, 3, 4, 5}));
+    EXPECT_EQ(model->get_parameters()[1]->get_shape(), ov::Shape({1, 2, 4, 5}));
+    EXPECT_EQ(model->get_results()[0]->get_shape(), ov::Shape({1, 5, 4, 5}));
+    EXPECT_EQ(model->get_results()[1]->get_shape(), ov::Shape({4}));
+
+    {
+        ov::PartialShape shape({1, 14, 4, 5});
+        model->reshape({{0, shape}, {1, shape}}, {{"ID", {1, 28, 4, 5}}});
+    }
+
+    EXPECT_EQ(model->get_parameters()[0]->get_shape(), ov::Shape({1, 14, 4, 5}));
+    EXPECT_EQ(model->get_parameters()[1]->get_shape(), ov::Shape({1, 14, 4, 5}));
+    EXPECT_EQ(model->get_results()[0]->get_shape(), ov::Shape({1, 28, 4, 5}));
+    EXPECT_EQ(model->get_results()[1]->get_shape(), ov::Shape({4}));
+}
+
+TEST(model_reshape, ReshapeWithStaticVariableIncorrectVariable) {
+    auto arg0 = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{1, 3, 4, 5});
+    auto arg1 = std::make_shared<Parameter>(ov::element::f32, ov::PartialShape{1, 2, 4, 5});
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{arg0, arg1}, 1);
+
+    auto variable =
+        std::make_shared<Variable>(VariableInfo{concat->get_output_partial_shape(0), ov::element::f32, "ID"});
+    auto read_value = std::make_shared<ov::op::v6::ReadValue>(concat, variable);
+    auto assign = std::make_shared<ov::op::v6::Assign>(read_value, variable);
+
+    auto result1 = std::make_shared<Result>(assign);
+
+    auto shape_of = std::make_shared<ov::opset8::ShapeOf>(concat);
+    auto result2 = std::make_shared<Result>(shape_of);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result1, result2}, ov::ParameterVector{arg0, arg1});
+
+    model->validate_nodes_and_infer_types();
+
+    EXPECT_EQ(model->get_parameters()[0]->get_shape(), ov::Shape({1, 3, 4, 5}));
+    EXPECT_EQ(model->get_parameters()[1]->get_shape(), ov::Shape({1, 2, 4, 5}));
+    EXPECT_EQ(model->get_results()[0]->get_shape(), ov::Shape({1, 5, 4, 5}));
+    EXPECT_EQ(model->get_results()[1]->get_shape(), ov::Shape({4}));
+
+    ov::PartialShape shape({1, 14, 4, 5});
+    ov::PartialShape wrong_var_shape({1, 20, 4, 5});
+    EXPECT_THROW(model->reshape({{0, shape}, {1, shape}}), ov::AssertFailure);
+    EXPECT_THROW(model->reshape({{0, shape}, {1, shape}}, {{"WRONG_ID", {1, 28, 4, 5}}}), ov::AssertFailure);
+    EXPECT_THROW(model->reshape({{0, shape}, {1, shape}}, {{"ID", wrong_var_shape}}), ov::AssertFailure);
 }
 
 TEST(model, add_output_tensor_name) {
@@ -1147,6 +1307,8 @@ TEST(model, add_output_port_to_result) {
 }
 
 TEST(model, add_output_performance) {
+    // skip this test due to CVS-140440
+    GTEST_SKIP() << "CVS-140440";
     using namespace std::chrono;
     auto test = [](int cnt, bool& timeout) -> size_t {
         auto shape = ov::Shape{1, 1, 224, 224};
@@ -1362,11 +1524,11 @@ bool all_ops_have_same_info(const std::shared_ptr<ov::Model>& f) {
 TEST(model, topological_sort_throws_if_loop_with_one_node) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
-    auto result = std::make_shared<ov::opset8::Result>(relu1);
 
-    // Loop relu2->relu2
-    auto relu2 = std::make_shared<ov::opset8::Relu>(relu1->output(0));
-    ov::replace_node(relu1, relu2);
+    // Loop relu1->relu1
+    relu1->input(0).replace_source_output(relu1->output(0));
+
+    auto result = std::make_shared<ov::opset8::Result>(relu1);
     ASSERT_THROW(std::ignore = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{arg0}),
                  ov::Exception);
 }

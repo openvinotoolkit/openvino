@@ -25,14 +25,13 @@ struct program;
 struct network;
 
 
-struct kernel_impl_params {
+struct kernel_impl_params final {
     struct Hasher {
         size_t operator()(const kernel_impl_params &k) const {
             return k.hash();
         }
     };
 
-    bool has_runtime_layouts = false;
     const program *prog;
     cldnn::device_type dev_type;
     stream::ptr strm;
@@ -45,6 +44,7 @@ struct kernel_impl_params {
     std::vector<cldnn::fused_primitive_desc> fused_desc;
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::vector<cldnn::fused_primitive_desc_onednn> fused_desc_onednn;
+    std::shared_ptr<dnnl::primitive_attr> attrs_onednn;
 #endif // ENABLE_ONEDNN_FOR_GPU
 
     optional_layout weights_layout = optional_layout();
@@ -79,8 +79,7 @@ struct kernel_impl_params {
                        const std::vector<layout>& _in_layouts,
                        const std::vector<layout>& _out_layouts,
                        const std::vector<cldnn::fused_primitive_desc>& _fused_descs)
-                       : has_runtime_layouts(true)
-                       , prog(&_prog)
+                       : prog(&_prog)
                        , dev_type(_dev_type)
                        , strm(std::move(_strm))
                        , desc(std::move(_desc))
@@ -91,7 +90,9 @@ struct kernel_impl_params {
                        , primary_input_idx(0) {
     }
 
-    layout get_input_layout(size_t idx = 0) const {
+    virtual ~kernel_impl_params() = default;
+
+    const layout& get_input_layout(size_t idx = 0) const {
         OPENVINO_ASSERT(input_layouts.size() > idx,
                         "The size of input layouts must be greater than the requested index: ",
                         "Requested index is ", idx, ", ",
@@ -105,7 +106,7 @@ struct kernel_impl_params {
         return result;
     }
 
-    layout get_output_layout(size_t idx = 0) const {
+    const layout& get_output_layout(size_t idx = 0) const {
         OPENVINO_ASSERT(output_layouts.size() > idx,
                         "The size of output layouts must be greater than the requested index: ",
                         "Requested index is ", idx, ",",
@@ -115,10 +116,10 @@ struct kernel_impl_params {
 
     bool has_fused_primitives() const { return !fused_desc.empty(); }
 
-    layout get_fused_output_layout() const {
+    ov::element::Type_t get_output_element_type() const {
         if (fused_desc.empty())
-            return layout(data_types::f32, format::bfyx, tensor());
-        return fused_desc.back().output_layout;
+            return output_layouts[0].data_type;
+        return fused_desc.back().output_layout.data_type;
     }
 
     bool is_dynamic() const {
@@ -142,8 +143,6 @@ struct kernel_impl_params {
     bool is_type() const {
         return std::static_pointer_cast<const PType>(desc)->type == PType::type_id();
     }
-
-    virtual primitive_type_id type() const { return desc->type; }
 
     const program& get_program() const {
         OPENVINO_ASSERT(prog != nullptr, "[GPU] Program pointer in kernel_impl_params is not initialized");

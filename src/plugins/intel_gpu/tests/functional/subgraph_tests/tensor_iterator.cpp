@@ -3,7 +3,7 @@
 //
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "shared_test_classes/base/utils/generate_inputs.hpp"
+#include "shared_test_classes/base/utils/ranges.hpp"
 
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
@@ -232,23 +232,22 @@ protected:
      void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         ov::Shape default_shape{batch_size, 1, hidden_size};
-        auto inputMap = ov::test::utils::getInputMap();
+        ov::test::utils::ModelRange modelRange;
+        modelRange.find_mode_ranges(function);
         auto itTargetShape = targetInputStaticShapes.begin();
         for (const auto &param : function->get_parameters()) {
             std::shared_ptr<ov::Node> inputNode = param;
             for (size_t i = 0; i < param->get_output_size(); i++) {
                 for (const auto &node : param->get_output_target_inputs(i)) {
                     std::shared_ptr<ov::Node> nodePtr = node.get_node()->shared_from_this();
-                    auto it = inputMap.find(nodePtr->get_type_info());
-                    ASSERT_NE(it, inputMap.end());
                     for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
                         if (itTargetShape != targetInputStaticShapes.end()) {
                             if (nodePtr->get_input_node_ptr(port)->shared_from_this() == inputNode->shared_from_this()) {
-                                inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), *itTargetShape)});
+                                inputs.insert({param, modelRange.generate_input(nodePtr, port, *itTargetShape)});
                                 break;
                             }
                         } else {
-                            inputs.insert({param, it->second(nodePtr, port, param->get_element_type(), default_shape)});
+                            inputs.insert({param, modelRange.generate_input(nodePtr, port, default_shape)});
                         }
                     }
                 }

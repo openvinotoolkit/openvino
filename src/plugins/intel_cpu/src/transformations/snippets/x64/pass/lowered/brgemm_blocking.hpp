@@ -25,7 +25,12 @@ public:
              snippets::lowered::LinearIR::constExprIt end) override;
 
 private:
-    static void move_new_memory_buffer(snippets::lowered::LinearIR& linear_ir, const snippets::lowered::LinearIR::constExprIt& brgemm_it);
+    static snippets::lowered::LinearIR::constExprIt move_new_memory_buffer(snippets::lowered::LinearIR& linear_ir,
+                                                                           const snippets::lowered::LinearIR::constExprIt& brgemm_it);
+
+    static snippets::lowered::LinearIR::constExprIt get_loop_begin_pos(snippets::lowered::LinearIR& linear_ir,
+                                                                       const snippets::lowered::LinearIR::constExprIt& brgemm_it,
+                                                                       bool include_repacking = true);
 };
 
 }  // namespace pass

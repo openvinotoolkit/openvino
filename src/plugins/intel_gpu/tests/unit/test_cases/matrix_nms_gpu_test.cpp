@@ -43,8 +43,8 @@ struct matrix_nms_test_inputs {
     std::vector<float> expected_output;
     std::vector<int> expected_selected_boxes;
     std::vector<int> expected_valid_outputs;
-    matrix_nms::sort_result_type sort_result_type;
-    matrix_nms::decay_function decay_function;
+    ov::op::v8::MatrixNms::SortResultType sort_result_type;
+    ov::op::v8::MatrixNms::DecayFunction decay_function;
     std::string test_name;
 };
 
@@ -79,16 +79,17 @@ public:
         set_values(boxes, convert<T>(test_inputs.boxes_values));
         set_values(scores, convert<T>(test_inputs.scores_values));
 
-        const matrix_nms::attributes attrs(test_inputs.sort_result_type,
-                                           test_inputs.sort_result_across_batch,
-                                           test_inputs.score_threshold,
-                                           test_inputs.nms_top_k,
-                                           test_inputs.keep_top_k,
-                                           test_inputs.background_class,
-                                           test_inputs.decay_function,
-                                           test_inputs.gaussian_sigma,
-                                           test_inputs.post_threshold,
-                                           test_inputs.normalized);
+        const ov::op::v8::MatrixNms::Attributes attrs(test_inputs.sort_result_type,
+                                                      test_inputs.sort_result_across_batch,
+                                                      ov::element::i32,
+                                                      test_inputs.score_threshold,
+                                                      test_inputs.nms_top_k,
+                                                      test_inputs.keep_top_k,
+                                                      test_inputs.background_class,
+                                                      test_inputs.decay_function,
+                                                      test_inputs.gaussian_sigma,
+                                                      test_inputs.post_threshold,
+                                                      test_inputs.normalized);
 
         topology topology;
         topology.add(input_layout("boxes", boxes->get_layout()));
@@ -144,13 +145,13 @@ public:
         std::ostringstream result;
 
         auto sort_res_type_str =
-            test_inputs.sort_result_type == matrix_nms::sort_result_type::score
+            test_inputs.sort_result_type == ov::op::v8::MatrixNms::SortResultType::SCORE
                 ? "score"
-                : test_inputs.sort_result_type == matrix_nms::sort_result_type::class_id ? "class_id" : "none";
+                : test_inputs.sort_result_type == ov::op::v8::MatrixNms::SortResultType::CLASSID ? "class_id" : "none";
         auto decay_function_str =
-            test_inputs.decay_function == matrix_nms::decay_function::linear
+            test_inputs.decay_function == ov::op::v8::MatrixNms::DecayFunction::LINEAR
                 ? "linear"
-                : test_inputs.decay_function == matrix_nms::decay_function::gaussian ? "gaussian" : "none";
+                : test_inputs.decay_function == ov::op::v8::MatrixNms::DecayFunction::GAUSSIAN ? "gaussian" : "none";
 
         result << "SortResultAcrossBatch=" << bool_to_str(test_inputs.sort_result_across_batch) << "_";
         result << "ScoreThreshold=" << test_inputs.score_threshold << "_";
@@ -208,8 +209,8 @@ matrix_nms_test_inputs get_matrix_nms_smoke_inputs() {
                                1.1},
             std::vector<int>{0, 3, 1},          // expected_selected_boxes
             std::vector<int>{3},                // expected_valid_output
-            matrix_nms::sort_result_type::score,  // sort_result_type
-            matrix_nms::decay_function::linear,  // decay_function
+            ov::op::v8::MatrixNms::SortResultType::SCORE,  // sort_result_type
+            ov::op::v8::MatrixNms::DecayFunction::LINEAR,  // decay_function
             "smoke"};
 }
 
@@ -249,8 +250,8 @@ matrix_nms_test_inputs get_matrix_nms_gaussian_inputs() {
                                1.1},
             std::vector<int>{0, 3, 1},            // expected_selected_boxes
             std::vector<int>{3},                  // expected_valid_output
-            matrix_nms::sort_result_type::score,    // sort_result_type
-            matrix_nms::decay_function::gaussian,  // decay_function
+            ov::op::v8::MatrixNms::SortResultType::SCORE,    // sort_result_type
+            ov::op::v8::MatrixNms::DecayFunction::GAUSSIAN,  // decay_function
             "gaussian"};
 }
 
@@ -279,8 +280,8 @@ matrix_nms_test_inputs get_matrix_nms_two_batches_two_classes_inputs() {
                                0.00, 10.00, 1.00, 11.00, 1.00, 0.13636364, 0.0,  0.1,        1.0,  1.1},
             std::vector<int>{0, 3, 1, 6, 9, 7},  // expected_selected_boxes
             std::vector<int>{3, 3},              // expected_valid_output
-            matrix_nms::sort_result_type::score,   // sort_result_type
-            matrix_nms::decay_function::linear,   // decay_function
+            ov::op::v8::MatrixNms::SortResultType::SCORE,   // sort_result_type
+            ov::op::v8::MatrixNms::DecayFunction::LINEAR,   // decay_function
             "two_batches_two_classes"};
 }
 
@@ -311,8 +312,8 @@ matrix_nms_test_inputs get_matrix_nms_two_batches_two_classes_by_score_cross_bat
                                PAD,  PAD,  PAD,  PAD,   PAD,  PAD,   PAD,  PAD,  PAD,  PAD},
             std::vector<int>{3, 0, 9, 6, PADI, PADI, 0, 6, 3, 9, PADI, PADI},  // expected_selected_boxes
             std::vector<int>{4, 4},                                            // expected_valid_output
-            matrix_nms::sort_result_type::score,                                 // sort_result_type
-            matrix_nms::decay_function::linear,                                 // decay_function
+            ov::op::v8::MatrixNms::SortResultType::SCORE,                                 // sort_result_type
+            ov::op::v8::MatrixNms::DecayFunction::LINEAR,                                 // decay_function
             "two_batches_two_classes_by_score_cross_batch"};
 }
 
@@ -343,8 +344,8 @@ matrix_nms_test_inputs get_matrix_nms_two_batches_two_classes_by_classid_cross_b
                                PAD,  PAD,  PAD,  PAD,   PAD,  PAD,   PAD,  PAD,  PAD,  PAD},
             std::vector<int>{3, 0, 9, 6, PADI, PADI, 0, 3, 6, 9, PADI, PADI},  // expected_selected_boxes
             std::vector<int>{4, 4},                                            // expected_valid_output
-            matrix_nms::sort_result_type::class_id,                              // sort_result_type
-            matrix_nms::decay_function::linear,                                 // decay_function
+            ov::op::v8::MatrixNms::SortResultType::CLASSID,                              // sort_result_type
+            ov::op::v8::MatrixNms::DecayFunction::LINEAR,                                 // decay_function
             "matrix_nms_two_batches_two_classes_by_classid_cross_batch"};
 }
 
@@ -373,8 +374,8 @@ matrix_nms_test_inputs get_matrix_nms_by_keep_top_k_inputs() {
                                0.00, 10.00, 1.00, 11.00, 1.00, 0.13636364, 0.0,  0.1,        1.0,  1.1},
             std::vector<int>{0, 3, 1, 6, 9, 7},    // expected_selected_boxes
             std::vector<int>{3, 3},                // expected_valid_output
-            matrix_nms::sort_result_type::class_id,  // sort_result_type
-            matrix_nms::decay_function::linear,     // decay_function
+            ov::op::v8::MatrixNms::SortResultType::CLASSID,  // sort_result_type
+            ov::op::v8::MatrixNms::DecayFunction::LINEAR,     // decay_function
             "matrix_nms_by_keep_top_k"};
 }
 
@@ -400,8 +401,8 @@ matrix_nms_test_inputs get_matrix_nms_background_inputs() {
                                0.0,  0.1,  1.0,  1.1,  1.00, 0.13636364, 0.0,  0.1,  1.0,  1.1},
             std::vector<int>{3, 0, 0, 3, 1, 1},  // expected_selected_boxes
             std::vector<int>{6},                 // expected_valid_output
-            matrix_nms::sort_result_type::score,   // sort_result_type
-            matrix_nms::decay_function::linear,   // decay_function
+            ov::op::v8::MatrixNms::SortResultType::SCORE,   // sort_result_type
+            ov::op::v8::MatrixNms::DecayFunction::LINEAR,   // decay_function
             "matrix_nms_background"};
 }
 
@@ -441,8 +442,8 @@ matrix_nms_test_inputs get_matrix_nms_flipped_coordinates_inputs() {
                                1.1},
             std::vector<int>{3, 0, 1},          // expected_selected_boxes
             std::vector<int>{3},                // expected_valid_output
-            matrix_nms::sort_result_type::score,  // sort_result_type
-            matrix_nms::decay_function::linear,  // decay_function
+            ov::op::v8::MatrixNms::SortResultType::SCORE,  // sort_result_type
+            ov::op::v8::MatrixNms::DecayFunction::LINEAR,  // decay_function
             "flipped_coordinates"};
 }
 
@@ -482,8 +483,8 @@ matrix_nms_test_inputs get_matrix_nms_post_threshold_inputs() {
                                PAD},
             std::vector<int>{3, 0, PADI},       // expected_selected_boxes
             std::vector<int>{2},                // expected_valid_output
-            matrix_nms::sort_result_type::score,  // sort_result_type
-            matrix_nms::decay_function::linear,  // decay_function
+            ov::op::v8::MatrixNms::SortResultType::SCORE,  // sort_result_type
+            ov::op::v8::MatrixNms::DecayFunction::LINEAR,  // decay_function
             "post_threshold"};
 }
 
@@ -524,8 +525,8 @@ matrix_nms_test_inputs get_matrix_nms_identical_boxes_inputs() {
                                PAD},
             std::vector<int>{0, PADI, PADI},    // expected_selected_boxes
             std::vector<int>{1},                // expected_valid_output
-            matrix_nms::sort_result_type::score,  // sort_result_type
-            matrix_nms::decay_function::linear,  // decay_function
+            ov::op::v8::MatrixNms::SortResultType::SCORE,  // sort_result_type
+            ov::op::v8::MatrixNms::DecayFunction::LINEAR,  // decay_function
             "identical_boxes"};
 };
 
@@ -559,8 +560,8 @@ matrix_nms_test_inputs get_matrix_nms_top_k_inputs() {
                                1.00},
             std::vector<int>{3, 0},             // expected_selected_boxes
             std::vector<int>{2},                // expected_valid_output
-            matrix_nms::sort_result_type::score,  // sort_result_type
-            matrix_nms::decay_function::linear,  // decay_function
+            ov::op::v8::MatrixNms::SortResultType::SCORE,  // sort_result_type
+            ov::op::v8::MatrixNms::DecayFunction::LINEAR,  // decay_function
             "matrix_nms_nms_top_k"};
 }
 
@@ -582,8 +583,8 @@ matrix_nms_test_inputs get_matrix_nms_single_box_inputs() {
             std::vector<float>{0.00, 0.90, 0.00, 0.00, 1.00, 1.00},  // expected_output
             std::vector<int>{0},                                     // expected_selected_boxes
             std::vector<int>{1},                                     // expected_valid_output
-            matrix_nms::sort_result_type::score,                       // sort_result_type
-            matrix_nms::decay_function::linear,                       // decay_function
+            ov::op::v8::MatrixNms::SortResultType::SCORE,                       // sort_result_type
+            ov::op::v8::MatrixNms::DecayFunction::LINEAR,                       // decay_function
             "matrix_nms_single_box"};
 }
 
@@ -623,8 +624,8 @@ matrix_nms_test_inputs get_matrix_nms_no_output_inputs() {
                                PAD},
             std::vector<int>{PADI, PADI, PADI},  // expected_selected_boxes
             std::vector<int>{0},                 // expected_valid_output
-            matrix_nms::sort_result_type::score,   // sort_result_type
-            matrix_nms::decay_function::linear,   // decay_function
+            ov::op::v8::MatrixNms::SortResultType::SCORE,   // sort_result_type
+            ov::op::v8::MatrixNms::DecayFunction::LINEAR,   // decay_function
             "matrix_nms_no_output"};
 }
 

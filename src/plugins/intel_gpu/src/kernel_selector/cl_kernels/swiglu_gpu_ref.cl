@@ -25,18 +25,34 @@ KERNEL(swiglu_gpu_ref)(
 
 #if OUTPUT_DIMS == 5
     const uint output_idx = OUTPUT_GET_INDEX(b, f, z, y, x);
-    const uint gate_idx = INPUT0_GET_INDEX(b, f, z, y, x);
-    const uint input_idx = INPUT0_GET_INDEX(b, f, z, y, x) + SPLIT_LENGTH;
+    #if SPLIT_TO_GLU_IDX == 0
+        const uint gate_idx = INPUT0_GET_INDEX(b, f, z, y, x);
+        const uint input_idx = gate_idx + SPLIT_LENGTH;
+    #else
+        const uint input_idx = INPUT0_GET_INDEX(b, f, z, y, x);
+        const uint gate_idx = input_idx + SPLIT_LENGTH;
+    #endif
 #else // 2D spatial
     const uint output_idx = OUTPUT_GET_INDEX(b, f, y, x);
-    const uint gate_idx = INPUT0_GET_INDEX(b, f, y, x);
-    const uint input_idx = INPUT0_GET_INDEX(b, f, y, x) + SPLIT_LENGTH;
+    #if SPLIT_TO_GLU_IDX == 0
+        const uint gate_idx = INPUT0_GET_INDEX(b, f, y, x);
+        const uint input_idx = gate_idx + SPLIT_LENGTH;
+    #else
+        const uint input_idx = INPUT0_GET_INDEX(b, f, y, x);
+        const uint gate_idx = input_idx + SPLIT_LENGTH;
+    #endif
 #endif
 
     ACCUMULATOR_TYPE res = ACCUMULATOR_VAL_ZERO;
 
     res = (ACCUMULATOR_TYPE)input[gate_idx];
-    res /= ACCUMULATOR_VAL_ONE + exp(-(ACCUMULATOR_VAL_ONE * res));
+    #if GLU_TYPE == 0   // Swish
+        res /= ACCUMULATOR_VAL_ONE + exp(-(ACCUMULATOR_VAL_ONE * res));
+    #elif GLU_TYPE == 1 // Gelu
+        res = (GEGLU_HALF * res * (ACCUMULATOR_VAL_ONE + (erf(res * GEGLU_MULT))));
+    #elif GLU_TYPE == 2 // Gelu_Tanh
+        res = (GEGLU_HALF * res * (ACCUMULATOR_VAL_ONE + (tanh(GEGLU_SQUARE_2_OVER_PI * res * (ACCUMULATOR_VAL_ONE + GEGLU_MULT * res * res)))));
+    #endif
     res *= (ACCUMULATOR_TYPE)input[input_idx];
 
     output[output_idx] = TO_OUTPUT_TYPE(res);

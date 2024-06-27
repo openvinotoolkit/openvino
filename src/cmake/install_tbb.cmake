@@ -91,7 +91,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         set(tbb_custom ON)
     endif()
 
-    if(OV_GLIBC_VERSION VERSION_LESS_EQUAL 2.26)
+    if(OPENVINO_GNU_LIBC AND OV_LIBC_VERSION VERSION_LESS_EQUAL 2.26)
         set(_ov_system_tbb_is_obsolete ON)
     endif()
 
@@ -139,6 +139,8 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         if(NOT DEFINED TBBROOT AND DEFINED ENV{TBBROOT})
             file(TO_CMAKE_PATH $ENV{TBBROOT} TBBROOT)
         endif()
+        # sometimes TBBROOT can be set with relative paths inside (e.g. oneAPI package)
+        get_filename_component(TBBROOT "${TBBROOT}" ABSOLUTE)
         if(NOT DEFINED TBBROOT)
             get_target_property(_tbb_include_dir TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
             get_filename_component(TBBROOT ${_tbb_include_dir} PATH)
@@ -163,6 +165,7 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         # try to select proper library directory
         _ov_get_tbb_location(TBB::tbb _tbb_lib_location)
         get_filename_component(_tbb_libs_dir "${_tbb_lib_location}" DIRECTORY)
+        get_filename_component(_tbb_libs_dir "${_tbb_libs_dir}" REALPATH)
         file(RELATIVE_PATH tbb_libs_dir "${TBBROOT}" "${_tbb_libs_dir}")
 
         # install only meaningful directories
@@ -176,10 +179,24 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
                     set(tbb_component tbb)
                     set(exclude_pattern REGEX ".*(cmake|pkgconfig)$" EXCLUDE)
                 endif()
-                install(DIRECTORY "${TBBROOT}/${dir}/"
-                        DESTINATION "${IE_TBBROOT_INSTALL}/${dir}"
-                        COMPONENT ${tbb_component}
-                        ${exclude_pattern})
+
+                if(tbb_libs_dir STREQUAL dir)
+                    file(GLOB _tbb_libs ${TBBROOT}/${tbb_libs_dir}/*)
+                    foreach(_tbb_lib IN LISTS _tbb_libs)
+                        if(_tbb_lib MATCHES ".*${CMAKE_SHARED_LIBRARY_SUFFIX}.*")
+                            # resolve absolute path to avoid issues with installation
+                            get_filename_component(_tbb_lib "${_tbb_lib}" REALPATH)
+                            install(PROGRAMS "${_tbb_lib}"
+                                    DESTINATION "${IE_TBBROOT_INSTALL}/${dir}"
+                                    COMPONENT ${tbb_component})
+                        endif()
+                    endforeach()
+                else()
+                    install(DIRECTORY "${TBBROOT}/${dir}/"
+                            DESTINATION "${IE_TBBROOT_INSTALL}/${dir}"
+                            COMPONENT ${tbb_component}
+                            ${exclude_pattern})
+                endif()
             endif()
         endforeach()
 

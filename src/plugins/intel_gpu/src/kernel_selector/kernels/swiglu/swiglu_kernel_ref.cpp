@@ -30,6 +30,17 @@ JitConstants SwiGLUKernelRef::GetJitConstants(const swiglu_params& params) const
 
     jit.AddConstants({MakeJitConstant("AXIS", params.axis)});
     jit.AddConstants({MakeJitConstant("SPLIT_LENGTH", params.split_length)});
+    jit.AddConstants({MakeJitConstant("GLU_TYPE", params.glu_type)});
+    const std::string type_suffix = (GetAccumulatorType(params) == Datatype::F32) ? "f" : "h";
+    if (params.glu_type == ov::intel_gpu::op::SwiGLU::GluType::Gelu) {
+        jit.AddConstants({MakeJitConstant("GEGLU_HALF", "0.5" + type_suffix)});
+        jit.AddConstants({MakeJitConstant("GEGLU_MULT", "0.7071067811865475" + type_suffix)});
+    } else if (params.glu_type == ov::intel_gpu::op::SwiGLU::GluType::Gelu_Tanh) {
+        jit.AddConstants({MakeJitConstant("GEGLU_HALF", "0.5" + type_suffix)});
+        jit.AddConstants({MakeJitConstant("GEGLU_MULT", "0.044715" + type_suffix)});
+        jit.AddConstants({MakeJitConstant("GEGLU_SQUARE_2_OVER_PI", "0.79788458347320556640625" + type_suffix)});
+    }
+    jit.AddConstants({MakeJitConstant("SPLIT_TO_GLU_IDX", params.split_to_glu_idx)});
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.outputs[0]));
 

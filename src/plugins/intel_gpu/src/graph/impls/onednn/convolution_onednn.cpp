@@ -110,8 +110,9 @@ protected:
     }
 
     static std::shared_ptr<dnnl::primitive_attr> get_primitive_attributes(const typed_program_node<convolution>& arg,
-                                                                          int& zero_point_mask) {
-        auto attrs = arg.get_onednn_primitive_attributes();
+                                                                            const kernel_impl_params& impl_params,
+                                                                            int& zero_point_mask) {
+        auto attrs = impl_params.attrs_onednn;
 
         if (arg.activations_zero_points_term()) {
             auto& a_zp = arg.activations_zero_points();
@@ -247,7 +248,7 @@ public:
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
         int zero_point_mask = -1;
-        auto attr = get_primitive_attributes(arg, zero_point_mask);
+        auto attr = get_primitive_attributes(arg, impl_params, zero_point_mask);
 
         auto prim_desc = get_convolution_primitive_descriptor(impl_params, *attr);
 

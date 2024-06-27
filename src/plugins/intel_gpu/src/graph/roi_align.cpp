@@ -8,6 +8,7 @@
 #include <json_object.h>
 #include "openvino/core/enum_names.hpp"
 #include "roi_align_shape_inference.hpp"
+#include "roi_align_rotated_shape_inference.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(roi_align)
@@ -21,9 +22,9 @@ layout roi_align_inst::calc_output_layout(roi_align_node const& node, kernel_imp
     auto rois_layout = impl_param.get_input_layout(1);
     auto num_rois = rois_layout.batch();
     auto num_channels = input_layout.feature();
-    return layout(input_layout.data_type,
-                  input_layout.format,
-                  {num_rois, num_channels, primitive->pooled_h, primitive->pooled_w});
+    return layout({num_rois, num_channels, primitive->pooled_h, primitive->pooled_w},
+                  input_layout.data_type,
+                  input_layout.format);
 }
 
 template<typename ShapeType>
@@ -40,10 +41,21 @@ std::vector<layout> roi_align_inst::calc_output_layouts(roi_align_node const& no
         input2_layout.get<ShapeType>()      // batch indices shape
     };
 
-    ov::op::v3::ROIAlign op;
-    op.set_pooled_h(primitive->pooled_h);
-    op.set_pooled_w(primitive->pooled_w);
-    std::vector<ShapeType> output_shapes = shape_infer(&op, input_shapes);
+    std::vector<ShapeType> output_shapes;
+
+#define PERFORM_SHAPE_INFERENCE(ROI_ALIGN_CLASS_NAME) \
+    ROI_ALIGN_CLASS_NAME op;                          \
+    op.set_pooled_h(primitive->pooled_h);             \
+    op.set_pooled_w(primitive->pooled_w);             \
+    output_shapes = shape_infer(&op, input_shapes);
+
+    if (primitive->roi_mode == roi_align::ROIMode::rotated) {
+        PERFORM_SHAPE_INFERENCE(ov::op::v15::ROIAlignRotated);
+    } else {
+        PERFORM_SHAPE_INFERENCE(ov::op::v3::ROIAlign);
+    }
+
+#undef PERFORM_SHAPE_INFERENCE
 
     return { layout{output_shapes[0], input0_layout.data_type, input0_layout.format} };
 }

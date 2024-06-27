@@ -38,40 +38,10 @@ KERNEL(gather_elements_ref)(OPTIONAL_SHAPE_INFO_ARG
     const uint f = dim2 % OUTPUT_FEATURE_NUM;
     const uint b = dim2 / OUTPUT_FEATURE_NUM;
 
-    const int out_idx = GET_OUTPUT_INDEX(INPUT1, ORDER);
+    const uint out_idx = GET_OUTPUT_INDEX(INPUT1, ORDER);
+    const uint input_idx = GET_OUTPUT_INDEX(INPUT0, DATA_INDEX_ORDER);
 
-#if INPUT1_DIMS == 4
-    size_t data_shape[4] = {INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Y, INPUT0_SIZE_X};
-    size_t indices_shape[4] = {INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_Y, INPUT1_SIZE_X};
-#elif INPUT1_DIMS == 5
-    size_t data_shape[5] = {INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Z, INPUT0_SIZE_Y, INPUT0_SIZE_X};
-    size_t indices_shape[5] = {INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_Z, INPUT1_SIZE_Y, INPUT1_SIZE_X};
-#else
-    size_t data_shape[6] = {INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_W, INPUT0_SIZE_Z, INPUT0_SIZE_Y, INPUT0_SIZE_X};
-    size_t indices_shape[6] = {INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_W, INPUT1_SIZE_Z, INPUT1_SIZE_Y, INPUT1_SIZE_X};
-#endif
-
-    size_t max_inner_sum = 1, max_outer_sum = 1, outer_sum_inc_data = 1, outer_sum_inc_indices = 1;
-    for (size_t i = AXIS + 1; i < INPUT1_DIMS; i++)
-        max_inner_sum *= indices_shape[i];
-
-    for (int i = 0; i < AXIS; i++)
-        max_outer_sum *= indices_shape[i];
-
-    for (size_t i = AXIS; i < INPUT1_DIMS; i++) {
-        outer_sum_inc_data *= data_shape[i];
-    }
-    max_outer_sum *= outer_sum_inc_data;
-
-    for (size_t i = AXIS; i < INPUT1_DIMS; i++) {
-        outer_sum_inc_indices *= indices_shape[i];
-    }
-
-    size_t outer_sum = (out_idx / outer_sum_inc_indices) * outer_sum_inc_data;
-    size_t inner_sum = out_idx % max_inner_sum;
-
-    uint idx = outer_sum + max_inner_sum * indices[out_idx] + inner_sum;
-    INPUT0_TYPE val = data[idx];
+    INPUT0_TYPE val = data[input_idx];
 
 #if HAS_FUSED_OPS
     FUSED_OPS;

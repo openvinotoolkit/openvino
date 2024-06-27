@@ -22,6 +22,7 @@ tf_hub_cache_dir = os.environ.get('TFHUB_CACHE_DIR',
                                   os.path.join(tempfile.gettempdir(), "tfhub_modules"))
 hf_cache_dir = os.environ.get('HF_HUB_CACHE',
                               os.path.join(tempfile.gettempdir(), "hugging_face"))
+# update environment variables if temporal directory is used
 os.environ['TFHUB_CACHE_DIR'] = tf_hub_cache_dir
 os.environ['HF_HUB_CACHE'] = hf_cache_dir
 

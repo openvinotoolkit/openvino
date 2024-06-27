@@ -128,7 +128,7 @@ std::vector<std::shared_ptr<ov::opset9::Assign>> replace_with_memory(const std::
 }
 
 bool need_unroll(const std::shared_ptr<ov::Node>& op) {
-    const auto p_shape = op->get_input_partial_shape(0);
+    const auto& p_shape = op->get_input_partial_shape(0);
     if (p_shape.rank().is_dynamic() || p_shape[1].is_dynamic() || p_shape[1].get_length() != 1) {
         return false;
     }

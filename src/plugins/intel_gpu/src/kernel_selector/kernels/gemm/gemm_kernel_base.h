@@ -29,6 +29,7 @@ struct gemm_params : public base_params {
     DataTensor beam_table;
     bool indirect_input0 = false;
     bool indirect_input1 = false;
+    int64_t indirect_axis = 0;
     QuantizationType quantization = QuantizationType::NONE;
 
     ParamsKey GetParamsKey() const override {

@@ -41,6 +41,7 @@ enum class Type {
     NonZero,
     Tile,
     ROIAlign,
+    ROIAlignRotated,
     ROIPooling,
     PSROIPooling,
     BatchToSpace,
@@ -68,6 +69,8 @@ enum class Type {
     Interpolate,
     Reduce,
     Broadcast,
+    EmbeddingBagPacked,
+    EmbeddingBagOffsets,
     EmbeddingSegmentsSum,
     EmbeddingBagPackedSum,
     EmbeddingBagOffsetsSum,
@@ -118,8 +121,11 @@ enum class Type {
     Unique,
     Ngram,
     ScaledDotProductAttention,
+    PagedAttention,
     RoPE,
     CausalMaskPreprocess,
+    LLMMLP,
+    QKVProjection,
 };
 
 enum class Algorithm {
@@ -149,6 +155,7 @@ enum class Algorithm {
     EltwiseMultiply,
     EltwiseSubtract,
     EltwiseDivide,
+    EltwiseFloor,
     EltwiseFloorMod,
     EltwiseMod,
     EltwiseMaximum,

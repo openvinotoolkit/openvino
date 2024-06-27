@@ -141,7 +141,7 @@ void ov::AttributeVisitor::register_node(const std::shared_ptr<ov::Node>& node, 
         id = node->get_friendly_name();
     }
     m_id_node_map[id] = node;
-    m_node_id_map[node] = id;
+    m_node_id_map[node] = std::move(id);
 }
 
 std::shared_ptr<ov::Node> ov::AttributeVisitor::get_registered_node(node_id_t id) {

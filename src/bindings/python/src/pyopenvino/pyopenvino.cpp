@@ -19,6 +19,7 @@
 #include "pyopenvino/graph/node_factory.hpp"
 #include "pyopenvino/graph/node_input.hpp"
 #include "pyopenvino/graph/node_output.hpp"
+#include <pyopenvino/graph/op.hpp>
 #if defined(ENABLE_OV_ONNX_FRONTEND)
 #    include "pyopenvino/graph/onnx_import/onnx_import.hpp"
 #endif
@@ -46,6 +47,7 @@
 #include "pyopenvino/graph/descriptors/tensor.hpp"
 #include "pyopenvino/graph/dimension.hpp"
 #include "pyopenvino/graph/discrete_type_info.hpp"
+#include "pyopenvino/graph/attribute_visitor.hpp"
 #include "pyopenvino/graph/layout.hpp"
 #include "pyopenvino/graph/layout_helpers.hpp"
 #include "pyopenvino/graph/ops/assign.hpp"
@@ -223,6 +225,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
     regclass_graph_Shape(m);
     regclass_graph_PartialShape(m);
     regclass_graph_Node(m);
+    regclass_graph_Op(m);
     regclass_graph_Input(m);
     regclass_graph_NodeFactory(m);
     regclass_graph_Strides(m);
@@ -232,6 +235,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
     regclass_graph_Coordinate(m);
     regclass_graph_descriptor_Tensor(m);
     regclass_graph_DiscreteTypeInfo(m);
+    regclass_graph_AttributeVisitor(m);
     py::module m_op = m.def_submodule("op", "Package ngraph.impl.op that wraps ov::op");  // TODO(!)
     regclass_graph_op_Assign(m_op);
     regclass_graph_op_Constant(m_op);

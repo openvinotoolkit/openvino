@@ -18,7 +18,7 @@ Easier Model Compilation
 ``CompiledModel`` can be easily created with the helper method. It hides the creation of ``Core`` and applies ``AUTO`` inference mode by default.
 
 
-.. doxygensnippet:: docs/snippets/ov_python_exclusives.py
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_python_exclusives.py
    :language: python
    :fragment: [auto_compilation]
 
@@ -29,7 +29,7 @@ Model/CompiledModel Inputs and Outputs
 Besides functions aligned to C++ API, some of them have their Python counterparts or extensions. For example, ``Model`` and ``CompiledModel`` inputs/outputs can be accessed via properties.
 
 
-.. doxygensnippet:: docs/snippets/ov_python_exclusives.py
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_python_exclusives.py
    :language: python
    :fragment: [properties_example]
 
@@ -44,7 +44,7 @@ Working with Tensor
 Python API allows passing data as tensors. The ``Tensor`` object holds a copy of the data from the given array. The ``dtype`` of *numpy* arrays is converted to OpenVINO™ types automatically.
 
 
-.. doxygensnippet:: docs/snippets/ov_python_exclusives.py
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_python_exclusives.py
    :language: python
    :fragment: [tensor_basics]
 
@@ -55,7 +55,7 @@ Shared Memory Mode
 ``Tensor`` objects can share the memory with *numpy* arrays. By specifying the ``shared_memory`` argument, the ``Tensor`` object does not copy data. Instead, it has access to the memory of the *numpy* array.
 
 
-.. doxygensnippet:: docs/snippets/ov_python_exclusives.py
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_python_exclusives.py
    :language: python
    :fragment: [tensor_shared_mode]
 
@@ -68,7 +68,7 @@ Python API supports extra calling methods to synchronous and asynchronous modes 
 All infer methods allow users to pass data as popular *numpy* arrays, gathered in either Python dicts or lists.
 
 
-.. doxygensnippet:: docs/snippets/ov_python_exclusives.py
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_python_exclusives.py
    :language: python
    :fragment: [passing_numpy_array]
 
@@ -76,7 +76,7 @@ All infer methods allow users to pass data as popular *numpy* arrays, gathered i
 Results from inference can be obtained in various ways:
 
 
-.. doxygensnippet:: docs/snippets/ov_python_exclusives.py
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_python_exclusives.py
    :language: python
    :fragment: [getting_results]
 
@@ -87,7 +87,7 @@ Synchronous Mode - Extended
 Python API provides different synchronous calls to infer model, which block the application execution. Additionally, these calls return results of inference:
 
 
-.. doxygensnippet:: docs/snippets/ov_python_exclusives.py
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_python_exclusives.py
    :language: python
    :fragment: [sync_infer]
 
@@ -99,7 +99,7 @@ Inference Results - OVDict
 Synchronous calls return a special data structure called ``OVDict``. It can be compared to a "frozen dictionary". There are various ways of accessing the object's elements:
 
 
-.. doxygensnippet:: docs/snippets/ov_python_exclusives.py
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_python_exclusives.py
    :language: python
    :fragment: [ov_dict]
 
@@ -126,7 +126,7 @@ Each job is distinguishable by a unique ``id``, which is in the range from 0 up 
 The ``start_async`` function call is not required to be synchronized - it waits for any available job if the queue is busy/overloaded. Every ``AsyncInferQueue`` code block should end with the ``wait_all`` function which provides the "global" synchronization of all jobs in the pool and ensure that access to them is safe.
 
 
-.. doxygensnippet:: docs/snippets/ov_python_exclusives.py
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_python_exclusives.py
    :language: python
    :fragment: [asyncinferqueue]
 
@@ -141,7 +141,7 @@ Acquiring Results from Requests
 After the call to ``wait_all``, jobs and their data can be safely accessed. Acquiring a specific job with ``[id]`` will return the ``InferRequest`` object, which will result in seamless retrieval of the output data.
 
 
-.. doxygensnippet:: docs/snippets/ov_python_exclusives.py
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_python_exclusives.py
    :language: python
    :fragment: [asyncinferqueue_access]
 
@@ -154,7 +154,7 @@ Another feature of ``AsyncInferQueue`` is the ability to set callbacks. When cal
 The callback of ``AsyncInferQueue`` is uniform for every job. When executed, GIL is acquired to ensure safety of data manipulation inside the function.
 
 
-.. doxygensnippet:: docs/snippets/ov_python_exclusives.py
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_python_exclusives.py
    :language: python
    :fragment: [asyncinferqueue_set_callback]
 
@@ -166,7 +166,7 @@ Since OpenVINO™ supports low precision element types, there are a few ways to 
 To create an input tensor with such element types, you may need to pack your data in the new *numpy* array, with which the byte size matches the original input size:
 
 
-.. doxygensnippet:: docs/snippets/ov_python_exclusives.py
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_python_exclusives.py
    :language: python
    :fragment: [packing_data]
 
@@ -174,7 +174,7 @@ To create an input tensor with such element types, you may need to pack your dat
 To extract low precision values from a tensor into the *numpy* array, you can use the following helper:
 
 
-.. doxygensnippet:: docs/snippets/ov_python_exclusives.py
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_python_exclusives.py
    :language: python
    :fragment: [unpacking]
 
@@ -185,7 +185,7 @@ Release of GIL
 Some functions in Python API release the Global Lock Interpreter (GIL) while running work-intensive code. This can help you achieve more parallelism in your application, using Python threads. For more information about GIL, refer to the `Python API documentation <../../../api/ie_python_api/api.html>`__.
 
 
-.. doxygensnippet:: docs/snippets/ov_python_exclusives.py
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_python_exclusives.py
    :language: python
    :fragment: [releasing_gil]
 

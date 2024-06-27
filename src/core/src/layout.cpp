@@ -91,7 +91,7 @@ Layout::Layout(const std::string& layout_str) {
         OPENVINO_ASSERT(m_names.count(dim_name) == 0,
                         "Dimension (" + dim_name + ") is defined multiple times in layout");
         m_names[dim_name] = index;
-        m_index_map[index] = dim_name;
+        m_index_map[index] = std::move(dim_name);
     };
 
     if (is_advanced_syntax(layout)) {
@@ -329,7 +329,7 @@ std::vector<int64_t> LayoutUtils::find_permutation(const Layout& src_layout,
             }
             new_index_map[new_ind] = item.second;
         }
-        res.m_index_map = new_index_map;
+        res.m_index_map = std::move(new_index_map);
         return res;
     };
     // Basic implementation so far, can support partially-specified layouts later (shape rank will be needed for dynamic
@@ -441,13 +441,14 @@ std::tuple<PartialShape, Layout> LayoutUtils::find_squeeze(const Layout& src_lay
                     " != ",
                     src_shape.rank().get_length());
     // At this point src_layout and dst_layout don't have '...' or '?'
-    std::vector<Dimension> res_dims(dst_layout.m_left_size);
+    auto res_dims =
+        rank_dynamic ? PartialShape::dynamic() : PartialShape(std::vector<Dimension>(dst_layout.m_left_size));
     Layout res;
     res.m_dynamic = false;
     res.m_left_size = dst_layout.m_left_size;
     int64_t dst_idx = 0;
     for (int64_t src_idx = 0; src_idx < src_layout.m_left_size; src_idx++) {
-        auto src_dim_name = src_layout.m_index_map.at(src_idx);
+        const auto& src_dim_name = src_layout.m_index_map.at(src_idx);
         if (dst_layout.has_name(src_dim_name)) {
             if (!rank_dynamic) {
                 res_dims[dst_idx] = src_shape[src_idx];
@@ -475,11 +476,7 @@ std::tuple<PartialShape, Layout> LayoutUtils::find_squeeze(const Layout& src_lay
                         ". Missing dimensions are ",
                         missing_names.str());
     }
-    if (rank_dynamic) {
-        return {PartialShape::dynamic(), res};
-    } else {
-        return {PartialShape(res_dims), res};
-    }
+    return {std::move(res_dims), std::move(res)};
 }
 
 std::tuple<PartialShape, Layout, size_t> LayoutUtils::find_unsqueeze(const Layout& src_layout,
@@ -492,13 +489,14 @@ std::tuple<PartialShape, Layout, size_t> LayoutUtils::find_unsqueeze(const Layou
     // find_squeeze already performed necessary validation, no need to repeat here
     bool rank_dynamic = src_shape.rank().is_dynamic();
     auto dims_cnt = dst_layout.m_left_size - src_layout.m_left_size;
-    std::vector<Dimension> res_dims(dst_layout.m_left_size, 1);
+    auto res_dims =
+        rank_dynamic ? PartialShape::dynamic() : PartialShape(std::vector<Dimension>(dst_layout.m_left_size, 1));
     Layout res;
     res.m_dynamic = false;
     res.m_left_size = dst_layout.m_left_size;
     int64_t unset_idx = 0;
     for (auto i = 0; i < dst_layout.m_left_size; i++) {
-        auto dim_name = dst_layout.m_index_map.at(i);
+        const auto& dim_name = dst_layout.m_index_map.at(i);
         if (src_layout.has_name(dim_name)) {
             auto src_idx = src_layout.get_index_by_name(dim_name);
             res.m_names[dim_name] = src_idx + dims_cnt;
@@ -512,11 +510,7 @@ std::tuple<PartialShape, Layout, size_t> LayoutUtils::find_unsqueeze(const Layou
             unset_idx++;
         }
     }
-    if (rank_dynamic) {
-        return {PartialShape::dynamic(), res, dims_cnt};
-    } else {
-        return {PartialShape(res_dims), res, dims_cnt};
-    }
+    return {std::move(res_dims), std::move(res), dims_cnt};
 }
 
 bool LayoutUtils::is_compatible(const Layout& layout, const PartialShape& shape) {

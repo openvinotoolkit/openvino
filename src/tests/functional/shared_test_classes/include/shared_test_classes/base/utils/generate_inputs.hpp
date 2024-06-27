@@ -6,6 +6,7 @@
 
 #include "openvino/core/preprocess/color_format.hpp"
 
+#include "functional_test_utils/common_utils.hpp"
 #include "shared_test_classes/base/utils/ranges.hpp"
 
 namespace ov {
@@ -18,7 +19,8 @@ using InputsMap = std::map<ov::NodeTypeInfo, std::function<ov::Tensor(
         const std::shared_ptr<ov::Node>& node,
         size_t port,
         const ov::element::Type& elemType,
-        const ov::Shape& targetShape)>>;
+        const ov::Shape& targetShape,
+        std::shared_ptr<InputGenerateData> inGenRangeData)>>;
 
 InputsMap getInputMap();
 

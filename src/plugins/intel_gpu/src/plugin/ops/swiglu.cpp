@@ -28,6 +28,8 @@ static void CreateSwiGLUOp(ProgramBuilder& p, const std::shared_ptr<op::SwiGLU>&
                                   inputs[0],
                                   op->get_axis(),
                                   op->get_split_lengths(),
+                                  op->get_glu_type(),
+                                  op->get_split_to_glu_idx(),
                                   cldnn::tensor());
         prim.output_data_types = get_output_data_types(op);
         p.add_primitive(*op, prim);
@@ -36,6 +38,8 @@ static void CreateSwiGLUOp(ProgramBuilder& p, const std::shared_ptr<op::SwiGLU>&
                                   inputs[0],
                                   op->get_axis(),
                                   op->get_split_lengths(),
+                                  op->get_glu_type(),
+                                  op->get_split_to_glu_idx(),
                                   tensor_from_dims(op->get_output_shape(0)));
         prim.output_data_types = get_output_data_types(op);
         p.add_primitive(*op, prim);

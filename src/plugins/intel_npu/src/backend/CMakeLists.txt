@@ -50,3 +50,4 @@ if(TARGET ze_loader)
     install(TARGETS ze_loader
         LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 endif()
+

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR
+if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM OR
     (UNIX AND CMAKE_CXX_COMPILER_ID STREQUAL "Intel"))
     set(OV_C_CXX_FLAGS "${OV_C_CXX_FLAGS} -Wformat -Wformat-security")
 
@@ -32,7 +32,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR
         if(NOT MINGW)
             set(OV_LINKER_FLAGS "${OV_LINKER_FLAGS} -z noexecstack -z relro -z now")
         endif()
-    elseif(OV_COMPILER_IS_CLANG)
+    elseif(OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
         if(EMSCRIPTEN)
             # emcc does not support fortification 
             # https://stackoverflow.com/questions/58854858/undefined-symbol-stack-chk-guard-in-libopenh264-so-when-building-ffmpeg-wit
@@ -48,6 +48,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR
     endif()
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set(OV_C_CXX_FLAGS "${OV_C_CXX_FLAGS} /sdl /guard:cf")
+    set(OV_LINKER_FLAGS "${OV_LINKER_FLAGS} /guard:cf")
 endif()
 
 if(ENABLE_QSPECTRE)

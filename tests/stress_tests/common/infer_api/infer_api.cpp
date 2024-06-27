@@ -35,6 +35,20 @@ void InferAPI2::create_infer_request() {
     infer_request = compiled_model.create_infer_request();
 }
 
+void InferAPI2::create_and_infer(const bool &async) {
+    auto new_infer_request = compiled_model.create_infer_request();
+    fillTensors(new_infer_request, inputs);
+    if (async) {
+        new_infer_request.start_async();
+        new_infer_request.wait();
+    } else {
+        new_infer_request.infer();
+    }
+    for (size_t i = 0; i < outputs.size(); ++i) {
+        const auto &output_tensor = new_infer_request.get_output_tensor(i);
+    }
+}
+
 void InferAPI2::prepare_input() {
     fillTensors(infer_request, inputs);
 }

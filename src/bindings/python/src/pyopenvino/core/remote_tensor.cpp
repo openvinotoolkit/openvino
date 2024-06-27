@@ -12,9 +12,7 @@
 namespace py = pybind11;
 
 void regclass_RemoteTensor(py::module m) {
-    py::class_<RemoteTensorWrapper, std::shared_ptr<RemoteTensorWrapper>> cls(m,
-                                                                              "RemoteTensor",
-                                                                              py::base<ov::Tensor>());
+    py::class_<RemoteTensorWrapper, std::shared_ptr<RemoteTensorWrapper>> cls(m, "RemoteTensor");
 
     cls.def(
         "get_device_name",

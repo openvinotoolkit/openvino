@@ -8,7 +8,6 @@
 #include "itt.h"
 #include "low_precision/low_precision.hpp"
 #include "memory_state.h"
-#include "nodes/memory.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "serialize.h"
@@ -65,7 +64,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     }
     if (0 != m_cfg.streamExecutorConfig.get_streams()) {
         m_callback_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
-            IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0, IStreamsExecutor::ThreadBindingType::NONE});
+            IStreamsExecutor::Config{"CPUCallbackExecutor", 1, 0});
     } else {
         m_callback_executor = m_task_executor;
     }
@@ -131,13 +130,11 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
                 GraphContext::Ptr ctx;
                 {
                     std::lock_guard<std::mutex> lock{*m_mutex.get()};
-                    // disable weights caching if graph was created only once
-                    auto weightsCache = m_cfg.streamExecutorConfig.get_streams() != 1 ? m_socketWeights[socketId] : nullptr;
                     auto isQuantizedFlag =
                         (m_cfg.lpTransformsMode == Config::On) &&
                         ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
 
-                    ctx = std::make_shared<GraphContext>(m_cfg, weightsCache, isQuantizedFlag, streamsExecutor);
+                    ctx = std::make_shared<GraphContext>(m_cfg, m_socketWeights[socketId], isQuantizedFlag, streamsExecutor);
                 }
                 const std::shared_ptr<const ov::Model> model = m_model;
                 graphLock._graph.CreateGraph(model, ctx);

@@ -196,7 +196,7 @@ TEST(FrontEndConvertModelTest, test_unsupported_resource_gather_translator) {
         std::string no_ref_message = "[TensorFlow Frontend] Internal error: No translator found for";
         ASSERT_TRUE(error_message.find(ref_message) != std::string::npos);
         ASSERT_TRUE(error_message.find(no_ref_message) == std::string::npos);
-        std::string ref_message2 = "Refer to OpenVINO Tokenizers documentation";
+        std::string ref_message2 = "Install OpenVINO Tokenizers, refer to the documentation";
         ASSERT_TRUE(error_message.find(ref_message2) == std::string::npos);
         ASSERT_EQ(model, nullptr);
     } catch (...) {
@@ -234,7 +234,7 @@ TEST(FrontEndConvertModelTest, conversion_with_tokenizer_operation) {
         FAIL() << "TensorFlow 1 model with StringLower operation is not supported without openvino-tokenizers.";
     } catch (const OpConversionFailure& error) {
         std::string error_message = error.what();
-        std::string ref_message = "Refer to OpenVINO Tokenizers documentation";
+        std::string ref_message = "Install OpenVINO Tokenizers, refer to the documentation";
         ASSERT_TRUE(error_message.find(ref_message) != std::string::npos);
         ASSERT_EQ(model, nullptr);
     } catch (...) {

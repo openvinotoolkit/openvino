@@ -127,4 +127,15 @@ template <>
 struct element_type_traits<element::Type_t::string> {
     using value_type = std::string;
 };
+
+template <>
+struct element_type_traits<element::Type_t::f4e2m1> {
+    using value_type = ov::float4_e2m1;
+};
+
+template <>
+struct element_type_traits<element::Type_t::f8e8m0> {
+    using value_type = ov::float8_e8m0;
+};
+
 }  // namespace ov

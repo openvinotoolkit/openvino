@@ -1,0 +1,72 @@
+name: 'Handle Docker images'
+description: 'Builds, tags and pushes a given Docker image when needed'
+inputs:
+  images:
+    description: 'Image names (registry name + namespace + base name)'
+    required: true
+  registry:
+    description: 'Docker registry'
+    required: true
+  dockerfiles_root_dir:
+    description: 'Path to dockerfiles root dir relative to repository root'
+    required: true
+  push:
+    description: 'Push built images to registry'
+    required: false
+    default: 'true'
+  changed_components:
+    description: 'Components changed by a pull request'
+    required: true
+
+outputs:
+  images:
+    description: "Images to use in workflow"
+    value: ${{ steps.handle_images.outputs.images }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout head
+      uses: actions/checkout@v4
+
+    - name: Checkout base
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.base_ref || github.event.merge_group.base_ref }}
+        sparse-checkout: ${{ inputs.dockerfiles_root_dir }}/docker_tag
+        path: base
+
+    - name: Install Python dependencies
+      uses: py-actions/py-dependency-install@v4
+      with:
+        path: "${{ github.action_path }}/requirements.txt"
+        update-setuptools: "false"
+        update-wheel: "false"
+
+    - name: Set up Docker Buildx
+      id: buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Handle docker images
+      id: handle_images
+      shell: bash
+      run: |
+        images=$(echo "${{ inputs.images }}" | tr '\n' ',' | sed 's/,*$//')
+        pr="${{ github.event.pull_request.number }}"
+
+        python3 .github/actions/handle_docker/get_images_to_build.py \
+        -d "${{ inputs.dockerfiles_root_dir }}" \
+        -r "${{ inputs.registry }}" \
+        --images "$images" \
+        --head_tag_file "${{ inputs.dockerfiles_root_dir }}/docker_tag" \
+        --base_tag_file "base/${{ inputs.dockerfiles_root_dir }}/docker_tag" \
+        --docker_env_changed "${{ fromJSON(inputs.changed_components).docker_env }}" \
+        --dockerfiles_changed "${{ fromJSON(inputs.changed_components).dockerfiles }}" \
+        --docker_builder "${{ steps.buildx.outputs.name}}" \
+        --repo "${{ github.repository }}" \
+        --ref_name "${{ github.ref_name }}" \
+        $([[ -n $pr ]] && echo "--pr $pr" || echo '-s ${{ github.sha }}') \
+        $([[ -n "${{ inputs.push }}" ]] && echo "--push" || echo '')
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+

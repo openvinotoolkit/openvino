@@ -17,6 +17,10 @@
 #include "zero_utils.hpp"
 #include "zero_wrappers.hpp"
 
+namespace {
+constexpr std::size_t DEFAULT_BATCH_SIZE = 1;
+}  // namespace
+
 namespace intel_npu {
 
 class ZeroInferRequest final : public SyncInferRequest {
@@ -42,10 +46,14 @@ private:
     const Config _config;
     Logger _logger;
 
-    zeroProfiling::ProfilingPool _profiling_pool;
-    zeroProfiling::ProfilingQuery _profiling_query;
-    std::shared_ptr<zeroProfiling::NpuInferProfiling> _npu_profiling;
+    zeroProfiling::ProfilingPool _profilingPool;
+    zeroProfiling::ProfilingQuery _profilingQuery;
+    std::shared_ptr<zeroProfiling::NpuInferProfiling> _npuProfiling;
     std::unique_ptr<Pipeline> _pipeline;
+
+    // If batching is handled on the compiler side then batching on the plugin shall be set to 1, we don't do any
+    // specific operations on the plugin in this case.
+    size_t _batchSize = DEFAULT_BATCH_SIZE;
 };
 
 }  //  namespace intel_npu

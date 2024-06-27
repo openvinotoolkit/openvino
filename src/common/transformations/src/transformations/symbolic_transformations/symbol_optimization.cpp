@@ -7,6 +7,7 @@
 #include "itt.hpp"
 #include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
@@ -15,6 +16,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -163,7 +165,10 @@ ov::Output<ov::Node> alternative_source_from_concat_input_sources(const STS_map&
         if (!concat || concat->get_input_size() != 2)
             return alternative_source;
         int64_t idx = get_idx_of_symbol_in_source(source, symbol);
-        if (idx == -1 || idx != concat->get_concatenation_axis())
+        if (idx == -1)
+            return alternative_source;
+        const auto rank = source.get_partial_shape().rank().get_length();
+        if (idx != ov::util::normalize(concat->get_axis(), rank))
             return alternative_source;
         // optimize using the knowledge of the Concat SI and what happens on the axis
         const auto& lhs_pshape = concat->get_input_partial_shape(0);
@@ -218,16 +223,135 @@ void optimize_value_usage(ov::Output<ov::Node>& output, STS_map& symbol_shape_so
     }
 }
 
-void save_shape_sources(const ov::Output<ov::Node>& output, STS_map& symbol_shape_source) {
-    for (const auto& d : output.get_partial_shape()) {
-        if (d.is_static())
-            continue;
-        auto symbol = d.get_symbol();
-        if (symbol == nullptr)
-            continue;
-        if (symbol_shape_source.count(symbol))
-            continue;
-        symbol_shape_source[symbol] = output;
+std::vector<std::shared_ptr<ov::Node>> topological_order(const std::shared_ptr<ov::Model>& m) {
+    auto order = m->get_ordered_ops();
+
+    // step 1: split model into parameter related and parameter non-related ops
+    const std::string op_depends_on_parameter = "topological_sort_op_depends_on";
+    // values: true - parameter dependent; false otherwise
+    for (const auto& op : order) {
+        if (ov::as_type_ptr<ov::op::v0::Parameter>(op)) {
+            op->get_rt_info()[op_depends_on_parameter] = true;
+        } else if (ov::as_type_ptr<ov::op::v0::Constant>(op) || ov::as_type_ptr<ov::op::v0::ShapeOf>(op) ||
+                   ov::as_type_ptr<ov::op::v3::ShapeOf>(op) ||
+                   std::dynamic_pointer_cast<ov::op::util::VariableExtension>(op)) {
+            op->get_rt_info()[op_depends_on_parameter] = false;
+        } else {  // deduce op type from inputs
+            const auto& inputs = op->input_values();
+            op->get_rt_info()[op_depends_on_parameter] =
+                std::any_of(inputs.begin(),
+                            inputs.end(),
+                            [&op_depends_on_parameter](const ov::Output<ov::Node>& input) {
+                                return input.get_node_shared_ptr()->get_rt_info()[op_depends_on_parameter].as<bool>();
+                            });
+        }
+    }
+    // step 2: starting from Result -- assign weight to ops:
+    //      if parameter dependant, weights is maximum of output indices plus one
+    //      else weights is maximum of output indices
+    // this step doesn't assign weights to all the ops, this is intentional and will be used in the following step
+    const std::string weight_rt_info_name = "topological_sort_weight";
+    for (auto it = order.rbegin(); it != order.rend(); ++it) {
+        const auto& op = *it;
+        int64_t weight = 0;
+        if (ov::as_type_ptr<ov::op::v0::Result>(op)) {
+            op->get_rt_info()[weight_rt_info_name] = weight;
+        } else {
+            bool output_has_weight = false;
+            for (const auto& output : op->outputs()) {
+                for (const auto& input : output.get_target_inputs()) {
+                    const auto& output_op = input.get_node();
+                    const auto& rt_info = output_op->get_rt_info();
+                    if (!rt_info.count(weight_rt_info_name))
+                        continue;
+                    output_has_weight = true;
+                    auto output_weight = rt_info.at(weight_rt_info_name).as<int64_t>();
+                    weight = output_weight > weight ? output_weight : weight;
+                }
+            }
+            if (output_has_weight) {
+                if (op->get_rt_info()[op_depends_on_parameter].as<bool>()) {
+                    weight += 1;
+                }
+                op->get_rt_info()[weight_rt_info_name] = weight;
+            }
+        }
+    }
+    // step 3: make propagation for all the nodes:
+    // if weight is already assigned -- skip operation
+    // else operation weights is minimum of input indices
+    // if all operation inputs have no weights -- this op is isolated and this algorithm doesn't make sense,
+    // such cases are extremely rare and rather theoretical, to handle them we return original ov::Model op order
+    std::map<int64_t, std::vector<std::shared_ptr<ov::Node>>> level_to_vector;
+    for (const auto& op : order) {
+        if (!op->get_rt_info().count(weight_rt_info_name)) {
+            int64_t weight = std::numeric_limits<int64_t>::max();
+            for (const auto& input : op->input_values()) {
+                const auto& rt_info = input.get_node_shared_ptr()->get_rt_info();
+                if (!rt_info.count(weight_rt_info_name))
+                    continue;
+                auto input_weight = rt_info.at(weight_rt_info_name).as<int64_t>();
+                weight = input_weight < weight ? input_weight : weight;
+            }
+            if (weight != std::numeric_limits<int64_t>::max())
+                op->get_rt_info()[weight_rt_info_name] = weight;
+            else
+                return m->get_ordered_ops();
+        }
+        level_to_vector[op->get_rt_info().at(weight_rt_info_name).as<int64_t>()].push_back(op);
+    }
+    // finalization: descending order for levels and ops within level are ordered by get_ordered_ops
+    std::vector<std::shared_ptr<ov::Node>> result;
+    result.reserve(order.size());
+    for (auto it = level_to_vector.rbegin(); it != level_to_vector.rend(); ++it) {
+        const auto& item = *it;
+        result.insert(result.end(), item.second.begin(), item.second.end());
+        for (const auto& op : item.second) {
+            op->get_rt_info().erase(weight_rt_info_name);
+            op->get_rt_info().erase(op_depends_on_parameter);
+        }
+    }
+    return result;
+}
+
+void save_shape_sources(const std::shared_ptr<ov::Node>& op, STS_map& symbol_shape_source) {
+    if (ov::is_type<ov::op::v0::ShapeOf>(op) || ov::is_type<ov::op::v3::ShapeOf>(op)) {
+        const auto& output = op->input_value(0);
+        if (output.get_partial_shape().rank().is_dynamic())
+            return;
+        for (const auto& d : output.get_partial_shape()) {
+            if (d.is_static())
+                continue;
+            auto symbol = d.get_symbol();
+            if (symbol == nullptr)
+                continue;
+            if (symbol_shape_source.count(symbol))
+                continue;
+            symbol_shape_source[symbol] = output;
+        }
+    } else if (const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(op)) {
+        // we agreed to detach ShapeOf sourcing output axis dimension from Concat operations for smoother matching
+        // this code allows to find places to reconnect ShapeOfs
+        const auto rank = concat->get_output_partial_shape(0).rank();
+        auto axis = concat->get_axis();
+        if (axis < 0) {
+            if (rank.is_dynamic())
+                return;
+            axis += rank.get_length();
+        }
+        for (const auto& input : concat->input_values()) {
+            if (input.get_partial_shape().rank().is_dynamic())
+                continue;
+            const auto dimension = input.get_partial_shape()[axis];
+            if (dimension.is_static())
+                continue;
+            auto symbol = dimension.get_symbol();
+            if (symbol == nullptr)
+                continue;
+            if (symbol_shape_source.count(symbol))
+                continue;
+            symbol_shape_source[symbol] = input;
+        }
     }
 }
 }  // namespace
@@ -236,7 +360,7 @@ bool ov::pass::OptimizeSymbolsUsedAsValues::run_on_model(const std::shared_ptr<o
     RUN_ON_FUNCTION_SCOPE(OptimizeSymbolsUsedAsValues);
     STS_map symbol_shape_source;
     STS_map symbol_value_source;
-    for (const auto& op : m->get_ordered_ops()) {
+    for (const auto& op : topological_order(m)) {
         // Result has output port which has shared (during validate_and_infer_type) tensor with input port.
         // Transformations may replace input of Result. After replacement and before Result::validate_and_infer_type --
         // output tensor of Result may contain inaccurate shape / symbols due to the sharing with tensor which may be
@@ -248,10 +372,9 @@ bool ov::pass::OptimizeSymbolsUsedAsValues::run_on_model(const std::shared_ptr<o
         // LTS maps aren't shared with sub-graphs because inner graph can not access outer graph for label sources
         ov::op::util::process_subgraph(*this, op);
 
-        for (auto& output : op->outputs()) {
+        for (auto& output : op->outputs())
             optimize_value_usage(output, symbol_shape_source, symbol_value_source);
-            save_shape_sources(output, symbol_shape_source);
-        }
+        save_shape_sources(op, symbol_shape_source);
     }
     return true;
 }

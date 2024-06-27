@@ -146,7 +146,7 @@ protected:
 
     void internal_call_preamble() const;
     void internal_call_postamble() const;
-    // align stack on 16-byte as ABI reqiures
+    // align stack on 16-byte and allocate shadow space as ABI reqiures
     // callee is responsible to save and restore rbx. rbx must not be changed after call callee.
     void internal_call_rsp_align() const;
     void internal_call_rsp_restore() const;

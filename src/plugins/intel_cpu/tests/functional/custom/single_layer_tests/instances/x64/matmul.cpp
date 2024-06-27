@@ -26,6 +26,7 @@ std::vector<fusingSpecificParams> fusingParamsSet2D_nightly {
         fusingScaleShift, //covered by MLAS
 #endif
         fusingPReluPerTensor,
+        fusingPReluPerChannel,
         fusingFakeQuantizePerChannelRelu,
 };
 
@@ -44,6 +45,15 @@ std::vector<fusingSpecificParams> fusingParamsSet2DBF16 {
         fusingBias,
         fusingRelu,
         fusingPReluPerTensor,
+};
+
+const std::vector<fusingSpecificParams> matmulFusingParamsNightly {
+        emptyFusingSpec,
+        fusingElu,
+        fusingSqrt,
+        fusingPReluPerTensor,
+        fusingPReluPerChannel,
+        fusingMultiplyPerChannel,
 };
 
 const auto matMulParams_x64 = ::testing::Combine(::testing::ValuesIn(IS_x64),
@@ -104,7 +114,7 @@ std::vector<ov::AnyMap> filterAdditionalConfig_Brgemm() {
         ov::AnyMap{/* empty config */}
     };
 #else
-    std::vector<ov::AnyMap> additionalConfig = {};
+    std::vector<ov::AnyMap> additionalConfig = {{}};
 #endif
     if (with_cpu_x86_bfloat16()) {
         additionalConfig.push_back({ov::hint::inference_precision(ov::element::bf16)});
@@ -262,7 +272,7 @@ const auto matMulBrgemmParams_nightly = ::testing::Combine(::testing::ValuesIn(I
 
 const auto testBrgemmParams_nightly = ::testing::Combine(matMulBrgemmParams_nightly,
                                                        ::testing::Values(MatMulNodeType::MatMul),
-                                                       ::testing::ValuesIn(matmulFusingParams()),
+                                                       ::testing::ValuesIn(matmulFusingParamsNightly),
                                                        ::testing::ValuesIn(filterSpecificParams_Brgemm()));
 
 INSTANTIATE_TEST_SUITE_P(nightly_MM_Brgemm_Static, MatMulLayerCPUTest, testBrgemmParams_nightly, MatMulLayerCPUTest::getTestCaseName);
@@ -445,11 +455,11 @@ const std::vector<ShapeRelatedParams> IS_brgemm_Amx_smoke = {
         {static_shapes_to_test_representation({{7, 32, 128}, {3, 7, 128, 5}}), {false, true}},
         {static_shapes_to_test_representation({{7, 32, 128}, {3, 7, 128, 5}}), {true, true}},
 
-        {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {false, false}},
-        {static_shapes_to_test_representation({{10, 10, 10}, {10, 10, 10}}), {true, false}},
+        {static_shapes_to_test_representation({{10, 10, 100}, {10, 100, 10}}), {false, false}},
+        {static_shapes_to_test_representation({{10, 10, 100}, {10, 100, 10}}), {true, false}},
 
-        {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {false, true}},
-        {static_shapes_to_test_representation({{55, 12}, {12, 55}}), {true, true}},
+        {static_shapes_to_test_representation({{55, 120}, {120, 55}}), {false, true}},
+        {static_shapes_to_test_representation({{55, 120}, {120, 55}}), {true, true}},
 };
 
 const auto matMulBrgemmAmxParams_smoke = ::testing::Combine(::testing::ValuesIn(IS_brgemm_Amx_smoke),
@@ -463,6 +473,7 @@ const auto matMulBrgemmAmxParams_smoke = ::testing::Combine(::testing::ValuesIn(
 std::vector<fusingSpecificParams> matmulBrgemmAmxFusingParams {
         emptyFusingSpec,
         fusingPReluPerTensor,
+        fusingPReluPerChannel,
         fusingAddPerTensor,
         fusingBias,
 };

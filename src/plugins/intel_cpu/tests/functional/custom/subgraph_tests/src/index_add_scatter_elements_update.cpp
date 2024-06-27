@@ -98,7 +98,6 @@ protected:
 
         if (ov::element::bf16 == data_type || ov::element::f16 == data_type) {
             configuration.insert({ov::hint::inference_precision.name(), data_type});
-            inType = outType = data_type;
             abs_threshold = 0.01f;
             rel_threshold = 0.01f;
         }
@@ -209,13 +208,13 @@ protected:
                 // All index values are expected to be within bounds [-d, d - 1] along dimension d pointed by axis.
                 auto d = dataShape[normalized_axis];
                 in_data.start_from = -1.0 * static_cast<int64_t>(d);
-                in_data.range = d-1;
+                in_data.range = static_cast<uint32_t>(d-1 - in_data.start_from);
                 in_data.resolution = 1;
                 tensor = shape_size(indicesShape) == 0 ? ov::Tensor(funcInput.get_element_type(), indicesShape) :
                                             ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), indicesShape, in_data);
             } else if (i == 2) {  // "updates"
                 in_data.start_from = -50;
-                in_data.range = 50;
+                in_data.range = 100;
                 in_data.resolution = 1;
                 tensor = shape_size(updateShape) == 0 ? ov::Tensor(funcInput.get_element_type(), updateShape) :
                             ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), updateShape, in_data);

@@ -203,7 +203,7 @@ public:
                           bool connect_int_node_with_old_dep = true,
                           bool move_usrs_of_prev_to_node = false);
 
-    void add_connection(program_node& prev, program_node& next);
+    void add_connection(program_node& prev, program_node& next, int32_t port_idx = -1);
 
     // removes a node from the graph and deletes it afterwards,
     // prereq: node cannot be marked as output and has to have exactly one dependency
@@ -288,6 +288,8 @@ public:
     void load(cldnn::BinaryInputBuffer& ib);
     bool is_loaded_from_cache() const { return _loaded_from_cache; }
 
+    bool is_new_shape_infer() const { return new_shape_infer; }
+
 private:
     uint32_t prog_id = 0;
     engine& _engine;
@@ -309,6 +311,8 @@ private:
     const size_t _impls_cache_capacity = 300;
     std::shared_ptr<ICompilationContext> _compilation_context;
     bool _loaded_from_cache = false;
+
+    bool new_shape_infer = false;
 
     std::map<primitive_id, std::shared_ptr<program_node>> nodes_map;
     std::list<primitive_id> optimized_out;

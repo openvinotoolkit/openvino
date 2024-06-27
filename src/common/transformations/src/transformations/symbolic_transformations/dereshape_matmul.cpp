@@ -9,9 +9,11 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/symbolic_transformations/utils.hpp"
@@ -27,7 +29,9 @@ bool concat_predicate(ov::Output<ov::Node> output) {
     const auto& concat = ov::as_type_ptr<ov::op::v0::Concat>(output.get_node_shared_ptr());
     if (!concat)
         return false;
-    return concat->get_concatenation_axis() >= output_pshape.rank().get_length() - 2;
+
+    const auto norm_axis = ov::util::normalize(concat->get_axis(), output_pshape.rank().get_length());
+    return norm_axis >= output_pshape.rank().get_length() - 2;
 }
 
 bool last_two_dims_are_equal(const ov::PartialShape& lhs, const ov::PartialShape& rhs) {
@@ -134,7 +138,7 @@ void pull_reshape_through_optional_concat_and_bea(const ov::pass::pattern::Patte
         OPENVINO_ASSERT(concat_node != nullptr,
                         "DeReshapeMatMul transformation matched operation which should be Concat -- but it is not");
         auto rank = concat_node->get_output_partial_shape(0).rank().get_length();
-        auto axis = (concat_node->get_concatenation_axis() == (rank - 1)) ? -1 : -2;
+        auto axis = (ov::util::normalize(concat_node->get_axis(), rank) == (rank - 1)) ? -1 : -2;
 
         auto idx_of_reshape_input = reshape_output == concat_node->input_value(0) ? 0 : 1;
         auto idx_of_non_reshape_input = static_cast<size_t>(!idx_of_reshape_input);

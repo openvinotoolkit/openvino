@@ -184,6 +184,7 @@ JitConstants GemmKernelBase::GetJitConstants(const gemm_params& params) const {
         MakeJitConstant("QUANTIZATION_TERM", params.quantization != QuantizationType::NONE),
         MakeJitConstant("INDIRECT_INPUT0", params.indirect_input0),
         MakeJitConstant("INDIRECT_INPUT1", params.indirect_input1),
+        MakeJitConstant("INDIRECT_AXIS", params.indirect_axis),
         MakeJitConstant("BEAM_TABLE_TERM", params.indirect_input0 || params.indirect_input1),
     });
 

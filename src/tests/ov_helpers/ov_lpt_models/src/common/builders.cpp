@@ -181,12 +181,12 @@ std::shared_ptr<Node> makeMultiply(const ov::Output<Node>& parent, const Dequant
 }
 
 std::shared_ptr<Node> makeReshape(const ov::Output<Node>& data, const Reshape& reshape) {
-    auto constant = ov::test::utils::deprecated::make_constant(ov::element::i64, Shape({ reshape.values.size() }), reshape.values);
+    auto constant = ov::op::v0::Constant::create(ov::element::i64, Shape({ reshape.values.size() }), reshape.values);
     return std::make_shared<ov::opset1::Reshape>(data, constant->output(0), reshape.special_zero);
 }
 
 std::shared_ptr<Node> makeTranspose(const ov::Output<Node>& data, const Transpose& transpose) {
-    auto constant = ov::test::utils::deprecated::make_constant(ov::element::i64, Shape({ transpose.values.size() }), transpose.values);
+    auto constant = ov::op::v0::Constant::create(ov::element::i64, Shape({ transpose.values.size() }), transpose.values);
     return std::make_shared<ov::opset1::Transpose>(data, constant->output(0));
 }
 
@@ -254,7 +254,7 @@ std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantize(
     std::shared_ptr<Node> inputHighNode;
 
     if (subgraphOnConstantPath) {
-        const auto topConstant = ov::test::utils::deprecated::make_constant(constantPrecision, ov::Shape{1}, std::vector<float>(1, 0.f), false);
+        const auto topConstant = ov::op::v0::Constant::create(constantPrecision, ov::Shape{1}, std::vector<float>(1, 0.f));
         const auto convert = std::make_shared<ov::opset1::Convert>(topConstant, ov::element::f32);
 
         const auto subtractMin = std::make_shared<ov::opset1::Subtract>(
@@ -277,45 +277,41 @@ std::shared_ptr<ov::opset1::FakeQuantize> makeFakeQuantize(
                 std::vector<float>{fqOnData.inputHighValues[0] / fqOnData.outputHighValues[0]}),
             subtractMax);
     } else {
-        inputLowNode = ov::test::utils::deprecated::make_constant(
+        inputLowNode = ov::test::utils::make_constant(
             constantPrecision,
             fqOnData.constantShapes.empty() ? ov::Shape{} : fqOnData.constantShapes[0],
-            fqOnData.inputLowValues,
-            fqOnData.inputLowValues.empty());
+            fqOnData.inputLowValues);
         if (fqOnData.addConverts) {
             inputLowNode = std::make_shared<ov::op::v0::Convert>(inputLowNode, ov::element::f32);
         }
 
-        inputHighNode = ov::test::utils::deprecated::make_constant(
+        inputHighNode = ov::test::utils::make_constant(
             constantPrecision,
             fqOnData.constantShapes.empty() ?
                 ov::Shape{} :
                 (fqOnData.constantShapes.size() == 1 ? fqOnData.constantShapes[0] : fqOnData.constantShapes[1]),
-            fqOnData.inputHighValues,
-            fqOnData.inputHighValues.empty());
+            fqOnData.inputHighValues);
         if (fqOnData.addConverts) {
             inputHighNode = std::make_shared<ov::op::v0::Convert>(inputHighNode, ov::element::f32);
         }
     }
 
-    auto outputLowNode = ov::test::utils::deprecated::make_constant(
+    auto outputLowNode = ov::test::utils::make_constant(
         constantPrecision,
         fqOnData.constantShapes.empty() ?
             ov::Shape{} :
             (fqOnData.constantShapes.size() == 1 ? fqOnData.constantShapes[0] : fqOnData.constantShapes[2]),
-        fqOnData.outputLowValues,
-        fqOnData.outputLowValues.empty());
+        fqOnData.outputLowValues);
     if (fqOnData.addConverts) {
         outputLowNode = std::make_shared<ov::op::v0::Convert>(outputLowNode, ov::element::f32);
     }
 
-    auto outputHighNode = ov::test::utils::deprecated::make_constant(
+    auto outputHighNode = ov::test::utils::make_constant(
         constantPrecision,
         fqOnData.constantShapes.empty() ?
             ov::Shape{} :
             (fqOnData.constantShapes.size() == 1 ? fqOnData.constantShapes[0] : fqOnData.constantShapes[3]),
-        fqOnData.outputHighValues,
-        fqOnData.outputHighValues.empty());
+        fqOnData.outputHighValues);
     if (fqOnData.addConverts) {
         outputHighNode = std::make_shared<ov::op::v0::Convert>(outputHighNode, ov::element::f32);
     }

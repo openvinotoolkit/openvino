@@ -205,6 +205,7 @@ static void CreateIndirectGemmOp(ProgramBuilder& p, const std::shared_ptr<ov::in
                                 op->get_output_transpose_order(),
                                 op->get_indirect_a(),
                                 op->get_indirect_b(),
+                                op->get_indirect_axis(),
                                 alpha,
                                 beta);
 

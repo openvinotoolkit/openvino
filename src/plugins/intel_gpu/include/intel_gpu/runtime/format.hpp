@@ -75,6 +75,7 @@ struct format {
     enum type : int32_t {
         // Data formats
         bfyx,                                   ///< the most common format for activations in clDNN.
+        bfxy,
         bfzyx,                                  ///< format for 5d data tensors
         bfwzyx,                                 ///< batch, feature, 4D spatial
         bfuwzyx,                                ///< 7d tensor
@@ -83,6 +84,9 @@ struct format {
         byxf,                                   ///< used in bitmaps, input from user i.e b images of RGB format
         fbyx,
         fyxb,                                   ///< format not used inside clDNN, but supported in reorder as extension
+        fybx,                                   ///< To be used when onednn gemm allows permute fusing in transformer network. Not for normal use from cldnn.
+        xbfy,                                   ///< To be used when onednn gemm allows permute fusing in transformer network. Not for normal use from cldnn.
+        ybfx,                                   ///< To be used when onednn gemm allows permute fusing in transformer network. Not for normal use from cldnn.
         bzyxf,
         byfx,                                   ///< To be used when onednn gemm allows permute fusing in transformer network. Not for normal use from cldnn.
         bxfy,                                   ///< To be used when onednn gemm allows permute fusing in transformer network. Not for normal use from cldnn.
@@ -287,11 +291,8 @@ struct format {
     }
     /// @brief Checks if @p format is simple data format
     static bool is_simple_data_format(const format& fmt) {
-        return (fmt == yxfb || fmt == byxf ||
-                fmt == byfx || fmt == bxfy ||
-                fmt == bfyx || fmt == fyxb ||
-                fmt == fbyx || fmt == bfzyx ||
-                fmt == bfwzyx || fmt == bfuwzyx ||
+        return (fmt == yxfb || fmt == byxf || fmt == byfx || fmt == bxfy || fmt == bfyx || fmt == fyxb || fmt == fybx ||
+                fmt == bfxy ||fmt == xbfy || fmt == ybfx || fmt == fbyx || fmt == bfzyx || fmt == bfwzyx || fmt == bfuwzyx ||
                 fmt == bfvuwzyx);
     }
 

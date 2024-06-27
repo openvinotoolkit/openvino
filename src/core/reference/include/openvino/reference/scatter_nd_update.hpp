@@ -9,40 +9,22 @@
 
 #include "openvino/core/shape.hpp"
 #include "openvino/op/scatter_nd_update.hpp"
+#include "openvino/reference/add.hpp"
+#include "openvino/reference/and.hpp"
 #include "openvino/reference/maximum.hpp"
 #include "openvino/reference/minimum.hpp"
 #include "openvino/reference/multiply.hpp"
+#include "openvino/reference/or.hpp"
+#include "openvino/reference/subtract.hpp"
 #include "openvino/reference/xor.hpp"
 #include "utils/span.hpp"
 
 namespace ov {
 namespace reference {
-namespace func {
-// TODO move this functions to other reference implementations to reduce binary size. Binary for
-// ScatterElementsUpdate-12 can also be updated. Ticket: CVS-138266
-template <class T>
-constexpr T add(const T a, const T b) {
-    return a + b;
-}
-template <class T>
-constexpr T subtract(const T a, const T b) {
-    return a - b;
-}
-
-template <class T>
-constexpr T logical_and(const T a, const T b) {
-    return static_cast<bool>(a) && static_cast<bool>(b);
-}
-
-template <class T>
-constexpr T logical_or(const T a, const T b) {
-    return static_cast<bool>(a) || static_cast<bool>(b);
-}
-
-}  // namespace func
 namespace scatter_nd_update {
 template <typename T>
 using reduction_function = T (*)(const T, const T);
+
 template <typename T,
           typename std::enable_if<!std::is_same<typename std::decay<T>::type, char>::value>::type* = nullptr>
 reduction_function<T> reduction_functor_for(const ov::op::v15::ScatterNDUpdate::Reduction reduction_type) {

@@ -3,16 +3,12 @@
 
 import os
 import tempfile
-from pathlib import Path
-
-from generator import generator, generate
 from openvino.runtime import serialize
-
-from unit_tests.ovc.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
+from pathlib import Path
 from unit_tests.ovc.convert.utils import create_onnx_model, save_to_onnx
+from unit_tests.ovc.unit_test_with_mocked_telemetry import UnitTestWithMockedTelemetry
 
 
-@generator
 class ConvertImportMOTest(UnitTestWithMockedTelemetry):
     test_directory = os.path.dirname(os.path.realpath(__file__))
 
@@ -54,11 +50,8 @@ class ConvertImportMOTest(UnitTestWithMockedTelemetry):
         onnx_net = helper.make_model(graph_def, producer_name='test_model')
         return onnx_net
 
-    @generate(*[
-        ({})
-    ])
     # Checks convert import from openvino.tools.mo
-    def test_import(self, params):
+    def test_import(self):
         from openvino.tools.ovc import convert_model
 
         with tempfile.TemporaryDirectory(dir=self.test_directory) as tmpdir:
@@ -66,7 +59,7 @@ class ConvertImportMOTest(UnitTestWithMockedTelemetry):
             model_path = save_to_onnx(model, tmpdir)
             out_xml = os.path.join(tmpdir, "model.xml")
 
-            ov_model = convert_model(input_model=model_path, **params)
+            ov_model = convert_model(input_model=model_path)
             serialize(ov_model, out_xml.encode('utf-8'), out_xml.replace('.xml', '.bin').encode('utf-8'))
             assert os.path.exists(out_xml)
 
@@ -81,8 +74,7 @@ class ConvertImportMOTest(UnitTestWithMockedTelemetry):
             ov_model = convert_model(Path(model_path))
             serialize(ov_model, out_xml.encode('utf-8'), out_xml.replace('.xml', '.bin').encode('utf-8'))
 
-            #TODO: check that model is correct
-
+            # TODO: check that model is correct
 
     def test_unnamed_input_model(self):
         from openvino.tools.ovc import convert_model
@@ -92,7 +84,6 @@ class ConvertImportMOTest(UnitTestWithMockedTelemetry):
             out_xml = os.path.join(tmpdir, "model.xml")
 
             ov_model = convert_model(model_path)
-            #serialize(ov_model, out_xml.encode('utf-8'), out_xml.replace('.xml', '.bin').encode('utf-8'))
+            # serialize(ov_model, out_xml.encode('utf-8'), out_xml.replace('.xml', '.bin').encode('utf-8'))
 
-            #TODO: check that model is correct
-
+            # TODO: check that model is correct

@@ -1652,6 +1652,38 @@ TEST(reduce_gpu, common_bfwzyx_log_sum_exp_keepdims) {
     }
 }
 
+TEST(reduce_gpu, cpu_impl_int32) {
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({{4}, data_types::i32, format::bfyx});
+
+    set_values<int32_t>(input, {1, 2, 3, 4});
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(reduce("reduce", input_info("input"), reduce_mode::prod, {0}, true));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"reduce", {format::bfyx, "", impl_types::cpu}}}));
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reduce");
+
+    auto output = outputs.at("reduce").get_memory();
+
+    std::vector<int32_t> ref_data = {24};
+
+    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < ref_data.size(); ++i) {
+        ASSERT_EQ(ref_data[i], output_ptr[i]);
+    }
+}
+
 TEST(reduce_gpu, dynamic) {
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({data_types::f32, format::bfwzyx, {2, 3, 1, 1, 1, 1}});

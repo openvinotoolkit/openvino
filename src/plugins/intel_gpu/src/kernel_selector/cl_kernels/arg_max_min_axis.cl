@@ -116,12 +116,8 @@ KERNEL(arg_max_min_modified)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input
     ,__global OUTPUT_TYPE* output
-#ifdef SECOND_OUTPUT_EXIST
-#ifdef MULTIPLE_OUTPUTS
+#ifdef OUTPUT1_TYPE
     ,__global OUTPUT1_TYPE* second_output
-#else
-    ,__global INPUT1_TYPE* second_output
-#endif
 #endif
 #ifdef IS_DYNAMIC
     ,__global INPUT0_TYPE* tmp_buffer0
@@ -443,20 +439,12 @@ KERNEL(arg_max_min_modified)(
 #else
     output[FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT_TYPE(result.index);
 #endif
-#ifdef SECOND_OUTPUT_EXIST
-#ifdef MULTIPLE_OUTPUTS
+#ifdef OUTPUT1_TYPE
     #ifdef TOP_K_ORDER
     second_output[FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT1_TYPE(result.index);
     #else
     second_output[FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT1_TYPE(result.value);
     #endif
-#else
-    #ifdef TOP_K_ORDER
-    second_output[FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_INPUT1_TYPE(result.index);
-    #else
-    second_output[FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_INPUT1_TYPE(result.value);
-    #endif
-#endif
 #endif
 
 #else // SORT_BY_VALUE
@@ -476,20 +464,12 @@ KERNEL(arg_max_min_modified)(
 #else
         output[FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT_TYPE(result[top_k].index);
 #endif
-#ifdef SECOND_OUTPUT_EXIST
-#ifdef MULTIPLE_OUTPUTS
+#ifdef OUTPUT1_TYPE
     #ifdef TOP_K_ORDER
         second_output[FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT1_TYPE(result[top_k].index);
     #else
         second_output[FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT1_TYPE(result[top_k].value);
     #endif
-#else
-    #ifdef TOP_K_ORDER
-        second_output[FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_INPUT1_TYPE(result[top_k].index);
-    #else
-        second_output[FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_INPUT1_TYPE(result[top_k].value);
-    #endif
-#endif
 #endif
     }
 #endif

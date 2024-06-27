@@ -1,29 +1,44 @@
 InferRequest
 ============
 
-.. rubric:: Interface InferRequest
-
-
 .. code-block:: ts
 
    interface InferRequest {
        getCompiledModel(): CompiledModel;
-       getInputTensor(idx?): Tensor;
+       getInputTensor(): Tensor;
+       getInputTensor(idx): Tensor;
+       getOutputTensor(): Tensor;
        getOutputTensor(idx?): Tensor;
        getTensor(nameOrOutput): Tensor;
-       infer(inputData?): {
+       infer(): {
+           [outputName: string]: Tensor;
+       };
+       infer(inputData): {
+           [outputName: string]: Tensor;
+       };
+       infer(inputData): {
            [outputName: string]: Tensor;
        };
        inferAsync(inputData): Promise<{
            [outputName: string]: Tensor;
        }>;
-       setInputTensor(idxOrTensor, tensor?): void;
-       setOutputTensor(idxOrTensor, tensor?): void;
+       setInputTensor(tensor): void;
+       setInputTensor(idx, tensor): void;
+       setOutputTensor(tensor): void;
+       setOutputTensor(idx, tensor): void;
        setTensor(name, tensor): void;
    }
 
-- Defined in
-  `addon.ts:72 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L72>`__
+
+The ``InferRequest`` object is created using
+:ref:`CompiledModel.createInferRequest <createInferRequest>` method and is
+specific for a given deployed model. It is used to make predictions and
+can be run in asynchronous or synchronous manners.
+
+
+* **Defined in:**
+  `addon.ts:402 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L402>`__
+
 
 Methods
 #####################
@@ -31,197 +46,394 @@ Methods
 
 .. rubric:: getCompiledModel
 
-.. code-block:: ts
+.. container:: m-4
 
-   getCompiledModel(): CompiledModel
+   .. code-block:: ts
 
-**Returns** :doc:`CompiledModel <CompiledModel>`
+      getCompiledModel(): CompiledModel
 
-- Defined in
-  `addon.ts:83 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L83>`__
+   It gets the compiled model used by the InferRequest object.
+
+   * **Returns:** :doc:`CompiledModel <CompiledModel>`
+
+   * **Defined in:**
+     `addon.ts:439 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L439>`__
 
 
 .. rubric:: getInputTensor
 
-.. code-block:: ts
+.. container:: m-4
 
-   getInputTensor(idx?): Tensor
+   .. code-block:: ts
+
+      getInputTensor(): Tensor
+
+   It gets the input tensor for inference.
+
+   * **Parameters:**
+
+     - ``Optional``
+
+       .. code-block:: ts
+
+          idx: number
 
 
-**Parameters**
+   * **Returns:**  :doc:`Tensor <Tensor>`
 
-- ``Optional``
+     The input tensor for the model. If the model has several inputs,
+     an exception is thrown.
 
-  .. code-block:: ts
+   * **Defined in:**
+     `addon.ts:445 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L445>`__
 
-     idx: number
 
+   .. code-block:: ts
 
-**Returns**  :doc:`Tensor <Tensor>`
+      getInputTensor(idx: number): Tensor
 
-- Defined in
-  `addon.ts:77 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L77>`__
+   It gets the input tensor for inference.
+
+   * **Parameters:**
+
+     - ``Optional``
+
+       .. code-block:: ts
+
+          idx: number
+
+       An index of the tensor to get.
+
+   * **Returns:**  :doc:`Tensor <Tensor>`
+
+     A tensor at the specified index. If the tensor with the specified
+     idx is not found, an exception is thrown.
+
+   * **Defined in:**
+     `addon.ts:452 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L452>`__
+
 
 .. rubric:: getOutputTensor
 
-.. code-block:: ts
+.. container:: m-4
 
-   getOutputTensor(idx?): Tensor
+   .. code-block:: ts
+
+      getOutputTensor(): Tensor
+
+   It gets the output tensor for inference.
+
+   * **Returns:**  :doc:`Tensor <Tensor>`
+
+     The output tensor for the model. If the tensor with the specified
+     idx is not found, an exception is thrown.
+
+   * **Defined in:**
+     `addon.ts:465 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L465>`__
 
 
-**Parameters**
+   .. code-block:: ts
 
-- ``Optional``
+      getOutputTensor(idx?: number): Tensor
 
-  .. code-block:: ts
+   It gets the output tensor for inference.
 
-     idx: number
+   * **Parameters:**
 
-**Returns**  :doc:`Tensor <Tensor>`
+     - ``Optional``
 
+       .. code-block:: ts
 
-- Defined in
-  `addon.ts:78 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L78>`__
+          idx: number
+
+       An index of the tensor to get.
+
+   * **Returns:**  :doc:`Tensor <Tensor>`
+
+     A tensor at the specified index. If the tensor with the specified
+     idx is not found, an exception is thrown.
+
+   * **Defined in:**
+     `addon.ts:465 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L465>`__
 
 .. rubric:: getTensor
 
-.. code-block:: ts
+.. container:: m-4
 
-   getTensor(nameOrOutput): Tensor
+   .. code-block:: ts
 
-**Parameters**
+      getTensor(nameOrOutput: string | Output): Tensor;
 
-- nameOrOutput: string| :doc:`Output <Output>`
+   It gets an input/output tensor for inference.
+   If a tensor with the specified name or port is not found, an exception
+   is thrown.
 
-**Returns**  :doc:`Tensor <Tensor>`
+   * **Parameters:**
 
-- Defined in
-  `addon.ts:76 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L76>`__
+     - nameOrOutput: string | :doc:`Output <Output>`
+
+       The name of the tensor or output object.
+
+   * **Returns:**  :doc:`Tensor <Tensor>`
+
+   * **Defined in:**
+     `addon.ts:474 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L474>`__
+
 
 .. rubric:: infer
 
+.. container:: m-4
 
-.. code-block:: ts
+   .. code-block:: ts
 
-   infer(inputData?): {
-       [outputName: string]: Tensor;
-   }
+      infer(): { [outputName: string] : Tensor};
 
+   It infers specified input(s) in the synchronous mode. Inputs have to be
+   specified earlier using :ref:`InferRequest.setTensor <setTensor>` or
+   :ref:`InferRequest.setInputTensor <setInputTensor>`
 
-**Parameters**
+   * **Returns:**
 
-- ``Optional``
+     .. code-block:: ts
 
-  .. code-block:: ts
-
-     inputData: {
-                [inputName: string]: Tensor | SupportedTypedArray;
-                } | Tensor[] | SupportedTypedArray[]
-
-**Returns**
-
-.. code-block:: ts
-
-   {
-   [outputName: string]: Tensor;
-   }
-
-- [outputName: string]: Tensor
+        {
+        [outputName: string]: Tensor;
+        }
 
 
-- Defined in
-  `addon.ts:79 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L79>`__
+   * **Defined in:**
+     `addon.ts:409 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L409>`__
+
+
+   .. code-block:: ts
+
+      infer(inputData): {
+          [outputName: string]: Tensor;
+      }
+
+   It infers specified input(s) in the synchronous mode.
+
+   * **Parameters:**
+
+     -
+
+       .. code-block:: ts
+
+          inputData: {
+                     [inputName: string]: Tensor | SupportedTypedArray;
+                     }
+
+       An object with the key-value pairs where the key is the
+       input name and value can be either a tensor or a ``TypedArray``. ``TypedArray``
+       will be wrapped into ``Tensor`` underneath using the input shape and element type
+       of the deployed model.
+
+   * **Returns:**
+
+     .. code-block:: ts
+
+        {
+        [outputName: string]: Tensor;
+        }
+
+   * **Defined in:**
+     `addon.ts:417 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L417>`__
+
+
+   .. code-block:: ts
+
+      infer(inputData): {
+          [outputName: string]: Tensor;
+      }
+
+
+   It infers specified input(s) in the synchronous mode.
+
+   * **Parameters:**
+
+     -
+
+       .. code-block:: ts
+
+          inputData: Tensor[] | SupportedTypedArray[]
+
+       An array with tensors or ``TypedArrays``. ``TypedArrays`` will be
+       wrapped into ``Tensors`` underneath using the input shape and element type
+       of the deployed model. If the model has multiple inputs, the ``Tensors``
+       and ``TypedArrays`` must be passed in the correct order.
+
+   * **Returns:**
+
+     .. code-block:: ts
+
+        {
+        [outputName: string]: Tensor;
+        }
+
+   * **Defined in:**
+     `addon.ts:426 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L426>`__
+
 
 .. rubric:: inferAsync
 
+.. container:: m-4
 
-.. code-block:: ts
+   .. code-block:: ts
 
-   inferAsync(inputData): Promise<{
-       [outputName: string]: Tensor;
-   }>
+      inferAsync(inputData): Promise<{
+          [outputName: string]: Tensor;
+      }>
 
-**Parameters**
+   It infers specified input(s) in the asynchronous mode.
 
--
+   * **Parameters:**
 
-  .. code-block:: ts
+     -
 
-     inputData: Tensor[] | {
-         [inputName: string]: Tensor;
-     }
+       .. code-block:: ts
 
-**Returns**
+          inputData: Tensor[] | {
+              [inputName: string]: Tensor;
+          }
 
-.. code-block:: ts
+       An object with the key-value pairs where the key is the input name and
+       value is a tensor or an array with tensors. If the model has multiple
+       inputs, the Tensors must be passed in the correct order.
 
-   Promise<{
-    [outputName: string]: Tensor;
-   }>
+   * **Returns:**
+
+     .. code-block:: ts
+
+        Promise<{
+         [outputName: string]: Tensor;
+        }>
 
 
-- Defined in
-  `addon.ts:81 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L81>`__
+   * **Defined in:**
+     `addon.ts:434 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L434>`__
+
 
 .. rubric:: setInputTensor
+   :name: setInputTensor
 
-.. code-block:: ts
+.. container:: m-4
 
-   setInputTensor(idxOrTensor, tensor?): void
+   .. code-block:: ts
 
-
-**Parameters**
-
-- idxOrTensor: number| :doc:`Tensor <Tensor>`
-
-- ``Optional``
-
-  .. code-block:: ts
-
-     tensor: Tensor
+      setInputTensor(tensor): void
 
 
-**Returns**  void
+   It sets the input tensor to infer models with a single input.
 
-- Defined in
-  `addon.ts:74 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L74>`__
+   * **Parameters:**
+
+     - :doc:`Tensor <Tensor>`
+
+       The input tensor. The element type and shape of the tensor must match
+       the type and size of the model's input element. If the model has
+       several inputs, an exception is thrown.
+
+   * **Returns:**  void
+
+   * **Defined in:**
+     `addon.ts:481 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L481>`__
+
+
+   .. code-block:: ts
+
+      setInputTensor(idx, tensor): void
+
+   It sets the input tensor to infer.
+
+   * **Parameters:**
+
+     - idx: number
+
+       The input tensor index. If idx is greater than the number of
+       model inputs, an exception is thrown.
+
+     - :doc:`Tensor <Tensor>`
+
+       The input tensor. The element type and shape of the tensor
+       must match the input element type and size of the model.
+
+   * **Returns:**  void
+
+   * **Defined in:**
+     `addon.ts:489 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L489>`__
+
 
 .. rubric:: setOutputTensor
 
+.. container:: m-4
 
-.. code-block:: ts
+   .. code-block:: ts
 
-   setOutputTensor(idxOrTensor, tensor?): void
+      setOutputTensor(tensor): void
+
+   It sets the output tensor to infer models with a single output.
+
+   * **Parameters:**
+
+     - :doc:`Tensor <Tensor>`
+
+       The output tensor. The element type and shape of the tensor must match
+       the output element type and size of the model. If the model has several
+       outputs, an exception is thrown.
+
+   * **Returns:**  void
+
+   * **Defined in:**
+     `addon.ts:496 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L496>`__
 
 
-**Parameters**
+   .. code-block:: ts
 
-- idxOrTensor: number| :doc:`Tensor <Tensor>`
-- ``Optional``
+      setOutputTensor(idx, tensor): void
 
-  .. code-block:: ts
+   It sets the output tensor to infer.
 
-     tensor: Tensor
+   * **Parameters:**
 
+     - idx: number
 
-**Returns**  void
+       The output tensor index.
 
-- Defined in
-  `addon.ts:75 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L75>`__
+     - :doc:`Tensor <Tensor>`
+
+       The output tensor. The element type and shape of the tensor
+       must match the output element type and size of the model.
+
+   * **Returns:**  void
+
+   * **Defined in:**
+     `addon.ts:503 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L503>`__
+
 
 .. rubric:: setTensor
+   :name: setTensor
 
+.. container:: m-4
 
-.. code-block:: ts
+   .. code-block:: ts
 
-   setTensor(name, tensor): void
+      setTensor(name, tensor): void
 
-**Parameters**
+   It sets the input/output tensor to infer.
 
-- name: string
-- tensor: :doc:`Tensor <Tensor>`
+   * **Parameters:**
 
-**Returns**  void
+     - name: string
 
-- Defined in
-  `addon.ts:73 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L73>`__
+       The input or output tensor name.
+
+     - tensor: :doc:`Tensor <Tensor>`
+
+       The tensor. The element type and shape of the tensor
+       must match the input/output element type and size of the model.
+
+   * **Returns:**  void
+
+   * **Defined in:**
+     `addon.ts:510 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L510>`__
+

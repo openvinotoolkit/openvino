@@ -51,10 +51,13 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInp();
 const std::vector<utils::InputLayerType>& secondaryInputTypes();
 
 const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInp();
+const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInpSnippets();
 const std::vector<utils::EltwiseTypes>& eltwiseOpTypesDiffInp();
 const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinDyn();
 
 const std::vector<CPUSpecificParams>& cpuParams_4D();
+const std::vector<CPUSpecificParams>& cpuParams_4D_Planar();
+const std::vector<CPUSpecificParams>& cpuParams_4D_PerChannel();
 const std::vector<std::vector<ov::Shape>>& inShapes_4D();
 const std::vector<std::vector<InputShape>>& inShapes_4D_dyn_const();
 const std::vector<std::vector<ov::Shape>>& inShapes_fusing_4D();
@@ -64,6 +67,8 @@ const std::vector<CPUSpecificParams> & cpuParams_4D_1D_Constant_mode();
 const std::vector<CPUSpecificParams>& cpuParams_4D_1D_Parameter_mode();
 
 const std::vector<CPUSpecificParams>& cpuParams_5D();
+const std::vector<CPUSpecificParams>& cpuParams_5D_Planar();
+const std::vector<CPUSpecificParams>& cpuParams_5D_PerChannel();
 const std::vector<std::vector<ov::Shape>>& inShapes_5D();
 const std::vector<std::vector<ov::Shape>>& inShapes_5D_1D();
 const std::vector<InputShape>& inShapes_5D_dyn_const();

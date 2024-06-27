@@ -23,7 +23,7 @@ AssignAndReadValueTransformation::AssignAndReadValueTransformation(const std::sh
     auto assign3 = pattern::wrap_type<opset3::Assign>({ pattern::wrap_type<ov::opset1::Multiply>() });
     auto assign6 = pattern::wrap_type<opset6::Assign>({ pattern::wrap_type<ov::opset1::Multiply>() });
 
-    ov::graph_rewrite_callback callback = [=](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& opsMap = m.get_pattern_value_map();
         auto op = m.get_match_root();
         auto assignIt = opsMap.find(assign3);

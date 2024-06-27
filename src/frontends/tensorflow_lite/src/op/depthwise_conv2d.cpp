@@ -14,14 +14,14 @@ namespace tensorflow_lite {
 namespace op {
 
 OutputVector depthwise_conv2d(const ov::frontend::tensorflow_lite::NodeContext& node) {
-    auto decoder = get_conv_decoder_map<tflite::DepthwiseConv2DOptions>("DepthwiseConv2dNative", node);
+    const auto& decoder = node.get_decoder();
     FRONT_END_GENERAL_CHECK(node.get_input_size() >= 2,
                             "Unexpected number of input in node of type=",
                             node.get_op_type(),
                             " name=",
                             node.get_name());
     OutputVector output;
-    auto group = get_decoder(node)->get_attribute(&tflite::DepthwiseConv2DOptions::depth_multiplier);
+    auto group = node.get_attribute<int32_t>("group");
     ov::OutputVector inputs = {
         node.get_input(0),
         tensorflow::make_reshape(tensorflow::make_transpose(node.get_input(1), {1, 2, 3, 0}), {0, 0, -1, group})};

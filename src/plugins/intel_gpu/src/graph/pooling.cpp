@@ -37,7 +37,7 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node, kernel_i
     }
 
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
 
         // pooling doesn't support i32 data type
         // FIXME: Someday delete this, when pooling supports i32 output.
@@ -157,7 +157,7 @@ std::vector<layout> pooling_inst::calc_output_layouts(pooling_node const& /*node
         }
     }
     if (impl_param.has_fused_primitives()) {
-        output_dtype = impl_param.get_fused_output_layout().data_type;
+        output_dtype = impl_param.get_output_element_type();
 
         // pooling doesn't support i32 data type
         // FIXME: Someday delete this, when pooling supports i32 output.
@@ -170,8 +170,18 @@ std::vector<layout> pooling_inst::calc_output_layouts(pooling_node const& /*node
     output_shape[0] = input_shape[0];
     output_shape[1] = input_shape[1];
 
+    std::vector<layout> out_layouts = {
+        layout{output_shape, output_dtype, input_layout.format}
+    };
+
+    if (desc->num_outputs == 2) {
+        auto l = out_layouts[0];
+        l.data_type = desc->index_element_type;
+        out_layouts.push_back(l);
+    }
+
     if (input_shape.is_dynamic()) {
-        return { layout{output_shape, input_layout.data_type, input_layout.format} };
+        return out_layouts;
     }
 
     if (desc->with_output_size) {
@@ -236,7 +246,11 @@ std::vector<layout> pooling_inst::calc_output_layouts(pooling_node const& /*node
         output_shape[i + 2] = out_dim;
     }
 
-    return { layout{output_shape, output_dtype, input_layout.format} };
+    for (auto& ol : out_layouts) {
+        ol.set_partial_shape(output_shape);
+    }
+
+    return out_layouts;
 }
 
 template std::vector<layout> pooling_inst::calc_output_layouts<ov::PartialShape>(pooling_node const& node, const kernel_impl_params& impl_param);

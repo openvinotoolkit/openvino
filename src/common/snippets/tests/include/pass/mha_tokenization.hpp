@@ -7,6 +7,7 @@
 #include <common_test_utils/ov_test_utils.hpp>
 
 #include "snippets/pass/tokenization.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace test {
@@ -17,7 +18,7 @@ public:
     virtual void run();
 
 protected:
-    ov::snippets::pass::SnippetsTokenization::Config config;
+    ov::snippets::pass::SnippetsTokenization::Config config = get_default_tokenization_config();
 };
 
 }  // namespace snippets
