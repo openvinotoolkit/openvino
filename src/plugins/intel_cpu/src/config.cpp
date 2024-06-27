@@ -236,6 +236,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == ov::hint::dynamic_quantization_group_size.name()) {
             try {
+                fcDynamicQuantizationGroupSizeSetExplicitly = true;
                 fcDynamicQuantizationGroupSize = val.as<uint64_t>();
             } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value for property key ",
@@ -388,6 +389,12 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 inferencePrecision = ov::element::bf16;
         } else {
             inferencePrecision = ov::element::undefined;
+        }
+    }
+    // disable dynamic quantization and kv quantization for best accuracy
+    if (executionMode == ov::hint::ExecutionMode::ACCURACY) {
+        if (!fcDynamicQuantizationGroupSizeSetExplicitly) {
+            fcDynamicQuantizationGroupSize = 0;
         }
     }
 
