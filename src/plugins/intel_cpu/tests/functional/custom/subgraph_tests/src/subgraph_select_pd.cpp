@@ -73,12 +73,7 @@ protected:
         auto create_conv = [&](const std::shared_ptr<ov::Node>& input_node) {
             auto conv = std::make_shared<ov::opset8::Convolution>(
                 input_node,
-                ov::test::utils::deprecated::make_constant(ov::element::f16,
-                                                           Shape{1, const1 / 2u, 3, 3},
-                                                           std::vector<float>{},
-                                                           true,
-                                                           0.1f,
-                                                           0.9f),
+                ov::test::utils::make_constant(ov::element::f16, Shape{1, const1 / 2u, 3, 3}),
                 Strides{1, 1},
                 CoordinateDiff{0, 0},
                 CoordinateDiff{0, 0},
@@ -106,7 +101,7 @@ protected:
         int nodes_found = 0;
         for (const auto& n : runtime_function->get_ordered_ops()) {
             auto layer_type = n->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
-            if (layer_type == "Subgraph") {
+            if (layer_type == "Subgraph" && n->get_input_size() == 3u) {
                 nodes_found++;
                 auto output_layout = n->get_rt_info().at(ov::exec_model_info::OUTPUT_LAYOUTS).as<std::string>();
                 // The optimal choose should be: 'nhwc'.

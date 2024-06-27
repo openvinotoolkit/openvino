@@ -284,7 +284,7 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
 
                     /*
                     Heuristics:
-                    SShape=Shape(all elements = 1 or only 1 position is not 1)
+                    SShape=Scalar Shape(all elements = 1 or only 1 position is not 1)
                     Reorder is inserted after the SShape node, and such reorder have less cost of calculation.
                     If multiple inputs of a node have different layouts, try to have the reorder occur on the SShape
                     node.
