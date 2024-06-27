@@ -28,10 +28,10 @@ public:
     /// shape [num_emb, emb_dim1, emb_dim2, ...] and  of type T
     /// \param  indices Tensor of shape `[batch, indices_per_bag]` and of type *T_IND*.
     /// Required.
-    /// \param per_sample_weigths tensor of the same shape as indices and of type T.
+    /// \param per_sample_weights tensor of the same shape as indices and of type T.
     /// Each value in this tensor are multiplied with each
     /// value pooled from embedding table for each index. Optional.
-
+    /// \param reduction enum to select algorithm used to perform reduction of elements in bag. Optional.
     EmbeddingBagPacked(const Output<Node>& emb_table,
                        const Output<Node>& indices,
                        const Output<Node>& per_sample_weights,
