@@ -10,7 +10,7 @@ Supported configurations:
 
 - [CMake](https://cmake.org/download/) 3.13 or higher
 - Microsoft Visual Studio 2019 or higher, version 16.3 or later
-  > **NOTE**: Native Microsoft Visual Studio for WoA is available since 2022.
+  > **NOTE**: Native Microsoft Visual Studio for WoA has been available since version 3.11.
 - Python 3.8 - 3.11 for OpenVINO Runtime Python API
   > **NOTE**: Python for ARM64 is available since [3.11](https://www.python.org/downloads/windows/) version.
 - [Git for Windows*]
