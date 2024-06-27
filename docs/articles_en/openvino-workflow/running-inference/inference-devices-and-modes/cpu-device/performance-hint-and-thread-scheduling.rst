@@ -7,7 +7,7 @@ Performance Hints and Thread Scheduling
                  on performance hints automatically.
 
 To simplify the configuration of hardware devices, it is recommended to use the
-:doc:` ov::hint::PerformanceMode::LATENCY and ov::hint::PerformanceMode::THROUGHPUT <../../../../optimize-inference/high-level-performance-hints>`
+:doc:`ov::hint::PerformanceMode::LATENCY and ov::hint::PerformanceMode::THROUGHPUT <../../optimize-inference/high-level-performance-hints>`
 high-level performance hints. Both performance hints ensure optimal portability
 and scalability of applications across various platforms and models.
 
