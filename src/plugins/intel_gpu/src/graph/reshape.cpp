@@ -178,7 +178,7 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
 
     auto run_shape_infer = [&](reshape::reshape_mode mode) {
          switch (mode) {
-            case reshape::reshape_mode::base: 
+            case reshape::reshape_mode::base: {
                 ov::op::v1::Reshape op;
                 op.set_special_zero(prim->special_zero);
                 op.set_friendly_name(prim->id.c_str());

@@ -511,12 +511,9 @@ event::ptr primitive_inst::realloc_if_needed() {
         }
     }
 
-    if (_node->is_type<crop>()) {
-        if (can_be_optimized()) {
-            this->_outputs[0] = dep_memory_ptr(0);
-            GPU_DEBUG_TRACE_DETAIL << id() << ": use crop dep's memory " << this->_outputs[0]->buffer_ptr() << std::endl;
-            return ev;
-        }
+    if (_node->is_type<crop>() && can_be_optimized()) {
+        GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("can_be_optimized");
+        return ev;
     }
 
     // Update param if fake_alignment is available

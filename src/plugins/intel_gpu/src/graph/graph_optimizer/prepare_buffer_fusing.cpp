@@ -455,7 +455,7 @@ bool crop_in_place_optimization::match(crop_node& node) {
 }
 
 bool crop_in_place_optimization::match(const program_node& node,
-                                       kernel_impl_params crop_params,
+                                       kernel_impl_params& crop_params,
                                        layout& input_layout,
                                        bool is_runtime) {
     if (!node.is_valid_output_layout())
