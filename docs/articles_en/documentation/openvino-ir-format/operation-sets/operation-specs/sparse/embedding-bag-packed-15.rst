@@ -53,6 +53,8 @@ Operation is equivalent to *gather_op = Gather(emb_table, indices, axis=0)* foll
 
 **Example**
 
+*Example 1: reduction set to sum, per_sample_weights are not provided.*
+
 .. code-block:: xml
 
    <layer ... type="EmbeddingBagPacked" ... >
@@ -75,6 +77,7 @@ Operation is equivalent to *gather_op = Gather(emb_table, indices, axis=0)* foll
        </output>
    </layer>
 
+*Example 2: reduction set to sum and per_sample_weights are provided.*
 
 .. code-block:: xml
 
@@ -89,18 +92,20 @@ Operation is equivalent to *gather_op = Gather(emb_table, indices, axis=0)* foll
                <dim>3</dim>
                <dim>2</dim>
            </port>
-           <port id="2"/>    <!-- per_sample_weights value is: [[0.5, 0.5], [0.5, 0.5], [0.5, 0.5]] -->
+           <port id="2"/>    <!-- per_sample_weights value is: [[0.5, 0.5], [0.3, 0.7], [2., -1.]] -->
                <dim>3</dim>
                <dim>2</dim>
            </port>
        </input>
        <output>
-           <port id="3">     <!-- output value is: [[-1.05, -1.2], [-1., -1.1], [-0.1, 0.4]] -->
+           <port id="3">     <!-- output value is: [[-1.05, -1.2], [-1.36, -1.38], [-2.8, 3.7]] -->
                <dim>3</dim>
                <dim>2</dim>
            </port>
        </output>
    </layer>
+
+*Example 3: reduction set to mean, per_sample_weights are not provided.*
 
 .. code-block:: xml
 
@@ -117,7 +122,7 @@ Operation is equivalent to *gather_op = Gather(emb_table, indices, axis=0)* foll
            </port>
        </input>
        <output>
-           <port id="3">     <!-- output value is: [[-1.05, -1.2], [-1., -1.1], [-0.1, 0.4]] -->
+           <port id="2">     <!-- output value is: [[-1.05, -1.2], [-1., -1.1], [-0.1, 0.4]] -->
                <dim>3</dim>
                <dim>2</dim>
            </port>

@@ -78,6 +78,8 @@ EmbeddingBagOffsetsSum is an equivalent to following NumPy snippet:
 
 **Example**
 
+*Example 1: per_sample_weights are provided, default_index is set to 0 to fill empty bag with values gathered form emb_table on given index.*
+
 .. code-block:: xml
 
    <layer ... type="EmbeddingBagOffsetsSum" ... >
@@ -93,7 +95,7 @@ EmbeddingBagOffsetsSum is an equivalent to following NumPy snippet:
                <dim>3</dim>
            </port>
            <port id="3"/>    <!-- default_index value is: 0 -->
-           <port id="4"/>    <!-- per_sample_weigths value is: [0.5, 0.5, 0.5, 0.5] -->
+           <port id="4"/>    <!-- per_sample_weights value is: [0.5, 0.5, 0.5, 0.5] -->
                <dim>4</dim>
            </port>
        </input>
@@ -105,4 +107,31 @@ EmbeddingBagOffsetsSum is an equivalent to following NumPy snippet:
        </output>
    </layer>
 
+*Example 2: per_sample_weights are provided, default_index is set to -1 to fill empty bag with 0.*
 
+.. code-block:: xml
+
+   <layer ... type="EmbeddingBagOffsets" ... >
+       <input>
+           <port id="0">     <!-- emb_table value is: [[-0.2, -0.6], [-0.1, -0.4], [-1.9, -1.8], [-1.,  1.5], [ 0.8, -0.7]] -->
+               <dim>5</dim>
+               <dim>2</dim>
+           </port>
+           <port id="1">     <!-- indices value is: [0, 2, 3, 4] -->
+               <dim>4</dim>
+           </port>
+           <port id="2">     <!-- offsets value is: [0, 2, 2] - 3 "bags" containing [2,0,4-2] elements, second "bag" is empty -->
+               <dim>3</dim>
+           </port>
+           <port id="3"/>    <!-- default_index value is: -1 - fill empty bag with 0-->
+           <port id="4"/>    <!-- per_sample_weights value is: [0.5, 0.5, 0.5, 0.5] -->
+               <dim>4</dim>
+           </port>
+       </input>
+       <output>
+           <port id="5">     <!-- output value is: [[-1.05, -1.2], [0., 0.], [-0.1, 0.4]] -->
+               <dim>3</dim>
+               <dim>2</dim>
+           </port>
+       </output>
+   </layer>

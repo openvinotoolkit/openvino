@@ -50,13 +50,13 @@ Operation is equivalent to *ReduceSum(Multiply(Gather(emb_table, indices, axis=0
                <dim>3</dim>
                <dim>2</dim>
            </port>
-           <port id="2"/>    <!-- per_sample_weigths value is: [[0.5, 0.5], [0.5, 0.5], [0.5, 0.5]] -->
+           <port id="2"/>    <!-- per_sample_weights value is: [[0.5, 0.5], [0.5, 0.5], [0.5, 0.5]] -->
                <dim>3</dim>
                <dim>2</dim>
            </port>
        </input>
        <output>
-           <port id="4">     <!-- output value is: [[-1.05, -1.2], [-1., -1.1], [-0.1, 0.4]] -->
+           <port id="3">     <!-- output value is: [[-1.05, -1.2], [-1., -1.1], [-0.1, 0.4]] -->
                <dim>3</dim>
                <dim>2</dim>
            </port>
