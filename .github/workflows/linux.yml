@@ -512,8 +512,8 @@ jobs:
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_cpu_functional_tests.yml
     with:
-      runner: 'aks-linux-8-cores-32gb'
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64 }}
+      runner: 'linux-gpu-vm-11'
+      # image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64 }}
 
   TensorFlow_Models_Tests_Precommit:
     name: TensorFlow Models tests
