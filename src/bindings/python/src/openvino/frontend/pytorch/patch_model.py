@@ -113,5 +113,7 @@ def __make_16bit_traceable(model: torch.nn.Module):
     patch_model(model, extensions,
                 "_openvino_module_extension_patch_orig_forward")
     for _, module in model.named_modules():
+        if "RotaryEmbedding" in str(module.__class__) and getattr(module, "_set_cos_sin_cache", None):
+            module._set_cos_sin_cache(seq_len=module.max_position_embeddings, device=module.inv_freq.device, dtype=torch.get_default_dtype())
         if module.__class__ not in extensions and hasattr(module, "weight") and module.weight.dtype in [torch.float16, torch.bfloat16]:
             module.float()
