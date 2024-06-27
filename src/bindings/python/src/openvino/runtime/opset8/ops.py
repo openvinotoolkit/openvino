@@ -348,7 +348,7 @@ def random_uniform(
                                 'i64', 'i32', 'f64', 'f32', 'f16', 'bf16'.
     :param global_seed: Specifies global seed value. Required to be a positive integer or 0.
     :param op_seed: Specifies operational seed value. Required to be a positive integer or 0.
-    :param alignment: Specifies alignment of the randomly generated numbers to a given framework. 
+    :param alignment: Specifies alignment of the randomly generated numbers to a given framework.
                                 Possible values: 'tensorflow', 'pytorch'. Default is 'tensorflow'.
     :param name: Optional output node name.
 
