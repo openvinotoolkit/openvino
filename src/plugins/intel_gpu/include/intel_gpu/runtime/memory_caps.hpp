@@ -18,6 +18,7 @@ enum class allocation_type {
     usm_host,    // Accessible by host and device. Not Migratable
     usm_shared,  // Accessible by host and device. Migrtable.
     usm_device,  // Accessible only by device. Not migratable.
+    max_value,   // Used for data array size. Shall be last
 };
 
 inline std::ostream& operator<<(std::ostream& out, const allocation_type& alloc_type) {
