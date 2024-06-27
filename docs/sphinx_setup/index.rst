@@ -106,7 +106,7 @@ Places to Begin
 
       Get started in just a few lines of code.
 
-      .. button-link:: openvino-workflow/running-inference.html
+      .. button-link:: openvino-workflow/running-inference/integrate-openvino-with-your-application.html
          :color: primary
          :outline:
 
