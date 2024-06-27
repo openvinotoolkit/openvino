@@ -31,7 +31,7 @@ jobs:
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           sparse-checkout: .github/actions/smart-ci
 
@@ -64,7 +64,7 @@ jobs:
       images: "${{ steps.handle_docker.outputs.images }}"
     steps:
       - name: Checkout
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - uses: ./.github/actions/handle_docker
         id: handle_docker
@@ -113,7 +113,7 @@ jobs:
 
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
@@ -128,7 +128,7 @@ jobs:
           git rev-parse HEAD
 
       - name: Clone OpenVINO Contrib
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
@@ -224,7 +224,7 @@ jobs:
         run: |
           /usr/bin/python3.8 -m pip install -U pip
           /usr/bin/python3.8 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
-          cmake -UPYTHON* \
+          cmake -UPython* -U_Python* -UPYTHON* \
                 -UTBB* \
                 -DENABLE_SYSTEM_TBB=ON \
                 -DENABLE_PYTHON_PACKAGING=ON \
@@ -245,11 +245,9 @@ jobs:
 
       - name: CMake configure, build and install - OpenVINO JS API
         if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
-        run:
-          cmake -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -UTBB* -S ${OPENVINO_REPO} -B ${BUILD_DIR}
-
+        run: |
+          cmake -UTBB* -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -S ${OPENVINO_REPO} -B ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel
-
           cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR_JS} -P ${BUILD_DIR}/cmake_install.cmake
 
       #
@@ -317,7 +315,7 @@ jobs:
     uses: ./.github/workflows/job_samples_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64 }}
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
   JS_API:
@@ -383,7 +381,7 @@ jobs:
           popd
 
       - name: Fetch setup_python action
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
@@ -618,7 +616,7 @@ jobs:
           popd
 
       - name: Clone OpenVINO Contrib
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
