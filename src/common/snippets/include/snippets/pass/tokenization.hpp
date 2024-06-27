@@ -66,9 +66,11 @@ public:
      * @ingroup snippets
      */
     struct Config {
-        Config(size_t concurrency, size_t data_ptr_gpr_count, bool split_m_dimension, bool enable_transpose_on_output, std::set<size_t> mha_transpose_ranks)
+        Config(size_t concurrency, size_t data_ptr_gpr_count, bool split_m_dimension, bool enable_transpose_on_output,
+               bool dyn_mha_supported, std::set<size_t> mha_transpose_ranks)
             : concurrency(concurrency), data_ptr_gpr_count(data_ptr_gpr_count), split_m_dimension(split_m_dimension),
-              mha_token_enable_transpose_on_output(enable_transpose_on_output), mha_supported_transpose_ranks(std::move(mha_transpose_ranks)) {
+              mha_token_enable_transpose_on_output(enable_transpose_on_output), is_dynamic_mha_supported(dyn_mha_supported),
+              mha_supported_transpose_ranks(std::move(mha_transpose_ranks)) {
             OPENVINO_ASSERT(concurrency > 0, "Concurrency should be greater than 0");
             OPENVINO_ASSERT(data_ptr_gpr_count > 0, "data_ptr_gpr_count should be greater than 0");
         }
@@ -93,6 +95,10 @@ public:
             return mha_token_enable_transpose_on_output;
         }
 
+        bool get_dynamic_mha_support() const {
+            return is_dynamic_mha_supported;
+        }
+
         std::set<size_t> get_mha_supported_transpose_ranks() const {
             return mha_supported_transpose_ranks;
         }
@@ -108,6 +114,9 @@ public:
         // Otherwise, it may be fused into Subgraph if possible
         // TODO [111813]: Remove please when the ticket 111813 is implemented
         bool mha_token_enable_transpose_on_output = true;
+        // True if dynamic MHA is supported by backend
+        // Otherwise dynamic MHA won't be tokenized
+        bool is_dynamic_mha_supported = true;
         // Set of supported Transpose shape ranks for tokenization in MHATokenization pass.
         // Note that in general Snippets support Transpose of any ranks.
         // But at the moment Transpose is used only in MHA pattern where 3D and 4D tensors are supported.
