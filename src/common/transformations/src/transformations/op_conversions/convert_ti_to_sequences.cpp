@@ -35,6 +35,7 @@
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -42,6 +43,10 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+
+using namespace ov;
+using namespace ov::pass;
+using namespace ov::op::util;
 
 namespace {
 bool convertTensorIteratorToSequence(const std::shared_ptr<ov::op::v0::TensorIterator>& ti,
@@ -242,6 +247,233 @@ bool convertTensorIteratorToSequence(const std::shared_ptr<ov::op::v0::TensorIte
     copy_runtime_info(ti, new_nodes);
     return true;
 }
+
+bool check_condition_increment_pattern(
+    const std::shared_ptr<op::v0::Result>& cond_result,
+    const std::shared_ptr<op::v5::Loop>& loop,
+    const ov::ParameterVector& body_params,
+    const ov::ResultVector& body_results,
+    const ov::op::util::MultiSubGraphOp::MultiSubgraphInputDescriptionVector& input_descriptions,
+    Output<Node>& num_iters_output) {
+    // return a number of iterations if pattern matches
+    // pattern for condition sub-graph in Loop operarion
+    auto num_iter_const_label = pattern::wrap_type<op::v0::Constant>();
+    auto num_iter_param_label = pattern::wrap_type<op::v0::Parameter>();
+    auto num_iterations_label =
+        std::make_shared<pattern::op::Or>(OutputVector{num_iter_const_label, num_iter_param_label});
+    auto counter_label = pattern::wrap_type<op::v0::Parameter>();
+    auto counter_step_label = pattern::wrap_type<op::v0::Constant>();
+    auto updated_counter_label = pattern::wrap_type<op::v1::Add>({counter_label, counter_step_label});
+    auto less_label = pattern::wrap_type<op::v1::Less>({updated_counter_label, num_iterations_label});
+    auto condition_label = pattern::wrap_type<op::v0::Result>({less_label});
+
+    // check a pattern of condition graph and get a number of iterations
+    ov::pass::pattern::Matcher condition_matcher(condition_label);
+    if (!condition_matcher.match(cond_result->output(0))) {
+        return false;
+    }
+    const auto& condition_map = condition_matcher.get_pattern_value_map();
+    int64_t counter_step = -1;
+    if (!get_constant_value(condition_map.at(counter_step_label).get_node_shared_ptr(), counter_step) ||
+        counter_step != 1) {
+        return false;
+    }
+    // get initial value of counter
+    int64_t initial_counter = -1;
+    auto counter_param = ov::as_type_ptr<ov::op::v0::Parameter>(condition_map.at(counter_label).get_node_shared_ptr());
+    if (!counter_param) {
+        return false;
+    }
+    for (const auto& input_desc : input_descriptions) {
+        auto body_param_idx = input_desc->m_body_parameter_index;
+        auto input_idx = input_desc->m_input_index;
+        if (body_params[body_param_idx] != counter_param) {
+            continue;
+        }
+        // it must be merged input and incremented each iteration
+        auto merged_desc = ov::as_type_ptr<ov::op::util::MultiSubGraphOp::MergedInputDescription>(input_desc);
+        if (!merged_desc) {
+            return false;
+        }
+        auto result_idx = merged_desc->m_body_value_index;
+        auto update_counter = body_results[result_idx]->input_value(0).get_node_shared_ptr();
+        if (update_counter != condition_map.at(updated_counter_label).get_node_shared_ptr()) {
+            return false;
+        }
+        // get initial value of counter
+        if (!get_constant_value(loop->input_value(input_idx).get_node_shared_ptr(), initial_counter)) {
+            return false;
+        }
+        // suitable counter-parameter is found and checked
+        break;
+    }
+    if (initial_counter != 0) {
+        return false;
+    }
+    // retrieve a number of iterations
+    int64_t num_iters = -1;
+    if (condition_map.count(num_iter_param_label)) {
+        auto num_iter_param = condition_map.at(num_iter_param_label).get_node_shared_ptr();
+        for (const auto& input_desc : input_descriptions) {
+            auto body_param_idx = input_desc->m_body_parameter_index;
+            auto input_idx = input_desc->m_input_index;
+            if (body_params[body_param_idx] != num_iter_param) {
+                continue;
+            }
+            num_iters_output = loop->input_value(input_idx);
+            break;
+        }
+    } else if (condition_map.count(num_iter_const_label)) {
+        if (!get_constant_value(condition_map.at(num_iter_const_label).get_node_shared_ptr(), num_iters) ||
+            num_iters < 1) {
+            return false;
+        }
+        num_iters_output = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{}, num_iters);
+    } else {
+        return false;
+    }
+
+    return true;
+}
+
+bool check_condition_true_pattern(const std::shared_ptr<op::v0::Result>& cond_result,
+                                  const std::shared_ptr<op::v5::Loop>& loop,
+                                  Output<Node>& num_iters_output) {
+    // return a number of iterations if pattern matches
+    auto cond_const_label = pattern::wrap_type<op::v0::Constant>();
+    auto condition_label = pattern::wrap_type<op::v0::Result>({cond_const_label});
+
+    // check a pattern of condition graph and get a number of iterations
+    ov::pass::pattern::Matcher condition_matcher(condition_label);
+    if (!condition_matcher.match(cond_result->output(0))) {
+        return false;
+    }
+    const auto& condition_map = condition_matcher.get_pattern_value_map();
+    const auto& cond_const =
+        ov::as_type_ptr<op::v0::Constant>(condition_map.at(cond_const_label).get_node_shared_ptr());
+    if (!cond_const) {
+        return false;
+    }
+    if (ov::shape_size(cond_const->get_shape()) != 1)
+        return false;
+    const auto& type = cond_const->get_output_element_type(0);
+    if (type != ov::element::boolean) {
+        return false;
+    }
+    bool cond_value = cond_const->cast_vector<bool>()[0];
+    if (!cond_value) {
+        return false;
+    }
+
+    // number of iteration is retrieve from the first input port
+    num_iters_output = loop->input_value(0);
+
+    return true;
+}
+
+bool check_lstm_cell_pattern(
+    const std::shared_ptr<op::v5::Loop>& loop,
+    const ov::ParameterVector& body_params,
+    const ov::ResultVector& body_results,
+    const ov::op::util::MultiSubGraphOp::MultiSubgraphInputDescriptionVector& input_descriptions,
+    ov::Output<Node>& init_hidden_state,
+    ov::Output<Node>& init_cell_state,
+    ov::Output<Node>& x,
+    ov::Output<Node>& W,
+    ov::Output<Node>& R,
+    ov::Output<Node>& B,
+    std::shared_ptr<op::v0::Result>& result_hidden_state,
+    std::shared_ptr<ov::op::v4::LSTMCell>& lstm_cell_node) {
+    // check pattern with LSMCell and return key points
+    // required for fusion to LSTMSequence
+    // pattern for LSTMCell in the body
+    auto xi_label = pattern::wrap_type<op::v0::Parameter>();
+    auto squeeze_axis_label = pattern::wrap_type<op::v0::Constant>();
+    auto xi_reshape_label = pattern::wrap_type<op::v0::Squeeze>({xi_label, squeeze_axis_label});
+    auto init_hidden_state_i_label = pattern::wrap_type<op::v0::Parameter>();
+    auto init_cell_state_i_label = pattern::wrap_type<op::v0::Parameter>();
+    auto W_label = pattern::wrap_type<op::v0::Constant>();
+    auto R_label = pattern::wrap_type<op::v0::Constant>();
+    auto B_label = pattern::wrap_type<op::v0::Constant>();
+
+    auto lstm_cell_label = pattern::wrap_type<op::v4::LSTMCell>(
+        {xi_reshape_label, init_hidden_state_i_label, init_cell_state_i_label, W_label, R_label, B_label});
+    auto unsqueeze_axis_label = pattern::wrap_type<op::v0::Constant>();
+    auto unsqueeze_hidden_state_label = pattern::wrap_type<op::v0::Unsqueeze>({lstm_cell_label, unsqueeze_axis_label});
+    auto result_hidden_state_label = pattern::wrap_type<op::v0::Result>({unsqueeze_hidden_state_label});
+
+    // check that body-graph contains a pattern corresponding LSTMCell
+    ov::pass::pattern::Matcher lstm_cell_matcher(result_hidden_state_label);
+    int64_t unsqueeze_hidden_state_result_idx = -1;
+    for (int64_t result_idx = 0; result_idx < static_cast<int64_t>(body_results.size()); ++result_idx) {
+        if (lstm_cell_matcher.match(body_results[result_idx]->output(0))) {
+            unsqueeze_hidden_state_result_idx = result_idx;
+            auto reshape_node =
+                lstm_cell_matcher.get_pattern_value_map()[unsqueeze_hidden_state_label].get_node_shared_ptr();
+            break;
+        }
+    }
+    if (unsqueeze_hidden_state_result_idx < 0) {
+        // not found LSTMCell inside Loop operation
+        return false;
+    }
+    const auto& lstm_cell_map = lstm_cell_matcher.get_pattern_value_map();
+
+    // check that Results with hidden and cell states connected with corresponding
+    // Parameter nodes with back edges and found initial hidden and cell states
+    lstm_cell_node = ov::as_type_ptr<op::v4::LSTMCell>(lstm_cell_map.at(lstm_cell_label).get_node_shared_ptr());
+    if (!lstm_cell_node) {
+        return false;
+    }
+    result_hidden_state =
+        ov::as_type_ptr<op::v0::Result>(lstm_cell_map.at(result_hidden_state_label).get_node_shared_ptr());
+    if (!result_hidden_state) {
+        return false;
+    }
+    for (const auto& input_desc : input_descriptions) {
+        auto param_idx = input_desc->m_body_parameter_index;
+        auto input_idx = input_desc->m_input_index;
+        if (body_params[param_idx] == lstm_cell_map.at(init_hidden_state_i_label).get_node_shared_ptr()) {
+            // hidden state Parameter node
+            auto merged_desc = ov::as_type_ptr<ov::op::util::MultiSubGraphOp::MergedInputDescription>(input_desc);
+            if (!merged_desc) {
+                return false;
+            }
+            const auto& hidden_state_result = body_results[merged_desc->m_body_value_index];
+            if ((hidden_state_result->get_input_node_shared_ptr(0) != lstm_cell_node) ||
+                (hidden_state_result->input_value(0).get_index() != 0)) {
+                return false;
+            }
+            init_hidden_state = loop->input_value(input_idx);
+        } else if (body_params[param_idx] == lstm_cell_map.at(init_cell_state_i_label).get_node_shared_ptr()) {
+            // cell state Parameter node
+            auto merged_desc = ov::as_type_ptr<ov::op::util::MultiSubGraphOp::MergedInputDescription>(input_desc);
+            if (!merged_desc) {
+                return false;
+            }
+            const auto& cell_state_result = body_results[merged_desc->m_body_value_index];
+            if ((cell_state_result->get_input_node_shared_ptr(0) != lstm_cell_node) ||
+                (cell_state_result->input_value(0).get_index() != 1)) {
+                return false;
+            }
+            init_cell_state = loop->input_value(input_idx);
+        } else if (body_params[param_idx] == lstm_cell_map.at(xi_label).get_node_shared_ptr()) {
+            // input data Parameter node
+            auto sliced_desc = ov::as_type_ptr<ov::op::util::MultiSubGraphOp::SliceInputDescription>(input_desc);
+            if (!sliced_desc || (sliced_desc->m_axis != 0) || (sliced_desc->m_start != 0) ||
+                (sliced_desc->m_stride != 1) || (sliced_desc->m_end != -1)) {
+                return false;
+            }
+            x = loop->input_value(input_idx);
+        }
+    }
+
+    W = lstm_cell_map.at(W_label);
+    R = lstm_cell_map.at(R_label);
+    B = lstm_cell_map.at(B_label);
+
+    return true;
+}
 }  // namespace
 
 ov::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSequence() {
@@ -423,19 +655,6 @@ ov::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequence
     register_matcher(m, callback);
 }
 
-static bool get_scalar_constant_value(const ov::Output<ov::Node>& node, int64_t& output_value) {
-    auto constant = ov::as_type<ov::op::v0::Constant>(node.get_node());
-    if (!constant)
-        return false;
-    if (ov::shape_size(constant->get_shape()) != 1)
-        return false;
-    const auto& type = constant->get_output_element_type(0);
-    if (type != ov::element::i32 && type != ov::element::i64)
-        return false;
-    output_value = constant->cast_vector<int64_t>()[0];
-    return true;
-}
-
 // clang-format off
 /*
 
@@ -511,8 +730,8 @@ static bool get_scalar_constant_value(const ov::Output<ov::Node>& node, int64_t&
 */
 // clang-format on
 
-ov::pass::ConvertLoopToLSTMSequence::ConvertLoopToLSTMSequence() {
-    MATCHER_SCOPE(ConvertLoopToLSTMSequence);
+ov::pass::ConvertLoopWithScatterUpdateToLSTMSequence::ConvertLoopWithScatterUpdateToLSTMSequence() {
+    MATCHER_SCOPE(ConvertLoopWithScatterUpdateToLSTMSequence);
     auto input_label = pattern::any_input(pattern::rank_equals(3));
     auto input_transpose_const_label = pattern::wrap_type<op::v0::Constant>();
     auto input_transpose_label =
@@ -612,28 +831,34 @@ ov::pass::ConvertLoopToLSTMSequence::ConvertLoopToLSTMSequence() {
         const auto& loop_output_map = loop_output_matcher.get_pattern_value_map();
 
         int64_t iteration_counter_step = -1;
-        if (!get_scalar_constant_value(loop_condition_map.at(iteration_counter_step_label), iteration_counter_step) ||
+        if (!get_constant_value(loop_condition_map.at(iteration_counter_step_label).get_node_shared_ptr(),
+                                iteration_counter_step) ||
             iteration_counter_step != 1)
             return false;
         int64_t sequence_index_step = -1;
-        if (!get_scalar_constant_value(loop_condition_map.at(sequence_index_step_label), sequence_index_step) ||
+        if (!get_constant_value(loop_condition_map.at(sequence_index_step_label).get_node_shared_ptr(),
+                                sequence_index_step) ||
             sequence_index_step != 1)
             return false;
 
         int64_t iteration_counter_limit = -1;
-        if (!get_scalar_constant_value(loop_condition_map.at(iteration_counter_limit_label), iteration_counter_limit))
+        if (!get_constant_value(loop_condition_map.at(iteration_counter_limit_label).get_node_shared_ptr(),
+                                iteration_counter_limit))
             return false;
         int64_t sequence_index_limit = -1;
-        if (!get_scalar_constant_value(loop_condition_map.at(sequence_index_limit_label), sequence_index_limit))
+        if (!get_constant_value(loop_condition_map.at(sequence_index_limit_label).get_node_shared_ptr(),
+                                sequence_index_limit))
             return false;
         if (iteration_counter_limit != sequence_index_limit)
             return false;
 
         int64_t gather_axis = -1;
-        if (!get_scalar_constant_value(loop_output_map.at(gather_axis_label), gather_axis) || gather_axis != 0)
+        if (!get_constant_value(loop_output_map.at(gather_axis_label).get_node_shared_ptr(), gather_axis) ||
+            gather_axis != 0)
             return false;
         int64_t scatter_axis = -1;
-        if (!get_scalar_constant_value(loop_output_map.at(scatter_axis_label), scatter_axis) || scatter_axis != 0)
+        if (!get_constant_value(loop_output_map.at(scatter_axis_label).get_node_shared_ptr(), scatter_axis) ||
+            scatter_axis != 0)
             return false;
 
         const auto& sequence_index = loop_condition_map.at(sequence_index_label).get_node_shared_ptr();
@@ -830,6 +1055,219 @@ ov::pass::ConvertLoopToLSTMSequence::ConvertLoopToLSTMSequence() {
     register_matcher(m, callback);
 }
 
+// clang-format off
+/*
+
+   Following subgraph in Loop is fused into LSTMSequence
+
+   +------------------------------+
+   |              X               |                          +------+
+   |         (sliced input)       |                          | axis |
+   |     [1, batch, input_size]   |                          | {0}  |
+   +--------------+---------------+                          +--+---+
+                  |                                             |
+                  |                                             |
+                  +---+                                         |
+                      |             +---------------------------+
+                      |             |
+                      |             |
+                      v             v        +----------------------+    +----------------------+
+                  +---+------+------+---+    |          H           |    |          C           |
+                  |        Squeeze      |    | (merged with H_out)  |    | (merged with C_out)  |    +-----+    +-----+    +-----+
+                  | [batch, input_size] |    | [batch, hidden_size] |    | [batch, hidden_size] |    |  W  |    |  R  |    |  B  |
+                  +----------+----------+    +----------+-----------+    +----------+-----------+    +--+--+    +--+--+    +--+--+
+                             |                          |                           |                   |          |          |
+                             |                          |           +---------------+                   |          |          |
+                             |                          |           |                                   |          |          |
+                             |                          |           |    +------------------------------+          |          |
+                             |                          |           |    |                                         |          |
+                             |                          +------+    |    |    +------------------------------------+          |
+                             +----------------------------+    |    |    |    |    +------------------------------------------+
+                                                          |    |    |    |    |    |
+                                                          v    v    v    v    v    v
+                                                      +---+----+----+----+----+----+---+
+                                                      |            LSTMCell            |
+                                                      +--------+-------------------+---+
+                                                               |                   |
+                                                               |                   |
+                                                    +----------+---------------+   |
+                                                    |                          |   +---------------------+
+                                                    |                          |                         |
+                                                    v                          v                         v
+                                       +------------+------------+   +---------+------------+   +--------+--------+
+                                       |   Unsqueeze, axis=0     |   |         H_out        |   |      C_out      |
+                                       | [batch, 1, hidden_size] |   |   (merged with H)    |   | (merged with C) |
+                                       |   (concat output)       |   | [batch, hidden_size] |   |                 |
+                                       +-------------------------+   +----------------------+   +-----------------+
+
+*/
+// clang-format on
+
+ov::pass::ConvertLoopWithSlicedInputConcatOutputToLSTMSequence::ConvertLoopWithSlicedInputConcatOutputToLSTMSequence() {
+    MATCHER_SCOPE(ConvertLoopWithSlicedInputConcatOutputToLSTMSequence);
+
+    auto loop_label = pattern::wrap_type<ov::op::v5::Loop>();
+
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        auto loop = ov::as_type_ptr<ov::op::v5::Loop>(m.get_match_root());
+        if (!loop) {
+            return false;
+        }
+
+        const auto& body_graph = loop->get_function();
+        const auto& body_params = body_graph->get_parameters();
+        const auto& body_results = body_graph->get_results();
+        const auto& special_body_ports = loop->get_special_body_ports();
+        const auto& input_descriptions = loop->get_input_descriptions();
+        const auto& output_descriptions = loop->get_output_descriptions();
+        if (special_body_ports.body_condition_output_idx < 0) {
+            return false;
+        }
+
+        // check condition pattern and retrieve a number of iterations
+        ov::Output<ov::Node> num_iters_output;
+        if (!check_condition_increment_pattern(body_results[special_body_ports.body_condition_output_idx],
+                                               loop,
+                                               body_params,
+                                               body_results,
+                                               input_descriptions,
+                                               num_iters_output) &&
+            !check_condition_true_pattern(body_results[special_body_ports.body_condition_output_idx],
+                                          loop,
+                                          num_iters_output)) {
+            return false;
+        }
+
+        // check body pattern with LSTMCell
+        // and extract key points for LSTMSequence creation
+        ov::Output<Node> init_hidden_state, init_cell_state, x, W, R, B;
+        std::shared_ptr<op::v0::Result> result_hidden_state;
+        std::shared_ptr<ov::op::v4::LSTMCell> lstm_cell_node;
+        if (!check_lstm_cell_pattern(loop,
+                                     body_params,
+                                     body_results,
+                                     input_descriptions,
+                                     init_hidden_state,
+                                     init_cell_state,
+                                     x,
+                                     W,
+                                     R,
+                                     B,
+                                     result_hidden_state,
+                                     lstm_cell_node)) {
+            return false;
+        }
+
+        // check that only output with concatenated hidden states from Loop is needed
+        // or get hidden state from last iteration
+        std::vector<uint64_t> last_iter_hidden_state_output_ids;
+        std::vector<uint64_t> all_hidden_states_output_ids;
+        for (const auto& output_desc : output_descriptions) {
+            auto result_idx = output_desc->m_body_value_index;
+            auto output_idx = output_desc->m_output_index;
+            if (body_results[result_idx] != result_hidden_state) {
+                if (loop->get_output_target_inputs(output_idx).size() > 0) {
+                    // some other Result node value from body graph is required by real consumers
+                    return false;
+                }
+                continue;
+            }
+            auto concat_desc = ov::as_type_ptr<ov::op::util::MultiSubGraphOp::ConcatOutputDescription>(output_desc);
+            if (concat_desc) {
+                // all hidden states are concatenated
+                if ((concat_desc->m_axis != 0) || (concat_desc->m_start != 0) || (concat_desc->m_end != -1) ||
+                    (concat_desc->m_stride != 1)) {
+                    return false;
+                }
+                all_hidden_states_output_ids.push_back(output_idx);
+                continue;
+            }
+            last_iter_hidden_state_output_ids.push_back(output_idx);
+        }
+
+        // all input and output ports are almost ready
+        // preparation of the right format of inputs and outputs is remained before reconnection
+        NodeRegistry rg;
+        // x is in a format [seq_len, batch_size, input_size]
+        auto tr_order = rg.make<ov::op::v0::Constant>(element::i32, Shape{3}, std::vector<int32_t>{1, 0, 2});
+        auto x_prep = rg.make<ov::op::v1::Transpose>(x, tr_order);
+        // initial hidden and cell states are of shape [batch_size, hidden_size]
+        // needs to add num_directions size
+        auto unsqueeze_axis = rg.make<ov::op::v0::Constant>(element::i32, Shape{1}, std::vector<int32_t>{1});
+        auto init_hidden_state_prep = rg.make<ov::op::v0::Unsqueeze>(init_hidden_state, unsqueeze_axis);
+        auto init_cell_state_prep = rg.make<ov::op::v0::Unsqueeze>(init_cell_state, unsqueeze_axis);
+        // sequence length is currently scalar and it needs broadcasting to shape [batch_size]
+        auto x_shape = rg.make<ov::op::v3::ShapeOf>(x, element::i64);
+        auto ss_start = rg.make<ov::op::v0::Constant>(element::i64, Shape{1}, 1);
+        auto ss_stop = rg.make<ov::op::v0::Constant>(element::i64, Shape{1}, 2);
+        auto ss_step = rg.make<ov::op::v0::Constant>(element::i64, Shape{1}, 1);
+        auto batch_size = rg.make<ov::op::v1::StridedSlice>(x_shape,
+                                                            ss_start,
+                                                            ss_stop,
+                                                            ss_step,
+                                                            std::vector<int64_t>{0},
+                                                            std::vector<int64_t>{0});
+        auto seq_lens_prep = rg.make<ov::op::v1::Broadcast>(num_iters_output, batch_size);
+        // prepare W, R, B to add num_directions dimension
+        unsqueeze_axis = rg.make<ov::op::v0::Constant>(element::i32, Shape{1}, std::vector<int32_t>{0});
+        auto W_prep = rg.make<ov::op::v0::Unsqueeze>(W, unsqueeze_axis);
+        auto R_prep = rg.make<ov::op::v0::Unsqueeze>(R, unsqueeze_axis);
+        auto B_prep = rg.make<ov::op::v0::Unsqueeze>(B, unsqueeze_axis);
+
+        // create LSTMSequence operation since all inputs are prepared
+        // extract hidden size that should be static as a requirement of OpenVINO LSTMCell operation
+        int64_t hidden_size = static_cast<int64_t>(lstm_cell_node->get_hidden_size());
+        auto lstm_sequence = rg.make<ov::op::v5::LSTMSequence>(x_prep,
+                                                               init_hidden_state_prep,
+                                                               init_cell_state_prep,
+                                                               seq_lens_prep,
+                                                               W_prep,
+                                                               R_prep,
+                                                               B_prep,
+                                                               hidden_size,
+                                                               ov::op::RecurrentSequenceDirection::FORWARD,
+                                                               lstm_cell_node->get_activations_alpha(),
+                                                               lstm_cell_node->get_activations_beta(),
+                                                               lstm_cell_node->get_activations(),
+                                                               lstm_cell_node->get_clip());
+
+        if (transformation_callback(lstm_sequence))
+            return false;
+
+        // prepare outputs of LSTMSequence
+        // output with concatenated hidden states must be in a format [seq_len, batch_size, hidden_size]
+        // LSTMSequence generates it in a format [batch_size, num_directions, seq_len, hidden_size]
+        auto squeeze_axis = rg.make<ov::op::v0::Constant>(element::i32, Shape{1}, std::vector<int32_t>{1});
+        ov::Output<Node> all_hidden_states_prep = rg.make<ov::op::v0::Squeeze>(lstm_sequence->output(0), squeeze_axis);
+        all_hidden_states_prep = rg.make<ov::op::v1::Transpose>(all_hidden_states_prep, tr_order);
+        // prepare output with last hidden state
+        // LSTMSequence operation outputs it in a format [batch_size, num_directions, hidden_size]
+        auto tr_order2 = rg.make<ov::op::v0::Constant>(element::i32, Shape{3}, std::vector<int32_t>{1, 0, 2});
+        ov::Output<ov::Node> last_hidden_state_prep =
+            rg.make<ov::op::v1::Transpose>(lstm_sequence->output(1), tr_order2);
+
+        // reconnect all consumers for hidden states
+        for (auto output_idx : all_hidden_states_output_ids) {
+            loop->output(output_idx).replace(all_hidden_states_prep);
+        }
+        for (auto output_idx : last_iter_hidden_state_output_ids) {
+            loop->output(output_idx).replace(last_hidden_state_prep);
+        }
+
+        copy_runtime_info(m.get_matched_nodes(), rg.get());
+        if ((all_hidden_states_output_ids.size() > 0) && (last_iter_hidden_state_output_ids.size() == 0)) {
+            all_hidden_states_prep.get_node_shared_ptr()->set_friendly_name(loop->get_friendly_name());
+        } else if ((all_hidden_states_output_ids.size() == 0) && (last_iter_hidden_state_output_ids.size() > 0)) {
+            last_hidden_state_prep.get_node_shared_ptr()->set_friendly_name(loop->get_friendly_name());
+        }
+
+        return true;
+    };
+
+    auto m = std::make_shared<pattern::Matcher>(loop_label, matcher_name);
+    register_matcher(m, callback);
+}
+
 class EliminateGatherWithRange : public ov::pass::MatcherPass {
 public:
     EliminateGatherWithRange() {
@@ -868,9 +1306,9 @@ public:
             const auto shapeof_gather2 = pattern_map.at(shapeof_gather2_label).get_node_shared_ptr();
             int64_t shapeof_gather2_index = -1;
             int64_t shapeof_gather2_axis = -1;
-            if (!get_scalar_constant_value(shapeof_gather2->get_input_node_shared_ptr(1), shapeof_gather2_index))
+            if (!get_constant_value(shapeof_gather2->get_input_node_shared_ptr(1), shapeof_gather2_index))
                 return false;
-            if (!get_scalar_constant_value(shapeof_gather2->get_input_node_shared_ptr(2), shapeof_gather2_axis) ||
+            if (!get_constant_value(shapeof_gather2->get_input_node_shared_ptr(2), shapeof_gather2_axis) ||
                 shapeof_gather2_axis != 0)
                 return false;
             const auto reshape = pattern_map.at(reshape_label).get_node_shared_ptr();
@@ -880,13 +1318,13 @@ public:
             const auto range = pattern_map.at(range_label).get_node_shared_ptr();
             int64_t range_start = -1;
             int64_t range_step = -1;
-            if (!get_scalar_constant_value(range->get_input_node_shared_ptr(0), range_start) || range_start != 0)
+            if (!get_constant_value(range->get_input_node_shared_ptr(0), range_start) || range_start != 0)
                 return false;
-            if (!get_scalar_constant_value(range->get_input_node_shared_ptr(2), range_step) || range_step != 1)
+            if (!get_constant_value(range->get_input_node_shared_ptr(2), range_step) || range_step != 1)
                 return false;
 
             int64_t gather_axis = -1;
-            if (!get_scalar_constant_value(gather->get_input_node_shared_ptr(2), gather_axis) ||
+            if (!get_constant_value(gather->get_input_node_shared_ptr(2), gather_axis) ||
                 gather_axis != shapeof_gather_indexes[shapeof_gather2_index])
                 return false;
 
@@ -1005,7 +1443,7 @@ ov::pass::FuseReverseLSTMSequence::FuseReverseLSTMSequence() {
         if (squeeze->input_value(0) != lstm->output(0))
             return false;
         int64_t squeeze_axis = -1;
-        if (!get_scalar_constant_value(squeeze->get_input_node_shared_ptr(1), squeeze_axis) || squeeze_axis != 1)
+        if (!get_constant_value(squeeze->get_input_node_shared_ptr(1), squeeze_axis) || squeeze_axis != 1)
             return false;
         auto new_squeeze = node_registry.make<op::v0::Squeeze>(new_lstm->output(0), squeeze->input_value(1));
         const auto match_root = m.get_match_root();
@@ -1122,7 +1560,7 @@ ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence::FuseLSTMSequencesToBidir
         if (squeeze_forward->input_value(0) != lstm_forward->output(0))
             return false;
         int64_t squeeze_forward_axis = -1;
-        if (!get_scalar_constant_value(squeeze_forward->get_input_node_shared_ptr(1), squeeze_forward_axis) ||
+        if (!get_constant_value(squeeze_forward->get_input_node_shared_ptr(1), squeeze_forward_axis) ||
             squeeze_forward_axis != 1)
             return false;
 
@@ -1130,7 +1568,7 @@ ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence::FuseLSTMSequencesToBidir
         if (squeeze_reverse->input_value(0) != lstm_reverse->output(0))
             return false;
         int64_t squeeze_reverse_axis = -1;
-        if (!get_scalar_constant_value(squeeze_reverse->get_input_node_shared_ptr(1), squeeze_reverse_axis) ||
+        if (!get_constant_value(squeeze_reverse->get_input_node_shared_ptr(1), squeeze_reverse_axis) ||
             squeeze_reverse_axis != 1)
             return false;
 
@@ -1180,21 +1618,17 @@ ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence::FuseLSTMSequencesToBidir
             auto gather_forward = pattern_map.at(gather_forward_label);
             int64_t gather_index = -1;
             int64_t gather_axis = -1;
-            if (!get_scalar_constant_value(gather_forward->get_input_node_shared_ptr(1), gather_index) ||
-                gather_index != 0)
+            if (!get_constant_value(gather_forward->get_input_node_shared_ptr(1), gather_index) || gather_index != 0)
                 return false;
-            if (!get_scalar_constant_value(gather_forward->get_input_node_shared_ptr(2), gather_axis) ||
-                gather_axis != 0)
+            if (!get_constant_value(gather_forward->get_input_node_shared_ptr(2), gather_axis) || gather_axis != 0)
                 return false;
 
             auto gather_reverse = pattern_map.at(gather_reverse_label);
             gather_index = -1;
             gather_axis = -1;
-            if (!get_scalar_constant_value(gather_reverse->get_input_node_shared_ptr(1), gather_index) ||
-                gather_index != 0)
+            if (!get_constant_value(gather_reverse->get_input_node_shared_ptr(1), gather_index) || gather_index != 0)
                 return false;
-            if (!get_scalar_constant_value(gather_reverse->get_input_node_shared_ptr(2), gather_axis) ||
-                gather_axis != 0)
+            if (!get_constant_value(gather_reverse->get_input_node_shared_ptr(2), gather_axis) || gather_axis != 0)
                 return false;
 
             from.push_back(max_sequence_len_forward);
