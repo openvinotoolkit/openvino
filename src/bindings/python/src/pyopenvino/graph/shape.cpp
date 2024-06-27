@@ -51,20 +51,21 @@ void regclass_graph_Shape(py::module m) {
     });
 
     py::class_<ov::Shape>(m, "Shape")
-        .def(py::init([](const py::list& lst) {
-            std::vector<size_t> vec(lst.size());
-            for (int i = 0; i < lst.size(); ++i) {
-                vec[i] = lst[i].cast<size_t>();
+        .def("__eq__", [](const ov::Shape& self, const py::list& lst) {
+            if (self.size() != lst.size()) return false;
+            for (size_t i = 0; i < self.size(); ++i) {
+                if (self[i] != lst[i].cast<size_t>()) return false;
             }
-            return ov::Shape(vec);
-        }))
-        .def(py::init([](const py::tuple& tpl) {
-            std::vector<size_t> vec(tpl.size());
-            for (int i = 0; i < tpl.size(); ++i) {
-                vec[i] = tpl[i].cast<size_t>();
+            return true;
+        })
+        .def("__eq__", [](const ov::Shape& self, const py::tuple& tpl) {
+            if (self.size() != tpl.size()) return false;
+            for (size_t i = 0; i < self.size(); ++i) {
+                if (self[i] != tpl[i].cast<size_t>()) return false;
             }
-            return ov::Shape(vec);
-        }))
+            return true;
+        });
+
     shape.def("__getitem__", [](const ov::Shape& v, py::slice& slice) {
         size_t start, stop, step, slicelength;
         if (!slice.compute(v.size(), &start, &stop, &step, &slicelength)) {
