@@ -199,10 +199,21 @@ kernel_impl_params primitive_impl::static_canonicalize_shapes(const kernel_impl_
 
 uint32_t primitive_inst::get_network_id() const { return _network.get_id(); }
 
-void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout) const {
-    OPENVINO_ASSERT((mem.get_layout() == layout) || layout.is_dynamic(), "[GPU] Unexpected layout of input memory for ", id(), " node!\n",
-                     "Node layout: ", layout.to_short_string(), "\n",
-                     "Memory layout: ", mem.get_layout().to_short_string());
+void primitive_inst::check_memory_to_set(const memory& mem, const layout& l) const {
+    // The layout with empty tensor (scalar) is regarded as 1 dimension with value 1
+    bool single_value_layout = false;
+    if (!l.is_dynamic()) {
+        auto layout_ps = l.get_partial_shape();
+        single_value_layout = (layout_ps.size() == 1 && layout_ps[0] == 1);
+    }
+
+    auto mem_layout = mem.get_layout();
+    OPENVINO_ASSERT((mem_layout == l)
+                    || l.is_dynamic()
+                    || (mem_layout.get_partial_shape().size() == 0 && single_value_layout),
+                    "[GPU] Unexpected layout of input memory for ", id(), " node!\n",
+                    "Node layout: ", l.to_short_string(), "\n",
+                    "Memory layout: ", mem_layout.to_short_string());
 
     // check shared image/buffer compatibility, if applicable
     auto params = mem.get_internal_params();
@@ -218,11 +229,11 @@ void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout
         switch (params.mem_type) {
         case shared_mem_type::shared_mem_vasurface:
         case shared_mem_type::shared_mem_image:
-            OPENVINO_ASSERT(layout.format.is_image_2d(), "Attempt to set user-supplied input or output image instead of a buffer");
+            OPENVINO_ASSERT(l.format.is_image_2d(), "Attempt to set user-supplied input or output image instead of a buffer");
             break;
         case shared_mem_type::shared_mem_buffer:
         case shared_mem_type::shared_mem_dxbuffer:
-            OPENVINO_ASSERT(!layout.format.is_image_2d(), "Attempt to set user-supplied input or output buffer instead of an image");
+            OPENVINO_ASSERT(!l.format.is_image_2d(), "Attempt to set user-supplied input or output buffer instead of an image");
             break;
         case shared_mem_type::shared_mem_usm:
             break;
@@ -637,7 +648,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     }
     prealloc_info = sp.predict_preallocation_shape(id(), updated_layout, can_reuse_buffer, tmp_prealloc_count);
 
-    if (prealloc_info.first && sp.can_preallocate(ov::shape_size(prealloc_info.second) * dt_size)) {
+    if (prealloc_info.first && sp.can_preallocate(ov::shape_size(prealloc_info.second) * (dt_size / 8))) {
         auto new_layout = updated_layout;
         new_layout.set_partial_shape(prealloc_info.second);
         updated_params.output_layouts[0] = new_layout;

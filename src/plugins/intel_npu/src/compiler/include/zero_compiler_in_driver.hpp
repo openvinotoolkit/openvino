@@ -9,6 +9,7 @@
 
 #include "iexternal_compiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/zero/zero_api.hpp"
 
 namespace intel_npu {
 namespace driverCompilerAdapter {
