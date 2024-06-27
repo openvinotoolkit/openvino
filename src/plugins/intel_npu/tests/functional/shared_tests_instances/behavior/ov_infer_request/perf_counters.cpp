@@ -24,17 +24,17 @@ const std::vector<ov::AnyMap> autoConfigs = {
         {ov::device::priorities(ov::test::utils::DEVICE_NPU),
          ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests, OVInferRequestPerfCountersTest,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_Multi_BehaviorTests, OVInferRequestPerfCountersTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI),
                                             ::testing::ValuesIn(multiConfigs)),
                          ov::test::utils::appendPlatformTypeTestName<OVInferRequestPerfCountersTest>);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, OVInferRequestPerfCountersTest,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_Auto_BehaviorTests, OVInferRequestPerfCountersTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_AUTO),
                                             ::testing::ValuesIn(autoConfigs)),
                          ov::test::utils::appendPlatformTypeTestName<OVInferRequestPerfCountersTest>);
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVInferRequestPerfCountersTest,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests, OVInferRequestPerfCountersTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configs)),
                          ov::test::utils::appendPlatformTypeTestName<OVInferRequestPerfCountersTest>);
