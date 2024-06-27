@@ -188,6 +188,19 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         can_apply_fake_alignment &= orig_output_layout.data_padding.lower_size().sizes()[1] == 0 &&
                                     orig_output_layout.data_padding.upper_size().sizes()[1] == 0;
 
+    size_t num_of_inputs = orig_impl_param.input_layouts.size();
+    size_t num_of_fused_desc = 0;
+
+    for (auto& fused_desc : orig_impl_param.fused_desc) {
+        if (!fused_desc.deps.empty())
+            num_of_fused_desc++;
+    }
+    for (size_t i = 0; i < num_of_fused_desc; i++) {
+        // Check fused desc's input has full tensor, then do not fake alignment
+        if (orig_output_layout.get_tensor() == orig_impl_param.input_layouts[num_of_inputs - i - 1].get_tensor())
+            can_apply_fake_alignment = false;
+    }
+
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(debug_config->disable_fake_alignment) {
         can_apply_fake_alignment = false;
