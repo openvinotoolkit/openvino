@@ -797,7 +797,7 @@ KERNEL(sdpa_opt)(
                 // If the number of partitions is greater than 1, save exm_sums and max_logits to the temporary buffers
                 // Use single WI in the WG, since all the WIs have the same value
                 if (num_of_partitions > 1 && sglid == 0) {
-                    for (uint i = 0; i < QK_MAX_NUMS_PER_SG; i++) {
+                    for (uint i = 0; i < QK_ITERS_END; i++) {
                         if (target_seq_idx + sgid + (i * SUBGROUPS_PER_WG) < TARGET_SEQ_LEN) {
                             const uint exp_sums_offset = b0_idx * (NUM_HEADS * TARGET_SEQ_LEN * num_of_partitions) +
                                                         b1_idx * (TARGET_SEQ_LEN * num_of_partitions) +
