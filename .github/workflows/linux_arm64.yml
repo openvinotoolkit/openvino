@@ -301,7 +301,7 @@ jobs:
     uses: ./.github/workflows/job_debian_packages.yml
     with:
       runner: 'aks-linux-16-cores-arm'
-      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_arm64 }}"}'
 
   Samples:
     needs: [ Build, Docker, Smart_CI ]
