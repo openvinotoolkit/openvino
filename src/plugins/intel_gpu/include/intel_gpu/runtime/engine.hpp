@@ -167,7 +167,6 @@ protected:
     /// Create engine for given @p device and @p configuration
     engine(const device::ptr device);
     const device::ptr _device;
-    mutable std::mutex _mutex;
 
     std::array<std::atomic<uint64_t>, static_cast<size_t>(allocation_type::max_value)> _memory_usage_data;
     std::array<std::atomic<uint64_t>, static_cast<size_t>(allocation_type::max_value)> _peak_memory_usage_data;

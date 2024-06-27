@@ -197,7 +197,6 @@ memory_ptr engine::share_surface(const layout& layout, shared_surface surf, uint
 #endif  // _WIN32
 
 uint64_t engine::get_max_used_device_memory() const {
-    std::lock_guard<std::mutex> guard(_mutex);
     uint64_t total_peak_memory_usage {0};
     for (auto const& m : _peak_memory_usage_data) {
         total_peak_memory_usage += m.load();
@@ -206,17 +205,14 @@ uint64_t engine::get_max_used_device_memory() const {
 }
 
 uint64_t engine::get_max_used_device_memory(allocation_type type) const {
-    std::lock_guard<std::mutex> guard(_mutex);
     return _peak_memory_usage_data[static_cast<size_t>(type)].load();
 }
 
 uint64_t engine::get_used_device_memory(allocation_type type) const {
-    std::lock_guard<std::mutex> guard(_mutex);
     return _memory_usage_data[static_cast<size_t>(type)].load();
 }
 
 std::map<std::string, uint64_t> engine::get_memory_statistics() const {
-    std::lock_guard<std::mutex> guard(_mutex);
     std::map<std::string, uint64_t> statistics;
     const auto add_stat = [&](allocation_type type) {
         auto idx = static_cast<size_t>(type);
@@ -237,16 +233,16 @@ std::map<std::string, uint64_t> engine::get_memory_statistics() const {
 }
 
 void engine::add_memory_used(uint64_t bytes, allocation_type type) {
-    std::lock_guard<std::mutex> guard(_mutex);
     auto idx = static_cast<size_t>(type);
     _memory_usage_data[idx] += bytes;
-    if (_memory_usage_data[idx] > _peak_memory_usage_data[idx]) {
-        _peak_memory_usage_data[idx] = _memory_usage_data[idx].load();
+    auto new_val = _memory_usage_data[idx].fetch_add(bytes);
+    // Make sure actual maximum value is stored
+    while (new_val > _peak_memory_usage_data[idx]) {
+        _peak_memory_usage_data[idx] = new_val;
     }
 }
 
 void engine::subtract_memory_used(uint64_t bytes, allocation_type type) {
-    std::lock_guard<std::mutex> guard(_mutex);
     auto idx = static_cast<size_t>(type);
     if (_memory_usage_data[idx].load() < bytes) {
         throw std::runtime_error("Attempt to free unallocated memory");
