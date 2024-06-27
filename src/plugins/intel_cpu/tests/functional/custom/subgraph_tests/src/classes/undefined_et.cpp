@@ -75,6 +75,12 @@ void UndefinedEtSubgraphTest::SetUp() {
     auto logical_not = std::make_shared<op::v1::LogicalNot>(cvt_f32);
 
     function = std::make_shared<ov::Model>(OutputVector{logical_not->output(0)}, ParameterVector{param_0, param_1, param_2}, "UndefinedET");
+
+    // TODO: Need to remove when the hardware checking for f16 will be eliminated in the Transformations pipeline.
+    if (m_data_et == element::f16 && !ov::intel_cpu::hasHardwareSupport(m_data_et)) {
+        abs_threshold = 1.f;
+        rel_threshold = 0.1f;
+    }
 }
 
 template<typename TD, typename TS>
@@ -136,11 +142,6 @@ fill_data(tensor->data<ov::element_type_traits<P>::value_type>(), S, L); break;
 }
 
 TEST_P(UndefinedEtSubgraphTest, CompareWithRefs) {
-    if (m_data_et == element::f16 && !ov::intel_cpu::hasHardwareSupport(m_data_et)) {
-        abs_threshold = 1.f;
-        rel_threshold = 0.1f;
-    }
-
     run();
 
     if (IsSkipped()) {
