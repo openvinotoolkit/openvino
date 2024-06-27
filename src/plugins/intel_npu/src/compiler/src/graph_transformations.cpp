@@ -78,7 +78,7 @@ void IRSerializer::countModelSize() {
     _xmlSize = xmlStreamBuf.size();
     _weightsSize = weightsStreamBuf.size();
 
-    _logger.debug("conutModelSize end, xml size: %d, weights size: %d", _xmlSize, _weightsSize);
+    _logger.debug("countModelSize completed, xml size: %d, weights size: %d", _xmlSize, _weightsSize);
 }
 
 void IRSerializer::serializeModelToBuffer(uint8_t* xml, uint8_t* weights) {

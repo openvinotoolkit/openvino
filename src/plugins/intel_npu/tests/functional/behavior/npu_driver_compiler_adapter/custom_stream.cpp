@@ -131,5 +131,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configs)),
                          DriverCompilerAdapterCustomStreamTestNPU::getTestCaseName);
-
 }  // namespace ov::test::behavior
