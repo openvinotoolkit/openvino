@@ -83,7 +83,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: aks-linux-16-cores-32gb-debug
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}
       volumes:
@@ -109,6 +109,7 @@ jobs:
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/src/frontends/onnx/tests/ci_utils/onnxruntime
+      ARTIFACTS_SHARE: "/mount/build-artifacts"
     if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
@@ -300,6 +301,22 @@ jobs:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
+
+      - name: Store artifacts to a shared drive
+        if: ${{ always() }}
+        run: |
+          storage=${{ env.ARTIFACTS_SHARE }} # TODO: form a path like share/branch/event type/hash/product type
+          mkdir deb
+          artifacts_to_store=$(cat <<EOF
+            ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+            ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
+            ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+          EOF
+          )
+          while IFS= read -r artifact; do
+            cp -r "$artifact" $storage || echo "Failed to copy $artifact"
+          done <<< "$artifacts_to_store"
+          mkdir $storage/deb && cp *.deb $storage/deb
 
   Debian_Packages:
     name: Debian Packages
