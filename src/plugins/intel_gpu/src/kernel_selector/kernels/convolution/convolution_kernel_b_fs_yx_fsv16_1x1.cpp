@@ -440,9 +440,6 @@ void ConvolutionKernel_b_fs_yx_fsv16_1x1::GetUpdateDispatchDataFunc(KernelData& 
                     kd.kernels[i].skip_execution = true;
                 }
             }
-            kd.internalBufferSizes.clear();
-            kd.internalBufferSizes.push_back(prim_params.inputs[0].PhysicalSizeInBytes());
-            kd.internalBufferDataType = prim_params.inputs[0].GetDType();
         };
     }
 }
