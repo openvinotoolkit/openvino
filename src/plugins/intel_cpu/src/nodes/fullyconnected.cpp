@@ -66,6 +66,7 @@ FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphC
             // init w_rank and w_size
             w_rank = context->getCPUStreamExecutor()->get_rank()[0];
             w_size = ov::threading::message_manager()->get_num_sub_streams();
+            cur_dst_vec = std::vector<MemoryPtr>(w_size, nullptr);
             enable_tensor_parallel = w_size > 1 ? true : false;
             sub_memory = context->getSubMemory();
         }
@@ -85,9 +86,35 @@ bool FullyConnected::canBeExecutedInInt8() const {
 ExecutorPtr FullyConnected::createExecutor() {
     if (enable_tensor_parallel) {
         // must call in dynamic
-        auto dstMemoryBuffer = getDstMemoryAtPort(0);
-        auto select_dst = split_vertical(context->getEngine(), dstMemoryBuffer, -1, w_rank, w_size, false);
-        memory[ARG_DST] = select_dst;
+        const auto dstMemoryBuffer = getDstMemoryAtPort(0);
+
+        auto split_parts = [](int len, int n) {
+            int average = len / n;
+            std::vector<int> parts(n, average);
+            parts.back() = len - average * (n - 1);
+            return parts;
+        };
+
+        int dim = -1;
+        if (cur_dst_vec[w_rank] == nullptr) {
+            cur_dst_vec[w_rank] = split_vertical(context->getEngine(), dstMemoryBuffer, -1, w_rank, w_size, false);
+        } else if (dst_shape != dstMemoryBuffer->getShape()) {
+            dst_shape = dstMemoryBuffer->getShape();
+            auto dst_desc = dstMemoryBuffer->getDescPtr();
+            auto dims = dst_shape.getDims();
+            if (dim < 0) {
+                dim += dims.size();
+            }
+            assert(dims[dim] >= w_size);
+            auto splited_dim_vec = split_parts(dims[dim], w_size);
+
+            VectorDims new_dims = dims;
+            new_dims[dim] = splited_dim_vec[w_rank];
+            auto cur_desc = dst_desc->cloneWithNewDims(new_dims, true);
+            cur_dst_vec[w_rank]->redefineDesc(cur_desc);
+        }
+        dst_shape = dstMemoryBuffer->getShape();
+        memory[ARG_DST] = cur_dst_vec[w_rank];
     }
     const auto& executor = factory->make(memory);
     getSelectedPrimitiveDescriptor()->setImplementationType(executor->implType());
@@ -140,11 +167,12 @@ void FullyConnected::execute(dnnl::stream strm) {
         auto dst = getDstMemoryAtPort(0);
         auto dst_ptr = static_cast<uint8_t*>(dst->getData());
 
-        // cur dst
-        auto cur_dst = memory[ARG_DST];
         auto shape = dst->getShape();
         auto dims = shape.getDims();
         auto prec = dst->getPrecision();
+
+        // cur dst
+        auto cur_dst = memory[ARG_DST];
 
         auto split_parts = [](int len, int n) {
             int average = len / n;
@@ -413,6 +441,7 @@ void FullyConnected::createPrimitive() {
 
         // dst
         memory[ARG_DST] = getDstMemoryAtPort(0);
+        dst_shape = dst->getShape();
     } else {
         memory[ARG_SRC] = getSrcMemoryAtPort(DATA_ID);
         memory[ARG_WEI] = getSrcMemoryAtPort(WEIGHTS_ID);

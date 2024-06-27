@@ -91,6 +91,9 @@ private:
     MemoryPtr cached_splited_bias = nullptr;
     MemoryPtr cached_scale = nullptr;
     MemoryPtr cached_zeropoint = nullptr;
+    // cache sub_dst
+    std::vector<MemoryPtr> cur_dst_vec;
+    Shape dst_shape;
 };
 
 }  // namespace node
