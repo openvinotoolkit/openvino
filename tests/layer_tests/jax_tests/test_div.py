@@ -9,9 +9,11 @@ import jax.numpy as jnp
 
 def get_rand_jnp_array(shape, dtype):
     if dtype in [np.float32, np.float16, np.float64]:
-        return jnp.array(np.random.uniform(-1000, 1000, shape).astype(dtype))
+        res = np.random.uniform(-1000, 1000, shape).astype(dtype)
     else:
-        return jnp.array(np.random.randint(-10, 10, shape).astype(dtype))
+        res = np.random.randint(-10, 10, shape).astype(dtype)
+    res[res == 0] = 1e-6
+    return jnp.array(res)
 
 class TestDiv(JaxLayerTest):
     def _prepare_input(self):
