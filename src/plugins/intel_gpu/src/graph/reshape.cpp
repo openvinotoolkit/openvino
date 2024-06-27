@@ -179,11 +179,14 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
     auto run_shape_infer = [&](reshape::reshape_mode mode) {
          switch (mode) {
             case reshape::reshape_mode::base: {
-                OPENVINO_ASSERT(!input_layout.has_dynamic_pad());
                 ov::op::v1::Reshape op;
                 op.set_special_zero(prim->special_zero);
                 op.set_friendly_name(prim->id.c_str());
                 output_shapes = ov::op::v1::shape_infer(&op, input_shapes, ta);
+                // If the reshape is base mode, it is currently not set as can_be_optimized at prepare_buffer_fusing.
+                // So we can just run the reshape kernel
+                // TODO: allow propagatable reshapes
+                out_pad = padding();
                 break;
             }
             case reshape::reshape_mode::squeeze: {
