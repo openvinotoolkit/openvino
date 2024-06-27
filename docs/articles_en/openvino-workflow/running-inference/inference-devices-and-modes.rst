@@ -83,4 +83,3 @@ Accordingly, the code that loops over all available devices of the "GPU" type on
          :language: cpp
          :fragment: [part3]
 
-
