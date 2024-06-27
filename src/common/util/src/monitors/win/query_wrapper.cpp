@@ -7,12 +7,13 @@
 #define NOMINMAX
 #include <windows.h>
 
+#include <string>
 #include <system_error>
 
 QueryWrapper::QueryWrapper() {
     PDH_STATUS status = PdhOpenQuery(NULL, NULL, &query);
     if (ERROR_SUCCESS != status) {
-        throw std::system_error(status, std::system_category(), "PdhOpenQuery() failed");
+        throw std::runtime_error("PdhOpenQuery() failed. Error status: " + std::to_string(status));
     }
 }
 QueryWrapper::~QueryWrapper() {

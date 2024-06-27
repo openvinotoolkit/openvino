@@ -35,11 +35,11 @@ public:
             std::wstring fullCounterPath{L"\\Processor(_Total)\\% Processor Time"};
             status = PdhAddCounterW(query, fullCounterPath.c_str(), 0, &coreTimeCounters[0]);
             if (ERROR_SUCCESS != status) {
-                throw std::system_error(status, std::system_category(), "PdhAddCounterW() failed");
+                throw std::runtime_error("PdhAddCounterW() failed. Error status: " + std::to_string(status));
             }
             status = PdhSetCounterScaleFactor(coreTimeCounters[0], -2);  // scale counter to [0, 1]
             if (ERROR_SUCCESS != status) {
-                throw std::system_error(status, std::system_category(), "PdhSetCounterScaleFactor() failed");
+                throw std::runtime_error("PdhSetCounterScaleFactor() failed. Error status: " + std::to_string(status));
             }
         } else {
             coreTimeCounters.resize(nCores);
@@ -47,17 +47,18 @@ public:
                 std::wstring fullCounterPath{L"\\Processor(" + std::to_wstring(i) + L")\\% Processor Time"};
                 status = PdhAddCounterW(query, fullCounterPath.c_str(), 0, &coreTimeCounters[i]);
                 if (ERROR_SUCCESS != status) {
-                    throw std::system_error(status, std::system_category(), "PdhAddCounterW() failed");
+                    throw std::runtime_error("PdhAddCounterW() failed. Error status: " + std::to_string(status));
                 }
                 status = PdhSetCounterScaleFactor(coreTimeCounters[i], -2);  // scale counter to [0, 1]
                 if (ERROR_SUCCESS != status) {
-                    throw std::system_error(status, std::system_category(), "PdhSetCounterScaleFactor() failed");
+                    throw std::runtime_error("PdhSetCounterScaleFactor() failed. Error status: " +
+                                             std::to_string(status));
                 }
             }
         }
         status = PdhCollectQueryData(query);
         if (ERROR_SUCCESS != status) {
-            throw std::system_error(status, std::system_category(), "PdhCollectQueryData() failed");
+            throw std::runtime_error("PdhCollectQueryData() failed. Error status: " + std::to_string(status));
         }
     }
 
@@ -74,7 +75,7 @@ public:
         lastTimeStamp = std::chrono::system_clock::now();
         status = PdhCollectQueryData(query);
         if (ERROR_SUCCESS != status) {
-            throw std::system_error(status, std::system_category(), "PdhCollectQueryData() failed");
+            throw std::runtime_error("PdhCollectQueryData() failed. Error status: " + std::to_string(status));
         }
         PDH_FMT_COUNTERVALUE displayValue;
         std::vector<double> cpuLoad(coreTimeCounters.size());
@@ -87,7 +88,8 @@ public:
             case PDH_CALC_NEGATIVE_DENOMINATOR:
                 return {};
             default:
-                throw std::system_error(status, std::system_category(), "PdhGetFormattedCounterValue() failed");
+                throw std::runtime_error("PdhGetFormattedCounterValue() failed. Error status: " +
+                                         std::to_string(status));
             }
             if (PDH_CSTATUS_VALID_DATA != displayValue.CStatus && PDH_CSTATUS_NEW_DATA != displayValue.CStatus) {
                 throw std::runtime_error("Error in counter data");

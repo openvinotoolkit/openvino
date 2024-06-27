@@ -73,9 +73,6 @@ public:
             if (wcscmp(desc.Description, L"Microsoft Basic Render Driver") != 0 && desc.VendorId == 0x8086) {
                 auto luidStr = LuidToString(desc.AdapterLuid);
                 gpuCores[luidStr] = desc.AdapterLuid;
-                wprintf(L"GPU Name: \n\t%sLUID: ", desc.Description);
-                std::cout << "\t" << std::hex << desc.AdapterLuid.HighPart << "-" << desc.AdapterLuid.LowPart;
-                std::cout << "\t LUID string: " << luidStr << std::endl;
             }
             gpuIndex++;
         }
