@@ -7,8 +7,8 @@ Performance Hints and Thread Scheduling
                  on performance hints automatically.
 
 To simplify the configuration of hardware devices, it is recommended to use the
-:doc:`ov::hint::PerformanceMode::LATENCY and ov::hint::PerformanceMode::THROUGHPUT <../../optimize-inference/high-level-performance-hints>`
-high-level performance hints. Both performance hints ensure optimal portability
+ov::hint::PerformanceMode::LATENCY and ov::hint::PerformanceMode::THROUGHPUT
+:doc:`high-level performance hints <../../optimize-inference/high-level-performance-hints>`. Both performance hints ensure optimal portability
 and scalability of applications across various platforms and models.
 
 - ``ov::inference_num_threads`` limits the number of logical processors used for CPU inference.
