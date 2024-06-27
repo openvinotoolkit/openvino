@@ -1152,8 +1152,7 @@ std::wstring valid_xml_path(const std::wstring& path) {
 
     const std::wstring extension = L".xml";
     const bool has_xml_extension = path.rfind(extension) == path.size() - extension.size();
-    OPENVINO_ASSERT(has_xml_extension,
-                    "Path for xml file doesn't contains file name with 'xml' extension.");
+    OPENVINO_ASSERT(has_xml_extension, "Path for xml file doesn't contains file name with 'xml' extension.");
     return path;
 }
 
@@ -1181,7 +1180,6 @@ std::string provide_bin_path(const std::string& xmlPath, const std::string& binP
     bestPath.replace(bestPath.size() - ext_size, ext_size, extension);
     return bestPath;
 }
-
 
 void serializeFunc(std::ostream& xml_file,
                    std::ostream& bin_file,
@@ -1238,14 +1236,13 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
             if (xmlDir != m_xmlPath)
                 ov::util::create_directory_recursive(xmlDir);
         }
-        #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         else {
             auto xmlDir = ov::util::get_directory(m_xmlPath_wchar);
             if (xmlDir != m_xmlPath_wchar)
                 ov::util::create_directory_recursive(xmlDir);
         }
-        #endif
-
+#endif
 
         std::ofstream bin_file;
         std::ofstream xml_file;
@@ -1257,7 +1254,7 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
             xml_file.open(m_xmlPath, std::ios::out);
             OPENVINO_ASSERT(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
         }
-        #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         else {
             bin_file.open(m_binPath_wchar.c_str(), std::ios::out | std::ios::binary);
             OPENVINO_ASSERT(bin_file, "Can't open bin file.");
@@ -1266,7 +1263,7 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
             xml_file.open(m_xmlPath_wchar.c_str(), std::ios::out);
             OPENVINO_ASSERT(xml_file, "Can't open xml file.");
         }
-        #endif
+#endif
 
         try {
             serializeFunc(xml_file, bin_file, model, m_version);
@@ -1295,7 +1292,8 @@ pass::Serialize::Serialize(std::ostream& xmlFile, std::ostream& binFile, pass::S
       m_xmlPath_wchar{},
       m_binPath_wchar{},
 #endif
-      m_version{version} {}
+      m_version{version} {
+}
 
 pass::Serialize::Serialize(const std::string& xmlPath, const std::string& binPath, pass::Serialize::Version version)
     : m_xmlFile{nullptr},
@@ -1306,7 +1304,8 @@ pass::Serialize::Serialize(const std::string& xmlPath, const std::string& binPat
       m_xmlPath_wchar{},
       m_binPath_wchar{},
 #endif
-      m_version{version} {}
+      m_version{version} {
+}
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 pass::Serialize::Serialize(const std::wstring& xmlPath, const std::wstring& binPath, pass::Serialize::Version version)
