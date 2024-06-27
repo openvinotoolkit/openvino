@@ -29,6 +29,8 @@ protected:
     bool pre_calculated_values_folding(const std::shared_ptr<ov::Model>& model);
 
 private:
+    // this variable controls the threshold by which it is allowed to increase
+    // the size of the binary file during one step of the ConstantFolding execution.
     int64_t m_byte_threshold;
 };
 

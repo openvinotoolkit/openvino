@@ -95,6 +95,13 @@
 #include "transformations/smart_reshape/reshape_sinking.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
+// ConstantFolding during one step usually folds 3-4 operations,
+// which take 250 bytes in IR xml file each.
+// So ~1000 bytes will be deleted from xml file.
+// To make the sum of xml + bin more or less stable,
+// we allow ConstantFolding to increase the bin size to this value.
+#define CF_BYTE_THRESHOLD 1024
+
 static ov::PartialShape prepare_dynamic_shape(const ov::PartialShape& shape) {
     auto new_shape = ov::PartialShape::dynamic(shape.rank());
     if (shape.rank().is_static())
@@ -125,7 +132,6 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
         f->validate_nodes_and_infer_types();
     }
 
-    const int64_t cf_threshold = 1024;
     ov::pass::Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
     using namespace ov::pass;
@@ -156,7 +162,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, FoldSubgraphEmptyInputs)
     REGISTER_PASS(manager, DisableRandomUniformConstantFolding)
     REGISTER_PASS(manager, PushConstantToSubgraph)
-    REGISTER_PASS(manager, ConstantFolding, cf_threshold)
+    REGISTER_PASS(manager, ConstantFolding, CF_BYTE_THRESHOLD)
     REGISTER_PASS(manager, Validate)
 
     // FusedFilteringBoxesBySize transformation has the complex pattern
@@ -207,7 +213,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     ADD_MATCHER(eliminations, SelectWithOneValueCondition)
     eliminations->set_name("ov::pass::CommonEliminations");
 
-    REGISTER_PASS(manager, ConstantFolding, cf_threshold)
+    REGISTER_PASS(manager, ConstantFolding, CF_BYTE_THRESHOLD)
 
     auto common_fusions = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(common_fusions, ConvertScatterElementsToScatter)
@@ -268,7 +274,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     ADD_MATCHER(multiply_fusions, MultiplyGroupConvolutionBackpropDataFusion)
     ADD_MATCHER(multiply_fusions, MatMulMultiplyFusion)
     multiply_fusions->set_name("ov::pass::MultiplyFusions");
-    REGISTER_PASS(manager, ConstantFolding, cf_threshold)
+    REGISTER_PASS(manager, ConstantFolding, CF_BYTE_THRESHOLD)
 
     auto fq_fusions = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(fq_fusions, FakeQuantizeMulFusion)
@@ -281,7 +287,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, ReverseInputChannelsFusion)
     REGISTER_PASS(manager, AlignEltwiseInputRanks)
     REGISTER_PASS(manager, SharedOpOptimization)
-    REGISTER_PASS(manager, ConstantFolding, cf_threshold)
+    REGISTER_PASS(manager, ConstantFolding, CF_BYTE_THRESHOLD)
     REGISTER_PASS(manager, SymbolicOptimizations)
     REGISTER_PASS(manager, ResolveNameCollisions, true);
     manager.run_passes(f);

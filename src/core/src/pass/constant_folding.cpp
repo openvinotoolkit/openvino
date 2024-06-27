@@ -7,13 +7,13 @@
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
-#include "openvino/core/type/element_iterator.hpp"
 
 /**
  * \brief Check if \ref ov::Output<ov::Node> can be folded base on `can_be_folded` attribute.
@@ -118,10 +118,10 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
         }
 
         if (m_byte_threshold >= 0 && !node->input_values().empty() && !ov::as_type_ptr<ov::op::Sink>(node) &&
-                !ov::as_type_ptr<ov::op::v0::Result>(node)) {
+            !ov::as_type_ptr<ov::op::v0::Result>(node)) {
             bool is_threshold_applicable = true;
             int64_t byte_size_before = 0;
-            for (const auto &input_value: node->input_values()) {
+            for (const auto& input_value : node->input_values()) {
                 auto constant = ov::as_type_ptr<ov::op::v0::Constant>(input_value.get_node_shared_ptr());
                 if (constant && is_threshold_applicable) {
                     byte_size_before += static_cast<int64_t>(constant->get_byte_size());
@@ -131,9 +131,10 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
             }
 
             int64_t byte_size_after = 0;
-            for (const auto &output : node->outputs()) {
+            for (const auto& output : node->outputs()) {
                 if (output.get_partial_shape().is_static() && is_threshold_applicable) {
-                    byte_size_after += static_cast<int64_t>(element::get_memory_size(output.get_element_type(), ov::shape_size(output.get_shape())));
+                    byte_size_after += static_cast<int64_t>(
+                        element::get_memory_size(output.get_element_type(), ov::shape_size(output.get_shape())));
                 } else {
                     is_threshold_applicable = false;
                 }
