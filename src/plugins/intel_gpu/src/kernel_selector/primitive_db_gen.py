@@ -200,7 +200,6 @@ class OpenCL2CHeaders(object):
         for h in self.batch_headers:
             header_name = h[:h.find('.cl')]
             res += '{{"{}",\n(std::string) R"(\n'.format(header_name)
-            print("-------------", h)
             header_file = os.path.abspath(os.path.join(os.path.dirname(self.kernels_folder + "/include/batch_headers"), "batch_headers/" + h))
             content = []
             with open(header_file) as f:
