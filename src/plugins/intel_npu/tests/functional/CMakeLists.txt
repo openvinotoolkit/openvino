@@ -11,6 +11,16 @@ set(EXCLUDED_FUNC_TESTS_DIR "")
 set(OPTIONAL_FUNC_TESTS_INCLUDES "")
 set(OPTIONAL_FUNC_TESTS_LIBS "")
 
+if(ENABLE_DRIVER_COMPILER_ADAPTER)
+    list(APPEND OPTIONAL_FUNC_TESTS_INCLUDES
+        "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/compiler/include"
+    )
+
+    list(APPEND OPTIONAL_FUNC_TESTS_LIBS
+        openvino_npu_driver_compiler_adapter
+    )
+endif()
+
 ov_add_test_target(
     NAME ${TARGET_NAME}
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}
