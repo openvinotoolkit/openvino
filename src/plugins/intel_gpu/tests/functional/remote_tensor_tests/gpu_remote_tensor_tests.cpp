@@ -690,7 +690,7 @@ TEST(OVRemoteTensorTests, smoke_MixedTensorTypes) {
             auto cl_tensor = input_tensor_1.as<ov::intel_gpu::ocl::ClBufferTensor>();
             cl::Buffer shared_buffer = cl_tensor;
             void* buffer = data.data();
-            ocl_instance->_queue.enqueueWriteBuffer(shared_buffer, true, 0, ov::shape_size(input_shape), buffer);
+            ocl_instance->_queue.enqueueWriteBuffer(shared_buffer, true, 0, ov::shape_size(input_shape) * data.get_element_type().size(), buffer);
 
             infer_request.set_tensor(input, input_tensor_1);
             infer_request.infer();
@@ -717,7 +717,7 @@ TEST(OVRemoteTensorTests, smoke_MixedTensorTypes) {
         auto cl_tensor = input_tensor_0.as<ov::intel_gpu::ocl::ClBufferTensor>();
         cl::Buffer shared_buffer = cl_tensor;
         void* buffer = data.data();
-        ocl_instance->_queue.enqueueWriteBuffer(shared_buffer, true, 0, ov::shape_size(input_shape_0), buffer);
+        ocl_instance->_queue.enqueueWriteBuffer(shared_buffer, true, 0, ov::shape_size(input_shape_0) * data.get_element_type().size(), buffer);
 
         infer_request.set_tensor(input, input_tensor_0);
         infer_request.infer();
