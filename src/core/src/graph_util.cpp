@@ -344,6 +344,7 @@ void save_model(const std::shared_ptr<const ov::Model>& m, const std::string& ou
     manager.run_passes(cloned);
 }
 
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 void save_model(const std::shared_ptr<const ov::Model>& m, const std::wstring& output_model, bool compress_to_fp16) {
     auto cloned = m->clone();
     if (compress_to_fp16) {
@@ -357,6 +358,7 @@ void save_model(const std::shared_ptr<const ov::Model>& m, const std::wstring& o
     manager.register_pass<ov::pass::Serialize>(output_model, L"");
     manager.run_passes(cloned);
 }
+#endif
 
 bool is_used(Node* node);
 bool is_used(Node* node) {
