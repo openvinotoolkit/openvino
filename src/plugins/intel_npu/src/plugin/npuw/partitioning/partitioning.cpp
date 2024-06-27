@@ -67,6 +67,21 @@ struct BankContains {
     }
 };
 
+struct ProducesResult {
+    bool operator()(const std::shared_ptr<ov::Node> &node) {
+        std::set<ov::Input<ov::Node> > all_readers;
+        for (auto &&out : node->outputs()) {
+            const auto &these_readers = out.get_target_inputs();
+            all_readers.insert(these_readers.begin(), these_readers.end());
+        }
+        return std::any_of(all_readers.begin(),
+                           all_readers.end(),
+                           [](const ov::Input<ov::Node> &iport) {
+                               return ov::op::util::is_output(iport.get_node());
+                           });
+    }
+};
+
 ov::npuw::Ensemble load_groups(const std::shared_ptr<ov::Model>& model, const std::string& path_to_plan) {
     // Try to load the partitioning plan...
     NPUW_ASSERT(!path_to_plan.empty());
@@ -460,6 +475,28 @@ void Partitioner::identifySubgraphs() {
         // connections with Result stubs (but remember where these outputs
         // were going to).
         LOG_VERB("Populating _results...");
+        {
+            // Before populating the output layers, do a quick Result->Output Layer
+            // propagation to extend out output layers with the layers not mentioned
+            // in the partitioning plan. This may happen if the plan was already exported,
+            // but some changes were done to the model (like kvcache regrouping) after
+            // that.
+            // The idea is simple: walk over the group's all_layers and check if those
+            // are producing results. If they are and they're not parts of the output_layers,
+            // add them there.
+            LOG_BLOCK();
+            std::set<std::string> output_layers_cache(group.output_layers.begin(),
+                                                      group.output_layers.end());
+            for (auto &&op_name : group.all_layers) {
+                auto layer_ptr = node_id_cache.at(op_name);
+                if (ProducesResult {}(layer_ptr) && !output_layers_cache.count(op_name)) {
+                    LOG_VERB("Adding " << op_name <<
+                             " as an extra output layer since it is produces a Result");
+                    output_layers_cache.insert(op_name);
+                    group.output_layers.push_back(op_name);
+                }
+            } // for(all_layers)
+        }
         std::size_t num_optimized_out_layers = 0u;
         for (auto&& output_layer_name : group.output_layers) {
             LOG_VERB("Processing group's output layer " << output_layer_name);

@@ -87,7 +87,8 @@ private:
     static const constexpr auto NO_LINK = ToSubmodel{-1, -1};
 
     // In the below vector, index == compiled model's input/output port idex.
-    std::vector<ToSubmodel> m_inputs_to_submodels_inputs, m_outputs_to_submodels_outputs;
+    std::vector<ToSubmodel> m_inputs_to_submodels_inputs;
+    std::vector<ToSubmodel> m_outputs_to_submodels_outputs;
 
     std::map<std::size_t, std::vector<ToSubmodel>> m_param_subscribers;
 
