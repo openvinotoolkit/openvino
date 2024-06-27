@@ -122,7 +122,7 @@ class TestUnicodePathsONNX(unittest.TestCase):
 
             save_model(res_model, model_path + ".xml")
             res_model_after_saving = Core().read_model(model_path + ".xml")
-            flag, msg = compare_functions(res_model_after_saving, model_ref, False)
+            flag, msg = compare_functions(res_model_after_saving, create_ref_model([2, 3, 4]), False)
             assert flag, msg
 
             from openvino.frontend import FrontEndManager
