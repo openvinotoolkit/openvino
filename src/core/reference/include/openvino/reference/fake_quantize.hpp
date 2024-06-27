@@ -37,6 +37,32 @@ static inline T quantize(const T arg,
                           out_low);
 }
 
+template <>
+inline ov::bfloat16 quantize(const ov::bfloat16 arg,
+                             const ov::bfloat16 in_low,
+                             const ov::bfloat16 in_high,
+                             const ov::bfloat16 out_low,
+                             const ov::bfloat16 out_high,
+                             const ov::bfloat16 levels_minus_one) {
+    if (arg <= std::min(in_low, in_high)) {
+        return out_low;
+    } else if (arg > std::max(in_low, in_high)) {
+        return out_high;
+    }
+
+    // make explicit convertion bf16->float to prevent implicit conversion bf16->float->bf16 on every operation
+    const float arg_f = arg;
+    const float in_low_f = in_low;
+    const float in_high_f = in_high;
+    const float out_low_f = out_low;
+    const float out_high_f = out_high;
+    const float levels_minus_one_f = levels_minus_one;
+
+    return static_cast<ov::bfloat16>(std::nearbyint((arg_f - in_low_f) / (in_high_f - in_low_f) * levels_minus_one_f) /
+                                         levels_minus_one_f * (out_high_f - out_low_f) +
+                                     out_low_f);
+}
+
 static std::vector<size_t> compute_strides(const ov::Shape& out_shape, const ov::Shape& shape);
 
 static std::tuple<size_t, size_t> get_inner_stride(size_t num_output_elements,

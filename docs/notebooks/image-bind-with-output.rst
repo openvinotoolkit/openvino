@@ -641,7 +641,7 @@ quantize image and text models.
         """
         Prepares a vision-text dataset for quantization by collecting vision and text data.
         """
-        dataset = load_dataset("conceptual_captions", streaming=False)
+        dataset = load_dataset("google-research-datasets/conceptual_captions", streaming=False, trust_remote_code=True)
         train_dataset = dataset["train"].shuffle(seed=0)
         dataloader = torch.utils.data.DataLoader(train_dataset, collate_fn=collate_fn, batch_size=1)
         vision_data, text_data = collect_vision_text_data(dataloader, opt_init_steps)
@@ -763,6 +763,7 @@ Quantize ImageBind model for text modality
 
 Quantize ImageBind model for audio modality
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 
 .. code:: ipython3
 

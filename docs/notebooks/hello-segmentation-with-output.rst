@@ -194,7 +194,7 @@ is provided.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f35bceac760>
+    <matplotlib.image.AxesImage at 0x7f1ae47cb220>
 
 
 
@@ -221,7 +221,7 @@ Do Inference
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f3580514910>
+    <matplotlib.image.AxesImage at 0x7f1ae46e8730>
 
 
 
