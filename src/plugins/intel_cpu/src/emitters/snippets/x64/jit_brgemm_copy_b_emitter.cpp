@@ -89,6 +89,7 @@ void jit_brgemm_copy_b_emitter::init_brgemm_copy(std::unique_ptr<matmul::jit_brg
     brgCopyKernelConf.orig_wei_dt = wei_dt;
     brgCopyKernelConf.wei_n_blk = static_cast<int>(N_blk);
     brgCopyKernelConf.wei_tag = dnnl_abcd;  // What's about other ranks?
+    brgCopyKernelConf.transposed_B = false;
     brgCopyKernelConf.LDB = static_cast<dim_t>(LDB);
     brgCopyKernelConf.N =  static_cast<dim_t>(N);
     brgCopyKernelConf.N_tail = static_cast<dim_t>(N_tail);

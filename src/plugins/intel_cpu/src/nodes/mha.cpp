@@ -862,6 +862,7 @@ void MHA::init_brgemm_copy_b(std::unique_ptr<jit_brgemm_matmul_copy_b_t>& brgCop
     brgCopyKernelConf.orig_wei_dt = dt_in1;
     brgCopyKernelConf.wei_n_blk = N_blk;
     brgCopyKernelConf.wei_tag = dnnl_abcd;
+    brgCopyKernelConf.transposed_B = false;
     brgCopyKernelConf.LDB = LDB;
     brgCopyKernelConf.N = N;
     brgCopyKernelConf.N_tail = N_tail;
