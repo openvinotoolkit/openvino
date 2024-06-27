@@ -30,12 +30,12 @@ public:
     /// \param offsets tensor of shape [batch] and of type T_IND containing the starting
     /// index positions of each "bag" in indices. Required.
     /// \param default_index scalar of type T_IND containing default index in embedding
-    /// table to fill empty "bags". If not provided empty "bags"
-    /// are filled with zeros. Optional.
-    /// \param per_sample_weigths tensor of the same shape as indices and of type T.
+    /// table to fill empty "bags". If set to value -1 or not provided, empty "bags"
+    /// are filled with zeros. Reverse indexing using negative values is not supported. Optional.
+    /// \param per_sample_weights tensor of the same shape as indices and of type T.
     /// Each value in this tensor are multiplied with each
     /// value pooled from embedding table for each index. Optional.
-
+    /// \param reduction enum to select algorithm used to perform reduction of elements in bag. Optional.
     EmbeddingBagOffsets(const Output<Node>& emb_table,
                         const Output<Node>& indices,
                         const Output<Node>& offsets,

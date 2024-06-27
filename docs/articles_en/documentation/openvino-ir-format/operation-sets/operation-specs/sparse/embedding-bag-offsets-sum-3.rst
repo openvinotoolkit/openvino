@@ -23,8 +23,8 @@ EmbeddingBagOffsetsSum
 * **1**: ``emb_table`` tensor containing the embedding lookup table of the module of shape ``[num_emb, emb_dim1, emb_dim2, ...]`` and  of type *T*. **Required.**
 * **2**: ``indices`` tensor of shape ``[num_indices]`` and of type *T_IND*. **Required.**
 * **3**: ``offsets`` tensor of shape ``[batch]`` and of type *T_IND* containing the starting index positions of each "bag" in ``indices``. **Required.**
-* **4**: ``default_index`` scalar of type *T_IND* containing default index in embedding table to fill empty "bags". If not provided empty "bags" are filled with zeros. **Optional.**
-* **5**: ``per_sample_weights`` tensor of the same shape as ``indices`` and of type *T*. Each value in this tensor are multiplied with each value pooled from embedding table for each index. Optional, default is tensor of ones.
+* **4**: ``default_index`` scalar of type *T_IND* containing default index in embedding table to fill empty "bags". If set to ``-1`` or not provided, empty "bags" are filled with zeros. Reverse indexing using negative values is not supported. **Optional.**
+* **5**: ``per_sample_weights`` tensor of the same shape as ``indices`` and of type *T*. Each value in this tensor are multiplied with each value pooled from embedding table for each index. Optional, default is tensor of ones. **Optional.**
 
 **Outputs**:
 

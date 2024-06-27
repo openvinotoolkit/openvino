@@ -58,10 +58,11 @@ OutputVector translate_embedding_bag_common(const NodeContext& context) {
         } else {
             auto per_sample_weight = context.get_input(6);
             per_sample_weight = context.mark_node(std::make_shared<ov::op::v1::ConvertLike>(per_sample_weight, weight));
+            auto neg_one = context.mark_node(ov::op::v0::Constant::create(element::i32, Shape{}, {-1}));
             result = context.mark_node(std::make_shared<ov::op::v15::EmbeddingBagOffsets>(weight,
                                                                                           indices,
                                                                                           offsets,
-                                                                                          zero,
+                                                                                          neg_one,
                                                                                           per_sample_weight,
                                                                                           reduction));
         }

@@ -30,16 +30,17 @@ public:
     /// \param per_sample_weights tensor of the same shape as indices and of type T.
     /// Each value in this tensor are multiplied with each
     /// value pooled from embedding table for each index. Optional.
+    /// \param reduction enum to select algorithm used to perform reduction of elements in bag. Optional.
+    EmbeddingBagPackedBase(const Output<Node>& emb_table,
+                           const Output<Node>& indices,
+                           const Output<Node>& per_sample_weights,
+                           const Reduction& reduction);
+
     EmbeddingBagPackedBase(const Output<Node>& emb_table,
                            const Output<Node>& indices,
                            const Output<Node>& per_sample_weights);
 
     EmbeddingBagPackedBase(const Output<Node>& emb_table, const Output<Node>& indices);
-
-    EmbeddingBagPackedBase(const Output<Node>& emb_table,
-                           const Output<Node>& indices,
-                           const Output<Node>& per_sample_weights,
-                           const Reduction& reduction);
 
     EmbeddingBagPackedBase(const Output<Node>& emb_table, const Output<Node>& indices, const Reduction& reduction);
 
