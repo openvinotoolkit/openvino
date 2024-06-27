@@ -33,7 +33,7 @@ public:
                   const ov::element::Type& out_type,
                   uint64_t global_seed = 0,
                   uint64_t op_seed = 0,
-                  PhilloxAlignment alignment = PhilloxAlignment::OPENVINO);
+                  PhilloxAlignment alignment = PhilloxAlignment::TENSORFLOW);
 
     void validate_and_infer_types() override;
 
@@ -74,7 +74,7 @@ protected:
     ov::element::Type m_output_type;
     uint64_t m_global_seed;
     uint64_t m_op_seed;
-    PhilloxAlignment m_alignment = PhilloxAlignment::OPENVINO;
+    PhilloxAlignment m_alignment = PhilloxAlignment::TENSORFLOW;
 
     mutable std::pair<uint64_t, uint64_t> m_state;
 };
