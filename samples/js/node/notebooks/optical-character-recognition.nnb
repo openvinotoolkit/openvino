@@ -24,7 +24,7 @@
         {
             "language": "typescript",
             "source": [
-                "const { cv } = require('opencv-wasm');\nconst { transform, getImageData, displayArrayAsImage, downloadFile, arrayToImageData, getImageBuffer, argMax, setShape } = require('./helpers.js');\nconst { addon: ov } = require('openvino-node');\nconst fs = require('fs');\nconst { display } = require('node-kernel');\nconst path = require('path');\nconst { createCanvas, Image, ImageData } = require('canvas');\n\n"
+                "const { cv } = require('opencv-wasm');\nconst { transform, getImageData, displayArrayAsImage, downloadFile, arrayToImageData, getImageBuffer, argMax, setShape } = require('../helpers.js');\nconst { addon: ov } = require('openvino-node');\nconst fs = require('fs');\nconst { display } = require('node-kernel');\nconst path = require('path');\nconst { createCanvas, Image, ImageData } = require('canvas');\n\n"
             ],
             "outputs": []
         },
@@ -38,7 +38,7 @@
         {
             "language": "typescript",
             "source": [
-                "// intializing images , models\nconst baseArtifactsDir = '../../assets/models';\nconst baseURL = 'https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.3/models_bin/1/horizontal-text-detection-0001/FP32/';\n\nconst detectionModelName = 'horizontal-text-detection-0001';\nconst textRecModelName = 'text-recognition-resnet-fc';\n\n\nconst detModelXMLName = `${detectionModelName}.xml`;\nconst detModelBINName = `${detectionModelName}.bin`;\n\nconst detModelXMLPath = `${baseArtifactsDir}/${detModelXMLName}`;\nconst detModelBINPath = `${baseArtifactsDir}/${detModelBINName}`;\n\nconst recModelXMLPath = `${baseArtifactsDir}/${textRecModelName}.xml`;\nconst recModelBINPath = `${baseArtifactsDir}/${textRecModelName}.bin`;\n\n\nawait downloadFile(baseURL + modelXMLName, modelXMLName, baseArtifactsDir);\nawait downloadFile(baseURL + modelBINName, modelBINName, baseArtifactsDir);\n\n\n"
+                "// intializing images , models\nconst baseArtifactsDir = '../../assets/models';\nconst baseURL = 'https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.3/models_bin/1/horizontal-text-detection-0001/FP32/';\n\nconst detectionModelName = 'horizontal-text-detection-0001';\nconst textRecModelName = 'text-recognition-resnet-fc';\n\n\nconst detModelXMLName = `${detectionModelName}.xml`;\nconst detModelBINName = `${detectionModelName}.bin`;\n\nconst detModelXMLPath = `${baseArtifactsDir}/${detModelXMLName}`;\nconst detModelBINPath = `${baseArtifactsDir}/${detModelBINName}`;\n\nconst recModelXMLPath = `${baseArtifactsDir}/${textRecModelName}.xml`;\nconst recModelBINPath = `${baseArtifactsDir}/${textRecModelName}.bin`;\n\nawait downloadFile(baseURL + detModelXMLName, detModelXMLName, baseArtifactsDir);\nawait downloadFile(baseURL + detModelBINName, detModelBINName, baseArtifactsDir);\n\n\n\n"
             ],
             "outputs": [
                 {
@@ -91,7 +91,7 @@
         {
             "language": "typescript",
             "source": [
-                "    // Initialize OpenVINO core and load the detection model\n    const core = new ov.Core();\n    const detectionModel = await core.readModel(modelXMLPath);\n    const compiledModel = await core.compileModel(detectionModel, 'CPU');\n    const inputLayer = compiledModel.input(0);\n    const outputLayer = compiledModel.output('boxes');\n"
+                "    // Initialize OpenVINO core and load the detection model\n    const core = new ov.Core();\n    const detectionModel = await core.readModel(detModelXMLPath);\n    const compiledModel = await core.compileModel(detectionModel, 'CPU');\n    const inputLayer = compiledModel.input(0);\n    const outputLayer = compiledModel.output('boxes');\n"
             ],
             "outputs": []
         },
