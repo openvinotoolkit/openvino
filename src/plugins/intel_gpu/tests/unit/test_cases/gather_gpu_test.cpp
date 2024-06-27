@@ -2373,3 +2373,48 @@ TEST(gather_gpu_fp32, dynamic_support_neg_ind) {
         ASSERT_EQ(expected_results[i], output_ptr[i]) << i;
     }
 }
+
+TEST(gather_gpu_fp32, dynamic_support_scalar_indice_empty_memory) {
+    auto& engine = get_test_engine();
+
+    ov::Shape data_shape = { 3, 3 };
+    int64_t axis = 1;
+
+    auto data_layout = layout{ov::PartialShape::dynamic(data_shape.size()), data_types::f32, format::bfyx};
+    auto indices_layout = layout{ov::PartialShape({1}), data_types::i32, format::bfyx};
+
+    auto data_mem = engine.allocate_memory(layout{ov::PartialShape(data_shape), data_types::f32, format::bfyx});
+    auto indices_mem = engine.allocate_memory(layout{ov::PartialShape({}), data_types::i32, format::bfyx});
+
+    set_values(data_mem, { 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f });
+    set_values(indices_mem, { -1 });
+
+    topology topology;
+    topology.add(input_layout("data", data_layout));
+    topology.add(input_layout("indices", indices_layout));
+    topology.add(gather("gather", input_info("data"), input_info("indices"), axis, data_shape.size(), ov::Shape{}, 0, true));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("data", data_mem);
+    network.set_input_data("indices", indices_mem);
+
+    auto inst = network.get_primitive("gather");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("gather").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    std::vector<float> expected_results = { 2.f, 5.f, 8.f };
+
+    ASSERT_EQ(expected_results.size(), output_ptr.size());
+    for (size_t i = 0; i < expected_results.size(); ++i) {
+        ASSERT_EQ(expected_results[i], output_ptr[i]) << i;
+    }
+}
