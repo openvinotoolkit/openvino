@@ -333,7 +333,7 @@ void serialize(const std::shared_ptr<const ov::Model>& m,
 void save_model(const std::shared_ptr<const ov::Model>& m, const std::string& output_model, bool compress_to_fp16) {
     auto cloned = m->clone();
     if (compress_to_fp16) {
-        // TODO: Implement on-the-fly compression in pass::Serialize
+        // TODO: Implement on-the-fly compression in pass::Serialize, Ticket: 145380
         bool postponed = true;
         ov::pass::compress_model_to_f16(cloned, postponed);
     }
@@ -348,7 +348,7 @@ void save_model(const std::shared_ptr<const ov::Model>& m, const std::string& ou
 void save_model(const std::shared_ptr<const ov::Model>& m, const std::wstring& output_model, bool compress_to_fp16) {
     auto cloned = m->clone();
     if (compress_to_fp16) {
-        // TODO: Implement on-the-fly compression in pass::Serialize
+        // TODO: Implement on-the-fly compression in pass::Serialize, Ticket: 145380
         bool postponed = true;
         ov::pass::compress_model_to_f16(cloned, postponed);
     }
