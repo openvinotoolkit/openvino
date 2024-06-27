@@ -67,7 +67,7 @@ jobs:
 
       # Ticket: 139627
       - name: Checkout the latest OneDNN for GPU in nightly
-        if: ${{ github.event_name == 'schedule' }}
+        if: ${{ inputs.event-name == 'schedule' }}
         working-directory: ${{ env.OPENVINO_REPO }}/src/plugins/intel_gpu/thirdparty/onednn_gpu
         run: |
           git fetch origin
@@ -99,7 +99,13 @@ jobs:
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
 
           # For running ONNX frontend unit tests
-          python3 -m pip install --force-reinstall -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
+          if [[ ${{ inputs.os }} == 'ubuntu24' ]]; then
+            # Should be removed after https://github.com/openvinotoolkit/openvino/pull/24242 is merged
+            export CMAKE_GENERATOR="Unix Makefiles"
+            python3 -m pip install --force-reinstall --no-cache-dir -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
+          else
+            python3 -m pip install --force-reinstall -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
+          fi
 
           # For running TensorFlow frontend unit tests
           python3 -m pip install -r ${OPENVINO_REPO}/src/frontends/tensorflow/tests/requirements.txt
