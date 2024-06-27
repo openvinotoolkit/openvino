@@ -43,11 +43,8 @@ RandomUniform::RandomUniform(const std::shared_ptr<ov::Node>& op, const GraphCon
 
     const auto alignment = rnd_op->get_alignment();
     switch(alignment) {
-        case ov::op::PhilloxAlignment::OPENVINO:
-            m_algo = PHILOX_OV;
-            break;
         case ov::op::PhilloxAlignment::TENSORFLOW:
-            m_algo = PHILOX_TF;
+            m_algo = PHILOX;
             break;
         case ov::op::PhilloxAlignment::PYTORCH:
             m_algo = MERSENNE;
@@ -79,7 +76,7 @@ void RandomUniform::initSupportedPrimitiveDescriptors() {
     }
 
     auto out_prc = getOriginalOutputPrecisionAtPort(0);
-    if (out_prc.is_real() && (((m_algo == PHILOX_OV || m_algo == PHILOX_TF || m_algo == MERSENNE) &&
+    if (out_prc.is_real() && (((m_algo == PHILOX || m_algo == MERSENNE) &&
             !one_of(out_prc, ov::element::f32, ov::element::f16, ov::element::bf16)) ||
             (m_algo == STL && !one_of(out_prc, ov::element::f32)))) {
         out_prc = ov::element::f32;
@@ -106,16 +103,14 @@ void RandomUniform::createPrimitive() {
     }
 
 
-    if (m_algo == PHILOX_OV || m_algo == PHILOX_TF || m_algo == MERSENNE) {
+    if (m_algo == PHILOX || m_algo == MERSENNE) {
 #if defined(OPENVINO_ARCH_X86_64)
         kernel::RandomUniformCompileParams jcp;
 
         jcp.out_data_type = m_output_prc;
 
-        if (m_algo == PHILOX_OV) {
-            m_jit_kernel = kernel::JitKernel<kernel::RandomUniformCompileParams, kernel::RandomUniformCallArgs>::createInstance<kernel::random_uniform::PhilloxOpenvino>(jcp);
-        } else if (m_algo == PHILOX_TF) {
-            m_jit_kernel = kernel::JitKernel<kernel::RandomUniformCompileParams, kernel::RandomUniformCallArgs>::createInstance<kernel::random_uniform::PhilloxTensorflow>(jcp);
+        if (m_algo == PHILOX) {
+            m_jit_kernel = kernel::JitKernel<kernel::RandomUniformCompileParams, kernel::RandomUniformCallArgs>::createInstance<kernel::random_uniform::Philox>(jcp);
         } else {
             m_jit_kernel = kernel::JitKernel<kernel::RandomUniformCompileParams, kernel::RandomUniformCallArgs>::createInstance<kernel::random_uniform::MersenneTwister>(jcp);
         }
@@ -153,7 +148,7 @@ void RandomUniform::prepareParams() {
     m_out_shape = getDstMemoryAtPort(0)->getShape().getStaticDims();
     m_out_el_num = std::accumulate(m_out_shape.begin(), m_out_shape.end(), 1lu, std::multiplies<Dim>());
 
-    if (m_algo == PHILOX_OV || m_algo == PHILOX_TF || m_algo == MERSENNE) {
+    if (m_algo == PHILOX || m_algo == MERSENNE) {
         m_skip_count = m_out_el_num * SKIP_CONST;
 
         if (m_out_el_num < PHILOX_PARALLEL_EXECUTION_THRESHOLD) {
@@ -213,10 +208,8 @@ void RandomUniform::execute(dnnl::stream strm) {
 
     auto data = getDstDataAtPort(0);
 
-    if (m_algo == PHILOX_OV) {
-        m_state = computePhiloxOpenvino(data, m_out_el_num, m_state);
-    } else if (m_algo == PHILOX_TF) {
-        m_state = computePhiloxTensorflow(data, m_out_el_num, m_state);
+    if (m_algo == PHILOX) {
+        m_state = computePhilox(data, m_out_el_num, m_state);
     } else if (m_algo == MERSENNE) {
         m_state = computeMersenneTwister(data, m_out_el_num, m_state);
     } else if (m_algo == STL) {
@@ -260,11 +253,12 @@ inline void runPhilox(uint64_t key, uint64_t counter, uint64_t n, uint32_t* res)
     uint32_t* counter_32 = reinterpret_cast<uint32_t*>(&counter);
     uint32_t* n_32 = reinterpret_cast<uint32_t*>(&n);
 
-    for (size_t i = 0lu; i < ROUNDS_NUMBER; i++) {
+    for (size_t i = 0lu; i < ROUNDS_NUMBER - 1; i++) {
         calculateRound(key_32, counter_32, n_32);
-        if (i < ROUNDS_NUMBER - 1)
-            raiseKey(key_32);
+        raiseKey(key_32);
     }
+    raiseKey(key_32);
+
 
     res[0] = n_32[0];
     res[1] = n_32[1];
@@ -335,92 +329,7 @@ inline void convertToOutputType(const uint32_t* in,
 
 }  // namespace
 
-std::pair<uint64_t, uint64_t> RandomUniform::computePhiloxOpenvino(void* out, size_t out_el_num, const std::pair<uint64_t, uint64_t>& prev_state) {
-    // When both seed values are equal to zero RandomUniform should generate non-deterministic sequence.
-    if (m_global_seed == 0lu && m_op_seed == 0lu) {
-        std::srand(static_cast<unsigned int>(std::time(nullptr)));
-        m_global_seed = std::rand();
-    }
-
-    uint64_t n_state = prev_state.first;
-    uint64_t counter_state = prev_state.second;
-
-    uint64_t counter = counter_state > 0 ? counter_state : m_op_seed;
-
-    auto out_u8 = reinterpret_cast<uint8_t*>(out);
-
-    if (m_jit_kernel) {
-#if defined(OPENVINO_ARCH_X86_64)
-        parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
-                auto& p = m_thread_params[ithr];
-                if (p.work_amount == 0lu) {
-                    return;
-                }
-                auto n = n_state + p.n_shift;
-
-                kernel::RandomUniformCallArgs args;
-
-                args.dst_ptr     = (out_u8 + p.dst_shift);
-                args.key_ptr     = &m_global_seed;
-                args.counter_ptr = &counter;
-                args.n_ptr       = &n;
-                args.min_ptr     = &m_min_val;
-                args.range_ptr   = &m_range_val;
-                args.work_amount = p.work_amount;
-
-                (*m_jit_kernel)(&args);
-            });
-#endif // OPENVINO_ARCH_X86_64
-    } else {
-        auto threadBody = [&](const int ithr, const int nthr) {
-            auto& p = m_thread_params[ithr];
-            if (p.work_amount == 0lu) {
-                return;
-            }
-            auto n = n_state + p.n_shift;
-            auto out_cur = out_u8 + p.dst_shift;
-            auto work_rest = static_cast<int64_t>(p.work_amount);
-            uint32_t res[4];
-
-#define EXEC_CASE(P)                                                                                    \
-            case element::P: {                                                                          \
-                auto out_t = reinterpret_cast<element_type_traits<element::P>::value_type *>(out_cur);  \
-                for (; work_rest > 0l; work_rest -= p.step, out_t += p.step) {                          \
-                    runPhilox(m_global_seed, counter, n, res);                                          \
-                    auto el_to_copy = std::min(p.step, static_cast<uint64_t>(work_rest));               \
-                    convertToOutputType(res, m_min_val.P, m_range_val.P, out_t, el_to_copy);            \
-                    if (++n == 0) {                                                                     \
-                        counter++;                                                                      \
-                    }                                                                                   \
-                }                                                                                       \
-            } break;
-
-            switch (m_output_prc) {
-                EXEC_CASE(f32)
-                EXEC_CASE(f16)
-                EXEC_CASE(bf16)
-                EXEC_CASE(i32)
-                EXEC_CASE(i64)
-                default: THROW_CPU_NODE_ERR("Unsupported type of RandomUniform: ", m_output_prc.to_string());
-            }
-
-#undef EXEC_CASE
-        };
-
-        parallel_nt(m_threads_num, threadBody);
-    }
-
-    // Calculate counter values for next RandomUniform run.
-    n_state += m_skip_count;
-    if (n_state < m_skip_count) {
-        counter_state++;
-    }
-
-    return { n_state, counter_state };
-}
-
-
-std::pair<uint64_t, uint64_t> RandomUniform::computePhiloxTensorflow(void* out, size_t out_el_num, const std::pair<uint64_t, uint64_t>& prev_state) {
+std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out, size_t out_el_num, const std::pair<uint64_t, uint64_t>& prev_state) {
     // When both seed values are equal to zero RandomUniform should generate non-deterministic sequence.
     if (m_global_seed == 0lu && m_op_seed == 0lu) {
         std::srand(static_cast<unsigned int>(std::time(nullptr)));
@@ -596,9 +505,6 @@ std::pair<uint64_t, uint64_t> RandomUniform::computeMersenneTwister(void* out, s
 
     return { n_state, counter_state };
 }
-
-
-
 
 ////////////// STL algo ///////////////
 void RandomUniform::computeStl(void* out, size_t work_amount) {

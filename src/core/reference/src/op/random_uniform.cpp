@@ -44,7 +44,7 @@ std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
     std::shared_ptr<phillox::PhilloxGenerator> generator =
         phillox::make_phillox_generator(seed, seed2, prev_state, elem_count, alignment);
     std::shared_ptr<phillox::PhilloxConverter> converter =
-        phillox::make_phillox_converter(out, elem_type, elem_count, min_val, max_val, generator);
+        phillox::make_phillox_converter(out, elem_type, elem_count, min_val, max_val, alignment);
 
     // Generate randon numbers and convert them until the output array is full
     const size_t step = converter->get_converted_elements_count();

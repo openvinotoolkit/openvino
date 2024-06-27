@@ -21,8 +21,7 @@ inline bool out_et(const element::Type& et) {
 }
 
 inline bool alignment(const PhilloxAlignment& alignment) {
-    return alignment == PhilloxAlignment::OPENVINO || alignment == PhilloxAlignment::TENSORFLOW ||
-           alignment == PhilloxAlignment::PYTORCH;
+    return alignment == PhilloxAlignment::TENSORFLOW || alignment == PhilloxAlignment::PYTORCH;
 }
 }  // namespace validate
 

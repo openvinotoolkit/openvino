@@ -57,8 +57,7 @@ protected:
 private:
     void computeStl(void* out, size_t work_amount);
 
-    std::pair<uint64_t, uint64_t> computePhiloxOpenvino(void* out, size_t work_amount, const std::pair<uint64_t, uint64_t>& prev_state);
-    std::pair<uint64_t, uint64_t> computePhiloxTensorflow(void* out, size_t work_amount, const std::pair<uint64_t, uint64_t>& prev_state);
+    std::pair<uint64_t, uint64_t> computePhilox(void* out, size_t work_amount, const std::pair<uint64_t, uint64_t>& prev_state);
     std::pair<uint64_t, uint64_t> computeMersenneTwister(void* out, size_t work_amount, const std::pair<uint64_t, uint64_t>& prev_state);
 
 
@@ -72,7 +71,7 @@ private:
     void evalRange();
 
     enum { SHAPE = 0, MIN_VAL, MAX_VAL };
-    enum AlgoType { STL = 0, PHILOX_OV, PHILOX_TF, MERSENNE};
+    enum AlgoType { STL = 0, PHILOX, MERSENNE};
 
     bool m_const_inputs[3] = {false, false, false};
 
@@ -87,7 +86,7 @@ private:
     OutputType m_min_val;
     OutputType m_max_val;
     OutputType m_range_val;
-    AlgoType m_algo = PHILOX_OV;
+    AlgoType m_algo = PHILOX;
 
     std::default_random_engine m_generator;
     struct ThreadParams {

@@ -88,8 +88,7 @@ OPENVINO_API EnumNames<ov::op::TopKMode>& EnumNames<ov::op::TopKMode>::get() {
 template <>
 OPENVINO_API EnumNames<ov::op::PhilloxAlignment>& EnumNames<ov::op::PhilloxAlignment>::get() {
     static auto enum_names = EnumNames<ov::op::PhilloxAlignment>("ov::op::PhilloxAlignment",
-                                                                 {{"openvino", ov::op::PhilloxAlignment::OPENVINO},
-                                                                  {"pytorch", ov::op::PhilloxAlignment::PYTORCH},
+                                                                 {{"pytorch", ov::op::PhilloxAlignment::PYTORCH},
                                                                   {"tensorflow", ov::op::PhilloxAlignment::TENSORFLOW},
                                                                   {"mock", ov::op::PhilloxAlignment::MOCK}});
     return enum_names;

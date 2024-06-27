@@ -154,7 +154,7 @@ enum class TopKMode {
 OPENVINO_API
 std::ostream& operator<<(std::ostream& s, const TopKMode& type);
 
-enum class PhilloxAlignment { OPENVINO, TENSORFLOW, PYTORCH, MOCK };
+enum class PhilloxAlignment { TENSORFLOW, PYTORCH, MOCK };
 
 OPENVINO_API
 std::ostream& operator<<(std::ostream& s, const PhilloxAlignment& alignment);

@@ -23,7 +23,7 @@ std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
                                              uint64_t seed,
                                              uint64_t seed2,
                                              std::pair<uint64_t, uint64_t> prev_state,
-                                             PhilloxAlignment alignment = PhilloxAlignment::OPENVINO);
+                                             PhilloxAlignment alignment = PhilloxAlignment::TENSORFLOW);
 
 }  // namespace reference
 }  // namespace ov
