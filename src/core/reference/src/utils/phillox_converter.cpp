@@ -184,12 +184,15 @@ void convert_to_output_type(const std::vector<uint32_t>& generated_numbers,
             output_elements_buffer[i] =
                 convert_two_inputs(generated_numbers[2 * i], generated_numbers[2 * i + 1], mn, mx);
         }
-
     } else {
         // This behavior might change one day, if 128 bit numbers are possible
         OPENVINO_THROW("The converter has requested an incorrect number of output values: ",
                        converted_output_values_per_exec_count,
-                       " (possible 2 or 4)");
+                       " (possible ",
+                       ELEMENTS_PER_EXECUTION / 2,
+                       " or ",
+                       ELEMENTS_PER_EXECUTION,
+                       ")");
     }
 
     memcpy(out + idx * sizeof(T),
@@ -346,7 +349,7 @@ size_t PyTorchPhilloxConverter::get_converted_elements_count() const {
     // and either one or two values (if optimization is off) to generate one 64 bit random number.
     // Therefore, the only case where 2 output values are generated is when optimization is OFF and the dtype is 64 bit
     // (size > 4)
-    return m_elem_type.size() > 4 && !m_optimization_enabled ? ELEMENTS_PER_EXECUTION / 2 : ELEMENTS_PER_EXECUTION / 2;
+    return m_elem_type.size() > 4 && !m_optimization_enabled ? ELEMENTS_PER_EXECUTION / 2 : ELEMENTS_PER_EXECUTION;
 }
 
 void PyTorchPhilloxConverter::convert(PhilloxOutput result, size_t idx) {
