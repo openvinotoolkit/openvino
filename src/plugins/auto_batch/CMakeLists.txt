@@ -13,7 +13,6 @@ file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
 ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "BATCH"
-              SHARED_LIBRARY_NAME "BATCH"
               PSEUDO_DEVICE
               SOURCES ${SOURCES} ${HEADERS}
               VERSION_DEFINES_FOR src/plugin.cpp ADD_CLANG_FORMAT)

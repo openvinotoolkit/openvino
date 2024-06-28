@@ -597,13 +597,18 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             so = ov::util::load_shared_object(desc.libraryLocation.c_str());
             std::shared_ptr<ov::IPlugin> plugin_impl;
             reinterpret_cast<ov::CreatePluginFunc*>(ov::util::get_symbol(so, ov::create_plugin_function))(plugin_impl);
-            plugin = Plugin{plugin_impl, so};
-            if (!desc.sharedLibraryName.empty() && !check_plugin_name(desc.sharedLibraryName, plugin.get_name()))
-                OPENVINO_THROW("Loaded shared library with real name ",
-                               plugin.get_name(),
-                               "\ninstead of name ",
-                               desc.sharedLibraryName,
-                               "\n");
+            if (!desc.sharedLibraryName.empty()) {
+                std::string shared_library_name;
+                reinterpret_cast<ov::GetSharedLibaryNameFunc*>(
+                    ov::util::get_symbol(so, ov::get_shared_library_name_function))(shared_library_name);
+                if (!check_plugin_name(desc.sharedLibraryName, shared_library_name))
+                    OPENVINO_THROW("Loaded shared library with real name ",
+                                   plugin.get_name(),
+                                   "\ninstead of name ",
+                                   desc.sharedLibraryName,
+                                   "\n");
+            }
+            plugin = Plugin{ plugin_impl, so };
         }
 
         {

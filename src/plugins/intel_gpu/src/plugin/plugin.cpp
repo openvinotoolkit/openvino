@@ -803,3 +803,5 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
 
 static const ov::Version version = { CI_BUILD_NUMBER, "Intel GPU plugin" };
 OV_DEFINE_PLUGIN_CREATE_FUNCTION(ov::intel_gpu::Plugin, version)
+
+OV_DEFINE_GET_SHARED_LIBRARY_NAME()

@@ -58,7 +58,6 @@ file(GLOB_RECURSE PLUGIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/*.cpp ${
 
 ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "GPU"
-              SHARED_LIBRARY_NAME "GPU"
               SOURCES ${PLUGIN_SOURCES}
               DEFAULT_CONFIG ${PLUGIN_DEFAULT_CONFIG}
               VERSION_DEFINES_FOR src/plugin/plugin.cpp)

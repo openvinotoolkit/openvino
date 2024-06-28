@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include "plugin.h"
 
 #include "internal_properties.hpp"
@@ -27,7 +26,6 @@
 #include "cpu/x64/cpu_isa_traits.hpp"
 
 using namespace ov::threading;
-
 namespace ov {
 namespace intel_cpu {
 
@@ -631,3 +629,5 @@ static const ov::Version version = {CI_BUILD_NUMBER, "openvino_riscv_cpu_plugin"
 #endif
 
 OV_DEFINE_PLUGIN_CREATE_FUNCTION(Plugin, version)
+
+OV_DEFINE_GET_SHARED_LIBRARY_NAME()

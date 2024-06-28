@@ -310,3 +310,5 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
 static const ov::Version version = {CI_BUILD_NUMBER, "openvino_template_plugin"};
 OV_DEFINE_PLUGIN_CREATE_FUNCTION(ov::template_plugin::Plugin, version)
 // ! [plugin:create_plugin_engine]
+
+OV_DEFINE_GET_SHARED_LIBRARY_NAME()

@@ -6,3 +6,5 @@
 
 static const ov::Version version = {CI_BUILD_NUMBER, "openvino_hetero_plugin"};
 OV_DEFINE_PLUGIN_CREATE_FUNCTION(ov::hetero::Plugin, version)
+
+OV_DEFINE_GET_SHARED_LIBRARY_NAME()

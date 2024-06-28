@@ -244,6 +244,8 @@ OPENVINO_RUNTIME_API std::unordered_set<std::string> get_supported_nodes(
  */
 using CreatePluginFunc = void(std::shared_ptr<::ov::IPlugin>&);
 
+using GetSharedLibaryNameFunc = void(std::string&);
+
 /**
  * @def OV_CREATE_PLUGIN
  * @brief Defines a name of a function creating plugin instance
@@ -253,10 +255,14 @@ using CreatePluginFunc = void(std::shared_ptr<::ov::IPlugin>&);
 #    define OV_CREATE_PLUGIN create_plugin_engine
 #endif
 
+#define OV_GET_SHARED_LIBRARY_NAME get_shared_library_name
+
 /**
  * @private
  */
 constexpr static const auto create_plugin_function = OV_PP_TOSTRING(OV_CREATE_PLUGIN);
+
+constexpr static const auto get_shared_library_name_function = OV_PP_TOSTRING(OV_GET_SHARED_LIBRARY_NAME);
 
 }  // namespace ov
 
@@ -275,3 +281,22 @@ constexpr static const auto create_plugin_function = OV_PP_TOSTRING(OV_CREATE_PL
             OPENVINO_THROW(ex.what());                                                                   \
         }                                                                                                \
     }
+
+ /**
+  * @def OV_DEFINE_GET_SHARED_LIBRARY_NAME(PluginType, version)
+  * @brief Defines the exported `OV_CREATE_PLUGIN` function which is used to create a plugin instance
+  * @ingroup ov_dev_api_plugin_api
+  */
+#if defined OV_SHARED_LIBRARY_NAME
+#define OV_DEFINE_GET_SHARED_LIBRARY_NAME()                                             \
+    OPENVINO_PLUGIN_API void OV_GET_SHARED_LIBRARY_NAME(::std::string&) noexcept(false); \
+    void OV_GET_SHARED_LIBRARY_NAME(::std::string& name) noexcept(false) {               \
+        try {                                                                           \
+            name = std::string(OV_PP_TOSTRING(OV_SHARED_LIBRARY_NAME));                 \
+        } catch (const std::exception& ex) {                                            \
+            OPENVINO_THROW(ex.what());                                                  \
+        }                                                                               \
+    }
+#else
+#define OV_DEFINE_GET_SHARED_LIBRARY_NAME()
+#endif
