@@ -12,7 +12,7 @@ longer workflows (such as builds or functional tests) should use the self-hosted
 
 The runners are specified for each job using the `runs-on` key.
 
-An example `Build` job from the [`linux.yml`](./../../../../.github/workflows/linux.yml)
+An example `Build` job from the [`ubuntu_22.yml`](./../../../../.github/workflows/ubuntu_22.yml)
 workflow, using the `aks-linux-16-cores-32gb` runner group:
 
 ```yaml
@@ -121,7 +121,7 @@ available images and how to choose one in the [OpenVINO Docker Image Overview](.
 The configuration of a runner required for a job (building, testing, other tasks) depends on the
 nature of the job. Jobs that are more memory and/or CPU-intensive require a more robust configuration.
 
-The `Build` job in the [`linux.yml`](./../../../../.github/workflows/linux.yml) workflow uses
+The `Build` job in the [`ubuntu_22.yml`](./../../../../.github/workflows/ubuntu_22.yml) workflow uses
 the `aks-linux-16-cores-32gb` group as specified in the `runs-on` key:
 ```yaml
 Build:
@@ -133,7 +133,7 @@ Build:
 The `aks-linux-16-cores-32gb` group has machines with 16-core CPU and 32 GB of RAM.
 These resources are suitable for using in parallel by the build tools in the `Build` job.
 
-The `C++ unit tests` job in the [`linux.yml`](./../../../../.github/workflows/linux.yml) workflow uses the `aks-linux-4-cores-16gb` group:
+The `C++ unit tests` job in the [`ubuntu_22.yml`](./../../../../.github/workflows/ubuntu_22.yml) workflow uses the `aks-linux-4-cores-16gb` group:
 ```yaml
 CXX_Unit_Tests:
   name: C++ unit tests
