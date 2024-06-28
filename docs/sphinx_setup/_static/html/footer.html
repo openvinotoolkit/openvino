@@ -16,9 +16,18 @@
         background-color: transparent;
     }
 
+    .footer-link-list a:nth-child(1) {
+        margin-right: 50px;
+    }
+
+    .footer-link-list a:nth-child(0) {
+        clear: both;
+        margin-right: 150px;
+    }
+
     .footer-contents {
         border-top: 1px solid lightgray;
-        font-size: 12px;
+        font-size: 11px;
         box-sizing: border-box;
         font-family: sans-serif;
         padding-top: 10px;
@@ -56,6 +65,7 @@
         vertical-align: middle;
         align-self: flex-start;
     }
+
     ul {
       list-style-type: none;
       margin: 0;
@@ -103,11 +113,10 @@
     li#wap_nac {
         display: none;
     }
-    
+
     .reference:hover {
         text-decoration: underline;
     }
-
 </style>
 
 <div class="container footer-contents">
@@ -115,13 +124,38 @@
         <div class="footer-list">
             <div class="footer-link-list">
                 <ul class="no-bullets">
-                    <li><a href="https://www.intel.com/content/www/us/en/homepage.html" alt="the intel" target="_blank">©2024 Intel Corporation</a>|</li>
-                    <li><a href="https://www.intel.com/content/www/us/en/privacy/intel-cookie-notice.html" alt="cookies policy" target="_blank" data-cookie-notice="true" >Cookies</a>|</li>
-                    <li><a href="https://www.intel.com/content/www/us/en/privacy/intel-privacy-notice.html" alt="privacy" target="_blank">Privacy</a>|</li>
-                    <li><a href="https://www.intel.com/content/www/us/en/privacy/intel-privacy-notice.html" alt="legal and responsible ai information" target="_blank">Legal and Responsible AI Information</a>|</li>
-                    <li><a href="https://www.intel.com/content/www/us/en/artificial-intelligence/responsible-ai.html" alt="responsible ai" target="_blank">Responsible AI</a>|</li>
-                    <li data-wap_ref="dns" id="wap_dns">|<a href="/#" alt="your privace choice" target="_parent">Your Privacy Choices</a></li>
-                    <li data-wap_ref="nac" id="wap_nac"><a href="https://www.intel.com/content/www/us/en/privacy/privacy-residents-certain-states.html" alt="notice at collection" target="_parent">Notice at Collection</a></li>
+                    <lh>©2024 Intel Corporation</lh>
+                </ul>
+                <ul class="no-bullets">
+                    <lh>Legal</lh>
+                    <li><a href="https://docs.openvino.ai/2024/about-openvino/additional-resources/legal-information.html" alt="the intel">Terms of Use</a></li>
+                    <li><a href="https://www.intel.com/content/www/us/en/privacy/intel-privacy-notice.html"
+                            alt="legal and responsible ai information" target="_blank">Legal and Responsible AI
+                            Information</a></li>
+                    <li><a href="https://www.intel.com/content/www/us/en/artificial-intelligence/responsible-ai.html"
+                            alt="responsible ai" target="_blank">Responsible AI</a></li>
+                </ul>
+                <ul class="no-bullets">
+                    <lh>Privacy</lh>
+                    <li><a href="https://www.intel.com/content/www/us/en/privacy/intel-cookie-notice.html"
+                            alt="cookies policy" target="_blank" data-cookie-notice="true">Cookies</a></li>
+                    <li><a href="https://www.intel.com/content/www/us/en/privacy/intel-privacy-notice.html"
+                            alt="privacy" target="_blank">Privacy</a></li>
+                    <li data-wap_ref="dns" id="wap_dns"><a href="/#" alt="your privacy choice" target="_parent">Your
+                            Privacy Choices</a></li>
+                    <li data-wap_ref="nac" id="wap_nac"><a
+                            href="https://www.intel.com/content/www/us/en/privacy/privacy-residents-certain-states.html"
+                            alt="notice at collection" target="_parent">Notice at Collection</a></li>
+                </ul>
+                <ul class="no-bullets">
+                    <lh>OpenVino</lh>
+                    <li><a href="https://docs.openvino.ai/2024/about-openvino/additional-resources/telemetry.html"
+                            alt="telemetry" data-cookie-notice="true">OpenVINO™ Telemetry</a></li>
+                    <li><a href="https://docs.openvino.ai/2024/about-openvino/additional-resources/glossary.html"
+                            alt="glossary">Glossary</a></li>
+                    <li><a href="https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/success-stories.html"
+                           alt="glossary" target="_blank">Case Studies</a></li>
+
                 </ul>
             </div>
             <a id="newsletterTrigger" class="newsletter-btn" href="#" alt="Newsletter"
