@@ -29,6 +29,8 @@ of the model into a proprietary format. The compiler included in the user mode d
 platform specific optimizations in order to efficiently schedule the execution of network layers and
 memory transactions on various NPU hardware submodules.
 
+To use NPU for inference, pass the device name to the ``ov::Core::compile_model()`` method:
+
 .. tab-set::
 
    .. tab-item:: Python
