@@ -413,9 +413,11 @@ std::unordered_set<std::string> ov::get_supported_nodes(
             //              |
             //              B (unsupported)
             //
-            //              Gather
-            //
-            //
+            //            Gather
+            //              |
+            //            ShapeOf (fused on other supported ops, to be marked as unsupported)
+            //              |
+            //            Gather (unsupported)
             //
             update_supported = true;
             while (update_supported) {
@@ -505,8 +507,6 @@ std::unordered_set<std::string> ov::get_supported_nodes(
             res.erase(result->get_friendly_name());
         }
     }
-
-    std::cout << "res.size: " << res.size() << std::endl;
 
     return res;
 }

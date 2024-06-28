@@ -51,8 +51,6 @@ public:
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override;
-    
-    mutable size_t independent_model_size = 0;
 
 private:
     friend class CompiledModel;
@@ -71,6 +69,8 @@ private:
         bool allow_exception = false) const;
 
     Configuration m_cfg;
+
+    mutable size_t independent_submodel_size = 0;
 };
 
 }  // namespace hetero

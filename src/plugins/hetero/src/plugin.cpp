@@ -193,7 +193,7 @@ std::pair<ov::SupportedOpsMap, ov::hetero::SubgraphsMappingInfo> ov::hetero::Plu
             auto result = std::make_shared<ov::op::v0::Result>(param);
             ov::copy_runtime_info(param->shared_from_this(), result);
             new_outputs.push_back(result);
-            independent_model_size++;
+            independent_submodel_size++;
         }
     }
     model->add_results(new_outputs);
