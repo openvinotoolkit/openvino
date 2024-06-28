@@ -710,7 +710,7 @@ void prepare_buffer_fusing::run(program& p) {
             // Optimizing at prepare_buffer_fusing could propagate a padded input of an input nodes to Reshape.
             // Reshape can be optimized out when only an outer axis(batch) has padding.
             // For this case , it should re-calculate output padding size.
-            if (!node.is_runtime_propagatable_padding() && node.has_outer_padding_offset())
+            if (node.has_outer_padding_offset())
                 node.adjust_output_padding();
 
             node.can_be_optimized(can_reshape_be_optimized(node));

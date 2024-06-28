@@ -30,6 +30,11 @@ public:
     program_node& input() const { return get_dependency(0); }
 
     bool is_runtime_propagatable_padding() const {
+        auto prim = typed_desc();
+        if (prim->mode == reshape::reshape_mode::squeeze || prim->mode == reshape::reshape_mode::unsqueeze)
+            return true;
+
+        // TODO: This function is to limit condition to a specific case (crop + reshape) among cases for the base mode
         if (!input().is_type<crop>())
             return false;
 
@@ -39,13 +44,10 @@ public:
         if (axis != input_last_dim)
             return false;
 
-        auto prim = typed_desc();
         auto output_pattern = prim->output_pattern;
         auto output_pshape = prim->output_partial_shape;
 
-        if (prim->mode != reshape::reshape_mode::base
-            || output_pshape.size() != input_rank + 1
-            || output_pattern.empty())
+        if (output_pshape.size() != input_rank + 1 || output_pattern.empty())
             return false;
 
         for (size_t i = 0; i < input_rank - 1; i++) {
@@ -89,11 +91,8 @@ public:
         if (this->is_output() || this->has_fused_primitives())
             return false;
 
-        if (input().get_output_layout(false).has_dynamic_pad()) {
-            if (is_runtime_propagatable_padding())
-                return true;
-            return typed_desc()->mode != reshape::reshape_mode::base;
-        }
+        if (input().get_output_layout(false).has_dynamic_pad() && is_runtime_propagatable_padding())
+            return true;
 
         if (has_padding())
             return false;
@@ -109,6 +108,9 @@ public:
         auto output_layout = this->get_output_layout();
         if (input_layout.has_dynamic_pad()) {
             auto prim = typed_desc();
+            // TODO: If outer padding exists, ouput padding propagation is not supported in the base mode
+            if (prim->mode == reshape::reshape_mode::base)
+                return;
 
             ov::PartialShape pattern_shape = { static_cast<int64_t>(prim->output_pattern.size()) };
             if (pattern_shape.size() == 0)
