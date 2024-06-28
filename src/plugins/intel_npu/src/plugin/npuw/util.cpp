@@ -937,7 +937,7 @@ void unpack_u4f16_z(const ov::SoPtr<ov::ITensor>& from,
                     }
 
                     // vectorized unpack u4 to f16
-                    __m128i htmp[8]; // 64 x f16
+                    __m128i htmp[8];  // 64 x f16
                     avx2_u4tof16(vinput, htmp, zvalVec, svalVec);
 
                     for (int i = 0; i < 8; ++i) {

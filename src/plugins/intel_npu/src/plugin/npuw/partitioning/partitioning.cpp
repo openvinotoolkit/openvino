@@ -8,7 +8,7 @@
 #include "../util.hpp"
 #include "intel_npu/al/config/npuw.hpp"
 #include "online/compiler.hpp"
-#include "online/utils/utils.hpp" // getMetaDesc
+#include "online/utils/utils.hpp"  // getMetaDesc
 #include "openvino/op/convert.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -68,17 +68,15 @@ struct BankContains {
 };
 
 struct ProducesResult {
-    bool operator()(const std::shared_ptr<ov::Node> &node) {
-        std::set<ov::Input<ov::Node> > all_readers;
-        for (auto &&out : node->outputs()) {
-            const auto &these_readers = out.get_target_inputs();
+    bool operator()(const std::shared_ptr<ov::Node>& node) {
+        std::set<ov::Input<ov::Node>> all_readers;
+        for (auto&& out : node->outputs()) {
+            const auto& these_readers = out.get_target_inputs();
             all_readers.insert(these_readers.begin(), these_readers.end());
         }
-        return std::any_of(all_readers.begin(),
-                           all_readers.end(),
-                           [](const ov::Input<ov::Node> &iport) {
-                               return ov::op::util::is_output(iport.get_node());
-                           });
+        return std::any_of(all_readers.begin(), all_readers.end(), [](const ov::Input<ov::Node>& iport) {
+            return ov::op::util::is_output(iport.get_node());
+        });
     }
 };
 
@@ -415,8 +413,8 @@ void Partitioner::identifySubgraphs() {
                     // FIXME: Finally introduce my own test routine for that!
                     // Don't do anything here too.
                     continue;
-                } else if ((ov::is_type<ov::op::v8::Slice>(input_node)
-                            || ov::is_type<ov::op::v0::Convert>(input_node)) &&
+                } else if ((ov::is_type<ov::op::v8::Slice>(input_node) ||
+                            ov::is_type<ov::op::v0::Convert>(input_node)) &&
                            ov::op::util::is_parameter(input_node->input(0).get_source_output().get_node_shared_ptr())) {
                     // So the situation is:
                     // - a group has an input layer
@@ -461,7 +459,7 @@ void Partitioner::identifySubgraphs() {
         // from multiple places in the model - so may be added multiple times to the
         // input mapping. This is a w/a, better they're added only once (TODO).
         // This set handles it.
-        std::set<std::shared_ptr<ov::Node> > unique_params;
+        std::set<std::shared_ptr<ov::Node>> unique_params;
         for (auto&& im : input_mapping) {
             LOG_BLOCK();
             auto& src_node = im.first;
@@ -501,29 +499,27 @@ void Partitioner::identifySubgraphs() {
             // Another case which is handled here is an extra Convert which can be
             // set as part of kvcache conversion routune.
             LOG_BLOCK();
-            std::set<std::string> output_layers_cache(group.output_layers.begin(),
-                                                      group.output_layers.end());
-            for (auto &&op_name : group.all_layers) {
+            std::set<std::string> output_layers_cache(group.output_layers.begin(), group.output_layers.end());
+            for (auto&& op_name : group.all_layers) {
                 auto layer_ptr = node_id_cache.at(op_name);
-                if (ProducesResult {}(layer_ptr) && !output_layers_cache.count(op_name)) {
-                    LOG_VERB("Adding " << op_name <<
-                             " as an extra output layer since it is produces a Result");
+                if (ProducesResult{}(layer_ptr) && !output_layers_cache.count(op_name)) {
+                    LOG_VERB("Adding " << op_name << " as an extra output layer since it is produces a Result");
                     output_layers_cache.insert(op_name);
                     group.output_layers.push_back(op_name);
                 }
-                for (auto &&oport : layer_ptr->outputs()) {
-                    for (auto &&inport : oport.get_target_inputs()) {
+                for (auto&& oport : layer_ptr->outputs()) {
+                    for (auto&& inport : oport.get_target_inputs()) {
                         auto reader_ptr = inport.get_node();
-                        if (ov::is_type<ov::op::v0::Convert>(reader_ptr)
-                            && ProducesResult {}(reader_ptr->shared_from_this())
-                            && !output_layers_cache.count(reader_ptr->get_friendly_name())) {
+                        if (ov::is_type<ov::op::v0::Convert>(reader_ptr) &&
+                            ProducesResult{}(reader_ptr->shared_from_this()) &&
+                            !output_layers_cache.count(reader_ptr->get_friendly_name())) {
                             const auto& cvt_name = reader_ptr->get_friendly_name();
                             output_layers_cache.insert(cvt_name);
                             group.output_layers.push_back(cvt_name);
                         }
                     }
                 }
-            } // for(all_layers)
+            }  // for(all_layers)
         }
         std::size_t num_optimized_out_layers = 0u;
         for (auto&& output_layer_name : group.output_layers) {
@@ -728,7 +724,9 @@ void Partitioner::propagate(const std::string& func_name,
         for (auto&& node_ptr : model->get_ordered_ops()) {
             if (test(node_ptr)) {
                 LOG_DEBUG("Process node " << node_ptr);
-                const auto& this_layer_name = ov::is_type<ov::op::v0::Constant>(node_ptr) ? get_unique_name(node_ptr) : node_ptr->get_friendly_name();
+                const auto& this_layer_name = ov::is_type<ov::op::v0::Constant>(node_ptr)
+                                                  ? get_unique_name(node_ptr)
+                                                  : node_ptr->get_friendly_name();
 
                 ProtoReaders this_node_readers, this_node_proto_readers;
                 for (auto&& this_reader_iport : node_ptr->output(0).get_target_inputs()) {
@@ -843,10 +841,10 @@ void Partitioner::propagateConverts(const std::string& func_name) {
         }
         const auto& input_node_ptr = node_ptr->input(0).get_source_output().get_node_shared_ptr();
         return ov::is_type<ov::op::v0::Convert>(node_ptr) &&
-               bank.end() == std::find_if(bank.begin(), bank.end(), BankContains{this_layer_name})         // (0)
-            && (ov::op::util::is_constant(input_node_ptr) || // (1)
-                ov::op::util::is_parameter(input_node_ptr)) // (1)
-               && node_ptr->output(0).get_target_inputs().size() == 1                                      // (2)
+               bank.end() == std::find_if(bank.begin(), bank.end(), BankContains{this_layer_name})  // (0)
+               && (ov::op::util::is_constant(input_node_ptr) ||                                     // (1)
+                   ov::op::util::is_parameter(input_node_ptr))                                      // (1)
+               && node_ptr->output(0).get_target_inputs().size() == 1                               // (2)
                &&
                bank.end() !=
                    std::find_if(
@@ -868,7 +866,8 @@ void Partitioner::propagateWeights(const std::string& func_name) {
     auto& const_bank = ens.repeated.at(func_name).consts;
     auto& layer_bank = ens.repeated.at(func_name).matches;
     auto match_fcn = [&](const std::shared_ptr<ov::Node>& node_ptr) -> bool {
-        const auto& this_layer_name = ov::is_type<ov::op::v0::Constant>(node_ptr) ? get_unique_name(node_ptr) : node_ptr->get_friendly_name();
+        const auto& this_layer_name =
+            ov::is_type<ov::op::v0::Constant>(node_ptr) ? get_unique_name(node_ptr) : node_ptr->get_friendly_name();
         return ov::is_type<ov::op::v0::Constant>(node_ptr) &&
                const_bank.end() == std::find_if(const_bank.begin(), const_bank.end(), BankContains{this_layer_name})
                // FIXME: workaround for scalars which might pass the weights check
@@ -904,7 +903,8 @@ void Partitioner::propagateScalars(const std::string& func_name) {
     // The propagation procedure is generic, but the matching isn't.
     auto& scalar_bank = ens.repeated.at(func_name).scalars;
     auto match_fcn = [&](const std::shared_ptr<ov::Node>& node_ptr) -> bool {
-        const auto& this_layer_name = ov::is_type<ov::op::v0::Constant>(node_ptr) ? get_unique_name(node_ptr) : node_ptr->get_friendly_name();
+        const auto& this_layer_name =
+            ov::is_type<ov::op::v0::Constant>(node_ptr) ? get_unique_name(node_ptr) : node_ptr->get_friendly_name();
         auto res =
             ov::is_type<ov::op::v0::Constant>(node_ptr) &&
             scalar_bank.end() == std::find_if(scalar_bank.begin(), scalar_bank.end(), BankContains{this_layer_name});
@@ -940,21 +940,21 @@ void Partitioner::propagateConvertsOut(const std::string& func_name) {
         // 2. Missing in our match banks
         // 3. Its producer should be present in our match banks
         // 3. Standing in front of results
-        auto test = [&](const std::shared_ptr<ov::Node> &node_ptr) {
-            if (!ov::is_type<ov::op::v0::Convert>(node_ptr)) { // 1
+        auto test = [&](const std::shared_ptr<ov::Node>& node_ptr) {
+            if (!ov::is_type<ov::op::v0::Convert>(node_ptr)) {  // 1
                 return false;
             }
             auto this_layer_name = node_ptr->get_friendly_name();
-            if (bank.end() != std::find_if(bank.begin(), bank.end(), BankContains{this_layer_name})) { // 2
+            if (bank.end() != std::find_if(bank.begin(), bank.end(), BankContains{this_layer_name})) {  // 2
                 return false;
             }
             auto in_layer_name = node_ptr->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name();
-            if (bank.end() == std::find_if(bank.begin(), bank.end(), BankContains{in_layer_name})) { // 3
+            if (bank.end() == std::find_if(bank.begin(), bank.end(), BankContains{in_layer_name})) {  // 3
                 return false;
             }
             const auto& these_readers = node_ptr->output(0).get_target_inputs();
-            return these_readers.size() == 1
-                && ov::op::util::is_output(these_readers.begin()->get_node()->shared_from_this());
+            return these_readers.size() == 1 &&
+                   ov::op::util::is_output(these_readers.begin()->get_node()->shared_from_this());
         };
 
         for (auto&& node_ptr : model->get_ordered_ops()) {
@@ -962,7 +962,7 @@ void Partitioner::propagateConvertsOut(const std::string& func_name) {
                 LOG_DEBUG("Process node " << node_ptr);
                 const auto& this_layer_name = node_ptr->get_friendly_name();
 
-                const auto &writer_out = node_ptr->input(0).get_source_output();
+                const auto& writer_out = node_ptr->input(0).get_source_output();
                 {
                     LOG_BLOCK();
                     LOG_DEBUG("Written by " << writer_out);
@@ -971,14 +971,12 @@ void Partitioner::propagateConvertsOut(const std::string& func_name) {
                                            writer_out.get_index()};
 
                 LOG_DEBUG("Looking for proto accessess...");
-                ProtoWriter this_proto_writer = {layer_to_prototype.at(this_writer.first),
-                                                 this_writer.second};
+                ProtoWriter this_proto_writer = {layer_to_prototype.at(this_writer.first), this_writer.second};
                 auto bank_writer_iter = proto_reader_of.find(this_proto_writer);
                 if (bank_writer_iter == proto_reader_of.end()) {
                     // Register a new occasion
-                    LOG_DEBUG("Register that " << this_layer_name << " is written by "
-                              << this_proto_writer.first << " : "
-                              << this_proto_writer.second);
+                    LOG_DEBUG("Register that " << this_layer_name << " is written by " << this_proto_writer.first
+                                               << " : " << this_proto_writer.second);
                     proto_reader_of[this_proto_writer] = this_layer_name;
                     layer_to_prototype[this_layer_name] = this_layer_name;
                     bank.push_back({this_layer_name});
@@ -1004,7 +1002,7 @@ void Partitioner::propagateConvertsOut(const std::string& func_name) {
                     layer_to_prototype[this_layer_name] = this_reader_proto;
                 }
             }
-        } // for(ordered_ops)
+        }  // for(ordered_ops)
     }
 
     LOG_VERB("Done");
@@ -1086,8 +1084,7 @@ void Partitioner::sanityCheck(const std::string& func_name) {
         for (auto&& node : submodel->get_ordered_ops()) {
             if (ov::op::util::is_constant(node) &&
                 consts.end() == std::find_if(consts.begin(), consts.end(), BankContains{get_unique_name(node)}) &&
-                scalars.end() ==
-                    std::find_if(scalars.begin(), scalars.end(), BankContains{get_unique_name(node)})) {
+                scalars.end() == std::find_if(scalars.begin(), scalars.end(), BankContains{get_unique_name(node)})) {
                 LOG_ERROR("Fatal: Const " << node->get_friendly_name() << "{ " << node->output(0) << " }"
                                           << " wasn't found in any bank");
                 LOG_BLOCK();

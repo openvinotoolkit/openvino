@@ -449,7 +449,6 @@ void ov::npuw::CompiledModel::reset_io() {
         idx_in++;
     }
     for (const auto& from_submodel : m_outputs_to_submodels_outputs) {
-        LOG_DEBUG("Here: " << outputs()[idx_out]);
         NPUW_ASSERT(from_submodel != NO_LINK);
         LOG_BLOCK();  // in fact, to_submodel <is> from_submodel here, but who cares
         const auto& submodel_idx = from_submodel.first;
