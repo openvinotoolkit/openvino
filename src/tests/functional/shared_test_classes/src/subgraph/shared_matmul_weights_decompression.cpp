@@ -71,6 +71,12 @@ std::shared_ptr<ov::Model> SharedMatmulWeightsDecompression::initSubgraph(
         params.push_back(param);
         last_layers.push_back(matMul);
     }
+
+    // if dynamic quantization is enabled
+    if (group_size != 0) {
+        abs_threshold = 0.1;
+    }
+
     return std::make_shared<ov::Model>(last_layers, params, "SharedMatmulWeightsDecompression");
 }
 
