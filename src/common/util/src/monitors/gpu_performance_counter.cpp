@@ -36,6 +36,7 @@ class GpuPerformanceCounter::PerformanceCounterImpl {
 public:
     PerformanceCounterImpl() {
         auto devices = getNumberOfCores();
+        numDevices = devices.size();
         int gpuIndex = 0;
         for (auto item : devices) {
             coreTimeCounters[item.first] = {};
@@ -80,6 +81,8 @@ public:
     }
 
     void initCoreCounters(const std::map<std::string, LUID>& devices) {
+        if (devices.empty())
+            return;
         auto LuidToString = [](LUID luid) -> std::string {
             std::stringstream ss;
             ss << std::hex << ((long long)luid.HighPart << 32 | luid.LowPart);
@@ -148,6 +151,8 @@ public:
     }
 
     std::map<std::string, double> get_load() {
+        if (!numDevices)
+            return {{"00000000", 0}};
         PDH_STATUS status;
         auto ts = std::chrono::system_clock::now();
         if (ts > lastTimeStamp) {
@@ -183,6 +188,7 @@ private:
     QueryWrapper query;
     std::map<std::string, std::vector<std::vector<PDH_HCOUNTER>>> coreTimeCounters;
     std::chrono::time_point<std::chrono::system_clock> lastTimeStamp = std::chrono::system_clock::now();
+    int numDevices = 0;
 };
 
 #elif defined(__linux__)
