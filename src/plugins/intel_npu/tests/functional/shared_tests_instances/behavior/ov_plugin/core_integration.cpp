@@ -246,25 +246,13 @@ TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeSameAfterDestroyCom
     ov::Core core;
     ov::Any deviceAllocMemSizeAny;
 
+    auto model = createModelWithLargeSize();
+
     OV_ASSERT_NO_THROW(deviceAllocMemSizeAny = core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
     uint64_t deviceAllocMemSize = deviceAllocMemSizeAny.as<uint64_t>();
 
     {
         ov::CompiledModel compiledModel;
-        auto data = std::make_shared<ov::opset11::Parameter>(ov::element::f16, ov::Shape{4000, 4000});
-        auto mul_constant = ov::opset11::Constant::create(ov::element::f16, ov::Shape{1}, {1.5});
-        auto mul = std::make_shared<ov::opset11::Multiply>(data, mul_constant);
-        auto add_constant = ov::opset11::Constant::create(ov::element::f16, ov::Shape{1}, {0.5});
-        auto add = std::make_shared<ov::opset11::Add>(mul, add_constant);
-        // Just a sample model here, large iteration to make the model large
-        for (int i = 0; i < 1000; i++) {
-            add = std::make_shared<ov::opset11::Add>(add, add_constant);
-        }
-        auto res = std::make_shared<ov::opset11::Result>(add);
-
-        /// Create the OpenVINO model
-        auto model = std::make_shared<ov::Model>(ov::ResultVector{std::move(res)}, ov::ParameterVector{std::move(data)});
-
         OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device,
                                  ov::AnyMap{ov::log::level(ov::log::Level::DEBUG)}));
         auto inferRequest = compiledModel.create_infer_request();
@@ -290,19 +278,7 @@ TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeSameAfterDestroyInf
     ov::Any deviceAllocMemSizeAny;
     
     ov::CompiledModel compiledModel;
-    auto data = std::make_shared<ov::opset11::Parameter>(ov::element::f16, ov::Shape{4000, 4000});
-    auto mul_constant = ov::opset11::Constant::create(ov::element::f16, ov::Shape{1}, {1.5});
-    auto mul = std::make_shared<ov::opset11::Multiply>(data, mul_constant);
-    auto add_constant = ov::opset11::Constant::create(ov::element::f16, ov::Shape{1}, {0.5});
-    auto add = std::make_shared<ov::opset11::Add>(mul, add_constant);
-    // Just a sample model here, large iteration to make the model large
-    for (int i = 0; i < 1000; i++) {
-        add = std::make_shared<ov::opset11::Add>(add, add_constant);
-    }
-    auto res = std::make_shared<ov::opset11::Result>(add);
-
-    /// Create the OpenVINO model
-    auto model = std::make_shared<ov::Model>(ov::ResultVector{std::move(res)}, ov::ParameterVector{std::move(data)});
+    auto model = createModelWithLargeSize();
 
     OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device,
                         ov::AnyMap{ov::log::level(ov::log::Level::DEBUG)}));
