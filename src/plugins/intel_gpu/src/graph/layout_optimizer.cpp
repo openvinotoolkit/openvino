@@ -430,14 +430,12 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
     bool allow_new_shape_infer = node.get_program().is_new_shape_infer();
     // Because mvn and concatenation kernel can work cross-layout, if reorder only performs type conversion,
     // fusing reorder to the previous node can be done even if it is a dynamic shape case
-    if ((prev.is_type<mvn>() || prev.is_type<concatenation>()) &&
+    if ((prev.is_type<mvn>() || prev.is_type<concatenation>() || prev.is_type<gather>() || prev.is_type<broadcast>() ||
+         prev.is_type<select>() || prev.is_type<eltwise>()) &&
         !prev.is_in_shape_of_subgraph() && node.is_type_conversion_only() &&
-        (format::is_simple_data_format(fmt_prev) && format::is_simple_data_format(fmt_next)))
+        (format::is_simple_data_format(fmt_prev) && format::is_simple_data_format(fmt_next))) {
         return true;
-
-    if ((prev.is_type<gather>() || prev.is_type<broadcast>() || prev.is_type<select>() || prev.is_type<eltwise>()) &&
-        fmt_prev == format::bfyx && fmt_next == format::bfyx)
-        return true;
+    }
 
     if (prev.is_dynamic() || (!node.get_users().empty() && node.get_users().front()->is_dynamic()))
         return false;

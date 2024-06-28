@@ -17,7 +17,5 @@ public:
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::REORDER };
     }
-
-
 };
 }  // namespace kernel_selector
