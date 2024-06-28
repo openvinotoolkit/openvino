@@ -9,6 +9,10 @@ ov_set_temp_directory(TEMP "${CMAKE_SOURCE_DIR}")
 
 ## Intel OMP package
 if(THREADING STREQUAL "OMP")
+    if(RISCV64)
+        message(WARNING "Intel OMP is not available on RISC-V platform")
+        return()
+    endif()
     reset_deps_cache(OMP)
     if(WIN32 AND X86_64)
         RESOLVE_DEPENDENCY(OMP
