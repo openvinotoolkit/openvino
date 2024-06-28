@@ -99,6 +99,8 @@ bool validate(const Napi::CallbackInfo& info, std::vector<std::string>& allowed_
     return InputParameters<Ts...>::validate(info, std::index_sequence_for<Ts...>{});
 };
 
-std::string get_parameters_error_msg(const Napi::CallbackInfo& info, std::vector<std::string>& allowed_signatures);
+std::string get_parameters_error_msg(const Napi::CallbackInfo& info,
+                                     std::string name,
+                                     std::vector<std::string>& allowed_signatures);
 }  // namespace js
 }  // namespace ov
