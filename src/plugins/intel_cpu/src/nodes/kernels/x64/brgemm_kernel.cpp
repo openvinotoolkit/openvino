@@ -104,12 +104,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
 
     if (brgemmCtx0.is_with_amx || inType == ov::element::bf16 || b_transposed) {
         size_t b_stride = 0;
-        // must set actual stride when stride is not K/N
-        if (b_transposed) {
-            b_stride = ldb == K ? 0 : ldb * inType.size();
-        } else {
-            b_stride = ldb == N ? 0 : ldb * inType.size();
-        }
+        b_stride = ldb * inType.size();
         // K should use the original K
         init_brgemm_copy_b(brgCopyBKernel,
                            N,
@@ -247,9 +242,7 @@ void BrgemmKernel::init_brgemm_copy_b(
     brgCopyKernelConf.wei_dt = dt_in1;
     brgCopyKernelConf.orig_wei_dt = dt_in1;
     brgCopyKernelConf.wei_n_blk = N_blk;
-    // B could come from strided tensor, must use copy_B_wei_stride if set.
-    brgCopyKernelConf.wei_tag = copy_B_wei_stride != 0 ? transpose ? dnnl_adbc : dnnl_acbd : transpose ? dnnl_ba : dnnl_ab;
-
+    brgCopyKernelConf.wei_tag =  transpose ? dnnl_ba : dnnl_ab;
     brgCopyKernelConf.copy_B_wei_stride = copy_B_wei_stride;
     brgCopyKernelConf.transposed_B = transpose;
 
