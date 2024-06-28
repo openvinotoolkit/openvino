@@ -70,10 +70,10 @@ public:
             return false;
         }
         auto srcShapeRank = srcDescs[0]->getShape().getRank();
-        bool hasSrcNspcLayout = srcDescs[0]->hasLayoutType(LayoutType::nspc) && srcShapeRank == 4;
+        bool hasSrcNspcLayout = srcDescs[0]->hasLayoutType(LayoutType::nspc);
         for (size_t i = 0; i < reduceAttrs.axes.size(); ++i) {
             int axis = axisCast(reduceAttrs.axes[i], srcShapeRank, hasSrcNspcLayout ? NHWC_TO_NCHW : NO_LAYOUT_CONVERSION);
-            if (hasSrcNspcLayout && axis == -1) {
+            if (axis == -1) {
                 DEBUG_LOG("Layout conversion to NHWC has failed");
                 return false;
             }

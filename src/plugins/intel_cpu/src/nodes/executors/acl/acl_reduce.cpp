@@ -38,8 +38,8 @@ bool AclReduceExecutor::init(const ReduceAttrs& reduceAttrs,
 
     const auto& srcDims = srcDescs[0]->getShape().getStaticDims();
     const auto& dstDims = dstDescs[0]->getShape().getStaticDims();
-    bool hasSrcNspcLayout = srcDescs[0]->hasLayoutType(LayoutType::nspc) && srcDims.size() == 4;
-    bool hasDstNspcLayout = dstDescs[0]->hasLayoutType(LayoutType::nspc) && dstDims.size() == 4;
+    bool hasSrcNspcLayout = srcDescs[0]->hasLayoutType(LayoutType::nspc);
+    bool hasDstNspcLayout = dstDescs[0]->hasLayoutType(LayoutType::nspc);
     auto srcShape = shapeCast(srcDims);
     auto dstShape = shapeCast(dstDims);
     if (hasSrcNspcLayout && hasDstNspcLayout) {

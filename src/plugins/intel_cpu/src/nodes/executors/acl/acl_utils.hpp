@@ -82,17 +82,26 @@ enum ACLAxisCastMode {
 */
 inline int axisCast(const std::size_t axis, const std::size_t shapeSize, ACLAxisCastMode axisCastMode = NO_LAYOUT_CONVERSION) {
     // CWHN (reverted NHWC) (0, 1, 2, 3) into WHCN (reverted NCHW) (1, 2, 0, 3)
-    static std::vector<size_t> nhwcToNchw = {1, 2, 0, 3};
+    static std::array<size_t, 4> nhwcToNchw = {1, 2, 0, 3};
     // WHCN (reverted NCHW) (0, 1, 2, 3) into CWHN (reverted NHWC) (2, 0, 1, 3)
-    static std::vector<size_t> nchwToNhwc = {2, 0, 1, 3};
+    static std::array<size_t, 4> nchwToNhwc = {2, 0, 1, 3};
+    // CWHDN (reverted NDHWC) (0, 1, 2, 3, 4) into WHDCN (reverted NCDHW) (1, 2, 3, 0, 4)
+    static std::array<size_t, 5> ndhwcToNcdhw = {1, 2, 3, 0, 4};
+    // WHDCN (reverted NCDHW) (0, 1, 2, 3, 4) into CWHDN (reverted NDHWC) (3, 0, 1, 2, 4)
+    static std::array<size_t, 5> ncdhwToNdhwc = {3, 0, 1, 2, 4};
+
     size_t revertedAxis = shapeSize - axis - 1;
     switch (axisCastMode) {
-        case NHWC_TO_NCHW:
-            return revertedAxis > 3 ? -1 : nhwcToNchw[revertedAxis];
-        case NCHW_TO_NHWC:
-            return revertedAxis > 3 ? -1 : nchwToNhwc[revertedAxis];
-        default:
+        case NO_LAYOUT_CONVERSION:
             return revertedAxis;
+        case NHWC_TO_NCHW:
+            if (shapeSize == 4) return nhwcToNchw[revertedAxis];
+            if (shapeSize == 5) return ndhwcToNcdhw[revertedAxis];
+        case NCHW_TO_NHWC:
+            if (shapeSize == 4) return nchwToNhwc[revertedAxis];
+            if (shapeSize == 5) return ncdhwToNdhwc[revertedAxis];
+        default:
+            return -1;
     }
 }
 
