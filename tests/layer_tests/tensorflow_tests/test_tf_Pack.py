@@ -1,9 +1,11 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
+
 import numpy as np
 import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
+
 
 class TestPack(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
@@ -31,7 +33,9 @@ class TestPack(CommonTFLayerTest):
             else:
                 tf.raw_ops.Pack(values=inputs)
             tf.compat.v1.global_variables_initializer()
+
             tf_net = sess.graph_def
+
         return tf_net, None
 
     test_data_basic = [
@@ -66,12 +70,10 @@ class TestComplexPack(CommonTFLayerTest):
                 input_imag = tf.compat.v1.placeholder(tf.float32, input_shape, 'input' + str(ind) + '_imag')
                 inputs_real.append(input_real)
                 inputs_imag.append(input_imag)
-            
-            packed_real = tf.raw_ops.Pack(values=inputs_real, axis=axis)
-            packed_imag = tf.raw_ops.Pack(values=inputs_imag, axis=axis)
-
             tf.compat.v1.global_variables_initializer()
+
             tf_net = sess.graph_def
+
         return tf_net, None
 
     test_data_basic = [
