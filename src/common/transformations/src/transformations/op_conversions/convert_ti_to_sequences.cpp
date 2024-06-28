@@ -351,20 +351,10 @@ bool check_condition_true_pattern(const std::shared_ptr<op::v0::Result>& cond_re
     const auto& condition_map = condition_matcher.get_pattern_value_map();
     const auto& cond_const =
         ov::as_type_ptr<op::v0::Constant>(condition_map.at(cond_const_label).get_node_shared_ptr());
-    if (!cond_const) {
+    bool cond_value = false;
+    if (!ov::op::util::get_constant_value(cond_const, cond_value) || !cond_value) {
         return false;
     }
-    if (ov::shape_size(cond_const->get_shape()) != 1)
-        return false;
-    const auto& type = cond_const->get_output_element_type(0);
-    if (type != ov::element::boolean) {
-        return false;
-    }
-    bool cond_value = cond_const->cast_vector<bool>()[0];
-    if (!cond_value) {
-        return false;
-    }
-
     // number of iteration is retrieve from the first input port
     num_iters_output = loop->input_value(0);
 
