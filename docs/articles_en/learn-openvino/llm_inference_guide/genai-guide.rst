@@ -54,9 +54,10 @@ will not work with these instructions, make sure to
             #include <iostream>
 
             int main(int argc, char* argv[]) {
-            std::string model_path = argv[1];
-            ov::genai::LLMPipeline pipe(model_path, "CPU");//target device is CPU
-            std::cout << pipe.generate("The Sun is yellow because"); //input context
+               std::string model_path = argv[1];
+               ov::genai::LLMPipeline pipe(model_path, "CPU");
+               std::cout << pipe.generate("The Sun is yellow because");
+            }
 
 The `LLMPipeline` is the main object used for decoding. You can construct it directly from the
 folder with the converted model. It will automatically load the main model, tokenizer, detokenizer,
@@ -74,6 +75,17 @@ below, where a lambda function outputs words to the console immediately upon gen
 
 .. tab-set::
 
+   .. tab-item:: Python
+      :sync: py
+
+      .. code-block:: python
+
+         import openvino_genai as ov_genai
+         pipe = ov_genai.LLMPipeline(model_path, "CPU")
+         
+         streamer = lambda x: print(x, end='', flush=True)
+         pipe.generate("The Sun is yellow because", streamer=streamer)
+
    .. tab-item:: C++
 
       .. code-block:: cpp
@@ -85,13 +97,42 @@ below, where a lambda function outputs words to the console immediately upon gen
             std::string model_path = argv[1];
             ov::genai::LLMPipeline pipe(model_path, "CPU");
 
-            auto streamer = [](std::string word) { std::cout << word << std::flush; };
-            std::cout << pipe.generate("The Sun is yellow because", streamer);
+            auto streamer = [](std::string word) { 
+               std::cout << word << std::flush; 
+               // Return flag correspods whether generation should be stopped.
+               // false means continue generation.
+               return false;
+            };
+            pipe.generate("The Sun is yellow because", ov::genai::streamer(streamer));
          }
 
 You can also create your custom streamer for more sophisticated processing:
 
 .. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. code-block:: python
+
+         import openvino_genai as ov_genai
+
+         class CustomStreamer(ov_genai.StreamerBase):
+            def __init__(self, tokenizer):
+               ov_genai.StreamerBase.__init__(self)
+               self.tokenizer = tokenizer
+            def put(self, token_id) -> bool:
+               # Decode tokens and process them.
+               # Streamer returns a flag correspoding whether generation should be stopped.
+               # But in Python return can be ommited in that case the function will return None
+               # which in turn will be converted to False, which means continue generation.
+               # return stop_flag
+            def end(self):
+               # Decode tokens and process them.
+
+         pipe = ov_genai.LLMPipeline(model_path, "CPU")
+         pipe.generate("The Sun is yellow because", streamer=CustomStreamer())
+
 
    .. tab-item:: C++
 
@@ -101,20 +142,31 @@ You can also create your custom streamer for more sophisticated processing:
 
          class CustomStreamer: publict StreamerBase {
          public:
-            void put(int64_t token) {/* decode tokens and do process them*/};
+            bool put(int64_t token) {
+               bool stop_flag = false; 
+               /* 
+               custom decoding/tokens processing code
+               tokens_cache.push_back(token);
+               std::string text = m_tokenizer.decode(tokens_cache);
+               ...
+               */
+               return stop_flag;  // flag whether generation should be stoped, if true generation stops.
+            };
 
-            void end() {/* decode tokens and do process them*/};
+            void end() {
+               /* custom finalization */
+            };
          };
 
          int main(int argc, char* argv[]) {
-            CustomStreamer custom_streamer;
+            auto custom_streamer = std::make_shared<CustomStreamer>();
 
             std::string model_path = argv[1];
-            ov::LLMPipeline pipe(model_path, "CPU");
-            cout << pipe.generate("The Sun is yellow because", custom_streamer);
+            ov::genai::LLMPipeline pipe(model_path, "CPU");
+            pipe.generate("The Sun is yellow because", ov::genai::streamer(custom_streamer));
          }
 
-Optimizing the Chat Scenario
+Using Generate in Chat Scenario
 ################################
 
 For chat scenarios where inputs and outputs represent a conversation, maintaining KVCache across inputs
@@ -131,16 +183,15 @@ mark a conversation session, as you can see in these simple examples:
          import openvino_genai as ov_genai
          pipe = ov_genai.LLMPipeline(model_path)
 
-         config = {'num_groups': 3, 'group_size': 5, 'diversity_penalty': 1.1}
-         pipe.set_generation_cofnig(config)
+         pipe.set_generation_cofnig({'max_new_tokens': 100)
 
          pipe.start_chat()
          while True:
-             print('question:')
-             prompt = input()
+            print('question:')
+            prompt = input()
             if prompt == 'Stop!':
-                 break
-             print(pipe(prompt))
+               break
+            print(pipe.generate(prompt))
          pipe.finish_chat()
 
 
@@ -153,14 +204,18 @@ mark a conversation session, as you can see in these simple examples:
             std::string prompt;
 
             std::string model_path = argv[1];
-            ov::LLMPipeline pipe(model_path, "CPU");
+            ov::genai::LLMPipeline pipe(model_path, "CPU");
+            
+            ov::genai::GenerationConfig config = pipe.get_generation_config();
+            config.max_new_tokens = 100;
+            pipe.set_generation_cofnig(config)
 
             pipe.start_chat();
             for (size_t i = 0; i < questions.size(); i++) {
                std::cout << "question:\n";
                std::getline(std::cin, prompt);
 
-               std::cout << pipe(prompt) << std::endl>>;
+               std::cout << pipe.generate(prompt) << std::endl;
             }
             pipe.finish_chat();
          }
@@ -171,18 +226,34 @@ Optimizing Generation with Grouped Beam Search
 Leverage grouped beam search decoding and configure generation_config for better text generation
 quality and efficient batch processing in GenAI applications.
 
-Use grouped beam search decoding:
+Specify generation_config to use grouped beam search:
 
 .. tab-set::
 
+   .. tab-item:: Python
+      :sync: py
+
+      .. code-block:: python
+
+         import openvino_genai as ov_genai
+         pipe = ov_genai.LLMPipeline(model_path, "CPU")
+         config = pipe.get_generation_config()
+         config.max_new_tokens = 256
+         config.num_groups = 3
+         config.group_size = 5
+         config.diversity_penalty = 1.0
+         pipe.generate("The Sun is yellow because", config)
+
+
    .. tab-item:: C++
+      :sync: cpp
 
       .. code-block:: cpp
 
          int main(int argc, char* argv[]) {
             std::string model_path = argv[1];
-            ov::LLMPipeline pipe(model_path, "CPU");
-            ov::GenerationConfig config = pipe.get_generation_config();
+            ov::genai::LLMPipeline pipe(model_path, "CPU");
+            ov::genai::GenerationConfig config = pipe.get_generation_config();
             config.max_new_tokens = 256;
             config.num_groups = 3;
             config.group_size = 5;
@@ -191,39 +262,6 @@ Use grouped beam search decoding:
             cout << pipe.generate("The Sun is yellow because", config);
          }
 
-Specify generation_config to use grouped beam search:
-
-.. tab-set::
-
-   .. tab-item:: C++
-
-      .. code-block:: cpp
-
-         int main(int argc, char* argv[]) {
-            std::string prompt;
-
-            std::string model_path = argv[1];
-            ov::LLMPipeline pipe(model_path, "CPU");
-
-            ov::GenerationConfig config = pipe.get_generation_config();
-            config.max_new_tokens = 256;
-            config.num_groups = 3;
-            config.group_size = 5;
-            config.diversity_penalty = 1.0f;
-
-            auto streamer = [](std::string word) { std::cout << word << std::flush; };
-
-            pipe.start_chat();
-            for (size_t i = 0; i < questions.size(); i++) {
-
-               std::cout << "question:\n";
-               cout << prompt << endl;
-
-               auto answer = pipe(prompt, config, streamer);
-               // no need to print answer, streamer will do that
-            }
-            pipe.finish_chat();
-         }
 
 Comparing with Hugging Face Results
 #######################################
@@ -237,6 +275,7 @@ Compare and analyze results with those generated by Hugging Face models.
       .. code-block:: python
 
          from transformers import AutoTokenizer, AutoModelForCausalLM
+         import openvino_genai as ov_genai
 
          tokenizer = AutoTokenizer.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
          model = AutoModelForCausalLM.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
@@ -249,12 +288,8 @@ Compare and analyze results with those generated by Hugging Face models.
          hf_output = tokenizer.decode(hf_encoded_output[0, encoded_prompt.shape[1]:])
          print(f'hf_output: {hf_output}')
 
-         import sys
-         sys.path.append('build-Debug/')
-         import py_generate_pipeline as genai # set more friendly module name
-
-         pipe = genai.LLMPipeline('text_generation/causal_lm/TinyLlama-1.1B-Chat-v1.0/pytorch/dldt/FP16/')
-         ov_output = pipe(prompt, max_new_tokens=max_new_tokens)
+         pipe = ov_genai.LLMPipeline('TinyLlama-1.1B-Chat-v1.0')
+         ov_output = pipe.generate(prompt, max_new_tokens=max_new_tokens)
          print(f'ov_output: {ov_output}')
 
          assert hf_output == ov_output
