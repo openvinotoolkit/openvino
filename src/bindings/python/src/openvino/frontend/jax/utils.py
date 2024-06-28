@@ -11,17 +11,17 @@ import jax.numpy as jnp
 from openvino.runtime import op, Type as OVType, Shape, OVAny
 
 numpy_to_ov_type_map = {
-    np.dtypes.Float32DType: OVType.f32,
-    np.dtypes.BoolDType: OVType.boolean,
+    np.dtype(np.float32): OVType.f32,
+    np.dtype(bool): OVType.boolean,
     jax.dtypes.bfloat16: OVType.bf16, # TODO: check this
-    np.dtypes.Float16DType: OVType.f16,
-    np.dtypes.Float32DType: OVType.f32,
-    np.dtypes.Float64DType: OVType.f64,
-    np.dtypes.UInt8DType: OVType.u8,
-    np.dtypes.Int8DType: OVType.i8,
-    np.dtypes.Int16DType: OVType.i16,
-    np.dtypes.Int32DType: OVType.i32,
-    np.dtypes.Int64DType: OVType.i64,
+    np.dtype(np.float16): OVType.f16,
+    np.dtype(np.float32): OVType.f32,
+    np.dtype(np.float64): OVType.f64,
+    np.dtype(np.uint8): OVType.u8,
+    np.dtype(np.int8): OVType.i8,
+    np.dtype(np.int16): OVType.i16,
+    np.dtype(np.int32): OVType.i32,
+    np.dtype(np.int64): OVType.i64,
 }
 
 jax_to_ov_type_map = {
