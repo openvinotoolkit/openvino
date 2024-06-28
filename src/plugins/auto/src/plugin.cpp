@@ -588,7 +588,15 @@ std::list<DeviceInformation> Plugin::get_valid_device(
     ov::util::monitor::DeviceMonitor devices_monitor;
     for (auto& device_info : valid_devices) {
         ov::DeviceIDParser parsed{device_info.device_name};
+        std::cout << "[WY][DEBUG] checking utilization for device: " << device_info.device_name
+                  << "\t real name: " << parsed.get_device_name() << "..." << std::endl;
         auto device_utilization = devices_monitor.get_mean_device_load(parsed.get_device_name());
+        std::cout << "[WY][DEBUG] checking utilization for device: " << device_info.device_name << "...Done!"
+                  << std::endl;
+        for (auto& item : device_utilization) {
+            std::cout << "[WY][DEBUG] key: " << item.first << "\t utilization: " << item.second << std::endl;
+        }
+        std::cout << "==================\n";
         if (device_info.device_name.find("CPU") == 0) {
             if (device_utilization.count("Total")) {
                 LOG_DEBUG_TAG("Device: %s[Total] Utilization: %s",
@@ -626,6 +634,7 @@ std::list<DeviceInformation> Plugin::get_valid_device(
         } else {
             // TODO: to be implemented for other device
         }
+        std::cout << "[WY][DEBUG] will push back device: " << device_info.device_name << std::endl;
         filter_valid_devices.push_back(device_info);
     }
     std::cout << "[WY][DEBUG] valid device list after utilization checking: \n";
