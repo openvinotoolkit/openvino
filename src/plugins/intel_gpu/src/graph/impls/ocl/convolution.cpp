@@ -356,7 +356,8 @@ attach_convolution_impl::attach_convolution_impl() {
     };
     auto dyn_formats = {
         format::bfyx,
-        format::bfzyx
+        format::bfzyx,
+        format::b_fs_yx_fsv16
     };
 
     implementation_map<convolution>::add(impl_types::ocl,
