@@ -163,11 +163,7 @@ public:
             return ov::element::bf16;
         case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN:
             return ov::element::f8e4m3;
-        case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FNUZ:
-            return ov::element::f8e4m3;
         case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
-            return ov::element::f8e5m2;
-        case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2FNUZ:
             return ov::element::f8e5m2;
         case TensorProto_DataType::TensorProto_DataType_STRING:
             return ov::element::string;
@@ -217,11 +213,7 @@ public:
             return make_ov_constant<ov::bfloat16>(ov::element::bf16);
         case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN:
             return make_ov_constant<ov::float8_e4m3>(ov::element::f8e4m3);
-        case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FNUZ:
-            return make_ov_constant<ov::float8_e4m3>(ov::element::f8e4m3);
         case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
-            return make_ov_constant<ov::float8_e5m2>(ov::element::f8e5m2);
-        case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2FNUZ:
             return make_ov_constant<ov::float8_e5m2>(ov::element::f8e5m2);
         case TensorProto_DataType::TensorProto_DataType_STRING:
             return make_ov_constant<std::string>(ov::element::string);

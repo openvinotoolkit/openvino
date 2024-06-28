@@ -194,7 +194,7 @@ std::vector<ov::float8_e4m3> Tensor::get_data() const {
     if (m_tensor_proto->has_raw_data()) {
         return detail::__get_raw_data<ov::float8_e4m3>(m_tensor_proto->raw_data(), m_tensor_proto->data_type());
     }
-    if (m_tensor_proto->data_type() == ONNX_NAMESPACE::TensorProto_DataType_FLOAT16) {
+    if (m_tensor_proto->data_type() == TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN) {
         using std::begin;
         using std::end;
 
@@ -218,7 +218,7 @@ std::vector<ov::float8_e5m2> Tensor::get_data() const {
     if (m_tensor_proto->has_raw_data()) {
         return detail::__get_raw_data<ov::float8_e5m2>(m_tensor_proto->raw_data(), m_tensor_proto->data_type());
     }
-    if (m_tensor_proto->data_type() == ONNX_NAMESPACE::TensorProto_DataType_FLOAT16) {
+    if (m_tensor_proto->data_type() == TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2) {
         using std::begin;
         using std::end;
 

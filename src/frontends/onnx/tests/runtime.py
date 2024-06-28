@@ -83,6 +83,20 @@ class Computation(object):
             # custom conversion for bf16
             if self.results[i].get_output_element_type(0) == Type.bf16:
                 converted_buffers.append((source_buffers[key].view(target_dtype)).astype(target_dtype))
+            elif self.results[i].get_output_element_type(0) == Type.f8e5m2:
+                data_f8 = source_buffers[key].asbytes()
+                data_f16 = bytearray()
+                for i in data_f8:
+                    data_f16.append(i)
+                    data_f16.append(0)
+                converted_buffers.append(np.frombuffer(data_f16, dtype=np.float16).view(target_dtype))
+            elif self.results[i].get_output_element_type(0) == Type.f8e4m3:
+                data_f8 = source_buffers[key].asbytes()
+                data_f16 = bytearray()
+                for i in data_f8:
+                    data_f16.append(i)
+                    data_f16.append(0)
+                converted_buffers.append(np.frombuffer(data_f16, dtype=np.float16).view(target_dtype))
             else:
                 converted_buffers.append(source_buffers[key].astype(target_dtype))
         return converted_buffers
