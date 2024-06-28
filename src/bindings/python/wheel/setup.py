@@ -135,6 +135,13 @@ LIB_INSTALL_CFG = {
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
     },
+    "jax_libs": {
+        "name": "jax",
+        "prefix": f"{BUILD_BASE}/libs.jax",
+        "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BINARY_DIR,
+    },
     "paddle_libs": {
         "name": "paddle",
         "prefix": f"{BUILD_BASE}/libs.paddle",
