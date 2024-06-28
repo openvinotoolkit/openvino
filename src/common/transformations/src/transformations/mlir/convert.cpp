@@ -70,7 +70,15 @@ static void prepareMLIRKernelWithoutWrapper(mlir::OwningOpRef<mlir::ModuleOp>& m
 
 #else  // Simplified default lowering to LLVM from LLVM tests
 
+    // Remove empty tensors to avoid converting them into temporary buffers.
+    pm.addPass(bufferization::createEmptyTensorEliminationPass());
+
     pm.addPass(bufferization::createOneShotBufferizePass());
+    // TODO: Add deallocation pass/pipeline to avoid memory leaks.
+
+    // Cleanup after bufferization - possibly remove redundant copies.
+    pm.addNestedPass<func::FuncOp>(createCanonicalizerPass());
+    pm.addNestedPass<func::FuncOp>(createCSEPass());
 
     // Blanket-convert any remaining high-level vector ops to loops if any remain.
     pm.addNestedPass<func::FuncOp>(createConvertVectorToSCFPass());
@@ -553,11 +561,22 @@ template <typename TargetOp>
 struct ConvertBinary {
     void operator()(ConversionContext& context, std::shared_ptr<ov::Node> node) {
         auto loc = createLocation(context.context, node);
+        auto& builder = context.builder();
         // TODO: Support broadcasts
         const auto inputs = context.getInputs(node);
-        auto op = context.builder().create<TargetOp>(loc,
-                                                     mlir::ValueRange{inputs[0], inputs[1]},
-                                                     /* FIXME: Use linalg.fill or tensor.empty */ mlir::ValueRange{inputs[0]});
+        auto outType = cast<mlir::ShapedType>(inputs[0].getType());
+        // Named binary ops directly overwrite data in `outs` buffer so, there is no need to provide non-empty
+        // destination at the tensor-level.
+        // Use `tensor.empty` to avoid temporary buffer allocation and memcpy after bufferization.
+        llvm::SmallVector<Value> dynamicSizes;
+        for (auto [idx, dim] : llvm::enumerate(outType.getShape())) {
+            if (!mlir::ShapedType::isDynamic(dim))
+                continue;
+            auto dimSize = builder.create<tensor::DimOp>(loc, inputs[0], idx);
+            dynamicSizes.push_back(dimSize);
+        }
+        auto empty = builder.create<tensor::EmptyOp>(loc, outType, dynamicSizes);
+        auto op = builder.create<TargetOp>(loc, mlir::ValueRange{inputs[0], inputs[1]}, mlir::ValueRange{empty});
         context.addOutputs(node, op);
     }
 };
@@ -606,8 +625,15 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
         auto tensor = conversion_context.nodeOutputMap.at(outputs[i]);
         auto memref = func.getArgument(i + inputs.size());
         auto loc = createLocation(context, outputs[i].get_node_shared_ptr());
-        auto materialize = block_builder.create<bufferization::MaterializeInDestinationOp>(loc, tensor, memref);
-        materialize.setWritable(true);  // TODO: Can I set it as ctor argument above?
+        // Ensure the result is stored in the provided function argument.
+        // Mark as restrict to avoid temporary buffer and copy.
+        // Mark as writable to ensure the output can be written to the buffer.
+        block_builder.create<bufferization::MaterializeInDestinationOp>(loc,
+                                                                        TypeRange{},
+                                                                        tensor,
+                                                                        memref,
+                                                                        /*restrict=*/true,
+                                                                        /*writable=*/true);
     }
 
     const auto retLoc = createLayerLocation(context, "output", "Output");
