@@ -90,7 +90,7 @@ jobs:
 
   Debian_Packages:
     name: Debian Packages
-    needs: Build
+    needs: [Docker, Build]
     uses: ./.github/workflows/job_debian_packages.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
