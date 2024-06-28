@@ -78,7 +78,11 @@ public:
         uint64 = TensorProto_DataType::TensorProto_DataType_UINT64,
         bfloat16 = TensorProto_DataType::TensorProto_DataType_BFLOAT16,
         complex64 = TensorProto_DataType::TensorProto_DataType_COMPLEX64,
-        complex128 = TensorProto_DataType::TensorProto_DataType_COMPLEX128
+        complex128 = TensorProto_DataType::TensorProto_DataType_COMPLEX128,
+        float8e4m3fn = ONNX_NAMESPACE::TensorProto_DataType_FLOAT8E4M3FN,
+        float8e4m3fnuz = ONNX_NAMESPACE::TensorProto_DataType_FLOAT8E4M3FNUZ,
+        float8e5m2 = ONNX_NAMESPACE::TensorProto_DataType_FLOAT8E5M2,
+        float8e5m2fnuz = ONNX_NAMESPACE::TensorProto_DataType_FLOAT8E5M2FNUZ,
     };
 
     Tensor() = delete;
@@ -157,6 +161,14 @@ public:
             return ov::element::u64;
         case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
             return ov::element::bf16;
+        case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN:
+            return ov::element::f8e4m3;
+        case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FNUZ:
+            return ov::element::f8e4m3;
+        case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
+            return ov::element::f8e5m2;
+        case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2FNUZ:
+            return ov::element::f8e5m2;
         case TensorProto_DataType::TensorProto_DataType_STRING:
             return ov::element::string;
         case TensorProto_DataType::TensorProto_DataType_UNDEFINED:
@@ -203,6 +215,14 @@ public:
             return make_ov_constant<uint64_t>(ov::element::u64);
         case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
             return make_ov_constant<ov::bfloat16>(ov::element::bf16);
+        case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN:
+            return make_ov_constant<ov::float8_e4m3>(ov::element::f8e4m3);
+        case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FNUZ:
+            return make_ov_constant<ov::float8_e4m3>(ov::element::f8e4m3);
+        case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
+            return make_ov_constant<ov::float8_e5m2>(ov::element::f8e5m2);
+        case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2FNUZ:
+            return make_ov_constant<ov::float8_e5m2>(ov::element::f8e5m2);
         case TensorProto_DataType::TensorProto_DataType_STRING:
             return make_ov_constant<std::string>(ov::element::string);
         default:
@@ -375,6 +395,12 @@ std::vector<uint32_t> Tensor::get_data() const;
 
 template <>
 std::vector<uint64_t> Tensor::get_data() const;
+
+template <>
+std::vector<ov::float8_e4m3> Tensor::get_data() const;
+
+template <>
+std::vector<ov::float8_e5m2> Tensor::get_data() const;
 
 template <>
 std::vector<char> Tensor::get_data() const;
