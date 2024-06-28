@@ -94,7 +94,7 @@ jobs:
     uses: ./.github/workflows/job_debian_packages.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}"}'
+      container: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04'
 
   Samples:
     needs: [ Docker, Build, Smart_CI ]
