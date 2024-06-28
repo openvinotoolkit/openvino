@@ -448,12 +448,12 @@ void ov::npuw::CompiledModel::reset_io() {
         LOG_VERB("Input (Parameter) " << inputs()[idx_in] << " from Subgraph[" << submodel_idx << "]/" << input_idx);
         idx_in++;
     }
-    for (const auto& to_submodel : m_outputs_to_submodels_outputs) {
+    for (const auto& from_submodel : m_outputs_to_submodels_outputs) {
         LOG_DEBUG("Here: " << outputs()[idx_out]);
-        NPUW_ASSERT(to_submodel != NO_LINK);
+        NPUW_ASSERT(from_submodel != NO_LINK);
         LOG_BLOCK();  // in fact, to_submodel <is> from_submodel here, but who cares
-        const auto& submodel_idx = to_submodel.first;
-        const auto& output_idx = to_submodel.second;
+        const auto& submodel_idx = from_submodel.first;
+        const auto& output_idx = from_submodel.second;
         LOG_VERB("Output (Result) " << outputs()[idx_out] << " from Subgraph[" << submodel_idx << "]/" << output_idx);
         idx_out++;
     }
