@@ -164,6 +164,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                           &sliding_window,
                                           &parameters_to_remove,
                                           &layer_index](ov::pass::pattern::Matcher& m) {
+        std::cout << "___" << matcher_name << "___" << std::endl;
         const auto& pattern_map = m.get_pattern_value_map();
         auto real_q = pattern_map.at(q);
 

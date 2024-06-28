@@ -18,6 +18,8 @@
 #include "transformations/sdpa_to_paged_attention/total_sequence_length_pattern.hpp"
 #include "transformations/utils/utils.hpp"
 
+#include "openvino/pass/visualize_tree.hpp"
+
 using namespace ov::op;
 
 static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> node, const char* name) {
@@ -93,7 +95,16 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
-    // manager.register_pass<MakeSDPA>();
+    std::cout << "*****USING OLD*****" << std::endl;
+    // std::cout << "*****USING NEW*****" << std::endl;
+
+    manager.register_pass<MakeSDPA>(model);
+
+    // const std::string file_name = "old_big_jais_sdpa";
+    // const std::string file_name = "new_big_jais_sdpa";
+    // manager.register_pass<ov::pass::Serialize>(file_name + ".xml", file_name + ".bin");
+    // manager.register_pass<ov::pass::VisualizeTree>(file_name + ".svg");
+
     manager.register_pass<StateManagementPattern>(kv_parameters,
                                                   model_remaining_params,
                                                   sliding_window,

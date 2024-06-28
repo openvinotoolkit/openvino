@@ -26,6 +26,7 @@ ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
     auto seq = pattern::wrap_type<v8::Gather>({kv_shape, pattern::any_input(), pattern::any_input()});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+        std::cout << "___" << matcher_name << "___" << std::endl;
         // TODO: Check that seq has axis that really takes sequence len but not any other dimension --
         //  use symbolic infra or look at the constant input
         auto gather = m.get_match_root();
