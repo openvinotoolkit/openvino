@@ -33,8 +33,8 @@ void intel_npu::registerCompilerOptions(OptionsDesc& desc) {
 
 std::string_view ov::intel_npu::stringifyEnum(ov::intel_npu::CompilerType val) {
     switch (val) {
-    case ov::intel_npu::CompilerType::MLIR:
-        return "MLIR";
+    case ov::intel_npu::CompilerType::PLUGIN:
+        return "PLUGIN";
     case ov::intel_npu::CompilerType::DRIVER:
         return "DRIVER";
     default:
@@ -55,8 +55,8 @@ ov::intel_npu::CompilerType intel_npu::COMPILER_TYPE::defaultValue() {
 }
 
 ov::intel_npu::CompilerType intel_npu::COMPILER_TYPE::parse(std::string_view val) {
-    if (val == stringifyEnum(ov::intel_npu::CompilerType::MLIR)) {
-        return ov::intel_npu::CompilerType::MLIR;
+    if (val == stringifyEnum(ov::intel_npu::CompilerType::PLUGIN)) {
+        return ov::intel_npu::CompilerType::PLUGIN;
     } else if (val == stringifyEnum(ov::intel_npu::CompilerType::DRIVER)) {
         return ov::intel_npu::CompilerType::DRIVER;
     }
@@ -66,8 +66,8 @@ ov::intel_npu::CompilerType intel_npu::COMPILER_TYPE::parse(std::string_view val
 
 std::string intel_npu::COMPILER_TYPE::toString(const ov::intel_npu::CompilerType& val) {
     std::stringstream strStream;
-    if (val == ov::intel_npu::CompilerType::MLIR) {
-        strStream << "MLIR";
+    if (val == ov::intel_npu::CompilerType::PLUGIN) {
+        strStream << "PLUGIN";
     } else if (val == ov::intel_npu::CompilerType::DRIVER) {
         strStream << "DRIVER";
     } else {
