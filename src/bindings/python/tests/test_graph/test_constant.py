@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+import openvino as ov
 
 import openvino.runtime.opset13 as ops
 from openvino import Type, PartialShape, Model, compile_model
@@ -413,13 +414,18 @@ def test_memory_sharing(shared_flag):
         assert not np.shares_memory(arr, ov_const.data)
 
 
-@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
-    (Type.f32, np.float32),
-    (Type.f16, np.float16),
-])
-def test_float_to_f8e5m2_constant(ov_type, numpy_dtype):
-    from openvino.runtime import opset12 as opset
-    import openvino as ov
+OPSETS = [ov.runtime.opset12, ov.runtime.opset13]
+
+
+@pytest.mark.parametrize(("opset"), OPSETS)
+@pytest.mark.parametrize(
+    ("ov_type", "numpy_dtype"),
+    [
+        (Type.f32, np.float32),
+        (Type.f16, np.float16),
+    ],
+)
+def test_float_to_f8e5m2_constant(ov_type, numpy_dtype, opset):
     data = np.array([4.75, 4.5, -5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
                      0.6, 0.7, 0.8, 0.9, 1, -0.0, -0.1, -0.2, -0.3,
                      -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1.0, 0.0000152587890625, 448, 500, 512, 57344], dtype=numpy_dtype)
@@ -443,13 +449,15 @@ def test_float_to_f8e5m2_constant(ov_type, numpy_dtype):
     assert np.allclose(result, target)
 
 
-@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
-    (Type.f32, np.float32),
-    (Type.f16, np.float16),
-])
-def test_float_to_f8e4m3_constant(ov_type, numpy_dtype):
-    from openvino.runtime import opset12 as opset
-    import openvino as ov
+@pytest.mark.parametrize(("opset"), OPSETS)
+@pytest.mark.parametrize(
+    ("ov_type", "numpy_dtype"),
+    [
+        (Type.f32, np.float32),
+        (Type.f16, np.float16),
+    ],
+)
+def test_float_to_f8e4m3_constant(ov_type, numpy_dtype, opset):
     data = np.array([4.75, 4.5, -5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
                      0.6, 0.7, 0.8, 0.9, 1, -0.0, -0.1, -0.2, -0.3,
                      -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1, 448, 512], dtype=numpy_dtype)
@@ -473,13 +481,15 @@ def test_float_to_f8e4m3_constant(ov_type, numpy_dtype):
     assert np.allclose(result, target, equal_nan=True)
 
 
-@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
-    (Type.f32, np.float32),
-    (Type.f16, np.float16),
-])
-def test_float_to_f8e8m0_constant(ov_type, numpy_dtype):
-    from openvino.runtime import opset12 as opset
-    import openvino as ov
+@pytest.mark.parametrize(("opset"), OPSETS)
+@pytest.mark.parametrize(
+    ("ov_type", "numpy_dtype"),
+    [
+        (Type.f32, np.float32),
+        (Type.f16, np.float16),
+    ],
+)
+def test_float_to_f8e8m0_constant(ov_type, numpy_dtype, opset):
     data = np.array([4.75, 4.5, 5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
                      0.6, 0.7, 0.8, 0.9, 1, -0.0, 1.1, 1.2, 1.3,
                      1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 448, 512, np.nan], dtype=numpy_dtype)
@@ -503,13 +513,15 @@ def test_float_to_f8e8m0_constant(ov_type, numpy_dtype):
     assert np.allclose(result, target, equal_nan=True)
 
 
-@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
-    (Type.f32, np.float32),
-    (Type.f16, np.float16),
-])
-def test_float_to_f8e5m2_convert(ov_type, numpy_dtype):
-    from openvino.runtime import opset12 as opset
-    import openvino as ov
+@pytest.mark.parametrize(("opset"), OPSETS)
+@pytest.mark.parametrize(
+    ("ov_type", "numpy_dtype"),
+    [
+        (Type.f32, np.float32),
+        (Type.f16, np.float16),
+    ],
+)
+def test_float_to_f8e5m2_convert(ov_type, numpy_dtype, opset):
     data = np.array([4.75, 4.5, -5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
                      0.6, 0.7, 0.8, 0.9, 1, -0.0, -0.1, -0.2, -0.3,
                      -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1.0, 0.0000152587890625, 448, 500, 512, 57344], dtype=numpy_dtype)
@@ -534,13 +546,15 @@ def test_float_to_f8e5m2_convert(ov_type, numpy_dtype):
     assert np.allclose(result, target)
 
 
-@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
-    (Type.f32, np.float32),
-    (Type.f16, np.float16),
-])
-def test_float_to_f8e4m3_convert(ov_type, numpy_dtype):
-    from openvino.runtime import opset12 as opset
-    import openvino as ov
+@pytest.mark.parametrize(("opset"), OPSETS)
+@pytest.mark.parametrize(
+    ("ov_type", "numpy_dtype"),
+    [
+        (Type.f32, np.float32),
+        (Type.f16, np.float16),
+    ],
+)
+def test_float_to_f8e4m3_convert(ov_type, numpy_dtype, opset):
     data = np.array([4.75, 4.5, -5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
                      0.6, 0.7, 0.8, 0.9, 1, -0.0, -0.1, -0.2, -0.3,
                      -0.4, -0.5, -0.6, -0.7, -0.8, -0.9, -1, 448, 512], dtype=numpy_dtype)
@@ -565,13 +579,15 @@ def test_float_to_f8e4m3_convert(ov_type, numpy_dtype):
     assert np.allclose(result, target, equal_nan=True)
 
 
-@pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
-    (Type.f32, np.float32),
-    (Type.f16, np.float16),
-])
-def test_float_to_f8e8m0_convert(ov_type, numpy_dtype):
-    from openvino.runtime import opset12 as opset
-    import openvino as ov
+@pytest.mark.parametrize(("opset"), OPSETS)
+@pytest.mark.parametrize(
+    ("ov_type", "numpy_dtype"),
+    [
+        (Type.f32, np.float32),
+        (Type.f16, np.float16),
+    ],
+)
+def test_float_to_f8e8m0_convert(ov_type, numpy_dtype, opset):
     data = np.array([4.75, 4.5, 5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
                      0.6, 0.7, 0.8, 0.9, 1, -0.0, 1.1, 1.2, 1.3,
                      1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 448, 512, np.nan], dtype=numpy_dtype)
