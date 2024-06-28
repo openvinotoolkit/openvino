@@ -513,7 +513,7 @@ jobs:
     uses: ./.github/workflows/job_cpu_functional_tests.yml
     with:
       runner: 'linux-gpu-vm-11'
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64 }}
+      image: 'ubuntu:20.04'
 
   TensorFlow_Models_Tests_Precommit:
     name: TensorFlow Models tests
