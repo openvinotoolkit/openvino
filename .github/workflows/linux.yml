@@ -682,7 +682,6 @@ jobs:
       runner: "[ 'linux-gpu-vm-22' ]"
       container: '{"image": "ubuntu:20.04", "volumes": ["/dev/dri:/dev/dri"], "options": "--group-add 109 --group-add 44
         --device /dev/dri/card0:/dev/dri/card0  --device /dev/dri/renderD128:/dev/dri/renderD128"}'
-    if: ${{ github.event_name == 'schedule' }}
 
   Overall_Status:
     name: ci/gha_overall_status
