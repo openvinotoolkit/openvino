@@ -11,17 +11,17 @@ import jax.numpy as jnp
 from openvino.runtime import op, Type as OVType, Shape, OVAny
 
 numpy_to_ov_type_map = {
-    np.dtype(np.float32): OVType.f32,
-    np.dtype(bool): OVType.boolean,
+    np.float32: OVType.f32,
+    bool: OVType.boolean,
     jax.dtypes.bfloat16: OVType.bf16, # TODO: check this
-    np.dtype(np.float16): OVType.f16,
-    np.dtype(np.float32): OVType.f32,
-    np.dtype(np.float64): OVType.f64,
-    np.dtype(np.uint8): OVType.u8,
-    np.dtype(np.int8): OVType.i8,
-    np.dtype(np.int16): OVType.i16,
-    np.dtype(np.int32): OVType.i32,
-    np.dtype(np.int64): OVType.i64,
+    np.float16: OVType.f16,
+    np.float32: OVType.f32,
+    np.float64: OVType.f64,
+    np.uint8: OVType.u8,
+    np.int8: OVType.i8,
+    np.int16: OVType.i16,
+    np.int32: OVType.i32,
+    np.int64: OVType.i64,
 }
 
 jax_to_ov_type_map = {
@@ -74,7 +74,7 @@ def get_ov_type_for_value(value):
         if value.aval.dtype in jax_to_ov_type_map:
             return OVAny(jax_to_ov_type_map[value.aval.dtype])
         for k, v in numpy_to_ov_type_map.items():
-            if isinstance(value.aval.dtype, k):
+            if value.aval.dtype == k:
                 return OVAny(v)
         for k, v in basic_to_ov_type_map.items():
             if isinstance(value.aval.dtype, k):
@@ -88,7 +88,7 @@ def get_ov_type_from_jax_type(dtype):
     if dtype in jax_to_ov_type_map:
         return OVAny(jax_to_ov_type_map[dtype])
     for k, v in numpy_to_ov_type_map.items():
-        if isinstance(dtype, k):
+        if dtype == k:
             return OVAny(v)
     for k, v in basic_to_ov_type_map.items():
         if isinstance(dtype, k):
