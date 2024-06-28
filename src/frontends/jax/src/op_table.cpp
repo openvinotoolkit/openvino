@@ -22,6 +22,9 @@ OP_CONVERTER(translate_convert);
 // Supported ops for Jaxpr
 const std::map<std::string, CreatorFunction> get_supported_ops_jaxpr() {
     return {{"add", op::translate_1to1_match_2_inputs<opset14::Add>},
+            {"sub", op::translate_1to1_match_2_inputs<opset14::Subtract>},
+            {"mul", op::translate_1to1_match_2_inputs<opset14::Multiply>},
+            {"div", op::translate_1to1_match_2_inputs<opset14::Divide>},
             {"constant", op::translate_constant},
             {"convert_element_type", op::translate_convert}};
 };
