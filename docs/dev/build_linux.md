@@ -39,6 +39,9 @@ The software was validated on:
      mkdir build && cd build
    ```
 
+> **NOTE**: Disable oneAPI environment if has before this building process. 
+Please note that enabling the oneAPI environment during the compilation of OpenVINO from source code on Linux may cause the compilation to fail. It is recommended to disable the oneAPI environment during the build process to ensure successful compilation. Please proceed with caution and ensure to follow the build instructions accurately.  
+
 4. OpenVINO Runtime uses a CMake-based build system. In the created `build` directory, run `cmake` to fetch project dependencies and create Unix makefiles, then run `make` to build the project:
    ```sh
      cmake -DCMAKE_BUILD_TYPE=Release ..
