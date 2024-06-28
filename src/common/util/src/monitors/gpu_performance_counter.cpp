@@ -151,7 +151,7 @@ public:
     }
 
     std::map<std::string, double> get_load() {
-        if (!numDevices)
+        if (numDevices == 0)
             return {{"00000000", 0}};
         PDH_STATUS status;
         auto ts = std::chrono::system_clock::now();
@@ -188,7 +188,7 @@ private:
     QueryWrapper query;
     std::map<std::string, std::vector<std::vector<PDH_HCOUNTER>>> coreTimeCounters;
     std::chrono::time_point<std::chrono::system_clock> lastTimeStamp = std::chrono::system_clock::now();
-    int numDevices = 0;
+    std::size_t numDevices = 0;
 };
 
 #elif defined(__linux__)
