@@ -61,20 +61,16 @@ const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
         return ov::element::dynamic;
     case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
         return ov::element::bf16;
-    case ONNX_NAMESPACE::TensorProto_DataType_FLOAT8E4M3FN:
+    case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN:
         return ov::element::f8e4m3;
-    case ONNX_NAMESPACE::TensorProto_DataType_FLOAT8E4M3FNUZ:
-        return ov::element::f8e4m3;
-    case ONNX_NAMESPACE::TensorProto_DataType_FLOAT8E5M2:
-        return ov::element::f8e5m2;
-    case ONNX_NAMESPACE::TensorProto_DataType_FLOAT8E5M2FNUZ:
+    case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
         return ov::element::f8e5m2;
     case TensorProto_DataType::TensorProto_DataType_STRING:
         return ov::element::string;
     }
     ONNX_UNSUPPORTED_DATA_TYPE(onnx_type,
-                               "BOOL, BFLOAT16, FLOAT, FLOAT16, DOUBLE, INT8, INT16, INT32, INT64, UINT8, UINT16, "
-                               "UINT32, UINT64, STRING, UNDEFINED");
+                               "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT8, INT16, "
+                               "INT32, INT64, UINT8, UINT16, UINT32, UINT64, STRING, UNDEFINED");
 }
 
 std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(const ov::Output<ov::Node>& value,
