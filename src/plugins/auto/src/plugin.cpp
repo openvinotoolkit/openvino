@@ -579,6 +579,11 @@ std::list<DeviceInformation> Plugin::get_valid_device(
         return a.device_priority < b.device_priority;
     });
 
+    std::cout << "[WY][DEBUG] valid device list before utilization checking: \n";
+    for (auto& device : valid_devices) {
+        std::cout << "\t Device name: " << device.device_name << std::endl;
+    }
+    std::cout << "\n=========================" << std::endl;
     std::list<DeviceInformation> filter_valid_devices;
     ov::util::monitor::DeviceMonitor devices_monitor;
     for (auto& device_info : valid_devices) {
@@ -623,6 +628,11 @@ std::list<DeviceInformation> Plugin::get_valid_device(
         }
         filter_valid_devices.push_back(device_info);
     }
+    std::cout << "[WY][DEBUG] valid device list after utilization checking: \n";
+    for (auto& device : filter_valid_devices) {
+        std::cout << "\t Device name: " << device.device_name << std::endl;
+    }
+    std::cout << "\n=========================" << std::endl;
     return filter_valid_devices.empty() ? valid_devices : filter_valid_devices;
 }
 
