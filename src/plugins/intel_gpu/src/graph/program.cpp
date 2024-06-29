@@ -713,7 +713,7 @@ void program::transfer_memory_to_device() {
                 if (user_node->is_type<fully_connected>()) { // bypass static model for now
                     auto& fc_node = user_node->as<fully_connected>();
                     if (fc_node.w_size != 1 && fc_node.is_dynamic()) { // world size > 1, means TP maybe applied further
-                        if (node->id() != fc_node.get_primitive()->decompression_scale && node->id() != fc_node.get_primitive()->decompression_zero_point) {
+                        {
                             // reinterpret weights memory based on rank
                             auto w_rank = fc_node.w_rank;
                             auto w_size = fc_node.w_size;
@@ -723,6 +723,23 @@ void program::transfer_memory_to_device() {
                                 size_t total = std::accumulate(static_shape.begin(), static_shape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
                                 auto dim = feature.is_static() ? feature.get_length() : static_cast<int64_t>(static_shape[rank - 1]);
                                 return ov::PartialShape{ static_cast<int64_t>(total) / dim, dim };
+                            };
+                            auto need_copy = [&]() -> bool {
+                                if (!fc_node.get_primitive()->compressed_weights)
+                                    return false;
+                                // skip weights
+                                if (fc_node.get_dependency(1).id() == node->id()) {
+                                    return false;
+                                }
+                                // grouped scale/zp has been format to fbyx to match ba weight format later in onednn, so need to copy here
+                                if (node->id().find(fc_node.get_primitive()->decompression_scale) != std::string::npos ||
+                                    node->id().find(fc_node.get_primitive()->decompression_zero_point) != std::string::npos) {
+                                    auto dep_layout = node->get_output_layout();
+                                    auto dep_pshape = dep_layout.get_partial_shape();
+                                    auto groups_count = dep_pshape[dep_pshape.size() - 1].get_length();
+                                    return groups_count > 1;
+                                }
+                                return false;
                             };
                             auto input0_pshape = user_node->get_input_layout(0).get_partial_shape();
                             auto feature = input0_pshape[fc_node.get_primitive()->input_size - 1ul];
@@ -736,9 +753,24 @@ void program::transfer_memory_to_device() {
                                                                     data_node_layout.data_type,
                                                                     data_node_layout.format,
                                                                     data_node_layout.data_padding);
-
-                            auto offset = w_rank * (mem.size() / w_size);
-                            rank_weights_memory_host = engine->reinterpret_buffer_with_offset(mem, rank_weights_layout, offset);
+                            if (!need_copy()) {
+                                auto offset = w_rank * (mem.size() / w_size);
+                                rank_weights_memory_host = engine->reinterpret_buffer_with_offset(mem, rank_weights_layout, offset);
+                            } else {
+                                rank_weights_memory_host = engine->allocate_memory(rank_weights_layout, allocation_type::usm_host);
+                                auto dst_ptr = static_cast<uint8_t*>(rank_weights_memory_host->buffer_ptr());
+                                auto src_ptr = static_cast<uint8_t*>(mem.buffer_ptr());
+                                auto element_size = ov::element::Type(data_node_layout.data_type).size();
+                                auto stride_size = weights_pshape.to_shape()[0] * element_size;
+                                auto copy_size = reshaped_pshape.to_shape()[0] * element_size;
+                                const int step = reshaped_pshape.to_shape()[1];
+                                auto offset_size = reshaped_pshape.to_shape()[0] * element_size;
+                                 ov::parallel_for(step, [&](int i){
+                                    int dst_offset = i * copy_size;
+                                    int src_offset = i * stride_size + w_rank * offset_size;
+                                    std::memcpy(dst_ptr + dst_offset, src_ptr + src_offset, copy_size);
+                                });
+                            }
                             rank_enabled = true;
                             GPU_DEBUG_TRACE_DETAIL << node->id() << " [ rank: " << w_rank << " ]" <<
                                 ": re-rank weights for TP from " << data_node_layout.to_short_string() << " to "

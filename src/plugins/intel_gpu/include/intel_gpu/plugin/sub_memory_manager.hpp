@@ -36,7 +36,6 @@ public:
     }
 
     int get_memory_id(int sub_stream_id) {
-        std::cout << _memorys_table.size() << std::endl;
         for (int i = 0; i < 2; i++) {
             if (!_memorys_table[i][sub_stream_id].last_used) {
                 return i;

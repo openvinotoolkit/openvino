@@ -9,14 +9,11 @@
 #include "openvino/op/op.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 
+#include "util.hpp"
+
 namespace ov {
 namespace intel_gpu {
 namespace op {
-enum class TP_MODE {
-    ALL_GATHERH = 0,
-    ALL_GATHERV,
-    ALL_REDUCE
-};
 class SyncTensor : public ov::op::Op {
 public:
     OPENVINO_OP("SYNCTENSOR", "gpu_opset");

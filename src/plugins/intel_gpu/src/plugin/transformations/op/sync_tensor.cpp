@@ -91,7 +91,7 @@ std::vector<ov::PartialShape> shape_infer(const SyncTensor* op, std::vector<ov::
         auto input_shape_0 = input_shapes[0];
         if (input_shape_0.is_dynamic()) {
             auto split_dim = input_shape_0[-1];
-            int split_dimenstion;
+            int split_dimenstion = 0;
             if (split_dim.is_static())
                 split_dimenstion = split_dim.get_length();
             auto split_lengths = op->m_world_size;
