@@ -58,7 +58,7 @@ public:
     NetworkDescription compile(const std::shared_ptr<const ov::Model>& model,
                                const Config& config) const override final;
 
-    NetworkMetadata parse(const std::vector<uint8_t>& network, const Config& config) const override final;
+    NetworkMetadata parse(const void* mmapBlob, size_t mmapSize, const Config& config) const;
 
     std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                             const std::vector<uint8_t>& network,
