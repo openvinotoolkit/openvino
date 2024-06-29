@@ -268,43 +268,6 @@ std::string fully_connected_inst::to_string(fully_connected_node const& node) {
     return primitive_description.str();
 }
 
-void fully_connected_inst::create_input_memory_placeholder() {
-    if (get_impl_params()->w_size != 1) {
-        auto& engine = get_network().get_engine();
-        auto alloc_type = engine.get_lockable_preferred_memory_allocation_type(false);
-        input_placeholder = engine.allocate_memory(get_impl_params()->get_input_layout(0), alloc_type);
-        GPU_DEBUG_TRACE_DETAIL << "memory place holder allocated for FC, rank " << get_impl_params()->w_rank << " "
-            << input_placeholder->get_layout().to_short_string() << std::endl;
-    } else {
-        input_placeholder = input_memory_ptr(0);
-    }
-}
-
-void fully_connected_inst::fill_placeholder() {
-    if (get_impl_params()->w_size != 1) {
-        auto rank = get_impl_params()->w_rank;
-        auto input = input_memory_ptr(0);
-        auto original_layout = input->get_layout();
-        auto dims = original_layout.get_dims();
-        auto dim = original_layout.get_partial_shape().to_shape().size() - 1;
-        auto element_size = ov::element::Type(original_layout.data_type).size();
-        auto &stream = get_network().get_stream();
-        auto srcPtr = static_cast<uint8_t*>(input->lock(stream, mem_lock_type::read));
-        auto dstPtr = static_cast<uint8_t*>(input_placeholder->buffer_ptr());
-        auto mem_size = input->size(); // total bytes
-        auto channel_size = dims[dim] * element_size; // selected dim bytes
-        const int step = (mem_size / channel_size); // the steps need to copy.
-        const int stride = dims[dim] / get_impl_params()->w_size; // elements of half selected dim.
-        const auto copySize = stride * element_size; // bytes of half selected dim.
-        ov::parallel_for(step, [&](int i) {
-            int dst_offset = i * copySize;
-            int src_offset = i * copySize* 2 + rank * copySize;
-            std::memcpy(dstPtr + dst_offset, srcPtr + src_offset, copySize);
-        });
-        input->unlock(stream);
-    }
-}
-
 fully_connected_inst::typed_primitive_inst(network& network, fully_connected_node const& node)
     : parent(network, node) { }
 }  // namespace cldnn

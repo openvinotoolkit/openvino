@@ -90,30 +90,7 @@ protected:
     }
 
     std::unordered_map<int, dnnl::memory> get_arguments(fully_connected_inst& instance) const override {
-        std::unordered_map<int, dnnl::memory> args;
-        {
-            auto input_ptr = instance.get_input_rank_placeholder();
-            if (!input_ptr)
-                input_ptr = instance.input_memory_ptr();
-            // std::cout << input.get_layout().to_short_string() << std::endl;
-            auto offset = onednn::get_offset(instance.get_input_layout(0), _pd.dnnl::primitive_desc_base::src_desc(0));
-            // mapping input memory here
-            args.insert({DNNL_ARG_SRC, (*input_ptr).get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(0), offset)});
-        }
-
-        {
-            auto& output = instance.output_memory();
-            auto offset = onednn::get_offset(instance.get_output_layout(), _pd.dnnl::primitive_desc_base::dst_desc(0));
-            args.insert({DNNL_ARG_DST, output.get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(0), offset)});
-        }
-
-        if (_scratchpad_md.get_size() != 0) {
-            // onednn primitive can have only 1 scratchpad memory.
-            auto scratchpad = instance.get_intermediates_memories()[0];
-            args.insert({DNNL_ARG_SCRATCHPAD, scratchpad->get_onednn_memory(_scratchpad_md, 0)});
-        }
-
-        configure_post_ops_arguments(instance, args);
+        std::unordered_map<int, dnnl::memory> args = parent::get_arguments(instance);
 
         {
             auto weights = instance.weights_memory();

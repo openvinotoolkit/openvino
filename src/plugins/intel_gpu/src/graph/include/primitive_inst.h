@@ -303,8 +303,6 @@ public:
 
     virtual int32_t get_prealloc_iter_num() { return -1; }
 
-    virtual void create_input_memory_placeholder() {}
-
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
 
