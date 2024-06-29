@@ -113,12 +113,15 @@ void update_loop_ports(const ExpressionPtr& expr, const LoopManagerPtr& loop_man
     }
 }
 
-std::set<ExpressionPtr> get_loop_input_exprs(const std::vector<LoopPort>& loop_in_ports) {
-    std::set<ExpressionPtr> expr_set;
-    for (size_t i = 0; i < loop_in_ports.size(); ++i) {
-        expr_set.insert(loop_in_ports[i].expr_port->get_expr());
+std::vector<ExpressionPtr> get_loop_input_exprs(const std::vector<LoopPort>& loop_in_ports) {
+    std::vector<ExpressionPtr> input_exprs;
+    for (size_t port_num = 0; port_num < loop_in_ports.size(); ++port_num) {
+        const auto& expr = loop_in_ports[port_num].expr_port->get_expr();
+        if (std::find(input_exprs.begin(), input_exprs.end(), expr) == input_exprs.end()) {
+            input_exprs.push_back(expr);
+        }
     }
-    return expr_set;
+    return input_exprs;
 }
 
 bool extract_from_loop(const size_t& inner_loop_id, LinearIR& linear_ir) {
