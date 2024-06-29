@@ -40,6 +40,7 @@ protected:
     virtual JitConstants GetJitConstants(const group_normalization_params& params) const;
     virtual std::string GetKernelName(const group_normalization_params&) const { return kernelName; }
     Datatype GetActivationType(const group_normalization_params& params) const;
+    Datatype GetAccumulatorType(const group_normalization_params& params) const;
 };
 
 }  // namespace kernel_selector

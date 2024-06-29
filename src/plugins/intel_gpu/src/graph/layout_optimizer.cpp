@@ -163,7 +163,7 @@ std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive
 
     auto reorder = std::make_shared<cldnn::reorder>(ss.str(), input_info{src_id, src_port}, out_layout);
     _cached_reorders[ckey] = reorder;
-
+std::cout << " >>>>>>>>>>>>>>>>>>>>>>>> " << reorder->id << std::endl;
     return std::make_pair(reorder, false);
 }
 
@@ -1907,8 +1907,8 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             node.as<dft>().get_primitive()->direction == dft_direction::forward) {
             node.set_preferred_input_fmt(0, format::get_default_format(node.get_input_layouts()[0].get_rank()));
         }
-    } else if (node.is_type<group_normalization>()) {
-        expected = format::get_default_format(node.get_output_layout().get_rank());
+    // } else if (node.is_type<group_normalization>()) {
+    //     expected = format::get_default_format(node.get_output_layout().get_rank());
     }
 
     if (allow_new_shape_infer && node.get_preferred_input_fmt() != format::any) {

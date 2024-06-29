@@ -4,12 +4,14 @@
 #include "group_normalization_kernel_selector.h"
 #include "group_normalization_kernel_ref.h"
 #include "group_normalization_kernel_bfyx_opt.h"
+#include "group_normalization_kernel_b_fs_yx_fsv16.h"
 
 namespace kernel_selector {
 
 group_normalization_kernel_selector::group_normalization_kernel_selector() {
     // Attach<GroupNormalizationKernelRef>();
     Attach<GroupNormalizationKernelBfyxOpt>();
+    Attach<GroupNormalizationKernel_b_fs_yx_fsv16>();
 }
 
 KernelsData group_normalization_kernel_selector::GetBestKernels(const Params &params) const {
