@@ -5,6 +5,7 @@
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "utils/precision_support.h"
 
 using namespace CPUTestUtils;
 
@@ -127,7 +128,7 @@ protected:
         ov::ParameterVector params{ dataParameter };
         function = makeNgraphFunction(inputPrecision, params, Col2Im, "Col2Im");
 
-        if (inputPrecision == ov::element::bf16) {
+        if (inputPrecision == ov::element::bf16 && !ov::intel_cpu::hasHardwareSupport(inputPrecision)) {
             abs_threshold = 5e-1f;
         }
     }
