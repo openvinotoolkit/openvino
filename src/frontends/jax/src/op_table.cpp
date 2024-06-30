@@ -21,6 +21,7 @@ OP_CONVERTER(translate_reduce_window_max);
 OP_CONVERTER(translate_reduce_window_sum);
 OP_CONVERTER(translate_reshape);
 OP_CONVERTER(translate_rsqrt);
+OP_CONVERTER(translate_squeeze);
 OP_CONVERTER(translate_transpose);
 
 }  // namespace op
@@ -38,7 +39,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_jaxpr() {
             {"reduce_window_sum", op::translate_reduce_window_sum},
             {"transpose", op::translate_transpose},
             {"rsqrt", op::translate_rsqrt},
-            {"reshape", op::translate_reshape}};
+            {"reshape", op::translate_reshape},
+            {"squeeze", op::translate_squeeze}};
 };
 
 }  // namespace jax
