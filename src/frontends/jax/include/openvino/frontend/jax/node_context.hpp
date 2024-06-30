@@ -46,6 +46,10 @@ public:
     template <typename T>
     T const_named_param(const std::string& name) const;
 
+    bool has_param(const std::string& name) const {
+        return m_param_name_to_id.find(name) != m_param_name_to_id.end();
+    }
+
     size_t get_input_size() const override {
         return m_decoder_inputs.size();
     };

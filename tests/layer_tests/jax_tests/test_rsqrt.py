@@ -9,12 +9,12 @@ from jax import numpy as jnp
 from jax_layer_test_class import JaxLayerTest
 
 
-class Testrsqrt(JaxLayerTest):
+class TestRsqrt(JaxLayerTest):
     def _prepare_input(self):
         inp = jnp.array(np.random.rand(*self.input_shape).astype(np.float32))
         return [inp]
 
-    def create_model(self,input_shape):
+    def create_model(self, input_shape):
         self.input_shape = input_shape
 
         def jax_rsqrt(inp):
