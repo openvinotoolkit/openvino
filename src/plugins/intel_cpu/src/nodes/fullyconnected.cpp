@@ -144,18 +144,16 @@ void FullyConnected::execute(dnnl::stream strm) {
         }
 
         auto dstMemoryBuffer = memory[ARG_DST];
-        MemoryPtr dst_mem;
         if (sub_memory->_memorys_table[id][w_rank].buf == nullptr) {
-            dst_mem = std::make_shared<Memory>(context->getEngine(), dstMemoryBuffer->getDescPtr(), nullptr);
-            sub_memory->_memorys_table[id][w_rank].buf = dst_mem;
+            sub_memory->_memorys_table[id][w_rank].buf = memory[ARG_DST];
         } else {
-            dst_mem = std::static_pointer_cast<Memory>(sub_memory->_memorys_table[id][w_rank].buf);
+            MemoryPtr dst_mem = std::static_pointer_cast<Memory>(sub_memory->_memorys_table[id][w_rank].buf);
             if (dst_mem->getSize() < dstMemoryBuffer->getSize()) {
-                dst_mem = std::make_shared<Memory>(context->getEngine(), dstMemoryBuffer->getDescPtr(), nullptr);
-                sub_memory->_memorys_table[id][w_rank].buf = dst_mem;
+                sub_memory->_memorys_table[id][w_rank].buf = memory[ARG_DST];
+            } else {
+                memory[ARG_DST] = dst_mem;
             }
         }
-        memory[ARG_DST] = dst_mem;
     }
 
     {
