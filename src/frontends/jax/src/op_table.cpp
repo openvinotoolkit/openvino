@@ -18,6 +18,7 @@ OP_CONVERTER(translate_constant);
 OP_CONVERTER(translate_convert);
 OP_CONVERTER(translate_convolution);
 OP_CONVERTER(translate_reduce_window_max);
+OP_CONVERTER(translate_reduce_window_sum);
 
 }  // namespace op
 
@@ -30,7 +31,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_jaxpr() {
             {"constant", op::translate_constant},
             {"convert_element_type", op::translate_convert},
             {"conv_general_dilated", op::translate_convolution},
-            {"reduce_window_max", op::translate_reduce_window_max}};
+            {"reduce_window_max", op::translate_reduce_window_max},
+            {"reduce_window_sum", op::translate_reduce_window_sum}};
 };
 
 }  // namespace jax

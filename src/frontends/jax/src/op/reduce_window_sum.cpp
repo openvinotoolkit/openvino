@@ -4,13 +4,15 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <numeric>
 #include <vector>
 
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/frontend/jax/node_context.hpp"
+#include "openvino/op/avg_pool.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/max_pool.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/transpose.hpp"
 #include "utils.hpp"
 
@@ -21,7 +23,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_reduce_window_max(const NodeContext& context) {
+OutputVector translate_reduce_window_sum(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
     Output<Node> input = context.get_input(0);
 
@@ -50,7 +52,6 @@ OutputVector translate_reduce_window_max(const NodeContext& context) {
             std::to_string(window_dilation.size()) + " and " + std::to_string(total_dim));
 
     Strides strides(total_dim - 2);
-    Strides dilations(total_dim - 2);
     Shape pads_begin(total_dim - 2);
     Shape pads_end(total_dim - 2);
     Shape kernel(total_dim - 2);
@@ -60,7 +61,6 @@ OutputVector translate_reduce_window_max(const NodeContext& context) {
             pads_begin[ind - 1] = padding[ind][0];
             pads_end[ind - 1] = padding[ind][1];
             strides[ind - 1] = static_cast<size_t>(window_strides[ind]);
-            dilations[ind - 1] = static_cast<size_t>(base_dilation[ind]);
         } else {
             // only support NHWC format input now.
             JAX_OP_CONVERSION_CHECK(window_dimensions[ind] == 1, "[JAX Frontend] internal error: unsupported layout.");
@@ -88,9 +88,14 @@ OutputVector translate_reduce_window_max(const NodeContext& context) {
     auto output_transpose_order =
         std::make_shared<v0::Constant>(element::i64, Shape{out_transpose_vector.size()}, out_transpose_vector);
 
+    auto kernel_size = std::accumulate(kernel.begin(), kernel.end(), 1, std::multiplies<size_t>());
+    Output<Node> kernel_size_constant =
+        std::make_shared<v0::Constant>(element::i64, Shape{}, std::vector<int64_t>{kernel_size});
+
     input = std::make_shared<v1::Transpose>(input, input_transpose_order);
-    Output<Node> res = std::make_shared<v14::MaxPool>(input, strides, dilations, pads_begin, pads_end, kernel);
+    Output<Node> res = std::make_shared<v14::AvgPool>(input, strides, pads_begin, pads_end, kernel, true);
     res = std::make_shared<v1::Transpose>(res, output_transpose_order);
+    res = std::make_shared<v1::Multiply>(res, kernel_size_constant);
     return {res};
 };
 
