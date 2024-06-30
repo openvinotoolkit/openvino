@@ -16,6 +16,7 @@ namespace op {
 
 OP_CONVERTER(translate_constant);
 OP_CONVERTER(translate_convert);
+OP_CONVERTER(translate_convolution);
 
 }  // namespace op
 
@@ -26,7 +27,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops_jaxpr() {
             {"mul", op::translate_1to1_match_2_inputs<opset14::Multiply>},
             {"div", op::translate_1to1_match_2_inputs<opset14::Divide>},
             {"constant", op::translate_constant},
-            {"convert_element_type", op::translate_convert}};
+            {"convert_element_type", op::translate_convert},
+            {"conv_general_dilated", op::translate_convolution}};
 };
 
 }  // namespace jax

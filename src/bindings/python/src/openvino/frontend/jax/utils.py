@@ -9,6 +9,7 @@ import numpy as np
 import jax.numpy as jnp
 
 from openvino.runtime import op, Type as OVType, Shape, OVAny
+from openvino.frontend.jax.passes import filter_element, filter_ivalue
 
 numpy_to_ov_type_map = {
     np.dtypes.Float32DType: OVType.f32,
@@ -65,7 +66,7 @@ def get_type_from_py_type(value):
         return OVType.f32
     if isinstance(value, bool):
         return OVType.boolean
-    if isinstance(value, int):
+    if isinstance(value,(int, np.int64)):
         return OVType.i64
     return OVType.dynamic
 
@@ -108,14 +109,27 @@ def ivalue_to_constant(ivalue, shared_memory=True):
     '''
     Convert a python object to an openvino constant.
     '''
+    ivalue = filter_ivalue(ivalue)
     ov_type = get_type_from_py_type(ivalue)
     if ov_type.is_static():
         return op.Constant(ov_type, Shape([]), [ivalue]).outputs()
-
+    
     if isinstance(ivalue, (list, tuple)):
         assert len(ivalue) > 0, "Can't deduce type for empty list"
+        if isinstance(ivalue[0], (list, tuple)):
+            second_len = len(ivalue[0])
+            flattened_ivalue = []
+            for value in ivalue:
+                assert isinstance(value, (list, tuple)), "Can't deduce type for a list with both list and basic types."
+                assert len(value) == second_len, "Can't deduce type for nested list with different lengths."
+                flattened_ivalue.extend([filter_element(item) for item in value])
+            flattened_ivalue = [item for sublist in ivalue for item in sublist]
+            ov_type = get_type_from_py_type(flattened_ivalue[0])
+            assert ov_type.is_static(), f"Can't deduce type {flattened_ivalue[0].__class__} for list"
+            return op.Constant(ov_type, Shape([len(ivalue), second_len]), flattened_ivalue).outputs()
+        ivalue = [filter_element(item) for item in ivalue]
         ov_type = get_type_from_py_type(ivalue[0])
-        assert ov_type.is_static(), "Can't deduce type for list"
+        assert ov_type.is_static(), f"Can't deduce type {ivalue[0].__class__} for list"
         return op.Constant(ov_type, Shape([len(ivalue)]), ivalue).outputs()
 
     if isinstance(ivalue, (jax.Array, np.ndarray)):
