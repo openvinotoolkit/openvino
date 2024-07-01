@@ -35,15 +35,20 @@ GroupNormalizationKernel_b_fs_yx_fsv16::MultiDispatchData GroupNormalizationKern
     if (!params.has_dynamic_tensors()) {
         const auto& input = params.inputs[0];
 
-        dispatchData.stage_1.gws[0] = 16;
+        dispatchData.stage_1.gws[0] = input.X().v * input.Y().v * fsv;
         dispatchData.stage_1.gws[1] = CeilDiv(input.Feature().v * input.Batch().v, fsv);
         dispatchData.stage_1.gws[2] = 1;
 
-        dispatchData.stage_1.lws[0] = 16;
+        dispatchData.stage_1.lws[0] = simd;
         dispatchData.stage_1.lws[1] = 1;
         dispatchData.stage_1.lws[2] = 1;
 
-        dispatchData.stage_1.itemsNum = input.X().v * input.Y().v;
+        while((dispatchData.stage_1.lws[0] * 2) <= params.engineInfo.maxWorkGroupSize) {
+            if (dispatchData.stage_1.gws[0] % (dispatchData.stage_1.lws[0] * 2) == 0) {
+                dispatchData.stage_1.lws[0] *= 2;
+            }
+        }
+        dispatchData.stage_1.gws[0] = dispatchData.stage_1.lws[0];
 
         dispatchData.stage_2.gws[0] = input.Feature().v;
         dispatchData.stage_2.gws[1] = input.Batch().v;
@@ -257,7 +262,7 @@ KernelsData GroupNormalizationKernel_b_fs_yx_fsv16::GetKernelsData(const Params 
     }
     {
         // final stage
-        auto cldnn_jit = GetJitConstants(prim_params, dispatchData.stage_1);
+        auto cldnn_jit = GetJitConstants(prim_params, dispatchData.stage_final);
         cldnn_jit.AddConstant(MakeJitConstant("GROUP_NORM_KERNEL_FINAL", 1));
         auto entry_point = GetEntryPoint(finalKernelName, prim_params.layerID, params, entry_part_id++);
         auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);

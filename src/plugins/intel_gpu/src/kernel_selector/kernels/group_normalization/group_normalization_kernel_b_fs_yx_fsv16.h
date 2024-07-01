@@ -20,6 +20,7 @@ public:
 protected:
     struct MultiDispatchData {
         DispatchData stage_1;
+        DispatchData stage_1_1;
         DispatchData stage_2;
         DispatchData stage_final;
 
