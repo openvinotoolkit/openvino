@@ -258,7 +258,7 @@ static dnnl::inner_product_forward::primitive_desc createDescriptorInternal(cons
 
         // dynamic quantization with symmetric quantized weights needs unsigned weights
         uint64_t dynQuantGroupSize = 0;
-        // attr.get_src_dyn_quant_params(dynQuantGroupSize);
+        attr.get_src_dyn_quant_params(dynQuantGroupSize);
         if (dynQuantGroupSize > 0) {
             if (wdt == dnnl::memory::data_type::s8)
                 wdt = memory::data_type::u8;
