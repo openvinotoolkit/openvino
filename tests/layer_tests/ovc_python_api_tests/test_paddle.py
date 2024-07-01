@@ -182,4 +182,3 @@ class TestUnicodePathsPaddle(unittest.TestCase):
             assert fe.supported(model_path)
 
             del res_model_after_saving
-            os.remove(model_path + ".bin")
