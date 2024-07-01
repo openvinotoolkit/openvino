@@ -99,7 +99,7 @@ below, where a lambda function outputs words to the console immediately upon gen
 
             auto streamer = [](std::string word) { 
                std::cout << word << std::flush; 
-               // Return flag correspods whether generation should be stopped.
+               // Return flag indicating whether generation should be stopped.
                // false means continue generation.
                return false;
             };
@@ -123,8 +123,8 @@ You can also create your custom streamer for more sophisticated processing:
                self.tokenizer = tokenizer
             def put(self, token_id) -> bool:
                # Decode tokens and process them.
-               # Streamer returns a flag correspoding whether generation should be stopped.
-               # But in Python return can be ommited in that case the function will return None
+               # Streamer returns a flag corresponding whether generation should be stopped.
+               # In Python `return` can be omitted. In that case the function will return None
                # which in turn will be converted to False, which means continue generation.
                # return stop_flag
             def end(self):
