@@ -500,9 +500,13 @@ void Partitioner::identifySubgraphs() {
             // set as part of kvcache conversion routune.
             LOG_BLOCK();
             std::set<std::string> output_layers_cache(group.output_layers.begin(), group.output_layers.end());
+
+            // Have to switch clang-format here to make cpplint happy
+            // clang-format off
+
             for (auto&& op_name : group.all_layers) {
                 auto layer_ptr = node_id_cache.at(op_name);
-                if (ProducesResult{}(layer_ptr) && !output_layers_cache.count(op_name)) {
+                if (ProducesResult {}(layer_ptr) && !output_layers_cache.count(op_name)) {
                     LOG_VERB("Adding " << op_name << " as an extra output layer since it is produces a Result");
                     output_layers_cache.insert(op_name);
                     group.output_layers.push_back(op_name);
@@ -511,7 +515,7 @@ void Partitioner::identifySubgraphs() {
                     for (auto&& inport : oport.get_target_inputs()) {
                         auto reader_ptr = inport.get_node();
                         if (ov::is_type<ov::op::v0::Convert>(reader_ptr) &&
-                            ProducesResult{}(reader_ptr->shared_from_this()) &&
+                            ProducesResult {}(reader_ptr->shared_from_this()) &&
                             !output_layers_cache.count(reader_ptr->get_friendly_name())) {
                             const auto& cvt_name = reader_ptr->get_friendly_name();
                             output_layers_cache.insert(cvt_name);
@@ -520,6 +524,7 @@ void Partitioner::identifySubgraphs() {
                     }
                 }
             }  // for(all_layers)
+            // clang-format on
         }
         std::size_t num_optimized_out_layers = 0u;
         for (auto&& output_layer_name : group.output_layers) {
@@ -931,31 +936,31 @@ void Partitioner::propagateConvertsOut(const std::string& func_name) {
     auto& model_group = all_functions.at(func_name).mdls;
     auto& bank = ens.repeated.at(func_name).matches;
 
+    // Nodes we're looking for:
+    // 1. Converts
+    // 2. Missing in our match banks
+    // 3. Its producer should be present in our match banks
+    // 4. Standing in front of results
+    auto test = [&](const std::shared_ptr<ov::Node>& node_ptr) {
+        if (!ov::is_type<ov::op::v0::Convert>(node_ptr)) {  // 1
+            return false;
+        }
+        auto this_layer_name = node_ptr->get_friendly_name();
+        if (bank.end() != std::find_if(bank.begin(), bank.end(), BankContains{this_layer_name})) {  // 2
+            return false;
+        }
+        auto in_layer_name = node_ptr->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name();
+        if (bank.end() == std::find_if(bank.begin(), bank.end(), BankContains{in_layer_name})) {  // 3
+            return false;
+        }
+        const auto& these_readers = node_ptr->output(0).get_target_inputs();
+        return these_readers.size() == 1 &&
+               ov::op::util::is_output(these_readers.begin()->get_node()->shared_from_this());  // 4
+    };
+
     for (auto&& model : model_group) {
         LOG_DEBUG("Process function call " << model->get_friendly_name() << "...");
         LOG_BLOCK();
-
-        // Nodes we're looking for:
-        // 1. Converts
-        // 2. Missing in our match banks
-        // 3. Its producer should be present in our match banks
-        // 3. Standing in front of results
-        auto test = [&](const std::shared_ptr<ov::Node>& node_ptr) {
-            if (!ov::is_type<ov::op::v0::Convert>(node_ptr)) {  // 1
-                return false;
-            }
-            auto this_layer_name = node_ptr->get_friendly_name();
-            if (bank.end() != std::find_if(bank.begin(), bank.end(), BankContains{this_layer_name})) {  // 2
-                return false;
-            }
-            auto in_layer_name = node_ptr->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name();
-            if (bank.end() == std::find_if(bank.begin(), bank.end(), BankContains{in_layer_name})) {  // 3
-                return false;
-            }
-            const auto& these_readers = node_ptr->output(0).get_target_inputs();
-            return these_readers.size() == 1 &&
-                   ov::op::util::is_output(these_readers.begin()->get_node()->shared_from_this());
-        };
 
         for (auto&& node_ptr : model->get_ordered_ops()) {
             if (test(node_ptr)) {
