@@ -13,9 +13,7 @@ PartialShapeWrap::PartialShapeWrap(const Napi::CallbackInfo& info) : Napi::Objec
 
     try {
         if (ov::js::validate<Napi::String>(info, allowed_signatures)) {
-            const auto& shape = std::string(info[0].ToString());
-
-            _partial_shape = ov::PartialShape(shape);
+            _partial_shape = ov::PartialShape(info[0].ToString());
 
             return;
         } else if (ov::js::validate(info, allowed_signatures)) {
