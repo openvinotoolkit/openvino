@@ -3,7 +3,6 @@
 //
 
 #include "col2im.h"
-#include "common/cpu_convert.h"
 #include "openvino/reference/col2im.hpp"
 #include "openvino/op/col2im.hpp"
 
@@ -43,6 +42,7 @@ void Col2Im::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
     ov::element::Type dataPrecision = getOriginalInputPrecisionAtPort(0);
+    std::cout << "\n\nCol2Im::initSupportedPrimitiveDescriptors dataPrecision = " << dataPrecision << "\n\n";
     addSupportedPrimDesc(
         {{LayoutType::ncsp, dataPrecision}, {LayoutType::ncsp, ov::element::i32}, {LayoutType::ncsp, ov::element::i32}},
         {{LayoutType::ncsp, dataPrecision}},

@@ -315,6 +315,8 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 142997
         R"(.*smoke_TestsROIAlign_max/ROIAlignLayerTest.Inference/IS=\(\[\]\)_TS=\{\(2.8.20.20\)\}_coordShape=\(2.4\)_pooledH=2_pooledW=2_spatialScale=0.625_poolingRatio=2_poolingMode=max_modelType=f32_trgDev=CPU*)",
         R"(.*smoke_TestsROIAlign_average/ROIAlignLayerTest.Inference/IS=\(\[\]\)_TS=\{\(3.8.16.16\)\}_coordShape=\(2.4\)_pooledH=2_pooledW=2_spatialScale=1_poolingRatio=2_poolingMode=avg_modelType=f32_trgDev=CPU*)",
+        // Issue: 145726
+        R"(.*smoke_Col2ImLayoutTestBF16/Col2ImLayerCPUTest.CompareWithRefs.*)",
     };
 
     // fp32 floor for bf16 models: conversion issue
