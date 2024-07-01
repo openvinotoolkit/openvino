@@ -661,6 +661,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (input.in_shape_of_subgraph || node->in_shape_of_subgraph)
                 return;
 
+            if (activation_node.get_users().size() >= 2) {
+                return;
+            }
+
             if (_lo.get_optimization_attributes().use_onednn_impls) {
                 if (input.is_type<reshape>() || input.is_type<concatenation>())
                     return;

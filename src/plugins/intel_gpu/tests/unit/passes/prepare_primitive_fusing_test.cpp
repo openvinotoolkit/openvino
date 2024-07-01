@@ -689,3 +689,44 @@ TEST(prepare_primitive_fusing, dont_fuse_eltwise_to_dyn_dts) {
     ASSERT_NE(prog, nullptr);
     ASSERT_TRUE(has_node(*prog, "scale1"));
 }
+
+TEST(prepare_primitive_fusing, dont_fuse_activation_having_more_than_two_users) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    auto in_layout = layout{ ov::PartialShape{-1, -1, -1, -1}, data_types::f32, format::bfyx };
+    auto weight_layout = layout{ ov::PartialShape{32, 32, 3, 3}, data_types::f32, format::bfyx};
+    auto weight_mem = engine.allocate_memory(weight_layout);
+    auto weight_data = rg.generate_random_4d<ov::float16>(32, 32, 3, 3, -1, 1);
+    set_values(weight_mem, weight_data);
+    auto scale_layout = layout{ ov::PartialShape{1, 2, 1, 1}, data_types::f32, format::bfyx };
+    auto scale_mem = engine.allocate_memory(scale_layout);
+    auto elt_layout = layout{ ov::PartialShape{1, 2, 32, 32}, data_types::f32, format::bfyx };
+    auto elt_mem = engine.allocate_memory(elt_layout);
+
+    topology topology;
+
+    topology.add(data("weights", weight_mem));
+    topology.add(input_layout("input", in_layout));
+    topology.add(convolution("conv", input_info("input"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(depth_to_space("depth_to_space", input_info("conv"), 4, depth_to_space_mode::blocks_first));
+    topology.add(data("scale_data", scale_mem));
+    topology.add(eltwise("scale", { input_info("depth_to_space"), input_info("scale_data") }, eltwise_mode::prod, data_types::f32));
+    topology.add(activation("activation", input_info("scale"), activation_func::relu));
+    topology.add(data("eltwise_data", elt_mem));
+    topology.add(eltwise("eltwise1", { input_info("activation"), input_info("eltwise_data") }, eltwise_mode::sum, data_types::f32));
+    topology.add(eltwise("eltwise2", { input_info("activation"), input_info("eltwise_data") }, eltwise_mode::sum, data_types::f32));
+    topology.add(reorder("reorder1", input_info("eltwise1"), format::bfyx, data_types::f32));
+    topology.add(reorder("reorder2", input_info("eltwise2"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    layout_optimizer lo(true);
+
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+
+    ASSERT_NE(prog, nullptr);
+    ASSERT_TRUE(has_node(*prog, "activation"));
+}
