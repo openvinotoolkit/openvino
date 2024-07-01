@@ -175,20 +175,15 @@ jobs:
 
       - name: Build Debian packages
         run: |
-          
-          # In Ubuntu 22, we use Python 3.11 for tests and build, i.e., not system 3.10
-          # while we use system Python for other OSes
-          # Debian packages should be built with the system Python
-          [[ ${{ inputs.os }} == "ubuntu22" ]] && python_exec_path=/venv3.10/bin/python3 || python_exec_path=/usr/bin/python3
-          
-          $python_exec_path -m pip install -U pip
-          $python_exec_path -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
+          # Use system Python
+          /usr/bin/python3 -m pip install -U pip
+          /usr/bin/python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
           cmake -UPython* -U_Python* -UPYTHON* \
                 -UTBB* \
                 -DENABLE_SYSTEM_TBB=ON \
                 -DENABLE_PYTHON_PACKAGING=ON \
                 -DENABLE_TESTS=OFF \
-                -DPython3_EXECUTABLE=$python_exec_path \
+                -DPython3_EXECUTABLE=/usr/bin/python3 \
                 -DCPACK_GENERATOR=DEB \
                 ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target package

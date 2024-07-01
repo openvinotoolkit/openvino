@@ -59,9 +59,6 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
-# Create venv for Python 3.10 (System) for Debian packages
-RUN python3 -m venv venv3.10
-
 # Use Python 3.11 as default
 # Using venv here 'cause other methods to switch the default Python on Ubuntu break both system and wheels build
 RUN python3.11 -m venv venv
