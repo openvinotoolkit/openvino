@@ -70,6 +70,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     ParameterVector kv_parameters;
     ParameterVector parameters_to_remove;
+    ResultVector score_results;
     ResultVector results_to_remove;  // # used, but cannot really track all Results in stateless model
 
     std::shared_ptr<v0::Parameter> position_ids;
@@ -97,7 +98,8 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   sliding_window,
                                                   parameters_to_remove,
                                                   layer_index,
-                                                  max_context_len->output(0));
+                                                  max_context_len->output(0),
+                                                  score_results);
     manager.register_pass<PrevSequenceLengthPattern>(prev_max_seq_len, batch_dim);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
 
@@ -140,6 +142,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     model->add_parameters(kv_parameters);
     model->add_parameters(model_remaining_params);
     model->add_parameters({max_context_len});
+    model->add_results(score_results);
     model->validate_nodes_and_infer_types();
     return true;
 }

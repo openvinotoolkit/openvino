@@ -759,6 +759,7 @@ struct MHAHelper {
     PlainTensor _wv_scratch_a;
     PlainTensor _wv_scratch_b;
     PlainTensor _alibi_lookup;
+    PlainTensor _score_output;
     std::vector<size_t> _wsp;
     size_t _wsp_size_per_thread = 0;
 
@@ -772,6 +773,8 @@ struct MHAHelper {
     // second token for bhl loop
     PlainTensor _weight_bhl;
     PlainTensor _output_bhl;
+    PlainTensor _score_offsets_aligned;
+    PlainTensor _score_offsets;
 
     MHAHelper() {
         _weight.resize<float>({size_t{1}, size_t{1}, size_t{1}, size_t{1}});
@@ -867,6 +870,24 @@ struct MHAHelper {
         _wv_scratch_b.resize<DATA_TYPE>({batch, kv_len_in_blocks, _Hk, _block_size * rnd_up(_S, _block_size)});
     }
 
+    void init_score_buffers(const PlainTensor& past_lens, const PlainTensor& subsequence_begins) {
+        auto seq_cout = static_cast<int32_t>(past_lens.m_dims[0]);
+        _score_offsets_aligned.resize<int32_t>({past_lens.m_dims[0]});
+        _score_offsets.resize<int32_t>({past_lens.m_dims[0]});
+        int32_t total_kv_len_aligned = 0;
+        int32_t total_kv_len = 0;
+        for (int32_t i = 0; i < seq_cout; i++) {
+            auto q_len = subsequence_begins.ptr<int32_t>()[i + 1] - subsequence_begins.ptr<int32_t>()[i];
+            auto kv_len = past_lens.ptr<int32_t>()[i] + q_len;
+            _score_offsets_aligned.ptr<int32_t>()[i] = total_kv_len_aligned;
+            _score_offsets.ptr<int32_t>()[i] = total_kv_len;
+            total_kv_len_aligned += rnd_up(kv_len, 16);
+            total_kv_len += kv_len;
+        }
+
+        _score_output.resize<float>({total_kv_len_aligned * _H});
+    }
+
     // compute one block(such as 32 tokens) of query in M dimension: softmax(q_block*k')*v
     // all tensors such as query... have no batch dimension because batch dimension is varying
     //  query: [H, L, S]
@@ -875,8 +896,8 @@ struct MHAHelper {
     //  qk_scratch_b: [rnd_up(kv_len, block_size), Hk, scratch_b_size]
     //  wv_scratch_b: [rnd_up(kv_len, block_size), Hk, scratch_b_size]
     void exec_kernel_multiple(const PlainTensor& query, const PlainTensor& present_value, const PlainTensor& output_emb,
-        const PlainTensor& qk_scratch_b, const PlainTensor& wv_scratch_b,
-        const int32_t* block_table, size_t ithr, size_t q_blk, size_t hk, size_t q_len, size_t cur_kv_len, const PlainTensor& alibi_slopes) {
+        const PlainTensor& qk_scratch_b, const PlainTensor& wv_scratch_b, const int32_t* block_table, size_t ithr, size_t q_blk,
+        size_t hk, size_t q_len, size_t cur_kv_len, const PlainTensor& alibi_slopes, float* score_output) {
         auto q_start = q_blk * _block_size;
         auto q_end = std::min(q_start + _block_size, q_len);
         auto q_cnt = q_end - q_start;
@@ -947,6 +968,9 @@ struct MHAHelper {
                                         precision_of<DATA_TYPE>::value,
                                         alibi_slope);
                 }
+                if (score_output) {
+                    cvt_copy(score_output + h * rnd_up(cur_kv_len, 16), reinterpret_cast<DATA_TYPE*>(score), cur_kv_len);
+                }
             }
 
             // reuse float buffer, need to use float to compute offset
@@ -998,7 +1022,7 @@ struct MHAHelper {
     //  weight: [nthr, H, 32, rnd_up(kv_len, block_size)]
     //  output: [nthr, 32, H, S]
     void exec_kernel_one_bh(const PlainTensor& query, const PlainTensor& present_key, const PlainTensor& present_value, const PlainTensor& output_emb,
-        const int32_t* block_table, size_t ithr, size_t hk, size_t q_len, size_t cur_kv_len, const PlainTensor& alibi_slopes) {
+        const int32_t* block_table, size_t ithr, size_t hk, size_t q_len, size_t cur_kv_len, const PlainTensor& alibi_slopes, float* score_output) {
         if (_fastpath_valid) {
             _gemv->tile_config();
             for (size_t pk = 0, i = 0; pk < cur_kv_len; pk += _block_size, i++) {
@@ -1044,6 +1068,9 @@ struct MHAHelper {
                                     ov::element::f32,
                                     ov::element::f32,
                                     alibi_slope);
+                if (score_output) {
+                    memcpy(score_output + h * rnd_up(cur_kv_len, 16), _weight.ptr<float>(ithr, h, pq), cur_kv_len * sizeof(float));
+                }
             }
         }
 
@@ -1078,6 +1105,7 @@ struct MHAHelper {
                        const PlainTensor& present_key,
                        const PlainTensor& present_value,
                        const PlainTensor& output_emb,
+                       const PlainTensor& output_score,
                        size_t max_context_len,
                        const PlainTensor& past_lens,
                        const PlainTensor& subsequence_begins,
@@ -1140,6 +1168,16 @@ struct MHAHelper {
                                 ov::element::f32,
                                 alibi_slope);
         });
+
+        if (output_score) {
+            parallel_for2d_dynamic(B, q_len, [&](size_t b, size_t pq) {
+                auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + 1;
+                auto* src = _weight_bhl.ptr<float>(b, 0, pq);
+                size_t src_stride = _weight_bhl.stride(2);
+                auto* dst = output_score.ptr<float>() + _score_offsets.ptr<int32_t>()[b];
+                attn_reduce(dst, src, _H, cur_kv_len, src_stride);
+            });
+        }
 
         // attn_w * V
         _output_bhl.resize<float>({static_cast<size_t>(_nthr), B, q_len, _H, _S});
@@ -1284,6 +1322,7 @@ struct MHA {
                          const PlainTensor& k_cache,
                          const PlainTensor& v_cache,
                          const PlainTensor& output_emb,
+                         const PlainTensor& output_score,
                          size_t max_context_len,
                          const PlainTensor& past_lens,
                          const PlainTensor& subsequence_begins,
@@ -1343,16 +1382,30 @@ struct MHA {
 
             if (q_len == 1) {
                 const auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[batch_in_seq]) + 1;
+                float* score_output = nullptr;
+                if (output_score) {
+                    auto score_offset = _helper._score_offsets_aligned.template ptr<int32_t>()[batch_in_seq];
+                    score_output = _helper._score_output.template ptr<float>() + score_offset * _helper._H;
+                }
 
                 _helper.exec_kernel_one_bh(q.slice(0, batch_in_token, batch_in_token), k_cache, v_cache,
                     output_emb.slice(0, batch_in_token, batch_in_token),
                     block_indices.ptr<int32_t>() + block_indices_begins.ptr<int32_t>()[batch_in_seq],
-                    ithr, hk, 1ul, cur_kv_len, alibi_slopes);
+                    ithr, hk, 1ul, cur_kv_len, alibi_slopes,
+                    score_output);
             } else {
                 const auto batch_in_reorder = item.batch_in_reorder;
                 const auto q_blk = item.q_block_id;
                 const auto q_cnt = std::min(_helper._block_size, q_len - q_blk * _helper._block_size);
                 const auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[batch_in_seq]) + q_blk * _helper._block_size + q_cnt;
+                float* score_output = nullptr;
+                if (output_score) {
+                    // last block
+                    if (q_len - q_blk * _helper._block_size <= _helper._block_size) {
+                        auto score_offset = _helper._score_offsets_aligned.template ptr<int32_t>()[batch_in_seq];
+                        score_output = _helper._score_output.template ptr<float>() + score_offset * _helper._H;
+                    }
+                }
 
                 PlainTensor sub_query;
                 sub_query.resize({q_len, _helper._H, _helper._S}, q.ptr<DATA_TYPE>(batch_in_token));
@@ -1368,9 +1421,22 @@ struct MHA {
                     hk,
                     q_len,
                     cur_kv_len,
-                    alibi_slopes);
+                    alibi_slopes,
+                    score_output);
             }
         });
+        if (output_score) {
+            parallel_for2d_dynamic(past_lens.m_dims[0], 1, [&](size_t b, size_t pq) {
+                auto seq_len = static_cast<size_t>(subsequence_begins.ptr<int32_t>()[b + 1] - subsequence_begins.ptr<int32_t>()[b]);
+                auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[b]) + seq_len;
+                auto src_offset = _helper._score_offsets_aligned.template ptr<int32_t>()[b];
+                auto* src = _helper._score_output.template ptr<float>() + src_offset * _helper._H;
+                size_t src_stride = rnd_up(cur_kv_len, 16);
+                auto dst_offset = _helper._score_offsets.template ptr<int32_t>()[b];
+                auto* dst = output_score.ptr<float>() + dst_offset;
+                attn_reduce(dst, src, _helper._H, cur_kv_len, src_stride);
+            });
+        }
     }
 
     // Q, K, V is ready, do attention
@@ -1378,6 +1444,7 @@ struct MHA {
                     PlainTensor& present_key,
                     PlainTensor& present_value,
                     PlainTensor& output_emb,
+                    PlainTensor& output_score,
                     size_t max_context_len,
                     const PlainTensor& past_lens,
                     const PlainTensor& subsequence_begins,
@@ -1385,14 +1452,16 @@ struct MHA {
                     const PlainTensor& block_indices_begins,
                     const PlainTensor& alibi_slopes) {
         _workitems.reset(query, past_lens, subsequence_begins, _helper._block_size);
+        if (output_score)
+            _helper.init_score_buffers(past_lens, subsequence_begins);
 
         auto nthr = static_cast<size_t>(parallel_get_max_threads());
 
         if (past_lens.m_dims[0] >= nthr || _workitems.get_reorder_max_batch_size() > 0) {
-            exec_loop_mixed(query, present_key, present_value, output_emb, max_context_len, past_lens, subsequence_begins,
+            exec_loop_mixed(query, present_key, present_value, output_emb, output_score, max_context_len, past_lens, subsequence_begins,
                 block_indices, block_indices_begins, alibi_slopes);
         } else {
-            _helper.exec_loop_bhl(query, present_key, present_value, output_emb, max_context_len, past_lens, subsequence_begins,
+            _helper.exec_loop_bhl(query, present_key, present_value, output_emb, output_score, max_context_len, past_lens, subsequence_begins,
                 block_indices, block_indices_begins, alibi_slopes);
         }
     }
@@ -1406,9 +1475,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
 
     AttentionExecutor() : _kernel(_helper) {}
 
-    void init(const std::vector<MemoryPtr>& inputs, const MemoryPtr& output, PlainTensor& q, PlainTensor& k, PlainTensor& v, PlainTensor& k_cache,
+    void init(const std::vector<MemoryPtr>& inputs, const std::vector<MemoryPtr>& outputs, PlainTensor& q, PlainTensor& k, PlainTensor& v, PlainTensor& k_cache,
         PlainTensor& v_cache, PlainTensor& past_lens, PlainTensor& subsequence_begins, PlainTensor& block_indices, PlainTensor& block_indices_begins,
-        float& scale, size_t& sliding_window, PlainTensor& alibi_slopes, size_t& max_context_len, PlainTensor& output_emb) {
+        float& scale, size_t& sliding_window, PlainTensor& alibi_slopes, size_t& max_context_len, PlainTensor& output_emb, PlainTensor& output_score) {
         q.reset(inputs[ID_Q]);                                      // [B_token, H * S]
         k.reset(inputs[ID_K]);
         v.reset(inputs[ID_V]);
@@ -1423,7 +1492,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         if (!inputs[ID_ALIBI_SLOPES]->getShape().hasZeroDims())
             alibi_slopes.reset(inputs[ID_ALIBI_SLOPES]);
         max_context_len = static_cast<size_t>(*inputs[ID_MAX_CONTEXT_LEN]->getDataAs<int32_t>());
-        output_emb.reset(output);
+        output_emb.reset(outputs[0]);
+        if (outputs.size() == 2)
+            output_score.reset(outputs[1]);
 
         auto B_token = q.size(0);
         auto Hk = k_cache.size(1);
@@ -1496,7 +1567,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
     }
 
-    void execute(const std::vector<MemoryPtr>& inputs, const MemoryPtr output) override {
+    void execute(const std::vector<MemoryPtr>& inputs, const std::vector<MemoryPtr> outputs) override {
         PlainTensor q, k, v, k_cache, v_cache;
         PlainTensor past_lens, subsequence_begins, block_indices, block_indices_begins;
         float scale;
@@ -1504,12 +1575,13 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         PlainTensor alibi_slopes;
         size_t max_context_len;
         PlainTensor output_emb;
+        PlainTensor output_score;
 
-        init(inputs, output, q, k, v, k_cache, v_cache, past_lens, subsequence_begins, block_indices, block_indices_begins,
-            scale, sliding_window, alibi_slopes, max_context_len, output_emb);
+        init(inputs, outputs, q, k, v, k_cache, v_cache, past_lens, subsequence_begins, block_indices, block_indices_begins,
+            scale, sliding_window, alibi_slopes, max_context_len, output_emb, output_score);
         concat_pastkv(k, v, k_cache, v_cache, past_lens, subsequence_begins, block_indices, block_indices_begins);
 
-        _kernel(q, k_cache, v_cache, output_emb, max_context_len, past_lens, subsequence_begins, block_indices, block_indices_begins, alibi_slopes);
+        _kernel(q, k_cache, v_cache, output_emb, output_score, max_context_len, past_lens, subsequence_begins, block_indices, block_indices_begins, alibi_slopes);
     }
 };
 #endif

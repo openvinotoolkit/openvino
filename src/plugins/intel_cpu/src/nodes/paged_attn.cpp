@@ -13,7 +13,6 @@
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
 #include "openvino/util/common_util.hpp"
-#include "shape_inference/custom/paged_attn.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 
 #include "utils/plain_tensor.hpp"
@@ -55,7 +54,7 @@ bool PagedAttentionKey::operator==(const PagedAttentionKey& rhs) const {
 }
 
 PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, PAShapeInferFactory(op)) {
+    : Node(op, context, InternalDynShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW("CPU: " + errorMessage);
@@ -70,6 +69,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     NodeConfig config;
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto orgInputNumber = getOriginalInputsNumber();
+    auto orgOutputNumber = getOriginalOutputsNumber();
     config.inConfs.resize(orgInputNumber);
     config.outConfs.resize(getOriginalOutputsNumber());
     config.inConfs[PagedAttentionExecutor::ID_Q].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
@@ -113,6 +113,9 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
 
     config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
         rtPrecision, getOutputShapeAtPort(0)));
+    if (orgOutputNumber == 2)
+        config.outConfs[1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+            ov::element::f32, getOutputShapeAtPort(1)));
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }
@@ -142,13 +145,34 @@ void PagedAttention::createPrimitive() {
 
 void PagedAttention::execute(dnnl::stream strm) {
     auto orginInputNumber = getOriginalInputsNumber();
+    auto orginOutputNumber = getOriginalOutputsNumber();
     std::vector<MemoryPtr> inputs(orginInputNumber);
-    auto output = getDstMemoryAtPort(0);
+    std::vector<MemoryPtr> outputs(orginOutputNumber);
+
     for (size_t i = 0; i < orginInputNumber; i++) {
         inputs[i] = getSrcMemoryAtPort(i);
     }
 
-    m_executor->execute(inputs, output);
+    const auto& queryDims = inputs[0]->getStaticDims();
+    if (orginOutputNumber == 1) {
+        redefineOutputMemory({queryDims});
+    } else {
+        const auto& pastLensDims = inputs[5]->getStaticDims();
+        auto pastLens = inputs[5]->getDataAs<const int32_t>();
+        size_t len = 0;
+        for (size_t i = 0; i < pastLensDims[0]; i++)
+            len += pastLens[i];
+        len += queryDims[0];
+
+        VectorDims scoreDims{len};
+        redefineOutputMemory({queryDims, scoreDims});
+    }
+    
+    for (size_t i = 0; i < orginOutputNumber; i++) {
+        outputs[i] = getDstMemoryAtPort(i);
+    }
+
+    m_executor->execute(inputs, outputs);
 }
 
 bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
