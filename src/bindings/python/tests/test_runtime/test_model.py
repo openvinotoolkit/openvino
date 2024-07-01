@@ -166,12 +166,11 @@ def test_result_index(shapes, relu_names, model_name, expected_outputs_length, i
     relus = [ops.relu(param, name=relu_name) for param, relu_name in zip(params, relu_names)]
 
     model = Model(relus[0], [params[0]], model_name)
+    assert len(model.outputs) == expected_outputs_length
     if is_invalid:
         invalid_result_node = ops.result(relus[1].outputs()[0])
-        assert len(model.outputs) == expected_outputs_length
         assert model.get_result_index(invalid_result_node) == expected_result_index
     else:
-        assert len(model.outputs) == expected_outputs_length
         assert model.get_result_index(model.get_results()[0]) == expected_result_index
 
 
