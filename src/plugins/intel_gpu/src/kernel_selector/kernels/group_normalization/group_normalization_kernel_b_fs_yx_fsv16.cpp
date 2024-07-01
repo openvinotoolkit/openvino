@@ -7,8 +7,8 @@
 
 namespace kernel_selector {
 
-static constexpr size_t simd = 16;
 static constexpr size_t fsv = 16;
+static constexpr size_t simd = fsv;
 static constexpr size_t pref_work_groups = 16;
 
 ParamsKey GroupNormalizationKernel_b_fs_yx_fsv16::GetSupportedKey() const {
@@ -36,7 +36,7 @@ GroupNormalizationKernel_b_fs_yx_fsv16::MultiDispatchData GroupNormalizationKern
         const auto& input = params.inputs[0];
 
         dispatchData.stage_1.gws[0] = 16;
-        dispatchData.stage_1.gws[1] = CeilDiv(input.Feature().v * input.Batch().v, 16);
+        dispatchData.stage_1.gws[1] = CeilDiv(input.Feature().v * input.Batch().v, fsv);
         dispatchData.stage_1.gws[2] = 1;
 
         dispatchData.stage_1.lws[0] = 16;
@@ -53,13 +53,19 @@ GroupNormalizationKernel_b_fs_yx_fsv16::MultiDispatchData GroupNormalizationKern
         dispatchData.stage_2.lws[1] = 1;
         dispatchData.stage_2.lws[2] = 1;
 
-        dispatchData.stage_final.gws[0] = 16;
-        dispatchData.stage_final.gws[1] = CeilDiv(input.Feature().v * input.Batch().v, 16);
+        dispatchData.stage_final.gws[0] = input.X().v * input.Y().v * fsv;
+        dispatchData.stage_final.gws[1] = CeilDiv(input.Feature().v * input.Batch().v, fsv);
         dispatchData.stage_final.gws[2] = 1;
 
-        dispatchData.stage_final.lws[0] = 16;
+        dispatchData.stage_final.lws[0] = simd;
         dispatchData.stage_final.lws[1] = 1;
         dispatchData.stage_final.lws[2] = 1;
+
+        while((dispatchData.stage_final.lws[0] * 2) <= params.engineInfo.maxWorkGroupSize) {
+            if (dispatchData.stage_final.gws[0] % (dispatchData.stage_final.lws[0] * 2) == 0) {
+                dispatchData.stage_final.lws[0] *= 2;
+            }
+        }
     }
 
     return dispatchData;
