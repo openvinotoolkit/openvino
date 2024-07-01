@@ -239,8 +239,8 @@ Specify generation_config to use grouped beam search:
          pipe = ov_genai.LLMPipeline(model_path, "CPU")
          config = pipe.get_generation_config()
          config.max_new_tokens = 256
-         config.num_groups = 3
-         config.group_size = 5
+         config.num_beam_groups = 3
+         config.num_beams = 15
          config.diversity_penalty = 1.0
          pipe.generate("The Sun is yellow because", config)
 
@@ -255,8 +255,8 @@ Specify generation_config to use grouped beam search:
             ov::genai::LLMPipeline pipe(model_path, "CPU");
             ov::genai::GenerationConfig config = pipe.get_generation_config();
             config.max_new_tokens = 256;
-            config.num_groups = 3;
-            config.group_size = 5;
+            config.num_beam_groups = 3;
+            config.num_beams = 15;
             config.diversity_penalty = 1.0f;
 
             cout << pipe.generate("The Sun is yellow because", config);
