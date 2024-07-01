@@ -12,7 +12,6 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/util/attr_types.hpp"
 
-using PhilloxAlignment = ov::op::PhilloxAlignment;
 namespace ov {
 namespace reference {
 namespace phillox {

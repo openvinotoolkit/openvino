@@ -25,7 +25,7 @@ std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
                                              uint64_t seed,
                                              uint64_t seed2,
                                              std::pair<uint64_t, uint64_t> prev_state,
-                                             PhilloxAlignment alignment) {
+                                             ov::op::PhilloxAlignment alignment) {
     // When both seed values are equal to zero RandomUniform should generate non-deterministic sequence.
     // Implementation in plugins may differ for this case.
     if (seed == 0 && seed2 == 0) {

@@ -11,8 +11,6 @@
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/reference/utils/phillox_generator.hpp"
 
-using PhilloxAlignment = ov::op::PhilloxAlignment;
-
 namespace ov {
 namespace reference {
 namespace phillox {
@@ -115,7 +113,7 @@ std::shared_ptr<PhilloxConverter> make_phillox_converter(char* out,
                                                          const size_t elem_count,
                                                          const char* min_val,
                                                          const char* max_val,
-                                                         const PhilloxAlignment alignment);
+                                                         const ov::op::PhilloxAlignment alignment);
 
 }  // namespace phillox
 }  // namespace reference
