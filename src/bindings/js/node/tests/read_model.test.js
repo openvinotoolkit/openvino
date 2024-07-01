@@ -27,6 +27,13 @@ describe('Core.readModeSync', () => {
     assert.equal(model.inputs.length, 1);
   });
 
+  it('readModeSync throws', () => {
+    assert.throws(
+      () => core.readModelSync(core),
+      /'readModelSync' method called with incorrect parameters./,
+    )
+  });
+
   it('readModeSync(modelUint8ArrayBuffer, weightsUint8ArrayBuffer) ', () => {
     const model = core.readModelSync(
       new Uint8Array(modelFile.buffer),

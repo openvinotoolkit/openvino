@@ -75,7 +75,7 @@ describe('Core.compileModelSync()', () => {
   });
 
   it('compileModelSync(model, device, config) throws when config is a string', () => {
-    const expectedMsg = ("Method 'compileModelSync' called with incorrect parameters.\n" +
+    const expectedMsg = ("'compileModelSync' method called with incorrect parameters.\n" +
       'Provided signature: (object, string, string) \n' +
       'Allowed signatures:\n' +
       '- (string, string)\n' +
@@ -97,7 +97,7 @@ describe('Core.compileModelSync()', () => {
   });
 
   it('compileModelSync(model) throws if the number of arguments is invalid', () => {
-    const expectedMsg = ("Method 'compileModelSync' called with incorrect parameters.\n" +
+    const expectedMsg = ("'compileModelSync' method called with incorrect parameters.\n" +
       'Provided signature: (object) \n' +
       'Allowed signatures:\n' +
       '- (string, string)\n' +

@@ -147,8 +147,8 @@ bool validate_value<TensorWrap>(const Napi::Env& env, const Napi::Value& value) 
 }
 
 std::string get_parameters_error_msg(const Napi::CallbackInfo& info, std::vector<std::string>& allowed_signatures) {
-    return "Method 'compileModelSync' called with incorrect parameters.\nProvided signature: " +
-           js::get_current_signature(info) + " \nAllowed signatures:\n- " + ov::util::join(allowed_signatures, "\n- ");
+    return " method called with incorrect parameters.\nProvided signature: " + js::get_current_signature(info) +
+           " \nAllowed signatures:\n- " + ov::util::join(allowed_signatures, "\n- ");
 }
 }  // namespace js
 }  // namespace ov
