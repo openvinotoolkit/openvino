@@ -11,6 +11,7 @@
 #include <openvino/cc/pass/itt.hpp>
 #include <unordered_map>
 #include <unordered_set>
+#include <algorithm>
 
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/except.hpp"
@@ -1273,6 +1274,10 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
             bin_file.close();
             std::remove(m_xmlPath.c_str());
             std::remove(m_binPath.c_str());
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+            _wremove(m_xmlPath_wchar.c_str());
+            _wremove(m_binPath_wchar.c_str());
+#endif
             throw;
         }
     }

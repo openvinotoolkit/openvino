@@ -180,3 +180,6 @@ class TestUnicodePathsPaddle(unittest.TestCase):
             fe = fm.load_by_framework("paddle")
 
             assert fe.supported(model_path)
+
+            del res_model_after_saving
+            os.remove(model_path + ".bin")
