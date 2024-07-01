@@ -11,7 +11,6 @@
 #include <openvino/cc/pass/itt.hpp>
 #include <unordered_map>
 #include <unordered_set>
-#include <algorithm>
 
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/except.hpp"
