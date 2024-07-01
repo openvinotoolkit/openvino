@@ -424,12 +424,12 @@ std::unordered_set<std::string> ov::get_supported_nodes(
                 for (auto& op : model->get_ordered_ops()) {
                     const auto& name = op->get_friendly_name();
                     bool is_shapeof = ov::is_type<op::util::ShapeOfBase>(op);
-                    if (((fused_model_op_map.find(name) != fused_model_op_map.end()) || is_shapeof) && supported.count(name)) {
+                    if (((fused_model_op_map.find(name) != fused_model_op_map.end()) || is_shapeof) &&
+                        supported.count(name)) {
                         if ((!supported.count(fused_model_op_map[name]) || is_shapeof) &&
                             has_all_consumers_unsupported(supported, op)) {
                             supported.erase(name);
                             update_supported = true;
-
                         }
                     }
                 }
