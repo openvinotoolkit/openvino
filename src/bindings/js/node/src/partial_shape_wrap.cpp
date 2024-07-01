@@ -20,9 +20,7 @@ PartialShapeWrap::PartialShapeWrap(const Napi::CallbackInfo& info) : Napi::Objec
             return;
         }
 
-        const auto error_message = ov::js::get_parameters_error_msg(info, allowed_signatures);
-
-        OPENVINO_THROW(error_message);
+        OPENVINO_THROW("'PartialShape' constructor", ov::js::get_parameters_error_msg(info, allowed_signatures));
     } catch (std::exception& err) {
         reportError(info.Env(), err.what());
     }
