@@ -1,4 +1,4 @@
-FROM openvinogithubactions.azurecr.io/dockerhub/emscripten/emsdk:3.1.61
+FROM openvinogithubactions.azurecr.io/dockerio/emscripten/emsdk:3.1.61
 
 USER root
 
