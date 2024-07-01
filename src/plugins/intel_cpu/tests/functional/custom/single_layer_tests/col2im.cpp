@@ -128,8 +128,8 @@ protected:
         ov::ParameterVector params{ dataParameter };
         function = makeNgraphFunction(inputPrecision, params, Col2Im, "Col2Im");
 
-        if (inputPrecision == ov::element::bf16 && !ov::intel_cpu::hasHardwareSupport(inputPrecision)) {
-            abs_threshold = 5e-1f;
+        if (inputPrecision == ov::element::bf16) {
+            rel_threshold = 0.02;
         }
     }
 };
@@ -304,25 +304,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_Col2ImLayoutTestI32, Col2ImLayerCPUTest,
                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref_i32"})),
                 Col2ImLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Col2ImLayoutTestU8, Col2ImLayerCPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Col2ImLayoutTestUI8, Col2ImLayerCPUTest,
         ::testing::Combine(
                 ::testing::Combine(
                         ::testing::ValuesIn(col2ImParamsVector),
-                        ::testing::Values(ElementType::u8),
-                        ::testing::ValuesIn(indexPrecisions),
-                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref_I8"})),
-                Col2ImLayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_Col2ImLayoutTestI8, Col2ImLayerCPUTest,
-        ::testing::Combine(
-                ::testing::Combine(
-                        ::testing::ValuesIn(col2ImParamsVector),
-                        ::testing::Values(ElementType::i8),
+                        ::testing::Values(ElementType::u8, ElementType::i8),
                         ::testing::ValuesIn(indexPrecisions),
                         ::testing::Values(ov::test::utils::DEVICE_CPU)),
                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref_i8"})),
                 Col2ImLayerCPUTest::getTestCaseName);
+
 }  // namespace
 }  // namespace test
 }  // namespace ov
