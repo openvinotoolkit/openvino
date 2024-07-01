@@ -341,7 +341,7 @@ void save_model(const std::shared_ptr<const ov::Model>& m, const std::string& ou
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::FusedNamesCleanup>();
     manager.register_pass<ov::pass::Serialize>(output_model, "");
-    manager.run_passes(cloned);
+    manager.run_passes(std::move(cloned));
 }
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)

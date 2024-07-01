@@ -123,8 +123,15 @@ std::pair<LinearIR::constExprIt, LinearIR::constExprIt> LoopManager::get_loop_bo
 }
 
 LoopPort LoopManager::get_loop_port_by_expr_port(const ExpressionPort& expr_port, const size_t loop_id) {
+    auto get_loop_port = [&](const std::vector<LoopPort>& ports) {
+        auto it = std::find_if(ports.cbegin(), ports.cend(), [&](const LoopPort& p) { return *p.expr_port == expr_port; });
+        if (it == ports.cend())
+            OPENVINO_THROW("Expression has not been found among loop ports. Loop id: " + std::to_string(loop_id));
+        return *it;
+    };
     const auto& loop_info = get_loop_info(loop_id);
-    return loop_info->get_loop_port(expr_port);
+    return expr_port.get_type() == ExpressionPort::Input ? get_loop_port(loop_info->get_input_ports())
+                                                         : get_loop_port(loop_info->get_output_ports());
 }
 
 void LoopManager::get_io_loop_ports(LinearIR::constExprIt loop_begin_pos,
@@ -390,7 +397,7 @@ void LoopManager::expression_replacement(LinearIR::constExprIt new_expr_begin, L
     }
 }
 
-void LoopManager::sort_loop_ports(const LinearIR::constExprIt& loop_begin_pos, const LinearIR::constExprIt& loop_end_pos, size_t loop_id) {
+void LoopManager::sort_loop_ports(LinearIR::constExprIt& loop_begin_pos, LinearIR::constExprIt& loop_end_pos, size_t loop_id) {
     // [113536] Update this logic please, when expression numeration will be implemented
     const auto& loop_info = get_loop_info<UnifiedLoopInfo>(loop_id);
     const auto& loop_entries = loop_info->get_input_ports();
