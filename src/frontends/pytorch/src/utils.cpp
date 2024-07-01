@@ -559,15 +559,21 @@ Output<Node> concat_list_from_inputs(const NodeContext& context, size_t begin, s
     OutputVector list_elems;
     for (size_t i = begin; i < end; i++) {
         if (context.get_input_type(i).as<type::List>().element_type.is<type::PyScalar>()) {
-            auto const_val = context.const_input<int32_t>(i);
-            std::vector<int32_t> dim_vec;
+            auto const_val = context.const_input<int64_t>(i);
+            std::vector<int64_t> dim_vec;
             dim_vec.push_back(const_val);
-            auto dim_const = ov::op::v0::Constant::create(element::i32, Shape{1}, dim_vec);
+            auto dim_const = ov::op::v0::Constant::create(element::i64, Shape{1}, dim_vec);
             list_elems.push_back(dim_const);
         } else {
-            auto converted_dim = context.mark_node(
-                std::make_shared<ov::op::v0::Convert>(context.get_input(static_cast<int>(i)), element::i32));
-            list_elems.push_back(converted_dim);
+            auto input_dim = context.get_input(static_cast<int>(i));
+            if (input_dim.get_partial_shape().rank() == 0) {
+                auto dims_1d_shape = context.mark_node(ov::op::v0::Constant::create(element::i32, Shape{1}, {-1}));
+                auto reshape_dim =
+                    context.mark_node(std::make_shared<ov::op::v1::Reshape>(input_dim, dims_1d_shape, false));
+                list_elems.push_back(reshape_dim);
+            } else {
+                list_elems.push_back(input_dim);
+            }
         }
     }
     auto concat = std::make_shared<ov::op::v0::Concat>(list_elems, 0);
