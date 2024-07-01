@@ -6,10 +6,18 @@
 #include "transformations/itt.hpp"
 
 ov::intel_cpu::FullyConnectedNode::FullyConnectedNode(const ov::Output<Node>& A,
-                                                     const ov::Output<Node>& B,
-                                                     const ov::Rank& output_rank,
-                                                     const ov::element::Type output_type)
-    : Op({A, B}), m_output_rank(output_rank), m_output_type(output_type) {
+                                                      const ov::Output<Node>& B,
+                                                      const ov::Rank& output_rank,
+                                                      const ov::element::Type output_type,
+                                                      int64_t activation_k_dim,
+                                                      int64_t activation_offset) :
+    Op({A, B}), m_output_rank(output_rank), m_output_type(output_type),
+    activation_k_dim(activation_k_dim),
+    activation_offset(activation_offset) {
+    if (activation_k_dim != 0) {
+        get_rt_info()["activation_k_dim"] = activation_k_dim;
+        get_rt_info()["activation_offset"] = activation_offset;
+    }
     validate_and_infer_types();
 }
 

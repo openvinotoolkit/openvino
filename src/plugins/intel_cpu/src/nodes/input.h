@@ -20,9 +20,14 @@ public:
           const std::string& type,
           const GraphContext::CPtr context);
     Input(MemoryDescPtr memDesc, const std::string& name, const std::string& type, const GraphContext::CPtr context);
+    void setMemDesc(MemoryDescPtr memDesc) { extMemDesc = memDesc; }
+    void setZeroCopyOutput() {
+        zeroCopyOutput = true;
+    }
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
+    void selectOptimalPrimitiveDescriptor() override;
     void createPrimitive() override;
     bool created() const override;
 
@@ -47,6 +52,7 @@ private:
     std::shared_ptr<ov::op::v0::Constant> constOp;
     MemoryCPtr memoryPtr;
     MemoryDescPtr extMemDesc = nullptr;
+    bool zeroCopyOutput = false;
     bool isMeanImage = false;
 };
 

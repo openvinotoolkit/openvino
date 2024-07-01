@@ -5,6 +5,7 @@
 #include "fullyconnected.h"
 
 #include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstdint>
 #include <memory>
 #include <openvino/op/constant.hpp>
 
@@ -62,6 +63,10 @@ FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphC
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage))
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
+    if (op->get_rt_info().count("activation_k_dim")) {
+        attrs.activation_k_dim = op->get_rt_info()["activation_k_dim"].as<int64_t>();
+        attrs.activation_offset = op->get_rt_info()["activation_offset"].as<int64_t>();
+    }
 }
 
 bool FullyConnected::canBeExecutedInInt8() const {
@@ -210,6 +215,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
 
     const auto& srcTypes = getOriginalInputPrecisions();
     auto dstTypes = getOriginalOutputPrecisions();
+
     // @todo graph optimizer should update original output precisions instead
     if (!fusedWith.empty())
         dstTypes = fusedWith.back()->getOriginalOutputPrecisions();
@@ -254,8 +260,6 @@ void FullyConnected::createPrimitive() {
     memory[ARG_WEI] = getSrcMemoryAtPort(WEIGHTS_ID);
     memory[ARG_BIAS] = attrs.withBias ? getSrcMemoryAtPort(BIAS_ID) : MemoryDescUtils::makeEmptyMemory(context);
     memory[ARG_DST] = getDstMemoryAtPort(0);
-    // @todo should we preconfigure only for dynamic shapes?
-    // Since for static shapes primitive is created in scope of compile_model() anyway
     factory->preconfigure(memory);
 
     Node::createPrimitive();

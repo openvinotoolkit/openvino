@@ -21,7 +21,6 @@
 #include "nodes/node_config.h"
 #include <shape_inference/shape_inference_cpu.hpp>
 #include "perf_count.h"
-#include "utils/debug_capabilities.h"
 #include "utils/bit_util.hpp"
 #include "utils/debug_capabilities.h"
 
@@ -37,6 +36,8 @@
 
 namespace ov {
 namespace intel_cpu {
+
+class Graph;
 
 using NodePtr = std::shared_ptr<Node>;
 using NodeConstPtr = std::shared_ptr<const Node>;
@@ -266,7 +267,11 @@ public:
 
     // must be called only after Graph::ResolveEdgeConflicts()
     virtual bool isExecutable() const {
-        return !hasEmptyInputTensors();
+        if (hasEmptyInputTensors()) {
+            return false;
+        }
+
+        return true;
     }
 
     enum class ConstantType {
@@ -437,9 +442,32 @@ public:
     // but this requires changes in all the nodes. Since moving to a numa node right before an execute
     // is a temprorary solution, do it this way for now.
     void executeStatic(const dnnl::stream strm, int numaId = -1);
+    virtual void wait() {
+        return;
+    }
+
+    virtual void markAsRunning() {
+        return;
+    }
+
+    void addControlDependency(NodePtr node) {
+        controlDependencies.push_back(node);
+    }
+
+    void WaitForControlDependency() {
+        for (const auto& node : controlDependencies) {
+            node->wait();
+        }
+    }
+
+    std::vector<NodePtr> controlDependencies;
+
     void updateShapes();
     void updateDynamicParams();
     void executeDynamic(dnnl::stream strm, int numaId = -1);
+    virtual void executeAsync(dnnl::stream strm, const std::vector<NodePtr>& dependencies) {
+        return;
+    }
     virtual void redefineOutputMemory(const std::vector<VectorDims> &newShapes);
     void redefineOutputMemory(const size_t port, const VectorDims& new_output_shape);
     bool outputShapeDataDependency() const;
@@ -618,6 +646,10 @@ public:
     const std::vector<float>& getDQScales() const {
         return DQScales;
     }
+
+    int getSubStreamId() const {
+        return m_subStreamToUse;
+    }
     /**
      * @brief Appends new item into ops list with the information on how the node should be executed as post operation.
      * Seed node should call this routine and pass its post operations list as parameter.
@@ -776,7 +808,7 @@ protected:
 
     MemoryPtr getScratchPadMem(const DnnlMemoryDescPtr& desc) {
         if (!scratchpadMem || !scratchpadMem->getDesc().isCompatible(*desc)) {
-            scratchpadMem = context->getScratchPad(curNumaNode)->createScratchPadMem(desc);
+            scratchpadMem = context->getScratchPad()->createScratchPadMem(desc);
         }
         return scratchpadMem;
     }
@@ -793,6 +825,8 @@ protected:
     // copies of same content with different layouts.
     std::shared_ptr<std::unordered_map<std::string, MemoryPtr>> privateWeightCache
     = std::make_shared<std::unordered_map<std::string, MemoryPtr>>();
+    // @todo store in graph, not as a node field
+    int m_subStreamToUse = -1;
 
 private:
     static void removeEdge(const EdgePtr edge, std::vector<EdgeWeakPtr> &edges) {
@@ -831,6 +865,8 @@ private:
     std::vector<float> DQScales;
 
     CPU_DEBUG_CAP_ENABLE(friend class Verbose);
+    friend void average_counters(const Graph &graph);
+    // CPU_DEBUG_CAP_ENABLE(friend void average_counters(const Graph &graph));
 };
 
 #ifndef CPU_DEBUG_CAPS

@@ -6,6 +6,7 @@
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
 #include "utils/fusing_test_utils.hpp"
+#include "shared_test_classes/base/benchmark.hpp"
 
 using namespace CPUTestUtils;
 
@@ -95,7 +96,6 @@ const auto testParams2DBF16_smoke = ::testing::Combine(::testing::Combine(::test
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D, MatMulLayerCPUTest, testParams2D_smoke, MatMulLayerCPUTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_BF16, MatMulLayerCPUTest, testParams2DBF16_smoke, MatMulLayerCPUTest::getTestCaseName);
-
 const auto testParams2D_nightly = ::testing::Combine(::testing::Combine(::testing::ValuesIn(IS2D_nightly()),
                                                                 ::testing::Values(ElementType::f32),
                                                                 ::testing::Values(ElementType::undefined),
@@ -195,6 +195,7 @@ const std::vector<ShapeRelatedParams> IS2D_Brgconv1x1_smoke = {
 
 std::vector<fusingSpecificParams> fusingParamsSet2D_Brgemm_smoke {
 // The following three patterns are covered by MLAS test
+        emptyFusingSpec,
 #ifndef OV_CPU_WITH_MLAS
         emptyFusingSpec,
         fusingBias,
@@ -516,6 +517,20 @@ const auto testBrgemmAmxParamsDynamic = ::testing::Combine(matMulBrgemmAmxParams
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Brgemm_Amx_Dynamic, MatMulLayerCPUTest, testBrgemmAmxParamsDynamic, MatMulLayerCPUTest::getTestCaseName);
 
 const std::vector<ShapeRelatedParams> IS2D_Brgemm_Amx_smoke = {
+    {{ //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{-1, -1, 9472},   {{1, 1024, 9472}}}, // input 0
+            {{1, 9472, 3584}, {{1, 9472, 3584}}}  // input 1
+    },
+    {false, false}},
+
+    {{ //dynamic case description each pair per each input has {{dynamic shape}, {{static shape case1}, {static shape case2}, ...}
+            {{-1, -1, 18944},   {{1, 1024, 18944}}}, // input 0
+            {{1, 18944, 3584}, {{1, 18944, 3584}}}  // input 1
+    },
+    {false, false}},
+
+    {static_shapes_to_test_representation({{1024, 9472}, {9472, 3584}}), {false, true}},
+    {static_shapes_to_test_representation({{1024, 18944}, {18944, 3584}}), {false, true}},
     {static_shapes_to_test_representation({{59, 16}, {16, 120}}), {true, false}},
     {static_shapes_to_test_representation({{59, 16}, {16, 120}}), {true, true}},
 
@@ -627,6 +642,23 @@ const auto testParams2D_Brgemm_Amx_smoke = ::testing::Combine(fullyConnectedPara
                                              ::testing::Values(MatMulNodeType::FullyConnected),
                                              ::testing::ValuesIn(fusingParamsSet2D_Brgemm_smoke),
                                              ::testing::ValuesIn(filterSpecificParams_BrgemmAmx()));
+
+struct BenchmarkMatMulLayerCPUTest : BenchmarkLayerTest<MatMulLayerCPUTest> {};
+INSTANTIATE_TEST_SUITE_P(smoke_testParams2D_Brgemm_Amx_smoke, BenchmarkMatMulLayerCPUTest, testParams2D_Brgemm_Amx_smoke, MatMulLayerCPUTest::getTestCaseName);
+
+TEST_P(BenchmarkMatMulLayerCPUTest, CompareWithRefs) {
+    auto getNumIter = [](){
+        static auto result = std::getenv("CPU_TEST_NUM_ITER") ? std::stoi(std::getenv("CPU_TEST_NUM_ITER")) : 50;
+        return result;
+    };
+
+    auto getWarmUpTime = [](){
+        static auto result = std::getenv("CPU_TEST_WARM_UP") ? std::stoi(std::getenv("CPU_TEST_WARM_UP")) : 2000;
+        return result;
+    };
+
+    run_benchmark("FullyConnected", std::chrono::milliseconds(getWarmUpTime()), getNumIter());
+}
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_Brgemm_Amx, MatMulLayerCPUTest, testParams2D_Brgemm_Amx_smoke, MatMulLayerCPUTest::getTestCaseName);
 

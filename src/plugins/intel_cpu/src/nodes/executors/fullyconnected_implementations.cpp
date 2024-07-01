@@ -12,11 +12,13 @@
 #include "nodes/executors/convolution_config.hpp"
 #include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
 #include "nodes/executors/dnnl/dnnl_fullyconnected.hpp"
+#include "nodes/executors/dnnl/dnnl_matmul_primitive.hpp"
 #include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/implementations.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
+#include "nodes/executors/matmul_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/mlas/mlas_gemm.hpp"
 #include "nodes/executors/precision_matcher.hpp"
@@ -204,6 +206,66 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                const MemoryArgs& memory,
                const ExecutorContext::CPtr context) {
                 return std::make_shared<MlasGemmExecutor>(attrs, postOps, memory, context);
+            })
+        OV_CPU_INSTANCE_X64(
+            "matmul",
+            ExecutorType::Dnnl,
+            OperationType::MatMul,
+            ShapeTolerance::Dependant,
+            // supports
+            [](const FCConfig& config) -> bool {
+                if (!std::getenv("USE_MAMTUL")) {
+                    return false;
+                }
+                VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
+                VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
+                return true;
+            },
+            // requiresFallback
+            [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
+                // @todo use dnnlConvolutionLayoutConfig after one is implemented
+                return requiresFallbackCommon(config,
+                                              dnnlConvolutionTypeMapping,
+                                              dnnlFCLayoutConfig,
+                                              dnnlFCMappingNotation);
+            },
+            // acceptsShapes
+            [](const MemoryArgs& memory) -> bool {
+                return true;
+            },
+            // create
+            [](const FCAttrs& attrs,
+               const PostOps& postOps,
+               const MemoryArgs& memory,
+               ExecutorContext::CPtr context) -> std::shared_ptr<Executor> {
+                struct MatMulInstantiator {
+                    std::shared_ptr<DnnlMatMulPrimitive> operator()(
+                        const MemoryArgs& memory,
+                        const FCAttrs& attrs,
+                        const ExecutorContext::CPtr context,
+                        std::shared_ptr<DnnlShapeAgnosticData> shareAgnosticData) const {
+                        MatMulAttrs matMulAttrs{false,
+                                                false,
+                                                attrs.dequantizationScales,
+                                                attrs.activation_k_dim,
+                                                attrs.activation_offset};
+                        auto primitive =
+                            DefaultInstantiator<DnnlMatMulPrimitive, MatMulAttrs, DnnlShapeAgnosticData>{}(
+                            memory,
+                            matMulAttrs,
+                            context,
+                            shareAgnosticData);
+                        return primitive;
+                    }
+                };
+
+                return std::make_shared<
+                    DnnlFCExecutor<DnnlMatMulPrimitive, FCAttrs, DnnlShapeAgnosticData, MatMulInstantiator>>(
+                    attrs,
+                    postOps,
+                    memory,
+                    context,
+                    false);
             })
         OV_CPU_INSTANCE_X64(
             "convolution_1x1_dnnl",

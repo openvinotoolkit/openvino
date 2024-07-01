@@ -4,6 +4,7 @@
 
 #include "concat.h"
 
+#include "nodes/common/memcpy.h"
 #include "openvino/op/concat.hpp"
 
 #include <map>
@@ -396,6 +397,22 @@ void Concat::prepareParams() {
             dstOffset[i] = outputStrides[reorderedAxis] * curConcatOffset * elemSize;
             curConcatOffset += inputShape[reorderedAxis];
             nelemTotal += nelemToCopy[i];
+
+            // from execRef
+            auto& dstMemory = getChildEdgeAt(0)->getMemory();
+            const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemory.getDataType());
+            const auto dstMemBlkDesc = dstMemory.getDescPtr()->as<BlockedMemoryDesc>();
+            const auto& outputShape = dstMemBlkDesc->getBlockDims();
+            const auto& m_strides = dstMemBlkDesc->getStrides();
+            std::transform(m_strides.begin(), m_strides.end(), m_outputStrides, [&elemSize](const Dim& i) {
+                return i * elemSize;
+            });
+            for (size_t i = 0; i < reorderedAxis; i++) {
+                m_physDims[i] = outputShape[i];
+            }
+            // const auto L1Size = dnnl::utils::get_cache_size(1, true);
+            // UNUSED(L1Size); // for Windows
+
         } else {
             if (srcMemPtr->getShape().hasZeroDims()) {
                 continue;
@@ -520,7 +537,7 @@ void Concat::exec1DCase() {
     auto* dst = getDstDataAtPortAs<uint32_t>(0);
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         const auto& srcMemPtr = getSrcMemoryAtPort(i);
-        const auto& srcShape = srcMemPtr->getStaticDims();
+        const  auto& srcShape = srcMemPtr->getStaticDims();
         const auto* src = srcMemPtr->getDataAs<const uint32_t>();
         for (size_t i = 0; i < srcShape[0]; i++) {
             *dst++ = src[i];
@@ -599,29 +616,29 @@ void Concat::execRef() {
             });
         }
     } else {
-        const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemory.getDataType());
-        const auto dstMemBlkDesc = dstMemory.getDescPtr()->as<BlockedMemoryDesc>();
-        const auto& outputShape = dstMemBlkDesc->getBlockDims();
-        size_t outputStrides[MAX_RANK_REF] = {0};
-        const auto strides = dstMemBlkDesc->getStrides();
-        std::transform(strides.begin(), strides.end(), outputStrides, [&elemSize](const Dim& i) {
-            return i * elemSize;
-        });
-        size_t physDims[5] = {1, 1, 1, 1, 1};
-        for (size_t i = 0; i < reorderedAxis; i++) {
-            physDims[i] = outputShape[i];
-        }
-        const auto L1Size = dnnl::utils::get_cache_size(1, true);
-        UNUSED(L1Size); // for Windows
-        parallel_for6d(physDims[0], physDims[1], physDims[2], physDims[3], physDims[4], numSrc,
+        // const size_t elemSize = DnnlExtensionUtils::sizeOfDataType(dstMemory.getDataType());
+        // const auto dstMemBlkDesc = dstMemory.getDescPtr()->as<BlockedMemoryDesc>();
+        // const auto& outputShape = dstMemBlkDesc->getBlockDims();
+        // size_t m_outputStrides[MAX_RANK_REF] = {0};
+        // const auto strides = dstMemBlkDesc->getStrides();
+        // std::transform(strides.begin(), strides.end(), m_outputStrides, [&elemSize](const Dim& i) {
+        //     return i * elemSize;
+        // });
+        // size_t m_physDims[5] = {1, 1, 1, 1, 1};
+        // for (size_t i = 0; i < reorderedAxis; i++) {
+        //     m_physDims[i] = outputShape[i];
+        // }
+        // const auto L1Size = dnnl::utils::get_cache_size(1, true);
+        // UNUSED(L1Size); // for Windows
+        parallel_for6d(m_physDims[0], m_physDims[1], m_physDims[2], m_physDims[3], m_physDims[4], numSrc,
                                 [&](size_t n0, size_t n1, size_t n2, size_t n3, size_t n4, size_t a) {
             // check if zero memory
             if (srcPtrs[a] == nullptr) return;
 
             size_t inOff = inputStrides[a][0] * n0 + inputStrides[a][1] * n1 + inputStrides[a][2] * n2
                             + inputStrides[a][3] * n3 + inputStrides[a][4] * n4;
-            size_t outOff = outputStrides[0] * n0 + outputStrides[1] * n1 + outputStrides[2] * n2
-                             + outputStrides[3] * n3 + outputStrides[4] * n4;
+            size_t outOff = m_outputStrides[0] * n0 + m_outputStrides[1] * n1 + m_outputStrides[2] * n2
+                             + m_outputStrides[3] * n3 + m_outputStrides[4] * n4;
             const uint8_t *i = &srcPtrs[a][inOff];
             uint8_t *o = &dstPtr[dstOffset[a] + outOff];
 
@@ -629,7 +646,7 @@ void Concat::execRef() {
             // Heuristic:
             // memcpy works generally faster for data sizes not
             // exceeding L1 cache.
-            if (nelemToCopy[a] > L1Size) {
+            if (nelemToCopy[a] > m_L1Size) {
                 // The code below performs data copying: o[e] = i[e]
                 // and uses a workaround to make GNU compilers optimize it
                 uint8_t *ptro = o;
@@ -663,6 +680,7 @@ void Concat::execRef() {
                     ++ptri;
                 }
             } else {
+                // jit_memcpy.execute(i, o, nelemToCopy[a]);
                 std::memcpy(o, i, nelemToCopy[a]);
             }
 #else

@@ -75,13 +75,13 @@ const std::vector<ov::test::utils::ReductionType> reduction_logical_types = {
 };
 
 const auto params_one_axis = testing::Combine(
-        testing::Values(std::vector<int>{0}),
-        testing::ValuesIn(op_types),
-        testing::ValuesIn(keep_dims),
-        testing::ValuesIn(reduction_types),
-        testing::Values(model_types[0]),
-        testing::ValuesIn(input_shapes_one_axis),
-        testing::Values(ov::test::utils::DEVICE_CPU)
+    testing::ValuesIn(std::vector<std::vector<int>>{{0},{1},{2},{3}}),
+    testing::ValuesIn(op_types),
+    testing::ValuesIn(keep_dims),
+    testing::ValuesIn(reduction_types),
+    testing::Values(model_types[0]),
+    testing::ValuesIn(input_shapes_one_axis),
+    testing::Values(ov::test::utils::DEVICE_CPU)
 );
 
 const auto params_one_axis_logical = testing::Combine(

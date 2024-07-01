@@ -542,55 +542,80 @@ std::vector<memory::format_tag> Node::getAvailableFormatsForDims(const Shape &di
     return {memory::format_tag::any};
 }
 
+struct NewDurationRAII {
+    NewDurationRAII(std::string msg)
+        : m_msg(std::move(msg)) {}
+
+    ~NewDurationRAII() {
+        std::cout << m_msg << "\n";
+        for (const auto& entry : m_dur) {
+            std::cout << entry.first << ": " << entry.second.count() << "\n";
+        }
+    }
+
+    void add(const std::string& str, const std::chrono::duration<long, std::ratio<1, 1000000>>& dur) {
+        m_dur[str]+=dur;
+    }
+
+    std::string m_msg;
+    std::unordered_map<std::string, std::chrono::duration<long, std::ratio<1, 1000000>>> m_dur;
+};
+
 void Node::updateShapes() {
+    // static NewDurationRAII duration("updateShapes statistics: ");
+    // auto start = std::chrono::high_resolution_clock::now();
     OPENVINO_ASSERT(isDynamicNode(),
                     "Node::updateShapes() is called to a static shape node of type: ",
                     getTypeStr(),
                     " with name: ",
                     getName());
-        try {
-            if (needShapeInfer()) {
-                auto result = shapeInfer();
-                if (ShapeInferStatus::success == result.status) {
-                    redefineOutputMemory(result.dims);
-                }
+    try {
+        if (needShapeInfer()) {
+            auto result = shapeInfer();
+            if (ShapeInferStatus::success == result.status) {
+                redefineOutputMemory(result.dims);
             }
-        } catch (const std::exception& exp) {
-            THROW_CPU_NODE_ERR(exp.what());
         }
+    } catch (const std::exception& exp) {
+        THROW_CPU_NODE_ERR(exp.what());
+    }
+    // auto end = std::chrono::high_resolution_clock::now();
+    // duration.add(getName(), std::chrono::duration_cast<std::chrono::microseconds>(end - start));
 }
 
 void Node::updateDynamicParams() {
+    // static NewDurationRAII duration("updateDynamicParams statistics: ");
+    // auto start = std::chrono::high_resolution_clock::now();
     OPENVINO_ASSERT(isDynamicNode(),
                     "Node::updateDynamicParams() is called to a static shape node of type: ",
                     getTypeStr(),
                     " with name: ",
                     getName());
     try {
-        if (isExecutable()) {
-            if (needPrepareParams()) {
-                OPENVINO_ASSERT(inputShapesDefined(),
-                                "Input shapes are not defined.");
-                DEBUG_LOG(" prepareParams() on #", getExecIndex(), " ", getTypeStr(), " ", algToString(getAlgorithm()),
-                        " ", getName(), " ", getOriginalLayers());
-                prepareParams();
-            }
+        if (needPrepareParams() && isExecutable()) {
+            OPENVINO_ASSERT(inputShapesDefined(),
+                            "Can't prepare params for ",
+                            getTypeStr(),
+                            " node with name: ",
+                            getName(),
+                            " since the input shapes are not defined.");
+            DEBUG_LOG(" prepareParams() on #", getExecIndex(), " ", getTypeStr(), " ", algToString(getAlgorithm()),
+                      " ", getName(), " ", getOriginalLayers());
+            prepareParams();
         }
     } catch (const std::exception& e) {
         THROW_CPU_NODE_ERR(e.what());
     }
+    // auto end = std::chrono::high_resolution_clock::now();
+    // duration.add(getName(), std::chrono::duration_cast<std::chrono::microseconds>(end - start));
 }
 
 void Node::executeStatic(const dnnl::stream strm, int numaId) {
-    if (numaId >= 0)
-        toNumaNode(numaId);
     execute(strm);
 }
 
 void Node::executeDynamic(dnnl::stream strm, int numaId) {
     if (isExecutable()) {
-        if (numaId >= 0)
-            toNumaNode(numaId);
         executeDynamicImpl(strm);
     }
     updateLastInputDims();
@@ -608,7 +633,22 @@ bool Node::outputShapeDataDependency() const {
     return false;
 }
 
+struct NumCalls {
+    ~NumCalls() {
+        std::cout << "redefineOutputMemory called: " << m_numCalls << "\n";
+    }
+
+    void add() {
+        m_numCalls++;
+    }
+
+    int m_numCalls = 0;
+};
+
 void Node::redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) {
+    static NumCalls numCalls;
+    numCalls.add();
+
     if (newOutputShapes.size() != outputShapes.size()) {
         OPENVINO_THROW("Number shapes mismatch with real outputs number for node with name: ", getName());
     }
@@ -928,7 +968,7 @@ void Node::toNumaNodeImpl(int numaNodeID) {
 
     // create scratch pad from specified numa node
     if (scratchpadMem) {
-        scratchpadMem = context->getScratchPad(numaNodeID)->createScratchPadMem(scratchpadMem->getDescPtr());
+        scratchpadMem = context->getScratchPad()->createScratchPadMem(scratchpadMem->getDescPtr());
         primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
     }
 
@@ -1496,7 +1536,11 @@ bool Node::isInputTensorAtPortEmpty(size_t port) const {
     if (one_of(edge->getStatus(), Edge::Status::Allocated, Edge::Status::Validated)) {
         auto&& mem = edge->getMemory();
         if (mem.isAllocated()) {
-            return mem.getShape().hasZeroDims();
+            if (mem.getShape().hasZeroDims()) {
+                return true;
+            } else {
+                return false;
+            }
         }
     }
     return false;
@@ -1610,8 +1654,10 @@ IShapeInfer::Result Node::shapeInfer() const {
     auto input_value_port_mask = shapeInference->get_port_mask();
 
     input_shapes.reserve(inputShapes.size());
-    for (size_t port = 0; port < inputShapes.size(); ++port)
+
+    for (size_t port = 0; port < inputShapes.size(); ++port) {
         input_shapes.emplace_back(std::ref(getParentEdgeAt(port)->getMemory().getStaticDims()));
+    }
 
     std::unordered_map<size_t, MemoryPtr> input_values;
     if (input_value_port_mask) {

@@ -36,7 +36,7 @@ bool Verbose::shouldBePrinted() const {
  * Formating written in C using oneDNN format functions.
  * Can be rewritten in pure C++ if necessary
  */
-void Verbose::printInfo() {
+void Verbose::printInfo(const std::string& graphName) {
     /* 1,  2,  3,  etc -> no color
      * 11, 22, 33, etc -> colorize */
     bool colorUp = lvl / 10 > 0 ? true : false;
@@ -153,8 +153,9 @@ void Verbose::printInfo() {
 
     stream << "ov_cpu_verbose" << ','
            << "exec" << ','
+           << node->context->getNumaId() << ','
            << nodeImplementer << ','
-           << nodeName << ":" << nodeType << ":" << nodeAlg << ','
+           << nodeName << ":" << nodeType << ":" << nodeAlg << ',' << graphName << ','
            << nodePrimImplType << ','
            << portsInfo << ','
            << post_ops << ',';

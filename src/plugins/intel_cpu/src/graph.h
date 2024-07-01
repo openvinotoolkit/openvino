@@ -6,14 +6,19 @@
 
 #include "config.h"
 #include "cpu_memory.h"
+#include "graph_dumper.h"
+#include "itt.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "openvino/runtime/profiling_info.hpp"
 #include "node.h"
 #include "edge.h"
 #include "graph_context.h"
 #include "openvino/runtime/profiling_info.hpp"
 
+#include <future>
 #include <map>
 #include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
@@ -51,7 +56,26 @@ public:
     }
 
     template<typename NET>
-    void CreateGraph(NET &network, const GraphContext::CPtr ctx);
+    void CreateGraph(NET &network,
+                     const GraphContext::CPtr ctx,
+                     const VecMemoryDescs& inputDescriptors = {},
+                     bool zeroCopyOutputs = false,
+                     int level = 0) {
+        OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "CreateGraph");
+
+        if (IsReady())
+            ForgetGraphData();
+
+        context = ctx;
+        m_level = level;
+        m_stream = dnnl::stream(ctx->getEngine());
+
+        Replicate(network, inputDescriptors, zeroCopyOutputs);
+
+        InitGraph();
+
+        CPU_DEBUG_CAP_ENABLE(serialize(*this));
+    }
 
     void CreateGraph(const std::vector<NodePtr> &graphNodes,
                      const std::vector<EdgePtr> &graphEdges,
@@ -59,7 +83,37 @@ public:
                      std::string name);
 
     void PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& input);
+    void SetExternalInputData(const std::size_t& index, const MemoryPtr memory) {
+        if (!IsReady()) OPENVINO_THROW("Wrong state. Topology not ready.");
+        auto input_itr = inputNodesMap.find(index);
+        OPENVINO_ASSERT(input_itr != inputNodesMap.end(), "Input tensor with index '", index, "' is not available in the model");
+
+        const auto& node = input_itr->second;
+        auto inputMemory = node->getDstMemoryAtPort(0);
+        inputMemory->getMemoryMngr()->setExtBuff(memory->getData(), memory->getSize());;
+    }
+
     void PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& output);
+    void SetExternalOutputData(const std::size_t& index, const MemoryPtr memory) {
+        if (!IsReady()) OPENVINO_THROW("Wrong state. Topology not ready.");
+        auto output_itr = outputNodesMap.find(index);
+        OPENVINO_ASSERT(output_itr != outputNodesMap.end(), "Input tensor with index '", index, "' is not available in the model");
+
+        const auto& node = output_itr->second;
+        auto outputMemory = node->getSrcMemoryAtPort(0);
+
+        outputMemory->getMemoryMngr()->setExtBuff(memory->getData(), memory->getSize());;
+    }
+
+    VecMemoryDescs getOutputMemoryDescriptors() {
+        VecMemoryDescs result;
+        for (const auto& output : outputNodesMap) {
+            const auto& node = output.second;
+            result.emplace_back(node->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc());
+        }
+
+        return result;
+    }
 
     void Infer(SyncInferRequest* request = nullptr);
 
@@ -185,7 +239,15 @@ public:
 
     Status getStatus() const {return status;}
     const std::unordered_map<std::string, node::MemoryStateNode*>& getInternalStateNodes() const;
+    void Configure(const std::shared_ptr<const ov::Model>& network,
+                   const GraphContext::CPtr ctx,
+                   const VecMemoryDescs& inputDescriptors = {},
+                   bool zeroCopyOutputs = false,
+                   int level = 0);
+    void Finish();
     void InitGraph(bool optimize = true);
+    void InferDynamicLightWell();
+    void InferDynamicLightWell2();
 
 protected:
     void ForgetGraphData() {
@@ -201,7 +263,7 @@ protected:
 
     // For dumping purposes. -1 - no counting, all other positive
     // values mean increment it within each Infer() call
-    int infer_count = -1;
+    int infer_count = 0;
 
     bool reuse_io_tensors = true;
 
@@ -214,7 +276,9 @@ protected:
 
     bool graphHasDynamicInput = false;
 
-    void Replicate(const std::shared_ptr<const ov::Model> &subgraph);
+    void Replicate(const std::shared_ptr<const ov::Model> &subgraph,
+                   const VecMemoryDescs& inputDescriptors = {},
+                   bool zeroCopyOutputs = false);
     void InitNodes();
     void InitDescriptors();
     void ResolveInplaceDirections();
@@ -225,10 +289,12 @@ protected:
     void GroupParallelNodes();
     void Allocate(const std::vector<size_t>& syncNodesInds);
     void AllocateWithReuse(const std::vector<size_t>& syncNodesInds);
+    void CreateDependencyMap();
     void ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const;
     void CreatePrimitivesAndExecConstants() const;
     void InferStatic(SyncInferRequest* request);
-    void InferDynamic(SyncInferRequest* request);
+    template<typename UpdateNodesStrategy>
+    void InferDynamic(SyncInferRequest* request, UpdateNodesStrategy&& updateNodes);
     void ParalleMtNuma(size_t num_nodes,
                        ov::threading::CPUStreamsExecutor::Ptr executor,
                        const std::function<void(size_t, size_t)>& func) const;
@@ -249,7 +315,14 @@ private:
     std::vector<NodePtr> m_executableGraphNodes;
     std::vector<size_t> m_executableSyncNodesInds;
 
+    std::unordered_map<Node*, size_t> syncNodesInds;
+    // std::unordered_map<size_t, std::future<void>> m_futures;
+    // std::unordered_map<size_t, std::vector<std::reference_wrapper<std::future<void>>>> m_dependencies;
+    std::unordered_map<size_t, std::vector<NodePtr>> m_dependencies;
+
     GraphContext::CPtr context;
+    dnnl::stream m_stream;
+    int m_level = 0;
 
     void EnforceInferencePrecision();
     void EnforceBF16();

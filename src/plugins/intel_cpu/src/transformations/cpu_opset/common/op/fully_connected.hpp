@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include "openvino/core/node.hpp"
 #include "openvino/op/op.hpp"
 
@@ -19,7 +20,9 @@ public:
     FullyConnectedNode(const ov::Output<Node> &A,
                        const ov::Output<Node> &B,
                        const ov::Rank& output_rank,
-                       const ov::element::Type output_type = ov::element::undefined);
+                       const ov::element::Type output_type = ov::element::undefined,
+                       int64_t activation_k_dim = {},
+                       int64_t activation_offset = {});
 
     bool visit_attributes(ov::AttributeVisitor &visitor) override;
 
@@ -33,6 +36,8 @@ public:
 private:
     ov::Rank m_output_rank;
     ov::element::Type m_output_type;
+    int64_t activation_k_dim;
+    int64_t activation_offset;
 };
 
 }   // namespace intel_cpu

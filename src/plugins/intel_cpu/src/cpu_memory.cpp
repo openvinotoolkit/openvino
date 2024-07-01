@@ -223,10 +223,25 @@ void MemoryMngrWithReuse::setExtBuff(void *ptr, size_t size) {
     m_data = decltype(m_data)(ptr, release);
 }
 
+struct CountMemory {
+    unsigned long long size = 0;
+
+    ~CountMemory(){
+        // EXTRA_LOG(std::cout << "Totally allocated: " << size << "\n";)
+    }
+};
+
+static void updateMemCount(size_t size) {
+    static thread_local CountMemory c;
+    c.size+=size;
+}
+
 bool MemoryMngrWithReuse::resize(size_t size) {
     constexpr int cacheLineSize = 64;
     bool sizeChanged = false;
     if (size > m_memUpperBound) {
+        // EXTRA_LOG(std::cout << "Allocating bytes: " << size << "\n";)
+        updateMemCount(size);
         void *ptr = dnnl::impl::malloc(size, cacheLineSize);
         if (!ptr) {
             OPENVINO_THROW("Failed to allocate ", size, " bytes of memory");

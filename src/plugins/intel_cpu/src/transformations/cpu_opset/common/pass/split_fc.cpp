@@ -2,9 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/swish.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/constant_folding.hpp"
+#include <string>
 #include <transformations/utils/utils.hpp>
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -15,26 +19,55 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "transformations/cpu_opset/common/op/fully_connected.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 
 #include "split_fc.hpp"
 
 #include "itt.hpp"
 
+static size_t weightsThreshold() {
+    static int result = std::getenv("SPLIT_THRESHOLD") ? std::stoi(std::getenv("SPLIT_THRESHOLD")) : 6600000;
+    return static_cast<size_t>(result);
+}
+
 ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
     MATCHER_SCOPE(SplitFC);
     auto fc_m = ov::pass::pattern::wrap_type<ov::intel_cpu::FullyConnectedNode>();
+    auto swish_beta_m = ov::pass::pattern::any_input();
+    // auto swish_m = ov::pass::pattern::op::Or(
+    //     OutputVector{
+    //         ov::pass::pattern::wrap_type<ov::op::v4::Swish>({fc_m}),
+    //         ov::pass::pattern::wrap_type<ov::op::v4::Swish>({fc_m, swish_beta_m}),
+    //     });
+
+    auto swish_no_beta_m = ov::pass::pattern::wrap_type<ov::op::v4::Swish>({fc_m});
+    auto swish_with_beta_m = ov::pass::pattern::wrap_type<ov::op::v4::Swish>({fc_m, swish_beta_m});
+    auto swish_or_fc_m = std::make_shared<ov::pass::pattern::op::Or>(
+        OutputVector{
+            swish_with_beta_m,
+            swish_no_beta_m,
+            fc_m
+        });
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         const auto& fc_node = pattern_map.at(fc_m).get_node_shared_ptr();
         auto& rt_info = fc_node->get_rt_info();
-        if (rt_info.count("parallelDomain")) {
+
+        auto target_inputs = fc_node->get_output_target_inputs(0);
+
+        if (rt_info.count("split_part")) {
             return false;
         }
 
         const auto src_item = fc_node->get_input_node_shared_ptr(0);
         const auto fc_weight_node = fc_node->get_input_node_shared_ptr(1);
+
+        // TODO: support transpose
+        if (ov::is_type<ov::op::v1::Transpose>(fc_weight_node)) {
+            return false;
+        }
 
         // split happens on the first dimension.
         constexpr size_t split_dim = 0;
@@ -42,25 +75,22 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
 
         // needn't to split fc when the dim is 0.
         const auto& wgt_shape = fc_weight_node->get_shape();
+
+        // std::cout << "SplitFC transformation check" << "\n";
         // weight shape size 660000 is a trade-off value, which is summarized and verified by LLMs.
-        if (wgt_shape[split_dim] <= 1 || ov::shape_size(wgt_shape) < 6600000) {
+        if (wgt_shape[split_dim] <= 1 || ov::shape_size(wgt_shape) < weightsThreshold()) {
             return false;
         }
 
         // parts will be splited according the sub stream num.
         int split_num = sub_stream_num + 1;
 
-        auto split_parts = [](int len, int n) {
+        auto split_on_parts = [](int len, int n) {
             int average = len / n;
             std::vector<int> parts(n, average);
             parts.back() = len - average * (n - 1);
             return parts;
         };
-
-        // TODO: support transpose
-        if (ov::is_type<ov::op::v1::Transpose>(fc_weight_node)) {
-            return false;
-        }
 
         // 1. If the model is INT4 format, split the INT4 pattern for the FuseFCAndWeightsDecompression.
         // 2. If the model is NOT INT4 format, split the weight.
@@ -103,7 +133,7 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
 
             // We should use VariadicSplit to split the input for FC.
             std::vector<std::vector<int32_t>> split_reshape_pattern_vec(split_num);
-            auto fc_dim_vec = split_parts(split_dim_range, split_num);
+            auto fc_dim_vec = split_on_parts(split_dim_range, split_num);
             auto split_length = ov::op::v0::Constant::create<int32_t>(ov::element::i32, ov::Shape{static_cast<size_t>(split_num)}, fc_dim_vec);
 
             auto split_constants = [&](const std::shared_ptr<ov::Node>& constant) {
@@ -170,7 +200,7 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
             auto split_dim_range = wgt_item->get_shape()[split_dim];
 
             // We should use VariadicSplit to split input for FC.
-            auto fc_dim_vec = split_parts(split_dim_range, split_num);
+            auto fc_dim_vec = split_on_parts(split_dim_range, split_num);
             auto split_length = ov::op::v0::Constant::create<int32_t>(ov::element::i32, ov::Shape{static_cast<size_t>(split_num)}, fc_dim_vec);
             auto split_wgts = std::make_shared<ov::op::v1::VariadicSplit>(wgt_item,
                                                                           split_dim_node,
@@ -183,14 +213,28 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
         std::vector<std::shared_ptr<Node>> fc_node_vec(split_num);
         for (int i = 0; i < split_num; ++i) {
             fc_node_vec[i] = fc_node->clone_with_new_inputs(ov::OutputVector{src_item, wgt_node_vec[i]});
-            fc_node_vec[i]->get_rt_info()["parallelDomain"] = fc_node->get_name();
+            fc_node_vec[i]->set_friendly_name(fc_node->get_friendly_name() + "_split_" + std::to_string(i));
+            // mark every split node as "split_part"
+            fc_node_vec[i]->get_rt_info()["split_part"] = true;
+            if (i > 0)
+                // mark every non-first split node as "other_split"
+                fc_node_vec[i]->get_rt_info()["other_split"] = true;
         }
+        // mark first split node as a "main_split_root"
+        fc_node_vec[0]->get_rt_info()["main_split_root"] = true;
+        std::vector<std::shared_ptr<ov::Node>> split_parts;
+        split_parts.reserve(fc_node_vec.size());
+        for (const auto& fc : fc_node_vec) {
+            split_parts.push_back(fc);
+        }
+        fc_node_vec[0]->get_rt_info()["split_parts"] = split_parts;
 
         // concat all small fc for result.
-        ov::NodeVector concat_args(std::move(fc_node_vec));
+        ov::NodeVector concat_args = fc_node_vec;
         // concat happens on the latest dimension.
         constexpr size_t concat_dim = -1;
         auto concat_node = std::make_shared<ov::op::v0::Concat>(concat_args, concat_dim);
+        concat_node->get_rt_info()["sync_point"] = true;
 
         // check the shape after transformation.
         const auto& out_shape = fc_node->get_output_partial_shape(0);
@@ -202,6 +246,6 @@ ov::intel_cpu::SplitFC::SplitFC(int sub_stream_num) {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(fc_m, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(swish_or_fc_m, matcher_name);
     this->register_matcher(m, callback);
 }

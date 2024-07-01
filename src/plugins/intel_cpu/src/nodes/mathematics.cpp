@@ -3,11 +3,16 @@
 //
 
 #include <cmath>
+#include <cstdint>
 #include <vector>
 #include <string>
 
+#include "cpu_types.h"
+#include "node.h"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/opsets/opset1.hpp"
+#include "utils/bfloat16.hpp"
 #include "mathematics.h"
 #include <shape_inference/shape_inference_pass_through.hpp>
 
@@ -61,6 +66,17 @@ void Math::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inDataConf,
                          {{LayoutType::ncsp, ov::element::f32}},
                          impl_desc_type::ref_any);
+
+    // if (getAlgorithm() == Algorithm::MathCeiling) {
+    //     std::vector<PortConfigurator> inDataConf;
+    //     inDataConf.reserve(inputShapes.size());
+    //     for (size_t i = 0; i < inputShapes.size(); ++i)
+    //         inDataConf.emplace_back(LayoutType::ncsp, getOriginalInputPrecisionAtPort(i));
+
+    //     addSupportedPrimDesc(inDataConf,
+    //                          {{LayoutType::ncsp, getOriginalOutputPrecisionAtPort(0)}},
+    //                          impl_desc_type::ref_any);
+    // }
 }
 
 void Math::executeDynamicImpl(dnnl::stream strm) {
@@ -68,6 +84,18 @@ void Math::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void Math::execute(dnnl::stream strm) {
+    // if (getAlgorithm() == Algorithm::MathCeiling) {
+    //     size_t dataSize = getChildEdgeAt(0)->getMemory().getShape().getElementsCount();
+    //     const auto * src_data = getSrcDataAtPortAs<const bfloat16_t>(0);
+    //     auto * dst_data = getDstDataAtPortAs<bfloat16_t>(0);
+
+    //     parallel_for(dataSize, [&](size_t i) {
+    //         dst_data[i] = bfloat16_t(ceilf(static_cast<const float>(src_data[i])));
+    //     });
+
+    //     return;
+    // }
+
     size_t dataSize = getChildEdgeAt(0)->getMemory().getShape().getElementsCount();
     const float *src_data = getSrcDataAtPortAs<const float>(0);
     float* dst_data = getDstDataAtPortAs<float>(0);

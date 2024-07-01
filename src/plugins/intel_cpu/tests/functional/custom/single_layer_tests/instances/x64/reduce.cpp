@@ -52,7 +52,7 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_SmallChannel_dyn = {
 };
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes_SingleBatch_dyn = {
-    {{{{1, 5}, 19, {1, 5}, {1, 10}}, {{1, 19, 2, 2}, {1, 19, 2, 9}}}},
+    {{{{1, 5}, 19, {1, 5}, {1, 10}}, {{1, 19, 2, 2}, {1, 19, 2, 9}, {3, 19, 2, 9}}}},
 };
 
 std::vector<CPUSpecificParams> cpuParams_3D = {
@@ -331,7 +331,7 @@ const auto params_SingleBatch = testing::Combine(
         testing::Combine(
                 testing::ValuesIn(axes()),
                 testing::Values(ov::test::utils::OpType::VECTOR),
-                testing::Values(true),
+                testing::Values(false),
                 testing::ValuesIn(reductionTypes()),
                 testing::ValuesIn(inpOutPrc()),
                 testing::Values(ElementType::undefined),

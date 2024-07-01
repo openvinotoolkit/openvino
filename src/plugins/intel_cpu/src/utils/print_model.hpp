@@ -403,9 +403,9 @@ public:
         if (m_file_name.empty())
             return false;
 
-        for (auto& node : model->get_ordered_ops()) {
-            ov::op::util::process_subgraph(*this, node);
-        }
+        // for (auto& node : model->get_ordered_ops()) {
+        //     ov::op::util::process_subgraph(*this, node);
+        // }
 
         std::ofstream ofs(m_file_name);
         if (!ofs) {

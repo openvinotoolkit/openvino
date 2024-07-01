@@ -130,6 +130,14 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
         const auto constNode = ov::as_type_ptr<const ov::opset1::Constant>(op->get_input_node_shared_ptr(type));
         parameter = constNode->cast_vector<int>();
 
+        if (op->get_rt_info().count("split") && type == BEGIN_ID) {
+            if (parameter.back() == 0) {
+                w_rank = 0;
+            } else {
+                w_rank = 1;
+            }
+        }
+
         auto size = constNode->get_shape()[0];
         if (type != AXES_ID && attrs.ellipsisMaskCounter == 0 && size < nDims) {
             for (size_t i = size; i < nDims; i++) parameter.push_back(value);
@@ -307,7 +315,7 @@ void StridedSlice::execute(dnnl::stream strm) {
     if (!execPtr)
         OPENVINO_THROW(errorPrefix, "doesn't have compiled executor!");
 
-    execPtr->exec(srcMemory, dstMemory);
+    execPtr->exec(srcMemory, dstMemory, w_rank);
 }
 
 void StridedSlice::executeDynamicImpl(dnnl::stream strm) {
@@ -724,17 +732,46 @@ void StridedSlice::StridedSliceCommonExecutor::indicesCalculationForOptimized() 
     }
 }
 
-void StridedSlice::StridedSliceCommonExecutor::exec(const std::vector<MemoryCPtr>& srcMemory, const std::vector<MemoryCPtr>& dstMemory) {
+void StridedSlice::StridedSliceCommonExecutor::exec(const std::vector<MemoryCPtr>& srcMemory,
+                                                    const std::vector<MemoryCPtr>& dstMemory,
+                                                    int w_rank) {
     const uint8_t* srcData = srcMemory[0]->getDataAs<const uint8_t>();
     uint8_t* dstData = dstMemory[0]->getDataAs<uint8_t>();
-    const uint8_t* srcShiftedData = srcData + srcShift;
-    parallel_nt(nThreads, [&](const int ithr, const int nthr) {
-        size_t start = 0, end = 0;
-        splitter(workAmount, nthr, ithr, start, end);
 
-        for (size_t iwork = start; iwork < end; ++iwork)
-            cpu_memcpy(&dstData[dstIndices[iwork]], &srcShiftedData[srcIndices[iwork]], lastDstDim);
-    });
+    if (w_rank > -1) {
+        const auto& src = srcMemory[0];
+        const auto& desc = src->getDescPtr();
+        const auto& shape = src->getShape();
+        const auto& dims = shape.getDims();
+        const auto& prec = src->getPrecision();
+        const auto& mem_size = src->getSize(); // total bytes
+        const auto& element_size = prec.size();
+        const size_t w_size = 2;
+
+        const auto dim = dims.size() - 1;
+        auto channel_size = dims[dim] * element_size; // selected dim bytes
+        const int step = (mem_size / channel_size); // the steps need to copy.
+        int stride = dims[dim] / w_size; // elements of half selected dim.
+        if (prec == ov::element::u4) {
+            stride /= 2;
+        }
+        const auto copySize = stride * element_size; // bytes of half selected dim.
+
+        parallel_for(step, [&](int i){
+            int dst_offset = i * copySize;
+            int src_offset = i * copySize * 2 + w_rank * copySize;
+            cpu_parallel_memcpy(dstData + dst_offset, srcData + src_offset, copySize);
+        });
+    } else {
+        const uint8_t* srcShiftedData = srcData + srcShift;
+        parallel_nt(nThreads, [&](const int ithr, const int nthr) {
+            size_t start = 0, end = 0;
+            splitter(workAmount, nthr, ithr, start, end);
+
+            for (size_t iwork = start; iwork < end; ++iwork)
+                cpu_memcpy(&dstData[dstIndices[iwork]], &srcShiftedData[srcIndices[iwork]], lastDstDim);
+        });
+    }
 }
 
 }   // namespace node

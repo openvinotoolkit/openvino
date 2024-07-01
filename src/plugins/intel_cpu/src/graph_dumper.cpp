@@ -5,18 +5,25 @@
 #include "graph_dumper.h"
 
 #include "dnnl_debug.h"
+#include "nodes/real_subgraph.h"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "utils/debug_capabilities.h"
+#include "node.h"
+#include "graph.h"
 
+#include <chrono>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
+#include <fstream>
 
 namespace ov {
 namespace intel_cpu {
+using std::ofstream;
 
 void serializeToCout(const Graph &graph);
 void serializeToXML(const Graph &graph, const std::string& path);
@@ -200,9 +207,7 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph) {
 }
 
 #ifdef CPU_DEBUG_CAPS
-void serialize(const Graph &graph) {
-    const std::string& path = graph.getConfig().debugCaps.execGraphPath;
-
+void serialize(const Graph &graph, const std::string& path) {
     if (path.empty())
         return;
 
@@ -215,6 +220,11 @@ void serialize(const Graph &graph) {
     } else {
         OPENVINO_THROW("Unknown serialize format. Should be either 'cout' or '*.xml'. Got ", path);
     }
+}
+
+void serialize(const Graph &graph) {
+    const std::string& path = graph.getConfig().debugCaps.execGraphPath;
+    serialize(graph, path);
 }
 
 void serializeToXML(const Graph &graph, const std::string& path) {
@@ -333,7 +343,63 @@ void summary_perf(const Graph &graph) {
         }
     }
 }
-
 #endif
-}   // namespace intel_cpu
+
+void average_counters(const Graph &graph) {
+    std::ofstream myfile;
+    std::string fileName = std::getenv("AC_FILE") ? std::getenv("AC_FILE") : "bacr.csv";
+    myfile.open(fileName);
+
+    myfile << "layerName;execStatus;layerType;execType;numaId;realTime (ms);cpuTime (ms);" << "\n";
+
+    uint64_t total_avg = 0;
+    // input_ids;NOT_RUN;Parameter;unknown_i64;0.000;0.000;
+    auto getAvg = [](NodePtr node) {
+        uint64_t avg = node->PerfCounter().avg();
+        return avg;
+    };
+
+    auto printAC = [&myfile](NodePtr node, uint64_t avg, int numaId = -1) {
+        const std::string status = avg > 0 ? "EXECUTED" : "NOT_RUN";
+        const auto cpuTime = std::chrono::microseconds(avg).count() / 1000.0;
+        const auto realTime = cpuTime;
+        myfile << node->getName() << ";"
+               << status << ";"
+               << node->getTypeStr() << ";"
+               << node->getPrimitiveDescriptorType() << ";"
+               << (numaId == -1 ? node->context->getNumaId() : numaId) << ";"
+               << realTime << ";"
+               << cpuTime << ";"
+               << "\n";
+    };
+
+    for (auto &node : graph.GetNodes()) {
+        if (auto subgraph = std::dynamic_pointer_cast<node::SubGraph>(node)) {
+            // uint64_t subgraph_avg = getAvg(node);
+            uint64_t inner_total_avg = 0;
+            for (const auto& innerNode : subgraph->graph().GetNodes()) {
+                printAC(innerNode, getAvg(innerNode));
+                inner_total_avg += getAvg(innerNode);
+            }
+
+            uint64_t subgraph_avg = subgraph->getSubStream() == -1 ? (getAvg(node) - inner_total_avg) : getAvg(node);
+            // if (subgraph->getSubStream() == -1) {
+            //     std::cout << *node <<" Overall avg: " << getAvg(node) << " Inner avg: " << inner_total_avg << "\n";
+            // }
+            // uint64_t subgraph_avg = getAvg(node);
+            printAC(node, subgraph_avg, subgraph->getSubStream() == -1 ? 0 : 1);
+            total_avg += subgraph_avg;
+        } else {
+            printAC(node, getAvg(node));
+            total_avg += getAvg(node);
+        }
+    }
+
+    const auto total_ms = std::chrono::microseconds(total_avg).count() / 1000.0;
+    myfile << "Total;;;;" << total_ms << ";" << total_ms << ";" << "\n";
+
+    myfile.close();
+}
+
+}  // namespace intel_cpu
 }   // namespace ov
