@@ -74,13 +74,13 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     const auto& model_variant = variants[0];
     if (model_variant.is<std::string>()) {
         const auto& path = model_variant.as<std::string>();
+        validate_path(path);
         local_model_stream.open(path, std::ios::in | std::ifstream::binary);
-        validate_file_stream(local_model_stream, path);
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     } else if (model_variant.is<std::wstring>()) {
         const auto& path = model_variant.as<std::wstring>();
+        validate_path(path);
         local_model_stream.open(path.c_str(), std::ios::in | std::ifstream::binary);
-        validate_file_stream(local_model_stream, path);
 #endif
     } else if (model_variant.is<std::istream*>()) {
         provided_model_stream = model_variant.as<std::istream*>();
@@ -151,18 +151,18 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
 
     if (model_variant.is<std::string>()) {
         const auto& tmp_path = model_variant.as<std::string>();
+        validate_path(tmp_path);
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         model_path = ov::util::string_to_wstring(tmp_path.c_str());
 #else
         model_path = tmp_path;
 #endif
         local_model_stream.open(model_path.c_str(), std::ios::in | std::ifstream::binary);
-        validate_file_stream(local_model_stream, model_path);
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     } else if (model_variant.is<std::wstring>()) {
         model_path = model_variant.as<std::wstring>();
+        validate_path(model_path);
         local_model_stream.open(model_path.c_str(), std::ios::in | std::ifstream::binary);
-        validate_file_stream(local_model_stream, model_path);
 #endif
     } else if (model_variant.is<std::istream*>()) {
         provided_model_stream = model_variant.as<std::istream*>();
