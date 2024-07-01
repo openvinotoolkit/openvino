@@ -22,7 +22,7 @@ primitive_db::primitive_db()
     : primitives({
 #include "ks_primitive_db.inc"
       }),
-      batch_header_str({
+      batch_headers({
 #include "ks_primitive_db_batch_headers.inc"
       }) {
 }

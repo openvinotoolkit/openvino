@@ -2,6 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifndef NOMINMAX
+# define NOMINMAX
+#endif
+#include "gpu/intel/jit/jit_generator.hpp"
+#endif  // ENABLE_ONEDNN_FOR_GPU
+
 #include "ocl_device.hpp"
 #include "ocl_common.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
@@ -43,6 +50,24 @@ namespace cldnn {
 namespace ocl {
 
 namespace {
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+gpu_arch convert_ngen_arch(ngen::HW gpu_arch) {
+    switch (gpu_arch) {
+        case ngen::HW::Gen9: return gpu_arch::gen9;
+        case ngen::HW::Gen11: return gpu_arch::gen11;
+        case ngen::HW::XeLP: return gpu_arch::xe_lp;
+        case ngen::HW::XeHP: return gpu_arch::xe_hp;
+        case ngen::HW::XeHPG: return gpu_arch::xe_hpg;
+        case ngen::HW::XeHPC: return gpu_arch::xe_hpc;
+        case ngen::HW::Xe2: return gpu_arch::xe2;
+        case ngen::HW::Gen10:
+        case ngen::HW::Unknown: return gpu_arch::unknown;
+    }
+    return gpu_arch::unknown;
+}
+#endif
+
 int driver_dev_id() {
     const std::vector<int> unused_ids = {
         0x4905, 0x4906, 0x4907, 0x4908
@@ -172,7 +197,7 @@ bool get_imad_support(const cl::Device& device) {
     return false;
 }
 
-device_info init_device_info(const cl::Device& device) {
+device_info init_device_info(const cl::Device& device, const cl::Context& context) {
     device_info info = {};
     info.vendor_id = static_cast<uint32_t>(device.getInfo<CL_DEVICE_VENDOR_ID>());
     info.dev_name = device.getInfo<CL_DEVICE_NAME>();
@@ -250,7 +275,8 @@ device_info init_device_info(const cl::Device& device) {
     bool nv_device_attr_supported = extensions.find("cl_nv_device_attribute_query") != std::string::npos;
     info.has_separate_cache = false;
     if (device_attr_supported) {
-        info.gfx_ver = parse_version(device.getInfo<CL_DEVICE_IP_VERSION_INTEL>());
+        info.ip_version = device.getInfo<CL_DEVICE_IP_VERSION_INTEL>();
+        info.gfx_ver = parse_version(info.ip_version);
         info.device_id = device.getInfo<CL_DEVICE_ID_INTEL>();
         info.num_slices = device.getInfo<CL_DEVICE_NUM_SLICES_INTEL>();
         info.num_sub_slices_per_slice = device.getInfo<CL_DEVICE_NUM_SUB_SLICES_PER_SLICE_INTEL>();
@@ -296,6 +322,17 @@ device_info init_device_info(const cl::Device& device) {
         info.num_ccs = std::max<uint32_t>(num_queues, info.num_ccs);
     }
 
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    using namespace dnnl::impl::gpu::intel::jit;
+    ngen::HW hw = ngen::HW::Unknown;
+    ngen::Product product = {ngen::ProductFamily::Unknown, 0};
+    jit_generator<ngen::HW::Unknown>::detectHWInfo(context.get(), device.get(), hw, product);
+    info.arch = convert_ngen_arch(hw);
+#else  // ENABLE_ONEDNN_FOR_GPU
+    info.arch = gpu_arch::unknown;
+#endif  // ENABLE_ONEDNN_FOR_GPU
+
     return info;
 }
 
@@ -331,7 +368,7 @@ ocl_device::ocl_device(const cl::Device dev, const cl::Context& ctx, const cl::P
 : _context(ctx)
 , _device(dev)
 , _platform(platform)
-, _info(init_device_info(dev))
+, _info(init_device_info(dev, ctx))
 , _mem_caps(init_memory_caps(dev, _info)) { }
 
 bool ocl_device::is_same(const device::ptr other) {

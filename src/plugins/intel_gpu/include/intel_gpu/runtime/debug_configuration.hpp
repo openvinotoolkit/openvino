@@ -48,7 +48,7 @@ enum class LogLevel : int8_t {
 #else
 #define SEPARATE '/'
 #endif
-#define __FILENAME__ (strrchr(__FILE__, SEPARATE) ? strrchr(__FILE__, SEPARATE) + 1 : __FILE__)
+#define GPU_FILENAME (strrchr(__FILE__, SEPARATE) ? strrchr(__FILE__, SEPARATE) + 1 : __FILE__)
 #define GPU_DEBUG_IF(cond) if (cond)
 #define GPU_DEBUG_CODE(...) __VA_ARGS__
 #define GPU_DEBUG_DEFINE_MEM_LOGGER(stage) \
@@ -62,9 +62,9 @@ enum class LogLevel : int8_t {
 #define GPU_DEBUG_LOG_RAW_INT(min_verbose_level) if (cldnn::debug_configuration::get_instance()->verbose >= min_verbose_level) \
     ((cldnn::debug_configuration::get_instance()->verbose_color == 0) ? GPU_DEBUG_LOG_PREFIX : GPU_DEBUG_LOG_COLOR_PREFIX)
 #define GPU_DEBUG_LOG_RAW(min_verbose_level) GPU_DEBUG_LOG_RAW_INT(static_cast<std::underlying_type<ov::intel_gpu::LogLevel>::type>(min_verbose_level))
-#define GPU_DEBUG_LOG_PREFIX    std::cout << cldnn::debug_configuration::prefix << __FILENAME__ << ":" <<__LINE__ << ":" << __func__ << ": "
+#define GPU_DEBUG_LOG_PREFIX    std::cout << cldnn::debug_configuration::prefix << GPU_FILENAME << ":" <<__LINE__ << ":" << __func__ << ": "
 #define GPU_DEBUG_LOG_COLOR_PREFIX  std::cout << DARK_GRAY << cldnn::debug_configuration::prefix << \
-    BLUE << __FILENAME__ << ":" << PURPLE <<  __LINE__ << ":" << CYAN << __func__ << ": " << RESET
+    BLUE << GPU_FILENAME << ":" << PURPLE <<  __LINE__ << ":" << CYAN << __func__ << ": " << RESET
 #define DARK_GRAY   "\033[1;30m"
 #define BLUE        "\033[1;34m"
 #define PURPLE      "\033[1;35m"

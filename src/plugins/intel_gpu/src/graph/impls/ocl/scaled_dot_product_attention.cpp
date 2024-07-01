@@ -58,7 +58,7 @@ protected:
         // buffers number and its' sizes (since update_dispatch_data is called for both kernels too), and
         // do not double memory allocations during reallocate_if_needed() function call
         std::vector<layout> layouts;
-        if (_kernels_data.size() > 0) {
+        if (_kernels_data.size() > 0 && !_kernels_data[0].internalBufferSizes.empty()) {
             auto dtype = from_data_type(_kernels_data[0].internalBufferDataType);
             const auto bpp = data_type_traits::size_of(dtype);
             for (auto size : _kernels_data[0].internalBufferSizes) {
