@@ -1,24 +1,8 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#pragma once
-
 #include "gemm_kernel.hpp"
 #define THROW_ERROR(...) OPENVINO_THROW("ACL gemm executor Init Failure '", __VA_ARGS__)
-
-using Dim = std::size_t;
-using VectorDims = std::vector<Dim>;
-inline arm_compute::TensorShape shapeCast(const VectorDims& dims) {
-    arm_compute::TensorShape tensorShape;
-    for (std::size_t i = 0; i < dims.size(); ++i) {
-        tensorShape.set(dims.size() - i - 1, dims[i], true);
-    }
-    if (tensorShape.num_dimensions() == 0) {
-        tensorShape.set(0, 1, false);
-        tensorShape.set_num_dimensions(1);
-    }
-    return tensorShape;
-}
 
 namespace ov {
 namespace intel_cpu {
@@ -31,7 +15,7 @@ namespace intel_cpu {
       N(N),
       K(K),
       b_transposed(b_transposed) {
-        if (inType != ov::element::f32 && inType != ov::element::f16 && inType != ov::element::bf16)
+        if (!one_of(inType, ov::element::f32, ov::element::f16, ov::element::bf16))
             THROW_ERROR("brgemm kernel only supports bf16, f16 and f32");
 
         if (inType == ov::element::f32)
@@ -49,16 +33,32 @@ namespace intel_cpu {
                                                 void *b,
                                                 arm_compute::TensorInfo& dstInfo,
                                                 arm_compute::Tensor& dstTensor,
+                                                arm_compute::Strides aStrides,
+                                                arm_compute::Strides bStrides,
                                                 void *c,
                                                 float alpha,
                                                 float beta,
                                                 arm_compute::Strides* outStrides,
                                                 void* out) {
-        aInfo.init(shapeCast({M, N}), format);
+        aInfo.init(
+            shapeCast({M, N}),
+            format,
+            aStrides,
+            size_t(0),
+            (size_t)(M * N * arm_compute::element_size_from_data_type(arm_compute::data_type_from_format(format))));
+
+        arm_compute::TensorShape bShape;
         if (b_transposed)
-            bInfo.init(shapeCast({K, N}), format);
+            bShape = shapeCast({K, N});
         else
-            bInfo.init(shapeCast({N, K}), format);
+            bShape = shapeCast({N, K});
+
+        bInfo.init(
+                bShape,
+                format,
+                bStrides,
+                size_t(0),
+                (size_t)(K * N * arm_compute::element_size_from_data_type(arm_compute::data_type_from_format(format))));
 
         aTensor.allocator()->init(aInfo);
         bTensor.allocator()->init(bInfo);

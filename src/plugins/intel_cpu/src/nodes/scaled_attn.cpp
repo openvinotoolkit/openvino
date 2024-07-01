@@ -23,20 +23,21 @@
 #    include "mlas/sgemm.hpp"
 #endif
 
+#ifdef OV_CPU_WITH_ACL
+#     include "kernels/acl/gemm_kernel.hpp"
+#endif
+
 #include "utils/plain_tensor.hpp"
 #include "kernels/scaled_attn/softmax.hpp"
 #include "kernels/scaled_attn/mha_single_token.hpp"
 #include "kernels/scaled_attn/attn_memcpy.hpp"
 #include "kernels/scaled_attn/attn_quant.hpp"
 #include "kernels/x64/brgemm_kernel.hpp"
-#include "kernels/acl/gemm_kernel.hpp"
 #include "nodes/common/cpu_convert.h"
 
 #include <algorithm>
 #include <string>
 #include <vector>
-#include <chrono>
-#include <iostream>
 
 using namespace ov::Extensions::Cpu::XARCH;
 using namespace dnnl::impl;
@@ -196,7 +197,6 @@ struct MHAKernel {
         });
     }
 };
-
 
 template <typename T>
 struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
@@ -517,7 +517,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, float> {
 
     MHAKernel() = delete;
     explicit MHAKernel(GraphContext::CPtr ctx): context(ctx) {
-        m_block_size = 4;
+        m_block_size = 512;
         select_nfltmax_at_0 = false;
     }
 
@@ -558,12 +558,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, float> {
         auto k_stride_s = present_key.stride(3);
 
         auto m_blocks = (q_len + m_block_size - 1) / m_block_size;
+
         parallel_for3d(B, H, m_blocks, [&](size_t b, size_t h, size_t m_blk) {
-            auto thread_id = parallel_get_thread_num();
-
-            if (thread_id < 0)
-                OPENVINO_THROW("The calling thread isn't initialized!");
-
             auto m_start = m_blk * m_block_size;
             auto m_end = std::min(m_start + m_block_size, q_len);
             auto m_cnt = m_end - m_start;
@@ -594,22 +590,22 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, float> {
                     cmask_stride = causal_mask.stride(2);
             }
 
-            arm_compute::TensorInfo qkInfo;
             arm_compute::Tensor qkTensor;
+            arm_compute::TensorInfo qkInfo;
 
             bool b_transpose = false;
             if (k_stride_s == 1)
                 b_transpose = true;
-            std::unique_ptr<GemmKernel> qk_gemm_ptr = std::make_unique<GemmKernel>(
-                    m_cnt,
-                    head_size,
-                    kv_len,
-                    b_transpose);
+            GemmKernel qk_gemm(m_cnt, head_size, kv_len, b_transpose);
 
-            qk_gemm_ptr->executeGemm(reinterpret_cast<void *>(q_ptr),
-                                     reinterpret_cast<void *>(k_ptr),
-                                     qkInfo,
-                                     qkTensor);
+            arm_compute::Strides qStrides({query.stride_bytes(3), query.stride_bytes(2)});
+            arm_compute::Strides kStrides({present_key.stride_bytes(3), present_key.stride_bytes(2)});
+            qk_gemm.executeGemm(reinterpret_cast<void *>(q_ptr),
+                                reinterpret_cast<void *>(k_ptr),
+                                qkInfo,
+                                qkTensor,
+                                qStrides,
+                                kStrides);
 
             auto qk = reinterpret_cast<float*>(qkTensor.buffer());
 
@@ -634,20 +630,21 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, float> {
 
             auto out = has_out_transpose ? &output_emb.at<float>({b, m_start, h * head_size}) : &output_emb.at<float>({b, h, m_start});
             auto strides = arm_compute::Strides({output_emb.stride_bytes(1), output_emb.stride_bytes(2)});
-            std::unique_ptr<GemmKernel> out_gemm_ptr = std::make_unique<GemmKernel>(
-                    m_cnt,
-                    kv_len,
-                    head_size);
+            GemmKernel out_gemm(m_cnt, kv_len, head_size);
 
-            out_gemm_ptr->executeGemm(qkTensor.buffer(),
-                                      reinterpret_cast<void *>(v_ptr),
-                                      outInfo,
-                                      outTensor,
-                                      nullptr,
-                                      1.0,
-                                      0.0,
-                                      &strides,
-                                      reinterpret_cast<void*>(out));
+            arm_compute::Strides vStrides({present_value.stride_bytes(3), present_value.stride_bytes(2)});
+            out_gemm.executeGemm(qkTensor.buffer(),
+                                 reinterpret_cast<void *>(v_ptr),
+                                 outInfo,
+                                 outTensor,
+                                 qkInfo.strides_in_bytes(),
+                                 vStrides,
+                                 nullptr,
+                                 1.0,
+                                 0.0,
+                                 &strides,
+                                 reinterpret_cast<void*>(out));
+            qkTensor.allocator()->free();
         });
     }
 };
@@ -1083,7 +1080,9 @@ void ScaledDotProductAttention::createPrimitive() {
             executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(context);
 #endif
         } else {
-#ifdef OV_CPU_WITH_MLAS
+#ifdef OV_CPU_WITH_ACL
+            executor = std::make_shared<AttentionExecutor<KT_ACL, float>>(context);
+#elif defined(OV_CPU_WITH_MLAS)
             executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(context);
 #elif defined(OPENVINO_ARCH_X86_64)
             if (with_cpu_x86_avx512_core()) {
@@ -1091,8 +1090,6 @@ void ScaledDotProductAttention::createPrimitive() {
             } else {
                 executor = std::make_shared<AttentionExecutor<KT_REF, float>>(context);
             }
-#elif defined(OV_CPU_WITH_ACL)
-            executor = std::make_shared<AttentionExecutor<KT_ACL, float>>(context);
 #else
             executor = std::make_shared<AttentionExecutor<KT_REF, float>>(context);
 #endif

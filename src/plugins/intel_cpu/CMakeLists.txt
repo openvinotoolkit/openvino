@@ -128,7 +128,8 @@ file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
                           ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
 if(NOT OV_CPU_WITH_ACL)
-    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/acl/*)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/acl/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/acl/*)
 endif()
 
 if(NOT X86_64)
@@ -279,9 +280,7 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 #
 
 if(BUILD_SHARED_LIBS)
-    add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS}
-            src/nodes/kernels/acl/gemm_kernel.cpp
-            src/nodes/kernels/acl/gemm_kernel.hpp)
+    add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
     ov_link_system_libraries(${TARGET_NAME}_obj PUBLIC dnnl openvino::pugixml)
 
     ov_add_version_defines(src/plugin.cpp ${TARGET_NAME}_obj)
