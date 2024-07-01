@@ -64,6 +64,7 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
         if (!validator) {
             return false;
         }
+        std::cout << "RoPEFusionGPTNEOX" << std::endl;
 
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
@@ -155,6 +156,7 @@ ov::pass::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
         if (!validator) {
             return false;
         }
+        std::cout << "RoPEFusionCosSinPreprocess" << std::endl;
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         auto rope_node = as_type_ptr<op::internal::RoPE>(pattern_map.at(rope).get_node_shared_ptr());
@@ -215,6 +217,7 @@ ov::pass::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
         if (!validator) {
             return false;
         }
+        std::cout << "RoPEFusionIOSlicing" << std::endl;
         auto ndims = validator["ndims"];
 
         const auto& config = rope_node->get_config();
@@ -257,6 +260,7 @@ ov::pass::RoPEFusionPreprocess::RoPEFusionPreprocess() {
         if (!validator) {
             return false;
         }
+        std::cout << "RoPEFusionPreprocess" << std::endl;
 
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
@@ -364,6 +368,7 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
         if (!validator) {
             return false;
         }
+        std::cout << "RoPEFusionGPTJ" << std::endl;
 
         op::internal::RoPE::Config config;
         OutputVector new_args;
@@ -498,6 +503,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id) {
         if (!validator) {
             return false;
         }
+        std::cout << "RoPEFusionChatGLM" << std::endl;
 
         op::internal::RoPE::Config config;
         OutputVector new_args;
@@ -622,6 +628,8 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
         if (!validator) {
             return false;
         }
+
+        std::cout << "RoPEFusionQwen" << std::endl;
 
         op::internal::RoPE::Config config;
         OutputVector new_args;
@@ -765,6 +773,7 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
             m_shared_cos0 = root;
             return false;
         }
+        std::cout << "RoPEShareCosSin" << std::endl;
 
         // all inputs & consts are same, we can safely shared the subgraph
         // Just for record, the pattern uses cos | sin as root node. This means that we could match both cases.
