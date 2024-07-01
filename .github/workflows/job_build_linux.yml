@@ -179,7 +179,7 @@ jobs:
           # In Ubuntu 22, we use Python 3.11 for tests and build, i.e., not system 3.10
           # while we use system Python for other OSes
           # Debian packages should be built with the system Python
-          [[ ${{ inputs.os }} == "ubuntu22" ]] && python_exec_path=/venv3.10/bin/python3 || ubuntu_version=/usr/bin/python3
+          [[ ${{ inputs.os }} == "ubuntu22" ]] && python_exec_path=/venv3.10/bin/python3 || python_exec_path=/usr/bin/python3
           
           $python_exec_path -m pip install -U pip
           $python_exec_path -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
