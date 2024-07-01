@@ -503,19 +503,28 @@ clKernelData SDPAKernelMicro::get_kernel_data(const sdpa_params& params, bool is
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 1}); // K
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 2}); // Q
 
-    kernel_selector::ScalarDescriptor s_d;
-    s_d.t = kernel_selector::ScalarDescriptor::Types::INT32;
-    s_d.v.s32 = 0;
+    const auto& Q = params.inputs[0];
+    const auto& K = params.inputs[1];
+
+    const auto n_queries = get_seq_length(Q, params.input0_order);
+    const auto n_keys = get_seq_length(K, params.input1_order);
+
+    auto head_size = params.conf.head_size;
+
+    ScalarDescriptor s_d;
+    s_d.t = ScalarDescriptor::Types::INT32;
+    s_d.v.s32 = static_cast<uint32_t>(head_size);
+
+    ScalarDescriptor s_k;
+    s_k.t = ScalarDescriptor::Types::INT32;
+    s_k.v.s32 = static_cast<uint32_t>(n_keys.v);
+
+    ScalarDescriptor s_q;
+    s_q.t = ScalarDescriptor::Types::INT32;
+    s_q.v.s32 = static_cast<uint32_t>(n_queries.v);
+
     kernel.params.scalars.push_back(s_d);
-
-    kernel_selector::ScalarDescriptor s_k;
-    s_k.t = kernel_selector::ScalarDescriptor::Types::INT32;
-    s_k.v.s32 = 0;
     kernel.params.scalars.push_back(s_k);
-
-    kernel_selector::ScalarDescriptor s_q;
-    s_q.t = kernel_selector::ScalarDescriptor::Types::INT32;
-    s_q.v.s32 = 0;
     kernel.params.scalars.push_back(s_q);
 
     /* Generate microkernel shims */
