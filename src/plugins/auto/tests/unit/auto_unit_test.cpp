@@ -151,6 +151,7 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest(const MODELTYPE modelType) : Bas
     core = std::make_shared<NiceMock<MockICore>>();
     // replace core with mock Icore
     plugin->set_core(core);
+    plugin->set_property({ov::intel_auto::device_utilization_threshold(0)});
     std::vector<ov::PropertyName> supportedProps = {ov::compilation_num_threads};
     ON_CALL(*core, get_property(_, StrEq(ov::supported_properties.name()), _))
         .WillByDefault(RETURN_MOCK_VALUE(supportedProps));

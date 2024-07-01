@@ -525,7 +525,6 @@ std::list<DeviceInformation> Plugin::get_valid_device(
         return support_model != capability.end() || is_support_fp16;
     };
 
-    auto utilization_threshold = m_plugin_config.get_property(ov::intel_auto::device_utilization_threshold);
     for (auto&& device_info : meta_devices) {
         if (device_info.device_priority > 0)
             is_default_list = false;
@@ -578,25 +577,17 @@ std::list<DeviceInformation> Plugin::get_valid_device(
     valid_devices.sort([](const DeviceInformation& a, const DeviceInformation& b) {
         return a.device_priority < b.device_priority;
     });
-
-    std::cout << "[WY][DEBUG] valid device list before utilization checking: \n";
-    for (auto& device : valid_devices) {
-        std::cout << "\t Device name: " << device.device_name << std::endl;
+    auto utilization_threshold = m_plugin_config.get_property(ov::intel_auto::device_utilization_threshold);
+    if (utilization_threshold == 0) {
+        LOG_DEBUG_TAG("Disable device utilization checking.");
+        return valid_devices;
     }
-    std::cout << "\n=========================" << std::endl;
+
     std::list<DeviceInformation> filter_valid_devices;
     ov::util::monitor::DeviceMonitor devices_monitor;
     for (auto& device_info : valid_devices) {
         ov::DeviceIDParser parsed{device_info.device_name};
-        std::cout << "[WY][DEBUG] checking utilization for device: " << device_info.device_name
-                  << "\t real name: " << parsed.get_device_name() << "..." << std::endl;
         auto device_utilization = devices_monitor.get_mean_device_load(parsed.get_device_name());
-        std::cout << "[WY][DEBUG] checking utilization for device: " << device_info.device_name << "...Done!"
-                  << std::endl;
-        for (auto& item : device_utilization) {
-            std::cout << "[WY][DEBUG] key: " << item.first << "\t utilization: " << item.second << std::endl;
-        }
-        std::cout << "==================\n";
         if (device_info.device_name.find("CPU") == 0) {
             if (device_utilization.count("Total")) {
                 LOG_DEBUG_TAG("Device: %s[Total] Utilization: %s",
@@ -634,14 +625,8 @@ std::list<DeviceInformation> Plugin::get_valid_device(
         } else {
             // TODO: to be implemented for other device
         }
-        std::cout << "[WY][DEBUG] will push back device: " << device_info.device_name << std::endl;
         filter_valid_devices.push_back(device_info);
     }
-    std::cout << "[WY][DEBUG] valid device list after utilization checking: \n";
-    for (auto& device : filter_valid_devices) {
-        std::cout << "\t Device name: " << device.device_name << std::endl;
-    }
-    std::cout << "\n=========================" << std::endl;
     return filter_valid_devices.empty() ? valid_devices : filter_valid_devices;
 }
 
