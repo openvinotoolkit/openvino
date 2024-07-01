@@ -47,7 +47,7 @@ std::shared_ptr<v0::Parameter> get_parameter_by_tensor_name(const std::shared_pt
 struct Variable {
     struct Context {
         // to hold a compiled once regex for all Variable instances
-        const std::regex naming_convention = std::regex(R"((past_key_values\.(\d+)\.(key)|(value))(present\.(\d)\.(key)|(value)))");
+        const std::regex naming_convention = std::regex(R"((past_key_values\.(\d+)\.(key)|(value))(present\.(\d+)\.(key)|(value)))");
     };
 
     Variable(const Context& context, const std::string& variable_name) : context(context), variable_name(variable_name) {
