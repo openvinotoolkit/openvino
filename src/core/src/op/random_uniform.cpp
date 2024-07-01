@@ -20,8 +20,8 @@ inline bool out_et(const element::Type& et) {
     return et.is_real() || shape_et(et);
 }
 
-inline bool alignment(const PhilloxAlignment& alignment) {
-    return alignment == PhilloxAlignment::TENSORFLOW || alignment == PhilloxAlignment::PYTORCH;
+inline bool alignment(const ov::op::PhilloxAlignment& alignment) {
+    return alignment == ov::op::PhilloxAlignment::TENSORFLOW || alignment == ov::op::PhilloxAlignment::PYTORCH;
 }
 }  // namespace validate
 
@@ -31,7 +31,7 @@ RandomUniform::RandomUniform(const Output<Node>& out_shape,
                              const ov::element::Type& out_type,
                              uint64_t global_seed,
                              uint64_t op_seed,
-                             PhilloxAlignment alignment)
+                             ov::op::PhilloxAlignment alignment)
     : Op({out_shape, min_val, max_val}),
       m_output_type(out_type),
       m_global_seed(global_seed),
@@ -123,7 +123,7 @@ std::pair<uint64_t, uint64_t> RandomUniform::get_state() const {
 }
 
 /// \return The alignment mode.
-PhilloxAlignment RandomUniform::get_alignment() const {
+ov::op::PhilloxAlignment RandomUniform::get_alignment() const {
     return m_alignment;
 }
 

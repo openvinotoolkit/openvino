@@ -200,6 +200,12 @@ void convert_to_output_type(const std::vector<uint32_t>& generated_numbers,
            std::min(converted_output_values_per_exec_count, elem_count - idx) * sizeof(T));
 }
 
+template <typename T>
+void check_optimization_condition(const char* min_val, const char* max_val) {
+    // Get min and max values
+    const auto mn = *reinterpret_cast<const T*>(min_val);
+    const auto mx = *reinterpret_cast<const T*>(max_val);
+
 }  // namespace
 
 // ======= MockPhilloxConverter functions =======
@@ -329,18 +335,19 @@ PyTorchPhilloxConverter::PyTorchPhilloxConverter(char* out,
                                                  const char* min_val,
                                                  const char* max_val)
     : PhilloxConverter(out, elem_type, elem_count, min_val, max_val) {
-    // Check for optimization conditions.
+    // Check for optimization conditions for int64_t.
     // If both min and max fall below the maximum value of uint32_t,
     // PyTorch generates 64-bit numbers by casting
     // a single 32 bit random number to 64 bit,
     // instead of using 2 32 bit numbers.
-    int64_t mn[1];
-    int64_t mx[1];
-    memcpy(mn, m_min_val, m_elem_type.size());
-    memcpy(mx, m_max_val, m_elem_type.size());
-
-    if (mn[0] <= std::numeric_limits<uint32_t>::max() && mx[0] <= std::numeric_limits<uint32_t>::max()) {
-        m_optimization_enabled = true;
+    if (elem_type == element::i64) {
+        int64_t mn, mx;
+        memcpy(&mn, min_val, elem_type.size());
+        memcpy(&mx, max_val, elem_type.size());
+        m_optimization_enabled =
+            mn <= std::numeric_limits<uint32_t>::max() && mx <= std::numeric_limits<uint32_t>::max();
+    } else {
+        m_optimization_enabled = false;
     }
 }
 
@@ -470,11 +477,11 @@ std::shared_ptr<PhilloxConverter> make_phillox_converter(char* out,
                                                          const size_t elem_count,
                                                          const char* min_val,
                                                          const char* max_val,
-                                                         const PhilloxAlignment alignment) {
+                                                         const ov::op::PhilloxAlignment alignment) {
     switch (alignment) {
-    case PhilloxAlignment::TENSORFLOW:
+    case ov::op::PhilloxAlignment::TENSORFLOW:
         return std::make_shared<TensorflowPhilloxConverter>(out, elem_type, elem_count, min_val, max_val);
-    case PhilloxAlignment::PYTORCH:
+    case ov::op::PhilloxAlignment::PYTORCH:
         return std::make_shared<PyTorchPhilloxConverter>(out, elem_type, elem_count, min_val, max_val);
     default:
         // Mock conversion (no conversion)

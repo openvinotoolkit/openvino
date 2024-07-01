@@ -33,7 +33,7 @@ public:
                   const ov::element::Type& out_type,
                   uint64_t global_seed = 0,
                   uint64_t op_seed = 0,
-                  PhilloxAlignment alignment = PhilloxAlignment::TENSORFLOW);
+                  ov::op::PhilloxAlignment alignment = ov::op::PhilloxAlignment::TENSORFLOW);
 
     void validate_and_infer_types() override;
 
@@ -63,9 +63,9 @@ public:
     std::pair<uint64_t, uint64_t> get_state() const;
 
     /// \return The alignment mode.
-    PhilloxAlignment get_alignment() const;
+    ov::op::PhilloxAlignment get_alignment() const;
 
-    void set_alignment(PhilloxAlignment alignmnent);
+    void set_alignment(ov::op::PhilloxAlignment alignmnent);
 
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
@@ -74,7 +74,7 @@ protected:
     ov::element::Type m_output_type;
     uint64_t m_global_seed;
     uint64_t m_op_seed;
-    PhilloxAlignment m_alignment = PhilloxAlignment::TENSORFLOW;
+    ov::op::PhilloxAlignment m_alignment = ov::op::PhilloxAlignment::TENSORFLOW;
 
     mutable std::pair<uint64_t, uint64_t> m_state;
 };
