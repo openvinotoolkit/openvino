@@ -68,3 +68,35 @@ TEST_F(ScaledDotProductAttentionV13StaticShapeInferenceTest, mixed_shapes) {
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes.front(), StaticShape({2, 3, 6}));
 }
+
+TEST_F(ScaledDotProductAttentionV13StaticShapeInferenceTest, attention_L_broadcast) {
+    const auto query = std::make_shared<opset13::Parameter>(element::f32, PartialShape::dynamic());
+    const auto key = std::make_shared<opset13::Parameter>(element::f32, PartialShape::dynamic());
+    const auto value = std::make_shared<opset13::Parameter>(element::f32, PartialShape::dynamic());
+    const auto attention_mask = std::make_shared<opset13::Parameter>(element::f32, PartialShape::dynamic());
+    const auto scale = std::make_shared<opset13::Parameter>(element::f32, PartialShape::dynamic());
+    auto causal = false;
+
+    op = make_op(query, key, value, attention_mask, scale, causal);
+
+    input_shapes = ShapeVector{{2, 8, 16, 32}, {2, 8, 24, 32}, {2, 8, 24, 48}, {1, 1, 24}, {}};
+    output_shapes = shape_inference(op.get(), input_shapes);
+    EXPECT_EQ(output_shapes.size(), 1);
+    EXPECT_EQ(output_shapes.front(), StaticShape({2, 8, 16, 48}));
+}
+
+TEST_F(ScaledDotProductAttentionV13StaticShapeInferenceTest, attention_S_broadcast) {
+    const auto query = std::make_shared<opset13::Parameter>(element::f32, PartialShape::dynamic());
+    const auto key = std::make_shared<opset13::Parameter>(element::f32, PartialShape::dynamic());
+    const auto value = std::make_shared<opset13::Parameter>(element::f32, PartialShape::dynamic());
+    const auto attention_mask = std::make_shared<opset13::Parameter>(element::f32, PartialShape::dynamic());
+    const auto scale = std::make_shared<opset13::Parameter>(element::f32, PartialShape::dynamic());
+    auto causal = false;
+
+    op = make_op(query, key, value, attention_mask, scale, causal);
+
+    input_shapes = ShapeVector{{2, 8, 16, 32}, {2, 8, 24, 32}, {2, 8, 24, 48}, {1, 16, 1}, {}};
+    output_shapes = shape_inference(op.get(), input_shapes);
+    EXPECT_EQ(output_shapes.size(), 1);
+    EXPECT_EQ(output_shapes.front(), StaticShape({2, 8, 16, 48}));
+}
