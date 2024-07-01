@@ -438,7 +438,8 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
         // We can void only that case if we can check whether the current node is backedge of the network.
         // However no such hanlde is existing yet. (TBD in the future when we need to optimize out the type converting
         // reorders in the body network)
-        !node.get_program().is_body_program()) {
+        !node.get_program().is_body_program() &&
+        prev.get_preferred_impl_type() != cldnn::impl_types::cpu) {
         return true;
     }
 
