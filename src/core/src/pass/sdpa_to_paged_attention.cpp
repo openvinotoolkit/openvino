@@ -139,7 +139,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     model->add_parameters(kv_parameters);
     model->add_parameters(model_remaining_params);
-    model->add_parameters({max_context_len});
+    model->add_parameters({std::move(max_context_len)});
     model->validate_nodes_and_infer_types();
     return true;
 }

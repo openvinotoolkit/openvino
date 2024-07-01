@@ -26,5 +26,5 @@ void ov::symbol::set_equal(const std::shared_ptr<Symbol>& lhs, const std::shared
     auto lhs_root = ov::symbol::ancestor_of(lhs), rhs_root = ov::symbol::ancestor_of(rhs);
     if (lhs_root.get() == rhs_root.get())
         return;  // already are equal
-    lhs_root->m_parent = rhs_root;
+    lhs_root->m_parent = std::move(rhs_root);
 }

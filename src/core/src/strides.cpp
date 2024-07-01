@@ -29,6 +29,6 @@ ov::Strides& ov::Strides::operator=(const Strides& v) {
 }
 
 ov::Strides& ov::Strides::operator=(Strides&& v) noexcept {
-    static_cast<std::vector<size_t>*>(this)->operator=(v);
+    static_cast<std::vector<size_t>*>(this)->operator=(std::move(v));
     return *this;
 }

@@ -74,7 +74,7 @@ void unroll_single_iteration(const std::shared_ptr<ov::op::util::SubGraphOp>& su
     }
     outer_f->add_sinks(sub_graph_op->get_function()->get_sinks());
     ov::copy_runtime_info(sub_graph_op, sub_graph_op->get_function()->get_ops());
-    ov::copy_runtime_info(sub_graph_op, new_ops);
+    ov::copy_runtime_info(sub_graph_op, std::move(new_ops));
 }
 
 ov::Output<ov::Node> create_init_subgraph(const ov::Output<ov::Node>& in_node, ov::pass::NodeRegistry& to) {
