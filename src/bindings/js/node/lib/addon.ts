@@ -124,8 +124,8 @@ interface Core {
   };
   /**
    * It imports a previously exported compiled model.
-   * @param modelStream The input stream that contains a model, previously exported
-   * with the {@link CompiledModel.exportModelSync} method.
+   * @param modelStream The input stream that contains a model,
+   * previously exported with the {@link CompiledModel.exportModelSync} method.
    * @param device The name of a device, for which you import a compiled model.
    * Note, if the device name was not used to compile the original model,
    * an exception is thrown.
@@ -141,9 +141,10 @@ interface Core {
    * It reads models from the IR / ONNX / PDPD / TF and TFLite formats.
    * @param modelPath The path to a model
    * in the IR / ONNX / PDPD / TF or TFLite format.
-   * @param weightsPath The path to a data file for the IR format (.bin): if the path
-   * is empty, it tries to read the bin file with the same name as xml and if
-   * the bin file with the same name was not found, it loads IR without weights.
+   * @param weightsPath The path to a data file for the IR format (.bin):
+   * if the path is empty, it tries to read the bin file with the same name
+   * as xml and if the bin file with the same name was not found, it loads
+   * IR without weights.
    * For the ONNX format (.onnx), the weights parameter is not used.
    * For the PDPD format (.pdmodel), the weights parameter is not used.
    * For the TF format (.pb), the weights parameter is not used.
@@ -232,10 +233,10 @@ interface Model {
    * shape.
    */
   isDynamic(): boolean;
-    /**
-   * It gets the output of the model.
-   * If a model has more than one output, this method throws an exception.
-   */
+  /**
+ * It gets the output of the model.
+ * If a model has more than one output, this method throws an exception.
+ */
   output(): Output;
   /**
    * It gets the output of the model identified by the tensor name.
@@ -340,8 +341,8 @@ interface Tensor {
    * memory.
    *
    * Its setter fills the underlaying tensor memory by copying the binary data
-   * buffer from the TypedArray subclass. An exception will be thrown if the size
-   * or type of array does not match the tensor.
+   * buffer from the TypedArray subclass. An exception will be thrown if the
+   * size or type of array does not match the tensor.
    */
   data: SupportedTypedArray;
   /**
@@ -375,15 +376,15 @@ interface Tensor {
  */
 interface TensorConstructor {
   /**
-   * It constructs a tensor using the element type and shape. The new tensor data
-   * will be allocated by default.
+   * It constructs a tensor using the element type and shape. The new tensor
+   * data will be allocated by default.
    * @param type The element type of the new tensor.
    * @param shape The shape of the new tensor.
    */
   new(type: element | elementTypeString, shape: number[]): Tensor;
   /**
-   * It constructs a tensor using the element type and shape. The new tensor wraps
-   * allocated host memory.
+   * It constructs a tensor using the element type and shape. The new tensor
+   * wraps allocated host memory.
    * @param type The element type of the new tensor.
    * @param shape The shape of the new tensor.
    * @param tensorData A subclass of TypedArray that will be wrapped
@@ -412,16 +413,16 @@ interface InferRequest {
    * Inputs have to be specified earlier using {@link InferRequest.setTensor}
    * or {@link InferRequest.setInputTensor}
    */
-  infer(): { [outputName: string] : Tensor};
+  infer(): { [outputName: string]: Tensor };
   /**
    * It infers specified input(s) in the synchronous mode.
    * @param inputData An object with the key-value pairs where the key is the
-   * input name and value can be either a tensor or a TypedArray. TypedArray
-   * will be wrapped into Tensor underneath using the input shape and element type
-   * of the deployed model.
+   * input name and value can be either a tensor or a TypedArray.
+   * TypedArray will be wrapped into Tensor underneath using the input shape
+   * and element type of the deployed model.
    */
-  infer(inputData: { [inputName: string]: Tensor | SupportedTypedArray})
-    : { [outputName: string] : Tensor};
+  infer(inputData: { [inputName: string]: Tensor | SupportedTypedArray })
+    : { [outputName: string]: Tensor };
   /**
    * It infers specified input(s) in the synchronous mode.
    * @param inputData An array with tensors or TypedArrays. TypedArrays will be
@@ -430,15 +431,15 @@ interface InferRequest {
    * and TypedArrays must be passed in the correct order.
    */
   infer(inputData: Tensor[] | SupportedTypedArray[])
-    : { [outputName: string] : Tensor};
+    : { [outputName: string]: Tensor };
   /**
    * It infers specified input(s) in the asynchronous mode.
    * @param inputData An object with the key-value pairs where the key is the
    * input name and value is a tensor or an array with tensors. If the model has
    * multiple inputs, the Tensors must be passed in the correct order.
    */
-  inferAsync(inputData: { [inputName: string]: Tensor}
-    | Tensor[] ): Promise<{ [outputName: string] : Tensor}>;
+  inferAsync(inputData: { [inputName: string]: Tensor }
+    | Tensor[]): Promise<{ [outputName: string]: Tensor }>;
   /**
    * It gets the compiled model used by the InferRequest object.
    */
@@ -462,12 +463,12 @@ interface InferRequest {
    * an exception is thrown.
    */
   getOutputTensor(): Tensor;
- /**
-   * It gets the output tensor for inference.
-   * @param idx An index of the tensor to get.
-   * @returns A tensor at the specified index. If the tensor with the specified
-   * idx is not found, an exception is thrown.
-   */
+  /**
+    * It gets the output tensor for inference.
+    * @param idx An index of the tensor to get.
+    * @returns A tensor at the specified index. If the tensor with the specified
+    * idx is not found, an exception is thrown.
+    */
   getOutputTensor(idx?: number): Tensor;
   /**
    * It gets an input/output tensor for inference.
@@ -481,8 +482,8 @@ interface InferRequest {
   /**
    * It sets the input tensor to infer models with a single input.
    * @param tensor The input tensor. The element type and shape of the tensor
-   * must match the type and size of the model's input element. If the model has several
-   * inputs, an exception is thrown.
+   * must match the type and size of the model's input element. If the model
+   * has several inputs, an exception is thrown.
    */
   setInputTensor(tensor: Tensor): void;
   /**
@@ -496,8 +497,8 @@ interface InferRequest {
   /**
    * It sets the output tensor to infer models with a single output.
    * @param tensor The output tensor. The element type and shape of the tensor
-   * must match the output element type and size of the model. If the model has several
-   * outputs, an exception is thrown.
+   * must match the output element type and size of the model. If the model
+   * has several outputs, an exception is thrown.
    */
   setOutputTensor(tensor: Tensor): void;
   /**
@@ -528,13 +529,13 @@ interface Output {
 }
 
 interface InputTensorInfo {
-  setElementType(elementType: element | elementTypeString ): InputTensorInfo;
+  setElementType(elementType: element | elementTypeString): InputTensorInfo;
   setLayout(layout: string): InputTensorInfo;
   setShape(shape: number[]): InputTensorInfo;
 }
 
 interface OutputTensorInfo {
-  setElementType(elementType: element | elementTypeString ): InputTensorInfo;
+  setElementType(elementType: element | elementTypeString): InputTensorInfo;
   setLayout(layout: string): InputTensorInfo;
 }
 interface PreProcessSteps {
@@ -616,6 +617,6 @@ export interface NodeAddon {
 }
 
 export default
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    require('../bin/ov_node_addon.node') as
-    NodeAddon;
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  require('../bin/ov_node_addon.node') as
+  NodeAddon;
