@@ -14,6 +14,7 @@ namespace op {
 
 #define OP_CONVERTER(op) OutputVector op(const NodeContext& node)
 
+OP_CONVERTER(translate_broadcast_in_dim);
 OP_CONVERTER(translate_constant);
 OP_CONVERTER(translate_convert);
 OP_CONVERTER(translate_convolution);
@@ -32,6 +33,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_jaxpr() {
             {"sub", op::translate_1to1_match_2_inputs<opset14::Subtract>},
             {"mul", op::translate_1to1_match_2_inputs<opset14::Multiply>},
             {"div", op::translate_1to1_match_2_inputs<opset14::Divide>},
+            {"broadcast_in_dim", op::translate_broadcast_in_dim},
             {"constant", op::translate_constant},
             {"convert_element_type", op::translate_convert},
             {"conv_general_dilated", op::translate_convolution},
