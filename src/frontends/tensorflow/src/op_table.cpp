@@ -356,6 +356,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"RFFT", CreatorFunction(translate_rfft_op)},
         {"RFFT2D", CreatorFunction(translate_rfft_op)},
         {"RFFT3D", CreatorFunction(translate_rfft_op)},
+        {"RGBToHSV", CreatorFunction(translate_rgb_to_hsv_op)},
         {"Rint", CreatorFunction(translate_rint_op)},
         {"Roll", CreatorFunction(translate_roll_op)},
         {"Round", CreatorFunction(translate_round_op)},

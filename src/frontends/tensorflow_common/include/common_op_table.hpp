@@ -139,6 +139,7 @@ OP_CONVERTER(translate_reverse_op);
 OP_CONVERTER(translate_reverse_v2_op);
 OP_CONVERTER(translate_reverse_sequence_op);
 OP_CONVERTER(translate_rfft_op);
+OP_CONVERTER(translate_rgb_to_hsv_op);
 OP_CONVERTER(translate_rint_op);
 OP_CONVERTER(translate_roll_op);
 OP_CONVERTER(translate_round_op);
