@@ -33,6 +33,18 @@ void regclass_frontend_InputModel(py::module m) {
                 :rtype: openvino.frontend.Place
              )");
 
+    im.def("get_place_by_input_index",
+           &ov::frontend::InputModel::get_place_by_input_index,
+           py::arg("input_idx"),
+           R"(
+                Returns a tensor place by an input index.
+
+                :param input_idx: Index of model input.
+                :type input_idx: int
+                :return: Tensor place corresponding to specified input index or nullptr.
+                :rtype: openvino.frontend.Place
+             )");
+
     im.def("get_place_by_operation_name",
            &ov::frontend::InputModel::get_place_by_operation_name,
            py::arg("operation_name"),

@@ -30,6 +30,7 @@ class TorchFXPythonDecoder (Decoder):
         self.input_shapes = input_shapes
 
         self._input_signature = []
+        self._example_input = None
 
         if issubclass(type(pt_module), torch.fx.graph_module.GraphModule):
 

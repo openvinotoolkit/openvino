@@ -328,6 +328,7 @@ def normalize_inputs(argv: argparse.Namespace):
     """
     # Parse input to list of InputCutInfo
     inputs = input_to_input_cut_info(argv.input)
+    argv.input = inputs
 
     # Make list of input names
     input_names_list = []
@@ -338,8 +339,6 @@ def normalize_inputs(argv: argparse.Namespace):
         assert len(input_names_list) == len(inputs), "\"input\" parameter has unnamed inputs and named inputs. " \
                                                      "Please either set names for all inputs, " \
                                                      "or do not set names for all inputs."
-    argv.inputs_list = input_names_list
-    argv.input = ','.join(input_names_list)
 
     if len(input_names_list) > 0:
         # Named inputs case
