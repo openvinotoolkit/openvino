@@ -109,7 +109,7 @@ OutputVector translate_arange_fx(const NodeContext& context) {
     if (context.has_attribute("dtype")) {
         dtype = context.get_attribute<element::Type>("dtype");
     }
-    auto input_squeeze = [&context] (ov::Output<Node> input) {
+    auto input_squeeze = [&context](ov::Output<Node> input) {
         if (input.get_partial_shape().rank().is_dynamic() ||
             (input.get_partial_shape().rank().is_static() && input.get_partial_shape().rank().get_length() == 1)) {
             auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
