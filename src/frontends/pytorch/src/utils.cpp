@@ -555,7 +555,7 @@ Output<Node> masked_fill(ov::pass::NodeRegistry& rg,
     return rg.make<opset10::Select>(bool_mask, _value, data);
 }
 
-Output<Node> concat_dims_to_shape(const NodeContext& context, size_t begin, size_t end) {
+Output<Node> concat_list_from_inputs(const NodeContext& context, size_t begin, size_t end) {
     OutputVector list_elems;
     for (size_t i = begin; i < end; i++) {
         if (context.get_input_type(i).as<type::List>().element_type.is<type::PyScalar>()) {

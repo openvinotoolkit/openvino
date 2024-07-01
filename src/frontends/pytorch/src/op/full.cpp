@@ -79,7 +79,7 @@ OutputVector translate_full_fx(const NodeContext& context) {
     num_inputs_check(context, 2, num_inputs);
     ov::Output<ov::Node> sizes;
     if (context.get_input_type(0).is<type::List>()) {
-        sizes = concat_dims_to_shape(context, 0, num_inputs - 1);
+        sizes = concat_list_from_inputs(context, 0, num_inputs - 1);
     } else {
         sizes = context.get_input(0);
     }

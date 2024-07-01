@@ -49,7 +49,7 @@ OutputVector translate_expand_fx(const NodeContext& context) {
     auto x = context.get_input(0);
     std::vector<int32_t> shape_vec;
     if (context.get_input_type(1).is<type::List>()) {
-        auto concat = concat_dims_to_shape(context, 1, num_inputs);
+        auto concat = concat_list_from_inputs(context, 1, num_inputs);
         return base_expand(context, x, concat);
     } else {
         auto x = context.get_input(0);
