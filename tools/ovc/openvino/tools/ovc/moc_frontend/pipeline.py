@@ -153,17 +153,6 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         input_model, argv.placeholder_shapes, argv.placeholder_data_types,
         argv.output, {}, moc_front_end.get_name())
 
-    def check_places_are_same(places_original: List[Place], places_new: List[Place]):
-        """
-        Check if set of new places is same as original or not.
-        :param places_original: List[Place] Original model places
-        :param places_new: List[Place] New list of places
-        :return: True if new list of places is same as original
-        """
-        return len(places_original) == len(places_new) and len(
-            [item for item in places_original if any(
-                [item.is_equal(item2['node']) for item2 in places_new])]) == len(places_original)
-
     def add_names_to_tensors(model: InputModel, places: List[Place]):
         """
         Adds additional names to some model input tensors. This helper should be used
