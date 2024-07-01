@@ -63,4 +63,22 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice(const std::vector<CPUSpeci
     return resCPUParams;
 }
 
+std::vector<CPUSpecificParams> filterCPUInfoForDeviceWithFP16(const std::vector<CPUSpecificParams>& allParams) {
+    std::vector<CPUSpecificParams> specificParams;
+    if (!ov::with_cpu_x86_avx512_core_fp16()) {
+        return specificParams;
+    }
+    std::copy_if(allParams.begin(), allParams.end(), std::back_inserter(specificParams), [](const CPUSpecificParams& item) {
+        const auto &selected = std::get<3>(item);
+        bool isValid = false;
+        if (selected.find("avx512") != std::string::npos) {
+            isValid = true;
+        }
+        if ((!ov::with_cpu_x86_avx512_core_amx_fp16()) && selected.find("amx") != std::string::npos) {
+            isValid = false;
+        }
+        return isValid;
+    });
+    return specificParams;
+}
 } // namespace CPUTestUtils

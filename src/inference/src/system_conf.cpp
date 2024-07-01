@@ -92,6 +92,10 @@ bool with_cpu_x86_avx512_core_amx_bf16() {
     return get_cpu_info().has(Xbyak::util::Cpu::tAMX_BF16);
 }
 
+bool with_cpu_x86_avx512_core_amx_fp16() {
+    return get_cpu_info().has(Xbyak::util::Cpu::tAMX_FP16);
+}
+
 bool with_cpu_x86_avx512_core_amx() {
     return with_cpu_x86_avx512_core_amx_int8() || with_cpu_x86_avx512_core_amx_bf16();
 }
@@ -129,6 +133,9 @@ bool with_cpu_x86_avx512_core_amx_int8() {
     return false;
 }
 bool with_cpu_x86_avx512_core_amx_bf16() {
+    return false;
+}
+bool with_cpu_x86_avx512_core_amx_fp16() {
     return false;
 }
 bool with_cpu_x86_avx512_core_amx() {

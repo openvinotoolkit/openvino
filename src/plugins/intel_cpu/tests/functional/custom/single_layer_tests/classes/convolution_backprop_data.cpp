@@ -196,9 +196,15 @@ void DeconvolutionLayerCPUTest::SetUp() {
 
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding) = basicParamsSet;
 
-    if (additionalConfig[ov::hint::inference_precision.name()] == ov::element::bf16) {
+    auto it = configuration.find(ov::hint::inference_precision.name());
+    ov::element::Type inference_precision = (it != configuration.end()) ?
+        it->second.as<ov::element::Type>() : ov::element::undefined;
+    if (inference_precision == ov::element::bf16) {
         inType = outType = prec = ElementType::bf16;
         rel_threshold = 1e-2f;
+    } else if (inference_precision == ov::element::f16) {
+        inType = outType = prec = ElementType::f16;
+        rel_threshold = 0.00125f;
     } else {
         inType = outType = prec;
     }

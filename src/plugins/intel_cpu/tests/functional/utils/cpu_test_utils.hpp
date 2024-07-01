@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/core/any.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/system_conf.hpp"
@@ -128,6 +129,8 @@ public:
                                const std::vector<std::string>& priority);
     // TODO: change to setter method
     static std::string makeSelectedTypeStr(std::string implString, ov::element::Type_t elType);
+    static ov::element::Type deduce_expected_precision(const ov::element::Type& opPrecision,
+                                                       const ov::AnyMap& configuration);
     void updateSelectedType(const std::string& primitiveType,
                             const ov::element::Type netType,
                             const ov::AnyMap& config);
@@ -171,8 +174,9 @@ protected:
 // common parameters
 const auto emptyCPUSpec = CPUSpecificParams{{}, {}, {}, {}};
 const ov::AnyMap empty_plugin_config{};
-const ov::AnyMap cpu_bf16_plugin_config = {{ov::hint::inference_precision(ov::element::bf16)}};
 const ov::AnyMap cpu_f16_plugin_config = {{ov::hint::inference_precision(ov::element::f16)}};
+const ov::AnyMap cpu_bf16_plugin_config = {{ov::hint::inference_precision(ov::element::bf16)}};
+const ov::AnyMap cpu_f32_plugin_config = {{ov::hint::inference_precision(ov::element::f32)}};
 
 // utility functions
 std::vector<CPUSpecificParams> filterCPUSpecificParams(const std::vector<CPUSpecificParams>& paramsVector);

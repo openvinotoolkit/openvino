@@ -16,7 +16,8 @@ std::string SoftMaxLayerCPUTest::getTestCaseName(const testing::TestParamInfo<so
     ElementType inType;
     SoftMaxConfig config;
     std::string targetDevice;
-    std::tie(inType, config, targetDevice, cpuParams) = obj.param;
+    ov::AnyMap additionalConfig;
+    std::tie(inType, config, targetDevice, cpuParams, additionalConfig) = obj.param;
 
     std::ostringstream result;
     result << "netPRC=" << inType << "_";
@@ -30,6 +31,12 @@ std::string SoftMaxLayerCPUTest::getTestCaseName(const testing::TestParamInfo<so
     result << "axis=" << config.axis << "_";
     result << "trgDev=" << targetDevice;
     result << CPUTestsBase::getTestCaseName(cpuParams);
+    if (!additionalConfig.empty()) {
+        result << "_PluginConf";
+        for (auto& item : additionalConfig) {
+            result << "_" << item.first << "=" << item.second.as<std::string>();
+        }
+    }
 
     return result.str();
 }
@@ -38,7 +45,9 @@ void SoftMaxLayerCPUTest::SetUp() {
     ElementType inType;
     SoftMaxConfig config;
     CPUSpecificParams cpuParams;
-    std::tie(inType, config, targetDevice, cpuParams) = this->GetParam();
+    ov::AnyMap additionalConfig;
+    std::tie(inType, config, targetDevice, cpuParams, additionalConfig) = this->GetParam();
+    configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     if (selectedType.empty()) {
@@ -47,8 +56,10 @@ void SoftMaxLayerCPUTest::SetUp() {
 
     if (inType == ElementType::bf16) {
         rel_threshold = 2e-2f;
+    } else if (inType == ElementType::f16) {
+        rel_threshold = 0.0025f;
     }
-    selectedType = makeSelectedTypeStr(selectedType, inType);
+    selectedType = makeSelectedTypeStr(selectedType, deduce_expected_precision(inType, configuration));
     init_input_shapes({config.inputShape});
     ov::ParameterVector params;
     for (auto&& shape : inputDynamicShapes)

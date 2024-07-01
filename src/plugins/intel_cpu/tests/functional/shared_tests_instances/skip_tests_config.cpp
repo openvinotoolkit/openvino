@@ -533,6 +533,13 @@ std::vector<std::string> disabledTestPatterns() {
         // Issue: 142465
         retVector.emplace_back(R"(smoke_Reduce_MultiAxis_4D_fusing_CPU/ReduceCPULayerTest.CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)");
         retVector.emplace_back(R"(smoke_Reduce_MultiAxis_5D_fusing_CPU/ReduceCPULayerTest.CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)");
+        // Issue: 143852
+        retVector.emplace_back(R"((smoke|nightly)_FC_3D_FP16/.*_Fused=Multiply\(PerChannel\).*)");
+        retVector.emplace_back(R"((smoke|nightly)_MM_Brgemm_Static_FP16.*TS=\(\(55\.12\)\).*_Fused=Multiply\(PerChannel\).*)");
+        retVector.emplace_back(R"(smoke_MM_Dynamic_Fusing_FP16/.*TS=\(\(16\.12\)_\(33\.7\)_\(16\.12\)\).*_Fused=Multiply\(PerChannel\).*)");
+        retVector.emplace_back(R"(smoke_MM_Brgemm_Dynamic_Fusing_FP16/.*TS=\(\(16\.12\)_\(33\.7\)_\(16\.12\)\).*_Fused=Multiply\(PerChannel\).*)");
+        retVector.emplace_back(R"(smoke_Conv_.*_FP16/.*_Fused=PRelu1D\.Multiply\(PerChannel\)\.Add\(PerChannel\).*)");
+        retVector.emplace_back(R"(smoke_Conv_Sum_Broadcast_FP16/ConvSumInPlaceTest.*Relu\.Multiply\(PerChannel\)\.Add\(PerChannel\).*)");
     }
 
     return retVector;
