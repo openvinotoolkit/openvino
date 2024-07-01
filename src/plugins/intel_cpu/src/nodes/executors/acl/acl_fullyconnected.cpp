@@ -39,47 +39,47 @@ bool ACLFullyConnectedExecutor::supports(const FCConfig &config) {
     return true;
 }
 
-arm_compute::Status ACLFullyConnectedExecutor::updateTensorsInfo(const ACLMemoryMap& acl_memory) {
-    auto wei_shape = acl_memory.at(ARG_WEI)->info()->tensor_shape();
-    if (wei_shape.num_dimensions() == 3U) {
-        acl_memory.at(ARG_WEI)->info()->set_tensor_shape({wei_shape[0] * wei_shape[1], wei_shape[2]});
+void ACLFullyConnectedExecutor::updateTensorsShapes(ACLMemoryShapes& aclMemoryShapes) {
+    if (aclMemoryShapes[ACLArgs::ACL_WEI].num_dimensions() == 3U) {
+        aclMemoryShapes[ACLArgs::ACL_WEI] = arm_compute::TensorShape(
+                {aclMemoryShapes[ACLArgs::ACL_WEI][0] * aclMemoryShapes[ACLArgs::ACL_WEI][1],
+                 aclMemoryShapes[ACLArgs::ACL_WEI][2]});
     }
 
-    auto src_shape = acl_memory.at(ARG_SRC)->info()->tensor_shape();
-    if (one_of(src_shape.num_dimensions(), 3U, 4U)) {
-        acl_memory.at(ARG_SRC)->info()->set_tensor_shape({
-            acl_memory.at(ARG_WEI)->info()->tensor_shape()[0],
-            src_shape.total_size() / acl_memory.at(ARG_WEI)->info()->tensor_shape()[0]});
+    if (one_of(aclMemoryShapes[ACLArgs::ACL_SRC_0].num_dimensions(), 3U, 4U)) {
+        aclMemoryShapes[ACLArgs::ACL_SRC_0] = arm_compute::TensorShape({
+            aclMemoryShapes[ACLArgs::ACL_WEI][0],
+            aclMemoryShapes[ACLArgs::ACL_SRC_0].total_size() / aclMemoryShapes[ACLArgs::ACL_WEI][0]});
     }
 
-    if (one_of(acl_memory.at(ARG_DST)->info()->tensor_shape().num_dimensions(), 3U, 4U)) {
-        acl_memory.at(ARG_DST)->info()->set_tensor_shape({
-            acl_memory.at(ARG_WEI)->info()->tensor_shape()[1],
-            acl_memory.at(ARG_SRC)->info()->tensor_shape()[1]});
+    if (one_of(aclMemoryShapes[ACLArgs::ACL_DST].num_dimensions(), 3U, 4U)) {
+        aclMemoryShapes[ACLArgs::ACL_DST] = arm_compute::TensorShape({
+            aclMemoryShapes[ACLArgs::ACL_WEI][1],
+            aclMemoryShapes[ACLArgs::ACL_SRC_0][1]});
     }
 
     if (!fullyConnectedLayerInfo.transpose_weights) {
-        arm_compute::TensorShape temp_weights_shape = acl_memory.at(ARG_WEI)->info()->tensor_shape();
-        std::swap(temp_weights_shape[0], temp_weights_shape[1]);
-        acl_memory.at(ARG_WEI)->info()->set_tensor_shape(temp_weights_shape);
+        std::swap(aclMemoryShapes[ACLArgs::ACL_WEI][0], aclMemoryShapes[ACLArgs::ACL_WEI][1]);
     }
+}
 
+arm_compute::Status ACLFullyConnectedExecutor::validateTensorsInfo(const ACLMemoryInfos & aclMemoryInfos) {
     return arm_compute::NEFullyConnectedLayer::validate(
-            getACLInfo(acl_memory.at(ARG_SRC)),
-            getACLInfo(acl_memory.at(ARG_WEI)),
-            getACLInfo(acl_memory.at(ARG_BIAS)),
-            getACLInfo(acl_memory.at(ARG_DST)),
+            aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
+            aclMemoryInfos[ACLArgs::ACL_WEI].get(),
+            aclMemoryInfos[ACLArgs::ACL_BIAS].get(),
+            aclMemoryInfos[ACLArgs::ACL_DST].get(),
             fullyConnectedLayerInfo,
             weightsInfo);
 }
 
-ACLFunction ACLFullyConnectedExecutor::configureFunction(const ACLMemoryMap& acl_memory) {
+ACLFunction ACLFullyConnectedExecutor::configureFunction(const ACLMemoryTensors & aclMemoryTensors) {
     auto neFC = std::make_unique<arm_compute::NEFullyConnectedLayer>();
     neFC->configure(
-            acl_memory.at(ARG_SRC).get(),
-            acl_memory.at(ARG_WEI).get(),
-            acl_memory.at(ARG_BIAS).get(),
-            acl_memory.at(ARG_DST).get(),
+            aclMemoryTensors[ACLArgs::ACL_SRC_0].get(),
+            aclMemoryTensors[ACLArgs::ACL_WEI].get(),
+            aclMemoryTensors[ACLArgs::ACL_BIAS].get(),
+            aclMemoryTensors[ACLArgs::ACL_DST].get(),
             fullyConnectedLayerInfo,
             weightsInfo);
     return neFC;

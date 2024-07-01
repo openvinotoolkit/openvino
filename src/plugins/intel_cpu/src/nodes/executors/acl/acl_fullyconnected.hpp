@@ -19,9 +19,11 @@ public:
 
     static bool supports(const FCConfig& config);
 
-    arm_compute::Status updateTensorsInfo(const ACLMemoryMap& acl_memory) override;
+    void updateTensorsShapes(ACLMemoryShapes& aclMemoryShapes) override;
 
-    ACLFunction configureFunction(const ACLMemoryMap& acl_memory) override;
+    arm_compute::Status validateTensorsInfo(const ACLMemoryInfos & aclMemoryInfos) override;
+
+    ACLFunction configureFunction(const ACLMemoryTensors & aclMemoryTensors) override;
 
     impl_desc_type implType() const override {
         return impl_desc_type::gemm_acl;
