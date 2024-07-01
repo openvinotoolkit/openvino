@@ -168,8 +168,8 @@ protected:
     engine(const device::ptr device);
     const device::ptr _device;
 
-    std::array<std::atomic<uint64_t>, static_cast<size_t>(allocation_type::max_value)> _memory_usage_data;
-    std::array<std::atomic<uint64_t>, static_cast<size_t>(allocation_type::max_value)> _peak_memory_usage_data;
+    std::array<std::atomic<uint64_t>, static_cast<size_t>(allocation_type::max_value)> _memory_usage_data{};
+    std::array<std::atomic<uint64_t>, static_cast<size_t>(allocation_type::max_value)> _peak_memory_usage_data{};
 };
 
 }  // namespace cldnn
