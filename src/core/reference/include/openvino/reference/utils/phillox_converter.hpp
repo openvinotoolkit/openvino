@@ -113,7 +113,7 @@ std::shared_ptr<PhilloxConverter> make_phillox_converter(char* out,
                                                          const size_t elem_count,
                                                          const char* min_val,
                                                          const char* max_val,
-                                                         const ov::op::PhilloxAlignment alignment);
+                                                         const op::PhilloxAlignment alignment);
 
 }  // namespace phillox
 }  // namespace reference

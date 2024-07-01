@@ -49,7 +49,7 @@ public:
     uint64_t get_operator_seed() const;
 
     /// \brief Returns the alignment mode of the generator.
-    PhilloxAlignment get_alignment() const;
+    ov::op::PhilloxAlignment get_alignment() const;
 
     /// \brief Returns the input (previous execution) state of the generator.
     std::pair<uint64_t, uint64_t> get_previous_state() const;
@@ -69,13 +69,13 @@ protected:
     /// \param operator_seed The operator seed for the Phillox algorithm.
     /// \param previous_state The previous state (if any) of the algorithm.
     /// \param generated_elements_count The amount of elements generated per execution of random().
-    PhilloxGenerator(const PhilloxAlignment alignment,
+    PhilloxGenerator(const ov::op::PhilloxAlignment alignment,
                      const uint64_t global_seed,
                      const uint64_t operator_seed,
                      const std::pair<uint64_t, uint64_t> previous_state);
 
 private:
-    const PhilloxAlignment m_alignment;
+    const ov::op::PhilloxAlignment m_alignment;
     uint64_t m_global_seed;
     uint64_t m_operator_seed;
 
@@ -179,7 +179,7 @@ std::shared_ptr<PhilloxGenerator> make_phillox_generator(const uint64_t seed,
                                                          const uint64_t seed2,
                                                          const std::pair<uint64_t, uint64_t> prev_state,
                                                          const size_t elem_count,
-                                                         const PhilloxAlignment alignment);
+                                                         const op::PhilloxAlignment alignment);
 
 }  // namespace phillox
 

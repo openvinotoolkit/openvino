@@ -41,7 +41,7 @@ RandomUniform::RandomUniform(const std::shared_ptr<ov::Node>& op, const GraphCon
     m_op_seed = rnd_op->get_op_seed();
     m_output_prc = op->get_output_element_type(0);
 
-    if (rnd_op->get_alignment() != ov::op::PhilloxAlignment::TENSORFLOW) {
+    if (rnd_op->get_alignment() != op::PhilloxAlignment::TENSORFLOW) {
         THROW_CPU_NODE_ERR("Only TENSORFLOW alignment mode is supported by the CPU plugin.");
     }
 
