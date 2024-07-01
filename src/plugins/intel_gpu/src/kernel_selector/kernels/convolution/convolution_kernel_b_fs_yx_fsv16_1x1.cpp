@@ -64,7 +64,7 @@ float ConvolutionKernel_b_fs_yx_fsv16_1x1::EstimateOccupancy(const convolution_p
 ConvolutionKernel_b_fs_yx_fsv16_1x1::ConvolutionTuningData ConvolutionKernel_b_fs_yx_fsv16_1x1::GetTuningParams(const convolution_params& params) const {
     ConvolutionTuningData tuning_data;
 
-    if (!params.has_dynamic_tensors()) {
+    if (!params.is_shape_agnostic) {
         const auto& input = params.inputs[0];
         bool block_size_one_is_better = params.outputs[0].X().v == 1 && params.outputs[0].Y().v == 1 && input.Feature().v >= 2048;
 
