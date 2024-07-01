@@ -251,15 +251,10 @@ TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeSameAfterDestroyCom
     OV_ASSERT_NO_THROW(deviceAllocMemSizeAny = core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
     uint64_t deviceAllocMemSize = deviceAllocMemSizeAny.as<uint64_t>();
 
-    {
+    for (size_t i = 0; i < 1000; ++i) {
         ov::CompiledModel compiledModel;
         OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device,
                                  ov::AnyMap{ov::log::level(ov::log::Level::DEBUG)}));
-        auto inferRequest = compiledModel.create_infer_request();
-        auto tensor = ov::Tensor(model->input(0).get_element_type(), model->input(0).get_shape());
-        ov::test::utils::fill_data_random(static_cast<ov::float16*>(tensor.data()), tensor.get_size());
-        inferRequest.set_input_tensor(tensor);
-        inferRequest.infer();
     }
 
     OV_ASSERT_NO_THROW(deviceAllocMemSizeAny = core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
@@ -286,8 +281,37 @@ TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeSameAfterDestroyInf
     OV_ASSERT_NO_THROW(deviceAllocMemSizeAny = core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
     uint64_t deviceAllocMemSize = deviceAllocMemSizeAny.as<uint64_t>();
 
-    {
-        ov::InferRequest inferRequest = compiledModel.create_infer_request();
+    for(size_t i = 0; i < 1000; ++i) {
+        auto inferRequest = compiledModel.create_infer_request();
+    }
+
+    OV_ASSERT_NO_THROW(deviceAllocMemSizeAny = core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+    uint64_t deviceAllocMemSizeFinal = deviceAllocMemSizeAny.as<uint64_t>();
+
+    std::cout << "OV NPU device {alloc before load network/alloc after load network} memory size: {" << deviceAllocMemSize << "/" << deviceAllocMemSizeFinal
+              << "}" << std::endl;
+
+    // after the network is loaded onto device, allocated memory value should increase
+    ASSERT_EQ(deviceAllocMemSize, deviceAllocMemSizeFinal);
+}
+
+TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeSameAfterDestroyInferRequestSetTensor) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::Core core;
+    ov::Any deviceAllocMemSizeAny;
+    
+    ov::CompiledModel compiledModel;
+    auto model = createModelWithLargeSize();
+
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device,
+                        ov::AnyMap{ov::log::level(ov::log::Level::DEBUG)}));
+
+    auto inferRequest = compiledModel.create_infer_request();
+
+    OV_ASSERT_NO_THROW(deviceAllocMemSizeAny = core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+    uint64_t deviceAllocMemSize = deviceAllocMemSizeAny.as<uint64_t>();
+
+    for(size_t i = 0; i < 1000; ++i) {
         auto tensor = ov::Tensor(model->input(0).get_element_type(), model->input(0).get_shape());
         ov::test::utils::fill_data_random(static_cast<ov::float16*>(tensor.data()), tensor.get_size());
         inferRequest.set_input_tensor(tensor);
