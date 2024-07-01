@@ -18,7 +18,8 @@ struct SoftMaxConfig {
 typedef std::tuple<ElementType,    // netPrecision
                    SoftMaxConfig,  // softmaxTestConfig
                    std::string,    // targetDevice
-                   CPUSpecificParams>
+                   CPUSpecificParams,
+                   ov::AnyMap> //device_config
     softmaxCPUTestParams;
 
 class SoftMaxLayerCPUTest : public testing::WithParamInterface<softmaxCPUTestParams>,
