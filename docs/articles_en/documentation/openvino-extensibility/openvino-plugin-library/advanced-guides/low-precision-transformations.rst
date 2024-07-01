@@ -12,6 +12,7 @@ OpenVINO™ Low Precision Transformations
    :caption: Low Precision Transformations
    :hidden:
 
+   Quantization scheme <low-precision-transformations/quantization-scheme>
    Attributes <low-precision-transformations/lpt-attributes>
    Step 1. Prerequisites transformations <low-precision-transformations/step1-prerequisites>
    Step 2. Markup transformations <low-precision-transformations/step2-markup>
