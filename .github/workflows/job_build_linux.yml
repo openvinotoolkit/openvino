@@ -175,15 +175,17 @@ jobs:
 
       - name: Build Debian packages
         run: |
-          # Use system Python
-          /usr/bin/python3 -m pip install -U pip
-          /usr/bin/python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
+          # Ubuntu 24 does not allow using the system Python directly so 
+          # we have to use Python from the virtual environment created in Docker
+          [[ ${{ inputs.os }} == "ubuntu24" ]] && python_exec=/venv/bin/python3 || python_exec=/usr/bin/python3
+          $python_exec -m pip install -U pip
+          $python_exec -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
           cmake -UPython* -U_Python* -UPYTHON* \
                 -UTBB* \
                 -DENABLE_SYSTEM_TBB=ON \
                 -DENABLE_PYTHON_PACKAGING=ON \
                 -DENABLE_TESTS=OFF \
-                -DPython3_EXECUTABLE=/usr/bin/python3 \
+                -DPython3_EXECUTABLE=$python_exec \
                 -DCPACK_GENERATOR=DEB \
                 ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel --config ${{ env.CMAKE_BUILD_TYPE }} --target package
