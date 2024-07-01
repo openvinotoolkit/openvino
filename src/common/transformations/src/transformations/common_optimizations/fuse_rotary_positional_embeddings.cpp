@@ -64,6 +64,7 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
         if (!validator) {
             return false;
         }
+        std::cout << "XXXXXX " << "RoPEFusionGPTNEOX" << std::endl;
 
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
@@ -155,6 +156,8 @@ ov::pass::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
         if (!validator) {
             return false;
         }
+        std::cout << "XXXXXX " << "RoPEFusionCosSinPreprocess" << std::endl;
+
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         auto rope_node = as_type_ptr<op::internal::RoPE>(pattern_map.at(rope).get_node_shared_ptr());
@@ -215,6 +218,9 @@ ov::pass::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
         if (!validator) {
             return false;
         }
+        std::cout << "XXXXXX " << "RoPEFusionIOSlicing" << std::endl;
+
+
         auto ndims = validator["ndims"];
 
         const auto& config = rope_node->get_config();
@@ -257,6 +263,8 @@ ov::pass::RoPEFusionPreprocess::RoPEFusionPreprocess() {
         if (!validator) {
             return false;
         }
+        std::cout << "XXXXXX " << "RoPEFusionPreprocess" << std::endl;
+
 
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
@@ -364,6 +372,8 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
         if (!validator) {
             return false;
         }
+        std::cout << "XXXXXX " << "RoPEFusionGPTJ" << std::endl;
+
 
         op::internal::RoPE::Config config;
         OutputVector new_args;
@@ -498,6 +508,8 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id) {
         if (!validator) {
             return false;
         }
+        std::cout << "XXXXXX " << "RoPEFusionChatGLM" << std::endl;
+
 
         op::internal::RoPE::Config config;
         OutputVector new_args;
@@ -567,7 +579,7 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
 
     auto ScatterUpdate_463814 = makePattern<opset3::ScatterUpdate>({{0, 0}, {1}, Gather_377635 | neg_Multiply, {0}});
     auto slice_Slice_446 =
-        GenSlice2(rotary_emb_cos, ScatterUpdate_463814, {0, INT_MAX}, {1, 1}, 1);  //  tensor_array<f32[1,..4096,1,128]>
+        GenSlice2(rotary_emb_cos, ScatterUpdate_463814 | Gather_377635 | neg_Multiply, {INT_MAX}, {1}, 1, true);  //  tensor_array<f32[1,..4096,1,128]>
     auto mul_Multiply_552 =
         makePattern<opset1::Multiply>({slice_Slice_543, slice_Slice_446},
                                       {{"auto_broadcast", "numpy"}});  //  tensor_array<f32[?,?,32,128]>
@@ -607,7 +619,7 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
     auto cat_Concat_593 = makePattern<opset1::Concat>({ListUnpack_586_Squeeze_0, ListUnpack_586_Squeeze},
                                                       {{"axis", -1}});  //  tensor_array<f32[?,?,32,128]>
     auto slice_Slice_470 =
-        GenSlice2(rotary_emb_sin, ScatterUpdate_463814, {0, INT_MAX}, {1, 1}, 1);  //  tensor_array<f32[1,..4096,1,128]>
+        GenSlice2(rotary_emb_sin, ScatterUpdate_463814 | Gather_377635 | neg_Multiply, {INT_MAX}, {1}, 1, true);  //  tensor_array<f32[1,..4096,1,128]>
     auto mul_Multiply_594 =
         makePattern<opset1::Multiply>({cat_Concat_593, slice_Slice_470},
                                       {{"auto_broadcast", "numpy"}});  //  tensor_array<f32[?,?,32,128]>
@@ -616,12 +628,15 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
 
     auto result = add_Add_597;
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+        std::cout << "XXXXXX " << "RoPEFusionQwen before validation" << std::endl;
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         PatternValidator validator(m);
         if (!validator) {
+            std::cout << "XXXXXX failed" << "RoPEFusionQwen" << std::endl;
             return false;
         }
+        std::cout << "XXXXXX " << "RoPEFusionQwen" << std::endl;
 
         op::internal::RoPE::Config config;
         OutputVector new_args;
@@ -717,6 +732,8 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
         if (!validator) {
             return false;
         }
+        std::cout << "XXXXXX " << "RoPEShareCosSin" << std::endl;
+
         auto it = pattern_map.find(const_inv_freq);
         auto cur_inv_freq = std::dynamic_pointer_cast<opset1::Constant>(it->second.get_node_shared_ptr());
 
