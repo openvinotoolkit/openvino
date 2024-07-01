@@ -19,9 +19,10 @@
 namespace ov {
 namespace autobatch_plugin {
 
-std::vector<std::string> supported_configKeys = {ov::device::priorities.name(),
-                                                 ov::auto_batch_timeout.name(),
-                                                 ov::enable_profiling.name()};
+std::vector<ov::PropertyName> supported_configKeys = {
+    ov::PropertyName{ov::device::priorities.name(), ov::PropertyMutability::RW},
+    ov::PropertyName{ov::auto_batch_timeout.name(), ov::PropertyMutability::RW},
+    ov::PropertyName{ov::enable_profiling.name(), ov::PropertyMutability::RW}};
 
 inline ov::AnyMap merge_properties(ov::AnyMap config, const ov::AnyMap& user_config) {
     for (auto&& kvp : user_config) {
@@ -84,10 +85,10 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     } else if (name == ov::supported_properties.name()) {
         // return supported_configKeys;
         std::vector<ov::PropertyName> property_name;
-        property_name.push_back(ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO});
-        property_name.push_back(ov::PropertyName{ov::device::full_name.name(), ov::PropertyMutability::RO});
+        property_name.push_back(ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RW});
+        property_name.push_back(ov::PropertyName{ov::device::full_name.name(), ov::PropertyMutability::RW});
         for (auto& it : supported_configKeys) {
-            property_name.push_back(ov::PropertyName{it, ov::PropertyMutability::RO});
+            property_name.push_back(it);
         }
         return property_name;
     } else if (name == ov::internal::supported_properties.name()) {
