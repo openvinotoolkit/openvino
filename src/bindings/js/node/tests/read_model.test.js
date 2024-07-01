@@ -30,7 +30,7 @@ describe('Core.readModeSync', () => {
   it('readModeSync throws', () => {
     assert.throws(
       () => core.readModelSync(core),
-      /'readModelSync' method called with incorrect parameters./
+      /'readModelSync' method called with incorrect parameters./,
     )
   });
 
