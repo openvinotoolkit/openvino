@@ -25,7 +25,7 @@ PartialShapeWrap::PartialShapeWrap(const Napi::CallbackInfo& info) : Napi::Objec
         const auto error_message = ov::js::get_parameters_error_msg(info, allowed_signatures);
 
         OPENVINO_THROW(error_message);
-    } catch(std::exception& err) {
+    } catch (std::exception& err) {
         reportError(info.Env(), err.what());
     }
 }
