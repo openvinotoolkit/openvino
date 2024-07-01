@@ -9,8 +9,6 @@
 #include "openvino/op/random_uniform.hpp"
 #include "openvino/op/util/attr_types.hpp"
 
-using PhilloxAlignment = ov::op::PhilloxAlignment;
-
 namespace ov {
 namespace reference {
 
@@ -23,7 +21,7 @@ std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
                                              uint64_t seed,
                                              uint64_t seed2,
                                              std::pair<uint64_t, uint64_t> prev_state,
-                                             PhilloxAlignment alignment = PhilloxAlignment::TENSORFLOW);
+                                             ov::op::PhilloxAlignment alignment = ov::op::PhilloxAlignment::TENSORFLOW);
 
 }  // namespace reference
 }  // namespace ov

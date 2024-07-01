@@ -184,19 +184,21 @@ void convert_to_output_type(const std::vector<uint32_t>& generated_numbers,
             output_elements_buffer[i] =
                 convert_two_inputs(generated_numbers[2 * i], generated_numbers[2 * i + 1], mn, mx);
         }
-
     } else {
         // This behavior might change one day, if 128 bit numbers are possible
         OPENVINO_THROW("The converter has requested an incorrect number of output values: ",
                        converted_output_values_per_exec_count,
-                       " (possible 2 or 4)");
+                       " (possible ",
+                       ELEMENTS_PER_EXECUTION / 2,
+                       " or ",
+                       ELEMENTS_PER_EXECUTION,
+                       ")");
     }
 
     memcpy(out + idx * sizeof(T),
            output_elements_buffer.data(),
            std::min(converted_output_values_per_exec_count, elem_count - idx) * sizeof(T));
 }
-
 }  // namespace
 
 // ======= MockPhilloxConverter functions =======
@@ -326,18 +328,19 @@ PyTorchPhilloxConverter::PyTorchPhilloxConverter(char* out,
                                                  const char* min_val,
                                                  const char* max_val)
     : PhilloxConverter(out, elem_type, elem_count, min_val, max_val) {
-    // Check for optimization conditions.
+    // Check for optimization conditions for int64_t.
     // If both min and max fall below the maximum value of uint32_t,
     // PyTorch generates 64-bit numbers by casting
     // a single 32 bit random number to 64 bit,
     // instead of using 2 32 bit numbers.
-    int64_t mn[1];
-    int64_t mx[1];
-    memcpy(mn, m_min_val, m_elem_type.size());
-    memcpy(mx, m_max_val, m_elem_type.size());
-
-    if (mn[0] <= std::numeric_limits<uint32_t>::max() && mx[0] <= std::numeric_limits<uint32_t>::max()) {
-        m_optimization_enabled = true;
+    if (elem_type == element::i64) {
+        int64_t mn, mx;
+        memcpy(&mn, min_val, elem_type.size());
+        memcpy(&mx, max_val, elem_type.size());
+        m_optimization_enabled =
+            mn <= std::numeric_limits<uint32_t>::max() && mx <= std::numeric_limits<uint32_t>::max();
+    } else {
+        m_optimization_enabled = false;
     }
 }
 
@@ -346,7 +349,7 @@ size_t PyTorchPhilloxConverter::get_converted_elements_count() const {
     // and either one or two values (if optimization is off) to generate one 64 bit random number.
     // Therefore, the only case where 2 output values are generated is when optimization is OFF and the dtype is 64 bit
     // (size > 4)
-    return m_elem_type.size() > 4 && !m_optimization_enabled ? ELEMENTS_PER_EXECUTION / 2 : ELEMENTS_PER_EXECUTION / 2;
+    return m_elem_type.size() > 4 && !m_optimization_enabled ? ELEMENTS_PER_EXECUTION / 2 : ELEMENTS_PER_EXECUTION;
 }
 
 void PyTorchPhilloxConverter::convert(PhilloxOutput result, size_t idx) {
@@ -467,11 +470,11 @@ std::shared_ptr<PhilloxConverter> make_phillox_converter(char* out,
                                                          const size_t elem_count,
                                                          const char* min_val,
                                                          const char* max_val,
-                                                         const PhilloxAlignment alignment) {
+                                                         const ov::op::PhilloxAlignment alignment) {
     switch (alignment) {
-    case PhilloxAlignment::TENSORFLOW:
+    case ov::op::PhilloxAlignment::TENSORFLOW:
         return std::make_shared<TensorflowPhilloxConverter>(out, elem_type, elem_count, min_val, max_val);
-    case PhilloxAlignment::PYTORCH:
+    case ov::op::PhilloxAlignment::PYTORCH:
         return std::make_shared<PyTorchPhilloxConverter>(out, elem_type, elem_count, min_val, max_val);
     default:
         // Mock conversion (no conversion)
