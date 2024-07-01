@@ -12,6 +12,7 @@
 #include "group.hpp"
 #include "intel_npu/al/config/config.hpp"
 #include "intel_npu/al/config/npuw.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "pugixml.hpp"
 #include "snapshot.hpp"
 
@@ -205,7 +206,7 @@ class Compiler {
     }
 
 public:
-    explicit Compiler(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg)
+    Compiler(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg)
         : m_model(model),
           m_snapshot(std::make_shared<Snapshot>(model)),
           m_cfg(cfg) {
@@ -257,6 +258,34 @@ public:
 
         ov::npuw::Ensemble ens;
         ens.gflops = 1.;  // FIXME: calculate proper flops
+
+        // FIXME: model is part of the state, why currentPipeline accepts arguments
+        // at all?
+        if (currentPipeline(m_model) == Pipeline::NONE) {
+            ov::npuw::Group sole_group;
+            std::set<std::shared_ptr<ov::Node>> reads_param, writes_result;
+            for (auto&& node : m_model->get_ordered_ops()) {
+                if (ov::op::util::is_parameter(node)) {
+                    auto readers = node->output(0).get_target_inputs();
+                    for (auto&& r : readers) {
+                        reads_param.insert(r.get_node()->shared_from_this());
+                    }
+                } else if (ov::op::util::is_output(node)) {
+                    writes_result.insert(node->input(0).get_source_output().get_node_shared_ptr());
+                } else {
+                    sole_group.all_layers.push_back(node->get_friendly_name());
+                }
+            }  // for (ordered_ops)
+            for (auto&& r : reads_param) {
+                sole_group.input_layers.push_back(r->get_friendly_name());
+            }
+            for (auto&& w : writes_result) {
+                sole_group.output_layers.push_back(w->get_friendly_name());
+            }
+            sole_group.gflops = 1.0;
+            ens.groups.push_back(sole_group);
+            return ens;
+        }
 
         auto graph = m_snapshot->getGraph();
         // Iterate in topological order
