@@ -42,6 +42,8 @@ This document provides description and default values for CMake options that can
         * `ON` is default.
     * `ENABLE_OV_PYTORCH_FRONTEND` enables [PyTorch] frontend plugin for OpenVINO Runtime:
         * `ON` is default.
+    * `ENABLE_OV_JAX_FRONTEND` enables [JAX] frontend plugin for OpenVINO Runtime:
+        * `ON` is default.
     * `ENABLE_OV_IR_FRONTEND` enables OpenVINO Intermediate Representation frontend plugin for OpenVINO Runtime:
         * `ON` is default.
 * `OPENVINO_EXTRA_MODULES` specifies path to add extra OpenVINO modules to the build.
