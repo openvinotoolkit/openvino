@@ -13,7 +13,7 @@ using ConfigParams = std::tuple<std::string,                     // netPrecision
                                 bool                             // reverse total device
                                 >;
 
-const DeviceInformation CPU_INFO = {"CPU", {}, 2, "01", "CPU_01"};
+const DeviceInformation CPU_INFO = {ov::test::utils::DEVICE_CPU, {}, 2, "01", "CPU_01"};
 const DeviceInformation IGPU_INFO = {"GPU.0", {}, 2, "01", "iGPU_01"};
 const DeviceInformation DGPU_INFO = {"GPU.1", {}, 2, "01", "dGPU_01"};
 const DeviceInformation OTHERS_INFO = {"OTHERS", {}, 2, "01", "OTHERS"};
