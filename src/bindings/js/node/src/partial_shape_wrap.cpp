@@ -6,20 +6,27 @@
 #include "node/include/addon.hpp"
 #include "node/include/errors.hpp"
 #include "node/include/helper.hpp"
+#include "node/include/type_validation.hpp"
 
 PartialShapeWrap::PartialShapeWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<PartialShapeWrap>(info) {
-    const size_t attrs_length = info.Length();
+    std::vector<std::string> allowed_signatures;
 
-    if (attrs_length == 1 && info[0].IsString()) {
-        try {
+    try {
+        if (ov::js::validate<Napi::String>(info, allowed_signatures)) {
             const auto& shape = std::string(info[0].ToString());
 
             _partial_shape = ov::PartialShape(shape);
-        } catch (std::exception& e) {
-            reportError(info.Env(), e.what());
+
+            return;
+        } else if (ov::js::validate(info, allowed_signatures)) {
+            return;
         }
-    } else {
-        reportError(info.Env(), "Invalid parameters for PartialShape constructor.");
+
+        const auto error_message = ov::js::get_parameters_error_msg(info, allowed_signatures);
+
+        OPENVINO_THROW(error_message);
+    } catch(std::exception& err) {
+        reportError(info.Env(), err.what());
     }
 }
 

@@ -336,7 +336,7 @@ interface Tensor {
    *
    * Its getter returns a subclass of TypedArray that corresponds to the
    * tensor element type, e.g. Float32Array corresponds to float32. The
-   * content of the TypedArray subclass is a copy of the tensor underlaying 
+   * content of the TypedArray subclass is a copy of the tensor underlaying
    * memory.
    *
    * Its setter fills the underlaying tensor memory by copying the binary data
@@ -369,7 +369,7 @@ interface Tensor {
  *
  * @remarks
  * The tensor memory is shared with the TypedArray. That is,
- * the responsibility for maintaining the reference to the TypedArray lies with 
+ * the responsibility for maintaining the reference to the TypedArray lies with
  * the user. Any action performed on the TypedArray will be reflected in this
  * tensor memory.
  */
@@ -392,7 +392,7 @@ interface TensorConstructor {
   new(type: element | elementTypeString, shape: number[],
     tensorData: SupportedTypedArray): Tensor;
   /**
-   * It constructs a tensor using the element type and shape. The strings from 
+   * It constructs a tensor using the element type and shape. The strings from
    * the array are used to fill the new tensor. Each element of a string tensor
    * is a string of arbitrary length, including an empty string.
    */
@@ -426,7 +426,7 @@ interface InferRequest {
    * It infers specified input(s) in the synchronous mode.
    * @param inputData An array with tensors or TypedArrays. TypedArrays will be
    * wrapped into Tensors underneath using the input shape and element type
-   * of the deployed model. If the model has multiple inputs, the Tensors 
+   * of the deployed model. If the model has multiple inputs, the Tensors
    * and TypedArrays must be passed in the correct order.
    */
   infer(inputData: Tensor[] | SupportedTypedArray[])
@@ -434,7 +434,7 @@ interface InferRequest {
   /**
    * It infers specified input(s) in the asynchronous mode.
    * @param inputData An object with the key-value pairs where the key is the
-   * input name and value is a tensor or an array with tensors. If the model has  
+   * input name and value is a tensor or an array with tensors. If the model has
    * multiple inputs, the Tensors must be passed in the correct order.
    */
   inferAsync(inputData: { [inputName: string]: Tensor}
@@ -570,8 +570,17 @@ interface PartialShape {
   toString(): string;
   getDimensions(): Dimension[];
 }
+
+/**
+ * This interface contains constructor of the {@link PartialShape} class.
+ */
 interface PartialShapeConstructor {
-  new(shape: string): PartialShape;
+  /**
+   * It constructs a PartialShape by passed string.
+   * Omit parameter to create empty shape.
+   * @param [shape] String representation of the shape.
+   */
+  new(shape?: string): PartialShape;
 }
 
 declare enum element {
