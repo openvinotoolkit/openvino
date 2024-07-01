@@ -42,7 +42,7 @@ jobs:
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'RelWithDebInfo'
-      CMAKE_GENERATOR: 'Ninja Multi-Config'
+      CMAKE_GENERATOR: 'Ninja'
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
