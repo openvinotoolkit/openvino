@@ -143,9 +143,12 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
     // Parameters: stage 1...
     for (size_t i = 0; i < m_npuw_model->inputs().size(); i++) {
-        std::size_t sub_idx{}, in_idx{};
-        std::tie(sub_idx, in_idx) = m_npuw_model->m_inputs_to_submodels_inputs.at(i);
-        m_subrequests_gio.at(sub_idx).global_params[i] = in_idx;
+        const auto& to_submodel = m_npuw_model->m_inputs_to_submodels_inputs.at(i);
+        if (to_submodel != CompiledModel::NO_LINK) {
+            std::size_t sub_idx{}, in_idx{};
+            std::tie(sub_idx, in_idx) = m_npuw_model->m_inputs_to_submodels_inputs.at(i);
+            m_subrequests_gio.at(sub_idx).global_params[i] = in_idx;
+        }
     }  // for(inputs)
 
     // Parameters: stage 2...
