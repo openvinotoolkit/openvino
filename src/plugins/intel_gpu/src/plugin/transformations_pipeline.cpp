@@ -320,10 +320,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             if (!config.get_property(ov::intel_gpu::hint::enable_sdpa_optimization))
                 return false;
 
-            // For platforms with DPAS support we don't have any shape-based limitations
-            if (device_info.supports_immad && cldnn::query_microkernels_supported(m_context->get_engine(), config))
-                return true;
-
             auto sdpa = std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(node);
             const auto& query_ps = sdpa->get_input_partial_shape(0);
             const auto& key_ps = sdpa->get_input_partial_shape(1);
@@ -349,10 +345,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
             }
 
-            // - Head size should be static dim
-            const auto head_size_dim = query_ps[query_ps.size() - 1];
-            if (head_size_dim.is_dynamic())
-                return false;
+            // For platforms with DPAS support we don't have any other shape-based limitations besides head_size being static and equal for QKV
+            if (device_info.supports_immad && cldnn::query_microkernels_supported(m_context->get_engine(), config))
+                return true;
 
             // - Head size should be 128 for any model type; or should be in the range of 64 to 256 for stateful LLMs because of performance reasons.
             //   This limitations is recommended to prevent performance drop in models with small head size, such as SD,
