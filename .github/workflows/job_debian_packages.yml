@@ -7,11 +7,11 @@ on:
         description: 'Machine on which the tests would run'
         type: string
         required: true
-      container:
-        description: 'JSON to be converted to the value of the "container" configuration for the job'
+      image:
+        description: 'Docker image in which the tests would run'
         type: string
         required: false
-        default: '{"image": null}'
+        default: null
 
 permissions: read-all
 
@@ -19,7 +19,8 @@ jobs:
   Debian_Packages:
     name: Debian Packages
     runs-on: ${{ inputs.runner }}
-    container: ${{ fromJSON(inputs.container) }}
+    container:
+      image: ${{ inputs.image }}
     defaults:
       run:
         shell: bash
