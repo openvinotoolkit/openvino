@@ -231,7 +231,7 @@ OpenVINO includes experimental support for NPU, learn more in the
 
 The code above creates a compiled model associated with a single hardware device from the model object.
 It is possible to create as many compiled models as needed and use them simultaneously (up to the limitation of the hardware).
-To learn more about supported devices and inference modes, read the :doc:`Inference Devices and Modes <running-inference/inference-devices-and-modes>` article.
+To learn more about supported devices and inference modes, read the :doc:`Inference Devices and Modes <./inference-devices-and-modes>` article.
 
 Step 3. Create an Inference Request
 ###################################
