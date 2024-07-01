@@ -63,7 +63,7 @@ void ACLFullyConnectedExecutor::updateTensorsShapes(ACLMemoryShapes& aclMemorySh
     }
 }
 
-arm_compute::Status ACLFullyConnectedExecutor::validateTensorsInfo(const ACLMemoryInfos & aclMemoryInfos) {
+arm_compute::Status ACLFullyConnectedExecutor::validateTensorsInfo(const ACLMemoryInfo & aclMemoryInfos) {
     return arm_compute::NEFullyConnectedLayer::validate(
             aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
             aclMemoryInfos[ACLArgs::ACL_WEI].get(),

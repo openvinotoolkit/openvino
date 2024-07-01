@@ -21,7 +21,7 @@ public:
 
     void updateTensorsShapes(ACLMemoryShapes& aclMemoryShapes) override;
 
-    arm_compute::Status validateTensorsInfo(const ACLMemoryInfos & aclMemoryInfos) override;
+    arm_compute::Status validateTensorsInfo(const ACLMemoryInfo & aclMemoryInfos) override;
 
     ACLFunction configureFunction(const ACLMemoryTensors & aclMemoryTensors) override;
 
