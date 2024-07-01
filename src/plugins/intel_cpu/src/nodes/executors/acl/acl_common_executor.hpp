@@ -45,8 +45,8 @@ public:
     impl_desc_type implType() const override {
         return impl_desc_type::acl;
     }
-    void execute(const MemoryArgs& memory) final;
-    bool update(const MemoryArgs& memory) final;
+    void execute(const MemoryArgs& memory) override;
+    bool update(const MemoryArgs& memory) override;
     ~ACLCommonExecutor();
 
 protected:
