@@ -14,13 +14,11 @@ PartialShapeWrap::PartialShapeWrap(const Napi::CallbackInfo& info) : Napi::Objec
     try {
         if (ov::js::validate<Napi::String>(info, allowed_signatures)) {
             _partial_shape = ov::PartialShape(info[0].ToString());
-
-            return;
         } else if (ov::js::validate(info, allowed_signatures)) {
             return;
+        } else {
+            OPENVINO_THROW("'PartialShape' constructor", ov::js::get_parameters_error_msg(info, allowed_signatures));
         }
-
-        OPENVINO_THROW("'PartialShape' constructor", ov::js::get_parameters_error_msg(info, allowed_signatures));
     } catch (std::exception& err) {
         reportError(info.Env(), err.what());
     }
