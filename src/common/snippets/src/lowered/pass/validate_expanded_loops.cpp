@@ -52,7 +52,10 @@ void ValidateExpandedLoops::validate_loop_information(const LinearIR& linear_ir)
         const auto& expanded_loop_info = ov::as_type_ptr<ExpandedLoopInfo>(p.second);
         INFORMATIVE_ASSERT(expanded_loop_info, "expects only ExpandedLoopInfo in LoopManager");
 
-        if (expanded_loop_info->get_unified_loop_info() != current_unified_loop_info) {
+        const auto& unified_loop_info = expanded_loop_info->get_unified_loop_info();
+        INFORMATIVE_ASSERT(unified_loop_info, "expects non nullptr UnifiedLoopInfo in ExpandedLoopInfo");
+
+        if (unified_loop_info != current_unified_loop_info) {
             // If there is `current_unified_loop_info` - the previos loop is finished and need to validate total information
             if (current_unified_loop_info) {
                 INFORMATIVE_ASSERT(current_work_amount == current_unified_loop_info->get_work_amount(),
@@ -61,7 +64,7 @@ void ValidateExpandedLoops::validate_loop_information(const LinearIR& linear_ir)
                                    "total finalization offsets are not equal to finalization offsets of undefined loop");
             }
 
-            current_unified_loop_info = expanded_loop_info->get_unified_loop_info();
+            current_unified_loop_info = unified_loop_info;
 
             INFORMATIVE_ASSERT(current_unified_loop_info->get_input_count() == expanded_loop_info->get_input_count() &&
                                current_unified_loop_info->get_output_count() == expanded_loop_info->get_output_count(),
@@ -74,6 +77,7 @@ void ValidateExpandedLoops::validate_loop_information(const LinearIR& linear_ir)
         }
 
         current_work_amount = utils::dynamic_safe_add(current_work_amount, expanded_loop_info->get_work_amount());
+        INFORMATIVE_ASSERT(current_unified_loop_info, "expects non nullptr current UnifiedLoopInfo");
         INFORMATIVE_ASSERT(current_unified_loop_info->get_ptr_increments() == expanded_loop_info->get_ptr_increments(),
                            "incompatible pointer increments with UnifiedLoopInfo");
 

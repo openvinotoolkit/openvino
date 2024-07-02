@@ -123,7 +123,7 @@ std::pair<LinearIR::constExprIt, LinearIR::constExprIt> LoopManager::get_loop_bo
 }
 
 LoopPort LoopManager::get_loop_port_by_expr_port(const ExpressionPort& expr_port, const size_t loop_id) {
-    auto get_loop_port = [&](const std::vector<LoopPort>& ports) {
+    auto get_loop_port = [&](const std::vector<LoopPort>& ports) -> const LoopPort& {
         auto it = std::find_if(ports.cbegin(), ports.cend(), [&](const LoopPort& p) { return *p.expr_port == expr_port; });
         if (it == ports.cend())
             OPENVINO_THROW("Expression has not been found among loop ports. Loop id: " + std::to_string(loop_id));
@@ -272,7 +272,7 @@ void LoopManager::fuse_loops(LinearIR::constExprIt loop_begin_target, LinearIR::
     auto input_ports_upper = loop_info_upper->get_input_ports();
     auto output_ports_upper = loop_info_upper->get_output_ports();
     auto input_ports_lower = loop_info_lower->get_input_ports();
-    auto output_ports_lower = loop_info_lower->get_output_ports();
+    const auto& output_ports_lower = loop_info_lower->get_output_ports();
     fuse_loop_ports(output_ports_upper, input_ports_lower, loop_id_upper);
 
     const auto& from = fuse_into_upper ? loop_id_lower : loop_id_upper;
@@ -285,9 +285,9 @@ void LoopManager::fuse_loops(LinearIR::constExprIt loop_begin_target, LinearIR::
     const auto handlers = SpecificIterationHandlers::merge_handlers(loop_info_upper->get_handlers(), loop_info_lower->get_handlers());
     const auto is_work_amount_const = loop_info_upper->is_work_amount_const() || loop_info_lower->is_work_amount_const();
 
-    auto new_entries = input_ports_upper;
+    auto new_entries = std::move(input_ports_upper);
     new_entries.insert(new_entries.end(), input_ports_lower.begin(), input_ports_lower.end());
-    auto new_exits = output_ports_upper;
+    auto new_exits = std::move(output_ports_upper);
     new_exits.insert(new_exits.end(), output_ports_lower.begin(), output_ports_lower.end());
 
     m_map[to] = std::make_shared<UnifiedLoopInfo>(work_amount, increment, new_entries, new_exits, handlers, is_work_amount_const);
