@@ -470,11 +470,11 @@ std::shared_ptr<PhilloxConverter> make_phillox_converter(char* out,
                                                          const size_t elem_count,
                                                          const char* min_val,
                                                          const char* max_val,
-                                                         const ov::op::PhilloxAlignment alignment) {
+                                                         const op::PhilloxAlignment alignment) {
     switch (alignment) {
-    case ov::op::PhilloxAlignment::TENSORFLOW:
+    case op::PhilloxAlignment::TENSORFLOW:
         return std::make_shared<TensorflowPhilloxConverter>(out, elem_type, elem_count, min_val, max_val);
-    case ov::op::PhilloxAlignment::PYTORCH:
+    case op::PhilloxAlignment::PYTORCH:
         return std::make_shared<PyTorchPhilloxConverter>(out, elem_type, elem_count, min_val, max_val);
     default:
         // Mock conversion (no conversion)
