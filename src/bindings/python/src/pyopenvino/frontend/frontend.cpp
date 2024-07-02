@@ -47,7 +47,7 @@ void regclass_frontend_FrontEnd(py::module m) {
                     py::isinstance<py::str>(py_obj)) {
 
                 // Fix unicode path
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
                     return self.load(ov::util::string_to_wstring(model_path.c_str()));
 #else
                     return self.load(model_path.c_str());
@@ -89,7 +89,7 @@ void regclass_frontend_FrontEnd(py::module m) {
                     py::isinstance<py::str>(model)) {
 
                 // Fix unicode path
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
                     return self.supported(ov::util::string_to_wstring(model_path.c_str()));
 #else
                     return self.supported(model_path.c_str());

@@ -1144,7 +1144,7 @@ std::string valid_xml_path(const std::string& path) {
     return path;
 }
 
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
 std::wstring valid_xml_path(const std::wstring& path) {
     OPENVINO_ASSERT(path.size() > 4, "Path for xml file is too short.");
 
@@ -1234,7 +1234,7 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
             if (xmlDir != m_xmlPath)
                 ov::util::create_directory_recursive(xmlDir);
         }
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
         else {
             auto xmlDir = ov::util::get_directory(m_xmlPath_wchar);
             if (xmlDir != m_xmlPath_wchar)
@@ -1252,7 +1252,7 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
             xml_file.open(m_xmlPath, std::ios::out);
             OPENVINO_ASSERT(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
         }
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
         else {
             bin_file.open(m_binPath_wchar.c_str(), std::ios::out | std::ios::binary);
             OPENVINO_ASSERT(bin_file, "Can't open bin file.");
@@ -1273,7 +1273,7 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
             bin_file.close();
             std::remove(m_xmlPath.c_str());
             std::remove(m_binPath.c_str());
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
             _wremove(m_xmlPath_wchar.c_str());
             _wremove(m_binPath_wchar.c_str());
 #endif
@@ -1290,7 +1290,7 @@ pass::Serialize::Serialize(std::ostream& xmlFile, std::ostream& binFile, pass::S
       m_binFile{&binFile},
       m_xmlPath{},
       m_binPath{},
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
       m_xmlPath_wchar{},
       m_binPath_wchar{},
 #endif
@@ -1302,14 +1302,14 @@ pass::Serialize::Serialize(const std::string& xmlPath, const std::string& binPat
       m_binFile{nullptr},
       m_xmlPath{valid_xml_path(xmlPath)},
       m_binPath{provide_bin_path(xmlPath, binPath)},
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
       m_xmlPath_wchar{},
       m_binPath_wchar{},
 #endif
       m_version{version} {
 }
 
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
 pass::Serialize::Serialize(const std::wstring& xmlPath, const std::wstring& binPath, pass::Serialize::Version version)
     : m_xmlFile{nullptr},
       m_binFile{nullptr},

@@ -344,7 +344,7 @@ void save_model(const std::shared_ptr<const ov::Model>& m, const std::string& ou
     manager.run_passes(std::move(cloned));
 }
 
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
 void save_model(const std::shared_ptr<const ov::Model>& m, const std::wstring& output_model, bool compress_to_fp16) {
     auto cloned = m->clone();
     if (compress_to_fp16) {
