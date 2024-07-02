@@ -304,6 +304,7 @@ jobs:
 
       - name: Prepare debian packages for storage on share
         if: ${{ always() }}
+        continue-on-error: true
         run: |
           pushd ${{ env.BUILD_DIR }}
           mkdir deb && mv *.deb deb/
