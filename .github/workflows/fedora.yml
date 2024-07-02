@@ -114,9 +114,6 @@ jobs:
       # Dependencies
       #
 
-      - name: Install build dependencies
-        run: bash ${OPENVINO_REPO}/install_build_dependencies.sh
-
       - name: Install python dependencies
         run: |
           python3 -m pip install -U pip
