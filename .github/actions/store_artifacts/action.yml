@@ -10,6 +10,9 @@ inputs:
   storage_root:
     description: "Root path of the storage to place artifacts to"
     required: true
+  action_path:
+    description: "Action path, if not set - taken from github context"
+    required: false
 
 runs:
   using: "composite"
@@ -19,7 +22,7 @@ runs:
     - name: 'Copy artifacts'
       shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
       run: |
-        python ${{ github.action_path }}/store_artifacts.py \
+        python ${{ inputs.action_path && inputs.action_path || github.action_path }}/store_artifacts.py \
           -a "${{ inputs.artifacts }}" \
           --storage_dir "${{ inputs.storage_dir }}" \
           --storage_root "${{ inputs.storage_root }}"
