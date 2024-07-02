@@ -181,7 +181,7 @@ Examples
    - ``openvino_intel_cpu_plugin`` is used for inference.
    - ``openvino_ir_frontend`` is used to read source models.
 
-.. dropdown:: MULTI execution on GPU and CPU in `tput` mode
+.. dropdown:: MULTI execution on GPU and CPU in tput mode
 
    In this example, the application is written in C++, performs inference
    :doc:`simultaneously on GPU and CPU devices <../running-inference/inference-devices-and-modes/multi-device>` with
