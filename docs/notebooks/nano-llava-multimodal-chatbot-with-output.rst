@@ -13,31 +13,31 @@ OpenVINO. Additionally, we will optimize model using
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#prerequisites>`__
--  `Load PyTorch model <#load-pytorch-model>`__
--  `Run PyTorch Model Inference <#run-pytorch-model-inference>`__
--  `Convert and Optimize model <#convert-and-optimize-model>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Load PyTorch model <#Load-PyTorch-model>`__
+-  `Run PyTorch Model Inference <#Run-PyTorch-Model-Inference>`__
+-  `Convert and Optimize model <#Convert-and-Optimize-model>`__
 
    -  `Convert model to OpenVINO IR
-      format <#convert-model-to-openvino-ir-format>`__
+      format <#Convert-model-to-OpenVINO-IR-format>`__
    -  `Compress Model weights to 4 and 8 bits using
-      NNCF <#compress-model-weights-to-4-and-8-bits-using-nncf>`__
-   -  `Image Encoder <#image-encoder>`__
-   -  `Text Embeddings <#text-embeddings>`__
-   -  `Language Model <#language-model>`__
+      NNCF <#Compress-Model-weights-to-4-and-8-bits-using-NNCF>`__
+   -  `Image Encoder <#Image-Encoder>`__
+   -  `Text Embeddings <#Text-Embeddings>`__
+   -  `Language Model <#Language-Model>`__
 
 -  `Prepare model inference
-   pipeline <#prepare-model-inference-pipeline>`__
--  `Run OpenVINO Model Inference <#run-openvino-model-inference>`__
+   pipeline <#Prepare-model-inference-pipeline>`__
+-  `Run OpenVINO Model Inference <#Run-OpenVINO-Model-Inference>`__
 
-   -  `Select device <#select-device>`__
+   -  `Select device <#Select-device>`__
 
--  `Interactive demo <#interactive-demo>`__
+-  `Interactive demo <#Interactive-demo>`__
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -99,18 +99,6 @@ Prerequisites
 
 .. parsed-literal::
 
-    example_1.png:   0%|          | 0.00/200k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    .gitattributes:   0%|          | 0.00/1.52k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
     merges.txt:   0%|          | 0.00/1.67M [00:00<?, ?B/s]
 
 
@@ -123,13 +111,19 @@ Prerequisites
 
 .. parsed-literal::
 
+    example_1.png:   0%|          | 0.00/200k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
     configuration_llava_qwen2.py:   0%|          | 0.00/8.87k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    added_tokens.json:   0%|          | 0.00/80.0 [00:00<?, ?B/s]
+    .gitattributes:   0%|          | 0.00/1.52k [00:00<?, ?B/s]
 
 
 
@@ -141,7 +135,13 @@ Prerequisites
 
 .. parsed-literal::
 
-    vocab.json:   0%|          | 0.00/2.78M [00:00<?, ?B/s]
+    added_tokens.json:   0%|          | 0.00/80.0 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    modeling_llava_qwen2.py:   0%|          | 0.00/103k [00:00<?, ?B/s]
 
 
 
@@ -159,13 +159,13 @@ Prerequisites
 
 .. parsed-literal::
 
-    tokenizer.json:   0%|          | 0.00/7.03M [00:00<?, ?B/s]
+    vocab.json:   0%|          | 0.00/2.78M [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    modeling_llava_qwen2.py:   0%|          | 0.00/103k [00:00<?, ?B/s]
+    tokenizer.json:   0%|          | 0.00/7.03M [00:00<?, ?B/s]
 
 
 
@@ -177,7 +177,7 @@ Prerequisites
 Load PyTorch model
 ------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For creating PyTorch model we should use ``from_pretrained`` method of
 ``AutoModelForCausalLM`` model class. Model weights are already
@@ -200,16 +200,16 @@ previous step.
 
 .. parsed-literal::
 
-    2024-06-19 13:21:30.264248: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-06-19 13:21:30.299571: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-06-27 01:02:36.883651: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-06-27 01:02:36.917268: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-06-19 13:21:30.903182: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-06-27 01:02:37.523024: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Run PyTorch Model Inference
 ---------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -252,13 +252,14 @@ Run PyTorch Model Inference
 
 .. parsed-literal::
 
-    The image features a white lama, a cute kitten, and a fire. The lama is standing on a blue carpet and is in the center of the image. It has a small white ear and a pink nose. The kitten is also white and appears to be holding the fire. The fire is orange and has a red flame, and it is so bright that it's almost illuminating the scene. The kitten is standing on the carpet, and the fire is on the ground, creating a contrast between the bright orange fire and the blue carpet.
+    The image features a white lama, with its fluffy woolly body covering most of the image, including the upper part of the image. The lama's face is predominantly white, and it has a black nose and two small black eyes. It also has a small white mouth and two small black ears. The lama's ears are quite cute, and it has its tongue out, which is pink and seems to be sticking out. The lama has a small black nose and a small black mouth, and it has a small black ear.
+    The lama's face is adorned with pink eyes and two black noses. The eyes are
 
 
 Convert and Optimize model
 --------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Our model conversion and optimization consist of following steps: 1.
 Convert model to OpenVINO format and save it on disk. 2. Compress model
@@ -269,7 +270,7 @@ Let’s consider each step more deeply.
 Convert model to OpenVINO IR format
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Convert model to OpenVINO format using conversion helper function
 defined bellow. We will use `OpenVINO Model Conversion
@@ -287,7 +288,7 @@ convert each part separately.
 Compress Model weights to 4 and 8 bits using NNCF
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For reducing memory consumption, weights compression optimization can be
 applied using `NNCF <https://github.com/openvinotoolkit/nncf>`__. Weight
@@ -453,7 +454,7 @@ compression instead of INT8 weight compression.
 Image Encoder
 ~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Image Encoder is represented in nanoLLaVA by pretrained SigLIP model.
 Image encoder is responsible for encoding input images into embedding
@@ -533,7 +534,7 @@ space.
 Text Embeddings
 ~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 In LLMs, input embedding is a part of language model, but for LLaVA the
 first step hidden state produced by this model part should be integrated
@@ -561,7 +562,7 @@ will use it separately.
 Language Model
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Language Model is responsible for generation answer in LLaVA. This part
 is very similar to standard LLM for text generation. Our model uses
@@ -695,7 +696,7 @@ token prediction.
 Prepare model inference pipeline
 --------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 ``OVLlavaQwen2ForCausalLM`` class provides ease-to-use interface for
 using model in generation scenario. It is based on
@@ -1049,12 +1050,12 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
 Run OpenVINO Model Inference
 ----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Select device
 ~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. _select-device-1:
 
@@ -1108,7 +1109,7 @@ Select device
 Interactive demo
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1256,7 +1257,7 @@ Interactive demo
 
 
 
+.. raw:: html
 
-
-
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

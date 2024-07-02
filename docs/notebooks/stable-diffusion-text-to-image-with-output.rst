@@ -35,28 +35,28 @@ using OpenVINO.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#prerequisites>`__
--  `Prepare Inference Pipelines <#prepare-inference-pipelines>`__
--  `Text-to-image pipeline <#text-to-image-pipeline>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Prepare Inference Pipelines <#Prepare-Inference-Pipelines>`__
+-  `Text-to-image pipeline <#Text-to-image-pipeline>`__
 
    -  `Load Stable Diffusion model and create text-to-image
-      pipeline <#load-stable-diffusion-model-and-create-text-to-image-pipeline>`__
-   -  `Text-to-Image generation <#text-to-image-generation>`__
+      pipeline <#Load-Stable-Diffusion-model-and-create-text-to-image-pipeline>`__
+   -  `Text-to-Image generation <#Text-to-Image-generation>`__
    -  `Interactive text-to-image
-      demo <#interactive-text-to-image-demo>`__
+      demo <#Interactive-text-to-image-demo>`__
 
--  `Image-to-Image pipeline <#image-to-image-pipeline>`__
+-  `Image-to-Image pipeline <#Image-to-Image-pipeline>`__
 
    -  `Create image-to-Image
-      pipeline <#create-image-to-image-pipeline>`__
-   -  `Image-to-Image generation <#image-to-image-generation>`__
+      pipeline <#Create-image-to-Image-pipeline>`__
+   -  `Image-to-Image generation <#Image-to-Image-generation>`__
    -  `Interactive image-to-image
-      demo <#interactive-image-to-image-demo>`__
+      demo <#Interactive-image-to-image-demo>`__
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -79,7 +79,7 @@ Prerequisites
 Prepare Inference Pipelines
 ---------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Let us now take a closer look at how the model works in inference by
 illustrating the logical flow.
@@ -130,12 +130,12 @@ of the variational auto encoder.
 Text-to-image pipeline
 ----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Load Stable Diffusion model and create text-to-image pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We will load optimized Stable Diffusion model from the Hugging Face Hub
 and create pipeline to run an inference with OpenVINO Runtime by
@@ -234,7 +234,7 @@ Select device from dropdown list for running inference using OpenVINO.
 Text-to-Image generation
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, you can define a text prompt for image generation and run inference
 pipeline.
@@ -335,7 +335,7 @@ Nice. As you can see, the picture has quite a high definition 🔥.
 Interactive text-to-image demo
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -376,12 +376,12 @@ Interactive text-to-image demo
 Image-to-Image pipeline
 -----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Create image-to-Image pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For running the Stable Diffusion model with Optimum Intel, we will use
 the ``optimum.intel.OVStableDiffusionImg2ImgPipeline`` class, which
@@ -434,7 +434,7 @@ so we can just load it.
 Image-to-Image generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Image-to-Image generation, additionally to text prompt, requires
 providing initial image. Optionally, you can also change ``strength``
@@ -621,7 +621,7 @@ semantically consistent with the input.
 Interactive image-to-image demo
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 

@@ -28,18 +28,18 @@ card <https://huggingface.co/briaai/RMBG-1.4>`__.
 In this tutorial we consider how to convert and run this model using
 OpenVINO. #### Table of contents:
 
--  `Prerequisites <#prerequisites>`__
--  `Load PyTorch model <#load-pytorch-model>`__
--  `Run PyTorch model inference <#run-pytorch-model-inference>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Load PyTorch model <#Load-PyTorch-model>`__
+-  `Run PyTorch model inference <#Run-PyTorch-model-inference>`__
 -  `Convert Model to OpenVINO Intermediate Representation
-   format <#convert-model-to-openvino-intermediate-representation-format>`__
--  `Run OpenVINO model inference <#run-openvino-model-inference>`__
--  `Interactive demo <#interactive-demo>`__
+   format <#Convert-Model-to-OpenVINO-Intermediate-Representation-format>`__
+-  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
+-  `Interactive demo <#Interactive-demo>`__
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 install required dependencies
 
@@ -50,7 +50,6 @@ install required dependencies
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -85,7 +84,7 @@ Download model code from HuggingFace hub
 Load PyTorch model
 ------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For loading model using PyTorch, we should use
 ``AutoModelForImageSegmentation.from_pretrained`` method. Model weights
@@ -101,14 +100,14 @@ it may take some time.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
       warnings.warn(
 
 
 Run PyTorch model inference
 ---------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 ``preprocess_image`` function is responsible for preparing input data in
 model-specific format. ``postprocess_image`` function is responsible for
@@ -198,7 +197,7 @@ mask can be inserted into original image as alpha-channel.
 Convert Model to OpenVINO Intermediate Representation format
 ------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
 Representation (IR). `OpenVINO model conversion
@@ -222,14 +221,14 @@ function or directly loading on device using ``core.complie_model``.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4371: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4371: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
 
 
 Run OpenVINO model inference
 ----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 After finishing conversion, we can compile converted model and run it
 using OpenVINO on specified device. For selection inference device,
@@ -289,7 +288,7 @@ original pre- and postprocessing steps, it means that we can reuse them.
 Interactive demo
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -354,7 +353,7 @@ Interactive demo
 
 
 
+.. raw:: html
 
-
-
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

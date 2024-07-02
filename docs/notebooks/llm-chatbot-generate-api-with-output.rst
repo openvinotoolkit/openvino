@@ -45,42 +45,42 @@ The tutorial consists of the following steps:
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#prerequisites>`__
--  `Select model for inference <#select-model-for-inference>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Select model for inference <#Select-model-for-inference>`__
 -  `Convert model using Optimum-CLI
-   tool <#convert-model-using-optimum-cli-tool>`__
--  `Compress model weights <#compress-model-weights>`__
+   tool <#Convert-model-using-Optimum-CLI-tool>`__
+-  `Compress model weights <#Compress-model-weights>`__
 
    -  `Weights Compression using
-      Optimum-CLI <#weights-compression-using-optimum-cli>`__
-   -  `Weight compression with AWQ <#weight-compression-with-awq>`__
+      Optimum-CLI <#Weights-Compression-using-Optimum-CLI>`__
+   -  `Weight compression with AWQ <#Weight-compression-with-AWQ>`__
 
       -  `Select device for inference and model
-         variant <#select-device-for-inference-and-model-variant>`__
+         variant <#Select-device-for-inference-and-model-variant>`__
 
 -  `Instantiate pipeline with OpenVINO Generate
-   API <#instantiate-pipeline-with-openvino-generate-api>`__
--  `Run Chatbot <#run-chatbot>`__
+   API <#Instantiate-pipeline-with-OpenVINO-Generate-API>`__
+-  `Run Chatbot <#Run-Chatbot>`__
 
    -  `Prepare text streamer to get results
-      runtime <#prepare-text-streamer-to-get-results-runtime>`__
+      runtime <#Prepare-text-streamer-to-get-results-runtime>`__
    -  `Setup of the chatbot life process
-      function <#setup-of-the-chatbot-life-process-function>`__
-   -  `Next Step <#next-step>`__
+      function <#Setup-of-the-chatbot-life-process-function>`__
+   -  `Next Step <#Next-Step>`__
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Install required dependencies
 
 .. code:: ipython3
 
     import os
-
+    
     os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
-
+    
     %pip install -Uq pip
     %pip uninstall -q -y optimum optimum-intel
     %pip install -q "openvino-genai>=2024.2"
@@ -108,12 +108,12 @@ Install required dependencies
     from pathlib import Path
     import requests
     import shutil
-
+    
     # fetch model configuration
-
+    
     config_shared_path = Path("../../utils/llm_config.py")
     config_dst_path = Path("llm_config.py")
-
+    
     if not config_dst_path.exists():
         if config_shared_path.exists():
             try:
@@ -136,7 +136,7 @@ Install required dependencies
 Select model for inference
 --------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The tutorial supports different models, you can select one from the
 provided options to compare the quality of open source LLM solutions.
@@ -173,7 +173,7 @@ The available options are:
    model can be found in `model
    card <https://huggingface.co/google/gemma-2b-it>`__. >\ **Note**: run
    model with demo, you will need to accept license agreement. >You must
-   be a registered user in Hugging Face Hub. Please visit `HuggingFace
+   be a registered user in 🤗 Hugging Face Hub. Please visit `HuggingFace
    model card <https://huggingface.co/google/gemma-2b-it>`__, carefully
    read terms of usage and click accept button. You will need to use an
    access token for the code below to run. For more information on
@@ -184,7 +184,8 @@ The available options are:
 
 .. code:: python
 
-       ## login to huggingfacehub to get access to pretrained model
+       ## login to huggingfacehub to get access to pretrained model 
+   [back to top ⬆️](#Table-of-contents:)
 
 
 
@@ -221,7 +222,7 @@ The available options are:
    model can be found in `model
    card <https://huggingface.co/google/gemma-7b-it>`__. >\ **Note**: run
    model with demo, you will need to accept license agreement. >You must
-   be a registered user in Hugging Face Hub. Please visit `HuggingFace
+   be a registered user in 🤗 Hugging Face Hub. Please visit `HuggingFace
    model card <https://huggingface.co/google/gemma-7b-it>`__, carefully
    read terms of usage and click accept button. You will need to use an
    access token for the code below to run. For more information on
@@ -232,7 +233,7 @@ The available options are:
 
 .. code:: python
 
-       ## login to huggingfacehub to get access to pretrained model
+       ## login to huggingfacehub to get access to pretrained model 
 
        from huggingface_hub import notebook_login, whoami
 
@@ -253,7 +254,7 @@ The available options are:
    `HuggingFace model
    card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__.
    >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in Hugging Face Hub.
+   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__,
    carefully read terms of usage and click accept button. You will need
@@ -265,7 +266,7 @@ The available options are:
 
 .. code:: python
 
-       ## login to huggingfacehub to get access to pretrained model
+       ## login to huggingfacehub to get access to pretrained model 
 
        from huggingface_hub import notebook_login, whoami
 
@@ -287,7 +288,7 @@ The available options are:
    website <https://llama.meta.com/llama3>`__ and `model
    card <https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct>`__.
    >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in Hugging Face Hub.
+   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct>`__,
    carefully read terms of usage and click accept button. You will need
@@ -299,7 +300,7 @@ The available options are:
 
 .. code:: python
 
-       ## login to huggingfacehub to get access to pretrained model
+       ## login to huggingfacehub to get access to pretrained model 
 
        from huggingface_hub import notebook_login, whoami
 
@@ -409,14 +410,14 @@ The available options are:
 .. code:: ipython3
 
     model_languages = list(SUPPORTED_LLM_MODELS)
-
+    
     model_language = widgets.Dropdown(
         options=model_languages,
         value=model_languages[0],
         description="Model Language:",
         disabled=False,
     )
-
+    
     model_language
 
 
@@ -431,14 +432,14 @@ The available options are:
 .. code:: ipython3
 
     model_ids = list(SUPPORTED_LLM_MODELS[model_language.value])
-
+    
     model_id = widgets.Dropdown(
         options=model_ids,
         value=model_ids[0],
         description="Model:",
         disabled=False,
     )
-
+    
     model_id
 
 
@@ -464,10 +465,10 @@ The available options are:
 Convert model using Optimum-CLI tool
 ------------------------------------
 
+`back to top ⬆️ <#Table-of-contents:>`__
 
-
-`Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
-the interface between the
+🤗 `Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
+the interface between the 🤗
 `Transformers <https://huggingface.co/docs/transformers/index>`__ and
 `Diffusers <https://huggingface.co/docs/diffusers/index>`__ libraries
 and OpenVINO to accelerate end-to-end pipelines on Intel architectures.
@@ -494,7 +495,7 @@ remote code, ``--trust-remote-code`` flag additionally should be passed.
 Compress model weights
 ----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The `Weights
 Compression <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/weight-compression.html>`__
@@ -508,7 +509,7 @@ introduces a minor drop in prediction quality.
 Weights Compression using Optimum-CLI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 You can also apply fp16, 8-bit or 4-bit weight compression on the
 Linear, Convolutional and Embedding layers when exporting your model
@@ -521,13 +522,12 @@ to make it
 `symmetric <https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md#symmetric-quantization>`__
 you can add ``--sym``.
 
-For INT4 quantization you can also specify the following arguments :
-
-- The ``--group-size`` parameter will define the group size to use for
-  quantization, -1 it will results in per-column quantization.
-- The ``--ratio`` parameter controls the ratio between 4-bit and 8-bit
-  quantization. If set to 0.9, it means that 90% of the layers will be
-  quantized to int4 while 10% will be quantized to int8.
+For INT4 quantization you can also specify the following arguments : -
+The ``--group-size`` parameter will define the group size to use for
+quantization, -1 it will results in per-column quantization. - The
+``--ratio`` parameter controls the ratio between 4-bit and 8-bit
+quantization. If set to 0.9, it means that 90% of the layers will be
+quantized to int4 while 10% will be quantized to int8.
 
 Smaller group_size and ratio values usually improve accuracy at the
 sacrifice of the model size and inference latency.
@@ -538,7 +538,7 @@ sacrifice of the model size and inference latency.
 .. code:: ipython3
 
     from IPython.display import Markdown, display
-
+    
     prepare_int4_model = widgets.Checkbox(
         value=True,
         description="Prepare INT4 model",
@@ -554,7 +554,7 @@ sacrifice of the model size and inference latency.
         description="Prepare FP16 model",
         disabled=False,
     )
-
+    
     display(prepare_int4_model)
     display(prepare_int8_model)
     display(prepare_fp16_model)
@@ -581,7 +581,7 @@ sacrifice of the model size and inference latency.
 Weight compression with AWQ
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `Activation-aware Weight
 Quantization <https://arxiv.org/abs/2306.00978>`__ (AWQ) is an algorithm
@@ -623,14 +623,14 @@ We can now save floating point and compressed model variants
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     pt_model_id = model_configuration["model_id"]
     pt_model_name = model_id.value.split("-")[0]
     fp16_model_dir = Path(model_id.value) / "FP16"
     int8_model_dir = Path(model_id.value) / "INT8_compressed_weights"
     int4_model_dir = Path(model_id.value) / "INT4_compressed_weights"
-
-
+    
+    
     def convert_to_fp16():
         if (fp16_model_dir / "openvino_model.xml").exists():
             return
@@ -642,8 +642,8 @@ We can now save floating point and compressed model variants
         display(Markdown("**Export command:**"))
         display(Markdown(f"`{export_command}`"))
         ! $export_command
-
-
+    
+    
     def convert_to_int8():
         if (int8_model_dir / "openvino_model.xml").exists():
             return
@@ -656,8 +656,8 @@ We can now save floating point and compressed model variants
         display(Markdown("**Export command:**"))
         display(Markdown(f"`{export_command}`"))
         ! $export_command
-
-
+    
+    
     def convert_to_int4():
         compression_configs = {
             "zephyr-7b-beta": {
@@ -722,7 +722,7 @@ We can now save floating point and compressed model variants
                 "ratio": 0.8,
             },
         }
-
+    
         model_compression_params = compression_configs.get(model_id.value, compression_configs["default"])
         if (int4_model_dir / "openvino_model.xml").exists():
             return
@@ -740,8 +740,8 @@ We can now save floating point and compressed model variants
         display(Markdown("**Export command:**"))
         display(Markdown(f"`{export_command}`"))
         ! $export_command
-
-
+    
+    
     if prepare_fp16_model.value:
         convert_to_fp16()
     if prepare_int8_model.value:
@@ -760,20 +760,13 @@ We can now save floating point and compressed model variants
 
 .. parsed-literal::
 
-    2024-06-20 00:02:37.229229: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-06-20 00:02:37.263502: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-07-02 00:50:04.949521: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-07-02 00:50:04.983760: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-06-20 00:02:37.780256: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+    2024-07-02 00:50:05.502308: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
       torch.utils._pytree._register_pytree_node(
-    config.json: 100%|█████████████████████████████| 659/659 [00:00<00:00, 68.6kB/s]
     Framework not specified. Using pt to export the model.
-    model.safetensors: 100%|█████████████████████| 988M/988M [00:10<00:00, 94.5MB/s]
-    generation_config.json: 100%|██████████████████| 242/242 [00:00<00:00, 27.1kB/s]
-    tokenizer_config.json: 100%|████████████████| 1.29k/1.29k [00:00<00:00, 775kB/s]
-    vocab.json: 100%|██████████████████████████| 2.78M/2.78M [00:00<00:00, 5.12MB/s]
-    merges.txt: 100%|██████████████████████████| 1.67M/1.67M [00:00<00:00, 3.81MB/s]
-    tokenizer.json: 100%|██████████████████████| 7.03M/7.03M [00:00<00:00, 16.1MB/s]
     Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
     Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
     Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
@@ -781,15 +774,15 @@ We can now save floating point and compressed model variants
     Using framework PyTorch: 2.3.1+cpu
     Overriding 1 configuration item(s)
     	- use_cache -> True
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:114: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:114: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if (input_shape[-1] > 1 or self.sliding_window is not None) and self.is_causal:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/optimum/exporters/onnx/model_patcher.py:300: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/optimum/exporters/onnx/model_patcher.py:300: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if past_key_values_length > 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:120: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:120: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if seq_len > self.max_seq_len_cached:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:667: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:667: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attention_mask.size() != (bsz, 1, q_len, kv_seq_len):
-    [2KMixed-Precision assignment ━━━━━━━━━━━━━━━━━━━━ 100% 168/168 • 0:00:04 • 0:00:00
+    [2KMixed-Precision assignment ━━━━━━━━━━━━━━━━━━━━ 100% 168/168 • 0:00:02 • 0:00:00
     INFO:nncf:Statistics of the bitwidth distribution:
     ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
     │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
@@ -809,7 +802,7 @@ Let’s compare model size for different compression types
     fp16_weights = fp16_model_dir / "openvino_model.bin"
     int8_weights = int8_model_dir / "openvino_model.bin"
     int4_weights = int4_model_dir / "openvino_model.bin"
-
+    
     if fp16_weights.exists():
         print(f"Size of FP16 model is {fp16_weights.stat().st_size / 1024 / 1024:.2f} MB")
     for precision, compressed_weights in zip([8, 4], [int8_weights, int4_weights]):
@@ -827,7 +820,7 @@ Let’s compare model size for different compression types
 Select device for inference and model variant
 '''''''''''''''''''''''''''''''''''''''''''''
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
    **Note**: There may be no speedup for INT4/INT8 compressed models on
    dGPU.
@@ -835,20 +828,20 @@ Select device for inference and model variant
 .. code:: ipython3
 
     import openvino as ov
-
+    
     core = ov.Core()
-
+    
     support_devices = core.available_devices
     if "NPU" in support_devices:
         support_devices.remove("NPU")
-
+    
     device = widgets.Dropdown(
         options=support_devices + ["AUTO"],
         value="CPU",
         description="Device:",
         disabled=False,
     )
-
+    
     device
 
 
@@ -872,14 +865,14 @@ variant of model weights and inference device
         available_models.append("INT8")
     if fp16_model_dir.exists():
         available_models.append("FP16")
-
+    
     model_to_run = widgets.Dropdown(
         options=available_models,
         value=available_models[0],
         description="Model to run:",
         disabled=False,
     )
-
+    
     model_to_run
 
 
@@ -894,7 +887,7 @@ variant of model weights and inference device
 Instantiate pipeline with OpenVINO Generate API
 -----------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `OpenVINO Generate
 API <https://github.com/openvinotoolkit/openvino.genai/blob/master/src/README.md>`__
@@ -919,8 +912,10 @@ LLMPipeline.
 
 .. code:: ipython3
 
+    from transformers import AutoTokenizer
+    from openvino_tokenizers import convert_tokenizer
     from openvino_genai import LLMPipeline
-
+    
     if model_to_run.value == "INT4":
         model_dir = int4_model_dir
     elif model_to_run.value == "INT8":
@@ -928,22 +923,30 @@ LLMPipeline.
     else:
         model_dir = fp16_model_dir
     print(f"Loading model from {model_dir}\n")
-
-    pipe = LLMPipeline(model_dir.as_posix(), device.value)
+    
+    # optionally convert tokenizer if used cached model without it
+    if not (model_dir / "openvino_tokenizer.xml").exists() or not (model_dir / "openvino_detokenizer.xml").exists():
+        hf_tokenizer = AutoTokenizer.from_pretrained(model_dir, trust_remote_code=True)
+        ov_tokenizer, ov_detokenizer = convert_tokenizer(hf_tokenizer, with_detokenizer=True)
+        ov.save_model(ov_tokenizer, model_dir / "openvino_tokenizer.xml")
+        ov.save_model(ov_tokenizer, model_dir / "openvino_detokenizer.xml")
+    
+    
+    pipe = LLMPipeline(str(model_dir), device.value)
     print(pipe.generate("The Sun is yellow bacause", temperature=1.2, top_k=4, do_sample=True, max_new_tokens=50))
 
 
 .. parsed-literal::
 
     Loading model from qwen2-0.5b-instruct/INT4_compressed_weights
-
-     the light rays of the Sun hit the earth at the same angle of incidence. The same angle of incidence is also at the same angle for every other point on the Earth. This is the phenomenon of refraction. The Sun is the source of light
+    
+     the light of the sun travels faster through the air than the light of a lamp. 120% of the sunlight is absorbed by plants in an area. 10% of the sunlight passes through the sky and is lost. If
 
 
 Run Chatbot
 -----------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, when model created, we can setup Chatbot interface using
 `Gradio <https://www.gradio.app/>`__. The diagram below illustrates how
@@ -997,14 +1000,14 @@ done easily with ``LLMPipeline``.
 
 ::
 
-   playing: 0.5
-   sleeping: 0.25
-   eating: 0.15
-   driving: 0.05
-   flying: 0.05
+   playing: 0.5  
+   sleeping: 0.25  
+   eating: 0.15  
+   driving: 0.05  
+   flying: 0.05  
 
-   - **Low temperature** (e.g., 0.2): The AI model becomes more focused and deterministic, choosing tokens with the highest probability, such as "playing."
-   - **Medium temperature** (e.g., 1.0): The AI model maintains a balance between creativity and focus, selecting tokens based on their probabilities without significant bias, such as "playing," "sleeping," or "eating."
+   - **Low temperature** (e.g., 0.2): The AI model becomes more focused and deterministic, choosing tokens with the highest probability, such as "playing."  
+   - **Medium temperature** (e.g., 1.0): The AI model maintains a balance between creativity and focus, selecting tokens based on their probabilities without significant bias, such as "playing," "sleeping," or "eating."  
    - **High temperature** (e.g., 2.0): The AI model becomes more adventurous, increasing the chances of selecting less likely tokens, such as "driving" and "flying."
 
 -  ``Top-p``, also known as nucleus sampling, is a parameter used to
@@ -1041,7 +1044,7 @@ done easily with ``LLMPipeline``.
 Prepare text streamer to get results runtime
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Load the ``detokenizer``, use it to convert token_id to string output
 format. We will collect print-ready text in a queue and give the text
@@ -1052,12 +1055,12 @@ when it is needed. It will help estimate performance.
     import re
     from queue import Queue
     from openvino_genai import StreamerBase
-
+    
     core = ov.Core()
-
+    
     detokinizer_path = Path(model_dir, "openvino_detokenizer.xml")
-
-
+    
+    
     class TextStreamerIterator(StreamerBase):
         def __init__(self, tokenizer):
             super().__init__()
@@ -1065,31 +1068,31 @@ when it is needed. It will help estimate performance.
             self.compiled_detokenizer = core.compile_model(detokinizer_path.as_posix())
             self.text_queue = Queue()
             self.stop_signal = None
-
+    
         def __iter__(self):
             return self
-
+    
         def __next__(self):
             value = self.text_queue.get()
             if value == self.stop_signal:
                 raise StopIteration()
             else:
                 return value
-
+    
         def put(self, token_id):
             openvino_output = self.compiled_detokenizer([[0, token_id]])
             text = str(openvino_output["string_output"][0])
             # remove labels/special symbols
             text = re.sub("<.*>", "", text)
             self.text_queue.put(text)
-
+    
         def end(self):
             self.text_queue.put(self.stop_signal)
 
 Setup of the chatbot life process function
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 ``bot`` function is the entry point for starting chat. We setup config
 here, collect history to string and put it to ``generate()`` method.
@@ -1099,16 +1102,16 @@ After that it’s generate new chatbot message and we add it to history.
 
     from uuid import uuid4
     from threading import Event, Thread
-
-    pipe = LLMPipeline(model_dir.as_posix(), device.value)
-
+    
+    pipe = LLMPipeline(str(model_dir), device.value)
+    
     max_new_tokens = 80
-
+    
     start_message = model_configuration["start_message"]
     history_template = model_configuration.get("history_template")
     current_message_template = model_configuration.get("current_message_template")
-
-
+    
+    
     def convert_history_to_input(history):
         """
         function for conversion history stored as list pairs of user and assistant messages to tokens according to model expected conversation template
@@ -1137,32 +1140,32 @@ After that it’s generate new chatbot message and we add it to history.
                     )
                 ]
             )
-
+    
         return new_prompt
-
-
+    
+    
     def default_partial_text_processor(partial_text: str, new_text: str):
         """
         helper for updating partially generated answer, used by default
-
+    
         Params:
           partial_text: text buffer for storing previosly generated text
           new_text: text update for the current step
         Returns:
           updated text string
-
+    
         """
         partial_text += new_text
         return partial_text
-
-
+    
+    
     text_processor = model_configuration.get("partial_text_processor", default_partial_text_processor)
-
-
+    
+    
     def bot(message, history, temperature, top_p, top_k, repetition_penalty):
         """
         callback function for running chatbot on submit button click
-
+    
         Params:
           message: new message from user
           history: conversation history
@@ -1178,7 +1181,7 @@ After that it’s generate new chatbot message and we add it to history.
           active_chat: if we are here, the chat is running or will be started, so return True
         """
         streamer = TextStreamerIterator(pipe.get_tokenizer())
-
+    
         config = pipe.get_generation_config()
         config.temperature = temperature
         config.top_p = top_p
@@ -1186,13 +1189,13 @@ After that it’s generate new chatbot message and we add it to history.
         config.do_sample = temperature > 0.0
         config.max_new_tokens = max_new_tokens
         config.repetition_penalty = repetition_penalty
-
+    
         # history = [['message', 'chatbot answer'], ...]
         history.append([message, ""])
         new_prompt = convert_history_to_input(history)
-
+    
         stream_complete = Event()
-
+    
         def generate_and_signal_complete():
             """
             genration function for single thread
@@ -1200,29 +1203,29 @@ After that it’s generate new chatbot message and we add it to history.
             global start_time
             pipe.generate(new_prompt, config, streamer)
             stream_complete.set()
-
+    
         t1 = Thread(target=generate_and_signal_complete)
         t1.start()
-
+    
         partial_text = ""
         for new_text in streamer:
             partial_text = text_processor(partial_text, new_text)
             history[-1][1] = partial_text
             yield "", history, streamer
-
-
+    
+    
     def stop_chat(streamer):
         if streamer is not None:
             streamer.end()
         return None
-
-
+    
+    
     def stop_chat_and_clear_history(streamer):
         if streamer is not None:
             streamer.end()
         return None, None
-
-
+    
+    
     def get_uuid():
         """
         universal unique identifier for thread
@@ -1232,7 +1235,7 @@ After that it’s generate new chatbot message and we add it to history.
 .. code:: ipython3
 
     import gradio as gr
-
+    
     chinese_examples = [
         ["你好!"],
         ["你是谁?"],
@@ -1242,7 +1245,7 @@ After that it’s generate new chatbot message and we add it to history.
         ["给我讲一个年轻人奋斗创业最终取得成功的故事。"],
         ["给这个故事起一个标题。"],
     ]
-
+    
     english_examples = [
         ["Hello there! How are you doing?"],
         ["What is OpenVINO?"],
@@ -1252,7 +1255,7 @@ After that it’s generate new chatbot message and we add it to history.
         ["What are some common mistakes to avoid when writing code?"],
         ["Write a 100-word blog post on “Benefits of Artificial Intelligence and OpenVINO“"],
     ]
-
+    
     japanese_examples = [
         ["こんにちは！調子はどうですか?"],
         ["OpenVINOとは何ですか?"],
@@ -1262,10 +1265,10 @@ After that it’s generate new chatbot message and we add it to history.
         ["コードを書くときに避けるべきよくある間違いは何ですか?"],
         ["人工知能と「OpenVINOの利点」について100語程度のブログ記事を書いてください。"],
     ]
-
+    
     examples = chinese_examples if (model_language.value == "Chinese") else japanese_examples if (model_language.value == "Japanese") else english_examples
-
-
+    
+    
     with gr.Blocks(
         theme=gr.themes.Soft(),
         css=".disclaimer {font-variant-caps: all-small-caps;}",
@@ -1338,7 +1341,7 @@ After that it’s generate new chatbot message and we add it to history.
                                 info="Penalize repetition — 1.0 to disable.",
                             )
         gr.Examples(examples, inputs=msg, label="Click on any example and press the 'Submit' button")
-
+    
         submit_event = msg.submit(
             fn=bot,
             inputs=[msg, chatbot, temperature, top_p, top_k, repetition_penalty],
@@ -1353,7 +1356,7 @@ After that it’s generate new chatbot message and we add it to history.
         )
         stop.click(fn=stop_chat, inputs=streamer, outputs=[streamer], queue=False)
         clear.click(fn=stop_chat_and_clear_history, inputs=streamer, outputs=[chatbot, streamer], queue=False)
-
+    
     # if you are launching remotely, specify server_name and server_port
     #  demo.launch(server_name='your server name', server_port='server port in int')
     # if you have any issue to launch on your platform, you can pass share=True to launch method:
@@ -1365,21 +1368,21 @@ After that it’s generate new chatbot message and we add it to history.
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-
+    
     To create a public link, set `share=True` in `launch()`.
 
 
 
+.. raw:: html
+
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
 
 
+.. parsed-literal::
 
-
-
-
-
-
+    
 
 
 
@@ -1391,7 +1394,7 @@ After that it’s generate new chatbot message and we add it to history.
 Next Step
 ~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Besides chatbot, we can use LangChain to augmenting LLM knowledge with
 additional data, which allow you to build AI applications that can

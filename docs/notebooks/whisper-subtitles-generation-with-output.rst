@@ -32,33 +32,33 @@ models. 8. Launch Interactive demo for video subtitles generation.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Prerequisites <#prerequisites>`__
--  `Instantiate model <#instantiate-model>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Instantiate model <#Instantiate-model>`__
 
    -  `Convert model to OpenVINO Intermediate Representation (IR)
-      format. <#convert-model-to-openvino-intermediate-representation-ir-format->`__
+      format. <#Convert-model-to-OpenVINO-Intermediate-Representation-(IR)-format.>`__
 
--  `Prepare inference pipeline <#prepare-inference-pipeline>`__
+-  `Prepare inference pipeline <#Prepare-inference-pipeline>`__
 
-   -  `Select inference device <#select-inference-device>`__
+   -  `Select inference device <#Select-inference-device>`__
 
 -  `Run video transcription
-   pipeline <#run-video-transcription-pipeline>`__
--  `Quantization <#quantization>`__
+   pipeline <#Run-video-transcription-pipeline>`__
+-  `Quantization <#Quantization>`__
 
-   -  `Prepare calibration datasets <#prepare-calibration-datasets>`__
+   -  `Prepare calibration datasets <#Prepare-calibration-datasets>`__
    -  `Quantize Whisper encoder and decoder
-      models <#quantize-whisper-encoder-and-decoder-models>`__
-   -  `Run quantized model inference <#run-quantized-model-inference>`__
+      models <#Quantize-Whisper-encoder-and-decoder-models>`__
+   -  `Run quantized model inference <#Run-quantized-model-inference>`__
    -  `Compare performance and accuracy of the original and quantized
-      models <#compare-performance-and-accuracy-of-the-original-and-quantized-models>`__
+      models <#Compare-performance-and-accuracy-of-the-original-and-quantized-models>`__
 
--  `Interactive demo <#interactive-demo>`__
+-  `Interactive demo <#Interactive-demo>`__
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Install dependencies.
 
@@ -72,7 +72,7 @@ Install dependencies.
 Instantiate model
 -----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Whisper is a Transformer based encoder-decoder model, also referred to
 as a sequence-to-sequence model. It maps a sequence of audio spectrogram
@@ -130,7 +130,7 @@ Whisper family.
 Convert model to OpenVINO Intermediate Representation (IR) format using Optimum-Intel.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The Hugging Face Optimum API is a high-level API that enables us to
 convert and quantize models from the Hugging Face Transformers library
@@ -179,7 +179,7 @@ The command bellow illustrates how to convert whisper using optimum cli.
 Prepare inference pipeline
 --------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The image below illustrates the pipeline of video transcribing using the
 Whisper model.
@@ -211,7 +211,7 @@ seconds is optimal. To activate batching, pass the argument batch_size.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -285,7 +285,7 @@ select device from dropdown list for running inference using OpenVINO
 Run video transcription pipeline
 --------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, we are ready to start transcription. We select a video from YouTube
 that we want to transcribe. Be patient, as downloading the video may
@@ -422,6 +422,10 @@ Select the task for the model:
         """
         segment_lines = []
         for idx, segment in enumerate(transcription):
+            # for the case where the model could not predict an ending timestamp, which can happen if audio is cut off in the middle of a word.
+            if segment["timestamp"][1] is None:
+                segment["timestamp"] = (segment["timestamp"][0], filter_duration)
+    
             if filter_duration is not None and (segment["timestamp"][0] >= math.floor(filter_duration) or segment["timestamp"][1] > math.ceil(filter_duration) + 1):
                 break
             segment_lines.append(str(idx + 1) + "\n")
@@ -509,7 +513,7 @@ Now let us see the results.
 Quantization
 ------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding the quantization layers into the
@@ -567,7 +571,7 @@ Please select below whether you would like to run Whisper quantization.
 Prepare calibration datasets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 First step is to prepare calibration datasets for quantization. Since we
 quantize whisper encoder and decoder separately, we need to prepare a
@@ -614,7 +618,7 @@ improves quantization quality.
 Quantize Whisper encoder and decoder models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Below we run the ``quantize`` function which calls ``nncf.quantize`` on
 Whisper encoder and decoder-with-past models. We don’t quantize
@@ -900,7 +904,7 @@ negligible.
 Run quantized model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Let’s compare the transcription results for original and quantized
 models.
@@ -966,7 +970,7 @@ models.
 Compare performance and accuracy of the original and quantized models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Finally, we compare original and quantized Whisper models from accuracy
 and performance stand-points.
@@ -1003,9 +1007,9 @@ decoder-with-past model forwards, and for the whole model inference too.
     
         def wrapper(*args, **kwargs):
             if not MEASURE_TIME:
-                return original_fn(\*args, \*\*kwargs)
+                return original_fn(*args, **kwargs)
             start_time = time.perf_counter()
-            result = original_fn(\*args, \*\*kwargs)
+            result = original_fn(*args, **kwargs)
             end_time = time.perf_counter()
             time_list.append(end_time - start_time)
             return result
@@ -1076,7 +1080,7 @@ decoder-with-past model forwards, and for the whole model inference too.
 Interactive demo
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -1124,9 +1128,9 @@ Interactive demo
 
 
 
+.. raw:: html
 
-
-
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
 .. parsed-literal::

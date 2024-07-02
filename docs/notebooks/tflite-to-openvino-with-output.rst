@@ -17,31 +17,31 @@ and do inference with a sample image.
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Preparation <#preparation>`__
+-  `Preparation <#Preparation>`__
 
-   -  `Install requirements <#install-requirements>`__
-   -  `Imports <#imports>`__
+   -  `Install requirements <#Install-requirements>`__
+   -  `Imports <#Imports>`__
 
--  `Download TFLite model <#download-tflite-model>`__
+-  `Download TFLite model <#Download-TFLite-model>`__
 -  `Convert a Model to OpenVINO IR
-   Format <#convert-a-model-to-openvino-ir-format>`__
+   Format <#Convert-a-Model-to-OpenVINO-IR-Format>`__
 -  `Load model using OpenVINO TensorFlow Lite
-   Frontend <#load-model-using-openvino-tensorflow-lite-frontend>`__
--  `Run OpenVINO model inference <#run-openvino-model-inference>`__
+   Frontend <#Load-model-using-OpenVINO-TensorFlow-Lite-Frontend>`__
+-  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
 
-   -  `Select inference device <#select-inference-device>`__
+   -  `Select inference device <#Select-inference-device>`__
 
--  `Estimate Model Performance <#estimate-model-performance>`__
+-  `Estimate Model Performance <#Estimate-Model-Performance>`__
 
 Preparation
 -----------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Install requirements
 ~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -60,9 +60,7 @@ Install requirements
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -77,7 +75,7 @@ Install requirements
 Imports
 ~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -91,7 +89,7 @@ Imports
 Download TFLite model
 ---------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -114,14 +112,14 @@ Download TFLite model
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/tflite-to-openvino/model/efficientnet_lite0_fp32_2.tflite')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-716/.workspace/scm/ov-notebook/notebooks/tflite-to-openvino/model/efficientnet_lite0_fp32_2.tflite')
 
 
 
 Convert a Model to OpenVINO IR Format
 -------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To convert the TFLite model to OpenVINO IR, model conversion Python API
 can be used. ``ov.convert_model`` function accepts the path to the
@@ -151,7 +149,7 @@ For TensorFlow Lite models support, refer to this
 Load model using OpenVINO TensorFlow Lite Frontend
 --------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 TensorFlow Lite models are supported via ``FrontEnd`` API. You may skip
 conversion to IR and read models directly by OpenVINO runtime API. For
@@ -167,7 +165,7 @@ this `tutorial <../openvino-api>`__.
 Run OpenVINO model inference
 ----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We can find information about model input preprocessing in its
 `description <https://tfhub.dev/tensorflow/lite-model/efficientnet/lite0/fp32/2>`__
@@ -184,7 +182,7 @@ on `TensorFlow Hub <https://tfhub.dev/>`__.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -246,7 +244,7 @@ select device from dropdown list for running inference using OpenVINO
 Estimate Model Performance
 --------------------------
 
- `Benchmark
+`back to top ⬆️ <#Table-of-contents:>`__ `Benchmark
 Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
 is used to measure the inference performance of the model on CPU and
 GPU.
@@ -271,18 +269,18 @@ GPU.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.3.0-15743-15257f1bac1
+    [ INFO ] Build ................................. 2024.3.0-15837-76a668b0662
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.3.0-15743-15257f1bac1
+    [ INFO ] Build ................................. 2024.3.0-15837-76a668b0662
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 9.38 ms
+    [ INFO ] Read model took 9.20 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,224,224,3]
@@ -296,7 +294,7 @@ GPU.
     [ INFO ] Model outputs:
     [ INFO ]     Softmax (node: 61) : f32 / [...] / [1,1000]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 219.02 ms
+    [ INFO ] Compile model took 189.13 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: TensorFlow_Lite_Frontend_IR
@@ -308,7 +306,7 @@ GPU.
     [ INFO ]     AFFINITY: Affinity.CORE
     [ INFO ]     CPU_DENORMALS_OPTIMIZATION: False
     [ INFO ]     CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
-    [ INFO ]     DYNAMIC_QUANTIZATION_GROUP_SIZE: 0
+    [ INFO ]     DYNAMIC_QUANTIZATION_GROUP_SIZE: 32
     [ INFO ]     ENABLE_CPU_PINNING: True
     [ INFO ]     ENABLE_HYPER_THREADING: True
     [ INFO ]     EXECUTION_DEVICES: ['CPU']
@@ -333,15 +331,15 @@ GPU.
     [ INFO ] Fill input 'images' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 7.48 ms
+    [ INFO ] First inference took 7.71 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            17478 iterations
-    [ INFO ] Duration:         15004.22 ms
+    [ INFO ] Count:            17322 iterations
+    [ INFO ] Duration:         15007.88 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        5.02 ms
-    [ INFO ]    Average:       5.01 ms
-    [ INFO ]    Min:           3.11 ms
-    [ INFO ]    Max:           16.24 ms
-    [ INFO ] Throughput:   1164.87 FPS
+    [ INFO ]    Median:        5.05 ms
+    [ INFO ]    Average:       5.06 ms
+    [ INFO ]    Min:           3.09 ms
+    [ INFO ]    Max:           13.62 ms
+    [ INFO ] Throughput:   1154.19 FPS
 

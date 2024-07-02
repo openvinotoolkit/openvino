@@ -25,29 +25,29 @@ the PaddleOCR is as follows:
 Table of contents:
 ^^^^^^^^^^^^^^^^^^
 
--  `Imports <#imports>`__
+-  `Imports <#Imports>`__
 
-   -  `Select inference device <#select-inference-device>`__
-   -  `Models for PaddleOCR <#models-for-paddleocr>`__
+   -  `Select inference device <#Select-inference-device>`__
+   -  `Models for PaddleOCR <#Models-for-PaddleOCR>`__
 
       -  `Download the Model for Text
-         Detection <#download-the-model-for-text-detection>`__
+         Detection <#Download-the-Model-for-Text-**Detection**>`__
       -  `Load the Model for Text
-         Detection <#load-the-model-for-text-detection>`__
+         Detection <#Load-the-Model-for-Text-**Detection**>`__
       -  `Download the Model for Text
-         Recognition <#download-the-model-for-text-recognition>`__
+         Recognition <#Download-the-Model-for-Text-**Recognition**>`__
       -  `Load the Model for Text Recognition with Dynamic
-         Shape <#load-the-model-for-text-recognition-with-dynamic-shape>`__
+         Shape <#Load-the-Model-for-Text-**Recognition**-with-Dynamic-Shape>`__
 
    -  `Preprocessing Image Functions for Text Detection and
-      Recognition <#preprocessing-image-functions-for-text-detection-and-recognition>`__
+      Recognition <#Preprocessing-Image-Functions-for-Text-Detection-and-Recognition>`__
    -  `Postprocessing Image for Text
-      Detection <#postprocessing-image-for-text-detection>`__
+      Detection <#Postprocessing-Image-for-Text-Detection>`__
    -  `Main Processing Function for
-      PaddleOCR <#main-processing-function-for-paddleocr>`__
+      PaddleOCR <#Main-Processing-Function-for-PaddleOCR>`__
 
 -  `Run Live PaddleOCR with
-   OpenVINO <#run-live-paddleocr-with-openvino>`__
+   OpenVINO <#Run-Live-PaddleOCR-with-OpenVINO>`__
 
 .. code:: ipython3
 
@@ -66,7 +66,7 @@ Table of contents:
 Imports
 -------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -103,7 +103,7 @@ Imports
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -134,7 +134,7 @@ select device from dropdown list for running inference using OpenVINO
 Models for PaddleOCR
 ~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 PaddleOCR includes two parts of deep learning models, text detection and
 text recognition. Pre-trained models used in the demo are downloaded and
@@ -180,7 +180,7 @@ files to load to CPU/GPU.
 Download the Model for Text **Detection**
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -200,7 +200,7 @@ Download the Model for Text **Detection**
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/paddle-o…
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/notebooks/paddle-o…
 
 
 .. parsed-literal::
@@ -212,7 +212,7 @@ Download the Model for Text **Detection**
 Load the Model for Text **Detection**
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -228,7 +228,7 @@ Load the Model for Text **Detection**
 Download the Model for Text **Recognition**
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -246,7 +246,7 @@ Download the Model for Text **Recognition**
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/paddle-o…
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/notebooks/paddle-o…
 
 
 .. parsed-literal::
@@ -258,7 +258,7 @@ Download the Model for Text **Recognition**
 Load the Model for Text **Recognition** with Dynamic Shape
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Input to text recognition model refers to detected bounding boxes with
 different image sizes, for example, dynamic input shapes. Hence:
@@ -289,7 +289,7 @@ different image sizes, for example, dynamic input shapes. Hence:
 Preprocessing Image Functions for Text Detection and Recognition
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Define preprocessing functions for text detection and recognition: 1.
 Preprocessing for text detection: resize and normalize input images. 2.
@@ -407,7 +407,7 @@ with Chinese text) for easy batching in inference.
 Postprocessing Image for Text Detection
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -448,7 +448,7 @@ Postprocessing Image for Text Detection
 Main Processing Function for PaddleOCR
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Run ``paddleOCR`` function in different operations, either a webcam or a
 video file. See the list of procedures below:
@@ -625,7 +625,7 @@ video file. See the list of procedures below:
 Run Live PaddleOCR with OpenVINO
 --------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Use a webcam as the video input. By default, the primary webcam is set
 with ``source=0``. If you have multiple webcams, each one will be
