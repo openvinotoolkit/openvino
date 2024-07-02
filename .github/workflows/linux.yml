@@ -312,7 +312,7 @@ jobs:
 
       - name: Store artifacts to a shared drive
         if: ${{ always() }}
-        uses: ./.github/actions/store_artifacts
+        uses: ./openvino/.github/actions/store_artifacts
         with:
           artifacts: |
             ${{ env.BUILD_DIR }}/openvino_package.tar.gz
@@ -322,7 +322,7 @@ jobs:
             ${{ env.BUILD_DIR }}/deb
           storage_dir: 'public_linux_ubuntu_20_04_release'
           storage_root: ${{ env.ARTIFACTS_SHARE }}
-          action_path: ${{ env.GITHUB_WORKSPACE }}/.github/actions/store_artifacts
+          action_path: ${{ env.GITHUB_WORKSPACE }}/openvino/.github/actions/store_artifacts
 
   Debian_Packages:
     name: Debian Packages
