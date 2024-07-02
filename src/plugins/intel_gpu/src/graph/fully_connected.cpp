@@ -197,7 +197,7 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
                 break;
             }
             // Check fused desc's input has full tensor, then do not fake alignment
-            if (orig_output_layout.get_tensor() == fused_op_input_layout.get_tensor()) {
+            if (orig_output_layout.get_shape() == fused_op_input_layout.get_shape()) {
                 can_apply_fake_alignment = false;
                 break;
             }
