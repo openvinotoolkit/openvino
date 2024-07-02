@@ -170,7 +170,8 @@ Depending on the model format types that are used in the application in ``ov::Co
 Examples
 ####################
 
-**CPU + OpenVINO IR in C application**
+CPU + OpenVINO IR in C application
++++++++++++++++++++++++++++++++++++++++
 
 In this example, the application is written in C, performs inference on CPU, and reads models stored in the OpenVINO IR format.
 
@@ -181,7 +182,8 @@ The following libraries are used: ``openvino_c``, ``openvino``, ``openvino_intel
 - ``openvino_intel_cpu_plugin`` is used for inference.
 - ``openvino_ir_frontend`` is used to read source models.
 
-**MULTI execution on GPU and CPU in `tput` mode**
+MULTI execution on GPU and CPU in `tput` mode
++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 In this example, the application is written in C++, performs inference
 :doc:`simultaneously on GPU and CPU devices <../running-inference/inference-devices-and-modes/multi-device>` with
@@ -198,7 +200,8 @@ The following libraries are used: ``openvino``, ``openvino_intel_gpu_plugin``, `
   If there is no such plugin, :doc:`Automatic Batching <../running-inference/inference-devices-and-modes/automatic-batching>` is turned off.
 - ``openvino_onnx_frontend`` is used to read source models.
 
-**Auto-Device Selection between GPU and CPU**
+Auto-Device Selection between GPU and CPU
++++++++++++++++++++++++++++++++++++++++++++++++++
 
 In this example, the application is written in C++, performs inference
 with the :doc:`Automatic Device Selection <../running-inference/inference-devices-and-modes/auto-device-selection>`
