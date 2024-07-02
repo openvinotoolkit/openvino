@@ -21,6 +21,8 @@ namespace autobatch_plugin {
 
 std::vector<ov::PropertyName> supported_configKeys = {
     ov::PropertyName{ov::device::priorities.name(), ov::PropertyMutability::RW},
+    ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO},
+    ov::PropertyName{ov::device::full_name.name(), ov::PropertyMutability::RO},
     ov::PropertyName{ov::auto_batch_timeout.name(), ov::PropertyMutability::RW},
     ov::PropertyName{ov::enable_profiling.name(), ov::PropertyMutability::RW}};
 
