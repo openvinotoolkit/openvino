@@ -53,7 +53,7 @@ void regclass_graph_PartialShape(py::module m) {
     .def("__eq__", [](const ov::PartialShape& self, const py::tuple& tpl) {
         if (self.rank().is_static() && self.rank().get_length() != tpl.size()) return false;
         for (size_t i = 0; i < self.rank().get_length(); ++i) {
-            if (!self[i].is_dynamic() && self[i].get_length() != tpl[i].cast<int64_t>()) return false;
+            if (self[i].is_static() && self[i].get_length() != tpl[i].cast<int64_t>()) return false;
         }
         return true;
     });
