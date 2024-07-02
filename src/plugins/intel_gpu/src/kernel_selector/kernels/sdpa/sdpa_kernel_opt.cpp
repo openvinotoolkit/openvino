@@ -174,18 +174,32 @@ KernelsData SDPAKernelOpt::GetKernelsData(const Params& params) const {
     }
 
     // Implementation contains multiple kernels:
-    // kernel[0] - single token generation stage (2nd token)
-    // kernel[1] - multi tokens processing stage (1st token)
-    // kernel[2] - results aggregation
+    // kernel[KernelsTypes::SINGLE_TOKEN] - single token generation stage (2nd token)
+    // kernel[KernelsTypes::MULTI_TOKENS] - multi tokens processing stage (1st token)
+    // kernel[KernelsTypes::FINALIZATION] - results aggregation for 2nd token generation
 
-    const size_t kernels_num = KernelsTypes::TOTAL_KERNELS_NUM;
-    KernelData kd = KernelData::Default<sdpa_params>(params, kernels_num);
+    std::vector<KernelsTypes> kernels_type;
+    const auto& prim_params = static_cast<const sdpa_params&>(params);
+
+    if (params.is_shape_agnostic) {
+        kernels_type = { KernelsTypes::SINGLE_TOKEN, KernelsTypes::MULTI_TOKENS, KernelsTypes::FINALIZATION };
+    } else {
+        TransposedDimensionAccessHelperBase dims_q(prim_params.inputs[0], prim_params.input0_order);
+        const auto target_seq_len = dims_q.y_dim().v;
+        const auto is_prefill = target_seq_len > 1;
+
+        if (is_prefill) {
+            kernels_type = { KernelsTypes::MULTI_TOKENS };
+        } else {
+            kernels_type = { KernelsTypes::SINGLE_TOKEN, KernelsTypes::FINALIZATION };
+        }
+    }
+
+    KernelData kd = KernelData::Default<sdpa_params>(params, kernels_type.size());
     kd.needs_sub_kernels_sync = true;
 
     GetUpdateDispatchDataFunc(kd);
-
-    const auto& prim_params = dynamic_cast<const sdpa_params&>(params);
-    for (size_t kernel_idx = 0; kernel_idx < kernels_num; kernel_idx++) {
+    for (const auto& kernel_idx : kernels_type) {
         auto dispatch_data = SetDefault(prim_params, kernel_idx);
         auto kernel_name = GetKernelName(kernelName, static_cast<KernelsTypes>(kernel_idx), prim_params.indirect_axis != -1);
         auto entry_point = GetEntryPoint(kernel_name, prim_params.layerID, params);
@@ -215,12 +229,14 @@ KernelsData SDPAKernelOpt::GetKernelsData(const Params& params) const {
         auto& output = prim_params.outputs[0];
         auto head_size = output.X().v;
 
-        auto buf_dt_size = 4;
-        auto buf_elements_count = (num_of_partitions == 1) ? 1 : output.LogicalSize() / head_size * num_of_partitions;
+        auto can_skip_allocation = num_of_partitions == 1 || kernel_idx == KernelsTypes::MULTI_TOKENS;
+
+        auto buf_dt_size = BytesPerElement(get_softmax_acc_type());
+        auto buf_elements_count = can_skip_allocation ? 1 : output.LogicalSize() / head_size * num_of_partitions;
         auto buf_size = buf_elements_count * buf_dt_size;
 
-        auto tmp_out_dt_size = 4;
-        auto tmp_out_elements_count = (num_of_partitions == 1) ? 1 : output.LogicalSize() * num_of_partitions;
+        auto tmp_out_dt_size = output.ElementSize();
+        auto tmp_out_elements_count = can_skip_allocation ? 1 : output.LogicalSize() * num_of_partitions;
         auto tmp_out_size = tmp_out_elements_count * tmp_out_dt_size;
 
         if (prim_params.indirect_axis != -1 && kernel_idx != KernelsTypes::FINALIZATION)
