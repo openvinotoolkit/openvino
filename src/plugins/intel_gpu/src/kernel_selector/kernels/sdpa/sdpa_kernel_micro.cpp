@@ -436,7 +436,7 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
         };
 
         for (size_t i = 0; i < target_definitions.size(); i++) {
-            definitions.AddConstant(MakeJitConstant(target_definitions[order[i]], source_definitions[i]));
+            definitions.AddConstant(MakeJitConstant(target_definitions[i], source_definitions[order[i]]));
         }
 
         return definitions;
@@ -559,7 +559,7 @@ clKernelData SDPAKernelMicro::get_kernel_data(const sdpa_params& params, bool is
 }
 
 KernelsData SDPAKernelMicro::GetKernelsData(const Params& params) const {
-    const size_t num_kernels = 2;
+    const size_t num_kernels = params.is_shape_agnostic ? 2 : 1;
     KernelData kd = KernelData::Default<sdpa_params>(params, num_kernels);
     const auto& prim_params = dynamic_cast<const sdpa_params&>(params);
 
