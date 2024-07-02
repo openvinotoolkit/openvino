@@ -92,7 +92,7 @@ const std::vector<std::vector<int>> axesGather = {
 
 std::vector<CPUSpecificParams> cpuParams_5D = {
         CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {}),
-        CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),	
+        CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
         CPUSpecificParams({ncdhw}, {ncdhw}, {}, {}),
 };
 
