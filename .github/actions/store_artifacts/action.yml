@@ -1,0 +1,25 @@
+name: 'Store artifacts'
+description: 'Store given artifacts in a proper place on a shared drive'
+inputs:
+  artifacts:
+    description: "Multi-line list of artifacts to store"
+    required: true
+  storage_dir:
+    description: "Directory name to store artifacts in"
+    required: true
+  storage_root:
+    description: "Root path of the storage to place artifacts to"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    # TODO: also generate/collect and store manifest based on the repositories checked out in the workflow
+
+    - name: 'Copy artifacts'
+      shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
+      run: |
+        python ${{ github.action_path }}/store_artifacts.py \
+          -a "${{ inputs.artifacts }}" \
+          --storage_dir "${{ inputs.storage_dir }}" \
+          --storage_root "${{ inputs.storage_root }}"
