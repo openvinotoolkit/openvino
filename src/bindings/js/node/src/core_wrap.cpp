@@ -190,11 +190,6 @@ void FinalizerCallbackPath(Napi::Env env, void* finalizeData, TsfnContextPath* c
     delete context;
 };
 
-void ImportModelFinalizer(Napi::Env env, void* finalizeData, ImportModelContext* context) {
-    context->nativeThread.join();
-    delete context;
-};
-
 void compileModelThreadModel(TsfnContextModel* context) {
     ov::Core core;
     context->_compiled_model = core.compile_model(context->_model, context->_device, context->_config);
@@ -360,6 +355,11 @@ Napi::Value CoreWrap::import_model(const Napi::CallbackInfo& info) {
     }
 }
 
+void ImportModelFinalizer(Napi::Env env, void* finalizeData, ImportModelContext* context) {
+    context->nativeThread.join();
+    delete context;
+};
+
 void importModelThread(ImportModelContext* context) {
     {
         const std::lock_guard<std::mutex> lock(core_mutex);
@@ -367,15 +367,7 @@ void importModelThread(ImportModelContext* context) {
     }
 
     auto callback = [](Napi::Env env, Napi::Function, ImportModelContext* context) {
-        const auto& prototype = env.GetInstanceData<AddonData>()->compiled_model;
-        if (!prototype) {
-            OPENVINO_THROW("Invalid pointer to CompiledModel prototype.");
-        }
-        auto obj = prototype.New({});
-        const auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
-        cm->set_compiled_model(context->_compiled_model);
-
-        context->deferred.Resolve(obj);
+        context->deferred.Resolve(cpp_to_js(env, context->_compiled_model));
     };
 
     context->tsfn.BlockingCall(context, callback);

@@ -5,6 +5,7 @@
 
 #include "node/include/tensor.hpp"
 #include "node/include/type_validation.hpp"
+#include "node/include/compiled_model.hpp"
 
 const std::vector<std::string>& get_supported_types() {
     static const std::vector<std::string> supported_element_types =
@@ -254,6 +255,17 @@ Napi::Array cpp_to_js<ov::Dimension, Napi::Array>(const Napi::CallbackInfo& info
 template <>
 Napi::Boolean cpp_to_js<bool, Napi::Boolean>(const Napi::CallbackInfo& info, const bool value) {
     return Napi::Boolean::New(info.Env(), value);
+}
+
+Napi::Object cpp_to_js(const Napi::Env& env, const ov::CompiledModel& compiled_model) {
+    const auto& prototype = env.GetInstanceData<AddonData>()->compiled_model;
+    if (!prototype) {
+        OPENVINO_THROW("Invalid pointer to CompiledModel prototype.");
+    }
+    auto obj = prototype.New({});
+    const auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
+    cm->set_compiled_model(compiled_model);
+    return obj;
 }
 
 ov::TensorVector parse_input_data(const Napi::Value& input) {
