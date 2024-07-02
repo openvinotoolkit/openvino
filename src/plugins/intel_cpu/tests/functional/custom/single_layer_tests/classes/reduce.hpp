@@ -49,6 +49,7 @@ namespace Reduce {
 
 const std::vector<bool>& keepDims();
 const std::vector<std::vector<int>>& axes();
+const std::vector<std::vector<int>>& axes5D();
 const std::vector<std::vector<int>>& axesND();
 const std::vector<ov::test::utils::OpType>& opTypes();
 const std::vector<utils::ReductionType>& reductionTypes();
