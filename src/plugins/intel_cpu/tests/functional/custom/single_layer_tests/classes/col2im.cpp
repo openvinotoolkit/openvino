@@ -13,27 +13,6 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 namespace Col2Im {
-using Col2ImSpecificParams =  std::tuple<
-        InputShape,                                         // data shape
-        std::vector<int64_t>,                               // output size values
-        std::vector<int64_t>,                               // kernel size values
-        ov::Strides,                                        // strides
-        ov::Strides,                                        // dilations
-        ov::Shape,                                          // pads_begin
-        ov::Shape                                           // pads_end
->;
-
-using Col2ImLayerTestParams = std::tuple<
-        Col2ImSpecificParams,
-        ElementType,                                        // data precision
-        ElementType,                                        // index precision
-        ov::test::TargetDevice                              // device name
->;
-
-using Col2ImLayerCPUTestParamsSet = std::tuple<
-        Col2ImLayerTestParams,
-        CPUSpecificParams>;
-
 std::string Col2ImLayerCPUTest::getTestCaseName(testing::TestParamInfo<Col2ImLayerCPUTestParamsSet> obj) {
         Col2ImLayerTestParams basicParamsSet;
         CPUSpecificParams cpuParams;

@@ -42,7 +42,7 @@ public:
    static std::string getTestCaseName(testing::TestParamInfo<Col2ImLayerCPUTestParamsSet> obj);
 protected:
    void SetUp() override;
-   void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes);
+   void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 };
 
 const std::vector<ElementType> indexPrecisions = {
