@@ -13,6 +13,10 @@
 #include "node/include/type_validation.hpp"
 #include "openvino/util/common_util.hpp"
 
+namespace {
+std::mutex core_mutex;
+}
+
 void validate_set_property_args(const Napi::CallbackInfo& info) {
     const size_t args_length = info.Length();
     const bool is_device_specified = info[0].IsString();
@@ -357,9 +361,12 @@ Napi::Value CoreWrap::import_model(const Napi::CallbackInfo& info) {
 }
 
 void importModelThread(ImportModelContext* context) {
-    context->_compiled_model = context->_core.import_model(context->_stream, context->_device, context->_config);
+    {
+        const std::lock_guard<std::mutex> lock(core_mutex);
+        context->_compiled_model = context->_core.import_model(context->_stream, context->_device, context->_config);
+    }
 
-    auto callback = [](Napi::Env env, Napi::Function, ImportModelContext* context) {       
+    auto callback = [](Napi::Env env, Napi::Function, ImportModelContext* context) {
         const auto& prototype = env.GetInstanceData<AddonData>()->compiled_model;
         if (!prototype) {
             OPENVINO_THROW("Invalid pointer to CompiledModel prototype.");
