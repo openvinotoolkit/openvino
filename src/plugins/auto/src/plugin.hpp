@@ -66,6 +66,7 @@ public:
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const override;
+    MOCKTESTMACRO std::map<std::string, double> get_device_utilization(const std::string& device) const;
 
 private:
     std::shared_ptr<ov::ICompiledModel> compile_model_impl(const std::string& model_path,

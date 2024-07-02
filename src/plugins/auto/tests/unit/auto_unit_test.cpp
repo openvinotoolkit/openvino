@@ -126,6 +126,11 @@ ov::mock_auto_plugin::tests::BaseTest::BaseTest(const MODELTYPE modelType) {
             std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
             return devices;
         });
+
+    ON_CALL(*plugin, get_device_utilization).WillByDefault([](const std::string& device) {
+        std::map<std::string, double> result;
+        return result;
+    });
 }
 
 ov::mock_auto_plugin::tests::BaseTest::~BaseTest() {
@@ -151,7 +156,6 @@ ov::mock_auto_plugin::tests::AutoTest::AutoTest(const MODELTYPE modelType) : Bas
     core = std::make_shared<NiceMock<MockICore>>();
     // replace core with mock Icore
     plugin->set_core(core);
-    plugin->set_property({ov::intel_auto::device_utilization_threshold(0)});
     std::vector<ov::PropertyName> supportedProps = {ov::compilation_num_threads};
     ON_CALL(*core, get_property(_, StrEq(ov::supported_properties.name()), _))
         .WillByDefault(RETURN_MOCK_VALUE(supportedProps));
