@@ -1214,32 +1214,33 @@ struct Convert<bool> : element::NotSupported<void> {
     }
 };
 
-#define CONSTANT_CAST_VECTOR(DTYPE, ET_REQ_VALIDATION)                                                              \
+#define CONSTANT_CAST_VECTOR(DTYPE, ET_REQ_VALIDATION)                                                               \
     template <>                                                                                                      \
-    OPENVINO_API std::vector<DTYPE> Constant::cast_vector(int64_t num_elements) const {                              \
+    OPENVINO_API std::vector<DTYPE> Constant::cast_vector(int64_t num_elements, bool validate_data) const {          \
         std::vector<DTYPE> output(get_num_elements_to_cast(num_elements));                                           \
         using namespace ov::element;                                                                                 \
-        IfTypeOf<ET_REQ_VALIDATION>::apply<Validate<DTYPE>>(m_element_type, get_data_ptr(), output.size());          \
+        if (validate_data) {                                                                                         \
+            IfTypeOf<ET_REQ_VALIDATION>::apply<Validate<DTYPE>>(m_element_type, get_data_ptr(), output.size());      \
+        }                                                                                                            \
         IfTypeOf<SUPPORTED_ET>::apply<Convert<DTYPE>>(m_element_type, get_data_ptr(), output.data(), output.size()); \
         return output;                                                                                               \
     }
 
 template <>
-OPENVINO_API std::vector<bool> Constant::cast_vector(int64_t num_elements) const {
+OPENVINO_API std::vector<bool> Constant::cast_vector(int64_t num_elements, bool) const {
     std::vector<bool> output(get_num_elements_to_cast(num_elements));
     using namespace ov::element;
     IfTypeOf<SUPPORTED_ET>::apply<Convert<bool>>(m_element_type, get_data_ptr(), output.begin(), output.size());
     return output;
 }
 
-CONSTANT_CAST_VECTOR(char,
-                      OV_PP_ET_LIST(bf16, f16, f32, f64, i8, i16, i32, i64, u16, u32, u64, f8e8m0, f8e4m3, f8e5m2))
+CONSTANT_CAST_VECTOR(char, OV_PP_ET_LIST(bf16, f16, f32, f64, i8, i16, i32, i64, u16, u32, u64, f8e8m0, f8e4m3, f8e5m2))
 CONSTANT_CAST_VECTOR(signed char, OV_PP_ET_LIST(bf16, f16, i16, i32, i64, u8, u16, u32, u64, f8e8m0, f8e4m3, f8e5m2))
 CONSTANT_CAST_VECTOR(unsigned char,
-                      OV_PP_ET_LIST(bf16, f16, f32, f64, i8, i16, i32, i64, u16, u32, u64, f8e8m0, f8e4m3, f8e5m2))
+                     OV_PP_ET_LIST(bf16, f16, f32, f64, i8, i16, i32, i64, u16, u32, u64, f8e8m0, f8e4m3, f8e5m2))
 CONSTANT_CAST_VECTOR(short, OV_PP_ET_LIST(bf16, f16, i32, i64, u16, u32, u64, f8e8m0, f8e5m2))
 CONSTANT_CAST_VECTOR(unsigned short,
-                      OV_PP_ET_LIST(bf16, f16, f32, f64, i8, i16, i32, i64, u32, u64, f8e8m0, f8e4m3, f8e5m2))
+                     OV_PP_ET_LIST(bf16, f16, f32, f64, i8, i16, i32, i64, u32, u64, f8e8m0, f8e4m3, f8e5m2))
 CONSTANT_CAST_VECTOR(int, OV_PP_ET_LIST(bf16, f16, i64, u32, u64, f8e8m0))
 CONSTANT_CAST_VECTOR(unsigned int, OV_PP_ET_LIST(bf16, f16, f32, f64, i8, i16, i32, i64, u64, f8e8m0, f8e4m3, f8e5m2))
 CONSTANT_CAST_VECTOR(long, OV_PP_ET_LIST(bf16, f16, u32, u64))

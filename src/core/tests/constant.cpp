@@ -2692,6 +2692,17 @@ TEST(constant, cast_vector) {
     }
 }
 
+TEST(constant, cast_vector_with_validation) {
+    const auto c = op::v0::Constant::create(element::i32, Shape{5}, {1000, -1, 2, 9, 60000});
+    const auto error_msg = std::string("Some values are outside the range.");
+
+    OV_EXPECT_THROW(std::ignore = c->cast_vector<int8_t>(-1, true), Exception, HasSubstr(error_msg));
+    OV_EXPECT_THROW(std::ignore = c->cast_vector<int16_t>(-1, true), Exception, HasSubstr(error_msg));
+    OV_EXPECT_THROW(std::ignore = c->cast_vector<uint16_t>(-1, true), Exception, HasSubstr(error_msg));
+
+    EXPECT_NO_THROW(std::ignore = c->cast_vector<int64_t>(-1, true));
+}
+
 TEST(constant, cast_vector_ov_string) {
     element::Type_t type = element::string;
     std::vector<std::string> data = {"a", "b", "c", "d", "e", "f", "g", "h"};

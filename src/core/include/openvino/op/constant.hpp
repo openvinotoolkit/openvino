@@ -290,9 +290,10 @@ public:
     ///
     /// \tparam T             Type to which data vector's entries will be cast.
     /// \param  num_elements  (Optional) Number of elements to cast. In default case returns all elements
+    /// \param  validate_data (Optional) Enable validation data on casting. Default false, no validation.
     /// \return    Constant's data vector.
     template <typename T>
-    std::vector<T> cast_vector(int64_t num_elements = -1) const {
+    std::vector<T> cast_vector(int64_t num_elements = -1, bool validate_data = false) const {
         std::vector<T> rc;
         using Type_t = element::Type_t;
 
@@ -301,34 +302,34 @@ public:
 
         switch (m_element_type) {
         case Type_t::boolean:
-            cast_vector<Type_t::boolean>(rc, num_elements_to_cast);
+            cast_vector<Type_t::boolean>(rc, num_elements_to_cast, validate_data);
             break;
         case Type_t::bf16:
-            cast_vector<Type_t::bf16>(rc, num_elements_to_cast);
+            cast_vector<Type_t::bf16>(rc, num_elements_to_cast, validate_data);
             break;
         case Type_t::f16:
-            cast_vector<Type_t::f16>(rc, num_elements_to_cast);
+            cast_vector<Type_t::f16>(rc, num_elements_to_cast, validate_data);
             break;
         case Type_t::f32:
-            cast_vector<Type_t::f32>(rc, num_elements_to_cast);
+            cast_vector<Type_t::f32>(rc, num_elements_to_cast, validate_data);
             break;
         case Type_t::f64:
-            cast_vector<Type_t::f64>(rc, num_elements_to_cast);
+            cast_vector<Type_t::f64>(rc, num_elements_to_cast, validate_data);
             break;
         case Type_t::i4:
             cast_lp_vector<Type_t::i4>(rc, num_elements_to_cast);
             break;
         case Type_t::i8:
-            cast_vector<Type_t::i8>(rc, num_elements_to_cast);
+            cast_vector<Type_t::i8>(rc, num_elements_to_cast, validate_data);
             break;
         case Type_t::i16:
-            cast_vector<Type_t::i16>(rc, num_elements_to_cast);
+            cast_vector<Type_t::i16>(rc, num_elements_to_cast, validate_data);
             break;
         case Type_t::i32:
-            cast_vector<Type_t::i32>(rc, num_elements_to_cast);
+            cast_vector<Type_t::i32>(rc, num_elements_to_cast, validate_data);
             break;
         case Type_t::i64:
-            cast_vector<Type_t::i64>(rc, num_elements_to_cast);
+            cast_vector<Type_t::i64>(rc, num_elements_to_cast, validate_data);
             break;
         case Type_t::u1:
             cast_lp_vector<Type_t::u1>(rc, num_elements_to_cast);
@@ -346,31 +347,31 @@ public:
             cast_lp_vector<Type_t::u6>(rc, num_elements_to_cast);
             break;
         case Type_t::u8:
-            cast_vector<Type_t::u8>(rc, num_elements_to_cast);
+            cast_vector<Type_t::u8>(rc, num_elements_to_cast, validate_data);
             break;
         case Type_t::u16:
-            cast_vector<Type_t::u16>(rc, num_elements_to_cast);
+            cast_vector<Type_t::u16>(rc, num_elements_to_cast, validate_data);
             break;
         case Type_t::u32:
-            cast_vector<Type_t::u32>(rc, num_elements_to_cast);
+            cast_vector<Type_t::u32>(rc, num_elements_to_cast, validate_data);
             break;
         case Type_t::u64:
-            cast_vector<Type_t::u64>(rc, num_elements_to_cast);
+            cast_vector<Type_t::u64>(rc, num_elements_to_cast, validate_data);
             break;
         case Type_t::f8e4m3:
-            cast_vector<Type_t::f8e4m3>(rc, num_elements_to_cast);
+            cast_vector<Type_t::f8e4m3>(rc, num_elements_to_cast, validate_data);
             break;
         case Type_t::f8e5m2:
-            cast_vector<Type_t::f8e5m2>(rc, num_elements_to_cast);
+            cast_vector<Type_t::f8e5m2>(rc, num_elements_to_cast, validate_data);
             break;
         case Type_t::string:
-            cast_vector<Type_t::string>(rc, num_elements_to_cast);
+            cast_vector<Type_t::string>(rc, num_elements_to_cast, validate_data);
             break;
         case Type_t::f4e2m1:
             cast_lp_vector<Type_t::f4e2m1>(rc, num_elements_to_cast);
             break;
         case Type_t::f8e8m0:
-            cast_vector<Type_t::f8e8m0>(rc, num_elements_to_cast);
+            cast_vector<Type_t::f8e8m0>(rc, num_elements_to_cast, validate_data);
             break;
         default:
             OPENVINO_THROW("unsupported type");
@@ -460,29 +461,38 @@ private:
         return true;
     }
 
+    /// \brief Cast constant data to std::vector of User type.
+    /// This version is for user type which is unknown for OpenVINO.
+    /// The minimum requirement for this type is to support conversion from OV type and support std::numeric_limits.
+    ///
+    /// \param output_vector  Output vector with casted data.
+    /// \param num_elements   number of elements to cast from constant.
+    /// \param validate_data  Enable validation of constant data if in range of user type.
     template <
         element::Type_t Type,
-        class OUT_T,
-        typename std::enable_if<Type != element::string && !std::is_same<OUT_T, std::string>::value>::type* = nullptr>
-    void cast_vector(std::vector<OUT_T>& output_vector, size_t num_elements) const {
-        using InputT = ov::fundamental_type_for<Type>;
-        auto first = get_data_ptr<InputT>();
-        std::transform(first, first + num_elements, std::back_inserter(output_vector), [](const InputT c) {
-            OPENVINO_ASSERT(in_type_range<OUT_T>(c),
+        class UserT,
+        typename std::enable_if<Type != element::string && !std::is_same<UserT, std::string>::value>::type* = nullptr>
+    void cast_vector(std::vector<UserT>& output_vector, size_t num_elements, bool validate_data) const {
+        using T = ov::fundamental_type_for<Type>;
+
+        const auto cast_to_user_type = validate_data ? [](const T c){
+                     OPENVINO_ASSERT(in_type_range<UserT>(c),
                             "Cannot cast vector from ",
-                            element::from<InputT>(),
+                            element::from<T>(),
                             " constant to ",
-                            element::from<OUT_T>(),
+                            element::from<UserT>(),
                             ". Some values are outside the range. Example: ",
                             c);
-            return static_cast<OUT_T>(c);
-        });
+            return static_cast<UserT>(c);} : [](const T c){ return static_cast<UserT>(c);};
+
+        auto first = get_data_ptr<T>();
+        std::transform(first, first + num_elements, std::back_inserter(output_vector), cast_to_user_type);
     }
 
     template <element::Type_t Type,
               class U,
               typename std::enable_if<Type == element::string && std::is_same<U, std::string>::value>::type* = nullptr>
-    void cast_vector(std::vector<U>& output_vector, size_t num_elements) const {
+    void cast_vector(std::vector<U>& output_vector, size_t num_elements, bool) const {
         const auto p = get_data_ptr<Type>();
         std::copy_n(p, num_elements, std::back_inserter(output_vector));
     }
@@ -491,7 +501,7 @@ private:
         element::Type_t Type,
         class U,
         typename std::enable_if<(Type == element::string) != std::is_same<U, std::string>::value>::type* = nullptr>
-    void cast_vector(std::vector<U>& output, size_t num_elements) const {
+    void cast_vector(std::vector<U>& output, size_t num_elements, bool) const {
         OPENVINO_THROW("'cast_vector' does not support casting Constant of type ",
                        Type,
                        " into std::vector of ",
@@ -514,7 +524,7 @@ private:
 
     template <element::Type_t ET>
     void cast_lp_vector(std::vector<std::string>& output, size_t num_elements) const {
-        cast_vector<element::i8>(output, num_elements);
+        cast_vector<element::i8>(output, num_elements, false);
     }
 
     template <element::Type_t Type,
@@ -1164,37 +1174,37 @@ CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, double)
 #undef CONSTANT_WRITE_BUFFER_SPECIALIZATION
 
 template <>
-OPENVINO_API std::vector<bool> Constant::cast_vector(int64_t num_elements) const;
+OPENVINO_API std::vector<bool> Constant::cast_vector(int64_t num_elements, bool validate_data) const;
 template <>
-OPENVINO_API std::vector<char> Constant::cast_vector(int64_t num_elements) const;
+OPENVINO_API std::vector<char> Constant::cast_vector(int64_t num_elements, bool validate_data) const;
 template <>
-OPENVINO_API std::vector<signed char> Constant::cast_vector(int64_t num_elements) const;
+OPENVINO_API std::vector<signed char> Constant::cast_vector(int64_t num_elements, bool validate_data) const;
 template <>
-OPENVINO_API std::vector<unsigned char> Constant::cast_vector(int64_t num_elements) const;
+OPENVINO_API std::vector<unsigned char> Constant::cast_vector(int64_t num_elements, bool validate_data) const;
 template <>
-OPENVINO_API std::vector<short> Constant::cast_vector(int64_t num_elements) const;
+OPENVINO_API std::vector<short> Constant::cast_vector(int64_t num_elements, bool validate_data) const;
 template <>
-OPENVINO_API std::vector<unsigned short> Constant::cast_vector(int64_t num_elements) const;
+OPENVINO_API std::vector<unsigned short> Constant::cast_vector(int64_t num_elements, bool validate_data) const;
 template <>
-OPENVINO_API std::vector<int> Constant::cast_vector(int64_t num_elements) const;
+OPENVINO_API std::vector<int> Constant::cast_vector(int64_t num_elements, bool validate_data) const;
 template <>
-OPENVINO_API std::vector<unsigned int> Constant::cast_vector(int64_t num_elements) const;
+OPENVINO_API std::vector<unsigned int> Constant::cast_vector(int64_t num_elements, bool validate_data) const;
 template <>
-OPENVINO_API std::vector<long> Constant::cast_vector(int64_t num_elements) const;
+OPENVINO_API std::vector<long> Constant::cast_vector(int64_t num_elements, bool validate_data) const;
 template <>
-OPENVINO_API std::vector<unsigned long> Constant::cast_vector(int64_t num_elements) const;
+OPENVINO_API std::vector<unsigned long> Constant::cast_vector(int64_t num_elements, bool validate_data) const;
 template <>
-OPENVINO_API std::vector<long long> Constant::cast_vector(int64_t num_elements) const;
+OPENVINO_API std::vector<long long> Constant::cast_vector(int64_t num_elements, bool validate_data) const;
 template <>
-OPENVINO_API std::vector<unsigned long long> Constant::cast_vector(int64_t num_elements) const;
+OPENVINO_API std::vector<unsigned long long> Constant::cast_vector(int64_t num_elements, bool validate_data) const;
 template <>
-OPENVINO_API std::vector<float16> Constant::cast_vector(int64_t num_elements) const;
+OPENVINO_API std::vector<float16> Constant::cast_vector(int64_t num_elements, bool validate_data) const;
 template <>
-OPENVINO_API std::vector<bfloat16> Constant::cast_vector(int64_t num_elements) const;
+OPENVINO_API std::vector<bfloat16> Constant::cast_vector(int64_t num_elements, bool validate_data) const;
 template <>
-OPENVINO_API std::vector<float> Constant::cast_vector(int64_t num_elements) const;
+OPENVINO_API std::vector<float> Constant::cast_vector(int64_t num_elements, bool validate_data) const;
 template <>
-OPENVINO_API std::vector<double> Constant::cast_vector(int64_t num_elements) const;
+OPENVINO_API std::vector<double> Constant::cast_vector(int64_t num_elements, bool validate_data) const;
 
 }  // namespace v0
 }  // namespace op
