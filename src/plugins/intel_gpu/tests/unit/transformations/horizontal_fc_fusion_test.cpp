@@ -34,7 +34,7 @@ namespace intel_gpu {
 TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_no_bias_no_zp) {
     std::vector<int64_t> pattern = {7, -1};
     {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 7, 4096});
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 7, 4096});
         auto weight1 = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{1024, 4096});
         weight1->set_friendly_name("weight1_1");
         auto weight2 = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{512, 4096});
@@ -62,7 +62,7 @@ TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_no_bias_no_zp) {
         manager.register_pass<FullyConnectedHorizontalFusion>();
     }
     {
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 7, 4096});
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 7, 4096});
         auto weight1 = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{1024, 4096});
         weight1->set_friendly_name("weight2_1");
         auto weight2 = std::make_shared<ov::op::v0::Constant>(ov::element::u4, ov::Shape{512, 4096});
