@@ -3,9 +3,9 @@
 
 #include "node/include/helper.hpp"
 
+#include "node/include/compiled_model.hpp"
 #include "node/include/tensor.hpp"
 #include "node/include/type_validation.hpp"
-#include "node/include/compiled_model.hpp"
 
 const std::vector<std::string>& get_supported_types() {
     static const std::vector<std::string> supported_element_types =
