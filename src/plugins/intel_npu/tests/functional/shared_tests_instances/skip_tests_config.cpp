@@ -300,28 +300,10 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*CompilationForSpecificPlatform.*(3800|3900).*",
         });
 
-        // [Track number: E#67741]
-        _skipRegistry.addPatterns(
-                "Cannot call setShape for Blobs", {
-                R"(.*(smoke_Behavior|smoke_Auto_Behavior|smoke_Multi_Behavior).*OVInferRequestIOTensorTest.*canInferAfterIOBlobReallocation.*)",
-                R"(.*(smoke_Behavior|smoke_Auto_Behavior|smoke_Multi_Behavior).*OVInferRequestIOTensorTest.*InferStaticNetworkSetChangedInputTensorThrow.*targetDevice=(NPU_|MULTI_configItem=MULTI_DEVICE_PRIORITIES_NPU).*)"
-        });
-
         // [Track number: E#67749]
         _skipRegistry.addPatterns(
                 "Can't loadNetwork without cache for ReadConcatSplitAssign with precision f32", {
                 ".*CachingSupportCase_NPU.*CompileModelCacheTestBase.*CompareWithRefImpl.*ReadConcatSplitAssign.*",
-        });
-
-        // [Tracking number: E#99817]
-        _skipRegistry.addPatterns(
-                "NPU Plugin currently fails to get a valid output in these test cases", {
-                ".*OVInferRequestIOTensorTest.InferStaticNetworkSetChangedInputTensorThrow.*",
-                ".*OVInferRequestIOTensorTestNPU.InferStaticNetworkSetChangedInputTensorThrow.*",
-                R"(.*OVInferRequestIOTensorTestNPU.InferStaticNetworkSetChangedInputTensorThrow/targetDevice=NPU3720_.*)",
-                R"(.*OVInferRequestIOTensorTestNPU.InferStaticNetworkSetChangedInputTensorThrow/targetDevice=NPU3720_configItem=MULTI_DEVICE_PRIORITIES_NPU_.*)",
-                R"(.*OVInferRequestIOTensorTest.InferStaticNetworkSetChangedInputTensorThrow/targetDevice=NPU3720_.*)",
-                R"(.*OVInferRequestIOTensorTest.InferStaticNetworkSetChangedInputTensorThrow/targetDevice=NPU3720_configItem=MULTI_DEVICE_PRIORITIES_NPU_.*)",
         });
 
         // [Track number: E#68774]
@@ -355,7 +337,6 @@ std::vector<std::string> disabledTestPatterns() {
                 "Problems with SplitConcat ngraph function", {
                 R"(.*smoke_BehaviorTests/InferRequest(CallbackTests|MultithreadingTests|PerfCountersTest|WaitTests)\..*)",
                 R"(.*smoke_BehaviorTests(/|/OV)InferRequestCancellationTests\..*)",
-                R"(.*smoke(_|_Multi_)BehaviorTests/OVInferRequestIOTensorTest\..*)",
                 R"(.*smoke(_|_Auto_|_Multi_)BehaviorTests/OVInferRequest(CallbackTests|IOTensorSetPrecisionTest|MultithreadingTests)\..*)",
                 ".*OVClassNetworkTestP.LoadNetworkActual.*",
                 ".*OVClassLoadNetworkTestNPU.LoadNetworkHETEROWithDeviceIDNoThrow.*",
@@ -487,8 +468,6 @@ std::vector<std::string> disabledTestPatterns() {
                         "Tests fail on RPL dKMB boards, start_async() fails intermittently",
                         { // [Tracking number: E#90056]
                           ".*OVInferConsistencyTest.*",
-                          // [Tracking number: E#92317]
-                          ".*OVInferRequestIOTensorTest.*",
                           ".*OVInferRequestMultithreadingTests.*",
                           ".*OVInferRequestCallbackTests.*",
                           ".*InferRequestMultithreadingTests.*",
@@ -773,8 +752,6 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*smoke_Auto_BehaviorTests/OVInferRequestCallbackTests.*",
                 ".*smoke_Auto_BehaviorTests/OVInferRequestCallbackTestsNPU.*",
                 ".*smoke_Multi_BehaviorTests/OVInferRequestCallbackTestsNPU.*",
-                ".*smoke_Multi_BehaviorTests/OVInferRequestIOTensorTestNPU.*",
-                ".*smoke_Multi_BehaviorTests/OVInferRequestIOTensorTest.*",
                 ".*smoke_Multi_BehaviorTests/OVInferRequestMultithreadingTests.*",
                 ".*smoke_Multi_BehaviorTests/OVInferRequestMultithreadingTestsNPU.*",
                 ".*smoke_Multi_BehaviorTests/OVInferRequestPerfCountersExceptionTest.*",
@@ -805,8 +782,6 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*smoke_Auto_BehaviorTests/OVInferRequestCallbackTests.*",
                 ".*smoke_Auto_BehaviorTests/OVInferRequestCallbackTestsNPU.*",
                 ".*smoke_Multi_BehaviorTests/OVInferRequestCallbackTestsNPU.*",
-                ".*smoke_Multi_BehaviorTests/OVInferRequestIOTensorTestNPU.*",
-                ".*smoke_Multi_BehaviorTests/OVInferRequestIOTensorTest.*",
                 ".*smoke_Multi_BehaviorTests/OVInferRequestMultithreadingTests.*",
                 ".*smoke_Multi_BehaviorTests/OVInferRequestPerfCountersTest.*",
                 ".*smoke_Multi_BehaviorTests/OVInferRequestPerfCountersExceptionTest.*",
