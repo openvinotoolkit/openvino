@@ -157,6 +157,11 @@ public:
             fill_data<Type_t::string>(value);
             break;
         case Type_t::f4e2m1:
+            fill_lp_data<Type_t::f4e2m1>(value);
+            break;
+        case Type_t::f8e8m0:
+            fill_data<Type_t::f8e8m0>(value);
+            break;
         case Type_t::undefined:
         case Type_t::dynamic:
             OPENVINO_THROW("unsupported type");
@@ -364,6 +369,12 @@ public:
         case Type_t::string:
             cast_vector<Type_t::string>(rc, num_elements_to_cast);
             break;
+        case Type_t::f4e2m1:
+            cast_lp_vector<Type_t::f4e2m1>(rc, num_elements_to_cast);
+            break;
+        case Type_t::f8e8m0:
+            cast_vector<Type_t::f8e8m0>(rc, num_elements_to_cast);
+            break;
         default:
             OPENVINO_THROW("unsupported type");
         }
@@ -393,6 +404,13 @@ public:
      * \brief Allows to avoid buffer allocation on the visit_attributes call
      */
     void alloc_buffer_on_visit_attributes(bool val);
+
+    /// @brief Get view on constant data as tensor.
+    /// @return OV::Tensor with constant data.
+    const Tensor get_tensor_view() const;
+
+    /// @return Constant's strides in bytes.
+    const Strides& get_strides() const;
 
 private:
     Constant(bool memset_allocation, const element::Type& type, const Shape& shape);
@@ -478,7 +496,11 @@ private:
         auto lp_buffer = LPBuffer<ET>(get_data_ptr());
         auto out_inserter = std::back_inserter(output);
         for (size_t i = 0; i < num_elements; ++i, ++lp_buffer) {
-            *out_inserter = lp_buffer.read();
+            using UT = typename std::decay<U>::type;
+            using LPT = decltype(lp_buffer.read());
+            using CastT = typename std::
+                conditional<!std::is_same<UT, LPT>::value && !std::is_integral<U>::value, float, LPT>::type;
+            *out_inserter = static_cast<CastT>(lp_buffer.read());
         }
     }
 
@@ -709,6 +731,11 @@ private:
             write_buffer<Type_t::string>(source);
             break;
         case Type_t::f4e2m1:
+            write_lp_buffer<Type_t::f4e2m1>(source);
+            break;
+        case Type_t::f8e8m0:
+            write_buffer<Type_t::f8e8m0>(source);
+            break;
         case Type_t::undefined:
         case Type_t::dynamic:
             OPENVINO_THROW("unsupported type");
@@ -752,6 +779,7 @@ private:
 
     element::Type m_element_type{};
     Shape m_shape{};
+    Strides m_byte_strides{};
     std::shared_ptr<ov::AlignedBuffer> m_data{};
     mutable std::atomic_bool m_all_elements_bitwise_identical{false};
     mutable std::atomic_bool m_all_elements_bitwise_identical_checked{false};
@@ -772,6 +800,8 @@ template <>
 OPENVINO_API Constant::LPBuffer<element::i4>::LPBuffer(void* ptr);
 template <>
 OPENVINO_API Constant::LPBuffer<element::nf4>::LPBuffer(void* ptr);
+template <>
+OPENVINO_API Constant::LPBuffer<element::f4e2m1>::LPBuffer(void* ptr);
 
 template <>
 OPENVINO_API void Constant::LPBuffer<element::u1>::write(const float value);
@@ -787,6 +817,8 @@ template <>
 OPENVINO_API void Constant::LPBuffer<element::i4>::write(const float value);
 template <>
 OPENVINO_API void Constant::LPBuffer<element::nf4>::write(const float value);
+template <>
+OPENVINO_API void Constant::LPBuffer<element::f4e2m1>::write(const float value);
 
 template <>
 OPENVINO_API ov::fundamental_type_for<element::u1> Constant::LPBuffer<element::u1>::read() const;
@@ -802,6 +834,8 @@ template <>
 OPENVINO_API ov::fundamental_type_for<element::i4> Constant::LPBuffer<element::i4>::read() const;
 template <>
 OPENVINO_API ov::fundamental_type_for<element::nf4> Constant::LPBuffer<element::nf4>::read() const;
+template <>
+OPENVINO_API ov::fundamental_type_for<element::f4e2m1> Constant::LPBuffer<element::f4e2m1>::read() const;
 
 template <>
 OPENVINO_API Constant::LPBuffer<element::u1>& Constant::LPBuffer<element::u1>::operator++();
@@ -817,6 +851,8 @@ template <>
 OPENVINO_API Constant::LPBuffer<element::i4>& Constant::LPBuffer<element::i4>::operator++();
 template <>
 OPENVINO_API Constant::LPBuffer<element::nf4>& Constant::LPBuffer<element::nf4>::operator++();
+template <>
+OPENVINO_API Constant::LPBuffer<element::f4e2m1>& Constant::LPBuffer<element::f4e2m1>::operator++();
 
 #define CONSTANT_FILL_DATA_SPECIALIZATION(ET, SRC_TYPE) \
     template <>                                         \
@@ -836,6 +872,7 @@ CONSTANT_FILL_DATA_SPECIALIZATION(u1, long long)
 CONSTANT_FILL_DATA_SPECIALIZATION(u1, unsigned long long)
 CONSTANT_FILL_DATA_SPECIALIZATION(u1, float8_e4m3)
 CONSTANT_FILL_DATA_SPECIALIZATION(u1, float8_e5m2)
+CONSTANT_FILL_DATA_SPECIALIZATION(u1, float8_e8m0)
 CONSTANT_FILL_DATA_SPECIALIZATION(u1, float16)
 CONSTANT_FILL_DATA_SPECIALIZATION(u1, bfloat16)
 CONSTANT_FILL_DATA_SPECIALIZATION(u1, float)
@@ -855,6 +892,7 @@ CONSTANT_FILL_DATA_SPECIALIZATION(u2, long long)
 CONSTANT_FILL_DATA_SPECIALIZATION(u2, unsigned long long)
 CONSTANT_FILL_DATA_SPECIALIZATION(u2, float8_e4m3)
 CONSTANT_FILL_DATA_SPECIALIZATION(u2, float8_e5m2)
+CONSTANT_FILL_DATA_SPECIALIZATION(u2, float8_e8m0)
 CONSTANT_FILL_DATA_SPECIALIZATION(u2, float16)
 CONSTANT_FILL_DATA_SPECIALIZATION(u2, bfloat16)
 CONSTANT_FILL_DATA_SPECIALIZATION(u2, float)
@@ -874,6 +912,7 @@ CONSTANT_FILL_DATA_SPECIALIZATION(u3, long long)
 CONSTANT_FILL_DATA_SPECIALIZATION(u3, unsigned long long)
 CONSTANT_FILL_DATA_SPECIALIZATION(u3, float8_e4m3)
 CONSTANT_FILL_DATA_SPECIALIZATION(u3, float8_e5m2)
+CONSTANT_FILL_DATA_SPECIALIZATION(u3, float8_e8m0)
 CONSTANT_FILL_DATA_SPECIALIZATION(u3, float16)
 CONSTANT_FILL_DATA_SPECIALIZATION(u3, bfloat16)
 CONSTANT_FILL_DATA_SPECIALIZATION(u3, float)
@@ -893,6 +932,7 @@ CONSTANT_FILL_DATA_SPECIALIZATION(u4, long long)
 CONSTANT_FILL_DATA_SPECIALIZATION(u4, unsigned long long)
 CONSTANT_FILL_DATA_SPECIALIZATION(u4, float8_e4m3)
 CONSTANT_FILL_DATA_SPECIALIZATION(u4, float8_e5m2)
+CONSTANT_FILL_DATA_SPECIALIZATION(u4, float8_e8m0)
 CONSTANT_FILL_DATA_SPECIALIZATION(u4, float16)
 CONSTANT_FILL_DATA_SPECIALIZATION(u4, bfloat16)
 CONSTANT_FILL_DATA_SPECIALIZATION(u4, float)
@@ -912,6 +952,7 @@ CONSTANT_FILL_DATA_SPECIALIZATION(u6, long long)
 CONSTANT_FILL_DATA_SPECIALIZATION(u6, unsigned long long)
 CONSTANT_FILL_DATA_SPECIALIZATION(u6, float8_e4m3)
 CONSTANT_FILL_DATA_SPECIALIZATION(u6, float8_e5m2)
+CONSTANT_FILL_DATA_SPECIALIZATION(u6, float8_e8m0)
 CONSTANT_FILL_DATA_SPECIALIZATION(u6, float16)
 CONSTANT_FILL_DATA_SPECIALIZATION(u6, bfloat16)
 CONSTANT_FILL_DATA_SPECIALIZATION(u6, float)
@@ -931,6 +972,7 @@ CONSTANT_FILL_DATA_SPECIALIZATION(i4, long long)
 CONSTANT_FILL_DATA_SPECIALIZATION(i4, unsigned long long)
 CONSTANT_FILL_DATA_SPECIALIZATION(i4, float8_e4m3)
 CONSTANT_FILL_DATA_SPECIALIZATION(i4, float8_e5m2)
+CONSTANT_FILL_DATA_SPECIALIZATION(i4, float8_e8m0)
 CONSTANT_FILL_DATA_SPECIALIZATION(i4, float16)
 CONSTANT_FILL_DATA_SPECIALIZATION(i4, bfloat16)
 CONSTANT_FILL_DATA_SPECIALIZATION(i4, float)
@@ -950,10 +992,31 @@ CONSTANT_FILL_DATA_SPECIALIZATION(nf4, long long)
 CONSTANT_FILL_DATA_SPECIALIZATION(nf4, unsigned long long)
 CONSTANT_FILL_DATA_SPECIALIZATION(nf4, float8_e4m3)
 CONSTANT_FILL_DATA_SPECIALIZATION(nf4, float8_e5m2)
+CONSTANT_FILL_DATA_SPECIALIZATION(nf4, float8_e8m0)
 CONSTANT_FILL_DATA_SPECIALIZATION(nf4, float16)
 CONSTANT_FILL_DATA_SPECIALIZATION(nf4, bfloat16)
 CONSTANT_FILL_DATA_SPECIALIZATION(nf4, float)
 CONSTANT_FILL_DATA_SPECIALIZATION(nf4, double)
+
+CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, bool)
+CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, char)
+CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, signed char)
+CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, unsigned char)
+CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, short)
+CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, unsigned short)
+CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, int)
+CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, unsigned int)
+CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, long)
+CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, unsigned long)
+CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, long long)
+CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, unsigned long long)
+CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, float8_e4m3)
+CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, float8_e5m2)
+CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, float8_e8m0)
+CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, float16)
+CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, bfloat16)
+CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, float)
+CONSTANT_FILL_DATA_SPECIALIZATION(f4e2m1, double)
 
 #undef CONSTANT_FILL_DATA_SPECIALIZATION
 
@@ -1064,6 +1127,22 @@ CONSTANT_CAST_VECTOR_SPECIALIZATION(i4, bfloat16)
 CONSTANT_CAST_VECTOR_SPECIALIZATION(i4, float)
 CONSTANT_CAST_VECTOR_SPECIALIZATION(i4, double)
 
+CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, bool)
+CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, char)
+CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, signed char)
+CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, unsigned char)
+CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, short)
+CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, unsigned short)
+CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, int)
+CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, unsigned int)
+CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, long)
+CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, unsigned long)
+CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, long long)
+CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, unsigned long long)
+CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, float16)
+CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, bfloat16)
+CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, float)
+CONSTANT_CAST_VECTOR_SPECIALIZATION(f4e2m1, double)
 #undef CONSTANT_CAST_VECTOR_SPECIALIZATION
 
 #define CONSTANT_WRITE_BUFFER_SPECIALIZATION(ET, SRC_TYPE) \
@@ -1084,6 +1163,7 @@ CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, long long)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, unsigned long long)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, float8_e4m3)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, float8_e5m2)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, float8_e8m0)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, float16)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, bfloat16)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u1, float)
@@ -1103,6 +1183,7 @@ CONSTANT_WRITE_BUFFER_SPECIALIZATION(u2, long long)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u2, unsigned long long)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u2, float8_e4m3)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u2, float8_e5m2)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(u2, float8_e8m0)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u2, float16)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u2, bfloat16)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u2, float)
@@ -1122,6 +1203,7 @@ CONSTANT_WRITE_BUFFER_SPECIALIZATION(u3, long long)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u3, unsigned long long)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u3, float8_e4m3)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u3, float8_e5m2)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(u3, float8_e8m0)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u3, float16)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u3, bfloat16)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u3, float)
@@ -1141,6 +1223,7 @@ CONSTANT_WRITE_BUFFER_SPECIALIZATION(u4, long long)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u4, unsigned long long)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u4, float8_e4m3)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u4, float8_e5m2)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(u4, float8_e8m0)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u4, float16)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u4, bfloat16)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u4, float)
@@ -1160,6 +1243,7 @@ CONSTANT_WRITE_BUFFER_SPECIALIZATION(u6, long long)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u6, unsigned long long)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u6, float8_e4m3)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u6, float8_e5m2)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(u6, float8_e8m0)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u6, float16)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u6, bfloat16)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(u6, float)
@@ -1179,6 +1263,7 @@ CONSTANT_WRITE_BUFFER_SPECIALIZATION(i4, long long)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(i4, unsigned long long)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(i4, float8_e4m3)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(i4, float8_e5m2)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(i4, float8_e8m0)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(i4, float16)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(i4, bfloat16)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(i4, float)
@@ -1198,10 +1283,31 @@ CONSTANT_WRITE_BUFFER_SPECIALIZATION(nf4, long long)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(nf4, unsigned long long)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(nf4, float8_e4m3)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(nf4, float8_e5m2)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(nf4, float8_e8m0)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(nf4, float16)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(nf4, bfloat16)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(nf4, float)
 CONSTANT_WRITE_BUFFER_SPECIALIZATION(nf4, double)
+
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, bool)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, char)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, signed char)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, unsigned char)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, short)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, unsigned short)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, int)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, unsigned int)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, long)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, unsigned long)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, long long)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, unsigned long long)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, float8_e4m3)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, float8_e5m2)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, float8_e8m0)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, float16)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, bfloat16)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, float)
+CONSTANT_WRITE_BUFFER_SPECIALIZATION(f4e2m1, double)
 
 #undef CONSTANT_WRITE_BUFFER_SPECIALIZATION
 
