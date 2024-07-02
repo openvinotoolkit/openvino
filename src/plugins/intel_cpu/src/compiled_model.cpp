@@ -90,7 +90,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 #if defined(OV_CPU_WITH_ACL)
                     static std::once_flag flag_once;
                     std::call_once(flag_once, [&]() {
-                        std::shared_ptr<arm_compute::IScheduler> acl_scheduler = std::make_shared<ACLScheduler>();
+                        std::shared_ptr<arm_compute::IScheduler> acl_scheduler = std::make_shared<ACLScheduler>(m_cfg.streamExecutorConfig.get_threads());
                         arm_compute::Scheduler::set(std::static_pointer_cast<arm_compute::IScheduler>(acl_scheduler));
                     });
 #endif

@@ -14,10 +14,12 @@ namespace intel_cpu {
 
 using namespace arm_compute;
 
-ACLScheduler::ACLScheduler() = default;
+ACLScheduler::ACLScheduler(unsigned int threads) {
+    m_threads = threads;
+}
 
 unsigned int ACLScheduler::num_threads() const {
-    return parallel_get_num_threads();
+    return m_threads;
 }
 
 void ACLScheduler::set_num_threads(unsigned int num_threads) {}
@@ -25,7 +27,7 @@ void ACLScheduler::set_num_threads(unsigned int num_threads) {}
 void ACLScheduler::schedule_custom(ICPPKernel *kernel, const Hints &hints, const Window &window, ITensorPack &tensors) {
     const Window & max_window = window;
     const unsigned int num_iterations = max_window.num_iterations(hints.split_dimension());
-    const auto _num_threads = std::min(num_iterations, static_cast<unsigned int>(parallel_get_num_threads()));
+    const auto _num_threads = std::min(num_iterations, m_threads);
 
     std::function<void(const Window &window, const ThreadInfo &info)> main_run;
     if (tensors.empty()) {
@@ -65,7 +67,7 @@ void ACLScheduler::schedule_op(ICPPKernel *kernel, const Hints &hints, const Win
 
 void ACLScheduler::run_workloads(std::vector<arm_compute::IScheduler::Workload> &workloads) {
     ov::parallel_for(workloads.size(), [&](int wid) {
-        workloads[wid]({wid, static_cast<int>(parallel_get_num_threads()), &cpu_info()});
+        workloads[wid]({wid, m_threads, &cpu_info()});
     });
 }
 
