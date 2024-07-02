@@ -56,8 +56,9 @@ void regclass_graph_Shape(py::module m) {
                 if (self[i] != lst[i].cast<size_t>()) return false;
             }
             return true;
-        })
-        .def("__eq__", [](const ov::Shape& self, const py::tuple& tpl) {
+        });
+    
+        shape.def("__eq__", [](const ov::Shape& self, const py::tuple& tpl) {
             if (self.size() != tpl.size()) return false;
             for (size_t i = 0; i < self.size(); ++i) {
                 if (self[i] != tpl[i].cast<size_t>()) return false;
