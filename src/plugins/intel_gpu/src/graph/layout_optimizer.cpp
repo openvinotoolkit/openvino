@@ -924,6 +924,10 @@ static bool is_node_for_onednn(fully_connected_node const& node) {
             auto decompression_zp_dt = node.get_input_layout(decompression_zp_idx).data_type;
             if (weights_dt != decompression_zp_dt)
                 return false;
+
+            auto input_dt = node.get_input_layout(0).data_type;
+            if (input_dt == data_types::f32)
+                return false;
         }
     }
 
