@@ -31,12 +31,22 @@ ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
         //  use symbolic infra or look at the constant input
         auto gather = m.get_match_root();
         auto target_type = gather->get_output_element_type(0);
+
+        const auto& pattern_map = m.get_pattern_value_map();
+        if (pattern_map.at(kv_shape).get_node_shared_ptr()->input(0).get_partial_shape().is_static()) {
+            std::cout << "STATIC!!!!!!!!" << std::endl;
+        } else {
+            std::cout << "DYNAMIC!!!!!!!!" << std::endl;
+        }
+
         std::shared_ptr<Node> replacement = max_context_len;
         if (replacement->get_output_element_type(0) != target_type) {
+            std::cout << "REPLACEMENT 1" << std::endl;
             replacement = std::make_shared<v0::Convert>(replacement, target_type);
         }
         auto required_shape = gather->get_output_partial_shape(0);
         if (replacement->get_output_partial_shape(0) != required_shape && required_shape.rank().is_static()) {
+            std::cout << "REPLACEMENT 2" << std::endl;
             replacement = op::util::reshapeTo(replacement, Shape(required_shape.rank().get_length(), 1));
         }
         replace_node(gather, replacement);

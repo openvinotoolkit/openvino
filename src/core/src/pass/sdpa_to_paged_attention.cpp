@@ -100,10 +100,10 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     manager.register_pass<MakeSDPA>(model);
 
-    // const std::string file_name = "old_big_jais_sdpa";
-    // const std::string file_name = "new_big_jais_sdpa";
-    // manager.register_pass<ov::pass::Serialize>(file_name + ".xml", file_name + ".bin");
-    // manager.register_pass<ov::pass::VisualizeTree>(file_name + ".svg");
+    // const std::string file_name = "old_jais_sdpa";
+    std::string file_name = "new_jais_sdpa";
+    manager.register_pass<ov::pass::Serialize>(file_name + ".xml", file_name + ".bin");
+    manager.register_pass<ov::pass::VisualizeTree>(file_name + ".svg");
 
     manager.register_pass<StateManagementPattern>(kv_parameters,
                                                   model_remaining_params,
@@ -111,6 +111,11 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   parameters_to_remove,
                                                   layer_index,
                                                   max_context_len->output(0));
+
+    file_name = "investigating";
+    manager.register_pass<ov::pass::Serialize>(file_name + ".xml", file_name + ".bin");
+    manager.register_pass<ov::pass::VisualizeTree>(file_name + ".svg");
+
     manager.register_pass<PrevSequenceLengthPattern>(prev_max_seq_len, batch_dim);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
 

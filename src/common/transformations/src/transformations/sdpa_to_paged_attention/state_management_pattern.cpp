@@ -166,6 +166,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                           &layer_index](ov::pass::pattern::Matcher& m) {
         std::cout << "___" << matcher_name << "___" << std::endl;
         const auto& pattern_map = m.get_pattern_value_map();
+
+        std::cout << "SLIDING WINDOW" << std::endl;
+        pattern_map.at(scale_input);
+        std::cout << "____" << std::endl;
+
         auto real_q = pattern_map.at(q);
 
         auto sdpa_node =
@@ -304,8 +309,18 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                                        v0::Constant::create(element::i64, Shape{}, {0}));
         std::shared_ptr<ov::Node> scale;
         if (pattern_map.count(scale_input)) {
+            std::cout << "xxxxxx SCALE 1" << std::endl;
             scale = pattern_map.at(scale_input).get_node_shared_ptr();
+            auto pow = scale->get_input_source_output(1).get_node_shared_ptr();
+            auto conv = pow->get_input_source_output(0).get_node_shared_ptr();
+            auto param = conv->get_input_source_output(0).get_node_shared_ptr();
+
+            std::cout << param << std::endl;
+            std::cout << conv << std::endl;
+            std::cout << pow << std::endl;
+            std::cout << scale << std::endl;
         } else {
+            std::cout << "xxxxxxx SCALE 2" << std::endl;
             // most likely `scale` below will always be a constant in real inference, but dynamic dimension
             // propagation may not always derive it as a constant. That's why a sub-graph computing `scale` is built
             // instead of just a constant node representing one of the dimensions.
