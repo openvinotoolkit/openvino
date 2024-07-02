@@ -402,11 +402,11 @@ def test_shape_equality(input_data):
     assert data == s
 
 @pytest.mark.parametrize("input_data", [
-    ([1, 2, 3], "list"),
-    ((1, 2, 3), "tuple"),
+    [1, 2, 3],
+    (1, 2, 3),
 ])
 def test_partial_shape_equality(input_data):
-    data, _ = input_data
+    data = input_data
     ps = PartialShape(data)
     assert data == ps
 
