@@ -212,6 +212,8 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
         default: break;
     }
 
+    OPENVINO_ASSERT(config != nullptr);
+
     /* Get device information */
     micro::HWInformation hw_info;
     hw_info.euCount = params.engineInfo.computeUnitsCount;
@@ -334,6 +336,9 @@ bool SDPAKernelMicro::Validate(const Params& p) const {
     if (Q_num_heads_dim.is_dynamic || K_num_heads_dim.is_dynamic || V_num_heads_dim.is_dynamic || K_num_heads_dim.v != V_num_heads_dim.v)
         return false;
 
+    if (params.conf.head_size > 256)
+        return false;
+
     return true;
 }
 
@@ -389,8 +394,9 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
     if (d_full) {
         if (ldq % 4 == 0)
             jit.AddConstant(MakeJitConstant("BLOCK_Q", 1));
-        if (lda % 4 == 0 && v_full)
-            jit.AddConstant(MakeJitConstant("BLOCK_A", 1));
+        // TODO: Causes accuracy drop for static SD model. Enable back once the issue is resolved
+        // if (lda % 4 == 0 && v_full)
+        //     jit.AddConstant(MakeJitConstant("BLOCK_A", 1));
         jit.AddConstant(MakeJitConstant("REMAINDER_Q", !q_full));
     } else if (params.engineInfo.arch >= gpu_arch::xe_hpc) {
         auto vbytes = n_values.v * V.ElementSize();
