@@ -59,13 +59,6 @@ std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nChw16c}, {nChw16c}, {}, {}),
 };
 
-const std::vector<std::vector<int>> axes5D = {
-        {2, 4},
-        {0, 2, 4},
-        {1, 2, 4},
-        {0, 1, 2, 3, 4},
-};
-
 const std::vector<std::vector<int>> axes6D = {
         {5},
         {4, 5},
@@ -99,8 +92,6 @@ const std::vector<std::vector<int>> axesGather = {
 
 std::vector<CPUSpecificParams> cpuParams_5D = {
         CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {}),
-        CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
-        CPUSpecificParams({ncdhw}, {ncdhw}, {}, {}),
 };
 
 std::vector<CPUSpecificParams> cpuParams_HybridLayout_4D = {
@@ -199,7 +190,7 @@ const auto params_MultiAxis_4D = testing::Combine(
 
 const auto params_MultiAxis_5D = testing::Combine(
         testing::Combine(
-                testing::ValuesIn(axes5D),
+                testing::ValuesIn(axes5D()),
                 testing::Values(ov::test::utils::OpType::VECTOR),
                 testing::Values(true),
                 testing::ValuesIn(reductionTypes()),
@@ -227,7 +218,7 @@ const auto params_MultiAxis_4D_Hybrid = testing::Combine(
 
 const auto params_MultiAxis_5D_Hybrid = testing::Combine(
         testing::Combine(
-            testing::ValuesIn(axes5D),
+            testing::ValuesIn(axes5D()),
             testing::Values(ov::test::utils::OpType::VECTOR),
             testing::Values(false),
             testing::ValuesIn(reductionTypes()),
@@ -431,7 +422,7 @@ const auto params_MultiAxis_4D_Logical = testing::Combine(
 
 const auto params_MultiAxis_5D_Logical = testing::Combine(
         testing::Combine(
-                testing::ValuesIn(axes5D),
+                testing::ValuesIn(axes5D()),
                 testing::Values(ov::test::utils::OpType::VECTOR),
                 testing::Values(true),
                 testing::ValuesIn((reductionLogicalTypes)),
@@ -459,7 +450,7 @@ const auto params_MultiAxis_4D_Hybrid_Logical = testing::Combine(
 
 const auto params_MultiAxis_5D_Hybrid_Logical = testing::Combine(
         testing::Combine(
-            testing::ValuesIn(axes5D),
+            testing::ValuesIn(axes5D()),
             testing::Values(ov::test::utils::OpType::VECTOR),
             testing::Values(false),
             testing::ValuesIn((reductionLogicalTypes)),
@@ -572,7 +563,7 @@ const auto params_MultiAxis_4D_fusing = testing::Combine(
 
 const auto params_MultiAxis_5D_fusing = testing::Combine(
         testing::Combine(
-                testing::ValuesIn(axes5D),
+                testing::ValuesIn(axes5D()),
                 testing::Values(ov::test::utils::OpType::VECTOR),
                 testing::Values(true),
                 testing::ValuesIn(reductionTypesFusing),
