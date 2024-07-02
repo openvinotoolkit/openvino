@@ -332,12 +332,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
 
             // - The head size of all Q, K, and V inputs should be the same static value
-            if (query_ps[query_ps.size() - 1].is_dynamic() || key_ps[key_ps.size() - 1].is_dynamic() || value_ps[query_ps.size() - 1].is_dynamic()) {
+            if (query_ps[query_ps.size() - 1].is_dynamic() || key_ps[key_ps.size() - 1].is_dynamic() || value_ps[value_ps.size() - 1].is_dynamic()) {
                 return false;
             }
 
             if (query_ps[query_ps.size() - 1].get_length() != key_ps[key_ps.size() - 1].get_length() ||
-                query_ps[query_ps.size() - 1].get_length() != value_ps[query_ps.size() - 1].get_length()) {
+                query_ps[query_ps.size() - 1].get_length() != value_ps[value_ps.size() - 1].get_length()) {
                 return false;
             }
 
