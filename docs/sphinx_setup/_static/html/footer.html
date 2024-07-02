@@ -3,7 +3,7 @@
         margin: 0;
     }
 
-    .container {
+    .footer .container {
         padding-right: 30px;
         padding-left: 30px;
         margin-right: auto;
@@ -19,7 +19,7 @@
     }
 
     .footer-link-list a:nth-child(1) {
-        margin-right: 20px;
+        margin-right: 80px;
     }
 
     .footer-contents {
@@ -35,11 +35,12 @@
         margin-right: 0px;
     }
 
-    .footer-contents p {
+    .footer-item p {
         margin-top: 0;
         margin-bottom: 0;
         line-height: 1.65;
-        padding: 10 0 0 40px;
+        padding: 10px 10px 0 30px !important;
+        font-size: 12px !important;
     }
 
     .footer-contents .footer-link-list a {
@@ -48,17 +49,15 @@
 
     .newsletter-btn,
     .newsletter-btn:active {
-        background-color: #0054AE;
-        border: 1px solid #0054AE;
+        background-color: white;
+        border: 1px solid lightgray !important;
         border-radius: none;
-        color: white !important;
-        margin-top: 5px;
-        cursor: pointer;
+        color: var(--bttn-prm-color) !important;
         display: inline-block;
         font-weight: 400;
         font-size: .8rem;
         line-height: 2.0;
-        padding: .2rem .5rem;
+        padding: 0.5rem 0.65625rem 0.5rem 0.96875rem;
         text-align: center;
         text-decoration: none;
         transition: color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out;
@@ -75,8 +74,8 @@
     }
 
     .newsletter-btn:hover {
-        background-color: rgb(240, 240, 240);
-        color: hsl(211, 100%, 34%) !important;
+        background-color: rgba(var(--ost-color-sst-dropdown-background), 1) !important;
+        color: rgb(240, 240, 240) !important;
     }
 
     .footer-list {
