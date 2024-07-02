@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "col2im.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
@@ -33,10 +34,7 @@ using Col2ImLayerCPUTestParamsSet = std::tuple<
         Col2ImLayerTestParams,
         CPUSpecificParams>;
 
-class Col2ImLayerCPUTest : public testing::WithParamInterface<Col2ImLayerCPUTestParamsSet>,
-                             public SubgraphBaseTest, public CPUTestsBase {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<Col2ImLayerCPUTestParamsSet> obj) {
+std::string Col2ImLayerCPUTest::getTestCaseName(testing::TestParamInfo<Col2ImLayerCPUTestParamsSet> obj) {
         Col2ImLayerTestParams basicParamsSet;
         CPUSpecificParams cpuParams;
         std::tie(basicParamsSet, cpuParams) = obj.param;
@@ -76,8 +74,8 @@ public:
 
         return result.str();
     }
-protected:
-    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+
+void Col2ImLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
         inputs.clear();
         const auto& funcInputs = function->inputs();
 
@@ -92,7 +90,7 @@ protected:
         inputs.insert({ funcInputs[0].get_node_shared_ptr(), data_tensor });
     }
 
-    void SetUp() override {
+void Col2ImLayerCPUTest::SetUp() {
         Col2ImLayerTestParams basicParamsSet;
         CPUSpecificParams cpuParams;
         std::tie(basicParamsSet, cpuParams) = this->GetParam();
@@ -132,13 +130,142 @@ protected:
         if (inputPrecision == ov::element::bf16) {
             rel_threshold = 0.02;
         }
-    }
-};
+}
 
 TEST_P(Col2ImLayerCPUTest, CompareWithRefs) {
     run();
     CheckPluginRelatedResults(compiledModel, "Col2Im");
 }
+
+const std::vector<Col2ImSpecificParams> col2ImParamsVector = {
+    Col2ImSpecificParams {
+        InputShape{{}, {{1, 12, 9}}},
+        std::vector<int64_t>{4, 4},
+        std::vector<int64_t>{2, 2},
+        ov::Strides{1, 1},
+        ov::Strides{1, 1},
+        ov::Shape{0, 0},
+        ov::Shape{0, 0}
+    },
+    Col2ImSpecificParams {
+        InputShape{{}, {{3, 12, 81}}},
+        std::vector<int64_t>{16, 16},
+        std::vector<int64_t>{2, 2},
+        ov::Strides{2, 2},
+        ov::Strides{2, 2},
+        ov::Shape{2, 2},
+        ov::Shape{2, 2}
+    },
+    Col2ImSpecificParams {
+        InputShape{{}, {{12, 81}}},
+        std::vector<int64_t>{16, 16},
+        std::vector<int64_t>{2, 2},
+        ov::Strides{2, 2},
+        ov::Strides{2, 2},
+        ov::Shape{2, 2},
+        ov::Shape{2, 2}
+    },
+    Col2ImSpecificParams {
+        InputShape{{}, {{3, 12, 225}}},
+        std::vector<int64_t>{16, 16},
+        std::vector<int64_t>{2, 2},
+        ov::Strides{1, 1},
+        ov::Strides{1, 1},
+        ov::Shape{0, 0},
+        ov::Shape{0, 0}
+    },
+    Col2ImSpecificParams {
+        InputShape{{}, {{1, 27, 49}}},
+        std::vector<int64_t>{16, 16},
+        std::vector<int64_t>{3, 3},
+        ov::Strides{2, 2},
+        ov::Strides{2, 2},
+        ov::Shape{1, 1},
+        ov::Shape{1, 1}
+    },
+    Col2ImSpecificParams {
+        InputShape{{}, {{1, 18, 104}}},
+        std::vector<int64_t>{16, 16},
+        std::vector<int64_t>{2, 3},
+        ov::Strides{2, 1},
+        ov::Strides{2, 2},
+        ov::Shape{1, 0},
+        ov::Shape{0, 1}
+    },
+    Col2ImSpecificParams {
+        InputShape{{-1, -1, -1}, {{1, 12, 120}, {3, 12, 120}}},
+        std::vector<int64_t>{16, 16},
+        std::vector<int64_t>{2, 2},
+        ov::Strides{2, 1},
+        ov::Strides{2, 2},
+        ov::Shape{1, 0},
+        ov::Shape{0, 1}
+    },
+    Col2ImSpecificParams {
+        InputShape{{}, {{12, 12, 324}}},
+        std::vector<int64_t>{32, 32},
+        std::vector<int64_t>{2, 2},
+        ov::Strides{2, 2},
+        ov::Strides{2, 2},
+        ov::Shape{3, 3},
+        ov::Shape{3, 3}
+    },
+    Col2ImSpecificParams {
+        InputShape{{-1, 12, 324}, {{12, 12, 324}}},
+        std::vector<int64_t>{32, 32},
+        std::vector<int64_t>{2, 2},
+        ov::Strides{2, 2},
+        ov::Strides{2, 2},
+        ov::Shape{3, 3},
+        ov::Shape{3, 3}
+    },
+    Col2ImSpecificParams {
+        InputShape{{-1, -1, -1}, {{12, 12, 324}}},
+        std::vector<int64_t>{32, 32},
+        std::vector<int64_t>{2, 2},
+        ov::Strides{2, 2},
+        ov::Strides{2, 2},
+        ov::Shape{3, 3},
+        ov::Shape{3, 3}
+    },
+    Col2ImSpecificParams {
+        InputShape{{12, -1, -1}, {{12, 12, 324}}},
+        std::vector<int64_t>{32, 32},
+        std::vector<int64_t>{2, 2},
+        ov::Strides{2, 2},
+        ov::Strides{2, 2},
+        ov::Shape{3, 3},
+        ov::Shape{3, 3}
+    },
+    Col2ImSpecificParams {
+        InputShape{{12, 12, -1}, {{12, 12, 324}}},
+        std::vector<int64_t>{32, 32},
+        std::vector<int64_t>{2, 2},
+        ov::Strides{2, 2},
+        ov::Strides{2, 2},
+        ov::Shape{3, 3},
+        ov::Shape{3, 3}
+    },
+    Col2ImSpecificParams {
+        InputShape{{12, -1, 324}, {{12, 12, 324}}},
+        std::vector<int64_t>{32, 32},
+        std::vector<int64_t>{2, 2},
+        ov::Strides{2, 2},
+        ov::Strides{2, 2},
+        ov::Shape{3, 3},
+        ov::Shape{3, 3}
+    },
+    Col2ImSpecificParams {
+        InputShape{{-1, -1}, {{12, 324}}},
+        std::vector<int64_t>{32, 32},
+        std::vector<int64_t>{2, 2},
+        ov::Strides{2, 2},
+        ov::Strides{2, 2},
+        ov::Shape{3, 3},
+        ov::Shape{3, 3}
+    }
+};
+
 }  // namespace Col2Im
 }  // namespace test
 }  // namespace ov
