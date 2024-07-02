@@ -19,7 +19,11 @@ with recent works such as ControlNet for Sketch2Photo and Edge2Image for
 
 In this tutorial you will learn how to turn sketches to images using
 `Pix2Pix-Turbo <https://github.com/GaParmar/img2img-turbo>`__ and
-OpenVINO. #### Table of contents:
+OpenVINO.
+
+
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Load PyTorch model <#load-pytorch-model>`__
@@ -53,29 +57,29 @@ and install required packages.
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     repo_dir = Path("img2img-turbo")
-    
+
     if not repo_dir.exists():
         !git clone https://github.com/GaParmar/img2img-turbo.git
-    
+
     pix2pix_turbo_py_path = repo_dir / "src/pix2pix_turbo.py"
     model_py_path = repo_dir / "src/model.py"
     orig_pix2pix_turbo_path = pix2pix_turbo_py_path.parent / ("orig_" + pix2pix_turbo_py_path.name)
     orig_model_py_path = model_py_path.parent / ("orig_" + model_py_path.name)
-    
+
     if not orig_pix2pix_turbo_path.exists():
         pix2pix_turbo_py_path.rename(orig_pix2pix_turbo_path)
-    
+
         with orig_pix2pix_turbo_path.open("r") as f:
             data = f.read()
             data = data.replace("cuda", "cpu")
             with pix2pix_turbo_py_path.open("w") as out_f:
                 out_f.write(data)
-    
+
     if not orig_model_py_path.exists():
         model_py_path.rename(orig_model_py_path)
-    
+
         with orig_model_py_path.open("r") as f:
             data = f.read()
             data = data.replace("cuda", "cpu")
@@ -125,18 +129,18 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
     from diffusers.utils.peft_utils import set_weights_and_activate_adapters
     from peft import LoraConfig
     import types
-    
+
     from src.model import make_1step_sched
     from src.pix2pix_turbo import TwinConv
-    
+
     tokenizer = AutoTokenizer.from_pretrained("stabilityai/sd-turbo", subfolder="tokenizer")
-    
-    
+
+
     def tokenize_prompt(prompt):
         caption_tokens = tokenizer(prompt, max_length=tokenizer.model_max_length, padding="max_length", truncation=True, return_tensors="pt").input_ids
         return caption_tokens
-    
-    
+
+
     def _vae_encoder_fwd(self, sample):
         sample = self.conv_in(sample)
         l_blocks = []
@@ -151,8 +155,8 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
         sample = self.conv_out(sample)
         current_down_blocks = l_blocks
         return sample, current_down_blocks
-    
-    
+
+
     def _vae_decoder_fwd(self, sample, incoming_skip_acts, latent_embeds=None):
         sample = self.conv_in(sample)
         upscale_dtype = next(iter(self.up_blocks.parameters())).dtype
@@ -178,45 +182,45 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
         sample = self.conv_act(sample)
         sample = self.conv_out(sample)
         return sample
-    
-    
+
+
     def vae_encode(self, x: torch.FloatTensor):
         """
         Encode a batch of images into latents.
-    
+
         Args:
             x (`torch.FloatTensor`): Input batch of images.
-    
+
         Returns:
             The latent representations of the encoded images. If `return_dict` is True, a
             [`~models.autoencoder_kl.AutoencoderKLOutput`] is returned, otherwise a plain `tuple` is returned.
         """
         h, down_blocks = self.encoder(x)
-    
+
         moments = self.quant_conv(h)
         posterior = DiagonalGaussianDistribution(moments)
-    
+
         return (posterior, down_blocks)
-    
-    
+
+
     def vae_decode(self, z: torch.FloatTensor, skip_acts):
         decoded = self._decode(z, skip_acts)[0]
         return (decoded,)
-    
-    
+
+
     def vae__decode(self, z: torch.FloatTensor, skip_acts):
         z = self.post_quant_conv(z)
         dec = self.decoder(z, skip_acts)
-    
+
         return (dec,)
-    
-    
+
+
     class Pix2PixTurbo(torch.nn.Module):
         def __init__(self, pretrained_name=None, pretrained_path=None, ckpt_folder="checkpoints", lora_rank_unet=8, lora_rank_vae=4):
             super().__init__()
             self.text_encoder = CLIPTextModel.from_pretrained("stabilityai/sd-turbo", subfolder="text_encoder").cpu()
             self.sched = make_1step_sched()
-    
+
             vae = AutoencoderKL.from_pretrained("stabilityai/sd-turbo", subfolder="vae")
             vae.encoder.forward = types.MethodType(_vae_encoder_fwd, vae.encoder)
             vae.decoder.forward = types.MethodType(_vae_decoder_fwd, vae.decoder)
@@ -231,7 +235,7 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
             vae.decoder.ignore_skip = False
             unet = UNet2DConditionModel.from_pretrained("stabilityai/sd-turbo", subfolder="unet")
             ckpt_folder = Path(ckpt_folder)
-    
+
             if pretrained_name == "edge_to_image":
                 url = "https://www.cs.cmu.edu/~img2img-turbo/models/edge_to_image_loras.pkl"
                 ckpt_folder.mkdir(exist_ok=True)
@@ -264,7 +268,7 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
                 for k in sd["state_dict_unet"]:
                     _sd_unet[k] = sd["state_dict_unet"][k]
                 unet.load_state_dict(_sd_unet)
-    
+
             elif pretrained_name == "sketch_to_image_stochastic":
                 # download from url
                 url = "https://www.cs.cmu.edu/~img2img-turbo/models/sketch_to_image_stochastic_lora.pkl"
@@ -296,14 +300,14 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
                     if k not in _sd_vae:
                         continue
                     _sd_vae[k] = sd["state_dict_vae"][k]
-    
+
                 vae.load_state_dict(_sd_vae)
                 unet.add_adapter(unet_lora_config)
                 _sd_unet = unet.state_dict()
                 for k in sd["state_dict_unet"]:
                     _sd_unet[k] = sd["state_dict_unet"][k]
                 unet.load_state_dict(_sd_unet)
-    
+
             elif pretrained_path is not None:
                 sd = torch.load(pretrained_path, map_location="cpu")
                 unet_lora_config = LoraConfig(r=sd["rank_unet"], init_lora_weights="gaussian", target_modules=sd["unet_lora_target_modules"])
@@ -318,7 +322,7 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
                 for k in sd["state_dict_unet"]:
                     _sd_unet[k] = sd["state_dict_unet"][k]
                 unet.load_state_dict(_sd_unet)
-    
+
             # unet.enable_xformers_memory_efficient_attention()
             unet.to("cpu")
             vae.to("cpu")
@@ -326,14 +330,14 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
             self.vae.decoder.gamma = 1
             self.timesteps = torch.tensor([999], device="cpu").long()
             self.text_encoder.requires_grad_(False)
-    
+
         def set_r(self, r):
             self.unet.set_adapters(["default"], weights=[r])
             set_weights_and_activate_adapters(self.vae, ["vae_skip"], [r])
             self.r = r
             self.unet.conv_in.r = r
             self.vae.decoder.gamma = r
-    
+
         def forward(self, c_t, prompt_tokens, noise_map):
             caption_enc = self.text_encoder(prompt_tokens)[0]
             # scale the lora weights based on the r value
@@ -341,7 +345,7 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
             encoded_control = sample.sample() * self.vae.config.scaling_factor
             # combine the input and noise
             unet_input = encoded_control * self.r + noise_map * (1 - self.r)
-    
+
             unet_output = self.unet(
                 unet_input,
                 self.timesteps,
@@ -364,9 +368,9 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
 .. code:: ipython3
 
     ov_model_path = Path("model/pix2pix-turbo.xml")
-    
+
     pt_model = None
-    
+
     if not ov_model_path.exists():
         pt_model = Pix2PixTurbo("sketch_to_image_stochastic")
         pt_model.set_r(0.4)
@@ -416,7 +420,7 @@ on disk using ``ov.save_model`` in compressed to FP16 format.
 
     import gc
     import openvino as ov
-    
+
     if not ov_model_path.exists():
         example_input = [torch.ones((1, 3, 512, 512)), torch.ones([1, 77], dtype=torch.int64), torch.ones([1, 4, 64, 64])]
         with torch.no_grad():
@@ -469,7 +473,7 @@ on disk using ``ov.save_model`` in compressed to FP16 format.
       _check_trace(
     /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:1116: TracerWarning: Output nr 1. of the traced function does not match the corresponding output of the repeated trace. Detailed error:
     Tensor-likes are not close!
-    
+
     Mismatched elements: 1 / 786432 (0.0%)
     Greatest absolute difference: 1.3738870620727539e-05 at index (0, 2, 428, 25) (up to 1e-05 allowed)
     Greatest relative difference: 4.031259487888383e-05 at index (0, 2, 428, 25) (up to 1e-05 allowed)
@@ -484,7 +488,7 @@ Select inference device
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -492,7 +496,7 @@ Select inference device
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -524,9 +528,9 @@ professional artwork.
 .. code:: ipython3
 
     from diffusers.utils import load_image
-    
+
     sketch_image = load_image("https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/f964a51d-34e8-411a-98f4-5f97a28f56b0")
-    
+
     sketch_image
 
 
@@ -539,7 +543,7 @@ professional artwork.
 .. code:: ipython3
 
     import torchvision.transforms.functional as F
-    
+
     torch.manual_seed(145)
     c_t = torch.unsqueeze(F.to_tensor(sketch_image) > 0.5, 0)
     noise = torch.randn((1, 4, 512 // 8, 512 // 8))
@@ -548,7 +552,7 @@ professional artwork.
 
     prompt_template = "anime artwork {prompt} . anime style, key visual, vibrant, studio anime,  highly detailed"
     prompt = prompt_template.replace("{prompt}", "fluffy  magic cat")
-    
+
     prompt_tokens = tokenize_prompt(prompt)
 
 .. code:: ipython3
@@ -559,7 +563,7 @@ professional artwork.
 
     from PIL import Image
     import numpy as np
-    
+
     image_tensor = (result[0] * 0.5 + 0.5) * 255
     image = np.transpose(image_tensor, (1, 2, 0)).astype(np.uint8)
     Image.fromarray(image)
@@ -589,7 +593,7 @@ Download results using download button
     import base64
     from io import BytesIO
     import gradio as gr
-    
+
     style_list = [
         {
             "name": "Cinematic",
@@ -628,20 +632,20 @@ Download results using download button
             "prompt": "manga style {prompt} . vibrant, high-energy, detailed, iconic, Japanese comic style",
         },
     ]
-    
+
     styles = {k["name"]: k["prompt"] for k in style_list}
     STYLE_NAMES = list(styles.keys())
     DEFAULT_STYLE_NAME = "Fantasy art"
     MAX_SEED = np.iinfo(np.int32).max
-    
-    
+
+
     def pil_image_to_data_uri(img, format="PNG"):
         buffered = BytesIO()
         img.save(buffered, format=format)
         img_str = base64.b64encode(buffered.getvalue()).decode()
         return f"data:image/{format.lower()};base64,{img_str}"
-    
-    
+
+
     def run(image, prompt, prompt_template, style_name, seed):
         print(f"prompt: {prompt}")
         print("sketch updated")
@@ -668,8 +672,8 @@ Download results using download button
             gr.update(link=input_sketch_uri),
             gr.update(link=output_image_uri),
         )
-    
-    
+
+
     def update_canvas(use_line, use_eraser):
         if use_eraser:
             _color = "#ffffff"
@@ -678,14 +682,14 @@ Download results using download button
             _color = "#000000"
             brush_size = 4
         return gr.update(brush_radius=brush_size, brush_color=_color, interactive=True)
-    
-    
+
+
     def upload_sketch(file):
         _img = Image.open(file.name)
         _img = _img.convert("L")
         return gr.update(value=_img, source="upload", interactive=True)
-    
-    
+
+
     scripts = """
     async () => {
         globalThis.theSketchDownloadFunction = () => {
@@ -697,12 +701,12 @@ Download results using download button
             document.body.appendChild(link); // Required for Firefox
             link.click();
             document.body.removeChild(link); // Clean up
-    
+
             // also call the output download function
             theOutputDownloadFunction();
           return false
         }
-    
+
         globalThis.theOutputDownloadFunction = () => {
             console.log("test output download function")
             var link = document.createElement("a");
@@ -714,7 +718,7 @@ Download results using download button
             document.body.removeChild(link); // Clean up
           return false
         }
-    
+
         globalThis.UNDO_SKETCH_FUNCTION = () => {
             console.log("undo sketch function")
             var button_undo = document.querySelector('#input_image > div.image-container.svelte-p3y7hu > div.svelte-s6ybro > button:nth-child(1)');
@@ -726,7 +730,7 @@ Download results using download button
             });
             button_undo.dispatchEvent(event);
         }
-    
+
         globalThis.DELETE_SKETCH_FUNCTION = () => {
             console.log("delete sketch function")
             var button_del = document.querySelector('#input_image > div.image-container.svelte-p3y7hu > div.svelte-s6ybro > button:nth-child(2)');
@@ -738,7 +742,7 @@ Download results using download button
             });
             button_del.dispatchEvent(event);
         }
-    
+
         globalThis.togglePencil = () => {
             el_pencil = document.getElementById('my-toggle-pencil');
             el_pencil.classList.toggle('clicked');
@@ -761,7 +765,7 @@ Download results using download button
                 document.getElementById('my-div-eraser').style.backgroundColor = "gray";
             }
         }
-    
+
         globalThis.toggleEraser = () => {
             element = document.getElementById('my-toggle-eraser');
             element.classList.toggle('clicked');
@@ -786,7 +790,7 @@ Download results using download button
         }
     }
     """
-    
+
     with gr.Blocks(css="style.css") as demo:
         # these are hidden buttons that are used to trigger the canvas changes
         line = gr.Checkbox(label="line", value=False, elem_id="cb-line")
@@ -811,7 +815,7 @@ Download results using download button
                     show_label=False,
                 )
                 download_sketch = gr.Button("Download sketch", scale=1, elem_id="download_sketch")
-    
+
                 gr.HTML(
                     """
                 <div class="button-row">
@@ -838,15 +842,15 @@ Download results using download button
                         scale=2,
                         max_lines=1,
                     )
-    
+
                 with gr.Row():
                     seed = gr.Textbox(label="Seed", value=42, scale=1, min_width=50)
                     randomize_seed = gr.Button("Random", scale=1, min_width=50)
-    
+
             with gr.Column(elem_id="column_process", min_width=50, scale=0.4):
                 gr.Markdown("## pix2pix-turbo", elem_id="description")
                 run_button = gr.Button("Run", min_width=50)
-    
+
             with gr.Column(elem_id="column_output"):
                 gr.Markdown("## OUTPUT", elem_id="output_header")
                 result = gr.Image(
@@ -863,7 +867,7 @@ Download results using download button
                 gr.Markdown("**2**. Start sketching")
                 gr.Markdown("**3**. Change the image style using a style template")
                 gr.Markdown("**4**. Try different seeds to generate different results")
-    
+
         eraser.change(
             fn=lambda x: gr.update(value=not x),
             inputs=[eraser],
@@ -878,7 +882,7 @@ Download results using download button
             queue=False,
             api_name=False,
         ).then(update_canvas, [line, eraser], [image])
-    
+
         demo.load(None, None, None, _js=scripts)
         randomize_seed.click(
             lambda x: random.randint(0, MAX_SEED),
@@ -904,7 +908,7 @@ Download results using download button
         )
         run_button.click(fn=run, inputs=inputs, outputs=outputs, api_name=False)
         image.change(run, inputs=inputs, outputs=outputs, queue=False, api_name=False)
-    
+
     try:
         demo.queue().launch(debug=False)
     except Exception:
@@ -927,7 +931,7 @@ Download results using download button
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 

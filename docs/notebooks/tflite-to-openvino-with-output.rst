@@ -47,14 +47,14 @@ Install requirements
 
     %pip install -q "openvino>=2023.1.0"
     %pip install -q opencv-python requests tqdm
-    
+
     # Fetch `notebook_utils` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-    
+
     open("notebook_utils.py", "w").write(r.text)
 
 
@@ -83,7 +83,7 @@ Imports
     import numpy as np
     from PIL import Image
     import openvino as ov
-    
+
     from notebook_utils import download_file, load_image
 
 Download TFLite model
@@ -95,10 +95,10 @@ Download TFLite model
 
     model_dir = Path("model")
     tflite_model_path = model_dir / "efficientnet_lite0_fp32_2.tflite"
-    
+
     ov_model_path = tflite_model_path.with_suffix(".xml")
     model_url = "https://www.kaggle.com/models/tensorflow/efficientnet/frameworks/tfLite/variations/lite0-fp32/versions/2?lite-format=tflite"
-    
+
     download_file(model_url, tflite_model_path.name, model_dir)
 
 
@@ -159,7 +159,7 @@ this `tutorial <../openvino-api>`__.
 .. code:: ipython3
 
     core = ov.Core()
-    
+
     ov_model = core.read_model(tflite_model_path)
 
 Run OpenVINO model inference
@@ -189,14 +189,14 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -217,11 +217,11 @@ select device from dropdown list for running inference using OpenVINO
 
     imagenet_classes_file_path = download_file("https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/datasets/imagenet/imagenet_2012.txt")
     imagenet_classes = open(imagenet_classes_file_path).read().splitlines()
-    
+
     top1_predicted_cls_id = np.argmax(predicted_scores)
     top1_predicted_score = predicted_scores[0][top1_predicted_cls_id]
     predicted_label = imagenet_classes[top1_predicted_cls_id]
-    
+
     display(image.resize((640, 512)))
     print(f"Predicted label: {predicted_label} with probability {top1_predicted_score :2f}")
 
@@ -244,7 +244,7 @@ select device from dropdown list for running inference using OpenVINO
 Estimate Model Performance
 --------------------------
 
- `Benchmark
+`Benchmark
 Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
 is used to measure the inference performance of the model on CPU and
 GPU.
@@ -270,12 +270,12 @@ GPU.
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.3.0-15837-76a668b0662
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
     [ INFO ] Build ................................. 2024.3.0-15837-76a668b0662
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -328,7 +328,7 @@ GPU.
     [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'images'!. This input will be filled with random values!
-    [ INFO ] Fill input 'images' with random values 
+    [ INFO ] Fill input 'images' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 7.71 ms

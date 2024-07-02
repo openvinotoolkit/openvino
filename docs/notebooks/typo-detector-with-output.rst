@@ -19,8 +19,11 @@ Transformers <https://huggingface.co/docs/transformers/index>`__ library
 in the OpenVINO environment to perform the above task.
 
 The model detects typos in a given text with a high accuracy,
-performances of which are listed below, - Precision score of 0.9923 -
-Recall score of 0.9859 - f1-score of 0.9891
+performances of which are listed below,
+
+- Precision score of 0.9923
+- Recall score of 0.9859
+- f1-score of 0.9891
 
 `Source for above
 metrics <https://huggingface.co/m3hrdadfi/typo-detector-distilbert-en>`__
@@ -165,16 +168,16 @@ select device from dropdown list for running inference using OpenVINO
 
     import ipywidgets as widgets
     import openvino as ov
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -229,9 +232,9 @@ your model.
 
     # The pretrained model we are using
     model_id = "m3hrdadfi/typo-detector-distilbert-en"
-    
+
     model_dir = Path("optimum_model")
-    
+
     # Save the model to the path if not existing
     if model_dir.exists():
         model = OVModelForTokenClassification.from_pretrained(model_dir, device=device.value)
@@ -300,17 +303,17 @@ Function to find typos in a sentence and write them to the terminal
         """
         Detect typos from the given sentence.
         Writes both the original input and typo-tagged version to the terminal.
-    
+
         Arguments:
         sentence -- Sentence to be evaluated (string)
         """
-    
+
         typos = [sentence[r["start"] : r["end"]] for r in nlp(sentence)]
-    
+
         detected = sentence
         for typo in typos:
             detected = detected.replace(typo, f"<i>{typo}</i>")
-    
+
         print("[Input]: ", sentence)
         print("[Detected]: ", detected)
         print("-" * 130)
@@ -331,12 +334,12 @@ Let’s run a demo using the Hugging Face Optimum API.
         "My freind and I went campign in the forest last weekend and saw a beutiful sunst that was so amzing it took our breth away.",
         "I  have been stuying for my math exam all week, but I'm stil not very confidet that I will pass it, because there are so many formuals to remeber.",
     ]
-    
+
     start = time.time()
-    
+
     for sentence in sentences:
         show_typos(sentence)
-    
+
     print(f"Time elapsed: {time.time() - start}")
 
 
@@ -392,10 +395,10 @@ pytorch model.
 
     model_id = "m3hrdadfi/typo-detector-distilbert-en"
     model_dir = Path("pytorch_model")
-    
+
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     config = AutoConfig.from_pretrained(model_id)
-    
+
     # Save the model to the path if not existing
     if model_dir.exists():
         model = AutoModelForTokenClassification.from_pretrained(model_dir)
@@ -411,7 +414,7 @@ Converting to OpenVINO IR
 .. code:: ipython3
 
     ov_model_path = Path(model_dir) / "typo_detect.xml"
-    
+
     dummy_model_input = tokenizer("This is a sample", return_tensors="pt")
     ov_model = ov.convert_model(model, example_input=dict(dummy_model_input))
     ov.save_model(ov_model, ov_model_path)
@@ -444,14 +447,14 @@ Helper Functions
         """
         Maps the list of tokens to words in the original text.
         Built on the feature that tokens starting with '##' is attached to the previous token as tokens derived from the same word.
-    
+
         Arguments:
         tokens -- List of tokens
-    
+
         Returns:
         map_to_words -- Dictionary mapping tokens to words in original text
         """
-    
+
         word_count = -1
         map_to_words = {}
         for token in tokens:
@@ -467,14 +470,14 @@ Helper Functions
     def infer(input_text: str) -> Dict[np.ndarray, np.ndarray]:
         """
         Creating a generic inference function to read the input and infer the result
-    
+
         Arguments:
         input_text -- The text to be infered (String)
-    
+
         Returns:
         result -- Resulting list from inference
         """
-    
+
         tokens = tokenizer(
             input_text,
             return_tensors="np",
@@ -492,15 +495,15 @@ Helper Functions
     ) -> List[int]:
         """
         Given results from the inference and tokens-map-to-words, identifies the indexes of the words with typos.
-    
+
         Arguments:
         result -- Result from inference (tensor)
         map_to_words -- Dictionary mapping tokens to words (Dictionary)
-    
+
         Results:
         wrong_words -- List of indexes of words with typos
         """
-    
+
         wrong_words = []
         c = 0
         result_list = result[0][1:-1]
@@ -517,14 +520,14 @@ Helper Functions
     def sentence_split(sentence: str) -> List[str]:
         """
         Split the sentence into words and characters
-    
+
         Arguments:
         sentence - Sentence to be split (string)
-    
+
         Returns:
         splitted -- List of words and characters
         """
-    
+
         splitted = re.split("([',. ])", sentence)
         splitted = [x for x in splitted if x != " " and x != ""]
         return splitted
@@ -535,24 +538,24 @@ Helper Functions
         """
         Detect typos from the given sentence.
         Writes both the original input and typo-tagged version to the terminal.
-    
+
         Arguments:
         sentence -- Sentence to be evaluated (string)
         """
-    
+
         tokens = tokenizer.tokenize(sentence)
         map_to_words = token_to_words(tokens)
         result = infer(sentence)
         typo_indexes = get_typo_indexes(result, map_to_words, tokens)
-    
+
         sentence_words = sentence_split(sentence)
-    
+
         typos = [sentence_words[i] for i in typo_indexes]
-    
+
         detected = sentence
         for typo in typos:
             detected = detected.replace(typo, f"<i>{typo}</i>")
-    
+
         print("   [Input]: ", sentence)
         print("[Detected]: ", detected)
         print("-" * 130)
@@ -573,12 +576,12 @@ Let’s run a demo using the converted OpenVINO IR model.
         "My freind and I went campign in the forest last weekend and saw a beutiful sunst that was so amzing it took our breth away.",
         "I  have been stuying for my math exam all week, but I'm stil not very confidet that I will pass it, because there are so many formuals to remeber.",
     ]
-    
+
     start = time.time()
-    
+
     for sentence in sentences:
         show_typos(sentence)
-    
+
     print(f"Time elapsed: {time.time() - start}")
 
 

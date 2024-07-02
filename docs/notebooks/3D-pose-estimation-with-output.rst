@@ -12,13 +12,13 @@ out the algorithms. **Make sure you have properly installed
 the**\ `Jupyter
 extension <https://github.com/jupyter-widgets/pythreejs#jupyterlab>`__\ **and
 been using JupyterLab to run the demo as suggested in the
-``README.md``**
+"README.md"**
 
    **NOTE**: *To use a webcam, you must run this Jupyter notebook on a
    computer with a webcam. If you run on a remote server, the webcam
    will not work. However, you can still do inference on a video file in
    the final step. This demo utilizes the Python interface in
-   ``Three.js`` integrated with WebGL to process data from the model
+   "Three.js" integrated with WebGL to process data from the model
    inference. These results are processed and displayed in the
    notebook.*
 
@@ -52,7 +52,7 @@ Prerequisites
 
 
 
-**The ``pythreejs`` extension may not display properly when using a
+**The "pythreejs" extension may not display properly when using a
 Jupyter Notebook release. Therefore, it is recommended to use Jupyter
 Lab instead.**
 
@@ -158,28 +158,28 @@ Imports
     import collections
     import time
     from pathlib import Path
-    
+
     import cv2
     import ipywidgets as widgets
     import numpy as np
     from IPython.display import clear_output, display
     import openvino as ov
-    
+
     # Fetch `notebook_utils` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     with open("notebook_utils.py", "w") as f:
         f.write(r.text)
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/engine3js.py",
     )
     with open("engine3js.py", "w") as f:
         f.write(r.text)
-    
+
     import notebook_utils as utils
     import engine3js as engine
 
@@ -201,19 +201,19 @@ directory structure and downloads the selected model.
 
     # directory where model will be downloaded
     base_model_dir = "model"
-    
+
     # model name as named in Open Model Zoo
     model_name = "human-pose-estimation-3d-0001"
     # selected precision (FP32, FP16)
     precision = "FP32"
-    
+
     BASE_MODEL_NAME = f"{base_model_dir}/public/{model_name}/{model_name}"
     model_path = Path(BASE_MODEL_NAME).with_suffix(".pth")
     onnx_path = Path(BASE_MODEL_NAME).with_suffix(".onnx")
-    
+
     ir_model_path = f"model/public/{model_name}/{precision}/{model_name}.xml"
     model_weights_path = f"model/public/{model_name}/{precision}/{model_name}.bin"
-    
+
     if not model_path.exists():
         download_command = f"omz_downloader " f"--name {model_name} " f"--output_dir {base_model_dir}"
         ! $download_command
@@ -222,12 +222,12 @@ directory structure and downloads the selected model.
 .. parsed-literal::
 
     ################|| Downloading human-pose-estimation-3d-0001 ||################
-    
+
     ========== Downloading model/public/human-pose-estimation-3d-0001/human-pose-estimation-3d-0001.tar.gz
-    
-    
+
+
     ========== Unpacking model/public/human-pose-estimation-3d-0001/human-pose-estimation-3d-0001.tar.gz
-    
+
 
 
 Convert Model to OpenVINO IR format
@@ -253,19 +253,19 @@ IR format.
 
     ========== Converting human-pose-estimation-3d-0001 to ONNX
     Conversion to ONNX command: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/omz_tools/internal_scripts/pytorch_to_onnx.py --model-path=model/public/human-pose-estimation-3d-0001 --model-name=PoseEstimationWithMobileNet --model-param=is_convertible_by_mo=True --import-module=model --weights=model/public/human-pose-estimation-3d-0001/human-pose-estimation-3d-0001.pth --input-shape=1,3,256,448 --input-names=data --output-names=features,heatmaps,pafs --output-file=model/public/human-pose-estimation-3d-0001/human-pose-estimation-3d-0001.onnx
-    
+
     ONNX check passed successfully.
-    
+
     ========== Converting human-pose-estimation-3d-0001 to IR (FP32)
     Conversion command: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/bin/python -- /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/bin/mo --framework=onnx --output_dir=model/public/human-pose-estimation-3d-0001/FP32 --model_name=human-pose-estimation-3d-0001 --input=data '--mean_values=data[128.0,128.0,128.0]' '--scale_values=data[255.0,255.0,255.0]' --output=features,heatmaps,pafs --input_model=model/public/human-pose-estimation-3d-0001/human-pose-estimation-3d-0001.onnx '--layout=data(NCHW)' '--input_shape=[1, 3, 256, 448]' --compress_to_fp16=False
-    
+
     [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
-    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API.
     Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
     [ SUCCESS ] Generated IR version 11 model.
     [ SUCCESS ] XML file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/notebooks/3D-pose-estimation-webcam/model/public/human-pose-estimation-3d-0001/FP32/human-pose-estimation-3d-0001.xml
     [ SUCCESS ] BIN file: /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/notebooks/3D-pose-estimation-webcam/model/public/human-pose-estimation-3d-0001/FP32/human-pose-estimation-3d-0001.bin
-    
+
 
 
 Select inference device
@@ -278,14 +278,14 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -320,7 +320,7 @@ created to infer the compiled model.
     compiled_model = core.compile_model(model=model, device_name=device.value)
     infer_request = compiled_model.create_infer_request()
     input_tensor_name = model.inputs[0].get_any_name()
-    
+
     # get input and output names of nodes
     input_layer = compiled_model.input(0)
     output_layers = list(compiled_model.outputs)
@@ -360,25 +360,25 @@ input for the 3D model. This is how you obtain the output heat maps, PAF
     def model_infer(scaled_img, stride):
         """
         Run model inference on the input image
-    
+
         Parameters:
             scaled_img: resized image according to the input size of the model
             stride: int, the stride of the window
         """
-    
+
         # Remove excess space from the picture
         img = scaled_img[
             0 : scaled_img.shape[0] - (scaled_img.shape[0] % stride),
             0 : scaled_img.shape[1] - (scaled_img.shape[1] % stride),
         ]
-    
+
         img = np.transpose(img, (2, 0, 1))[None,]
         infer_request.infer({input_tensor_name: img})
         # A set of three inference results is obtained
         results = {name: infer_request.get_tensor(name).data[:] for name in {"features", "heatmaps", "pafs"}}
         # Get the results
         results = (results["features"][0], results["heatmaps"][0], results["pafs"][0])
-    
+
         return results
 
 Draw 2D Pose Overlays
@@ -418,8 +418,8 @@ from Open Model Zoo.
             [13, 14],  # neck - r_hip - r_knee - r_ankle
         ]
     )
-    
-    
+
+
     body_edges_2d = np.array(
         [
             [0, 1],  # neck - nose
@@ -441,25 +441,25 @@ from Open Model Zoo.
             [13, 14],  # neck - r_hip - r_knee - r_ankle
         ]
     )
-    
-    
+
+
     def draw_poses(frame, poses_2d, scaled_img, use_popup):
         """
         Draw 2D pose overlays on the image to visualize estimated poses.
         Joints are drawn as circles and limbs are drawn as lines.
-    
+
         :param frame: the input image
         :param poses_2d: array of human joint pairs
         """
         for pose in poses_2d:
             pose = np.array(pose[0:-1]).reshape((-1, 3)).transpose()
             was_found = pose[2] > 0
-    
+
             pose[0], pose[1] = (
                 pose[0] * frame.shape[1] / scaled_img.shape[1],
                 pose[1] * frame.shape[0] / scaled_img.shape[0],
             )
-    
+
             # Draw joints.
             for edge in body_edges_2d:
                 if was_found[edge[0]] and was_found[edge[1]]:
@@ -482,7 +482,7 @@ from Open Model Zoo.
                         -1,
                         cv2.LINE_AA,
                     )
-    
+
         return frame
 
 Main Processing Function
@@ -499,18 +499,18 @@ webcam feed or a video file.
         """
         2D image as input, using OpenVINO as inference backend,
         get joints 3D coordinates, and draw 3D human skeleton in the scene
-    
+
         :param source:      The webcam number to feed the video stream with primary webcam set to "0", or the video path.
         :param flip:        To be used by VideoPlayer function for flipping capture image.
         :param use_popup:   False for showing encoded frames over this notebook, True for creating a popup window.
         :param skip_frames: Number of frames to skip at the beginning of the video.
         """
-    
+
         focal_length = -1  # default
         stride = 8
         player = None
         skeleton_set = None
-    
+
         try:
             # create video player to play with target fps  video_path
             # get the frame from camera
@@ -518,16 +518,16 @@ webcam feed or a video file.
             player = utils.VideoPlayer(source, flip=flip, fps=30, skip_first_frames=skip_frames)
             # start capturing
             player.start()
-    
+
             input_image = player.next()
             # set the window size
             resize_scale = 450 / input_image.shape[1]
             windows_width = int(input_image.shape[1] * resize_scale)
             windows_height = int(input_image.shape[0] * resize_scale)
-    
+
             # use visualization library
             engine3D = engine.Engine3js(grid=True, axis=True, view_width=windows_width, view_height=windows_height)
-    
+
             if use_popup:
                 # display the 3D human pose in this notebook, and origin frame in popup window
                 display(engine3D.renderer)
@@ -537,43 +537,43 @@ webcam feed or a video file.
                 # set the 2D image box, show both human pose and image in the notebook
                 imgbox = widgets.Image(format="jpg", height=windows_height, width=windows_width)
                 display(widgets.HBox([engine3D.renderer, imgbox]))
-    
+
             skeleton = engine.Skeleton(body_edges=body_edges)
-    
+
             processing_times = collections.deque()
-    
+
             while True:
                 # grab the frame
                 frame = player.next()
                 if frame is None:
                     print("Source ended")
                     break
-    
+
                 # resize image and change dims to fit neural network input
                 # (see https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/human-pose-estimation-3d-0001)
                 scaled_img = cv2.resize(frame, dsize=(model.inputs[0].shape[3], model.inputs[0].shape[2]))
-    
+
                 if focal_length < 0:  # Focal length is unknown
                     focal_length = np.float32(0.8 * scaled_img.shape[1])
-    
+
                 # inference start
                 start_time = time.time()
                 # get results
                 inference_result = model_infer(scaled_img, stride)
-    
+
                 # inference stop
                 stop_time = time.time()
                 processing_times.append(stop_time - start_time)
                 # Process the point to point coordinates of the data
                 poses_3d, poses_2d = engine.parse_poses(inference_result, 1, stride, focal_length, True)
-    
+
                 # use processing times from last 200 frames
                 if len(processing_times) > 200:
                     processing_times.popleft()
-    
+
                 processing_time = np.mean(processing_times) * 1000
                 fps = 1000 / processing_time
-    
+
                 if len(poses_3d) > 0:
                     # From here, you can rotate the 3D point positions using the function "draw_poses",
                     # or you can directly make the correct mapping below to properly display the object image on the screen
@@ -586,28 +586,28 @@ webcam feed or a video file.
                         -y + np.ones(poses_3d[:, 2::4].shape) * 100,
                         -x,
                     )
-    
+
                     poses_3d = poses_3d.reshape(poses_3d.shape[0], 19, -1)[:, :, 0:3]
                     people = skeleton(poses_3d=poses_3d)
-    
+
                     try:
                         engine3D.scene_remove(skeleton_set)
                     except Exception:
                         pass
-    
+
                     engine3D.scene_add(people)
                     skeleton_set = people
-    
+
                     # draw 2D
                     frame = draw_poses(frame, poses_2d, scaled_img, use_popup)
-    
+
                 else:
                     try:
                         engine3D.scene_remove(skeleton_set)
                         skeleton_set = None
                     except Exception:
                         pass
-    
+
                 cv2.putText(
                     frame,
                     f"Inference time: {processing_time:.1f}ms ({fps:.1f} FPS)",
@@ -618,7 +618,7 @@ webcam feed or a video file.
                     1,
                     cv2.LINE_AA,
                 )
-    
+
                 if use_popup:
                     cv2.imshow(title, frame)
                     key = cv2.waitKey(1)
@@ -632,9 +632,9 @@ webcam feed or a video file.
                         frame,
                         params=[cv2.IMWRITE_JPEG_QUALITY, 90],
                     )[1].tobytes()
-    
+
                 engine3D.renderer.render(engine3D.scene, engine3D.cam)
-    
+
         except KeyboardInterrupt:
             print("Interrupted")
         except RuntimeError as e:
@@ -681,10 +681,10 @@ picture on the left to interact.
 .. code:: ipython3
 
     USE_WEBCAM = False
-    
+
     cam_id = 0
     video_path = "https://github.com/intel-iot-devkit/sample-videos/raw/master/face-demographics-walking.mp4"
-    
+
     source = cam_id if USE_WEBCAM else video_path
-    
+
     run_pose_estimation(source=source, flip=isinstance(source, int), use_popup=False)

@@ -141,17 +141,17 @@ Prerequisites
 
     import sys
     from pathlib import Path
-    
-    
+
+
     dynamicrafter_path = Path("dynamicrafter")
-    
+
     if not dynamicrafter_path.exists():
         dynamicrafter_path.mkdir(parents=True, exist_ok=True)
         !git clone https://github.com/Doubiiu/DynamiCrafter.git dynamicrafter
         %cd dynamicrafter
         !git checkout 26e665cd6c174234238d2ded661e2e56f875d360 -q  # to avoid breaking changes
         %cd ..
-    
+
     sys.path.append(str(dynamicrafter_path))
 
 
@@ -180,14 +180,14 @@ We will use model for 256x256 resolution as example. Also, models for
 .. code:: ipython3
 
     import os
-    
+
     from huggingface_hub import hf_hub_download
     from omegaconf import OmegaConf
-    
+
     from dynamicrafter.scripts.evaluation.funcs import load_model_checkpoint
     from dynamicrafter.utils.utils import instantiate_from_config
-    
-    
+
+
     def download_model():
         REPO_ID = "Doubiiu/DynamiCrafter"
         if not os.path.exists("./checkpoints/dynamicrafter_256_v1/"):
@@ -195,7 +195,7 @@ We will use model for 256x256 resolution as example. Also, models for
         local_file = os.path.join("./checkpoints/dynamicrafter_256_v1/model.ckpt")
         if not os.path.exists(local_file):
             hf_hub_download(repo_id=REPO_ID, filename="model.ckpt", local_dir="./checkpoints/dynamicrafter_256_v1/", local_dir_use_symlinks=False)
-    
+
         ckpt_path = "checkpoints/dynamicrafter_256_v1/model.ckpt"
         config_file = "dynamicrafter/configs/inference_256_v1.0.yaml"
         config = OmegaConf.load(config_file)
@@ -204,10 +204,10 @@ We will use model for 256x256 resolution as example. Also, models for
         model = instantiate_from_config(model_config)
         model = load_model_checkpoint(model, ckpt_path)
         model.eval()
-    
+
         return model
-    
-    
+
+
     model = download_model()
 
 
@@ -243,10 +243,10 @@ file.
 .. code:: ipython3
 
     import torch
-    
+
     import openvino as ov
-    
-    
+
+
     def convert(model: torch.nn.Module, xml_path: str, example_input, input_shape=None):
         xml_path = Path(xml_path)
         if not xml_path.exists():
@@ -257,7 +257,7 @@ file.
                 else:
                     converted_model = ov.convert_model(model, example_input=example_input, input=input_shape)
             ov.save_model(converted_model, xml_path, compress_to_fp16=False)
-    
+
             # cleanup memory
             torch._C._jit_clear_class_registry()
             torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
@@ -281,21 +281,21 @@ Convert CLIP text encoder
 .. code:: ipython3
 
     from dynamicrafter.lvdm.modules.encoders.condition import FrozenOpenCLIPEmbedder
-    
-    
+
+
     COND_STAGE_MODEL_OV_PATH = Path("models/cond_stage_model.xml")
-    
-    
+
+
     class FrozenOpenCLIPEmbedderWrapper(FrozenOpenCLIPEmbedder):
-    
+
         def forward(self, tokens):
             z = self.encode_with_transformer(tokens.to(self.device))
             return z
-    
-    
+
+
     cond_stage_model = FrozenOpenCLIPEmbedderWrapper(device="cpu")
-    
-    
+
+
     convert(
         cond_stage_model,
         COND_STAGE_MODEL_OV_PATH,
@@ -312,10 +312,10 @@ resolutions.
 .. code:: ipython3
 
     EMBEDDER_OV_PATH = Path("models/embedder_ir.xml")
-    
-    
+
+
     dummy_input = torch.rand([1, 3, 767, 767], dtype=torch.float32)
-    
+
     model.embedder.model.visual.input_patchnorm = None  # fix error: visual model has not  attribute 'input_patchnorm'
     convert(model.embedder, EMBEDDER_OV_PATH, example_input=dummy_input, input_shape=[1, 3, -1, -1])
 
@@ -370,10 +370,10 @@ Convert AE encoder
 .. code:: ipython3
 
     ENCODER_FIRST_STAGE_OV_PATH = Path("models/encode_first_stage_ir.xml")
-    
-    
+
+
     dummy_input = torch.rand([1, 3, 256, 256], dtype=torch.float32)
-    
+
     convert(
         model.first_stage_model.encoder,
         ENCODER_FIRST_STAGE_OV_PATH,
@@ -395,18 +395,18 @@ Convert Diffusion U-Net model
 .. code:: ipython3
 
     MODEL_OV_PATH = Path("models/model_ir.xml")
-    
-    
+
+
     class ModelWrapper(torch.nn.Module):
         def __init__(self, diffusion_model):
             super().__init__()
             self.diffusion_model = diffusion_model
-    
+
         def forward(self, xc, t, context=None, fs=None, temporal_length=None):
             outputs = self.diffusion_model(xc, t, context=context, fs=fs, temporal_length=temporal_length)
             return outputs
-    
-    
+
+
     convert(
         ModelWrapper(model.model.diffusion_model),
         MODEL_OV_PATH,
@@ -437,7 +437,7 @@ Convert Diffusion U-Net model
 Convert AE decoder
 ~~~~~~~~~~~~~~~~~~
 
- ``Decoder`` receives a
+``Decoder`` receives a
 ``bfloat16`` tensor. numpy doesn’t support this type. To avoid problems
 with the conversion lets replace ``decode`` method to convert bfloat16
 to float32.
@@ -445,24 +445,24 @@ to float32.
 .. code:: ipython3
 
     import types
-    
-    
+
+
     def decode(self, z, **kwargs):
         z = self.post_quant_conv(z)
         z = z.float()
         dec = self.decoder(z)
         return dec
-    
-    
+
+
     model.first_stage_model.decode = types.MethodType(decode, model.first_stage_model)
 
 .. code:: ipython3
 
     DECODER_FIRST_STAGE_OV_PATH = Path("models/decoder_first_stage_ir.xml")
-    
-    
+
+
     dummy_input = torch.rand([16, 4, 32, 32], dtype=torch.float32)
-    
+
     convert(
         model.first_stage_model.decoder,
         DECODER_FIRST_STAGE_OV_PATH,
@@ -479,7 +479,7 @@ Select device from dropdown list for running inference using OpenVINO.
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -487,7 +487,7 @@ Select device from dropdown list for running inference using OpenVINO.
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -519,49 +519,49 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
 .. code:: ipython3
 
     import open_clip
-    
-    
+
+
     class CondStageModelWrapper(torch.nn.Module):
         def __init__(self, cond_stage_model):
             super().__init__()
             self.cond_stage_model = cond_stage_model
-    
+
         def encode(self, tokens):
             if isinstance(tokens, list):
                 tokens = open_clip.tokenize(tokens[0])
             outs = self.cond_stage_model(tokens)[0]
-    
+
             return torch.from_numpy(outs)
-    
-    
+
+
     class EncoderFirstStageModelWrapper(torch.nn.Module):
         def __init__(self, encode_first_stage):
             super().__init__()
             self.encode_first_stage = encode_first_stage
-    
+
         def forward(self, x):
             outs = self.encode_first_stage(x)[0]
-    
+
             return torch.from_numpy(outs)
-    
-    
+
+
     class EmbedderWrapper(torch.nn.Module):
         def __init__(self, embedder):
             super().__init__()
             self.embedder = embedder
-    
+
         def forward(self, x):
             outs = self.embedder(x)[0]
-    
+
             return torch.from_numpy(outs)
-    
-    
+
+
     class CModelWrapper(torch.nn.Module):
         def __init__(self, diffusion_model, out_channels):
             super().__init__()
             self.diffusion_model = diffusion_model
             self.out_channels = out_channels
-    
+
         def forward(self, xc, t, context, fs, temporal_length):
             inputs = {
                 "xc": xc,
@@ -570,19 +570,19 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
                 "fs": fs,
             }
             outs = self.diffusion_model(inputs)[0]
-    
+
             return torch.from_numpy(outs)
-    
-    
+
+
     class DecoderFirstStageModelWrapper(torch.nn.Module):
         def __init__(self, decoder_first_stage):
             super().__init__()
             self.decoder_first_stage = decoder_first_stage
-    
+
         def forward(self, x):
             x.float()
             outs = self.decoder_first_stage(x)[0]
-    
+
             return torch.from_numpy(outs)
 
 And insert wrappers instances in the pipeline:
@@ -603,31 +603,31 @@ Interactive inference
 .. code:: ipython3
 
     import time
-    
+
     from einops import repeat
     from pytorch_lightning import seed_everything
     import torchvision.transforms as transforms
-    
+
     from dynamicrafter.scripts.evaluation.funcs import save_videos, batch_ddim_sampling, get_latent_z
     from lvdm.models.samplers.ddim import DDIMSampler
-    
-    
+
+
     def register_buffer(self, name, attr):
         if isinstance(attr, torch.Tensor):
             if attr.device != torch.device("cpu"):
                 attr = attr.to(torch.device("cpu"))
         setattr(self, name, attr)
-    
-    
+
+
     # monkey patching to replace the original method 'register_buffer' that uses CUDA
     DDIMSampler.register_buffer = types.MethodType(register_buffer, DDIMSampler)
-    
-    
+
+
     def get_image(image, prompt, steps=5, cfg_scale=7.5, eta=1.0, fs=3, seed=123, model=model):
         result_dir = "results"
         if not os.path.exists(result_dir):
             os.mkdir(result_dir)
-    
+
         seed_everything(seed)
         transform = transforms.Compose(
             [
@@ -646,31 +646,31 @@ Interactive inference
         frames = model.temporal_length
         h, w = 256 // 8, 256 // 8
         noise_shape = [batch_size, channels, frames, h, w]
-    
+
         # text cond
         with torch.no_grad(), torch.cpu.amp.autocast():
             text_emb = model.get_learned_conditioning([prompt])
-    
+
             # img cond
             img_tensor = torch.from_numpy(image).permute(2, 0, 1).float().to(model.device)
             img_tensor = (img_tensor / 255.0 - 0.5) * 2
-    
+
             image_tensor_resized = transform(img_tensor)  # 3,h,w
             videos = image_tensor_resized.unsqueeze(0)  # bchw
-    
+
             z = get_latent_z(model, videos.unsqueeze(2))  # bc,1,hw
-    
+
             img_tensor_repeat = repeat(z, "b c t h w -> b c (repeat t) h w", repeat=frames)
-    
+
             cond_images = model.embedder(img_tensor.unsqueeze(0))  # blc
-    
+
             img_emb = model.image_proj_model(cond_images)
-    
+
             imtext_cond = torch.cat([text_emb, img_emb], dim=1)
-    
+
             fs = torch.tensor([fs], dtype=torch.long, device=model.device)
             cond = {"c_crossattn": [imtext_cond], "fs": fs, "c_concat": [img_tensor_repeat]}
-    
+
             ## inference
             batch_samples = batch_ddim_sampling(model, cond, noise_shape, n_samples=1, ddim_steps=steps, ddim_eta=eta, cfg_scale=cfg_scale)
             ## b,samples,c,t,h,w
@@ -679,17 +679,17 @@ Interactive inference
             prompt_str = prompt_str[:40]
             if len(prompt_str) == 0:
                 prompt_str = "empty_prompt"
-    
+
         save_videos(batch_samples, result_dir, filenames=[prompt_str], fps=8)
         print(f"Saved in {prompt_str}. Time used: {(time.time() - start):.2f} seconds")
-    
+
         return os.path.join(result_dir, f"{prompt_str}.mp4")
 
 .. code:: ipython3
 
     import gradio as gr
-    
-    
+
+
     i2v_examples_256 = [
         ["dynamicrafter/prompts/256/art.png", "man fishing in a boat at sunset", 50, 7.5, 1.0, 3, 234],
         ["dynamicrafter/prompts/256/boy.png", "boy walking on the street", 50, 7.5, 1.0, 3, 125],
@@ -697,11 +697,11 @@ Interactive inference
         ["dynamicrafter/prompts/256/fire_and_beach.jpg", "a campfire on the beach and the ocean waves in the background", 50, 7.5, 1.0, 3, 111],
         ["dynamicrafter/prompts/256/guitar0.jpeg", "bear playing guitar happily, snowing", 50, 7.5, 1.0, 3, 122],
     ]
-    
-    
+
+
     def dynamicrafter_demo():
         css = """#input_img {max-width: 256px !important} #output_vid {max-width: 256px; max-height: 256px}"""
-    
+
         with gr.Blocks(analytics_enabled=False, css=css) as dynamicrafter_iface:
             with gr.Tab(label="Image2Video_256x256"):
                 with gr.Column():
@@ -721,7 +721,7 @@ Interactive inference
                             i2v_end_btn = gr.Button("Generate")
                         with gr.Row():
                             i2v_output_video = gr.Video(label="Generated Video", elem_id="output_vid", autoplay=True, show_share_button=True)
-    
+
                     gr.Examples(
                         examples=i2v_examples_256,
                         inputs=[i2v_input_image, i2v_input_text, i2v_steps, i2v_cfg_scale, i2v_eta, i2v_motion, i2v_seed],
@@ -734,13 +734,13 @@ Interactive inference
                     outputs=[i2v_output_video],
                     fn=get_image,
                 )
-    
+
         return dynamicrafter_iface
-    
-    
+
+
     demo = dynamicrafter_demo()
-    
-    
+
+
     try:
         demo.queue().launch(debug=False)
     except Exception:
@@ -753,7 +753,7 @@ Interactive inference
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 

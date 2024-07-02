@@ -40,7 +40,8 @@ blog
 post <https://opensource.googleblog.com/2024/02/magika-ai-powered-fast-and-efficient-file-type-identification.html>`__.
 
 In this tutorial we consider how to bring OpenVINO power into Magika.
-#### Table of contents:
+
+**Table of contents:**
 
 -  `Prerequisites <#prerequisites>`__
 -  `Define model loading class <#define-model-loading-class>`__
@@ -56,7 +57,6 @@ In this tutorial we consider how to bring OpenVINO power into Magika.
 Prerequisites
 -------------
 
- ## Prerequisites
 
 .. code:: ipython3
 
@@ -88,16 +88,16 @@ API <https://github.com/google/magika/blob/main/docs/python.md>`__.
     from pathlib import Path
     from functools import partial
     from typing import List, Tuple, Optional, Dict
-    
+
     from magika import Magika
     from magika.types import ModelFeatures, ModelOutput, MagikaResult
     from magika.prediction_mode import PredictionMode
     import numpy.typing as npt
     import numpy as np
-    
+
     import openvino as ov
-    
-    
+
+
     class OVMagika(Magika):
         def __init__(
             self,
@@ -111,7 +111,7 @@ API <https://github.com/google/magika/blob/main/docs/python.md>`__.
         ) -> None:
             self._device = device
             super().__init__(model_dir, prediction_mode, no_dereference, verbose, debug, use_colors)
-    
+
         def _init_onnx_session(self):
             # overload model loading using OpenVINO
             start_time = time.time()
@@ -120,13 +120,13 @@ API <https://github.com/google/magika/blob/main/docs/python.md>`__.
             elapsed_time = 1000 * (time.time() - start_time)
             self._log.debug(f'ONNX DL model "{self._model_path}" loaded in {elapsed_time:.03f} ms on {self._device}')
             return ov_model
-    
+
         def _get_raw_predictions(self, features: List[Tuple[Path, ModelFeatures]]) -> npt.NDArray:
             """
             Given a list of (path, features), return a (files_num, features_size)
             matrix encoding the predictions.
             """
-    
+
             dataset_format = self._model_config["train_dataset_info"]["dataset_format"]
             assert dataset_format == "int-concat/one-hot"
             start_time = time.time()
@@ -143,16 +143,16 @@ API <https://github.com/google/magika/blob/main/docs/python.md>`__.
             X = np.array(X_bytes).astype(np.float32)
             elapsed_time = time.time() - start_time
             self._log.debug(f"DL input prepared in {elapsed_time:.03f} seconds")
-    
+
             start_time = time.time()
             raw_predictions_list = []
             samples_num = X.shape[0]
-    
+
             max_internal_batch_size = 1000
             batches_num = samples_num // max_internal_batch_size
             if samples_num % max_internal_batch_size != 0:
                 batches_num += 1
-    
+
             for batch_idx in range(batches_num):
                 self._log.debug(f"Getting raw predictions for (internal) batch {batch_idx+1}/{batches_num}")
                 start_idx = batch_idx * max_internal_batch_size
@@ -162,7 +162,7 @@ API <https://github.com/google/magika/blob/main/docs/python.md>`__.
             elapsed_time = time.time() - start_time
             self._log.debug(f"DL raw prediction in {elapsed_time:.03f} seconds")
             return np.concatenate(raw_predictions_list)
-    
+
         def _get_topk_model_outputs_from_features(self, all_features: List[Tuple[Path, ModelFeatures]], k: int = 5) -> List[Tuple[Path, List[ModelOutput]]]:
             """
             Helper function for getting top k the highest ranked model results for each feature
@@ -179,19 +179,19 @@ API <https://github.com/google/magika/blob/main/docs/python.md>`__.
                     model_outputs_for_path.append(ModelOutput(ct_label=ct_label, score=float(score)))
                 results.append((path, model_outputs_for_path))
             return results
-    
+
         def _get_results_from_features_topk(self, all_features: List[Tuple[Path, ModelFeatures]], top_k=5) -> Dict[str, MagikaResult]:
             """
             Helper function for getting top k the highest ranked model results for each feature
             """
             # We now do inference for those files that need it.
-    
+
             if len(all_features) == 0:
                 # nothing to be done
                 return {}
-    
+
             outputs: Dict[str, MagikaResult] = {}
-    
+
             for path, model_output in self._get_topk_model_outputs_from_features(all_features, top_k):
                 # In additional to the content type label from the DL model, we
                 # also allow for other logic to overwrite such result. For
@@ -201,7 +201,7 @@ API <https://github.com/google/magika/blob/main/docs/python.md>`__.
                 results = []
                 for out in model_output:
                     output_ct_label = self._get_output_ct_label_from_dl_result(out.ct_label, out.score)
-    
+
                     results.append(
                         self._get_result_from_labels_and_score(
                             path,
@@ -211,9 +211,9 @@ API <https://github.com/google/magika/blob/main/docs/python.md>`__.
                         )
                     )
                 outputs[str(path)] = results
-    
+
             return outputs
-    
+
         def identify_bytes_topk(self, content: bytes, top_k=5) -> MagikaResult:
             # Helper function for getting topk results from bytes
             _get_results_from_features = self._get_results_from_features
@@ -240,16 +240,16 @@ dropdown list.
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -298,7 +298,7 @@ Run inference on file input
 .. code:: ipython3
 
     import requests
-    
+
     input_file = Path("./README.md")
     if not input_file.exists():
         r = requests.get("https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/README.md")
@@ -324,8 +324,8 @@ click submit button and look on predicted file types.
 .. code:: ipython3
 
     import gradio as gr
-    
-    
+
+
     def classify(file_path):
         """Classify file using classes listing.
         Args:
@@ -334,10 +334,10 @@ click submit button and look on predicted file types.
             (dict): Mapping between class labels and class probabilities.
         """
         results = ov_magika.identify_bytes_topk(file_path)
-    
+
         return {result.dl.ct_label: float(result.output.score) for result in results}
-    
-    
+
+
     demo = gr.Interface(
         classify,
         [
@@ -359,7 +359,7 @@ click submit button and look on predicted file types.
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 
