@@ -85,8 +85,8 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     } else if (name == ov::supported_properties.name()) {
         // return supported_configKeys;
         std::vector<ov::PropertyName> property_name;
-        property_name.push_back(ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RW});
-        property_name.push_back(ov::PropertyName{ov::device::full_name.name(), ov::PropertyMutability::RW});
+        property_name.push_back(ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO});
+        property_name.push_back(ov::PropertyName{ov::device::full_name.name(), ov::PropertyMutability::RO});
         for (auto& it : supported_configKeys) {
             property_name.push_back(it);
         }
