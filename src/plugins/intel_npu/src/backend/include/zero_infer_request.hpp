@@ -66,6 +66,8 @@ private:
     Logger _logger;
 
     ze_device_properties_t _properties = {};
+    std::shared_ptr<const zeroMemory::HostMemAllocator> _inputAllocator;
+    std::shared_ptr<const zeroMemory::HostMemAllocator> _outputAllocator;
 
     zeroProfiling::ProfilingPool _profilingPool;
     zeroProfiling::ProfilingQuery _profilingQuery;
