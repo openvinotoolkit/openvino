@@ -451,6 +451,8 @@ def test_reshape_with_list_of_shapes(input_shapes, new_shapes_list, expectation,
             assert model_input.partial_shape == PartialShape(expected_shape)
     if e is not None:
         assert raise_msg in str(e.value)
+
+
 def test_reshape_with_python_types_for_variable(device):
     var_id = "ID1"
     model = make_add_with_variable_model([1, 2, 5], var_id)
