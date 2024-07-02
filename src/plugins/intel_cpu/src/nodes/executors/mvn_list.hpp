@@ -11,6 +11,11 @@
 #include "acl/acl_mvn.hpp"
 #endif
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#include "x64/jit_mvn.hpp"
+#endif
+
+#include "common/ref_mvn.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "common/primitive_cache.hpp"
 

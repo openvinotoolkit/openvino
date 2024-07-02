@@ -7,6 +7,11 @@
 namespace ov {
 namespace intel_cpu {
 
+MVNExecutorBase::MVNExecutorBase(const MVNAttrs& mvnAttrs)
+        : mvnAttrs(mvnAttrs),
+          src_data_size(mvnAttrs.src_prc.size()),
+          dst_data_size(mvnAttrs.dst_prc.size()) {}
+
 MVNExecutor::MVNExecutor(const ExecutorContext::CPtr context) : context(context) {}
 
 }   // namespace intel_cpu

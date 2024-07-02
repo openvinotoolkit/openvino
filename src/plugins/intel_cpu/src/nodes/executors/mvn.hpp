@@ -12,6 +12,18 @@
 namespace ov {
 namespace intel_cpu {
 
+class MVNExecutorBase {
+public:
+    MVNExecutorBase(const MVNAttrs& mvnAttrs);
+    virtual void exec(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_, const VectorDims& shape5d) = 0;
+    virtual ~MVNExecutorBase() = default;
+
+protected:
+    MVNAttrs mvnAttrs;
+    size_t src_data_size = 0;
+    size_t dst_data_size = 0;
+};
+
 class MVNExecutor {
 public:
     MVNExecutor(const ExecutorContext::CPtr context);
