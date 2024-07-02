@@ -88,6 +88,7 @@
 /src/frontends/tensorflow_common/  @openvinotoolkit/openvino-tf-frontend-maintainers
 /src/frontends/tensorflow_lite/  @openvinotoolkit/openvino-tf-frontend-maintainers
 /src/frontends/pytorch/ @openvinotoolkit/openvino-pytorch-frontend-maintainers
+/src/frontends/jax/ @openvinotoolkit/openvino-jax-frontend-maintainers
 
 # OpenVINO ONNX Frontend:
 /src/frontends/onnx/ @openvinotoolkit/openvino-onnx-frontend-maintainers
@@ -99,7 +100,7 @@
 /tests/layer_tests/ @openvinotoolkit/openvino-tests-maintainers @openvinotoolkit/openvino-mo-maintainers
 /tests/layer_tests/pytorch_tests/ @openvinotoolkit/openvino-pytorch-frontend-maintainers
 /tests/layer_tests/tensorflow_tests @openvinotoolkit/openvino-tf-frontend-maintainers
-/tests/layer_tests/jax_tests @openvinotoolkit/openvino-tf-frontend-maintainers
+/tests/layer_tests/jax_tests @openvinotoolkit/openvino-tf-frontend-maintainers @openvinotoolkit/openvino-jax-frontend-maintainers
 /tests/model_hub_tests @openvinotoolkit/openvino-tf-frontend-maintainers
 /tests/model_hub_tests/pytorch @openvinotoolkit/openvino-pytorch-frontend-maintainers
 

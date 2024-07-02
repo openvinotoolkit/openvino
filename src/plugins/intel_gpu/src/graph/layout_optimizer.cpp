@@ -894,11 +894,6 @@ static bool is_node_for_onednn(convolution_node const& node) {
     if (!layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node))
         return false;
 
-    auto input_layout = node.get_input_layout(0);
-    auto output_layout = node.get_output_layout(0);
-    if (input_layout.is_dynamic() || output_layout.is_dynamic())
-        return false;
-
     return true;
 }
 
@@ -907,19 +902,15 @@ static bool is_node_for_onednn(deconvolution_node const& node) {
     auto input_layout = node.get_input_layout(0);
     auto output_layout = node.get_output_layout(0);
 
-    if (input_layout.is_dynamic() || output_layout.is_dynamic())
-        return false;
-
     bool onednn_valid_dt = layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node);
 
     bool onednn_valid_params = onednn_valid_dt &&
-                               input_layout.feature() >= 16 &&
                                prim->groups == 1 &&
                                get_post_ops_count(node) <= 32;
 
     auto spatial_dims_num = input_layout.get_spatial_rank();
 
-    return onednn_valid_dt && onednn_valid_params && spatial_dims_num <= 3;
+    return onednn_valid_params && spatial_dims_num <= 3;
 }
 
 
@@ -932,6 +923,10 @@ static bool is_node_for_onednn(fully_connected_node const& node) {
             auto decompression_zp_idx = fc_prim->bias.empty() ? 3 : 4;
             auto decompression_zp_dt = node.get_input_layout(decompression_zp_idx).data_type;
             if (weights_dt != decompression_zp_dt)
+                return false;
+
+            auto input_dt = node.get_input_layout(0).data_type;
+            if (input_dt == data_types::f32)
                 return false;
         }
     }
@@ -957,26 +952,6 @@ static bool is_node_for_onednn(fully_connected_node const& node) {
 static bool is_node_for_onednn(gemm_node const& node) {
     if (!layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node))
         return false;
-
-    auto gemm_prim = node.get_primitive();
-
-    for (size_t idx = 0; idx < gemm_prim->output_transpose_order.size(); idx++) {
-        if (idx != static_cast<size_t>(gemm_prim->output_transpose_order[idx]))
-            return false;
-    }
-
-    if (gemm_prim->transpose_input0 > 1 || gemm_prim->transpose_input0 > 1)
-        return false;
-
-    for (size_t idx = 0; idx < (gemm_prim->input0_transpose_order.size() - 2); idx++) {
-        if (idx != static_cast<size_t>(gemm_prim->input0_transpose_order[idx]))
-            return false;
-    }
-
-    for (size_t idx = 0; idx < (gemm_prim->input1_transpose_order.size() - 2); idx++) {
-        if (idx != static_cast<size_t>(gemm_prim->input1_transpose_order[idx]))
-            return false;
-    }
 
     return true;
 }
@@ -1692,6 +1667,11 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         // Unexpected layout
         if (std::find(onednn_optimized_formats.begin(), onednn_optimized_formats.end(), preferred_format) == onednn_optimized_formats.end()) {
             impl_candidate = impl_types::ocl;
+        }
+
+        if (node.is_type<convolution>()) {
+            if (!is_node_for_onednn(node.as<convolution>()))
+                impl_candidate = impl_types::ocl;
         }
 
         if (node.is_type<deconvolution>()) {

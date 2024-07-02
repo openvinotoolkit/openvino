@@ -91,7 +91,7 @@ std::vector<TRShape> shape_infer(const CTCLoss* op, const std::vector<TShape>& i
         " and: ",
         batch_size);
 
-    return {TRShape{batch_size}};
+    return {TRShape{std::move(batch_size)}};
 }
 }  // namespace v4
 }  // namespace op

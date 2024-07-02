@@ -102,6 +102,12 @@ Now that you've installed OpenVINO Runtime, you can try the following things:
 * Learn more about :doc:`OpenVINO Workflow <../../../openvino-workflow>`.
 * To prepare your models for working with OpenVINO, see :doc:`Model Preparation <../../../openvino-workflow/model-preparation>`.
 * See pre-trained deep learning models in our :doc:`Open Model Zoo <../../../documentation/legacy-features/model-zoo>`.
+
+  .. important::
+
+     Due to the deprecation of Open Model Zoo, models in the OpenVINO IR format are now
+     published on `Hugging Face <https://huggingface.co/OpenVINO>`__.
+
 * Learn more about :doc:`Inference with OpenVINO Runtime <../../../openvino-workflow/running-inference>`.
 * See sample applications in :doc:`OpenVINO toolkit Samples Overview <../../../learn-openvino/openvino-samples>`.
 * Check out the OpenVINO `product home page <https://software.intel.com/en-us/openvino-toolkit>`__ .

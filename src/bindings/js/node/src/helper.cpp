@@ -294,7 +294,7 @@ ov::Tensor cast_to_tensor(const Napi::Value& value) {
 }
 
 ov::Tensor cast_to_tensor(const Napi::CallbackInfo& info, int index) {
-    if (!is_tensor(info.Env(), info[index])) {
+    if (!ov::js::validate_value<TensorWrap>(info.Env(), info[index])) {
         OPENVINO_THROW(std::string("Argument #" + std::to_string(index) + " must be a Tensor."));
     }
     const auto tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[index].ToObject());
@@ -314,6 +314,23 @@ ov::Tensor cast_to_tensor(const Napi::TypedArray& typed_array,
     if (tensor.get_byte_size() != array_buffer.ByteLength()) {
         OPENVINO_THROW("Memory allocated using shape and element::type mismatch passed data's size");
     }
+    return tensor;
+}
+
+void fill_tensor_from_strings(ov::Tensor& tensor, const Napi::Array& arr) {
+    if (tensor.get_size() != static_cast<size_t>(arr.Length())) {
+        OPENVINO_THROW("Passed array must have the same size (number of elements) as the Tensor!");
+    }
+    const auto data = tensor.data<std::string>();
+    for (uint32_t i = 0; i < tensor.get_size(); ++i) {
+        OPENVINO_ASSERT(arr[i].IsString(), "The array passed to create string tensor must contain only strings.");
+        data[i] = arr[i].ToString().Utf8Value();
+    }
+}
+
+ov::Tensor cast_to_tensor(const Napi::Array& array) {
+    auto tensor = ov::Tensor(ov::element::string, ov::Shape{array.Length()});
+    fill_tensor_from_strings(tensor, array);
     return tensor;
 }
 
@@ -520,4 +537,10 @@ ov::AnyMap to_anyMap(const Napi::Env& env, const Napi::Value& val) {
     }
 
     return properties;
+}
+
+std::string buffer_to_string(const Napi::Value& value) {
+    Napi::Buffer<uint8_t> model_data = value.As<Napi::Buffer<uint8_t>>();
+
+    return std::string(reinterpret_cast<char*>(model_data.Data()), model_data.Length());
 }

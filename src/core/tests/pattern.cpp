@@ -24,11 +24,13 @@
 #include "openvino/op/equal.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/greater.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/non_max_suppression.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/relu.hpp"
+#include "openvino/op/sigmoid.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
@@ -36,7 +38,6 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/branch.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -308,16 +309,10 @@ TEST(pattern, matcher) {
     ASSERT_EQ(n.get_matched_nodes(), (NodeVector{a}));
 
     auto abs = make_shared<op::v0::Abs>(a);
-    auto any = std::make_shared<pattern::op::Skip>(a);
-    ASSERT_TRUE(n.match(any, abs));
-    ASSERT_EQ(n.get_matched_nodes(), (NodeVector{abs, a}));
 
     auto false_pred = [](std::shared_ptr<Node> /* no */) {
         return false;
     };
-    auto any_false = std::make_shared<pattern::op::Skip>(a, false_pred);
-    ASSERT_TRUE(n.match(any_false, a));
-    ASSERT_EQ(n.get_matched_nodes(), (NodeVector{a, a}));
 
     auto pattern = std::make_shared<pattern::op::Label>(a);
     ASSERT_TRUE(n.match(pattern, a));
@@ -368,39 +363,6 @@ TEST(pattern, matcher) {
 
     ASSERT_FALSE(n.match(std::make_shared<op::v1::Add>(abs, b), std::make_shared<op::v1::Add>(b, b)));
     ASSERT_EQ(n.get_matched_nodes(), (NodeVector{}));
-
-    auto add_absb = std::make_shared<op::v1::Add>(abs, b);
-    ASSERT_TRUE(n.match(std::make_shared<op::v1::Add>(any, b), add_absb));
-    ASSERT_EQ(n.get_matched_nodes(), (NodeVector{add_absb, abs, a, b}));
-
-    ASSERT_TRUE(n.match(std::make_shared<op::v1::Add>(pattern, b), add_absb));
-    ASSERT_EQ(n.get_pattern_map()[pattern], abs);
-    ASSERT_EQ(n.get_matched_nodes(), (NodeVector{add_absb, abs, b}));
-
-    ASSERT_TRUE(n.match(std::make_shared<op::v1::Add>(b, pattern), add_absb));
-    ASSERT_EQ(n.get_pattern_map()[pattern], abs);
-    ASSERT_EQ(n.get_matched_nodes(), (NodeVector{add_absb, abs, b}));
-
-    auto c = make_shared<op::v0::Parameter>(element::i32, shape);
-    auto mul_add_absb = std::make_shared<op::v1::Multiply>(c, add_absb);
-    ASSERT_TRUE(
-        n.match(std::make_shared<op::v1::Multiply>(c, std::make_shared<op::v1::Add>(b, pattern)), mul_add_absb));
-    ASSERT_EQ(n.get_pattern_map()[pattern], abs);
-    ASSERT_EQ(n.get_matched_nodes(), (NodeVector{mul_add_absb, c, add_absb, abs, b}));
-
-    ASSERT_TRUE(n.match(std::make_shared<op::v1::Multiply>(c, std::make_shared<op::v1::Add>(any, b)),
-                        mul_add_absb));  // nested any
-    ASSERT_EQ(n.get_matched_nodes(), (NodeVector{mul_add_absb, c, add_absb, abs, a, b}));
-    ASSERT_TRUE(n.match(std::make_shared<op::v1::Multiply>(c, std::make_shared<op::v1::Add>(any, b)),
-                        std::make_shared<op::v1::Multiply>(std::make_shared<op::v1::Add>(b, abs),
-                                                           c)));  // permutations w/ any
-    auto mul_c_add_ab = make_shared<op::v1::Multiply>(c, add_ab);
-    ASSERT_TRUE(n.match(std::make_shared<op::v1::Multiply>(c, std::make_shared<op::v1::Add>(any_false, b)),
-                        std::make_shared<op::v1::Multiply>(c, std::make_shared<op::v1::Add>(a, b))));  //
-    // nested any
-    ASSERT_TRUE(n.match(std::make_shared<op::v1::Multiply>(c, std::make_shared<op::v1::Add>(any_false, b)),
-                        mul_c_add_ab));  // permutations w/ any_false
-    ASSERT_EQ(n.get_matched_nodes(), (NodeVector{mul_c_add_ab, c, add_ab, a, a, b}));
 
     auto iconst1_0 = construct_constant_node(1);
     auto iconst1_1 = construct_constant_node(1);
@@ -459,18 +421,6 @@ TEST(pattern, matcher) {
     ASSERT_TRUE(n.match(std::make_shared<pattern::op::Or>(OutputVector{std::make_shared<op::v1::Add>(a, b),
                                                                        std::make_shared<op::v1::Subtract>(a, b)}),
                         std::make_shared<op::v1::Subtract>(a, b)));
-
-    // Branch
-    {
-        auto branch = std::make_shared<pattern::op::Branch>();
-        auto star = std::make_shared<pattern::op::Or>(OutputVector{branch, std::make_shared<pattern::op::True>()});
-        auto pattern = std::make_shared<op::v1::Add>(star, star);
-        branch->set_destination(pattern);
-        auto arg =
-            std::make_shared<op::v1::Add>(std::make_shared<op::v1::Add>(a, b), std::make_shared<op::v1::Add>(b, a));
-        ASSERT_TRUE(n.match(pattern, std::make_shared<op::v1::Add>(arg, a)));
-        ASSERT_EQ(n.get_matched_nodes().size(), 4);
-    }
 
     // strict mode
     {
@@ -957,47 +907,6 @@ TEST(pattern, test_sort) {
     }
 }
 
-TEST(pattern, label_on_skip) {
-    const auto zero = std::string{"0"};
-    const auto is_zero = [&zero](const Output<Node>& node) {
-        if (const auto c = as_type_ptr<op::v0::Constant>(node.get_node_shared_ptr())) {
-            return (c->get_all_data_elements_bitwise_identical() && c->convert_value_to_string(0) == zero);
-        } else {
-            return false;
-        }
-    };
-
-    Shape shape{2, 2};
-    auto a = make_shared<op::v0::Parameter>(element::i32, shape);
-    auto b = make_shared<op::v0::Parameter>(element::i32, Shape{});
-    auto iconst = op::v0::Constant::create(element::i32, Shape{}, {0.0f});
-    auto label = std::make_shared<pattern::op::Label>(iconst);
-    auto const_label = std::make_shared<pattern::op::Label>(iconst, is_zero, NodeVector{iconst});
-
-    auto bcst_pred = [](std::shared_ptr<Node> n) {
-        return ov::as_type_ptr<op::v1::Broadcast>(n) != nullptr;
-    };
-
-    auto shape_const = ov::op::v0::Constant::create(element::u64, Shape{shape.size()}, shape);
-    auto axes_const = ov::op::v0::Constant::create(element::u8, Shape{}, {0});
-    auto bcst = std::make_shared<pattern::op::Skip>(OutputVector{const_label, shape_const, axes_const}, bcst_pred);
-    auto bcst_label = std::make_shared<pattern::op::Label>(bcst, nullptr, NodeVector{bcst});
-    auto matcher =
-        std::make_shared<pattern::Matcher>(std::make_shared<op::v1::Multiply>(label, bcst_label), "label_on_skip");
-
-    auto const_broadcast = make_shared<op::v1::Broadcast>(iconst, shape_const);
-    std::shared_ptr<Node> mul = std::make_shared<op::v1::Multiply>(a, const_broadcast);
-    std::shared_ptr<Node> mul_scalar = std::make_shared<op::v1::Multiply>(b, iconst);
-    ASSERT_TRUE(matcher->match(mul));
-    ASSERT_EQ(matcher->get_pattern_map()[bcst_label], const_broadcast);
-    ASSERT_EQ(matcher->get_pattern_map()[const_label], iconst);
-    ASSERT_EQ(matcher->get_pattern_map()[label], a);
-    ASSERT_TRUE(matcher->match(mul_scalar));
-    ASSERT_EQ(matcher->get_pattern_map()[bcst_label], iconst);
-    ASSERT_EQ(matcher->get_pattern_map()[const_label], iconst);
-    ASSERT_EQ(matcher->get_pattern_map()[label], b);
-}
-
 TEST(pattern, is_contained_match) {
     Shape shape{};
     auto a = make_shared<op::v0::Parameter>(element::i32, shape);
@@ -1100,4 +1009,189 @@ TEST(pattern, wrap_type_multi_op) {
         ASSERT_FALSE(matcher->match(static_pointer_cast<Node>(b)));
         ASSERT_FALSE(matcher->match(static_pointer_cast<Node>(c)));
     }
+}
+
+TEST(pattern, simple_model_and_pattern) {
+    // Create a sample model
+    PartialShape shape{2, 2};
+    auto model_param1 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
+    auto model_param2 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
+    auto model_add = std::make_shared<ov::op::v1::Add>(model_param1->output(0), model_param2->output(0));
+    auto model_param3 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
+    auto model_mul = std::make_shared<ov::op::v0::MatMul>(model_add->output(0), model_param3->output(0), false, false);
+    auto model_abs = std::make_shared<ov::op::v0::Abs>(model_mul->output(0));
+    auto model_relu = std::make_shared<ov::op::v0::Relu>(model_abs->output(0));
+    auto model_result = std::make_shared<ov::op::v0::Result>(model_relu->output(0));
+
+    // Create a sample model
+    auto pattern_mul = std::make_shared<ov::op::v0::MatMul>(pattern::any_input(), pattern::any_input(), false, false);
+    auto pattern_abs = std::make_shared<ov::op::v0::Abs>(pattern_mul->output(0));
+    auto pattern_relu = std::make_shared<ov::op::v0::Relu>(pattern_abs->output(0));
+
+    // Create a matcher and try to match the nodes
+    TestMatcher tm;
+
+    // Should perfectly match
+    ASSERT_TRUE(tm.match(pattern_relu, model_relu));
+}
+
+TEST(pattern, simple_model_and_pattern_wrap_type) {
+    // Create a sample model
+    PartialShape shape{2, 2};
+    auto model_param1 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
+    auto model_param2 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
+    auto model_add = std::make_shared<ov::op::v1::Add>(model_param1->output(0), model_param2->output(0));
+    auto model_param3 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
+    auto model_mul = std::make_shared<ov::op::v0::MatMul>(model_add->output(0), model_param3->output(0), false, false);
+    auto model_abs = std::make_shared<ov::op::v0::Abs>(model_mul->output(0));
+    auto model_relu = std::make_shared<ov::op::v0::Relu>(model_abs->output(0));
+    auto model_result = std::make_shared<ov::op::v0::Result>(model_relu->output(0));
+
+    // Create a sample model
+    auto pattern_mul = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({pattern::any_input(), pattern::any_input()});
+    auto pattern_abs = ov::pass::pattern::wrap_type<ov::op::v0::Abs>({pattern_mul->output(0)});
+    auto pattern_relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({pattern_abs->output(0)});
+
+    // Create a matcher and try to match the nodes
+    TestMatcher tm;
+
+    // Should perfectly match
+    ASSERT_TRUE(tm.match(pattern_relu, model_relu));
+}
+
+TEST(pattern, wrap_type_list) {
+    // Create a sample model
+    PartialShape shape{2, 2};
+    auto model_param1 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
+    auto model_param2 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
+    auto model_add = std::make_shared<ov::op::v1::Add>(model_param1->output(0), model_param2->output(0));
+    auto model_param3 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
+    auto model_mul = std::make_shared<ov::op::v0::MatMul>(model_add->output(0), model_param3->output(0), false, false);
+    auto model_abs = std::make_shared<ov::op::v0::Abs>(model_mul->output(0));
+    auto model_relu = std::make_shared<ov::op::v0::Relu>(model_abs->output(0));
+    auto model_result = std::make_shared<ov::op::v0::Result>(model_relu->output(0));
+    auto model_sig = std::make_shared<ov::op::v0::Sigmoid>(model_abs->output(0));
+    auto model_result1 = std::make_shared<ov::op::v0::Result>(model_sig->output(0));
+
+    // Create a sample model
+    auto pattern_mul = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({pattern::any_input(), pattern::any_input()});
+    auto pattern_abs = ov::pass::pattern::wrap_type<ov::op::v0::Abs>({pattern_mul->output(0)});
+    auto pattern_relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu, ov::op::v0::Sigmoid>({pattern_abs->output(0)});
+
+    // Create a matcher and try to match the nodes
+    TestMatcher tm;
+
+    // The same pattern perfectly matches 2 different nodes
+    ASSERT_TRUE(tm.match(pattern_relu, model_relu));
+    ASSERT_TRUE(tm.match(pattern_relu, model_sig));
+}
+
+TEST(pattern, pattern_or) {
+    // Create a sample model
+    PartialShape shape{2, 2};
+    auto model_param1 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
+    auto model_param2 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
+    auto model_add = std::make_shared<ov::op::v1::Add>(model_param1->output(0), model_param2->output(0));
+    auto model_param3 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
+    auto model_mul = std::make_shared<ov::op::v0::MatMul>(model_add->output(0), model_param3->output(0), false, false);
+    auto model_abs = std::make_shared<ov::op::v0::Abs>(model_mul->output(0));
+    auto model_relu = std::make_shared<ov::op::v0::Relu>(model_abs->output(0));
+    auto model_result = std::make_shared<ov::op::v0::Result>(model_relu->output(0));
+
+    // Create a red branch
+    auto red_pattern_add =
+        ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({pattern::any_input(), pattern::any_input()});
+    auto red_pattern_relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({red_pattern_add->output(0)});
+    auto red_pattern_sigmoid = ov::pass::pattern::wrap_type<ov::op::v0::Sigmoid>({red_pattern_relu->output(0)});
+
+    // Create a blue branch
+    auto blue_pattern_mul =
+        ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({pattern::any_input(), pattern::any_input()});
+    auto blue_pattern_abs = ov::pass::pattern::wrap_type<ov::op::v0::Abs>({blue_pattern_mul->output(0)});
+    auto blue_pattern_relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({blue_pattern_abs->output(0)});
+
+    // Create Or node
+    auto pattern_or = std::make_shared<ov::pass::pattern::op::Or>(
+        OutputVector{red_pattern_sigmoid->output(0), blue_pattern_relu->output(0)});
+
+    // Create a matcher and try to match the nodes
+    TestMatcher tm;
+
+    // The same pattern perfectly matches 2 different nodes
+    ASSERT_TRUE(tm.match(pattern_or, model_relu));
+}
+
+TEST(pattern, pattern_optional_middle) {
+    // Create a sample model
+    PartialShape shape{2, 2};
+    auto model_param1 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
+    auto model_param2 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
+    auto model_add = std::make_shared<ov::op::v1::Add>(model_param1->output(0), model_param2->output(0));
+    auto model_param3 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
+    auto model_mul = std::make_shared<ov::op::v0::MatMul>(model_add->output(0), model_param3->output(0), false, false);
+    auto model_abs = std::make_shared<ov::op::v0::Abs>(model_mul->output(0));
+    auto model_relu = std::make_shared<ov::op::v0::Relu>(model_abs->output(0));
+    auto model_result = std::make_shared<ov::op::v0::Result>(model_relu->output(0));
+
+    // Create a sample pattern with an Optional node in the middle
+    auto pattern_mul = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({pattern::any_input(), pattern::any_input()});
+    auto pattern_abs = ov::pass::pattern::wrap_type<ov::op::v0::Abs>({pattern_mul->output(0)});
+    auto pattern_sig_opt = ov::pass::pattern::optional<ov::op::v0::Sigmoid>({pattern_abs->output(0)});
+    auto pattern_relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({pattern_sig_opt->output(0)});
+
+    // Create a matcher and try to match the nodes
+    TestMatcher tm;
+
+    // Should perfectly match
+    ASSERT_TRUE(tm.match(pattern_relu, model_relu));
+}
+
+TEST(pattern, pattern_optional_top) {
+    // Create a sample model
+    PartialShape shape{2, 2};
+    auto model_param1 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
+    auto model_param2 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
+    auto model_add = std::make_shared<ov::op::v1::Add>(model_param1->output(0), model_param2->output(0));
+    auto model_param3 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
+    auto model_mul = std::make_shared<ov::op::v0::MatMul>(model_add->output(0), model_param3->output(0), false, false);
+    auto model_abs = std::make_shared<ov::op::v0::Abs>(model_mul->output(0));
+    auto model_relu = std::make_shared<ov::op::v0::Relu>(model_abs->output(0));
+    auto model_result = std::make_shared<ov::op::v0::Result>(model_relu->output(0));
+
+    // Create a sample pattern an optional top node
+    auto pattern_sig_opt = ov::pass::pattern::optional<ov::op::v0::Sigmoid>(pattern::any_input());
+    auto pattern_mul = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({pattern_sig_opt, pattern::any_input()});
+    auto pattern_abs = ov::pass::pattern::wrap_type<ov::op::v0::Abs>({pattern_mul->output(0)});
+    auto pattern_relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({pattern_abs->output(0)});
+
+    // Create a matcher and try to match the nodes
+    TestMatcher tm;
+
+    // Should perfectly match
+    ASSERT_TRUE(tm.match(pattern_relu, model_relu));
+}
+
+TEST(pattern, pattern_optional_root) {
+    // Create a sample model
+    PartialShape shape{2, 2};
+    auto model_param1 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
+    auto model_param2 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
+    auto model_add = std::make_shared<ov::op::v1::Add>(model_param1->output(0), model_param2->output(0));
+    auto model_param3 = std::make_shared<ov::op::v0::Parameter>(element::i32, shape);
+    auto model_mul = std::make_shared<ov::op::v0::MatMul>(model_add->output(0), model_param3->output(0), false, false);
+    auto model_abs = std::make_shared<ov::op::v0::Abs>(model_mul->output(0));
+    auto model_relu = std::make_shared<ov::op::v0::Relu>(model_abs->output(0));
+    auto model_result = std::make_shared<ov::op::v0::Result>(model_relu->output(0));
+
+    // Create a sample pattern an optional top node
+    auto pattern_mul = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({pattern::any_input(), pattern::any_input()});
+    auto pattern_abs = ov::pass::pattern::wrap_type<ov::op::v0::Abs>({pattern_mul->output(0)});
+    auto pattern_relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({pattern_abs->output(0)});
+    auto pattern_sig_opt = ov::pass::pattern::optional<ov::op::v0::Sigmoid>(pattern_relu);
+
+    // Create a matcher and try to match the nodes
+    TestMatcher tm;
+
+    // Should perfectly match
+    ASSERT_TRUE(tm.match(pattern_relu, model_relu));
 }
