@@ -95,8 +95,8 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
-    std::cout << "*****USING OLD*****" << std::endl;
-    // std::cout << "*****USING NEW*****" << std::endl;
+    // std::cout << "*****USING OLD*****" << std::endl;
+    std::cout << "*****USING NEW*****" << std::endl;
 
     manager.register_pass<MakeSDPA>(model);
 
