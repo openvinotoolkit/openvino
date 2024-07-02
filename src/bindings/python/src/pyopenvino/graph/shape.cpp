@@ -50,8 +50,7 @@ void regclass_graph_Shape(py::module m) {
         throw py::index_error("Index out of range");
     });
 
-    py::class_<ov::Shape>(m, "Shape")
-        .def("__eq__", [](const ov::Shape& self, const py::list& lst) {
+    shape.def("__eq__", [](const ov::Shape& self, const py::list& lst) {
             if (self.size() != lst.size()) return false;
             for (size_t i = 0; i < self.size(); ++i) {
                 if (self[i] != lst[i].cast<size_t>()) return false;
