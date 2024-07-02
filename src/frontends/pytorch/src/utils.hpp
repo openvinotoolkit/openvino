@@ -269,8 +269,8 @@ public:
     virtual size_t num_of_outputs() const override {
         FRONT_END_NOT_IMPLEMENTED(num_of_outputs);
     }
-    virtual size_t num_of_users() const override {
-        FRONT_END_NOT_IMPLEMENTED(num_of_users);
+    virtual size_t output_list_size() const override {
+        FRONT_END_NOT_IMPLEMENTED(output_list_size);
     }
     virtual const std::vector<size_t>& outputs() const override {
         FRONT_END_NOT_IMPLEMENTED(outputs);

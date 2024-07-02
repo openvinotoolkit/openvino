@@ -27,7 +27,7 @@ OutputVector translate_chunk_fx(const NodeContext& context) {
 
     auto shape = context.get_input(0).get_partial_shape();
     if (shape.rank().is_dynamic()) {
-        size_t num_splits = context.get_decoder()->num_of_users();
+        size_t num_splits = context.get_decoder()->output_list_size();
         std::vector<int32_t> split_lengths_vec;
         for (size_t i = 0; i < num_splits - 1; i++) {
             split_lengths_vec.push_back(num_chunks);
