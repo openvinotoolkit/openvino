@@ -3,43 +3,44 @@
         margin: 0;
     }
 
-    .container {
+    .footer .container {
         padding-right: 30px;
         padding-left: 30px;
         margin-right: auto;
         margin-left: auto;
+        background-color: rgb(240, 240, 240);
     }
 
     .footer-link-list a {
         float: left;
+        margin-right: 30px;
         text-decoration: none;
         background-color: transparent;
     }
 
     .footer-link-list a:nth-child(1) {
-        margin-right: 50px;
-    }
-
-    .footer-link-list a:nth-child(0) {
-        clear: both;
-        margin-right: 150px;
+        margin-right: 80px;
     }
 
     .footer-contents {
         border-top: 1px solid lightgray;
-        font-size: 11px;
+        font-size: 12px;
         box-sizing: border-box;
         font-family: sans-serif;
         padding-top: 10px;
+        margin-top: 0;
+        margin-bottom: 0;
         line-height: 1.65;
         margin-left: 0px;
         margin-right: 0px;
     }
 
-    .footer-contents p {
+    .footer-item p {
         margin-top: 0;
         margin-bottom: 0;
         line-height: 1.65;
+        padding: 10px 10px 0 30px !important;
+        font-size: 12px !important;
     }
 
     .footer-contents .footer-link-list a {
@@ -48,17 +49,15 @@
 
     .newsletter-btn,
     .newsletter-btn:active {
-        background-color: #0054AE;
-        border: 1px solid #0054AE;
+        background-color: white;
+        border: 1px solid lightgray !important;
         border-radius: none;
-        color: white !important;
-        margin-top: 5px;
-        cursor: pointer;
+        color: #0054AE !important;
         display: inline-block;
         font-weight: 400;
         font-size: .8rem;
         line-height: 2.0;
-        padding: .2rem .5rem;
+        padding: 0.5rem 0.65625rem 0.5rem 0.96875rem;
         text-align: center;
         text-decoration: none;
         transition: color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out;
@@ -67,30 +66,16 @@
     }
 
     ul {
-      list-style-type: none;
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
+        margin-bottom: 0px;
     }
 
-    li {
-      float: left;
-    }
-
-    li a {
-      display: block;
-      padding-left: 12px;
-      padding-right: 12px;
-      padding-top: 1px;
-      text-decoration: none !important;
-    }
     .no-bullets {
         list-style-type: none;
     }
 
     .newsletter-btn:hover {
-        background-color: rgb(240, 240, 240);
-        color: hsl(211, 100%, 34%) !important;
+        background-color: rgba(var(--ost-color-sst-dropdown-background), 1) !important;
+        color: rgb(240, 240, 240) !important;
     }
 
     .footer-list {
@@ -150,18 +135,18 @@
                 <ul class="no-bullets">
                     <lh>OpenVino</lh>
                     <li><a href="https://docs.openvino.ai/2024/about-openvino/additional-resources/telemetry.html"
-                            alt="telemetry" data-cookie-notice="true">OpenVINO™ Telemetry</a></li>
+                            alt="telemetry">OpenVINO™ Telemetry</a></li>
                     <li><a href="https://docs.openvino.ai/2024/about-openvino/additional-resources/glossary.html"
                             alt="glossary">Glossary</a></li>
                     <li><a href="https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/success-stories.html"
                            alt="glossary" target="_blank">Case Studies</a></li>
-
                 </ul>
             </div>
             <a id="newsletterTrigger" class="newsletter-btn" href="#" alt="Newsletter"
                 onclick="return false;">Newsletter</a>
 
         </div>
-        <p style="font-size: 0.9em">Intel technologies may require enabled hardware, software or service activation. // No product or component can be absolutely secure. // Your costs and results may vary. // Performance varies by use, configuration and other factors. // See our complete legal <a href="https://edc.intel.com/content/www/us/en/products/performance/benchmarks/overview/#GUID-26B0C71C-25E9-477D-9007-52FCA56EE18C" target="_blanc">Notices and Disclaimers</a>. // Intel is committed to respecting human rights and avoiding causing or contributing to adverse impacts on human rights. See Intel’s <a href="https://www.intel.com/content/www/us/en/policy/policy-human-rights.html" target="_blanc">Global Human Rights Principles</a>. Intel’s products and software are intended only to be used in applications that do not cause or contribute to adverse impacts on human rights.</p>
+        <p style="font-size: 0.9em">Intel, the Intel logo, and other Intel marks are trademarks of Intel Corporation or
+            its subsidiaries. Other names and brands may be claimed as the property of others.</p>
     </div>
 </div>
