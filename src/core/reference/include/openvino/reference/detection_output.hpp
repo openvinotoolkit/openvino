@@ -256,7 +256,7 @@ private:
                 if (attrs.background_label_id > -1 && label == attrs.background_label_id) {
                     continue;
                 }
-                const std::vector<NormalizedBBox>& labelLocPreds = locPreds[i].find(label)->second;
+                const auto& labelLocPreds = locPreds[i].at(label);
                 DecodeBBoxes(currPrBbox, currPrVar, labelLocPreds, decodeBboxesImage[label]);
             }
         }
@@ -277,10 +277,10 @@ private:
                 if (attrs.background_label_id > -1 && label == attrs.background_label_id) {
                     continue;
                 }
-                const std::vector<NormalizedBBox>& labelArmLocPreds = armLocPreds[i].find(label)->second;
+                const auto& labelArmLocPreds = armLocPreds[i].at(label);
                 std::vector<NormalizedBBox> decodePriorBboxes;
                 DecodeBBoxes(currPrBbox, currPrVar, labelArmLocPreds, decodePriorBboxes);
-                const std::vector<NormalizedBBox>& labelLocPreds = locPreds[i].find(label)->second;
+                const auto& labelLocPreds = locPreds[i].at(label);
                 DecodeBBoxes(decodePriorBboxes, currPrVar, labelLocPreds, decodeBboxesImage[label]);
             }
         }
@@ -491,14 +491,16 @@ public:
                     if (c == attrs.background_label_id) {
                         continue;
                     }
-                    if (confScores.find(c) == confScores.end())
+                    const auto conf_score = confScores.find(c);
+                    if (conf_score == confScores.end())
                         continue;
-                    const std::vector<dataType>& scores = confScores.find(c)->second;
+                    const std::vector<dataType>& scores = conf_score->second;
 
                     int label = attrs.share_location ? -1 : c;
-                    if (decodeBboxesImage.find(label) == decodeBboxesImage.end())
+                    const auto decode_bboxes = decodeBboxesImage.find(label);
+                    if (decode_bboxes == decodeBboxesImage.end())
                         continue;
-                    const std::vector<NormalizedBBox>& bboxes = decodeBboxesImage.find(label)->second;
+                    const std::vector<NormalizedBBox>& bboxes = decode_bboxes->second;
                     caffeNMS(bboxes, scores, indices[c]);
                     numDet += static_cast<int>(indices[c].size());
                 }
@@ -513,9 +515,10 @@ public:
                 for (auto it = indices.begin(); it != indices.end(); ++it) {
                     int label = it->first;
                     const std::vector<int>& labelIndices = it->second;
-                    if (confScores.find(label) == confScores.end())
+                    const auto conf_score = confScores.find(label);
+                    if (conf_score == confScores.end())
                         continue;
-                    const std::vector<dataType>& scores = confScores.find(label)->second;
+                    const std::vector<dataType>& scores = conf_score->second;
                     for (size_t j = 0; j < labelIndices.size(); ++j) {
                         int idx = labelIndices[j];
                         scoreIndexPairs.push_back(std::make_pair(scores[idx], std::make_pair(label, idx)));
@@ -547,11 +550,12 @@ public:
             const LabelBBox& decodeBboxesImage = decodeBboxes[i];
             for (auto it = allIndices[i].begin(); it != allIndices[i].end(); ++it) {
                 int label = it->first;
-                const std::vector<dataType>& scores = confScores.find(label)->second;
+                const std::vector<dataType>& scores = confScores.at(label);
                 int loc_label = attrs.share_location ? -1 : label;
-                if (decodeBboxesImage.find(loc_label) == decodeBboxesImage.end())
+                const auto decode_bboxes = decodeBboxesImage.find(loc_label);
+                if (decode_bboxes == decodeBboxesImage.end())
                     continue;
-                const std::vector<NormalizedBBox>& bboxes = decodeBboxesImage.find(loc_label)->second;
+                const std::vector<NormalizedBBox>& bboxes = decode_bboxes->second;
                 std::vector<int>& indices = it->second;
                 for (size_t j = 0; j < indices.size(); ++j) {
                     int idx = indices[j];
