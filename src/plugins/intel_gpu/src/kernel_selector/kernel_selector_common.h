@@ -70,6 +70,9 @@ struct clKernelData {
     KernelParams params;
     std::vector<std::shared_ptr<micro::MicroKernelPackage>> micro_kernels;
     bool skip_execution = false;
+
+    void save(cldnn::BinaryOutputBuffer& ob) const;
+    void load(cldnn::BinaryInputBuffer& ib);
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
