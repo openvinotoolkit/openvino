@@ -28,21 +28,21 @@ minimal steps (from 2 to 4) on any pre-trained LDMs (e.g. Stable
 Diffusion). To read more about LCM please refer to
 https://latent-consistency-models.github.io/
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
+
+-  `Prerequisites <#prerequisites>`__
 -  `Full precision model on the
-   CPU <#Using-full-precision-model-in-CPU-with-LatentConsistencyModelPipeline>`__
+   CPU <#using-full-precision-model-in-cpu-with-latentconsistencymodelpipeline>`__
 -  `Running inference using Optimum Intel
-   ``OVLatentConsistencyModelPipeline`` <#Running-inference-using-Optimum-Intel-OVLatentConsistencyModelPipeline>`__
+   OVLatentConsistencyModelPipeline <#running-inference-using-optimum-intel-ovlatentconsistencymodelpipeline>`__
 
 .. |image0| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/10940214/1858dae4-72fd-401e-b055-66d503d82446
 
 Prerequisites
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Install required packages
 
@@ -69,7 +69,7 @@ Install required packages
 Showing Info Available Devices
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The ``available_devices`` property shows the available devices in your
 system. The “FULL_DEVICE_NAME” option to ``ie.get_property()`` shows the
@@ -105,7 +105,7 @@ this
 Using full precision model in CPU with ``LatentConsistencyModelPipeline``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Standard pipeline for the Latent Consistency Model(LCM) from Diffusers
 library is used here. For more information please refer to
@@ -189,7 +189,7 @@ Select inference device for text-to-image generation
 Running inference using Optimum Intel ``OVLatentConsistencyModelPipeline``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Accelerating inference of LCM using Intel Optimum with OpenVINO backend.
 For more information please refer to

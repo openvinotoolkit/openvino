@@ -1,31 +1,31 @@
 Paint By Example: Exemplar-based Image Editing with Diffusion Models
 ====================================================================
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Stable Diffusion in Diffusers
-   library <#Stable-Diffusion-in-Diffusers-library>`__
--  `Download default images <#Download-default-images>`__
+   library <#stable-diffusion-in-diffusers-library>`__
+-  `Download default images <#download-default-images>`__
 -  `Convert models to OpenVINO Intermediate representation (IR)
-   format <#Convert-models-to-OpenVINO-Intermediate-representation-(IR)-format>`__
--  `Prepare Inference pipeline <#Prepare-Inference-pipeline>`__
--  `Select inference device <#Select-inference-device>`__
--  `Configure Inference Pipeline <#Configure-Inference-Pipeline>`__
--  `Quantization <#Quantization>`__
+   format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
+-  `Prepare Inference pipeline <#prepare-inference-pipeline>`__
+-  `Select inference device <#select-inference-device>`__
+-  `Configure Inference Pipeline <#configure-inference-pipeline>`__
+-  `Quantization <#quantization>`__
 
-   -  `Prepare Inference pipeline <#Prepare-Inference-pipeline>`__
-   -  `Run quantization <#Run-quantization>`__
+   -  `Prepare Inference pipeline <#prepare-inference-pipeline>`__
+   -  `Run quantization <#run-quantization>`__
    -  `Run inference and compare inference
-      time <#Run-inference-and-compare-inference-time>`__
-   -  `Compare UNet file size <#Compare-UNet-file-size>`__
+      time <#run-inference-and-compare-inference-time>`__
+   -  `Compare UNet file size <#compare-unet-file-size>`__
 
--  `Interactive inference <#Interactive-inference>`__
+-  `Interactive inference <#interactive-inference>`__
 
 Stable Diffusion in Diffusers library
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__ To work with Stable Diffusion,
+ To work with Stable Diffusion,
 we will use the Hugging Face
 `Diffusers <https://github.com/huggingface/diffusers>`__ library. To
 experiment with in-painting we can use Diffusers which exposes the
@@ -88,7 +88,7 @@ This might take several minutes because it is over 5GB
 Download default images
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Download default images.
 
@@ -144,7 +144,7 @@ Download default images.
 Convert models to OpenVINO Intermediate representation (IR) format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Adapted from `Stable Diffusion v2 Infinite Zoom
 notebook <stable-diffusion-v2-with-output.html>`__
@@ -372,7 +372,7 @@ Do the conversion of the VAE Encoder model
 Prepare Inference pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Function to prepare the mask and masked image.
 
@@ -733,7 +733,7 @@ decode –> image encode –> tokenizer –> Unet –> VAE model –> scheduler
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -765,7 +765,7 @@ select device from dropdown list for running inference using OpenVINO
 Configure Inference Pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Configuration steps: 1. Load models on device 2. Configure tokenizer and
 scheduler 3. Create instance of OvStableDiffusionInpaintingPipeline
@@ -801,7 +801,7 @@ This can take a while to run.
 Quantization
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -871,7 +871,7 @@ Let’s load ``skip magic`` extension to skip quantization if
 Prepare calibration dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We use 3 examples from
 `Paint-by-Example <https://github.com/Fantasy-Studio/Paint-by-Example>`__
@@ -974,7 +974,7 @@ To collect intermediate model inputs for calibration we should customize
 Run quantization
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Create a quantized model from the pre-trained converted OpenVINO model.
 
@@ -1120,7 +1120,7 @@ Create a quantized model from the pre-trained converted OpenVINO model.
 Run inference and compare inference time
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OV pipeline:
 
@@ -1193,7 +1193,7 @@ Quantized pipeline:
 Compare UNet file size
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1217,7 +1217,7 @@ Compare UNet file size
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Choose what model do you want to use in the interactive interface. You
 can choose both, FP16 and INT8.

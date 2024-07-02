@@ -36,41 +36,41 @@ convert the model to OpenVINO™ IR format. To further improve OpenVINO
 Distil-Whisper model performance ``INT8`` post-training quantization
 from `NNCF <https://github.com/openvinotoolkit/nncf/>`__ is applied.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Load PyTorch model <#Load-PyTorch-model>`__
 
-   -  `Prepare input sample <#Prepare-input-sample>`__
-   -  `Run model inference <#Run-model-inference>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Load PyTorch model <#load-pytorch-model>`__
+
+   -  `Prepare input sample <#prepare-input-sample>`__
+   -  `Run model inference <#run-model-inference>`__
 
 -  `Load OpenVINO model using Optimum
-   library <#Load-OpenVINO-model-using-Optimum-library>`__
+   library <#load-openvino-model-using-optimum-library>`__
 
-   -  `Select Inference device <#Select-Inference-device>`__
-   -  `Compile OpenVINO model <#Compile-OpenVINO-model>`__
-   -  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
+   -  `Select Inference device <#select-inference-device>`__
+   -  `Compile OpenVINO model <#compile-openvino-model>`__
+   -  `Run OpenVINO model inference <#run-openvino-model-inference>`__
 
 -  `Compare performance PyTorch vs
-   OpenVINO <#Compare-performance-PyTorch-vs-OpenVINO>`__
+   OpenVINO <#compare-performance-pytorch-vs-openvino>`__
 -  `Usage OpenVINO model with HuggingFace
-   pipelines <#Usage-OpenVINO-model-with-HuggingFace-pipelines>`__
--  `Quantization <#Quantization>`__
+   pipelines <#usage-openvino-model-with-huggingface-pipelines>`__
+-  `Quantization <#quantization>`__
 
-   -  `Prepare calibration datasets <#Prepare-calibration-datasets>`__
+   -  `Prepare calibration datasets <#prepare-calibration-datasets>`__
    -  `Quantize Distil-Whisper encoder and decoder
-      models <#Quantize-Distil-Whisper-encoder-and-decoder-models>`__
-   -  `Run quantized model inference <#Run-quantized-model-inference>`__
+      models <#quantize-distil-whisper-encoder-and-decoder-models>`__
+   -  `Run quantized model inference <#run-quantized-model-inference>`__
    -  `Compare performance and accuracy of the original and quantized
-      models <#Compare-performance-and-accuracy-of-the-original-and-quantized-models>`__
+      models <#compare-performance-and-accuracy-of-the-original-and-quantized-models>`__
 
--  `Interactive demo <#Interactive-demo>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -81,7 +81,7 @@ Prerequisites
 Load PyTorch model
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The ``AutoModelForSpeechSeq2Seq.from_pretrained`` method is used for the
 initialization of PyTorch Whisper model using the transformers library.
@@ -165,7 +165,7 @@ using tokenizer.
 Prepare input sample
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The processor expects audio data in numpy array format and information
 about the audio sampling rate and returns the ``input_features`` tensor
@@ -193,7 +193,7 @@ by Hugging Face datasets implementation.
 Run model inference
 ~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To perform speech recognition, one can use ``generate`` interface of the
 model. After generation is finished processor.batch_decode can be used
@@ -231,7 +231,7 @@ for decoding predicted token_ids into text transcription.
 Load OpenVINO model using Optimum library
 -----------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The Hugging Face Optimum API is a high-level API that enables us to
 convert and quantize models from the Hugging Face Transformers library
@@ -296,7 +296,7 @@ OpenVINO model. It means that we can reuse initialized early processor.
 Select Inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -326,7 +326,7 @@ Select Inference device
 Compile OpenVINO model
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -344,7 +344,7 @@ Compile OpenVINO model
 Run OpenVINO model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -384,7 +384,7 @@ Run OpenVINO model inference
 Compare performance PyTorch vs OpenVINO
 ---------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -438,7 +438,7 @@ Compare performance PyTorch vs OpenVINO
 Usage OpenVINO model with HuggingFace pipelines
 -----------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Like the original PyTorch model, the OpenVINO model is also compatible
 with HuggingFace
@@ -602,7 +602,7 @@ popular subtitles format.
 Quantization
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding the quantization layers into the
@@ -659,7 +659,7 @@ quantization.
 Prepare calibration datasets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 First step is to prepare calibration datasets for quantization. Since we
 quantize whisper encoder and decoder separately, we need to prepare a
@@ -701,7 +701,7 @@ improves quantization quality.
 Quantize Distil-Whisper encoder and decoder models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Below we run the ``quantize`` function which calls ``nncf.quantize`` on
 Distil-Whisper encoder and decoder-with-past models. We don’t quantize
@@ -823,7 +823,7 @@ negligible.
 Run quantized model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Let’s compare the transcription results for original and quantized
 models.
@@ -871,7 +871,7 @@ Results are the same!
 Compare performance and accuracy of the original and quantized models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Finally, we compare original and quantized Distil-Whisper models from
 accuracy and performance stand-points.
@@ -908,9 +908,9 @@ decoder-with-past model forwards, and for the whole model inference too.
     
         def wrapper(*args, **kwargs):
             if not MEASURE_TIME:
-                return original_fn(*args, **kwargs)
+                return original_fn(\*args, \*\*kwargs)
             start_time = time.perf_counter()
-            result = original_fn(*args, **kwargs)
+            result = original_fn(\*args, \*\*kwargs)
             end_time = time.perf_counter()
             time_list.append(end_time - start_time)
             return result
@@ -990,7 +990,7 @@ without major accuracy drop!
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We are also providing an interactive demo using the Gradio interface,
 where you can test model capabilities on your own audio data (using the

@@ -35,38 +35,38 @@ The tutorial consists of the following steps:
    API <https://github.com/openvinotoolkit/openvino.genai>`__
 -  Run instruction-following pipeline
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Select model for inference <#Select-model-for-inference>`__
+
+-  `Prerequisites <#prerequisites>`__
+-  `Select model for inference <#select-model-for-inference>`__
 -  `Download and convert model to OpenVINO IR via Optimum Intel
-   CLI <#Download-and-convert-model-to-OpenVINO-IR-via-Optimum-Intel-CLI>`__
--  `Compress model weights <#Compress-model-weights>`__
+   CLI <#download-and-convert-model-to-openvino-ir-via-optimum-intel-cli>`__
+-  `Compress model weights <#compress-model-weights>`__
 
    -  `Weights Compression using Optimum Intel
-      CLI <#Weights-Compression-using-Optimum-Intel-CLI>`__
+      CLI <#weights-compression-using-optimum-intel-cli>`__
    -  `Weights Compression using
-      NNCF <#Weights-Compression-using-NNCF>`__
+      NNCF <#weights-compression-using-nncf>`__
 
 -  `Select device for inference and model
-   variant <#Select-device-for-inference-and-model-variant>`__
+   variant <#select-device-for-inference-and-model-variant>`__
 -  `Create an instruction-following inference
-   pipeline <#Create-an-instruction-following-inference-pipeline>`__
+   pipeline <#create-an-instruction-following-inference-pipeline>`__
 
-   -  `Setup imports <#Setup-imports>`__
+   -  `Setup imports <#setup-imports>`__
    -  `Prepare text streamer to get results
-      runtime <#Prepare-text-streamer-to-get-results-runtime>`__
-   -  `Main generation function <#Main-generation-function>`__
-   -  `Helpers for application <#Helpers-for-application>`__
+      runtime <#prepare-text-streamer-to-get-results-runtime>`__
+   -  `Main generation function <#main-generation-function>`__
+   -  `Helpers for application <#helpers-for-application>`__
 
 -  `Run instruction-following
-   pipeline <#Run-instruction-following-pipeline>`__
+   pipeline <#run-instruction-following-pipeline>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -87,7 +87,7 @@ Prerequisites
 Select model for inference
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The tutorial supports different models, you can select one from the
 provided options to compare the quality of open source LLM solutions.
@@ -155,7 +155,7 @@ The available options are:
    website <https://llama.meta.com/llama3>`__ and `model
    card <https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct>`__.
    >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
+   agreement. >You must be a registered user in Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__,
    carefully read terms of usage and click accept button. You will need
@@ -230,7 +230,7 @@ The available options are:
 Download and convert model to OpenVINO IR via Optimum Intel CLI
 ---------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Listed model are available for downloading via the `HuggingFace
 hub <https://huggingface.co/models>`__. We will use optimum-cli
@@ -258,7 +258,7 @@ documentation <https://huggingface.co/docs/optimum/intel/inference#export>`__.
 Compress model weights
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The Weights Compression algorithm is aimed at compressing the weights of
 the models and can be used to optimize the model footprint and
@@ -270,7 +270,7 @@ performance even more but introduces a minor drop in prediction quality.
 Weights Compression using Optimum Intel CLI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Optimum Intel supports weight compression via NNCF out of the box. For
 8-bit compression we pass ``--weight-format int8`` to ``optimum-cli``
@@ -282,7 +282,7 @@ parameters. An example of this approach usage you can find in
 Weights Compression using NNCF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 You also can perform weights compression for OpenVINO models using NNCF
 directly. ``nncf.compress_weights`` function accepts the OpenVINO model
@@ -454,7 +454,7 @@ Let’s compare model size for different compression types
 Select device for inference and model variant
 ---------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
    **Note**: There may be no speedup for INT4/INT8 compressed models on
    dGPU.
@@ -542,7 +542,7 @@ Select device for inference and model variant
 Create an instruction-following inference pipeline
 --------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The ``run_generation`` function accepts user-provided text input,
 tokenizes it, and runs the generation process. Text generation is an
@@ -675,7 +675,7 @@ and then prints them when they are ready.
 Setup imports
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -691,7 +691,7 @@ Setup imports
 Prepare text streamer to get results runtime
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Load the ``detokenizer``, use it to convert token_id to string output
 format. We will collect print-ready text in a queue and give the text
@@ -736,7 +736,7 @@ when it is needed. It will help estimate performance.
 Main generation function
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 As it was discussed above, ``run_generation`` function is the entry
 point for starting generation. It gets provided input instruction as
@@ -797,7 +797,7 @@ parameter and returns model response.
 Helpers for application
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For making interactive user interface we will use Gradio library. The
 code bellow provides useful functions used for communication with UI
@@ -853,7 +853,7 @@ elements.
 Run instruction-following pipeline
 ----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, we are ready to explore model capabilities. This demo provides a
 simple interface that allows communication with a model using text

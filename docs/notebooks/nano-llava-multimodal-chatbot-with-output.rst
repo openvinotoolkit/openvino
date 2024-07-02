@@ -10,34 +10,34 @@ this tutorial, we consider how to convert and run nanoLLaVA model using
 OpenVINO. Additionally, we will optimize model using
 `NNCF <https://github.com/openvinotoolkit/nncf>`__
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Load PyTorch model <#Load-PyTorch-model>`__
--  `Run PyTorch Model Inference <#Run-PyTorch-Model-Inference>`__
--  `Convert and Optimize model <#Convert-and-Optimize-model>`__
+
+-  `Prerequisites <#prerequisites>`__
+-  `Load PyTorch model <#load-pytorch-model>`__
+-  `Run PyTorch Model Inference <#run-pytorch-model-inference>`__
+-  `Convert and Optimize model <#convert-and-optimize-model>`__
 
    -  `Convert model to OpenVINO IR
-      format <#Convert-model-to-OpenVINO-IR-format>`__
+      format <#convert-model-to-openvino-ir-format>`__
    -  `Compress Model weights to 4 and 8 bits using
-      NNCF <#Compress-Model-weights-to-4-and-8-bits-using-NNCF>`__
-   -  `Image Encoder <#Image-Encoder>`__
-   -  `Text Embeddings <#Text-Embeddings>`__
-   -  `Language Model <#Language-Model>`__
+      NNCF <#compress-model-weights-to-4-and-8-bits-using-nncf>`__
+   -  `Image Encoder <#image-encoder>`__
+   -  `Text Embeddings <#text-embeddings>`__
+   -  `Language Model <#language-model>`__
 
 -  `Prepare model inference
-   pipeline <#Prepare-model-inference-pipeline>`__
--  `Run OpenVINO Model Inference <#Run-OpenVINO-Model-Inference>`__
+   pipeline <#prepare-model-inference-pipeline>`__
+-  `Run OpenVINO Model Inference <#run-openvino-model-inference>`__
 
-   -  `Select device <#Select-device>`__
+   -  `Select device <#select-device>`__
 
--  `Interactive demo <#Interactive-demo>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -177,7 +177,7 @@ Prerequisites
 Load PyTorch model
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For creating PyTorch model we should use ``from_pretrained`` method of
 ``AutoModelForCausalLM`` model class. Model weights are already
@@ -209,7 +209,7 @@ previous step.
 Run PyTorch Model Inference
 ---------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -259,7 +259,7 @@ Run PyTorch Model Inference
 Convert and Optimize model
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Our model conversion and optimization consist of following steps: 1.
 Convert model to OpenVINO format and save it on disk. 2. Compress model
@@ -270,7 +270,7 @@ Let’s consider each step more deeply.
 Convert model to OpenVINO IR format
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Convert model to OpenVINO format using conversion helper function
 defined bellow. We will use `OpenVINO Model Conversion
@@ -288,7 +288,7 @@ convert each part separately.
 Compress Model weights to 4 and 8 bits using NNCF
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For reducing memory consumption, weights compression optimization can be
 applied using `NNCF <https://github.com/openvinotoolkit/nncf>`__. Weight
@@ -454,7 +454,7 @@ compression instead of INT8 weight compression.
 Image Encoder
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Image Encoder is represented in nanoLLaVA by pretrained SigLIP model.
 Image encoder is responsible for encoding input images into embedding
@@ -534,7 +534,7 @@ space.
 Text Embeddings
 ~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In LLMs, input embedding is a part of language model, but for LLaVA the
 first step hidden state produced by this model part should be integrated
@@ -562,7 +562,7 @@ will use it separately.
 Language Model
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Language Model is responsible for generation answer in LLaVA. This part
 is very similar to standard LLM for text generation. Our model uses
@@ -696,7 +696,7 @@ token prediction.
 Prepare model inference pipeline
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 ``OVLlavaQwen2ForCausalLM`` class provides ease-to-use interface for
 using model in generation scenario. It is based on
@@ -1050,12 +1050,12 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
 Run OpenVINO Model Inference
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. _select-device-1:
 
@@ -1109,7 +1109,7 @@ Select device
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1257,7 +1257,7 @@ Interactive demo
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

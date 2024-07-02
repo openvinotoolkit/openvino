@@ -20,28 +20,28 @@ learning.
 
 |image0|
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Load the original model <#Load-the-original-model>`__
+
+-  `Prerequisites <#prerequisites>`__
+-  `Load the original model <#load-the-original-model>`__
 -  `Convert the model to OpenVINO
-   IR <#Convert-the-model-to-OpenVINO-IR>`__
+   IR <#convert-the-model-to-openvino-ir>`__
 
-   -  `Convert text encoder <#Convert-text-encoder>`__
-   -  `Convert transformer <#Convert-transformer>`__
-   -  `Convert VAE decoder <#Convert-VAE-decoder>`__
+   -  `Convert text encoder <#convert-text-encoder>`__
+   -  `Convert transformer <#convert-transformer>`__
+   -  `Convert VAE decoder <#convert-vae-decoder>`__
 
--  `Compiling models <#Compiling-models>`__
--  `Building the pipeline <#Building-the-pipeline>`__
--  `Interactive inference <#Interactive-inference>`__
+-  `Compiling models <#compiling-models>`__
+-  `Building the pipeline <#building-the-pipeline>`__
+-  `Interactive inference <#interactive-inference>`__
 
 .. |image0| image:: https://huggingface.co/PixArt-alpha/PixArt-XL-2-1024-MS/resolve/main/asset/images/teaser.png
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -60,7 +60,7 @@ Prerequisites
 Load and run the original pipeline
 ----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We use
 `PixArt-LCM-XL-2-1024-MS <https://huggingface.co/PixArt-alpha/PixArt-LCM-XL-2-1024-MS>`__
@@ -134,7 +134,7 @@ directly in latent space, achieving super fast inference with few steps.
 Convert the model to OpenVINO IR
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Let’s define the conversion function for PyTorch modules. We use
 ``ov.convert_model`` function to obtain OpenVINO Intermediate
@@ -188,7 +188,7 @@ the models from the pipeline one by one.
 Convert text encoder
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -215,7 +215,7 @@ Convert text encoder
 Convert transformer
 ~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -262,7 +262,7 @@ Convert transformer
 Convert VAE decoder
 ~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -290,7 +290,7 @@ Convert VAE decoder
 Compiling models
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device from dropdown list for running inference using OpenVINO.
 
@@ -326,7 +326,7 @@ Select device from dropdown list for running inference using OpenVINO.
 Building the pipeline
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Let’s create callable wrapper classes for compiled models to allow
 interaction with original pipelines. Note that all of wrapper classes
@@ -450,7 +450,7 @@ And insert wrappers instances in the pipeline:
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -500,7 +500,7 @@ Interactive inference
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

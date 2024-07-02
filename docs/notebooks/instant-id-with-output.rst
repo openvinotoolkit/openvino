@@ -48,41 +48,41 @@ repository <https://github.com/InstantID/InstantID>`__
 In this tutorial, we consider how to use InstantID with OpenVINO. An
 additional part demonstrates how to run optimization with
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ to speed up
-pipeline. #### Table of contents: - `Prerequisites <#Prerequisites>`__ -
+pipeline. #### Table of contents: - `Prerequisites <#prerequisites>`__ -
 `Convert and prepare Face
-IdentityNet <#Convert-and-prepare-Face-IdentityNet>`__ - `Select
+IdentityNet <#convert-and-prepare-face-identitynet>`__ - `Select
 Inference Device for Face
-Recognition <#Select-Inference-Device-for-Face-Recognition>`__ -
-`Perform Face Identity extraction <#Perform-Face-Identity-extraction>`__
-- `Prepare InstantID pipeline <#Prepare-InstantID-pipeline>`__ -
+Recognition <#select-inference-device-for-face-recognition>`__ -
+`Perform Face Identity extraction <#perform-face-identity-extraction>`__
+- `Prepare InstantID pipeline <#prepare-instantid-pipeline>`__ -
 `Convert InstantID pipeline components to OpenVINO Intermediate
 Representation
-format <#Convert-InstantID-pipeline-components-to-OpenVINO-Intermediate-Representation-format>`__
-- `ControlNet <#ControlNet>`__ - `Unet <#Unet>`__ - `VAE
-Decoder <#VAE-Decoder>`__ - `Text Encoders <#Text-Encoders>`__ - `Image
-Projection Model <#Image-Projection-Model>`__ - `Prepare OpenVINO
-InstantID Pipeline <#Prepare-OpenVINO-InstantID-Pipeline>`__ - `Run
-OpenVINO pipeline inference <#Run-OpenVINO-pipeline-inference>`__ -
+format <#convert-instantid-pipeline-components-to-openvino-intermediate-representation-format>`__
+- `ControlNet <#controlnet>`__ - `Unet <#unet>`__ - `VAE
+Decoder <#vae-decoder>`__ - `Text Encoders <#text-encoders>`__ - `Image
+Projection Model <#image-projection-model>`__ - `Prepare OpenVINO
+InstantID Pipeline <#prepare-openvino-instantid-pipeline>`__ - `Run
+OpenVINO pipeline inference <#run-openvino-pipeline-inference>`__ -
 `Select inference device for
-InstantID <#Select-inference-device-for-InstantID>`__ - `Create
-pipeline <#Create-pipeline>`__ - `Run inference <#Run-inference>`__ -
-`Quantization <#Quantization>`__ - `Prepare calibration
-datasets <#Prepare-calibration-datasets>`__ - `Run
-quantization <#Run-quantization>`__ - `Run ControlNet
-Quantization <#Run-ControlNet-Quantization>`__ - `Run UNet Hybrid
-Quantization <#Run-UNet-Hybrid-Quantization>`__ - `Run Weights
-Compression <#Run-Weights-Compression>`__ - `Compare model file
-sizes <#Compare-model-file-sizes>`__ - `Compare inference time of the
+InstantID <#select-inference-device-for-instantid>`__ - `Create
+pipeline <#create-pipeline>`__ - `Run inference <#run-inference>`__ -
+`Quantization <#quantization>`__ - `Prepare calibration
+datasets <#prepare-calibration-datasets>`__ - `Run
+quantization <#run-quantization>`__ - `Run ControlNet
+Quantization <#run-controlnet-quantization>`__ - `Run UNet Hybrid
+Quantization <#run-unet-hybrid-quantization>`__ - `Run Weights
+Compression <#run-weights-compression>`__ - `Compare model file
+sizes <#compare-model-file-sizes>`__ - `Compare inference time of the
 FP16 and INT8
-pipelines <#Compare-inference-time-of-the-FP16-and-INT8-pipelines>`__ -
-`Interactive demo <#Interactive-demo>`__
+pipelines <#compare-inference-time-of-the-fp16-and-int8-pipelines>`__ -
+`Interactive demo <#interactive-demo>`__
 
 .. |applications.png| image:: https://github.com/InstantID/InstantID/blob/main/assets/applications.png?raw=true
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -103,7 +103,7 @@ Prerequisites
 Convert and prepare Face IdentityNet
 ------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For getting face embeddings and pose key points, InstantID uses
 `InsightFace <https://github.com/deepinsight/insightface>`__ face
@@ -486,7 +486,7 @@ Now, let’s see models inference result
 Select Inference Device for Face Recognition
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -526,7 +526,7 @@ Select Inference Device for Face Recognition
 Perform Face Identity extraction
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, we can apply our ``OVFaceAnalysis`` pipeline on an image for
 collection face embeddings and key points for reflection on the
@@ -600,7 +600,7 @@ generated image
 Prepare InstantID pipeline
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The code below downloads InstantID pipeline parts - ControlNet for face
 pose and IP-Adapter for adding face embeddings to prompt
@@ -624,7 +624,7 @@ pose and IP-Adapter for adding face embeddings to prompt
 As it was discussed in model description, InstantID does not required
 diffusion model fine-tuning and can be applied on existing Stable
 Diffusion pipeline. We will use
-```stable-diffusion-xl-bas-1-0`` <https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0>`__
+`stable-diffusion-xl-bas-1-0 <https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0>`__
 as basic text-to-image diffusion pipeline. We also apply `LCM
 LoRA <https://huggingface.co/latent-consistency/lcm-lora-sdxl>`__ to
 speedup the generation process. Previously, we already considered how to
@@ -736,7 +736,7 @@ OpenVINO Model Conversion API.
 Convert InstantID pipeline components to OpenVINO Intermediate Representation format
 ------------------------------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Starting from 2023.0 release, OpenVINO supports PyTorch models
 conversion directly. We need to provide a model object, input data for
@@ -761,7 +761,7 @@ The pipeline consists of the following list of important parts:
 ControlNet
 ~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 ControlNet was introduced in `Adding Conditional Control to
 Text-to-Image Diffusion Models <https://arxiv.org/abs/2302.05543>`__
@@ -825,7 +825,7 @@ XL remains without changes.
 Unet
 ~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Compared with Stable Diffusion, Stable Diffusion XL Unet has an
 additional input for the ``time_ids`` condition. As we use ControlNet
@@ -917,7 +917,7 @@ preparing model input for Unet.
 VAE Decoder
 ~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -954,7 +954,7 @@ image, it means that we can skip VAE encoder part conversion.
 Text Encoders
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -995,7 +995,7 @@ sequence of latent text embeddings.
 Image Projection Model
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Image projection model is responsible to transforming face embeddings to
 image prompt embeddings
@@ -1014,7 +1014,7 @@ image prompt embeddings
 Prepare OpenVINO InstantID Pipeline
 -----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1632,12 +1632,12 @@ Prepare OpenVINO InstantID Pipeline
 Run OpenVINO pipeline inference
 -------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select inference device for InstantID
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1678,7 +1678,7 @@ Select inference device for InstantID
 Create pipeline
 ~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1697,7 +1697,7 @@ Create pipeline
 Run inference
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1735,7 +1735,7 @@ Run inference
 Quantization
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -1792,10 +1792,10 @@ Let’s load ``skip magic`` extension to skip quantization if
 Prepare calibration datasets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We use a portion of
-```wider_face`` <https://huggingface.co/datasets/wider_face>`__ dataset
+`wider_face <https://huggingface.co/datasets/wider_face>`__ dataset
 from Hugging Face as calibration data. We use prompts below to guide
 image generation and to determine what not to include in the resulting
 image.
@@ -1945,12 +1945,12 @@ To collect intermediate model inputs for calibration we should customize
 Run Quantization
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Run ControlNet Quantization
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Quantization of the first ``Convolution`` layer impacts the generation
 results. We recommend using ``IgnoredScope`` to keep accuracy sensitive
@@ -1976,7 +1976,7 @@ layers in FP16 precision.
 Run UNet Hybrid Quantization
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 On the one hand, post-training quantization of the UNet model requires
 more than ~100Gb and leads to accuracy drop. On the other hand, the
@@ -2064,7 +2064,7 @@ layers and (2) activations of other layers. The steps are the following:
 Run Weights Compression
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Quantizing of the ``Text Encoders`` and ``VAE Decoder`` does not
 significantly improve inference performance but can lead to a
@@ -2191,7 +2191,7 @@ pipelines.
 Compare model file sizes
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -2218,7 +2218,7 @@ Compare model file sizes
 Compare inference time of the FP16 and INT8 pipelines
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To measure the inference performance of the ``FP16`` and ``INT8``
 pipelines, we use mean inference time on 5 samples.
@@ -2277,7 +2277,7 @@ pipelines, we use mean inference time on 5 samples.
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Please select below whether you would like to use the quantized models
 to launch the interactive demo.

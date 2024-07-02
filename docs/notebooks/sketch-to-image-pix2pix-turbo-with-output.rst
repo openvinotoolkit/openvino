@@ -21,21 +21,21 @@ In this tutorial you will learn how to turn sketches to images using
 `Pix2Pix-Turbo <https://github.com/GaParmar/img2img-turbo>`__ and
 OpenVINO. #### Table of contents:
 
--  `Prerequisites <#Prerequisites>`__
--  `Load PyTorch model <#Load-PyTorch-model>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Load PyTorch model <#load-pytorch-model>`__
 -  `Convert PyTorch model to Openvino Intermediate Representation
-   format <#Convert-PyTorch-model-to-Openvino-Intermediate-Representation-format>`__
--  `Select inference device <#Select-inference-device>`__
--  `Compile model <#Compile-model>`__
--  `Run model inference <#Run-model-inference>`__
--  `Interactive demo <#Interactive-demo>`__
+   format <#convert-pytorch-model-to-openvino-intermediate-representation-format>`__
+-  `Select inference device <#select-inference-device>`__
+-  `Compile model <#compile-model>`__
+-  `Run model inference <#run-model-inference>`__
+-  `Interactive demo <#interactive-demo>`__
 
 .. |image0| image:: https://github.com/GaParmar/img2img-turbo/raw/main/assets/gen_variations.jpg
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Clone `model repository <https://github.com/GaParmar/img2img-turbo>`__
 and install required packages.
@@ -99,7 +99,7 @@ and install required packages.
 Load PyTorch model
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Pix2Pix-turbo architecture illustrated on the diagram below. Model
 combines three separate modules in the original latent diffusion models
@@ -399,7 +399,7 @@ diagram indicate trainable layers. Semi-transparent layers are frozen.
 Convert PyTorch model to Openvino Intermediate Representation format
 --------------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Starting from OpenVINO 2023.0 release, OpenVINO supports direct PyTorch
 models conversion to `OpenVINO Intermediate Representation (IR)
@@ -479,7 +479,7 @@ on disk using ``ov.save_model`` in compressed to FP16 format.
 Select inference device
 -----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -507,7 +507,7 @@ Select inference device
 Compile model
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -516,7 +516,7 @@ Compile model
 Run model inference
 -------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, let’s try model in action and turn simple cat sketch into
 professional artwork.
@@ -574,7 +574,7 @@ professional artwork.
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In this section, you can try model on own paintings.
 
@@ -932,7 +932,7 @@ Download results using download button
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

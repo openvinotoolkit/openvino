@@ -14,34 +14,34 @@ IR model.
 Source of the
 `model <https://www.paddlepaddle.org.cn/hubdetail?name=mobilenet_v3_large_imagenet_ssld&en_category=ImageClassification>`__.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Preparation <#Preparation>`__
 
-   -  `Imports <#Imports>`__
-   -  `Settings <#Settings>`__
+-  `Preparation <#preparation>`__
+
+   -  `Imports <#imports>`__
+   -  `Settings <#settings>`__
 
 -  `Show Inference on PaddlePaddle
-   Model <#Show-Inference-on-PaddlePaddle-Model>`__
+   Model <#show-inference-on-paddlepaddle-model>`__
 -  `Convert the Model to OpenVINO IR
-   Format <#Convert-the-Model-to-OpenVINO-IR-Format>`__
--  `Select inference device <#Select-inference-device>`__
+   Format <#convert-the-model-to-openvino-ir-format>`__
+-  `Select inference device <#select-inference-device>`__
 -  `Show Inference on OpenVINO
-   Model <#Show-Inference-on-OpenVINO-Model>`__
--  `Timing and Comparison <#Timing-and-Comparison>`__
--  `Select inference device <#Select-inference-device>`__
--  `References <#References>`__
+   Model <#show-inference-on-openvino-model>`__
+-  `Timing and Comparison <#timing-and-comparison>`__
+-  `Select inference device <#select-inference-device>`__
+-  `References <#references>`__
 
 Preparation
 -----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Imports
 ~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -120,7 +120,7 @@ Imports
 Settings
 ~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Set ``IMAGE_FILENAME`` to the filename of an image to use. Set
 ``MODEL_NAME`` to the PaddlePaddle model to download from PaddleHub.
@@ -179,7 +179,7 @@ PaddleHub. This may take a while.
 Show Inference on PaddlePaddle Model
 ------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In the next cell, we load the model, load and display an image, do
 inference on that image, and then show the top three prediction results.
@@ -303,7 +303,7 @@ OpenVINO model.
 Convert the Model to OpenVINO IR Format
 ---------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Call the OpenVINO Model Conversion API to convert the PaddlePaddle model
 to OpenVINO IR, with FP32 precision. ``ov.convert_model`` function
@@ -326,7 +326,7 @@ for more information about the Model Conversion API.
 Select inference device
 -----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -356,7 +356,7 @@ select device from dropdown list for running inference using OpenVINO
 Show Inference on OpenVINO Model
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Load the IR model, get model information, load the image, do inference,
 convert the inference to a meaningful result, and show the output. See
@@ -405,7 +405,7 @@ Notebook <openvino-api-with-output.html>`__ for more information.
 Timing and Comparison
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Measure the time it takes to do inference on fifty images and compare
 the result. The timing information gives an indication of performance.
@@ -472,7 +472,7 @@ Note that many optimizations are possible to improve the performance.
 Select inference device
 -----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -533,7 +533,7 @@ select device from dropdown list for running inference using OpenVINO
 References
 ----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 -  `PaddleClas <https://github.com/PaddlePaddle/PaddleClas>`__
 -  `OpenVINO PaddlePaddle

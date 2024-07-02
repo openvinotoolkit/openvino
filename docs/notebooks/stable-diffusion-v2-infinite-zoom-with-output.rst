@@ -67,37 +67,37 @@ Intel <https://huggingface.co/docs/optimum/intel/inference#stable-diffusion>`__.
 And how to use the model to generate sequence of images for infinite
 zoom video effect.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Stable Diffusion v2 Infinite Zoom
-   Showcase <#Stable-Diffusion-v2-Infinite-Zoom-Showcase>`__
+   Showcase <#stable-diffusion-v2-infinite-zoom-showcase>`__
 
    -  `Stable Diffusion Text guided
-      Inpainting <#Stable-Diffusion-Text-guided-Inpainting>`__
+      Inpainting <#stable-diffusion-text-guided-inpainting>`__
 
--  `Prerequisites <#Prerequisites>`__
+-  `Prerequisites <#prerequisites>`__
 -  `Load Stable Diffusion Inpaint pipeline using Optimum
-   Intel <#Load-Stable-Diffusion-Inpaint-pipeline-using-Optimum-Intel>`__
--  `Zoom Video Generation <#Zoom-Video-Generation>`__
+   Intel <#load-stable-diffusion-inpaint-pipeline-using-optimum-intel>`__
+-  `Zoom Video Generation <#zoom-video-generation>`__
 -  `Run Infinite Zoom video
-   generation <#Run-Infinite-Zoom-video-generation>`__
+   generation <#run-infinite-zoom-video-generation>`__
 
 Stable Diffusion v2 Infinite Zoom Showcase
 ------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In this tutorial we consider how to use Stable Diffusion v2 model for
 generation sequence of images for infinite zoom video effect. To do
 this, we will need
-```stabilityai/stable-diffusion-2-inpainting`` <https://huggingface.co/stabilityai/stable-diffusion-2-inpainting>`__
+`stabilityai/stable-diffusion-2-inpainting <https://huggingface.co/stabilityai/stable-diffusion-2-inpainting>`__
 model.
 
 Stable Diffusion Text guided Inpainting
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In image editing, inpainting is a process of restoring missing parts of
 pictures. Most commonly applied to reconstructing old deteriorated
@@ -133,7 +133,7 @@ Out video based on our prompt.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 install required packages
 
@@ -144,7 +144,7 @@ install required packages
 Load Stable Diffusion Inpaint pipeline using Optimum Intel
 ----------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We will load optimized Stable Diffusion model from the Hugging Face Hub
 and create pipeline to run an inference with OpenVINO Runtime by
@@ -198,7 +198,7 @@ Select device from dropdown list for running inference using OpenVINO.
 Zoom Video Generation
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For achieving zoom effect, we will use inpainting to expand images
 beyond their original borders. We run our
@@ -443,7 +443,7 @@ generation is finished, we record frames in reversed order.
 Run Infinite Zoom video generation
 ----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

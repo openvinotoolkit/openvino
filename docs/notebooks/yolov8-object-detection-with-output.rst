@@ -18,69 +18,69 @@ the FP32 and quantized models. - Compare accuracy of the FP32 and
 quantized models. - Other optimization possibilities with OpenVINO api -
 Live demo
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Get PyTorch model <#Get-PyTorch-model>`__
 
-   -  `Prerequisites <#Prerequisites>`__
+-  `Get PyTorch model <#get-pytorch-model>`__
 
--  `Instantiate model <#Instantiate-model>`__
+   -  `Prerequisites <#prerequisites>`__
 
-   -  `Convert model to OpenVINO IR <#Convert-model-to-OpenVINO-IR>`__
-   -  `Verify model inference <#Verify-model-inference>`__
-   -  `Select inference device <#Select-inference-device>`__
-   -  `Test on single image <#Test-on-single-image>`__
+-  `Instantiate model <#instantiate-model>`__
+
+   -  `Convert model to OpenVINO IR <#convert-model-to-openvino-ir>`__
+   -  `Verify model inference <#verify-model-inference>`__
+   -  `Select inference device <#select-inference-device>`__
+   -  `Test on single image <#test-on-single-image>`__
 
 -  `Check model accuracy on the
-   dataset <#Check-model-accuracy-on-the-dataset>`__
+   dataset <#check-model-accuracy-on-the-dataset>`__
 
    -  `Download the validation
-      dataset <#Download-the-validation-dataset>`__
-   -  `Define validation function <#Define-validation-function>`__
+      dataset <#download-the-validation-dataset>`__
+   -  `Define validation function <#define-validation-function>`__
    -  `Configure Validator helper and create
-      DataLoader <#Configure-Validator-helper-and-create-DataLoader>`__
+      DataLoader <#configure-validator-helper-and-create-dataloader>`__
 
 -  `Optimize model using NNCF Post-training Quantization
-   API <#Optimize-model-using-NNCF-Post-training-Quantization-API>`__
+   API <#optimize-model-using-nncf-post-training-quantization-api>`__
 
    -  `Validate Quantized model
-      inference <#Validate-Quantized-model-inference>`__
+      inference <#validate-quantized-model-inference>`__
 
 -  `Compare the Original and Quantized
-   Models <#Compare-the-Original-and-Quantized-Models>`__
+   Models <#compare-the-original-and-quantized-models>`__
 
    -  `Compare performance object detection
-      models <#Compare-performance-object-detection-models>`__
+      models <#compare-performance-object-detection-models>`__
    -  `Validate quantized model
-      accuracy <#Validate-quantized-model-accuracy>`__
+      accuracy <#validate-quantized-model-accuracy>`__
 
--  `Next steps <#Next-steps>`__
+-  `Next steps <#next-steps>`__
 
-   -  `Async inference pipeline <#Async-inference-pipeline>`__
+   -  `Async inference pipeline <#async-inference-pipeline>`__
    -  `Integration preprocessing to
-      model <#Integration-preprocessing-to-model>`__
+      model <#integration-preprocessing-to-model>`__
 
       -  `Initialize PrePostProcessing
-         API <#Initialize-PrePostProcessing-API>`__
-      -  `Define input data format <#Define-input-data-format>`__
+         API <#initialize-prepostprocessing-api>`__
+      -  `Define input data format <#define-input-data-format>`__
       -  `Describe preprocessing
-         steps <#Describe-preprocessing-steps>`__
+         steps <#describe-preprocessing-steps>`__
       -  `Integrating Steps into a
-         Model <#Integrating-Steps-into-a-Model>`__
-      -  `Postprocessing <#Postprocessing>`__
+         Model <#integrating-steps-into-a-model>`__
+      -  `Postprocessing <#postprocessing>`__
 
--  `Live demo <#Live-demo>`__
+-  `Live demo <#live-demo>`__
 
-   -  `Run Live Object Detection <#Run-Live-Object-Detection>`__
+   -  `Run Live Object Detection <#run-live-object-detection>`__
 
 Get PyTorch model
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Generally, PyTorch models represent an instance of the
-```torch.nn.Module`` <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
+`torch.nn.Module <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
 class, initialized by a state dictionary with model weights. We will use
 the YOLOv8 nano model (also known as ``yolov8n``) pre-trained on a COCO
 dataset, which is available in this
@@ -98,7 +98,7 @@ we do not need to do these steps manually.
 Prerequisites
 ^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Install necessary packages.
 
@@ -138,7 +138,7 @@ Import required utility functions. The lower cell will download the
 Instantiate model
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 There are `several
 models <https://docs.ultralytics.com/tasks/detect/>`__ available in the
@@ -199,7 +199,7 @@ Let us consider the examples:
 Convert model to OpenVINO IR
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 YOLOv8 provides API for convenient model exporting to different formats
 including OpenVINO IR. ``model.export`` is responsible for model
@@ -233,7 +233,7 @@ preserve dynamic shapes in the model.
 Verify model inference
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We can reuse the base model pipeline for pre- and postprocessing just
 replacing the inference method where we will use the IR model for
@@ -242,7 +242,7 @@ inference.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device from dropdown list for running inference using OpenVINO
 
@@ -274,7 +274,7 @@ Select device from dropdown list for running inference using OpenVINO
 Test on single image
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, once we have defined preprocessing and postprocessing steps, we are
 ready to check model prediction for object detection.
@@ -323,7 +323,7 @@ ready to check model prediction for object detection.
 Check model accuracy on the dataset
 -----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For comparing the optimized model result with the original, it is good
 to know some measurable results in terms of model accuracy on the
@@ -332,7 +332,7 @@ validation dataset.
 Download the validation dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 YOLOv8 is pre-trained on the COCO dataset, so to evaluate the model
 accuracy we need to download it. According to the instructions provided
@@ -374,7 +374,7 @@ evaluation function.
 Define validation function
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -476,7 +476,7 @@ Define validation function
 Configure Validator helper and create DataLoader
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The original model repository uses a ``Validator`` wrapper, which
 represents the accuracy validation pipeline. It creates dataloader and
@@ -576,7 +576,7 @@ subset difference. *To validate the models on the full dataset set
 Optimize model using NNCF Post-training Quantization API
 --------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -855,7 +855,7 @@ point precision, using the ``ignored_scope`` parameter.
 Validate Quantized model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 ``nncf.quantize`` returns the OpenVINO Model class instance, which is
 suitable for loading on a device for making predictions. ``INT8`` model
@@ -906,12 +906,12 @@ on the image.
 Compare the Original and Quantized Models
 -----------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Compare performance object detection models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Finally, use the OpenVINO `Benchmark
 Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
@@ -1113,7 +1113,7 @@ models.
 Validate quantized model accuracy
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 As we can see, there is no significant difference between ``INT8`` and
 float model result in a single image test. To understand how
@@ -1164,14 +1164,14 @@ meets passing criteria.
 Next steps
 ----------
 
-`back to top ⬆️ <#Table-of-contents:>`__ This section contains
+ This section contains
 suggestions on how to additionally improve the performance of your
 application using OpenVINO.
 
 Async inference pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__ The key advantage of the Async
+ The key advantage of the Async
 API is that when a device is busy with inference, the application can
 perform other tasks in parallel (for example, populating inputs or
 scheduling other requests) rather than wait for the current inference to
@@ -1181,7 +1181,7 @@ openvino, refer to `Async API tutorial <async-api-with-output.html>`__
 Integration preprocessing to model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Preprocessing API enables making preprocessing a part of the model
 reducing application code and dependency on additional image processing
@@ -1204,7 +1204,7 @@ preprocessing steps. 4. Integrating Steps into a Model.
 Initialize PrePostProcessing API
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The ``openvino.preprocess.PrePostProcessor`` class enables specifying
 preprocessing and postprocessing steps for a model.
@@ -1218,7 +1218,7 @@ preprocessing and postprocessing steps for a model.
 Define input data format
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To address particular input of a model/preprocessor, the
 ``input(input_id)`` method, where ``input_id`` is a positional index or
@@ -1239,7 +1239,7 @@ layout expected by model
 Describe preprocessing steps
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Our preprocessing function contains the following steps: \* Convert the
 data type from ``U8`` to ``FP32``. \* Convert the data layout from
@@ -1271,7 +1271,7 @@ preprocessing steps:
 Integrating Steps into a Model
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Once the preprocessing steps have been finished, the model can be
 finally built. Additionally, we can save a completed model to OpenVINO
@@ -1355,7 +1355,7 @@ device.
 Postprocessing
 ''''''''''''''
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The model output contains detection boxes candidates, it is a tensor
 with the [-1,84,-1] shape in the B,84,N format, where:
@@ -1514,7 +1514,7 @@ Now, we can skip these preprocessing steps in detect function:
 Live demo
 ---------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The following code runs model inference on a video:
 
@@ -1632,7 +1632,7 @@ The following code runs model inference on a video:
 Run Live Object Detection
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Use a webcam as the video input. By default, the primary webcam is set
 with \ ``source=0``. If you have multiple webcams, each one will be

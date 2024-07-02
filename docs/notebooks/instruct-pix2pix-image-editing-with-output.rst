@@ -30,31 +30,31 @@ Notebook contains the following steps:
    `NNCF <https://github.com/openvinotoolkit/nncf/>`__ quantization.
 4. Compare results of original and optimized pipelines.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Create Pytorch Models pipeline <#Create-Pytorch-Models-pipeline>`__
--  `Convert Models to OpenVINO IR <#Convert-Models-to-OpenVINO-IR>`__
 
-   -  `Text Encoder <#Text-Encoder>`__
-   -  `VAE <#VAE>`__
-   -  `Unet <#Unet>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Create Pytorch Models pipeline <#create-pytorch-models-pipeline>`__
+-  `Convert Models to OpenVINO IR <#convert-models-to-openvino-ir>`__
 
--  `Prepare Inference Pipeline <#Prepare-Inference-Pipeline>`__
--  `Quantization <#Quantization>`__
+   -  `Text Encoder <#text-encoder>`__
+   -  `VAE <#vae>`__
+   -  `Unet <#unet>`__
 
-   -  `Prepare calibration dataset <#Prepare-calibration-dataset>`__
-   -  `Run quantization <#Run-quantization>`__
+-  `Prepare Inference Pipeline <#prepare-inference-pipeline>`__
+-  `Quantization <#quantization>`__
+
+   -  `Prepare calibration dataset <#prepare-calibration-dataset>`__
+   -  `Run quantization <#run-quantization>`__
    -  `Compare inference time of the FP16 and INT8
-      models <#Compare-inference-time-of-the-FP16-and-INT8-models>`__
+      models <#compare-inference-time-of-the-fp16-and-int8-models>`__
 
--  `Interactive demo with Gradio <#Interactive-demo-with-Gradio>`__
+-  `Interactive demo with Gradio <#interactive-demo-with-gradio>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Install necessary packages
 
@@ -73,12 +73,12 @@ Install necessary packages
 Create Pytorch Models pipeline
 ------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 ``StableDiffusionInstructPix2PixPipeline`` is an end-to-end inference
 pipeline that you can use to edit images from text instructions with
 just a few lines of code provided as part
-🤗🧨\ `diffusers <https://huggingface.co/docs/diffusers/index>`__ library.
+ `diffusers <https://huggingface.co/docs/diffusers/index>`__ library.
 
 First, we load the pre-trained weights of all components of the model.
 
@@ -109,7 +109,7 @@ First, we load the pre-trained weights of all components of the model.
 Convert Models to OpenVINO IR
 -----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO supports PyTorch models using `Model Conversion
 API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
@@ -137,7 +137,7 @@ Let us convert each part.
 Text Encoder
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -227,7 +227,7 @@ hidden states.
 VAE
 ~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The VAE model consists of two parts: an encoder and a decoder.
 
@@ -345,7 +345,7 @@ into two independent models.
 Unet
 ~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The Unet model has three inputs:
 
@@ -422,7 +422,7 @@ Model predicts the ``sample`` state for the next step.
 Prepare Inference Pipeline
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Putting it all together, let us now take a closer look at how the model
 inference works by illustrating the logical flow.
@@ -1068,7 +1068,7 @@ Nice. As you can see, the picture has quite a high definition 🔥.
 Quantization
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -1129,10 +1129,10 @@ Let’s load ``skip magic`` extension to skip quantization if
 Prepare calibration dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We use a portion of
-```fusing/instructpix2pix-1000-samples`` <https://huggingface.co/datasets/fusing/instructpix2pix-1000-samples>`__
+`fusing/instructpix2pix-1000-samples <https://huggingface.co/datasets/fusing/instructpix2pix-1000-samples>`__
 dataset from Hugging Face as calibration data. To collect intermediate
 model inputs for calibration we should customize ``CompiledModel``.
 
@@ -1206,7 +1206,7 @@ model inputs for calibration we should customize ``CompiledModel``.
 Run quantization
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Create a quantized model from the pre-trained converted OpenVINO model.
 
@@ -1295,7 +1295,7 @@ data.
 Compare inference time of the FP16 and INT8 models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To measure the inference performance of the ``FP16`` and ``INT8``
 models, we use median inference time on calibration subset.
@@ -1347,7 +1347,7 @@ models, we use median inference time on calibration subset.
 Interactive demo with Gradio
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
    **Note**: Diffusion process can take some time, depending on what
    hardware you select.

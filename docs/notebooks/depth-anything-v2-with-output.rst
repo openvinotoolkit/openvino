@@ -34,39 +34,39 @@ using OpenVINO. An additional part demonstrates how to run quantization
 with `NNCF <https://github.com/openvinotoolkit/nncf/>`__ to speed up the
 model.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Load and run PyTorch model <#Load-and-run-PyTorch-model>`__
 
-   -  `Prepare input data <#Prepare-input-data>`__
-   -  `Run model inference <#Run-model-inference>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Load and run PyTorch model <#load-and-run-pytorch-model>`__
+
+   -  `Prepare input data <#prepare-input-data>`__
+   -  `Run model inference <#run-model-inference>`__
 
 -  `Convert Model to OpenVINO IR
-   format <#Convert-Model-to-OpenVINO-IR-format>`__
--  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
+   format <#convert-model-to-openvino-ir-format>`__
+-  `Run OpenVINO model inference <#run-openvino-model-inference>`__
 
-   -  `Select inference device <#Select-inference-device>`__
-   -  `Run inference on image <#Run-inference-on-image>`__
-   -  `Run inference on video <#Run-inference-on-video>`__
+   -  `Select inference device <#select-inference-device>`__
+   -  `Run inference on image <#run-inference-on-image>`__
+   -  `Run inference on video <#run-inference-on-video>`__
 
--  `Quantization <#Quantization>`__
+-  `Quantization <#quantization>`__
 
-   -  `Prepare calibration dataset <#Prepare-calibration-dataset>`__
-   -  `Run quantization <#Run-quantization>`__
+   -  `Prepare calibration dataset <#prepare-calibration-dataset>`__
+   -  `Run quantization <#run-quantization>`__
 
-      -  `Compare model file size <#Compare-model-file-size>`__
+      -  `Compare model file size <#compare-model-file-size>`__
 
    -  `Compare inference time of the FP16 and INT8
-      models <#Compare-inference-time-of-the-FP16-and-INT8-models>`__
+      models <#compare-inference-time-of-the-fp16-and-int8-models>`__
 
--  `Interactive demo <#Interactive-demo>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -116,7 +116,7 @@ Prerequisites
 Load and run PyTorch model
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To be able run PyTorch model on CPU, we should disable xformers
 attention optimizations first.
@@ -138,7 +138,7 @@ attention optimizations first.
 Prepare input data
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -176,7 +176,7 @@ Prepare input data
 Run model inference
 ~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 ``DepthAnythingV2.from_pretrained`` method creates PyTorch model class
 instance and load model weights. There are 3 available models in
@@ -271,7 +271,7 @@ is preprocessed image height, ``W`` is preprocessed image width.
 Convert Model to OpenVINO IR format
 -----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
 Representation (IR). OpenVINO model conversion API should be used for
@@ -307,14 +307,14 @@ loading on device using ``core.complie_model``.
 Run OpenVINO model inference
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, we are ready to run OpenVINO model
 
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For starting work, please select inference device from dropdown list.
 
@@ -349,7 +349,7 @@ For starting work, please select inference device from dropdown list.
 Run inference on image
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For simplicity of usage, model authors provide helper functions for
 preprocessing input image. The main conditions are that image size
@@ -410,7 +410,7 @@ range.
 Run inference on video
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -670,7 +670,7 @@ Run inference on video
 Quantization
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -722,10 +722,10 @@ improve model inference speed.
 Prepare calibration dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We use a portion of
-```Nahrawy/VIDIT-Depth-ControlNet`` <https://huggingface.co/datasets/Nahrawy/VIDIT-Depth-ControlNet>`__
+`Nahrawy/VIDIT-Depth-ControlNet <https://huggingface.co/datasets/Nahrawy/VIDIT-Depth-ControlNet>`__
 dataset from Hugging Face as calibration data.
 
 .. code:: ipython3
@@ -755,7 +755,7 @@ dataset from Hugging Face as calibration data.
 Run quantization
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Create a quantized model from the pre-trained converted OpenVINO model.
 > **NOTE**: Quantization is time and memory consuming operation. Running
@@ -977,7 +977,7 @@ data.
 Compare model file size
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1001,7 +1001,7 @@ Compare model file size
 Compare inference time of the FP16 and INT8 models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To measure the inference performance of OpenVINO FP16 and INT8 models,
 use `Benchmark
@@ -1043,7 +1043,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 You can apply model on own images. You can move the slider on the
 resulting image to switch between the original image and the depth map
@@ -1170,7 +1170,7 @@ launch the interactive demo.
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

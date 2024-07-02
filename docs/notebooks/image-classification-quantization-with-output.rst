@@ -19,27 +19,27 @@ This tutorial consists of the following steps:
 -  Compare performance of the original and quantized models.
 -  Compare results on one picture.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prepare the Model <#Prepare-the-Model>`__
--  `Prepare Dataset <#Prepare-Dataset>`__
--  `Perform Quantization <#Perform-Quantization>`__
 
-   -  `Create Dataset for Validation <#Create-Dataset-for-Validation>`__
+-  `Prepare the Model <#prepare-the-model>`__
+-  `Prepare Dataset <#prepare-dataset>`__
+-  `Perform Quantization <#perform-quantization>`__
+
+   -  `Create Dataset for Validation <#create-dataset-for-validation>`__
 
 -  `Run nncf.quantize for Getting an Optimized
-   Model <#Run-nncf.quantize-for-Getting-an-Optimized-Model>`__
--  `Serialize an OpenVINO IR model <#Serialize-an-OpenVINO-IR-model>`__
+   Model <#run-nncf-quantize-for-getting-an-optimized-model>`__
+-  `Serialize an OpenVINO IR model <#serialize-an-openvino-ir-model>`__
 -  `Compare Accuracy of the Original and Quantized
-   Models <#Compare-Accuracy-of-the-Original-and-Quantized-Models>`__
+   Models <#compare-accuracy-of-the-original-and-quantized-models>`__
 
-   -  `Select inference device <#Select-inference-device>`__
+   -  `Select inference device <#select-inference-device>`__
 
 -  `Compare Performance of the Original and Quantized
-   Models <#Compare-Performance-of-the-Original-and-Quantized-Models>`__
+   Models <#compare-performance-of-the-original-and-quantized-models>`__
 -  `Compare results on four
-   pictures <#Compare-results-on-four-pictures>`__
+   pictures <#compare-results-on-four-pictures>`__
 
 .. code:: ipython3
 
@@ -75,7 +75,7 @@ Table of contents:
 Prepare the Model
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Model preparation stage has the following steps:
 
@@ -136,7 +136,7 @@ can be found on this
 Prepare Dataset
 ---------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We will use `CIFAR10 <https://www.cs.toronto.edu/~kriz/cifar.html>`__
 dataset from
@@ -184,7 +184,7 @@ Preprocessing for model obtained from training
 Perform Quantization
 --------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -200,7 +200,7 @@ MobileNetV2. The optimization process contains the following steps:
 Create Dataset for Validation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 NNCF is compatible with ``torch.utils.data.DataLoader`` interface. For
 performing quantization it should be passed into ``nncf.Dataset`` object
@@ -229,7 +229,7 @@ model during quantization, in our case, to pick input tensor from pair
 Run nncf.quantize for Getting an Optimized Model
 ------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 ``nncf.quantize`` function accepts model and prepared quantization
 dataset for performing basic quantization. Optionally, additional
@@ -296,7 +296,7 @@ about supported parameters can be found on this
 Serialize an OpenVINO IR model
 ------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Similar to ``ov.convert_model``, quantized model is ``ov.Model`` object
 which ready to be loaded into device and can be serialized on disk using
@@ -309,7 +309,7 @@ which ready to be loaded into device and can be serialized on disk using
 Compare Accuracy of the Original and Quantized Models
 -----------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -330,7 +330,7 @@ Compare Accuracy of the Original and Quantized Models
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -394,7 +394,7 @@ select device from dropdown list for running inference using OpenVINO
 Compare Performance of the Original and Quantized Models
 --------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark
@@ -585,7 +585,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
 Compare results on four pictures
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

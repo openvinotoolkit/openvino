@@ -36,33 +36,33 @@ The notebook contains the following steps:
 8. Compare performance of converted and quantized models.
 9. Launch interactive demo
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Instantiate model <#Instantiate-model>`__
--  `Run PyTorch model inference <#Run-PyTorch-model-inference>`__
+
+-  `Instantiate model <#instantiate-model>`__
+-  `Run PyTorch model inference <#run-pytorch-model-inference>`__
 -  `Convert model to OpenVINO Intermediate Representation (IR)
-   format. <#Convert-model-to-OpenVINO-Intermediate-Representation-(IR)-format.>`__
--  `Run OpenVINO model <#Run-OpenVINO-model>`__
+   format. <#convert-model-to-openvino-intermediate-representation-ir-format->`__
+-  `Run OpenVINO model <#run-openvino-model>`__
 
-   -  `Select inference device <#Select-inference-device>`__
+   -  `Select inference device <#select-inference-device>`__
 
 -  `Quantize model to INT8 using
-   NNCF <#Quantize-model-to-INT8-using-NNCF>`__
+   NNCF <#quantize-model-to-int8-using-nncf>`__
 
-   -  `Prepare datasets <#Prepare-datasets>`__
-   -  `Perform quantization <#Perform-quantization>`__
-   -  `Run quantized OpenVINO model <#Run-quantized-OpenVINO-model>`__
-   -  `Compare File Size <#Compare-File-Size>`__
+   -  `Prepare datasets <#prepare-datasets>`__
+   -  `Perform quantization <#perform-quantization>`__
+   -  `Run quantized OpenVINO model <#run-quantized-openvino-model>`__
+   -  `Compare File Size <#compare-file-size>`__
    -  `Compare inference time of the FP16 IR and quantized
-      models <#Compare-inference-time-of-the-FP16-IR-and-quantized-models>`__
+      models <#compare-inference-time-of-the-fp16-ir-and-quantized-models>`__
 
--  `Interactive demo <#Interactive-demo>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Instantiate model
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 CLIP (Contrastive Language-Image Pre-Training) is a neural network
 trained on various (image, text) pairs. It can be instructed in natural
@@ -173,7 +173,7 @@ tokenizer and preparing the images.
 Run PyTorch model inference
 ---------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To perform classification, define labels and load an image in RGB
 format. To give the model wider text context and improve guidance, we
@@ -229,7 +229,7 @@ similarity score for the final result.
 Convert model to OpenVINO Intermediate Representation (IR) format.
 ------------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. OpenVINO supports PyTorch via Model conversion
@@ -254,7 +254,7 @@ save it on disk for the next usage with ``ov.save_model``.
 Run OpenVINO model
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The steps for making predictions with the OpenVINO CLIP model are
 similar to the PyTorch model. Let us check the model result using the
@@ -270,7 +270,7 @@ same input data from the example above with PyTorch.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -317,7 +317,7 @@ Great! Looks like we got the same result.
 Quantize model to INT8 using NNCF
 ---------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__ ## Quantize model to INT8 using
+ ## Quantize model to INT8 using
 NNCF
 
 The goal of this part of tutorial is to demonstrate how to speed up the
@@ -374,7 +374,7 @@ inference faster. The optimization process contains the following steps:
 Prepare datasets
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The `Conceptual
 Captions <https://ai.google.com/research/ConceptualCaptions/>`__ dataset
@@ -525,7 +525,7 @@ model.
 Perform quantization
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Create a quantized model from the pre-trained ``FP16`` model.
 
@@ -645,7 +645,7 @@ Create a quantized model from the pre-trained ``FP16`` model.
 Run quantized OpenVINO model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The steps for making predictions with the quantized OpenVINO CLIP model
 are similar to the PyTorch model. Let us check the model result using
@@ -674,7 +674,7 @@ Nice! Results looks similar to fp16 model results before quantization.
 Compare File Size
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -699,7 +699,7 @@ Compare File Size
 Compare inference time of the FP16 IR and quantized models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__ To measure the inference
+ To measure the inference
 performance of the ``FP16`` and ``INT8`` models, we use median inference
 time on calibration dataset. So we can approximately estimate the speed
 up of the dynamic quantized models.
@@ -742,7 +742,7 @@ up of the dynamic quantized models.
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__ ## Interactive demo
+ ## Interactive demo
 
 Now, it is your turn! You can provide your own image and comma-separated
 list of labels for zero-shot classification.

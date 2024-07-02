@@ -26,31 +26,31 @@ and original `repo <https://github.com/facebookresearch/encodec>`__.
 
    image.png
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
+
+-  `Prerequisites <#prerequisites>`__
 -  `Instantiate audio compression
-   pipeline <#Instantiate-audio-compression-pipeline>`__
--  `Explore EnCodec pipeline <#Explore-EnCodec-pipeline>`__
+   pipeline <#instantiate-audio-compression-pipeline>`__
+-  `Explore EnCodec pipeline <#explore-encodec-pipeline>`__
 
-   -  `Preprocessing <#Preprocessing>`__
-   -  `Encoding <#Encoding>`__
-   -  `Decompression <#Decompression>`__
+   -  `Preprocessing <#preprocessing>`__
+   -  `Encoding <#encoding>`__
+   -  `Decompression <#decompression>`__
 
 -  `Convert model to OpenVINO Intermediate Representation
-   format <#Convert-model-to-OpenVINO-Intermediate-Representation-format>`__
+   format <#convert-model-to-openvino-intermediate-representation-format>`__
 -  `Integrate OpenVINO to EnCodec
-   pipeline <#Integrate-OpenVINO-to-EnCodec-pipeline>`__
+   pipeline <#integrate-openvino-to-encodec-pipeline>`__
 
-   -  `Select inference device <#Select-inference-device>`__
+   -  `Select inference device <#select-inference-device>`__
 
--  `Run EnCodec with OpenVINO <#Run-EnCodec-with-OpenVINO>`__
+-  `Run EnCodec with OpenVINO <#run-encodec-with-openvino>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Install required dependencies:
 
@@ -67,7 +67,7 @@ Install required dependencies:
 Instantiate audio compression pipeline
 --------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `Codecs <https://en.wikipedia.org/wiki/Codec>`__, which act as encoders
 and decoders for streams of data, help empower most of the audio
@@ -136,7 +136,7 @@ bandwidth.
 Explore EnCodec pipeline
 ------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Let us explore model capabilities on example audio:
 
@@ -194,7 +194,7 @@ Let us explore model capabilities on example audio:
 Preprocessing
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To achieve the best result, audio should have the number of channels and
 sample rate expected by the model. If audio does not fulfill these
@@ -224,7 +224,7 @@ number of channels using the ``convert_audio`` function.
 Encoding
 ~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Audio waveform should be split by chunks and then encoded by Encoder
 model, then compressed by quantizer for reducing memory. The result of
@@ -275,7 +275,7 @@ becomes 60 times smaller and more suitable for sending via network.
 Decompression
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 After successful sending of the compressed audio, it should be
 decompressed on the recipient’s side. The decoder model is responsible
@@ -333,7 +333,7 @@ Nice! Audio sounds close to original.
 Convert model to OpenVINO Intermediate Representation format
 ------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. OpenVINO supports PyTorch via conversion to
@@ -426,7 +426,7 @@ with ``ov.save_model``.
 Integrate OpenVINO to EnCodec pipeline
 --------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The following steps are required for integration of OpenVINO to EnCodec
 pipeline:
@@ -439,7 +439,7 @@ pipeline:
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -507,7 +507,7 @@ select device from dropdown list for running inference using OpenVINO
 Run EnCodec with OpenVINO
 -------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The process of running encodec with OpenVINO under hood will be the same
 like with the original PyTorch models.
@@ -617,7 +617,7 @@ like with the original PyTorch models.
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

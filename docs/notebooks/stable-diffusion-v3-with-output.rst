@@ -32,28 +32,28 @@ Diffusion versions, please check our other notebooks:
 -  `Turbo SDXL <../sdxl-turbo>`__
 -  `Turbo SD <../sketch-to-image-pix2pix-turbo>`__
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Build PyTorch pipeline <#Build-PyTorch-pipeline>`__
+
+-  `Prerequisites <#prerequisites>`__
+-  `Build PyTorch pipeline <#build-pytorch-pipeline>`__
 -  `Convert and Optimize models with OpenVINO and
-   NNCF <#Convert-and-Optimize-models-with-OpenVINO-and-NNCF>`__
+   NNCF <#convert-and-optimize-models-with-openvino-and-nncf>`__
 
-   -  `Transformer <#Transformer>`__
-   -  `T5 Text Encoder <#T5-Text-Encoder>`__
-   -  `Clip text encoders <#Clip-text-encoders>`__
-   -  `VAE <#VAE>`__
+   -  `Transformer <#transformer>`__
+   -  `T5 Text Encoder <#t5-text-encoder>`__
+   -  `Clip text encoders <#clip-text-encoders>`__
+   -  `VAE <#vae>`__
 
 -  `Prepare OpenVINO inference
-   pipeline <#Prepare-OpenVINO-inference-pipeline>`__
--  `Run OpenVINO model <#Run-OpenVINO-model>`__
--  `Interactive demo <#Interactive-demo>`__
+   pipeline <#prepare-openvino-inference-pipeline>`__
+-  `Run OpenVINO model <#run-openvino-model>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -63,10 +63,10 @@ Prerequisites
 Build PyTorch pipeline
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
    **Note**: run model with notebook, you will need to accept license
-   agreement. You must be a registered user in 🤗 Hugging Face Hub.
+   agreement. You must be a registered user in Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/stabilityai/stable-diffusion-3-medium-diffusers>`__,
    carefully read terms of usage and click accept button. You will need
@@ -212,7 +212,7 @@ memory consumption:
 Convert and Optimize models with OpenVINO and NNCF
 --------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Starting from 2023.0 release, OpenVINO supports PyTorch models directly
 via Model Conversion API. ``ov.convert_model`` function accepts instance
@@ -242,7 +242,7 @@ Let us convert and optimize each part:
 Transformer
 ~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -363,7 +363,7 @@ Transformer
 T5 Text Encoder
 ~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -414,7 +414,7 @@ T5 Text Encoder
 Clip text encoders
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -463,7 +463,7 @@ Clip text encoders
 VAE
 ~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -488,7 +488,7 @@ VAE
 Prepare OpenVINO inference pipeline
 -----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1076,7 +1076,7 @@ Prepare OpenVINO inference pipeline
 Run OpenVINO model
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1184,7 +1184,7 @@ Run OpenVINO model
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

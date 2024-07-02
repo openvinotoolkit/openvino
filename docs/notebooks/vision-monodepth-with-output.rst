@@ -28,42 +28,42 @@ Transfer,” <https://ieeexplore.ieee.org/document/9178977>`__ in IEEE
 Transactions on Pattern Analysis and Machine Intelligence, doi:
 ``10.1109/TPAMI.2020.3019967``.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Preparation <#Preparation>`__
 
-   -  `Install requirements <#Install-requirements>`__
-   -  `Imports <#Imports>`__
-   -  `Download the model <#Download-the-model>`__
+-  `Preparation <#preparation>`__
 
--  `Functions <#Functions>`__
--  `Select inference device <#Select-inference-device>`__
--  `Load the Model <#Load-the-Model>`__
--  `Monodepth on Image <#Monodepth-on-Image>`__
+   -  `Install requirements <#install-requirements>`__
+   -  `Imports <#imports>`__
+   -  `Download the model <#download-the-model>`__
+
+-  `Functions <#functions>`__
+-  `Select inference device <#select-inference-device>`__
+-  `Load the Model <#load-the-model>`__
+-  `Monodepth on Image <#monodepth-on-image>`__
 
    -  `Load, resize and reshape input
-      image <#Load,-resize-and-reshape-input-image>`__
-   -  `Do inference on the image <#Do-inference-on-the-image>`__
-   -  `Display monodepth image <#Display-monodepth-image>`__
+      image <#load-resize-and-reshape-input-image>`__
+   -  `Do inference on the image <#do-inference-on-the-image>`__
+   -  `Display monodepth image <#display-monodepth-image>`__
 
--  `Monodepth on Video <#Monodepth-on-Video>`__
+-  `Monodepth on Video <#monodepth-on-video>`__
 
-   -  `Video Settings <#Video-Settings>`__
-   -  `Load the Video <#Load-the-Video>`__
+   -  `Video Settings <#video-settings>`__
+   -  `Load the Video <#load-the-video>`__
    -  `Do Inference on a Video and Create Monodepth
-      Video <#Do-Inference-on-a-Video-and-Create-Monodepth-Video>`__
-   -  `Display Monodepth Video <#Display-Monodepth-Video>`__
+      Video <#do-inference-on-a-video-and-create-monodepth-video>`__
+   -  `Display Monodepth Video <#display-monodepth-video>`__
 
 Preparation
 -----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Install requirements
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -105,7 +105,7 @@ Install requirements
 Imports
 ~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -132,7 +132,7 @@ Imports
 Download the model
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The model is in the `OpenVINO Intermediate Representation
 (IR) <https://docs.openvino.ai/2024/documentation/openvino-ir-format.html>`__
@@ -167,7 +167,7 @@ format.
 Functions
 ---------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -202,7 +202,7 @@ Functions
 Select inference device
 -----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -232,7 +232,7 @@ select device from dropdown list for running inference using OpenVINO
 Load the Model
 --------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Load the model in OpenVINO Runtime with ``core.read_model`` and compile
 it for the specified device with ``core.compile_model``. Get input and
@@ -258,12 +258,12 @@ output keys and the expected input shape for the model.
 Monodepth on Image
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Load, resize and reshape input image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The input image is read with OpenCV, resized to network input size, and
 reshaped to (N,C,H,W) (N=number of images, C=number of channels,
@@ -283,7 +283,7 @@ H=height, W=width).
 Do inference on the image
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Do inference, convert the result to an image, and resize it to the
 original image shape.
@@ -310,7 +310,7 @@ original image shape.
 Display monodepth image
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -326,7 +326,7 @@ Display monodepth image
 Monodepth on Video
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 By default, only the first 4 seconds are processed in order to quickly
 check that everything works. Change ``NUM_SECONDS`` in the cell below to
@@ -335,7 +335,7 @@ modify this. Set ``NUM_SECONDS`` to 0 to process the whole video.
 Video Settings
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -366,7 +366,7 @@ Video Settings
 Load the Video
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Load the video from a ``VIDEO_FILE``, set in the *Video Settings* cell
 above. Open the video to read the frame width and height and fps, and
@@ -403,7 +403,7 @@ compute values for these properties for the monodepth video.
 Do Inference on a Video and Create Monodepth Video
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -509,7 +509,7 @@ Do Inference on a Video and Create Monodepth Video
 Display Monodepth Video
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

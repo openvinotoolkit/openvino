@@ -11,30 +11,30 @@ After creating the OpenVINO IR, load the model in `OpenVINO
 Runtime <https://docs.openvino.ai/2024/openvino-workflow/running-inference.html>`__
 and do inference with a sample image.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Imports <#Imports>`__
--  `Settings <#Settings>`__
--  `Download model <#Download-model>`__
+
+-  `Imports <#imports>`__
+-  `Settings <#settings>`__
+-  `Download model <#download-model>`__
 -  `Convert a Model to OpenVINO IR
-   Format <#Convert-a-Model-to-OpenVINO-IR-Format>`__
+   Format <#convert-a-model-to-openvino-ir-format>`__
 
    -  `Convert a TensorFlow Model to OpenVINO IR
-      Format <#Convert-a-TensorFlow-Model-to-OpenVINO-IR-Format>`__
+      Format <#convert-a-tensorflow-model-to-openvino-ir-format>`__
 
 -  `Test Inference on the Converted
-   Model <#Test-Inference-on-the-Converted-Model>`__
+   Model <#test-inference-on-the-converted-model>`__
 
-   -  `Load the Model <#Load-the-Model>`__
+   -  `Load the Model <#load-the-model>`__
 
--  `Select inference device <#Select-inference-device>`__
+-  `Select inference device <#select-inference-device>`__
 
-   -  `Get Model Information <#Get-Model-Information>`__
-   -  `Load an Image <#Load-an-Image>`__
-   -  `Do Inference <#Do-Inference>`__
+   -  `Get Model Information <#get-model-information>`__
+   -  `Load an Image <#load-an-image>`__
+   -  `Do Inference <#do-inference>`__
 
--  `Timing <#Timing>`__
+-  `Timing <#timing>`__
 
 .. code:: ipython3
 
@@ -71,7 +71,7 @@ Table of contents:
 Imports
 -------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -102,7 +102,7 @@ Imports
 Settings
 --------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -117,7 +117,7 @@ Settings
 Download model
 --------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Load model using `tf.keras.applications
 api <https://www.tensorflow.org/api_docs/python/tf/keras/applications/MobileNetV3Small>`__
@@ -163,12 +163,12 @@ and save it to the disk.
 Convert a Model to OpenVINO IR Format
 -------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Convert a TensorFlow Model to OpenVINO IR Format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Use the model conversion Python API to convert the TensorFlow model to
 OpenVINO IR. The ``ov.convert_model`` function accept path to saved
@@ -199,12 +199,12 @@ models.
 Test Inference on the Converted Model
 -------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Load the Model
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -214,7 +214,7 @@ Load the Model
 Select inference device
 -----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -247,7 +247,7 @@ select device from dropdown list for running inference using OpenVINO
 Get Model Information
 ~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -258,7 +258,7 @@ Get Model Information
 Load an Image
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Load an image, resize it, and convert it to the input shape of the
 network.
@@ -296,7 +296,7 @@ network.
 Do Inference
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -335,7 +335,7 @@ Do Inference
 Timing
 ------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Measure the time it takes to do inference on thousand images. This gives
 an indication of performance. For more accurate benchmarking, use the

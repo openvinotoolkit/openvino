@@ -33,30 +33,30 @@ http://arxiv.org/abs/2211.17192
 Our blog article describing this implementation with OpenVino is
 available at openvino.ai
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
 
-   -  `Select inference device <#Select-inference-device>`__
+-  `Prerequisites <#prerequisites>`__
+
+   -  `Select inference device <#select-inference-device>`__
 
 -  `Create autoregressive and speculative forms of sampling with KV
    Cache
-   support <#Create-autoregressive-and-speculative-forms-of-sampling-with-KV-Cache-support>`__
+   support <#create-autoregressive-and-speculative-forms-of-sampling-with-kv-cache-support>`__
 
-   -  `Setup imports <#Setup-imports>`__
+   -  `Setup imports <#setup-imports>`__
    -  `Prepare autoregressive
-      sampling <#Prepare-autoregressive-sampling>`__
-   -  `Prepare speculative sampling <#Prepare-speculative-sampling>`__
+      sampling <#prepare-autoregressive-sampling>`__
+   -  `Prepare speculative sampling <#prepare-speculative-sampling>`__
 
--  `Main generation function <#Main-generation-function>`__
+-  `Main generation function <#main-generation-function>`__
 
-   -  `Download and Convert Model <#Download-and-Convert-Model>`__
+   -  `Download and Convert Model <#download-and-convert-model>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 First, we should install the `Hugging Face
 Optimum <https://huggingface.co/docs/optimum/installation>`__ library
@@ -80,7 +80,7 @@ useful modules.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select the device from dropdown list for running inference using
 OpenVINO.
@@ -113,7 +113,7 @@ OpenVINO.
 Create autoregressive and speculative forms of sampling with KV Cache support
 -----------------------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Text generation is often done in an autoregressive fashion. We will all
 support a KV cache (aka Past Value Cache) in the code. Note that we are
@@ -124,7 +124,7 @@ simple and understandable as possible.
 Setup imports
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -135,7 +135,7 @@ Setup imports
 Prepare autoregressive sampling
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -169,7 +169,7 @@ Prepare autoregressive sampling
 Prepare speculative sampling
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 -  Step 1: With speculative sampling, we first generate K samples from
    the draft model (in an autoregressive manner).
@@ -253,12 +253,12 @@ Prepare speculative sampling
 Main generation function
 ------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Download and Convert Model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Optimum Intel can be used to load optimized models from the `Hugging
 Face Hub <https://huggingface.co/docs/optimum/intel/hf.co/models>`__ and
@@ -266,7 +266,7 @@ create pipelines to run an inference with OpenVINO Runtime using Hugging
 Face APIs. For speculative decoding we need to manually update states,
 therefore we will use directly openvino inference api, and optimum only
 for model conversion. >To download Llama-2-7b-chat-hf, you will need to
-accept license agreement. You must be a registered user in 🤗 Hugging
+accept license agreement. You must be a registered user in Hugging
 Face Hub. Please visit HuggingFace model
 `card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__,
 carefully read terms of usage and click accept button. You will need to

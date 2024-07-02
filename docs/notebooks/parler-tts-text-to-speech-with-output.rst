@@ -32,23 +32,23 @@ entirely on found data.
 
 `HuggingFace page <https://huggingface.co/parler-tts>`__
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
+
+-  `Prerequisites <#prerequisites>`__
 -  `Load the original model and
-   inference <#Load-the-original-model-and-inference>`__
+   inference <#load-the-original-model-and-inference>`__
 -  `Convert the model to OpenVINO
-   IR <#Convert-the-model-to-OpenVINO-IR>`__
--  `Compiling models and inference <#Compiling-models-and-inference>`__
--  `Interactive inference <#Interactive-inference>`__
+   IR <#convert-the-model-to-openvino-ir>`__
+-  `Compiling models and inference <#compiling-models-and-inference>`__
+-  `Interactive inference <#interactive-inference>`__
 
 .. |image0| image:: https://images.squarespace-cdn.com/content/v1/657816dfbefe0533e8a69d9a/30c96e25-acc5-4019-acdd-648da6142c4c/architecture_v3.png?format=2500w
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -80,7 +80,7 @@ Prerequisites
 Load the original model and inference
 -------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -142,7 +142,7 @@ Load the original model and inference
 Convert the model to OpenVINO IR
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Let’s define the conversion function for PyTorch modules. We use
 ``ov.convert_model`` function to obtain OpenVINO Intermediate
@@ -291,7 +291,7 @@ stage the model produces tokens during several runs.
 Compiling models and inference
 ------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select device from dropdown list for running inference using OpenVINO.
 
@@ -419,7 +419,7 @@ and run inference.
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -505,7 +505,7 @@ Interactive inference
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

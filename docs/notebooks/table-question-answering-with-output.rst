@@ -28,22 +28,22 @@ architecture to encode tables as input, initializes from an effective
 joint pre-training of text segments and tables crawled from Wikipedia,
 and is trained end-to-end.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
+
+-  `Prerequisites <#prerequisites>`__
 -  `Use the original model to run an
-   inference <#Use-the-original-model-to-run-an-inference>`__
+   inference <#use-the-original-model-to-run-an-inference>`__
 -  `Convert the original model to OpenVINO Intermediate Representation
    (IR)
-   format <#Convert-the-original-model-to-OpenVINO-Intermediate-Representation-(IR)-format>`__
--  `Run the OpenVINO model <#Run-the-OpenVINO-model>`__
--  `Interactive inference <#Interactive-inference>`__
+   format <#convert-the-original-model-to-openvino-intermediate-representation-ir-format>`__
+-  `Run the OpenVINO model <#run-the-openvino-model>`__
+-  `Interactive inference <#interactive-inference>`__
 
 Prerequisites
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -150,7 +150,7 @@ tokenizer.
 Use the original model to run an inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We use `this
 example <https://huggingface.co/tasks/table-question-answering>`__ to
@@ -175,7 +175,7 @@ documentation <https://huggingface.co/docs/transformers/model_doc/tapas>`__.
 Convert the original model to OpenVINO Intermediate Representation (IR) format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The original model is a PyTorch module, that can be converted with
 ``ov.convert_model`` function directly. We also use ``ov.save_model``
@@ -271,7 +271,7 @@ function to serialize the result of conversion.
 Run the OpenVINO model
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select a device from dropdown list for running inference using OpenVINO.
 
@@ -311,7 +311,7 @@ device. To prepare inputs use the original ``tokenizer``.
 
 Now we should postprocess results. For this, we can use the appropriate
 part of the code from
-```postprocess`` <https://github.com/huggingface/transformers/blob/fe2877ce21eb75d34d30664757e2727d7eab817e/src/transformers/pipelines/table_question_answering.py#L393>`__
+`postprocess <https://github.com/huggingface/transformers/blob/fe2877ce21eb75d34d30664757e2727d7eab817e/src/transformers/pipelines/table_question_answering.py#L393>`__
 method of ``TableQuestionAnsweringPipeline``.
 
 .. code:: ipython3
@@ -391,7 +391,7 @@ attributes of original model class to be integrated into the pipeline.
 Interactive inference
 ~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -474,7 +474,7 @@ Interactive inference
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

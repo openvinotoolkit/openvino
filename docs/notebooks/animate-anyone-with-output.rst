@@ -43,33 +43,34 @@ repo <https://github.com/MooreThreads/Moore-AnimateAnyone>`__ and
           This tutorial requires at least <b>96 GB</b> of RAM for model conversion and <b>40 GB</b> for inference. Changing the values of <code>HEIGHT</code>, <code>WIDTH</code> and <code>VIDEO_LENGTH</code> variables will change the memory consumption but will also affect accuracy.
       </p>
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Prepare base model <#Prepare-base-model>`__
--  `Prepare image encoder <#Prepare-image-encoder>`__
--  `Download weights <#Download-weights>`__
--  `Initialize models <#Initialize-models>`__
--  `Load pretrained weights <#Load-pretrained-weights>`__
--  `Convert model to OpenVINO IR <#Convert-model-to-OpenVINO-IR>`__
 
-   -  `VAE <#VAE>`__
-   -  `Reference UNet <#Reference-UNet>`__
-   -  `Denoising UNet <#Denoising-UNet>`__
-   -  `Pose Guider <#Pose-Guider>`__
-   -  `Image Encoder <#Image-Encoder>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Prepare base model <#prepare-base-model>`__
+-  `Prepare image encoder <#prepare-image-encoder>`__
+-  `Download weights <#download-weights>`__
+-  `Initialize models <#initialize-models>`__
+-  `Load pretrained weights <#load-pretrained-weights>`__
+-  `Convert model to OpenVINO IR <#convert-model-to-openvino-ir>`__
 
--  `Inference <#Inference>`__
--  `Video post-processing <#Video-post-processing>`__
--  `Interactive inference <#Interactive-inference>`__
+   -  `VAE <#vae>`__
+   -  `Reference UNet <#reference-unet>`__
+   -  `Denoising UNet <#denoising-unet>`__
+   -  `Pose Guider <#pose-guider>`__
+   -  `Image Encoder <#image-encoder>`__
 
-.. |image0| image:: ./animate-anyone.gif
+-  `Inference <#inference>`__
+-  `Video post-processing <#video-post-processing>`__
+-  `Interactive inference <#interactive-inference>`__
+
+.. |image0| image:: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/animate-anyone/animate-anyone.gif
+
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -187,7 +188,7 @@ Note that we clone a fork of original repo with tweaked forward methods.
 Prepare base model
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -215,7 +216,7 @@ Prepare base model
 Prepare image encoder
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -249,7 +250,7 @@ Prepare image encoder
 Download weights
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -349,7 +350,7 @@ Download weights
 Initialize models
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -378,7 +379,7 @@ Initialize models
 Load pretrained weights
 -----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -397,7 +398,7 @@ Load pretrained weights
 Convert model to OpenVINO IR
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__ The pose sequence is initially
+ The pose sequence is initially
 encoded using Pose Guider and fused with multi-frame noise, followed by
 the Denoising UNet conducting the denoising process for video
 generation. The computational block of the Denoising UNet consists of
@@ -464,7 +465,7 @@ documentation <https://docs.openvino.ai/2023.3/weight_compression.html>`__.
 VAE
 ~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -587,7 +588,7 @@ of the pipeline, it will be better to convert them to separate models.
 Reference UNet
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Pipeline extracts reference attention features from all transformer
 blocks inside Reference UNet model. We call the original forward pass to
@@ -661,7 +662,7 @@ step.
 Denoising UNet
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Denoising UNet is the main part of all diffusion pipelines. This model
 consumes the majority of memory, so we need to reduce its size as much
@@ -671,7 +672,7 @@ Here we make all shapes static meaning that the size of the video will
 be constant.
 
 Also, we use the ``ref_features`` input with the same tensor shapes as
-output of `Reference UNet <#Reference-UNet>`__ model on the previous
+output of `Reference UNet <#reference-unet>`__ model on the previous
 step.
 
 .. code:: ipython3
@@ -762,7 +763,7 @@ step.
 Pose Guider
 ~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To ensure pose controllability, a lightweight pose guider is devised to
 efficiently integrate pose control signals into the denoising process.
@@ -816,7 +817,7 @@ efficiently integrate pose control signals into the denoising process.
 Image Encoder
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Pipeline uses CLIP image encoder to generate encoder hidden states
 required for both reference and denoising UNets.
@@ -876,7 +877,7 @@ required for both reference and denoising UNets.
 Inference
 ---------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We inherit from the original pipeline modifying the calls to our models
 to match OpenVINO format.
@@ -888,7 +889,7 @@ to match OpenVINO format.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For starting work, please select inference device from dropdown list.
 
@@ -1167,7 +1168,7 @@ For starting work, please select inference device from dropdown list.
 Video post-processing
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1218,7 +1219,7 @@ Video post-processing
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1326,7 +1327,7 @@ Interactive inference
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

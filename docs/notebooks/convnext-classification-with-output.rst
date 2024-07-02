@@ -2,7 +2,7 @@ Classification with ConvNeXt and OpenVINO
 =========================================
 
 The
-```torchvision.models`` <https://pytorch.org/vision/stable/models.html>`__
+`torchvision.models <https://pytorch.org/vision/stable/models.html>`__
 subpackage contains definitions of models for addressing different
 tasks, including: image classification, pixelwise semantic segmentation,
 object detection, instance segmentation, person keypoint detection,
@@ -22,25 +22,25 @@ maintaining the simplicity and efficiency of standard ConvNets. The
 several pretrained ConvNeXt model. In this tutorial we will use ConvNeXt
 Tiny model.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Get a test image <#Get-a-test-image>`__
--  `Get a pretrained model <#Get-a-pretrained-model>`__
+
+-  `Prerequisites <#prerequisites>`__
+-  `Get a test image <#get-a-test-image>`__
+-  `Get a pretrained model <#get-a-pretrained-model>`__
 -  `Define a preprocessing and prepare an input
-   data <#Define-a-preprocessing-and-prepare-an-input-data>`__
+   data <#define-a-preprocessing-and-prepare-an-input-data>`__
 -  `Use the original model to run an
-   inference <#Use-the-original-model-to-run-an-inference>`__
+   inference <#use-the-original-model-to-run-an-inference>`__
 -  `Convert the model to OpenVINO Intermediate representation
-   format <#Convert-the-model-to-OpenVINO-Intermediate-representation-format>`__
+   format <#convert-the-model-to-openvino-intermediate-representation-format>`__
 -  `Use the OpenVINO IR model to run an
-   inference <#Use-the-OpenVINO-IR-model-to-run-an-inference>`__
+   inference <#use-the-openvino-ir-model-to-run-an-inference>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -57,7 +57,7 @@ Prerequisites
 Get a test image
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__ First of all lets get a test
+ First of all lets get a test
 image from an open dataset.
 
 .. code:: ipython3
@@ -84,7 +84,7 @@ image from an open dataset.
 Get a pretrained model
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__ Torchvision provides a
+ Torchvision provides a
 mechanism of `listing and retrieving available
 models <https://pytorch.org/vision/stable/models.html#listing-and-retrieving-available-models>`__.
 
@@ -124,7 +124,7 @@ initialize pre-trained models
 Define a preprocessing and prepare an input data
 ------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__ You can use
+ You can use
 ``torchvision.transforms`` to make a preprocessing or
 use\ `preprocessing transforms from the model
 wight <https://pytorch.org/vision/stable/models.html#using-the-pre-trained-models>`__.
@@ -142,7 +142,7 @@ wight <https://pytorch.org/vision/stable/models.html#using-the-pre-trained-model
 Use the original model to run an inference
 ------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -187,7 +187,7 @@ And print results
 Convert the model to OpenVINO Intermediate representation format
 ----------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO supports PyTorch through conversion to OpenVINO Intermediate
 Representation (IR) format. To take the advantage of OpenVINO
@@ -256,7 +256,7 @@ Select device from dropdown list for running inference using OpenVINO
 Use the OpenVINO IR model to run an inference
 ---------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

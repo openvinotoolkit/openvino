@@ -24,27 +24,27 @@ More details about the model can be found in the
 
    image
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Clone repository and install
-   requirements <#Clone-repository-and-install-requirements>`__
+   requirements <#clone-repository-and-install-requirements>`__
 -  `Download checkpoints and load PyTorch
-   model <#Download-checkpoints-and-load-PyTorch-model>`__
+   model <#download-checkpoints-and-load-pytorch-model>`__
 -  `Convert GroundingDINO to OpenVINO IR
-   format <#Convert-GroundingDINO-to-OpenVINO-IR-format>`__
+   format <#convert-groundingdino-to-openvino-ir-format>`__
 -  `Run OpenVINO optimized
-   GroundingDINO <#Run-OpenVINO-optimized-GroundingDINO>`__
--  `Convert SAM to OpenVINO IR <#Convert-SAM-to-OpenVINO-IR>`__
+   GroundingDINO <#run-openvino-optimized-groundingdino>`__
+-  `Convert SAM to OpenVINO IR <#convert-sam-to-openvino-ir>`__
 -  `Combine GroundingDINO + SAM
-   (GroundedSAM) <#Combine-GroundingDINO-+-SAM-(GroundedSAM)>`__
--  `Interactive GroundedSAM <#Interactive-GroundedSAM>`__
--  `Cleanup <#Cleanup>`__
+   (GroundedSAM) <#combine-groundingdino--sam-groundedsam>`__
+-  `Interactive GroundedSAM <#interactive-groundedsam>`__
+-  `Cleanup <#cleanup>`__
 
 Clone repositories and install requirements
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -140,7 +140,7 @@ segmentation you can select vanilla ``SAM``.
 Download checkpoints and load PyTorch models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -274,7 +274,7 @@ GroundingDINO imports
 Convert GroundingDINO to OpenVINO IR format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -354,7 +354,7 @@ Convert GroundingDINO to OpenVINO IR format
 Run OpenVINO optimized GroundingDINO
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -542,7 +542,7 @@ specify other objects you wish to detect.
 Convert SAM to OpenVINO IR
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 And now let’s feed those detection to ``SAM`` model. We will use
 ``EfficiendSAM`` for faster computation and to save ram, but feel free
@@ -662,7 +662,7 @@ Below is conversion of vanilla ``SAM``. This code is not used when
 Combine GroundingDINO + SAM (GroundedSAM)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We have OpenVINO IRs for both GroundingDINO and SAM models. Lets run the
 segmentation using predictions from GroundingDINO. Same as above, use
@@ -796,7 +796,7 @@ Great! All detected horses and clouds are segmented as well.
 Interactive GroundedSAM
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, you can try apply grounding sam on your own images using
 interactive demo. The code below provides helper functions used in
@@ -937,15 +937,15 @@ increase threshold values in ``Advanced options``.
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://localhost:7860/" width="100%" height="1000" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 
 
 Cleanup
 ~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 

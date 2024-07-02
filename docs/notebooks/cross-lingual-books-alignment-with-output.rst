@@ -37,22 +37,22 @@ Prerequisites
 -  ``seaborn`` - for alignment matrix visualization
 -  ``ipywidgets`` - for displaying HTML and JS output in the notebook
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Get Books <#Get-Books>`__
--  `Clean Text <#Clean-Text>`__
--  `Split Text <#Split-Text>`__
--  `Get Sentence Embeddings <#Get-Sentence-Embeddings>`__
+
+-  `Get Books <#get-books>`__
+-  `Clean Text <#clean-text>`__
+-  `Split Text <#split-text>`__
+-  `Get Sentence Embeddings <#get-sentence-embeddings>`__
 
    -  `Optimize the Model with
-      OpenVINO <#Optimize-the-Model-with-OpenVINO>`__
+      OpenVINO <#optimize-the-model-with-openvino>`__
 
--  `Calculate Sentence Alignment <#Calculate-Sentence-Alignment>`__
--  `Postprocess Sentence Alignment <#Postprocess-Sentence-Alignment>`__
--  `Visualize Sentence Alignment <#Visualize-Sentence-Alignment>`__
+-  `Calculate Sentence Alignment <#calculate-sentence-alignment>`__
+-  `Postprocess Sentence Alignment <#postprocess-sentence-alignment>`__
+-  `Visualize Sentence Alignment <#visualize-sentence-alignment>`__
 -  `Speed up Embeddings
-   Computation <#Speed-up-Embeddings-Computation>`__
+   Computation <#speed-up-embeddings-computation>`__
 
 .. |image0| image:: https://user-images.githubusercontent.com/51917466/254582697-18f3ab38-e264-4b2c-a088-8e54b855c1b2.png
 
@@ -70,7 +70,7 @@ Table of contents:
 Get Books
 ---------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The first step is to get the books that we will be working with. For
 this notebook, we will use English and German versions of Anna Karenina
@@ -197,7 +197,7 @@ which in a raw format looks like this:
 
 .. parsed-literal::
 
-    '\ufeffThe Project Gutenberg eBook of Anna Karenina\r\n    \r\nThis ebook is for the use of anyone anywhere in the United States and\r\nmost other parts of the world at no cost and with almost no restrictions\r\nwhatsoever. You may copy it, give it away or re-use it under the terms\r\nof the Project Gutenberg License included with this ebook or online\r\nat www.gutenberg.org. If you are not located in the United States,\r\nyou will have to check the laws of the country where you are located\r\nbefore using this eBook.\r\n\r\nTitle: Anna Karenina\r\n\r\n\r\nAuthor: graf Leo Tolstoy\r\n\r\nTranslator: Constance Garnett\r\n\r\nRelease date: July 1, 1998 [eBook #1399]\r\n                Most recently updated: April 9, 2023\r\n\r\nLanguage: English\r\n\r\n\r\n\r\n*** START OF THE PROJECT GUTENBERG EBOOK ANNA KARENINA ***\r\n[Illustration]\r\n\r\n\r\n\r\n\r\n ANNA KARENINA \r\n\r\n by Leo Tolstoy \r\n\r\n Translated by Constance Garnett \r\n\r\nContents\r\n\r\n\r\n PART ONE\r\n PART TWO\r\n PART THREE\r\n PART FOUR\r\n PART FIVE\r\n PART SIX\r\n PART SEVEN\r\n PART EIGHT\r\n\r\n\r\n\r\n\r\nPART ONE\r\n\r\nChapter 1\r\n\r\n\r\nHappy families are all alike; every unhappy family is unhappy in its\r\nown way.\r\n\r\nEverything was in confusion in the Oblonskys’ house. The wife had\r\ndiscovered that the husband was carrying on an intrigue with a French\r\ngirl, who had been a governess in their family, and she had announced\r\nto her husband that she could not go on living in the same house with\r\nhim. This position of affairs had now lasted three days, and not only\r\nthe husband and wife themselves, but all the me'
+    '\ufeffThe Project Gutenberg eBook of Anna Karenina\r\n    \r\nThis ebook is for the use of anyone anywhere in the United States and\r\nmost other parts of the world at no cost and with almost no restrictions\r\nwhatsoever. You may copy it, give it away or re-use it under the terms\r\nof the Project Gutenberg License included with this ebook or online\r\nat www.gutenberg.org. If you are not located in the United States,\r\nyou will have to check the laws of the country where you are located\r\nbefore using this eBook.\r\n\r\nTitle: Anna Karenina\r\n\r\n\r\nAuthor: graf Leo Tolstoy\r\n\r\nTranslator: Constance Garnett\r\n\r\nRelease date: July 1, 1998 [eBook #1399]\r\n                Most recently updated: April 9, 2023\r\n\r\nLanguage: English\r\n\r\n\r\n\r\n\*\*\* START OF THE PROJECT GUTENBERG EBOOK ANNA KARENINA \*\*\*\r\n[Illustration]\r\n\r\n\r\n\r\n\r\n ANNA KARENINA \r\n\r\n by Leo Tolstoy \r\n\r\n Translated by Constance Garnett \r\n\r\nContents\r\n\r\n\r\n PART ONE\r\n PART TWO\r\n PART THREE\r\n PART FOUR\r\n PART FIVE\r\n PART SIX\r\n PART SEVEN\r\n PART EIGHT\r\n\r\n\r\n\r\n\r\nPART ONE\r\n\r\nChapter 1\r\n\r\n\r\nHappy families are all alike; every unhappy family is unhappy in its\r\nown way.\r\n\r\nEverything was in confusion in the Oblonskys’ house. The wife had\r\ndiscovered that the husband was carrying on an intrigue with a French\r\ngirl, who had been a governess in their family, and she had announced\r\nto her husband that she could not go on living in the same house with\r\nhim. This position of affairs had now lasted three days, and not only\r\nthe husband and wife themselves, but all the me'
 
 
 
@@ -210,14 +210,14 @@ which in a raw format looks like this:
 
 .. parsed-literal::
 
-    'The Project Gutenberg EBook of Anna Karenina, 1. Band, by Leo N. Tolstoi\r\n\r\nThis eBook is for the use of anyone anywhere at no cost and with\r\nalmost no restrictions whatsoever.  You may copy it, give it away or\r\nre-use it under the terms of the Project Gutenberg License included\r\nwith this eBook or online at www.gutenberg.org\r\n\r\n\r\nTitle: Anna Karenina, 1. Band\r\n\r\nAuthor: Leo N. Tolstoi\r\n\r\nRelease Date: February 18, 2014 [EBook #44956]\r\n\r\nLanguage: German\r\n\r\nCharacter set encoding: ISO-8859-1\r\n\r\n*** START OF THIS PROJECT GUTENBERG EBOOK ANNA KARENINA, 1. BAND ***\r\n\r\n\r\n\r\n\r\nProduced by Norbert H. Langkau, Jens Nordmann and the\r\nOnline Distributed Proofreading Team at http://www.pgdp.net\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n                             Anna Karenina.\r\n\r\n\r\n                        Roman aus dem Russischen\r\n\r\n                                  des\r\n\r\n                         Grafen Leo N. Tolstoi.\r\n\r\n\r\n\r\n                  Nach der siebenten Auflage übersetzt\r\n\r\n                                  von\r\n\r\n                              Hans Moser.\r\n\r\n\r\n                              Erster Band.\r\n\r\n\r\n\r\n                                Leipzig\r\n\r\n                Druck und Verlag von Philipp Reclam jun.\r\n\r\n                   *       *       *       *       *\r\n\r\n\r\n\r\n\r\n                              Erster Teil.\r\n\r\n                               »Die Rache ist mein, ich will vergelten.«\r\n\r\n                                   1.\r\n\r\n\r\nAlle glücklichen Familien sind einander ähnlich; jede unglücklich'
+    'The Project Gutenberg EBook of Anna Karenina, 1. Band, by Leo N. Tolstoi\r\n\r\nThis eBook is for the use of anyone anywhere at no cost and with\r\nalmost no restrictions whatsoever.  You may copy it, give it away or\r\nre-use it under the terms of the Project Gutenberg License included\r\nwith this eBook or online at www.gutenberg.org\r\n\r\n\r\nTitle: Anna Karenina, 1. Band\r\n\r\nAuthor: Leo N. Tolstoi\r\n\r\nRelease Date: February 18, 2014 [EBook #44956]\r\n\r\nLanguage: German\r\n\r\nCharacter set encoding: ISO-8859-1\r\n\r\n\*\*\* START OF THIS PROJECT GUTENBERG EBOOK ANNA KARENINA, 1. BAND \*\*\*\r\n\r\n\r\n\r\n\r\nProduced by Norbert H. Langkau, Jens Nordmann and the\r\nOnline Distributed Proofreading Team at http://www.pgdp.net\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n                             Anna Karenina.\r\n\r\n\r\n                        Roman aus dem Russischen\r\n\r\n                                  des\r\n\r\n                         Grafen Leo N. Tolstoi.\r\n\r\n\r\n\r\n                  Nach der siebenten Auflage übersetzt\r\n\r\n                                  von\r\n\r\n                              Hans Moser.\r\n\r\n\r\n                              Erster Band.\r\n\r\n\r\n\r\n                                Leipzig\r\n\r\n                Druck und Verlag von Philipp Reclam jun.\r\n\r\n                   *       *       *       *       *\r\n\r\n\r\n\r\n\r\n                              Erster Teil.\r\n\r\n                               »Die Rache ist mein, ich will vergelten.«\r\n\r\n                                   1.\r\n\r\n\r\nAlle glücklichen Familien sind einander ähnlich; jede unglücklich'
 
 
 
 Clean Text
 ----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The downloaded books may contain service information before and after
 the main text. The text might have different formatting styles and
@@ -239,7 +239,7 @@ the last occurrence of these asterisks.
    **Hint**: There are text-cleaning libraries that clean up common
    flaws. If the source of the text is known, you can look for a library
    designed for that source, for example
-   ```gutenberg_cleaner`` <https://github.com/kiasar/gutenberg_cleaner>`__.
+   `gutenberg_cleaner <https://github.com/kiasar/gutenberg_cleaner>`__.
    These libraries can reduce manual work and even automate the
    process.process.
 
@@ -345,7 +345,7 @@ needed.
 Split Text
 ----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Dividing text into sentences is a challenging task in text processing.
 The problem is called `sentence boundary
@@ -387,7 +387,7 @@ languages.
 Get Sentence Embeddings
 -----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The next step is to transform sentences into vector representations.
 Transformer encoder models, like BERT, provide high-quality embeddings
@@ -469,7 +469,7 @@ best fit.
 Optimize the Model with OpenVINO
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The LaBSE model is quite large and can be slow to infer on some
 hardware, so let’s optimize it with OpenVINO. `Model Conversion
@@ -547,7 +547,7 @@ model predictions remain within an acceptable tolerance:
 Calculate Sentence Alignment
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 With the embedding matrices from the previous step, we can calculate the
 alignment: 1. Calculate sentence similarity between each pair of
@@ -668,7 +668,7 @@ will be lists of German sentence numbers.
 Postprocess Sentence Alignment
 ------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 There are several gaps in the resulting alignment, such as English
 sentence #14 not mapping to any German sentence. Here are some possible
@@ -695,7 +695,7 @@ suitable alignment.
 Visualize Sentence Alignment
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To evaluate the final alignment and choose the best way to improve the
 results of the pipeline, we will create an interactive table with HTML
@@ -852,7 +852,7 @@ To read the model from disk, use the ``read_model`` method of the
 Speed up Embeddings Computation
 -------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Let’s see how we can speed up the most computationally complex part of
 the pipeline - getting embeddings. You might wonder why, when using

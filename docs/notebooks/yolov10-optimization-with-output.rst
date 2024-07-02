@@ -44,46 +44,46 @@ The tutorial consists of the following steps:
 -  Run optimized model inference on video
 -  Launch interactive Gradio demo
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Download PyTorch model <#Download-PyTorch-model>`__
+
+-  `Prerequisites <#prerequisites>`__
+-  `Download PyTorch model <#download-pytorch-model>`__
 -  `Export PyTorch model to OpenVINO IR
-   Format <#Export-PyTorch-model-to-OpenVINO-IR-Format>`__
+   Format <#export-pytorch-model-to-openvino-ir-format>`__
 -  `Run OpenVINO Inference on AUTO device using Ultralytics
-   API <#Run-OpenVINO-Inference-on-AUTO-device-using-Ultralytics-API>`__
+   API <#run-openvino-inference-on-auto-device-using-ultralytics-api>`__
 -  `Run OpenVINO Inference on selected device using Ultralytics
-   API <#Run-OpenVINO-Inference-on-selected-device-using-Ultralytics-API>`__
+   API <#run-openvino-inference-on-selected-device-using-ultralytics-api>`__
 -  `Optimize model using NNCF Post-training Quantization
-   API <#Optimize-model-using-NNCF-Post-training-Quantization-API>`__
+   API <#optimize-model-using-nncf-post-training-quantization-api>`__
 
-   -  `Prepare Quantization Dataset <#Prepare-Quantization-Dataset>`__
-   -  `Quantize and Save INT8 model <#Quantize-and-Save-INT8-model>`__
+   -  `Prepare Quantization Dataset <#prepare-quantization-dataset>`__
+   -  `Quantize and Save INT8 model <#quantize-and-save-int8-model>`__
 
--  `Run Optimized Model Inference <#Run-Optimized-Model-Inference>`__
+-  `Run Optimized Model Inference <#run-optimized-model-inference>`__
 
    -  `Run Optimized Model on AUTO
-      device <#Run-Optimized-Model-on-AUTO-device>`__
+      device <#run-optimized-model-on-auto-device>`__
    -  `Run Optimized Model Inference on selected
-      device <#Run-Optimized-Model-Inference-on-selected-device>`__
+      device <#run-optimized-model-inference-on-selected-device>`__
 
 -  `Compare the Original and Quantized
-   Models <#Compare-the-Original-and-Quantized-Models>`__
+   Models <#compare-the-original-and-quantized-models>`__
 
-   -  `Model size <#Model-size>`__
-   -  `Performance <#Performance>`__
-   -  `FP16 model performance <#FP16-model-performance>`__
-   -  `Int8 model performance <#Int8-model-performance>`__
+   -  `Model size <#model-size>`__
+   -  `Performance <#performance>`__
+   -  `FP16 model performance <#fp16-model-performance>`__
+   -  `Int8 model performance <#int8-model-performance>`__
 
--  `Live demo <#Live-demo>`__
+-  `Live demo <#live-demo>`__
 
-   -  `Gradio Interactive Demo <#Gradio-Interactive-Demo>`__
+   -  `Gradio Interactive Demo <#gradio-interactive-demo>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -125,7 +125,7 @@ Prerequisites
 Download PyTorch model
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 There are several version of `YOLO
 V10 <https://github.com/THU-MIG/yolov10/tree/main?tab=readme-ov-file#performance>`__
@@ -164,7 +164,7 @@ the same steps are also applicable to other models in YOLO V10 series.
 Export PyTorch model to OpenVINO IR Format
 ------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 As it was discussed before, YOLO V10 code is designed on top of
 `Ultralytics <https://docs.ultralytics.com/>`__ library and has similar
@@ -303,7 +303,7 @@ perform quantization using
 Run OpenVINO Inference on AUTO device using Ultralytics API
 -----------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, when we exported model to OpenVINO, we can load it directly into
 YOLOv10 class, where automatic inference backend will provide
@@ -369,7 +369,7 @@ will be used for launching model.
 Run OpenVINO Inference on selected device using Ultralytics API
 ---------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In this part of notebook you can select inference device for running
 model inference to compare results with AUTO.
@@ -442,7 +442,7 @@ model inference to compare results with AUTO.
 Optimize model using NNCF Post-training Quantization API
 --------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -497,7 +497,7 @@ step using checkbox bellow:
 Prepare Quantization Dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For starting quantization, we need to prepare dataset. We will use
 validation subset from `MS COCO dataset <https://cocodataset.org/>`__
@@ -588,7 +588,7 @@ expected format.
 Quantize and Save INT8 model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The ``nncf.quantize`` function provides an interface for model
 quantization. It requires an instance of the OpenVINO Model and
@@ -622,7 +622,7 @@ asymmetric quantization of activations.
 Run Optimized Model Inference
 -----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The way of usage INT8 quantized model is the same like for model before
 quantization. Let’s check inference result of quantized model on single
@@ -631,7 +631,7 @@ image
 Run Optimized Model on AUTO device
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -669,7 +669,7 @@ Run Optimized Model on AUTO device
 Run Optimized Model Inference on selected device
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -717,12 +717,12 @@ Run Optimized Model Inference on selected device
 Compare the Original and Quantized Models
 -----------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Model size
 ~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -744,12 +744,12 @@ Model size
 Performance
 ~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 FP16 model performance
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -833,7 +833,7 @@ FP16 model performance
 Int8 model performance
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -918,7 +918,7 @@ Int8 model performance
 Live demo
 ---------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The following code runs model inference on a video:
 
@@ -1082,7 +1082,7 @@ The following code runs model inference on a video:
 Gradio Interactive Demo
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
