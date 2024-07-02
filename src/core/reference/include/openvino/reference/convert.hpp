@@ -72,6 +72,8 @@ template <>
 void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count);
 template <>
 void convert<bfloat16, float16>(const bfloat16* arg, float16* out, size_t count);
+template <>
+void convert<bfloat16, float>(const bfloat16* arg, float* out, size_t count);
 
 #endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 

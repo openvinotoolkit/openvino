@@ -67,6 +67,15 @@ void jit_convert_vec<bfloat16, float16>(jit::Generator& gen, const Xbyak::RegExp
 }
 
 template <>
+void jit_convert_vec<bfloat16, float>(jit::Generator& gen, const Xbyak::RegExp& src, const Xbyak::RegExp& dst) {
+    const auto f32vec = gen.ymm4;
+
+    gen.vpmovzxwd(f32vec, gen.yword[src]);  // load bf16 into tmp
+    gen.vpslld(f32vec, f32vec, 16);         // convert bf16->f32 by bit shift
+    gen.vmovdqu(gen.yword[dst], f32vec);    // move result to destination
+}
+
+template <>
 void jit_convert_vec_prepare<float, float16, true>(jit::Generator& gen) {
     auto upper_bound = gen.ymm5;
     auto lower_bound = gen.ymm6;
@@ -519,6 +528,11 @@ void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count) {
 
 template <>
 void convert<bfloat16, float16>(const bfloat16* arg, float16* out, size_t count) {
+    convert_impl(arg, out, count);
+}
+
+template <>
+void convert<bfloat16, float>(const bfloat16* arg, float* out, size_t count) {
     convert_impl(arg, out, count);
 }
 
