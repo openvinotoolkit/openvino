@@ -8,7 +8,14 @@
 #error "dynamic_quantize_gpu_opt.cl: Unsupported output dimension"
 #endif
 
-REQD_SUB_GROUP_SIZE(16)
+#define VLOAD_N CAT(vload, VEC_SIZE)
+#define VSTORE_N CAT(vstore, VEC_SIZE)
+#define CONVERT_CHAR_N CAT(convert_char, VEC_SIZE)
+#define AS_TYPE_N_(type, n, x) as_##type##n(x)
+#define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
+#define AS_INPUT_TYPE_N(x) AS_TYPE_N(INPUT0_TYPE, VEC_SIZE, x)
+
+REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(dynamic_quantize_gpu_opt)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
@@ -16,42 +23,65 @@ KERNEL(dynamic_quantize_gpu_opt)(
     __global OUTPUT1_TYPE* output_scale)
 {
     const uint bf = (uint)get_global_id(2);
-
     const uint sglid = get_sub_group_local_id();
-    const uint sgid = get_sub_group_id();
-    const uint num_sg = get_num_sub_groups();
-    const uint group_size = (INPUT0_FEATURE_PITCH / 16 / num_sg);
-    const uint offset = bf * INPUT0_FEATURE_PITCH + group_size * (sglid + 16 * sgid);
-    __local half partial_max[32]; // FIXME: 16 is an arbitrary number
-    half8 val;
-    half max;
+    const uint local_id = (uint)get_local_id(1);
+
+    const uint block_size = SIMD * VEC_SIZE;
+    const uint b_offset = bf * INPUT0_FEATURE_PITCH;
+
+    const uint offset = b_offset + VEC_SIZE * sglid;
+
+    const uint iteration = ALIGNED_BLOCK_NUM / BLOCK_NUM;
+
+    __local int local_mem[BLOCK_NUM];
+
+    MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE) val[iteration];
+    MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE) abs_val;
+    half max = 0.0h;
     half grp_max = 0.001h;
+    half max_value;
 
-    unroll_for (int i = 0; i < group_size/8; ++i) {
-        val = fabs(as_half8(vload8(0, input + offset + (i * 8))));
+    unroll_for(int i = 0; i < iteration; ++i) {
+        if ((local_id * iteration + i) >= TOTAL_BLOCK_NUM)
+            continue;
 
-        max = fmax(fmax(fmax(val[0], val[1]), fmax(val[2], val[3])),
-                                fmax(fmax(val[4], val[5]), fmax(val[6], val[7])));
+        val[i] = AS_INPUT_TYPE_N(VLOAD_N(0, input + offset + ((local_id * iteration + i) * block_size)));
+        abs_val = fabs(val[i]);
+
+        #if VEC_SIZE == 8
+            max = fmax(fmax(fmax(abs_val[0], abs_val[1]), fmax(abs_val[2], abs_val[3])),
+                                    fmax(fmax(abs_val[4], abs_val[5]), fmax(abs_val[6], abs_val[7])));
+        #else
+            for (int j = 0; j < VEC_SIZE; j++) {
+                max = fmax(max, abs_val[j]);
+            }
+        #endif
+
         grp_max = fmax(grp_max, max);
     }
 
-    half max_value = sub_group_reduce_max(grp_max);
-    partial_max[sgid] = max_value;
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    // calculate global max
-    max_value = partial_max[0];
-    for (int i = 1; i < num_sg; i++)
-        max_value = fmax(max_value, partial_max[i]);
+    max_value = sub_group_reduce_max(grp_max);
+    if (sglid == 0)
+        local_mem[local_id] = max_value;
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    for (int j = 0; j < BLOCK_NUM; j++) {
+        max_value = fmax(max_value, local_mem[j]);
+    }
 
     half scale = 127.0h / max_value;
 
-    unroll_for (int i = 0; i < group_size/8; ++i) {
-        val = as_half8(vload8(0, input + offset + i*8));
-        val *= scale;
-        vstore8(convert_char8(val), 0, output + offset + i*8);
+    unroll_for(int i = 0; i < iteration; ++i) {
+        if ((local_id * iteration + i) >= TOTAL_BLOCK_NUM)
+            continue;
+
+        val[i] *= scale;
+        VSTORE_N(CONVERT_CHAR_N(val[i]), 0, output + offset + ((local_id * iteration + i) * block_size));
     }
 
-    if (sglid == 0 && sgid == 0)
+    if (sglid == 0 && local_id == 0)
         output_scale[bf] = 1.0h / scale;
 }
