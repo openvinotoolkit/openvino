@@ -83,7 +83,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-32gb-debug
+    runs-on: aks-linux-16-cores-32gb-debug # TODO: revert
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}
       volumes:
@@ -302,21 +302,26 @@ jobs:
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
 
-      - name: Store artifacts to a shared drive
+      - name: Prepare debian packages for storage on share
         if: ${{ always() }}
         run: |
-          storage=${{ env.ARTIFACTS_SHARE }} # TODO: form a path like share/branch/event type/hash/product type
-          mkdir deb
-          artifacts_to_store=$(cat <<EOF
+          pushd ${{ env.BUILD_DIR }}
+          mkdir deb && mv *.deb deb/
+          popd
+
+      - name: Store artifacts to a shared drive
+        if: ${{ always() }}
+        uses: ./.github/actions/store_artifacts
+        with:
+          artifacts: |
             ${{ env.BUILD_DIR }}/openvino_package.tar.gz
             ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
             ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
-          EOF
-          )
-          while IFS= read -r artifact; do
-            cp -r "$artifact" $storage || echo "Failed to copy $artifact"
-          done <<< "$artifacts_to_store"
-          mkdir $storage/deb && cp *.deb $storage/deb
+            ${{ env.BUILD_DIR }}/debian_packages.tar.gz
+            ${{ env.BUILD_DIR }}/deb
+          storage_dir: 'public_linux_ubuntu_20_04_release'
+          storage_root: ${{ env.ARTIFACTS_SHARE }}
+          action_path: ${{ env.GITHUB_WORKSPACE }}/.github/actions/store_artifacts
 
   Debian_Packages:
     name: Debian Packages

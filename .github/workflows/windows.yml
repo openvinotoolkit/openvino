@@ -49,7 +49,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: aks-win-16-cores-32gb-debug
+    runs-on: aks-win-16-cores-32gb-debug # TODO: revert
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
@@ -240,6 +240,16 @@ jobs:
           name: openvino_js_package
           path: ${{ env.INSTALL_DIR_JS }}
           if-no-files-found: 'error'
+
+      - name: Store artifacts to a shared drive
+        if: ${{ always() }}
+        uses: ./.github/actions/store_artifacts
+        with:
+          artifacts: |
+            ${{ env.BUILD_DIR }}/openvino_package.zip
+            ${{ env.BUILD_DIR }}/openvino_tests.zip
+          storage_dir: 'public_windows_vs2019_release'
+          storage_root: ${{ env.ARTIFACTS_SHARE }}
 
   Samples:
     needs: [ Build, Smart_CI ]
