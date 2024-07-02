@@ -30,6 +30,13 @@
 #include "openvino/util/shared_object.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "ov_plugins.hpp"
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <cstring>
+#include <iostream>
+#include <fstream>
 #ifdef PROXY_PLUGIN_ENABLED
 #    include "openvino/proxy/plugin.hpp"
 #    include "openvino/proxy/properties.hpp"
@@ -1400,13 +1407,40 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
             OV_ITT_SCOPE(FIRST_INFERENCE,
                          ov::itt::domains::LoadTime,
                          "Core::load_model_from_cache::ReadStreamAndImport");
+            
+            void* map;    
+            struct stat sb; // Obtain the size of the file
+            int fd = -1 ;
+            std::istringstream mappedStream;
+
             try {
                 ov::CompiledBlobHeader header;
                 networkStream >> header;
+
+                // Open the cache file
+                fd = open(cacheContent.modelPath.c_str(), O_RDONLY);
+                if (fd == -1) {
+                    throw std::runtime_error("Failed to open cache file");
+                }
+                if (fstat(fd, &sb) == -1) {
+                    close(fd);
+                    throw std::runtime_error("Failed to obtain file size");
+                }
+
+                // Create a file mapping
+                map = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+                if (map == MAP_FAILED) {
+                    close(fd);
+                    throw std::runtime_error("Failed to map cache file");
+                }
+
                 if (header.get_file_info() != ov::ModelCache::calculate_file_info(cacheContent.modelPath)) {
+                    munmap(map, sb.st_size);
+                    close(fd);
                     // Original file is changed, don't use cache
                     OPENVINO_THROW("Original model file is changed");
                 }
+
                 if (util::contains(plugin.get_property(ov::internal::supported_properties),
                                    ov::internal::compiled_model_runtime_properties_supported.name())) {
                     ov::AnyMap compiled_model_runtime_properties = {
@@ -1415,22 +1449,37 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                     auto res = plugin.get_property(ov::internal::compiled_model_runtime_properties_supported.name(),
                                                    compiled_model_runtime_properties);
                     if (!res.as<bool>()) {
+                        munmap(map, sb.st_size);
+                        close(fd);
                         OPENVINO_THROW("Original model runtime properties have been changed, not supported anymore!");
                     }
                 } else {
                     if (header.get_openvino_version() != ov::get_openvino_version().buildNumber) {
+                        munmap(map, sb.st_size);
+                        close(fd);
                         // Build number mismatch, don't use this cache
                         OPENVINO_THROW("Version does not match");
                     }
                 }
+
+                // Use the mapped memory as an input stream
+                std::string mappedContent(static_cast<char*>(map), sb.st_size);
+                mappedStream = std::istringstream(mappedContent);
             } catch (...) {
+                if (map != MAP_FAILED) 
+                    munmap(map, sb.st_size);
+                if (fd != -1) 
+                    close(fd);
                 throw HeaderException();
             }
-
             ov::AnyMap update_config = config;
             update_config[ov::loaded_from_cache.name()] = true;
-            compiled_model = context ? plugin.import_model(networkStream, context, update_config)
-                                     : plugin.import_model(networkStream, update_config);
+            compiled_model = context ? plugin.import_model(mappedStream, context, update_config)
+                                         : plugin.import_model(mappedStream, update_config);
+                
+            // Clean up
+            munmap(map, sb.st_size);
+            close(fd);
         });
     } catch (const HeaderException&) {
         // For these exceptions just remove old cache and set that import didn't work
