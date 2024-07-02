@@ -83,6 +83,38 @@ jobs:
       event-name: ${{ github.event_name }}
       os: 'ubuntu24'
 
+  iGPU:
+    name: iGPU Tests
+    needs: [ Build, Smart_CI ]
+    uses: ./.github/workflows/job_gpu_tests.yml
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        TEST_TYPE: [ 'unit', 'func' ]
+    with:
+      device: 'igpu'
+      test_type: ${{ matrix.TEST_TYPE }}
+      runner: "[ 'self-hosted', 'igpu' ]"
+      container: '{"image": "ubuntu:24.04", "volumes": ["/dev/dri:/dev/dri"], "options": "--group-add 109 --group-add 44
+        --device /dev/dri:/dev/dri"}'
+
+  dGPU:
+    name: dGPU Tests
+    needs: [ Build, Smart_CI ]
+    uses: ./.github/workflows/job_gpu_tests.yml
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        TEST_TYPE: [ 'unit', 'func' ]
+    with:
+      device: 'dgpu'
+      test_type: ${{ matrix.TEST_TYPE }}
+      runner: "[ 'self-hosted', 'dgpu' ]"
+      container: '{"image": "ubuntu:24.04", "volumes": ["/dev/dri:/dev/dri"], "options": "--group-add 109 --group-add 44
+        --device /dev/dri/card0:/dev/dri/card0  --device /dev/dri/renderD128:/dev/dri/renderD128"}'
+
   Overall_Status:
     name: ci/gha_overall_status_ubuntu_24
     needs: [Smart_CI, Build]
