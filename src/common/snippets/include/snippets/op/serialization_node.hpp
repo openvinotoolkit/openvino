@@ -23,14 +23,7 @@ public:
     SerializationNode() = default;
     SerializationNode(const ov::OutputVector& args,
                       const std::shared_ptr<lowered::Expression>& expr,
-                      const std::shared_ptr<ov::Node>& node,
                       SerializationMode mode = SerializationMode::CONTROL_FLOW);
-
-    SerializationNode(const ov::OutputVector& args,
-                      const std::shared_ptr<lowered::Expression>& expr,
-                      SerializationMode mode = SerializationMode::CONTROL_FLOW) :
-                        SerializationNode(args, expr, expr->get_node(), mode) {
-    }
 
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector &new_args) const override;
@@ -47,7 +40,6 @@ public:
 
 private:
     std::shared_ptr<lowered::Expression> m_expr;
-    std::shared_ptr<ov::Node> m_node;
     SerializationMode m_mode;
 };
 

@@ -15,8 +15,6 @@ namespace pass {
 /**
  * @interface SerializeControlFlow
  * @brief Serializes control flow graph of LinearIR
- * @param update_dynamic_ops - update state of dynamic operations (e.g. LoopEnd) based on runtime info contained in LIR.
- * Note that this flag triggers copying of the passed LIR internally to preserve the original state of IR.
  * @ingroup snippets
  */
 class SerializeControlFlow : public SerializeBase {

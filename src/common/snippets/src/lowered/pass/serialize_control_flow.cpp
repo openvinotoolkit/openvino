@@ -53,12 +53,11 @@ bool SerializeControlFlow::run(const LinearIR& original_linear_ir) {
                 } else if (auto expanded = ov::as_type_ptr<ExpandedLoopInfo>(loop_info)) {
                     loop_end->set_ptr_increments(expanded->get_ptr_increments());
                     loop_end->set_finalization_offsets(expanded->get_finalization_offsets());
+                } else {
+                    OPENVINO_THROW("Unknown LoopInfo type");
                 }
             }
-            serialization_node = std::make_shared<op::SerializationNode>(ov::OutputVector{serialization_node, loop_begin_serialization_node},
-                                                                         expr,
-                                                                         loop_end,
-                                                                         op::SerializationNode::SerializationMode::CONTROL_FLOW);
+            serialization_node = std::make_shared<op::SerializationNode>(ov::OutputVector{serialization_node, loop_begin_serialization_node}, expr);
         } else {
             serialization_node = std::make_shared<op::SerializationNode>(ov::OutputVector{serialization_node}, expr);
             if (auto loop_begin = ov::as_type_ptr<snippets::op::LoopBegin>(node)) {

@@ -11,15 +11,14 @@ namespace op {
 
 SerializationNode::SerializationNode(const ov::OutputVector& args,
                                      const std::shared_ptr<lowered::Expression>& expr,
-                                     const std::shared_ptr<ov::Node>& node,
                                      SerializationMode mode)
     : Op(args),
       m_expr(expr),
-      m_node(node),
       m_mode(mode) {
-    OPENVINO_ASSERT(m_expr && m_node, "SerializationNode requires a valid expression with non-null node pointer");
-    set_friendly_name(m_node->get_friendly_name());
-    std::string type = m_node->get_type_name();
+    OPENVINO_ASSERT(m_expr && m_expr->get_node(), "SerializationNode requires a valid expression with non-null node pointer");
+    const auto& node = expr->get_node();
+    set_friendly_name(node->get_friendly_name());
+    std::string type = node->get_type_name();
     get_rt_info()["layerType"] = type == "Parameter" ? "ParameterLowered" : type;
     constructor_validate_and_infer_types();
 }
@@ -114,7 +113,7 @@ bool SerializationNode::visit_attributes(AttributeVisitor &visitor) {
 
     auto loop_ids = m_expr->get_loop_ids();
     visitor.on_attribute("loop_ids", loop_ids);
-    m_node->visit_attributes(visitor);
+    m_expr->get_node()->visit_attributes(visitor);
     return true;
 }
 
