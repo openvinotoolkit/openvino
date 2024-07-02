@@ -113,7 +113,7 @@ bool evaluate(TensorVector& outputs, const TensorVector& inputs) {
                    pads_begin_vec,
                    pads_end_vec,
                    op::PadMode::CONSTANT);
-    data_shape = padded_shape;
+    data_shape = std::move(padded_shape);
 
     Shape dispersed_shape(block_values_size + 1);
     std::vector<size_t> axes_order(block_values_size + 1);
