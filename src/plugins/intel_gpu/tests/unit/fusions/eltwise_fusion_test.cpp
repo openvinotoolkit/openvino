@@ -552,7 +552,6 @@ TEST_P(eltwise_activation_reorder, basic) {
                       input_layout("input2", get_input_layout2(p)),
                       eltwise("eltwise", {input_info("input"), input_info("input2")}, p.mode, p.default_type),
                       activation("activation", input_info("eltwise"), activation_func::relu, {6.0f, 0.0f}),
-                      //        reorder("out", input_info("activation"), p.default_format, data_types::f32)
                       reorder("out",
                               input_info("activation"),
                               p.default_format,
