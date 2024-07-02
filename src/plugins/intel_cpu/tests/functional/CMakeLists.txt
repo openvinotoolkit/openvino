@@ -76,6 +76,15 @@ else()
     set(TMP_EXPLICITLY_ENABLED_TESTS "${TMP_LIST_OF_EXPLICITLY_ENABLED_TESTS}")
 endif()
 
+if(X86_64)
+    list(APPEND EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/snippets/arm)
+elseif(AARCH64)
+    list(APPEND EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/snippets/x64)
+else()
+    list(APPEND EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/snippets/x64)
+    list(APPEND EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/snippets/arm)
+endif()
+
 if(NOT X86_64)
     list(APPEND EXCLUDED_SOURCE_PATHS
          ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/x64

@@ -8,6 +8,7 @@
 #include "emitters/utils.hpp"
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "emitters/plugin/aarch64/jit_eltwise_emitters.hpp"
+#include "emitters/plugin/aarch64/jit_conversion_emitters.hpp"
 #include "emitters/snippets/aarch64/jit_kernel_emitter.hpp"
 #include "emitters/snippets/aarch64/jit_loop_emitters.hpp"
 #include "emitters/snippets/aarch64/jit_memory_emitters.hpp"
@@ -108,6 +109,8 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa)
     jitters[snippets::op::VectorBuffer::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
     jitters[snippets::op::RankNormalization::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
     jitters[snippets::op::BroadcastMove::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_broadcast_move_emitter);
+    jitters[snippets::op::ConvertTruncation::get_type_info_static()] = CREATE_CPU_EMITTER(jit_convert_truncation_emitter);
+    jitters[snippets::op::ConvertSaturation::get_type_info_static()] = CREATE_CPU_EMITTER(jit_convert_saturation_emitter);
 
     // memory access
     jitters[snippets::op::Load::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_load_memory_emitter);
