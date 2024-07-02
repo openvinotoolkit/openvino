@@ -969,15 +969,6 @@ CONSTANT_FILL_DATA(f4e2m1, double)
 
 #undef CONSTANT_FILL_DATA
 
-#define CONSTANT_CAST_VECTOR(ET, DST_TYPE)                                                              \
-    template <>                                                                                         \
-    void Constant::cast_lp_vector<element::Type_t::ET, DST_TYPE>(std::vector<DST_TYPE> & output_vector, \
-                                                                 size_t num_elements) const {           \
-        ov::op::cast_buffer<element::ET>(get_data_ptr(), num_elements, output_vector);                  \
-    }
-
-#undef CONSTANT_CAST_VECTOR
-
 #define CONSTANT_WRITE_BUFFER(ET, SRC_TYPE)                                                    \
     template <>                                                                                \
     void Constant::write_lp_buffer<element::Type_t::ET>(const std::vector<SRC_TYPE>& source) { \
@@ -1223,7 +1214,7 @@ struct Convert<bool> : element::NotSupported<void> {
     }
 };
 
-#define CONSTANT_CAST_VECTOR2(DTYPE, ET_REQ_VALIDATION)                                                              \
+#define CONSTANT_CAST_VECTOR(DTYPE, ET_REQ_VALIDATION)                                                              \
     template <>                                                                                                      \
     OPENVINO_API std::vector<DTYPE> Constant::cast_vector(int64_t num_elements) const {                              \
         std::vector<DTYPE> output(get_num_elements_to_cast(num_elements));                                           \
@@ -1241,24 +1232,24 @@ OPENVINO_API std::vector<bool> Constant::cast_vector(int64_t num_elements) const
     return output;
 }
 
-CONSTANT_CAST_VECTOR2(char,
+CONSTANT_CAST_VECTOR(char,
                       OV_PP_ET_LIST(bf16, f16, f32, f64, i8, i16, i32, i64, u16, u32, u64, f8e8m0, f8e4m3, f8e5m2))
-CONSTANT_CAST_VECTOR2(signed char, OV_PP_ET_LIST(bf16, f16, i16, i32, i64, u8, u16, u32, u64, f8e8m0, f8e4m3, f8e5m2))
-CONSTANT_CAST_VECTOR2(unsigned char,
+CONSTANT_CAST_VECTOR(signed char, OV_PP_ET_LIST(bf16, f16, i16, i32, i64, u8, u16, u32, u64, f8e8m0, f8e4m3, f8e5m2))
+CONSTANT_CAST_VECTOR(unsigned char,
                       OV_PP_ET_LIST(bf16, f16, f32, f64, i8, i16, i32, i64, u16, u32, u64, f8e8m0, f8e4m3, f8e5m2))
-CONSTANT_CAST_VECTOR2(short, OV_PP_ET_LIST(bf16, f16, i32, i64, u16, u32, u64, f8e8m0, f8e5m2))
-CONSTANT_CAST_VECTOR2(unsigned short,
+CONSTANT_CAST_VECTOR(short, OV_PP_ET_LIST(bf16, f16, i32, i64, u16, u32, u64, f8e8m0, f8e5m2))
+CONSTANT_CAST_VECTOR(unsigned short,
                       OV_PP_ET_LIST(bf16, f16, f32, f64, i8, i16, i32, i64, u32, u64, f8e8m0, f8e4m3, f8e5m2))
-CONSTANT_CAST_VECTOR2(int, OV_PP_ET_LIST(bf16, f16, i64, u32, u64, f8e8m0))
-CONSTANT_CAST_VECTOR2(unsigned int, OV_PP_ET_LIST(bf16, f16, f32, f64, i8, i16, i32, i64, u64, f8e8m0, f8e4m3, f8e5m2))
-CONSTANT_CAST_VECTOR2(long, OV_PP_ET_LIST(bf16, f16, u32, u64))
-CONSTANT_CAST_VECTOR2(unsigned long, OV_PP_ET_LIST(bf16, f16, f32, f64, i8, i16, i32, i64, f8e8m0, f8e4m3, f8e5m2))
-CONSTANT_CAST_VECTOR2(long long, OV_PP_ET_LIST(bf16, f16, u64))
-CONSTANT_CAST_VECTOR2(unsigned long long, OV_PP_ET_LIST(bf16, f16, f32, f64, i8, i16, i32, i64, f8e8m0, f8e4m3, f8e5m2))
-CONSTANT_CAST_VECTOR2(float16, OV_PP_ET_LIST(bf16, i16, i32, u8, u16, u32, u64))
-CONSTANT_CAST_VECTOR2(bfloat16, OV_PP_ET_LIST(f32, f64, i64, u32, u64))
-CONSTANT_CAST_VECTOR2(float, OV_PP_ET_LIST(f64, i64, u32, u64))
-CONSTANT_CAST_VECTOR2(double, OV_PP_ET_LIST())
+CONSTANT_CAST_VECTOR(int, OV_PP_ET_LIST(bf16, f16, i64, u32, u64, f8e8m0))
+CONSTANT_CAST_VECTOR(unsigned int, OV_PP_ET_LIST(bf16, f16, f32, f64, i8, i16, i32, i64, u64, f8e8m0, f8e4m3, f8e5m2))
+CONSTANT_CAST_VECTOR(long, OV_PP_ET_LIST(bf16, f16, u32, u64))
+CONSTANT_CAST_VECTOR(unsigned long, OV_PP_ET_LIST(bf16, f16, f32, f64, i8, i16, i32, i64, f8e8m0, f8e4m3, f8e5m2))
+CONSTANT_CAST_VECTOR(long long, OV_PP_ET_LIST(bf16, f16, u64))
+CONSTANT_CAST_VECTOR(unsigned long long, OV_PP_ET_LIST(bf16, f16, f32, f64, i8, i16, i32, i64, f8e8m0, f8e4m3, f8e5m2))
+CONSTANT_CAST_VECTOR(float16, OV_PP_ET_LIST(bf16, i16, i32, u8, u16, u32, u64))
+CONSTANT_CAST_VECTOR(bfloat16, OV_PP_ET_LIST(f32, f64, i64, u32, u64))
+CONSTANT_CAST_VECTOR(float, OV_PP_ET_LIST(f64, i64, u32, u64))
+CONSTANT_CAST_VECTOR(double, OV_PP_ET_LIST())
 
 }  // namespace v0
 }  // namespace op
