@@ -733,10 +733,13 @@ void regclass_graph_Model(py::module m) {
                     :return: Index for value referencing it.
                     :rtype: int
                  )");
-    model.def("get_result_index",
-              (int64_t(ov::Model::*)(const ov::op::v0::Result&) const) & ov::Model::get_result_index,
-              py::arg("result"),
-              R"(
+    model.def(
+        "get_result_index",
+        [](const ov::Model& model, const ov::op::v0::Result& result) {
+            return model.get_result_index(result.get_default_output());
+        },
+        py::arg("result"),
+        R"(
                 Return index of result.
 
                 Return -1 if `result` not matched.
