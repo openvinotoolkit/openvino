@@ -310,14 +310,14 @@ describe('Test exportModel()/importModel()', () => {
   it('Test importModel(stream, device) throws', () => {
     assert.throws(
       () => core.importModel(epsilon, 'CPU').then(),
-      /Allowed signatures:/
+      /'importModel' method called with incorrect parameters./
     );
   });
 
   it('Test importModel(stream, device) throws', () => {
     assert.throws(
       () => core.importModel(userStream, tensor).then(),
-      /Allowed signatures:/
+      /'importModel' method called with incorrect parameters./
     );
   });
 
@@ -325,7 +325,7 @@ describe('Test exportModel()/importModel()', () => {
     const testString = 'test';
     assert.throws(
       () => core.importModel(userStream, 'CPU', testString).then(),
-      /Allowed signatures:/
+      /'importModel' method called with incorrect parameters./
     );
   });
 

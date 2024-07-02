@@ -402,9 +402,7 @@ Napi::Value CoreWrap::import_model_async(const Napi::CallbackInfo& info) {
             context_data->nativeThread = std::thread(importModelThread, context_data);
             return context_data->deferred.Promise();
         } else {
-            const auto error_message = ov::js::get_parameters_error_msg(info, allowed_signatures);
-
-            OPENVINO_THROW(error_message);
+            OPENVINO_THROW("'importModel'", ov::js::get_parameters_error_msg(info, allowed_signatures));
         }
 
     } catch (std::exception& e) {
