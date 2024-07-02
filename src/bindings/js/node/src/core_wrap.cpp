@@ -87,9 +87,7 @@ Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
         } else if (ov::js::validate<Napi::String>(info, allowed_signatures)) {
             model = _core.read_model(info[0].ToString());
         } else {
-            const auto error_message = ov::js::get_parameters_error_msg(info, allowed_signatures);
-
-            OPENVINO_THROW(error_message);
+            OPENVINO_THROW("'readModelSync'", ov::js::get_parameters_error_msg(info, allowed_signatures));
         }
 
         return ModelWrap::wrap(info.Env(), model);
@@ -169,10 +167,8 @@ Napi::Value CoreWrap::compile_model_sync_dispatch(const Napi::CallbackInfo& info
 
             return compile_model_sync(info, info[0].ToObject(), info[1].ToString(), config);
         }
+        OPENVINO_THROW("'compileModelSync'", ov::js::get_parameters_error_msg(info, allowed_signatures));
 
-        const auto error_message = ov::js::get_parameters_error_msg(info, allowed_signatures);
-
-        OPENVINO_THROW(error_message);
     } catch (std::exception& e) {
         reportError(info.Env(), e.what());
 
