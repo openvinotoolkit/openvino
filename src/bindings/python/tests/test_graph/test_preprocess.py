@@ -777,3 +777,22 @@ def test_pad_vector_dim_mismatch(pads_begin, pads_end, values, mode):
         ppp.build()
     assert "mismatches with rank of input" in str(e.value)
     assert list(model.get_output_shape(0)) == shape
+
+
+@pytest.mark.parametrize(("pads_begin", "pads_end", "values", "mode"), [([0, 0, 0, 0], [0, 0, 1, 1], 0, PaddingMode.CONSTANT)])
+def test_pad_vector_type_and_ops(pads_begin, pads_end, values, mode):
+    shape = [1, 3, 200, 200]
+    parameter_a = ops.parameter(shape, dtype=np.float32, name="RGB_input")
+    model = parameter_a
+    model = Model(model, [parameter_a], "TestModel")
+    ppp = PrePostProcessor(model)
+    ppp.input().tensor().set_shape([1, 3, 199, 199])
+    ppp.input().preprocess().pad(pads_begin, pads_end, values, mode)
+    assert ppp.build()
+    model_operators = [op.get_name().split("_")[0] for op in model.get_ops()]
+    expected_ops = ["Parameter", "Constant", "Result", "Pad"]
+    assert list(model.get_output_shape(0)) == shape
+    assert model.get_output_element_type(0) == Type.f32
+    assert len(model_operators) == 6
+    for op in expected_ops:
+        assert op in model_operators
