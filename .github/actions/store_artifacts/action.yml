@@ -23,6 +23,5 @@ runs:
       shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
       run: |
         python ${{ inputs.action_path && inputs.action_path || github.action_path }}/store_artifacts.py \
-          -a "${{ inputs.artifacts }}" \
-          --storage_dir "${{ inputs.storage_dir }}" \
-          --storage_root "${{ inputs.storage_root }}"
+        --storage_dir "${{ inputs.storage_dir }}" --storage_root "${{ inputs.storage_root }}" \
+        -a "${{ inputs.artifacts }}"
