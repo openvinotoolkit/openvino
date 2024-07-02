@@ -118,9 +118,14 @@ void MatMulLayerCPUTest::SetUp() {
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
     auto it = additionalConfig.find(ov::hint::inference_precision.name());
-    if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
+    ov::element::Type inference_precision = (it != additionalConfig.end()) ?
+                                            it->second.as<ov::element::Type>() : ov::element::undefined;
+    if (inference_precision == ov::element::bf16) {
         inType = outType = netType = ElementType::bf16;
         rel_threshold = abs_threshold = 1e-2f;
+    } else if (inference_precision == ov::element::f16) {
+        inType = outType = netType = ElementType::f16;
+        rel_threshold = abs_threshold = 1e-4f;
     } else {
         inType = outType = netType;
         rel_threshold = 1e-4f;
@@ -128,7 +133,7 @@ void MatMulLayerCPUTest::SetUp() {
     }
 
     cpuNodeType = nodeType == MatMulNodeType::MatMul ? "MatMul" : "FullyConnected";
-    selectedType = makeSelectedTypeStr(selectedType, outType);
+    selectedType = makeSelectedTypeStr(selectedType, deduce_expected_precision(outType, configuration));
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(netType, inShapeA)};
 
