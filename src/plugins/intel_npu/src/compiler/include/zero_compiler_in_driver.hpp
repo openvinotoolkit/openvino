@@ -184,7 +184,6 @@ private:
     ze_context_handle_t _context = nullptr;
 
     TableExtension* _graphDdiTableExt = nullptr;
-
     mutable Logger _logger;
 };
 

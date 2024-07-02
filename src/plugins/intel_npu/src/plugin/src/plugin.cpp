@@ -141,32 +141,58 @@ size_t getFileSize(std::istream& stream) {
     return streamEnd - streamStart;
 }
 
-inline ov::log::Level level convertStringToLog(std::string log_str) {
-    switch (log_str) {
-    case "LOG_NONE":
+inline ov::log::Level convertStringToLog(std::string log_str) {
+    if (log_str == "LOG_NONE")
         return ov::log::Level::NO;
-    case "LOG_ERROR":
+    else if (log_str == "LOG_ERROR")
         return ov::log::Level::ERR;
-    case "LOG_WARNING":
+    else if (log_str == "LOG_WARNING")
         return ov::log::Level::WARNING;
-   case "LOG_INFO":
+    else if (log_str == "LOG_INFO")
         return ov::log::Level::INFO;
-    case "LOG_DEBUG":
+    else if (log_str == "LOG_DEBUG")
         return ov::log::Level::DEBUG;
-    case "LOG_TRACE":
+    else if (log_str == "LOG_TRACE")
         return ov::log::Level::TRACE;
-    default:
+    else
         OPENVINO_THROW("Unsupported log level string");
+}
+
+inline std::string convertLogToString(const ov::log::Level level) {
+    switch (level) {
+    case ov::log::Level::NO:
+        return "LOG_NONE";
+    case ov::log::Level::ERR:
+        return "LOG_ERROR";
+    case ov::log::Level::WARNING:
+        return "LOG_WARNING";
+    case ov::log::Level::INFO:
+        return "LOG_INFO";
+    case ov::log::Level::DEBUG:
+        return "LOG_DEBUG";
+    case ov::log::Level::TRACE:
+        return "LOG_TRACE";
+    default:
+        OPENVINO_THROW("Unsupported log level");
     }
 }
 
-void update_log_level(const std::map<std::string, std::string>& propertiesMap) {
-    auto it = propertiesMap.find(std::string(LOG_LEVEL::key()));
-    if (it != propertiesMap.end()) {
-        std::istringstream is(it->second);
-        ov::log::Level level;
-        is >> level;
-        Logger::global().setLevel(level);
+inline int convertLogToNum(ov::log::Level level) {
+    switch (level) {
+    case ov::log::Level::NO:
+        return -1;
+    case ov::log::Level::ERR:
+        return 0;
+    case ov::log::Level::WARNING:
+        return 1;
+    case ov::log::Level::INFO:
+        return 2;
+    case ov::log::Level::DEBUG:
+        return 3;
+    case ov::log::Level::TRACE:
+        return 4;
+    default:
+        OPENVINO_THROW("Unsupported log level");
     }
 }
 
@@ -174,33 +200,31 @@ void update_log_level(const std::map<std::string, std::string>& propertiesMap) {
 
 namespace intel_npu {
 
-
 static Config merge_configs(const Config& globalConfig,
                             const std::map<std::string, std::string>& rawConfig,
                             OptionMode mode = OptionMode::Both) {
     Config localConfig = globalConfig;
-    auto it = propertiesMap.find(std::string(LOG_LEVEL::key()));
+    std::map<std::string, std::string>& copy_config = const_cast<std::map<std::string, std::string>&>(rawConfig);
+    auto it = copy_config.find(std::string(LOG_LEVEL::key()));
     
-    if (it != propertiesMap.end()) {
+    if (it != copy_config.end()) {
         std::istringstream is(it->second);
         ov::log::Level level;
         is >> level;
-        if (localConfig.get<LOG_LEVEL> > level) {
-            it.remove();
-        } else {
+        if (convertLogToNum(localConfig.get<LOG_LEVEL>()) > convertLogToNum(level)) {
+            copy_config[std::string(LOG_LEVEL::key())] = convertLogToString(localConfig.get<LOG_LEVEL>());
+        }
+
+        if (convertLogToNum(Logger::global().level()) < convertLogToNum(level)) {
             Logger::global().setLevel(level);
-            //note: _globalConfig alse need to be update for any maybe call for _globalConfig.
         }
     }
 
-    localConfig.update(rawConfig, mode);
-    if(rawConfig.find(std::string(LOG_LEVEL::key())) != rawConfig.end()) {
-        Logger::global().setLevel(localConfig.get<LOG_LEVEL>());
-    }
+    const std::map<std::string, std::string>& pass_config = copy_config;
 
+    localConfig.update(pass_config, mode);
     return localConfig;
 }
-
 
 static auto get_specified_device_name(const Config config) {
     if (config.has<DEVICE_ID>()) {
@@ -600,7 +624,6 @@ void Plugin::set_property(const ov::AnyMap& properties) {
     }
 
     _globalConfig.update(config);
-    
     if (_backends != nullptr) {
         _backends->setup(_globalConfig);
     }
@@ -637,7 +660,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     const std::map<std::string, std::string> propertiesMap = any_copy(properties);
-    // update_log_level(propertiesMap);
     auto localConfig = merge_configs(_globalConfig, propertiesMap);
 
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
@@ -731,9 +753,7 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& /*re
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
     OV_ITT_TASK_CHAIN(PLUGIN_IMPORT_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "merge_configs");
-
     const std::map<std::string, std::string> propertiesMap = any_copy(properties);
-    // update_log_level(propertiesMap);
     auto localConfig = merge_configs(_globalConfig, propertiesMap, OptionMode::RunTime);
     const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
@@ -802,7 +822,6 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
                                         const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::query_model");
     const std::map<std::string, std::string> propertiesMap = any_copy(properties);
-    // update_log_level(propertiesMap);
     auto localConfig = merge_configs(_globalConfig, propertiesMap, OptionMode::CompileTime);
     const auto platform = _backends->getCompilationPlatform(localConfig.get<PLATFORM>(), localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});

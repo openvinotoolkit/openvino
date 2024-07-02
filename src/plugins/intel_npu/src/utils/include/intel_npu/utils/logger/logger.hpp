@@ -51,7 +51,6 @@ public:
 
     Logger& setLevel(ov::log::Level lvl) {
         if(_logLevel < lvl){
-            std::printf("   update log level, from %d to %d\n", static_cast<int>(_logLevel), static_cast<int>(lvl));
             _logLevel = lvl;
         }
         return *this;
