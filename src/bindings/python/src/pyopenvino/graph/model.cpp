@@ -745,7 +745,7 @@ void regclass_graph_Model(py::module m) {
                 Return -1 if `result` not matched.
 
                 :param result: Result operation
-                :type result: openvino.runtime.op.Result
+                :type result: op.Result
                 :return: Index for result referencing it.
                 :rtype: int
              )");
