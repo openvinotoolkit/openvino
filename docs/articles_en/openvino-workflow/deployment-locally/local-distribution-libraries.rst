@@ -170,49 +170,46 @@ Depending on the model format types that are used in the application in ``ov::Co
 Examples
 ####################
 
-CPU + OpenVINO IR in C application
-+++++++++++++++++++++++++++++++++++++++
+.. dropdown:: CPU + OpenVINO IR in C application
 
-In this example, the application is written in C, performs inference on CPU, and reads models stored in the OpenVINO IR format.
+   In this example, the application is written in C, performs inference on CPU, and reads models stored in the OpenVINO IR format.
 
-The following libraries are used: ``openvino_c``, ``openvino``, ``openvino_intel_cpu_plugin``, and ``openvino_ir_frontend``.
+   The following libraries are used: ``openvino_c``, ``openvino``, ``openvino_intel_cpu_plugin``, and ``openvino_ir_frontend``.
 
-- The ``openvino_c`` library is a main dependency of the application. The app links against this library.
-- The ``openvino`` library is used as a private dependency for ``openvino_c`` and is also used in the deployment.
-- ``openvino_intel_cpu_plugin`` is used for inference.
-- ``openvino_ir_frontend`` is used to read source models.
+   - The ``openvino_c`` library is a main dependency of the application. The app links against this library.
+   - The ``openvino`` library is used as a private dependency for ``openvino_c`` and is also used in the deployment.
+   - ``openvino_intel_cpu_plugin`` is used for inference.
+   - ``openvino_ir_frontend`` is used to read source models.
 
-MULTI execution on GPU and CPU in `tput` mode
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++
+.. dropdown:: MULTI execution on GPU and CPU in `tput` mode
 
-In this example, the application is written in C++, performs inference
-:doc:`simultaneously on GPU and CPU devices <../running-inference/inference-devices-and-modes/multi-device>` with
-the ``ov::hint::PerformanceMode::THROUGHPUT`` property set, and reads models stored in the ONNX format.
+   In this example, the application is written in C++, performs inference
+   :doc:`simultaneously on GPU and CPU devices <../running-inference/inference-devices-and-modes/multi-device>` with
+   the ``ov::hint::PerformanceMode::THROUGHPUT`` property set, and reads models stored in the ONNX format.
 
-The following libraries are used: ``openvino``, ``openvino_intel_gpu_plugin``, ``openvino_intel_cpu_plugin``,
-``openvino_auto_plugin``, ``openvino_auto_batch_plugin``, and ``openvino_onnx_frontend``.
+   The following libraries are used: ``openvino``, ``openvino_intel_gpu_plugin``, ``openvino_intel_cpu_plugin``,
+   ``openvino_auto_plugin``, ``openvino_auto_batch_plugin``, and ``openvino_onnx_frontend``.
 
-- The ``openvino`` library is a main dependency of the application. The app links against this library.
-- ``openvino_intel_gpu_plugin`` and ``openvino_intel_cpu_plugin`` are used for inference.
-- ``openvino_auto_plugin`` is used for Multi-Device Execution.
-- ``openvino_auto_batch_plugin`` can be also put in the distribution to improve the saturation
-  of :doc:`Intel® GPU <../running-inference/inference-devices-and-modes/gpu-device>` device.
-  If there is no such plugin, :doc:`Automatic Batching <../running-inference/inference-devices-and-modes/automatic-batching>` is turned off.
-- ``openvino_onnx_frontend`` is used to read source models.
+   - The ``openvino`` library is a main dependency of the application. The app links against this library.
+   - ``openvino_intel_gpu_plugin`` and ``openvino_intel_cpu_plugin`` are used for inference.
+   - ``openvino_auto_plugin`` is used for Multi-Device Execution.
+   - ``openvino_auto_batch_plugin`` can be also put in the distribution to improve the saturation
+     of :doc:`Intel® GPU <../running-inference/inference-devices-and-modes/gpu-device>` device.
+     If there is no such plugin, :doc:`Automatic Batching <../running-inference/inference-devices-and-modes/automatic-batching>` is turned off.
+   - ``openvino_onnx_frontend`` is used to read source models.
 
-Auto-Device Selection between GPU and CPU
-+++++++++++++++++++++++++++++++++++++++++++++++++
+.. dropdown:: Auto-Device Selection between GPU and CPU
 
-In this example, the application is written in C++, performs inference
-with the :doc:`Automatic Device Selection <../running-inference/inference-devices-and-modes/auto-device-selection>`
-mode, limiting device list to GPU and CPU, and reads models
-:doc:`created using C++ code <../running-inference/integrate-openvino-with-your-application/model-representation>`.
+   In this example, the application is written in C++, performs inference
+   with the :doc:`Automatic Device Selection <../running-inference/inference-devices-and-modes/auto-device-selection>`
+   mode, limiting device list to GPU and CPU, and reads models
+   :doc:`created using C++ code <../running-inference/integrate-openvino-with-your-application/model-representation>`.
 
-The following libraries are used: ``openvino``, ``openvino_auto_plugin``, ``openvino_intel_gpu_plugin``, and ``openvino_intel_cpu_plugin``.
+   The following libraries are used: ``openvino``, ``openvino_auto_plugin``, ``openvino_intel_gpu_plugin``, and ``openvino_intel_cpu_plugin``.
 
-- The ``openvino`` library is a main dependency of the application. The app links against this library.
-- ``openvino_auto_plugin`` is used to enable Automatic Device Selection.
-- ``openvino_intel_gpu_plugin`` and ``openvino_intel_cpu_plugin`` are used for inference. AUTO
-  selects between CPU and GPU devices according to their physical existence on the deployed machine.
-- No frontend library is needed because ``ov::Model`` is created in code.
+   - The ``openvino`` library is a main dependency of the application. The app links against this library.
+   - ``openvino_auto_plugin`` is used to enable Automatic Device Selection.
+   - ``openvino_intel_gpu_plugin`` and ``openvino_intel_cpu_plugin`` are used for inference. AUTO
+     selects between CPU and GPU devices according to their physical existence on the deployed machine.
+   - No frontend library is needed because ``ov::Model`` is created in code.
 
