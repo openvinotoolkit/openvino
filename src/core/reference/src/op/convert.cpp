@@ -56,6 +56,17 @@ void jit_convert_vec<float, float16>(jit::Generator& gen, const Xbyak::RegExp& s
 }
 
 template <>
+void jit_convert_vec<bfloat16, float16>(jit::Generator& gen, const Xbyak::RegExp& src, const Xbyak::RegExp& dst) {
+    const auto f32vec = gen.ymm4;
+    const auto f16vec = gen.xmm3;
+
+    gen.vpmovzxwd(f32vec, gen.yword[src]);  // load bf16 into tmp
+    gen.vpslld(f32vec, f32vec, 16);         // convert bf16->f32 by bit shift
+    gen.vcvtps2ph(f16vec, f32vec, 0);       // convert f32 -> f16
+    gen.vmovdqu(gen.xword[dst], f16vec);    // move result to destination
+}
+
+template <>
 void jit_convert_vec_prepare<float, float16, true>(jit::Generator& gen) {
     auto upper_bound = gen.ymm5;
     auto lower_bound = gen.ymm6;
@@ -257,6 +268,9 @@ void convert_impl<float, float16, true>(const float* arg, float16* out, size_t c
         }
     }
 }
+// 0x3140 0.1640625
+
+// 0.1641845703125
 
 template <typename data_t, typename range_t>
 void jit_count_out_of_range_vec_prepare(jit::Generator&) {}
@@ -500,6 +514,11 @@ void convert<float, int8_t>(const float* arg, int8_t* out, size_t count) {
 
 template <>
 void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count) {
+    convert_impl(arg, out, count);
+}
+
+template <>
+void convert<bfloat16, float16>(const bfloat16* arg, float16* out, size_t count) {
     convert_impl(arg, out, count);
 }
 
