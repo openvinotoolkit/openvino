@@ -20,9 +20,11 @@ namespace XARCH {
 // avx512/avx2 register length in byte
 static constexpr size_t vec_len_avx512 = 64lu;
 static constexpr size_t vec_len_avx2 = 32lu;
+static constexpr size_t vec_len_neon = 16lu;
 // avx512/avx2 register length in float
 static constexpr size_t vec_len_f32_avx512 = vec_len_avx512 / sizeof(float);
 static constexpr size_t vec_len_f32_avx2 = vec_len_avx2 / sizeof(float);
+static constexpr size_t vec_len_f32_neon = vec_len_neon / sizeof(float);
 
 #ifdef HAVE_AVX512F
     inline __m512 cvt_bf16_to_fp32(const __m256i src) {
