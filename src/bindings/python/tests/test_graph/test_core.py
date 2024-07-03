@@ -396,10 +396,11 @@ def test_discrete_type_info():
     [1, 2, 3],
     (1, 2, 3),
 ])
-def test_shape_equality(input_data):
+@pytest.mark.parametrize("shape_type", [Shape, PartialShape])
+def test_shape_equality(input_data, shape_type):
     data = input_data
-    s = Shape(data)
-    assert data == s
+    shape = shape_type(data)
+    assert data == shape
 
 @pytest.mark.parametrize("input_data", [
     [1, 2, 3],
