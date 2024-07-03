@@ -108,3 +108,17 @@ std::string FrontEnd::get_name() const {
     }
     FRONTEND_RETURN_STATEMENT("Getting frontend name", m_actual->get_name();)
 }
+
+void FrontEnd::validate_path(const std::string& path) const {
+    FRONT_END_GENERAL_CHECK(util::directory_exists(path) || util::file_exists(path),
+                            get_name(),
+                            ": Could not open the file: \"",
+                            path,
+                            '"');
+}
+
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+void FrontEnd::validate_path(const std::wstring& path) const {
+    validate_path(ov::util::wstring_to_string(path));
+}
+#endif

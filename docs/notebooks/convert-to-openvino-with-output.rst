@@ -4,8 +4,8 @@ OpenVINO™ Model conversion
 This notebook shows how to convert a model from original framework
 format to OpenVINO Intermediate Representation (IR).
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `OpenVINO IR format <#openvino-ir-format>`__
 -  `Fetching example models <#fetching-example-models>`__
@@ -35,7 +35,7 @@ Table of contents:
 
 .. parsed-literal::
 
-    Requirement already satisfied: pip in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (24.0)
+    Requirement already satisfied: pip in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (24.1.1)
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
@@ -181,11 +181,11 @@ NLP model from Hugging Face and export it in ONNX format:
 
 .. parsed-literal::
 
-    2024-06-05 23:48:38.001731: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-06-05 23:48:38.036985: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-07-01 23:46:23.388228: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-07-01 23:46:23.422415: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-06-05 23:48:38.551703: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/distilbert/modeling_distilbert.py:231: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+    2024-07-01 23:46:24.062925: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/distilbert/modeling_distilbert.py:230: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
       mask, torch.tensor(torch.finfo(scores.dtype).min)
 
 
@@ -662,12 +662,12 @@ frameworks conversion guides.
 
 .. parsed-literal::
 
-    2024-06-05 23:48:58.596260: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2024-06-05 23:48:58.596295: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:168] retrieving CUDA diagnostic information for host: iotg-dev-workstation-07
-    2024-06-05 23:48:58.596299: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:175] hostname: iotg-dev-workstation-07
-    2024-06-05 23:48:58.596508: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:199] libcuda reported version is: 470.223.2
-    2024-06-05 23:48:58.596524: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:203] kernel reported version is: 470.182.3
-    2024-06-05 23:48:58.596528: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
+    2024-07-01 23:46:43.443603: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
+    2024-07-01 23:46:43.443639: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:168] retrieving CUDA diagnostic information for host: iotg-dev-workstation-07
+    2024-07-01 23:46:43.443643: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:175] hostname: iotg-dev-workstation-07
+    2024-07-01 23:46:43.443849: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:199] libcuda reported version is: 470.223.2
+    2024-07-01 23:46:43.443867: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:203] kernel reported version is: 470.182.3
+    2024-07-01 23:46:43.443871: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
 
 
 Migration from Legacy conversion API
@@ -727,6 +727,13 @@ Resnet50 model that was exported to the ONNX format:
 
 .. parsed-literal::
 
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
+
+
+.. parsed-literal::
+
     huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks...
     To disable this warning, you can either:
     	- Avoid using `tokenizers` before the fork if possible
@@ -768,6 +775,17 @@ and the layout of an original model:
     # alternatively use source_layout and target_layout parameters
     ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, source_layout="nchw", target_layout="nhwc")
 
+
+.. parsed-literal::
+
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
+
+
 Specifying Mean and Scale Values
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -806,6 +824,14 @@ more examples.
         scale_values=[255 * x for x in [0.229, 0.224, 0.225]],
     )
 
+
+.. parsed-literal::
+
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
+
+
 Reversing Input Channels
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -835,6 +861,14 @@ the color channels before inference.
     from openvino.tools import mo
     
     ov_model = mo.convert_model(ONNX_CV_MODEL_PATH, reverse_input_channels=True)
+
+
+.. parsed-literal::
+
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API. 
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
+
 
 Cutting Off Parts of a Model
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^

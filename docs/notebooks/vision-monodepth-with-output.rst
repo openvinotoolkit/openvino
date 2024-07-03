@@ -28,8 +28,8 @@ Transfer,” <https://ieeexplore.ieee.org/document/9178977>`__ in IEEE
 Transactions on Pattern Analysis and Machine Intelligence, doi:
 ``10.1109/TPAMI.2020.3019967``.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Preparation <#preparation>`__
 
@@ -89,11 +89,8 @@ Install requirements
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -101,7 +98,7 @@ Install requirements
 
 .. parsed-literal::
 
-    21503
+    23215
 
 
 
@@ -306,7 +303,7 @@ original image shape.
 
 .. parsed-literal::
 
-    /tmp/ipykernel_3139661/2076527990.py:15: MatplotlibDeprecationWarning: The get_cmap function was deprecated in Matplotlib 3.7 and will be removed two minor releases later. Use ``matplotlib.colormaps[name]`` or ``matplotlib.colormaps.get_cmap(obj)`` instead.
+    /tmp/ipykernel_2831079/2076527990.py:15: MatplotlibDeprecationWarning: The get_cmap function was deprecated in Matplotlib 3.7 and will be removed two minor releases later. Use ``matplotlib.colormaps[name]`` or ``matplotlib.colormaps.get_cmap(obj)`` instead.
       cmap = matplotlib.cm.get_cmap(colormap)
 
 
@@ -505,7 +502,7 @@ Do Inference on a Video and Create Monodepth Video
 
 .. parsed-literal::
 
-    Processed 60 frames in 27.26 seconds. Total FPS (including video processing): 2.20.Inference FPS: 42.67 
+    Processed 60 frames in 25.62 seconds. Total FPS (including video processing): 2.34.Inference FPS: 43.97 
     Monodepth Video saved to 'output/Coco%20Walking%20in%20Berkeley_monodepth.mp4'.
 
 
@@ -532,7 +529,7 @@ Display Monodepth Video
 .. parsed-literal::
 
     Showing monodepth video saved at
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/notebooks/vision-monodepth/output/Coco%20Walking%20in%20Berkeley_monodepth.mp4
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/notebooks/vision-monodepth/output/Coco%20Walking%20in%20Berkeley_monodepth.mp4
     If you cannot see the video in your browser, please click on the following link to download the video 
 
 

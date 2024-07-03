@@ -29,8 +29,8 @@ but elevated to the design space level. The RegNet design space provides
 simple and fast networks that work well across a wide range of flop
 regimes.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Load PyTorch Model <#load-pytorch-model>`__
@@ -89,7 +89,6 @@ Install notebook dependencies
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -251,7 +250,7 @@ Benchmark PyTorch Model Inference
 
 .. parsed-literal::
 
-    16.4 ms ± 91.1 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    17.2 ms ± 140 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 
 Convert PyTorch Model to OpenVINO Intermediate Representation
@@ -410,7 +409,7 @@ Benchmark OpenVINO Model Inference
 
 .. parsed-literal::
 
-    3.3 ms ± 8.21 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    3.18 ms ± 14.1 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 
 Convert PyTorch Model with Static Input Shape
@@ -540,7 +539,7 @@ Benchmark OpenVINO Model Inference with Static Input Shape
 
 .. parsed-literal::
 
-    2.98 ms ± 23.6 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    2.84 ms ± 17.9 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 
 Convert TorchScript Model to OpenVINO Intermediate Representation
@@ -635,7 +634,7 @@ Benchmark Scripted Model Inference
 
 .. parsed-literal::
 
-    14 ms ± 28.4 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    14 ms ± 60.8 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 
 Convert PyTorch Scripted Model to OpenVINO Intermediate Representation
@@ -694,7 +693,7 @@ Benchmark OpenVINO Model Inference Converted From Scripted Model
 
 .. parsed-literal::
 
-    3.29 ms ± 21.6 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    3.16 ms ± 10.2 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 
 Traced Model
@@ -770,7 +769,7 @@ Benchmark Traced Model Inference
 
 .. parsed-literal::
 
-    14 ms ± 436 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    14.3 ms ± 282 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 
 Convert PyTorch Traced Model to OpenVINO Intermediate Representation
@@ -829,5 +828,5 @@ Benchmark OpenVINO Model Inference Converted From Traced Model
 
 .. parsed-literal::
 
-    3.34 ms ± 29.9 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    3.18 ms ± 19.1 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 

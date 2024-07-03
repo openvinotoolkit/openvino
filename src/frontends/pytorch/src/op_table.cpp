@@ -57,6 +57,7 @@ OP_CONVERTER(translate_channel_shuffle);
 OP_CONVERTER(translate_clamp);
 OP_CONVERTER(translate_constant);
 OP_CONVERTER(translate_conv_transposend);
+OP_CONVERTER(translate_conv1d_ext);
 OP_CONVERTER(translate_convnd);
 OP_CONVERTER(translate_convolution);
 OP_CONVERTER(translate_convolution_mode);
@@ -72,6 +73,7 @@ OP_CONVERTER(translate_dot);
 OP_CONVERTER(translate_elu);
 OP_CONVERTER(translate_embedding);
 OP_CONVERTER(translate_embedding_bag);
+OP_CONVERTER(translate_embedding_ext);
 OP_CONVERTER(translate_empty);
 OP_CONVERTER(translate_empty_like);
 OP_CONVERTER(translate_erf);
@@ -702,6 +704,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::zero_", op::inplace_op<op::translate_zeros_like>},
         {"aten::zeros", op::translate_zeros},
         {"aten::zeros_like", op::translate_zeros_like},
+        {"ov_ext::embedding", op::translate_embedding_ext},
+        {"ov_ext::conv1d", op::translate_conv1d_ext},
+        {"ov_ext::linear", op::translate_linear},
         {"prim::Constant", op::translate_constant},
         {"prim::device", op::translate_constant},
         // prim::DictConstruct - Supported in limited set of patterns
