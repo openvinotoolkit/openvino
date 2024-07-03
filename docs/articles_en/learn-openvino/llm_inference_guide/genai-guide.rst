@@ -123,9 +123,9 @@ You can also create your custom streamer for more sophisticated processing:
                self.tokenizer = tokenizer
             def put(self, token_id) -> bool:
                # Decode tokens and process them.
-               # Streamer returns a flag corresponding whether generation should be stopped.
-               # In Python `return` can be omitted. In that case the function will return None
-               # which in turn will be converted to False, which means continue generation.
+               # Streamer returns a flag indicating whether generation should be stopped.
+               # In Python, `return` can be omitted. In that case, the function will return None
+               # which will be converted to False, meaning that generation should continue.
                # return stop_flag
             def end(self):
                # Decode tokens and process them.
@@ -150,7 +150,7 @@ You can also create your custom streamer for more sophisticated processing:
                std::string text = m_tokenizer.decode(tokens_cache);
                ...
                */
-               return stop_flag;  // flag whether generation should be stoped, if true generation stops.
+               return stop_flag;  // Flag indicating whether generation should be stopped. If True, generation stops.
             };
 
             void end() {
@@ -166,7 +166,7 @@ You can also create your custom streamer for more sophisticated processing:
             pipe.generate("The Sun is yellow because", ov::genai::streamer(custom_streamer));
          }
 
-Using Generate in Chat Scenario
+Using GenAI in Chat Scenario
 ################################
 
 For chat scenarios where inputs and outputs represent a conversation, maintaining KVCache across inputs
