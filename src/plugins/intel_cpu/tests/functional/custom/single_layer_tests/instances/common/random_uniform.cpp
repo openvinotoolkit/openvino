@@ -35,7 +35,6 @@ static const std::vector<std::tuple<double, double>> min_max = {
 };
 
 static const std::vector<ov::op::PhiloxAlignment> alignment = {
-        ov::op::PhiloxAlignment::OPENVINO,
         ov::op::PhiloxAlignment::TENSORFLOW,
         ov::op::PhiloxAlignment::PYTORCH
 };

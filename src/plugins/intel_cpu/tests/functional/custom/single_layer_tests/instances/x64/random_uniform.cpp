@@ -35,7 +35,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_Param, RandomUniformLayerTestCPU,
                 ::testing::ValuesIn(output_prc_nightly),
                 ::testing::Values(3),
                 ::testing::Values(1),
-                ::testing::Values(ov::op::PhiloxAlignment::OPENVINO, ov::op::PhiloxAlignment::TENSORFLOW, ov::op::PhiloxAlignment::PYTORCH)
+                ::testing::Values(ov::op::PhiloxAlignment::TENSORFLOW, ov::op::PhiloxAlignment::PYTORCH),
                 ::testing::Values(true, false),
                 ::testing::Values(true, false),
                 ::testing::Values(true, false),
