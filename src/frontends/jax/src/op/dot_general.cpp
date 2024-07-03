@@ -85,16 +85,14 @@ OutputVector translate_dot_general(const NodeContext& context) {
     Output<Node> rhs = context.get_input(1);
 
     auto contract_dimensions = context.const_named_param<std::vector<std::vector<int64_t>>>("contract_dimensions");
-    JAX_OP_CONVERSION_CHECK(contract_dimensions.size() == 2,
-                            "[JAX FE] contract_dimensions of dot_general must have size 2");
+    JAX_OP_CONVERSION_CHECK(contract_dimensions.size() == 2, "Contract_dimensions of dot_general must have size 2");
     auto lhs_contract_dims = contract_dimensions[0];
     auto rhs_contract_dims = contract_dimensions[1];
 
     std::vector<int64_t> lhs_batch_dims, rhs_batch_dims;
     if (context.has_param("batch_dimensions")) {
         auto batch_dimensions = context.const_named_param<std::vector<std::vector<int64_t>>>("batch_dimensions");
-        JAX_OP_CONVERSION_CHECK(batch_dimensions.size() == 2,
-                                "[JAX FE] batch_dimensions of dot_general must have size 2");
+        JAX_OP_CONVERSION_CHECK(batch_dimensions.size() == 2, "Batch_dimensions of dot_general must have size 2");
         lhs_batch_dims = batch_dimensions[0];
         rhs_batch_dims = batch_dimensions[1];
     }

@@ -32,22 +32,18 @@ OutputVector translate_reduce_window_max(const NodeContext& context) {
     auto window_dilation = context.const_named_param<std::vector<int64_t>>("window_dilation");
     size_t total_dim = window_dimensions.size();
 
-    JAX_OP_CONVERSION_CHECK(
-        window_strides.size() == total_dim,
-        "[JAX Frontend] internal error: window_strides must have the same size as window_dimensions, but got " +
-            std::to_string(window_strides.size()) + " and " + std::to_string(total_dim));
-    JAX_OP_CONVERSION_CHECK(
-        padding.size() == total_dim,
-        "[JAX Frontend] internal error: padding must have the same size as window_dimensions, but got " +
-            std::to_string(padding.size()) + " and " + std::to_string(total_dim));
-    JAX_OP_CONVERSION_CHECK(
-        base_dilation.size() == total_dim,
-        "[JAX Frontend] internal error: base_dilation must have the same size as window_dimensions, but got " +
-            std::to_string(base_dilation.size()) + " and " + std::to_string(total_dim));
-    JAX_OP_CONVERSION_CHECK(
-        window_dilation.size() == total_dim,
-        "[JAX Frontend] internal error: window_dilation must have the same size as window_dimensions, but got " +
-            std::to_string(window_dilation.size()) + " and " + std::to_string(total_dim));
+    JAX_OP_CONVERSION_CHECK(window_strides.size() == total_dim,
+                            "Internal error: window_strides must have the same size as window_dimensions, but got " +
+                                std::to_string(window_strides.size()) + " and " + std::to_string(total_dim));
+    JAX_OP_CONVERSION_CHECK(padding.size() == total_dim,
+                            "Internal error: padding must have the same size as window_dimensions, but got " +
+                                std::to_string(padding.size()) + " and " + std::to_string(total_dim));
+    JAX_OP_CONVERSION_CHECK(base_dilation.size() == total_dim,
+                            "Internal error: base_dilation must have the same size as window_dimensions, but got " +
+                                std::to_string(base_dilation.size()) + " and " + std::to_string(total_dim));
+    JAX_OP_CONVERSION_CHECK(window_dilation.size() == total_dim,
+                            "Internal error: window_dilation must have the same size as window_dimensions, but got " +
+                                std::to_string(window_dilation.size()) + " and " + std::to_string(total_dim));
 
     Strides strides(total_dim - 2);
     Strides dilations(total_dim - 2);
@@ -63,14 +59,13 @@ OutputVector translate_reduce_window_max(const NodeContext& context) {
             dilations[ind - 1] = static_cast<size_t>(base_dilation[ind]);
         } else {
             // only support NHWC format input now.
-            JAX_OP_CONVERSION_CHECK(window_dimensions[ind] == 1, "[JAX Frontend] internal error: unsupported layout.");
-            JAX_OP_CONVERSION_CHECK(window_strides[ind] == 1, "[JAX Frontend] internal error: unsupported layout.");
+            JAX_OP_CONVERSION_CHECK(window_dimensions[ind] == 1, "Internal error: unsupported layout.");
+            JAX_OP_CONVERSION_CHECK(window_strides[ind] == 1, "Internal error: unsupported layout.");
             JAX_OP_CONVERSION_CHECK(padding[ind][0] == 0 && padding[ind][1] == 0,
-                                    "[JAX Frontend] internal error: unsupported layout.");
-            JAX_OP_CONVERSION_CHECK(base_dilation[ind] == 1, "[JAX Frontend] internal error: unsupported layout.");
+                                    "Internal error: unsupported layout.");
+            JAX_OP_CONVERSION_CHECK(base_dilation[ind] == 1, "Internal error: unsupported layout.");
         }
-        JAX_OP_CONVERSION_CHECK(window_dilation[ind] == 1,
-                                "[JAX Frontend] internal error: only window_dilation 1 is supported.");
+        JAX_OP_CONVERSION_CHECK(window_dilation[ind] == 1, "Internal error: only window_dilation 1 is supported.");
     }
 
     std::vector<int64_t> in_transpose_vector(total_dim);

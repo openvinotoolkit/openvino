@@ -53,34 +53,33 @@ OutputVector translate_convolution(const NodeContext& context) {
     size_t spatial_dim = window_strides.size();
 
     JAX_OP_CONVERSION_CHECK(dimension_numbers.size() == 3,
-                            "[JAX Frontend] internal error: dimension_numbers must have 3 vectors but actually got " +
+                            "Internal error: dimension_numbers must have 3 vectors but actually got " +
                                 std::to_string(dimension_numbers.size()));
     auto lhs_spec = dimension_numbers[0];
     auto rhs_spec = dimension_numbers[1];
     auto out_spec = dimension_numbers[2];
     JAX_OP_CONVERSION_CHECK(lhs_spec.size() == rhs_spec.size() && lhs_spec.size() == out_spec.size(),
-                            "[JAX Frontend] internal error: specs in dimension_numbers must have the same size, but "
+                            "Internal error: specs in dimension_numbers must have the same size, but "
                             "got lhs_spec.size() = " +
                                 std::to_string(lhs_spec.size()) +
                                 ", rhs_spec.size() = " + std::to_string(rhs_spec.size()) +
                                 ", out_spec.size() = " + std::to_string(out_spec.size()));
-    JAX_OP_CONVERSION_CHECK(lhs_spec.size() == 4,
-                            "[JAX Frontend] internal error: specs in dimension_numbers must have 4 elements.");
+    JAX_OP_CONVERSION_CHECK(lhs_spec.size() == 4, "Internal error: specs in dimension_numbers must have 4 elements.");
 
     JAX_OP_CONVERSION_CHECK(spatial_dim == 2 || spatial_dim == 3,
-                            "[JAX Frontend] internal error: only 2D and 3D convolutions are supported.");
-    JAX_OP_CONVERSION_CHECK(padding.size() == 2, "[JAX Frontend] inconsistent model: padding must have 2 vectors.");
+                            "Internal error: only 2D and 3D convolutions are supported.");
+    JAX_OP_CONVERSION_CHECK(padding.size() == 2, "Inconsistent model: padding must have 2 vectors.");
     JAX_OP_CONVERSION_CHECK(padding[0].size() == spatial_dim,
-                            "[JAX Frontend] inconsistent model: padding vector must contain elements equal to "
+                            "Inconsistent model: padding vector must contain elements equal to "
                             "doubled spatial dimensions ");
     JAX_OP_CONVERSION_CHECK(input_dilation.size() == spatial_dim,
-                            "[JAX Frontend] inconsistent model: input_dilation vector must contain elements equal to "
+                            "Inconsistent model: input_dilation vector must contain elements equal to "
                             "spatial dimensions ");
     JAX_OP_CONVERSION_CHECK(kernel_dilation.size() == spatial_dim,
-                            "[JAX Frontend] inconsistent model: kernel_dilation vector must contain elements equal to "
+                            "Inconsistent model: kernel_dilation vector must contain elements equal to "
                             "spatial dimensions ");
     JAX_OP_CONVERSION_CHECK(batch_group_count == 1,
-                            "[JAX Frontend] Convolution is supported only with batch_group_count equal to one yet.");
+                            "Convolution is supported only with batch_group_count equal to one yet.");
 
     // Tranpose input and kernel to NCHW format
     if (need_transpose(lhs_spec)) {
