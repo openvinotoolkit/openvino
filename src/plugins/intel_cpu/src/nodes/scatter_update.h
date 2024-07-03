@@ -90,6 +90,7 @@ public:
     }
 
     bool needPrepareParams() const override;
+    void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
 
     bool isExecutable() const override;
@@ -123,10 +124,11 @@ private:
     bool axisRelaxed = false;
     size_t dataSize, indicesSize, axisSize;
     ov::element::Type dataPrec, indicesPrec, axisPrec;
+    // In ov::PartialShape with rank 0 (scalars) is converted to ov::intel_cpu::Shape with rank 1.
+    // Add flag set in constructor for workaround for ScatterNDUpdates
+    bool isUpdateScalar = false;
 
     std::string errorPrefix;
-
-    const std::shared_ptr<ov::Node> ovOp;
 };
 
 }   // namespace node

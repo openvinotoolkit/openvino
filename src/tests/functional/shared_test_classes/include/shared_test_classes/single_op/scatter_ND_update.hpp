@@ -16,7 +16,7 @@ namespace test {
 using scatterNDUpdateSpecParams = std::tuple<
         std::vector<InputShape>,           // input, update shapes
         ov::Shape,                         // indices shape
-        std::vector<int>                // indices value
+        std::vector<int>                   // indices value
 >;
 
 using scatterNDUpdateParamsTuple = typename std::tuple<
