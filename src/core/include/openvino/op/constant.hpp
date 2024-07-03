@@ -461,6 +461,23 @@ private:
         return true;
     }
 
+    template <class UserT, element::Type_t ET>
+    static UserT cast_element(const ov::fundamental_type_for<ET> value) {
+        return static_cast<UserT>(value);
+    }
+
+    template <class UserT, element::Type_t ET>
+    static UserT try_cast_element(const ov::fundamental_type_for<ET> value) {
+        OPENVINO_ASSERT(in_type_range<UserT>(value),
+                        "Cannot cast vector from ",
+                        ET,
+                        " constant to ",
+                        element::from<UserT>(),
+                        ". Some values are outside the range. Example: ",
+                        value);
+        return cast_element<UserT, ET>(value);
+    }
+
     /// \brief Cast constant data to std::vector of User type.
     /// This version is for user type which is unknown for OpenVINO.
     /// The minimum requirement for this type is to support conversion from OV type and support std::numeric_limits.
@@ -475,17 +492,8 @@ private:
     void cast_vector(std::vector<UserT>& output_vector, size_t num_elements, bool validate_data) const {
         using T = ov::fundamental_type_for<Type>;
 
-        const auto cast_to_user_type = validate_data ? [](const T c){
-                     OPENVINO_ASSERT(in_type_range<UserT>(c),
-                            "Cannot cast vector from ",
-                            element::from<T>(),
-                            " constant to ",
-                            element::from<UserT>(),
-                            ". Some values are outside the range. Example: ",
-                            c);
-            return static_cast<UserT>(c);} : [](const T c){ return static_cast<UserT>(c);};
-
-        auto first = get_data_ptr<T>();
+        const auto cast_to_user_type = validate_data ? try_cast_element<UserT, Type> : cast_element<UserT, Type>;
+        const auto first = get_data_ptr<T>();
         std::transform(first, first + num_elements, std::back_inserter(output_vector), cast_to_user_type);
     }
 
