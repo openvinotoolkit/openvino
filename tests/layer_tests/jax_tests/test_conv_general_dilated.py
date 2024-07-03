@@ -54,6 +54,7 @@ class TestConvGeneralDilated(JaxLayerTest):
     @pytest.mark.parametrize("params", test_data_basic)
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_jax_fe
     def test_conv_general_dilated(self, ie_device, precision, ir_version, params, padding, window_strides,
                                   lhs_dilation):
         self._test(*self.create_model(**params, padding=padding,

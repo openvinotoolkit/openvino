@@ -68,7 +68,9 @@ class JaxprPythonDecoder (Decoder):
         self.params = {}
         if hasattr(self.jaxpr, 'params') and isinstance(self.jaxpr.params, dict):
             for k in self.jaxpr.params.keys():
-                self.params[k] = self.convert_param_to_constant_node(self.jaxpr, k)
+                converted = self.convert_param_to_constant_node(self.jaxpr, k)
+                if converted is not None:
+                    self.params[k] = converted
                 
         # TODO: this implementation may lead to memory increasing. Any better solution?
         self.m_decoders = []
@@ -190,7 +192,7 @@ class JaxprPythonDecoder (Decoder):
     def convert_param_to_constant_node(jaxpr, param):
         assert hasattr(jaxpr, 'params'), "The jaxpr does not have params."
         constant = ivalue_to_constant(jaxpr.params[param], shared_memory=False)
-        return _JaxprPythonConstantDecoder(constant=constant)
+        return _JaxprPythonConstantDecoder(constant=constant) if constant is not None else None
     
     @staticmethod
     def convert_literal_to_constant_node(literal, name=None, output_id=None):
