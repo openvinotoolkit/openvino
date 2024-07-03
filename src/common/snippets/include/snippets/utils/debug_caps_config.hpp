@@ -18,6 +18,62 @@ namespace ov {
 namespace snippets {
 
 class DebugCapsConfig {
+struct PropertySetter;
+public:
+    using PropertySetterPtr = std::shared_ptr<PropertySetter>;
+
+    DebugCapsConfig() {
+        readProperties();
+    }
+
+    struct LIRFormatFilter {
+        enum Type : uint8_t { controlFlow = 0, dataFlow, NumOfTypes };
+        std::bitset<NumOfTypes> filter;
+
+        PropertySetterPtr getPropertySetter() {
+            return PropertySetterPtr(new BitsetFilterPropertySetter<NumOfTypes>("formats",
+                                                                                filter,
+                                                                                {
+                                                                                    {"all", {controlFlow, dataFlow}},
+                                                                                    {"control_flow", {controlFlow}},
+                                                                                    {"data_flow", {dataFlow}},
+                                                                                }));
+        }
+    };
+
+    struct PropertyGroup {
+        virtual std::vector<PropertySetterPtr> getPropertySetters() = 0;
+        void parseAndSet(const std::string& str);
+    };
+
+    struct : PropertyGroup {
+        std::string dir = "snippets_LIR_dump";
+        LIRFormatFilter format = {1 << LIRFormatFilter::controlFlow};
+        std::string passes = "";
+
+        std::vector<PropertySetterPtr> getPropertySetters() override {
+            return {PropertySetterPtr(new StringPropertySetter("dir", dir, "path to dumped LIRs")),
+                    format.getPropertySetter(),
+                    PropertySetterPtr(
+                        new StringPropertySetter("passes", passes, "indicate dumped LIRs around these passes"))};
+        }
+    } dumpLIR;
+
+    // Snippets performance count mode
+    // Disabled - default, w/o perf count for snippets
+    // Chrono - perf count with chrono call. This is a universal method, and support multi-thread case to output perf
+    // count data for each thread. BackendSpecific - perf count provided by backend. This is for device specific
+    // requirment. For example, in sake of more light overhead and more accurate result, x86 CPU specific mode via read
+    // RDTSC register is implemented, which take ~50ns, while Chrono mode take 260ns for a pair of perf count start and
+    // perf count end execution, on ICX. This mode only support single thread.
+    enum PerfCountMode {
+        Disabled,
+        Chrono,
+        BackendSpecific,
+    };
+    PerfCountMode perf_count_mode = PerfCountMode::Disabled;
+
+private:
     struct PropertySetter {
         PropertySetter(std::string name) : propertyName(std::move(name)) {}
         virtual ~PropertySetter() = default;
@@ -105,60 +161,6 @@ class DebugCapsConfig {
     };
 
     void readProperties();
-
-public:
-    using PropertySetterPtr = std::shared_ptr<PropertySetter>;
-
-    DebugCapsConfig() {
-        readProperties();
-    }
-
-    struct LIRFormatFilter {
-        enum Type : uint8_t { controlFlow = 0, dataFlow, NumOfTypes };
-        std::bitset<NumOfTypes> filter;
-
-        PropertySetterPtr getPropertySetter() {
-            return PropertySetterPtr(new BitsetFilterPropertySetter<NumOfTypes>("formats",
-                                                                                filter,
-                                                                                {
-                                                                                    {"all", {controlFlow, dataFlow}},
-                                                                                    {"control_flow", {controlFlow}},
-                                                                                    {"data_flow", {dataFlow}},
-                                                                                }));
-        }
-    };
-
-    struct PropertyGroup {
-        virtual std::vector<PropertySetterPtr> getPropertySetters() = 0;
-        void parseAndSet(const std::string& str);
-    };
-
-    struct : PropertyGroup {
-        std::string dir = "intel_snippets_LIR_dump";
-        LIRFormatFilter format = {1 << LIRFormatFilter::controlFlow};
-        std::string passes = "";
-
-        std::vector<PropertySetterPtr> getPropertySetters() override {
-            return {PropertySetterPtr(new StringPropertySetter("dir", dir, "path to dumped LIRs")),
-                    format.getPropertySetter(),
-                    PropertySetterPtr(
-                        new StringPropertySetter("passes", passes, "indicate dumped LIRs around these passes"))};
-        }
-    } dumpLIR;
-
-    // Snippets performance count mode
-    // Disabled - default, w/o perf count for snippets
-    // Chrono - perf count with chrono call. This is a universal method, and support multi-thread case to output perf
-    // count data for each thread. BackendSpecific - perf count provided by backend. This is for device specific
-    // requirment. For example, in sake of more light overhead and more accurate result, x86 CPU specific mode via read
-    // RDTSC register is implemented, which take ~50ns, while Chrono mode take 260ns for a pair of perf count start and
-    // perf count end execution, on ICX. This mode only support single thread.
-    enum PerfCountMode {
-        Disabled,
-        Chrono,
-        BackendSpecific,
-    };
-    PerfCountMode perf_count_mode = PerfCountMode::Disabled;
 };
 
 }  // namespace snippets

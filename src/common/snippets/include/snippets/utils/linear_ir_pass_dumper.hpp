@@ -5,7 +5,7 @@
 #pragma once
 #ifdef SNIPPETS_DEBUG_CAPS
 
-#include "snippets/debug_caps.hpp"
+#include "snippets/utils/debug_caps_config.hpp"
 #include "openvino/util/file_util.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/serialize_control_flow.hpp"
@@ -17,7 +17,7 @@ namespace snippets {
 class LIRPassDump {
 public:
     explicit LIRPassDump(lowered::LinearIR& linear_ir, std::string pass_name)
-        : linear_ir(linear_ir), pass_name(pass_name), debug_config(linear_ir.get_config().debug_config) {
+        : linear_ir(linear_ir), pass_name(std::move(pass_name)), debug_config(linear_ir.get_config().debug_config) {
         dump("_in");
     }
     ~LIRPassDump() {

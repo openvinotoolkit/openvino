@@ -3,9 +3,9 @@
 //
 
 #include "snippets/lowered/pass/pass.hpp"
-#include "snippets/LIR_pass_dumper.hpp"
+#include "snippets/utils/linear_ir_pass_dumper.hpp"
 
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov {
 namespace snippets {

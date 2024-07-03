@@ -21,7 +21,7 @@
 #include "snippets/pass/gn_decomposition.hpp"
 
 #include "snippets/runtime_configurator.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/lowered/linear_ir.hpp"

@@ -9,7 +9,9 @@
 #include "snippets/lowered/expression.hpp"
 #include "snippets/target_machine.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
-#include "snippets/debug_caps.hpp"
+#ifdef SNIPPETS_DEBUG_CAPS
+#include "snippets/utils/debug_caps_config.hpp"
+#endif
 
 namespace ov {
 namespace snippets {

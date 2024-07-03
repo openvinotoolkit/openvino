@@ -3,7 +3,7 @@
 //
 #ifdef SNIPPETS_DEBUG_CAPS
 
-#include "snippets/debug_caps.hpp"
+#include "snippets/utils/debug_caps_config.hpp"
 
 namespace ov {
 namespace snippets {
