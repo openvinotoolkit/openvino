@@ -67,21 +67,21 @@ OutputVector translate_cat_common(const NodeContext& context,
                                                   return input.get_element_type() != first_in_type ||
                                                          input.get_element_type() == ov::element::dynamic;
                                               }));
+    auto inputs_vec = OutputVector(list_elems.begin(), list_elems.end());
     if (is_mixed_type) {
-        auto node_of_type = list_elems[0];
-        for (size_t i = 1; i < list_elems.size(); ++i) {
-            node_of_type = std::make_shared<v14::ConvertPromoteTypes>(node_of_type, list_elems[i], true)->output(0);
-            context.mark_node(node_of_type.get_node_shared_ptr());
+        auto node_of_type = inputs_vec[0];
+        for (size_t i = 1; i < inputs_vec.size(); ++i) {
+            auto cpt = context.mark_node(std::make_shared<v14::ConvertPromoteTypes>(node_of_type, list_elems[i], true));
+            node_of_type = cpt->output(0);
+            inputs_vec[i] = cpt->output(1);
         }
 
+        inputs_vec[0] = node_of_type;
         const auto unified_type = node_of_type.get_element_type();
-        auto inputs_vec = OutputVector(list_elems.begin(), list_elems.end());
-        for (size_t i = 0; i < inputs_vec.size(); ++i) {
+        for (size_t i = 1; i < inputs_vec.size(); ++i) {
             if (inputs_vec[i].get_element_type() != unified_type ||
                 inputs_vec[i].get_element_type() == ov::element::dynamic) {
-                inputs_vec[i] =
-                    std::make_shared<v1::ConvertLike>(list_elems[i].get_node_shared_ptr(), node_of_type)->output(0);
-                context.mark_node(inputs_vec[i].get_node_shared_ptr());
+                inputs_vec[i] = context.mark_node(std::make_shared<v1::ConvertLike>(list_elems[i], node_of_type));
             }
         }
         auto concat = std::make_shared<v0::Concat>(inputs_vec, axis);
