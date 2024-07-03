@@ -140,10 +140,14 @@ public:
     ov::Output<ov::Node> add_output(const std::string& op_name, size_t output_idx);
     ov::Output<ov::Node> add_output(const ov::Output<ov::Node>& port);
 
-    void reshape(const ov::PartialShape& partial_shape);
-    void reshape(const std::map<size_t, ov::PartialShape>& partial_shapes);
-    void reshape(const std::map<std::string, ov::PartialShape>& partial_shapes);
-    void reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& partial_shapes);
+    void reshape(const ov::PartialShape& partial_shape,
+                 const std::unordered_map<std::string, ov::PartialShape>& variable_shapes = {});
+    void reshape(const std::map<size_t, ov::PartialShape>& partial_shapes,
+                 const std::unordered_map<std::string, ov::PartialShape>& variable_shapes = {});
+    void reshape(const std::map<std::string, ov::PartialShape>& partial_shapes,
+                 const std::unordered_map<std::string, ov::PartialShape>& variable_shapes = {});
+    void reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& partial_shapes,
+                 const std::unordered_map<std::string, ov::PartialShape>& variable_shapes = {});
 
     /// Return the element type of output i
     const ov::element::Type& get_output_element_type(size_t i) const;
@@ -414,7 +418,7 @@ public:
      */
     template <class T, class... Args>
     void set_rt_info(const T& argument, Args... args) {
-        ov::Any& arg = get_rt_arg<Args...>(m_rt_info, args...);
+        ov::Any& arg = get_rt_arg<Args...>(m_rt_info, std::move(args)...);
         arg = argument;
     }
 
