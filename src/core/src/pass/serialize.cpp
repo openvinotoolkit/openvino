@@ -769,6 +769,8 @@ std::string get_precision_name(const ov::element::Type& elem_type) {
         return "STRING";
     case ::ov::element::Type_t::f4e2m1:
         return "F4E2M1";
+    case ::ov::element::Type_t::f8e8m0:
+        return "F8E8M0";
     default:
         OPENVINO_THROW("Unsupported precision: ", elem_type);
     }
@@ -941,7 +943,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         for (const auto& res : model.get_results()) {
             result.emplace_back(res);
         }
-        sorted_ops = result;
+        sorted_ops = std::move(result);
     }
 
     for (const auto& n : sorted_ops) {

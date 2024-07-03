@@ -60,7 +60,7 @@ std::vector<TRShape> infer_shape(const Node* node, const std::vector<TShape>& in
 
     auto& output_shape = outputs_shapes[0];
     if (data_input_rank.is_static()) {
-        output_shape[1] = channel_dim;
+        output_shape[1] = std::move(channel_dim);
     }
 
     return outputs_shapes;
