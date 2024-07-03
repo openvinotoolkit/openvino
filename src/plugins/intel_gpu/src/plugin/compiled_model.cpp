@@ -53,7 +53,12 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
     , m_model_name(model->get_friendly_name())
     , m_inputs(ov::ICompiledModel::inputs())
     , m_outputs(ov::ICompiledModel::outputs())
-    , m_loaded_from_cache(false) {
+    , m_loaded_from_cache(false)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    , m_weights_path(model->get_rt_info()["weights_path"].as<std::wstring>()) {
+#else
+    , m_weights_path(model->get_rt_info()["weights_path"].as<std::string>()) {
+#endif
     auto graph_base = std::make_shared<Graph>(model, m_context, m_config, 0);
     for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
