@@ -95,15 +95,15 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
-    // std::cout << "*****USING OLD*****" << std::endl;
-    std::cout << "*****USING NEW*****" << std::endl;
+    std::cout << "*****USING OLD*****" << std::endl;
+    // std::cout << "*****USING NEW*****" << std::endl;
 
     manager.register_pass<MakeSDPA>(model);
 
-    // const std::string file_name = "old_jais_sdpa";
-    std::string file_name = "new_jais_sdpa";
-    manager.register_pass<ov::pass::Serialize>(file_name + ".xml", file_name + ".bin");
-    manager.register_pass<ov::pass::VisualizeTree>(file_name + ".svg");
+    // std::string file_name = "old_jais_sdpa";
+    // std::string file_name = "new_jais_sdpa";
+    // manager.register_pass<ov::pass::Serialize>(file_name + ".xml", file_name + ".bin");
+    // manager.register_pass<ov::pass::VisualizeTree>(file_name + ".svg");
 
     manager.register_pass<StateManagementPattern>(kv_parameters,
                                                   model_remaining_params,
@@ -112,9 +112,10 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   layer_index,
                                                   max_context_len->output(0));
 
-    file_name = "investigating";
-    manager.register_pass<ov::pass::Serialize>(file_name + ".xml", file_name + ".bin");
-    manager.register_pass<ov::pass::VisualizeTree>(file_name + ".svg");
+    // file_name = "old_jais_after_SMP";
+    // file_name = "new_jais_after_SMP";
+    // manager.register_pass<ov::pass::Serialize>(file_name + ".xml", file_name + ".bin");
+    // manager.register_pass<ov::pass::VisualizeTree>(file_name + ".svg");
 
     manager.register_pass<PrevSequenceLengthPattern>(prev_max_seq_len, batch_dim);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
