@@ -7,6 +7,7 @@
 #include "intel_gpu/runtime/tensor_accessor.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "crop_inst.h"
+#include "rope_inst.h"
 #include "primitive_inst.h"
 
 #include <string>
@@ -36,6 +37,10 @@ public:
 
         // TODO: This function is to limit condition to a specific case (crop + reshape) among cases for the base mode
         if (!input().is_type<crop>())
+            return false;
+
+        // TODO: If user is RoPE and dynamic padding exists, ouput padding propagation is not supported in the base mode
+        if (get_users().front()->is_type<rope>())
             return false;
 
         auto axis = input().as<crop>().get_primitive()->axis;
