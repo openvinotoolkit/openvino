@@ -139,7 +139,6 @@ def ivalue_to_constant(ivalue, shared_memory=True):
     if ov_dtype_value is not None:
         return op.Constant(OVType.i64, Shape([]), [ov_type_to_int_map[ov_dtype_value]]).outputs()
     
-    print(f"[WARNING][JAX FE] Cannot get constant from value {ivalue}")
     return None
 
 def param_to_constants(primitive: str, param_name: str, jaxpr, shared_memory=True):
