@@ -192,6 +192,6 @@ KERNEL(eltwise)(
 #if QUANTIZATION_TERM && !OUTPUT_IS_FP
     output[output_offset] = TO_OUTPUT_TYPE_SAT(ACTIVATION(out, ACTIVATION_PARAMS));
 #else
-    output[output_offset] = ACTIVATION_TYPED(out, ACTIVATION_PARAMS_TYPED);
+    output[output_offset] = TO_OUTPUT_TYPE(ACTIVATION_TYPED(out, ACTIVATION_PARAMS_TYPED));
 #endif
 }

@@ -39,6 +39,9 @@ std::vector<layout> select_inst::calc_output_layouts(const select_node& /*node*/
 
     auto desc = impl_param.typed_desc<select>();
     auto dt = desc->output_data_types[0].value_or(input1_layout.data_type);
+    if (impl_param.has_fused_primitives()) {
+        dt = impl_param.get_output_element_type();
+    }
 
     ov::op::v1::Select op;
     op.set_auto_broadcast(desc->broadcast_spec);

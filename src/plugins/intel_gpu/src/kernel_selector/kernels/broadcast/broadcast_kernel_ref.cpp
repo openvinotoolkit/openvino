@@ -25,6 +25,7 @@ ParamsKey BroadcastKernelRef::GetSupportedKey() const {
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
 
+    k.EnableDifferentTypes();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();

@@ -19,7 +19,8 @@ public:
         return {
             FusedOpType::QUANTIZE,
             FusedOpType::ACTIVATION,
-            FusedOpType::ELTWISE
+            FusedOpType::ELTWISE,
+            FusedOpType::REORDER
         };
     }
 

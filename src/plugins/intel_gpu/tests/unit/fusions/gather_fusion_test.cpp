@@ -32,7 +32,7 @@ struct gather_test_params {
 
 class GatherPrimitiveFusingTest : public ::BaseFusingTest<gather_test_params> {
 public:
-    void execute(gather_test_params& p, bool is_dynamic = false) {
+    void execute(gather_test_params& p, bool is_dynamic = false, bool count_reorder = false) {
         cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
         cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
         cfg_fused.set_property(ov::intel_gpu::optimize_data(true));
@@ -50,7 +50,7 @@ public:
             network_not_fused.set_input_data("eltwise_data", elt_input_prim);
         }
 
-        compare(network_not_fused, network_fused, p);
+        compare(network_not_fused, network_fused, p, count_reorder);
     }
 
     layout get_input_layout(gather_test_params& p, bool is_dynamic = false) {
@@ -118,6 +118,8 @@ public:
 #define CASE_GATHER_5D_FP16_3 { 2, 3, 3, 3, 1 }, { 1, 2, 1, 1 }, { 2, 3, 3, 1, 2 }, 3, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
 #define CASE_GATHER_5D_FP16_4 { 3, 2, 2, 2, 2 }, { 2, 3, 1, 1 }, { 3, 2, 2, 3, 2 }, 2, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
 #define CASE_GATHER_5D_FP16_5 { 1, 1, 2, 1, 1 }, { 3, 1, 1, 1 }, { 1, 1, 1, 1, 3 }, 4, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
+
+#define CASE_GATHER_INT8_1    { 2, 3, 4, 1 }, { 4 }, { 4, 3, 4, 1 }, 0, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 
 class gather_quantize : public GatherPrimitiveFusingTest {};
 TEST_P(gather_quantize, basic) {
@@ -223,14 +225,15 @@ TEST_P(gather_eltwise_activation_dynamic, basic) {
         gather("gather_prim", input_info("input"), input_info("gather_indices"), p.axis, p.dictionary_shape.size(), p.out_shape),
         activation("activation", input_info("gather_prim"), activation_func::abs),
         eltwise("eltwise", { input_info("activation"), input_info("eltwise_data") }, eltwise_mode::prod),
-        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
+        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32, std::vector<float>(), cldnn::reorder_mean_mode::subtract, cldnn::padding(), true)
     );
 
     tolerance = 1e-5f;
-    execute(p, true);
+    execute(p, true, true);
 }
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, gather_eltwise_activation_dynamic, ::testing::ValuesIn(std::vector<gather_test_params>{
     gather_test_params{ CASE_GATHER_FP32_6, 4, 6 },
-    gather_test_params{ CASE_GATHER_FP16_6, 4, 6 },
-    gather_test_params{ CASE_GATHER_FP16_7, 4, 6 },
+    gather_test_params{ CASE_GATHER_FP16_6, 4, 7 },
+    gather_test_params{ CASE_GATHER_FP16_7, 5, 8 },
+    gather_test_params{ CASE_GATHER_INT8_1, 4, 7 },
 }));
