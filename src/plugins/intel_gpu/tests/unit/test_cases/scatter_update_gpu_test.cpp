@@ -1683,6 +1683,88 @@ TEST(scatter_update_gpu_fp32, dynamic) {
     }
 }
 
+TEST(scatter_update_gpu_fp32, mixed_input_with_dynamic_static) {
+    //  Dictionary : 1x2x5x2
+    //  Indexes : 2x1x2x1
+    //  Updates : 1x2x2x1x2x2
+    //  Axis : 2
+    //  Output : 1x2x5x2
+    //  Input values in fp32
+
+    auto& engine = get_test_engine();
+
+    auto input1_layout = layout{ ov::PartialShape::dynamic(4), data_types::f32, format::bfyx };
+    auto input2_layout = layout{ ov::PartialShape{2, 1, 2, 1}, data_types::f32, format::bfyx };
+    auto input3_layout = layout{ ov::PartialShape::dynamic(6), data_types::f32, format::bfyx };
+
+    auto input1 = engine.allocate_memory({{1, 2, 5, 2},       data_types::f32, format::bfyx});   // Dictionary
+    auto input2 = engine.allocate_memory({{2, 1, 2, 1},       data_types::f32, format::bfyx});   // Indices
+    auto input3 = engine.allocate_memory({{1, 2, 2, 1, 2, 2}, data_types::f32, format::bfwzyx}); // Updates
+    auto axis = 2;
+
+    set_values(input1, {
+        0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+        10.f, 11.f, 12.f, 13.f, 14.f, 15.f, 16.f, 17.f, 18.f, 19.f
+    });
+
+    set_values(input2, {
+        2.f, 0.f,
+        3.f, 4.f
+    });
+
+    set_values(input3, {
+        20.f, 30.f,
+        40.f, 50.f,
+        60.f, 70.f,
+        80.f, 90.f,
+        100.f, 110.f,
+        120.f, 130.f,
+        140.f, 150.f,
+        160.f, 170.f
+    });
+
+    topology topology;
+    topology.add(input_layout("InputDictionary", input1_layout));
+    topology.add(input_layout("InputText", input2_layout));
+    topology.add(input_layout("InputUpdates", input3_layout));
+
+    topology.add(reorder("DictionaryReordered", input_info("InputDictionary"), format::bfyx, data_types::f32));
+    topology.add(reorder("TextReordered", input_info("InputText"), format::bfyx, data_types::f32));
+    topology.add(scatter_update("scatter_update",
+                                input_info("DictionaryReordered"),
+                                input_info("TextReordered"),
+                                input_info("InputUpdates"),
+                                axis)
+    );
+    topology.add(reorder("out", input_info("scatter_update"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("InputDictionary", input1);
+    network.set_input_data("InputText", input2);
+    network.set_input_data("InputUpdates", input3);
+
+    auto inst = network.get_primitive("scatter_update");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+    auto output = outputs.at("out").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    std::vector<float> expected_results = {
+        40.f, 50.f, 2.f, 3.f, 20.f, 30.f, 60.f, 70.f, 80.f, 90.f,
+        120.f, 130.f, 12.f, 13.f, 100.f, 110.f, 140.f, 150.f, 160.f, 170.f
+    };
+
+    for (size_t i = 0; i < expected_results.size(); ++i) {
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
+    }
+}
+
 TEST(scatter_update_cpu_impl_fp32, dynamic) {
     //  Dictionary : 1x2x5x2
     //  Indexes : 2x1x2x1

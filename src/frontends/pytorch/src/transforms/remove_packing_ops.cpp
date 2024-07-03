@@ -15,6 +15,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -38,7 +39,7 @@ bool is_rnn(std::shared_ptr<Node> node) {
 MovePackThroughLstm::MovePackThroughLstm() {
     auto pack_op = pattern::wrap_type<PackPadded>();
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto pack = m.get_match_root();
 
         auto targets = pack->output(0).get_target_inputs();
@@ -112,6 +113,8 @@ RemovePackingOps::RemovePackingOps() {
     ov::matcher_pass_callback callback = [](pattern::Matcher& m) {
         const auto& unpack = m.get_match_root();
         auto pack_node = unpack->input_value(0).get_node_shared_ptr();
+        if (!pack_node)
+            return false;
         if (as_type_ptr<v1::Transpose>(pack_node))
             pack_node = std::dynamic_pointer_cast<PackPadded>(pack_node->input_value(0).get_node_shared_ptr());
         if (!pack_node)

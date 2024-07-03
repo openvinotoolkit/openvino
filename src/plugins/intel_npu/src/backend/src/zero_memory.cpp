@@ -4,6 +4,7 @@
 
 #include "zero_memory.hpp"
 
+#include "intel_npu/utils/zero/zero_api.hpp"
 #include "zero_utils.hpp"
 
 namespace intel_npu {
@@ -69,10 +70,9 @@ bool HostMemAllocator::is_equal(const HostMemAllocator& other) const {
     return other._data != nullptr && _data != nullptr && other._data == _data;
 }
 
-void MemoryManagementUnit::appendArgument(const std::string& name, const ze_graph_argument_properties_t& argument) {
+void MemoryManagementUnit::appendArgument(const std::string& name, const std::size_t argSize) {
     _offsets.emplace(std::make_pair(name, _size));
 
-    const std::size_t argSize = zeroUtils::getSizeIOBytes(argument);
     _size += argSize + alignment -
              (argSize % alignment);  // is this really necessary? if 0==argSize%alignment -> add 1 * alignment
 }

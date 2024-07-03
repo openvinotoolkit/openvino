@@ -4,9 +4,11 @@
 
 #include "zero_compiler_in_driver.hpp"
 
+#include <fstream>
 #include <regex>
 #include <string_view>
 
+#include "graph_transformations.hpp"
 #include "intel_npu/al/config/common.hpp"
 #include "intel_npu/al/config/runtime.hpp"
 #include "intel_npu/al/itt.hpp"
@@ -54,49 +56,6 @@ void checkedMemcpy(void* destination, size_t destinationSize, void const* source
                     "Memcpy: the offset between the two buffers does not allow a safe execution of the operation");
 
     memcpy(destination, source, numberOfBytes);
-}
-
-ov::element::Type_t toOVElementType(const ze_graph_metadata_type zeElementType) {
-    switch (zeElementType) {
-    case ZE_GRAPH_METADATA_TYPE_UNDEFINED:
-        return ov::element::Type_t::undefined;
-    case ZE_GRAPH_METADATA_TYPE_DYNAMIC:
-        return ov::element::Type_t::dynamic;
-    case ZE_GRAPH_METADATA_TYPE_BOOLEAN:
-        return ov::element::Type_t::boolean;
-    case ZE_GRAPH_METADATA_TYPE_BF16:
-        return ov::element::Type_t::bf16;
-    case ZE_GRAPH_METADATA_TYPE_F16:
-        return ov::element::Type_t::f16;
-    case ZE_GRAPH_METADATA_TYPE_F32:
-        return ov::element::Type_t::f32;
-    case ZE_GRAPH_METADATA_TYPE_F64:
-        return ov::element::Type_t::f64;
-    case ZE_GRAPH_METADATA_TYPE_I4:
-        return ov::element::Type_t::i4;
-    case ZE_GRAPH_METADATA_TYPE_I8:
-        return ov::element::Type_t::i8;
-    case ZE_GRAPH_METADATA_TYPE_I16:
-        return ov::element::Type_t::i16;
-    case ZE_GRAPH_METADATA_TYPE_I32:
-        return ov::element::Type_t::i32;
-    case ZE_GRAPH_METADATA_TYPE_I64:
-        return ov::element::Type_t::i64;
-    case ZE_GRAPH_METADATA_TYPE_U1:
-        return ov::element::Type_t::u1;
-    case ZE_GRAPH_METADATA_TYPE_U4:
-        return ov::element::Type_t::u4;
-    case ZE_GRAPH_METADATA_TYPE_U8:
-        return ov::element::Type_t::u8;
-    case ZE_GRAPH_METADATA_TYPE_U16:
-        return ov::element::Type_t::u16;
-    case ZE_GRAPH_METADATA_TYPE_U32:
-        return ov::element::Type_t::u32;
-    case ZE_GRAPH_METADATA_TYPE_U64:
-        return ov::element::Type_t::u64;
-    default:
-        return ov::element::Type_t::undefined;
-    }
 }
 
 ov::element::Type_t toOVElementType(const ze_graph_argument_precision_t zeElementType) {
@@ -286,34 +245,24 @@ LevelZeroCompilerInDriver<TableExtension>::~LevelZeroCompilerInDriver() {
     _logger.debug("LevelZeroCompilerInDriver obj destroyed");
 }
 
-static size_t getFileSize(std::istream& strm) {
-    const size_t streamStart = strm.tellg();
-    strm.seekg(0, std::ios_base::end);
-    const size_t streamEnd = strm.tellg();
-    const size_t bytesAvailable = streamEnd - streamStart;
-    strm.seekg(streamStart, std::ios_base::beg);
-
-    return bytesAvailable;
-}
-
-using SerializedIR = std::vector<uint8_t>;
-
 /**
  * @brief Place xml + weights in sequential memory
  * @details Format of the memory:
  */
 template <typename TableExtension>
 SerializedIR LevelZeroCompilerInDriver<TableExtension>::serializeIR(
-    IR& irModel,
+    const std::shared_ptr<const ov::Model>& model,
     ze_graph_compiler_version_info_t compilerVersion) const {
+    IRSerializer irSerializer(model, getSupportedOpsetVersion());
+
     // Contract between adapter and compiler in driver
     const uint32_t maxNumberOfElements = 10;
     const uint64_t maxSizeOfXML = std::numeric_limits<uint64_t>::max() / 3;
     const uint64_t maxSizeOfWeights = maxSizeOfXML * 2;
 
     const uint32_t numberOfInputData = 2;
-    const uint64_t xmlSize = static_cast<uint64_t>(getFileSize(irModel.xml));
-    const uint64_t weightsSize = static_cast<uint64_t>(getFileSize(irModel.weights));
+    const uint64_t xmlSize = static_cast<uint64_t>(irSerializer.getXmlSize());
+    const uint64_t weightsSize = static_cast<uint64_t>(irSerializer.getWeightsSize());
 
     OPENVINO_ASSERT(numberOfInputData < maxNumberOfElements);
     if (xmlSize >= maxSizeOfXML) {
@@ -332,39 +281,38 @@ SerializedIR LevelZeroCompilerInDriver<TableExtension>::serializeIR(
     const uint64_t sizeOfSerializedIR = sizeof(compilerVersion) + sizeof(numberOfInputData) + sizeof(xmlSize) +
                                         xmlSize + sizeof(weightsSize) + weightsSize;
 
-    std::vector<uint8_t> serializedIR;
-    serializedIR.resize(sizeOfSerializedIR);
+    // use array to avoid vector's memory zeroing overhead
+    std::shared_ptr<uint8_t> buffer(new uint8_t[sizeOfSerializedIR], std::default_delete<uint8_t[]>());
+    uint8_t* serializedIR = buffer.get();
 
     uint64_t offset = 0;
-    checkedMemcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, &compilerVersion, sizeof(compilerVersion));
+    checkedMemcpy(serializedIR + offset, sizeOfSerializedIR - offset, &compilerVersion, sizeof(compilerVersion));
     offset += sizeof(compilerVersion);
 
-    checkedMemcpy(serializedIR.data() + offset,
-                  sizeOfSerializedIR - offset,
-                  &numberOfInputData,
-                  sizeof(numberOfInputData));
+    checkedMemcpy(serializedIR + offset, sizeOfSerializedIR - offset, &numberOfInputData, sizeof(numberOfInputData));
     offset += sizeof(numberOfInputData);
-    checkedMemcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, &xmlSize, sizeof(xmlSize));
+    checkedMemcpy(serializedIR + offset, sizeOfSerializedIR - offset, &xmlSize, sizeof(xmlSize));
     offset += sizeof(xmlSize);
-    irModel.xml.read(reinterpret_cast<char*>(serializedIR.data() + offset), xmlSize);
+    // xml data is filled in serializeModel()
+    uint64_t xmlOffset = offset;
     offset += xmlSize;
-    checkedMemcpy(serializedIR.data() + offset, sizeOfSerializedIR - offset, &weightsSize, sizeof(weightsSize));
+    checkedMemcpy(serializedIR + offset, sizeOfSerializedIR - offset, &weightsSize, sizeof(weightsSize));
     offset += sizeof(weightsSize);
-    irModel.weights.read(reinterpret_cast<char*>(serializedIR.data() + offset), weightsSize);
+    // weights data is filled in serializeModel()
+    uint64_t weightsOffset = offset;
     offset += weightsSize;
+
+    irSerializer.serializeModelToBuffer(serializedIR + xmlOffset, serializedIR + weightsOffset);
 
     OPENVINO_ASSERT(offset == sizeOfSerializedIR);
 
-    return serializedIR;
+    return std::make_pair(sizeOfSerializedIR, buffer);
 }
 
 template <typename TableExtension>
 std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std::shared_ptr<const ov::Model>& model) {
     const ov::ParameterVector& parameters = model->get_parameters();
     const ov::ResultVector& results = model->get_results();
-
-    const std::string& firstInputName = parameters.at(0)->get_friendly_name();
-    const std::string& firstOutputName = results.at(0)->get_input_node_ptr(0)->get_friendly_name();
 
     std::stringstream inputsPrecisionSS;
     std::stringstream inputsLayoutSS;
@@ -374,19 +322,23 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std
     inputsPrecisionSS << INPUTS_PRECISIONS_KEY << KEY_VALUE_SEPARATOR << VALUE_DELIMITER;
     inputsLayoutSS << INPUTS_LAYOUTS_KEY << KEY_VALUE_SEPARATOR << VALUE_DELIMITER;
 
-    for (const std::shared_ptr<ov::op::v0::Parameter>& parameter : parameters) {
-        const std::string& name = parameter->get_friendly_name();
-        const ov::element::Type& precision = parameter->get_element_type();
-        const size_t rank = parameter->get_shape().size();
+    if (!parameters.empty()) {
+        const std::string& firstInputName = parameters.at(0)->get_friendly_name();
 
-        if (name != firstInputName) {
-            inputsPrecisionSS << VALUES_SEPARATOR;
-            inputsLayoutSS << VALUES_SEPARATOR;
+        for (const std::shared_ptr<ov::op::v0::Parameter>& parameter : parameters) {
+            const std::string& name = parameter->get_friendly_name();
+            const ov::element::Type& precision = parameter->get_element_type();
+            const size_t rank = parameter->get_shape().size();
+
+            if (name != firstInputName) {
+                inputsPrecisionSS << VALUES_SEPARATOR;
+                inputsLayoutSS << VALUES_SEPARATOR;
+            }
+
+            inputsPrecisionSS << name << NAME_VALUE_SEPARATOR << ovPrecisionToLegacyPrecisionString(precision);
+            // Ticket: E-88902
+            inputsLayoutSS << name << NAME_VALUE_SEPARATOR << rankToLegacyLayoutString(rank);
         }
-
-        inputsPrecisionSS << name << NAME_VALUE_SEPARATOR << ovPrecisionToLegacyPrecisionString(precision);
-        // Ticket: E-88902
-        inputsLayoutSS << name << NAME_VALUE_SEPARATOR << rankToLegacyLayoutString(rank);
     }
 
     inputsPrecisionSS << VALUE_DELIMITER;
@@ -394,6 +346,8 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeIOInfo(const std
 
     outputsPrecisionSS << OUTPUTS_PRECISIONS_KEY << KEY_VALUE_SEPARATOR << VALUE_DELIMITER;
     outputsLayoutSS << OUTPUTS_LAYOUTS_KEY << KEY_VALUE_SEPARATOR << VALUE_DELIMITER;
+
+    const std::string& firstOutputName = results.at(0)->get_input_node_ptr(0)->get_friendly_name();
 
     for (const std::shared_ptr<ov::op::v0::Result>& result : results) {
         const std::string& name = result->get_input_node_ptr(0)->get_friendly_name();
@@ -422,20 +376,10 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
     const Config& config,
     ze_graph_compiler_version_info_t& compilerVersion) const {
     std::string content = config.toString();
-    // From 5.0.0, driver compiler start to use NPU_ prefix, the old version uses VPU_ prefix
-    if (compilerVersion.major < 5) {
-        std::regex reg("NPU_");
-        content = std::regex_replace(content, reg, "VPU_");
-        // From 4.0.0, driver compiler start to use VPU_ prefix, the old version uses VPUX_ prefix
-        if (compilerVersion.major < 4) {
-            // Replace VPU_ with VPUX_ for old driver compiler
-            std::regex reg("VPU_");
-            content = std::regex_replace(content, reg, "VPUX_");
-        }
-    }
 
     // As a consequence of complying to the conventions established in the 2.0 OV API, the set of values corresponding
     // to the "model priority" key has been modified
+    // cpu_pinning property is not supported in compilers < v5.2 - need to remove it
     if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 2)) {
         const auto& getTargetRegex = [](const ov::hint::Priority& priorityValue) -> std::regex {
             std::ostringstream result;
@@ -460,10 +404,18 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
         content = std::regex_replace(content,
                                      getTargetRegex(ov::hint::Priority::HIGH),
                                      getStringReplacement(ov::intel_npu::LegacyPriority::HIGH));
+
+        // Removing cpu_pinning from the command string
+        std::ostringstream pinningstr;
+        pinningstr << ov::hint::enable_cpu_pinning.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
+                   << VALUE_DELIMITER;
+        _logger.warning(
+            "ENABLE_CPU_PINNING property is not suppored by this compiler version. Removing from parameters");
+        content = std::regex_replace(content, std::regex(pinningstr.str()), "");
     }
 
     /// Stepping and max_tiles are not supported in versions < 5.3 - need to remove it
-    if ((compilerVersion.major < 5) || (compilerVersion.major <= 5 && compilerVersion.minor < 3)) {
+    if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 3)) {
         std::ostringstream stepstr;
         stepstr << ov::intel_npu::stepping.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\d+"
                 << VALUE_DELIMITER;
@@ -475,8 +427,9 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
         _logger.warning("NPU_MAX_TILES property is not suppored by this compiler version. Removing from parameters");
         content = std::regex_replace(content, std::regex(maxtilestr.str()), "");
     }
+
     /// Removing INFERENCE_PRECISION_HINT for older compilers
-    if ((compilerVersion.major < 5) || (compilerVersion.major <= 5 && compilerVersion.minor < 4)) {
+    if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 4)) {
         std::ostringstream precstr;
         precstr << ov::hint::inference_precision.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
                 << VALUE_DELIMITER;
@@ -484,11 +437,45 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
             "INFERENCE_PRECISION_HINT property is not suppored by this compiler version. Removing from parameters");
         content = std::regex_replace(content, std::regex(precstr.str()), "");
     }
+
     /// Replacing NPU_TILES (for all versions) with NPU_DPU_GROUPS for backwards compatibility
     if (std::regex_search(content, std::regex(ov::intel_npu::tiles.name()))) {
         _logger.warning("NPU_TILES property is not suppored by this compiler version. Swaping it to "
                         "NPU_DPU_GROUPS (obsolete)");
         content = std::regex_replace(content, std::regex(ov::intel_npu::tiles.name()), "NPU_DPU_GROUPS");
+    }
+
+    // Batch mode property is not supported in versions < 5.5 - need to remove it
+    if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 5)) {
+        std::ostringstream batchstr;
+        batchstr << ov::intel_npu::batch_mode.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
+                 << VALUE_DELIMITER;
+
+        _logger.warning("NPU_BATCH_MODE property is not suppored by this compiler version. Removing from parameters");
+        content = std::regex_replace(content, std::regex(batchstr.str()), "");
+    }
+
+    // EXECUTION_MODE_HINT is not supported in versions < 5.6 - need to remove it
+    if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 6)) {
+        std::ostringstream batchstr;
+        batchstr << ov::hint::execution_mode.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+"
+                 << VALUE_DELIMITER;
+        _logger.warning(
+            "EXECUTION_MODE_HINT property is not suppored by this compiler version. Removing from parameters");
+        content = std::regex_replace(content, std::regex(batchstr.str()), "");
+    }
+
+    // FINAL step to convert prefixes of remaining params, to ensure backwards compatibility
+    // From 5.0.0, driver compiler start to use NPU_ prefix, the old version uses VPU_ prefix
+    if (compilerVersion.major < 5) {
+        std::regex reg("NPU_");
+        content = std::regex_replace(content, reg, "VPU_");
+        // From 4.0.0, driver compiler start to use VPU_ prefix, the old version uses VPUX_ prefix
+        if (compilerVersion.major < 4) {
+            // Replace VPU_ with VPUX_ for old driver compiler
+            std::regex reg("VPU_");
+            content = std::regex_replace(content, reg, "VPUX_");
+        }
     }
 
     return "--config " + content;
@@ -516,8 +503,9 @@ static std::unordered_set<std::string> parseQueryResult(std::vector<char>& data)
 // For ext version < 1.3, query is unsupported, return empty result and add debug log here
 template <typename TableExtension>
 template <typename T, std::enable_if_t<NotSupportQuery(T), bool>>
-std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::queryImpl(IR& /*irModel*/,
-                                                                                     const Config&) const {
+std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::queryImpl(
+    const std::shared_ptr<const ov::Model>& /*model*/,
+    const Config&) const {
     _logger.debug("queryImpl - Driver version is less than 1.3, queryNetwork is unsupported.");
     return std::unordered_set<std::string>();
 }
@@ -525,23 +513,39 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::query
 // For ext version == 1.3 && == 1.4, query is supported, calling querynetwork api in _graphDdiTableExt
 template <typename TableExtension>
 template <typename T, std::enable_if_t<SupportAPIGraphQueryNetworkV1(T), bool>>
-std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::queryImpl(IR& irModel,
-                                                                                     const Config& config) const {
+std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::queryImpl(
+    const std::shared_ptr<const ov::Model>& model,
+    const Config& config) const {
     _logger.debug("queryImpl - Calling queryNetwork of 1.3 version.");
 
+    ze_device_graph_properties_t deviceGraphProperties{};
+    auto result = _graphDdiTableExt->pfnDeviceGetGraphProperties(_deviceHandle, &deviceGraphProperties);
+    if (ZE_RESULT_SUCCESS != result) {
+        OPENVINO_THROW("L0 pfnDeviceGetGraphProperties",
+                       " result: ",
+                       ze_result_to_string(result),
+                       ", code 0x",
+                       std::hex,
+                       uint64_t(result));
+    }
+    ze_graph_compiler_version_info_t& compilerVersion = deviceGraphProperties.compilerVersion;
+
+    auto serializedIR = serializeIR(model, compilerVersion);
+
     std::string buildFlags;
-    auto serializedIR = getSerializedIR(buildFlags, irModel, config);
+    buildFlags += serializeConfig(config, compilerVersion);
+    _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
 
     ze_graph_desc_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                             nullptr,
                             ZE_GRAPH_FORMAT_NGRAPH_LITE,
-                            serializedIR.size(),
-                            serializedIR.data(),
+                            serializedIR.first,
+                            serializedIR.second.get(),
                             buildFlags.c_str()};
     ze_graph_query_network_handle_t hGraphQueryNetwork = nullptr;
 
     // Create querynetwork handle
-    auto result = _graphDdiTableExt->pfnQueryNetworkCreate(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
+    result = _graphDdiTableExt->pfnQueryNetworkCreate(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
 
     return getQueryResultFromSupportedLayers(result, hGraphQueryNetwork);
 }
@@ -549,25 +553,41 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::query
 // For ext version >= 1.5
 template <typename TableExtension>
 template <typename T, std::enable_if_t<SupportAPIGraphQueryNetworkV2(T), bool>>
-std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::queryImpl(IR& irModel,
-                                                                                     const Config& config) const {
+std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::queryImpl(
+    const std::shared_ptr<const ov::Model>& model,
+    const Config& config) const {
     _logger.debug("queryImpl - Calling queryNetwork of 1.5 version.");
 
+    ze_device_graph_properties_t deviceGraphProperties{};
+    auto result = _graphDdiTableExt->pfnDeviceGetGraphProperties(_deviceHandle, &deviceGraphProperties);
+    if (ZE_RESULT_SUCCESS != result) {
+        OPENVINO_THROW("L0 pfnDeviceGetGraphProperties",
+                       " result: ",
+                       ze_result_to_string(result),
+                       ", code 0x",
+                       std::hex,
+                       uint64_t(result));
+    }
+    ze_graph_compiler_version_info_t& compilerVersion = deviceGraphProperties.compilerVersion;
+
+    auto serializedIR = serializeIR(model, compilerVersion);
+
     std::string buildFlags;
-    auto serializedIR = getSerializedIR(buildFlags, irModel, config);
+    buildFlags += serializeConfig(config, compilerVersion);
+    _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
 
     ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                               nullptr,
                               ZE_GRAPH_FORMAT_NGRAPH_LITE,
-                              serializedIR.size(),
-                              serializedIR.data(),
+                              serializedIR.first,
+                              serializedIR.second.get(),
                               buildFlags.c_str(),
                               ZE_GRAPH_FLAG_NONE};
 
     ze_graph_query_network_handle_t hGraphQueryNetwork = nullptr;
 
     // Create querynetwork handle
-    auto result = _graphDdiTableExt->pfnQueryNetworkCreate2(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
+    result = _graphDdiTableExt->pfnQueryNetworkCreate2(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
 
     return getQueryResultFromSupportedLayers(result, hGraphQueryNetwork);
 }
@@ -626,51 +646,42 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::getQu
 }
 
 template <typename TableExtension>
-std::vector<uint8_t> LevelZeroCompilerInDriver<TableExtension>::getSerializedIR(std::string& buildFlags,
-                                                                                IR& irModel,
-                                                                                const Config& config) const {
-    ze_device_graph_properties_t deviceGraphProperties{};
-    auto result = _graphDdiTableExt->pfnDeviceGetGraphProperties(_deviceHandle, &deviceGraphProperties);
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 pfnDeviceGetGraphProperties",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result));
-    }
-    ze_graph_compiler_version_info_t& compilerVersion = deviceGraphProperties.compilerVersion;
-    buildFlags += serializeConfig(config, compilerVersion);
-    _logger.debug("getSerializedIR Build flags : %s", buildFlags.c_str());
-
-    auto serializedIR = serializeIR(irModel, compilerVersion);
-
-    return serializedIR;
-}
-
-template <typename TableExtension>
-std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::getQueryResult(IR& irModel,
-                                                                                          const Config& config) const {
+ov::SupportedOpsMap LevelZeroCompilerInDriver<TableExtension>::query(const std::shared_ptr<const ov::Model>& model,
+                                                                     const Config& config) const {
     _logger.setLevel(config.get<LOG_LEVEL>());
-    _logger.debug("getQueryResult");
-    auto queryResult = queryImpl(irModel, config);
-    _logger.debug("getQueryResult end");
-    return queryResult;
+    _logger.debug("query");
+
+    ov::SupportedOpsMap result;
+    const std::string deviceName = "NPU";
+
+    try {
+        const auto supportedLayers = queryImpl(model, config);
+        ;
+        for (auto&& layerName : supportedLayers) {
+            result.emplace(layerName, deviceName);
+        }
+        _logger.info("For given model, there are %d supported layers", supportedLayers.size());
+    } catch (std::exception& e) {
+        OPENVINO_THROW("Fail in calling querynetwork : ", e.what());
+    }
+
+    _logger.debug("query end");
+    return result;
 }
 
 // For ext version <1.5, calling pfnCreate api in _graphDdiTableExt
 template <typename TableExtension>
 template <typename T, std::enable_if_t<NotSupportGraph2(T), bool>>
 ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_graph_format_t& format,
-                                                                   const std::vector<uint8_t>& serializedIR,
+                                                                   const SerializedIR& serializedIR,
                                                                    const std::string& buildFlags,
                                                                    const uint32_t& /*flags*/,
                                                                    ze_graph_handle_t* graph) const {
     ze_graph_desc_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                             nullptr,
                             format,
-                            serializedIR.size(),
-                            serializedIR.data(),
+                            serializedIR.first,
+                            serializedIR.second.get(),
                             buildFlags.c_str()};
 
     // Create querynetwork handle
@@ -681,15 +692,15 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_grap
 template <typename TableExtension>
 template <typename T, std::enable_if_t<!NotSupportGraph2(T), bool>>
 ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_graph_format_t& format,
-                                                                   const std::vector<uint8_t>& serializedIR,
+                                                                   const SerializedIR& serializedIR,
                                                                    const std::string& buildFlags,
                                                                    const uint32_t& flags,
                                                                    ze_graph_handle_t* graph) const {
     ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                               nullptr,
                               format,
-                              serializedIR.size(),
-                              serializedIR.data(),
+                              serializedIR.first,
+                              serializedIR.second.get(),
                               buildFlags.c_str(),
                               flags};
 
@@ -698,11 +709,10 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_grap
 }
 
 template <typename TableExtension>
-NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compileIR(const std::shared_ptr<const ov::Model>& model,
-                                                                        IR& irModel,
-                                                                        const Config& config) const {
+NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std::shared_ptr<const ov::Model>& model,
+                                                                      const Config& config) const {
     _logger.setLevel(config.get<LOG_LEVEL>());
-    _logger.debug("compileIR");
+    _logger.debug("compile");
 
     ze_device_graph_properties_t deviceGraphProperties{};
     auto result = _graphDdiTableExt->pfnDeviceGetGraphProperties(_deviceHandle, &deviceGraphProperties);
@@ -716,7 +726,7 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compileIR(const st
     }
     ze_graph_compiler_version_info_t& compilerVersion = deviceGraphProperties.compilerVersion;
 
-    auto serializedIR = serializeIR(irModel, compilerVersion);
+    auto serializedIR = serializeIR(model, compilerVersion);
 
     ze_graph_format_t format = ZE_GRAPH_FORMAT_NGRAPH_LITE;
 
@@ -726,7 +736,7 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compileIR(const st
     buildFlags += " ";
     buildFlags += serializeConfig(config, compilerVersion);
 
-    _logger.debug("compileIR Build flags : %s", buildFlags.c_str());
+    _logger.debug("compile Build flags : %s", buildFlags.c_str());
     // TODO #-30202 Store graph_handle inside NetworkDesc instead of blob. But this will require changes in zeroAPI
 
     // Graph handle should be used only in scope of compile / parse functions.
@@ -739,7 +749,7 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compileIR(const st
         flags = flags | ZE_GRAPH_FLAG_DISABLE_CACHING;
     }
 
-    _logger.info("compileIR Using extension version: %s", typeid(TableExtension).name());
+    _logger.info("compile Using extension version: %s", typeid(TableExtension).name());
     result = createGraph(format, serializedIR, buildFlags, flags, &graphHandle);
 
     OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
@@ -782,6 +792,8 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compileIR(const st
                     getLatestBuildError());
 
     auto networkMeta = getNetworkMeta(graphHandle);
+    networkMeta.name = model->get_friendly_name();
+
     result = _graphDdiTableExt->pfnDestroy(graphHandle);
 
     if (ZE_RESULT_SUCCESS != result) {
@@ -793,26 +805,26 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compileIR(const st
                        uint64_t(result));
     }
 
-    _logger.debug("compileIR end");
+    _logger.debug("compile end");
     return NetworkDescription(std::move(blob), std::move(networkMeta));
 }
 
 template <typename TableExtension>
-NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::parseBlob(const std::vector<uint8_t>& blob,
-                                                                     const Config& config) const {
-    OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "LevelZeroCompilerInDriver::parseBlob", "desc");
+NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::parse(const std::vector<uint8_t>& network,
+                                                                 const Config& config) const {
+    OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "LevelZeroCompilerInDriver::parse", "desc");
     _logger.setLevel(config.get<LOG_LEVEL>());
     _logger.debug("getNetworkMeta");
     ze_graph_handle_t graphHandle;
 
-    if (!blob.empty()) {
+    if (!network.empty()) {
         _logger.debug("Import network case");
         ze_graph_format_t format = ZE_GRAPH_FORMAT_NATIVE;
         ze_graph_desc_t desc{ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                              nullptr,
                              format,
-                             blob.size(),
-                             blob.data(),
+                             network.size(),
+                             network.data(),
                              nullptr};
 
         auto result = _graphDdiTableExt->pfnCreate(_context, _deviceHandle, &desc, &graphHandle);
@@ -849,8 +861,8 @@ NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::parseBlob(const std::
 }
 
 template <typename TableExtension>
-uint32_t LevelZeroCompilerInDriver<TableExtension>::getSupportedOpset() const {
-    _logger.debug("getSupportedOpset");
+uint32_t LevelZeroCompilerInDriver<TableExtension>::getSupportedOpsetVersion() const {
+    _logger.debug("getSupportedOpsetVersion");
     ze_device_graph_properties_t graphProperties;
 
     auto result = _graphDdiTableExt->pfnDeviceGetGraphProperties(_deviceHandle, &graphProperties);
@@ -864,7 +876,7 @@ uint32_t LevelZeroCompilerInDriver<TableExtension>::getSupportedOpset() const {
                        uint64_t(result));
     }
     const auto maxOpsetVersion = graphProperties.maxOVOpsetVersionSupported;
-    _logger.info("getSupportedOpset Max supported version of opset in CiD: %d", maxOpsetVersion);
+    _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
     return maxOpsetVersion;
 }
 
@@ -907,50 +919,6 @@ void LevelZeroCompilerInDriver<TableExtension>::getLayoutOrStateDescriptor(IONod
     }
 }
 
-template <typename TableExtension>
-template <typename T, std::enable_if_t<std::is_same<T, ze_graph_dditable_ext_t>::value, bool>>
-void LevelZeroCompilerInDriver<TableExtension>::getNodeOrStateDescriptorLegacy(
-    IONodeDescriptorMap& parameters,
-    IONodeDescriptorMap& results,
-    IONodeDescriptorMap& states,
-    std::vector<std::string>& inputNames,
-    std::vector<std::string>& outputNames,
-    std::vector<std::string>& stateNames,
-    const ze_graph_argument_properties_t& arg) const {
-    std::string legacyName = arg.name;
-    const ov::element::Type_t precision = toOVElementType(arg.devicePrecision);
-
-    // The layout shall differ from the default one only when using significantly older drivers. In order to accommodate
-    // this case, an extra attribute needs to be stored which holds the transposed shape.
-    const std::vector<size_t> originalDimensions(arg.dims, arg.dims + zeLayoutToRank(arg.deviceLayout));
-    const std::vector<size_t> reshapedDimensions = reshapeByLayout(originalDimensions, arg.deviceLayout);
-    const ov::Shape originalShape = ov::Shape(originalDimensions);
-    const ov::Shape transposedShape = ov::Shape(reshapedDimensions);
-
-    if (!isStateInputName(legacyName) && !isStateOutputName(legacyName)) {
-        if (arg.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) {
-            _logger.info("getNodeOrStateDescriptorLegacy Found input \"%s\"", legacyName.c_str());
-
-            inputNames.push_back(legacyName);
-            parameters[legacyName] = {legacyName, legacyName, {legacyName}, precision, originalShape, transposedShape};
-        }
-        if (arg.type == ZE_GRAPH_ARGUMENT_TYPE_OUTPUT) {
-            _logger.info("getNodeOrStateDescriptorLegacy Found output \"%s\"", legacyName.c_str());
-
-            outputNames.push_back(legacyName);
-            results[legacyName] = {legacyName, legacyName, {legacyName}, precision, originalShape, transposedShape};
-        }
-    } else if (isStateInputName(legacyName)) {
-        // The inputs and outputs of the state nodes share the same metadata, thus we'll consider only the the inputs
-        // here
-        legacyName = legacyName.substr(READVALUE_PREFIX.length());
-        _logger.info("getNodeOrStateDescriptorLegacy Found state variable \"%s\"", legacyName.c_str());
-
-        stateNames.push_back(legacyName);
-        states[legacyName] = {legacyName, "", {}, precision, originalShape, originalShape};
-    }
-}
-
 /**
  * @brief Extracts the parameter/result (i.e. input/output) descriptors from Level Zero specific structures into
  * OpenVINO specific ones.
@@ -958,26 +926,6 @@ void LevelZeroCompilerInDriver<TableExtension>::getNodeOrStateDescriptorLegacy(
  * @param names The I/O identifiers shall be stored here in the order found within the compiled model.
  * @param metadata The Level Zero structure fomr which the descriptors will be extracted.
  */
-static void getNodeDescriptor(IONodeDescriptorMap& nodeDescriptors,
-                              std::vector<std::string>& names,
-                              ze_graph_argument_metadata_t& metadata) {
-    const ov::element::Type_t precision = toOVElementType(metadata.data_type);
-    ov::Shape shape;
-    std::unordered_set<std::string> outputTensorNames;
-
-    for (uint32_t id = 0; id < metadata.tensor_names_count; id++) {
-        outputTensorNames.insert(metadata.tensor_names[id]);
-    }
-    for (uint32_t id = 0; id < metadata.shape_size; id++) {
-        shape.push_back(metadata.shape[id]);
-    }
-    const std::string& legacyName = metadata.input_name;
-
-    names.push_back(legacyName);
-    nodeDescriptors[legacyName] =
-        {legacyName, metadata.friendly_name, std::move(outputTensorNames), precision, shape, shape};
-}
-
 static void getNodeDescriptor(IONodeDescriptorMap& nodeDescriptors,
                               std::vector<std::string>& names,
                               ze_graph_argument_properties_3_t& arg) {
@@ -988,87 +936,47 @@ static void getNodeDescriptor(IONodeDescriptorMap& nodeDescriptors,
     for (uint32_t id = 0; id < arg.associated_tensor_names_count; id++) {
         outputTensorNames.insert(arg.associated_tensor_names[id]);
     }
+
     for (uint32_t id = 0; id < arg.dims_count; id++) {
         shape.push_back(arg.dims[id]);
     }
+
     const std::string& legacyName = arg.name;
 
-    names.push_back(legacyName);
-    nodeDescriptors[legacyName] =
+    names.push_back(arg.debug_friendly_name);
+    nodeDescriptors[arg.debug_friendly_name] =
         {legacyName, arg.debug_friendly_name, std::move(outputTensorNames), precision, shape, shape};
 }
 
-template <>
-void LevelZeroCompilerInDriver<ze_graph_dditable_ext_t>::getMetadata(ze_graph_dditable_ext_t* graphDdiTableExt,
-                                                                     ze_graph_handle_t graphHandle,
-                                                                     uint32_t index,
-                                                                     std::vector<std::string>& inputNames,
-                                                                     std::vector<std::string>& outputNames,
-                                                                     std::vector<std::string>& stateNames,
-                                                                     IONodeDescriptorMap& parameters,
-                                                                     IONodeDescriptorMap& results,
-                                                                     IONodeDescriptorMap& states) const {
-    ze_graph_argument_properties_t arg;
-    auto result = graphDdiTableExt->pfnGetArgumentProperties(graphHandle, index, &arg);
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 pfnGetArgumentProperties",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result));
+static void getNodeDescriptor(IONodeDescriptorMap& nodeDescriptors,
+                              std::vector<std::string>& names,
+                              ze_graph_argument_properties_3_t& arg,
+                              ze_graph_argument_metadata_t& metadata) {
+    ov::element::Type_t precision = toOVElementType(arg.devicePrecision);
+    ov::Shape transposedShape, originalShape;
+    std::unordered_set<std::string> outputTensorNames;
+
+    for (uint32_t id = 0; id < arg.associated_tensor_names_count; id++) {
+        outputTensorNames.insert(arg.associated_tensor_names[id]);
     }
 
-    getNodeOrStateDescriptorLegacy(parameters, results, states, inputNames, outputNames, stateNames, arg);
-}
-
-template <>
-void LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_1_t>::getMetadata(ze_graph_dditable_ext_1_1_t* graphDdiTableExt,
-                                                                         ze_graph_handle_t graphHandle,
-                                                                         uint32_t index,
-                                                                         std::vector<std::string>& inputNames,
-                                                                         std::vector<std::string>& outputNames,
-                                                                         std::vector<std::string>& stateNames,
-                                                                         IONodeDescriptorMap& parameters,
-                                                                         IONodeDescriptorMap& results,
-                                                                         IONodeDescriptorMap& states) const {
-    ze_graph_argument_properties_2_t arg;
-    auto result = graphDdiTableExt->pfnGetArgumentProperties2(graphHandle, index, &arg);
-    if (ZE_RESULT_SUCCESS != result) {
-        OPENVINO_THROW("L0 pfnGetArgumentProperties2",
-                       " result: ",
-                       ze_result_to_string(result),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(result));
+    for (uint32_t id = 0; id < arg.dims_count; id++) {
+        transposedShape.push_back(arg.dims[id]);
     }
 
-    // The I/O data corresponding to the states of the model is not found within the OpenVINO 2.0 attributes contained
-    // by the compiled model, thus we should not query them
-    if (!isStateInputName(arg.name) && !isStateOutputName(arg.name)) {
-        ze_graph_argument_metadata_t metadata;
-        result = graphDdiTableExt->pfnGraphGetArgumentMetadata(graphHandle, index, &metadata);
-        if (ZE_RESULT_SUCCESS != result) {
-            OPENVINO_THROW("L0 pfnGraphGetArgumentMetadata",
-                           " result: ",
-                           ze_result_to_string(result),
-                           ", code 0x",
-                           std::hex,
-                           uint64_t(result));
-        }
-
-        if (ZE_GRAPH_ARGUMENT_TYPE_INPUT == arg.type) {
-            getNodeDescriptor(parameters, inputNames, metadata);
-        }
-        if (ZE_GRAPH_ARGUMENT_TYPE_OUTPUT == arg.type) {
-            getNodeDescriptor(results, outputNames, metadata);
-        }
+    for (uint32_t id = 0; id < metadata.shape_size; id++) {
+        originalShape.push_back(metadata.shape[id]);
     }
 
-    getLayoutOrStateDescriptor(parameters, results, states, stateNames, arg);
+    const std::string& legacyName = arg.name;
+
+    names.push_back(arg.debug_friendly_name);
+    nodeDescriptors[arg.debug_friendly_name] =
+        {legacyName, arg.debug_friendly_name, std::move(outputTensorNames), precision, originalShape, transposedShape};
 }
 
 template <typename TableExtension>
+template <typename T, std::enable_if_t<NotSupportOriginalShape(T), bool>>
 void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* graphDdiTableExt,
                                                             ze_graph_handle_t graphHandle,
                                                             uint32_t index,
@@ -1096,6 +1004,52 @@ void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* grap
 
         if (ZE_GRAPH_ARGUMENT_TYPE_OUTPUT == arg.type) {
             getNodeDescriptor(results, outputNames, arg);
+        }
+    }
+
+    getLayoutOrStateDescriptor(parameters, results, states, stateNames, arg);
+}
+
+template <typename TableExtension>
+template <typename T, std::enable_if_t<!NotSupportOriginalShape(T), bool>>
+void LevelZeroCompilerInDriver<TableExtension>::getMetadata(TableExtension* graphDdiTableExt,
+                                                            ze_graph_handle_t graphHandle,
+                                                            uint32_t index,
+                                                            std::vector<std::string>& inputNames,
+                                                            std::vector<std::string>& outputNames,
+                                                            std::vector<std::string>& stateNames,
+                                                            IONodeDescriptorMap& parameters,
+                                                            IONodeDescriptorMap& results,
+                                                            IONodeDescriptorMap& states) const {
+    ze_graph_argument_properties_3_t arg;
+    auto result = graphDdiTableExt->pfnGetArgumentProperties3(graphHandle, index, &arg);
+    if (ZE_RESULT_SUCCESS != result) {
+        OPENVINO_THROW("L0 pfnGetArgumentProperties3",
+                       " result: ",
+                       ze_result_to_string(result),
+                       ", code 0x",
+                       std::hex,
+                       uint64_t(result));
+    }
+
+    if (!isStateInputName(arg.name) && !isStateOutputName(arg.name)) {
+        ze_graph_argument_metadata_t metadata;
+        result = graphDdiTableExt->pfnGraphGetArgumentMetadata(graphHandle, index, &metadata);
+        if (ZE_RESULT_SUCCESS != result) {
+            OPENVINO_THROW("L0 pfnGraphGetArgumentMetadata",
+                           " result: ",
+                           ze_result_to_string(result),
+                           ", code 0x",
+                           std::hex,
+                           uint64_t(result));
+        }
+
+        if (ZE_GRAPH_ARGUMENT_TYPE_INPUT == arg.type) {
+            getNodeDescriptor(parameters, inputNames, arg, metadata);
+        }
+
+        if (ZE_GRAPH_ARGUMENT_TYPE_OUTPUT == arg.type) {
+            getNodeDescriptor(results, outputNames, arg, metadata);
         }
     }
 
@@ -1170,12 +1124,11 @@ std::string LevelZeroCompilerInDriver<TableExtension>::getLatestBuildError() con
     return logContent;
 }
 
-template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_t>;
-template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_1_t>;
 template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_2_t>;
 template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_3_t>;
 template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_4_t>;
 template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_5_t>;
+template class LevelZeroCompilerInDriver<ze_graph_dditable_ext_1_6_t>;
 
 }  // namespace driverCompilerAdapter
 }  // namespace intel_npu

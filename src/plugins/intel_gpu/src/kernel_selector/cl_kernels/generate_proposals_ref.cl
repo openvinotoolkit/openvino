@@ -257,7 +257,7 @@ KERNEL(generate_proposals_ref_stage_2)
         }
     }
 
-    num_outputs[INPUT5_GET_INDEX(batch, 0, 0, 0)] = count;
+    num_outputs[OUTPUT2_GET_INDEX(batch, 0, 0, 0)] = count;
 
     for (uint i = 0; i < count; ++i) {
         out_indices[batch * POST_NMS_COUNT + i] = index_out[batch * POST_NMS_COUNT + i];
@@ -273,18 +273,18 @@ KERNEL(generate_proposals_ref_stage_3)
  const __global size_t* out_indices,
  const __global ROI_NUM_TYPE* num_outputs,
  __global OUTPUT_TYPE* rois,
- __global INPUT4_TYPE* roi_scores) {
+ __global OUTPUT1_TYPE* roi_scores) {
 
     uint roi_index = 0;
     for (uint batch = 0; batch < INPUT0_BATCH_NUM; ++batch) {
-        for (uint i = 0; i < num_outputs[INPUT5_GET_INDEX(batch, 0, 0, 0)]; ++i) {
+        for (uint i = 0; i < num_outputs[OUTPUT2_GET_INDEX(batch, 0, 0, 0)]; ++i) {
             const uint box_index = (batch * NUM_PROPOSALS + out_indices[batch * POST_NMS_COUNT + i]) * PROPOSAL_SIZE;
 
             rois[OUTPUT_GET_INDEX(roi_index, 0, 0, 0)] = boxes[box_index + 0];
             rois[OUTPUT_GET_INDEX(roi_index, 1, 0, 0)] = boxes[box_index + 1];
             rois[OUTPUT_GET_INDEX(roi_index, 2, 0, 0)] = boxes[box_index + 2];
             rois[OUTPUT_GET_INDEX(roi_index, 3, 0, 0)] = boxes[box_index + 3];
-            roi_scores[INPUT4_GET_INDEX(roi_index, 0, 0, 0)] = boxes[box_index + 4];
+            roi_scores[OUTPUT1_GET_INDEX(roi_index, 0, 0, 0)] = boxes[box_index + 4];
             ++roi_index;
         }
     }

@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+import platform
 import pytest
 import torch
 from typing import Dict
@@ -46,19 +47,22 @@ class TestDictParam(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.skipif(platform.system() == 'Darwin' and platform.machine() in ('x86_64', 'AMD64'),
+                        reason='Ticket - 142190')
     def test_dict_param(self, ie_device, precision, ir_version):
         self._test(aten_dict_with_types(), None, "aten::__getitem__", ie_device, precision,
                    ir_version, trace_model=True)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.skipif(platform.system() == 'Darwin', reason='Ticket - 142190')
     def test_dict_param_convert_model(self, ie_device, precision, ir_version):
         self._test(aten_dict_with_types(), None, "aten::__getitem__", ie_device, precision,
                    ir_version, trace_model=True, use_convert_model=True)
 
     @pytest.mark.nightly
     @pytest.mark.precommit
-    @pytest.mark.xfail(reason="Type is not propagated from PtFrameworkNode.")
+    @pytest.mark.skipif(platform.system() == 'Darwin', reason='Ticket - 142190')
     def test_dict_param_no_types(self, ie_device, precision, ir_version):
         self._test(aten_dict_no_types(), None, "aten::__getitem__", ie_device, precision,
                    ir_version, trace_model=True, freeze_model=False)

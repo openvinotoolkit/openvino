@@ -43,6 +43,7 @@
 #include "op/com.microsoft/embed_layer_normalization.hpp"
 #include "op/com.microsoft/fused_conv.hpp"
 #include "op/com.microsoft/fusedgemm.hpp"
+#include "op/com.microsoft/pad.hpp"
 #include "op/com.microsoft/skip_layer_normalization.hpp"
 #include "op/compress.hpp"
 #include "op/concat.hpp"
@@ -115,8 +116,10 @@
 #include "op/mean_variance_normalization.hpp"
 #include "op/min.hpp"
 #include "op/mish.hpp"
+#include "op/mmdeploy_roi_align_rotated.hpp"
 #include "op/mod.hpp"
 #include "op/mul.hpp"
+#include "op/multinomial.hpp"
 #include "op/neg.hpp"
 #include "op/nms_rotated.hpp"
 #include "op/non_max_suppression.hpp"
@@ -460,6 +463,7 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("Mod", 1, mod);
     REGISTER_OPERATOR("Mul", 1, mul);
     REGISTER_OPERATOR("Mul", 7, mul);
+    REGISTER_OPERATOR("Multinomial", 1, multinomial)
     REGISTER_OPERATOR("Neg", 1, neg);
     REGISTER_OPERATOR("NonMaxSuppression", 1, non_max_suppression);
     REGISTER_OPERATOR("NonZero", 1, non_zero);
@@ -486,11 +490,15 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("ReduceLogSumExp", 1, reduce_log_sum_exp);
     REGISTER_OPERATOR("ReduceL1", 1, reduce_l1);
     REGISTER_OPERATOR("ReduceL2", 1, reduce_l2);
+    REGISTER_OPERATOR("ReduceL2", 13, reduce_l2);
+    REGISTER_OPERATOR("ReduceL2", 18, reduce_l2);
     REGISTER_OPERATOR("ReduceMax", 1, reduce_max);
     REGISTER_OPERATOR("ReduceMax", 13, reduce_max);
     REGISTER_OPERATOR("ReduceMax", 18, reduce_max);
     REGISTER_OPERATOR("ReduceMax", 20, reduce_max);
     REGISTER_OPERATOR("ReduceMean", 1, reduce_mean);
+    REGISTER_OPERATOR("ReduceMean", 13, reduce_mean);
+    REGISTER_OPERATOR("ReduceMean", 18, reduce_mean);
     REGISTER_OPERATOR("ReduceMin", 1, reduce_min);
     REGISTER_OPERATOR("ReduceMin", 13, reduce_min);
     REGISTER_OPERATOR("ReduceMin", 18, reduce_min);
@@ -499,6 +507,8 @@ OperatorsBridge::OperatorsBridge() {
     REGISTER_OPERATOR("ReduceSum", 1, reduce_sum);
     REGISTER_OPERATOR("ReduceSum", 13, reduce_sum);
     REGISTER_OPERATOR("ReduceSumSquare", 1, reduce_sum_square);
+    REGISTER_OPERATOR("ReduceSumSquare", 13, reduce_sum_square);
+    REGISTER_OPERATOR("ReduceSumSquare", 18, reduce_sum_square);
     REGISTER_OPERATOR("Relu", 1, relu);
     REGISTER_OPERATOR("Reshape", 1, reshape);
     REGISTER_OPERATOR("Resize", 1, resize);
@@ -611,6 +621,10 @@ OperatorsBridge::OperatorsBridge() {
                                        op::set_13::dequantize_linear,
                                        "com.microsoft");
     register_operator_in_custom_domain("Gelu", VersionRange::since(1), op::set_1::gelu, "com.microsoft");
+    register_operator_in_custom_domain("Pad",
+                                       VersionRange::single_version_for_all_opsets(),
+                                       op::custom::set_1::pad,
+                                       "com.microsoft");
     register_operator_in_custom_domain("QuantizeLinear",
                                        VersionRange::since(1),
                                        op::set_13::quantize_linear,
@@ -618,6 +632,7 @@ OperatorsBridge::OperatorsBridge() {
 
     REGISTER_OPERATOR_WITH_DOMAIN(PYTORCH_ATEN_DOMAIN, "adaptive_avg_pool2d", 1, adaptive_avg_pooling2d);
     REGISTER_OPERATOR_WITH_DOMAIN(MMDEPLOY_DOMAIN, "NMSRotated", 1, nms_rotated);
+    REGISTER_OPERATOR_WITH_DOMAIN(MMDEPLOY_DOMAIN, "MMCVRoIAlignRotated", 1, mmdeploy_roi_align_rotated);
 }
 
 #undef REGISTER_OPERATOR

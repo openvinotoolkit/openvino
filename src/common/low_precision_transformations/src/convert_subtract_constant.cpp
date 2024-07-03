@@ -44,7 +44,7 @@ ov::pass::low_precision::ConvertSubtractConstant::ConvertSubtractConstant(const 
     auto multiplyConstantWrapper = ov::pass::pattern::wrap_type<opset1::Constant>(pattern::consumers_count(1));
     auto multiplyWrapper = ov::pass::pattern::wrap_type<opset1::Multiply>({ subtractWrapper, multiplyConstantWrapper }, pattern::consumers_count(1));
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher & m) -> bool {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher & m) -> bool {
         const auto& opsMap = m.get_pattern_value_map();
         const auto weightsConvert = opsMap.at(weightsConvertWrapper).get_node_shared_ptr();
         const auto quantizePrecision = weightsConvert->get_input_element_type(0);

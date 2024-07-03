@@ -1,15 +1,15 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "insert_convert_after_extension.hpp"
 
-#include <openvino/op/convert.hpp>
+#include "openvino/op/convert.hpp"
 #include "cpu_types.h"
 #include "itt.hpp"
-#include <transformations/utils/utils.hpp>
+#include "transformations/utils/utils.hpp"
 
-ov::pass::InsertConvertAfterExtension::InsertConvertAfterExtension() {
+ov::pass::InsertConvertAfterExtension::InsertConvertAfterExtension(bool convert_output_precision) {
     MATCHER_SCOPE(InsertConvertAfterExtension);
 
     auto i64_extension = [](const ov::Output<ov::Node>& output) -> bool {
@@ -29,6 +29,10 @@ ov::pass::InsertConvertAfterExtension::InsertConvertAfterExtension() {
                 auto convert = std::make_shared<op::v0::Convert>(output, ov::element::i32);
 
                 for (const auto& targetInput : targetInputs) {
+                    // Keep the original output element type if required.
+                    if (!convert_output_precision && is_type<op::v0::Result>(targetInput.get_node())) {
+                        continue;
+                    }
                     targetInput.replace_source_output(convert);
                 }
 

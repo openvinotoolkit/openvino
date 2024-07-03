@@ -218,11 +218,9 @@ T load_scalar(stream& stream, memory::ptr mem) {
 }
 
 template <typename T>
-void store_result_impl(stream& stream, memory::ptr mem, const std::vector<result_indices>& result) {
+void store_result_impl(stream& stream, memory::ptr mem, const std::vector<result_indices>& result, size_t output_size) {
     mem_lock<T, mem_lock_type::write> lock(mem, stream);
     auto ptr = lock.data();
-
-    auto output_size = static_cast<size_t>(mem->get_layout().batch());
     auto results_size = result.size();
 
     size_t si = 0;
@@ -240,31 +238,31 @@ void store_result_impl(stream& stream, memory::ptr mem, const std::vector<result
     }
 }
 
-void store_result(stream& stream, memory::ptr mem, const std::vector<result_indices>& result) {
+void store_result(stream& stream, memory::ptr mem, const std::vector<result_indices>& result, size_t output_size) {
     auto data_type = mem->get_layout().data_type;
     switch (data_type) {
     case cldnn::data_types::i32:
-        store_result_impl<ov::element_type_traits<data_types::i32>::value_type>(stream, mem, result);
+        store_result_impl<ov::element_type_traits<data_types::i32>::value_type>(stream, mem, result, output_size);
         break;
     case cldnn::data_types::f16:
-        store_result_impl<ov::element_type_traits<data_types::f16>::value_type>(stream, mem, result);
+        store_result_impl<ov::element_type_traits<data_types::f16>::value_type>(stream, mem, result, output_size);
         break;
     case cldnn::data_types::f32:
-        store_result_impl<ov::element_type_traits<data_types::f32>::value_type>(stream, mem, result);
+        store_result_impl<ov::element_type_traits<data_types::f32>::value_type>(stream, mem, result, output_size);
         break;
     default:
         throw std::runtime_error("Non max suppression - unsupported output data type");
     }
 }
 
-void store_first_output(stream& stream, memory::ptr mem, const std::vector<result_indices>& result) {
+void store_first_output(stream& stream, memory::ptr mem, const std::vector<result_indices>& result, size_t output_size) {
     auto data_type = mem->get_layout().data_type;
     switch (data_type) {
     case cldnn::data_types::i32:
-        store_result_impl<ov::element_type_traits<data_types::i32>::value_type>(stream, mem, result);
+        store_result_impl<ov::element_type_traits<data_types::i32>::value_type>(stream, mem, result, output_size);
         break;
     case cldnn::data_types::i64:
-        store_result_impl<ov::element_type_traits<data_types::i32>::value_type>(stream, mem, result);
+        store_result_impl<ov::element_type_traits<data_types::i32>::value_type>(stream, mem, result, output_size);
         break;
     default:
         throw std::runtime_error("Non max suppression - unsupported output data type");
@@ -272,11 +270,9 @@ void store_first_output(stream& stream, memory::ptr mem, const std::vector<resul
 }
 
 template <typename T>
-void store_second_output_impl(stream& stream, memory::ptr mem, const std::vector<result_indices>& result) {
+void store_second_output_impl(stream& stream, memory::ptr mem, const std::vector<result_indices>& result, size_t output_size) {
     mem_lock<T, mem_lock_type::write> lock(mem, stream);
     auto ptr = lock.data();
-
-    auto output_size = static_cast<size_t>(mem->get_layout().batch());
     auto results_size = result.size();
 
     size_t si = 0;
@@ -294,14 +290,14 @@ void store_second_output_impl(stream& stream, memory::ptr mem, const std::vector
     }
 }
 
-void store_second_output(stream& stream, memory::ptr mem, const std::vector<result_indices>& result) {
+void store_second_output(stream& stream, memory::ptr mem, const std::vector<result_indices>& result, size_t output_size) {
     auto data_type = mem->get_layout().data_type;
     switch (data_type) {
     case cldnn::data_types::f16:
-        store_second_output_impl<ov::element_type_traits<data_types::f16>::value_type>(stream, mem, result);
+        store_second_output_impl<ov::element_type_traits<data_types::f16>::value_type>(stream, mem, result, output_size);
         break;
     case cldnn::data_types::f32:
-        store_second_output_impl<ov::element_type_traits<data_types::f32>::value_type>(stream, mem, result);
+        store_second_output_impl<ov::element_type_traits<data_types::f32>::value_type>(stream, mem, result, output_size);
         break;
     default:
         throw std::runtime_error("Non max suppression - unsupported second output data type");
@@ -365,14 +361,16 @@ void run(non_max_suppression_inst& instance) {
                           soft_nms_sigma,
                           prim->sort_result_descending);
 
+    size_t output_size = instance.get_impl_params()->output_layouts[0].batch();
+
     // Legacy APIs using mutable inputs for multiple outputs
     if (instance.has_third_output()) {
         store_third_output(stream, instance.third_output_mem(), result);
     }
 
     if (instance.has_second_output()) {
-        store_second_output(stream, instance.second_output_mem(), result);
-        store_first_output(stream, instance.output_memory_ptr(), result);
+        store_second_output(stream, instance.second_output_mem(), result, output_size);
+        store_first_output(stream, instance.output_memory_ptr(), result, output_size);
         return;
     }
 
@@ -381,12 +379,12 @@ void run(non_max_suppression_inst& instance) {
         store_third_output(stream, instance.output_memory_ptr(2), result);
 
     if (instance.outputs_memory_count() >= 2) {
-        store_second_output(stream, instance.output_memory_ptr(1), result);
-        store_first_output(stream, instance.output_memory_ptr(), result);
+        store_second_output(stream, instance.output_memory_ptr(1), result, output_size);
+        store_first_output(stream, instance.output_memory_ptr(), result, output_size);
         return;
     }
 
-    store_result(stream, instance.output_memory_ptr(), result);
+    store_result(stream, instance.output_memory_ptr(), result, output_size);
 }
 
 }  // namespace

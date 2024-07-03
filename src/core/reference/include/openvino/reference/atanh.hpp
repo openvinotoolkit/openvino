@@ -18,16 +18,21 @@ T atanh(const T in) {
     return std::atanh(in);
 }
 
-template <class T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
+// Integral types don't support NAN and INFINITY, use integral limits instead for special values.
+template <class T, typename std::enable_if<std::is_integral<T>::value && std::is_signed<T>::value>::type* = nullptr>
 T atanh(const T in) {
-    // Integral type not support NAN and INFINITY, use integral limits instead for special values.
     if (in > 0) {
-        return std::numeric_limits<T>::min();
-    } else if (in < 0) {
         return std::numeric_limits<T>::max();
+    } else if (in < 0) {
+        return std::numeric_limits<T>::min();
     } else {
         return 0;
     }
+}
+
+template <class T, typename std::enable_if<std::is_unsigned<T>::value>::type* = nullptr>
+T atanh(const T in) {
+    return in > 0 ? std::numeric_limits<T>::max() : 0;
 }
 }  // namespace func
 

@@ -21,18 +21,13 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
 set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
 set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
 
-# compile options
+# compile and linker options
 
 if(OV_COMPILER_IS_APPLECLANG)
     add_link_options(-stdlib=libc++)
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+elseif(CMAKE_COMPILER_IS_GNUCXX)
     # WA for GCC 7.5 "PYBIND11_NOINLINE inline" warning
-    add_compile_options(-Wno-error=attributes)
-endif()
-
-if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
-    # for proper fix need to update pybind to version which does not use PyEval_InitThreads()
-    add_compile_options(-Wno-deprecated-declarations -Wno-undef)
+    ov_add_compiler_flags(-Wno-error=attributes)
 endif()
 
 if(ENABLE_TESTS)
@@ -55,10 +50,14 @@ if(TARGET openvino::frontend::pytorch)
     add_subdirectory(frontend/pytorch)
 endif()
 
+if(TARGET openvino::frontend::jax)
+    add_subdirectory(frontend/jax)
+endif()
+
 # create target
 
 file(GLOB_RECURSE SOURCES core/*.cpp graph/*.cpp frontend/*.cpp utils/*.cpp pyopenvino.cpp)
-list(FILTER SOURCES EXCLUDE REGEX ".*(frontend/(onnx|tensorflow|paddle|pytorch))/*")
+list(FILTER SOURCES EXCLUDE REGEX ".*(frontend/(onnx|tensorflow|paddle|pytorch|jax))/*")
 
 pybind11_add_module(${PROJECT_NAME} MODULE NO_EXTRAS ${SOURCES})
 

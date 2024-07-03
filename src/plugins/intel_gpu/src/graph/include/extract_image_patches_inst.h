@@ -16,6 +16,8 @@ class typed_primitive_inst<extract_image_patches> : public typed_primitive_inst_
     using parent::parent;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(extract_image_patches_node const& /*node*/, const kernel_impl_params& impl_param);
     static layout calc_output_layout(extract_image_patches_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(extract_image_patches_node const& node);
 

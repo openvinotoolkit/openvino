@@ -1,0 +1,146 @@
+name: OpenVINO tokenizers extension
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: 'Machine on which the tests would run'
+        type: string
+        required: true
+      shell:
+        description: "shell to override the default shell settings in the runner's operating system."
+        type: string
+        required: true
+      container:
+        description: 'JSON to be converted to the value of the "container" configuration for the job'
+        type: string
+        required: false
+        default: '{"image": null}'
+      affected-components:
+        description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
+        type: string
+        required: true
+
+permissions: read-all
+
+env:
+  PIP_CACHE_PATH: /mount/caches/pip/linux
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  Openvino_tokenizers:
+    name: OpenVINO tokenizers extension
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: ${{ inputs.shell }}
+    runs-on: ${{ inputs.runner }}
+    container: ${{ fromJSON(inputs.container) }}
+    env:
+      INSTALL_DIR: ${{ github.workspace }}/install
+      OPENVINO_TOKENIZERS_REPO: ${{ github.workspace }}/openvino_tokenizers
+      EXTENSION_BUILD_DIR: ${{ github.workspace }}/build
+
+    steps:
+      # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      - name: Setup Variables
+        run: |
+          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
+          echo "OPENVINO_TOKENIZERS_REPO=$GITHUB_WORKSPACE/openvino_tokenizers" >> "$GITHUB_ENV"
+          echo "EXTENSION_BUILD_DIR=$GITHUB_WORKSPACE/build" >> "$GITHUB_ENV"
+
+      - name: checkout action
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          sparse-checkout: |
+            .github/actions/setup_python
+            .github/actions/cache
+            install_build_dependencies.sh
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH || '' }}
+          should-setup-pip-paths: ${{ runner.os == 'Linux' }}
+          self-hosted-runner: ${{ runner.os == 'Linux' }}
+
+      - name: Clone OpenVINO Tokenizers
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          repository: 'openvinotoolkit/openvino_tokenizers'
+          path: ${{ env.OPENVINO_TOKENIZERS_REPO }}
+          ref: 'master'
+
+      - name: Download OpenVINO package
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Extract OpenVINO packages (Linux and macOS)
+        if: runner.os != 'Windows'
+        run: |
+          pushd ${INSTALL_DIR}
+            tar -xzf openvino_package.tar.gz -C ${INSTALL_DIR}
+          popd
+
+      - name: Extract OpenVINO packages (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          pushd ${{ env.INSTALL_DIR }}
+            Expand-Archive openvino_package.zip -DestinationPath "${{ env.INSTALL_DIR }}"
+          popd
+
+      #
+      # Dependencies
+      #
+
+      - name: Install OpenVINO Python wheel (Linux and macOS)
+        if: runner.os != 'Windows'
+        run: |
+          # Find and install wheel
+          pushd ${INSTALL_DIR}/tools
+            wheel_name=$(find . -name 'openvino-*.whl')
+            python3 -m pip install $wheel_name
+          popd
+
+      - name: Install OpenVINO Python wheel (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          # Find and install wheel
+          $ovCoreWheelPath=Get-ChildItem -Path "${{ env.INSTALL_DIR }}\\tools" -Filter openvino-*.whl | % { $_.FullName }
+          python3 -m pip install "$ovCoreWheelPath"
+
+      #
+      # Build
+      #
+
+      - name: Build tokenizers wheel (Linux and macOS)
+        if: runner.os != 'Windows'
+        run: |
+          # use OpenVINO wheel package only to build the extension
+          export OpenVINO_DIR=$(python3 -c "from openvino.utils import get_cmake_path; print(get_cmake_path(), end='')")
+          python -m pip wheel -v --no-deps --wheel-dir ${EXTENSION_BUILD_DIR} ${OPENVINO_TOKENIZERS_REPO}
+        env:
+          CMAKE_BUILD_PARALLEL_LEVEL: '4'
+
+      - name: Build tokenizers wheel (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          $env:OpenVINO_DIR=$(python3 -c "from openvino.utils import get_cmake_path; print(get_cmake_path(), end='')")
+          python3 -m pip wheel -v --no-deps --wheel-dir ${env:EXTENSION_BUILD_DIR} ${env:OPENVINO_TOKENIZERS_REPO}
+        env:
+          CMAKE_BUILD_PARALLEL_LEVEL: '4'
+
+      #
+      # Upload build artifacts
+      #
+
+      - name: Upload openvino tokenizers wheel
+        if: ${{ always() }}
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: openvino_tokenizers_wheel
+          path: ${{ env.EXTENSION_BUILD_DIR }}/*.whl
+          if-no-files-found: 'error'

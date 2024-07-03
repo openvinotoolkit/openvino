@@ -160,11 +160,16 @@ void ConvolutionLayerCPUTest::SetUp() {
     init_input_shapes({inputShape});
 
     auto it = configuration.find(ov::hint::inference_precision.name());
-    if (it != configuration.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
+    ov::element::Type inference_precision = (it != configuration.end()) ?
+                                            it->second.as<ov::element::Type>() : ov::element::undefined;
+    if (inference_precision == ov::element::bf16) {
         selectedType += "_BF16";
         rel_threshold = 1e-2f;
         if (selectedType == "jit_gemm_BF16")
             rel_threshold = 0.05f;
+    } else if (inference_precision == ov::element::f16) {
+            selectedType +=  "_FP16";
+            rel_threshold = 0.00125f;
     } else {
         selectedType = makeSelectedTypeStr(selectedType, netType);
     }
@@ -196,11 +201,6 @@ TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
     }
 
     if (!priority.empty()) {
-        // Skip all the brgconv avx2 tests for now. Current brgconv_avx2 is disabled due to perf regression[CVS-105756].
-        // This convolution test code has already covered brgconv avx2 primitive.
-        // @todo: Remove this once brgconv_avx2 is enabled for convolution node.
-        if (priority[0].find("brgconv_avx2") != std::string::npos)
-                GTEST_SKIP() << "Disabled test due to the brgconv_avx2 is not enabled." << std::endl;
         // Skip tests for brgconv convolution where kernel size = 1x1
         if (one_of(priority[0], "brgconv_avx512", "brgconv_avx512_amx", "brgconv_avx2")) {
                 bool is_1x1 = true;

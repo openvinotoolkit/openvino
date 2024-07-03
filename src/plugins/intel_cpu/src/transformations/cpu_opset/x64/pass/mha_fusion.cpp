@@ -10,6 +10,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "transformations/cpu_opset/x64/op/mha.hpp"
+#include "transformations/utils/utils.hpp"
 #include "simplify_fakequantize.hpp"
 
 #include "itt.hpp"
@@ -41,7 +42,7 @@ ov::intel_cpu::MHAFloatFusion::MHAFloatFusion() {
     auto matmul1 = std::make_shared<ov::opset3::MatMul>(reshape1, transpose2);
     auto transpose3 = std::make_shared<ov::opset3::Transpose>(matmul1, in10);
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose0_in = pattern_to_output.at(in0);
         auto transpose1_in = pattern_to_output.at(in1);
@@ -180,7 +181,7 @@ ov::intel_cpu::MHAFloatFusion2::MHAFloatFusion2() {
     auto matmul1 = std::make_shared<ov::opset3::MatMul>(softmax, transpose2);
     auto transpose3 = std::make_shared<ov::opset3::Transpose>(matmul1, in10);
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose0_in = pattern_to_output.at(in0);
         auto transpose1_in = pattern_to_output.at(in1);
@@ -293,7 +294,7 @@ ov::intel_cpu::MHAQuantFusion::MHAQuantFusion() {
                                                                                    ov::pass::pattern::wrap_type<ov::opset4::Constant>()});
     auto transpose3 = std::make_shared<ov::opset3::Transpose>(fakeQuantize2, in10);
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose0_in = pattern_to_output.at(in0);
         auto transpose1_in = pattern_to_output.at(in1);
@@ -473,7 +474,7 @@ ov::intel_cpu::MHAQuantFusion2::MHAQuantFusion2() {
     auto in11 = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{ matmul1, fakeQuantize1 });
     auto transpose3 = std::make_shared<ov::opset3::Transpose>(in11, in10);
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose0_in = pattern_to_output.at(in0);
         auto transpose1_in = pattern_to_output.at(in1);

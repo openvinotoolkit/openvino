@@ -1,0 +1,42 @@
+// Copyright (C) 2020-2022 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include "snippets/kernel_executor_table.hpp"
+#include "cache/multi_cache.h"
+
+namespace ov {
+namespace intel_cpu {
+
+template<typename Conf, typename KernelType>
+class CPUKernelExecutor : public snippets::KernelExecutor<Conf, KernelType> {
+public:
+     CPUKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, std::shared_ptr<Conf> c) :
+                       snippets::KernelExecutor<Conf, KernelType>(c), m_kernel_cache(std::move(kernel_cache)) {}
+     struct Key {
+         explicit Key(const std::shared_ptr<const Conf>& c) : config{c} {}
+         const std::shared_ptr<const  Conf> config;
+         size_t hash() const { return config->hash(); }
+         bool operator==(const Key& rhs) const { return *config == *rhs.config; }
+     };
+    void update_kernel(const std::shared_ptr<const Conf>& config, std::shared_ptr<KernelType>& kernel) const override final { // NOLINT
+        const auto& cache = m_kernel_cache.lock();
+        OPENVINO_ASSERT(cache, "Invalid kernel cache pointer in CPUKernelExecutor::update_kernel()");
+        const auto& lookup_result = cache->getOrCreate(Key(config),
+                                                       [this](const Key& k) {
+                                                            return compile_kernel(k.config);
+                                                       });
+        kernel = lookup_result.first;
+    }
+
+protected:
+    /** Compile kernel managed by KernelExecutor instance. Will be called only if Kernel is not found in the cache */
+    virtual std::shared_ptr<KernelType> compile_kernel(const std::shared_ptr<const Conf>& c) const = 0;
+    /** CPU plugin cache implementation is used to avoid redundant recompilations */
+    ov::intel_cpu::MultiCacheWeakPtr m_kernel_cache;
+};
+
+}   // namespace intel_cpu
+}   // namespace ov

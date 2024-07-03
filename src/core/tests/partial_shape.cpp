@@ -240,7 +240,7 @@ TEST(partial_shape, tensor_descriptor_from_rank_static_dynamic_partial_shape) {
     descriptor::Tensor t{element::i32, PartialShape{1, Dimension::dynamic(), 3}};
 
     ASSERT_EQ(t.get_partial_shape().rank().get_length(), 3);
-    ASSERT_THROW({ t.get_shape(); }, std::invalid_argument);
+    ASSERT_THROW(t.get_shape(), ov::Exception);
     ASSERT_TRUE(t.get_partial_shape().same_scheme(PartialShape{1, Dimension::dynamic(), 3}));
 }
 
@@ -248,7 +248,7 @@ TEST(partial_shape, tensor_descriptor_from_rank_dynamic_partial_shape) {
     descriptor::Tensor t{element::i32, PartialShape::dynamic()};
 
     ASSERT_TRUE(t.get_partial_shape().rank().is_dynamic());
-    ASSERT_THROW({ t.get_shape(); }, std::invalid_argument);
+    ASSERT_THROW(t.get_shape(), ov::Exception);
     ASSERT_TRUE(t.get_partial_shape().same_scheme(PartialShape::dynamic()));
 }
 

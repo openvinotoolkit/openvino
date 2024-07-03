@@ -44,7 +44,7 @@ InputInfo::InputInfoImpl::InputInfoData InputInfo::InputInfoImpl::create_new_par
         }
     }
 
-    auto model_shape = res.m_param->get_partial_shape();
+    const auto& model_shape = res.m_param->get_partial_shape();
     auto new_param_shape = model_shape;
     if (get_tensor_data()->is_shape_set()) {
         new_param_shape = get_tensor_data()->get_shape();
@@ -63,10 +63,13 @@ InputInfo::InputInfoImpl::InputInfoData InputInfo::InputInfoImpl::create_new_par
         auto net_to_tensor = layout::utils::find_permutation(sq_layout, new_param_shape, res.m_tensor_layout);
         if (!net_to_tensor.empty() && new_param_shape.rank().is_static()) {
             std::vector<ov::Dimension> dims(new_param_shape.size());
-            std::transform(net_to_tensor.begin(), net_to_tensor.end(), dims.begin(), [&](int64_t v) {
-                return new_param_shape[v];
-            });
-            new_param_shape = PartialShape(dims);
+            std::transform(net_to_tensor.begin(),
+                           net_to_tensor.end(),
+                           dims.begin(),
+                           [&](int64_t v) -> const Dimension& {
+                               return new_param_shape[v];
+                           });
+            new_param_shape = PartialShape(std::move(dims));
         }
     } else {
         Layout new_layout;
@@ -74,7 +77,7 @@ InputInfo::InputInfoImpl::InputInfoData InputInfo::InputInfoImpl::create_new_par
             get_preprocess()->calculate_param_shape(new_param_shape, res.m_model_layout);
         if (res.m_tensor_layout.empty()) {
             // Reusing param's layout according to converted calculated layout
-            res.m_tensor_layout = new_layout;
+            res.m_tensor_layout = std::move(new_layout);
         }
     }
 
@@ -191,7 +194,7 @@ bool InputInfo::InputInfoImpl::build(const std::shared_ptr<Model>& model,
         nodes = std::get<0>(action_result);
     }
 
-    auto node = nodes[0];
+    const auto& node = nodes[0];
     if (node.get_partial_shape() != context.model_shape()) {
         need_validate = true;  // Trigger revalidation if input parameter shape is changed
     }
@@ -324,7 +327,7 @@ void InputInfo::InputInfoImpl::dump(std::ostream& str,
 void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
     std::shared_ptr<opset8::Result> result;
     auto node = m_output_node;
-    auto start_out_node_names = node.get_tensor().get_names();
+    const auto start_out_node_names = node.get_tensor().get_names();
     node.get_tensor().set_names({});
     result = std::dynamic_pointer_cast<opset8::Result>(node.get_node_shared_ptr());
     // Set result layout from 'model' information
@@ -422,7 +425,7 @@ void OutputInfo::OutputInfoImpl::build(ov::ResultVector& results) {
 void OutputInfo::OutputInfoImpl::dump(std::ostream& str) const {
     std::shared_ptr<opset8::Result> result;
     auto node = m_output_node;
-    auto start_out_node_names = node.get_tensor().get_names();
+    const auto& start_out_node_names = node.get_tensor().get_names();
     result = std::dynamic_pointer_cast<opset8::Result>(node.get_node_shared_ptr());
     auto model_layout = get_model_data()->is_layout_set() ? get_model_data()->get_layout() : result->get_layout();
     PostprocessingContext context(model_layout);

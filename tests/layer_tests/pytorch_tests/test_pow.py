@@ -116,6 +116,8 @@ class TestPowMixedTypes(PytorchLayerTest):
         self.lhs_shape = lhs_shape
         self.rhs_type = rhs_type
         self.rhs_shape = rhs_shape
+        if ie_device == "GPU" and rhs_type not in [torch.float32, torch.float64] and lhs_type not in [torch.float32, torch.float64]:
+            pytest.xfail(reason="pow is not supported on GPU for integer types")
         self._test(*self.create_model(lhs_type, lhs_shape, rhs_type, rhs_shape),
                    ie_device, precision, ir_version)
 

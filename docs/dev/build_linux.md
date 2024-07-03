@@ -7,18 +7,12 @@ The software was validated on:
 
 > **NOTE**: To build on CentOS 7 (64-bit), refer to [Building OpenVINO on CentOS 7 Guide](https://github.com/openvinotoolkit/openvino/wiki/Building-OpenVINO-on-CentOS-7-Guide)
 
-## Software requirements 
+## Software requirements
 
 - [CMake](https://cmake.org/download/) 3.13 or higher
 - GCC 7.5 or higher to build OpenVINO Runtime
 - Python 3.8 - 3.11 for OpenVINO Runtime Python API
-- (Optional) Install Intel® Graphics Compute Runtime for OpenCL™ Driver package to enable inference on Intel integrated GPUs. Select a driver package from the table below depending on what version of Ubuntu you are installing on.
-
-  | Ubuntu | Driver package |
-  | --- | ----------- |
-  | 22.04 | [23.13.26032.30](https://github.com/intel/compute-runtime/releases/tag/23.13.26032.30) |
-  | 20.04 | [22.24.23453](https://github.com/intel/compute-runtime/releases/tag/22.24.23453) |
-  | 18.04 | [21.38.21026](https://github.com/intel/compute-runtime/releases/tag/21.38.21026) |
+- (Optional) Install Intel® Graphics Compute Runtime for OpenCL™ Driver package to enable inference on Intel integrated GPUs.
 
 ## How to build
 
@@ -37,9 +31,6 @@ The software was validated on:
 2. Install build dependencies using the `install_build_dependencies.sh` script in the
    project root folder.
    ```sh
-   chmod +x install_build_dependencies.sh
-   ```
-   ```sh
    sudo ./install_build_dependencies.sh
    ```
 
@@ -47,6 +38,8 @@ The software was validated on:
    ```sh
      mkdir build && cd build
    ```
+
+> **NOTE**: It is recommended to disable the oneAPI environment before compiling OpenVINO from source on Linux, as it may cause build failures. 
 
 4. OpenVINO Runtime uses a CMake-based build system. In the created `build` directory, run `cmake` to fetch project dependencies and create Unix makefiles, then run `make` to build the project:
    ```sh
@@ -79,7 +72,7 @@ You can use the following additional build options:
      ```sh
      pip install -r <openvino source tree>/src/bindings/python/wheel/requirements-dev.txt
      ```
-  3. After the build process finishes, export the newly built Python libraries to the user environment variables: 
+  3. After the build process finishes, export the newly built Python libraries to the user environment variables:
      ```
      export PYTHONPATH=<openvino_repo>/bin/intel64/Release/python:$PYTHONPATH
      export LD_LIBRARY_PATH=<openvino_repo>/bin/intel64/Release:$LD_LIBRARY_PATH

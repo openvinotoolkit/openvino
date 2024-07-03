@@ -8,8 +8,10 @@
 
 #include "snippets/utils.hpp"
 #include "snippets/op/brgemm.hpp"
+#include "snippets/op/buffer.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "transformations/tpp/x64/op/modifiers.hpp"
 
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -43,8 +45,10 @@ void set_port_desc(const T& port, Args... params) {
 
 pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
     MATCHER_SCOPE(BrgemmToBrgemmCPU);
-
-    auto m_brgemm = ov::pass::pattern::wrap_type<snippets::op::Brgemm>();
+    auto is_not_tpp = [](const Output<Node>& out) {
+        return !std::dynamic_pointer_cast<const intel_cpu::tpp::modifier::TensorProcessingPrimitive>(out.get_node_shared_ptr());
+    };
+    auto m_brgemm = ov::pass::pattern::wrap_type<snippets::op::Brgemm>(is_not_tpp);
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::BrgemmToBrgemmCPU")
@@ -54,16 +58,12 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
         if (!brgemm || brgemm_plugin)
             OPENVINO_THROW("BrgemmCPU cannot be in body before BrgemmToBrgemmCPU pass");
 
-        if (brgemm->is_dynamic()) {
-            return false;
-        }
-
         const auto& brgemm_in0_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(0));
         const auto& brgemm_in1_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(1));
         const auto& brgemm_out_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->output(0));
 
-        const auto dimsMatMulIn0 = snippets::utils::get_planar_pshape(brgemm->input(0)).get_shape();
-        const auto dimsMatMulIn1 = snippets::utils::get_planar_pshape(brgemm->input(1)).get_shape();
+        const auto dimsMatMulIn0 = snippets::utils::get_planar_pshape(brgemm->input(0));
+        const auto dimsMatMulIn1 = snippets::utils::get_planar_pshape(brgemm->input(1));
 
         const auto K = *dimsMatMulIn0.rbegin();
         const auto N = *dimsMatMulIn1.rbegin();
@@ -71,7 +71,9 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
         const auto element_type_a = brgemm->get_input_element_type(0);
         const auto brgemmVNNIFactor = 4 / element_type_a.size();
         const bool isAMXSupported = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx);
-        const bool with_amx = isAMXSupported && element_type_a != ov::element::f32 && (K % brgemmVNNIFactor == 0) && (N % brgemmVNNIFactor == 0);
+        const bool with_amx = isAMXSupported && element_type_a != ov::element::f32 &&
+                              K.is_static() && K.get_length() % brgemmVNNIFactor == 0 &&
+                              N.is_static() && N.get_length() % brgemmVNNIFactor == 0;
         const bool with_comp = element_type_a == ov::element::i8 && !with_amx;
 
         const auto offset_a = brgemm->get_offset_a();
@@ -85,7 +87,7 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
                                                      offset_a, offset_b, offset_c,
                                                      brgemm_in0_desc->get_layout(), brgemm_in1_desc->get_layout(), brgemm_out_desc->get_layout());
         } else {
-            const auto copy_b_type = with_comp ? BrgemmCopyB::WithCompensations : BrgemmCopyB::OnlyRepacking;
+            const auto copy_b_type = with_comp ? BrgemmCopyB::Type::WithCompensations : BrgemmCopyB::Type::OnlyRepacking;
             brgemm_repacking = std::make_shared<BrgemmCopyB>(brgemm->input_value(1), element_type_a, copy_b_type, offset_b, 0, 0,
                                                              brgemm_in1_desc->get_layout());
             set_port_desc(brgemm_repacking->input(0), brgemm_in1_desc->get_shape(), brgemm_in1_desc->get_subtensor(), brgemm_in1_desc->get_layout());

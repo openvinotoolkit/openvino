@@ -67,7 +67,7 @@ multi-device mode:
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/MULTI2.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/MULTI2.cpp
          :language: cpp
          :fragment: [part2]
 
@@ -79,8 +79,7 @@ Accordingly, the code that loops over all available devices of the "GPU" type on
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/MULTI3.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/MULTI3.cpp
          :language: cpp
          :fragment: [part3]
-
 

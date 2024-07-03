@@ -154,7 +154,7 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
         if num_insertions > 0:
             # insert blank values for ellipsis unrolling and extending
             for mask_name in StridedSlice.get_mask_names():
-                node[mask_name] = np.insert(node[mask_name], insertion_start_idx, [0] * num_insertions).astype(int)
+                node[mask_name] = np.insert(node[mask_name], insertion_start_idx, [0] * num_insertions).astype(int)  # pylint: disable=possibly-used-before-assignment
 
     @staticmethod
     def unroll_ellipsis_for_inputs(graph: Graph, node: Node, ellipsis_start: int, num_insertions: int):

@@ -110,7 +110,7 @@ public:
         auto conv = makeConv(inputParams);
 
         if (bias) {
-            auto biasNode = ov::test::utils::deprecated::make_constant<float>(ov::element::Type_t::f32, ov::Shape({1, _convOutChannels, 1, 1}), {}, true);
+            auto biasNode = ov::test::utils::make_constant(ov::element::Type_t::f32, ov::Shape({1, _convOutChannels, 1, 1}));
             conv = std::make_shared<ov::op::v1::Add>(conv, biasNode);
         }
 
@@ -118,8 +118,12 @@ public:
 
         runtimeType = getNetType();
         auto it = configuration.find(ov::hint::inference_precision.name());
-        if (it != configuration.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
+        ov::element::Type inference_precision = (it != configuration.end()) ?
+                                                it->second.as<ov::element::Type>() : ov::element::undefined;
+        if (inference_precision == ov::element::bf16) {
             runtimeType = ov::element::Type_t::bf16;
+        } else if (inference_precision == ov::element::f16) {
+            runtimeType = ov::element::Type_t::f16;
         }
 
         if (inputParams.front()->get_element_type() == ov::element::i8 || inputParams.front()->get_element_type() == ov::element::u8) {
@@ -138,12 +142,25 @@ public:
 
 protected:
     bool primTypeCheck(std::string primType) const override {
-        auto isaType = getISA(runtimeType == ov::element::Type_t::f32);
+        bool skip_amx = false;
+        switch (runtimeType) {
+            case ov::element::Type_t::f32:
+                skip_amx = true;
+                break;
+            case ov::element::Type_t::f16:
+                skip_amx = ov::with_cpu_x86_avx512_core_amx_fp16() ? false : true;
+                break;
+            case ov::element::Type_t::bf16:
+                skip_amx = false;
+                break;
+            default:
+                skip_amx = false;
+        }
+        auto isaType = getISA(skip_amx);
         const std::regex jit_case_regex(makeSelectedTypeStr(std::string("jit_") + isaType, runtimeType),
                                         std::regex_constants::icase);
         const std::regex brgconv_case_regex(makeSelectedTypeStr(std::string("brgconv_") + isaType, runtimeType),
                                             std::regex_constants::icase);
-
         if (isaType == "")
             return primType == "ref";
         else
@@ -219,7 +236,7 @@ public:
         auto inpShape = inputParams.front()->get_partial_shape();
         Shape filterShape = {_convOutChannels, static_cast<size_t>(inpShape[1].get_length())};
         filterShape.insert(filterShape.end(), _kernel.begin(), _kernel.end());
-        auto filterWeightsNode = ov::test::utils::deprecated::make_constant<int8_t>(ov::element::i8, filterShape, {}, true);
+        auto filterWeightsNode = ov::test::utils::make_constant(ov::element::i8, filterShape);
 
         auto conv = convolutionNodeRelaxed->copy_with_new_inputs({inputParams.front(), filterWeightsNode});
 
@@ -329,12 +346,12 @@ namespace {
 const auto fusingMulAddFQMullAdd = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](postNodeConfig& cfg) {
             ov::Shape newShape = generatePerChannelShape(cfg.input);
-            auto constNode = ov::test::utils::deprecated::make_constant(cfg.type, newShape, std::vector<float>{}, true);
+            auto constNode = ov::test::utils::make_constant(cfg.type, newShape);
             return std::make_shared<ov::op::v1::Multiply>(cfg.input, constNode);
         }, "Multiply(PerChannel)"},
         {[](postNodeConfig& cfg) {
             ov::Shape newShape = generatePerChannelShape(cfg.input);
-            auto constNode = ov::test::utils::deprecated::make_constant(cfg.type, newShape, std::vector<float>{}, true);
+            auto constNode = ov::test::utils::make_constant(cfg.type, newShape);
             return std::make_shared<ov::op::v1::Add>(cfg.input, constNode);
         }, "Add(PerChannel)"},
         {[](postNodeConfig& cfg){
@@ -344,24 +361,24 @@ const auto fusingMulAddFQMullAdd = fusingSpecificParams{ std::make_shared<postNo
         }, "FakeQuantize(PerChannel)"},
         {[](postNodeConfig& cfg) {
             ov::Shape newShape = generatePerChannelShape(cfg.input);
-            auto constNode = ov::test::utils::deprecated::make_constant(cfg.type, newShape, std::vector<float>{}, true);
+            auto constNode = ov::test::utils::make_constant(cfg.type, newShape);
             return std::make_shared<ov::op::v1::Multiply>(cfg.input, constNode);
         }, "Multiply(PerChannel)"},
         {[](postNodeConfig& cfg) {
             ov::Shape newShape = generatePerChannelShape(cfg.input);
-            auto constNode = ov::test::utils::deprecated::make_constant(cfg.type, newShape, std::vector<float>{}, true);
+            auto constNode = ov::test::utils::make_constant(cfg.type, newShape);
             return std::make_shared<ov::op::v1::Add>(cfg.input, constNode);
         }, "Add(PerChannel)"}}), {"Add"} };
 
 const auto fusingDivSubFQ = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
         {[](postNodeConfig& cfg){
             ov::Shape secondMultInShape = generatePerChannelShape(cfg.input);
-            auto secondMultInput = ov::test::utils::deprecated::make_constant(cfg.type, secondMultInShape, std::vector<float>{}, true);
+            auto secondMultInput = ov::test::utils::make_constant(cfg.type, secondMultInShape);
             return std::make_shared<ov::op::v1::Divide>(cfg.input, secondMultInput);
         }, "Divide(PerChannel)"},
         {[](postNodeConfig& cfg){
             ov::Shape secondMultInShape = generatePerChannelShape(cfg.input);
-            auto secondMultInput = ov::test::utils::deprecated::make_constant(cfg.type, secondMultInShape, std::vector<float>{}, true);
+            auto secondMultInput = ov::test::utils::make_constant(cfg.type, secondMultInShape);
             return std::make_shared<ov::op::v1::Subtract>(cfg.input, secondMultInput);
         }, "Subtract(PerChannel)"},
         {[](postNodeConfig& cfg){
@@ -415,6 +432,8 @@ const std::vector<fusingSpecificParams> fusingParamsSetBF16{
         fusingReluScaleShift
 };
 
+const std::vector<fusingSpecificParams> fusingParamsSetFP16 = fusingParamsSetBF16;
+
 InputShape convInpShape = {
         //dynamic shapes
         {-1, 32, -1, -1},
@@ -463,6 +482,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_BF16,
                                             ::testing::Values(true, false),
                                             ::testing::ValuesIn(fusingParamsSetBF16),
                                             ::testing::Values(cpu_bf16_plugin_config)),
+                         ConvSumInPlaceTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_FP16,
+                         ConvSumInPlaceTest,
+                         ::testing::Combine(
+                                 ::testing::Values(convInpShape),
+                                 ::testing::ValuesIn(secondInp),
+                                 ::testing::Values(true, false),
+                                 ::testing::ValuesIn(fusingParamsSetFP16),
+                                 ::testing::Values(cpu_f16_plugin_config)),
                          ConvSumInPlaceTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_Sum_Broadcast_INT8, ConvSumInPlaceTestInt8,

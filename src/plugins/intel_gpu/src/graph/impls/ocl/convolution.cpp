@@ -135,9 +135,17 @@ public:
         std::tie(dilation_x, dilation_y, dilation_z) = ov::intel_gpu::get_xyz<ov::Strides, uint32_t>(dilation, 1);
         conv_params.dilation = {dilation_x, dilation_y, dilation_z};
 
+        // gpu plugin avg_pool has forced f32 output data type when input is u8/i8.
+        // So quantize(u8)->avg_pool(u8)->conv(f32) is changes to quantize(u8)->avg_pool(f32)->conv(f32)
+        // Add condition to check this case and set proper quantization mode
         if ((impl_param.input_layouts[0].data_type == data_types::u8 ||
-             impl_param.input_layouts[0].data_type == data_types::i8) &&
-             impl_param.input_layouts[1].data_type == data_types::i8) {
+             impl_param.input_layouts[0].data_type == data_types::i8 ||
+             (impl_param.input_layouts[0].data_type == data_types::f32 &&
+              (!primitive->weights_zero_points.empty() ||
+               !primitive->activations_zero_points.empty() ||
+               !primitive->compensation.empty())))
+            && (impl_param.input_layouts[1].data_type == data_types::i8 ||
+                impl_param.input_layouts[1].data_type == data_types::u8)) {
             if (!primitive->weights_zero_points.empty() && !primitive->activations_zero_points.empty()) {
                 conv_params.quantization = kernel_selector::QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS;
             } else if (!primitive->weights_zero_points.empty()) {
@@ -196,6 +204,16 @@ public:
             conv_params.padding_begin = {pad_begin_y, pad_begin_x, pad_begin_z};
             conv_params.stride = {stride_y, stride_x, stride_z};
             conv_params.dilation = {dilation_y, dilation_x, dilation_z};
+        }
+
+        if (primitive->deformable_mode) {
+            auto interpolated_layout = impl_param.output_layouts[0];
+            auto in_shape = impl_param.input_layouts[0].get_partial_shape();
+            auto interpolated_shape = interpolated_layout.get_partial_shape();
+            interpolated_shape[0] = in_shape[0];
+            interpolated_shape[1] = in_shape[1] * conv_params.filterSize.x * conv_params.filterSize.y;
+            interpolated_layout.set_partial_shape(interpolated_shape);
+            conv_params.intermediate_tensor = convert_data_tensor(interpolated_layout);
         }
 
         auto format = impl_param.get_output_layout().format;
@@ -338,7 +356,8 @@ attach_convolution_impl::attach_convolution_impl() {
     };
     auto dyn_formats = {
         format::bfyx,
-        format::bfzyx
+        format::bfzyx,
+        format::b_fs_yx_fsv16
     };
 
     implementation_map<convolution>::add(impl_types::ocl,

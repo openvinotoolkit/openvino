@@ -266,6 +266,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, layout_transform_test,
         {format::bfyx, format::bfwzyx, ov::PartialShape{1, 2, 3, 4}, ov::PartialShape{1, 2, 1, 1, 3, 4}},
         {format::bfyx, format::bfuwzyx, ov::PartialShape{1, 2, 3, 4}, ov::PartialShape{1, 2, 1, 1, 1, 3, 4}},
         {format::bfyx, format::bfvuwzyx, ov::PartialShape{1, 2, 3, 4}, ov::PartialShape{1, 2, 1, 1, 1, 1, 3, 4}},
+        {format::bfyx, format::bfvuwzyx, ov::PartialShape{1, 2, 3}, ov::PartialShape{1, 2, 1, 1, 1, 1, 3, 1}},
 
         {format::b_fs_yx_fsv16, format::bfyx, ov::PartialShape{1, 2, 3, 4}, ov::PartialShape{1, 2, 3, 4}},
         {format::b_fs_yx_fsv16, format::bfzyx, ov::PartialShape{1, 2, 3, 4}, ov::PartialShape{1, 2, 1, 3, 4}},

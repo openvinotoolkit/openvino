@@ -17,6 +17,7 @@
 #include "openvino/core/parallel.hpp"
 #include "common.hpp"
 #include "attn_quant.hpp"
+#include "attn_quant_kernel.hpp"
 
 namespace ov {
 namespace Extensions {
@@ -131,6 +132,8 @@ static void quant_u8(const T* src, uint8_t* dst, size_t n, float& scale, float& 
         min = std::min(min, tmp);
     }
     scale = (max - min) / 255;
+    if (scale == 0)
+        scale = 0.0001f;
     zp = -min / scale;
 
     i = 0;
@@ -174,10 +177,13 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                           const ov::intel_cpu::PlainTensor& v_dst,
                           const ov::intel_cpu::PlainTensor& k_scale_zp,
                           const ov::intel_cpu::PlainTensor& v_scale_zp) {
+    // For compatibility, all input_kvs are permuted to BHLS
     size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2], S = k_src.m_dims[3];
-    parallel_for3d(B, H, L1, [&](size_t b, size_t h, size_t m) {
-        auto p_k = k_scale_zp.ptr<float>(b, h, m);
-        auto p_v = v_scale_zp.ptr<float>(b, h, m);
+    // Internal LBHS layout has strides[L] > strides[B]
+    assert(k_src.m_strides[2] > k_src.m_strides[0]);
+    parallel_for3d(L1, B, H, [&](size_t m, size_t b, size_t h) {
+        auto p_k = k_scale_zp.ptr<float>(m, b, h);
+        auto p_v = v_scale_zp.ptr<float>(m, b, h);
         quant_u8(k_src.ptr<T>(b, h, m),
                  k_dst.ptr<T2>(b, h, m),
                  S,
@@ -185,6 +191,37 @@ static void attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
                  p_k[1]);
         quant_u8(v_src.ptr<T>(b, h, m),
                  v_dst.ptr<T2>(b, h, m),
+                 S,
+                 p_v[0],
+                 p_v[1]);
+    });
+}
+
+template <typename T, typename T2>
+static void paged_attn_quant_mt(const ov::intel_cpu::PlainTensor& k_src,
+                                const ov::intel_cpu::PlainTensor& v_src,
+                                const ov::intel_cpu::PlainTensor& k_dst,
+                                const ov::intel_cpu::PlainTensor& v_dst,
+                                const ov::intel_cpu::PlainTensor& slot_mapping) {
+    size_t B = k_src.m_dims[0], H = k_src.m_dims[1], L1 = k_src.m_dims[2], S = k_src.m_dims[3];
+    size_t block_size = k_dst.m_dims[2];
+    parallel_for3d(B, L1, H, [&](size_t b, size_t m, size_t h) {
+        auto slot = slot_mapping.ptr<int32_t>(b)[m];
+        if (slot < 0) return;
+        auto block_number = slot / block_size;
+        auto block_offset = slot % block_size;
+
+        auto p_k = reinterpret_cast<float*>(k_dst.ptr<T2>(block_number, h, block_offset));
+        auto p_v = reinterpret_cast<float*>(v_dst.ptr<T2>(block_number, h, block_offset));
+        // The layout for per token per head:
+        // |scale(f32)|zeropoint(f32)|quantized feature(u8,idx_1)|quantized feature(u8,idx_2)|...|quantized feature(u8,idx_S)|
+        quant_u8(k_src.ptr<T>(b, h, m),
+                 k_dst.ptr<T2>(block_number, h, block_offset) + sizeof(float) + sizeof(float),
+                 S,
+                 p_k[0],
+                 p_k[1]);
+        quant_u8(v_src.ptr<T>(b, h, m),
+                 v_dst.ptr<T2>(block_number, h, block_offset) + sizeof(float) + sizeof(float),
                  S,
                  p_v[0],
                  p_v[1]);
@@ -206,42 +243,26 @@ void attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
     }
 }
 
+void paged_attn_quantkv(const ov::intel_cpu::PlainTensor& k_src,
+                        const ov::intel_cpu::PlainTensor& v_src,
+                        const ov::intel_cpu::PlainTensor& k_dst,
+                        const ov::intel_cpu::PlainTensor& v_dst,
+                        const ov::intel_cpu::PlainTensor& slot_mapping) {
+    if (k_src.get_precision() == ov::element::f32 && k_dst.get_precision() == ov::element::u8) {
+        paged_attn_quant_mt<float, uint8_t>(k_src, v_src, k_dst, v_dst, slot_mapping);
+    } else if (k_src.get_precision() == ov::element::bf16 && k_dst.get_precision() == ov::element::u8) {
+        paged_attn_quant_mt<ov::bfloat16, uint8_t>(k_src, v_src, k_dst, v_dst, slot_mapping);
+    } else {
+        OPENVINO_THROW("unsupport src type: ", k_src.get_precision(), ", dst type: ", k_dst.get_precision(), " in paged_attn_quantkv");
+    }
+}
+
 void attn_quant_u8(const float* src, uint8_t* dst, size_t n, float& scale, float& zp) {
     quant_u8(src, dst, n, scale, zp);
 }
 
 void attn_dequant_u8(const uint8_t* src, float* dst, size_t n, float scale, float zp) {
-    size_t i = 0;
-    // loadu_si128/epi64 does not support const qualifier
-    uint8_t* src_nc = const_cast<uint8_t*>(src);
-#if defined(HAVE_AVX512F)
-    auto v_zp = _mm512_set1_ps(zp);
-    auto v_scale = _mm512_set1_ps(scale);
-    for (; i + vec_len_f32_avx512 <= n; i += vec_len_f32_avx512) {
-        auto v0_128 = _mm_loadu_si128(reinterpret_cast<__m128i*>(src_nc + i));
-        auto v0_512 = _mm512_cvtepu8_epi32(v0_128);
-        auto v0_value = _mm512_cvtepi32_ps(v0_512);
-        v0_value = _mm512_sub_ps(v0_value, v_zp);
-        auto v0_out = _mm512_mul_ps(v0_value, v_scale);
-        mm512_uni_storeu_ps(dst + i, v0_out);
-    }
-#elif defined(HAVE_AVX2)
-    auto v_zp = _mm256_set1_ps(zp);
-    auto v_scale = _mm256_set1_ps(scale);
-    for (; i + vec_len_f32_avx2 <= n; i += vec_len_f32_avx2) {
-        auto v0_128 = _mm_loadl_epi64(reinterpret_cast<__m128i*>(src_nc + i));
-        auto v0_256 = _mm256_cvtepu8_epi32(v0_128);
-        auto v0_value = _mm256_cvtepi32_ps(v0_256);
-        v0_value = _mm256_sub_ps(v0_value, v_zp);
-        auto v0_out = _mm256_mul_ps(v0_value, v_scale);
-        mm256_uni_storeu_ps(dst + i, v0_out);
-    }
-#endif
-    for (; i < n; ++i) {
-        float tmp = src_nc[i];
-        tmp = (tmp - zp) * scale;
-        dst[i] = tmp;
-    }
+    attn_dequant_u8_kernel(src, dst, n, scale, zp);
 }
 
 }  // namespace XARCH

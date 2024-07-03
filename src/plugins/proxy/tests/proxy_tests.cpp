@@ -649,7 +649,7 @@ void ov::proxy::tests::ProxyTests::register_plugin_support_subtract(ov::Core& co
             for (const auto& it : properties) {
                 if (it.first == ov::enable_profiling.name())
                     m_profiling = it.second.as<bool>();
-                else if (it.first == ov::device::id.name())
+                else if (it.first == ov::device::id.name() || it.first == ov::cache_dir.name())
                     continue;
                 else
                     OPENVINO_THROW(get_device_name(), " set config: " + it.first);

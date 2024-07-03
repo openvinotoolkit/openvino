@@ -72,12 +72,14 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
             outputs = fe_output_user_data_repack(input_model, argv.output, moc_front_end.get_name())
             input_model.override_all_outputs([x['node'] for x in outputs])
     '''
-    argv.placeholder_shapes, argv.placeholder_data_types = convert_params_lists_to_dicts(
-        input_model, argv.placeholder_shapes, argv.placeholder_data_types)
 
-    user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
-        input_model, argv.placeholder_shapes, argv.placeholder_data_types,
-        argv.output, {}, moc_front_end.get_name())
+    enabled_transforms, disabled_transforms = get_enabled_and_disabled_transforms()
+    if 'ANALYSIS_JSON_PRINT' in enabled_transforms:
+        # NOTE that model analysis is performed before applying user's settings (inputs's shapes etc.)
+        framework_model = moc_front_end.decode(input_model)
+        json_model_analysis_dump(framework_model)
+        # a model is not processed further in json analysis mode
+        sys.exit(0)
 
     def check_places_are_same(places_original: List[Place], places_new: List[Place]):
         """
@@ -89,6 +91,67 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         return len(places_original) == len(places_new) and len(
             [item for item in places_original if any(
                 [item.is_equal(item2['node']) for item2 in places_new])]) == len(places_original)
+
+    if getattr(argv, "framework", None) == "pytorch":
+        iplaces = []
+        for idx, input_info in enumerate(argv.input):
+            if getattr(input_info, "name", None):
+                place = input_model.get_place_by_tensor_name(input_info.name)
+                if not input_info.shape and not input_info.type:
+                    # If we received place by name, we need to use it for FE to verify
+                    # that such name exist, otherwise we silently ignore it.
+                    # Using dynamic shape should be safe, because FE will not overwrite
+                    # the shape that was produced after conversion, but merge it, so
+                    # dynamic shape will not change anything.
+                    input_model.set_partial_shape(place, PartialShape.dynamic())
+            else:
+                place = input_model.get_place_by_input_index(idx)
+            iplaces.append(place)
+            if input_info.shape is not None:
+                input_model.set_partial_shape(place, input_info.shape)
+            if input_info.type is not None:
+                input_model.set_element_type(place, input_info.type)
+        model_inputs = input_model.get_inputs()
+        def merge_inputs(inputs, to_set_list):
+            # use input places instead of obtained by index if they are the same
+            res = []
+            for p in to_set_list:
+                found = False
+                for i in inputs:
+                    if p.is_equal(i):
+                        res.append(i)
+                        found = True
+                        break
+                if not found:
+                    res.append(p)
+            return res
+        iplaces = merge_inputs(model_inputs, iplaces)
+        # Currently this only work to reorder inputs/outputs
+        to_override_all_inputs = check_places_are_same(model_inputs, [{"node": p} for p in iplaces])
+        to_override_all_outputs = False
+        if argv.output:
+            oplaces = []
+            _outputs = fe_output_user_data_repack(input_model, argv.output, moc_front_end.get_name())
+            for out_desc in _outputs:
+                oplaces.append(out_desc["name"])
+            model_outputs = input_model.get_outputs()
+            to_override_all_outputs = check_places_are_same(model_outputs, [{"node": p} for p in oplaces])
+        if to_override_all_inputs and to_override_all_outputs:
+            input_model.extract_subgraph(iplaces, oplaces)
+        elif to_override_all_inputs:
+            input_model.override_all_inputs(iplaces)
+        elif to_override_all_outputs:
+            input_model.override_all_outputs(oplaces)
+
+        ov_model = moc_front_end.convert(input_model)
+        return ov_model
+
+    argv.placeholder_shapes, argv.placeholder_data_types = convert_params_lists_to_dicts(
+        input_model, argv.placeholder_shapes, argv.placeholder_data_types)
+
+    user_shapes, outputs, freeze_placeholder = fe_user_data_repack(
+        input_model, argv.placeholder_shapes, argv.placeholder_data_types,
+        argv.output, {}, moc_front_end.get_name())
 
     def add_names_to_tensors(model: InputModel, places: List[Place]):
         """
@@ -106,14 +169,6 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                 # some frontends might not implement this method
                 log.warning('Could not add an additional name to a tensor pointed to by \'{}\'. Details: {}'.format(
                     new_input['input_name'], str(e)))
-
-    enabled_transforms, disabled_transforms = get_enabled_and_disabled_transforms()
-    if 'ANALYSIS_JSON_PRINT' in enabled_transforms:
-        # NOTE that model analysis is performed before applying user's settings (inputs's shapes etc.)
-        framework_model = moc_front_end.decode(input_model)
-        json_model_analysis_dump(framework_model)
-        # a model is not processed further in json analysis mode
-        sys.exit(0)
 
     model_inputs = input_model.get_inputs()
     inputs_equal = True
@@ -181,7 +236,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                 input_model.set_partial_shape(
                     user_shape['node'], user_shape['shape'])
             if user_shape.get('data_type') is not None:
-                data_type = get_element_type(user_shape['data_type'])
+                data_type = user_shape['data_type']
                 log.debug('Set data type: {}'.format(data_type))
                 input_model.set_element_type(user_shape['node'], data_type)
 
@@ -237,9 +292,6 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                 input_model.set_partial_shape(place, ov_shape)
 
             input_model.set_tensor_value(place, value)
-
-    def shape_to_array(shape: PartialShape):
-        return [shape.get_dimension(i) for i in range(shape.rank.get_length())]
 
     ov_model = moc_front_end.convert(input_model)
 

@@ -34,8 +34,7 @@ public:
     void clear(const std::string& id = {}) override;
     void set_property(const ov::AnyMap& properties) override;
     ov::Any get_property(const std::string& name) const override;
-    void execute_task_by_streams_executor(ov::threading::IStreamsExecutor::Config::PreferredCoreType core_type,
-                                          ov::threading::Task task) override;
+    void execute_task_by_streams_executor(ov::hint::SchedulingCoreType core_type, ov::threading::Task task) override;
 
 private:
     void reset_tbb();
@@ -171,19 +170,9 @@ void ExecutorManagerImpl::clear(const std::string& id) {
     }
 }
 
-void ExecutorManagerImpl::execute_task_by_streams_executor(
-    ov::threading::IStreamsExecutor::Config::PreferredCoreType core_type,
-    ov::threading::Task task) {
-    ov::threading::IStreamsExecutor::Config streamsConfig("StreamsExecutor",
-                                                          1,
-                                                          1,
-                                                          ov::threading::IStreamsExecutor::ThreadBindingType::NONE,
-                                                          1,
-                                                          0,
-                                                          0,
-                                                          core_type,
-                                                          {},
-                                                          false);
+void ExecutorManagerImpl::execute_task_by_streams_executor(ov::hint::SchedulingCoreType core_type,
+                                                           ov::threading::Task task) {
+    ov::threading::IStreamsExecutor::Config streamsConfig("StreamsExecutor", 1, 1, core_type);
     if (!streamsConfig.get_streams_info_table().empty()) {
         auto taskExecutor = std::make_shared<ov::threading::CPUStreamsExecutor>(streamsConfig);
         std::vector<Task> tasks{std::move(task)};

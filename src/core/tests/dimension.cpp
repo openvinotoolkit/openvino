@@ -158,3 +158,12 @@ TEST(dimension, dimension_equality) {
     for (const auto& dimension : dimensions)
         EXPECT_EQ(dimension.get_symbol(), nullptr);
 }
+
+TEST(dimension, dimension_symbolic_equality) {
+    auto A = std::make_shared<ov::Symbol>(), B = std::make_shared<ov::Symbol>();
+    auto C = std::make_shared<ov::Symbol>(), D = std::make_shared<ov::Symbol>();
+    ov::symbol::set_equal(A, B);
+    ov::symbol::set_equal(D, C);
+    ov::symbol::set_equal(A, D);
+    EXPECT_TRUE(ov::symbol::are_equal(B, C));
+}

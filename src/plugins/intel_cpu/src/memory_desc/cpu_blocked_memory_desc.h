@@ -5,10 +5,12 @@
 #pragma once
 
 #include "blocked_memory_desc.h"
-#include "utils/general_utils.h"
+#include "dnnl_extension_utils.h"
 
 namespace ov {
 namespace intel_cpu {
+
+class DnnlBlockedMemoryDesc;
 
 class CpuBlockedMemoryDesc : public BlockedMemoryDesc {
 public:

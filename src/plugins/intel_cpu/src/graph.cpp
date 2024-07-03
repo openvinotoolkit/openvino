@@ -32,6 +32,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
@@ -253,6 +254,72 @@ void Graph::GroupParallelNodes() {
     }
 }
 
+static std::vector<size_t> IdentifySyncPoints(const std::vector<NodePtr>& graphNodes) {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::IdentifySyncPoints");
+    std::vector<size_t> syncNodesInds;
+
+    for (size_t i = 0; i < graphNodes.size(); ++i) {
+        const auto& node = graphNodes[i];
+
+        if (!node->isDynamicNode())
+            continue;
+
+        if (node->outputShapeDataDependency() ||
+            // WA: for convolution plus sum(broadcast). Due to the fact that a convolution with sum use the same memory for second sum term and the output
+            // tensors (inPlace) resizing the output tensor, may lead to reallocation of this second term memory and possible data lost. The reallocation
+            // may happen when the second term shape is broadcasted to the output tensor shape. To avoid the data loss, we have a special processing for
+            // such cases inside the convolution node, but it works properly only when dynamic shapes inference, preparation and execution a called
+            // for this node sequentially.
+            (node->getType() == Type::Convolution && node->isInPlace()) ||
+            // Due to the special handling of the internal states and initialization subgraphs, MemoryInput nodes must
+            // be processed as a internal dynamism node, allowing to hide the aforementioned complexity inside the
+            // MemoryInput::executeDynamic implementation
+            (node->getType() == Type::MemoryInput)) {
+            syncNodesInds.push_back(i);
+        }
+    }
+
+    return syncNodesInds;
+}
+
+static std::tuple<std::vector<NodePtr>, std::vector<size_t>> ExtractExecutableNodesAndSyncPoints(const std::vector<size_t>& syncNodesInds,
+                                                                                                 const std::vector<NodePtr>& graphNodes) {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ExtractExecutableNodesAndSyncPoints");
+    std::unordered_map<size_t, size_t> graphIdToExecutableId;
+    std::vector<NodePtr> executableGraphNodes;
+    for (size_t i = 0; i < graphNodes.size(); i++) {
+        const auto& graphNode = graphNodes[i];
+        if ((!graphNode->isConstant() && CPU_DEBUG_CAPS_ALWAYS_TRUE(graphNode->isExecutable())) || // non-constant executable or
+            (graphNode->isDynamicNode() && !one_of(graphNode->getType(), Type::Input, Type::Output))) { // dynamic, except inputs / outputs
+            /* @todo
+             * Revise implementation.
+             * With current way it is possible that with debug_caps enabled
+             * we execute a node, which is not ready to be executed
+             */
+            graphIdToExecutableId[i] = executableGraphNodes.size();
+            executableGraphNodes.emplace_back(graphNode);
+        }
+    }
+
+    // use set to ensure sorted unique sync entries
+    std::set<size_t> uniqueExecutableSyncNodesInds;
+    for (const auto& syncNodesInd : syncNodesInds) {
+        auto it = graphIdToExecutableId.find(syncNodesInd);
+        if (it != graphIdToExecutableId.end()) {
+            uniqueExecutableSyncNodesInds.insert(it->second);
+            // since sometimes we need to run the synchronization node  alone (for example in the case of internal dynamism)
+            // let's add another sync index after the sync point node
+            uniqueExecutableSyncNodesInds.insert(it->second + 1);
+        }
+    }
+    uniqueExecutableSyncNodesInds.insert(executableGraphNodes.size());
+    // convert to a vector to reduce runtime overhead
+    std::vector<size_t> executableSyncNodesInds(uniqueExecutableSyncNodesInds.begin(), uniqueExecutableSyncNodesInds.end());
+
+    return std::make_tuple(std::move(executableGraphNodes),
+                           std::move(executableSyncNodesInds));
+}
+
 void Graph::InitGraph(bool optimize) {
     DEBUG_LOG("Initializing graph with name: ",  GetName());
 
@@ -284,9 +351,10 @@ void Graph::InitGraph(bool optimize) {
 
     SortTopologically();
 
-    const auto hasDynNodes = ProcessDynNodes();
+    const bool hasDynNodes = ProcessDynNodes();
+    const auto syncNodesInds = hasDynNodes ? IdentifySyncPoints(graphNodes) : std::vector<size_t>{};
 
-    Allocate();
+    Allocate(syncNodesInds);
 
     CreatePrimitivesAndExecConstants();
 
@@ -296,8 +364,7 @@ void Graph::InitGraph(bool optimize) {
     }
 #endif
 
-    ExtractExecutableNodes();
-    SearchInternalStateNodes();
+    std::tie(m_executableGraphNodes, m_executableSyncNodesInds) = ExtractExecutableNodesAndSyncPoints(syncNodesInds, graphNodes);
 
     status = hasDynNodes ? Status::ReadyDynamic : Status::ReadyStatic;
 
@@ -367,24 +434,6 @@ void Graph::InitOptimalPrimitiveDescriptors() {
         node->initOptimalPrimitiveDescriptor();
         DEBUG_LOG("#", node->getExecIndex(), " ", node->getName(), "\n",
                   *node->getSelectedPrimitiveDescriptor(), "selectedPrimitiveDescriptorIdx = ", node->selectedPrimitiveDescriptorIndex);
-    }
-}
-
-void Graph::ExtractExecutableNodes() {
-    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ExtractExecutableNodes");
-    for (const auto& graphNode : graphNodes) {
-        if ((!graphNode->isConstant() && CPU_DEBUG_CAPS_ALWAYS_TRUE(graphNode->isExecutable())) || graphNode->isDynamicNode()) {
-            /* @todo
-             * Revise implementation.
-             * With current way it is possible that with debug_caps enabled
-             * we execute a node, which is not ready to be executed
-             */
-            auto itr = syncNodesInds.find(graphNode.get());
-            if (itr != syncNodesInds.end()) {
-                itr->second = executableGraphNodes.size();
-            }
-            executableGraphNodes.emplace_back(graphNode);
-        }
     }
 }
 
@@ -641,7 +690,7 @@ static edge_clusters_t findEdgeClusters(const std::vector<EdgePtr> & graphEdges)
     return edge_clusters;
 }
 
-void Graph::AllocateWithReuse() {
+void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
     edge_clusters_t edge_clusters = findEdgeClusters(graphEdges);
 
     size_t remaining_edge_clusters_count = edge_clusters.size();
@@ -829,19 +878,14 @@ void Graph::AllocateWithReuse() {
         if (!syncNodesInds.empty()) {
             //We have to extend the lifespan of tensors that are crossing a sync point border in order to save
             //the intermediate computation results from possible loss due to the tensor resize
-            std::vector<int> vecIntervals = {0};
-            for (const auto& item : syncNodesInds) {
-                vecIntervals.push_back(item.first->execIndex);
-            }
-            std::sort(vecIntervals.begin(), vecIntervals.end());
             for (auto& box : undefinedBoxes) {
                 if (-1 == box.finish) {
                     continue;
                 }
-                auto itr_upper = std::upper_bound(vecIntervals.begin(), vecIntervals.end(), box.finish, [](int y, int x) { return y <= x;});
-                auto itr_lower = std::lower_bound(vecIntervals.begin(), vecIntervals.end(), box.start);
+                auto itr_upper = std::upper_bound(syncNodesInds.begin(), syncNodesInds.end(), box.finish, [](int y, int x) { return y <= x;});
+                auto itr_lower = std::lower_bound(syncNodesInds.begin(), syncNodesInds.end(), box.start);
                 if (itr_lower != itr_upper) { // across sections
-                    if (itr_upper == vecIntervals.end()) {
+                    if (itr_upper == syncNodesInds.end()) {
                         box.finish = -1;
                     } else {
                         box.finish = *itr_upper;
@@ -921,7 +965,7 @@ void Graph::AllocateWithReuse() {
     }
 }
 
-void Graph::Allocate() {
+void Graph::Allocate(const std::vector<size_t>& syncNodesInds) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::Allocate");
 
     //resolve inplace dead end nodes
@@ -945,7 +989,7 @@ void Graph::Allocate() {
     for (auto& edge : graphEdges) edge->init();
 
     // Allocate memory space for all edges marked with NeedAllocation
-    AllocateWithReuse();
+    AllocateWithReuse(syncNodesInds);
 
     // Check all getters. Should work.
     for (auto& edge : graphEdges) edge->validate();
@@ -954,31 +998,18 @@ void Graph::Allocate() {
 bool Graph::ProcessDynNodes() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ProcessDynNodes");
 
-    bool result = false;
-    for (size_t i = 0; i < graphNodes.size(); ++i) {
-        const auto& node = graphNodes[i];
-        if (node->isDynamicNode()) {
-            result = true;
-            if (node->outputShapeDataDependency() ||
-                // WA: for convolution plus sum(broadcast). Due to the fact that a convolution with sum use the same memory for second sum term and the output
-                // tensors (inPlace) resizing the output tensor, may lead to reallocation of this second term memory and possible data lost. The reallocation
-                // may happen when the second term shape is broadcasted to the output tensor shape. To avoid the data loss, we have a special processing for
-                // such cases inside the convolution node, but it works properly only when dynamic shapes inference, preparation and execution a called
-                // for this node sequentially.
-                (node->getType() == Type::Convolution && node->isInPlace())) {
-                syncNodesInds.insert({node.get(), i});
-            }
-        }
-    }
-
+    const bool containsDynamicNodes = std::any_of(graphNodes.begin(), graphNodes.end(), [](const NodePtr& node) {
+        return node->isDynamicNode();
+    });
     // In case of dynamic shapes, tensors may be resized due to the shapes variations.
     // If the input tensor is included to memory reuse, it means that its memory manager is shared with other tensors in the graph, which in turn may cause data
     // loss when one of the tensors down the graph requests mem resize, while the input data have not been yet read by the consumers. To avoid such situations
     // we disable io mem reuse for the case of dynamic shapes.
-    if (result) {
+    if (containsDynamicNodes) {
         this->reuse_io_tensors = false;
     }
-    return result;
+
+    return containsDynamicNodes;
 }
 
 void Graph::PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& input) {
@@ -1094,7 +1125,7 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
 void Graph::InferStatic(SyncInferRequest* request) {
     dnnl::stream stream(getEngine());
 
-    for (const auto& node : executableGraphNodes) {
+    for (const auto& node : m_executableGraphNodes) {
         VERBOSE(node, getConfig().debugCaps.verbose);
         PERF(node, getConfig().collectPerfCounters);
 
@@ -1313,33 +1344,28 @@ public:
 void Graph::InferDynamic(SyncInferRequest* request) {
     dnnl::stream stream(getEngine());
 
-    std::set<size_t> syncIndsWorkSet;
-    for (const auto& nodeIndx : syncNodesInds) {
-        syncIndsWorkSet.insert(nodeIndx.second);
-        //since sometimes we need to run the synchronization node  alone (for example in the case of internal dynamism)
-        //let's add another sync index after the sync point node
-        syncIndsWorkSet.insert(nodeIndx.second + 1);
-    }
-    syncIndsWorkSet.insert(executableGraphNodes.size());
-
     std::unique_ptr<IUpdateNodes> updateNodes{};
     if (parallel_get_max_threads() > 1) {
-        updateNodes.reset(new UpdateNodes(executableGraphNodes));
+        updateNodes.reset(new UpdateNodes(m_executableGraphNodes));
     } else {
-        updateNodes.reset(new UpdateNodesSeq(executableGraphNodes));
+        updateNodes.reset(new UpdateNodesSeq(m_executableGraphNodes));
     }
-    size_t inferCounter = 0;
 
-    for (auto stopIndx : syncIndsWorkSet) {
+    size_t inferCounter = 0;
+    for (auto stopIndx : m_executableSyncNodesInds) {
         updateNodes->run(stopIndx);
         for (; inferCounter < stopIndx; ++inferCounter) {
-            auto& node = executableGraphNodes[inferCounter];
+            auto& node = m_executableGraphNodes[inferCounter];
             VERBOSE(node, getConfig().debugCaps.verbose);
             PERF(node, getConfig().collectPerfCounters);
 
             if (request)
                 request->throw_if_canceled();
-            ExecuteNode(node, stream);
+            try {
+                ExecuteNode(node, stream);
+            } catch (const std::exception& exp) {
+                OPENVINO_THROW(node, exp.what());
+            }
         }
     }
 }
@@ -1354,11 +1380,10 @@ inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) 
                 ParalleMtNuma(num_parallel_nodes, cpuExecutor, [&](int subStreamID, size_t i) {
                     auto& n = parallelNodes[i];
 
-                    n->toNumaNode(subStreamID);
                     if (n->isDynamicNode()) {
-                        n->executeDynamic(stream);
+                        n->executeDynamic(stream, subStreamID);
                     } else {
-                        n->execute(stream);
+                        n->executeStatic(stream, subStreamID);
                     }
                 });
             } else {
@@ -1367,7 +1392,7 @@ inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) 
                     if (node->isDynamicNode()) {
                         node->executeDynamic(stream);
                     } else {
-                        node->execute(stream);
+                        node->executeStatic(stream);
                     }
                 }
             }
@@ -1377,15 +1402,16 @@ inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) 
         OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, node->profiling.execute);
         DEBUG_LOG(*node);
         // TODO: 132954 workaround for latency
+        int subStreamID = -1;
 #if defined(__x86_64__) && defined(__linux__)
         if ((getGraphContext()->getCPUStreamExecutor()) && (getConfig().hintPerfMode == ov::hint::PerformanceMode::LATENCY)) {
-            node->toNumaNode(getGraphContext()->getCPUStreamExecutor()->get_numa_node_id());
+            subStreamID = getGraphContext()->getCPUStreamExecutor()->get_numa_node_id();
         }
 #endif
         if (node->isDynamicNode()) {
-            node->executeDynamic(stream);
+            node->executeDynamic(stream, subStreamID);
         } else {
-            node->execute(stream);
+            node->executeStatic(stream, subStreamID);
         }
     }
 }
@@ -1735,7 +1761,7 @@ void Graph::EnforceInferencePrecision() {
 
     const auto inferPrec = getConfig().inferencePrecision;
 
-    if (inferPrec == ov::element::f32)
+    if (one_of(inferPrec, element::f32, element::undefined, ov::element::f16))
         return; // nothing to do, only precision reduction is currently allowed
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     if (inferPrec == ov::element::f16)
@@ -1806,13 +1832,12 @@ void Graph::EnforceInferencePrecision() {
 
         for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
             auto keepOriginalInputPrecisionAtPort = [](const NodePtr& node, const size_t inPort) {
-                // keep non-float precisions
+                // keep non-float32 precisions
                 if (node->getOriginalInputPrecisionAtPort(inPort) != ov::element::f32)
                     return true;
 
                 // kvcache of PagedAttention should be written directly
-                if (node->getType() == Type::ScaledDotProductAttention && node->getOriginalInputsNumber() == 13 &&
-                    (inPort == 3 || inPort == 4))
+                if (node->getType() == Type::PagedAttention && (inPort == 3 || inPort == 4))
                     return true;
                 const auto &parent = node->getParentEdgeAt(inPort)->getParent();
                 /* Skip BF16 enforcement for nodes after Constant Inputs for maintaining precision for fusing.
@@ -1851,7 +1876,7 @@ void Graph::EnforceInferencePrecision() {
         }
 
         for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
-            // keep non-float precisions
+            // keep non-float32 precisions
             if (node->getOriginalOutputPrecisionAtPort(i) != ov::element::f32)
                 continue;
 
@@ -1880,16 +1905,8 @@ std::shared_ptr<ov::Model> Graph::dump() const {
     return dump_graph_as_ie_ngraph_net(*this);
 }
 
-void Graph::SearchInternalStateNodes() {
-    for (auto&& node : graphNodes) {
-        if (node->getType() == Type::MemoryInput) {
-            auto cur_node = std::dynamic_pointer_cast<node::MemoryStateNode>(node);
-            if (!cur_node) {
-                OPENVINO_THROW("Cannot cast ", node->getName(), " to MemoryStateNode");
-            }
-            internalStateNodes.insert({cur_node->getId(), cur_node});
-        }
-    }
+const std::unordered_map<std::string, node::MemoryStateNode*>& Graph::getInternalStateNodes() const {
+    return context->getMemoryStatesRegister()->getMemoryStates();
 }
 
 }   // namespace intel_cpu

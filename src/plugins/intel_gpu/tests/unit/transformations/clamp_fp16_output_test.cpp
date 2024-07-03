@@ -17,6 +17,8 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/maximum.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/softmax.hpp"
 #include <plugin/transformations/clamp_fp16_output.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>

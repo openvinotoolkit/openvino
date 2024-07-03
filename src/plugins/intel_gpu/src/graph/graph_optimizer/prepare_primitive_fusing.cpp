@@ -15,7 +15,6 @@
 #include "eltwise_inst.h"
 #include "gemm_inst.h"
 #include "lrn_inst.h"
-#include "mutable_data_inst.h"
 #include "mvn_inst.h"
 #include "pooling_inst.h"
 #include "normalize_inst.h"
@@ -197,26 +196,30 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
 
 
         if (node->get_output_layout().is_dynamic()) {
-            auto broadcast_type = eltw_node.get_primitive()->broadcast_spec.m_type;
-            if (!eltw_node.get_dependency(non_const_dep_idx).is_type<fully_connected>())
-                continue;
-            if (broadcast_type != ov::op::AutoBroadcastType::NUMPY && broadcast_type != ov::op::AutoBroadcastType::NONE)
-                continue;
-            // Numpy broadcast rule requires the dimension size which is not one to be same as the corresponding dimension of the other operand.
-            // So we can ensure that the feature size is same for this broadcasting rule, thereby being considered as bias.
-            auto const_shape = eltw_node.get_dependency(const_dep_idx).get_output_layout().get_shape();
-            int32_t count_elements_not_one = 0;
-            int32_t idx_element_not_one = -1;
-            for (size_t i = 0; i < const_shape.size(); ++i) {
-                if (const_shape[i] != 1) {
-                    count_elements_not_one++;
-                    idx_element_not_one = static_cast<int32_t>(i);
+            if (eltw_node.get_dependency(non_const_dep_idx).is_type<fully_connected>()) {
+                auto broadcast_type = eltw_node.get_primitive()->broadcast_spec.m_type;
+                if (broadcast_type != ov::op::AutoBroadcastType::NUMPY && broadcast_type != ov::op::AutoBroadcastType::NONE)
+                    continue;
+
+                // Numpy broadcast rule requires the dimension size which is not one to be same as the corresponding dimension of the other operand.
+                // So we can ensure that the feature size is same for this broadcasting rule, thereby being considered as bias.
+                auto const_shape = eltw_node.get_dependency(const_dep_idx).get_output_layout().get_shape();
+                int32_t count_elements_not_one = 0;
+                int32_t idx_element_not_one = -1;
+                for (size_t i = 0; i < const_shape.size(); ++i) {
+                    if (const_shape[i] != 1) {
+                        count_elements_not_one++;
+                        idx_element_not_one = static_cast<int32_t>(i);
+                    }
+                    if (count_elements_not_one > 1)
+                        break;
                 }
-                if (count_elements_not_one > 1)
-                    break;
-            }
-            if (count_elements_not_one != 1 ||
-                (idx_element_not_one != (static_cast<int32_t>(const_shape.size()) - 1))) {
+
+                if (count_elements_not_one != 1 ||
+                    (idx_element_not_one != (static_cast<int32_t>(const_shape.size()) - 1))) {
+                    continue;
+                }
+            } else if (!eltw_node.get_dependency(non_const_dep_idx).is_type<convolution>()) {
                 continue;
             }
         } else {
@@ -564,11 +567,25 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto eltwise_supports_fusings = [&](eltwise_node& node) -> bool {
+            auto has_reorder_behind_mvn = [&]() -> bool {
+                // MVN with rank size 3 always requires Reorder and Reshape. This pattern always run simple formats(bfyx..).
+                if (node.get_dependencies().size() > 0 && node.get_dependency(0).is_type<reshape>()) {
+                    auto& reshape_node = node.get_dependency(0);
+                    if (reshape_node.get_dependencies().size() > 0 && reshape_node.get_dependency(0).is_type<reorder>()) {
+                        auto& reorder_node = reshape_node.get_dependency(0);
+                        if (reorder_node.get_dependencies().size() > 0 && reorder_node.get_dependency(0).is_type<mvn>()) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            };
+
             auto out_layout = node.get_output_layout();
             // Do not fuse if the estimated format is fs_b_yx_fsv32 because the optimized kernel does not support fusion
             if (out_layout.data_type == data_types::f16 && out_layout.is_static() && out_layout.batch() > 1 &&
                 ((_lo.get_optimization_attributes().fs_b_yx_fsv32_network &&
-                  !_lo.get_optimization_attributes().use_onednn_impls) ||
+                  !_lo.get_optimization_attributes().use_onednn_impls && !has_reorder_behind_mvn()) ||
                  out_layout.format == format::fs_b_yx_fsv32)) {
                 return false;
             }
@@ -981,10 +998,11 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             auto fused_node = parents[fused_idx].first;
             auto peer_node = parents[peer_idx].first;
-
-            if (_lo.get_optimization_attributes().use_onednn_impls) {
+            if (_lo.get_optimization_attributes().use_onednn_impls && _lo.is_primitive_implemented_for_onednn(*fused_node)) {
                 auto eltw_in_size = peer_node->get_output_layout();
-                if (eltw_in_size.is_dynamic())
+                if (eltw_in_size.is_dynamic()
+                    // this whitelist condition is temporarily and to be relaxed soon.
+                    && !fused_node->is_type<fully_connected>())
                     return;
             }
             if (parent1.first->is_type<convolution>() && !conv_supports_fusings(parent1.first->as<convolution>()))
@@ -1112,8 +1130,7 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
 
         if (next_node->is_type<fully_connected>() ||
             next_node->is_type<deconvolution>() ||
-            next_node->is_type<convolution>() ||
-            next_node->is_type<deformable_conv>()) {
+            next_node->is_type<convolution>()) {
             size_t weights_offset = next_node->get_primitive()->input_size();
             std::vector<size_t> valid_weights_indices = {next_node->get_primitive()->input_size()};
             if (next_node->is_type<fully_connected>()) {

@@ -3,9 +3,12 @@
 //
 
 #pragma once
+#include <iostream>
+#include <string>
 #include <vector>
 
-#include "npu_driver_compiler_adapter.hpp"
+#include "custom_stream_buffer.hpp"
+#include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/pass/manager.hpp"
 
 /**
@@ -14,9 +17,39 @@
  */
 namespace intel_npu::driverCompilerAdapter {
 
-/**
- * @brief Serialize OpenVINO model to IR
- */
-IR serializeToIR(const std::shared_ptr<const ov::Model>& model, uint32_t supportedVersionByCompiler = 7);
+class IRSerializer {
+public:
+    IRSerializer(const std::shared_ptr<const ov::Model>& origModel, const uint32_t supportedOpset = 11);
+
+    size_t getXmlSize() const {
+        return _xmlSize;
+    }
+
+    size_t getWeightsSize() const {
+        return _weightsSize;
+    }
+
+    /**
+     * @brief Serialize OpenVINO model to target buffer
+     */
+    void serializeModelToBuffer(uint8_t* xml, uint8_t* weights);
+
+private:
+    /**
+     * @brief Serialize OpenVINO model to target stream
+     */
+    void serializeModelToStream(std::ostream& xml, std::ostream& weights);
+
+    /**
+     * @brief Get size of xml and weights from model
+     */
+    void countModelSize();
+
+    Logger _logger;
+    std::shared_ptr<ov::Model> _model = nullptr;
+    uint32_t _supportedOpset = 11;
+    size_t _xmlSize = 0;
+    size_t _weightsSize = 0;
+};
 
 }  // namespace intel_npu::driverCompilerAdapter

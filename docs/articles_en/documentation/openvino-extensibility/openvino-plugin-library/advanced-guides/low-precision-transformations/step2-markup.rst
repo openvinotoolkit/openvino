@@ -26,6 +26,7 @@ Step 2. Markup Transformations
    CreatePrecisionsDependentAttribute <step2-markup/create-precisions-dependent-attribute>
    PropagateThroughPrecisionPreserved <step2-markup/propagate-through-precision-preserved>
    PropagateToInput <step2-markup/propagate-to-input>
+   PropagateSharedValue <step2-markup/propagate-shared-value>
    UpdateSharedPrecisionPreserved <step2-markup/update-shared-precision-preserved>
 
 This step defines the optimal ``FakeQuantize`` decomposition precisions for the best inference performance via operations markup with runtime attribute instances. Attributes are created for input and output ports and operations. Transformations do not change the operation output port precisions. A model markup low precision logic is decomposed and implemented into the following common markup transformations. The order of transformations is important:
@@ -36,8 +37,9 @@ This step defines the optimal ``FakeQuantize`` decomposition precisions for the 
 4. :doc:`MarkupPerTensorQuantization <step2-markup/markup-per-tensor-quantization>`
 5. :doc:`MarkupAvgPoolPrecisionPreserved <step2-markup/markup-avg-pool-precision-preserved>`
 6. :doc:`PropagatePrecisions <step2-markup/propagate-precisions>`
-7. :doc:`AlignQuantizationIntervals <step2-markup/align-quantization-intervals>`
-8. :doc:`AlignQuantizationParameters <step2-markup/align-quantization-parameters>`
+7. :doc:`PropagateSharedValue <step2-markup/propagate-shared-value>`
+8. :doc:`AlignQuantizationIntervals <step2-markup/align-quantization-intervals>`
+9. :doc:`AlignQuantizationParameters <step2-markup/align-quantization-parameters>`
 
 .. list-table::
     :header-rows: 1
@@ -83,7 +85,7 @@ Common markup transformations can be decomposed into simpler utility markup tran
 
 Let's explore all transformations and their relations in detail, using one and the same model:
 
-.. image:: ../../../../../_static/images/step2_markup_original.svg
+.. image:: ../../../../../assets/images/step2_markup_original.svg
 
 The original model key features:
 
@@ -99,7 +101,7 @@ The original model key features:
 
 Transformations are run with the following parameters:
 
-.. doxygensnippet:: docs/snippets/lpt_intel_cpu_plugin.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/lpt_intel_cpu_plugin.cpp
    :language: cpp
    :fragment: [lpt_markup_pipeline]
 
@@ -114,7 +116,7 @@ Changes in the example model after ``MarkupCanBeQuantized`` transformation:
 
 Result model:
 
-.. image:: ../../../../../_static/images/step2_markup1.svg
+.. image:: ../../../../../assets/images/step2_markup1.svg
    :alt: MarkupCanBeQuantize
 
 Model display features (here and below):
@@ -137,7 +139,7 @@ No attributes are required before the transformation. Changes in the example mod
 
 Result model:
 
-.. image:: ../../../../../_static/images/step2_markup2.svg
+.. image:: ../../../../../assets/images/step2_markup2.svg
    :alt: MarkupPrecisions result
 
 3. MarkupPerTensorQuantization
@@ -151,7 +153,7 @@ Changes in the example model after ``MarkupPerTensorQuantization`` transformatio
 
 Result model:
 
-.. image:: ../../../../../_static/images/step2_markup3.svg
+.. image:: ../../../../../assets/images/step2_markup3.svg
    :alt: MarkupPerTensorQuantization result
 
 4. MarkupAvgPoolPrecisionPreserved
@@ -169,7 +171,7 @@ Changes in the example model after ``MarkupAvgPoolPrecisionPreserved`` transform
 
 Result model:
 
-.. image:: ../../../../../_static/images/step2_markup4.svg
+.. image:: ../../../../../assets/images/step2_markup4.svg
    :alt: arkupAvgPoolPrecisionPreserved
 
 5. PropagatePrecisions
@@ -188,7 +190,7 @@ Changes in the example model after ``PropagatePrecisions`` transformation:
 
 Result model:
 
-.. image:: ../../../../../_static/images/step2_markup5.svg
+.. image:: ../../../../../assets/images/step2_markup5.svg
    :alt: PropagatePrecisions
 
 .. note::
@@ -208,7 +210,7 @@ Changes in the example model after ``AlignQuantizationIntervals`` transformation
 
 Result model:
 
-.. image:: ../../../../../_static/images/step2_markup6.svg
+.. image:: ../../../../../assets/images/step2_markup6.svg
    :alt: AlignQuantizationIntervals
 
 7. AlignQuantizationParameters
@@ -227,6 +229,6 @@ Changes in the example model after ``AlignQuantizationParameters`` transformatio
 
 Final model:
 
-.. image:: ../../../../../_static/images/step2_markup7.svg
+.. image:: ../../../../../assets/images/step2_markup7.svg
    :alt: AlignQuantizationParameters
 

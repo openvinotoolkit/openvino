@@ -19,7 +19,8 @@ std::string PoolingLayerCPUTest::getTestCaseName(const testing::TestParamInfo<po
     bool isInt8;
     CPUSpecificParams cpuParams;
     fusingSpecificParams fusingParams;
-    std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams) = obj.param;
+    ov::AnyMap additionalConfig;
+    std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams, additionalConfig) = obj.param;
 
     utils::PoolingTypes poolType;
     std::vector<size_t> kernel, stride;
@@ -53,6 +54,12 @@ std::string PoolingLayerCPUTest::getTestCaseName(const testing::TestParamInfo<po
     results << "Rounding=" << roundingType << "_";
     results << "AutoPad=" << padType << "_";
     results << "INT8=" << isInt8 << "_";
+    if (!additionalConfig.empty()) {
+        results << "_PluginConf";
+            for (auto& item : additionalConfig) {
+                results << "_" << item.first << "=" << item.second.as<std::string>();
+            }
+        }
 
     results << CPUTestsBase::getTestCaseName(cpuParams);
     results << CpuTestWithFusing::getTestCaseName(fusingParams);
@@ -68,7 +75,9 @@ void PoolingLayerCPUTest::SetUp() {
     bool isInt8;
     CPUSpecificParams cpuParams;
     fusingSpecificParams fusingParams;
-    std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams) = this->GetParam();
+    ov::AnyMap additionalConfig;
+    std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams, additionalConfig) = this->GetParam();
+    configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
     utils::PoolingTypes poolType;
     std::vector<size_t> kernel, stride;
@@ -87,7 +96,7 @@ void PoolingLayerCPUTest::SetUp() {
     if (isInt8)
         selectedType = selectedType + "_I8";
     else
-        selectedType = makeSelectedTypeStr(selectedType, inPrc);
+        selectedType = makeSelectedTypeStr(selectedType, deduce_expected_precision(inPrc, configuration));
 
     init_input_shapes({inputShapes});
 
@@ -119,7 +128,8 @@ std::string MaxPoolingV8LayerCPUTest::getTestCaseName(
     InputShape inputShapes;
     ElementType inPrc;
     CPUSpecificParams cpuParams;
-    std::tie(basicParamsSet, inputShapes, inPrc, cpuParams) = obj.param;
+    ov::AnyMap additionalConfig;
+    std::tie(basicParamsSet, inputShapes, inPrc, cpuParams, additionalConfig) = obj.param;
 
     std::vector<size_t> kernel, stride, dilation;
     std::vector<size_t> padBegin, padEnd;
@@ -146,6 +156,12 @@ std::string MaxPoolingV8LayerCPUTest::getTestCaseName(
     results << "PE" << ov::test::utils::vec2str(padEnd) << "_";
     results << "Rounding=" << roundingType << "_";
     results << "AutoPad=" << padType << "_";
+    if (!additionalConfig.empty()) {
+        results << "_PluginConf";
+        for (auto& item : additionalConfig) {
+            results << "_" << item.first << "=" << item.second.as<std::string>();
+        }
+    }
 
     results << CPUTestsBase::getTestCaseName(cpuParams);
     return results.str();
@@ -158,7 +174,9 @@ void MaxPoolingV8LayerCPUTest::SetUp() {
     InputShape inputShapes;
     ElementType inPrc;
     CPUSpecificParams cpuParams;
-    std::tie(basicParamsSet, inputShapes, inPrc, cpuParams) = this->GetParam();
+    ov::AnyMap additionalConfig;
+    std::tie(basicParamsSet, inputShapes, inPrc, cpuParams, additionalConfig) = this->GetParam();
+    configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
     std::vector<size_t> kernel, stride, dilation;
     std::vector<size_t> padBegin, padEnd;
@@ -172,7 +190,7 @@ void MaxPoolingV8LayerCPUTest::SetUp() {
     if (selectedType.empty()) {
         selectedType = getPrimitiveType();
     }
-    selectedType = makeSelectedTypeStr(selectedType, inPrc);
+    selectedType = makeSelectedTypeStr(selectedType, deduce_expected_precision(inPrc, configuration));
 
     init_input_shapes({inputShapes});
 
@@ -224,8 +242,22 @@ const std::vector<poolSpecificParams>& paramsMax3D() {
                                 ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT, false },
             poolSpecificParams{ utils::PoolingTypes::MAX, {2}, {1}, {0}, {0},
                                 ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT, false },
+            poolSpecificParams{ utils::PoolingTypes::MAX, {7}, {2}, {2}, {2},
+                                ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT, false },
     };
     return paramsMax3D;
+}
+
+const std::vector<maxPoolV8SpecificParams>& paramsMaxV83D() {
+    static const std::vector<maxPoolV8SpecificParams> paramsMaxV83D = {
+            maxPoolV8SpecificParams{ {2}, {2}, {1}, {0}, {0},
+                                                            ov::element::Type_t::i32, 0,
+                                                            ov::op::RoundingType::CEIL, ov::op::PadType::SAME_LOWER },
+            maxPoolV8SpecificParams{ {7}, {2}, {1}, {2}, {2},
+                                                            ov::element::Type_t::i32, 0,
+                                                            ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT},
+    };
+    return paramsMaxV83D;
 }
 
 const std::vector<poolSpecificParams>& paramsAvg3D() {
@@ -255,6 +287,8 @@ const std::vector<poolSpecificParams>& paramsMax4D() {
                                 ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT, false },
             poolSpecificParams{ utils::PoolingTypes::MAX, {4, 2}, {2, 1}, {0, 0}, {0, 0},
                                 ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT, false },
+            poolSpecificParams{ utils::PoolingTypes::MAX, {11, 7}, {2, 2}, {2, 2}, {2, 2},
+                                ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT, false },
     };
     return paramsMax4D;
 }
@@ -264,6 +298,9 @@ const std::vector<maxPoolV8SpecificParams>& paramsMaxV84D() {
             maxPoolV8SpecificParams{ {2, 2}, {2, 2}, {1, 1}, {0, 0}, {0, 0},
                                                             ov::element::Type_t::i32, 0,
                                                             ov::op::RoundingType::CEIL, ov::op::PadType::SAME_LOWER },
+            maxPoolV8SpecificParams{ {11, 7}, {2, 2}, {1, 1}, {2, 2}, {2, 2},
+                                                            ov::element::Type_t::i32, 0,
+                                                            ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT},
     };
     return paramsMaxV84D;
 }
@@ -376,6 +413,9 @@ const std::vector<maxPoolV8SpecificParams>& paramsMaxV85D() {
             maxPoolV8SpecificParams{ {2, 2, 2}, {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0},
                                                             ov::element::Type_t::i32, 0,
                                                             ov::op::RoundingType::CEIL, ov::op::PadType::SAME_LOWER },
+            maxPoolV8SpecificParams{ {7, 11, 6}, {2, 2, 2}, {1, 1, 1}, {2, 2, 2}, {2, 2, 2},
+                                                            ov::element::Type_t::i32, 0,
+                                                            ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT },
     };
     return paramsMaxV85D;
 }
@@ -456,6 +496,25 @@ const std::vector<InputShape>& inputShapes4D_Large() {
     return inputShapes4D_Large;
 }
 
+const CPUSpecificParams& expectedCpuConfigAnyLayout() {
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    static const CPUSpecificParams acl = CPUSpecificParams{{}, {}, {"acl"}, "acl"};
+    return acl;
+#else
+    static const CPUSpecificParams ref = CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"};
+    return ref;
+#endif
+}
+
+const std::vector<CPUSpecificParams>& vecCpuConfigsFusing_4D() {
+    const auto sse42_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_sse42"}, "jit_sse42"};
+    const auto avx2_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx2"}, "jit_avx2"};
+    const auto avx512_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"jit_avx512"}, "jit_avx512"};
+    const auto acl_nhwc = CPUSpecificParams{{nhwc}, {nhwc}, {"acl"}, "acl"};
+
+    static const std::vector<CPUSpecificParams> vecCpuConfigsFusing_4D = {sse42_nhwc, avx2_nhwc, avx512_nhwc, acl_nhwc, expectedCpuConfigAnyLayout()};
+    return vecCpuConfigsFusing_4D;
+}
 
 }  // namespace Pooling
 }  // namespace test

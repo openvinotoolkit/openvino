@@ -3,7 +3,7 @@
 
 import argparse
 import numbers
-
+import os
 from openvino.runtime import get_version as get_rt_version  # pylint: disable=no-name-in-module,import-error
 from openvino.tools.ovc.cli_parser import get_params_with_paths_list
 from openvino.tools.ovc.telemetry_params import telemetry_params
@@ -16,10 +16,20 @@ except ImportError:
     import openvino.tools.ovc.telemetry_stub as tm
 
 
-def init_mo_telemetry(app_name='Model Conversion API'):
+def is_optimum():
+    import traceback
+    for frame_summary in traceback.extract_stack():
+        if os.path.join("optimum", "intel") in frame_summary.filename or \
+                os.path.join("optimum", "exporters", "openvino") in frame_summary.filename:
+            return True
+    return False
+
+
+def init_mo_telemetry(app_name='Model Conversion API', app_version=None):
+    app_version = app_version if app_version is not None else get_rt_version()
     return init_telemetry_class(tid=get_tid(),
                                 app_name=app_name,
-                                app_version=get_rt_version(),
+                                app_version=app_version,
                                 backend='ga4',
                                 enable_opt_in_dialog=False,
                                 disable_in_ci=True

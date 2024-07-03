@@ -9,6 +9,7 @@
 #include <pybind11/stl_bind.h>
 
 #include "openvino/frontend/exception.hpp"
+#include "openvino/util/file_util.hpp"
 #include "pyopenvino/frontend/manager.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
@@ -51,10 +52,10 @@ void regclass_frontend_FrontEndManager(py::module m) {
         py::arg("library_path"),
         R"(
                 Register frontend with name and factory loaded from provided library.
-            
+
                 :param name: Name of front end.
                 :type name: str
-                
+
                 :param library_path: Path (absolute or relative) or name of a frontend library. If name is
                 provided, depending on platform, it will be wrapped with shared library suffix and prefix
                 to identify library full name.
@@ -78,9 +79,16 @@ void regclass_frontend_FrontEndManager(py::module m) {
     fem.def(
         "load_by_model",
         [](const std::shared_ptr<ov::frontend::FrontEndManager>& fem, const py::object& model) {
-            if (py::isinstance(model, py::module_::import("pathlib").attr("Path"))) {
+            if (py::isinstance(model, py::module_::import("pathlib").attr("Path")) || py::isinstance<py::str>(model)) {
                 std::string model_path = Common::utils::convert_path_to_string(model);
-                return fem->load_by_model(model_path);
+
+            // Fix unicode path
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+                return fem->load_by_model(ov::util::string_to_wstring(model_path.c_str()));
+#else
+                std::string model_path_str = model_path;
+                return fem->load_by_model(model_path_str);
+#endif
             }
             return fem->load_by_model({Common::utils::py_object_to_any(model)});
         },
@@ -99,62 +107,47 @@ void regclass_frontend_FrontEndManager(py::module m) {
     });
 }
 
-void regclass_frontend_GeneralFailureFrontEnd(py::module m) {
-    static py::exception<ov::frontend::GeneralFailure> exc(std::move(m), "GeneralFailure");
+template <class T>
+void handle_exception(py::module m, const char* exc_type) {
+#if PYBIND11_VERSION_MAJOR < 2 || (PYBIND11_VERSION_MAJOR == 2 && PYBIND11_VERSION_MINOR < 12)
+    static py::exception<T> exc(std::move(m), exc_type);
     py::register_exception_translator([](std::exception_ptr p) {
         try {
             if (p)
                 std::rethrow_exception(p);
-        } catch (const ov::frontend::GeneralFailure& e) {
+        } catch (const T& e) {
             exc(e.what());
         }
     });
+#else
+    static py::handle ex = py::exception<T>(std::move(m), exc_type).release();
+    py::register_exception_translator([](std::exception_ptr p) {
+        try {
+            if (p)
+                std::rethrow_exception(p);
+        } catch (const T& e) {
+            py::set_error(ex, e.what());
+        }
+    });
+#endif
+}
+
+void regclass_frontend_GeneralFailureFrontEnd(py::module m) {
+    handle_exception<ov::frontend::GeneralFailure>(std::move(m), "GeneralFailure");
 }
 
 void regclass_frontend_OpValidationFailureFrontEnd(py::module m) {
-    static py::exception<ov::frontend::OpValidationFailure> exc(std::move(m), "OpValidationFailure");
-    py::register_exception_translator([](std::exception_ptr p) {
-        try {
-            if (p)
-                std::rethrow_exception(p);
-        } catch (const ov::frontend::OpValidationFailure& e) {
-            exc(e.what());
-        }
-    });
+    handle_exception<ov::frontend::OpValidationFailure>(std::move(m), "OpValidationFailure");
 }
 
 void regclass_frontend_OpConversionFailureFrontEnd(py::module m) {
-    static py::exception<ov::frontend::OpConversionFailure> exc(std::move(m), "OpConversionFailure");
-    py::register_exception_translator([](std::exception_ptr p) {
-        try {
-            if (p)
-                std::rethrow_exception(p);
-        } catch (const ov::frontend::OpConversionFailure& e) {
-            exc(e.what());
-        }
-    });
+    handle_exception<ov::frontend::OpConversionFailure>(std::move(m), "OpConversionFailure");
 }
 
 void regclass_frontend_InitializationFailureFrontEnd(py::module m) {
-    static py::exception<ov::frontend::InitializationFailure> exc(std::move(m), "InitializationFailure");
-    py::register_exception_translator([](std::exception_ptr p) {
-        try {
-            if (p)
-                std::rethrow_exception(p);
-        } catch (const ov::frontend::InitializationFailure& e) {
-            exc(e.what());
-        }
-    });
+    handle_exception<ov::frontend::InitializationFailure>(std::move(m), "InitializationFailure");
 }
 
 void regclass_frontend_NotImplementedFailureFrontEnd(py::module m) {
-    static py::exception<ov::frontend::NotImplementedFailure> exc(std::move(m), "NotImplementedFailure");
-    py::register_exception_translator([](std::exception_ptr p) {
-        try {
-            if (p)
-                std::rethrow_exception(p);
-        } catch (const ov::frontend::NotImplementedFailure& e) {
-            exc(e.what());
-        }
-    });
+    handle_exception<ov::frontend::NotImplementedFailure>(std::move(m), "NotImplementedFailure");
 }

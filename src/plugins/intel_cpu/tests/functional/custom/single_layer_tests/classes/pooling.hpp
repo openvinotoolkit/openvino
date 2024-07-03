@@ -16,15 +16,18 @@ namespace test {
 
 using poolLayerCpuTestParamsSet = std::tuple<poolSpecificParams,
                                              InputShape,
-                                             ElementType,
-                                             bool,
+                                             ElementType, //inPrc
+                                             bool, // isInt8
                                              CPUSpecificParams,
-                                             fusingSpecificParams>;
+                                             fusingSpecificParams,
+                                             ov::AnyMap>;
+
 
 using maxPoolV8LayerCpuTestParamsSet = std::tuple<maxPoolV8SpecificParams,
         InputShape,
         ElementType,
-        CPUSpecificParams>;
+        CPUSpecificParams,
+        ov::AnyMap>;
 
 class PoolingLayerCPUTest : public testing::WithParamInterface<poolLayerCpuTestParamsSet>,
                             virtual public SubgraphBaseTest, public CpuTestWithFusing {
@@ -48,10 +51,14 @@ namespace Pooling {
 const std::vector<ElementType>& inpOutPrecision();
 const ov::op::RoundingType expectedAvgRoundingType();
 
+const CPUSpecificParams& expectedCpuConfigAnyLayout();
+const std::vector<CPUSpecificParams>& vecCpuConfigsFusing_4D();
+
 const std::vector<poolSpecificParams>& paramsMax3D();
 const std::vector<poolSpecificParams>& paramsAvg3D();
 const std::vector<poolSpecificParams>& paramsMax4D();
 
+const std::vector<maxPoolV8SpecificParams>& paramsMaxV83D();
 const std::vector<maxPoolV8SpecificParams>& paramsMaxV84D();
 const std::vector<maxPoolV8SpecificParams>& paramsMaxV85D();
 

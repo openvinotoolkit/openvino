@@ -6,7 +6,7 @@
 
 #include <list>
 
-#include "expression.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/target_machine.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 
@@ -47,35 +47,43 @@ public:
     // True if the Buffer scratchpad size of LinearIR will be optimized (all possible optimizations will be activated)
     // False if all Buffers will have uniqie ID and offsets in the Linear IR
     bool m_are_buffers_optimized = true;
+    // Ticket 139785: cover this flag in LinearIR builder logic
+    // True if LIR can be fully manually built: all (including I/O) expressions can be added to LIR
+    // False if LIR can be built from ov::Model only. Prevents adding I/O expressions
+    bool m_manual_build_support = false;
 };
+
+class LinearIRBuilder;
+class LoopManager;
+using LoopManagerPtr = std::shared_ptr<LoopManager>;
 
 /* The control flow of Snippets is built on Linear Intermediate Representation (Linear IR).
  * The class diagram is described in the documentation `snippets/docs/snippets_design_guide.md`.
  */
 class LinearIR {
+    friend class LinearIRBuilder;
     class ExpressionFactory;
 public:
     using container = std::list<ExpressionPtr>;
-    using io_container = std::list<std::shared_ptr<IOExpression>>;
     using exprIt = container::iterator;
     using constExprIt = container::const_iterator;
     using exprReverseIt = container::reverse_iterator;
     using constExprReverseIt = container::const_reverse_iterator;
 
-    LinearIR() = default;
+    LinearIR(Config config = {}, const std::shared_ptr<IShapeInferSnippetsFactory>& factory = {});
     LinearIR(const std::shared_ptr<ov::Model>& m, const std::shared_ptr<IShapeInferSnippetsFactory>& factory, Config config = {});
 
     ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& inputs) const;
 
-    std::shared_ptr<LinearIR> clone() const;
-    static LinearIR::container deep_copy_range(LinearIR::container::const_iterator begin,
-                                               LinearIR::container::const_iterator end,
-                                               ExpressionMap& expression_map);
-
     const container& get_ops() const { return m_expressions; }
-    const io_container& get_IO_ops() const { return m_io_expressions; }
+    const container& get_buffers() const { return m_buffer_expressions; }
+    const container& get_parameters() const { return m_parameter_expressions; }
+    const container& get_results() const { return m_result_expressions; }
     const Config& get_config() const { return m_config; }
+    size_t get_static_buffer_scratchpad_size() const { return m_static_buffer_scratchpad_size; }
+
     void set_loop_depth(size_t loop_depth) { m_config.m_loop_depth = loop_depth; }
+    void set_static_buffer_scratchpad_size(size_t size) { m_static_buffer_scratchpad_size = size; }
 
     const ExpressionPtr& get_expr_by_node(const std::shared_ptr<Node>& n) const;
 
@@ -125,9 +133,6 @@ public:
 
     void init_emitters(const std::shared_ptr<TargetMachine>& target);
 
-    class LoopManager;
-    using LoopManagerPtr = std::shared_ptr<LoopManager>;
-
     const LoopManagerPtr& get_loop_manager() const { return m_loop_manager; }
 
     IShapeInferSnippets::Result shape_infer(const std::vector<VectorDimsRef>& input_shapes);
@@ -174,6 +179,22 @@ public:
         const auto consumers_py_port = consumers.empty() ? std::vector<std::set<ExpressionPort>>{} : std::vector<std::set<ExpressionPort>>{ consumers };
         return insert_node(new_node, inputs, loop_ids, update_loop_ports, place, consumers_py_port);
     }
+
+    /**
+     * @brief Constructs ov::Node from args, and inserts the node to LinearIR
+     * @param pos insertion position
+     * @param args ov::Node constructor arguments
+     * @return Pair of iterator on the inserted expr and the constructed node.
+     */
+    template <typename T, typename... Args, typename std::enable_if<std::is_base_of<ov::Node, T>::value, bool>::type = true>
+    std::pair<constExprIt, std::shared_ptr<T>> insert_node(constExprIt pos, Args&&... args) {
+        const auto node = std::make_shared<T>(std::forward<Args>(args)...);
+        const auto expr_it = insert(pos, node);
+        if (node->is_dynamic())
+            expr_it->get()->updateShapes();
+        return std::make_pair(expr_it, node);
+    }
+
     /**
      * @brief Replace the several existing expressions with the one new expression that contains `new_node`.
      *        Calls the helper `insert_node` and performs substitution: removes `old_exprs`.
@@ -223,38 +244,52 @@ public:
      */
     exprIt replace_with_expr(const std::vector<ExpressionPtr>& old_exprs, const ExpressionPtr& new_expr);
 
-private:
-    std::shared_ptr<ShapeInferSnippetsNode> m_shape_infer = nullptr;
+    /**
+     * @brief Constructs ov::Node from args, and pushes the node to LinearIR
+     * @param args ov::Node constructor arguments
+     * @return Pair of iterator on the inserted expr and the constructed node.
+     */
+    template <typename T, typename... Args, typename std::enable_if<std::is_base_of<ov::Node, T>::value, bool>::type = true>
+    std::pair<constExprIt, std::shared_ptr<T>> push_node(Args&&... args) {
+        return insert_node<T>(end(), std::forward<Args>(args)...);
+    }
 
+private:
     class LIRShapeInfer : public ShapeInferSnippetsNode {
     public:
-        using IOExpression = lowered::IOExpression;
-        explicit LIRShapeInfer(container& body_exprs, io_container& io_exprs);
+        explicit LIRShapeInfer(const container& body_exprs, const container& param_exprs, const container& result_exprs);
         Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
 
     private:
-        const std::shared_ptr<container> m_exprs = nullptr;
-        std::vector<std::shared_ptr<IOExpression>> m_input_exprs {};
-        std::vector<std::shared_ptr<IOExpression>> m_output_exprs {};
+        const container& m_exprs;
+        const container& m_input_exprs;
+        const container& m_output_exprs;
     };
 
     static ov::NodeVector get_ordered_ops(const std::shared_ptr<ov::Model>& model);
-    // Default ctor - can be called only from Linear IR initialization as default way
-    ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::shared_ptr<ov::Model>& model = nullptr);
+    // Default way: expr port connectors are constructed basing on ov::Node connection
+    ExpressionPtr create_expression(const std::shared_ptr<Node>& n);
     ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& new_inputs,
                                     const std::vector<size_t>& loop_ids, bool update_loop_ports, const std::vector<std::set<ExpressionPort>>& consumers = {});
 
-    void register_expression(const ExpressionPtr& expr, bool io_allowed = false);
+    void register_expression(const ExpressionPtr& expr, bool io_allowed);
     void unregister_expression(const ExpressionPtr& expr);
 
     container m_expressions{};
     std::unordered_map<std::shared_ptr<Node>, std::shared_ptr<Expression>> m_node2expression_map;
-    io_container m_io_expressions;
+    container m_parameter_expressions{};
+    container m_result_expressions{};
+    container m_buffer_expressions{};
     Config m_config{};
-    LoopManagerPtr m_loop_manager = nullptr;
+    LoopManagerPtr m_loop_manager;
     std::shared_ptr<IShapeInferSnippetsFactory> m_shape_infer_factory;
+    std::shared_ptr<ShapeInferSnippetsNode> m_shape_infer = nullptr;
     bool m_is_dynamic = false;
+
+    // Size of static Buffer Scratchpad (Buffers with defined allocation size)
+    size_t m_static_buffer_scratchpad_size = 0;
 };
+using LinearIRPtr = std::shared_ptr<LinearIR>;
 
 template<typename iterator>
 iterator LinearIR::find(iterator begin, iterator end, const ExpressionPtr& target) const {
@@ -262,6 +297,7 @@ iterator LinearIR::find(iterator begin, iterator end, const ExpressionPtr& targe
     OPENVINO_ASSERT(found != end, "Expression has not been found");
     return found;
 }
+
 } // namespace lowered
 } // namespace snippets
 } // namespace ov

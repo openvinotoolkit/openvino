@@ -16,7 +16,7 @@ deep learning models:
 :doc:`NPU <../../openvino-workflow/running-inference/inference-devices-and-modes/npu-device>`.
 
 | For their usage guides, see :doc:`Devices and Modes <../../openvino-workflow/running-inference/inference-devices-and-modes>`.
-| For a detailed list of devices, see :doc:`System Requirements <../system-requirements>`.
+| For a detailed list of devices, see :doc:`System Requirements <../release-notes-openvino/system-requirements>`.
 
 Beside running inference with a specific device,
 OpenVINO offers the option of running automated inference with the following inference modes:
@@ -45,9 +45,9 @@ Feature Support and API Coverage
  :doc:`Multi-stream execution <../../openvino-workflow/running-inference/optimize-inference/optimizing-throughput>`              Yes     Yes        No
  :doc:`Models caching <../../openvino-workflow/running-inference/optimize-inference/optimizing-latency/model-caching-overview>`  Yes     Partial    Yes
  :doc:`Dynamic shapes <../../openvino-workflow/running-inference/dynamic-shapes>`                                                Yes     Partial    No
- :doc:`Import/Export <../../documentation/openvino-ecosystem>`                                                                   Yes     No         Yes
+ :doc:`Import/Export <../../documentation/openvino-ecosystem>`                                                                   Yes     Yes        Yes
  :doc:`Preprocessing acceleration <../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing>`         Yes     Yes        No
- :doc:`Stateful models <../../openvino-workflow/running-inference/stateful-models>`                                              Yes     No         Yes
+ :doc:`Stateful models <../../openvino-workflow/running-inference/stateful-models>`                                              Yes     Yes        Yes
  :doc:`Extensibility <../../documentation/openvino-extensibility>`                                                               Yes     Yes        No
 =============================================================================================================================== ======= ========== ===========
 
@@ -76,14 +76,6 @@ Feature Support and API Coverage
 |                         || Percentage of API supported by the device,      |
 |                         || as of OpenVINO 2023.3, 08 Jan, 2024.            |
 +-------------------------+-----------+------------------+-------------------+
-
-
-Devices similar to the ones used for benchmarking can be accessed using
-`Intel® DevCloud for the Edge <https://devcloud.intel.com/edge/>`__,
-a remote development environment with access to Intel® hardware and the latest versions
-of the Intel® Distribution of OpenVINO™ Toolkit.
-`Learn more <https://devcloud.intel.com/edge/../../get-started/devcloud/>`__ or
-`Register here <https://inteliot.force.com/DevcloudForEdge/s/>`__.
 
 For setting up a relevant configuration, refer to the
 :doc:`Integrate with Customer Application <../../openvino-workflow/running-inference/integrate-openvino-with-your-application>`

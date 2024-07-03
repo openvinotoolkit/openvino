@@ -20,7 +20,7 @@ Napi::Function OutputTensorInfo::get_class_constructor(Napi::Env env) {
 Napi::Value OutputTensorInfo::set_layout(const Napi::CallbackInfo& info) {
     if (info.Length() == 1) {
         try {
-            auto layout = js_to_cpp<ov::Layout>(info, 0, {napi_string});
+            const auto& layout = js_to_cpp<ov::Layout>(info, 0);
             _tensor_info->set_layout(layout);
         } catch (std::exception& e) {
             reportError(info.Env(), e.what());
@@ -32,17 +32,16 @@ Napi::Value OutputTensorInfo::set_layout(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value OutputTensorInfo::set_element_type(const Napi::CallbackInfo& info) {
-    if (info.Length() != 1) {
-        reportError(info.Env(), "Error in setElementType(). Wrong number of parameters.");
-        return info.Env().Undefined();
-    }
     try {
-        auto type = js_to_cpp<ov::element::Type_t>(info, 0, {napi_string});
+        OPENVINO_ASSERT(info.Length() == 1, "Error in setElementType(). Wrong number of parameters.");
+
+        const auto type = js_to_cpp<ov::element::Type_t>(info, 0);
+
         _tensor_info->set_element_type(type);
     } catch (std::exception& e) {
         reportError(info.Env(), e.what());
-        return info.Env().Undefined();
     }
+
     return info.This();
 }
 

@@ -115,6 +115,7 @@ ov::Tensor create_tensor_from_numpy(const std::vector<std::string>& files,
                    << slog::endl;
     }
 
+    tensor_size = tensor_size / numpy_batch_size;
     for (size_t b = 0; b < numpy_batch_size; ++b) {
         auto inputIndex = (inputId + b) % files.size();
         if (filenames_used) {
@@ -209,26 +210,26 @@ ov::Tensor create_tensor_from_binary(const std::vector<std::string>& files,
         std::ifstream binaryFile(files[inputIndex], std::ios_base::binary | std::ios_base::ate);
         OPENVINO_ASSERT(binaryFile, "Cannot open ", files[inputIndex]);
 
-        auto inputSize = tensor_size * sizeof(T) / binaryBatchSize;
-
+        auto inputSize = tensor_size / binaryBatchSize;
+        auto inputByteSize = inputSize * inputInfo.type.bitwidth() / 8u;
         std::string extension = get_extension(files[inputIndex]);
         if (extension == "bin") {
             auto fileSize = static_cast<std::size_t>(binaryFile.tellg());
             binaryFile.seekg(0, std::ios_base::beg);
             OPENVINO_ASSERT(binaryFile.good(), "Can not read ", files[inputIndex]);
-            OPENVINO_ASSERT(fileSize == inputSize,
+            OPENVINO_ASSERT(fileSize == inputByteSize,
                             "File ",
                             files[inputIndex],
                             " contains ",
                             fileSize,
                             " bytes, but the model expects ",
-                            inputSize);
+                            inputByteSize);
         } else {
             OPENVINO_THROW("Unsupported binary file type: " + extension);
         }
 
         if (inputInfo.layout != "CN") {
-            binaryFile.read(&data[b * inputSize], inputSize);
+            binaryFile.read(&data[b * inputByteSize], inputByteSize);
         } else {
             for (size_t i = 0; i < inputInfo.channels(); i++) {
                 binaryFile.read(&data[(i * binaryBatchSize + b) * sizeof(T)], sizeof(T));
@@ -256,6 +257,27 @@ ov::Tensor create_tensor_random(const benchmark_app::InputInfo& inputInfo,
     uniformDistribution<T2> distribution(rand_min, rand_max);
     for (size_t i = 0; i < tensor_size; i++) {
         data[i] = static_cast<T>(distribution(gen));
+    }
+
+    return tensor;
+}
+
+ov::Tensor create_tensor_random_4bit(const benchmark_app::InputInfo& inputInfo,
+                                     uint8_t rand_min = std::numeric_limits<uint8_t>::min(),
+                                     uint8_t rand_max = std::numeric_limits<uint8_t>::max()) {
+    auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape);
+    auto data = reinterpret_cast<uint8_t*>(tensor.data());
+
+    std::mt19937 gen(0);
+    uniformDistribution<int32_t> distribution(rand_min, rand_max);
+    for (size_t i = 0; i < tensor.get_size(); i++) {
+        uint8_t val = static_cast<uint8_t>(distribution(gen));
+        size_t dst_idx = i / 2;
+        if (i % 2) {
+            data[dst_idx] = (data[dst_idx] & 0x0f) | (val << 4);
+        } else {
+            data[dst_idx] = (data[dst_idx] & 0xf0) | (val & 0x0f);
+        }
     }
 
     return tensor;
@@ -495,7 +517,7 @@ ov::Tensor get_binary_tensor(const std::vector<std::string>& files,
                                                  inputInfo.second,
                                                  inputInfo.first,
                                                  filenames_used);
-    } else if (type == ov::element::i8) {
+    } else if (type == ov::element::i8 || (type == ov::element::i4)) {
         return create_tensor_from_binary<int8_t>(files,
                                                  inputId,
                                                  batchSize,
@@ -523,7 +545,7 @@ ov::Tensor get_binary_tensor(const std::vector<std::string>& files,
                                                   inputInfo.second,
                                                   inputInfo.first,
                                                   filenames_used);
-    } else if ((type == ov::element::u8) || (type == ov::element::boolean)) {
+    } else if ((type == ov::element::u8) || (type == ov::element::boolean) || (type == ov::element::u4)) {
         return create_tensor_from_binary<uint8_t>(files,
                                                   inputId,
                                                   batchSize,
@@ -584,6 +606,28 @@ ov::Tensor get_random_tensor(const std::pair<std::string, benchmark_app::InputIn
         return create_tensor_random<int16_t, int16_t>(inputInfo.second);
     } else if (type == ov::element::boolean) {
         return create_tensor_random<uint8_t, uint32_t>(inputInfo.second, 0, 1);
+    } else if (type == ov::element::u4) {
+        return create_tensor_random_4bit(inputInfo.second, 0, 15);
+    } else if (type == ov::element::i4) {
+        return create_tensor_random_4bit(inputInfo.second, 0, 15);
+    } else if (type == ov::element::string) {
+        const auto& in_info = inputInfo.second;
+        const auto tensor_size = ov::shape_size(in_info.dataShape);
+        auto tensor = ov::Tensor(in_info.type, in_info.dataShape);
+        auto data = tensor.data<std::string>();
+
+        std::mt19937 str_len_gen(0);
+        uniformDistribution<uint32_t> len_distribution(20, 50);
+        std::mt19937 char_val_gen(0);
+        uniformDistribution<uint32_t> char_distribution(0, 127);
+        for (size_t i = 0; i < tensor_size; i++) {
+            data[i].resize(len_distribution(str_len_gen));
+            for (size_t j = 0lu; j < data[i].size(); j++) {
+                data[i][j] = static_cast<char>(char_distribution(char_val_gen));
+            }
+        }
+
+        return tensor;
     } else {
         OPENVINO_THROW("Input type is not supported for " + inputInfo.first);
     }

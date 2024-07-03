@@ -21,7 +21,7 @@ const std::vector<float> sigmaThreshold = {0.0f, 0.5f};
 const std::vector<ov::op::v5::NonMaxSuppression::BoxEncodingType> encodType = {ov::op::v5::NonMaxSuppression::BoxEncodingType::CENTER,
                                                                                ov::op::v5::NonMaxSuppression::BoxEncodingType::CORNER};
 const std::vector<bool> sortResDesc = {true, false};
-const std::vector<ov::element::Type> outType = {ov::element::i32, ov::element::i64};
+const std::vector<ov::element::Type> outType = {ov::element::i32};//, ov::element::i64};
 
 const std::vector<ov::element::Type> input_types = {ov::element::f32, ov::element::f16};
 

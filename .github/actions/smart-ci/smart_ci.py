@@ -1,3 +1,6 @@
+# Copyright (C) 2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 import re
 import argparse
@@ -212,8 +215,8 @@ def main():
     # In post-commits - validate all components regardless of changeset
     # In pre-commits - validate only changed components with their dependencies
     all_defined_components = components_config.keys()
-    changed_component_names = set(all_defined_components) if run_full_scope else \
-        get_changed_component_names(pr, all_possible_components, args.pattern)
+    changed_by_pr = get_changed_component_names(pr, all_possible_components, args.pattern) if pr else None
+    changed_component_names = set(all_defined_components) if run_full_scope else changed_by_pr
 
     logger.info(f"changed_component_names: {changed_component_names}")
 
@@ -222,7 +225,7 @@ def main():
 
     skip_workflow = False
     if is_merge_queue or (args.pr and not run_full_scope):
-        if args.skip_when_only_listed_labels_set:
+        if args.skip_when_only_listed_labels_set and changed_component_names:
             excepted_labels = set(args.skip_when_only_listed_labels_set.split(','))
             excepted_labels_only = changed_component_names - excepted_labels == set()
             skip_workflow = excepted_labels_only
@@ -243,6 +246,12 @@ def main():
     # Syntactic sugar for easier use in GHA pipeline
     affected_components_output = {name: {s: True for s in scope} for name, scope in affected_components.items()}
     set_github_output("affected_components", json.dumps(affected_components_output))
+
+    # Components actually changed by a pull request are marked as True (if event is PR;
+    # otherwise all components considered changed).
+    changed_components_output = {name: True if not pr or name in changed_by_pr else False
+                                 for name in all_possible_components}
+    set_github_output("changed_components", json.dumps(changed_components_output))
 
 
 if __name__ == '__main__':

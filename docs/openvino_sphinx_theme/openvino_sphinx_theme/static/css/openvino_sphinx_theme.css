@@ -24,13 +24,13 @@
     --ost-color-sst-dropdown-background:var(--ost-color-navbar-background);
     --ost-color-sst-dropdown-background-active:var(--ost-color-primary-variant);
     /* Override Pydata Sphinx Theme Variables */
-    --pst-font-family-base: var(--ost-font-family), var(--pst-font-family-base-system);
     --pst-font-family-heading: var(--ost-font-family), var(--pst-font-family-base-system);
     --pst-font-size-base: var(--ost-font-size);
     --pst-color-sidebar-link-active: var(--ost-color-sidebar-link-active);
     --pst-color-sidebar-link-hover: var(--ost-color-sidebar-link-hover);
     --pst-color-sidebar-link: var(--ost-color-sidebar-link);
     --pst-color-primary: var(--ost-color-primary);
+    --pst-color-secondary: var(--ost-color-primary)!important;
     --pst-color-link: var(--ost-color-link);
     --pst-color-link-hover: var(--ost-color-link-hover);
     --tabs--label-text--active: var(--ost-tabs--label-text--active);
@@ -47,7 +47,7 @@ body {
 }
 
 .bd-sidebar .nav .active > a {
-    font-weight: 600!important;
+    font-weight: 700!important;
 }
 
 .toc-entry >.nav-link.active {
@@ -55,145 +55,6 @@ body {
     border-color: rgb(var(--ost-color-primary));
 }
 
-/* Showcase Extension */
-
-:root {
-    /* Showcase - Colors */
-      --ov-color: hsl(261, 87.2%, 54.1%);
-      --black: hsl(0, 0%, 0%);
-      --white: hsl(0, 0%, 100%);
-      --ov-light-blue: rgba(229, 242, 255, 0.95);
-      --ov-blue: rgba(0, 104, 181, 0.95);
-      --ov-dark-blue: rgba(0, 74, 134, 0.95);
-     }
-    
-    .showcase-wrap {
-      width: 100%;
-      display: inline-block;
-      margin: 10px 10px 30px 10px;
-    
-    }
-    
-    .showcase {
-      width: 100%;
-      min-height: 150px;
-      vertical-align: top;
-    }
-    
-    .showcase-content {
-      min-height: inherit;
-      width: -webkit-calc(100% - 160px);
-      width: -moz-calc(100% - 160px);
-      width: calc(100% - 160px);
-      padding: 0.5rem 1.2rem 0.5rem;
-      display: inline-block;
-      position: relative;
-    
-    }
-    .showcase-content::after {
-      content: "";
-      position: absolute;
-      height: 0.15rem;
-      width: 100%;
-      bottom: 0px;
-      left: 0px;
-      background-color: var(--ov-light-blue);
-    }
-    
-    .showcase-img {
-      object-fit: cover;
-      width: 150px;
-      height: 150px;
-      position: absolute;
-      border-radius: 0.25rem;
-      box-shadow: 0.25rem 0.25rem 0.5rem rgba(0,0,0,0.25);
-      border: 1px solid rgba(0, 0, 0, 0.25);
-    }
-    
-    .showcase-img-placeholder {
-      min-height: 150px;
-      width: 150px;
-      text-align: left;
-      vertical-align: top;
-      display: inline-block;
-      position: relative;
-      margin-right: 10px;
-    }
-    
-    .showcase-title {
-      font-size: 0.90rem;
-      line-height: 1;
-      margin: 0px 0px 10px 0px;
-      color: var(--black);
-      position: relative;
-      width: fit-content;
-      width: -moz-fit-content;
-    }
-    
-    .showcase-title::after {
-      content: "";
-      position: absolute;
-      height: 0.15rem;
-      width: 100%;
-      bottom: -5px;
-      left: 0px;
-      background-color: var(--ov-light-blue);
-    }
-
-    .showcase-content-container p {
-      font-size: 1.2rem;
-      line-height: 1.2;
-      color: var(--black);
-      position: relative;
-    }
-
-    .showcase-content-container a > h2 {
-      display: block!important;
-      width: fit-content;
-      width: -moz-fit-content;
-    }
-
-    .showcase-badge {
-      margin-right: 3px;
-    }
-
-    .showcase-button {
-      width: 100px;
-      float: right;
-      border: none;
-      font-size: 1rem;
-      color: #00A3F6;
-      background-color: #FFF;
-      position: absolute;
-      right: 0px;
-      bottom: 0px;
-    }
-
-    .showcase-button:focus {
-        outline: none!important;
-    }
-
-    .showcase-button:hover {
-        text-decoration: underline;
-    }
-
-    .showcase-badge:hover, .showcase-img:hover {
-        transform: scale(1.05);
-    }
-
-    .showcase-img:hover {
-        box-shadow: 0 0 10px 2px rgba(108,36,240,0.3) !important;
-    }
-
-
-
-/* Scrollbox Extension */
-
-.scrollbox {
-    overflow-y:scroll;
-    height:300px;
-    margin-bottom: 20px;
-}
 
 /* Syntax Highlighting */
 
@@ -279,7 +140,6 @@ blockquote p {
 /* Edit this page */
 
 .editthispage {
-    text-align: end;
     padding-top:0;
 }
 
@@ -332,6 +192,7 @@ blockquote p {
 
 .navbar {
     background:rgba(var(--ost-color-navbar-background), 1) !important;
+    height: 60px;
 }
 
 .navbar-light .navbar-nav li a.nav-link {
@@ -359,10 +220,6 @@ blockquote p {
     .navbar-expand-lg>.container-sm,
     .navbar-expand-lg>.container-xl {
         flex-wrap: wrap;
-    }
-
-    .navbar-nav {
-        flex-direction: column !important;
     }
 
     .container-xl {

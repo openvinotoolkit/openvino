@@ -16,7 +16,6 @@
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -63,16 +62,6 @@ FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphC
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage))
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
-
-    auto createEmptyMemoryDesc = [](const ov::element::Type type) {
-        return std::make_shared<CpuBlockedMemoryDesc>(type, Shape{0});
-    };
-
-    auto createEmptyMemory = [&createEmptyMemoryDesc](const GraphContext::CPtr context, const ov::element::Type type) {
-        return std::make_shared<Memory>(context->getEngine(), createEmptyMemoryDesc(type), nullptr);
-    };
-
-    emptyMemory = createEmptyMemory(context, ov::element::undefined);
 }
 
 bool FullyConnected::canBeExecutedInInt8() const {
@@ -109,7 +98,7 @@ bool FullyConnected::created() const {
     return getType() == Type::FullyConnected;
 }
 
-void FullyConnected::toNumaNode(int numaID) {
+void FullyConnected::toNumaNodeImpl(int numaID) {
     executor->moveMemToNumaNode(numaID);
 }
 
@@ -215,6 +204,8 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
                                                         getOriginalInputPrecisionAtPort(DATA_ID),
                                                         context->getConfig().fcSparseWeiDecompressionRate);
     attrs.dynamicQuantizationGroupSize = context->getConfig().fcDynamicQuantizationGroupSize;
+    attrs.modelType = context->getConfig().modelType;
+
     postOps = getPostOps(fusedWith);
 
     const auto& srcTypes = getOriginalInputPrecisions();
@@ -236,14 +227,10 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
         dstDescs.push_back(dstDesc);
     }
 
-    auto createEmptyMemoryDesc = [](const ov::element::Type type) {
-        return std::make_shared<CpuBlockedMemoryDesc>(type, Shape{0});
-    };
-
     MemoryDescArgs descs{
         {ARG_SRC, srcDescs[0]},
         {ARG_WEI, srcDescs[1]},
-        {ARG_BIAS, attrs.withBias ? srcDescs[2] : createEmptyMemoryDesc(ov::element::undefined)},
+        {ARG_BIAS, attrs.withBias ? srcDescs[2] : MemoryDescUtils::makeEmptyDesc()},
         {ARG_DST, dstDescs[0]},
     };
 
@@ -265,7 +252,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
 void FullyConnected::createPrimitive() {
     memory[ARG_SRC] = getSrcMemoryAtPort(DATA_ID);
     memory[ARG_WEI] = getSrcMemoryAtPort(WEIGHTS_ID);
-    memory[ARG_BIAS] = attrs.withBias ? getSrcMemoryAtPort(BIAS_ID) : emptyMemory;
+    memory[ARG_BIAS] = attrs.withBias ? getSrcMemoryAtPort(BIAS_ID) : MemoryDescUtils::makeEmptyMemory(context);
     memory[ARG_DST] = getDstMemoryAtPort(0);
     // @todo should we preconfigure only for dynamic shapes?
     // Since for static shapes primitive is created in scope of compile_model() anyway

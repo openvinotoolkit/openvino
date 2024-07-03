@@ -444,7 +444,7 @@ static dnnl::memory::desc cloneDescWithNewDims(const dnnl::memory::desc& desc,
     dnnl::impl::memory_desc_t& newCdesc = *newMklDesc.get();
     auto retCode = dnnl::impl::fill_blocked(newCdesc, perm, innerBlks, innerIdxs);
     if (retCode != dnnl::impl::status::success) {
-        OPENVINO_THROW("Can not clone DnnlBlockedMemoryDesc with dims: ", MemoryDescUtils::dims2str(dims));
+        OPENVINO_THROW("Can not clone DnnlBlockedMemoryDesc with dims: ", dims2str(dims));
     }
     // dnnl::impl::fill_blocked always set offset0 to 0
     // so we need to restore actual value

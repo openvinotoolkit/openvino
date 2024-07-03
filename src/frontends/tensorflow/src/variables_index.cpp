@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -190,7 +190,7 @@ bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::string&
     read_variables_index(vi_stream, m_variables_index);
     read_bundle_header();
 
-    std::vector<char> suffix(20);
+    std::vector<char> suffix(32);
     for (int32_t shard = 0; shard < m_total_shards; ++shard) {
         std::snprintf(suffix.data(), suffix.size(), "data-%05d-of-%05d", shard, m_total_shards);
         std::string fullPath;

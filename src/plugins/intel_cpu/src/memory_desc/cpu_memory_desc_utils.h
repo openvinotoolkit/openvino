@@ -4,12 +4,12 @@
 
 #pragma once
 
+#include <memory>
 #include "cpu_shape.h"
 #include "cpu_types.h"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
-
-#include "onednn/dnnl.h"
+#include "graph_context.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -19,7 +19,9 @@ class DnnlMemoryDesc;
 class BlockedMemoryDesc;
 class DnnlBlockedMemoryDesc;
 class CpuBlockedMemoryDesc;
+class EmptyMemoryDesc;
 class IMemory;
+class Memory;
 
 class MemoryDescUtils {
 public:
@@ -62,6 +64,14 @@ public:
      * @return a new MemoryDesc with dummy values instead of undefined dims
      */
     static std::shared_ptr<MemoryDesc> makeDummyDesc(const MemoryDesc& desc, Dim dummyVal = DEFAULT_DUMMY_VAL);
+
+    /**
+    * @brief Make an empty memory descriptor
+    * @note Shape{0}, undefined
+    * @return empty memory descriptor
+    */
+    static std::shared_ptr<MemoryDesc> makeEmptyDesc();
+    static std::shared_ptr<IMemory> makeEmptyMemory(const GraphContext::CPtr context);
 
     /**
     * @brief Makes a static dummy shape where all undefined values are replaced with the smallest value between the parameter and the upper bound dim

@@ -12,6 +12,7 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import Iterable, Callable
 
+
 try:
     import openvino_telemetry as tm
     from openvino_telemetry.backend import backend_ga4
@@ -21,13 +22,13 @@ except ImportError:
 from openvino.tools.ovc.moc_frontend.check_config import any_extensions_used
 from openvino.tools.ovc.moc_frontend.pipeline import moc_pipeline
 from openvino.tools.ovc.moc_frontend.moc_emit_ir import moc_emit_ir
-from openvino.tools.ovc.convert_data_type import destination_type_to_np_data_type
+from openvino.tools.ovc.moc_frontend.type_utils import to_ov_type
 from openvino.tools.ovc.cli_parser import get_available_front_ends, get_common_cli_options, depersonalize, \
     get_mo_convert_params, input_to_input_cut_info, parse_inputs
 from openvino.tools.ovc.help import get_convert_model_help_specifics
 
 from openvino.tools.ovc.error import Error, FrameworkError
-from openvino.tools.ovc.get_ov_update_message import get_ov_update_message, get_compression_message
+from openvino.tools.ovc.get_ov_update_message import get_compression_message
 from openvino.tools.ovc.version import VersionChecker
 from openvino.tools.ovc.utils import check_values_equal
 from openvino.tools.ovc.logger import init_logger
@@ -35,11 +36,15 @@ from openvino.tools.ovc.telemetry_utils import send_params_info, send_conversion
     init_mo_telemetry
 from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import get_pytorch_decoder, extract_input_info_from_example
 from openvino.tools.ovc.moc_frontend.paddle_frontend_utils import paddle_frontend_converter
+try:
+    from openvino.tools.ovc.moc_frontend.jax_frontend_utils import get_jax_decoder
+except:
+    get_jax_decoder = None
 
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager, OpConversionFailure, TelemetryExtension
 from openvino.runtime import get_version as get_rt_version
-from openvino.runtime import Type, PartialShape
+from openvino.runtime import PartialShape
 
 try:
     from openvino.frontend.tensorflow.utils import create_tf_graph_iterator, type_supported_by_tf_fe, \
@@ -227,6 +232,11 @@ def check_model_object(argv):
                                                                     paddle.fluid.dygraph.layers.Layer) or isinstance(
             model, paddle.fluid.executor.Executor):
             return "paddle"
+        
+    if 'jax' in sys.modules:
+        import jax
+        if isinstance(model, (jax.core.Jaxpr, jax.core.ClosedJaxpr)):
+            return "jax"
 
     raise Error('Unknown model type: {}'.format(type(model)))
 
@@ -318,6 +328,7 @@ def normalize_inputs(argv: argparse.Namespace):
     """
     # Parse input to list of InputCutInfo
     inputs = input_to_input_cut_info(argv.input)
+    argv.input = inputs
 
     # Make list of input names
     input_names_list = []
@@ -328,8 +339,6 @@ def normalize_inputs(argv: argparse.Namespace):
         assert len(input_names_list) == len(inputs), "\"input\" parameter has unnamed inputs and named inputs. " \
                                                      "Please either set names for all inputs, " \
                                                      "or do not set names for all inputs."
-    argv.inputs_list = input_names_list
-    argv.input = ','.join(input_names_list)
 
     if len(input_names_list) > 0:
         # Named inputs case
@@ -342,13 +351,8 @@ def normalize_inputs(argv: argparse.Namespace):
             else:
                 shape_dict[inp.name] = None
             if inp.type is not None:
-                # Convert type to numpy type for uniformity of stored values
-                if isinstance(inp.type, str):
-                    data_type_dict[inp.name] = destination_type_to_np_data_type(inp.type)
-                elif isinstance(inp.type, Type):
-                    data_type_dict[inp.name] = inp.type.to_dtype().type
-                else:
-                    data_type_dict[inp.name] = inp.type
+                # Convert type to ov.Type for uniformity of stored values
+                data_type_dict[inp.name] = to_ov_type(inp.type)
         argv.placeholder_shapes = shape_dict if shape_dict else None
         argv.placeholder_data_types = data_type_dict if data_type_dict else {}
     else:
@@ -360,13 +364,8 @@ def normalize_inputs(argv: argparse.Namespace):
                 # Wrap shape to PartialShape for uniformity of stored values
                 shape_list.append(PartialShape(inp.shape))
             if inp.type is not None:
-                # Convert type to numpy type for uniformity of stored values
-                if isinstance(inp.type, str):
-                    data_type_list.append(destination_type_to_np_data_type(inp.type))
-                elif isinstance(inp.type, Type):
-                    data_type_list.append(inp.type.to_dtype().type)
-                else:
-                    data_type_list.append(inp.type)
+                # Convert type to ov.Type for uniformity of stored values
+                data_type_list.append(to_ov_type(inp.type))
         argv.placeholder_shapes = shape_list if shape_list else None
         argv.placeholder_data_types = data_type_list if data_type_list else {}
     if hasattr(argv, "framework") and argv.framework == "pytorch" and getattr(argv, "example_input", None) is not None:
@@ -471,6 +470,12 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
                                                                      outputs)
                 pdmodel = paddle_runtime_converter.convert_paddle_to_pdmodel()
                 args['input_model'] = pdmodel
+            if model_framework == "jax":
+                if get_jax_decoder is not None:
+                    get_jax_decoder(args['input_model'], args)
+                else:
+                    raise Error("JAX Frontend is not available.")
+                
 
         argv = pack_params_to_args_namespace(args, cli_parser, python_api_used)
         argv.framework = model_framework
@@ -500,10 +505,6 @@ def _convert(cli_parser: argparse.ArgumentParser, args, python_api_used):
         if is_verbose(argv) or not python_api_used:
             if 'compress_to_fp16' in argv and argv.compress_to_fp16:
                 print(get_compression_message())
-
-            ov_update_message = get_ov_update_message()
-            if ov_update_message is not None:
-                print(ov_update_message)
 
         send_conversion_result('success')
 

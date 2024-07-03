@@ -1,6 +1,10 @@
 import xml.etree.ElementTree as ET
-from sphinx_sitemap import setup as base_setup, get_locales, hreflang_formatter
+import queue
+from pathlib import Path
+from sphinx_sitemap import setup as base_setup, get_locales, hreflang_formatter, add_html_link, record_builder_type
+from sphinx.util.logging import getLogger
 
+logger = getLogger(__name__)
 
 def setup(app):
     app.add_config_value(
@@ -19,8 +23,13 @@ def setup(app):
     for listener in app.events.listeners['build-finished']:
         if listener.handler.__name__ == 'create_sitemap':
             app.disconnect(listener.id)
-    
+        
+    app.connect("builder-inited", record_builder_type)
+    app.connect("html-page-context", add_html_link)
     app.connect('build-finished', create_sitemap)
+    app.parallel_safe = True
+    app.parallel_read_safe = True
+    app.parallel_write_safe = True
     return setup
 
 
@@ -30,11 +39,15 @@ def create_sitemap(app, exception):
     urlset = app.builder.config.ov_sitemap_urlset
     meta = app.builder.config.ov_sitemap_meta
 
-    site_url = app.builder.config.site_url
-    site_url = site_url.rstrip('/') + '/'
-    if not site_url:
-        print("sphinx-sitemap error: no site_url"
-              "are set in conf.py. Sitemap not built.")
+    site_url = app.builder.config.site_url or app.builder.config.html_baseurl
+    if site_url:
+        site_url.rstrip("/") + "/"
+    else:
+        logger.warning(
+            "sphinx-sitemap: html_baseurl is required in conf.py." "Sitemap not built.",
+            type="sitemap",
+            subtype="configuration",
+        )
         return
     if (not app.sitemap_links):
         print("sphinx-sitemap warning: No pages generated for %s" %
@@ -51,18 +64,23 @@ def create_sitemap(app, exception):
         for item in urlset:
             root.set(*item)
 
-    get_locales(app, exception)
+    locales = get_locales(app)
 
     if app.builder.config.version:
         version = app.builder.config.version + '/'
     else:
         version = ""
 
-    for link in app.sitemap_links:
+    while True:
+        try:
+            link = app.env.app.sitemap_links.get_nowait()  # type: ignore
+        except queue.Empty:
+            break
+
         url = ET.SubElement(root, "url")
         scheme = app.config.sitemap_url_scheme
         if app.builder.config.language:
-            lang = app.builder.config.language + '/'
+            lang = app.builder.config.language + "/"
         else:
             lang = ""
 
@@ -77,20 +95,17 @@ def create_sitemap(app, exception):
                 for tag_name, tag_value in values.items():
                     ET.SubElement(namespace_element, tag_name).text = tag_value
 
-        if len(app.locales) > 0:
-            for lang in app.locales:
-                lang = lang + '/'
-                linktag = ET.SubElement(
-                    url,
-                    "{http://www.w3.org/1999/xhtml}link"
-                )
-                linktag.set("rel", "alternate")
-                linktag.set("hreflang",  hreflang_formatter(lang.rstrip('/')))
-                linktag.set("href", site_url + scheme.format(
-                    lang=lang, version=version, link=link
-                ))
+        for lang in locales:
+            lang = lang + "/"
+            ET.SubElement(
+                url,
+                "{http://www.w3.org/1999/xhtml}link",
+                rel="alternate",
+                hreflang=hreflang_formatter(lang.rstrip("/")),
+                href=site_url + scheme.format(lang=lang, version=version, link=link),
+            )
 
-    filename = app.outdir + "/" + app.config.sitemap_filename
+    filename = Path(app.outdir) / app.config.sitemap_filename
     ET.ElementTree(root).write(filename,
                                xml_declaration=True,
                                encoding='utf-8',

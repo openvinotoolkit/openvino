@@ -7,7 +7,8 @@
 #include <memory>
 
 #include "itt.hpp"
-#include "openvino/opsets/opset5.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/util/op_types.hpp"
 
 using namespace std;
 using namespace ov;
@@ -104,7 +105,7 @@ int64_t op::internal::NonMaxSuppressionIEInternal::max_boxes_output_from_input()
     }
 
     const auto max_output_boxes_input =
-        ov::as_type_ptr<const opset5::Constant>(input_value(max_output_boxes_per_class_port).get_node_shared_ptr());
+        ov::as_type_ptr<const ov::op::v0::Constant>(input_value(max_output_boxes_per_class_port).get_node_shared_ptr());
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;

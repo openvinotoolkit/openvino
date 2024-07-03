@@ -54,7 +54,7 @@ ov::frontend::paddle::pass::TransformFakeQuantize::TransformFakeQuantize() {
     const auto dq_real_scale_label = pattern::wrap_type<Multiply>();
     const auto output_label = pattern::wrap_type<Multiply>({dq_sub_label, dq_real_scale_label});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) -> bool {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) -> bool {
         const auto& opsMap = m.get_pattern_value_map();
         if (transformation_callback(m.get_match_root())) {
             return false;

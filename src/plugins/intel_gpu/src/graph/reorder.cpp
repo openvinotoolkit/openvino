@@ -270,11 +270,19 @@ void reorder_inst::update_output_memory() {
     if (!can_be_optimized())
         return;
 
-    if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+    if (static_cast<bool>(_outputs[0])
+        && _network.get_engine().is_the_same_buffer(output_memory(), input_memory())
+        && output_memory().get_layout().identical(get_output_layout()))
         return;
 
     if (_node != nullptr)
         build_deps();
+
+    // Do not update output memory when reorder is optimized out
+    // but input memory is not allocated yet because input is dynamic.
+    // Since dep's _outputs may be empty, Check whether input memory is null by dep's outputs_allocated()
+    if (!dependencies().front().first->outputs_allocated())
+        return;
 
     if (requires_reinterpret()) {
         _outputs[0] = _network.get_engine().reinterpret_buffer(input_memory(), get_output_layout());

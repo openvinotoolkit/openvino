@@ -8,6 +8,7 @@
 #include "snippets/snippets_isa.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace snippets {
@@ -41,14 +42,14 @@ TransposeDecomposition::TransposeDecomposition() {
     auto match_order = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     auto match_transpose = ov::pass::pattern::wrap_type<ov::opset1::Transpose>({match_data, match_order});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::TransposeDecomposition")
         auto& pattern_to_output = m.get_pattern_value_map();
         const auto& data_input = pattern_to_output.at(match_data);
         const auto transpose = ov::as_type_ptr<ov::opset1::Transpose>(pattern_to_output.at(match_transpose).get_node_shared_ptr());
 
         const auto order = ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(match_order).get_node_shared_ptr());
-        if (transformation_callback(transpose) || transpose->is_dynamic())
+        if (transformation_callback(transpose))
             return false;
 
         auto order_value = order->cast_vector<int>();
@@ -64,10 +65,14 @@ TransposeDecomposition::TransposeDecomposition() {
         auto load = std::make_shared<snippets::op::LoadReshape>(data_input, subtensor[0], 0, layout);
         auto store = std::make_shared<snippets::op::Store>(load, subtensor[0]);
 
-        PortDescriptorUtils::set_port_descriptor_ptr(load->input(0), std::make_shared<PortDescriptor>(load->get_input_shape(0), subtensor, layout));
-        PortDescriptorUtils::set_port_descriptor_ptr(load->output(0), std::make_shared<PortDescriptor>(load->get_output_shape(0), subtensor));
-        PortDescriptorUtils::set_port_descriptor_ptr(store->input(0), std::make_shared<PortDescriptor>(store->get_input_shape(0), subtensor));
-        PortDescriptorUtils::set_port_descriptor_ptr(store->output(0), std::make_shared<PortDescriptor>(store->get_output_shape(0), subtensor));
+        PortDescriptorUtils::set_port_descriptor_ptr(load->input(0),
+            std::make_shared<PortDescriptor>(utils::pshape_to_vdims(load->get_input_partial_shape(0)), subtensor, layout));
+        PortDescriptorUtils::set_port_descriptor_ptr(load->output(0),
+            std::make_shared<PortDescriptor>(utils::pshape_to_vdims(load->get_output_partial_shape(0)), subtensor));
+        PortDescriptorUtils::set_port_descriptor_ptr(store->input(0),
+            std::make_shared<PortDescriptor>(utils::pshape_to_vdims(store->get_input_partial_shape(0)), subtensor));
+        PortDescriptorUtils::set_port_descriptor_ptr(store->output(0),
+            std::make_shared<PortDescriptor>(utils::pshape_to_vdims(store->get_output_partial_shape(0)), subtensor));
 
         for (auto& input : transpose->output(0).get_target_inputs()) {
             input.replace_source_output(store->output(0));

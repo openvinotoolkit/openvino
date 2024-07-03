@@ -37,13 +37,13 @@ bool DictParameterResolver::run_on_model(const std::shared_ptr<Model>& model) {
                         at_least_one_unused = true;
                         continue;
                     }
-                    const auto attrs = index_node->get_attrs();
+                    const auto& attrs = index_node->get_attrs();
                     if (attrs.find("string_value") == attrs.end()) {
                         // index node must contain string value
                         at_least_one_unused = true;
                         continue;
                     }
-                    const auto name = attrs.at("string_value");
+                    const auto& name = attrs.at("string_value");
                     auto new_param = std::make_shared<v0::Parameter>(getitem_node->get_output_element_type(0),
                                                                      getitem_node->get_output_partial_shape(0));
                     new_param->set_friendly_name(name);
@@ -84,7 +84,7 @@ bool DictResultResolver::run_on_model(const std::shared_ptr<Model>& model) {
             ResultVector new_outputs;
             for (size_t i = 0; i < inputs.size(); i += 2) {
                 auto new_output = inputs.at(i + 1);
-                const auto name_node = inputs.at(i);
+                const auto& name_node = inputs.at(i);
                 auto fw_node = std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(name_node.get_node_shared_ptr());
                 if (!fw_node) {
                     add_exception_to_fw_node(
@@ -92,13 +92,13 @@ bool DictResultResolver::run_on_model(const std::shared_ptr<Model>& model) {
                         "prim::DictConstruct: odd inputs must contain constant strings encoded as fw nodes.");
                     return false;
                 }
-                const auto attrs = fw_node->get_attrs();
+                const auto& attrs = fw_node->get_attrs();
                 if (attrs.find("string_value") == attrs.end()) {
                     // fw node must contain string value
                     add_exception_to_fw_node(dict_construct_node, "prim::DictConstruct: unexpected dict key format.");
                     return false;
                 }
-                auto name = attrs.at("string_value");
+                const auto& name = attrs.at("string_value");
                 new_output.set_names({name});
                 new_outputs.push_back(std::make_shared<v0::Result>(new_output));
             }

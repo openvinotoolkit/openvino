@@ -13,13 +13,12 @@ import tensorflow.compat.v1 as tf_v1
 import tensorflow_hub as hub
 # noinspection PyUnresolvedReferences
 import tensorflow_text  # do not delete, needed for text models
-from openvino import Core
-
-from models_hub_common.constants import tf_hub_cache_dir, hf_cache_dir
 from models_hub_common.test_convert_model import TestConvertModel
 from models_hub_common.utils import get_models_list
-from utils import type_map, load_graph, get_input_signature, get_output_signature, unpack_tf_result, \
-    repack_ov_result_to_tf_format, get_output_signature_from_keras_layer
+from openvino import Core
+
+from utils import load_graph, get_input_signature, get_output_signature, unpack_tf_result, \
+    repack_ov_result_to_tf_format, get_output_signature_from_keras_layer, retrieve_inputs_info_for_signature
 
 
 def is_hf_link(link: str):
@@ -74,29 +73,7 @@ class TestTFHubConvertModel(TestConvertModel):
             assert len(model_obj.structured_input_signature) > 1, "incorrect model or test issue"
             input_signature = model_obj.structured_input_signature[1].items()
 
-        inputs_info = []
-        for input_name, input_info in (input_signature.items() if isinstance(input_signature, dict) else input_signature):
-            input_shape = []
-            try:
-                if input_info.shape.as_list() == [None, None, None, 3] and input_info.dtype == tf.float32:
-                    # image classification case, let us imitate an image
-                    # that helps to avoid compute output size issue
-                    input_shape = [1, 200, 200, 3]
-                else:
-                    for dim in input_info.shape.as_list():
-                        if dim is None:
-                            input_shape.append(1)
-                        else:
-                            input_shape.append(dim)
-            except ValueError:
-                # unknown rank case
-                pass
-            if input_info.dtype == tf.resource:
-                # skip inputs corresponding to variables
-                continue
-            assert input_info.dtype in type_map, "Unsupported input type: {}".format(input_info.dtype)
-            inputs_info.append((input_name, input_shape, type_map[input_info.dtype]))
-
+        inputs_info = retrieve_inputs_info_for_signature(input_signature)
         self.output_signature = get_output_signature_from_keras_layer(model_obj)
         return inputs_info
 
@@ -151,17 +128,12 @@ class TestTFHubConvertModel(TestConvertModel):
                     pass
 
     def teardown_method(self):
-        # remove all downloaded files for TF Hub models
-        self.clean_dir(tf_hub_cache_dir)
-
-        # remove all downloaded files for HF models
-        self.clean_dir(hf_cache_dir)
-
         # deallocate memory after each test case
         gc.collect()
 
     @pytest.mark.parametrize("model_name,model_link,mark,reason",
-                             get_models_list(os.path.join(os.path.dirname(__file__), "model_lists", "precommit")))
+                             get_models_list(os.path.join(os.path.dirname(__file__),
+                                                          "model_lists", "precommit_convert_model")))
     @pytest.mark.precommit
     def test_convert_model_precommit(self, model_name, model_link, mark, reason, ie_device):
         assert mark is None or mark == 'skip' or mark == 'xfail', \
