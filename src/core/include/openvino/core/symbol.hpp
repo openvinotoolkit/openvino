@@ -31,7 +31,7 @@ SharedSymbol OPENVINO_API operator-(const SharedSymbol& lhs, const SharedSymbol&
 /// \brief Class representing unique symbol for the purpose of symbolic shape inference. Equality of symbols is being
 /// tracked by Disjoint-set data structure
 /// \ingroup ov_model_cpp_api
-class OPENVINO_API Symbol : public std::enable_shared_from_this<Symbol> {
+class OPENVINO_API Symbol {
 public:
     /// \brief Default constructs a unique symbol
     Symbol() = default;
