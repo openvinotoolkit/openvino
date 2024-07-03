@@ -108,17 +108,6 @@ inline int8_t upc(int8_t h) {
         *vout1 = _mm256_permute2x128_si256(vunlo, vunhi, 0x31);                   \
     }
 
-inline __m128i avx2_u8tof16_hi(__m128i vu8) {
-    __m256i u32vec = _mm256_cvtepu8_epi32(vu8);                 // extend:   8 x u8  -> 8 x i32 [256b of 256b]
-    __m256 f32scl = _mm256_cvtepi32_ps(u32vec);                 // convert:  8 x i32 -> 8 x f32 [256b of 256b]
-    return _mm256_cvtps_ph(f32scl, _MM_FROUND_TO_NEAREST_INT);  // convert: 8 x f32 -> 8 x f16 [128b]
-}
-
-inline __m128i avx2_u8tof16_lo(__m128i vu8) {
-    __m128i vu8h = _mm_bsrli_si128(vu8, 8);
-    return avx2_u8tof16_hi(vu8h);
-}
-
 inline __m128i avx2_i8tof16(__m128i vi8) {
     __m256i i32vec = _mm256_cvtepi8_epi32(vi8);                 // extend:  8 x i8  -> 8 x i32 [256b of 256b]
     __m256 f32vec = _mm256_cvtepi32_ps(i32vec);                 // convert: 8 x i32 -> 8 x f32 [256b of 256b]
@@ -221,10 +210,6 @@ inline void avx2_u4tof16(__m256i vinput, __m128i vout[8], __m256 zvalVec, __m256
     vout[5] = _mm_unpackhi_epi16(f16HiLo[0], f16LoLo[0]);
     vout[6] = _mm_unpacklo_epi16(f16HiLo[1], f16LoLo[1]);
     vout[7] = _mm_unpackhi_epi16(f16HiLo[1], f16LoLo[1]);
-}
-
-inline __m128i avx2_f32tof16(__m256 f32vec) {
-    return _mm256_cvtps_ph(f32vec, _MM_FROUND_TO_NEAREST_INT);
 }
 
 inline __m256 avx2_load_scale(const int8_t* data, ov::element::Type type) {
