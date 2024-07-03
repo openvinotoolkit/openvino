@@ -142,7 +142,7 @@ class CommitSliderTest(TestCase):
         )
 
     @skip_commit_slider_devtest
-    def testForsubstitutionRule(self):
+    def testForMapSubstitutionRule(self):
         from utils.helpers import applySubstitutionRules
         cfg = {
                 "serviceConfig": {
@@ -226,6 +226,74 @@ class CommitSliderTest(TestCase):
         self.assertEqual(
             cfg["wrongDst"],
             "{commitHash1} is unchanged"
+        )
+
+    @skip_commit_slider_devtest
+    def testForStaticSubstitutionRule(self):
+        from utils.helpers import applySubstitutionRules
+        cfg = {
+                "serviceConfig": {
+                    "previousKey": "previousValue"
+                },
+                "wrongDst": "{pathOne} is unchanged",
+                "dst": {
+                    "complex": {
+                        "path": [
+                            "{pathOne} is natural number",
+                            "{pathTwo} is natural number",
+                            "{pathOne} is not {pathTwo}"
+                        ]
+                    }
+                },
+                "src": {
+                    "complex": {
+                        "path": {
+                            "one": "1",
+                            "two": "2"
+                        }
+                    }
+                }
+        }
+        rules = [
+            {
+                "name": "testRule1",
+                "enabled": True,
+                "type": "static",
+                "placeholder": "pathOne",
+                "from": "$.src.complex.path.one",
+                "to": "$.dst.complex.path"
+            },
+            {
+                "name": "testRule2",
+                "enabled": True,
+                "type": "static",
+                "placeholder": "pathTwo",
+                "from": "$.src.complex.path.two",
+                "to": "$.dst.complex.path"
+            }
+        ]
+        def applyByRef(cfg: map, rules: list, substitution: str):
+            applySubstitutionRules(cfg, rules, substitution)
+
+        applyByRef(cfg, rules, "mustBeIgnored")
+
+        # assert substitutions
+        self.assertEqual(
+            cfg["dst"]["complex"]["path"][0],
+            "1 is natural number"
+        )
+
+        self.assertEqual(
+            cfg["dst"]["complex"]["path"][1],
+            "2 is natural number"
+        )
+        self.assertEqual(
+            cfg["dst"]["complex"]["path"][2],
+            "1 is not 2"
+        )
+        self.assertEqual(
+            cfg["wrongDst"],
+            "{pathOne} is unchanged"
         )
 
     @skip_commit_slider_devtest
