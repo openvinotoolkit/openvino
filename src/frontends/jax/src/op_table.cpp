@@ -42,6 +42,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_jaxpr() {
             {"conv_general_dilated", op::translate_convolution},
             {"copy", op::translate_copy},
             {"dot_general", op::translate_dot_general},
+            {"max", op::translate_1to1_match_2_inputs<opset14::Maximum>},
             {"reduce_window_max", op::translate_reduce_window_max},
             {"reduce_window_sum", op::translate_reduce_window_sum},
             {"transpose", op::translate_transpose},
