@@ -1027,8 +1027,8 @@ pass::EliminateEltwise::EliminateEltwise() {
 
 namespace {
 struct STRUCT_NAME(EliminateEltwise) {
-    std::shared_ptr<ov::Node> non_const_input;
-    std::shared_ptr<ov::op::v0::Constant> constant;
+    ov::Output<ov::Node> non_const_input;
+    ov::Output<ov::Node> constant;
     std::shared_ptr<ov::Node> eltwise;
 };
 
@@ -1039,10 +1039,11 @@ bool isEliminateEltwise_SubtractBranch(const std::shared_ptr<ov::Node>& node, ST
     auto convert = std::dynamic_pointer_cast<ov::op::v0::Convert>(node->input_value(1).get_node_shared_ptr());
     if (!convert)
         return false;
-    nodes.constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(convert->input_value(0).get_node_shared_ptr());
-    if (!nodes.constant)
+    auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(convert->input_value(0).get_node_shared_ptr());
+    if (!constant)
         return false;
-    nodes.non_const_input = convert->input_value(0).get_node_shared_ptr();
+    nodes.constant = constant->output(0);
+    nodes.non_const_input = convert->input_value(0);
     return true;
 }
 
@@ -1051,10 +1052,11 @@ bool isEliminateEltwise_EltwiseBranch(const std::shared_ptr<ov::Node>& node, STR
         return false;
 
     nodes.eltwise = node;
-    nodes.constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(nodes.eltwise->input_value(1).get_node_shared_ptr());
-    if (!nodes.constant)
+    auto constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(nodes.eltwise->input_value(1).get_node_shared_ptr());
+    if (!constant)
         return false;
-    nodes.non_const_input = nodes.eltwise->input_value(0).get_node_shared_ptr();
+    nodes.constant = constant->output(0);
+    nodes.non_const_input = nodes.eltwise->input_value(0);
     return true;
 }
 
@@ -1066,7 +1068,9 @@ auto CHECK_NAME(EliminateEltwise) = [] (const std::shared_ptr<ov::Node>& node, S
 };
 
 auto CALLBACK_NAME(EliminateEltwise) = [](const STRUCT_NAME(EliminateEltwise)& nodes){
-    if (!op::util::can_eliminate_eltwise_node(nodes.eltwise, nodes.constant, nodes.non_const_input)) {
+    if (!op::util::can_eliminate_eltwise_node(nodes.eltwise,
+                                              nodes.constant,
+                                              nodes.non_const_input)) {
         return false;
     }
     return replace_output_update_name(nodes.eltwise->output(0), nodes.non_const_input);
@@ -1828,14 +1832,13 @@ bool ov::pass::NopEliminationModelPass::run_on_model(const std::shared_ptr<ov::M
                                                          CALLBACK_NAME(TRANSFORMATION_NAME)));
 
     std::vector<std::shared_ptr<Callback>> callbacks;
-
     ADD_CALLBACK_CAST_TYPE(callbacks, op::util::PadBase, EliminatePad)
     ADD_CALLBACK_COMPLEX_PATTERN(callbacks, EliminateConvertNonZero)
     ADD_CALLBACK_CAST_TYPE(callbacks, ov::op::v0::Convert, EliminateConvert)
     ADD_CALLBACK_CAST_TYPE(callbacks, ov::op::v0::Concat, EliminateConcat)
     ADD_CALLBACK_CAST_TYPE(callbacks, ov::op::v1::Split, EliminateSplit)
     ADD_CALLBACK_COMPLEX_PATTERN(callbacks, EliminateTranspose)
-    //ADD_CALLBACK_COMPLEX_PATTERN(callbacks, EliminateEltwise)
+    ADD_CALLBACK_COMPLEX_PATTERN(callbacks, EliminateEltwise)
     ADD_CALLBACK_CAST_TYPE(callbacks, ov::op::v0::Concat, EliminateSplitConcat)
     ADD_CALLBACK_COMPLEX_PATTERN(callbacks, EliminateStridedSlice)
     ADD_CALLBACK_COMPLEX_PATTERN(callbacks, EliminateSlice)
@@ -1866,104 +1869,4 @@ bool ov::pass::NopEliminationModelPass::run_on_model(const std::shared_ptr<ov::M
         }
     }
     return return_value;
-
-    // PREV CODE
-#if 0
-    bool retval = false;
-    for (auto& node : m->get_ordered_ops()) {
-        // EliminatePad
-        if (dynamic_pointer_cast<op::util::PadBase>(node)) {
-            retval |= EliminatePad_callback(node);
-            continue;
-        } // EliminateConvertNonZero
-        else if (isEliminateConvertNonZero(node, convert_non_zero_nodes)) {
-            retval |=  EliminateConvertNonZero_callback(convert_non_zero_nodes);
-            continue;
-        } // EliminateConvert
-        ELIF_CAST_OV_NODE(ov::op::v0::Convert, node, EliminateConvert_callback, retval)
-        // EliminateConcat
-        ELIF_CAST_OV_NODE(ov::op::v0::Concat, node, EliminateConcat_callback, retval)
-        // EliminateSplit
-        ELIF_CAST_OV_NODE(ov::op::v1::Split, node, EliminateSplit_callback, retval)
-        // EliminateTranspose
-        else if (isEliminateTranspose(node, eliminate_transpose_nodes)) {
-            retval |=  EliminateTranspose_callback(eliminate_transpose_nodes);
-            continue;
-        } // EliminateEltwise
-        else if (isEliminateEltwise(node, eliminate_eltwise_nodes)) {
-#if 0
-            EMUTEX_CHECKPOINT
-            m->validate_nodes_and_infer_types();
-            EMUTEX_CHECKPOINT
-            std::cout << "[EMUTEX DEBUG] eltwise " << eliminate_eltwise_nodes.eltwise->get_type_name() << std::endl;
-            retval |=  EliminateEltwise_callback(eliminate_eltwise_nodes);
-            EMUTEX_CHECKPOINT
-            m->validate_nodes_and_infer_types();
-            EMUTEX_CHECKPOINT
-#else
-            retval |= false;
-#endif
-            continue;
-        } // EliminateSplitConcat
-        else if (auto concat = dynamic_pointer_cast<ov::op::v0::Concat>(node)) {
-            retval |=  EliminateSplitConcat_callback(concat);
-            continue;
-        } // EliminateStridedSlice
-        else if (isEliminateStridedSlice(node, strided_slice_nodes)) {
-            retval |=  EliminateStridedSlice_callback(strided_slice_nodes);
-            continue;
-        } // EliminateSlice
-        else if (isEliminateSlice(node, slice_nodes)) {
-            retval |=  EliminateSliceSlice_callback(slice_nodes);
-            continue;
-        }
-
-        if (!_use_shape_for_elimination)
-            continue;
-
-        // EliminateScatterUpdate
-        if (hasType<ov::op::v3::ScatterUpdate, ov::op::v3::ScatterNDUpdate, ov::op::v3::ScatterElementsUpdate>(node)) {
-            retval |=  EliminateScatterUpdate_callback(node);
-            continue;
-        } // EliminateReshape
-        else if (auto reshape = dynamic_pointer_cast<ov::op::v1::Reshape>(node)) {
-            retval |=  eliminate_reshape_v1(reshape);
-            continue;
-        } // EliminateSqueeze
-        else if (dynamic_pointer_cast<ov::op::v0::Squeeze>(node)) {
-            retval |=  EliminateSqueeze_callback(node);
-            continue;
-        } // EliminateUnsqueeze
-        else if (auto target_node = dynamic_pointer_cast<ov::op::v0::Unsqueeze>(node)) {
-            retval |=  eliminate_unsqueeze(target_node);
-            continue;
-        } // PrepareShapeOpsForEliminationAroundBE
-        else if (isPrepareShapeOpsForEliminationAroundBE(node, around_be_nodes)) {
-            retval |=  PrepareShapeOpsForEliminationAroundBE_callback(around_be_nodes);
-            continue;
-        } // EliminateBroadcast
-        else if (hasType<op::v1::Broadcast, op::v3::Broadcast>(node)) {
-            retval |=  eliminate_nop(node);
-            continue;
-        } // EliminateNopBroadcast
-        else if (isEliminateNopBroadcast(node)) {
-            retval |=  EliminateNopBroadcast_callback(node);
-            continue;
-        } // EliminateSliceBeforeGatherElements
-        else if (isEliminateSliceBeforeGatherElements(node, gather_elements_nodes)) {
-            retval |=  EliminateSliceBeforeGatherElements_callback(gather_elements_nodes);
-            continue;
-        } // EliminateStridedSliceByShape
-        else if (isEliminateStridedSliceByShape(node, slice_by_shape_nodes)) {
-            retval |=  EliminateStridedSliceByShapeNodes_callback(slice_by_shape_nodes);
-            continue;
-        } // EliminateGather
-        else if (hasType<ov::op::v1::Gather, ov::op::v7::Gather, ov::op::v8::Gather>(node)) {
-            retval |=  simplify_gather(node);
-            continue;
-        }
-    }
-
-    return retval;
-#endif
 }
