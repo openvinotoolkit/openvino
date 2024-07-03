@@ -87,12 +87,16 @@ get_input_info_by_node(const std::shared_ptr<ov::Node>& node) {
         ov::conformance::InputInfo in_info(node->get_input_partial_shape(port_id));
         std::string input_name = input_node->get_friendly_name();
         if (std::dynamic_pointer_cast<ov::op::v0::Constant>(input_node)) {
-            if (ov::shape_size(input_node->get_output_shape(0)) == 0)
-                continue;
-            auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(input_node);
-            in_info.is_const = true;
-            in_info.ranges = get_const_ranges(const_node,
-                                              const_node->get_default_output().get_element_type());
+            if (ov::shape_size(input_node->get_output_shape(0)) == 0) {
+                auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(input_node);
+                in_info.is_const = true;
+                in_info.ranges = ov::conformance::InputInfo::Range(ov::conformance::DEFAULT_MIN_VALUE, ov::conformance::DEFAULT_MAX_VALUE);
+            } else {
+                auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(input_node);
+                in_info.is_const = true;
+                in_info.ranges = get_const_ranges(const_node,
+                                                  const_node->get_default_output().get_element_type());
+            }
         }
         input_info.insert({input_name, in_info});
     }
