@@ -476,8 +476,8 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
             return false;
         }
 
-        // If backend doesn't support dynamic MHA tokenization, return false
-        if (!config.get_dynamic_mha_support()) {
+        // If backend doesn't enable dynamic MHA tokenization, return false
+        if (!config.is_dynamic_mha_token_enabled()) {
             if (std::any_of(ordered_ops.cbegin(), ordered_ops.cend(), [](const std::shared_ptr<ov::Node>& op) { return op->is_dynamic(); }))
                 return false;
         }

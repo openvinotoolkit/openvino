@@ -876,11 +876,11 @@ void Transformations::MainSnippets(void) {
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is Config::SnippetsMode::IgnoreCallback
     bool split_m_dimension = !ignoreCallback;
     // [113198] Add dynamic Subgraph with MHA pattern inside execution support
-    bool is_dynamic_mha_supported = false;
+    bool is_dynamic_mha_token_enabled = false;
     // [122706] Some 3D MHA Patterns have perf regressions when Transpose op is tokenized
     std::set<size_t> mha_supported_transpose_ranks = { 4 };
     snippets::pass::SnippetsTokenization::Config tokenization_config(concurrency, data_ptr_gpr_count, split_m_dimension,
-                                                                     mha_token_enable_transpose_on_output, is_dynamic_mha_supported,
+                                                                     mha_token_enable_transpose_on_output, is_dynamic_mha_token_enabled,
                                                                      mha_supported_transpose_ranks);
 
     ov::pass::Manager snippetsManager;
