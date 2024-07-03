@@ -1058,7 +1058,7 @@ bool isEliminateEltwise_EltwiseBranch(const std::shared_ptr<ov::Node>& node, STR
     return true;
 }
 
-bool CHECK_NAME(EliminateEltwise) = [] (const std::shared_ptr<ov::Node>& node, STRUCT_NAME(EliminateEltwise)& nodes) {
+auto CHECK_NAME(EliminateEltwise) = [] (const std::shared_ptr<ov::Node>& node, STRUCT_NAME(EliminateEltwise)& nodes) {
     if (isEliminateEltwise_EltwiseBranch(node, nodes)) {
         return true;
     }
@@ -1699,16 +1699,22 @@ ov::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
 
 class Callback {
 public:
-    Callback() = default;
+    explicit Callback(const std::string& name) : _name(name) {}
     virtual ~Callback() = default;
     virtual bool exec(const std::shared_ptr<ov::Node>& node, bool& retval) const = 0;
+
+    const std::string& get_name() const { return _name; }
+private:
+    const std::string _name;
 };
 
 class CallbackWithCheck : public Callback {
     using Func = std::function<bool (const std::shared_ptr<ov::Node>& node)>;
 public:
-    CallbackWithCheck(const Func& check_func, const Func& callback_func) :
-            _check(check_func), _callback(callback_func) {}
+    CallbackWithCheck(const std::string& name, const Func& check_func, const Func& callback_func) :
+            Callback(name),
+            _check(check_func),
+            _callback(callback_func) {}
 
     bool exec(const std::shared_ptr<ov::Node>& node, bool& retval) const override {
         if (!_check(node))
@@ -1727,7 +1733,9 @@ class CallbackCastType : public Callback {
     using CallbackFunc = std::function<bool (const std::shared_ptr<T>& node)>;
 
 public:
-    explicit CallbackCastType(const CallbackFunc& func) : _callback(func) {}
+    CallbackCastType(const std::string& name, const CallbackFunc& func) :
+            Callback(name),
+            _callback(func) {}
 
     bool exec(const std::shared_ptr<ov::Node>& node, bool& retval) const override {
         auto casted_node = cast(node);
@@ -1750,7 +1758,9 @@ class CallbackMultipleTypes : public Callback {
     using CallbackFunc = std::function<bool (const std::shared_ptr<ov::Node>& node)>;
 
 public:
-    explicit CallbackMultipleTypes(const CallbackFunc& func) : _callback(func) {}
+    CallbackMultipleTypes(const std::string& name, const CallbackFunc& func) :
+            Callback(name),
+            _callback(func) {}
 
     bool exec(const std::shared_ptr<ov::Node>& node, bool& retval) const override {
         if (!hasType<T, Args...>(node))
@@ -1769,8 +1779,12 @@ class CallbackComplexPattern : public Callback {
     using CallbackFunc = std::function<bool (const T& pattern_nodes)>;
 
 public:
-    CallbackComplexPattern(const CheckFunc& check_func, const CallbackFunc& callback_func) :
-    _check(check_func), _callback(callback_func) {}
+    CallbackComplexPattern(const std::string& name,
+                           const CheckFunc& check_func,
+                           const CallbackFunc& callback_func) :
+            Callback(name),
+            _check(check_func),
+            _callback(callback_func) {}
 
     bool exec(const std::shared_ptr<ov::Node>& node, bool& retval) const override {
         T pattern_nodes;
@@ -1795,19 +1809,23 @@ bool ov::pass::NopEliminationModelPass::run_on_model(const std::shared_ptr<ov::M
     auto CALLBACK_NAME(EliminateReshape) = eliminate_reshape_v1;
     auto CALLBACK_NAME(EliminateUnsqueeze) = eliminate_unsqueeze;
     auto CALLBACK_NAME(EliminateBroadcast) = eliminate_nop;
-    
 
 #define ADD_CALLBACK_CAST_TYPE(VEC, NODE_TYPE, TRANSFORMATION_NAME) \
-    VEC.emplace_back(std::make_shared<CallbackCastType<NODE_TYPE>>(CALLBACK_NAME(TRANSFORMATION_NAME)));
+    VEC.emplace_back(std::make_shared<CallbackCastType<NODE_TYPE>>(STR(TRANSFORMATION_NAME), \
+                                                                   CALLBACK_NAME(TRANSFORMATION_NAME)));
 
 #define ADD_CALLBACK_COMPLEX_PATTERN(VEC, TRANSFORMATION_NAME) \
-    VEC.emplace_back(std::make_shared<CallbackComplexPattern<STRUCT_NAME(TRANSFORMATION_NAME)>>(CHECK_NAME(TRANSFORMATION_NAME), CALLBACK_NAME(TRANSFORMATION_NAME)));
+    VEC.emplace_back(std::make_shared<CallbackComplexPattern<STRUCT_NAME(TRANSFORMATION_NAME)>>( \
+    STR(TRANSFORMATION_NAME), CHECK_NAME(TRANSFORMATION_NAME), CALLBACK_NAME(TRANSFORMATION_NAME)));
 
 #define ADD_CALLBACK_MULTI_TYPES(VEC, TRANSFORMATION_NAME, ...) \
-    VEC.emplace_back(std::make_shared<CallbackMultipleTypes<__VA_ARGS__>>(CALLBACK_NAME(TRANSFORMATION_NAME)));
+    VEC.emplace_back(std::make_shared<CallbackMultipleTypes<__VA_ARGS__>>(STR(TRANSFORMATION_NAME), \
+                                                                          CALLBACK_NAME(TRANSFORMATION_NAME)));
 
 #define ADD_CALLBACK_WITH_CHECK(VEC, TRANSFORMATION_NAME) \
-    VEC.emplace_back(std::make_shared<CallbackWithCheck>(CHECK_NAME(TRANSFORMATION_NAME), CALLBACK_NAME(TRANSFORMATION_NAME)));
+    VEC.emplace_back(std::make_shared<CallbackWithCheck>(STR(TRANSFORMATION_NAME), \
+                                                         CHECK_NAME(TRANSFORMATION_NAME), \
+                                                         CALLBACK_NAME(TRANSFORMATION_NAME)));
 
     std::vector<std::shared_ptr<Callback>> callbacks;
 
@@ -1817,6 +1835,7 @@ bool ov::pass::NopEliminationModelPass::run_on_model(const std::shared_ptr<ov::M
     ADD_CALLBACK_CAST_TYPE(callbacks, ov::op::v0::Concat, EliminateConcat)
     ADD_CALLBACK_CAST_TYPE(callbacks, ov::op::v1::Split, EliminateSplit)
     ADD_CALLBACK_COMPLEX_PATTERN(callbacks, EliminateTranspose)
+    //ADD_CALLBACK_COMPLEX_PATTERN(callbacks, EliminateEltwise)
     ADD_CALLBACK_CAST_TYPE(callbacks, ov::op::v0::Concat, EliminateSplitConcat)
     ADD_CALLBACK_COMPLEX_PATTERN(callbacks, EliminateStridedSlice)
     ADD_CALLBACK_COMPLEX_PATTERN(callbacks, EliminateSlice)
