@@ -1718,6 +1718,8 @@ void program::cancel_compilation_context() {
 }
 
 void program::save(cldnn::BinaryOutputBuffer& ob) const {
+    ob << _config.get_property(ov::intel_gpu::weights_path);
+
     std::map<cldnn::memory::ptr, std::vector<const cldnn::program_node*>> mutable_datas_ptrs;
     ob << nodes_map.size();
     for (auto& node : nodes_map) {
@@ -1833,6 +1835,11 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 
 void program::load(cldnn::BinaryInputBuffer& ib) {
     init_program();
+
+    std::string weights_path;
+    ib >> weights_path;
+    ov::AnyMap weights_path_property{{"GPU_WEIGHTS_PATH", weights_path}};
+    _config.set_property(weights_path_property);
 
     size_t num_nodes;
     ib >> num_nodes;
