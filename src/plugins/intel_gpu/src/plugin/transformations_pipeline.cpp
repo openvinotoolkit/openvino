@@ -345,17 +345,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
             }
 
-            // For platforms with DPAS support we don't have any other shape-based limitations besides head_size being static and equal for QKV
-            if (device_info.supports_immad && cldnn::query_microkernels_supported(m_context->get_engine(), config))
+            const auto head_size = query_ps[query_ps.size() - 1].get_length();
+            if (device_info.supports_immad && cldnn::query_microkernels_supported(m_context->get_engine(), config) && head_size <= 256)
                 return true;
 
             // - Head size should be 128 for any model type; or should be in the range of 64 to 256 for stateful LLMs because of performance reasons.
             //   This limitations is recommended to prevent performance drop in models with small head size, such as SD,
             //   until the SDPA operation is optimized for these cases
             const auto optimal_subgroup_size = 16;
-            const auto head_size = query_ps[query_ps.size() - 1].get_length();
             bool valid_head_size = head_size % optimal_subgroup_size == 0;
-            valid_head_size &= (head_size == 128) || (func->get_variables().size() > 0 && head_size >= 64 && head_size <= 256);
+            valid_head_size &= (head_size >= 64 && head_size <= 256);
             if (!valid_head_size) {
                 return false;
             }
