@@ -204,6 +204,10 @@ void clean_batch_properties(const std::string& deviceName, ov::AnyMap& config, c
         }
     }
 }
+
+bool check_plugin_name(const std::string& plugin_name, const std::string& real_plugin_name) {
+    return !plugin_name.compare(real_plugin_name);
+}
 }  // namespace
 
 bool ov::is_config_applicable(const std::string& user_device_name, const std::string& subprop_device_name) {
@@ -477,7 +481,7 @@ void ov::CoreImpl::register_compile_time_plugins() {
         const auto& pluginPath = ov::util::get_compiled_plugin_path(plugin.second.m_plugin_path);
         if (pluginRegistry.find(deviceName) == pluginRegistry.end() && ov::util::file_exists(pluginPath)) {
             ov::AnyMap config = any_copy(plugin.second.m_default_config);
-            PluginDescriptor desc{pluginPath, plugin.second.shared_library_name, config};
+            PluginDescriptor desc{pluginPath, plugin.second.m_real_plugin_name, config};
             register_plugin_in_registry_unsafe(deviceName, desc);
         }
 #endif
@@ -542,12 +546,6 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
     }
 }
 
-    namespace {
-    bool check_plugin_name(const std::string& plugin_name, const std::string& real_plugin_name) {
-        return !plugin_name.compare(real_plugin_name);
-    }
-    }  // namespace
-
 ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "CoreImpl::get_plugin");
 
@@ -597,16 +595,12 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             so = ov::util::load_shared_object(desc.libraryLocation.c_str());
             std::shared_ptr<ov::IPlugin> plugin_impl;
             reinterpret_cast<ov::CreatePluginFunc*>(ov::util::get_symbol(so, ov::create_plugin_function))(plugin_impl);
-            if (!desc.sharedLibraryName.empty()) {
-                std::string shared_library_name;
-                reinterpret_cast<ov::GetSharedLibaryNameFunc*>(
-                    ov::util::get_symbol(so, ov::get_shared_library_name_function))(shared_library_name);
-                if (!check_plugin_name(desc.sharedLibraryName, shared_library_name))
-                    OPENVINO_THROW("Loaded shared library with real name ",
-                                   plugin.get_name(),
-                                   "\ninstead of name ",
-                                   desc.sharedLibraryName,
-                                   "\n");
+            if (!desc.realPluginName.empty() && !check_plugin_name(desc.realPluginName, plugin_impl->get_genuine_plugin_name())) {
+                OPENVINO_THROW("Loaded plugin with real name ",
+                                plugin_impl->get_genuine_plugin_name(),
+                                "\ninstead of name ",
+                                desc.realPluginName,
+                                "\n");
             }
             plugin = Plugin{ plugin_impl, so };
         }
@@ -1267,7 +1261,7 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
         if (!config.empty()) {
             auto base_desc = pluginRegistry.find(clearDeviceName);
             if (pluginRegistry.find(deviceName) == pluginRegistry.end() && base_desc != pluginRegistry.end()) {
-                PluginDescriptor desc{base_desc->second.libraryLocation, base_desc->second.sharedLibraryName, config, base_desc->second.listOfExtentions};
+                PluginDescriptor desc{base_desc->second.libraryLocation, base_desc->second.realPluginName, config, base_desc->second.listOfExtentions};
                 pluginRegistry[deviceName] = desc;
             }
 

@@ -141,6 +141,7 @@ std::map<std::string, RemoteContextImpl::Ptr> Plugin::get_default_contexts() con
 }
 
 Plugin::Plugin() {
+    m_genuine_plugin_name = "GPU";
     set_device_name("GPU");
     register_primitives();
 
@@ -803,5 +804,3 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
 
 static const ov::Version version = { CI_BUILD_NUMBER, "Intel GPU plugin" };
 OV_DEFINE_PLUGIN_CREATE_FUNCTION(ov::intel_gpu::Plugin, version)
-
-OV_DEFINE_GET_SHARED_LIBRARY_NAME()

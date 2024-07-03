@@ -57,6 +57,10 @@ const std::string& ov::IPlugin::get_device_name() const {
     return m_plugin_name;
 }
 
+const std::string& ov::IPlugin::get_genuine_plugin_name() const {
+    return m_genuine_plugin_name;
+}
+
 void ov::IPlugin::set_core(const std::weak_ptr<ov::ICore>& core) {
     OPENVINO_ASSERT(!core.expired());
     m_core = core;

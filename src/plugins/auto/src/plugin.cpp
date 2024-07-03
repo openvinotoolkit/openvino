@@ -308,9 +308,8 @@ static const ov::Version version = {CI_BUILD_NUMBER, "openvino_auto_plugin"};
 OV_DEFINE_PLUGIN_CREATE_FUNCTION(ov::auto_plugin::Plugin, version)
 // ! [plugin:create_plugin_engine]
 
-OV_DEFINE_GET_SHARED_LIBRARY_NAME()
-
 Plugin::Plugin() {
+    m_genuine_plugin_name = "AUTO";
     set_device_name("AUTO");
 }
 

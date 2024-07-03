@@ -122,6 +122,7 @@ public:
 #endif  // __linux__
 
 Plugin::Plugin() : deviceFullName(getDeviceFullName()), specialSetup(new CPUSpecialSetup) {
+    m_genuine_plugin_name = "CPU";
     set_device_name("CPU");
     // Initialize Xbyak::util::Cpu object on Pcore for hybrid cores machine
     get_executor_manager()->execute_task_by_streams_executor(ov::hint::SchedulingCoreType::PCORE_ONLY, [] {
@@ -629,5 +630,3 @@ static const ov::Version version = {CI_BUILD_NUMBER, "openvino_riscv_cpu_plugin"
 #endif
 
 OV_DEFINE_PLUGIN_CREATE_FUNCTION(Plugin, version)
-
-OV_DEFINE_GET_SHARED_LIBRARY_NAME()

@@ -180,6 +180,7 @@ Plugin::Plugin()
       _globalConfig(_options),
       _logger("NPUPlugin", Logger::global().level()) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
+    m_genuine_plugin_name = "NPU";
     set_device_name("NPU");
 
     registerCommonOptions(*_options);
@@ -784,6 +785,4 @@ std::atomic<int> Plugin::_compiledModelLoadCounter{1};
 
 static const ov::Version version = {CI_BUILD_NUMBER, NPU_PLUGIN_LIB_NAME};
 OV_DEFINE_PLUGIN_CREATE_FUNCTION(Plugin, version)
-
-OV_DEFINE_GET_SHARED_LIBRARY_NAME()
 }  // namespace intel_npu

@@ -110,9 +110,8 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 static const ov::Version version = {CI_BUILD_NUMBER, "openvino_auto_batch_plugin"};
 OV_DEFINE_PLUGIN_CREATE_FUNCTION(Plugin, version)
 
-OV_DEFINE_GET_SHARED_LIBRARY_NAME()
-
 Plugin::Plugin() {
+    m_genuine_plugin_name = "BATCH";
     set_device_name("BATCH");
     m_plugin_config.insert(ov::auto_batch_timeout(1000));  // default value (ms)
 }

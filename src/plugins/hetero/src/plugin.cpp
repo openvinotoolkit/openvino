@@ -26,6 +26,7 @@
 #include "properties.hpp"
 
 ov::hetero::Plugin::Plugin() {
+    m_genuine_plugin_name = "HETERO";
     set_device_name("HETERO");
 }
 
