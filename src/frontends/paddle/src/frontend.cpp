@@ -378,6 +378,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     if (variants[0].is<std::string>()) {
         std::string suffix = ".pdmodel";
         std::string model_path = variants[0].as<std::string>();
+        FRONT_END_GENERAL_CHECK(util::file_exists(model_path), "Could not open the file: \"", model_path, '"');
         if (!ov::util::ends_with(model_path, suffix)) {
             model_path += paddle::get_path_sep<char>() + "__model__";
         }
@@ -390,6 +391,10 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     else if (variants[0].is<std::wstring>()) {
         std::wstring suffix = L".pdmodel";
         std::wstring model_path = variants[0].as<std::wstring>();
+        FRONT_END_GENERAL_CHECK(util::file_exists(model_path),
+                                "Could not open the file: \"",
+                                util::path_to_string(model_path),
+                                '"');
         if (!ov::util::ends_with(model_path, suffix)) {
             model_path += paddle::get_path_sep<wchar_t>() + L"__model__";
         }

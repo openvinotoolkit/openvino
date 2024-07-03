@@ -1123,8 +1123,9 @@ class ConvertRaises(unittest.TestCase):
         from openvino.tools.mo import convert_model
 
         with self.assertRaisesRegex(Exception, ".*PyTorch Frontend doesn't support provided model type.*"):
-            with tempfile.NamedTemporaryFile() as tmpfile:
+            with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
                 convert_model(tmpfile.name, framework="pytorch")
+            os.remove(tmpfile.name)
 
 
 def create_pytorch_layer_norm(tmp_dir):

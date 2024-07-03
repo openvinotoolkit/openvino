@@ -13,6 +13,7 @@
 #include "google/protobuf/text_format.h"
 #include "graph_iterator_proto.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/util/file_util.hpp"
 
 namespace ov {
 namespace frontend {
@@ -59,6 +60,10 @@ public:
     /// \brief Check if the input file is supported
     template <typename T>
     static bool is_supported(const std::basic_string<T>& path) {
+        FRONT_END_GENERAL_CHECK(util::directory_exists(path) || util::file_exists(path),
+                                "Could not open the file: \"",
+                                util::path_to_string(path),
+                                '"');
         try {
             std::ifstream pbtxt_stream(path.c_str(), std::ios::in);
             bool model_exists = (pbtxt_stream && pbtxt_stream.is_open());

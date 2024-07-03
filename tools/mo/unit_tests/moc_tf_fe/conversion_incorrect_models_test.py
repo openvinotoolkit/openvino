@@ -60,12 +60,15 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
             ),
         ]
         for use_new_frontend, use_legacy_frontend, framework, exp_reg_exp in test_cases:
-            with tempfile.NamedTemporaryFile(mode='w') as tmp, self.assertRaisesRegex(Exception,
-                                                                                      exp_reg_exp):
+            with tempfile.NamedTemporaryFile(
+                mode="w", delete=False
+            ) as tmp, self.assertRaisesRegex(Exception, exp_reg_exp):
                 tmp.write("")
+                # on Windows tmp file must be not deleted on close to avoid remove it when reopened by MO
                 convert_model(tmp.name,
                               use_new_frontend=use_new_frontend, use_legacy_frontend=use_legacy_frontend,
                               framework=framework)
+            os.remove(tmp.name)
 
     def test_conversion_fake_model_with_no_ext(self):
         test_cases = [
@@ -91,9 +94,15 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
             ),
         ]
         for use_new_frontend, use_legacy_frontend, framework, exp_reg_exp in test_cases:
-            with tempfile.NamedTemporaryFile(mode='w') as tmp, self.assertRaisesRegex(Exception,
-                                                                                      exp_reg_exp):
+            with tempfile.NamedTemporaryFile(
+                mode="w", delete=False
+            ) as tmp, self.assertRaisesRegex(Exception, exp_reg_exp):
                 tmp.write("1212234\n12312")
-                convert_model(tmp.name,
-                              use_new_frontend=use_new_frontend, use_legacy_frontend=use_legacy_frontend,
-                              framework=framework)
+                # on Windows tmp file must be not deleted on close to avoid remove it when reopened by MO
+                convert_model(
+                    tmp.name,
+                    use_new_frontend=use_new_frontend,
+                    use_legacy_frontend=use_legacy_frontend,
+                    framework=framework,
+                )
+            os.remove(tmp.name)

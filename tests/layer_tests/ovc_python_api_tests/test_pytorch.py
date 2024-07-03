@@ -1328,11 +1328,13 @@ class ConvertRaises(unittest.TestCase):
 
     def test_failed_extension(self):
         import tempfile
+        import os
         from openvino.tools.ovc import convert_model
 
         with self.assertRaisesRegex(Exception, ".*Cannot recognize input model.*"):
-            with tempfile.NamedTemporaryFile() as tmpfile:
+            with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
                 convert_model(tmpfile.name)
+            os.remove(tmpfile.name)
 
 
 def create_model_three_inputs():

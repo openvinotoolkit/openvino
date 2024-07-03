@@ -318,8 +318,15 @@ def test_load_by_model():
     decoded_function = fe.decode(model)
     assert decoded_function
 
-    assert not fem.load_by_model("test.xx")
-    assert not fem.load_by_model("onnx.yy")
+    with pytest.raises(Exception) as e:
+        fem.load_by_model("test.xx")
+
+    assert e.match(r'Could not open the file: "test.xx"')
+
+    with pytest.raises(Exception) as e:
+        fem.load_by_model("onnx.yy")
+
+    assert e.match(r'Could not open the file: "onnx.yy"')
 
 
 def test_onnx_conversion_extension_check_attributes():

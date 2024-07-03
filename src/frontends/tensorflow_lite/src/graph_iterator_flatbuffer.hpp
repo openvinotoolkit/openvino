@@ -30,6 +30,7 @@ template <typename T>
 std::basic_string<T> get_model_extension() {}
 template <>
 std::basic_string<char> get_model_extension<char>();
+
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 template <>
 std::basic_string<wchar_t> get_model_extension<wchar_t>();
@@ -58,6 +59,10 @@ public:
     /// Verifies file is supported
     template <typename T>
     static bool is_supported(const std::basic_string<T>& path) {
+        FRONT_END_GENERAL_CHECK(util::file_exists(path),
+                                "Could not open the file: \"",
+                                util::path_to_string(path),
+                                '"');
         try {
             if (!ov::util::ends_with<T>(path, get_model_extension<T>())) {
                 return false;
