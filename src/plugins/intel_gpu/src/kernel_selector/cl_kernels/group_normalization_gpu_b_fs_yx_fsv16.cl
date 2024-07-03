@@ -148,16 +148,20 @@ KERNEL(group_normalization_b_fs_yx_fsv16)(
     uint bf = bfs * FSV + get_sub_group_local_id();
     uint feature_index = bf % OUTPUT_FEATURE_NUM;
 
-    if (feature_index < INPUT0_FEATURE_NUM) {
+    if (feature_index < OUTPUT_FEATURE_NUM) {
         ACTIVATION_TYPE mean = TO_ACTIVATION_TYPE(internal_mean[bf]);
         ACTIVATION_TYPE variance = TO_ACTIVATION_TYPE(internal_variance[bf]);
-        ACTIVATION_TYPE result = (TO_ACTIVATION_TYPE(input[data_index]) - mean) * variance;
-        result = result * TO_ACTIVATION_TYPE(scale[feature_index]) + TO_ACTIVATION_TYPE(bias[feature_index]);
+        ACTIVATION_TYPE normalized = (TO_ACTIVATION_TYPE(input[data_index]) - mean) * variance;
+        normalized = normalized * TO_ACTIVATION_TYPE(scale[feature_index]) + TO_ACTIVATION_TYPE(bias[feature_index]);
         #if HAS_FUSED_OPS
+            uint b = bf / OUTPUT_FEATURE_NUM;
+            uint yx = get_global_id(0) / FSV;
+            uint y = yx / OUTPUT_SIZE_X;
+            uint x = yx % OUTPUT_SIZE_X;
             FUSED_OPS;
             output[data_index] = FUSED_OPS_RESULT;
         #else
-            output[data_index] = TO_OUTPUT_TYPE(ACTIVATION(result, ACTIVATION_PARAMS));
+            output[data_index] = TO_OUTPUT_TYPE(ACTIVATION(normalized, ACTIVATION_PARAMS));
         #endif
     } else {
         output[data_index] = ACTIVATION_VAL_ZERO;

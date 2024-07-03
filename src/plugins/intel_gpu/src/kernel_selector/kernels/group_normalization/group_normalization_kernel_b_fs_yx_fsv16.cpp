@@ -92,19 +92,19 @@ JitConstants GroupNormalizationKernel_b_fs_yx_fsv16::GetJitConstants(const group
         std::string data_set_count = toVectorMulString({dims.b(), std::to_string(params.num_groups)});
         const std::string lws_0 = "get_local_size(0)";
         jit.AddConstants({
-            MakeJitConstant("LWS", lws_0),
+            // MakeJitConstant("LWS", lws_0),
             MakeJitConstant("SLM_SIZE", dispatchData.maxSlmSize),
-            MakeJitConstant("DATA_SET_SIZE", data_set_size),
-            MakeJitConstant("DATA_SETS_COUNT", data_set_count),
+            // MakeJitConstant("DATA_SET_SIZE", data_set_size),
+            // MakeJitConstant("DATA_SETS_COUNT", data_set_count),
         });
     } else {
         jit.AddConstants({
-            MakeJitConstant("ITEMS_NUM", dispatchData.itemsNum),
-            MakeJitConstant("LWS", dispatchData.lws[0]),
+            // MakeJitConstant("ITEMS_NUM", dispatchData.itemsNum),
+            // MakeJitConstant("LWS", dispatchData.lws[0]),
             MakeJitConstant("SLM_SIZE", dispatchData.lws[0]),
-            MakeJitConstant("DATA_SETS_COUNT", dispatchData.dataSetsCount),
-            MakeJitConstant("DATA_SET_SIZE", dispatchData.dataSetSize),
-            MakeJitConstant("LEFTOVERS", dispatchData.leftovers),
+            // MakeJitConstant("DATA_SETS_COUNT", dispatchData.dataSetsCount),
+            // MakeJitConstant("DATA_SET_SIZE", dispatchData.dataSetSize),
+            // MakeJitConstant("LEFTOVERS", dispatchData.leftovers),
         });
     }
     auto activation_dt = GetActivationType(params);
@@ -114,18 +114,11 @@ JitConstants GroupNormalizationKernel_b_fs_yx_fsv16::GetJitConstants(const group
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order;
         if (params.inputs[0].GetDims().size() <= 4) {
-            idx_order = { "(data_set_idx / OUTPUT_FEATURE_NUM)",
-                            "(data_set_idx % OUTPUT_FEATURE_NUM)",
-                            "((in_data_set_idx + iteration_in_data_set_offset) / OUTPUT_SIZE_X)",
-                            "((in_data_set_idx + iteration_in_data_set_offset) % OUTPUT_SIZE_X)" };
-        } else if (params.inputs[0].GetDims().size() == 5) {
-            idx_order = { "(data_set_idx / OUTPUT_FEATURE_NUM)",
-                            "(data_set_idx % OUTPUT_FEATURE_NUM)",
-                            "((in_data_set_idx + iteration_in_data_set_offset) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y))",
-                            "((in_data_set_idx + iteration_in_data_set_offset) / OUTPUT_SIZE_X % OUTPUT_SIZE_Y)",
-                            "((in_data_set_idx + iteration_in_data_set_offset) % OUTPUT_SIZE_X)" };
+            idx_order = { "(b)", "(feature_index)", "(y)", "(x)" };
+        } else {
+            OPENVINO_THROW("group_normalization_b_fs_yx_fsv16 doesn't support 5D or higher dims.");
         }
-        auto conf = FusedOpsConfiguration("", idx_order, "result", activation_dt, 1, LoadType::LT_UNALIGNED, BoundaryCheck::DISABLED);
+        auto conf = FusedOpsConfiguration("", idx_order, "normalized", activation_dt, 1);
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }
 
@@ -139,13 +132,26 @@ void GroupNormalizationKernel_b_fs_yx_fsv16::GetUpdateDispatchDataFunc(KernelDat
 
         kd.kernels[0].params.workGroups.global = dispatchData.stage_1.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.stage_1.lws;
-        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params, 0);
 
         kd.kernels[1].params.workGroups.global = dispatchData.stage_2.gws;
         kd.kernels[1].params.workGroups.local = dispatchData.stage_2.lws;
-        kd.kernels[1].skip_execution = KernelData::SkipKernelExecution(prim_params);
+        kd.kernels[1].skip_execution = KernelData::SkipKernelExecution(prim_params, 1);
+
+        kd.kernels[2].params.workGroups.global = dispatchData.stage_1.gws;
+        kd.kernels[2].params.workGroups.local = dispatchData.stage_1.lws;
+        kd.kernels[2].skip_execution = KernelData::SkipKernelExecution(prim_params, 2);
+
+        kd.kernels[3].params.workGroups.global = dispatchData.stage_2.gws;
+        kd.kernels[3].params.workGroups.local = dispatchData.stage_2.lws;
+        kd.kernels[3].skip_execution = KernelData::SkipKernelExecution(prim_params, 3);
+
+        kd.kernels[4].params.workGroups.global = dispatchData.stage_final.gws;
+        kd.kernels[4].params.workGroups.local = dispatchData.stage_final.lws;
+        kd.kernels[4].skip_execution = KernelData::SkipKernelExecution(prim_params, 4);
 
         kd.internalBufferSizes.clear();
+        kd.internalBufferSizes.push_back(prim_params.outputs[0].Batch().v * Align(prim_params.outputs[0].Feature().v, fsv) * 4);
         kd.internalBufferSizes.push_back(prim_params.outputs[0].Batch().v * Align(prim_params.outputs[0].Feature().v, fsv) * 4);
     };
 }
@@ -289,6 +295,6 @@ KernelsData GroupNormalizationKernel_b_fs_yx_fsv16::GetKernelsData(const Params 
 }
 
 KernelsPriority GroupNormalizationKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& /*params*/) const {
-    return FORCE_PRIORITY_7;
+    return FORCE_PRIORITY_4;
 }
 } // namespace kernel_selector
