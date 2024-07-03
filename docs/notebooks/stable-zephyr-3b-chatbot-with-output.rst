@@ -38,8 +38,8 @@ estimate performance for Pytorch and OpenVINO models using almost the
 same code. We also demonstrate how to make model stateful, that provides
 opportunity for processing model cache state.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Convert model to OpenVINO Intermediate Representation (IR) and
@@ -76,8 +76,7 @@ For starting work, we should install required packages first
 
     %pip install -q "transformers>=4.38.2"
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu -r ./openvino.genai/llm_bench/python/requirements.txt
-    %pip uninstall -q -y openvino openvino-dev openvino-nightly
-    %pip install -q openvino-nightly
+    %pip install --pre -Uq openvino openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
     %pip install -q "gradio>=4.19"
 
 Convert model to OpenVINO Intermediate Representation (IR) and compress model weights to INT4 using NNCF

@@ -82,6 +82,11 @@ public:
     /// \return Tensor place corresponding to specified tensor name or nullptr if not exists
     virtual Place::Ptr get_place_by_tensor_name(const std::string& tensor_name) const;
 
+    /// \brief Returns a tensor place by an input index.
+    /// \param input_idx Index of model input
+    /// \return Tensor place corresponding to specified input index or nullptr
+    virtual Place::Ptr get_place_by_input_index(size_t input_idx) const;
+
     /// \brief Returns an operation place by an operation name following framework
     /// conventions, or nullptr if an operation with this name doesn't exist.
     /// \param operation_name Name of operation

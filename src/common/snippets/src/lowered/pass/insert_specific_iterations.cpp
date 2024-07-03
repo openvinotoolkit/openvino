@@ -7,6 +7,8 @@
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/linear_ir_builder.hpp"
 #include "snippets/lowered/specific_loop_iter_types.hpp"
+#include "snippets/op/memory_access.hpp"
+#include "snippets/op/buffer.hpp"
 #include "snippets/utils.hpp"
 #include "snippets/itt.hpp"
 
@@ -16,6 +18,37 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
+
+namespace {
+void connect_cloned_body_with_buffers_outside(LinearIR::constExprIt cur_begin, LinearIR::constExprIt cur_end,
+                                              LinearIR::constExprIt res_begin, LinearIR::constExprIt res_end,
+                                              LinearIR& linear_ir) {
+    for (auto result_it = res_begin, original_it = cur_begin; result_it != res_end; ++result_it, ++original_it) {
+        const auto& result_expr = *result_it;
+        const auto& original_expr = *original_it;
+        // Buffer input can be connected only to outputs of MA ops
+        if (std::dynamic_pointer_cast<modifier::MemoryAccess>(original_expr->get_node())) {
+            for (size_t i = 0; i < original_expr->get_output_count(); i++) {
+                const auto& consumers = original_expr->get_output_port_connector(i)->get_consumers();
+                for (const auto& consumer : consumers) {
+                    const auto consumer_expr = consumer.get_expr();
+                    const auto buffer = ov::as_type_ptr<op::IntermediateMemoryBuffer>(consumer_expr->get_node());
+                    if (buffer && std::find(cur_begin, cur_end, consumer.get_expr()) == cur_end) {
+                        OutputVector new_inputs = {result_expr->get_node()->output(i)};
+                        for (const auto& input : consumer_expr->get_input_port_connectors()) {
+                            const auto& source = input->get_source();
+                            new_inputs.push_back(source.get_expr()->get_node()->output(source.get_index()));
+                        }
+                        const auto new_buffer = buffer->clone_with_new_inputs(new_inputs);
+                        linear_ir.replace_with_node({consumer_expr}, new_buffer);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+}  // namespace
 
 bool InsertSpecificIterations::is_decomposed_loop_needed(const UnifiedLoopInfoPtr& unified_loop_info, SpecificLoopIterType type,
                                                          size_t remaining_work_amount) {
@@ -75,11 +108,17 @@ LoopManager::LoopBounds InsertSpecificIterations::insert_copy_loop(LinearIR& lin
                                                                    std::vector<LoopPort>& new_entry_ports, std::vector<LoopPort>& new_exit_ports) {
     const auto& loop_manager = linear_ir.get_loop_manager();
     const auto loop_bounds = loop_manager->get_loop_bounds(linear_ir, loop_id);
+    const auto loop_begin_pos = loop_bounds.first;
+    const auto loop_end_pos = loop_bounds.second;
+
     ExpressionMap expression_map;
     const auto& cloning_config = LinearIRBuilder::Config(false);
-    const auto& loop_copy_range = LinearIRBuilder(cloning_config).clone_range(loop_bounds.first, std::next(loop_bounds.second), expression_map);
+    const auto& loop_copy_range = LinearIRBuilder(cloning_config).clone_range(loop_begin_pos, std::next(loop_end_pos), expression_map);
     const auto new_loop_begin_pos = linear_ir.insert(insert_pos, loop_copy_range.begin(), loop_copy_range.end());
     const auto new_loop_end_pos = std::prev(insert_pos);
+
+    // Add connections between output of cloned bodies and Buffers from the current LinearIR (Buffers are connections between Loops)
+    connect_cloned_body_with_buffers_outside(loop_begin_pos, loop_end_pos, new_loop_begin_pos, new_loop_end_pos, linear_ir);
 
     auto clone_ports = [&expression_map](const std::vector<LoopPort>& ports, std::vector<LoopPort>& new_ports) {
         new_ports.resize(ports.size());

@@ -20,11 +20,11 @@ The tutorial consists of the following steps:
 - Prepare and run optimization pipeline.
 - Compare performance of the FP32 and quantized models.
 - Compare accuracy of the FP32 and quantized models.
-- Other optimization possibilities with OpenVINO api.
-- Live demo.
+- Other optimization possibilities with OpenVINO api
+- Live demo
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Get PyTorch model <#get-pytorch-model>`__
 
@@ -110,7 +110,7 @@ Install necessary packages.
 .. code:: ipython3
 
     %pip install -q "openvino>=2024.0.0" "nncf>=2.9.0"
-    %pip install -q "torch>=2.1" "torchvision>=0.16" "ultralytics==8.1.42" onnx tqdm opencv-python --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "torch>=2.1" "torchvision>=0.16" "ultralytics==8.2.24" onnx tqdm opencv-python --extra-index-url https://download.pytorch.org/whl/cpu
 
 Import required utility functions. The lower cell will download the
 ``notebook_utils`` Python module from GitHub.
@@ -803,17 +803,17 @@ point precision, using the ``ignored_scope`` parameter.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -830,17 +830,17 @@ point precision, using the ``ignored_scope`` parameter.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1169,14 +1169,14 @@ meets passing criteria.
 Next steps
 ----------
 
- This section contains
+This section contains
 suggestions on how to additionally improve the performance of your
 application using OpenVINO.
 
 Async inference pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
- The key advantage of the Async
+The key advantage of the Async
 API is that when a device is busy with inference, the application can
 perform other tasks in parallel (for example, populating inputs or
 scheduling other requests) rather than wait for the current inference to

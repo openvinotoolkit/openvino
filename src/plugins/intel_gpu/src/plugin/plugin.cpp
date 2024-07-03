@@ -83,17 +83,18 @@ std::string Plugin::get_device_id(const ov::AnyMap& config) const {
     return id;
 }
 
-void Plugin::transform_model(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config) const {
+void Plugin::transform_model(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config, const std::shared_ptr<RemoteContextImpl>& context) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::transform_model");
-    auto deviceInfo = m_device_map.at(config.get_property(ov::device::id))->get_info();
-    TransformationsPipeline transformations(config, deviceInfo);
+    TransformationsPipeline transformations(config, context);
 
     auto start = Time::now();
     transformations.apply(model);
     GPU_DEBUG_LOG << "Transformations time: " << std::chrono::duration_cast<ms>(Time::now() - start).count() << " ms" << std::endl;
 }
 
-std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_ptr<const ov::Model>& model, const ExecutionConfig& config) const {
+std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_ptr<const ov::Model>& model,
+                                                             const ExecutionConfig& config,
+                                                             const std::shared_ptr<RemoteContextImpl>& context) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::clone_and_transform_model");
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_DEFINE_MEM_LOGGER("Plugin::clone_and_transform_model");
@@ -106,7 +107,7 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
         ov::pass::VisualizeTree(path_base + ".svg").run_on_model(cloned_model);
     }
 
-    transform_model(cloned_model, config);
+    transform_model(cloned_model, config, context);
 
     // Transformations for some reason may drop output tensor names, so here we copy those from the original model
     auto new_results = cloned_model->get_results();
@@ -169,7 +170,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     config.set_user_property(orig_config);
     config.apply_user_properties(context->get_engine().get_device_info());
 
-    auto transformed_model = clone_and_transform_model(model, config);
+    auto transformed_model = clone_and_transform_model(model, config, context);
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model::CreateCompiledModel");
         return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context, config);
@@ -188,7 +189,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     config.set_user_property(orig_config);
     config.apply_user_properties(context_impl->get_engine().get_device_info());
 
-    auto transformed_model = clone_and_transform_model(model, config);
+    auto transformed_model = clone_and_transform_model(model, config, context_impl);
     return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context_impl, config);
 }
 
@@ -259,10 +260,10 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     float query_model_ratio = config.get_property(ov::internal::query_model_ratio.name()).as<float>();
 
     auto supported = ov::get_supported_nodes(model,
-        [&config,this](std::shared_ptr<ov::Model>& model) {
+        [&config,&ctx,this](std::shared_ptr<ov::Model>& model) {
             std::map<std::string, ov::PartialShape> shapes;
             std::map<std::string, std::pair<int64_t, int64_t>> batch_dim;
-            transform_model(model, config);
+            transform_model(model, config, ctx);
         },
         [&prog](std::shared_ptr<ov::Node> node) {
             return prog.is_op_supported(node);
@@ -555,6 +556,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::enable_cpu_pinning.name(), PropertyMutability::RW},
         ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RW}
     };
 
     return supported_properties;
@@ -708,7 +710,7 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
             return static_cast<uint32_t>(max_batch_size);
         }
 
-        TransformationsPipeline transformations(config, device_info);
+        TransformationsPipeline transformations(config, context);
         transformations.apply(cloned_model);
         program = std::make_shared<ProgramBuilder>(cloned_model, engine, config, true);
         std::pair<int64_t, int64_t> device_memory_usage = program->get_compiled_program()->get_estimated_device_mem_usage();
@@ -777,7 +779,7 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
                         << ", L3_cache_size is (MB): " << float(L3_cache_size) / 1024 / 1024 << std::endl;
     }
     auto config = m_configs_map.at(device_id);
-    auto cloned_model = clone_and_transform_model(model, config);
+    auto cloned_model = clone_and_transform_model(model, config, context);
     ov::MemBandwidthPressure memPressure = ov::mem_bandwidth_pressure_tolerance(cloned_model, L3_cache_size);
     uint32_t batch = 1;
     if (memPressure.max_mem_tolerance != ov::MemBandwidthPressure::UNKNOWN)

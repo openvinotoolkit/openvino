@@ -23,8 +23,8 @@ stateful transformation on LLM part and model optimization techniques
 like weights compression and quantization using
 `NNCF <https://github.com/openvinotoolkit/nncf>`__
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Download PyTorch model <#download-pytorch-model>`__
@@ -743,7 +743,7 @@ model.
         """
         Prepares a vision-text dataset for quantization.
         """
-        dataset = load_dataset("conceptual_captions")
+        dataset = load_dataset("google-research-datasets/conceptual_captions", trust_remote_code=True)
         train_dataset = dataset["train"].shuffle(seed=42)
         dataloader = torch.utils.data.DataLoader(train_dataset, collate_fn=collate_fn, batch_size=1)
         calibration_data = prepare_calibration_data(dataloader, opt_init_steps)
@@ -1329,7 +1329,7 @@ Interactive demo
     def bot_streaming(message, history):
         print(message)
         if message["files"]:
-            image = message["files"][-1]["path"]
+            image = message["files"][-1]["path"] if isinstance(message["files"][-1], dict) else message["files"][-1]
         else:
             # if there's no image uploaded for this turn, look for images in the past turns
             # kept inside tuples, take the last one

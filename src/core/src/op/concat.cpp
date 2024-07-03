@@ -40,12 +40,8 @@ void Concat::validate_and_infer_types() {
     }
 
     const auto output_shapes = shape_infer(this, input_shapes);
-    const auto& output_shape = output_shapes[0];
-    if (output_shape.rank().is_static() && (get_concatenation_axis() < 0)) {
-        set_concatenation_axis(ov::util::normalize(get_axis(), output_shape.size()));
-    }
 
-    set_output_type(0, inputs_et, output_shape);
+    set_output_type(0, inputs_et, output_shapes[0]);
 }
 
 std::shared_ptr<Node> Concat::clone_with_new_inputs(const OutputVector& new_args) const {

@@ -29,8 +29,8 @@ If you want to learn more about ControlNet and particularly on
 conditioning by pose, please refer to this
 `tutorial <controlnet-stable-diffusion-with-output.html>`__
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Instantiating Generation
@@ -974,13 +974,8 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    is_gpu_device = "GPU" in device.value
-    to_quantize = widgets.Checkbox(
-        value=not is_gpu_device,
-        description="Quantization",
-        disabled=is_gpu_device,
-    )
-    
+    skip_for_device = "GPU" in device.value
+    to_quantize = widgets.Checkbox(value=not skip_for_device, description="Quantization", disabled=skip_for_device)
     to_quantize
 
 

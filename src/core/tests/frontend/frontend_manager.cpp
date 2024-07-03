@@ -117,7 +117,7 @@ TEST(FrontEndManagerTest, testDefaultFrontEnd) {
     FrontEndManager fem;
     fem.register_front_end("mock1", mock_fe_path());
     FrontEnd::Ptr fe;
-    ASSERT_NO_THROW(fe = fem.load_by_model(""));
+    ASSERT_NO_THROW(fe = fem.load_by_model());
     ASSERT_EQ(nullptr, fe);
 
     class MockFrontEnd : public FrontEnd {};

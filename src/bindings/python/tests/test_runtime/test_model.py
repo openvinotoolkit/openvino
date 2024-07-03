@@ -27,7 +27,18 @@ from openvino import (
 from openvino.runtime import Output
 from openvino.runtime.op.util import VariableInfo, Variable
 
-from tests.utils.helpers import generate_add_model, generate_model_with_memory, create_filename_for_test
+from tests.utils.helpers import (
+    generate_add_model,
+    generate_model_with_memory,
+    create_filename_for_test,
+)
+
+
+def make_add_with_variable_model(shape, variable_id: str, dtype=np.float32) -> Model:
+    param1 = ops.parameter(Shape(shape), dtype=dtype, name="data1")
+    param2 = ops.parameter(Shape(shape), dtype=dtype, name="data2")
+    read_value = ops.read_value(param1, variable_id, dtype, shape)
+    return Model(ops.add(read_value, param2), [param1, param2])
 
 
 def test_descriptor_tensor():
@@ -146,22 +157,37 @@ def test_get_result_index_invalid():
     assert model.get_result_index(invalid_output) == -1
 
 
-def test_parameter_index():
-    input_shape = PartialShape([1])
-    param = ops.parameter(input_shape, dtype=np.float32, name="data")
-    relu = ops.relu(param, name="relu")
-    model = Model(relu, [param], "TestModel")
-    assert model.get_parameter_index(param) == 0
+@pytest.mark.parametrize(("shapes", "relu_names", "model_name", "expected_outputs_length", "is_invalid", "expected_result_index"), [
+    ([PartialShape([1])], ["relu"], "TestModel", 1, False, 0),
+    ([PartialShape([1]), PartialShape([4])], ["relu1", "relu2"], "TestModel1", 1, True, -1)
+])
+def test_result_index(shapes, relu_names, model_name, expected_outputs_length, is_invalid, expected_result_index):
+    params = [ops.parameter(shape, dtype=np.float32, name=f"data{i+1}") for i, shape in enumerate(shapes)]
+    relus = [ops.relu(param, name=relu_name) for param, relu_name in zip(params, relu_names)]
+
+    model = Model(relus[0], [params[0]], model_name)
+    assert len(model.outputs) == expected_outputs_length
+    if is_invalid:
+        invalid_result_node = ops.result(relus[1].outputs()[0])
+        assert model.get_result_index(invalid_result_node) == expected_result_index
+    else:
+        assert model.get_result_index(model.get_results()[0]) == expected_result_index
 
 
-def test_parameter_index_invalid():
-    shape1 = PartialShape([1])
-    param1 = ops.parameter(shape1, dtype=np.float32, name="data1")
+@pytest.mark.parametrize(("shapes", "param_names", "model_name", "expected_index", "is_invalid"), [
+    ([PartialShape([1]), None], ["data", None], "TestModel", 0, False),
+    ([PartialShape([1]), PartialShape([2])], ["data1", "data2"], "TestModel", -1, True)
+])
+def test_parameter_index(shapes, param_names, model_name, expected_index, is_invalid):
+    param1 = ops.parameter(shapes[0], dtype=np.float32, name=param_names[0])
     relu = ops.relu(param1, name="relu")
-    model = Model(relu, [param1], "TestModel")
-    shape2 = PartialShape([2])
-    param2 = ops.parameter(shape2, dtype=np.float32, name="data2")
-    assert model.get_parameter_index(param2) == -1
+    model = Model(relu, [param1], model_name)
+
+    if is_invalid:
+        param2 = ops.parameter(shapes[1], dtype=np.float32, name=param_names[1])
+        assert model.get_parameter_index(param2) == expected_index
+    else:
+        assert model.get_parameter_index(param1) == expected_index
 
 
 def test_replace_parameter():
@@ -288,6 +314,55 @@ def test_reshape(device):
     assert compiled_model.input().partial_shape == ref_shape
 
 
+def test_reshape_with_ports_and_variable():
+    new_shape = PartialShape([46, 1])
+    var_id = "ID1"
+    model = make_add_with_variable_model([1, 5], var_id)
+    for model_input in model.inputs:
+        assert isinstance(model_input, Output)
+        model.reshape({model_input: new_shape}, {var_id: new_shape})
+        assert model_input.partial_shape == new_shape
+
+
+def test_reshape_with_indexes_and_variable():
+    var_id = "ID1"
+    model = make_add_with_variable_model([1, 5], var_id)
+    new_shape = PartialShape([1, 4])
+    model.reshape(
+        {i: new_shape for i, model_input in enumerate(model.inputs)},
+        {var_id: new_shape},
+    )
+    for model_input in model.inputs:
+        assert model_input.partial_shape == new_shape
+
+
+def test_reshape_with_names_and_variables():
+    var_id = "ID1"
+    model = make_add_with_variable_model([1, 25], var_id)
+    new_shape = PartialShape([4, 1])
+    model.reshape(
+        {model_input.any_name: new_shape for model_input in model.inputs},
+        {var_id: new_shape},
+    )
+    for model_input in model.inputs:
+        assert model_input.partial_shape == new_shape
+
+
+def test_reshape_with_variable(device):
+    shape = PartialShape([1, 10])
+
+    param = ops.parameter(shape, dtype=np.float32)
+    read_value = ops.read_value(param, "MyVar", Type.f32, shape)
+    model = Model(ops.relu(read_value), [param])
+
+    ref_shape = model.input().partial_shape
+    ref_shape[0] = 3
+    model.reshape(ref_shape, {"MyVar": ref_shape})
+    core = Core()
+    compiled_model = core.compile_model(model, device)
+    assert compiled_model.input().partial_shape == ref_shape
+
+
 def test_reshape_with_python_types(device):
     model = generate_add_model()
 
@@ -359,6 +434,85 @@ def test_reshape_with_python_types(device):
 
     with pytest.raises(TypeError) as e:
         model.reshape({0: range(1, 9)})
+    assert (
+        "Incorrect value type <class 'range'> to reshape a model, "
+        "expected values as openvino.runtime.PartialShape, str, list or tuple."
+        in str(e.value)
+    )
+
+
+def test_reshape_with_python_types_for_variable(device):
+    var_id = "ID1"
+    model = make_add_with_variable_model([1, 2, 5], var_id)
+
+    def check_shape(new_shape):
+        for model_input in model.inputs:
+            assert model_input.partial_shape == new_shape
+
+    shape1 = [1, 4]
+    new_shapes = {input: PartialShape(shape1) for input in model.inputs}
+    model.reshape(new_shapes, {var_id: shape1})
+    check_shape(PartialShape(shape1))
+
+    shape2 = [1, 6]
+    new_shapes = {input.any_name: PartialShape(shape2) for input in model.inputs}
+    model.reshape(new_shapes, {var_id: shape2})
+    check_shape(PartialShape(shape2))
+
+    shape3 = [1, 8]
+    new_shapes = {i: PartialShape(shape3) for i, _ in enumerate(model.inputs)}
+    model.reshape(new_shapes, {var_id: shape3})
+    check_shape(PartialShape(shape3))
+
+    shape4 = [1, -1]
+    new_shapes = {input: PartialShape(shape4) for input in model.inputs}
+    model.reshape(new_shapes, {var_id: shape4})
+    check_shape(PartialShape([Dimension(1), Dimension(-1)]))
+
+    shape5 = [1, (1, 10)]
+    new_shapes = {input: PartialShape(shape5) for input in model.inputs}
+    model.reshape(new_shapes, {var_id: shape5})
+    check_shape(PartialShape([Dimension(1), Dimension(1, 10)]))
+
+    shape6 = [Dimension(3), Dimension(3, 10)]
+    new_shapes = {input: PartialShape(shape6) for input in model.inputs}
+    model.reshape(new_shapes, {var_id: shape6})
+    check_shape(PartialShape(shape6))
+
+    shape7 = "[1..10, ?]"
+    new_shapes = {input: PartialShape(shape7) for input in model.inputs}
+    model.reshape(new_shapes, {var_id: shape7})
+    check_shape(PartialShape(shape7))
+
+    # reshape mixed keys
+    shape8 = [(1, 20), -1]
+    new_shapes = {"data1": PartialShape(shape8), 1: shape8}
+    model.reshape(new_shapes, {var_id: shape8})
+    check_shape(PartialShape([Dimension(1, 20), Dimension(-1)]))
+
+    # reshape with one input
+    param = ops.parameter([1, 3, 28, 28])
+    read_value = ops.read_value(param, var_id, Type.f32, param.get_partial_shape())
+    model = Model(ops.relu(read_value), [param])
+
+    shape9 = [-1, 3, (28, 56), (28, 56)]
+    model.reshape(shape9, {var_id: shape9})
+    check_shape(PartialShape([Dimension(-1), Dimension(3), Dimension(28, 56), Dimension(28, 56)]))
+
+    shape10 = "[?,3,..224,..224]"
+    model.reshape(shape10, {var_id: shape10})
+    check_shape(PartialShape([Dimension(-1), Dimension(3), Dimension(-1, 224), Dimension(-1, 224)]))
+
+    # check exceptions
+    shape10 = [1, 1, 1, 1]
+    with pytest.raises(TypeError) as e:
+        model.reshape({0: shape10}, {0: shape10})
+    assert (
+        "Incorrect key type <class 'int'> to reshape a model, expected values as str." in str(e.value)
+    )
+
+    with pytest.raises(TypeError) as e:
+        model.reshape({0: shape10}, {var_id: range(1, 9)})
     assert (
         "Incorrect value type <class 'range'> to reshape a model, "
         "expected values as openvino.runtime.PartialShape, str, list or tuple."
@@ -580,4 +734,4 @@ def test_copy_failed():
     model = generate_add_model()
     with pytest.raises(TypeError) as e:
         copy(model)
-    assert "cannot copy 'openvino.runtime.Model. Please, use deepcopy instead." in str(e.value)
+    assert "Cannot copy 'openvino.runtime.Model. Please, use deepcopy instead." in str(e.value)
