@@ -195,10 +195,10 @@ ov::SupportedOpsMap LevelZeroCompilerAdapter::query(const std::shared_ptr<const 
     return apiAdapter->query(model, config);
 }
 
-NetworkMetadata LevelZeroCompilerAdapter::parse(const void* mmapBlob, size_t mmapSize, const Config& config) const {
+NetworkMetadata LevelZeroCompilerAdapter::parse(const std::vector<uint8_t>& network, const Config& config) const {
     _logger.setLevel(config.get<LOG_LEVEL>());
     _logger.debug("parse");
-    return apiAdapter->parse(mmapBlob, mmapSize, config);
+    return apiAdapter->parse(network, config);
 }
 
 std::vector<ov::ProfilingInfo> LevelZeroCompilerAdapter::process_profiling_output(const std::vector<uint8_t>&,

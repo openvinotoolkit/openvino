@@ -20,14 +20,6 @@
 
 #include "npuw/compiled_model.hpp"
 
-// fileMapping
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <cstring>
-#include <iostream>
-
 using namespace intel_npu;
 
 namespace {
@@ -147,63 +139,6 @@ size_t getFileSize(std::istream& stream) {
     const size_t streamEnd = stream.tellg();
     stream.seekg(streamStart, std::ios_base::beg);
     return streamEnd - streamStart;
-}
-
-void* ConvertBlobToFileMappingLinux(const void* blobData, size_t blobSize) {
-    char tempFilePath[] = "/tmp/blobXXXXXX"; // need unqie
-    int fd = mkstemp(tempFilePath);
-    if (fd < 0) {
-        std::cerr << "Failed to create temporary file." << std::endl;
-        return nullptr;
-    }
-
-    if (write(fd, blobData, blobSize) != blobSize) {
-        std::cerr << "Failed to write blob to temporary file." << std::endl;
-        close(fd);
-        return nullptr;
-    }
-
-    void* mappedData = mmap(nullptr, blobSize, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
-    if (mappedData == MAP_FAILED) {
-        std::cerr << "Failed to map file." << std::endl;
-        close(fd);
-        return nullptr;
-    }
-
-    close(fd); // File descriptor no longer needed after mapping
-    return mappedData;
-}
-
-
-void* MapFileToMemory(const std::string& fileName, size_t& fileSize) {
-    // Step 1: Open the file
-    int fd = open(fileName.c_str(), O_RDONLY);
-    if (fd == -1) {
-        std::cerr << "Error opening file: " << strerror(errno) << std::endl;
-        return nullptr;
-    }
-
-    // Step 2: Get the file size
-    struct stat sb;
-    if (fstat(fd, &sb) == -1) {
-        std::cerr << "Error getting file size: " << strerror(errno) << std::endl;
-        close(fd);
-        return nullptr;
-    }
-    fileSize = sb.st_size;
-
-    // Step 3: Memory map the file
-    void* mappedFile = mmap(nullptr, fileSize, PROT_READ, MAP_PRIVATE, fd, 0);
-    if (mappedFile == MAP_FAILED) {
-        std::cerr << "Error mapping file: " << strerror(errno) << std::endl;
-        close(fd);
-        return nullptr;
-    }
-
-    // Step 4: Close the file descriptor as it's no longer needed
-    close(fd);
-
-    return mappedFile;
 }
 
 void update_log_level(const std::map<std::string, std::string>& propertiesMap) {
@@ -781,10 +716,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         }
         std::vector<uint8_t> blob(graphSize);
         stream.read(reinterpret_cast<char*>(blob.data()), graphSize);
-        void* mappedBlob = ConvertBlobToFileMappingLinux (blob.data(), graphSize);
-        auto meta = compiler->parse(mappedBlob, graphSize, localConfig);
 
-
+        auto meta = compiler->parse(blob, localConfig);
         meta.name = "net" + std::to_string(_compiledModelLoadCounter++);
 
         const std::shared_ptr<ov::Model> modelDummy = create_dummy_model(meta.parameters,

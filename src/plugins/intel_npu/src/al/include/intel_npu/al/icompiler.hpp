@@ -130,7 +130,7 @@ public:
      *        to be used for creating network description
      * @return a shared pointer on an object implementing NetworkDescription interface
      */
-    virtual NetworkMetadata parse(const void* mmapBlob, size_t mmapSize, const Config& config) const = 0;
+    virtual NetworkMetadata parse(const std::vector<uint8_t>& network, const Config& config) const = 0;
 
     virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                                     const std::vector<uint8_t>& network,
