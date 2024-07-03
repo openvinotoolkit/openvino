@@ -511,11 +511,6 @@ event::ptr primitive_inst::realloc_if_needed() {
         }
     }
 
-    if (_node->is_type<crop>() && can_be_optimized()) {
-        GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("can_be_optimized");
-        return ev;
-    }
-
     // Update param if fake_alignment is available
     auto updated_params = get_fake_aligned_params_if_possible(*_impl_params);
 
@@ -609,7 +604,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     }
 
     // Clear out memory if if was previously reused, but now primitive can't be optimized
-    if (_node->is_runtime_skippable()) {
+    if (_node->is_runtime_skippable() || _node->is_type<crop>()) {
         if (can_be_optimized()) {
             _max_output_layout_count = _deps[0].first->_max_output_layout_count;
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("can_be_optimized");
@@ -1375,9 +1370,13 @@ void primitive_inst::do_runtime_in_place_crop() {
                 u->update_shape();
                 u->update_shape_done_by_other = true;
 
+                if (!u->shape_changed())
+                    return;
+
                 const auto& crop_users = u->get_user_insts();
                 std::vector<layout> reshape_layouts;
-                if (crop_users.size() == 1 && crop_users.front()->get_node().is_type<reshape>()) {
+                if (crop_users.front()->get_node().is_type<reshape>()) {
+                    OPENVINO_ASSERT(crop_users.size() == 1, "[GPU] Expected number of reshape users is 1, but it is ", crop_users.size());
                     auto reshape_inst = crop_users.front();
                     if (!reshape_inst->update_shape_done_by_other) {
                         GPU_DEBUG_TRACE_DETAIL << "[In place crop] update shape for " << reshape_inst->id() << std::endl;
@@ -1402,7 +1401,7 @@ void primitive_inst::do_runtime_in_place_crop() {
                 } else if (crop_in_place_optimization::can_crop_be_optimized_simple_data_format(crop_layout, pred_layout)) {
                     crop_in_place_optimization::update_in_place_crop_padding_simple_data_format(crop_layout, pred_layout, reshape_layouts,
                                                                                                 offsets, crop_axis, true);
-                    if (crop_users.size() == 1 && crop_users.front()->get_node().is_type<reshape>() && reshape_layouts.size() > 0) {
+                    if (crop_users.front()->get_node().is_type<reshape>() && reshape_layouts.size() > 0) {
                         auto reshape_inst = crop_users.front();
                         reshape_inst->_impl_params->output_layouts[0] = reshape_layouts[0];
                         reshape_inst->set_shape_change();

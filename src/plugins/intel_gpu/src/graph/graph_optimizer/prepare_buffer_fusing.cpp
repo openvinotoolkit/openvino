@@ -460,10 +460,14 @@ bool crop_in_place_optimization::match(const program_node& node,
                                        bool is_runtime) {
     if (!node.is_valid_output_layout())
         return false;
+    // if the node is marked as network output, prevent optimizations which would affect a form of its output,
+    // unless debug flag is set
     if (node.is_output() || crop_params.fused_desc.size() > 0 || node.is_in_shape_of_subgraph())
         return false;
+
     const auto& crop_layout = crop_params.get_output_layout();
     for (auto user : node.get_users()) {
+        // do not optimize when next node is concatenation which is not output
         if (user->is_type<concatenation>() && !user->is_output())
             return false;
         if (user->is_type<loop>() || user->is_type<non_max_suppression>())
@@ -474,6 +478,9 @@ bool crop_in_place_optimization::match(const program_node& node,
         if (node.is_dynamic() && user->is_type<convolution>())
             return false;
         if (user->is_type<reshape>()) {
+            // runtime buffer fusing is only handled when there is only one reshape user
+            if (node.is_dynamic() && node.get_users().size() != 1)
+                return false;
             auto& reshape_node = user->as<reshape>();
             if (!reshape_node.is_runtime_propagatable_padding() && can_reshape_be_optimized(reshape_node))
                 return false;
@@ -481,8 +488,11 @@ bool crop_in_place_optimization::match(const program_node& node,
         if (user->is_type<experimental_detectron_roi_feature_extractor>() && user->get_dependency_index(node) == 0)
             return false;
     }
+
+    // do not optimize crop, that must be calculated in propagate_constants
     if (node.is_constant())
         return false;
+
     if (node.get_users().size() > 0) {
         if (node.get_program().is_body_program() && node.get_dependency(0).is_type<lstm_elt>()) {
             return false;

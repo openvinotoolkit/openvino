@@ -44,22 +44,26 @@ public:
             return false;
 
         auto axis = input().as<crop>().get_primitive()->axis;
-        auto input_rank = input().get_output_layout(false).get_partial_shape().size();
+        const auto& input_pshape = input().get_output_layout(false).get_partial_shape();
+        auto input_rank = input_pshape.size();
         auto input_last_dim = static_cast<int64_t>(input_rank - 1);
-        if (axis != input_last_dim)
+        if (axis != input_last_dim || input_pshape[input_last_dim].is_dynamic())
             return false;
 
-        auto output_pattern = prim->output_pattern;
-        auto output_pshape = prim->output_partial_shape;
-
-        if (output_pshape.size() != input_rank + 1 || output_pattern.empty())
+        auto input_last_dim_val = input_pshape[input_last_dim].get_length();
+        const auto& output_pshape = prim->output_partial_shape;
+        if (output_pshape.size() != input_rank + 1)
             return false;
 
-        for (size_t i = 0; i < input_rank - 1; i++) {
-            if (output_pattern[i] != 0) {
+        int64_t mul = 1;
+        for (size_t i = input_rank - 1; i < output_pshape.size() ; i++) {
+            if (output_pshape[i].is_dynamic())
                 return false;
-            }
+            mul *= output_pshape[i].get_length();
         }
+        if (input_last_dim_val != mul)
+            return false;
+
         return true;
     }
 
