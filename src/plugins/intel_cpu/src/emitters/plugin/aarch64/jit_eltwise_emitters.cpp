@@ -161,7 +161,12 @@ void jit_clamp_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const s
 }
 
 std::set<std::vector<element::Type>> jit_clamp_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
-    return {{element::f16}, {element::f32}};
+    return {
+#ifdef OV_CPU_JIT_EMITTER_FP16
+        {element::f16},
+#endif
+        {element::f32}
+    };
 }
 
 /// DIVIDE ///
@@ -314,7 +319,12 @@ void jit_elu_emitter::emit_data() const {
 }
 
 std::set<std::vector<element::Type>> jit_elu_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
-    return {{element::f16}, {element::f32}};
+    return {
+#ifdef OV_CPU_JIT_EMITTER_FP16
+        {element::f16},
+#endif
+        {element::f32}
+    };
 }
 
 /// EXPONENT ///
@@ -459,7 +469,12 @@ void jit_exp_emitter::register_table_entries() {
 }
 
 std::set<std::vector<element::Type>> jit_exp_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
-    return {{element::f16}, {element::f32}};
+    return {
+#ifdef OV_CPU_JIT_EMITTER_FP16
+        {element::f16},
+#endif
+        {element::f32}
+    };
 }
 
 /// Floor ///
@@ -615,7 +630,12 @@ void jit_gelu_erf_emitter::emit_data() const {
 }
 
 std::set<std::vector<element::Type>> jit_gelu_erf_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
-    return {{element::f16}, {element::f32}};
+    return {
+#ifdef OV_CPU_JIT_EMITTER_FP16
+        {element::f16},
+#endif
+        {element::f32}
+    };
 }
 
 /// GELU_TANH ///
@@ -699,7 +719,12 @@ void jit_gelu_tanh_emitter::emit_data() const {
 }
 
 std::set<std::vector<element::Type>> jit_gelu_tanh_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
-    return {{element::f16}, {element::f32}};
+    return {
+#ifdef OV_CPU_JIT_EMITTER_FP16
+        {element::f16},
+#endif
+        {element::f32}
+    };
 }
 
 /// HARD_SWISH ///
@@ -752,7 +777,12 @@ void jit_hswish_emitter::register_table_entries() {
 }
 
 std::set<std::vector<element::Type>> jit_hswish_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
-    return {{element::f16}, {element::f32}};
+    return {
+#ifdef OV_CPU_JIT_EMITTER_FP16
+        {element::f16},
+#endif
+        {element::f32}
+    };
 }
 
 /// IS_INF ///
@@ -1155,7 +1185,12 @@ void jit_power_static_emitter::register_table_entries() {
 }
 
 std::set<std::vector<element::Type>> jit_power_static_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
-    return {{element::f16}, {element::f32}};
+    return {
+#ifdef OV_CPU_JIT_EMITTER_FP16
+        {element::f16},
+#endif
+        {element::f32}
+    };
 }
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa, typename type>
@@ -1279,7 +1314,12 @@ size_t jit_prelu_emitter::get_inputs_count() const { return 2; }
 size_t jit_prelu_emitter::get_aux_vecs_count() const { return 1; }
 
 std::set<std::vector<element::Type>> jit_prelu_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
-    return {{element::f16}, {element::f32}};
+    return {
+#ifdef OV_CPU_JIT_EMITTER_FP16
+        {element::f16},
+#endif
+        {element::f32}
+    };
 }
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa, typename type>
@@ -1317,7 +1357,12 @@ size_t jit_relu_emitter::get_inputs_count() const { return 1; }
 size_t jit_relu_emitter::get_aux_vecs_count() const { return 1; }
 
 std::set<std::vector<element::Type>> jit_relu_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
-    return {{element::f16}, {element::f32}};
+    return {
+#ifdef OV_CPU_JIT_EMITTER_FP16
+        {element::f16},
+#endif
+        {element::f32}
+    };
 }
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa, typename type>
@@ -1457,7 +1502,12 @@ void jit_sigmoid_emitter::emit_data() const {
 }
 
 std::set<std::vector<element::Type>> jit_sigmoid_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
-    return {{element::f16}, {element::f32}};
+    return {
+#ifdef OV_CPU_JIT_EMITTER_FP16
+        {element::f16},
+#endif
+        {element::f32}
+    };
 }
 
 /// SUBTRACT ///
@@ -1562,7 +1612,12 @@ void jit_swish_emitter::emit_data() const {
 }
 
 std::set<std::vector<element::Type>> jit_swish_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
-    return {{element::f16}, {element::f32}};
+    return {
+#ifdef OV_CPU_JIT_EMITTER_FP16
+        {element::f16},
+#endif
+        {element::f32}
+    };
 }
 
 /// TANH ///
@@ -1628,7 +1683,12 @@ void jit_tanh_emitter::emit_data() const {
 }
 
 std::set<std::vector<element::Type>> jit_tanh_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
-    return {{element::f16}, {element::f32}};
+    return {
+#ifdef OV_CPU_JIT_EMITTER_FP16
+        {element::f16},
+#endif
+        {element::f32}
+    };
 }
 
 }   // namespace aarch64
