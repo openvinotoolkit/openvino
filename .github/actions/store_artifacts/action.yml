@@ -20,7 +20,7 @@ runs:
     # TODO: also generate/collect and store manifest based on the repositories checked out in the workflow
 
     - name: 'Copy artifacts'
-      shell: ${{ runner.os == 'Windows' && 'cmd' || 'bash' }}
+      shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
       run: >-
         python ${{ inputs.action_path && inputs.action_path || github.action_path }}/store_artifacts.py
         --storage_dir "${{ inputs.storage_dir }}" --storage_root "${{ inputs.storage_root }}"
