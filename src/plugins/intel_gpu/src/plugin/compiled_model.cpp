@@ -42,18 +42,22 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              RemoteContextImpl::Ptr context,
                              const ExecutionConfig& config)
-    : ov::ICompiledModel(model,
-                         plugin,
-                         context,
-                         create_task_executor(plugin, config),
-                         nullptr)
-    , m_context(context)
-    , m_config(config)
-    , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
-    , m_model_name(model->get_friendly_name())
-    , m_inputs(ov::ICompiledModel::inputs())
-    , m_outputs(ov::ICompiledModel::outputs())
-    , m_loaded_from_cache(false) {
+    : ov::ICompiledModel(model, plugin, context, create_task_executor(plugin, config), nullptr),
+      m_context(context),
+      m_config(config),
+      m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(
+          ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"})),
+      m_model_name(model->get_friendly_name()),
+      m_inputs(ov::ICompiledModel::inputs()),
+      m_outputs(ov::ICompiledModel::outputs()),
+      m_loaded_from_cache(false)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+      ,
+      m_weights_path(model->get_rt_info()["weights_path"].as<std::wstring>()) {
+#else
+      ,
+      m_weights_path(model->get_rt_info()["weights_path"].as<std::string>()) {
+#endif
     auto graph_base = std::make_shared<Graph>(model, m_context, m_config, 0);
     for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);

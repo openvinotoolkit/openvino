@@ -70,6 +70,11 @@ private:
     std::vector<ov::Output<const ov::Node>> m_outputs;
     std::vector<std::shared_ptr<Graph>> m_graphs;
     bool m_loaded_from_cache;
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    std::wstring m_weights_path;
+#else
+    std::string m_weights_path;
+#endif
 };
 
 }  // namespace intel_gpu
