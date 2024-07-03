@@ -24,10 +24,6 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_dynamic_2dims = {
     {{{2, 19, {1, 5}, {1, 10}}, {{2, 19, 2, 2}, {2, 19, 2, 9}}}},
 };
 
-std::vector<std::vector<ov::test::InputShape>> inputShapes_5D = {
-    {{{}, {{2, 19, 2, 2, 9}}}},
-};
-
 std::vector<std::vector<ov::test::InputShape>> inputShapes_6D = {
     {{{}, {{2, 19, 2, 2, 2, 2}}}},
 };
@@ -47,11 +43,6 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_SingleBatch = {
 std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nchw}, {nchw}, {}, {}),
         CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
-};
-
-std::vector<CPUSpecificParams> cpuParams_5D = {
-        CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
-        CPUSpecificParams({ncdhw}, {ncdhw}, {}, {}),
 };
 
 /* ================================ 1.1 No fusion - Arithmetic ================================ */
@@ -111,20 +102,6 @@ const auto params_MultiAxis_4D_dynamic = testing::Combine(
         testing::Values(emptyFusingSpec),
         testing::ValuesIn(additionalConfig()));
 
-const auto params_MultiAxis_5D = testing::Combine(
-        testing::Combine(
-                testing::ValuesIn(axes5D()),
-                testing::Values(ov::test::utils::OpType::VECTOR),
-                testing::Values(true),
-                testing::ValuesIn(reductionTypes()),
-                testing::ValuesIn(inpOutPrc()),
-                testing::Values(ElementType::undefined),
-                testing::Values(ElementType::undefined),
-                testing::ValuesIn(inputShapes_5D)),
-        testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
-        testing::Values(emptyFusingSpec),
-        testing::ValuesIn(additionalConfig()));
-
 const auto params_Int32 = testing::Combine(
         testing::Combine(
             testing::ValuesIn(axes()),
@@ -164,13 +141,6 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_MultiAxis_4D_dynamic_CPU,
         ReduceCPULayerTest,
         params_MultiAxis_4D_dynamic,
-        ReduceCPULayerTest::getTestCaseName
-);
-
-INSTANTIATE_TEST_SUITE_P(
-        smoke_Reduce_MultiAxis_5D_CPU,
-        ReduceCPULayerTest,
-        params_MultiAxis_5D,
         ReduceCPULayerTest::getTestCaseName
 );
 

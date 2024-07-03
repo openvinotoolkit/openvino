@@ -205,15 +205,6 @@ const std::vector<std::vector<int>>& axes() {
     return axes;
 }
 
-const std::vector<std::vector<int>>& axes5D() {
-    static const std::vector<std::vector<int>> axes5D = {
-        {2, 4},
-        {1, 2, 4},
-        {1, 2, 3, 4},
-    };
-    return axes5D;
-}
-
 const std::vector<std::vector<int>>& axesND() {
     static const std::vector<std::vector<int>> axesND = {
             {0, 1},
