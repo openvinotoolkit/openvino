@@ -33,9 +33,6 @@ public:
         /*** Compute hash for fast comparison operations or caching support */
         virtual size_t hash() const = 0;
 
-        bool operator==(const GenericConfig& rhs) const { return hash() == rhs.hash(); }
-        bool operator!=(const GenericConfig& rhs) const { return hash() != rhs.hash(); }
-
         virtual ~GenericConfig() = default;
         /** serialize config for debug purposes */
 #ifdef SNIPPETS_DEBUG_CAPS
@@ -80,7 +77,7 @@ public:
         OPENVINO_ASSERT(m_kernel, "Failed to compile kernel executor");
     }
     void update_by_config(const GenericConfig& new_config) override final { // NOLINT
-        if (static_cast<GenericConfig&>(m_config) == new_config)
+        if (m_config.hash() == new_config.hash())
             return;
         const auto& new_ptr = dynamic_cast<const Conf*>(&new_config);
         OPENVINO_ASSERT(new_config.is_completed() && new_ptr, "Failed to update kernel config in get_config");

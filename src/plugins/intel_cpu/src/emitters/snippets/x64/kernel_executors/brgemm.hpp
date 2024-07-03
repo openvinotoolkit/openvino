@@ -18,6 +18,8 @@ public:
     BrgemmKernelConfig() = default;
     bool is_completed() const override;
     size_t hash() const override { return m_hash; }
+    bool operator==(const BrgemmKernelConfig& rhs) const;
+    bool operator!=(const BrgemmKernelConfig& rhs) const {return !(*this == rhs);}
     std::unique_ptr<GenericConfig> get_clone_ptr() const override {
         return std::unique_ptr<BrgemmKernelConfig>( new BrgemmKernelConfig(*this));
     }
@@ -58,6 +60,8 @@ private:
         const bool is_with_comp {false};
         const dnnl::impl::cpu::x64::cpu_isa_t isa {dnnl::impl::cpu::x64::isa_undef};
         const size_t hash{0};
+        bool operator==(const StaticParams& rhs) const;
+        bool operator!=(const StaticParams& rhs) const {return !(*this == rhs);}
 #ifdef SNIPPETS_DEBUG_CAPS
         std::string to_string() const;
 #endif

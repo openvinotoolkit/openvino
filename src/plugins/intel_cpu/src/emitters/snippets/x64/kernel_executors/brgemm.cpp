@@ -54,6 +54,15 @@ bool BrgemmKernelConfig::is_completed() const {
     return !utils::one_of(0, m_M, m_N, m_K, m_LDA, m_LDB, m_LDC);
 }
 
+bool BrgemmKernelConfig::operator==(const BrgemmKernelConfig& rhs) const {
+#define EQ(X) X == rhs.X
+    return EQ(m_hash) &&
+           EQ(m_M) && EQ(m_N) && EQ(m_K) &&
+           EQ(m_LDA) && EQ(m_LDB) && EQ(m_LDC) &&
+           (EQ(m_static_params.get()) || *m_static_params == *(rhs.m_static_params));
+#undef EQ
+}
+
 void BrgemmKernelConfig::update(dnnl_dim_t M, dnnl_dim_t N, dnnl_dim_t K, dnnl_dim_t LDA, dnnl_dim_t LDB, dnnl_dim_t LDC) {
     m_M = M; m_N = N; m_K = K;
     m_LDA = LDA; m_LDB = LDB; m_LDC = LDC;
@@ -74,6 +83,13 @@ BrgemmKernelConfig::StaticParams::StaticParams(const element::Type& in0_dtype, c
                                                hash(init_hash(dt_in0, dt_in1, beta, is_with_amx, is_with_comp, isa)) {
 }
 
+bool BrgemmKernelConfig::StaticParams::operator==(const StaticParams& rhs) const {
+#define EQ(X) X == rhs.X
+    return EQ(hash) &&
+           EQ(dt_in0) && EQ(dt_in1) && EQ(beta) &&
+           EQ(is_with_amx) && EQ(is_with_comp) && EQ(isa);
+#undef EQ
+}
 size_t BrgemmKernelConfig::compute_hash() const {
     size_t seed = m_static_params->hash;
 #define HASH(X) seed = hash_combine(seed, X)
@@ -172,7 +188,7 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
 }
 
 void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* executor, call_args* args) {
-    const auto& kernel = executor->get_kernel();
+    auto kernel = executor->get_kernel();
     const auto& config = static_cast<const BrgemmKernelConfig&>(executor->get_config());
     OV_CPU_JIT_EMITTER_ASSERT(kernel, "has nullptr compiler kernel or invalid config");
 

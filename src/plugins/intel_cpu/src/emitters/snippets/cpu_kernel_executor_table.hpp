@@ -16,8 +16,8 @@ public:
      CPUKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, Conf c) :
                        snippets::KernelExecutor<Conf, KernelType>(std::move(c)), m_kernel_cache(std::move(kernel_cache)) {}
      struct Key {
-         explicit Key(const Conf& c) : config{c} {}
-         const  Conf& config;
+         explicit Key(Conf c) : config{std::move(c)} {}
+         const  Conf config;
          size_t hash() const { return config.hash(); }
          bool operator==(const Key& rhs) const { return config == rhs.config; }
      };
