@@ -17,8 +17,7 @@ using namespace ov::op;
 OutputVector translate_copy(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
     Output<Node> src = context.get_input(0);
-    auto res = src.get_node()->clone_with_new_inputs(src.get_node()->input_values());
-    return {res};
+    return {src};
 };
 
 }  // namespace op
