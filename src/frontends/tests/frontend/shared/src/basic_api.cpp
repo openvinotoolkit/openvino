@@ -4,13 +4,14 @@
 
 #include "basic_api.hpp"
 
+#include "common_test_utils/test_assertions.hpp"
 #include "utils.hpp"
 
 using namespace ov::frontend;
 
 std::string FrontEndBasicTest::getTestCaseName(const testing::TestParamInfo<BasicTestParam>& obj) {
-    std::string fe, path, fileName;
-    std::tie(fe, path, fileName) = obj.param;
+    const auto& fe = std::get<0>(obj.param);
+    const auto& fileName = std::get<2>(obj.param);
     return fe + "_" + FrontEndTestUtils::fileToTestName(fileName);
 }
 
@@ -172,4 +173,17 @@ TEST_P(FrontEndBasicTest, testInputModel_overrideAll_empty) {
         [&](const std::string& name) {
             EXPECT_FALSE(m_inputModel->get_place_by_tensor_name(name)->is_input());
         });
+}
+
+TEST_P(FrontEndBasicTest, load_model_not_exists_at_path) {
+    const auto model_name = "not_existing_model.tflite";
+    auto error_msg = std::string("Could not open the file: \"");
+    const auto model_file_path = FrontEndTestUtils::make_model_path(model_name);
+    error_msg += model_file_path;
+
+    auto fem = ov::frontend::FrontEndManager();
+    auto fe = fem.load_by_framework(m_feName);
+
+    OV_EXPECT_THROW(fe->supported({model_file_path}), ov::Exception, testing::HasSubstr(error_msg));
+    OV_EXPECT_THROW(fe->load(model_file_path), ov::Exception, testing::HasSubstr(error_msg));
 }

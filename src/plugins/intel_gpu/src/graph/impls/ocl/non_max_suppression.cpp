@@ -60,8 +60,9 @@ protected:
     }
 
 public:
-    static std::unique_ptr<primitive_impl> create(const non_max_suppression_node& arg, const kernel_impl_params& impl_param) {
+static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<non_max_suppression>();
+        const auto& arg = impl_param.prog->get_node(impl_param.desc->id).as<non_max_suppression>();
         auto params = get_default_params<kernel_selector::non_max_suppression_params>(impl_param);
 
         const auto input_scores_idx = 1;
@@ -154,11 +155,7 @@ public:
             params.reuse_internal_buffer = true;
         }
 
-        params.set_dynamic_shape_offsets();
-        auto& kernel_selector = kernel_selector::non_max_suppression_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(params);
-
-        return make_unique<non_max_suppression_impl>(best_kernel);
+        return params;
     }
 
 private:
@@ -200,7 +197,7 @@ namespace detail {
 
 attach_non_max_suppression_impl::attach_non_max_suppression_impl() {
     implementation_map<non_max_suppression>::add(impl_types::ocl,
-                                                 non_max_suppression_impl::create,
+                                                 typed_primitive_impl_ocl<non_max_suppression>::create<non_max_suppression_impl>,
                                                  {
                                                      std::make_tuple(data_types::i32, format::bfyx),
 

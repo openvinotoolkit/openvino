@@ -29,8 +29,8 @@ simplify the user experience, the `Hugging Face Optimum
 Intel <https://huggingface.co/docs/optimum/intel/index>`__ library is
 used to convert the models to OpenVINO™ IR format.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Convert model to OpenVINO

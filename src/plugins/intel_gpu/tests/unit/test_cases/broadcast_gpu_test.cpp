@@ -86,32 +86,38 @@ void start_broadcast_test(format cldnn_format, data_types cldnn_data_type, std::
         }
     }
 }
-template<typename T>
+template<typename inT, typename outT>
 void start_broadcast_test_dynamic(format input_format,
                                   data_types input_data_type,
+                                  data_types output_data_type,
                                   ov::Shape output_shape,
                                   ov::Shape input_data_shape,
                                   ov::AxisSet broadcast_axes,
                                   bool is_output_static = false,
-                                  impl_types impl_type = impl_types::any) {
+                                  impl_types impl_type = impl_types::any, 
+                                  bool optimize = false) {
     size_t input_data_size = accumulate(input_data_shape.rbegin(), input_data_shape.rend(), (size_t)1, std::multiplies<size_t>());
     ASSERT_GE(input_data_size, (size_t)1);
-    std::vector<T> input_data = {};
+    std::vector<inT> input_data = {};
     for (size_t i = 1; i <= input_data_size; ++i) {
-        input_data.push_back((T)i);
+        input_data.push_back((inT)i);
     }
 
     size_t output_data_size = accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>());
     ASSERT_GE(output_data_size, (size_t)1);
-    std::vector<T> output_data(output_data_size);
+    std::vector<inT>  output_data_tmp(output_data_size);
+    std::vector<outT> output_data;
     ov::reference::broadcast(reinterpret_cast<const char*>(input_data.data()),
-                             reinterpret_cast<char*>(output_data.data()),
+                             reinterpret_cast<char*>(output_data_tmp.data()),
                              ov::Shape(input_data_shape.begin(), input_data_shape.end()),
                              ov::Shape(output_shape.begin(), output_shape.end()),
                              ov::AxisSet(broadcast_axes),
-                             sizeof(T));
+                             sizeof(inT));
 
-    ASSERT_EQ(output_data.size(), accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>()));
+    ASSERT_EQ(output_data_tmp.size(), accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>()));
+    for (auto i : output_data_tmp) {
+        output_data.push_back((outT)i);
+    }
 
     int64_t input_rank = input_data_shape.size();
     ASSERT_EQ(input_rank, broadcast_axes.size());
@@ -126,11 +132,15 @@ void start_broadcast_test_dynamic(format input_format,
         auto in_layout = layout(ov::PartialShape::dynamic(input_rank), input_data_type, fmt);
         topology.add(input_layout("input", in_layout));
         topology.add(reorder("reorder", input_info("input"), input_format, input_data_type));
-        topology.add(broadcast("broadcast",
-                               input_info("reorder"),
-                               output_shape,
-                               ov::AxisSet(broadcast_axes)));
-        topology.add(reorder("output", input_info("broadcast"), fmt, input_data_type));
+        topology.add(broadcast("broadcast", input_info("reorder"), output_shape, ov::AxisSet(broadcast_axes)));
+        topology.add(reorder("output",
+                             input_info("broadcast"),
+                             fmt,
+                             output_data_type,
+                             std::vector<float>(),
+                             cldnn::reorder_mean_mode::subtract,
+                             cldnn::padding(),
+                             true));
     } else {
         auto in_layout = layout(ov::PartialShape::dynamic(input_rank), input_data_type, fmt);
         auto target_shape_layout = layout(ov::PartialShape{input_rank}, data_types::i32, fmt);
@@ -140,7 +150,14 @@ void start_broadcast_test_dynamic(format input_format,
         topology.add(reorder("reorder", input_info("input"), input_format, input_data_type));
         topology.add(
             broadcast("broadcast", input_info("reorder"), input_info("target_shape"), ov::AxisSet(broadcast_axes)));
-        topology.add(reorder("output", input_info("broadcast"), fmt, input_data_type));
+        topology.add(reorder("output",
+                             input_info("broadcast"),
+                             fmt,
+                             output_data_type,
+                             std::vector<float>(),
+                             cldnn::reorder_mean_mode::subtract,
+                             cldnn::padding(),
+                             true));
         std::vector<int32_t> target_shape_data;
         for (auto out_shape : output_shape) {
             target_shape_data.push_back(static_cast<int32_t>(out_shape));
@@ -150,6 +167,9 @@ void start_broadcast_test_dynamic(format input_format,
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    if (optimize) {
+        config.set_property(ov::intel_gpu::optimize_data(true));
+    }
 
     const bool force_impl = impl_type != impl_types::any;
     if (force_impl) {
@@ -168,7 +188,7 @@ void start_broadcast_test_dynamic(format input_format,
 
     // In case of impl forcing optimize_data property will set to true and additional
     // reorders optimization pass will be tiggered, so change expected primitive id
-    const auto prim_id = force_impl ? "output" : "broadcast";
+    const auto prim_id = (force_impl || optimize) ? "output" : "broadcast";
     auto inst = network.get_primitive(prim_id);
     auto impl = inst->get_impl();
     ASSERT_TRUE(impl != nullptr);
@@ -177,7 +197,7 @@ void start_broadcast_test_dynamic(format input_format,
     auto outputs = network.execute();
 
     auto output = outputs.at("output").get_memory();
-    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<outT> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < output_data_size; ++i) {
         ASSERT_EQ(output_ptr[i], output_data[i]);
@@ -288,44 +308,44 @@ TEST(broadcast_gpu_int64_t, bfyx_1_to_4x5_w_b_axes_0x1) {
 
 // dynamic kernel
 TEST(broadcast_gpu_float, bfyx_1_to_4x5_w_b_axes_0x1_dynamic) {
-    start_broadcast_test_dynamic<float>(format::bfyx, data_types::f32, {4, 5}, {1, 1}, {0, 1});
+    start_broadcast_test_dynamic<float, ov::float16>(format::bfyx, data_types::f32, data_types::f16, {4, 5}, {1, 1}, {0, 1}, false, impl_types::any, true);
 }
 
 TEST(broadcast_gpu_float, bfyx_1_to_4x5_w_b_axes_0x1_dynamic_with_static_output) {
-    start_broadcast_test_dynamic<float>(format::bfyx, data_types::f32, {4, 5}, {1, 1}, {0, 1}, true);
+    start_broadcast_test_dynamic<float, ov::float16>(format::bfyx, data_types::f32, data_types::f16, {4, 5}, {1, 1}, {0, 1}, true);
 }
 
 TEST(broadcast_gpu_uint8_t, bfyx_1_to_4x5_w_b_axes_0x1_dynamic) {
-    start_broadcast_test_dynamic<uint8_t>(format::bfyx, data_types::u8, {4, 5}, {1, 1}, {0, 1});
+    start_broadcast_test_dynamic<uint8_t, int32_t>(format::bfyx, data_types::u8, data_types::i32, {4, 5}, {1, 1}, {0, 1});
 }
 
 TEST(broadcast_gpu_uint8_t, bfyx_1_to_4x5_w_b_axes_0x1x2_dynamic_with_static_output) {
-    start_broadcast_test_dynamic<uint8_t>(format::bfyx, data_types::u8, {4, 5, 2}, {1, 1, 1}, {0, 1, 2}, true);
+    start_broadcast_test_dynamic<uint8_t, int32_t>(format::bfyx, data_types::u8, data_types::i32, {4, 5, 2}, {1, 1, 1}, {0, 1, 2}, true);
 }
 
 TEST(broadcast_gpu_int64_t, bfyx_1_to_4x5_w_b_axes_0x1_dynamic) {
-    start_broadcast_test_dynamic<int64_t>(format::bfyx, data_types::i64, {4, 5}, {1, 1}, {0, 1});
+    start_broadcast_test_dynamic<int64_t, int32_t>(format::bfyx, data_types::i64, data_types::i32, {4, 5}, {1, 1}, {0, 1}, false, impl_types::any, true);
 }
 
 TEST(broadcast_gpu_int64_t, bfyx_1_to_4x5_w_b_axes_0x1x2x3_dynamic_with_static_output) {
-    start_broadcast_test_dynamic<int64_t>(format::bfyx, data_types::i64, {4, 5, 2, 3}, {1, 1, 1, 1}, {0, 1, 2, 3});
+    start_broadcast_test_dynamic<int64_t, int32_t>(format::bfyx, data_types::i64, data_types::i32, {4, 5, 2, 3}, {1, 1, 1, 1}, {0, 1, 2, 3});
 }
 
 // dynamic kernel cpu
 TEST(broadcast_cpu_impl_float, bfyx_1_to_4x5_w_b_axes_0x1_dynamic) {
-    start_broadcast_test_dynamic<float>(format::bfyx, data_types::f32, {4, 5}, {1, 1}, {0, 1}, false, impl_types::cpu);
+    start_broadcast_test_dynamic<float, int32_t>(format::bfyx, data_types::f32, data_types::i32, {4, 5}, {1, 1}, {0, 1}, false, impl_types::cpu);
 }
 
 TEST(broadcast_cpu_impl_float, bfyx_1_to_4x5_w_b_axes_0x1_dynamic_with_static_output) {
-    start_broadcast_test_dynamic<float>(format::bfyx, data_types::f32, {4, 5}, {1, 1}, {0, 1}, true, impl_types::cpu);
+    start_broadcast_test_dynamic<float, float>(format::bfyx, data_types::f32, data_types::f32, {4, 5}, {1, 1}, {0, 1}, true, impl_types::cpu);
 }
 
 TEST(broadcast_cpu_impl_int64_t, bfyx_1_to_4x5_w_b_axes_0x1_dynamic) {
-    start_broadcast_test_dynamic<int64_t>(format::bfyx, data_types::i64, {4, 5}, {1, 1}, {0, 1}, false, impl_types::cpu);
+    start_broadcast_test_dynamic<int64_t, int64_t>(format::bfyx, data_types::i64, data_types::i64, {4, 5}, {1, 1}, {0, 1}, false, impl_types::cpu);
 }
 
 TEST(broadcast_cpu_impl_int64_t, bfyx_1_to_4x5_w_b_axes_0x1x2x3_dynamic_with_static_output) {
-    start_broadcast_test_dynamic<int64_t>(format::bfyx, data_types::i64, {4, 5, 2, 3}, {1, 1, 1, 1}, {0, 1, 2, 3}, false, impl_types::cpu);
+    start_broadcast_test_dynamic<int64_t, int32_t>(format::bfyx, data_types::i64, data_types::i32, {4, 5, 2, 3}, {1, 1, 1, 1}, {0, 1, 2, 3}, false, impl_types::cpu);
 }
 
 /* Expected golden_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
