@@ -134,7 +134,7 @@ protected:
         return Xbyak_aarch64::ptr(h->X_DEFAULT_ADDR);
     }
 
-    void push_arg_entry_of(const std::string key, const table_entry_val_t val, const bool broadcast, const ov::element::Type type) {
+    void push_arg_entry_of(const std::string& key, const table_entry_val_t& val, const bool broadcast, const ov::element::Type& type) {
         mapped_table_entry_t te {0, val, broadcast, type};
         entry_map_.insert(std::make_pair(key, te));
     }
