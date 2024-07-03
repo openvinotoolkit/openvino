@@ -131,6 +131,10 @@ inline size_t get_output_dim_idx(const std::vector<size_t>& layout, size_t dim_i
 // dim_idx starts from the layout end
 size_t get_dim_idx(const lowered::ExpressionPort& port, size_t dim_idx);
 
+// get stride on dimenison of dim_idx
+// given shape [a,b,c,d], the stride is [b*c*d, c*d, d, 1]
+int64_t get_stride(size_t dim_idx, const VectorDims& shape);
+
 /* ----- Shape `getters` ----- */
 /**
  * @brief Returns a dense shape after applying the order.
