@@ -188,6 +188,10 @@ static bool is_non_supported_decompression_op(const std::shared_ptr<const ov::No
 }
 }  // namespace
 
+namespace cldnn {
+extern bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config);
+}  // namespace cldnn
+
 namespace ov {
 namespace intel_gpu {
 
@@ -341,18 +345,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
             }
 
-            // - Head size should be static dim
-            const auto head_size_dim = query_ps[query_ps.size() - 1];
-            if (head_size_dim.is_dynamic())
-                return false;
+            const auto head_size = query_ps[query_ps.size() - 1].get_length();
+            if (device_info.supports_immad && cldnn::query_microkernels_supported(m_context->get_engine(), config) && head_size <= 256)
+                return true;
 
             // - Head size should be 128 for any model type; or should be in the range of 64 to 256 for stateful LLMs because of performance reasons.
             //   This limitations is recommended to prevent performance drop in models with small head size, such as SD,
             //   until the SDPA operation is optimized for these cases
             const auto optimal_subgroup_size = 16;
-            const auto head_size = query_ps[query_ps.size() - 1].get_length();
             bool valid_head_size = head_size % optimal_subgroup_size == 0;
-            valid_head_size &= (head_size == 128) || (func->get_variables().size() > 0 && head_size >= 64 && head_size <= 256);
+            valid_head_size &= (head_size >= 64 && head_size <= 256);
             if (!valid_head_size) {
                 return false;
             }

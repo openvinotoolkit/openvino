@@ -24,8 +24,8 @@ of increased latency, however.
 
 .. |image0| image:: https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/transformers/model_doc/oneformer_architecture.png
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Install required libraries <#install-required-libraries>`__
 -  `Prepare the environment <#prepare-the-environment>`__
