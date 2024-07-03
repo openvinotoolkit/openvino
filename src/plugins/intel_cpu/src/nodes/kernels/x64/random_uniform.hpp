@@ -13,11 +13,12 @@ namespace intel_cpu {
 namespace kernel {
 
 struct RandomUniformCompileParams {
-
     element::Type out_data_type = element::f32;
 };
 
-struct RandomUniformCallArgs {
+namespace random_uniform {
+
+struct PhiloxGeneratorCallArgs {
     void* dst_ptr;
     const void* key_ptr;
     const void* counter_ptr;
@@ -27,14 +28,14 @@ struct RandomUniformCallArgs {
     uint64_t work_amount = 0lu;
 };
 
-namespace random_uniform {
-
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-class Philox : public JitKernel<RandomUniformCompileParams, RandomUniformCallArgs> {
+class PhiloxGenerator : public JitKernel<RandomUniformCompileParams, PhiloxGeneratorCallArgs> {
 public:
-    DECLARE_CPU_JIT_AUX_FUNCTIONS(Philox)
+    using call_args = PhiloxGeneratorCallArgs;
 
-    explicit Philox(const RandomUniformCompileParams& jcp);
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(PhiloxGenerator)
+
+    explicit PhiloxGenerator(const RandomUniformCompileParams& jcp);
 
     void generate() override;
 
@@ -95,12 +96,23 @@ private:
     static constexpr uint64_t STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER = 0xCD9E8D57;
 };
 
+struct MersenneTwisterCallArgs {
+    void* dst_ptr;
+    const void* key_ptr;
+    const void* counter_ptr;
+    const void* n_ptr;
+    const void* min_ptr;
+    const void* range_ptr;
+    uint64_t work_amount = 0lu;
+};
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-class MersenneTwister : public JitKernel<MersenneTwisterCompileParams, MersenneTwisterCallArgs> {
+class MersenneTwisterGenerator : public JitKernel<MersenneTwisterCompileParams, MersenneTwisterCallArgs> {
 public:
-    DECLARE_CPU_JIT_AUX_FUNCTIONS(MersenneTwister)
+    using call_args = MersenneTwisterCallArgs;
 
-    explicit MersenneTwister(const MersenneTwisterCompileParams& jcp);
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(MersenneTwisterGenerator)
+
+    explicit MersenneTwisterGenerator(const RandomUniformCompileParams& jcp);
 
     void generate() override;
 

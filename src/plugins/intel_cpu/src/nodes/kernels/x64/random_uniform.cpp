@@ -14,16 +14,16 @@ namespace random_uniform {
 
 #define GET_OFF(field) offsetof(RandomUniformCallArgs, field)
 
-////////////// PHILOX OPENVINO GENERATOR /////////////////////////
+////////////// PHILOX GENERATOR /////////////////////////
 
 
 template <x64::cpu_isa_t isa>
-PhiloxOpenvino<isa>::PhiloxOpenvino(const RandomUniformCompileParams& jcp) :
+PhiloxGenerator<isa>::PhiloxGenerator(const RandomUniformCompileParams& jcp) :
         JitKernel(jit_name(), jcp, isa) {
 }
 
 template <x64::cpu_isa_t isa>
-void PhiloxOpenvino<isa>::generate() {
+void PhiloxGenerator<isa>::generate() {
     this->preamble();
     registersPool = RegistersPool::create(isa, {rax, rcx, rsp, rdi, k0});
 
@@ -41,7 +41,7 @@ void PhiloxOpenvino<isa>::generate() {
 }
 
 template <>
-void PhiloxOpenvino<x64::avx512_core>::initVectors() {
+void PhiloxGenerator<x64::avx512_core>::initVectors() {
     const auto r64_aux = getReg64();
     const auto r32_aux = Xbyak::Reg32(r64_aux.getIdx());
     const auto r16_aux = Xbyak::Reg16(r64_aux.getIdx());
@@ -149,7 +149,7 @@ void PhiloxOpenvino<x64::avx512_core>::initVectors() {
 }
 
 template <x64::cpu_isa_t isa> // Works for AVX2, SSE41
-void PhiloxOpenvino<isa>::initVectors() {
+void PhiloxGenerator<isa>::initVectors() {
     const auto r64_aux = getReg64();
 
     v_max_mul_n_64 = getVmm();
@@ -257,7 +257,7 @@ void PhiloxOpenvino<isa>::initVectors() {
 }
 
 template <x64::cpu_isa_t isa>
-void PhiloxOpenvino<isa>::process() {
+void PhiloxGenerator<isa>::process() {
     auto v_dst_0 = getVmm();
     auto v_dst_1 = getVmm();
     std::vector<Vmm> v_res{ v_dst_0, v_dst_1 };
@@ -299,7 +299,7 @@ void PhiloxOpenvino<isa>::process() {
 }
 
 template <x64::cpu_isa_t isa>
-void PhiloxOpenvino<isa>::calculateRound(const Vmm& vmm_k_0, const Vmm& vmm_k_1, const Vmm& vmm_c_0, const Vmm& vmm_c_1,
+void PhiloxGenerator<isa>::calculateRound(const Vmm& vmm_k_0, const Vmm& vmm_k_1, const Vmm& vmm_c_0, const Vmm& vmm_c_1,
                                         const Vmm& vmm_n_0, const Vmm& vmm_n_1, const Vmm& vmm_aux_0, const Vmm& vmm_aux_1) {
     uni_vpmuludq(vmm_aux_0, vmm_n_0, v_max_mul_n_64);  // {p0,p1,p0,p1} = {n0,_,n0,_} * {m0,_,m0,_}
     uni_vpmuludq(vmm_aux_1, vmm_c_0, v_max_mul_c_64);  // {r0,r1,r0,r1} = {c0,_,c0,_} * {m0,_,m0,_}
@@ -314,7 +314,7 @@ void PhiloxOpenvino<isa>::calculateRound(const Vmm& vmm_k_0, const Vmm& vmm_k_1,
 }
 
 template <x64::cpu_isa_t isa>
-void PhiloxOpenvino<isa>::runPhilox(const std::vector<Vmm>& vmm_dst, const Vmm& vmm_key, const Vmm& vmm_counter, const Vmm& vmm_n) {
+void PhiloxGenerator<isa>::runPhilox(const std::vector<Vmm>& vmm_dst, const Vmm& vmm_key, const Vmm& vmm_counter, const Vmm& vmm_n) {
     auto vmm_k_0 = getVmm();
     auto vmm_k_1 = getVmm();
     auto vmm_n_0 = getVmm();
@@ -373,13 +373,13 @@ void PhiloxOpenvino<isa>::runPhilox(const std::vector<Vmm>& vmm_dst, const Vmm& 
 }
 
 template <x64::cpu_isa_t isa>
-void PhiloxOpenvino<isa>::raiseKey(const Vmm& vmm_k_0, const Vmm& vmm_k_1) {
+void PhiloxGenerator<isa>::raiseKey(const Vmm& vmm_k_0, const Vmm& vmm_k_1) {
     uni_vpaddd(vmm_k_0, vmm_k_0, v_add_low_k); // {k0,_,k0,_} + {l0,_,l0,_}
     uni_vpaddd(vmm_k_1, vmm_k_1, v_add_up_k);  // {k1,_,k1,_} + {u0,_,u0,_}
 }
 
 template <>
-void PhiloxOpenvino<x64::avx512_core>::convert(const std::vector<Vmm>& v_dst, const std::vector<Vmm>& v_src) {
+void PhiloxGenerator<x64::avx512_core>::convert(const std::vector<Vmm>& v_dst, const std::vector<Vmm>& v_src) {
     if (m_jcp.out_data_type.size() == 4) {
         for (size_t i = 0lu; i < v_src.size(); i++) {
             const auto& vmm_src = v_src[i];
@@ -458,7 +458,7 @@ void PhiloxOpenvino<x64::avx512_core>::convert(const std::vector<Vmm>& v_dst, co
 }
 
 template <x64::cpu_isa_t isa> // Works for AVX2, SSE41
-void PhiloxOpenvino<isa>::convert(const std::vector<Vmm>& v_dst, const std::vector<Vmm>& v_src) {
+void PhiloxGenerator<isa>::convert(const std::vector<Vmm>& v_dst, const std::vector<Vmm>& v_src) {
     if (m_jcp.out_data_type.size() == 4) {
         for (size_t i = 0lu; i < v_src.size(); i++) {
             auto vmm_src = v_src[i];
@@ -541,7 +541,7 @@ void PhiloxOpenvino<isa>::convert(const std::vector<Vmm>& v_dst, const std::vect
 }
 
 template <>
-void PhiloxOpenvino<x64::avx512_core>::tail(const std::vector<Vmm>& vmm_dst) {
+void PhiloxGenerator<x64::avx512_core>::tail(const std::vector<Vmm>& vmm_dst) {
     Xbyak::Label l_end;
     const auto k_rest_mask = getMask();
 
@@ -577,7 +577,7 @@ void PhiloxOpenvino<x64::avx512_core>::tail(const std::vector<Vmm>& vmm_dst) {
 }
 
 template <>
-void PhiloxOpenvino<x64::avx2>::tail(const std::vector<Vmm>& vmm_dst) {
+void PhiloxGenerator<x64::avx2>::tail(const std::vector<Vmm>& vmm_dst) {
     Xbyak::Label l_0, l_end;
     const auto step = vlen / sizeof(uint32_t);
 
@@ -606,7 +606,7 @@ void PhiloxOpenvino<x64::avx2>::tail(const std::vector<Vmm>& vmm_dst) {
 }
 
 template <x64::cpu_isa_t isa>
-void PhiloxOpenvino<isa>::tail(const std::vector<Vmm>& vmm_dst) {
+void PhiloxGenerator<isa>::tail(const std::vector<Vmm>& vmm_dst) {
     Xbyak::Label l_0, l_end;
     const auto step = vlen / sizeof(uint32_t);
 
@@ -631,411 +631,19 @@ void PhiloxOpenvino<isa>::tail(const std::vector<Vmm>& vmm_dst) {
     L(l_end);
 }
 
-template class PhiloxOpenvino<x64::avx512_core>;
-template class PhiloxOpenvino<x64::avx2>;
-template class PhiloxOpenvino<x64::sse41>;
-
-////////////// PHILOX TENSORFLOW GENERATOR /////////////////////////
-
-namespace ov {
-namespace intel_cpu {
-namespace kernel {
-
-namespace random_uniform {
-
-#define GET_OFF(field) offsetof(RandomUniformCallArgs, field)
-
-template <x64::cpu_isa_t isa>
-PhiloxTensorflow<isa>::PhiloxTensorflow(const RandomUniformCompileParams& jcp) :
-        JitKernel(jit_name(), jcp, isa) {
-}
-
-template <x64::cpu_isa_t isa>
-void PhiloxTensorflow<isa>::generate() {
-    this->preamble();
-    registersPool = RegistersPool::create(isa, {rax, rcx, rsp, rdi, k0});
-
-    r64_dst = getReg64();
-    r64_work_amount = getReg64();
-
-    mov(r64_work_amount, ptr[r64_params + GET_OFF(work_amount)]);
-    mov(r64_dst,  ptr[r64_params + GET_OFF(dst_ptr)]);
-
-    initVectors();
-    process();
-
-    registersPool.reset();
-    this->postamble();
-}
-
-template <>
-void PhiloxTensorflow<x64::avx512_core>::initVectors() {
-    const auto r64_aux = getReg64();
-    const auto r32_aux = Xbyak::Reg32(r64_aux.getIdx());
-    const auto r16_aux = Xbyak::Reg16(r64_aux.getIdx());
-
-    v_max_mul_n_64 = getVmm();
-    v_max_mul_c_64 = getVmm();
-    v_add_low_k    = getVmm();
-    v_add_up_k     = getVmm();
-    v_n_inc        = getVmm();
-    v_range        = getVmm();
-    v_min          = getVmm();
-    v_key_64       = getVmm();
-    v_counter_64   = getVmm();
-    v_n_64         = getVmm();
-    v_res_perm     = getVmm();
-
-    if (m_jcp.out_data_type.is_real()) {
-        v_convert_0 = getVmm();
-        v_convert_1 = getVmm();
-    }
-
-    // Initialize constants.
-#define BROADCAST_R(F, V, R, C)           \
-    mov(R, C);                            \
-    F(V, R);
-#define BROADCAST_P(F, V, R, C)           \
-    mov(R, ptr[r64_params + GET_OFF(C)]);  \
-    F(V, ptr[R]);
-
-    BROADCAST_R(vpbroadcastq, v_max_mul_n_64, r64_aux, STATISTIC_MAXIMIZING_MULTIPLIER_N)
-    BROADCAST_R(vpbroadcastq, v_max_mul_c_64, r64_aux, STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER)
-    BROADCAST_R(vpbroadcastd, v_add_low_k,    r32_aux, CRUSH_RESISTANCE_CONST_LOWER_VALUE)
-    BROADCAST_R(vpbroadcastd, v_add_up_k,     r32_aux, CRUSH_RESISTANCE_CONST_UPPER_VALUE)
-    BROADCAST_R(vpbroadcastq, v_n_inc,        r64_aux, 0x00000008)
-
-    if (m_jcp.out_data_type == element::f32) {
-        BROADCAST_R(vpbroadcastd, v_convert_0, r32_aux, 0x3f800000)
-        BROADCAST_R(vpbroadcastd, v_convert_1, r32_aux, 0x007fffff)
-        BROADCAST_P(vpbroadcastd, v_range,     r64_aux, range_ptr)
-        BROADCAST_P(vpbroadcastd, v_min,       r64_aux, min_ptr)
-    } else if (m_jcp.out_data_type == element::f16 && x64::mayiuse(x64::avx512_core_fp16)) {
-        BROADCAST_R(vpbroadcastw, v_convert_0, r16_aux, 0x3c00)
-        BROADCAST_R(vpbroadcastw, v_convert_1, r16_aux, 0x03ff)
-        BROADCAST_P(vpbroadcastw, v_range,     r64_aux, range_ptr)
-        BROADCAST_P(vpbroadcastw, v_min,       r64_aux, min_ptr)
-    } else if (m_jcp.out_data_type == element::bf16 && x64::mayiuse(x64::avx512_core_bf16)) {
-        v_convert_2 = getVmm();
-        const auto ymm_min = Xbyak::Ymm(v_min.getIdx());
-        const auto ymm_range = Xbyak::Ymm(v_range.getIdx());
-
-        BROADCAST_R(vpbroadcastw, v_convert_0, r16_aux, 0x3f80)
-        BROADCAST_R(vpbroadcastw, v_convert_1, r16_aux, 0x007f)
-        BROADCAST_R(vpbroadcastd, v_convert_2, r32_aux, 0x3f800000)
-
-        BROADCAST_P(vpbroadcastw, v_range, r64_aux, range_ptr)
-        vpmovzxwd(v_range, ymm_range);
-        uni_vpslld(v_range, v_range, 16);
-
-        BROADCAST_P(vpbroadcastw, v_min, r64_aux, min_ptr)
-        vpmovzxwd(v_min, ymm_min);
-        uni_vpslld(v_min, v_min, 16);
-    } else if (m_jcp.out_data_type == element::i32) {
-        const auto ymm_range = Xbyak::Ymm(v_range.getIdx());
-
-        BROADCAST_P(vpbroadcastd, v_range, r64_aux, range_ptr)
-        BROADCAST_P(vpbroadcastd, v_min,   r64_aux, min_ptr)
-
-        uni_vcvtdq2pd(v_range, ymm_range);
-    } else {
-        OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
-    }
-
-    // Initialize inputs.
-    BROADCAST_P(vpbroadcastq, v_key_64,     r64_aux, key_ptr)
-    BROADCAST_P(vpbroadcastq, v_counter_64, r64_aux, counter_ptr)
-    BROADCAST_P(vpbroadcastq, v_n_64,       r64_aux, n_ptr)
-
-    if (m_jcp.out_data_type.size() <= 4) {
-        static const uint64_t n_inc_arr[8]  = { 0, 1, 2, 3, 4, 5, 6, 7 };
-        mov(r64_aux, reinterpret_cast<uintptr_t>(n_inc_arr));
-    } else {
-        static const uint64_t n_inc_arr[8]  = { 0, 1, 2, 3, 4, 5, 6, 7 }; // TODO: i64
-        mov(r64_aux, reinterpret_cast<uintptr_t>(n_inc_arr));
-    }
-    uni_vpaddq(v_n_64, v_n_64, ptr[r64_aux]);
-
-    // Initialize auxiliary vectors.
-    static const uint32_t res_perm_mask[16] = { 0b00000000, 0b00010000, 0b00001000, 0b00011000, 0b00000010, 0b00010010, 0b00001010, 0b00011010,
-                                                0b00000100, 0b00010100, 0b00001100, 0b00011100, 0b00000110, 0b00010110, 0b00001110, 0b00011110 };
-    mov(r64_aux, reinterpret_cast<uintptr_t>(res_perm_mask));
-    uni_vmovups(v_res_perm, ptr[r64_aux]);
-
-    if (m_jcp.out_data_type == element::f16 && x64::mayiuse(x64::avx512_core_fp16)) {
-        v_perm_16 = getVmm();
-        static const uint16_t perm_16[32] = { 0b00000000, 0b00000010, 0b00000100, 0b00000110, 0b00001000, 0b00001010, 0b00001100, 0b00001110,
-                                              0b00010000, 0b00010010, 0b00010100, 0b00010110, 0b00011000, 0b00011010, 0b00011100, 0b00011110,
-                                              0b00100000, 0b00100010, 0b00100100, 0b00100110, 0b00101000, 0b00101010, 0b00101100, 0b00101110,
-                                              0b00110000, 0b00110010, 0b00110100, 0b00110110, 0b00111000, 0b00111010, 0b00111100, 0b00111110 };
-        mov(r64_aux, reinterpret_cast<uintptr_t>(perm_16));
-        uni_vmovups(v_perm_16, ptr[r64_aux]);
-    }
-
-#undef BROADCAST_R
-#undef BROADCAST_P
-}
-
-template <x64::cpu_isa_t isa> // Works for AVX2, SSE41
-void PhiloxTensorflow<isa>::initVectors() {
-    const auto r64_aux = getReg
-
-64();
-    const auto r32_aux = Xbyak::Reg32(r64_aux.getIdx());
-
-    v_max_mul_n_64 = getVmm();
-    v_max_mul_c_64 = getVmm();
-    v_add_low_k    = getVmm();
-    v_add_up_k     = getVmm();
-    v_n_inc        = getVmm();
-    v_range        = getVmm();
-    v_min          = getVmm();
-    v_key_64       = getVmm();
-    v_counter_64   = getVmm();
-    v_n_64         = getVmm();
-    v_res_perm     = getVmm();
-
-    if (m_jcp.out_data_type.is_real()) {
-        v_convert_0 = getVmm();
-        v_convert_1 = getVmm();
-    }
-
-    // Initialize constants.
-#define BROADCAST_R(F, V, R, C)           \
-    mov(R, C);                            \
-    F(V, R);
-#define BROADCAST_P(F, V, R, C)           \
-    mov(R, ptr[r64_params + GET_OFF(C)]);  \
-    F(V, ptr[R]);
-
-    BROADCAST_R(vpbroadcastq, v_max_mul_n_64, r64_aux, STATISTIC_MAXIMIZING_MULTIPLIER_N)
-    BROADCAST_R(vpbroadcastq, v_max_mul_c_64, r64_aux, STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER)
-    BROADCAST_R(vpbroadcastd, v_add_low_k,    r32_aux, CRUSH_RESISTANCE_CONST_LOWER_VALUE)
-    BROADCAST_R(vpbroadcastd, v_add_up_k,     r32_aux, CRUSH_RESISTANCE_CONST_UPPER_VALUE)
-    BROADCAST_R(vpbroadcastq, v_n_inc,        r64_aux, 0x00000008)
-
-    if (m_jcp.out_data_type == element::f32) {
-        BROADCAST_R(vpbroadcastd, v_convert_0, r32_aux, 0x3f800000)
-        BROADCAST_R(vpbroadcastd, v_convert_1, r32_aux, 0x007fffff)
-        BROADCAST_P(vpbroadcastd, v_range,     r64_aux, range_ptr)
-        BROADCAST_P(vpbroadcastd, v_min,       r64_aux, min_ptr)
-    } else if (m_jcp.out_data_type == element::f16) {
-        BROADCAST_R(vpbroadcastw, v_convert_0, r32_aux, 0x3c00)
-        BROADCAST_R(vpbroadcastw, v_convert_1, r32_aux, 0x03ff)
-        BROADCAST_P(vpbroadcastw, v_range,     r64_aux, range_ptr)
-        BROADCAST_P(vpbroadcastw, v_min,       r64_aux, min_ptr)
-    } else if (m_jcp.out_data_type == element::bf16) {
-        BROADCAST_R(vpbroadcastw, v_convert_0, r32_aux, 0x3f80)
-        BROADCAST_R(vpbroadcastw, v_convert_1, r32_aux, 0x007f)
-        BROADCAST_P(vpbroadcastw, v_range,     r64_aux, range_ptr)
-        BROADCAST_P(vpbroadcastw, v_min,       r64_aux, min_ptr)
-    } else if (m_jcp.out_data_type == element::i32) {
-        BROADCAST_P(vpbroadcastd, v_range, r64_aux, range_ptr)
-        BROADCAST_P(vpbroadcastd, v_min,   r64_aux, min_ptr)
-    } else {
-        OPENVINO_THROW("RandomUniform kernel does not support precision ", m_jcp.out_data_type, " for ", x64::get_isa_info());
-    }
-
-    // Initialize inputs.
-    BROADCAST_P(vpbroadcastq, v_key_64,     r64_aux, key_ptr)
-    BROADCAST_P(vpbroadcastq, v_counter_64, r64_aux, counter_ptr)
-    BROADCAST_P(vpbroadcastq, v_n_64,       r64_aux, n_ptr)
-
-    static const uint64_t n_inc_arr[4]  = { 0, 1, 2, 3 };
-    mov(r64_aux, reinterpret_cast<uintptr_t>(n_inc_arr));
-    uni_vpaddq(v_n_64, v_n_64, ptr[r64_aux]);
-
-    // Initialize auxiliary vectors.
-    static const uint32_t res_perm_mask[16] = { 0b00000000, 0b00010000, 0b00001000, 0b00011000, 0b00000010, 0b00010010, 0b00001010, 0b00011010,
-                                                0b00000100, 0b00010100, 0b00001100, 0b00011100, 0b00000110, 0b00010110, 0b00001110, 0b00011110 };
-    mov(r64_aux, reinterpret_cast<uintptr_t>(res_perm_mask));
-    uni_vmovups(v_res_perm, ptr[r64_aux]);
-
-#undef BROADCAST_R
-#undef BROADCAST_P
-}
-
-template <x64::cpu_isa_t isa>
-void PhiloxTensorflow<isa>::process() {
-    Label l_process;
-    Label l_exit;
-
-    L(l_process);
-    {
-        const auto v_wi1_low    = getVmm();
-        const auto v_wi1_high   = getVmm();
-        const auto v_wi2_low    = getVmm();
-        const auto v_wi2_high   = getVmm();
-        const auto v_wi1i2_low  = getVmm();
-        const auto v_wi1i2_high = getVmm();
-        const auto v_result     = getVmm();
-
-        const auto v_dst0 = getVmm();
-        const auto v_dst1 = getVmm();
-
-        const auto r64_shift = getReg64();
-        const auto r32_shift = Xbyak::Reg32(r64_shift.getIdx());
-
-        uni_vpmulld(v_wi1_low,  v_counter_64, v_max_mul_n_64);
-        uni_vpmulld(v_wi1_high, v_counter_64, v_max_mul_c_64);
-        uni_vpmulld(v_wi2_low,  v_key_64,     v_max_mul_n_64);
-        uni_vpmulld(v_wi2_high, v_key_64,     v_max_mul_c_64);
-
-        uni_vpaddd(v_wi1_low,  v_wi1_low,  v_add_low_k);
-        uni_vpaddd(v_wi1_high, v_wi1_high, v_add_up_k);
-        uni_vpaddd(v_wi2_low,  v_wi2_low,  v_add_low_k);
-        uni_vpaddd(v_wi2_high, v_wi2_high, v_add_up_k);
-
-        uni_vpaddd(v_wi1_low,  v_wi1_low,  v_wi2_high);
-        uni_vpaddd(v_wi1_high, v_wi1_high, v_wi2_low);
-
-        if (m_jcp.out_data_type.is_real()) {
-            uni_vpsubd(v_wi1i2_low,  v_wi1_low,  v_wi2_low);
-            uni_vpsubd(v_wi1i2_high, v_wi1_high, v_wi2_high);
-
-            uni_vpslld(v_wi1i2_low,  v_wi1i2_low,  1);
-            uni_vpsrld(v_wi1i2_high, v_wi1i2_high, 1);
-
-            vpermilps(v_result, v_wi1i2_high, v_res_perm);
-
-            if (m_jcp.out_data_type == element::f32) {
-                uni_vpsrld(v_wi1i2_low, v_wi1i2_low, 9);
-                uni_vpslld(v_wi1i2_low, v_wi1i2_low, 23);
-
-                vpermilps(v_dst0, v_wi1i2_low, v_res_perm);
-                vpermilps(v_dst1, v_wi1i2_high, v_res_perm);
-
-                uni_vorps(v_dst0, v_dst0, v_convert_0);
-                uni_vorps(v_dst1, v_dst1, v_convert_1);
-                uni_vdivps(v_dst0, v_dst0, v_convert_0);
-                uni_vdivps(v_dst1, v_dst1, v_convert_1);
-            } else if (m_jcp.out_data_type == element::f16 && x64::mayiuse(x64::avx512_core_fp16)) {
-                uni_vpsrld(v_wi1i2_low, v_wi1i2_low, 13);
-                uni_vpslld(v_wi1i2_low, v_wi1i2_low, 10);
-
-                vpermilps(v_dst0, v_wi1i2_low, v_res_perm);
-                vpermilps(v_dst1, v_wi1i2_high, v_res_perm);
-
-                uni_vpor(v_dst0, v_dst0, v_convert_0);
-                uni_vpor(v_dst1, v_dst1, v_convert
-
-_1);
-                uni_vdivps(v_dst0, v_dst0, v_convert_0);
-                uni_vdivps(v_dst1, v_dst1, v_convert_1);
-            } else if (m_jcp.out_data_type == element::bf16) {
-                uni_vpsrld(v_wi1i2_low, v_wi1i2_low, 16);
-
-                vpermilps(v_dst0, v_wi1i2_low, v_res_perm);
-                vpermilps(v_dst1, v_wi1i2_high, v_res_perm);
-
-                uni_vpor(v_dst0, v_dst0, v_convert_0);
-                uni_vpor(v_dst1, v_dst1, v_convert_1);
-                uni_vdivps(v_dst0, v_dst0, v_convert_0);
-                uni_vdivps(v_dst1, v_dst1, v_convert_1);
-            }
-        } else {
-            v_result = v_wi1_low;
-
-            if (m_jcp.out_data_type == element::i32) {
-                uni_vpsrld(v_result, v_result, 9);
-                uni_vpaddd(v_result, v_result, v_min);
-                uni_vpmulld(v_result, v_result, v_range);
-            }
-        }
-
-        if (m_jcp.out_data_type.is_real()) {
-            if (m_jcp.out_data_type == element::f32) {
-                uni_vcvtdq2ps(v_dst0, v_dst0);
-                uni_vcvtdq2ps(v_dst1, v_dst1);
-            } else if (m_jcp.out_data_type == element::f16 && x64::mayiuse(x64::avx512_core_fp16)) {
-                uni_vcvtps2ph(v_dst0, v_dst0, 1);
-                uni_vcvtps2ph(v_dst1, v_dst1, 1);
-            } else if (m_jcp.out_data_type == element::bf16) {
-                uni_vcvtneps2bf16(v_dst0, v_dst0);
-                uni_vcvtneps2bf16(v_dst1, v_dst1);
-            }
-        }
-
-        mov(r64_shift, r64_aux);
-        for (int i = 0; i < 4; i++) {
-            const auto v_out = getVmm();
-            if (m_jcp.out_data_type.is_real()) {
-                if (m_jcp.out_data_type == element::f32) {
-                    vextractf32x4(v_out, v_dst0, i);
-                    mov(ptr[r64_shift], v_out);
-                } else if (m_jcp.out_data_type == element::f16 && x64::mayiuse(x64::avx512_core_fp16)) {
-                    vextractf32x4(v_out, v_dst0, i);
-                    mov(ptr[r64_shift], v_out);
-                } else if (m_jcp.out_data_type == element::bf16) {
-                    vextracti64x4(v_out, v_dst0, i);
-                    mov(ptr[r64_shift], v_out);
-                }
-            } else {
-                if (m_jcp.out_data_type == element::i32) {
-                    vextracti64x4(v_out, v_result, i);
-                    mov(ptr[r64_shift], v_out);
-                }
-            }
-        }
-
-        if (m_jcp.out_data_type.is_real()) {
-            for (int i = 0; i < 4; i++) {
-                const auto v_out = getVmm();
-                if (m_jcp.out_data_type == element::f32) {
-                    vextractf32x4(v_out, v_dst1, i);
-                    mov(ptr[r64_shift + 16], v_out);
-                } else if (m_jcp.out_data_type == element::f16 && x64::mayiuse(x64::avx512_core_fp16)) {
-                    vextractf32x4(v_out, v_dst1, i);
-                    mov(ptr[r64_shift + 16], v_out);
-                } else if (m_jcp.out_data_type == element::bf16) {
-                    vextracti64x4(v_out, v_dst1, i);
-                    mov(ptr[r64_shift + 16], v_out);
-                }
-            }
-        } else {
-            if (m_jcp.out_data_type == element::i32) {
-                for (int i = 0; i < 4; i++) {
-                    const auto v_out = getVmm();
-                    vextracti64x4(v_out, v_result, i);
-                    mov(ptr[r64_shift + 16], v_out);
-                }
-            }
-        }
-
-        inc(r64_shift);
-        cmp(r64_shift, r64_aux);
-        jl(l_process, T_NEAR);
-    }
-
-    L(l_exit);
-    {
-        mov(r64_shift, r64_aux);
-        for (int i = 0; i < 4; i++) {
-            mov(ptr[r64_shift], r64_shift);
-            add(r64_shift, 16);
-        }
-        ret();
-    }
-}
-
-template struct PhiloxTensorflow<x64::avx2>;
-template struct PhiloxTensorflow<x64::avx512>;
-template struct PhiloxTensorflow<x64::sse41>;
-
-}  // namespace
-}  // namespace cpu
-}  // namespace ov
-
+template class PhiloxGenerator<x64::avx512_core>;
+template class PhiloxGenerator<x64::avx2>;
+template class PhiloxGenerator<x64::sse41>;
 
 //////////////// MERSENNE TWISTER GENERATOR ////////////////////
 
 template <x64::cpu_isa_t isa>
-MersenneTwister<isa>::MersenneTwister(const RandomUniformCompileParams& jcp) :
+MersenneTwisterGenerator<isa>::MersenneTwisterGenerator(const RandomUniformCompileParams& jcp) :
         JitKernel(jit_name(), jcp, isa) {
 }
 
 template <x64::cpu_isa_t isa>
-void MersenneTwister<isa>::generate() {
+void MersenneTwisterGenerator<isa>::generate() {
     this->preamble();
     registersPool = RegistersPool::create(isa, {rax, rcx, rsp, rdi, k0});
 
@@ -1053,7 +661,7 @@ void MersenneTwister<isa>::generate() {
 }
 
 template <>
-void MersenneTwister<x64::avx512_core>::initVectors() {
+void MersenneTwisterGenerator<x64::avx512_core>::initVectors() {
     const auto r64_aux = getReg64();
     const auto r32_aux = Xbyak::Reg32(r64_aux.getIdx());
 
@@ -1074,7 +682,7 @@ void MersenneTwister<x64::avx512_core>::initVectors() {
 }
 
 template <x64::cpu_isa_t isa>
-void MersenneTwister<isa>::initVectors() {
+void MersenneTwisterGenerator<isa>::initVectors() {
     const auto r64_aux = getReg64();
 
     v_state = getVmm();
@@ -1094,7 +702,7 @@ void MersenneTwister<isa>::initVectors() {
 }
 
 template <x64::cpu_isa_t isa>
-void MersenneTwister<isa>::process() {
+void MersenneTwisterGenerator<isa>::process() {
     auto v_dst_0 = getVmm();
     auto v_dst_1 = getVmm();
 
@@ -1117,7 +725,7 @@ void MersenneTwister<isa>::process() {
 }
 
 template <x64::cpu_isa_t isa>
-void MersenneTwister<isa>::generateRandomNumbers(const Vmm& v_dst_0, const Vmm& v_dst_1) {
+void MersenneTwisterGenerator<isa>::generateRandomNumbers(const Vmm& v_dst_0, const Vmm& v_dst_1) {
     // MT19937 algorithm steps for generating random numbers
 
     uni_vpxor(v_temp, v_temp, v_state);
@@ -1131,7 +739,7 @@ void MersenneTwister<isa>::generateRandomNumbers(const Vmm& v_dst_0, const Vmm& 
 }
 
 template <x64::cpu_isa_t isa>
-void MersenneTwister<isa>::tail(const Vmm& v_dst_0, const Vmm& v_dst_1) {
+void MersenneTwisterGenerator<isa>::tail(const Vmm& v_dst_0, const Vmm& v_dst_1) {
     // Handle the remaining elements
     if (r64_work_amount > 0) {
         generateRandomNumbers(v_dst_0, v_dst_1);
@@ -1139,9 +747,9 @@ void MersenneTwister<isa>::tail(const Vmm& v_dst_0, const Vmm& v_dst_1) {
     }
 }
 
-template class MersenneTwister<x64::avx512_core>;
-template class MersenneTwister<x64::avx2>;
-template class MersenneTwister<x64::sse41>;
+template class MersenneTwisterGenerator<x64::avx512_core>;
+template class MersenneTwisterGenerator<x64::avx2>;
+template class MersenneTwisterGenerator<x64::sse41>;
 
 }   // namespace random_uniform
 }   // namespace kernel

@@ -15,14 +15,14 @@ namespace node {
 class RandomUniform : public Node {
 public:
     union OutputType {
+        double   f64;
         float    f32;
         float16  f16;
         bfloat16 bf16;
-        double   f64;
+        int64_t  i64;
         int32_t  i32;
         uint32_t u32;
         uint16_t u16;
-        int64_t  i64;
     };
 
     RandomUniform(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
@@ -55,23 +55,18 @@ protected:
     bool needShapeInfer() const override;
 
 private:
-    void computeStl(void* out, size_t work_amount);
-
-    std::pair<uint64_t, uint64_t> computePhilox(void* out, size_t work_amount, const std::pair<uint64_t, uint64_t>& prev_state);
-    std::pair<uint64_t, uint64_t> computeMersenneTwister(void* out, size_t work_amount, const std::pair<uint64_t, uint64_t>& prev_state);
-
-
-    template <typename T, typename DISTR_TYPE>
-    void generateData(DISTR_TYPE distribution, void* out, size_t work_amount);
-
-    void initOutShape(VectorDims& dst, const void* src, const element::Type& shape_type, size_t len);
-
-    void initEdgeValues(OutputType& dst, const void* src, const element::Type& output_type);
 
     void evalRange();
 
-    enum { SHAPE = 0, MIN_VAL, MAX_VAL };
-    enum AlgoType { STL = 0, PHILOX, MERSENNE};
+    void initEdgeValues(OutputType& dst, const void* src, const element::Type& output_type);
+
+    void prepareAlgorithmSpecificParams(uint64_t group_size, uint64_t parallel_execution_threshold);
+
+    template <typename KERNEL_T>
+    void prepareGeneratorKernel();
+
+    enum PortIndex { SHAPE = 0, MIN_VAL, MAX_VAL };
+    enum AlgorithmType { STL = 0, PHILOX, MERSENNE_TWISTER};
 
     bool m_const_inputs[3] = {false, false, false};
 
@@ -79,16 +74,20 @@ private:
     uint64_t m_global_seed = 0lu;
     uint64_t m_op_seed = 0lu;
     std::pair<uint64_t, uint64_t> m_state {0lu, 0lu};
-    ov::op::PhilloxAlignment m_alignment;
 
     VectorDims m_out_shape = {};
     uint64_t m_out_el_num = 1lu;
     OutputType m_min_val;
     OutputType m_max_val;
     OutputType m_range_val;
-    AlgoType m_algo = PHILOX;
+    AlgorithmType m_algo = PHILOX;
 
-    std::default_random_engine m_generator;
+    /////////////////////////////////////////////////////////////////////////////////
+
+    ///// PARALLELISM /////
+
+    std::shared_ptr<kernel::JitKernelBase> m_jit_kernel;
+
     struct ThreadParams {
         uint64_t work_amount = 0lu;
         uint64_t dst_shift = 0lu;
@@ -99,7 +98,9 @@ private:
     uint64_t m_threads_num = 0lu;
     std::vector<ThreadParams> m_thread_params;
 
-    ///// PHILOX constants /////
+    /////////////////////////////////////////////////////////////////////////////////
+
+    ///// PHILOX /////
 
     // Determines how many sequence elements of RNG sequence are skipped between runs.
     // Can be any positive value, 256 is chosen for parity with Tensorflow.
@@ -112,9 +113,32 @@ private:
     static constexpr uint64_t PHILOX_PARALLEL_EXECUTION_THRESHOLD = 1000lu;
 
     uint64_t m_skip_count = 0lu;
+
+    std::pair<uint64_t, uint64_t> computePhilox(void* out, size_t work_amount, const std::pair<uint64_t, uint64_t>& prev_state);
+
     /////////////////////////////////////////////////////////////////////////////////
 
-    std::shared_ptr<kernel::JitKernelBase> m_jit_kernel;
+    ///// MERSENNE TWISTER /////
+
+    // Philox algorithm returns 4 elements of RNG sequence per each invocation
+    static constexpr uint64_t MERSENNE_TWISTER_GROUP_SIZE = 4lu;
+
+    // Output elements number threshold to execute on one thread.
+    static constexpr uint64_t MERSENNE_TWISTER_PARALLEL_EXECUTION_THRESHOLD = 1000lu;
+
+    void computeMersenneTwister(void* out, size_t work_amount);
+
+    /////////////////////////////////////////////////////////////////////////////////
+
+    ///// STL /////
+
+    std::default_random_engine m_generator;
+
+    template <typename T, typename DISTR_TYPE>
+    void generateData(DISTR_TYPE distribution, void* out, size_t work_amount);
+
+    void computeStl(void* out, size_t work_amount);
+
 };
 
 }   // namespace node
