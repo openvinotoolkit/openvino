@@ -279,7 +279,20 @@ public:
 
         if (has_decompression_zp) {
             ib >> make_data(&_dzp_data_type, sizeof(dnnl::memory::data_type));
-            _attrs->set_zero_points(DNNL_ARG_WEIGHTS, 0, dnnl::memory::dims{}, _dzp_data_type);
+            auto& arg = impl_params->get_program().get_node(impl_params->desc->id).as<fully_connected>();
+            auto decompression_zp_idx = !arg.bias_term() ? 3 : 4;
+            auto dzp_layout = arg.get_dependency(decompression_zp_idx).get_output_layout();
+
+            if (dzp_layout.count() == 1) {
+                _attrs->set_zero_points(DNNL_ARG_WEIGHTS, 0, dnnl::memory::dims{}, _dzp_data_type);
+            } else {
+                auto ngroups = dzp_layout.get_dim(1);
+                if (ngroups == 1) {
+                    _attrs->set_zero_points(DNNL_ARG_WEIGHTS, 1 << 1, dnnl::memory::dims{}, _dzp_data_type);
+                } else {
+                    _attrs->set_zero_points(DNNL_ARG_WEIGHTS, (1 << 1) + (1 << 0), {_ds_group_size, 1}, _dzp_data_type);
+                }
+            }
         }
 
         if (is_compressed) {
@@ -332,8 +345,19 @@ public:
 
             if (!prim->decompression_zero_point.empty()) {
                 auto decompression_zp_idx = !arg.bias_term() ? 3 : 4;
-                dzp_data_type = convert_data_type(arg.get_dependency(decompression_zp_idx).get_output_layout().data_type);
-                attr->set_zero_points(DNNL_ARG_WEIGHTS, 0, dnnl::memory::dims{}, dzp_data_type);
+                auto dzp_layout = arg.get_dependency(decompression_zp_idx).get_output_layout();
+                dzp_data_type = convert_data_type(dzp_layout.data_type);
+
+                if (dzp_layout.count() == 1) {
+                    attr->set_zero_points(DNNL_ARG_WEIGHTS, 0, dnnl::memory::dims{}, dzp_data_type);
+                } else {
+                    auto ngroups = dzp_layout.get_dim(1);
+                    if (ngroups == 1) {
+                        attr->set_zero_points(DNNL_ARG_WEIGHTS, 1 << 1, dnnl::memory::dims{}, dzp_data_type);
+                    } else {
+                        attr->set_zero_points(DNNL_ARG_WEIGHTS, (1 << 1) + (1 << 0), {group_size, 1}, dzp_data_type);
+                    }
+                }
             }
 
             auto prim_desc = get_matmul_primitive_descriptor(impl_params, impl_params.prog->get_engine(),

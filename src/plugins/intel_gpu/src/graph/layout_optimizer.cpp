@@ -932,7 +932,7 @@ static bool is_node_for_onednn(fully_connected_node const& node) {
         if (!fc_prim->decompression_zero_point.empty()) {
             auto decompression_zp_idx = fc_prim->bias.empty() ? 3 : 4;
             auto decompression_zp_dt = node.get_input_layout(decompression_zp_idx).data_type;
-            if (weights_dt != ov::element::Type_t::u4 ||
+            if ((weights_dt != ov::element::Type_t::u4 && weights_dt != ov::element::Type_t::u8) ||
                 (decompression_zp_dt != ov::element::Type_t::u8 && decompression_zp_dt != ov::element::Type_t::i8)) {
                 return false;
             }
