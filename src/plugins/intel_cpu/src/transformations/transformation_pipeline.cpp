@@ -1048,9 +1048,12 @@ void Transformations::MainSnippets(void) {
             const auto& shape = child->get_input_shape(0);
             return is_unsupported_parallel_work_amount(n, shape);
         }, snippets::pass::TokenizeMHASnippets);
-        CPU_SET_CALLBACK_X64(snippetsManager, [&](const std::shared_ptr<const ov::Node>& n) -> bool {
-            return !is_supported_matmul(n) || is_unsupported_parallel_work_amount(n, n->get_output_shape(0));
-        }, snippets::pass::ExtractReshapesFromMHA);
+        CPU_SET_CALLBACK_X64(
+            snippetsManager,
+            [&](const std::shared_ptr<const ov::Node>& n) -> bool {
+                return !is_supported_matmul(n) || is_unsupported_parallel_work_amount(n, n->get_output_shape(0));
+            },
+            snippets::pass::ExtractReshapesFromMHA);
     }
 
     CPU_SET_CALLBACK_COMMON(snippetsManager,
