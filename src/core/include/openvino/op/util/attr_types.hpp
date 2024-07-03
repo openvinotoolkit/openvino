@@ -154,6 +154,11 @@ enum class TopKMode {
 OPENVINO_API
 std::ostream& operator<<(std::ostream& s, const TopKMode& type);
 
+enum class PhilloxAlignment { TENSORFLOW, PYTORCH, MOCK };
+
+OPENVINO_API
+std::ostream& operator<<(std::ostream& s, const PhilloxAlignment& alignment);
+
 /// \brief Implicit broadcast specification
 struct OPENVINO_API AutoBroadcastSpec {
     AutoBroadcastSpec() : m_type(AutoBroadcastType::NONE), m_axis(0) {}
@@ -268,6 +273,14 @@ public:
     AttributeAdapter(op::TopKMode& value) : EnumAttributeAdapterBase<op::TopKMode>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<TopKMode>");
+};
+
+template <>
+class OPENVINO_API AttributeAdapter<op::PhilloxAlignment> : public EnumAttributeAdapterBase<op::PhilloxAlignment> {
+public:
+    AttributeAdapter(op::PhilloxAlignment& value) : EnumAttributeAdapterBase<op::PhilloxAlignment>(value) {}
+
+    OPENVINO_RTTI("AttributeAdapter<PhilloxAlignment>");
 };
 
 template <>

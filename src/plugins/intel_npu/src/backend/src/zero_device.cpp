@@ -7,8 +7,10 @@
 #include <ze_api.h>
 
 #include "intel_npu/al/itt.hpp"
+#include "intel_npu/utils/zero/zero_api.hpp"
 #include "zero_executor.hpp"
 #include "zero_infer_request.hpp"
+#include "zero_utils.hpp"
 
 using namespace intel_npu;
 
@@ -95,6 +97,7 @@ std::string ZeroDevice::getName() const {
 #define NPU_3700_DEVICE_ID   0x6240
 #define NPU_3720_P_DEVICE_ID 0x7D1D
 #define NPU_3720_S_DEVICE_ID 0xAD1D
+#define NPU_4000_DEVICE_ID   0x643E
 
     std::string name;
     switch (device_properties.deviceId) {
@@ -104,6 +107,9 @@ std::string ZeroDevice::getName() const {
     case NPU_3720_P_DEVICE_ID:
     case NPU_3720_S_DEVICE_ID:
         name = ov::intel_npu::Platform::NPU3720;
+        break;
+    case NPU_4000_DEVICE_ID:
+        name = "4000";
         break;
     default:
         name = "AUTO_DETECT";
