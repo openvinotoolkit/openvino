@@ -77,6 +77,15 @@ std::vector<TRShape> range_shape_infer(const Node* op,
         output_shapes[0] = TRShape{static_cast<uint32_t>(strided)};
     } else {
         output_shapes[0] = ov::PartialShape::dynamic(1);
+        if (op->get_input_size() == 3 && step_val && step == 1) {
+            auto start_symbol = op->input_value(0).get_tensor().get_value_symbol();
+            auto stop_symbol = op->input_value(1).get_tensor().get_value_symbol();
+            if (start_val && start == 0 && !stop_symbol.empty()) {
+                output_shapes[0][0].set_symbol(stop_symbol[0]);
+            } else if (!start_symbol.empty() && !stop_symbol.empty()) {
+                output_shapes[0][0].set_symbol(stop_symbol[0] - start_symbol[0]);
+            }
+        }
     }
     return output_shapes;
 }

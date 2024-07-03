@@ -63,6 +63,19 @@ bool Subtract::evaluate(TensorVector& outputs, const TensorVector& inputs) const
                                       get_autob());
 }
 
+bool Subtract::evaluate_symbol(ov::TensorSymbolVector& output_symbols) const {
+    auto lhs_pshape = input(0).get_tensor().get_partial_shape(), rhs_pshape = input(1).get_tensor().get_partial_shape();
+    auto lhs_symbols = input(0).get_tensor().get_value_symbol(), rhs_symbols = input(1).get_tensor().get_value_symbol();
+    if (lhs_pshape.is_dynamic() || rhs_pshape.is_dynamic() || lhs_pshape != rhs_pshape || lhs_symbols.empty() ||
+        lhs_symbols.size() != rhs_symbols.size())
+        return false;  // broadcasting is not supported here yet
+    output_symbols.resize(1);
+    output_symbols[0].resize(shape_size(lhs_pshape.to_shape()));
+    for (size_t i = 0; i < output_symbols[0].size(); ++i)
+        output_symbols[0][i] = lhs_symbols[i] - rhs_symbols[i];
+    return true;
+}
+
 bool Subtract::has_evaluate() const {
     OV_OP_SCOPE(v1_Subtract_has_evaluate);
     switch (get_input_element_type(0)) {

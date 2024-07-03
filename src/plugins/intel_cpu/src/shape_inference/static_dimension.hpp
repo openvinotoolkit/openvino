@@ -68,6 +68,9 @@ public:
     static bool merge(StaticDimension& dst, const StaticDimension& d1, const StaticDimension& d2);
     static bool broadcast_merge(StaticDimension& dst, const StaticDimension& d1, const StaticDimension& d2);
 
+    static void set_symbol(const std::shared_ptr<ov::Symbol>&) {}
+    static std::shared_ptr<ov::Symbol> get_symbol() { return nullptr; }
+
     StaticDimension operator+(const StaticDimension& dim) const;
     StaticDimension operator-(const StaticDimension& dim) const;
     StaticDimension operator*(const StaticDimension& dim) const;
