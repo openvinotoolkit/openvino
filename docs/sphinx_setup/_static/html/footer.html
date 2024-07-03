@@ -69,10 +69,6 @@
         margin-bottom: 0px;
     }
 
-    .list-item {
-        display: list-item !important;
-    }
-
     .no-bullets {
         list-style-type: none;
     }
@@ -94,9 +90,18 @@
         flex-direction: row;
     }
 
+    ul.no-bullets li:nth-of-type(3) {
+        display: list-item !important;
+    }
+
+    ul.no-bullets li:nth-of-type(4) {
+        display: list-item !important;
+    }
+
     /* cookie wap requirement */
     li#wap_dns {
         display: none;
+        
     }
 
     li#wap_nac {
@@ -117,32 +122,22 @@
                 </ul>
                 <ul class="no-bullets">
                     <lh>OpenVino</lh>
-                    <li><a href="https://docs.openvino.ai/2024/about-openvino/additional-resources/telemetry.html"
-                            alt="telemetry">OpenVINO™ Telemetry</a></li>
-                    <li><a href="https://docs.openvino.ai/2024/about-openvino/additional-resources/glossary.html"
-                            alt="glossary">Glossary</a></li>
-                    <li><a href="https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/success-stories.html"
-                           alt="stories" target="_blank">Case Studies</a></li>
+                    <li><a href="https://docs.openvino.ai/2024/about-openvino/additional-resources/telemetry.html" alt="telemetry">OpenVINO™ Telemetry</a></li>
+                    <li><a href="https://docs.openvino.ai/2024/about-openvino/additional-resources/glossary.html" alt="glossary">Glossary</a></li>
+                    <li><a href="https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/success-stories.html"  alt="stories" target="_blank">Case Studies</a></li>
                 </ul>
                 <ul class="no-bullets">
                     <lh>Legal</lh>
                     <li><a href="https://docs.openvino.ai/2024/about-openvino/additional-resources/legal-information.html" alt="the intel">Terms of Use</a></li>
-                    <li><a href="https://www.intel.com/content/www/us/en/privacy/intel-privacy-notice.html"
-                            alt="legal and responsible ai information" target="_blank">Legal and Responsible AI
-                            Information</a></li>
-                    <li><a href="https://www.intel.com/content/www/us/en/artificial-intelligence/responsible-ai.html"
-                            alt="responsible ai" target="_blank">Responsible AI</a></li>
+                    <li><a href="https://www.intel.com/content/www/us/en/privacy/intel-privacy-notice.html" alt="legal and responsible ai information" target="_blank">Legal and Responsible AI Information</a></li>
+                    <li><a href="https://www.intel.com/content/www/us/en/artificial-intelligence/responsible-ai.html" alt="responsible ai" target="_blank">Responsible AI</a></li>
                 </ul>
                 <ul class="no-bullets">
                     <lh>Privacy</lh>
-                    <li><a href="https://www.intel.com/content/www/us/en/privacy/intel-cookie-notice.html"
-                            alt="cookies policy" target="_blank" data-cookie-notice="true">Cookies</a></li>
-                    <li><a href="https://www.intel.com/content/www/us/en/privacy/intel-privacy-notice.html"
-                            alt="privacy" target="_blank">Privacy</a></li>
-                    <li data-wap_ref="dns" id="wap_dns" class="list-item"><a href="/#" alt="your privacy choice" target="_parent">Your
-                            Privacy Choices</a></li>
-                    <li data-wap_ref="nac" id="wap_nac" class="list-item"><a href="https://www.intel.com/content/www/us/en/privacy/privacy-residents-certain-states.html"
-                            alt="notice at collection" target="_parent">Notice at Collection</a></li>
+                    <li><a href="https://www.intel.com/content/www/us/en/privacy/intel-cookie-notice.html" alt="cookies policy" target="_blank" data-cookie-notice="true">Cookies</a></li>
+                    <li><a href="https://www.intel.com/content/www/us/en/privacy/intel-privacy-notice.html" alt="privacy" target="_blank">Privacy</a></li>
+                    <li data-wap_ref="dns" id="wap_dns"><a href="/#" alt="your privacy choice" target="_parent">Your Privacy Choices</a></li>
+                    <li data-wap_ref="nac" id="wap_nac"><a href="https://www.intel.com/content/www/us/en/privacy/privacy-residents-certain-states.html" alt="notice at collection" target="_parent">Notice at Collection</a></li>
                 </ul>
             </div>
             <a id="newsletterTrigger" class="newsletter-btn" href="#" alt="Newsletter"
