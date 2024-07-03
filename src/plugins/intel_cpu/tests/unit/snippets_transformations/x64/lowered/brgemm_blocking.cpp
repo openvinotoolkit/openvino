@@ -7,6 +7,8 @@
 #include "lir_test_utils.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/pass/propagate_subtensors.hpp"
+#include "snippets/lowered/pass/serialize_control_flow.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
@@ -22,6 +24,15 @@ using namespace ov::snippets;
 using BRGEMM_TYPE = intel_cpu::brgemm_utils::BRGEMM_TYPE;
 
 namespace {
+SpecificIterationHandlers get_default_handlers(size_t work_amount, size_t block_size) {
+    SpecificIterationHandlers handlers;
+    const auto tail_size = snippets::utils::is_dynamic_value(work_amount) ? snippets::utils::get_dynamic_value<size_t>() : work_amount % block_size;
+    if (tail_size != 0)
+        handlers.register_pass<snippets::lowered::SpecificLoopIterType::LAST_ITER, snippets::lowered::pass::UpdateSubtensors>(tail_size);
+    handlers.register_pass<snippets::lowered::SpecificLoopIterType::LAST_ITER, ov::intel_cpu::pass::SetEvaluanceOnce>(true);
+    return handlers;
+}
+
 void create_brgemm_loop_infos(const LinearIRPtr& linear_ir,
                               const ExpressionPtr& brgemm_expr,
                               size_t m = 0, size_t m_blk = 0,
@@ -31,21 +42,29 @@ void create_brgemm_loop_infos(const LinearIRPtr& linear_ir,
     const bool n_block = k != 0 && k_blk != 0;
     const bool m_block = m != 0 && m_blk != 0;
     if (k_block) {
-        create_and_add_unified_loop_info(linear_ir, k, k_blk,
-                                        {LoopPort(brgemm_expr->get_input_port(0)), LoopPort(brgemm_expr->get_input_port(1), true, 1)},
-                                        {LoopPort(brgemm_expr->get_output_port(0), false)});
-        const auto& loop_info = linear_ir->get_loop_manager()->get_loop_info<UnifiedLoopInfo>(0);
+        const size_t loop_id = create_and_add_unified_loop_info(linear_ir, k, k_blk,
+                                                                {LoopPort(brgemm_expr->get_input_port(0)),
+                                                                 LoopPort(brgemm_expr->get_input_port(1), true, 1)},
+                                                                {LoopPort(brgemm_expr->get_output_port(0), false)}, false);
+        const auto& loop_info = linear_ir->get_loop_manager()->get_loop_info<UnifiedLoopInfo>(loop_id);
+        loop_info->set_handlers(get_default_handlers(k, k_block));
         loop_info->register_pass_to_handler<SpecificLoopIterType::FIRST_ITER, ov::intel_cpu::pass::SetBrgemmBeta>(0.f);
     }
     if (n_block) {
-        create_and_add_unified_loop_info(linear_ir, n, n_blk,
-                                        {LoopPort(brgemm_expr->get_input_port(0), false), LoopPort(brgemm_expr->get_input_port(1))},
-                                        {LoopPort(brgemm_expr->get_output_port(0))});
+        const size_t loop_id = create_and_add_unified_loop_info(linear_ir, n, n_blk,
+                                                                {LoopPort(brgemm_expr->get_input_port(0), false),
+                                                                 LoopPort(brgemm_expr->get_input_port(1))},
+                                                                {LoopPort(brgemm_expr->get_output_port(0))}, false);
+        const auto& loop_info = linear_ir->get_loop_manager()->get_loop_info<UnifiedLoopInfo>(loop_id);
+        loop_info->set_handlers(get_default_handlers(n, n_block));
     }
     if (m_block) {
-        create_and_add_unified_loop_info(linear_ir, m, m_blk,
-                                        {LoopPort(brgemm_expr->get_input_port(0), true, 1), LoopPort(brgemm_expr->get_input_port(1), false, 1)},
-                                        {LoopPort(brgemm_expr->get_output_port(0), true, 1)});
+        const size_t loop_id = create_and_add_unified_loop_info(linear_ir, m, m_blk,
+                                                                {LoopPort(brgemm_expr->get_input_port(0), true, 1),
+                                                                 LoopPort(brgemm_expr->get_input_port(1), false, 1)},
+                                                                {LoopPort(brgemm_expr->get_output_port(0), true, 1)}, false);
+        const auto& loop_info = linear_ir->get_loop_manager()->get_loop_info<UnifiedLoopInfo>(loop_id);
+        loop_info->set_handlers(get_default_handlers(m, m_block));
     }
 }
 
@@ -59,22 +78,30 @@ void create_brgemm_with_copy_b_loop_infos(const LinearIRPtr& linear_ir,
     const bool n_block = k != 0 && k_blk != 0;
     const bool m_block = m != 0 && m_blk != 0;
     if (k_block) {
-        create_and_add_unified_loop_info(linear_ir, k, k_blk,
-                                        {LoopPort(brgemm_expr->get_input_port(0)), LoopPort(copy_b_expr->get_input_port(0), true, 1)},
-                                        {LoopPort(brgemm_expr->get_output_port(0), false)});
-        const auto& loop_info = linear_ir->get_loop_manager()->get_loop_info<UnifiedLoopInfo>(0);
+        const size_t loop_id = create_and_add_unified_loop_info(linear_ir, k, k_blk,
+                                                                {LoopPort(brgemm_expr->get_input_port(0)),
+                                                                 LoopPort(copy_b_expr->get_input_port(0), true, 1)},
+                                                                {LoopPort(brgemm_expr->get_output_port(0), false)});
+        const auto& loop_info = linear_ir->get_loop_manager()->get_loop_info<UnifiedLoopInfo>(loop_id);
+        loop_info->set_handlers(get_default_handlers(k, k_block));
         loop_info->register_pass_to_handler<SpecificLoopIterType::FIRST_ITER, ov::intel_cpu::pass::SetBrgemmBeta>(0.f);
     }
     if (n_block) {
-        create_and_add_unified_loop_info(linear_ir, n, n_blk,
-                                        {LoopPort(brgemm_expr->get_input_port(0), false), LoopPort(copy_b_expr->get_input_port(0))},
-                                        {LoopPort(brgemm_expr->get_output_port(0))});
+        const size_t loop_id = create_and_add_unified_loop_info(linear_ir, n, n_blk,
+                                                                {LoopPort(brgemm_expr->get_input_port(0), false),
+                                                                 LoopPort(copy_b_expr->get_input_port(0))},
+                                                                {LoopPort(brgemm_expr->get_output_port(0))});
+        const auto& loop_info = linear_ir->get_loop_manager()->get_loop_info<UnifiedLoopInfo>(loop_id);
+        loop_info->set_handlers(get_default_handlers(n, n_block));
     }
     if (m_block) {
         const auto& second_input_port = k_block || n_block ? copy_b_expr->get_input_port(0) : brgemm_expr->get_input_port(1);
-        create_and_add_unified_loop_info(linear_ir, m, m_blk,
-                                        {LoopPort(brgemm_expr->get_input_port(0), true, 1), LoopPort(second_input_port, false, 1)},
-                                        {LoopPort(brgemm_expr->get_output_port(0), true, 1)});
+        const size_t loop_id = create_and_add_unified_loop_info(linear_ir, m, m_blk,
+                                                                {LoopPort(brgemm_expr->get_input_port(0), true, 1),
+                                                                 LoopPort(second_input_port, false, 1)},
+                                                                {LoopPort(brgemm_expr->get_output_port(0), true, 1)});
+        const auto& loop_info = linear_ir->get_loop_manager()->get_loop_info<UnifiedLoopInfo>(loop_id);
+        loop_info->set_handlers(get_default_handlers(m, m_block));
     }
 }
 } // namespace

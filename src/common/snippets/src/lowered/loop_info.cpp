@@ -391,8 +391,11 @@ std::shared_ptr<LoopInfo> ExpandedLoopInfo::clone_with_new_expr(const Expression
     const auto& new_input_ports = clone_loop_ports(expr_map, m_input_ports);
     const auto& new_output_ports = clone_loop_ports(expr_map, m_output_ports);
 
-    return std::make_shared<ExpandedLoopInfo>(m_work_amount, m_increment, new_input_ports, new_output_ports,
-                                              m_ptr_increments, m_finalization_offsets, m_data_sizes, m_type, m_unified_loop_info, m_is_work_amount_const);
+    const auto cloned = std::make_shared<ExpandedLoopInfo>(m_work_amount, m_increment, new_input_ports, new_output_ports,
+                                                           m_ptr_increments, m_finalization_offsets, m_data_sizes, m_type,
+                                                           m_unified_loop_info, m_is_work_amount_const);
+    cloned->m_evaluance_once = m_evaluance_once;
+    return cloned;
 }
 
 bool ExpandedLoopInfo::is_dynamic() const {
@@ -433,6 +436,14 @@ const std::vector<int64_t>& ExpandedLoopInfo::get_finalization_offsets() const {
 
 const std::vector<int64_t>& ExpandedLoopInfo::get_data_sizes() const {
     return m_data_sizes;
+}
+
+bool ExpandedLoopInfo::is_evaluate_once() const {
+    return m_evaluance_once;
+}
+
+void ExpandedLoopInfo::set_evaluate_once(bool value) {
+    m_evaluance_once = value;
 }
 
 void ExpandedLoopInfo::update_ptr_increments(const std::vector<int64_t>& new_values) {

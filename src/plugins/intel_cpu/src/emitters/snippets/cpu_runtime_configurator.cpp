@@ -4,6 +4,7 @@
 
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 
+#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "snippets/utils/utils.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 
@@ -18,8 +19,40 @@ void CPURuntimeConfigurator::update(const std::shared_ptr<ov::snippets::lowered:
     RuntimeConfigurator::update(linear_ir);
 
     if (linear_ir->is_dynamic()) {
+        const auto& loop_manager = linear_ir->get_loop_manager();
+        update_loop_args(loop_manager);
+        update_brgemms(loop_manager);
         get_kernel_executor_table()->update_state();
-        update_loop_args(linear_ir);
+    }
+}
+
+void CPURuntimeConfigurator::initialization(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) {
+    RuntimeConfigurator::initialization(linear_ir);
+
+    for (const auto& expr : *linear_ir) {
+        if (ov::is_type<ov::intel_cpu::BrgemmCPU>(expr->get_node())) {
+            const auto& in0_desc = expr->get_input_port_descriptor(0);
+            const auto& in1_desc = expr->get_input_port_descriptor(1);
+            const auto& out_desc = expr->get_output_port_descriptor(0);
+
+            const auto& in0_subtensor = in0_desc->get_subtensor();
+            const auto& in1_subtensor = in1_desc->get_subtensor();
+            const auto& out_subtensor = out_desc->get_subtensor();
+
+            // TODO [146125]: At the moment only blocking by dynamic M is supported
+            //                So we save Brgemm with only dynamic M
+            //                If there are other dynamic dimensions, throw exception for now
+            OPENVINO_ASSERT(!snippets::utils::is_dynamic_value(*in0_subtensor.crbegin()) &&
+                            !snippets::utils::is_dynamic_value(*in1_subtensor.crbegin()) &&
+                            !snippets::utils::is_dynamic_value(*(++in1_subtensor.crbegin())) &&
+                            !snippets::utils::is_dynamic_value(*out_subtensor.crbegin()),
+                            "CPURuntimeConfigurator supports only dynamic M in Brgemm subtensors");
+            OPENVINO_ASSERT(*(++in0_subtensor.crbegin()) == *(++out_subtensor.crbegin()),
+                            "Incorrect values in subtensors of BrgemmCPU");
+
+            if (snippets::utils::is_dynamic_value(*(++in0_subtensor.crbegin())))
+                m_dynamic_brgemms.push_back(expr);
+        }
     }
 }
 
@@ -27,11 +60,11 @@ void CPURuntimeConfigurator::init_tensor_rank(const std::shared_ptr<ov::snippets
     m_config->tensor_rank = std::max(linear_ir->get_master_shape().size(), rank6D);
 }
 
-void CPURuntimeConfigurator::update_loop_args(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) const {
+void CPURuntimeConfigurator::update_loop_args(const ov::snippets::lowered::LoopManagerPtr& loop_manager) const {
     const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(m_config);
     OPENVINO_ASSERT(cpu_config, "CPURuntimeConfigurator expects CPURuntimeConfig");
 
-    const auto& loop_map = linear_ir->get_loop_manager()->get_map();
+    const auto& loop_map = loop_manager->get_map();
     cpu_config->loop_args.resize(loop_map.size());
     for (const auto& loop : loop_map) {
         const auto& idx = loop.first;
@@ -47,6 +80,26 @@ void CPURuntimeConfigurator::update_loop_args(const std::shared_ptr<ov::snippets
             loop_arg.m_ptr_increments[i] *= (increment * data_sizes[i]);
             loop_arg.m_finalization_offsets[i] *= data_sizes[i];
         }
+    }
+}
+
+void CPURuntimeConfigurator::update_brgemms(const ov::snippets::lowered::LoopManagerPtr& loop_manager) const {
+    for (const auto& brgemm_expr : m_dynamic_brgemms) {
+        const auto& loop_ids = brgemm_expr->get_loop_ids();
+        OPENVINO_ASSERT(!loop_ids.empty(), "Dynamic Brgemm must be in loops");
+        // TODO [146125]: Loop by M is first one in `loop_ids`
+        const auto& expanded_loop_info = loop_manager->get_loop_info<snippets::lowered::ExpandedLoopInfo>(loop_ids.front());
+        const auto& block_size_m = expanded_loop_info->get_work_amount();
+
+        const auto& in_desc = brgemm_expr->get_input_port_descriptor(0);
+        const auto& out_desc = brgemm_expr->get_output_port_descriptor(0);
+
+        auto in_subtensor = in_desc->get_subtensor();
+        auto out_subtensor = out_desc->get_subtensor();
+        *++in_subtensor.rbegin() = block_size_m;
+        *++out_subtensor.rbegin() = block_size_m;
+        in_desc->set_subtensor(in_subtensor);
+        out_desc->set_subtensor(out_subtensor);
     }
 }
 

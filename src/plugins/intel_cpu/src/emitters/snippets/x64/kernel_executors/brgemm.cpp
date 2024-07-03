@@ -18,7 +18,7 @@ using namespace dnnl::impl::cpu::x64;
 
 namespace {
 size_t init_hash(dnnl_data_type_t dt_in0, dnnl_data_type_t dt_in1, float beta, bool is_with_amx,
-                           bool is_with_comp, dnnl::impl::cpu::x64::cpu_isa_t isa) {
+                 bool is_with_comp, dnnl::impl::cpu::x64::cpu_isa_t isa) {
     size_t seed = 0;
 #define HASH(X) seed = hash_combine(seed, X)
     HASH(dt_in0); HASH(dt_in1);
@@ -41,7 +41,7 @@ BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype, const ele
 }
 
 bool BrgemmKernelConfig::is_completed() const {
-    return !utils::one_of(0, m_M, m_N, m_K, m_LDA, m_LDB, m_LDC);
+    return !utils::one_of(0, m_M, m_N, m_K, m_LDA, m_LDB, m_LDC) || is_empty();
 }
 
 bool BrgemmKernelConfig::operator==(const BrgemmKernelConfig& rhs) const {
@@ -54,9 +54,20 @@ bool BrgemmKernelConfig::operator==(const BrgemmKernelConfig& rhs) const {
 }
 
 void BrgemmKernelConfig::update(dnnl_dim_t M, dnnl_dim_t N, dnnl_dim_t K, dnnl_dim_t LDA, dnnl_dim_t LDB, dnnl_dim_t LDC) {
-    m_M = M; m_N = N; m_K = K;
-    m_LDA = LDA; m_LDB = LDB; m_LDC = LDC;
+    // If M is zero, it means that Brgemm won't be executed (in Loop with work_amount = 0, for example)
+    // To process this case, we have to make this Config as empty (nullify runtime parameters)
+    if (M == 0 && !utils::one_of(0, N, K, LDA, LDB, LDC)) {
+        m_M = 0; m_N = 0; m_K = 0;
+        m_LDA = 0; m_LDB = 0; m_LDC = 0;
+    } else {
+        m_M = M; m_N = N; m_K = K;
+        m_LDA = LDA; m_LDB = LDB; m_LDC = LDC;
+    }
     m_hash = compute_hash();
+}
+
+bool BrgemmKernelConfig::is_empty() const {
+    return everyone_is(0, m_M, m_N, m_K, m_LDA, m_LDB, m_LDC);
 }
 
 BrgemmKernelConfig::operator amx_tile_config_t() const {
@@ -115,6 +126,14 @@ BrgemmKernelExecutor::BrgemmKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kern
 
 
 std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelExecutor::compile_kernel(const BrgemmKernelConfig& config) const {
+    std::shared_ptr<BrgemmCompiledKernel> compiled_kernel = std::make_shared<BrgemmCompiledKernel>();
+
+    // Brgemm is not executable - nothing to compile
+    if (config.is_empty()) {
+        compiled_kernel->compiled_kernel = std::unique_ptr<brgemm_kernel_t>();
+        return compiled_kernel;
+    }
+
     cpu::x64::brgemm_t desc;
     auto status = brgemm_desc_init(&desc, config.get_isa(), cpu::x64::brgemm_strd,
                                    config.get_dt_in0(), config.get_dt_in1(),
@@ -122,10 +141,8 @@ std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelExecutor::compile_kernel(const
                                    config.get_beta(),
                                    config.get_LDA(), config.get_LDB(), config.get_LDC(),
                                    config.get_M(), config.get_N(), config.get_K(), nullptr);
-
-    auto compiled_kernel = std::make_shared<BrgemmCompiledKernel>();
-
     OV_CPU_JIT_EMITTER_ASSERT(status == dnnl_success, "Cannot initialize brgemm descriptor due to invalid params");
+
     if (config.is_with_amx()) {
         status = brgemm_init_tiles(desc, compiled_kernel->palette);
         OV_CPU_JIT_EMITTER_ASSERT(status == dnnl_success, "Cannot initialize brgemm tiles due to invalid params");

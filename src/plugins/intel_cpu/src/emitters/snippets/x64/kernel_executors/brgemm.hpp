@@ -24,6 +24,7 @@ public:
         return std::unique_ptr<BrgemmKernelConfig>( new BrgemmKernelConfig(*this));
     }
     void update(dnnl_dim_t M, dnnl_dim_t N, dnnl_dim_t K, dnnl_dim_t LDA, dnnl_dim_t LDB, dnnl_dim_t LDC);
+    bool is_empty() const;
 
     dnnl_data_type_t get_dt_in0() const { return m_static_params->dt_in0; }
     dnnl_data_type_t get_dt_in1() const { return m_static_params->dt_in1; }

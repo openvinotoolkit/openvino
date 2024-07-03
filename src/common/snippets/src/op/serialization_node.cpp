@@ -49,7 +49,8 @@ bool SerializationNode::visit_attributes(AttributeVisitor &visitor) {
         std::stringstream ss;
         for (size_t i = 0; i < subtensor.size(); ++i) {
             const auto& v = subtensor[i];
-            const auto v_str = (v == lowered::PortDescriptor::ServiceDimensions::FULL_DIM) ? "FULL_DIM" : std::to_string(v);
+            const auto v_str = v == lowered::PortDescriptor::ServiceDimensions::FULL_DIM ? "FULL_DIM" :
+                               (utils::is_dynamic_value(v) ? "?" : std::to_string(v));
             const auto del = i < subtensor.size() - 1 ? ", " : "";
             ss << v_str << del;
         }

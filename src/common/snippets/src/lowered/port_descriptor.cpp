@@ -9,7 +9,8 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
-size_t PortDescriptor::ServiceDimensions::FULL_DIM = SIZE_MAX;
+// SIZE_MAX - is dynamic value
+size_t PortDescriptor::ServiceDimensions::FULL_DIM = SIZE_MAX - 1;
 
 PortDescriptor::PortDescriptor(const ov::Input<ov::Node>& in, VectorDims subtensor_shape, std::vector<size_t> layout)
         : PortDescriptor(ov::Input<const Node>(in.get_node(), in.get_index()), std::move(subtensor_shape), std::move(layout)) {}

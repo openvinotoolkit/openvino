@@ -51,13 +51,14 @@ void init_expr_descriptors(const ov::snippets::lowered::ExpressionPtr& expr,
  * @param linear_ir linear_ir in which loop info should be added
  * @param entries entry points of loop
  * @param exits exit points of loop
+ * @return ID of created loop
  */
-void create_and_add_unified_loop_info(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir,
-                                      size_t work_amount,
-                                      size_t increment,
-                                      const std::vector<ov::snippets::lowered::LoopPort>& entries,
-                                      const std::vector<ov::snippets::lowered::LoopPort>& exits,
-                                      bool add_default_handlers = true);
+size_t create_and_add_unified_loop_info(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir,
+                                        size_t work_amount,
+                                        size_t increment,
+                                        const std::vector<ov::snippets::lowered::LoopPort>& entries,
+                                        const std::vector<ov::snippets::lowered::LoopPort>& exits,
+                                        bool add_default_handlers = true);
 /**
  * @brief Creates unified loop info based on provided entry and exit points, and adds it to the linear_ir's loops map.
  * Meanwhile set loop id to expr range [loop_begin_pos, loop_end_pos).
@@ -67,15 +68,16 @@ void create_and_add_unified_loop_info(const std::shared_ptr<ov::snippets::lowere
  * @param loop_end_pos end expr postion in this loop
  * @param entries entry points of loop
  * @param exits exit points of loop
+ * @return ID of created loop
  */
-void create_and_add_unified_loop_info(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir,
-                                      ov::snippets::lowered::LinearIR::constExprIt loop_begin_pos,
-                                      ov::snippets::lowered::LinearIR::constExprIt loop_end_pos,
-                                      size_t work_amount,
-                                      size_t increment,
-                                      const std::vector<ov::snippets::lowered::LoopPort>& entries,
-                                      const std::vector<ov::snippets::lowered::LoopPort>& exits,
-                                      bool add_default_handlers = true);
+size_t create_and_add_unified_loop_info(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir,
+                                        ov::snippets::lowered::LinearIR::constExprIt loop_begin_pos,
+                                        ov::snippets::lowered::LinearIR::constExprIt loop_end_pos,
+                                        size_t work_amount,
+                                        size_t increment,
+                                        const std::vector<ov::snippets::lowered::LoopPort>& entries,
+                                        const std::vector<ov::snippets::lowered::LoopPort>& exits,
+                                        bool add_default_handlers = true);
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

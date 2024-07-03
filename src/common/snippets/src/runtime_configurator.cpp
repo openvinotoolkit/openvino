@@ -185,11 +185,19 @@ void RuntimeConfigurator::update_loop_info(const std::shared_ptr<lowered::Linear
         // Update remaining Loop work amount
         current_work_amount -= expanded_loop_info->get_work_amount();
 
-        expanded_loop_info->update_ptr_increments(ptr_increments);
-        if (current_work_amount > 0) {
-            expanded_loop_info->update_finalization_offsets(std::vector<int64_t>(finalization_offsets.size(), 0));
+        if (expanded_loop_info->is_evaluate_once()) {
+            expanded_loop_info->update_ptr_increments(std::vector<int64_t>(ptr_increments.size(), 0));
+            auto updated_finalization_offsets = current_work_amount > 0 ? std::vector<int64_t>(finalization_offsets.size(), 0) : finalization_offsets;
+            // work_amount is equal to increment in cases with `evaluate_once`
+            for (size_t i = 0; i < updated_finalization_offsets.size(); ++i)
+                updated_finalization_offsets[i] += ptr_increments[i] * expanded_loop_info->get_work_amount();
+            expanded_loop_info->update_finalization_offsets(updated_finalization_offsets);
         } else {
-            expanded_loop_info->update_finalization_offsets(finalization_offsets);
+            expanded_loop_info->update_ptr_increments(ptr_increments);
+            if (current_work_amount > 0)
+                expanded_loop_info->update_finalization_offsets(std::vector<int64_t>(finalization_offsets.size(), 0));
+            else
+                expanded_loop_info->update_finalization_offsets(finalization_offsets);
         }
     }
 }
