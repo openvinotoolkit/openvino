@@ -170,6 +170,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     config.set_user_property(orig_config);
     config.apply_user_properties(context->get_engine().get_device_info());
 
+    auto rt_info = model->get_rt_info();
+    auto weights_path = rt_info.find("weights_path");
+    if (weights_path != rt_info.end()) {
+        ov::AnyMap weights_path_property{{"GPU_WEIGHTS_PATH", weights_path->second}};
+        config.set_property(weights_path_property);
+    }
+
     auto transformed_model = clone_and_transform_model(model, config, context);
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model::CreateCompiledModel");
@@ -188,6 +195,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config);
     config.apply_user_properties(context_impl->get_engine().get_device_info());
+
+    auto rt_info = model->get_rt_info();
+    auto weights_path = rt_info.find("weights_path");
+    if (weights_path != rt_info.end()) {
+        ov::AnyMap weights_path_property{{"GPU_WEIGHTS_PATH", weights_path->second}};
+        config.set_property(weights_path_property);
+    }
 
     auto transformed_model = clone_and_transform_model(model, config, context_impl);
     return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context_impl, config);

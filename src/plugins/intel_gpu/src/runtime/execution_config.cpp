@@ -76,7 +76,8 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::intel_gpu::allow_new_shape_infer, false),
         std::make_tuple(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape, false),
         std::make_tuple(ov::intel_gpu::buffers_preallocation_ratio, 1.1f),
-        std::make_tuple(ov::intel_gpu::max_kernels_per_batch, 8));
+        std::make_tuple(ov::intel_gpu::max_kernels_per_batch, 8),
+        std::make_tuple(ov::intel_gpu::weights_path, ""));
 }
 
 void ExecutionConfig::register_property_impl(const std::pair<std::string, ov::Any>& property, PropertyVisibility visibility, BaseValidator::Ptr validator) {
