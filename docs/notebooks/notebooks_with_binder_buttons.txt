@@ -29,7 +29,6 @@ person-tracking
 pose-estimation
 pytorch-onnx-to-openvino
 291-rmbg-background-removal
-speech-to-text
 style-transfer
 tensorflow-classification-to-openvino
 tensorflow-hub
@@ -38,5 +37,4 @@ tensorflow-object-detection-to-openvino
 tflite-selfie-segmentation
 vehicle-detection-and-recognition
 vision-background-removal
-vision-image-colorization
 vision-monodepth

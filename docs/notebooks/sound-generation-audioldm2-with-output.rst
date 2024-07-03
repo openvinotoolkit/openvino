@@ -19,8 +19,8 @@ music.
 In this tutorial we will try out the pipeline, convert the models
 backing it one by one and will run an interactive app with Gradio!
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Instantiating Generation

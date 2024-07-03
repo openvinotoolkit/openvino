@@ -22,7 +22,8 @@ The model detects typos in a given text with a high accuracy,
 performances of which are listed below,
 
 - Precision score of 0.9923
-- Recall score of 0.9859 - f1-score of 0.9891
+- Recall score of 0.9859
+- f1-score of 0.9891
 
 `Source for above
 metrics <https://huggingface.co/m3hrdadfi/typo-detector-distilbert-en>`__
@@ -34,8 +35,8 @@ positives and false negatives.
 The model has been pretrained on the
 `NeuSpell <https://github.com/neuspell/neuspell>`__ dataset.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Imports <#imports>`__
 -  `Methods <#methods>`__
@@ -70,9 +71,7 @@ Table of contents:
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -98,10 +97,10 @@ Imports
 
 .. parsed-literal::
 
-    2024-06-20 02:52:47.537772: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-06-20 02:52:47.571605: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-07-02 03:38:30.791330: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-07-02 03:38:30.826343: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-06-20 02:52:48.171558: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-07-02 03:38:31.425204: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Methods
@@ -258,7 +257,7 @@ your model.
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/dynamic_graph/wrappers.py:86: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/torch/dynamic_graph/wrappers.py:86: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
       op1 = operator(\*args, \*\*kwargs)
     Compiling the model to AUTO ...
 
@@ -376,7 +375,7 @@ Let’s run a demo using the Hugging Face Optimum API.
     [Input]:  I  have been stuying for my math exam all week, but I'm stil not very confidet that I will pass it, because there are so many formuals to remeber.
     [Detected]:  I  have been <i>stuying</i> for my math exam all week, but I'm <i>stil</i> not very <i>confidet</i> that I will pass it, because there are so many formuals to <i>remeber</i>.
     ----------------------------------------------------------------------------------------------------------------------------------
-    Time elapsed: 0.15459823608398438
+    Time elapsed: 0.1586296558380127
 
 
 2. Converting the model to OpenVINO IR
@@ -618,5 +617,5 @@ Let’s run a demo using the converted OpenVINO IR model.
        [Input]:  I  have been stuying for my math exam all week, but I'm stil not very confidet that I will pass it, because there are so many formuals to remeber.
     [Detected]:  I  have been <i>stuying</i> for my math exam all week, but I'm <i>stil</i> not very <i>confidet</i> that I will pass it, because there are so many formuals to <i>remeber</i>.
     ----------------------------------------------------------------------------------------------------------------------------------
-    Time elapsed: 0.09928250312805176
+    Time elapsed: 0.09734940528869629
 

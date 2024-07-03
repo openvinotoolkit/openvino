@@ -36,8 +36,8 @@ convert the model to OpenVINO™ IR format. To further improve OpenVINO
 Distil-Whisper model performance ``INT8`` post-training quantization
 from `NNCF <https://github.com/openvinotoolkit/nncf/>`__ is applied.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Load PyTorch model <#load-pytorch-model>`__

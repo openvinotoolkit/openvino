@@ -45,8 +45,8 @@ It consists of the following steps:
 -  Compare original and optimized pipelines from performance and
    accuracy standpoints
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `How does it work? <#how-does-it-work>`__
 -  `Prerequisites <#prerequisites>`__
@@ -614,17 +614,17 @@ some time to complete.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -635,17 +635,17 @@ some time to complete.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -662,17 +662,17 @@ some time to complete.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 

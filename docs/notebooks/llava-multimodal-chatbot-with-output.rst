@@ -41,8 +41,8 @@ The tutorial consists from following steps:
 -  Prepare OpenVINO-based inference pipeline
 -  Run OpenVINO model
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `About model <#about-model>`__
 -  `Prerequisites <#prerequisites>`__
@@ -56,11 +56,11 @@ Table of contents:
    -  `Convert and Optimize Model <#convert-and-optimize-model>`__
 
       -  `Instantiate PyTorch model
-         <#instantiate-pytorch-model>`__
+          <#instantiate-pytorch-model>`__
       -  `Compress Model weights to 4 and 8 bits using NNCF
-         <#compress-model-weights-to-4-and-8-bits-using-nncf>`__
+          <#compress-model-weights-to-4-and-8-bits-using-nncf>`__
       -  `Convert model to OpenVINO IR format
-         <#convert-model-to-openvino-ir-format>`__
+          <#convert-model-to-openvino-ir-format>`__
 
 -  `Prepare OpenVINO based inference
    pipeline <#prepare-openvino-based-inference-pipeline>`__
@@ -505,7 +505,7 @@ Convert model to OpenVINO format and save it on disk.
 
 Let’s consider each step more deeply.
 
-Instantiate PyTorch model `:math:`\Uparrow` <#table-of-content>`__
+Instantiate PyTorch model
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
@@ -516,7 +516,7 @@ from `HuggingFace hub <https://huggingface.co/models>`__ during first
 run. It may takes some time and requires at least 13 Gb free space on
 disk.
 
-Compress Model weights to 4 and 8 bits using NNCF `:math:`\Uparrow` <#table-of-content>`__
+Compress Model weights to 4 and 8 bits using NNCF
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
@@ -559,7 +559,7 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
    **Note**: There is no speedup for INT4 compressed models on dGPU.
 
-Convert model to OpenVINO IR format `:math:`\Uparrow` <#table-of-content>`__
+Convert model to OpenVINO IR format
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
@@ -649,17 +649,17 @@ compression instead of INT8 weight compression.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -677,17 +677,17 @@ compression instead of INT8 weight compression.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -711,17 +711,17 @@ compression instead of INT8 weight compression.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -737,17 +737,17 @@ compression instead of INT8 weight compression.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -771,17 +771,17 @@ compression instead of INT8 weight compression.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 

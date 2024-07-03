@@ -38,8 +38,8 @@ estimate performance for Pytorch and OpenVINO models using almost the
 same code. We also demonstrate how to make model stateful, that provides
 opportunity for processing model cache state.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Convert model to OpenVINO Intermediate Representation (IR) and

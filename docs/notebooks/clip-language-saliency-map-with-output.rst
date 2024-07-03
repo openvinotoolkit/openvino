@@ -79,8 +79,8 @@ used to build the saliency map. Here is how it can be done:
 5. Update the corresponding region on the ``saliency map``.
 6. Repeat steps 2-5 multiple times (``n_iters``).
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Initial Implementation with Transformers and
    Pytorch <#initial-implementation-with-transformers-and-pytorch>`__

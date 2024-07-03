@@ -8,8 +8,8 @@ running multiple times.
 
 |image0|
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Showing Info Available Devices <#showing-info-available-devices>`__
 -  `Configure Inference Pipeline <#configure-inference-pipeline>`__

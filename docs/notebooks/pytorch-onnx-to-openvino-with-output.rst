@@ -33,8 +33,8 @@ plant, sheep, sofa, train, tv monitor**
 More information about the model is available in the `torchvision
 documentation <https://pytorch.org/vision/main/models/lraspp.html>`__
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Preparation <#preparation>`__
 
@@ -74,7 +74,6 @@ Table of contents:
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -560,9 +559,9 @@ performance.
 
 .. parsed-literal::
 
-    PyTorch model on CPU: 0.042 seconds per image, FPS: 24.09
-    ONNX model in OpenVINO Runtime/AUTO: 0.019 seconds per image, FPS: 53.78
-    OpenVINO IR model in OpenVINO Runtime/AUTO: 0.029 seconds per image, FPS: 34.64
+    PyTorch model on CPU: 0.039 seconds per image, FPS: 25.86
+    ONNX model in OpenVINO Runtime/AUTO: 0.018 seconds per image, FPS: 54.43
+    OpenVINO IR model in OpenVINO Runtime/AUTO: 0.027 seconds per image, FPS: 36.71
 
 
 **Show Device Information**

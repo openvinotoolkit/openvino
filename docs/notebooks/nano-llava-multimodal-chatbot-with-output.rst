@@ -10,8 +10,8 @@ this tutorial, we consider how to convert and run nanoLLaVA model using
 OpenVINO. Additionally, we will optimize model using
 `NNCF <https://github.com/openvinotoolkit/nncf>`__
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Load PyTorch model <#load-pytorch-model>`__
@@ -99,18 +99,6 @@ Prerequisites
 
 .. parsed-literal::
 
-    example_1.png:   0%|          | 0.00/200k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    .gitattributes:   0%|          | 0.00/1.52k [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
     merges.txt:   0%|          | 0.00/1.67M [00:00<?, ?B/s]
 
 
@@ -123,13 +111,19 @@ Prerequisites
 
 .. parsed-literal::
 
+    example_1.png:   0%|          | 0.00/200k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
     configuration_llava_qwen2.py:   0%|          | 0.00/8.87k [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    added_tokens.json:   0%|          | 0.00/80.0 [00:00<?, ?B/s]
+    .gitattributes:   0%|          | 0.00/1.52k [00:00<?, ?B/s]
 
 
 
@@ -141,7 +135,13 @@ Prerequisites
 
 .. parsed-literal::
 
-    vocab.json:   0%|          | 0.00/2.78M [00:00<?, ?B/s]
+    added_tokens.json:   0%|          | 0.00/80.0 [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    modeling_llava_qwen2.py:   0%|          | 0.00/103k [00:00<?, ?B/s]
 
 
 
@@ -159,13 +159,13 @@ Prerequisites
 
 .. parsed-literal::
 
-    tokenizer.json:   0%|          | 0.00/7.03M [00:00<?, ?B/s]
+    vocab.json:   0%|          | 0.00/2.78M [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    modeling_llava_qwen2.py:   0%|          | 0.00/103k [00:00<?, ?B/s]
+    tokenizer.json:   0%|          | 0.00/7.03M [00:00<?, ?B/s]
 
 
 
@@ -200,10 +200,10 @@ previous step.
 
 .. parsed-literal::
 
-    2024-06-19 13:21:30.264248: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-06-19 13:21:30.299571: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-06-27 01:02:36.883651: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-06-27 01:02:36.917268: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-06-19 13:21:30.903182: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-06-27 01:02:37.523024: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Run PyTorch Model Inference
@@ -252,7 +252,8 @@ Run PyTorch Model Inference
 
 .. parsed-literal::
 
-    The image features a white lama, a cute kitten, and a fire. The lama is standing on a blue carpet and is in the center of the image. It has a small white ear and a pink nose. The kitten is also white and appears to be holding the fire. The fire is orange and has a red flame, and it is so bright that it's almost illuminating the scene. The kitten is standing on the carpet, and the fire is on the ground, creating a contrast between the bright orange fire and the blue carpet.
+    The image features a white lama, with its fluffy woolly body covering most of the image, including the upper part of the image. The lama's face is predominantly white, and it has a black nose and two small black eyes. It also has a small white mouth and two small black ears. The lama's ears are quite cute, and it has its tongue out, which is pink and seems to be sticking out. The lama has a small black nose and a small black mouth, and it has a small black ear.
+    The lama's face is adorned with pink eyes and two black noses. The eyes are
 
 
 Convert and Optimize model
@@ -511,17 +512,17 @@ space.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -640,17 +641,17 @@ token prediction.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -673,17 +674,17 @@ token prediction.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 

@@ -39,8 +39,8 @@ The notebook contains the following steps:
 3. Run Inference pipeline with OpenVINO.
 4. Run Interactive demo for Tiny-SD model
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Create PyTorch Models pipeline <#create-pytorch-models-pipeline>`__

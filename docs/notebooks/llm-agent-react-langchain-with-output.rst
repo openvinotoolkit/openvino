@@ -1,5 +1,5 @@
-Create LLM Agent using OpenVINO
-===============================
+Create ReAct Agent using OpenVINO and LangChain
+===============================================
 
 LLM are limited to the knowledge on which they have been trained and the
 additional knowledge provided as context, as a result, if a useful piece
@@ -29,8 +29,8 @@ different use cases.
 This notebook explores how to create an AI Agent step by step using
 OpenVINO and LangChain.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Create tools <#create-tools>`__

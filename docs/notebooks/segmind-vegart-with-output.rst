@@ -49,8 +49,8 @@ used to convert the models to OpenVINO™ IR format. Additionally, we
 demonstrate how to improve pipeline latency with the quantization UNet
 model using `NNCF <https://github.com/openvinotoolkit/nncf>`__.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Prepare PyTorch model <#prepare-pytorch-model>`__

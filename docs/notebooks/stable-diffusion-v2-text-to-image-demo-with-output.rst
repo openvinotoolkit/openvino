@@ -21,8 +21,8 @@ like to see the full implementation of stable diffusion for text to
 image, please visit
 `stable-diffusion-v2-text-to-image <stable-diffusion-v2-with-output.html>`__.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Step 0: Install and import
    prerequisites <#step-0-install-and-import-prerequisites>`__

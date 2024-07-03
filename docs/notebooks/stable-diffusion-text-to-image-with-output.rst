@@ -32,8 +32,8 @@ text-guided image-to-image generation using Stable Diffusion.
 This notebook demonstrates how to convert and run stable diffusion model
 using OpenVINO.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Prepare Inference Pipelines <#prepare-inference-pipelines>`__

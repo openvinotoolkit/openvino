@@ -13,8 +13,8 @@ labels and confidence scores for each box. Object detection is a good
 choice when you need to identify objects of interest in a scene, but
 don’t need to know exactly where the object is or its exact shape.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Get PyTorch model <#get-pytorch-model>`__
@@ -457,17 +457,17 @@ Create a quantized model from the pre-trained converted OpenVINO model.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -478,17 +478,17 @@ Create a quantized model from the pre-trained converted OpenVINO model.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 

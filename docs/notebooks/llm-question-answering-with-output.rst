@@ -35,8 +35,8 @@ The tutorial consists of the following steps:
    API <https://github.com/openvinotoolkit/openvino.genai>`__
 -  Run instruction-following pipeline
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Select model for inference <#select-model-for-inference>`__
@@ -515,6 +515,9 @@ Select device for inference and model variant
 
 .. code:: ipython3
 
+    from transformers import AutoTokenizer
+    from openvino_tokenizers import convert_tokenizer
+    
     if model_to_run.value == "INT4":
         model_dir = int4_model_dir
     elif model_to_run.value == "INT8":
@@ -522,6 +525,13 @@ Select device for inference and model variant
     else:
         model_dir = fp16_model_dir
     print(f"Loading model from {model_dir}")
+    
+    # optionally convert tokenizer if used cached model without it
+    if not (model_dir / "openvino_tokenizer.xml").exists() or not (model_dir / "openvino_detokenizer.xml").exists():
+        hf_tokenizer = AutoTokenizer.from_pretrained(model_dir, trust_remote_code=True)
+        ov_tokenizer, ov_detokenizer = convert_tokenizer(hf_tokenizer, with_detokenizer=True)
+        ov.save_model(ov_tokenizer, model_dir / "openvino_tokenizer.xml")
+        ov.save_model(ov_tokenizer, model_dir / "openvino_detokenizer.xml")
 
 
 .. parsed-literal::

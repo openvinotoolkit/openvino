@@ -33,8 +33,8 @@ http://arxiv.org/abs/2211.17192
 Our blog article describing this implementation with OpenVino is
 available at openvino.ai
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 

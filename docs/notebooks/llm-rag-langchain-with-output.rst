@@ -37,8 +37,8 @@ with OpenVINO to optimize their inference performance.
 
    RAG
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Select model for inference <#select-model-for-inference>`__

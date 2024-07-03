@@ -13,8 +13,8 @@ created, refer to the `TensorFlow to
 OpenVINO <tensorflow-classification-to-openvino-with-output.html>`__
 tutorial.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Imports <#imports>`__
 -  `Download the Model and data

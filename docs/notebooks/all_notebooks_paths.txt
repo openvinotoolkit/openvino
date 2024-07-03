@@ -12,12 +12,12 @@ notebooks/clip-language-saliency-map/clip-language-saliency-map.ipynb
 notebooks/clip-zero-shot-image-classification/clip-zero-shot-classification.ipynb
 notebooks/controlnet-stable-diffusion/controlnet-stable-diffusion.ipynb
 notebooks/convert-to-openvino/convert-to-openvino.ipynb
-notebooks/convert-to-openvino/legacy-mo-convert-to-openvino.ipynb
 notebooks/cross-lingual-books-alignment/cross-lingual-books-alignment.ipynb
 notebooks/ct-segmentation-quantize/ct-segmentation-quantize-nncf.ipynb
 notebooks/ddcolor-image-colorization/ddcolor-image-colorization.ipynb
 notebooks/decidiffusion-image-generation/decidiffusion-image-generation.ipynb
 notebooks/depth-anything/depth-anything.ipynb
+notebooks/depth-anything/depth-anything-v2.ipynb
 notebooks/detectron2-to-openvino/detectron2-to-openvino.ipynb
 notebooks/distilbert-sequence-classification/distilbert-sequence-classification.ipynb
 notebooks/distil-whisper-asr/distil-whisper-asr.ipynb
@@ -51,11 +51,12 @@ notebooks/latent-consistency-models-image-generation/lcm-lora-controlnet.ipynb
 notebooks/llava-multimodal-chatbot/llava-multimodal-chatbot.ipynb
 notebooks/llava-multimodal-chatbot/videollava-multimodal-chatbot.ipynb
 notebooks/llava-next-multimodal-chatbot/llava-next-multimodal-chatbot.ipynb
-notebooks/llm-agent-langchain/llm-agent-langchain.ipynb
+notebooks/llm-agent-react/llm-agent-react-langchain.ipynb
 notebooks/llm-chatbot/llm-chatbot-generate-api.ipynb
 notebooks/llm-chatbot/llm-chatbot.ipynb
 notebooks/llm-question-answering/llm-question-answering.ipynb
 notebooks/llm-rag-langchain/llm-rag-langchain.ipynb
+notebooks/llm-rag-llamaindex/llm-rag-llamaindex.ipynb
 notebooks/magika-content-type-recognition/magika-content-type-recognition.ipynb
 notebooks/meter-reader/meter-reader.ipynb
 notebooks/mms-massively-multilingual-speech/mms-massively-multilingual-speech.ipynb
@@ -80,8 +81,8 @@ notebooks/person-counting-webcam/person-counting.ipynb
 notebooks/person-tracking-webcam/person-tracking.ipynb
 notebooks/photo-maker/photo-maker.ipynb
 notebooks/pix2struct-docvqa/pix2struct-docvqa.ipynb
+notebooks/pixart/pixart.ipynb
 notebooks/pose-estimation-webcam/pose-estimation.ipynb
-notebooks/pyannote-speaker-diarization/pyannote-speaker-diarization.ipynb
 notebooks/pytorch-post-training-quantization-nncf/pytorch-post-training-quantization-nncf.ipynb
 notebooks/pytorch-quantization-aware-training/pytorch-quantization-aware-training.ipynb
 notebooks/pytorch-quantization-sparsity-aware-training/pytorch-quantization-sparsity-aware-training.ipynb
@@ -102,9 +103,7 @@ notebooks/sound-generation-audioldm2/sound-generation-audioldm2.ipynb
 notebooks/sparsity-optimization/sparsity-optimization.ipynb
 notebooks/speculative-sampling/speculative-sampling.ipynb
 notebooks/speechbrain-emotion-recognition/speechbrain-emotion-recognition.ipynb
-notebooks/speech-recognition-quantization/speech-recognition-quantization-data2vec.ipynb
 notebooks/speech-recognition-quantization/speech-recognition-quantization-wav2vec2.ipynb
-notebooks/speech-to-text/speech-to-text.ipynb
 notebooks/stable-cascade-image-generation/stable-cascade-image-generation.ipynb
 notebooks/stable-diffusion-ip-adapter/stable-diffusion-ip-adapter.ipynb
 notebooks/stable-diffusion-keras-cv/stable-diffusion-keras-cv.ipynb
@@ -114,6 +113,7 @@ notebooks/stable-diffusion-v2/stable-diffusion-v2-infinite-zoom.ipynb
 notebooks/stable-diffusion-v2/stable-diffusion-v2-optimum-demo.ipynb
 notebooks/stable-diffusion-v2/stable-diffusion-v2-text-to-image-demo.ipynb
 notebooks/stable-diffusion-v2/stable-diffusion-v2-text-to-image.ipynb
+notebooks/stable-diffusion-v3/stable-diffusion-v3.ipynb
 notebooks/stable-diffusion-xl/segmind-vegart.ipynb
 notebooks/stable-diffusion-xl/stable-diffusion-xl.ipynb
 notebooks/stable-video-diffusion/stable-video-diffusion.ipynb
@@ -134,7 +134,6 @@ notebooks/triposr-3d-reconstruction/triposr-3d-reconstruction.ipynb
 notebooks/typo-detector/typo-detector.ipynb
 notebooks/vehicle-detection-and-recognition/vehicle-detection-and-recognition.ipynb
 notebooks/vision-background-removal/vision-background-removal.ipynb
-notebooks/vision-image-colorization/vision-image-colorization.ipynb
 notebooks/vision-monodepth/vision-monodepth.ipynb
 notebooks/vision-paddlegan-anime/vision-paddlegan-anime.ipynb
 notebooks/vision-paddlegan-superresolution/vision-paddlegan-superresolution.ipynb

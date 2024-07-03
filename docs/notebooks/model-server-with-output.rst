@@ -34,8 +34,8 @@ deployment:
 
    ovms_diagram
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Serving with OpenVINO Model
    Server <#serving-with-openvino-model-server>`__
@@ -61,7 +61,7 @@ Table of contents:
 Serving with OpenVINO Model Server
 ----------------------------------
 
- OpenVINO Model Server (OVMS) is
+OpenVINO Model Server (OVMS) is
 a high-performance system for serving models. Implemented in C++ for
 scalability and optimized for deployment on Intel architectures, the
 model server uses the same architecture and API as TensorFlow Serving
@@ -79,7 +79,7 @@ To quickly start using OpenVINO™ Model Server, follow these steps:
 Step 1: Prepare Docker
 ----------------------
 
- Install `Docker
+Install `Docker
 Engine <https://docs.docker.com/engine/install/>`__, including its
 `post-installation <https://docs.docker.com/engine/install/linux-postinstall/>`__
 steps, on your development system. To verify installation, test it,
@@ -93,10 +93,10 @@ image and a message.
 
 .. parsed-literal::
 
-    
+
     Hello from Docker!
     This message shows that your installation appears to be working correctly.
-    
+
     To generate this message, Docker took the following steps:
      1. The Docker client contacted the Docker daemon.
      2. The Docker daemon pulled the "hello-world" image from the Docker Hub.
@@ -105,22 +105,22 @@ image and a message.
         executable that produces the output you are currently reading.
      4. The Docker daemon streamed that output to the Docker client, which sent it
         to your terminal.
-    
+
     To try something more ambitious, you can run an Ubuntu container with:
      $ docker run -it ubuntu bash
-    
+
     Share images, automate workflows, and more with a free Docker ID:
      https://hub.docker.com/
-    
+
     For more examples and ideas, visit:
      https://docs.docker.com/get-started/
-    
+
 
 
 Step 2: Preparing a Model Repository
 ------------------------------------
 
- The models need to be placed
+The models need to be placed
 and mounted in a particular directory structure and according to the
 following rules:
 
@@ -171,9 +171,9 @@ following rules:
 .. code:: ipython3
 
     import platform
-    
+
     %pip install -q "openvino>=2023.1.0" opencv-python tqdm
-    
+
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
@@ -182,21 +182,21 @@ following rules:
 .. code:: ipython3
 
     import os
-    
+
     # Fetch `notebook_utils` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-    
+
     open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file
-    
+
     dedicated_dir = "models"
     model_name = "detection"
     model_version = "1"
-    
+
     MODEL_DIR = f"{dedicated_dir}/{model_name}/{model_version}"
     XML_PATH = "horizontal-text-detection-0001.xml"
     BIN_PATH = "horizontal-text-detection-0001.bin"
@@ -207,7 +207,7 @@ following rules:
     model_bin_url = (
         "https://storage.openvinotoolkit.org/repositories/open_model_zoo/2022.3/models_bin/1/horizontal-text-detection-0001/FP32/horizontal-text-detection-0001.bin"
     )
-    
+
     download_file(model_xml_url, XML_PATH, MODEL_DIR)
     download_file(model_bin_url, BIN_PATH, MODEL_DIR)
 
@@ -235,21 +235,21 @@ following rules:
 Step 3: Start the Model Server Container
 ----------------------------------------
 
- Pull and start the container:
+Pull and start the container:
 
 Searching for an available serving port in local.
 
 .. code:: ipython3
 
     import socket
-    
+
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.bind(("localhost", 0))
     sock.listen(1)
     port = sock.getsockname()[1]
     sock.close()
     print(f"Port {port} is available")
-    
+
     os.environ["port"] = str(port)
 
 
@@ -705,7 +705,7 @@ available port on your system. For example:\ ``-p 9020:9000``
 Step 4: Prepare the Example Client Components
 ---------------------------------------------
 
- OpenVINO Model Server exposes
+OpenVINO Model Server exposes
 two sets of APIs: one compatible with ``TensorFlow Serving`` and another
 one, with ``KServe API``, for inference. Both APIs work on ``gRPC`` and
 ``REST``\ interfaces. Supporting two sets of APIs makes OpenVINO Model
@@ -750,7 +750,7 @@ Request Model Status
 .. code:: ipython3
 
     address = "localhost:" + str(port)
-    
+
     # Bind the grpc address to the client object
     client = make_grpc_client(address)
     model_status = client.get_model_status(model_name=model_name)
@@ -790,16 +790,16 @@ Load input image
         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/intel_rnb.jpg",
         directory="data",
     )
-    
+
     # Text detection models expect an image in BGR format.
     image = cv2.imread(str(image_filename))
     fp_image = image.astype("float32")
-    
+
     # Resize the image to meet network expected input sizes.
     input_shape = model_metadata["inputs"]["image"]["shape"]
     height, width = input_shape[2], input_shape[3]
     resized_image = cv2.resize(fp_image, (height, width))
-    
+
     # Reshape to the network input shape.
     input_image = np.expand_dims(resized_image.transpose(2, 0, 1), 0)
     plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
@@ -831,10 +831,10 @@ Request Prediction on a Numpy Array
 .. code:: ipython3
 
     inputs = {"image": input_image}
-    
+
     # Run inference on model server and receive the result data
     boxes = client.predict(inputs=inputs, model_name=model_name)["boxes"]
-    
+
     # Remove zero only boxes.
     boxes = boxes[~np.all(boxes == 0, axis=1)]
     print(boxes)
@@ -862,17 +862,17 @@ Visualization
     def convert_result_to_image(bgr_image, resized_image, boxes, threshold=0.3, conf_labels=True):
         # Define colors for boxes and descriptions.
         colors = {"red": (255, 0, 0), "green": (0, 255, 0)}
-    
+
         # Fetch the image shapes to calculate a ratio.
         (real_y, real_x), (resized_y, resized_x) = (
             bgr_image.shape[:2],
             resized_image.shape[:2],
         )
         ratio_x, ratio_y = real_x / resized_x, real_y / resized_y
-    
+
         # Convert the base image from BGR to RGB format.
         rgb_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2RGB)
-    
+
         # Iterate through non-zero boxes.
         for box in boxes:
             # Pick a confidence factor from the last place in an array.
@@ -884,10 +884,10 @@ Visualization
                 (x_min, y_min, x_max, y_max) = [
                     (int(max(corner_position * ratio_y, 10)) if idx % 2 else int(corner_position * ratio_x)) for idx, corner_position in enumerate(box[:-1])
                 ]
-    
+
                 # Draw a box based on the position, parameters in rectangle function are: image, start_point, end_point, color, thickness.
                 rgb_image = cv2.rectangle(rgb_image, (x_min, y_min), (x_max, y_max), colors["green"], 3)
-    
+
                 # Add text to the image based on position and confidence.
                 # Parameters in text function are: image, text, bottom-left_corner_textfield, font, font_scale, color, thickness, line_type.
                 if conf_labels:
@@ -901,7 +901,7 @@ Visualization
                         1,
                         cv2.LINE_AA,
                     )
-    
+
         return rgb_image
 
 .. code:: ipython3

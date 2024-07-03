@@ -16,8 +16,8 @@ from CVPR 2020.
 
 This notebook works best with small images (up to 800x600 resolution).
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Imports <#imports>`__
 -  `Settings <#settings>`__
@@ -69,20 +69,15 @@ Imports
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
+    Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    ppgan 2.1.0 requires imageio==2.9.0, but you have imageio 2.34.1 which is incompatible.
-    ppgan 2.1.0 requires librosa==0.8.1, but you have librosa 0.9.2 which is incompatible.
+    ppgan 2.1.0 requires imageio==2.9.0, but you have imageio 2.34.2 which is incompatible.
+    ppgan 2.1.0 requires librosa==0.8.1, but you have librosa 0.10.2.post1 which is incompatible.
     ppgan 2.1.0 requires opencv-python<=4.6.0.66, but you have opencv-python 4.10.0.84 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -156,7 +151,7 @@ source code.
 
 .. parsed-literal::
 
-    [06/20 02:56:05] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/DF2K_JPEG.pdparams
+    [07/02 03:40:50] ppgan INFO: Found /opt/home/k8sworker/.cache/ppgan/DF2K_JPEG.pdparams
 
 
 .. code:: ipython3
@@ -282,12 +277,12 @@ Convert PaddlePaddle Model to ONNX
 
 .. parsed-literal::
 
-    2024-06-20 02:56:11 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
+    2024-07-02 03:40:57 [INFO]	Static PaddlePaddle model saved in model/paddle_model_static_onnx_temp_dir.
 
 
 .. parsed-literal::
 
-    I0620 02:56:11.787541 1076664 program_interpreter.cc:212] New Executor is Running.
+    I0702 03:40:57.163997 2831841 program_interpreter.cc:212] New Executor is Running.
 
 
 .. parsed-literal::
@@ -298,7 +293,7 @@ Convert PaddlePaddle Model to ONNX
     [Paddle2ONNX] Start to parsing Paddle model...
     [Paddle2ONNX] Use opset_version = 13 for ONNX export.
     [Paddle2ONNX] PaddlePaddle model is exported as ONNX format now.
-    2024-06-20 02:56:15 [INFO]	ONNX model saved in model/paddlegan_sr.onnx.
+    2024-07-02 03:41:00 [INFO]	ONNX model saved in model/paddlegan_sr.onnx.
 
 
 Convert ONNX Model to OpenVINO IR with `Model Conversion Python API <https://docs.openvino.ai/2024/openvino-workflow/model-preparation.html>`__
@@ -380,7 +375,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f8ee1967ca0>
+    <matplotlib.image.AxesImage at 0x7f2006f19850>
 
 
 
@@ -432,7 +427,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f8ee10c0040>
+    <matplotlib.image.AxesImage at 0x7f1febdfe910>
 
 
 
