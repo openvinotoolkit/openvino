@@ -311,6 +311,7 @@ jobs:
           popd
 
       - name: Store artifacts to a shared drive
+        id: store_artifacts
         if: ${{ always() }}
         uses: ./openvino/.github/actions/store_artifacts
         with:
@@ -322,6 +323,11 @@ jobs:
           storage_dir: 'public_linux_ubuntu_20_04_release'
           storage_root: ${{ env.ARTIFACTS_SHARE }}
           action_path: ${{ env.GITHUB_WORKSPACE }}/openvino/.github/actions/store_artifacts
+
+      # TODO: remove
+      - name: Show artifacts on share
+        run: |
+          ls -la ${{ steps.store_artifacts.outputs.artifacts_storage_path }}
 
   Debian_Packages:
     name: Debian Packages

@@ -14,12 +14,18 @@ inputs:
     description: "Action path, if not set - taken from github context"
     required: false
 
+outputs:
+  artifacts_storage_path:
+    description: "Path where the artifacts are stored"
+    value: ${{ steps.copy_artifacts.outputs.artifacts_storage_path }}
+
 runs:
   using: "composite"
   steps:
     # TODO: also generate/collect and store manifest based on the repositories checked out in the workflow
 
     - name: 'Copy artifacts'
+      id: copy_artifacts
       shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
       run: >-
         python ${{ inputs.action_path && inputs.action_path || github.action_path }}/store_artifacts.py
