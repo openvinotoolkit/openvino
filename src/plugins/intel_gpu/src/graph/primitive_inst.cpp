@@ -525,7 +525,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     auto dt_size = ov::element::Type(actual_layout.data_type).bitwidth();
     // read_value/assign nodes are supposed to always use variable memory
     if (auto stateful_prim = dynamic_cast<memory_state::variable*>(this)) {
-        std::string variable_id = stateful_prim->variable_id();
+        auto& variable_id = stateful_prim->variable_id();
         auto& variable = get_network().get_variable(variable_id);
         if (_node->is_type<kv_cache>()) {
             // Reuse state memory as output for kv cache if possible
@@ -1354,7 +1354,7 @@ bool primitive_inst::has_inner_networks() const {
 
 event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("primitive_inst::execute: " + id()));
-    const auto primitive_id = id();
+    const auto& primitive_id = id();
     OPENVINO_ASSERT(_has_valid_input, primitive_id, " has invalid/unset input");
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
@@ -1497,7 +1497,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         if (out_of_order_queue || (_impl->is_cpu() && !can_be_optimized()) || (can_be_optimized() && needs_completion_event() && !is_output())) {
             dependencies.reserve(dependencies.size() + _exec_deps.size());
             for (auto& input : _exec_deps) {
-                auto id = input->id();
+                auto& id = input->id();
                 try {
                     // if the requested event does not exists it means that it has not been executed, so the processing_order is
                     // wrong or synchronization failed.
