@@ -109,19 +109,19 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion() {
         auto weight_nodes_as_output_vector = ov::OutputVector{weight_nodes[0], weight_nodes[1], weight_nodes[2]};
         auto fused_weight = std::make_shared<ov::op::v0::Concat>(weight_nodes_as_output_vector, 0);
         fused_weight->set_friendly_name(weight_nodes[0]->get_friendly_name() + "_fused");
-        ov::copy_runtime_info(weight_nodes[0], fused_weight);
+        ov::copy_runtime_info({weight_nodes[0], weight_nodes[1], weight_nodes[2]}, fused_weight);
 
         auto scale_nodes_as_output_vector = ov::OutputVector{scale_nodes[0], scale_nodes[1], scale_nodes[2]};
         auto fused_scale = std::make_shared<ov::op::v0::Concat>(scale_nodes_as_output_vector, 0);
         fused_scale->set_friendly_name(scale_nodes[0]->get_friendly_name() + "_fused");
-        ov::copy_runtime_info(scale_nodes[0], fused_scale);
+        ov::copy_runtime_info({scale_nodes[0], scale_nodes[1], scale_nodes[2]}, fused_scale);
 
         std::shared_ptr<ov::Node> fused_bias;
         if (bias_nodes.size() == 3) {
             auto bias_nodes_as_output_vector = ov::OutputVector{bias_nodes[0], bias_nodes[1], bias_nodes[2]};
             fused_bias = std::make_shared<ov::op::v0::Concat>(bias_nodes_as_output_vector, 0);
             fused_bias->set_friendly_name(bias_nodes[0]->get_friendly_name() + "_fused");
-            ov::copy_runtime_info(bias_nodes[0], fused_bias);
+            ov::copy_runtime_info({bias_nodes[0], bias_nodes[1], bias_nodes[2]}, fused_bias);
         } else {
             fused_bias = std::make_shared<op::Placeholder>();
         }
@@ -175,14 +175,14 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion() {
 
         auto new_fc_name = fc_nodes[0]->get_friendly_name() + "_fused";
         new_fc->set_friendly_name(new_fc_name);
-        copy_runtime_info(fc_nodes[0], new_fc);
+        copy_runtime_info({fc_nodes[0], fc_nodes[1], fc_nodes[2]}, new_fc);
 
         // Split output and connect to the orig users
         auto split_name = fc_nodes[0]->get_friendly_name() + "_split";
         auto axis_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {new_fc->get_output_partial_shape(0).size() - 1});
         auto split_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, orig_n_sizes);
         auto output_split = std::make_shared<ov::op::v1::VariadicSplit>(new_fc, axis_const, split_const);
-        copy_runtime_info(fc_nodes[0], output_split);
+        copy_runtime_info({fc_nodes[0], fc_nodes[1], fc_nodes[2]}, output_split);
         output_split->set_friendly_name(split_name);
         for (size_t i = 0; i < fc_nodes.size(); ++i) {
             auto org_fc = fc_nodes[i];
