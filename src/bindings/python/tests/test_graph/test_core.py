@@ -402,14 +402,6 @@ def test_shape_equality(input_data, shape_type):
     shape = shape_type(data)
     assert data == shape
 
-@pytest.mark.parametrize("input_data", [
-    [1, 2, 3],
-    (1, 2, 3),
-])
-def test_partial_shape_equality(input_data):
-    data = input_data
-    ps = PartialShape(data)
-    assert data == ps
 
 @pytest.mark.parametrize("shape_type", [Shape, PartialShape])
 def test_shape_negative_index(shape_type):
