@@ -107,9 +107,11 @@ def main():
         with open(storage / 'workflow_link.txt', 'w') as file:
             file.write(workflow_link)
 
+    logger.debug(f"Copying finished")
     (storage / 'copying_finished').touch()
     if error_found:
         sys.exit(1)
+    sys.exit(0)
 
 
 if __name__ == '__main__':
