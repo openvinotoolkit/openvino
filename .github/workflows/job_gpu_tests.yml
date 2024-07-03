@@ -97,7 +97,7 @@ jobs:
         run: |
           apt-get update && apt-get install -y \
             libegl-mesa0 libegl1-mesa libegl1-mesa-dev libgbm1 libgl1-mesa-dev libgl1-mesa-dri \
-            libglapi-mesa libgles2-mesa-dev libglx-mesa0 libigdgmm11 libxatracker2 mesa-va-drivers \
+            libglapi-mesa libgles2-mesa-dev libglx-mesa0 libigdgmm12 libxatracker2 mesa-va-drivers \
             mesa-vdpau-drivers mesa-vulkan-drivers va-driver-all
 
       - name: Verify devices
