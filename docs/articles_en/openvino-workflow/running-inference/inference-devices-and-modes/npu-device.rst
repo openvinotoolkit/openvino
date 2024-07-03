@@ -20,8 +20,9 @@ NPU Plugin is now available through all relevant OpenVINO distribution channels.
 
 NPU Plugin needs an NPU Driver to be installed on the system for both compiling and executing a model.
 Follow the instructions below to install the latest NPU drivers:
-* Windows driver: https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html
-* Linux driver: https://github.com/intel/linux-npu-driver/releases
+
+* `Windows driver <https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html>`__
+* `Linux driver <https://github.com/intel/linux-npu-driver/releases>`__
 
 
 The plugin uses the graph extension API exposed by the driver to convert the OpenVINO specific representation
