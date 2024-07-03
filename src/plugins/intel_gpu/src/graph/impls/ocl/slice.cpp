@@ -88,9 +88,10 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
         return args;
     }
 
-    static std::unique_ptr<primitive_impl> create(const slice_node& arg, const kernel_impl_params& impl_param) {
-        auto params = get_default_params<kernel_selector::slice_params>(impl_param, impl_param.is_dynamic());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
+        auto params = get_default_params<kernel_selector::slice_params>(impl_param, is_shape_agnostic);
         const auto input_rank = params.inputs[0].Dimentions();
+        const auto& arg = impl_param.prog->get_node(impl_param.desc->id);
 
         if (!PrepareInput(arg,
                           SliceKernelRefNeededInputs::kStart,
@@ -135,15 +136,18 @@ struct slice_impl : typed_primitive_impl_ocl<slice> {
         }
 
         params.set_dynamic_shape_offsets();
-        auto& kernel_selector = kernel_selector::slice_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(params);
 
-        return make_unique<slice_impl>(best_kernel);
+        return params;
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_default_params<kernel_selector::slice_params>(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
+        // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
+        if (_kernel_data.params == nullptr) {
+            _kernel_data.params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true));
+        }
+
+        update_shapes(*_kernel_data.params, impl_param);
+        (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
     }
 
 private:
@@ -177,18 +181,28 @@ private:
 namespace detail {
 
 attach_slice_impl::attach_slice_impl() {
-    auto types = {data_types::f32, data_types::f16, data_types::i8, data_types::u8, data_types::i32, data_types::i64};
+    auto types = {
+        data_types::f32,
+        data_types::f16,
+        data_types::i8,
+        data_types::u8,
+        data_types::i32,
+        data_types::i64
+    };
 
     auto formats = {
         format::bfyx,
         format::bfzyx,
     };
 
-    implementation_map<slice>::add(impl_types::ocl, shape_types::any, slice_impl::create, types, formats);
+    implementation_map<slice>::add(impl_types::ocl,
+                                   shape_types::any,
+                                   typed_primitive_impl_ocl<slice>::create<slice_impl>,
+                                   types,
+                                   formats);
 }
 
 }  // namespace detail
-
 }  // namespace ocl
 }  // namespace cldnn
 
