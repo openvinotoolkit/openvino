@@ -11,7 +11,7 @@ namespace test {
 namespace snippets {
 
 static ov::snippets::pass::SnippetsTokenization::Config get_default_tokenization_config() {
-    return { 1, std::numeric_limits<size_t>::max(), true, true, { 3, 4 } };
+    return { 1, std::numeric_limits<size_t>::max(), true, true, true, { 3, 4 } };
 }
 
 }  // namespace snippets

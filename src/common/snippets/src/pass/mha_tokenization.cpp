@@ -468,13 +468,23 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
 
         /* ================================ */
 
-        /* ====== Subgraph creation ======= */
+        /* ======= Support checks ========= */
 
         // TODO [75567]: move this plugin-specific constraint to the plugin callback
         const auto last_node = ordered_ops.back();
         if (potential_body_params_count + last_node->get_output_size() + hidden_virtual_ports_count + uniqie_buffer_reg_group_count > 11) {
             return false;
         }
+
+        // If backend doesn't enable dynamic MHA tokenization, return false
+        if (!config.is_dynamic_mha_token_enabled()) {
+            if (std::any_of(ordered_ops.cbegin(), ordered_ops.cend(), [](const std::shared_ptr<ov::Node>& op) { return op->is_dynamic(); }))
+                return false;
+        }
+
+        /* ================================ */
+
+        /* ====== Subgraph creation ======= */
 
         ov::OutputVector body_inputs, subgraph_inputs;
         ov::ParameterVector body_parameters;
