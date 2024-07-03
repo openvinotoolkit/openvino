@@ -224,8 +224,6 @@ class TestPooling(PytorchLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_max_pool1d_indices(self, params, ceil_mode, dilation, ie_device, precision, ir_version):
-        if ceil_mode and (np.array(params["padding"]).any() != 0):
-            pytest.skip("ticket 122418")
         self._test(*self.create_model("max_pool1d_with_indices", **params, ceil_mode=ceil_mode, dilation=dilation),
                    ie_device, precision, ir_version, kwargs_to_prepare_input={'ndim': 3}, dynamic_shapes=False)
 
@@ -238,8 +236,6 @@ class TestPooling(PytorchLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_max_pool2d_indices(self, params, ceil_mode, dilation,  ie_device, precision, ir_version):
-        if ceil_mode and (np.array(params["padding"]).any() != 0):
-            pytest.skip("ticket 122418")
         to_trace = False
         if params["stride"] == []:
             to_trace = True
@@ -255,7 +251,5 @@ class TestPooling(PytorchLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_max_pool3d_indices(self, params, ceil_mode, dilation, ie_device, precision, ir_version):
-        if ceil_mode and (np.array(params["padding"]).any() != 0):
-            pytest.skip("ticket 122418")
         self._test(*self.create_model("max_pool3d_with_indices", **params, ceil_mode=ceil_mode, dilation=dilation),
                    ie_device, precision, ir_version, kwargs_to_prepare_input={'ndim': 5}, dynamic_shapes=False)
