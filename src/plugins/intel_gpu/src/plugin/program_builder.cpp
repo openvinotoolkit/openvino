@@ -304,10 +304,8 @@ void ProgramBuilder::add_primitive(const ov::Node& op, std::shared_ptr<cldnn::pr
     prim->origin_op_name = op.get_friendly_name();
     prim->origin_op_type_name = op.get_type_name();
 
-    if (auto constant_op = ov::as_type_ptr<const ov::op::v0::Constant>(std::shared_ptr<const ov::Node>(&op))) {
-        auto data_prim = dynamic_cast<cldnn::data *>(prim.get());
-        assert(data_prim);
-        auto rt_info = constant_op->get_rt_info();
+    if (auto data_prim = dynamic_cast<cldnn::data *>(prim.get())) {
+        auto rt_info = op.get_rt_info();
         auto offset = rt_info.find("bin_offset");
         if (offset != rt_info.end()) {
             data_prim->bin_offset = offset->second.as<size_t>();
