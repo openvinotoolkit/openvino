@@ -121,7 +121,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_ubuntu_20
-    needs: [Smart_CI, Build]
+    needs: [Smart_CI, Build, iGPU]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
