@@ -54,8 +54,8 @@ tokens into audio codec tokens to generate the full waveform. To enable
 the community to use Bark via public code, EnCodec codec from Facebook
 is used to act as an audio representation.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Download and Convert models <#download-and-convert-models>`__
