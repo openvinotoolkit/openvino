@@ -223,7 +223,7 @@ void program::init_program() {
     if (_task_executor == nullptr)
         _task_executor = program::make_task_executor(_config);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
-                                                                      kernel_selector::KernelBase::get_db().get_batch_header_str()));
+                                                                      kernel_selector::KernelBase::get_db().get_batch_headers()));
 
     if (!_compilation_context)
         _compilation_context = program::make_compilation_context(_config);
@@ -517,7 +517,10 @@ void program::init_graph() {
     apply_opt_pass<graph_initializations>();
 
     apply_opt_pass<mark_nodes>();
-
+    for (auto& node : processing_order) {
+        if (!node->is_type<data>())
+            node->get_output_layouts();
+    }
     // Perform initial shape_of subgraphs markup
     apply_opt_pass<mark_shape_of_subgraphs>();
 }
@@ -533,10 +536,6 @@ void program::pre_optimize_graph(bool is_internal) {
     processing_order.calculate_BFS_processing_order();  // this method makes sense only for OOOQ (out of order execution queue)
 
     bool output_size_handling_enabled = analyze_output_size_handling_need();
-    for (auto& node : processing_order) {
-        if (!node->is_type<data>())
-            node->get_output_layouts();
-    }
 
     bool optimize_data = _config.get_property(ov::intel_gpu::optimize_data);
     if (optimize_data) {

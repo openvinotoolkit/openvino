@@ -47,6 +47,7 @@
 #include "transformations/op_conversions/convert_gelu.hpp"
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
 #include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
+#include "transformations/op_conversions/convert_maxpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_minimum_to_power_and_max.hpp"
 #include "transformations/op_conversions/convert_mod.hpp"
 #include "transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp"
@@ -355,7 +356,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         // @todo should we always convert to f32 regardless of hardware support, as it is done for f16?
         if (!hasHardwareSupport(ov::element::bf16))
             map.insert({ov::element::bf16, ov::element::f32});
-        if (!one_of(inferencePrecision, element::f16, element::undefined)) {
+        // TODO: Remove 'hasHardwareSupport' when all nodes are able to handle f16 properly.
+        if (!one_of(inferencePrecision, element::f16, element::undefined) || !hasHardwareSupport(element::f16)) {
             map.insert({ov::element::f16, ov::element::f32});
         }
         return map;
@@ -461,6 +463,14 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             return rank == 4lu || rank == 5lu;
         },
         ov::pass::ConvertBatchToSpace, ov::pass::ConvertSpaceToBatch);
+
+    CPU_SET_CALLBACK_COMMON(
+        manager,
+        [](const_node_ptr& node) -> bool {
+            const auto maxpool = std::dynamic_pointer_cast<const ov::op::v14::MaxPool>(node);
+            return !maxpool ||  maxpool->get_rounding_type() == ov::op::RoundingType::CEIL_TORCH;
+        },
+        ov::pass::ConvertMaxPool14ToMaxPool8);
 
     CPU_SET_CALLBACK_COMMON(manager,
         [](const_node_ptr &node) -> bool {
@@ -865,10 +875,13 @@ void Transformations::MainSnippets(void) {
     // The optimization "SplitDimensionM" depends on target machine (thread count).
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is Config::SnippetsMode::IgnoreCallback
     bool split_m_dimension = !ignoreCallback;
+    // [113198] Add dynamic Subgraph with MHA pattern inside execution support
+    bool is_dynamic_mha_token_enabled = false;
     // [122706] Some 3D MHA Patterns have perf regressions when Transpose op is tokenized
     std::set<size_t> mha_supported_transpose_ranks = { 4 };
-    ov::snippets::pass::SnippetsTokenization::Config tokenization_config(concurrency, data_ptr_gpr_count, split_m_dimension,
-                                                     mha_token_enable_transpose_on_output, mha_supported_transpose_ranks);
+    snippets::pass::SnippetsTokenization::Config tokenization_config(concurrency, data_ptr_gpr_count, split_m_dimension,
+                                                                     mha_token_enable_transpose_on_output, is_dynamic_mha_token_enabled,
+                                                                     mha_supported_transpose_ranks);
 
     ov::pass::Manager snippetsManager;
     snippetsManager.set_per_pass_validation(false);

@@ -43,6 +43,10 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_NativeInt32Gather_dyn
     {{{{1, 5}, 6, {1, 5}, {1, 10}}, {{1, 6, 4, 3}, {1, 6, 4, 4}}}},
 };
 
+std::vector<std::vector<ov::test::InputShape>> inputShapes_Rounding_dyn = {
+    {{{{1, 5}, 3, {1, 5}, {1, 5}}, {{1, 3, 3, 1}, {1, 3, 3, 3}}}},
+};
+
 std::vector<std::vector<ov::test::InputShape>> inputShapes_SmallChannel_dyn = {
     {{{{1, 5}, 3, {1, 5}, {1, 10}}, {{2, 3, 2, 2}, {2, 3, 2, 9}}}},
 };
@@ -288,6 +292,20 @@ const auto params_NativeInt32Gather = testing::Combine(
         testing::Values(emptyFusingSpec),
         testing::ValuesIn(additionalConfigFP32()));
 
+const auto params_Rounding = testing::Combine(
+        testing::Combine(
+            testing::Values(axesND()[3]),
+            testing::Values(ov::test::utils::OpType::VECTOR),
+            testing::Values(keepDims()[1]),
+            testing::Values(reductionTypes()[0]),
+            testing::Values(ElementType::i32),
+            testing::Values(ElementType::undefined),
+            testing::Values(ElementType::undefined),
+            testing::ValuesIn(inputShapes_Rounding_dyn)),
+        testing::Values(emptyCPUSpec),
+        testing::Values(emptyFusingSpec),
+        testing::ValuesIn(additionalConfigFP32()));
+
 const auto params_NHWC_SmallChannel = testing::Combine(
         testing::Combine(
                 testing::ValuesIn(axesHW),
@@ -376,6 +394,13 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_NativeInt32Gather_CPU,
         ReduceCPULayerTest,
         params_NativeInt32Gather,
+        ReduceCPULayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Reduce_Rounding_CPU,
+        ReduceCPULayerTest,
+        params_Rounding,
         ReduceCPULayerTest::getTestCaseName
 );
 
