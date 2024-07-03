@@ -199,10 +199,11 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     ADD_MATCHER(transpose_sinking, SplitSqueezeConcatFusion, m_use_shapes)
 
     REGISTER_PASS(manager, TransposeMatMul)
+    REGISTER_PASS(manager, NopEliminationModelPass)
 
     auto eliminations = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(eliminations, EliminateUnsqueezeGather)
-    ADD_MATCHER(eliminations, NopElimination, m_use_shapes)
+    //ADD_MATCHER(eliminations, NopElimination, m_use_shapes)
     ADD_MATCHER(eliminations, SelectWithOneValueCondition)
     eliminations->set_name("ov::pass::CommonEliminations");
 

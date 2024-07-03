@@ -26,8 +26,10 @@ class TRANSFORMATIONS_API EliminateSliceBeforeGatherElements;
 class TRANSFORMATIONS_API EliminateStridedSlice;
 class TRANSFORMATIONS_API EliminateSlice;
 class TRANSFORMATIONS_API EliminateStridedSliceByShape;
-class TRANSFORMATIONS_API NopElimination;
+class TRANSFORMATIONS_API NopEliminationModelPass;
 class TRANSFORMATIONS_API PrepareShapeOpsForEliminationAroundBE;
+
+class TRANSFORMATIONS_API NopElimination;
 
 }  // namespace pass
 }  // namespace ov
@@ -138,6 +140,8 @@ public:
     NopElimination(bool use_shape_for_elimination = true);
 };
 
+
+
 /**
  * @ingroup ov_transformation_common_api
  * @brief EliminateSplit eliminates split+concat pairs which do nothing
@@ -213,4 +217,16 @@ class ov::pass::PrepareShapeOpsForEliminationAroundBE : public ov::pass::Matcher
 public:
     OPENVINO_RTTI("PrepareShapeOpsForEliminationAroundBE", "0");
     PrepareShapeOpsForEliminationAroundBE();
+};
+
+// TODO: add description here
+class ov::pass::NopEliminationModelPass : public ov::pass::ModelPass {
+public:
+    OPENVINO_RTTI("NopEliminationModelPass", "0");
+    NopEliminationModelPass(bool use_shape_for_elimination = true) :
+            ov::pass::ModelPass(),
+            _use_shape_for_elimination(use_shape_for_elimination) {}
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+private:
+    const bool _use_shape_for_elimination;
 };

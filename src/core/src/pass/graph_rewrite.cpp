@@ -12,6 +12,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include <chrono>
+
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -82,7 +84,16 @@ bool ov::pass::GraphRewrite::run_on_model(const std::shared_ptr<ov::Model>& f) {
     for (auto& node : f->get_ordered_ops()) {
         nodes_to_run.emplace_back(node);
     }
+#if 1
     return apply_matcher_passes(f, std::move(nodes_to_run));
+#else
+    auto t1 = std::chrono::high_resolution_clock::now();
+    auto rc = apply_matcher_passes(f, std::move(nodes_to_run));
+    auto t2 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> duration = t2 - t1;
+    std::cout << "[EMUTEX DEBUG] ov::pass::GraphRewrite::apply_matcher_passes [" << get_name() << "] " << duration.count() << " ms" << std::endl;
+    return rc;
+#endif
 }
 
 bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
@@ -275,7 +286,11 @@ void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pat
         if (m->match(node->output(0))) {
             OPENVINO_DEBUG << "Matcher " << m->get_name() << " matched " << node;
             OV_PASS_CALLBACK(m);
+            //auto t1 = std::chrono::high_resolution_clock::now();
             const bool status = callback(*m.get());
+            //auto t2 = std::chrono::high_resolution_clock::now();
+            //std::chrono::duration<double, std::milli> duration = t2 - t1;
+            //std::cout << "[EMUTEX DEBUG] ov::pass::GraphRewrite::apply_matcher_passes [" << m->get_name() << "] " << duration.count() << " ms";
             OPENVINO_DEBUG << "Matcher " << m->get_name() << " callback " << (status ? "succeded" : "failed");
             // explicitly clear Matcher state because it holds pointers to matched nodes
             m->clear_state();

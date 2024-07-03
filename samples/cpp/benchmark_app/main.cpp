@@ -820,6 +820,8 @@ int main(int argc, char* argv[]) {
             inferenceOnly = isFlagSetInCommandLine("inference_only") && inferenceOnly && app_inputs_info.size() == 1;
         }
 
+        return 0;
+
         // ----------------- 8. Querying optimal runtime parameters
         // -----------------------------------------------------
         next_step();

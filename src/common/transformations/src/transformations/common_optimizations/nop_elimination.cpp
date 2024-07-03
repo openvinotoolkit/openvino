@@ -380,6 +380,34 @@ pass::EliminatePad::EliminatePad() {
     this->register_matcher(m, callback);
 }
 
+namespace {
+auto EliminatePad_callback = [](std::shared_ptr<Node>& pad) {
+    auto pad_begin_const = ov::util::get_constant_from_source(pad->input_value(1));
+    auto pad_end_const = ov::util::get_constant_from_source(pad->input_value(2));
+
+    if (!pad_begin_const || !pad_end_const) {
+        return false;
+    }
+
+    const auto pad_begin_value = pad_begin_const->cast_vector<int64_t>();
+    const auto pad_end_value = pad_end_const->cast_vector<int64_t>();
+
+    if (any_of(pad_begin_value.begin(),
+               pad_begin_value.end(),
+               [](int64_t value) {
+                   return value != 0;
+               }) ||
+        any_of(pad_end_value.begin(), pad_end_value.end(), [](int64_t value) {
+            return value != 0;
+        })) {
+        return false;
+    }
+
+    return replace_output_update_name(pad->output(0), pad->input_value(0));
+};
+} // namespace
+
+
 pass::EliminateConvert::EliminateConvert() {
     MATCHER_SCOPE(EliminateConvert);
     auto convert_pattern = pattern::wrap_type<ov::op::v0::Convert>();
@@ -398,6 +426,15 @@ pass::EliminateConvert::EliminateConvert() {
     auto m = make_shared<pattern::Matcher>(convert_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
+
+namespace {
+auto EliminateConvert_callback = [](std::shared_ptr<ov::op::v0::Convert>& convert) {
+    if (convert->get_input_element_type(0) == convert->get_element_type()) {
+        return replace_output_update_name(convert->output(0), convert->input_value(0));
+    }
+    return false;
+};
+} // namespace
 
 pass::EliminateConvertNonZero::EliminateConvertNonZero() {
     MATCHER_SCOPE(EliminateConvertNonZero);
@@ -418,6 +455,21 @@ pass::EliminateConvertNonZero::EliminateConvertNonZero() {
     this->register_matcher(m, callback);
 }
 
+namespace {
+struct EliminateConvertNonZeroNodes {
+    std::shared_ptr<ov::op::v0::Convert> convert;
+    std::shared_ptr<ov::op::v3::NonZero> non_zero;
+};
+
+auto EliminateConvertNonZero_callback = [](EliminateConvertNonZeroNodes& nodes) {
+    // remove convert
+    nodes.convert->output(0).replace(nodes.convert->input_value(0));
+    // to make this elimination recursive we register NonZero as a node which will be used to repeat matching
+    //register_new_node(nodes.non_zero); // TODO EMUTEX: register_new_node !!!!
+    return true;
+};
+} // namespace
+
 pass::EliminateConcat::EliminateConcat() {
     MATCHER_SCOPE(EliminateConcat);
     auto convert_pattern = pattern::wrap_type<ov::op::v0::Concat>();
@@ -434,6 +486,15 @@ pass::EliminateConcat::EliminateConcat() {
     this->register_matcher(m, callback);
 }
 
+namespace {
+auto EliminateConcat_callback = [](std::shared_ptr<ov::op::v0::Concat>& concat) {
+    if (concat->inputs().size() == 1) {
+        return replace_output_update_name(concat->output(0), concat->input_value(0));
+    }
+    return false;
+};
+} // namespace
+
 pass::EliminateSplit::EliminateSplit() {
     MATCHER_SCOPE(EliminateSplit);
     auto convert_pattern = pattern::wrap_type<ov::op::v1::Split>();
@@ -449,6 +510,15 @@ pass::EliminateSplit::EliminateSplit() {
     auto m = make_shared<pattern::Matcher>(convert_pattern, matcher_name);
     this->register_matcher(m, callback);
 }
+
+namespace {
+auto EliminateSplit_callback = [](std::shared_ptr<ov::op::v1::Split>& split) {
+    if (split->get_num_splits() != 1) {
+        return false;
+    }
+    return replace_output_update_name(split->output(0), split->input_value(0));
+};
+} // namespace
 
 pass::EliminateUnsqueeze::EliminateUnsqueeze() {
     MATCHER_SCOPE(EliminateUnsqueeze);
@@ -542,6 +612,82 @@ pass::EliminateSqueeze::EliminateSqueeze() {
 
     auto m = make_shared<pattern::Matcher>(squeeze_pattern, matcher_name);
     this->register_matcher(m, callback);
+}
+
+namespace {
+auto EliminateSqueeze_callback = [](const std::shared_ptr<Node>& node) {
+    auto out_shape = node->get_output_partial_shape(0);
+    // try to replace all unsqueeze/squeeze with reshape
+    if (out_shape.rank().is_static() && out_shape.rank().get_length() != 0 && count_unknown_dims(out_shape) < 2) {
+        return replace_squeeze_unsqueeze(node);
+    }
+
+    auto squeeze = ov::as_type_ptr<ov::op::v0::Squeeze>(node);
+    if (squeeze == nullptr)
+        return false;
+    auto input = squeeze->input_value(0).get_node_shared_ptr();
+    auto replace_squeeze_only = [&](const vector<int64_t>& axes) {
+        auto axes_const = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{axes.size()}, axes);
+        auto new_sq = make_shared<ov::op::v0::Squeeze>(input->input_value(0), axes_const);
+        if (squeeze->get_output_partial_shape(0).same_scheme(new_sq->get_output_partial_shape(0))) {
+            return replace_node_update_name(squeeze, new_sq);
+        }
+        return false;
+    };
+    // eliminate redundant unsqueeze->squeeze
+    if (auto unsqueeze = ov::as_type_ptr<ov::op::v0::Unsqueeze>(input)) {
+        PartialShape data_shape;
+        if (op::util::is_parameter(input)) {
+            data_shape = unsqueeze->input(0).get_partial_shape();
+        } else {
+            data_shape = input->input(0).get_partial_shape();
+        }
+        if (ov::compare_constants(unsqueeze->input_value(1).get_node_shared_ptr(),
+                                  squeeze->input_value(1).get_node_shared_ptr())) {
+            return replace_output_update_name(squeeze->output(0), unsqueeze->input_value(0));
+        }
+        if (data_shape.rank().is_dynamic() || out_shape.rank().is_dynamic()) {
+            return false;
+        }
+        if (out_shape.rank().get_length() < data_shape.rank().get_length()) {
+            // check if single squeeze can handle this
+            auto axes = get_squeeze_axes(data_shape, out_shape);
+            if (data_shape.rank().get_length() ==
+                out_shape.rank().get_length() + static_cast<int64_t>(axes.size())) {
+                return replace_squeeze_only(axes);
+            }
+        }
+        if (out_shape.rank().get_length() > data_shape.rank().get_length()) {
+            // check if single unsqueeze can handle this
+            auto axes = get_unsqueeze_axes(data_shape, out_shape);
+            if (data_shape.rank().get_length() + static_cast<int64_t>(axes.size()) ==
+                out_shape.rank().get_length()) {
+                auto axes_const = ov::op::v0::Constant::create<int64_t>(element::i64, Shape{axes.size()}, axes);
+                auto new_unsq = make_shared<ov::op::v0::Unsqueeze>(input->input_value(0), axes_const);
+                if (squeeze->get_output_partial_shape(0).same_scheme(new_unsq->get_output_partial_shape(0))) {
+                    replace_output_update_name(squeeze, new_unsq);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+    // eliminate redundant squeeze->squeeze
+    if (auto squeeze_i = ov::as_type_ptr<ov::op::v0::Squeeze>(input)) {
+        PartialShape data_shape;
+        if (op::util::is_parameter(input)) {
+            data_shape = squeeze_i->input(0).get_partial_shape();
+        } else {
+            data_shape = input->input(0).get_partial_shape();
+        }
+        if (data_shape.rank().is_dynamic() || out_shape.rank().is_dynamic()) {
+            return false;
+        }
+        auto axes = get_squeeze_axes(data_shape, out_shape);
+        return replace_squeeze_only(axes);
+    }
+    return false;
+};
 }
 
 namespace {
@@ -729,6 +875,21 @@ ov::pass::EliminateSplitConcat::EliminateSplitConcat() {
     this->register_matcher(m, callback);
 }
 
+namespace {
+auto EliminateSplitConcat_callback = [](const std::shared_ptr<ov::op::v0::Concat>& concat){
+        shared_ptr<Node> split = check_all_inputs<ov::op::v1::Split>(concat);
+        if (!split) {
+            split = check_all_inputs<ov::op::v1::VariadicSplit>(concat);
+        }
+
+        if (!split) {
+            return false;
+        }
+
+        return replace_output_update_name(concat->output(0), split->input_value(0));
+};
+} // namespace
+
 pass::EliminateTranspose::EliminateTranspose() {
     MATCHER_SCOPE(EliminateTranspose);
     auto order = pattern::wrap_type<ov::op::v0::Constant>();
@@ -760,6 +921,28 @@ pass::EliminateTranspose::EliminateTranspose() {
     this->register_matcher(m, callback);
 }
 
+namespace {
+struct EliminateTransposeNodes {
+    std::shared_ptr<ov::op::v1::Transpose> transpose;
+    std::shared_ptr<ov::op::v0::Constant> constant;
+};
+
+auto EliminateTranspose_callback = [](EliminateTransposeNodes& nodes) {
+    const auto& order_values = nodes.constant->cast_vector<int64_t>();
+    if (order_values.empty()) {
+        return false;
+    }
+
+    vector<int64_t> ref_values(order_values.size());
+    iota(ref_values.begin(), ref_values.end(), 0);
+    if (order_values != ref_values) {
+        return false;
+    }
+
+    return replace_output_update_name(nodes.transpose->output(0), nodes.transpose->input_value(0));
+};
+} // namespace
+
 pass::EliminateEltwise::EliminateEltwise() {
     MATCHER_SCOPE(EliminateEltwise);
     auto input = pattern::any_input();
@@ -787,6 +970,21 @@ pass::EliminateEltwise::EliminateEltwise() {
     this->register_matcher(m, callback);
 }
 
+namespace {
+struct EliminateEltwiseNodes {
+    std::shared_ptr<ov::Node> non_const_input;
+    std::shared_ptr<ov::op::v0::Constant> constant;
+    std::shared_ptr<ov::Node> eltwise;
+};
+
+auto EliminateEltwise_callback = [](EliminateEltwiseNodes& nodes){
+    if (!op::util::can_eliminate_eltwise_node(nodes.eltwise, nodes.constant, nodes.non_const_input)) {
+        return false;
+    }
+    return replace_output_update_name(nodes.eltwise->output(0), nodes.non_const_input);
+};
+} // namespace
+
 pass::EliminateScatterUpdate::EliminateScatterUpdate() {
     MATCHER_SCOPE(EliminateScatterUpdate);
     auto scatter_pattern =
@@ -811,6 +1009,22 @@ pass::EliminateScatterUpdate::EliminateScatterUpdate() {
     this->register_matcher(m, callback);
 }
 
+namespace {
+auto EliminateScatterUpdate_callback = [](std::shared_ptr<Node>& scatter) {
+    const auto& indices_pshape = scatter->get_input_partial_shape(1);
+    const auto& updates_pshape = scatter->get_input_partial_shape(2);
+
+    auto has_zero = [](const ov::PartialShape& shape) -> bool {
+        return std::any_of(shape.cbegin(), shape.cend(), ov::cmp::Equal<ov::Dimension>(0));
+    };
+    if (has_zero(indices_pshape) || has_zero(updates_pshape)) {
+        return replace_output_update_name(scatter->output(0), scatter->input_value(0));
+    } else {
+        return false;
+    }
+};
+} // namespace
+
 ov::pass::EliminateNopBroadcast::EliminateNopBroadcast() {
     MATCHER_SCOPE(EliminateNopBroadcast);
     auto root = pattern::wrap_type<op::v1::Broadcast, op::v3::Broadcast, op::v0::Tile>(
@@ -829,6 +1043,14 @@ ov::pass::EliminateNopBroadcast::EliminateNopBroadcast() {
 
     auto m = std::make_shared<pattern::Matcher>(root, matcher_name);
     register_matcher(m, matcher_pass_callback);
+}
+
+namespace {
+auto EliminateNopBroadcast_callback = [] (const std::shared_ptr<Node>& op) {
+    if (op::util::is_constant_and_all_values_equal_int(op->input_value(1), 1))
+        return replace_output_update_name(op->output(0), op->input_value(0));
+    return false;
+};
 }
 
 ov::pass::EliminateSliceBeforeGatherElements::EliminateSliceBeforeGatherElements() {
@@ -851,6 +1073,24 @@ ov::pass::EliminateSliceBeforeGatherElements::EliminateSliceBeforeGatherElements
     auto m = std::make_shared<pattern::Matcher>(gather, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
+
+namespace {
+struct EliminateSliceBeforeGatherElementsNodes {
+    std::shared_ptr<op::v8::Slice> slice_node;
+    std::shared_ptr<op::v6::GatherElements> gather_node;
+};
+
+auto EliminateSliceBeforeGatherElements_callback = [] (EliminateSliceBeforeGatherElementsNodes& nodes) {
+    bool start_from_zero = op::util::is_constant_and_all_values_equal_int(nodes.slice_node->input_value(1), 0);
+    bool step_is_one = op::util::is_constant_and_all_values_equal_int(nodes.slice_node->input_value(3), 1);
+    if (!start_from_zero || !step_is_one)
+        return false;
+    nodes.gather_node->input(0).replace_source_output(nodes.slice_node->input_value(0));
+    return true;
+};
+
+} // namespace
+
 ov::pass::EliminateSlice::EliminateSlice() {
     MATCHER_SCOPE(EliminateSlice);
 
@@ -879,6 +1119,34 @@ ov::pass::EliminateSlice::EliminateSlice() {
     };
     auto m = std::make_shared<pattern::Matcher>(pattern, matcher_name);
     register_matcher(m, matcher_pass_callback);
+}
+
+namespace {
+struct EliminateSliceSliceNodes {
+#if 0
+    // TODO EMUTEX: this constants are not used
+    std::shared_ptr<Node> input;
+    std::shared_ptr<ov::op::v0::Constant> begin_const;
+    std::shared_ptr<ov::op::v0::Constant> end_const;
+    std::shared_ptr<ov::op::v0::Constant> optional_stride_const;
+#endif
+    std::shared_ptr<ov::op::v8::Slice> slice;
+};
+
+auto EliminateSliceSlice_callback = [](EliminateSliceSliceNodes& nodes) {
+    int64_t max_int = nodes.slice->input_value(2).get_element_type() == element::i32
+                      ? std::numeric_limits<int32_t>::max()
+                      : std::numeric_limits<int64_t>::max();
+    bool is_nop = op::util::is_constant_and_all_values_equal_int(nodes.slice->input_value(1), 0) &&
+                  op::util::is_constant_and_all_values_equal_int(nodes.slice->input_value(2), max_int) &&
+                  op::util::is_constant_and_all_values_equal_int(nodes.slice->input_value(3), 1);
+
+    if (is_nop) {
+        return replace_output_update_name(nodes.slice->output(0), nodes.slice->input_value(0));
+    } else {
+        return false;
+    }
+};
 }
 
 ov::pass::EliminateStridedSlice::EliminateStridedSlice() {
@@ -969,6 +1237,90 @@ ov::pass::EliminateStridedSlice::EliminateStridedSlice() {
     register_matcher(m, matcher_pass_callback);
 }
 
+namespace {
+struct EliminateStridedSliceNodes {
+#if 0
+    // TODO EMUTEX: this constants are not used
+    std::shared_ptr<Node> input;
+    std::shared_ptr<ov::op::v0::Constant> begin_const;
+    std::shared_ptr<ov::op::v0::Constant> end_const;
+    std::shared_ptr<ov::op::v0::Constant> optional_stride_const;
+#endif
+    std::shared_ptr<ov::op::v1::StridedSlice> strided_slice_node;
+};
+
+auto EliminateStridedSlice_callback = [](EliminateStridedSliceNodes & nodes) {
+    // check that all values of the mask is equal 0
+    auto check_mask = [](const std::vector<int64_t>& mask_to_check) {
+        auto it = std::find_if(mask_to_check.begin(), mask_to_check.end(), [](const int64_t& value) {
+            return value != 0;
+        });
+        if (mask_to_check.empty() || it == mask_to_check.end()) {
+            return true;
+        }
+        return false;
+    };
+    // check that we won't do change dimention rank
+    if (!check_mask(nodes.strided_slice_node->get_shrink_axis_mask()) ||
+        !check_mask(nodes.strided_slice_node->get_new_axis_mask()) ||
+        !check_mask(nodes.strided_slice_node->get_ellipsis_mask())) {
+        return false;
+    }
+    // check that that we will take all values
+    if (nodes.strided_slice_node->get_input_size() == 4 && !op::util::is_constant_and_all_values_equal_int(nodes.strided_slice_node->input_value(3), 1)) {
+        return false;
+    }
+
+    auto align_vectors = [](std::vector<int64_t>& vec_1, std::vector<int64_t>& vec_2) {
+        auto max_size = std::max(vec_1.size(), vec_2.size());
+        while (vec_1.size() < max_size) {
+            vec_1.push_back(0);
+        }
+        while (vec_2.size() < max_size) {
+            vec_2.push_back(0);
+        }
+        return;
+    };
+    auto begin_node = nodes.strided_slice_node->get_input_node_shared_ptr(1);
+    if (const auto& begin_constant_node = ov::util::get_constant_from_source(begin_node)) {
+        auto values = begin_constant_node->cast_vector<int64_t>();
+        auto begin_mask = nodes.strided_slice_node->get_begin_mask();
+        // align begin_mask and values_vec by length
+        align_vectors(values, begin_mask);
+        for (size_t i = 0; i < begin_mask.size(); ++i) {
+            // if mask == 1 then ignore the begin_mask_value else check
+            // if values[i] == 0 then take whole tensor else take part of a tensor
+            if (!begin_mask[i] && values[i]) {
+                return false;
+            }
+        }
+    } else {
+        return false;
+    }
+
+    auto end_node = nodes.strided_slice_node->get_input_node_shared_ptr(2);
+    if (const auto& end_constant_node = ov::util::get_constant_from_source(end_node)) {
+        int64_t max_value = end_node->get_element_type() == ov::element::i32 ? std::numeric_limits<int32_t>::max()
+                                                                             : std::numeric_limits<int64_t>::max();
+
+        auto values = end_constant_node->cast_vector<int64_t>();
+        auto end_mask = nodes.strided_slice_node->get_end_mask();
+        // align end_mask and values_vec by length
+        align_vectors(values, end_mask);
+        for (size_t i = 0; i < end_mask.size(); ++i) {
+            // if mask == 1 then ignore the begin_mask_value else check
+            // if values[i] == max then take whole tensor else take part of a tensor
+            if (!end_mask[i] && values[i] != max_value) {
+                return false;
+            }
+        }
+    } else {
+        return false;
+    }
+    return replace_output_update_name(nodes.strided_slice_node->output(0), nodes.strided_slice_node->input_value(0));
+};
+}
+
 ov::pass::EliminateStridedSliceByShape::EliminateStridedSliceByShape() {
     MATCHER_SCOPE(EliminateStridedSliceByShape);
 
@@ -1024,6 +1376,48 @@ ov::pass::EliminateStridedSliceByShape::EliminateStridedSliceByShape() {
     register_matcher(m, matcher_pass_callback);
 }
 
+namespace {
+struct EliminateStridedSliceByShapeNodes {
+    std::shared_ptr<Node> node;
+};
+
+auto EliminateStridedSliceByShapeNodes_callback = [](EliminateStridedSliceByShapeNodes& nodes) {
+    auto node = nodes.node;
+    auto strided_slice_node = std::dynamic_pointer_cast<ov::op::v1::StridedSlice>(node);
+    if (strided_slice_node) {
+        // check that all values of the mask is equal 0
+        auto check_mask = [](const std::vector<int64_t>& mask_to_check) {
+            auto it = std::find_if(mask_to_check.begin(), mask_to_check.end(), [](const int64_t& value) {
+                return value != 0;
+            });
+            if (mask_to_check.empty() || it == mask_to_check.end()) {
+                return true;
+            }
+            return false;
+        };
+        // check that we won't do change dimention rank
+        if (!check_mask(strided_slice_node->get_shrink_axis_mask()) ||
+            !check_mask(strided_slice_node->get_new_axis_mask()) ||
+            !check_mask(strided_slice_node->get_ellipsis_mask())) {
+            return false;
+        }
+    }
+
+    // check that that we will take all values
+    if (node->get_input_size() >= 4 && !op::util::is_constant_and_all_values_equal_int(node->input_value(3), 1)) {
+        return false;
+    }
+
+    if (node->get_input_partial_shape(0).is_static() && node->get_output_partial_shape(0).is_static()) {
+        if (node->get_input_shape(0) == node->get_output_shape(0)) {
+            return replace_output_update_name(node->output(0), node->input_value(0));
+        }
+    }
+    return false;
+};
+
+} // namespace
+
 ov::pass::PrepareShapeOpsForEliminationAroundBE::PrepareShapeOpsForEliminationAroundBE() {
     MATCHER_SCOPE(PrepareShapeOpsForEliminationAroundBE);
     auto first_label = pattern::wrap_type<op::v1::Reshape, op::v0::Squeeze, op::v1::StridedSlice, op::util::GatherBase>(
@@ -1064,6 +1458,35 @@ ov::pass::PrepareShapeOpsForEliminationAroundBE::PrepareShapeOpsForEliminationAr
     register_matcher(m, matcher_pass_callback);
 }
 
+namespace {
+struct PrepareShapeOpsForEliminationAroundBENodes {
+    std::shared_ptr<Node> second_node;
+    std::shared_ptr<Node> binary;
+};
+
+auto PrepareShapeOpsForEliminationAroundBE_callback = [](PrepareShapeOpsForEliminationAroundBENodes& nodes) {
+    auto second_node = nodes.second_node;
+    auto binary = nodes.binary;
+
+    auto lhs_node =
+            ov::op::util::clone_try_fold(second_node, {binary->input_value(0), second_node->input_value(1)});
+    auto rhs_node =
+            ov::op::util::clone_try_fold(second_node, {binary->input_value(1), second_node->input_value(1)});
+
+    //register_new_node(lhs_node); // TODO EMUTEX register_new_node
+    //register_new_node(rhs_node); // TODO EMUTEX register_new_node
+
+    binary->input(0).replace_source_output(lhs_node->output(0));
+    binary->input(1).replace_source_output(rhs_node->output(0));
+    binary->validate_and_infer_types();
+
+    ov::copy_runtime_info(second_node, {lhs_node, rhs_node});
+
+    replace_output_update_name(second_node->output(0), binary->output(0));
+    return true;
+};
+} // namespace
+
 ov::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
     // shape-agnostic transformations
     ADD_MATCHER_FOR_THIS(EliminatePad)
@@ -1090,4 +1513,309 @@ ov::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
         ADD_MATCHER_FOR_THIS(EliminateStridedSliceByShape)
         ADD_MATCHER_FOR_THIS(EliminateGather)
     }
+}
+
+namespace {
+
+template <typename T>
+inline bool hasType(const std::shared_ptr<Node>& node) {
+    return std::dynamic_pointer_cast<T>(node) != nullptr;
+}
+
+template <typename T1, typename T2, typename... Args>
+inline bool hasType(const std::shared_ptr<Node>& node) {
+    auto casted = std::dynamic_pointer_cast<T1>(node);
+    if (casted)
+        return true;
+    return hasType<T2, Args...>(node);
+}
+
+bool isEliminateConvertNonZero(std::shared_ptr<Node>& node, EliminateConvertNonZeroNodes& nodes) {
+    nodes.non_zero = dynamic_pointer_cast<ov::op::v3::NonZero>(node);
+    if (!nodes.non_zero)
+        return false;
+    nodes.convert = std::dynamic_pointer_cast<ov::op::v0::Convert>(nodes.non_zero->input_value(0).get_node_shared_ptr());
+    if (!nodes.convert)
+        return false;
+    auto consumers = nodes.convert->get_output_target_inputs(0);
+    if (consumers.size() != 1)
+        return false;
+    return true;
+}
+
+bool isEliminateTranspose(const std::shared_ptr<ov::Node>& node, EliminateTransposeNodes& nodes) {
+    nodes.transpose = std::dynamic_pointer_cast<ov::op::v1::Transpose>(node);
+    if (!nodes.transpose)
+        return false;
+    nodes.constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(node->input_value(1).get_node_shared_ptr());
+    if (!nodes.constant)
+        return false;
+    return true;
+}
+
+bool isEliminateEltwise_SubtractBranch(const std::shared_ptr<ov::Node>& node, EliminateEltwiseNodes& nodes) {
+    nodes.eltwise = std::dynamic_pointer_cast<ov::op::v1::Subtract>(node);
+    if (!nodes.eltwise)
+        return false;
+    auto convert = std::dynamic_pointer_cast<ov::op::v0::Convert>(node->input_value(1).get_node_shared_ptr());
+    if (!convert)
+        return false;
+    nodes.constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(convert->input_value(0).get_node_shared_ptr());
+    if (!nodes.constant)
+        return false;
+    nodes.non_const_input = convert->input_value(0).get_node_shared_ptr();
+    return true;
+}
+
+bool isEliminateEltwise_EltwiseBranch(const std::shared_ptr<ov::Node>& node, EliminateEltwiseNodes& nodes) {
+    if (!hasType<ov::op::v1::Add, ov::op::v1::Subtract, ov::op::v1::Multiply, ov::op::v1::Divide>(node))
+        return false;
+
+    nodes.eltwise = node;
+    nodes.constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(nodes.eltwise->input_value(1).get_node_shared_ptr());
+    if (!nodes.constant)
+        return false;
+    nodes.non_const_input = nodes.eltwise->input_value(0).get_node_shared_ptr();
+    return true;
+}
+
+bool isEliminateEltwise(const std::shared_ptr<ov::Node>& node, EliminateEltwiseNodes& nodes) {
+    if (isEliminateEltwise_EltwiseBranch(node, nodes)) {
+        return true;
+    }
+    return isEliminateEltwise_SubtractBranch(node, nodes);
+}
+
+bool isEliminateStridedSlice(const std::shared_ptr<ov::Node>& node, EliminateStridedSliceNodes& nodes) {
+    nodes.strided_slice_node = std::dynamic_pointer_cast<ov::op::v1::StridedSlice>(node);
+    if (!nodes.strided_slice_node)
+        return false;
+    for (size_t i = 1; i < 4; ++i) {
+        if (!dynamic_cast<ov::op::v0::Constant*>(node->input_value(i).get_node())) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool isEliminateSlice(const std::shared_ptr<ov::Node>& node, EliminateSliceSliceNodes& nodes) {
+    nodes.slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(node);
+    if (!nodes.slice)
+        return false;
+    for (size_t i = 1; i < 4; ++i) {
+        if (!dynamic_cast<ov::op::v0::Constant*>(node->input_value(i).get_node())) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
+template <typename T>
+std::shared_ptr<T> isEliminateStridedSliceByShape_subgraph(const std::shared_ptr<ov::Node>& node) {
+    auto slice = std::dynamic_pointer_cast<T>(node);
+    if (!slice)
+        return {};
+    if (!dynamic_cast<ov::op::v0::Constant*>(slice->input_value(3).get_node())) {
+        return {};
+    }
+
+    return slice;
+}
+
+bool isEliminateStridedSliceByShape(const std::shared_ptr<ov::Node>& node, EliminateStridedSliceByShapeNodes& nodes) {
+    nodes.node =  isEliminateStridedSliceByShape_subgraph<ov::op::v8::Slice>(node);
+    if (nodes.node)
+        return true;
+    nodes.node = isEliminateStridedSliceByShape_subgraph<ov::op::v1::StridedSlice>(node);
+    if (nodes.node)
+        return true;
+    return false;
+}
+
+bool hasOutputRank(const std::shared_ptr<Node>& node, size_t rank) {
+    auto node_rank = node->get_output_partial_shape(0).rank();
+    return node_rank.is_static() && node_rank.get_length() == rank;
+}
+
+bool isPrepareShapeOpsForEliminationAroundBE(const std::shared_ptr<ov::Node>& node, PrepareShapeOpsForEliminationAroundBENodes& nodes) {
+    if (!hasType<op::v1::Reshape, op::v0::Unsqueeze>(node))
+        return false;
+    nodes.second_node = node;
+
+    // pattern::rank_equals(1)
+    if (!hasOutputRank(nodes.second_node, 1))
+        return false;
+
+    nodes.binary = node->input_value(0).get_node_shared_ptr();
+    if (!hasType<op::util::BinaryElementwiseArithmetic, op::util::BinaryElementwiseComparison,
+            op::util::BinaryElementwiseLogical>(nodes.binary)) {
+        return false;
+    }
+
+    // pattern::consumers_count(1)
+    if (nodes.binary->get_output_target_inputs(0).size() != 1)
+        return false;
+
+    auto other_input_label = nodes.binary->input_value(1).get_node_shared_ptr();
+    if (!hasOutputRank(other_input_label, 0))
+        return false;
+
+    auto first_label = nodes.binary->input_value(1).get_node_shared_ptr();
+    if (!hasType<op::v1::Reshape, op::v0::Squeeze, op::v1::StridedSlice, op::util::GatherBase>(first_label)) {
+        return false;
+    }
+
+    if (!hasOutputRank(first_label, 0))
+        return false;
+    return true;
+}
+
+bool isEliminateNopBroadcast(const std::shared_ptr<Node>& node) {
+    if (!hasType<op::v1::Broadcast, op::v3::Broadcast, op::v0::Tile>(node)) {
+        return false;
+    }
+
+    auto input_rank = node->get_input_partial_shape(0).rank();
+    auto output_rank = node->get_output_partial_shape(0).rank();
+    return input_rank.is_static() && output_rank.is_static() && input_rank == output_rank;
+}
+
+bool isEliminateSliceBeforeGatherElements(const std::shared_ptr<ov::Node>& node, EliminateSliceBeforeGatherElementsNodes& nodes) {
+    nodes.gather_node = std::dynamic_pointer_cast<op::v6::GatherElements>(node);
+    if (!nodes.gather_node)
+        return false;
+    nodes.slice_node = std::dynamic_pointer_cast<op::v8::Slice>(nodes.gather_node->input_value(0).get_node_shared_ptr());
+    if (!nodes.slice_node)
+        return false;
+    return true;
+}
+
+} // namespace
+
+//#define EMUTEX_CHECKPOINT std::cout << "[EMUTEX DEBUG] " << __FILE__ << ":" << __LINE__ << std::endl;
+//#define EMUTEX_CHECKPOINT
+
+#define ELIF_CAST_OV_NODE(TYPE, NODE, CALLBACK_FUNC, RETVAL) \
+else if (dynamic_pointer_cast<TYPE>(NODE)) {  \
+    RETVAL |= CALLBACK_FUNC(NODE);                           \
+    continue;                                                \
+}
+
+bool ov::pass::NopEliminationModelPass::run_on_model(const std::shared_ptr<ov::Model>& m) {
+    EliminateTransposeNodes eliminate_transpose_nodes;
+    EliminateEltwiseNodes eliminate_eltwise_nodes;
+    EliminateConvertNonZeroNodes convert_non_zero_nodes;
+    EliminateStridedSliceNodes strided_slice_nodes;
+    EliminateSliceSliceNodes slice_nodes;
+    PrepareShapeOpsForEliminationAroundBENodes around_be_nodes;
+    EliminateSliceBeforeGatherElementsNodes gather_elements_nodes;
+    EliminateStridedSliceByShapeNodes slice_by_shape_nodes;
+
+    bool retval = false;
+    for (auto& node : m->get_ordered_ops()) {
+        // EliminatePad
+        if (dynamic_pointer_cast<op::util::PadBase>(node)) {
+            retval |= EliminatePad_callback(node);
+            continue;
+        } // EliminateConvertNonZero
+        else if (isEliminateConvertNonZero(node, convert_non_zero_nodes)) {
+            retval |=  EliminateConvertNonZero_callback(convert_non_zero_nodes);
+            continue;
+        } // EliminateConvert
+        //ELIF_CAST_OV_NODE(ov::op::v0::Convert, node, EliminateConvert_callback, retval)
+        else if (auto convert = dynamic_pointer_cast<ov::op::v0::Convert>(node)) {
+            // should be after isEliminateConvertNonZero
+            retval |=  EliminateConvert_callback(convert);
+            continue;
+        } // EliminateConcat
+        else if (auto concat = dynamic_pointer_cast<ov::op::v0::Concat>(node)) {
+            retval |=  EliminateConcat_callback(concat);
+            continue;
+        } // EliminateSplit
+        else if (auto split = dynamic_pointer_cast<ov::op::v1::Split>(node)) {
+            retval |=  EliminateSplit_callback(split);
+            continue;
+        } // EliminateTranspose
+        else if (isEliminateTranspose(node, eliminate_transpose_nodes)) {
+            retval |=  EliminateTranspose_callback(eliminate_transpose_nodes);
+            continue;
+        } // EliminateEltwise
+        else if (isEliminateEltwise(node, eliminate_eltwise_nodes)) {
+#if 0
+            EMUTEX_CHECKPOINT
+            m->validate_nodes_and_infer_types();
+            EMUTEX_CHECKPOINT
+            std::cout << "[EMUTEX DEBUG] eltwise " << eliminate_eltwise_nodes.eltwise->get_type_name() << std::endl;
+            retval |=  EliminateEltwise_callback(eliminate_eltwise_nodes);
+            EMUTEX_CHECKPOINT
+            m->validate_nodes_and_infer_types();
+            EMUTEX_CHECKPOINT
+#else
+            retval |= false;
+#endif
+            continue;
+        } // EliminateSplitConcat
+        else if (auto concat = dynamic_pointer_cast<ov::op::v0::Concat>(node)) {
+            retval |=  EliminateSplitConcat_callback(concat);
+            continue;
+        } // EliminateStridedSlice
+        else if (isEliminateStridedSlice(node, strided_slice_nodes)) {
+            retval |=  EliminateStridedSlice_callback(strided_slice_nodes);
+            continue;
+        } // EliminateSlice
+        else if (isEliminateSlice(node, slice_nodes)) {
+            retval |=  EliminateSliceSlice_callback(slice_nodes);
+            continue;
+        }
+
+        if (!_use_shape_for_elimination)
+            continue;
+
+        // EliminateScatterUpdate
+        if (hasType<ov::op::v3::ScatterUpdate, ov::op::v3::ScatterNDUpdate, ov::op::v3::ScatterElementsUpdate>(node)) {
+            retval |=  EliminateScatterUpdate_callback(node);
+            continue;
+        } // EliminateReshape
+        else if (auto reshape = dynamic_pointer_cast<ov::op::v1::Reshape>(node)) {
+            retval |=  eliminate_reshape_v1(reshape);
+            continue;
+        } // EliminateSqueeze
+        else if (dynamic_pointer_cast<ov::op::v0::Squeeze>(node)) {
+            retval |=  EliminateSqueeze_callback(node);
+            continue;
+        } // EliminateUnsqueeze
+        else if (auto target_node = dynamic_pointer_cast<ov::op::v0::Unsqueeze>(node)) {
+            retval |=  eliminate_unsqueeze(target_node);
+            continue;
+        } // PrepareShapeOpsForEliminationAroundBE
+        else if (isPrepareShapeOpsForEliminationAroundBE(node, around_be_nodes)) {
+            retval |=  PrepareShapeOpsForEliminationAroundBE_callback(around_be_nodes);
+            continue;
+        } // EliminateBroadcast
+        else if (hasType<op::v1::Broadcast, op::v3::Broadcast>(node)) {
+            retval |=  eliminate_nop(node);
+            continue;
+        } // EliminateNopBroadcast
+        else if (isEliminateNopBroadcast(node)) {
+            retval |=  EliminateNopBroadcast_callback(node);
+            continue;
+        } // EliminateSliceBeforeGatherElements
+        else if (isEliminateSliceBeforeGatherElements(node, gather_elements_nodes)) {
+            retval |=  EliminateSliceBeforeGatherElements_callback(gather_elements_nodes);
+            continue;
+        } // EliminateStridedSliceByShape
+        else if (isEliminateStridedSliceByShape(node, slice_by_shape_nodes)) {
+            retval |=  EliminateStridedSliceByShapeNodes_callback(slice_by_shape_nodes);
+            continue;
+        } // EliminateGather
+        else if (hasType<ov::op::v1::Gather, ov::op::v7::Gather, ov::op::v8::Gather>(node)) {
+            retval |=  simplify_gather(node);
+            continue;
+        }
+    }
+
+    return retval;
 }

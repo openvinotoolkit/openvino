@@ -183,7 +183,8 @@ ov::pass::SymbolicOptimizations::SymbolicOptimizations(bool full_run) {
         REGISTER_SYMBOLIC(ChainedMaximumOptimization)
         REGISTER_SYMBOLIC(NopBroadcast)
         // regular transformations which are needed right now since they clean up unnecessary operations
-        REGISTER_SYMBOLIC(NopElimination)        // Broadcast (Tile) Ones + Remove Slice Before GatherElements
+        //REGISTER_SYMBOLIC(NopElimination)        // Broadcast (Tile) Ones + Remove Slice Before GatherElements
+        REGISTER_SYMBOLIC(NopEliminationModelPass)
         REGISTER_SYMBOLIC(SharedOpOptimization)  // Shared GatherElements
     }
     // transformations which use symbols for optimizations
