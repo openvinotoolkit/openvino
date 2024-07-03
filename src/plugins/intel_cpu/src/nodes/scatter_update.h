@@ -103,6 +103,9 @@ public:
     template <typename DataType>
     void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates,
                                 int axis, const scatter_reductions::ReduceMean& kernel);
+    template <typename DataType>
+    void scatterNDUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates,
+                         const scatter_reductions::ReduceNone& kernel);
 
 private:
     void scatterUpdate(uint8_t *indicesPtr, uint8_t *updatePtr, int axis, uint8_t *dstDataPtr);

@@ -12,7 +12,6 @@
 #include "openvino/op/scatter_nd_update.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "selective_build.h"
-
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -943,10 +942,13 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& dstMemPtr, const MemoryPtr&
 // k is indices.shape[-1] and should not be greater than rank of input, q is rank of indicies.
 // updates is a (q-1)-dimension tensor of replacement-slice-values
 template <typename DataType, typename KernelType>
-void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, const KernelType& kernel) {
-    uint8_t *indices = mem_indices->getDataAs<uint8_t>();
-    DataType *update = mem_updates->getDataAs<DataType>();
-    DataType *dstData = mem_data->getDataAs<DataType>();
+void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
+                                    const MemoryPtr& mem_indices,
+                                    const MemoryPtr& mem_updates,
+                                    const KernelType& kernel) {
+    uint8_t* indices = mem_indices->getDataAs<uint8_t>();
+    DataType* update = mem_updates->getDataAs<DataType>();
+    DataType* dstData = mem_data->getDataAs<DataType>();
     const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
     const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
     size_t indicesRank = indicesDim.size();
@@ -958,26 +960,82 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data, const MemoryPtr& 
         idxTupleNum *= indicesDim[ri];
     }
     size_t sizeToUpdate = srcBlockND[k];
-    for (size_t tupleIdx = 0; tupleIdx < idxTupleNum; ++tupleIdx) {
+    std::vector<size_t> srcDataDimPartial(srcDataDim.begin(), srcDataDim.begin() + k);
+    std::vector<size_t> scrBlockNDPartial = getBlockND(srcDataDimPartial);
+
+    std::vector<std::mutex> uniqueDstMutexV(scrBlockNDPartial[0]);
+    parallel_for(idxTupleNum, [&](size_t tupleIdx) {
         size_t indicesOffset = tupleIdx * k;
         size_t dstOffset = 0;
+        size_t uniqueDstIdx = 0;
         for (size_t i = 0; i < k; i++) {
             int64_t idxValue = getIndicesValue(indices, indicesOffset + i);
             if (idxValue < 0) {
                 // Negative value for indices means counting backwards from the end.
                 idxValue += srcDataDim[i];
             }
+            uniqueDstIdx += idxValue * scrBlockNDPartial[i + 1];
             dstOffset += idxValue * srcBlockND[i + 1];
         }
         size_t updateOffset = tupleIdx * sizeToUpdate;
-        DataType *dstDataWithOffset = dstData + dstOffset;
-        DataType *updateWithOffset = update + updateOffset;
-        parallel_for(sizeToUpdate, [&](size_t idx) {
+        DataType* dstDataWithOffset = dstData + dstOffset;
+        DataType* updateWithOffset = update + updateOffset;
+        const std::lock_guard<std::mutex> lock(uniqueDstMutexV[uniqueDstIdx]);
+        for (size_t idx = 0; idx < sizeToUpdate; idx++) {
             kernel(dstDataWithOffset + idx, updateWithOffset + idx);
-        });
-    }
+        }
+    });
 }
 
+template <typename DataType>
+void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
+                                    const MemoryPtr& mem_indices,
+                                    const MemoryPtr& mem_updates,
+                                    const scatter_reductions::ReduceNone& kernel) {
+    uint8_t* indices = mem_indices->getDataAs<uint8_t>();
+    DataType* update = mem_updates->getDataAs<DataType>();
+    DataType* dstData = mem_data->getDataAs<DataType>();
+    const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
+    const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
+    size_t indicesRank = indicesDim.size();
+
+    std::vector<size_t> srcBlockND = getBlockND(srcDataDim);
+    size_t k = indicesDim[indicesRank - 1];
+    size_t idxTupleNum = 1;
+    for (size_t ri = 0; ri < indicesRank - 1; ri++) {
+        idxTupleNum *= indicesDim[ri];
+    }
+    size_t sizeToUpdate = srcBlockND[k];
+    std::vector<size_t> srcDataDimPartial(srcDataDim.begin(), srcDataDim.begin() + k);
+    std::vector<size_t> scrBlockNDPartial = getBlockND(srcDataDimPartial);
+
+    std::vector<size_t> updatePriorityV(scrBlockNDPartial[0]);
+    std::vector<std::mutex> uniqueDstMutexV(scrBlockNDPartial[0]);
+    parallel_for(idxTupleNum, [&](size_t tupleIdx) {
+        size_t indicesOffset = tupleIdx * k;
+        size_t dstOffset = 0;
+        size_t uniqueDstIdx = 0;
+        for (size_t i = 0; i < k; i++) {
+            int64_t idxValue = getIndicesValue(indices, indicesOffset + i);
+            if (idxValue < 0) {
+                // Negative value for indices means counting backwards from the end.
+                idxValue += srcDataDim[i];
+            }
+            uniqueDstIdx += idxValue * scrBlockNDPartial[i + 1];
+            dstOffset += idxValue * srcBlockND[i + 1];
+        }
+        size_t updateOffset = tupleIdx * sizeToUpdate;
+        DataType* dstDataWithOffset = dstData + dstOffset;
+        DataType* updateWithOffset = update + updateOffset;
+        const std::lock_guard<std::mutex> lock(uniqueDstMutexV[uniqueDstIdx]);
+        if (tupleIdx >= updatePriorityV[uniqueDstIdx]) {
+            for (size_t idx = 0; idx < sizeToUpdate; idx++) {
+                kernel(dstDataWithOffset + idx, updateWithOffset + idx);
+            }
+            updatePriorityV[uniqueDstIdx] = tupleIdx;
+        }
+    });
+}
 
 bool ScatterUpdate::created() const {
     return getType() == Type::ScatterUpdate
