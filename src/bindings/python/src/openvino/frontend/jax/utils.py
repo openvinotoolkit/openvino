@@ -9,7 +9,7 @@ import numpy as np
 import jax.numpy as jnp
 
 from openvino.runtime import op, Type as OVType, Shape, OVAny
-from openvino.frontend.jax.passes import filter_element, filter_ivalue
+from openvino.frontend.jax.passes import filter_element, filter_ivalue, filter_param
 
 numpy_to_ov_type_map = {
     np.float32: OVType.f32,
@@ -121,7 +121,7 @@ def ivalue_to_constant(ivalue, shared_memory=True):
             flattened_ivalue = []
             for value in ivalue:
                 assert isinstance(value, (list, tuple)), "Can't deduce type for a list with both list and basic types."
-                assert len(value) == second_len, "Can't deduce type for nested list with different lengths."
+                assert len(value) == second_len or len(value) == 0, "Can't deduce type for nested list with different lengths."
                 flattened_ivalue.extend([filter_element(item) for item in value])
             flattened_ivalue = [item for sublist in ivalue for item in sublist]
             ov_type = get_type_from_py_type(flattened_ivalue[0])
@@ -141,3 +141,10 @@ def ivalue_to_constant(ivalue, shared_memory=True):
     
     print(f"[WARNING][JAX FE] Cannot get constant from value {ivalue}")
     return None
+
+def param_to_constants(primitive: str, param_name: str, jaxpr, shared_memory=True):
+    processed_params = filter_param(primitive, param_name, jaxpr)
+    
+    for k, v in processed_params.items():
+        processed_params[k] = ivalue_to_constant(v, shared_memory=shared_memory)
+    return processed_params

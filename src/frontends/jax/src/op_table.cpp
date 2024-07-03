@@ -19,6 +19,7 @@ OP_CONVERTER(translate_constant);
 OP_CONVERTER(translate_convert);
 OP_CONVERTER(translate_convolution);
 OP_CONVERTER(translate_copy);
+OP_CONVERTER(translate_dot_general);
 OP_CONVERTER(translate_reduce_window_max);
 OP_CONVERTER(translate_reduce_window_sum);
 OP_CONVERTER(translate_reshape);
@@ -40,6 +41,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_jaxpr() {
             {"convert_element_type", op::translate_convert},
             {"conv_general_dilated", op::translate_convolution},
             {"copy", op::translate_copy},
+            {"dot_general", op::translate_dot_general},
             {"reduce_window_max", op::translate_reduce_window_max},
             {"reduce_window_sum", op::translate_reduce_window_sum},
             {"transpose", op::translate_transpose},

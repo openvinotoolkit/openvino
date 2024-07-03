@@ -8,7 +8,7 @@ import jax.core
 from openvino.frontend.jax.py_jax_frontend import _FrontEndJaxDecoder as Decoder
 from openvino.runtime import PartialShape, Type as OVType, OVAny
 from openvino.frontend.jax.utils import jax_array_to_ov_const, get_ov_type_for_value, \
-    ivalue_to_constant
+    ivalue_to_constant, param_to_constants
 
 import jax
 import numpy as np
@@ -70,7 +70,7 @@ class JaxprPythonDecoder (Decoder):
             for k in self.jaxpr.params.keys():
                 converted = self.convert_param_to_constant_node(self.jaxpr, k)
                 if converted is not None:
-                    self.params[k] = converted
+                    self.params.update(converted)
                 
         # TODO: this implementation may lead to memory increasing. Any better solution?
         self.m_decoders = []
@@ -189,10 +189,18 @@ class JaxprPythonDecoder (Decoder):
             raise ValueError("This is not a constant node so it cannot be converted to a constant.")
         
     @staticmethod
-    def convert_param_to_constant_node(jaxpr, param):
+    def convert_param_to_constant_node(jaxpr, param) -> dict:
         assert hasattr(jaxpr, 'params'), "The jaxpr does not have params."
-        constant = ivalue_to_constant(jaxpr.params[param], shared_memory=False)
-        return _JaxprPythonConstantDecoder(constant=constant) if constant is not None else None
+        if hasattr(jaxpr, 'primitive'):
+            param_map = param_to_constants(jaxpr.primitive.name, param, jaxpr, shared_memory=False)
+            res = {}
+            for name, constant in param_map.items():
+                if constant is not None:
+                    res[name] = _JaxprPythonConstantDecoder(constant=constant)
+        else:
+            constant = ivalue_to_constant(jaxpr.params[param], shared_memory=False)
+            res = {param: _JaxprPythonConstantDecoder(constant=constant)} if constant is not None else {}
+        return res
     
     @staticmethod
     def convert_literal_to_constant_node(literal, name=None, output_id=None):
