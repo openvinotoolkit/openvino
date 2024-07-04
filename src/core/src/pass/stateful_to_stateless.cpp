@@ -18,7 +18,7 @@ using namespace ov::op;
 
 namespace {
 
-std::shared_ptr<ov::Node> setName(std::shared_ptr<ov::Node> node, const std::string& name) {
+std::shared_ptr<ov::Node> set_name(std::shared_ptr<ov::Node> node, const std::string& name) {
     // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a
     // given single name)
     node->set_friendly_name(name);
@@ -27,10 +27,10 @@ std::shared_ptr<ov::Node> setName(std::shared_ptr<ov::Node> node, const std::str
     return node;
 }
 
-// Templated method that has the same effect as not templated `setName` but saves Op type for convenient calls chaining
+// Templated method that has the same effect as not templated `set_name` but saves Op type for convenient calls chaining
 template <typename T>
-inline std::shared_ptr<T> setName(std::shared_ptr<T> node, const std::string& name) {
-    setName(std::dynamic_pointer_cast<ov::Node>(node), name);
+inline std::shared_ptr<T> set_name(std::shared_ptr<T> node, const std::string& name) {
+    set_name(std::dynamic_pointer_cast<ov::Node>(node), name);
     return node;
 }
 
@@ -150,14 +150,14 @@ bool ov::pass::StatefulToStateless::run_on_model(const std::shared_ptr<ov::Model
 
     for (const auto& variable_id : variables) {
         auto future_param = future_params[variable_id.variable_name];
-        auto parameter = setName(std::make_shared<v0::Parameter>(future_param->get_output_element_type(0),
+        auto parameter = ::set_name(std::make_shared<v0::Parameter>(future_param->get_output_element_type(0),
                                                                  future_param->get_output_partial_shape(0)),
                                  variable_id.input_name);
 
         replace_node(future_param, parameter);
 
         auto assign = assigns_by_var_id[variable_id.variable_name];
-        auto result = setName(std::make_shared<v0::Result>(assign->input_value(0)), variable_id.output_name);
+        auto result = ::set_name(std::make_shared<v0::Result>(assign->input_value(0)), variable_id.output_name);
 
         model->remove_sink(assign);  // Don't do replace_node(assign, result)! It will lead to silently incorrect model.
         model->remove_variable(model->get_variable_by_id(variable_id.variable_name));

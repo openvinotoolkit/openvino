@@ -9,7 +9,7 @@
 namespace ov {
 namespace pass {
 /**
- * @brief The transformation convert KV cache state back to stateless form.
+ * @brief The transformation converts KV cache state back to stateless form.
  * \ingroup ov_pass_cpp_api
  */
 class OPENVINO_API StatefulToStateless : public ModelPass {
