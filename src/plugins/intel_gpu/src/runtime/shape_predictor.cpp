@@ -63,7 +63,7 @@ std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std
     size_t next_iters_prealloc_count = custom_next_iters_prealloc_count > 0
                                            ? static_cast<size_t>(custom_next_iters_prealloc_count)
                                            : _next_iters_preallocation_count;
-    auto current_shape = layout.get_shape();
+    const auto& current_shape = layout.get_shape();
     auto dt_bitwidth = ov::element::Type(layout.data_type).bitwidth();
 
     add_shape(id, current_shape);
@@ -74,7 +74,7 @@ std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std
         return {false, {}};
 
     // Check if there is enough data for prediction
-    auto& shapes = _shapes_info[id];
+    const auto& shapes = _shapes_info[id];
     const auto shapes_num = shapes.size();
 
     // Number of shapes used for iterations mode predictions
