@@ -1358,6 +1358,7 @@ void Graph::InferDynamic(SyncInferRequest* request) {
             auto& node = m_executableGraphNodes[inferCounter];
             VERBOSE(node, getConfig().debugCaps.verbose);
             PERF(node, getConfig().collectPerfCounters);
+
             if (request)
                 request->throw_if_canceled();
             try {
