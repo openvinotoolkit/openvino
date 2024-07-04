@@ -88,8 +88,7 @@ OutputVector translate_cat_common(const NodeContext& context,
         return {context.mark_node(concat)};
     }
 
-    auto concat = std::make_shared<v0::Concat>(OutputVector(list_elems.begin(), list_elems.end()), axis);
-    return {context.mark_node(concat)};
+    return {context.mark_node(std::make_shared<v0::Concat>(inputs_vec, axis))};
 }
 
 OutputVector translate_cat(const NodeContext& context) {
