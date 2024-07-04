@@ -61,6 +61,7 @@ enum class Type {
     TensorIterator,
     Convert,
     ColorConvert,
+    Col2Im,
     MVN,
     NormalizeL2,
     ScatterUpdate,
@@ -124,6 +125,8 @@ enum class Type {
     PagedAttention,
     RoPE,
     CausalMaskPreprocess,
+    LLMMLP,
+    QKVProjection,
 };
 
 enum class Algorithm {

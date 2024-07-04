@@ -131,18 +131,21 @@ TEST_F(BrgemmBlockingTest, BlockingIsNotNeeded) {
     const ov::PartialShape input_shape_a{1, 16, m, k};
     const ov::PartialShape input_shape_b{1, 16, k, n};
     const auto precision = ov::element::f32;
+    const std::vector<size_t> layout{};
 
     {
         auto data_a = linear_ir->push_node<ov::opset10::Parameter>(precision, input_shape_a);
         auto data_b = linear_ir->push_node<ov::opset10::Parameter>(precision, input_shape_b);
-        auto brgemm = linear_ir->push_node<BrgemmCPU>(data_a.second, data_b.second, BrgemmCPU::Type::Floating);
+        auto brgemm = linear_ir->push_node<BrgemmCPU>(data_a.second, data_b.second, BrgemmCPU::Type::Floating,
+                                                                 0, 0, 0, layout, layout, layout, m, k, n);
         init_expr_descriptors(*brgemm.first);
         auto result = linear_ir->push_node<ov::opset10::Result>(brgemm.second);
     }
     {
         auto data_a = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_a);
         auto data_b = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_b);
-        auto brgemm = linear_ir_ref->push_node<BrgemmCPU>(data_a.second, data_b.second, BrgemmCPU::Type::Floating);
+        auto brgemm = linear_ir_ref->push_node<BrgemmCPU>(data_a.second, data_b.second, BrgemmCPU::Type::Floating,
+                                                                     0, 0, 0, layout, layout, layout, m, k, n);
         brgemm.second->set_beta(0.f);
         init_expr_descriptors(*brgemm.first, {{m, k}, {k, n}, {m, n}});
         auto result = linear_ir_ref->push_node<ov::opset10::Result>(brgemm.second);

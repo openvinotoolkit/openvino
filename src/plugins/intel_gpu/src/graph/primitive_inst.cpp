@@ -199,10 +199,21 @@ kernel_impl_params primitive_impl::static_canonicalize_shapes(const kernel_impl_
 
 uint32_t primitive_inst::get_network_id() const { return _network.get_id(); }
 
-void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout) const {
-    OPENVINO_ASSERT((mem.get_layout() == layout) || layout.is_dynamic(), "[GPU] Unexpected layout of input memory for ", id(), " node!\n",
-                     "Node layout: ", layout.to_short_string(), "\n",
-                     "Memory layout: ", mem.get_layout().to_short_string());
+void primitive_inst::check_memory_to_set(const memory& mem, const layout& l) const {
+    // The layout with empty tensor (scalar) is regarded as 1 dimension with value 1
+    bool single_value_layout = false;
+    if (!l.is_dynamic()) {
+        auto layout_ps = l.get_partial_shape();
+        single_value_layout = (layout_ps.size() == 1 && layout_ps[0] == 1);
+    }
+
+    auto mem_layout = mem.get_layout();
+    OPENVINO_ASSERT((mem_layout == l)
+                    || l.is_dynamic()
+                    || (mem_layout.get_partial_shape().size() == 0 && single_value_layout),
+                    "[GPU] Unexpected layout of input memory for ", id(), " node!\n",
+                    "Node layout: ", l.to_short_string(), "\n",
+                    "Memory layout: ", mem_layout.to_short_string());
 
     // check shared image/buffer compatibility, if applicable
     auto params = mem.get_internal_params();
@@ -218,11 +229,11 @@ void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout
         switch (params.mem_type) {
         case shared_mem_type::shared_mem_vasurface:
         case shared_mem_type::shared_mem_image:
-            OPENVINO_ASSERT(layout.format.is_image_2d(), "Attempt to set user-supplied input or output image instead of a buffer");
+            OPENVINO_ASSERT(l.format.is_image_2d(), "Attempt to set user-supplied input or output image instead of a buffer");
             break;
         case shared_mem_type::shared_mem_buffer:
         case shared_mem_type::shared_mem_dxbuffer:
-            OPENVINO_ASSERT(!layout.format.is_image_2d(), "Attempt to set user-supplied input or output buffer instead of an image");
+            OPENVINO_ASSERT(!l.format.is_image_2d(), "Attempt to set user-supplied input or output buffer instead of an image");
             break;
         case shared_mem_type::shared_mem_usm:
             break;
@@ -309,6 +320,8 @@ void primitive_inst::update_shape() {
 
     if (input_shape_changed)
         set_shape_change();
+    else
+        reset_shape_change();
 
     // We assume that tensor ranks are static, thus shape_of doesn't need to update anything even if input shape is dynamic
     if (_node->is_type<shape_of>() && !input_shape_changed) {
@@ -551,7 +564,28 @@ event::ptr primitive_inst::realloc_if_needed() {
 
     // Update output layout with respect to FC's fake alignment
     auto updated_layout = actual_layout;
-    for (auto user : get_user_insts()) {
+    std::vector<cldnn::primitive_inst *> user_insts;
+    {
+        auto user_insts_origin = get_user_insts();
+        for (auto& user : user_insts_origin) {
+            auto uid = user->id();
+            if (user->get_node().is_type<fully_connected>() && user->is_dynamic() && user->_deps[0].first == this
+                && std::find_if(user_insts_origin.begin(), user_insts_origin.end(), [&](cldnn::primitive_inst * uu){
+                    for (auto dep_inst : uu->_deps) {
+                        if (dep_inst.first->id() == uid)
+                            return true;
+                    }
+                    return false;
+                }) != user_insts_origin.end()) {
+                    user_insts.insert(user_insts.begin(), user);
+            } else {
+                user_insts.push_back(user);
+            }
+        }
+        OPENVINO_ASSERT(user_insts.size() == user_insts_origin.size(), "Should have same size between ",
+                        user_insts.size(), " and ", user_insts_origin.size());
+    }
+    for (auto user : user_insts) {
         // Since fake alignment is applicable for input tensor as well, make sure we allocate enough memory
         // to prevent reading beyond the allocated memory bounds
         if (user->get_node().is_type<fully_connected>() && user->is_dynamic() && user->_deps[0].first == this) {
@@ -614,7 +648,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     }
     prealloc_info = sp.predict_preallocation_shape(id(), updated_layout, can_reuse_buffer, tmp_prealloc_count);
 
-    if (prealloc_info.first && sp.can_preallocate(ov::shape_size(prealloc_info.second) * dt_size)) {
+    if (prealloc_info.first && sp.can_preallocate(ov::shape_size(prealloc_info.second) * (dt_size / 8))) {
         auto new_layout = updated_layout;
         new_layout.set_partial_shape(prealloc_info.second);
         updated_params.output_layouts[0] = new_layout;
@@ -835,6 +869,23 @@ bool primitive_inst::update_impl() {
     }
 
     if (!_node->is_type<data>() && !(_node->is_type<mutable_data>() && _node->get_dependencies().empty())) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        if (get_node().get_preferred_impl_type() == impl_types::onednn) {
+            auto attrs_onednn = std::make_shared<dnnl::primitive_attr>();
+            std::vector<cldnn::fused_primitive_desc_onednn> fused_desc_onednn;
+            get_node().create_onednn_primitive_attributes(_impl_params->fused_desc,
+                                                            attrs_onednn,
+                                                            fused_desc_onednn,
+                                                            _impl_params.get());
+            _impl_params->attrs_onednn = attrs_onednn;
+            {
+                auto& fused_prims_onednn = _impl_params->fused_desc_onednn;
+                fused_prims_onednn.erase(fused_prims_onednn.begin(), fused_prims_onednn.end());
+                fused_prims_onednn.insert(fused_prims_onednn.end(), fused_desc_onednn.begin(), fused_desc_onednn.end());
+            }
+        }
+#endif
+
         // Update param if fake_alignment is available
         auto updated_params = get_fake_aligned_params_if_possible(*_impl_params);
         // Change weights layout of `updated_params` to original one to have valid information
@@ -1033,9 +1084,8 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
     auto& present_layout = _impl_params->output_layouts[0];
     const auto& sequence_axis = desc->concat_axis;
     const auto& gather_axis = desc->gather_axis;
-
-    const auto& prev_batch_size = static_cast<size_t>(past_layout.get_shape()[gather_axis]);
-    const auto& beam_size = static_cast<size_t>(present_layout.get_shape()[gather_axis]);
+    const auto prev_batch_size = static_cast<size_t>(past_layout.get_shape()[gather_axis]);
+    const auto beam_size = static_cast<size_t>(present_layout.get_shape()[gather_axis]);
     if (prev_batch_size != beam_size) {
         // If the previous batch size is not same as beam size, need explicit concat
         _impl_params->_can_be_optimized = false;
@@ -1267,10 +1317,13 @@ void primitive_inst::do_runtime_in_place_concat() {
 
     std::vector<kernel_impl_params> pred_params;
     std::vector<layout> preds_layouts;
-    for (auto& pred : concat_inst->_deps) {
+    for (const auto& pred : concat_inst->_deps) {
         pred_params.push_back(*pred.first->_impl_params);
         preds_layouts.push_back(pred.first->_impl_params->get_output_layout());
     }
+
+    if (!concat_inst->shape_changed())
+        return;
 
     if (!concat_in_place_optimization::match(concat_inst->get_node(), *concat_inst->_impl_params, pred_params, true)) {
         concat_inst->set_can_be_optimized(false);
@@ -1314,11 +1367,10 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     _mem_changed = false;
     const auto orig_outputs = _outputs;
     std::vector<event::ptr> dependencies;
-    if (is_dynamic() && !has_inner_networks()) {
+    if ((is_dynamic() || _node->is_in_shape_of_subgraph()) && !has_inner_networks()) {
         do_runtime_in_place_concat();
         OPENVINO_ASSERT(_node != nullptr, "[GPU] Invalid primitive_inst object for dynamic shapes case: program_node can't be null");
         update_shape();
-
 
         bool can_skip_execution = false;
         if (_impl_params->output_layouts[0].count() == 0) {
@@ -1326,7 +1378,9 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
             can_skip_execution = true;
         }
 
-        if (_node->is_in_shape_of_subgraph()) {
+        // subgraph_input_changed can be available only shape_of is dynamic.
+        // shape_of_subgraph for static shape_of could be run every inference if constant propagation does not work.
+        if (_node->is_in_shape_of_subgraph() && dependant_shape_of_insts.front()->is_dynamic()) {
             bool subgraph_input_changed = false;
             for (size_t i = 0; i < dependant_shape_of_insts.size(); i++) {
                 if (dependant_shape_of_insts[i]->shape_changed()) {

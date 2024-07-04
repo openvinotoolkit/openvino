@@ -32,7 +32,11 @@ namespace py = pybind11;
 
 namespace Common {
 namespace utils {
+    enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, FLOAT, BOOL, PARTIAL_SHAPE };
+
     struct EmptyList {};
+
+    PY_TYPE check_list_element_type(const py::list& list);
 
     py::object from_ov_any_no_leaves(const ov::Any& any);
 
@@ -57,6 +61,8 @@ namespace utils {
     ov::Any py_object_to_any(const py::object& py_obj);
 
     ov::pass::Serialize::Version convert_to_version(const std::string& version);
+
+    std::shared_ptr<py::function> wrap_pyfunction(py::function f_callback);
 
 }; // namespace utils
 }; // namespace Common

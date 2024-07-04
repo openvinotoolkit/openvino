@@ -6,12 +6,16 @@
 #include <ze_graph_ext.h>
 
 #include <type_traits>
+#include <utility>
 
-#include "iexternal_compiler.hpp"
+#include "intel_npu/al/icompiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/zero/zero_api.hpp"
 
 namespace intel_npu {
 namespace driverCompilerAdapter {
+
+using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
 
 #define NotSupportLogHandle(T) \
     (std::is_same<T, ze_graph_dditable_ext_1_2_t>::value || std::is_same<T, ze_graph_dditable_ext_1_3_t>::value)
@@ -40,29 +44,32 @@ namespace driverCompilerAdapter {
  * Adapter to use CiD through ZeroAPI
  */
 template <typename TableExtension>
-class LevelZeroCompilerInDriver final : public IExternalCompiler {
+class LevelZeroCompilerInDriver final : public ICompiler {
 public:
     LevelZeroCompilerInDriver(const char* extName, ze_driver_handle_t driverHandle);
     LevelZeroCompilerInDriver(const LevelZeroCompilerInDriver&) = delete;
     LevelZeroCompilerInDriver& operator=(const LevelZeroCompilerInDriver&) = delete;
     ~LevelZeroCompilerInDriver() override;
 
-    uint32_t getSupportedOpset() const override;
+    uint32_t getSupportedOpsetVersion() const override final;
 
-    std::unordered_set<std::string> getQueryResult(IR& irModel, const Config& config) const override;
+    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 
-    NetworkDescription compileIR(const std::shared_ptr<const ov::Model>& model,
-                                 IR& irModel,
-                                 const Config& config) const override final;
+    NetworkDescription compile(const std::shared_ptr<const ov::Model>& model,
+                               const Config& config) const override final;
 
-    NetworkMetadata parseBlob(const std::vector<uint8_t>& blob, const Config& config) const override final;
+    NetworkMetadata parse(const std::vector<uint8_t>& network, const Config& config) const override final;
+
+    std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
+                                                            const std::vector<uint8_t>& network,
+                                                            const Config& config) const override final {
+        OPENVINO_THROW("Profiling post-processing is not implemented.");
+    }
 
     template <typename T = TableExtension, std::enable_if_t<!NotSupportQuery(T), bool> = true>
     std::unordered_set<std::string> getQueryResultFromSupportedLayers(
         ze_result_t result,
         ze_graph_query_network_handle_t& hGraphQueryNetwork) const;
-
-    std::vector<uint8_t> getSerializedIR(std::string& buildFlags, IR& irModel, const Config& config) const;
 
     /**
      * @brief Serialize input / output information to string format.
@@ -81,7 +88,8 @@ public:
 private:
     NetworkMetadata getNetworkMeta(ze_graph_handle_t graphHandle) const;
 
-    std::vector<uint8_t> serializeIR(IR& irModel, ze_graph_compiler_version_info_t compilerVersion) const;
+    SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
+                             ze_graph_compiler_version_info_t compilerVersion) const;
     std::string serializeConfig(const Config& config, ze_graph_compiler_version_info_t& compilerVersion) const;
 
     /**
@@ -134,27 +142,30 @@ private:
 
     // ext version >= 1.5, support API (pfnCreate2, pfnQueryNetworkCreate2, pfnQueryContextMemory)
     template <typename T = TableExtension, typename std::enable_if_t<SupportAPIGraphQueryNetworkV2(T), bool> = true>
-    std::unordered_set<std::string> queryImpl(IR& irModel, const Config& config) const;
+    std::unordered_set<std::string> queryImpl(const std::shared_ptr<const ov::Model>& model,
+                                              const Config& config) const;
 
     // ext version == 1.3 && 1.4, support API (pfnQueryNetworkCreate, pfnQueryNetworkDestroy,
     // pfnQueryNetworkGetSupportedLayers)
     template <typename T = TableExtension, typename std::enable_if_t<SupportAPIGraphQueryNetworkV1(T), bool> = true>
-    std::unordered_set<std::string> queryImpl(IR& irModel, const Config& config) const;
+    std::unordered_set<std::string> queryImpl(const std::shared_ptr<const ov::Model>& model,
+                                              const Config& config) const;
 
     // For ext version < 1.3
     template <typename T = TableExtension, typename std::enable_if_t<NotSupportQuery(T), bool> = true>
-    std::unordered_set<std::string> queryImpl(IR& irModel, const Config& config) const;
+    std::unordered_set<std::string> queryImpl(const std::shared_ptr<const ov::Model>& model,
+                                              const Config& config) const;
 
     template <typename T = TableExtension, typename std::enable_if_t<NotSupportGraph2(T), bool> = true>
     ze_result_t createGraph(const ze_graph_format_t& format,
-                            const std::vector<uint8_t>& serializedIR,
+                            const SerializedIR& serializedIR,
                             const std::string& buildFlags,
                             const uint32_t& flags,
                             ze_graph_handle_t* graph) const;
 
     template <typename T = TableExtension, typename std::enable_if_t<!NotSupportGraph2(T), bool> = true>
     ze_result_t createGraph(const ze_graph_format_t& format,
-                            const std::vector<uint8_t>& serializedIR,
+                            const SerializedIR& serializedIR,
                             const std::string& buildFlags,
                             const uint32_t& flags,
                             ze_graph_handle_t* graph) const;

@@ -49,6 +49,9 @@ Table of contents:
 
    -  `LLM conversion and Weights Compression using
       Optimum-CLI <#llm-conversion-and-weights-compression-using-optimum-cli>`__
+
+      -  `Weight compression with AWQ <#weight-compression-with-awq>`__
+
    -  `Convert embedding model using
       Optimum-CLI <#convert-embedding-model-using-optimum-cli>`__
    -  `Convert rerank model using
@@ -81,21 +84,25 @@ Install required dependencies
 
 .. code:: ipython3
 
-    %pip uninstall -q -y openvino-dev openvino openvino-nightly optimum optimum-intel
+    import os
+    
+    os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
+    
+    %pip install -Uq pip
+    %pip uninstall -q -y optimum optimum-intel
+    %pip install --pre -Uq openvino openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu\
     "git+https://github.com/huggingface/optimum-intel.git"\
     "git+https://github.com/openvinotoolkit/nncf.git"\
     "datasets"\
     "accelerate"\
-    "openvino-nightly"\
     "gradio"\
-    "onnx" "einops" "transformers_stream_generator" "tiktoken" "transformers>=4.38.1" "bitsandbytes" "chromadb" "sentence_transformers" "langchain>=0.1.15" "langchainhub" "unstructured" "scikit-learn" "python-docx" "pypdf" 
+    "onnx" "einops" "transformers_stream_generator" "tiktoken" "transformers>=4.40" "bitsandbytes" "faiss-cpu" "sentence_transformers" "langchain>=0.2.0" "langchain-community>=0.2.0" "langchainhub" "unstructured" "scikit-learn" "python-docx" "pypdf" 
 
 
 .. parsed-literal::
 
     WARNING: Skipping openvino-dev as it is not installed.
-    WARNING: Skipping openvino as it is not installed.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
@@ -105,6 +112,7 @@ Install required dependencies
     import os
     from pathlib import Path
     import requests
+    import shutil
     import io
     
     # fetch model configuration
@@ -118,11 +126,23 @@ Install required dependencies
     
     if not config_dst_path.exists():
         if config_shared_path.exists():
-            os.symlink(config_shared_path, config_dst_path)
+            try:
+                os.symlink(config_shared_path, config_dst_path)
+            except Exception:
+                shutil.copy(config_shared_path, config_dst_path)
         else:
             r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/llm_config.py")
-            with open("llm_config.py", "w") as f:
+            with open("llm_config.py", "w", encoding="utf-8") as f:
                 f.write(r.text)
+    elif not os.path.islink(config_dst_path):
+        print("LLM config will be updated")
+        if config_shared_path.exists():
+            shutil.copy(config_shared_path, config_dst_path)
+        else:
+            r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/llm_config.py")
+            with open("llm_config.py", "w", encoding="utf-8") as f:
+                f.write(r.text)
+    
     
     if not text_example_en_path.exists():
         r = requests.get(url=text_example_en)
@@ -135,6 +155,12 @@ Install required dependencies
         content = io.BytesIO(r.content)
         with open("text_example_cn.pdf", "wb") as f:
             f.write(content.read())
+
+
+.. parsed-literal::
+
+    LLM config will be updated
+
 
 Select model for inference
 --------------------------
@@ -242,7 +268,7 @@ quality.
 
 .. parsed-literal::
 
-    Dropdown(description='Model:', index=9, options=('tiny-llama-1b-chat', 'gemma-2b-it', 'red-pajama-3b-chat', 'g…
+    Dropdown(description='Model:', index=4, options=('qwen1.5-7b-chat', 'qwen-7b-chat', 'chatglm3-6b', 'baichuan2-…
 
 
 
@@ -254,7 +280,7 @@ quality.
 
 .. parsed-literal::
 
-    Selected LLM model neural-chat-7b-v3-1
+    Selected LLM model qwen1.5-1.8b-chat
 
 
 `Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
@@ -354,6 +380,39 @@ sacrifice of the model size and inference latency.
 
     Checkbox(value=False, description='Prepare FP16 model')
 
+
+Weight compression with AWQ
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+
+`Activation-aware Weight
+Quantization <https://arxiv.org/abs/2306.00978>`__ (AWQ) is an algorithm
+that tunes model weights for more accurate INT4 compression. It slightly
+improves generation quality of compressed LLMs, but requires significant
+additional time for tuning weights on a calibration dataset. We use
+``wikitext-2-raw-v1/train`` subset of the
+`Wikitext <https://huggingface.co/datasets/Salesforce/wikitext>`__
+dataset for calibration.
+
+Below you can enable AWQ to be additionally applied during model export
+with INT4 precision.
+
+   **Note**: Applying AWQ requires significant memory and time.
+
+..
+
+   **Note**: It is possible that there will be no matching patterns in
+   the model to apply AWQ, in such case it will be skipped.
+
+.. code:: ipython3
+
+    enable_awq = widgets.Checkbox(
+        value=False,
+        description="Enable AWQ",
+        disabled=not prepare_int4_model.value,
+    )
+    display(enable_awq)
 
 .. code:: ipython3
 
@@ -464,6 +523,8 @@ sacrifice of the model size and inference latency.
         int4_compression_args = " --group-size {} --ratio {}".format(model_compression_params["group_size"], model_compression_params["ratio"])
         if model_compression_params["sym"]:
             int4_compression_args += " --sym"
+        if enable_awq.value:
+            int4_compression_args += " --awq --dataset wikitext2 --num-samples 128"
         export_command_base += int4_compression_args
         if remote_code:
             export_command_base += " --trust-remote-code"
@@ -499,7 +560,7 @@ Let’s compare model size for different compression types
 
 .. parsed-literal::
 
-    Size of model with INT4 compressed weights is 5069.90 MB
+    Size of model with INT4 compressed weights is 1343.75 MB
 
 
 Convert embedding model using Optimum-CLI
@@ -528,7 +589,7 @@ filter them out according the LLM you selected.
 
 .. parsed-literal::
 
-    Dropdown(description='Embedding Model:', options=('bge-small-en-v1.5', 'bge-large-en-v1.5'), value='bge-small-…
+    Dropdown(description='Embedding Model:', options=('bge-small-zh-v1.5', 'bge-large-zh-v1.5'), value='bge-small-…
 
 
 
@@ -540,7 +601,7 @@ filter them out according the LLM you selected.
 
 .. parsed-literal::
 
-    Selected bge-small-en-v1.5 model
+    Selected bge-small-zh-v1.5 model
 
 
 OpenVINO embedding model and tokenizer can be exported by
@@ -622,8 +683,6 @@ Select device for embedding model inference
     core = ov.Core()
     
     support_devices = core.available_devices
-    if "NPU" in support_devices:
-        support_devices.remove("NPU")
     
     embedding_device = widgets.Dropdown(
         options=support_devices + ["AUTO"],
@@ -652,6 +711,26 @@ Select device for embedding model inference
 
     Embedding model will be loaded to CPU device for text embedding
 
+
+Optimize the BGE embedding model’s parameter precision when loading
+model to NPU device.
+
+.. code:: ipython3
+
+    USING_NPU = embedding_device.value == "NPU"
+    
+    npu_embedding_dir = embedding_model_id.value + "-npu"
+    npu_embedding_path = Path(npu_embedding_dir) / "openvino_model.xml"
+    if USING_NPU and not Path(npu_embedding_dir).exists():
+        r = requests.get(
+            url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
+        )
+        with open("notebook_utils.py", "w") as f:
+            f.write(r.text)
+        import notebook_utils as utils
+    
+        shutil.copytree(embedding_model_id.value, npu_embedding_dir)
+        utils.optimize_bge_embedding(Path(embedding_model_id.value) / "openvino_model.xml", npu_embedding_path)
 
 Select device for rerank model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -743,11 +822,13 @@ of LangChain.
 
     from langchain_community.embeddings import OpenVINOBgeEmbeddings
     
-    embedding_model_name = embedding_model_id.value
-    embedding_model_kwargs = {"device": embedding_device.value}
+    embedding_model_name = npu_embedding_dir if USING_NPU else embedding_model_id.value
+    batch_size = 1 if USING_NPU else 4
+    embedding_model_kwargs = {"device": embedding_device.value, "compile": False}
     encode_kwargs = {
         "mean_pooling": embedding_model_configuration["mean_pooling"],
         "normalize_embeddings": embedding_model_configuration["normalize_embeddings"],
+        "batch_size": batch_size,
     }
     
     embedding = OpenVINOBgeEmbeddings(
@@ -755,6 +836,9 @@ of LangChain.
         model_kwargs=embedding_model_kwargs,
         encode_kwargs=encode_kwargs,
     )
+    if USING_NPU:
+        embedding.ov_model.reshape(1, 512)
+    embedding.ov_model.compile()
     
     text = "This is a test document."
     embedding_result = embedding.embed_query(text)
@@ -768,14 +852,14 @@ of LangChain.
 
 .. parsed-literal::
 
-    2024-04-28 21:05:33.318682: I tensorflow/core/util/port.cc:111] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-04-28 21:05:33.322370: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-04-28 21:05:33.366644: E tensorflow/compiler/xla/stream_executor/cuda/cuda_dnn.cc:9342] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
-    2024-04-28 21:05:33.366676: E tensorflow/compiler/xla/stream_executor/cuda/cuda_fft.cc:609] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
-    2024-04-28 21:05:33.366714: E tensorflow/compiler/xla/stream_executor/cuda/cuda_blas.cc:1518] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
-    2024-04-28 21:05:33.376052: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-05-24 00:13:06.057342: I tensorflow/core/util/port.cc:111] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-05-24 00:13:06.061389: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-05-24 00:13:06.108453: E tensorflow/compiler/xla/stream_executor/cuda/cuda_dnn.cc:9342] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+    2024-05-24 00:13:06.108490: E tensorflow/compiler/xla/stream_executor/cuda/cuda_fft.cc:609] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+    2024-05-24 00:13:06.108542: E tensorflow/compiler/xla/stream_executor/cuda/cuda_blas.cc:1518] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+    2024-05-24 00:13:06.120406: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-04-28 21:05:34.068587: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-05-24 00:13:06.938926: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     Compiling the model to CPU ...
 
 
@@ -877,6 +961,9 @@ inference framework.
     
     ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
     
+    if "GPU" in llm_device.value and "qwen2-7b-instruct" in llm_model_id.value:
+        ov_config["GPU_ENABLE_SDPA_OPTIMIZATION"] = "NO"
+    
     # On a GPU device a model is executed in FP16 precision. For red-pajama-3b-chat model there known accuracy
     # issues caused by this, which we avoid by setting precision hint to "f32".
     if llm_model_id.value == "red-pajama-3b-chat" and "GPU" in core.available_devices and llm_device.value in ["GPU", "AUTO"]:
@@ -910,7 +997,6 @@ inference framework.
 .. parsed-literal::
 
     Compiling the model to CPU ...
-    Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
 
 
 
@@ -1065,7 +1151,7 @@ which will help to create a chain to connect RAG components including:
 .. code:: ipython3
 
     from langchain.prompts import PromptTemplate
-    from langchain.vectorstores import Chroma
+    from langchain_community.vectorstores import FAISS
     from langchain.chains.retrieval import create_retrieval_chain
     from langchain.chains.combine_documents import create_stuff_documents_chain
     from langchain.docstore.document import Document
@@ -1074,6 +1160,7 @@ which will help to create a chain to connect RAG components including:
     import gradio as gr
     
     stop_tokens = llm_model_configuration.get("stop_tokens")
+    rag_prompt_template = llm_model_configuration["rag_prompt_template"]
     
     
     class StopOnTokens(StoppingCriteria):
@@ -1151,7 +1238,7 @@ which will help to create a chain to connect RAG components including:
         texts = text_splitter.split_documents(documents)
     
         global db
-        db = Chroma.from_documents(texts, embedding)
+        db = FAISS.from_documents(texts, embedding)
     
         global retriever
         if search_method == "similarity_score_threshold":
@@ -1162,7 +1249,7 @@ which will help to create a chain to connect RAG components including:
         if run_rerank:
             reranker.top_n = vector_search_top_n
             retriever = ContextualCompressionRetriever(base_compressor=reranker, base_retriever=retriever)
-        prompt = PromptTemplate.from_template(llm_model_configuration["rag_prompt_template"])
+        prompt = PromptTemplate.from_template(rag_prompt_template)
     
         global combine_docs_chain
         combine_docs_chain = create_stuff_documents_chain(llm, prompt)
@@ -1214,7 +1301,7 @@ which will help to create a chain to connect RAG components including:
         return "", history + [[message, ""]]
     
     
-    def bot(history, temperature, top_p, top_k, repetition_penalty, hide_full_prompt):
+    def bot(history, temperature, top_p, top_k, repetition_penalty, hide_full_prompt, do_rag):
         """
         callback function for running chatbot on submit button click
     
@@ -1226,6 +1313,7 @@ which will help to create a chain to connect RAG components including:
           top_k: parameter for control the range of tokens considered by the AI model based on their cumulative probability, selecting number of tokens with highest probability.
           repetition_penalty: parameter for penalizing tokens based on how frequently they occur in the text.
           hide_full_prompt: whether to show searching results in promopt.
+          do_rag: whether do RAG when generating texts.
     
         """
         streamer = TextIteratorStreamer(
@@ -1246,7 +1334,11 @@ which will help to create a chain to connect RAG components including:
         if stop_tokens is not None:
             llm.pipeline._forward_params["stopping_criteria"] = StoppingCriteriaList(stop_tokens)
     
-        t1 = Thread(target=rag_chain.invoke, args=({"input": history[-1][0]},))
+        if do_rag:
+            t1 = Thread(target=rag_chain.invoke, args=({"input": history[-1][0]},))
+        else:
+            input_text = rag_prompt_template.format(input=history[-1][0], context="")
+            t1 = Thread(target=llm.invoke, args=(input_text,))
         t1.start()
     
         # Initialize an empty string to store the generated text
@@ -1301,8 +1393,8 @@ which will help to create a chain to connect RAG components including:
     
                     chunk_size = gr.Slider(
                         label="Chunk size",
-                        value=700,
-                        minimum=100,
+                        value=400,
+                        minimum=50,
                         maximum=2000,
                         step=50,
                         interactive=True,
@@ -1311,7 +1403,7 @@ which will help to create a chain to connect RAG components including:
     
                     chunk_overlap = gr.Slider(
                         label="Chunk overlap",
-                        value=100,
+                        value=50,
                         minimum=0,
                         maximum=400,
                         step=10,
@@ -1323,6 +1415,12 @@ which will help to create a chain to connect RAG components including:
                     label="Vector Store Status",
                     value="Vector Store is Not ready",
                     interactive=False,
+                )
+                do_rag = gr.Checkbox(
+                    value=True,
+                    label="RAG is ON",
+                    interactive=True,
+                    info="Whether to do RAG for generation",
                 )
                 with gr.Accordion("Generation Configuration", open=False):
                     with gr.Row():
@@ -1454,13 +1552,13 @@ which will help to create a chain to connect RAG components including:
         )
         submit_event = msg.submit(user, [msg, chatbot], [msg, chatbot], queue=False).then(
             bot,
-            [chatbot, temperature, top_p, top_k, repetition_penalty, hide_context],
+            [chatbot, temperature, top_p, top_k, repetition_penalty, hide_context, do_rag],
             chatbot,
             queue=True,
         )
         submit_click_event = submit.click(user, [msg, chatbot], [msg, chatbot], queue=False).then(
             bot,
-            [chatbot, temperature, top_p, top_k, repetition_penalty, hide_context],
+            [chatbot, temperature, top_p, top_k, repetition_penalty, hide_context, do_rag],
             chatbot,
             queue=True,
         )
