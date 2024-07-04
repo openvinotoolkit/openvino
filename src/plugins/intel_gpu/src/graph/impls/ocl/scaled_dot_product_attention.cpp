@@ -275,12 +275,19 @@ public:
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-       auto kernel_params = get_kernel_params(impl_param, true);
-       (_kernels_data[default_sdpa].update_dispatch_data_func)(kernel_params, _kernels_data[default_sdpa]);
+        // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
+        if (_kernels_data[default_sdpa].params == nullptr) {
+            _kernels_data[default_sdpa].params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true));
+        }
+        update_shapes(*_kernels_data[default_sdpa].params, impl_param);
+        (_kernels_data[default_sdpa].update_dispatch_data_func)(*_kernels_data[default_sdpa].params, _kernels_data[default_sdpa]);
 
         if (_kernels_data.size() == 2) {
-            auto kernel_params = get_kernel_params(impl_param, true);
-            (_kernels_data[indirect_sdpa].update_dispatch_data_func)(kernel_params, _kernels_data[indirect_sdpa]);
+            if (_kernels_data[indirect_sdpa].params == nullptr) {
+                _kernels_data[indirect_sdpa].params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true));
+            }
+            update_shapes(*_kernels_data[indirect_sdpa].params, impl_param);
+            (_kernels_data[indirect_sdpa].update_dispatch_data_func)(*_kernels_data[indirect_sdpa].params, _kernels_data[indirect_sdpa]);
         }
     }
 };
