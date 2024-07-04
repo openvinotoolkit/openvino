@@ -52,7 +52,9 @@ public:
 
         auto input_last_dim_val = input_pshape[input_last_dim].get_length();
         const auto& output_pshape = prim->output_partial_shape;
-        if (output_pshape.size() != input_rank + 1)
+        // TODO: If the reshape's output shape is non constant, issue occurs
+        // during shape inference due to execution order at runtime
+        if ((output_pshape.size() != input_rank + 1) || prim->output_pattern.empty())
             return false;
 
         int64_t mul = 1;
