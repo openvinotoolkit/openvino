@@ -44,8 +44,8 @@ The tutorial consists of the following steps:
 -  Run optimized model inference on video
 -  Launch interactive Gradio demo
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Download PyTorch model <#download-pytorch-model>`__
