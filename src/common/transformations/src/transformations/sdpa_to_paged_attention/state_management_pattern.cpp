@@ -166,10 +166,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                           &layer_index](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
-        // std::cout << "SLIDING WINDOW" << std::endl;
-        // pattern_map.at(scale_input);
-        // std::cout << "____" << std::endl;
-
         auto real_q = pattern_map.at(q);
 
         auto sdpa_node =
@@ -377,6 +373,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         }
 
         replace_node(m.get_match_root(), pa_transpose);
+        std::cout << "AAAA" << std::endl;
         return true;
     };
 
