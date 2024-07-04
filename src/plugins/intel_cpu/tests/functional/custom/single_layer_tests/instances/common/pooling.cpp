@@ -116,7 +116,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_CPU_4D, MaxPoolingV14LayerCPUTest,
                                  ::testing::ValuesIn(paramsMaxV144D()),
                                  ::testing::ValuesIn(inputShapes4DStatic()),
                                  ::testing::ValuesIn((inpOutPrecision())),
-                                 ::testing::ValuesIn(filterCPUInfo(vecCpuConfigsFusing_4D())),
+                                 ::testing::ValuesIn(vecCpuConfigs),
                                  ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MaxPoolingV14LayerCPUTest::getTestCaseName);
 
