@@ -177,6 +177,15 @@ std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
 }
 
 std::vector<ov::SoPtr<ov::IVariableState>> SyncInferRequest::query_state() const {
+    if (m_asyncRequest->m_has_sub_infers) {
+        auto requests = m_asyncRequest->getSubInferRequest();
+        std::vector<ov::SoPtr<ov::IVariableState>> states;
+        for (auto request : requests) {
+            auto cur = request->query_state();
+            states.insert(states.end(), cur.begin(), cur.end());
+        }
+        return states;
+    }
     std::vector<ov::SoPtr<ov::IVariableState>> ret{};
     for (const auto& pair : m_variables) {
         ret.emplace_back(pair.second, nullptr);

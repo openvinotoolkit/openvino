@@ -581,11 +581,8 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::enable_cpu_pinning.name(), PropertyMutability::RW},
         ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
-<<<<<<< HEAD
         ov::PropertyName{ov::hint::model_distribution_policy.name(), PropertyMutability::RW},
-=======
         ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RW}
->>>>>>> b5a66b0257d881b964f0413acd21b1d71b5008e6
     };
 
     return supported_properties;
