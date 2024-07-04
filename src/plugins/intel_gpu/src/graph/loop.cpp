@@ -536,7 +536,8 @@ void loop_inst::preprocess_backedge_memory() {
         // in case where memory buffer has been over-allocated by shape predictor, memory layout might be unexpected shape.
         // so memory layout needs to be re-interprete according to original layout.
         auto initial_layout = get_external_output_layout(external_id.pid, external_id.idx);
-        if (initial_mem != nullptr && !initial_mem->get_layout().identical(initial_layout)) {
+        OPENVINO_ASSERT(initial_mem != nullptr, "initial_mem should not be null");
+        if (!initial_mem->get_layout().identical(initial_layout)) {
             OPENVINO_ASSERT(initial_layout.bytes_count() <= initial_mem->get_layout().bytes_count(),
                             "initial layout size(", initial_layout.to_short_string(),
                             ") should not exceed initial memory size(", initial_mem->get_layout().to_short_string(), ")");
@@ -1067,7 +1068,7 @@ std::vector<event::ptr> loop_inst::handle_buffers_for_next_iteration(const loop_
                                 << ") to " << mapping.to_primitive->id() << ")" << std::endl;
             }
         }
-    } else if (mapping.type ==  loop_inst::backedge_memory_mapping::SINGLE) {
+    } else if (mapping.type == loop_inst::backedge_memory_mapping::SINGLE) {
         memory::ptr to_mem = mapping.to_primitive->output_memory_ptr();
 
         if (is_dynamic()) {
@@ -1079,7 +1080,8 @@ std::vector<event::ptr> loop_inst::handle_buffers_for_next_iteration(const loop_
             if (iter == 0) {
                 auto to_id = mapping.to_primitive->id();
                 // Check backedge_to shape needs to be updated by initial_mem
-                if (mapping.initial_mem != nullptr && !mapping.initial_mem->get_layout().identical(to_mem->get_layout())) {
+                OPENVINO_ASSERT(mapping.initial_mem != nullptr, "initial_mem should not be null");
+                if (!mapping.initial_mem->get_layout().identical(to_mem->get_layout())) {
                     to_mem = body_network->get_engine().allocate_memory(mapping.initial_mem->get_layout(), false);
                     body_network->set_input_data(to_id, to_mem);
                     ev = to_mem->copy_from(body_network->get_stream(), *(mapping.initial_mem));
