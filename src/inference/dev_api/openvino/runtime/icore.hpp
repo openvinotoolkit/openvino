@@ -11,6 +11,7 @@
 
 #include <memory>
 
+#include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -43,6 +44,10 @@ public:
      */
     virtual std::shared_ptr<ov::Model> read_model(const std::string& model,
                                                   const ov::Tensor& weights,
+                                                  bool frontend_mode = false) const = 0;
+
+    virtual std::shared_ptr<ov::Model> read_model(const std::shared_ptr<AlignedBuffer>& model,
+                                                  const std::shared_ptr<AlignedBuffer>& weights,
                                                   bool frontend_mode = false) const = 0;
 
     /**

@@ -24,6 +24,10 @@ public:
                const std::shared_ptr<ov::AlignedBuffer>& weights,
                const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions);
 
+    InputModel(const std::shared_ptr<ov::AlignedBuffer>& model_buf,
+               const std::shared_ptr<ov::AlignedBuffer>& weights,
+               const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions);
+
     std::shared_ptr<Model> convert();
 };
 

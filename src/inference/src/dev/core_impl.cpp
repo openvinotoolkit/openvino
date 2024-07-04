@@ -1481,7 +1481,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                     if (util::contains(plugin.get_property(ov::internal::supported_properties),
                                        ov::internal::compiled_model_runtime_properties_supported.name())) {
                         ov::AnyMap compiled_model_runtime_properties = {
-                            {ov::internal::compiled_model_runtime_properties.name(), std::string(header.get_runtime_info())}};
+                            {ov::internal::compiled_model_runtime_properties.name(),
+                             std::string(header.get_runtime_info())}};
                         auto res = plugin.get_property(ov::internal::compiled_model_runtime_properties_supported.name(),
                                                        compiled_model_runtime_properties);
                         if (!res.as<bool>()) {
@@ -1659,6 +1660,13 @@ std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& modelPath
 
 std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& model,
                                                     const ov::Tensor& weights,
+                                                    bool frontendMode) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::read_model from memory");
+    return ov::util::read_model(model, weights, extensions, frontendMode);
+}
+
+std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::shared_ptr<AlignedBuffer>& model,
+                                                    const std::shared_ptr<AlignedBuffer>& weights,
                                                     bool frontendMode) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::read_model from memory");
     return ov::util::read_model(model, weights, extensions, frontendMode);

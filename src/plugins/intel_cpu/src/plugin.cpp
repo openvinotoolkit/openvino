@@ -644,7 +644,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Any& model_va
         }
 
         ModelMmapDeserializer deserializer(mapped_model,
-            [this](const std::string& model, const ov::Tensor& weights) {
+            [this](const std::shared_ptr<ov::AlignedBuffer>& model, const std::shared_ptr<ov::AlignedBuffer>& weights) {
                 return get_core()->read_model(model, weights, true);
             });
 
