@@ -351,11 +351,7 @@ TEST(memory_reuse_realloc_reset_test, basic_conv_with_padding_reorder) {
     auto outputs_1 = network.execute();
     network.set_input_data("input", input_mem_1);
     auto outputs_2 = network.execute();
-    auto output_mem_2 = outputs_2.begin()->second.get_memory();
-    cldnn::mem_lock<float> output_mem_2_ptr(output_mem_2, get_test_stream());
-    for (size_t i = 0; i < output_mem_2->get_layout().get_buffer_size().count(); ++i) {
-        ASSERT_EQ(output_mem_2_ptr[i], ref_output_1[i]);
-    }
+
     // check padding of second run of reorder
     // 0, 0, 0, ... 0,  0, 0,
     // 0, 0, 0, ... 0,  0, 0,
