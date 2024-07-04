@@ -9,6 +9,7 @@
 
 #include "openvino/core/extension.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 
 namespace ov {
 
@@ -25,6 +26,11 @@ namespace util {
  */
 std::shared_ptr<ov::Model> read_model(const std::string& modelPath,
                                       const std::string& binPath,
+                                      const std::vector<ov::Extension::Ptr>& extensions,
+                                      bool enable_mmap);
+
+std::shared_ptr<ov::Model> read_model(const std::shared_ptr<ov::AlignedBuffer>& model,
+                                      const std::shared_ptr<ov::AlignedBuffer>& weights,
                                       const std::vector<ov::Extension::Ptr>& extensions,
                                       bool enable_mmap);
 

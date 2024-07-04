@@ -4,15 +4,24 @@
 
 #include "serialize_mmap.hpp"
 
-#include "nodes/common/cpu_memcpy.h"
 #include "openvino/pass/serialize.hpp"
-#include "openvino/util/codec_xor.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/core/parallel.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
+void codec_xor(char* dst_str, const char* src_str, size_t len) {
+    static const char codec_key[] = {0x30, 0x60, 0x70, 0x02, 0x04, 0x08, 0x3F, 0x6F, 0x72, 0x74, 0x78, 0x7F};
+    auto key_size = sizeof(codec_key);
+
+    parallel_for(len, [&](size_t key_idx) {
+        dst_str[key_idx] = src_str[key_idx] ^ codec_key[key_idx % key_size];
+    });
+}
+
 ModelMmapDeserializer::ModelMmapDeserializer(const std::shared_ptr<ov::MappedMemory>& buffer, model_builder fn)
-    : ModelDeserializerBase(fn), m_model_buffer(buffer) {}
+    : m_model_buffer(buffer), m_model_builder(fn) {}
 
 void ModelMmapDeserializer::parse(std::shared_ptr<ov::Model>& model) {
     using namespace ov::pass;
@@ -36,24 +45,31 @@ void ModelMmapDeserializer::parse(std::shared_ptr<ov::Model>& model) {
 
     // Read model input/output precisions.
     pugi::xml_document xml_in_out_doc;
-    if (hdr.custom_data_size > 0) {
-        auto res = xml_in_out_doc.load_string(buffer_base + hdr.custom_data_offset);
+    if (hdr.custom_data_size > 0lu) {
+        auto res = xml_in_out_doc.load_buffer(buffer_base + hdr.custom_data_offset, hdr.custom_data_size, pugi::parse_default, pugi::encoding_utf8);
         if (res.status != pugi::status_ok) {
             OPENVINO_THROW("[CPU] Could to deserialize custom data.");
         }
     }
 
     // Map blob content
+    std::shared_ptr<ov::AlignedBuffer> weights_buf;
     if (hdr.consts_size) {
-        data_blob = ov::Tensor(element::u8, ov::Shape({hdr.consts_size}));
-        cpu_parallel_memcpy(data_blob.data(element::u8), reinterpret_cast<std::uint8_t*>(buffer_base) + hdr.consts_offset, hdr.consts_size);
+        weights_buf = std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(buffer_base + hdr.consts_offset,
+                                                                                        hdr.consts_size,
+                                                                                        m_model_buffer);
     }
 
     // XML content
-    std::string xml_string(buffer_base + hdr.model_offset, hdr.model_size);
-    xml_string = ov::util::codec_xor(xml_string);
+    std::string xml_buff;
+    xml_buff.reserve(hdr.model_size + 1);
+    codec_xor(&(xml_buff.front()), buffer_base + hdr.model_offset, hdr.model_size);
+    std::shared_ptr<ov::AlignedBuffer> model_buf =
+            std::make_shared<ov::SharedBuffer<std::shared_ptr<MappedMemory>>>(&(xml_buff.front()),
+                                                                              hdr.model_size,
+                                                                              m_model_buffer);
 
-    model = m_model_builder(xml_string, std::move(data_blob));
+    model = m_model_builder(model_buf, weights_buf);
 
     // Set Info
     pugi::xml_node root = xml_in_out_doc.child("cnndata");

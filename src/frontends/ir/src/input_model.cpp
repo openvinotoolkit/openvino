@@ -222,6 +222,22 @@ public:
         }
     }
 
+    InputModelIRImpl(const std::shared_ptr<ov::AlignedBuffer>& model_buf,
+                     const std::shared_ptr<ov::AlignedBuffer>& weights,
+                     const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions)
+        : m_weights(weights),
+          m_extensions(extensions) {
+        auto res =
+            m_xml_doc.load_buffer(model_buf->get_ptr(), model_buf->size(), pugi::parse_default, pugi::encoding_utf8);
+        if (res.status != pugi::status_ok) {
+            OPENVINO_THROW(res.description(), " at offset ", res.offset);
+        }
+        m_root = m_xml_doc.document_element();
+        for (const auto& it : ov::get_available_opsets()) {
+            m_opsets[it.first] = it.second();
+        }
+    }
+
     std::shared_ptr<ov::Model> convert();
 };
 
@@ -229,6 +245,12 @@ InputModel::InputModel(std::istream& stream,
                        const std::shared_ptr<ov::AlignedBuffer>& weights,
                        const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions) {
     _impl = std::make_shared<InputModelIRImpl>(stream, weights, extensions);
+}
+
+InputModel::InputModel(const std::shared_ptr<ov::AlignedBuffer>& model_buf,
+                       const std::shared_ptr<ov::AlignedBuffer>& weights,
+                       const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions) {
+    _impl = std::make_shared<InputModelIRImpl>(model_buf, weights, extensions);
 }
 
 std::shared_ptr<ov::Model> InputModel::convert() {

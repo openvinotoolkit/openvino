@@ -33,17 +33,9 @@ inline size_t get_ir_version(pugi::xml_node& root) {
  * @param model Models stream
  * @return IR version, 0 if model does represent IR
  */
-size_t get_ir_version(std::istream& model) {
-    std::array<char, 512> header{};
-
-    model.seekg(0, model.beg);
-    model.read(header.data(), header.size());
-    model.clear();
-    model.seekg(0, model.beg);
-
+size_t get_ir_version(char* header) {
     pugi::xml_document doc;
-    auto res =
-        doc.load_buffer(header.data(), header.size(), pugi::parse_default | pugi::parse_fragment, pugi::encoding_utf8);
+    auto res = doc.load_buffer(header, 512, pugi::parse_default | pugi::parse_fragment, pugi::encoding_utf8);
 
     if (res == pugi::status_ok) {
         pugi::xml_node root = doc.document_element();
@@ -59,6 +51,17 @@ size_t get_ir_version(std::istream& model) {
     return 0;
 }
 
+size_t get_ir_version(std::istream& model) {
+    char header[512];
+
+    model.seekg(0, model.beg);
+    model.read(header, 512);
+    model.clear();
+    model.seekg(0, model.beg);
+
+    return get_ir_version(header);
+}
+
 }  // namespace
 
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
@@ -66,6 +69,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     size_t extra_variants_num = variants.size() > 0 && variants[variants.size() - 1].is<bool>() ? 1 : 0;
     std::ifstream local_model_stream;
     std::istream* provided_model_stream = nullptr;
+    std::shared_ptr<AlignedBuffer> model_buffer = nullptr;
 
     if (variants.empty() || variants.size() > 3 + extra_variants_num) {
         return false;
@@ -86,6 +90,8 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
         provided_model_stream = model_variant.as<std::istream*>();
     } else if (model_variant.is<std::istringstream*>()) {
         provided_model_stream = model_variant.as<std::istringstream*>();
+    } else if (model_variant.is<std::shared_ptr<AlignedBuffer>>()) {
+        model_buffer = model_variant.as<std::shared_ptr<AlignedBuffer>>();
     }
 
     if (provided_model_stream && local_model_stream.is_open()) {
@@ -98,6 +104,8 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     } else if (local_model_stream.is_open()) {
         version = get_ir_version(local_model_stream);
         local_model_stream.close();
+    } else if (model_buffer) {
+        version = get_ir_version(model_buffer->get_ptr<char>());
     } else {
         return false;
     }
@@ -119,6 +127,7 @@ void FrontEnd::add_extension(const ov::Extension::Ptr& ext) {
 InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {
     std::ifstream local_model_stream;
     std::istream* provided_model_stream = nullptr;
+    std::shared_ptr<ov::AlignedBuffer> model_buf;
     std::shared_ptr<ov::AlignedBuffer> weights;
 
     auto create_extensions_map = [&]() -> std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> {
@@ -137,6 +146,8 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
             auto input_model = std::make_shared<InputModel>(local_model_stream, weights, create_extensions_map());
             local_model_stream.close();
             return input_model;
+        } else if (model_buf) {
+            return std::make_shared<InputModel>(model_buf, weights, create_extensions_map());
         }
         return nullptr;
     };
@@ -168,6 +179,8 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         provided_model_stream = model_variant.as<std::istream*>();
     } else if (model_variant.is<std::istringstream*>()) {
         provided_model_stream = model_variant.as<std::istringstream*>();
+    } else if (model_variant.is<std::shared_ptr<AlignedBuffer>>()) {
+        model_buf = model_variant.as<std::shared_ptr<AlignedBuffer>>();
     }
 
     // Check weights and extensions

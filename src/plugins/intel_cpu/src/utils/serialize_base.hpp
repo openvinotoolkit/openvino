@@ -24,18 +24,14 @@ class ModelDeserializerBase {
 public:
     virtual ~ModelDeserializerBase() = default;
 
-    typedef std::function<std::shared_ptr<ov::Model>(const std::string&, const ov::Tensor&)> model_builder;
-
     void operator>>(std::shared_ptr<ov::Model>& model);
 
     virtual void parse(std::shared_ptr<ov::Model>& model) = 0;
 
 protected:
-    ModelDeserializerBase(model_builder fn) : m_model_builder(fn) {}
+    ModelDeserializerBase() {}
 
     static void set_info(pugi::xml_node& root, std::shared_ptr<ov::Model>& model);
-
-    model_builder m_model_builder;
 };
 
 }   // namespace intel_cpu

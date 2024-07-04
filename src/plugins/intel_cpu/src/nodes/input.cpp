@@ -287,16 +287,15 @@ void Input::cloneBlobIfRequired() {
     };
 
     auto isBlobAligned = [&, this] () {
-        const void *ptr = constOp->get_data_ptr();
         bool blobAlignedOnSSE = true;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         // Majority of arithmetic and data processing instructions in legacy SSE isa requires
         // the memory address in the operands must be aligned on 16-byte boundary. To ensure
         // safely reusing ngraph const blob memory, need to check address alignment.
+        const void *ptr = constOp->get_data_ptr();
         blobAlignedOnSSE = mayiuse(cpu_isa_t::avx2) || ((reinterpret_cast<uintptr_t>(ptr) & 15) == 0);
 #endif
-        const bool blobAlignedWithPrec = prec.size() > 1 ? (reinterpret_cast<size_t>(ptr) % prec.size()) == 0 : true;
-        return blobAlignedWithPrec && blobAlignedOnSSE;
+        return blobAlignedOnSSE;
     };
 
     // The presence of subnormals is better to determined at IR read time.
@@ -361,7 +360,6 @@ void Input::cloneBlobIfRequired() {
         // This is possible only in multistream case on multisocket machine.
         // TODO: don't clone blob for multisocket + multistream case if current stream is run on the numa node where original weights are stored.
         (!weightCache || context->getNumNumaNodes() == 1 || context->getCPUStreamExecutor()->get_streams_num() == 1);
-
     memoryPtr = clone_is_not_needed ? std::make_shared<Memory>(getEngine(), memDesc, constOp->get_data_ptr())
                                     : std::const_pointer_cast<const IMemory>(
                                           weightCache ? *weightCache->findOrCreate(blobKey(), cloneBlob) : cloneBlob());

@@ -10,7 +10,7 @@ namespace ov {
 namespace intel_cpu {
 
 ModelStreamDeserializer::ModelStreamDeserializer(std::istream& istream, model_builder fn)
-    : ModelDeserializerBase(fn), m_istream(&istream) {}
+    : m_istream(&istream), m_model_builder(fn) {}
 
 void ModelStreamDeserializer::parse(std::shared_ptr<ov::Model>& model) {
     using namespace ov::pass;
