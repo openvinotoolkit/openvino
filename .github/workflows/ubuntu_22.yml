@@ -449,6 +449,7 @@ jobs:
     with:
       device: 'igpu'
       test_type: ${{ matrix.TEST_TYPE }}
+      os: 'ubuntu22'
       runner: "[ 'self-hosted', 'igpu' ]"
       container: '{"image": "ubuntu:22.04", "volumes": ["/dev/dri:/dev/dri"], "options": "--group-add 109 --group-add 44
         --device /dev/dri:/dev/dri"}'
@@ -465,6 +466,7 @@ jobs:
     with:
       device: 'dgpu'
       test_type: ${{ matrix.TEST_TYPE }}
+      os: 'ubuntu22'
       runner: "[ 'self-hosted', 'dgpu' ]"
       container: '{"image": "ubuntu:22.04", "volumes": ["/dev/dri:/dev/dri"], "options": "--group-add 109 --group-add 44
         --device /dev/dri/card0:/dev/dri/card0  --device /dev/dri/renderD128:/dev/dri/renderD128"}'
