@@ -165,7 +165,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                           &parameters_to_remove,
                                           &layer_index](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-
         auto real_q = pattern_map.at(q);
 
         auto sdpa_node =
@@ -373,7 +372,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         }
 
         replace_node(m.get_match_root(), pa_transpose);
-        std::cout << "AAAA" << std::endl;
         return true;
     };
 

@@ -8,13 +8,12 @@ import models_hub_common.utils as utils
 import pytest
 import os
 
-from openvino.runtime.op import Result
-
 def run_pa(tmp_path, model_id, model_link):
-    model = OVModelForCausalLM.from_pretrained(model_id, export=True, trust_remote_code=True, compile=False)
+    model = OVModelForCausalLM.from_pretrained(model_id, export=True, trust_remote_code=True)
 
     paged_attention_transformation(model.model)
 
+    # Test that a _PagedAttentionExtension node appeared after the transformation.
     assert any(isinstance(op, _PagedAttentionExtension) for op in model.model.get_ordered_ops()), f"The model '{model_id}' has no _PagedAttentionExtension present."
 
     model_inputs = model.model.inputs
@@ -29,7 +28,7 @@ def run_pa(tmp_path, model_id, model_link):
 
 @pytest.mark.precommit
 @pytest.mark.parametrize("model_name, model_link, mark, reason", utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-models-precommit")))
-def test_pa_precommit(tmp_path, model_name, model_link, mark, reason, ie_device, capsys):
+def test_pa_precommit(tmp_path, model_name, model_link, mark, reason, ie_device):
     assert mark is None or mark == 'skip' or mark == 'xfail', \
         "Incorrect test case: {}, {}".format(model_name, model_link)
     if mark == 'skip':

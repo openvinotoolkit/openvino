@@ -18,8 +18,6 @@
 #include "transformations/sdpa_to_paged_attention/total_sequence_length_pattern.hpp"
 #include "transformations/utils/utils.hpp"
 
-#include "openvino/pass/visualize_tree.hpp"
-
 using namespace ov::op;
 
 static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> node, const char* name) {
