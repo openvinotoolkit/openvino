@@ -1222,6 +1222,7 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
         auto xmlDir = ov::util::get_directory(m_xmlPath);
         if (xmlDir != m_xmlPath)
             ov::util::create_directory_recursive(xmlDir);
+
         std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);
         OPENVINO_ASSERT(bin_file, "Can't open bin file: \"" + m_binPath + "\"");
 
@@ -1253,16 +1254,14 @@ pass::Serialize::Serialize(std::ostream& xmlFile, std::ostream& binFile, pass::S
       m_binFile{&binFile},
       m_xmlPath{},
       m_binPath{},
-      m_version{version} {
-}
+      m_version{version} {}
 
 pass::Serialize::Serialize(const std::string& xmlPath, const std::string& binPath, pass::Serialize::Version version)
     : m_xmlFile{nullptr},
       m_binFile{nullptr},
       m_xmlPath{valid_xml_path(xmlPath)},
       m_binPath{provide_bin_path(xmlPath, binPath)},
-      m_version{version} {
-}
+      m_version{version} {}
 
 pass::StreamSerialize::StreamSerialize(std::ostream& stream,
                                        const std::function<void(std::ostream&)>& custom_data_serializer,
