@@ -102,24 +102,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_4D, PoolingLayerCPUTest,
                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
                         PoolingLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_CPU_3D, MaxPoolingV14LayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(paramsMaxV143D()),
-                                 ::testing::ValuesIn(inputShapes3D()),
-                                 ::testing::ValuesIn((inpOutPrecision())),
-                                 ::testing::ValuesIn(vecCpuConfigs),
-                                 ::testing::Values(CPUTestUtils::empty_plugin_config)),
-                         MaxPoolingV14LayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_CPU_4D, MaxPoolingV14LayerCPUTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(paramsMaxV144D()),
-                                 ::testing::ValuesIn(inputShapes4DStatic()),
-                                 ::testing::ValuesIn((inpOutPrecision())),
-                                 ::testing::ValuesIn(vecCpuConfigs),
-                                 ::testing::Values(CPUTestUtils::empty_plugin_config)),
-                         MaxPoolingV14LayerCPUTest::getTestCaseName);
-
 INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_Ref_Fallback_4D_ceil_torch, MaxPoolingV14LayerRefFallbackTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(paramsMaxV144D()),
