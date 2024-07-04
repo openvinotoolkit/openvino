@@ -1,11 +1,16 @@
 name: Linux developer workflow for CPU plugin (Ubuntu 20.04)
 on:
   workflow_dispatch:
+  # push:
+  #   paths:
+  #     - '.github/workflows/linux_cpu_dev.yml'
+  pull_request:
+    paths:
+      - '.github/workflows/linux_cpu_dev.yml'
 
-# concurrency:
-#   # github.ref is not unique in post-commit
-#   group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux
-#   cancel-in-progress: true
+concurrency:
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux
+  cancel-in-progress: true
 
 permissions: read-all
 
@@ -57,17 +62,12 @@ jobs:
       SCCACHE_LOG: warn
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_REPO: /__w/openvino/openvino/openvino
-      # ? remove ?
-      OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
-      # ? remove ?
-      INSTALL_DIR_JS: /__w/openvino/openvino/openvino_install/js
       INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
       DEVELOPER_PACKAGE_DIR: /__w/openvino/openvino/developer_package_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
-      # ? remove ?
-      ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/src/frontends/onnx/tests/ci_utils/onnxruntime
+      # ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/src/frontends/onnx/tests/ci_utils/onnxruntime
 
     steps:
       - name: Clone OpenVINO
@@ -92,8 +92,7 @@ jobs:
             -DENABLE_TESTS=ON \
             -DENABLE_SNIPPETS_LIBXSMM_TPP=ON \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
-            # remove ?
-            # -DENABLE_SYSTEM_OPENCL=ON \
+            -DENABLE_SYSTEM_OPENCL=ON \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCPACK_GENERATOR=TGZ \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
@@ -111,12 +110,10 @@ jobs:
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats
 
-      - name: Cmake install - OpenVINO - ask ?
+      - name: Cmake install - OpenVINO
         run: |
           cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -P ${BUILD_DIR}/cmake_install.cmake
           cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_TEST_DIR} -DCOMPONENT=tests -P ${BUILD_DIR}/cmake_install.cmake
-          # only for nvidia ?
-          # cmake -DCMAKE_INSTALL_PREFIX=${DEVELOPER_PACKAGE_DIR} -DCOMPONENT=developer_package -P ${BUILD_DIR}/cmake_install.cmake
           cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -DCOMPONENT=python_wheels -P ${BUILD_DIR}/cmake_install.cmake
 
       - name: Pack Artifacts
@@ -125,11 +122,6 @@ jobs:
           pushd ${INSTALL_DIR}
             tar -czvf ${BUILD_DIR}/openvino_package.tar.gz *
           popd
-
-          #  only for nvidia ?
-          # pushd ${DEVELOPER_PACKAGE_DIR}
-          #   tar -czvf ${BUILD_DIR}/openvino_developer_package.tar.gz *
-          # popd
 
           pushd ${INSTALL_TEST_DIR}
             tar -czvf ${BUILD_DIR}/openvino_tests.tar.gz *
@@ -146,7 +138,6 @@ jobs:
           path: ${{ env.SCCACHE_ERROR_LOG }}
           if-no-files-found: 'ignore'
 
-      #  artifacts VS. outputs for a single WF - ?
       - name: Upload openvino package
         if: ${{ always() }}
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
@@ -169,8 +160,6 @@ jobs:
   CPU_Functional_Tests:
     name: CPU functional tests
     needs: [ Docker, Build ]
-    # runs-on: aks-linux-8-cores-32gb
-    # uses: ./.github/workflows/job_cpu_functional_tests.yml
     timeout-minutes: 30
     runs-on: aks-linux-8-cores-32gb
     container:
