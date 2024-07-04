@@ -417,7 +417,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_CPU_3D_Ceil_Torch, MaxPoolingV14LayerC
                                  ::testing::ValuesIn(paramsMaxV143D()),
                                  ::testing::ValuesIn(inputShapes3DStatic()),
                                  ::testing::ValuesIn((inpOutPrecision())),
-                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "jit_avx512"}),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigsFusing_3D)),
                                  ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MaxPoolingV14LayerCPUTest::getTestCaseName);
 
@@ -459,7 +459,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_CPU_5D, MaxPoolingV14LayerCPUTest,
                                  ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MaxPoolingV14LayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_Ref_Fallback_5D, MaxPoolingV14LayerRefFallbackTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_RefFallback_5D, MaxPoolingV14LayerRefFallbackTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(paramsMaxV145D()),
                                  ::testing::ValuesIn(inputShapes5DDynamic()),
