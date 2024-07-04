@@ -34,7 +34,18 @@ describe('Core.readModeSync', () => {
     )
   });
 
-  it('readModeSync(modelUint8ArrayBuffer, weightsUint8ArrayBuffer) ', () => {
+  it('readModelSync(model string, weightsTensor) ', () => {
+    const model_str = fs.readFileSync(modelPath, 'utf8');
+    const weights = new ov.Tensor(ov.element.u8, [weightsFile.buffer.byteLength], new Uint8Array(weightsFile.buffer));
+    const model = core.readModelSync(
+      model_str,
+      weights,
+    );
+    assert.ok(model instanceof ov.Model);
+    assert.equal(model.inputs.length, 1);
+  });
+
+  it('readModelSync(modelUint8ArrayBuffer, weightsUint8ArrayBuffer) ', () => {
     const model = core.readModelSync(
       new Uint8Array(modelFile.buffer),
       new Uint8Array(weightsFile.buffer),
@@ -55,7 +66,7 @@ describe('Core.readModel', () => {
     assert.equal(model.inputs.length, 1);
   });
 
-  it('readMode(modelUint8ArrayBuffer, weightsUint8ArrayBuffer) ', async () => {
+  it('readModel(modelUint8ArrayBuffer, weightsUint8ArrayBuffer) ', async () => {
     const model = await core.readModel(
       new Uint8Array(modelFile.buffer),
       new Uint8Array(weightsFile.buffer),
