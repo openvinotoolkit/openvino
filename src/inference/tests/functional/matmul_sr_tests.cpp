@@ -105,7 +105,7 @@ public:
             ov::ResultVector results = {result};
             model = std::make_shared<ov::Model>(results, params);
         }
-        ASSERT_NO_THROW(model->reshape(test_case.new_shapes));
+        OV_ASSERT_NO_THROW(model->reshape(test_case.new_shapes));
     }
 };
 
@@ -144,7 +144,7 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeAMatMulFuse) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::TransposeMatMul>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
     {
         auto data_A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 2});
@@ -171,7 +171,7 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeBMatMulFuse) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::TransposeMatMul>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
     {
         auto data_A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 3});
@@ -198,7 +198,7 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeAMatMulWithAttrFuse) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::TransposeMatMul>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
     {
         auto data_A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 3});
@@ -225,7 +225,7 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeBMatMulWithAttrFuse) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::TransposeMatMul>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
     {
         auto data_A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 3});
@@ -251,7 +251,7 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeAMatMulSideAttrFuse) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::TransposeMatMul>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
     {
         auto data_A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 3});
@@ -278,7 +278,7 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeBMatMulSideAttrFuse) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::TransposeMatMul>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
     {
         auto data_A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 2});
@@ -306,7 +306,7 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeBothMatMulFuse) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::TransposeMatMul>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
     {
         auto data_A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 2});
@@ -341,7 +341,7 @@ TEST(SmartReshapeTransposeMatMulTests, TransposeBothMatMulWithAttrFuse) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::TransposeMatMul>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
     {
         auto data_A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 3, 2});

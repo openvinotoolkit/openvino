@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/test_assertions.hpp"
 
 using namespace testing;
 using namespace ov::util;
@@ -17,7 +18,7 @@ TEST(Comparator, boolean) {
     bool values_ref[] = {value, value, value, value};
     auto tensor = ov::Tensor(element_type, shape, values);
     auto tensor_ref = ov::Tensor(element_type, shape, values_ref);
-    ASSERT_NO_THROW(ov::test::utils::compare(tensor_ref, tensor));
+    OV_ASSERT_NO_THROW(ov::test::utils::compare(tensor_ref, tensor));
 }
 
 TEST(Comparator, boolean_negative) {
@@ -39,7 +40,7 @@ TEST(Comparator, integer) {
     std::vector<int> values_ref(ov::shape_size(shape), value);
     auto tensor = ov::Tensor(element_type, shape, values.data());
     auto tensor_ref = ov::Tensor(element_type, shape, values_ref.data());
-    ASSERT_NO_THROW(ov::test::utils::compare(tensor_ref, tensor));
+    OV_ASSERT_NO_THROW(ov::test::utils::compare(tensor_ref, tensor));
 }
 
 TEST(Comparator, integer_negative) {
@@ -69,7 +70,7 @@ TEST(Comparator, float_) {
     }
     auto tensor = ov::Tensor(element_type, shape, values.data());
     auto tensor_ref = ov::Tensor(element_type, shape, values_ref.data());
-    ASSERT_NO_THROW(ov::test::utils::compare(tensor_ref, tensor));
+    OV_ASSERT_NO_THROW(ov::test::utils::compare(tensor_ref, tensor));
 }
 
 TEST(Comparator, float_large) {
@@ -86,7 +87,7 @@ TEST(Comparator, float_large) {
     }
     auto tensor = ov::Tensor(element_type, shape, values.data());
     auto tensor_ref = ov::Tensor(element_type, shape, values_ref.data());
-    ASSERT_NO_THROW(ov::test::utils::compare(tensor_ref, tensor));
+    OV_ASSERT_NO_THROW(ov::test::utils::compare(tensor_ref, tensor));
 }
 
 TEST(Comparator, float_negative) {
@@ -118,7 +119,7 @@ TEST(Comparator, float_extra_small) {
     }
     auto tensor = ov::Tensor(element_type, shape, values.data());
     auto tensor_ref = ov::Tensor(element_type, shape, values_ref.data());
-    ASSERT_NO_THROW(ov::test::utils::compare(tensor_ref, tensor));
+    OV_ASSERT_NO_THROW(ov::test::utils::compare(tensor_ref, tensor));
 }
 
 TEST(Comparator, different_shapes) {
@@ -144,7 +145,7 @@ TEST(Comparator, different_prc_low) {
     std::vector<ov::float16> values_ref(ov::shape_size(shape), ov::float16(value));
     auto tensor = ov::Tensor(element_type, shape, values.data());
     auto tensor_ref = ov::Tensor(element_type_ref, shape, values_ref.data());
-    ASSERT_NO_THROW(ov::test::utils::compare(tensor_ref, tensor));
+    OV_ASSERT_NO_THROW(ov::test::utils::compare(tensor_ref, tensor));
 }
 
 TEST(Comparator, different_prc_up) {
@@ -159,5 +160,5 @@ TEST(Comparator, different_prc_up) {
     std::vector<float> values_ref(ov::shape_size(shape), value);
     auto tensor = ov::Tensor(element_type, shape, values.data());
     auto tensor_ref = ov::Tensor(element_type_ref, shape, values_ref.data());
-    ASSERT_NO_THROW(ov::test::utils::compare(tensor_ref, tensor));
+    OV_ASSERT_NO_THROW(ov::test::utils::compare(tensor_ref, tensor));
 }

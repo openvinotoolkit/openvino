@@ -31,13 +31,13 @@ void FrontEndElementTypeTest::doLoadFromFile() {
 ///////////////////////////////////////////////////////////////////
 
 TEST_P(FrontEndElementTypeTest, testSetElementType) {
-    ASSERT_NO_THROW(doLoadFromFile());
+    OV_ASSERT_NO_THROW(doLoadFromFile());
     Place::Ptr place;
-    ASSERT_NO_THROW(place = m_inputModel->get_inputs()[0]);
+    OV_ASSERT_NO_THROW(place = m_inputModel->get_inputs()[0]);
     ASSERT_NE(place, nullptr);
     auto name = place->get_names()[0];
 
-    ASSERT_NO_THROW(m_inputModel->set_element_type(place, ov::element::f16));
+    OV_ASSERT_NO_THROW(m_inputModel->set_element_type(place, ov::element::f16));
 
     std::shared_ptr<ov::Model> model;
     model = m_frontEnd->convert(m_inputModel);

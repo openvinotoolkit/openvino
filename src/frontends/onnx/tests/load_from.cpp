@@ -32,7 +32,7 @@ TEST_P(FrontEndLoadFromTest, testLoadFromStreamAndPassPath) {
     std::istream* is = &ifs;
     std::vector<std::string> frontends;
     FrontEnd::Ptr fe;
-    ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
+    OV_ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
     ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_model(is)) << "Could not create the ONNX FE using the istream object";
     ASSERT_NE(m_frontEnd, nullptr);
 

@@ -90,7 +90,7 @@ TEST_P(OVInferRequestIOTensorTest, getAfterSetInputDoNotChangeInput) {
     auto tensor = utils::create_and_fill_tensor(input.get_element_type(), input.get_shape());
     OV_ASSERT_NO_THROW(req.set_tensor(input, tensor));
     ov::Tensor actual_tensor;
-    ASSERT_NO_THROW(actual_tensor = req.get_tensor(input));
+    OV_ASSERT_NO_THROW(actual_tensor = req.get_tensor(input));
 
     ASSERT_EQ(tensor.data(), actual_tensor.data());
     ASSERT_EQ(tensor.get_shape(), actual_tensor.get_shape());
@@ -101,7 +101,7 @@ TEST_P(OVInferRequestIOTensorTest, getAfterSetOutputDoNotChangeOutput) {
     auto tensor = utils::create_and_fill_tensor(output.get_element_type(), output.get_shape());
     OV_ASSERT_NO_THROW(req.set_tensor(output, tensor));
     ov::Tensor actual_tensor;
-    ASSERT_NO_THROW(actual_tensor = req.get_tensor(output));
+    OV_ASSERT_NO_THROW(actual_tensor = req.get_tensor(output));
 
     ASSERT_EQ(tensor.data(), actual_tensor.data());
     ASSERT_EQ(tensor.get_shape(), actual_tensor.get_shape());

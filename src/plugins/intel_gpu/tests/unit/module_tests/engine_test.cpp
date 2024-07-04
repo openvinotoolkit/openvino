@@ -18,19 +18,19 @@ TEST(engine, memory_creation) {
 
     std::shared_ptr<memory> mem = nullptr;
     layout layout_to_allocate = {{2, 4}, data_types::u8, format::bfyx};
-    ASSERT_NO_THROW(mem = engine.allocate_memory(layout_to_allocate));
+    OV_ASSERT_NO_THROW(mem = engine.allocate_memory(layout_to_allocate));
     ASSERT_NE(mem, nullptr);
     ASSERT_EQ(mem->get_layout(), layout_to_allocate);
     ASSERT_TRUE(mem->is_allocated_by(engine));
 
-    ASSERT_NO_THROW(mem = engine.allocate_memory(layout_to_allocate, allocation_type::cl_mem));
+    OV_ASSERT_NO_THROW(mem = engine.allocate_memory(layout_to_allocate, allocation_type::cl_mem));
     ASSERT_NE(mem, nullptr);
     ASSERT_EQ(mem->get_layout(), layout_to_allocate);
     ASSERT_NE(std::dynamic_pointer_cast<ocl::gpu_buffer>(mem), nullptr);
     ASSERT_TRUE(mem->is_allocated_by(engine));
 
     if (engine.supports_allocation(allocation_type::usm_host)) {
-        ASSERT_NO_THROW(mem = engine.allocate_memory(layout_to_allocate, allocation_type::usm_host));
+        OV_ASSERT_NO_THROW(mem = engine.allocate_memory(layout_to_allocate, allocation_type::usm_host));
         ASSERT_NE(mem, nullptr);
         ASSERT_EQ(mem->get_layout(), layout_to_allocate);
         ASSERT_NE(std::dynamic_pointer_cast<ocl::gpu_usm>(mem), nullptr);
@@ -38,7 +38,7 @@ TEST(engine, memory_creation) {
     }
 
     if (engine.supports_allocation(allocation_type::usm_device)) {
-        ASSERT_NO_THROW(mem = engine.allocate_memory(layout_to_allocate, allocation_type::usm_device));
+        OV_ASSERT_NO_THROW(mem = engine.allocate_memory(layout_to_allocate, allocation_type::usm_device));
         ASSERT_NE(mem, nullptr);
         ASSERT_EQ(mem->get_layout(), layout_to_allocate);
         ASSERT_NE(std::dynamic_pointer_cast<ocl::gpu_usm>(mem), nullptr);
@@ -46,7 +46,7 @@ TEST(engine, memory_creation) {
     }
 
     std::vector<uint8_t> host_data(2*4);
-    ASSERT_NO_THROW(mem = engine.attach_memory(layout_to_allocate, host_data.data()));
+    OV_ASSERT_NO_THROW(mem = engine.attach_memory(layout_to_allocate, host_data.data()));
     ASSERT_NE(mem, nullptr);
     ASSERT_EQ(mem->get_layout(), layout_to_allocate);
     ASSERT_NE(std::dynamic_pointer_cast<simple_attached_memory>(mem), nullptr);

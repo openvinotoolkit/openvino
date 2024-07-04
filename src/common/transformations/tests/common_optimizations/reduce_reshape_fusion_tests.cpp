@@ -172,5 +172,5 @@ TEST(TransformationTests, ReduceMeanReshapeFusionAssertValidOutputShape) {
     manager.set_per_pass_validation(false);
     manager.register_pass<pass::ReduceReshapeFusion>();
     manager.register_pass<pass::TransposeToReshape>();
-    ASSERT_NO_THROW(manager.run_passes(model));
+    OV_ASSERT_NO_THROW(manager.run_passes(model));
 }

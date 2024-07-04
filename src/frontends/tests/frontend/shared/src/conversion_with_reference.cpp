@@ -4,6 +4,7 @@
 
 #include "conversion_with_reference.hpp"
 
+#include "common_test_utils/test_assertions.hpp"
 #include "transformations/init_node_info.hpp"
 
 FrontEndConversionWithReferenceTestsF::FrontEndConversionWithReferenceTestsF()
@@ -26,7 +27,7 @@ void FrontEndConversionWithReferenceTestsF::TearDown() {
     OPENVINO_ASSERT(model_ref != nullptr, "Reference Test Model is not initialized.");
 
     manager.run_passes(model);
-    ASSERT_NO_THROW(check_rt_info(model));
+    OV_ASSERT_NO_THROW(check_rt_info(model));
 
     auto res = comparator.compare(model, model_ref);
     ASSERT_TRUE(res.valid) << res.message;

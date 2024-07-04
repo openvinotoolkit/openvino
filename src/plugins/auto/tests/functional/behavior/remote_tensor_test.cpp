@@ -15,7 +15,7 @@ TEST_F(AutoFuncTests, can_create_remotetensor_then_infer_with_affinity) {
     auto inf_req_regular = compiled_model.create_infer_request();
     inf_req_regular.set_tensor(input, fake_img_data);
     // infer using system memory
-    ASSERT_NO_THROW(inf_req_regular.infer());
+    OV_ASSERT_NO_THROW(inf_req_regular.infer());
     auto output_tensor_regular = inf_req_regular.get_tensor(output);
     auto cldnn_context = core.get_default_context("MOCK_GPU");
     auto remote_tensor = cldnn_context.create_tensor(input->get_element_type(), input->get_shape());
@@ -23,7 +23,7 @@ TEST_F(AutoFuncTests, can_create_remotetensor_then_infer_with_affinity) {
     auto infer_req_remote = compiled_model.create_infer_request();
     infer_req_remote.set_tensor(input, remote_tensor);
     // infer using remote tensor
-    ASSERT_NO_THROW(infer_req_remote.start_async());
+    OV_ASSERT_NO_THROW(infer_req_remote.start_async());
     // no actual inference for remote tensor, due to data not able to mmap
     infer_req_remote.wait();
 }
@@ -37,11 +37,11 @@ TEST_F(AutoFuncTests, cannot_infer_remote_if_not_initialized_for_device) {
     auto cldnn_context = core.get_default_context("MOCK_GPU");
     auto input = model_cannot_batch->get_parameters().at(0);
     auto remote_tensor = cldnn_context.create_tensor(input->get_element_type(), input->get_shape());
-    ASSERT_NO_THROW(compiled_model =
-                        core.compile_model(model_cannot_batch, "MULTI", {ov::device::priorities("MOCK_3")}));
+    OV_ASSERT_NO_THROW(compiled_model =
+                           core.compile_model(model_cannot_batch, "MULTI", {ov::device::priorities("MOCK_3")}));
     auto infer_req_remote = compiled_model.create_infer_request();
     infer_req_remote.set_tensor(input, remote_tensor);
-    ASSERT_NO_THROW(infer_req_remote.start_async());
+    OV_ASSERT_NO_THROW(infer_req_remote.start_async());
     ASSERT_THROW(infer_req_remote.wait(), ov::Exception);
 }
 
@@ -51,7 +51,7 @@ TEST_F(AutoFuncTests, can_create_remotetensor_then_infer_with_affinity_2_devices
     register_plugin_mock_gpu(core, "MOCK_3", {});
     ov::CompiledModel compiled_model;
     auto input = model_cannot_batch->get_parameters().at(0);
-    ASSERT_NO_THROW(
+    OV_ASSERT_NO_THROW(
         compiled_model =
             core.compile_model(model_cannot_batch, "MULTI", {ov::device::priorities("MOCK_GPU", "MOCK_3")}));
     std::vector<ov::InferRequest> inf_req_shared = {};
@@ -66,16 +66,16 @@ TEST_F(AutoFuncTests, can_create_remotetensor_then_infer_with_affinity_2_devices
     auto infer_req_remote_2 = compiled_model.create_infer_request();
     infer_req_remote_2.set_tensor(input, remote_tensor_2);
     // infer using remote tensor
-    ASSERT_NO_THROW(infer_req_remote.start_async());
-    ASSERT_NO_THROW(infer_req_remote_2.start_async());
-    ASSERT_NO_THROW(infer_req_remote.wait());
-    ASSERT_NO_THROW(infer_req_remote_2.wait());
+    OV_ASSERT_NO_THROW(infer_req_remote.start_async());
+    OV_ASSERT_NO_THROW(infer_req_remote_2.start_async());
+    OV_ASSERT_NO_THROW(infer_req_remote.wait());
+    OV_ASSERT_NO_THROW(infer_req_remote_2.wait());
 }
 
 TEST_F(AutoFuncTests, can_create_remotetensor_then_infer_with_affinity_2_devices_device_id) {
     ov::CompiledModel compiled_model;
     auto input = model_cannot_batch->get_parameters().at(0);
-    ASSERT_NO_THROW(
+    OV_ASSERT_NO_THROW(
         compiled_model =
             core.compile_model(model_cannot_batch, "MULTI", {ov::device::priorities("MOCK_GPU.1", "MOCK_CPU")}));
     auto cldnn_context = core.get_default_context("MOCK_GPU");
@@ -84,7 +84,7 @@ TEST_F(AutoFuncTests, can_create_remotetensor_then_infer_with_affinity_2_devices
     auto infer_req_remote = compiled_model.create_infer_request();
     infer_req_remote.set_tensor(input, remote_tensor);
     // infer using remote tensor
-    ASSERT_NO_THROW(infer_req_remote.start_async());
+    OV_ASSERT_NO_THROW(infer_req_remote.start_async());
     ASSERT_THROW_WITH_MESSAGE(infer_req_remote.wait(),
                               ov::Exception,
                               "None of the devices supports a remote tensor created on the device named MOCK_GPU");
@@ -92,10 +92,10 @@ TEST_F(AutoFuncTests, can_create_remotetensor_then_infer_with_affinity_2_devices
 
 TEST_F(AutoFuncTests, can_throw_if_oversubsciption_of_inferrequest) {
     ov::CompiledModel compiled_model;
-    ASSERT_NO_THROW(compiled_model = core.compile_model(
-                        model_cannot_batch,
-                        "MULTI",
-                        {ov::device::priorities("MOCK_GPU", "MOCK_CPU"), ov::intel_auto::device_bind_buffer(true)}));
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(
+                           model_cannot_batch,
+                           "MULTI",
+                           {ov::device::priorities("MOCK_GPU", "MOCK_CPU"), ov::intel_auto::device_bind_buffer(true)}));
     auto optimal_num = compiled_model.get_property(ov::optimal_number_of_infer_requests);
     for (size_t i = 0; i < optimal_num; i++) {
         compiled_model.create_infer_request();

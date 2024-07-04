@@ -33,7 +33,7 @@ std::shared_ptr<ov::op::util::FrameworkNode> get_framework_node_with_out_name(co
 
 TEST(ONNXFeConvertPartially, insert_framework_node_if_unsupported) {
     std::shared_ptr<ov::Model> model;
-    ASSERT_NO_THROW(model = convert_partially("unsupported_ops/add_unsupported.onnx"));
+    OV_ASSERT_NO_THROW(model = convert_partially("unsupported_ops/add_unsupported.onnx"));
     ASSERT_TRUE(model);
 
     EXPECT_EQ(count_ops_of_type<ov::opset11::Add>(model), 1);
@@ -45,7 +45,7 @@ TEST(ONNXFeConvertPartially, insert_framework_node_if_unsupported) {
 
 TEST(ONNXFeConvertPartially, insert_more_framework_nodes_if_unsupported) {
     std::shared_ptr<ov::Model> model;
-    ASSERT_NO_THROW(model = convert_partially("unsupported_ops/two_unsupported_nodes.onnx"));
+    OV_ASSERT_NO_THROW(model = convert_partially("unsupported_ops/two_unsupported_nodes.onnx"));
     ASSERT_TRUE(model);
 
     EXPECT_EQ(count_ops_of_type<ov::opset11::Add>(model), 1);
@@ -61,7 +61,7 @@ TEST(ONNXFeConvertPartially, insert_more_framework_nodes_if_unsupported) {
 // validation error - onnx/instance_norm_bad_scale_type.onnx
 TEST(ONNXFeConvertPartially, insert_framework_node_if_onnx_validation_exception) {
     std::shared_ptr<ov::Model> model;
-    ASSERT_NO_THROW(model = convert_partially("instance_norm_bad_scale_type.onnx"));
+    OV_ASSERT_NO_THROW(model = convert_partially("instance_norm_bad_scale_type.onnx"));
     ASSERT_TRUE(model);
 
     const auto incorrect_instance_norm = get_framework_node_with_out_name(model, "y");
@@ -71,7 +71,7 @@ TEST(ONNXFeConvertPartially, insert_framework_node_if_onnx_validation_exception)
 
 TEST(ONNXFeConvertPartially, insert_framework_node_if_other_translation_exception) {
     std::shared_ptr<ov::Model> model;
-    ASSERT_NO_THROW(model = convert_partially("depth_to_space_bad_mode.onnx"));
+    OV_ASSERT_NO_THROW(model = convert_partially("depth_to_space_bad_mode.onnx"));
     ASSERT_TRUE(model);
 
     const auto incorrect_dts = get_framework_node_with_out_name(model, "B");
@@ -81,7 +81,7 @@ TEST(ONNXFeConvertPartially, insert_framework_node_if_other_translation_exceptio
 
 TEST(ONNXFeConvertPartially, insert_framework_nodes_if_both_unsupported_and_other_translation_exception) {
     std::shared_ptr<ov::Model> model;
-    ASSERT_NO_THROW(model = convert_partially("unsupported_ops/unsupported_add_and_incorrect_dts.onnx"));
+    OV_ASSERT_NO_THROW(model = convert_partially("unsupported_ops/unsupported_add_and_incorrect_dts.onnx"));
     ASSERT_TRUE(model);
 
     EXPECT_EQ(count_ops_of_type<ov::opset11::Abs>(model), 1);

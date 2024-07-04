@@ -100,7 +100,7 @@ TEST_F(RTInfoSerializationTest, all_attributes_latest) {
 
         const std::string& dkey = ov::Decompression::get_type_info_static();
         ASSERT_TRUE(info.count(dkey));
-        ASSERT_NO_THROW(info.at(dkey).as<ov::Decompression>());
+        OV_ASSERT_NO_THROW(info.at(dkey).as<ov::Decompression>());
     };
 
     auto add = f->get_results()[0]->get_input_node_ptr(0);

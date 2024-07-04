@@ -410,7 +410,7 @@ TEST(smoke_Basic, FuseDynamicTransposeAndReorderTest) {
     model = p.build();
 
     auto core = ov::Core();
-    ASSERT_NO_THROW(core.compile_model(model, "CPU"));
+    OV_ASSERT_NO_THROW(core.compile_model(model, "CPU"));
 }
 
 }  // namespace test

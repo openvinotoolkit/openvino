@@ -71,10 +71,10 @@ public:
 
         const ov::AnyMap configs = {{ov::auto_batch_timeout(static_cast<uint32_t>(200))}, {ov::device::priorities("CPU(16)")}};
 
-        ASSERT_NO_THROW(m_auto_batch_compile_model = m_plugin->compile_model(m_model, configs));
+        OV_ASSERT_NO_THROW(m_auto_batch_compile_model = m_plugin->compile_model(m_model, configs));
     }
 };
 
 TEST_F(CompileModelGetRuntimeModelTest, CompileModelGetRuntimeModelTestCase) {
-    ASSERT_NO_THROW(m_auto_batch_compile_model->get_runtime_model());
+    OV_ASSERT_NO_THROW(m_auto_batch_compile_model->get_runtime_model());
 }

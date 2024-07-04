@@ -100,7 +100,7 @@ TEST(TransformationTests, LowLatency2_LSTM) {
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::LowLatency2>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
     {
         auto Xi = std::make_shared<Parameter>(element::f32, Shape{1, 1, 16});
@@ -188,7 +188,7 @@ TEST(TransformationTests, LowLatency2_GRU) {
 
         manager.run_passes(f);
 
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
     {
         auto Xi = std::make_shared<Parameter>(element::f32, Shape{1, 1, 16});
@@ -269,7 +269,7 @@ TEST(TransformationTests, LowLatency2_RNN) {
 
         manager.run_passes(f);
 
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
     {
         auto Xi = std::make_shared<Parameter>(element::f32, Shape{1, 1, 16});
@@ -346,7 +346,7 @@ TEST(TransformationTests, LowLatency2_LSTMReshape) {
         manager.register_pass<ov::pass::LowLatency2>();
 
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
     {
         auto Xi = std::make_shared<Parameter>(element::f32, Shape{1, 1, 16});
@@ -431,7 +431,7 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop) {
         manager.register_pass<ov::pass::LowLatency2>();
 
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
     {
         auto Xi = std::make_shared<Parameter>(element::f32, Shape{1, 1, 16});
@@ -510,7 +510,7 @@ TEST(TransformationTests, LowLatency2_LSTM_several_iterations) {
         manager.register_pass<ov::pass::LowLatency2>();
 
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     // TensorIterator not unrolled.
@@ -625,7 +625,7 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_Reshape) {
         manager.register_pass<ov::pass::LowLatency2>();
 
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
     {
         auto Xi = std::make_shared<Parameter>(element::f32, Shape{1, 1, 16});
@@ -706,7 +706,7 @@ TEST(TransformationTests, LowLatency2_LSTM_Loop_several_iterations) {
         manager.register_pass<ov::pass::LowLatency2>(true);
 
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
     {
         auto X = std::make_shared<Parameter>(element::f32, Shape{10, 1, 16});

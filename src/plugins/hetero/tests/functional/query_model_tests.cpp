@@ -103,7 +103,7 @@ TEST_F(HeteroTests, query_model_on_independent_parameter) {
     ov::SupportedOpsMap supported_ops;
     const std::string dev_name = "MOCK0.1";
     const auto model = create_model_with_independent_parameter();
-    ASSERT_NO_THROW(supported_ops = core.query_model(model, "HETERO", {ov::device::priorities(dev_name)}));
+    OV_ASSERT_NO_THROW(supported_ops = core.query_model(model, "HETERO", {ov::device::priorities(dev_name)}));
     std::unordered_set<std::string> names;
     for (const auto& op : model->get_ops()) {
         names.insert(op->get_friendly_name());

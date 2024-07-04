@@ -48,7 +48,7 @@ protected:
 // start_async
 TEST_F(OVInferRequestBaseTests, canForwardStartAsync) {
     EXPECT_CALL(*mock_impl.get(), start_async()).Times(1);
-    ASSERT_NO_THROW(request.start_async());
+    OV_ASSERT_NO_THROW(request.start_async());
 }
 
 TEST_F(OVInferRequestBaseTests, canReportErrorInStartAsync) {
@@ -59,7 +59,7 @@ TEST_F(OVInferRequestBaseTests, canReportErrorInStartAsync) {
 // wait
 TEST_F(OVInferRequestBaseTests, canForwardWait) {
     EXPECT_CALL(*mock_impl.get(), wait()).WillOnce(Return());
-    ASSERT_NO_THROW(request.wait());
+    OV_ASSERT_NO_THROW(request.wait());
 }
 
 TEST_F(OVInferRequestBaseTests, canReportErrorInWait) {
@@ -70,7 +70,7 @@ TEST_F(OVInferRequestBaseTests, canReportErrorInWait) {
 // Infer
 TEST_F(OVInferRequestBaseTests, canForwardInfer) {
     EXPECT_CALL(*mock_impl.get(), infer()).Times(1);
-    ASSERT_NO_THROW(request.infer());
+    OV_ASSERT_NO_THROW(request.infer());
 }
 
 TEST_F(OVInferRequestBaseTests, canReportErrorInInfer) {
@@ -82,7 +82,7 @@ TEST_F(OVInferRequestBaseTests, canReportErrorInInfer) {
 TEST_F(OVInferRequestBaseTests, canForwardGetPerformanceCounts) {
     std::vector<ov::ProfilingInfo> info;
     EXPECT_CALL(*mock_impl.get(), get_profiling_info()).WillOnce(Return(std::vector<ov::ProfilingInfo>{}));
-    ASSERT_NO_THROW(request.get_profiling_info());
+    OV_ASSERT_NO_THROW(request.get_profiling_info());
 }
 
 TEST_F(OVInferRequestBaseTests, canReportErrorInGetPerformanceCounts) {
@@ -101,7 +101,7 @@ TEST_F(OVInferRequestBaseTests, canForwardGetTensor) {
     EXPECT_CALL(*mock_impl.get(), get_outputs()).WillOnce(ReturnRef(inputs));
     EXPECT_CALL(*mock_impl.get(), get_tensors(_)).WillOnce(Return(std::vector<ov::SoPtr<ov::ITensor>>{}));
     EXPECT_CALL(*mock_impl.get(), get_tensor(_)).WillOnce(Return(ov::make_tensor(ov::element::f32, {1, 2, 3, 3})));
-    ASSERT_NO_THROW(request.get_tensor("test_name"));
+    OV_ASSERT_NO_THROW(request.get_tensor("test_name"));
 }
 
 TEST_F(OVInferRequestBaseTests, canReportErrorInGetTensor) {
@@ -124,7 +124,7 @@ TEST_F(OVInferRequestBaseTests, canForwardSetTensor) {
     EXPECT_CALL(*mock_impl.get(), get_inputs()).WillOnce(ReturnRef(inputs));
     EXPECT_CALL(*mock_impl.get(), get_outputs()).WillOnce(ReturnRef(inputs));
     EXPECT_CALL(*mock_impl.get(), set_tensor(_, _)).Times(1);
-    ASSERT_NO_THROW(request.set_tensor("test_name", data));
+    OV_ASSERT_NO_THROW(request.set_tensor("test_name", data));
 }
 
 TEST_F(OVInferRequestBaseTests, canReportErrorInSetTensor) {
@@ -141,7 +141,7 @@ TEST_F(OVInferRequestBaseTests, canReportErrorInSetTensor) {
 // set_callback
 TEST_F(OVInferRequestBaseTests, canForwardSetCompletionCallback) {
     EXPECT_CALL(*mock_impl.get(), set_callback(_)).Times(1);
-    ASSERT_NO_THROW(request.set_callback(nullptr));
+    OV_ASSERT_NO_THROW(request.set_callback(nullptr));
 }
 
 TEST_F(OVInferRequestBaseTests, canReportErrorInSetCompletionCallback) {

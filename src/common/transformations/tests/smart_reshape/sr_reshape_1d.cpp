@@ -23,7 +23,7 @@ TEST(SmartReshapeTests, Reshape1d) {
 
     auto unh = std::make_shared<ov::pass::UniqueNamesHolder>();
     init_unique_names(f, unh);
-    ASSERT_NO_THROW(f->reshape({{1, 3, 300, 300}}));
+    OV_ASSERT_NO_THROW(f->reshape({{1, 3, 300, 300}}));
     check_unique_names(f, unh);
 
     ASSERT_TRUE(f->get_results()[0]->get_output_partial_shape(0).compatible({270000}));

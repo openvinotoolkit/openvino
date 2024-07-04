@@ -49,13 +49,13 @@ TEST_F(HeteroTests, set_property_ModelDistributionPolicy) {
     std::set<ov::hint::ModelDistributionPolicy> value = {};
     std::set<ov::hint::ModelDistributionPolicy> model_policy = {ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL};
 
-    ASSERT_NO_THROW(core.set_property("HETERO", ov::hint::model_distribution_policy(model_policy)));
-    ASSERT_NO_THROW(value = core.get_property("HETERO", ov::hint::model_distribution_policy));
+    OV_ASSERT_NO_THROW(core.set_property("HETERO", ov::hint::model_distribution_policy(model_policy)));
+    OV_ASSERT_NO_THROW(value = core.get_property("HETERO", ov::hint::model_distribution_policy));
     ASSERT_EQ(model_policy, value);
 
     model_policy = {};
 
-    ASSERT_NO_THROW(core.set_property("HETERO", ov::hint::model_distribution_policy(model_policy)));
-    ASSERT_NO_THROW(value = core.get_property("HETERO", ov::hint::model_distribution_policy));
+    OV_ASSERT_NO_THROW(core.set_property("HETERO", ov::hint::model_distribution_policy(model_policy)));
+    OV_ASSERT_NO_THROW(value = core.get_property("HETERO", ov::hint::model_distribution_policy));
     ASSERT_EQ(model_policy, value);
 }

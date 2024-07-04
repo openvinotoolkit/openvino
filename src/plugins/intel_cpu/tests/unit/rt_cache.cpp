@@ -9,6 +9,7 @@
 
 #include "cache/lru_cache.h"
 #include "cache/multi_cache.h"
+#include "common_test_utils/test_assertions.hpp"
 
 using namespace ov::intel_cpu;
 
@@ -29,20 +30,20 @@ TEST(LruCacheTests, Evict) {
     constexpr size_t capacity = 10;
     LruCache<IntKey, int> cache(capacity);
     for (size_t i = 0; i < 2 * capacity; ++i) {
-        ASSERT_NO_THROW(cache.put({10}, 10));
+        OV_ASSERT_NO_THROW(cache.put({10}, 10));
     }
-    ASSERT_NO_THROW(cache.evict(5));
-    ASSERT_NO_THROW(cache.evict(10));
+    OV_ASSERT_NO_THROW(cache.evict(5));
+    OV_ASSERT_NO_THROW(cache.evict(10));
     int result = cache.get({10});
     ASSERT_EQ(result, int());
-    ASSERT_NO_THROW(cache.evict(0));
+    OV_ASSERT_NO_THROW(cache.evict(0));
 }
 
 TEST(LruCacheTests, Put) {
     constexpr size_t capacity = 10;
     LruCache<IntKey, int> cache(capacity);
     for (size_t i = 0; i < 2 * capacity; ++i) {
-        ASSERT_NO_THROW(cache.put({10}, 10));
+        OV_ASSERT_NO_THROW(cache.put({10}, 10));
     }
 
     ASSERT_EQ(cache.get({10}), 10);
@@ -52,7 +53,7 @@ TEST(LruCacheTests, Get) {
     constexpr int capacity = 10;
     LruCache<IntKey, int> cache(capacity);
     for (int i = 1; i < 2 * capacity; ++i) {
-        ASSERT_NO_THROW(cache.put({i}, i));
+        OV_ASSERT_NO_THROW(cache.put({i}, i));
     }
 
     for (int i = 1; i < capacity; ++i) {
@@ -68,7 +69,7 @@ TEST(LruCacheTests, LruPolicy) {
     constexpr int capacity = 10;
     LruCache<IntKey, int> cache(capacity);
     for (int i = 1; i < capacity; ++i) {
-        ASSERT_NO_THROW(cache.put({i}, i));
+        OV_ASSERT_NO_THROW(cache.put({i}, i));
     }
 
     for (int i = 4; i < capacity; ++i) {
@@ -76,7 +77,7 @@ TEST(LruCacheTests, LruPolicy) {
     }
 
     for (int i = 21; i < 25; ++i) {
-        ASSERT_NO_THROW(cache.put({i}, i));
+        OV_ASSERT_NO_THROW(cache.put({i}, i));
     }
 
     for (int i = 1; i < 4; ++i) {
@@ -89,7 +90,7 @@ TEST(LruCacheTests, Empty) {
     constexpr int attempts = 10;
     LruCache<IntKey, int> cache(capacity);
     for (int i = 1; i < attempts; ++i) {
-        ASSERT_NO_THROW(cache.put({i}, i));
+        OV_ASSERT_NO_THROW(cache.put({i}, i));
     }
 
     for (int i = 1; i < attempts; ++i) {

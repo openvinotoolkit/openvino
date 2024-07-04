@@ -8,6 +8,8 @@
 #include <regex>
 
 #include "utils/log_util.hpp"
+#include "common_test_utils/test_assertions.hpp"
+
 using namespace ov::mock_auto_plugin;
 using ::testing::_;
 class LogUtilsFormatTest : public ::testing::Test {
@@ -27,7 +29,7 @@ public:
 
 TEST_F(LogUtilsFormatTest, callStacksTest) {
     EXPECT_CALL(*(HLogger), print(_)).Times(1);
-    ASSERT_NO_THROW(traceCallStacksTest());
+    OV_ASSERT_NO_THROW(traceCallStacksTest());
 }
 
 TEST_F(LogUtilsFormatTest, format_s) {

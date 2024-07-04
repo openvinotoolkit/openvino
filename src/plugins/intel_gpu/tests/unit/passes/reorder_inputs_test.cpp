@@ -97,7 +97,7 @@ TEST(reorder_inputs, mixed_ranks_irdft) {
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     program::ptr prog = nullptr;
-    ASSERT_NO_THROW(prog = program::build_program(engine, topology, config));
+    OV_ASSERT_NO_THROW(prog = program::build_program(engine, topology, config));
     ASSERT_NE(prog, nullptr);
 
     auto prog_impl = prog.get();

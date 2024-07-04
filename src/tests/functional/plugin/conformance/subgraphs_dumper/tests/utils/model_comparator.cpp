@@ -67,24 +67,24 @@ protected:
 
 TEST_F(ModelComparatorTest, get) {
     ov::util::ModelComparator::Ptr model_comparator = nullptr;
-    ASSERT_NO_THROW(model_comparator = ov::util::ModelComparator::get());
+    OV_ASSERT_NO_THROW(model_comparator = ov::util::ModelComparator::get());
     ASSERT_EQ(model_comparator, ov::util::ModelComparator::get());
 }
 
 TEST_F(ModelComparatorTest, match) {
     ov::util::ModelComparator::Ptr model_comparator = ov::util::ModelComparator::get();
-    ASSERT_NO_THROW(model_comparator->match(test_model_0_0, test_model_0_1));
+    OV_ASSERT_NO_THROW(model_comparator->match(test_model_0_0, test_model_0_1));
     ASSERT_TRUE(model_comparator->match(test_model_0_0, test_model_0_1));
-    ASSERT_NO_THROW(model_comparator->match(test_model_0_0, test_model_1));
+    OV_ASSERT_NO_THROW(model_comparator->match(test_model_0_0, test_model_1));
     ASSERT_FALSE(model_comparator->match(test_model_0_0, test_model_1));
-    ASSERT_NO_THROW(model_comparator->match(test_model_0_1, test_model_1));
+    OV_ASSERT_NO_THROW(model_comparator->match(test_model_0_1, test_model_1));
     ASSERT_FALSE(model_comparator->match(test_model_0_1, test_model_1));
 }
 
 TEST_F(ModelComparatorTest, match_strict_shape) {
     ov::util::ModelComparator::Ptr model_comparator = ov::util::ModelComparator::get();
-    ASSERT_NO_THROW(model_comparator->set_shape_strict_match(true));
-    ASSERT_NO_THROW(model_comparator->match(test_model_0_0, test_model_0_1));
+    OV_ASSERT_NO_THROW(model_comparator->set_shape_strict_match(true));
+    OV_ASSERT_NO_THROW(model_comparator->match(test_model_0_0, test_model_0_1));
     ASSERT_FALSE(model_comparator->match(test_model_0_0, test_model_0_1));
     {
         {
@@ -105,11 +105,11 @@ TEST_F(ModelComparatorTest, match_strict_shape) {
 TEST_F(ModelComparatorTest, match_with_low_coeff) {
     ov::util::ModelComparator::Ptr model_comparator = ov::util::ModelComparator::get();
     model_comparator->set_match_coefficient(0.5f);
-    ASSERT_NO_THROW(model_comparator->match(test_model_0_0, test_model_0_1));
+    OV_ASSERT_NO_THROW(model_comparator->match(test_model_0_0, test_model_0_1));
     ASSERT_TRUE(model_comparator->match(test_model_0_0, test_model_0_1));
-    ASSERT_NO_THROW(model_comparator->match(test_model_0_0, test_model_1));
+    OV_ASSERT_NO_THROW(model_comparator->match(test_model_0_0, test_model_1));
     ASSERT_TRUE(model_comparator->match(test_model_0_0, test_model_1));
-    ASSERT_NO_THROW(model_comparator->match(test_model_0_1, test_model_1));
+    OV_ASSERT_NO_THROW(model_comparator->match(test_model_0_1, test_model_1));
     ASSERT_TRUE(model_comparator->match(test_model_0_1, test_model_1));
 }
 
@@ -119,22 +119,22 @@ TEST_F(ModelComparatorTest, match_with_in_info) {
         test_in_info({{"test_parameter_0", ov::conformance::InputInfo(ov::Shape{1, 2})}}),
         test_in_info_({{"test_parameter_0", ov::conformance::InputInfo(ov::Shape{1, 2})}}),
         test_in_info_1({{"test_parameter_1", ov::conformance::InputInfo(ov::Shape{2, 5}, 1, 2, true)}});
-    ASSERT_NO_THROW(model_comparator->match(test_model_0_0, test_model_0_1, test_in_info, test_in_info_));
+    OV_ASSERT_NO_THROW(model_comparator->match(test_model_0_0, test_model_0_1, test_in_info, test_in_info_));
     ASSERT_TRUE(std::get<0>(model_comparator->match(test_model_0_0, test_model_0_1, test_in_info, test_in_info_)));
-    ASSERT_NO_THROW(model_comparator->match(test_model_0_0, test_model_0_1, test_in_info, test_in_info_1));
+    OV_ASSERT_NO_THROW(model_comparator->match(test_model_0_0, test_model_0_1, test_in_info, test_in_info_1));
     ASSERT_FALSE(std::get<0>(model_comparator->match(test_model_0_0, test_model_0_1, test_in_info, test_in_info_1)));
-    ASSERT_NO_THROW(model_comparator->match(test_model_0_1, test_model_1, test_in_info, test_in_info));
+    OV_ASSERT_NO_THROW(model_comparator->match(test_model_0_1, test_model_1, test_in_info, test_in_info));
     ASSERT_FALSE(std::get<0>(model_comparator->match(test_model_0_1, test_model_1, test_in_info, test_in_info)));
 }
 
 TEST_F(ModelComparatorTest, is_subgraph) {
     ov::util::ModelComparator::Ptr model_comparator = ov::util::ModelComparator::get();
-    ASSERT_NO_THROW(model_comparator->is_subgraph(test_model_0_0, test_model_0_1));
+    OV_ASSERT_NO_THROW(model_comparator->is_subgraph(test_model_0_0, test_model_0_1));
     auto is_subgraph = model_comparator->is_subgraph(test_model_0_0, test_model_0_1);
     ASSERT_TRUE(std::get<0>(is_subgraph));
-    ASSERT_NO_THROW(model_comparator->is_subgraph(test_model_0_0, test_model_1));
+    OV_ASSERT_NO_THROW(model_comparator->is_subgraph(test_model_0_0, test_model_1));
     ASSERT_FALSE(std::get<0>(model_comparator->is_subgraph(test_model_0_0, test_model_1)));
-    ASSERT_NO_THROW(model_comparator->is_subgraph(test_model_0_1, test_model_1));
+    OV_ASSERT_NO_THROW(model_comparator->is_subgraph(test_model_0_1, test_model_1));
     ASSERT_FALSE(std::get<0>(model_comparator->is_subgraph(test_model_0_1, test_model_1)));
 }
 

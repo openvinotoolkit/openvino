@@ -235,7 +235,7 @@ TEST(smoke_InferRequestDeviceMemoryAllocation, usmHostIsNotChanged) {
 
     // Use tensor from infer request #2 as an output for infer request #1
     infer_request1.set_output_tensor(output_tensor2);
-    ASSERT_NO_THROW(infer_request1.infer());
+    OV_ASSERT_NO_THROW(infer_request1.infer());
 
     // Modify tensor somehow and save as a reference values
     ov::test::utils::fill_tensor_random(output_tensor2);
@@ -245,7 +245,7 @@ TEST(smoke_InferRequestDeviceMemoryAllocation, usmHostIsNotChanged) {
 
     // Perform second infer() call with a system host memory tensor
     infer_request1.set_output_tensor(output_tensor1);
-    ASSERT_NO_THROW(infer_request1.infer());
+    OV_ASSERT_NO_THROW(infer_request1.infer());
 
     // Expect that output_tensor2 will not change it's data after infer() call
     ov::test::utils::compare(ref_tensor, output_tensor2, 1e-4);
@@ -267,11 +267,11 @@ TEST(smoke_InferRequestDeviceMemoryAllocation, canSetSystemHostTensor) {
     auto output_tensor2 = infer_request2.get_output_tensor();
 
     infer_request1.set_output_tensor(output_tensor2);
-    ASSERT_NO_THROW(infer_request1.infer());
+    OV_ASSERT_NO_THROW(infer_request1.infer());
 
     ov::test::utils::fill_tensor_random(input_tensor1, 10, 0, 1, 1);
     infer_request1.set_output_tensor(output_tensor1);
-    ASSERT_NO_THROW(infer_request1.infer());
+    OV_ASSERT_NO_THROW(infer_request1.infer());
 }
 
 TEST(canSwapTensorsBetweenInferRequests, outputs) {

@@ -256,7 +256,7 @@ TEST_P(NumStreamsAndDefaultPerfHintMockTest, NumStreamsAndDefaultPerfHintTest) {
             .Times(1);
     }
 
-    ASSERT_NO_THROW(plugin->compile_model(model, config));
+    OV_ASSERT_NO_THROW(plugin->compile_model(model, config));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -319,7 +319,7 @@ TEST_P(PerHintAndDefaultPerfHintMockTest, PerfHintAndDefaultPerfHintTest) {
             .Times(1);
     }
 
-    ASSERT_NO_THROW(plugin->compile_model(model, config));
+    OV_ASSERT_NO_THROW(plugin->compile_model(model, config));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -382,7 +382,7 @@ TEST_P(SecPropAndDefaultPerfHintMockTest, SecPropAndDefaultPerfHintTest) {
             .Times(1);
     }
 
-    ASSERT_NO_THROW(plugin->compile_model(model, config));
+    OV_ASSERT_NO_THROW(plugin->compile_model(model, config));
 }
 
 INSTANTIATE_TEST_SUITE_P(

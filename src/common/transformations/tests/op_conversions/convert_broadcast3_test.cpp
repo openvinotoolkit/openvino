@@ -35,7 +35,7 @@ void convert_broadcast3_test(std::shared_ptr<Model> f, std::shared_ptr<Model> f_
     manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::pass::ConvertBroadcast3>();
     manager.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
@@ -337,7 +337,7 @@ TEST(TransformationTests, ConvertBroadcast3WithNumpyModeToBroadcast1) {
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::ConvertBroadcast3>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -373,7 +373,7 @@ TEST(TransformationTests, ConvertBroadcast3WithPDPDModeToBroadcast1) {
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::ConvertBroadcast3>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -411,7 +411,7 @@ TEST(TransformationTests, ConvertBroadcast3WithExplicitModeToBroadcast1) {
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::ConvertBroadcast3>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -451,7 +451,7 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToBroadcast1Cons
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::ConvertBroadcast3>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -487,7 +487,7 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToBroadcast1Cons
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::ConvertBroadcast3>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -528,7 +528,7 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToMultiply) {
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::ConvertBroadcast3>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -572,7 +572,7 @@ TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToLogicalAnd) {
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::ConvertBroadcast3>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {

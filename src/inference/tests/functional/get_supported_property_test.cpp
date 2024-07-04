@@ -7,6 +7,7 @@
 #include <string>
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/iplugin.hpp"
@@ -119,8 +120,8 @@ TEST(PropertyTest, SetCacheDirPropertyCoreNoThrow) {
 
     // Cache_dir property test
     ov::Any value;
-    ASSERT_NO_THROW(core.set_property(ov::cache_dir("./tmp_cache_dir")));
-    ASSERT_NO_THROW(value = core.get_property(ov::cache_dir.name()));
+    OV_ASSERT_NO_THROW(core.set_property(ov::cache_dir("./tmp_cache_dir")));
+    OV_ASSERT_NO_THROW(value = core.get_property(ov::cache_dir.name()));
     EXPECT_EQ(value.as<std::string>(), std::string("./tmp_cache_dir"));
 }
 
@@ -128,11 +129,11 @@ TEST(PropertyTest, SetTBBForceTerminatePropertyCoreNoThrow) {
     ov::Core core;
 
     bool value = true;
-    ASSERT_NO_THROW(core.set_property(ov::force_tbb_terminate(false)));
-    ASSERT_NO_THROW(value = core.get_property(ov::force_tbb_terminate.name()).as<bool>());
+    OV_ASSERT_NO_THROW(core.set_property(ov::force_tbb_terminate(false)));
+    OV_ASSERT_NO_THROW(value = core.get_property(ov::force_tbb_terminate.name()).as<bool>());
     EXPECT_FALSE(value);
-    ASSERT_NO_THROW(core.set_property(ov::force_tbb_terminate(true)));
-    ASSERT_NO_THROW(value = core.get_property(ov::force_tbb_terminate.name()).as<bool>());
+    OV_ASSERT_NO_THROW(core.set_property(ov::force_tbb_terminate(true)));
+    OV_ASSERT_NO_THROW(value = core.get_property(ov::force_tbb_terminate.name()).as<bool>());
     EXPECT_TRUE(value);
 }
 

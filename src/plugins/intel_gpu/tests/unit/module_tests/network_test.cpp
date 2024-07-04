@@ -104,9 +104,9 @@ TEST(network_test, has_proper_event_for_in_order_queue) {
     auto reorder_ev = net.get_primitive_event("reorder");
     auto activation_ev = net.get_primitive_event("activation2");
 
-    ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(concat_ev.get()));
-    ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(reorder_ev.get()));
-    ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(activation_ev.get()));
+    OV_ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(concat_ev.get()));
+    OV_ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(reorder_ev.get()));
+    OV_ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(activation_ev.get()));
 
     // Check if we have real underlying OpenCL events
     ASSERT_TRUE(downcast<ocl::ocl_base_event>(concat_ev.get())->get().get() != nullptr);
@@ -151,10 +151,10 @@ TEST(network_test, has_proper_event_for_in_order_queue_optimized_out) {
     auto reorder_ev = net.get_primitive_event("reorder");
     auto activation_ev = net.get_primitive_event("activation");
 
-    ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(concat_ev.get()));
-    ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(reshape_ev.get()));
-    ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(reorder_ev.get()));
-    ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(activation_ev.get()));
+    OV_ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(concat_ev.get()));
+    OV_ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(reshape_ev.get()));
+    OV_ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(reorder_ev.get()));
+    OV_ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(activation_ev.get()));
 
     // Check if we have real underlying OpenCL events
     ASSERT_TRUE(downcast<ocl::ocl_base_event>(concat_ev.get())->get().get() != nullptr);
@@ -201,9 +201,9 @@ TEST(network_test, has_proper_event_for_in_order_queue_onednn) {
     auto reorder_ev = net.get_primitive_event("reorder");
     auto activation_ev = net.get_primitive_event("activation");
 
-    ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(conv_ev.get()));
-    ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(reorder_ev.get()));
-    ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(activation_ev.get()));
+    OV_ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(conv_ev.get()));
+    OV_ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(reorder_ev.get()));
+    OV_ASSERT_NO_THROW(downcast<ocl::ocl_base_event>(activation_ev.get()));
 
     // Check if we have real underlying OpenCL events
     ASSERT_TRUE(downcast<ocl::ocl_base_event>(conv_ev.get())->get().get() != nullptr);

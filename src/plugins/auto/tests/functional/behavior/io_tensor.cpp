@@ -39,9 +39,9 @@ TEST_P(InferRequest_IOTensor_Test, can_set_and_get_input) {
     auto compiled_model = core.compile_model(model_cannot_batch, target_device, property);
     req = compiled_model.create_infer_request();
     auto tensor = ov::test::utils::create_and_fill_tensor(input.get_element_type(), input.get_shape());
-    ASSERT_NO_THROW(req.set_tensor(input, tensor));
+    OV_ASSERT_NO_THROW(req.set_tensor(input, tensor));
     ov::Tensor actual_tensor;
-    ASSERT_NO_THROW(actual_tensor = req.get_tensor(input));
+    OV_ASSERT_NO_THROW(actual_tensor = req.get_tensor(input));
 
     ASSERT_TRUE(actual_tensor);
     ASSERT_NE(nullptr, actual_tensor.data());
@@ -79,8 +79,8 @@ TEST_P(InferRequest_IOTensor_Test, second_call_get_input) {
     auto compiled_model = core.compile_model(model_cannot_batch, target_device, property);
     req = compiled_model.create_infer_request();
     ov::Tensor tensor1, tensor2;
-    ASSERT_NO_THROW(tensor1 = req.get_tensor(input));
-    ASSERT_NO_THROW(tensor2 = req.get_tensor(input));
+    OV_ASSERT_NO_THROW(tensor1 = req.get_tensor(input));
+    OV_ASSERT_NO_THROW(tensor2 = req.get_tensor(input));
     ASSERT_EQ(tensor1.data(), tensor2.data());
 }
 
@@ -88,8 +88,8 @@ TEST_P(InferRequest_IOTensor_Test, second_call_get_output) {
     auto compiled_model = core.compile_model(model_cannot_batch, target_device, property);
     req = compiled_model.create_infer_request();
     ov::Tensor tensor1, tensor2;
-    ASSERT_NO_THROW(tensor1 = req.get_tensor(output));
-    ASSERT_NO_THROW(tensor2 = req.get_tensor(output));
+    OV_ASSERT_NO_THROW(tensor1 = req.get_tensor(output));
+    OV_ASSERT_NO_THROW(tensor2 = req.get_tensor(output));
     ASSERT_EQ(tensor1.data(), tensor2.data());
 }
 
@@ -97,11 +97,11 @@ TEST_P(InferRequest_IOTensor_Test, second_call_get_input_after_async) {
     auto compiled_model = core.compile_model(model_cannot_batch, target_device, property);
     req = compiled_model.create_infer_request();
     ov::Tensor tensor1, tensor2;
-    ASSERT_NO_THROW(req.infer());
-    ASSERT_NO_THROW(tensor1 = req.get_tensor(input));
-    ASSERT_NO_THROW(req.start_async());
-    ASSERT_NO_THROW(req.wait());
-    ASSERT_NO_THROW(tensor2 = req.get_tensor(input));
+    OV_ASSERT_NO_THROW(req.infer());
+    OV_ASSERT_NO_THROW(tensor1 = req.get_tensor(input));
+    OV_ASSERT_NO_THROW(req.start_async());
+    OV_ASSERT_NO_THROW(req.wait());
+    OV_ASSERT_NO_THROW(tensor2 = req.get_tensor(input));
     ASSERT_EQ(tensor1.data(), tensor2.data());
 }
 
@@ -109,11 +109,11 @@ TEST_P(InferRequest_IOTensor_Test, second_call_get_output_after_async) {
     auto compiled_model = core.compile_model(model_cannot_batch, target_device, property);
     req = compiled_model.create_infer_request();
     ov::Tensor tensor1, tensor2;
-    ASSERT_NO_THROW(req.infer());
-    ASSERT_NO_THROW(tensor1 = req.get_tensor(output));
-    ASSERT_NO_THROW(req.start_async());
-    ASSERT_NO_THROW(req.wait());
-    ASSERT_NO_THROW(tensor2 = req.get_tensor(output));
+    OV_ASSERT_NO_THROW(req.infer());
+    OV_ASSERT_NO_THROW(tensor1 = req.get_tensor(output));
+    OV_ASSERT_NO_THROW(req.start_async());
+    OV_ASSERT_NO_THROW(req.wait());
+    OV_ASSERT_NO_THROW(tensor2 = req.get_tensor(output));
     ASSERT_EQ(tensor1.data(), tensor2.data());
 }
 
@@ -121,10 +121,10 @@ TEST_P(InferRequest_IOTensor_Test, can_infer_with_set_tensor) {
     auto compiled_model = core.compile_model(model_cannot_batch, target_device, property);
     req = compiled_model.create_infer_request();
     auto input_tensor = ov::test::utils::create_and_fill_tensor(input.get_element_type(), input.get_shape());
-    ASSERT_NO_THROW(req.set_tensor(input, input_tensor));
+    OV_ASSERT_NO_THROW(req.set_tensor(input, input_tensor));
     auto output_tensor = ov::test::utils::create_and_fill_tensor(output.get_element_type(), output.get_shape());
-    ASSERT_NO_THROW(req.set_tensor(output, output_tensor));
-    ASSERT_NO_THROW(req.infer());
+    OV_ASSERT_NO_THROW(req.set_tensor(output, output_tensor));
+    OV_ASSERT_NO_THROW(req.infer());
 
     auto actual_input_tensor = req.get_tensor(input);
     ASSERT_EQ(actual_input_tensor.data(), input_tensor.data());
@@ -140,18 +140,18 @@ TEST_P(InferRequest_IOTensor_Test, can_infer_after_io_realloc) {
     auto out_shape = output.get_shape();
 
     // imitates blob reallocation
-    ASSERT_NO_THROW(input_tensor = req.get_tensor(input));
-    ASSERT_NO_THROW(input_tensor.set_shape({5, 5, 5, 5}));
-    ASSERT_NO_THROW(input_tensor.set_shape(in_shape));
+    OV_ASSERT_NO_THROW(input_tensor = req.get_tensor(input));
+    OV_ASSERT_NO_THROW(input_tensor.set_shape({5, 5, 5, 5}));
+    OV_ASSERT_NO_THROW(input_tensor.set_shape(in_shape));
 
-    ASSERT_NO_THROW(output_tensor = req.get_tensor(output));
-    ASSERT_NO_THROW(output_tensor.set_shape({20, 20, 20, 20}));
-    ASSERT_NO_THROW(output_tensor.set_shape(out_shape));
+    OV_ASSERT_NO_THROW(output_tensor = req.get_tensor(output));
+    OV_ASSERT_NO_THROW(output_tensor.set_shape({20, 20, 20, 20}));
+    OV_ASSERT_NO_THROW(output_tensor.set_shape(out_shape));
 
-    ASSERT_NO_THROW(req.infer());
-    ASSERT_NO_THROW(req.start_async());
-    ASSERT_NO_THROW(req.wait());
-    ASSERT_NO_THROW(req.get_tensor(output));
+    OV_ASSERT_NO_THROW(req.infer());
+    OV_ASSERT_NO_THROW(req.start_async());
+    OV_ASSERT_NO_THROW(req.wait());
+    OV_ASSERT_NO_THROW(req.get_tensor(output));
 }
 namespace {
 auto props = []() {

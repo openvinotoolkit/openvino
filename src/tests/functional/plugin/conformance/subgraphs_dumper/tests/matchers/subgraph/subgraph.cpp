@@ -56,11 +56,11 @@
 // };
 
 // TEST_F(SubgraphExtractorTest, match) {
-//     ASSERT_NO_THROW(this->match(test_model_0_0, test_model_0_1));
+//     OV_ASSERT_NO_THROW(this->match(test_model_0_0, test_model_0_1));
 //     ASSERT_TRUE(this->match(test_model_0_0, test_model_0_1));
-//     ASSERT_NO_THROW(this->match(test_model_0_0, test_model_1));
+//     OV_ASSERT_NO_THROW(this->match(test_model_0_0, test_model_1));
 //     ASSERT_FALSE(this->match(test_model_0_0, test_model_1));
-//     ASSERT_NO_THROW(this->match(test_model_0_1, test_model_1));
+//     OV_ASSERT_NO_THROW(this->match(test_model_0_1, test_model_1));
 //     ASSERT_FALSE(this->match(test_model_0_1, test_model_1));
 // }
 
@@ -155,28 +155,28 @@
 //         test_model_1 = std::make_shared<ov::Model>(ov::ResultVector{test_res},
 //                                                    ov::ParameterVector{test_parameter});
 //     }
-//     ASSERT_NO_THROW(this->match(test_model_0_0, test_model_0_1));
+//     OV_ASSERT_NO_THROW(this->match(test_model_0_0, test_model_0_1));
 //     ASSERT_TRUE(this->match(test_model_0_0, test_model_0_1));
-//     ASSERT_NO_THROW(this->match(test_model_0_0, test_model_1));
+//     OV_ASSERT_NO_THROW(this->match(test_model_0_0, test_model_1));
 //     ASSERT_FALSE(this->match(test_model_0_0, test_model_1));
-//     ASSERT_NO_THROW(this->match(test_model_0_1, test_model_1));
+//     OV_ASSERT_NO_THROW(this->match(test_model_0_1, test_model_1));
 //     ASSERT_FALSE(this->match(test_model_0_1, test_model_1));
 // }
 
 // TEST_F(SubgraphExtractorTest, extract) {
-//     ASSERT_NO_THROW(this->extract(test_model_0_0));
-//     ASSERT_NO_THROW(this->extract(test_model_0_1));
-//     ASSERT_NO_THROW(this->extract(test_model_1));
+//     OV_ASSERT_NO_THROW(this->extract(test_model_0_0));
+//     OV_ASSERT_NO_THROW(this->extract(test_model_0_1));
+//     OV_ASSERT_NO_THROW(this->extract(test_model_1));
 // }
 
 // TEST_F(SubgraphExtractorTest, is_subgraph) {
 //     auto is_subgraph = this->is_subgraph(test_model_0_0, test_model_0_0);
-//     ASSERT_NO_THROW(this->is_subgraph(test_model_0_0, test_model_0_0));
+//     OV_ASSERT_NO_THROW(this->is_subgraph(test_model_0_0, test_model_0_0));
 //     ASSERT_TRUE(std::get<0>(is_subgraph));
-//     ASSERT_NO_THROW(this->is_subgraph(test_model_0_0, test_model_1));
+//     OV_ASSERT_NO_THROW(this->is_subgraph(test_model_0_0, test_model_1));
 //     is_subgraph = this->is_subgraph(test_model_0_0, test_model_1);
 //     ASSERT_FALSE(std::get<0>(is_subgraph));
-//     ASSERT_NO_THROW(this->is_subgraph(test_model_0_1, test_model_1));
+//     OV_ASSERT_NO_THROW(this->is_subgraph(test_model_0_1, test_model_1));
 //     is_subgraph = this->is_subgraph(test_model_0_1, test_model_1);
 //     ASSERT_FALSE(std::get<0>(is_subgraph));
 //     {
@@ -191,17 +191,17 @@
 //         auto big_model_0 = std::make_shared<ov::Model>(ov::ResultVector{test_res},
 //                                                         ov::ParameterVector{test_parameter});
 //         is_subgraph = this->is_subgraph(test_model_0_0, big_model_0);
-//         ASSERT_NO_THROW(this->is_subgraph(test_model_0_0, big_model_0));
+//         OV_ASSERT_NO_THROW(this->is_subgraph(test_model_0_0, big_model_0));
 //         ASSERT_TRUE(std::get<0>(is_subgraph));
 //         ASSERT_EQ(std::get<1>(is_subgraph), big_model_0);
 //         ASSERT_EQ(std::get<2>(is_subgraph), test_model_0_0);
 
 //         is_subgraph = this->is_subgraph(test_model_0_1, big_model_0);
-//         ASSERT_NO_THROW(this->is_subgraph(test_model_0_1, big_model_0));
+//         OV_ASSERT_NO_THROW(this->is_subgraph(test_model_0_1, big_model_0));
 //         ASSERT_TRUE(std::get<0>(is_subgraph));
 //         ASSERT_EQ(std::get<1>(is_subgraph), big_model_0);
 //         ASSERT_EQ(std::get<2>(is_subgraph), test_model_0_1);
-//         ASSERT_NO_THROW(this->is_subgraph(test_model_1, big_model_0));
+//         OV_ASSERT_NO_THROW(this->is_subgraph(test_model_1, big_model_0));
 //         ASSERT_FALSE(std::get<0>(this->is_subgraph(test_model_1, big_model_0)));
 //     }
 // }

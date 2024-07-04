@@ -39,24 +39,24 @@ protected:
 };
 
 TEST_F(ExtractorsManagerTest, constructor) {
-    ASSERT_NO_THROW(auto m = ExtractorsManager());
-    ASSERT_NO_THROW(auto m = ExtractorsManager(test_map));
+    OV_ASSERT_NO_THROW(auto m = ExtractorsManager());
+    OV_ASSERT_NO_THROW(auto m = ExtractorsManager(test_map));
 }
 
 TEST_F(ExtractorsManagerTest, set_extractors) {
-    ASSERT_NO_THROW(this->set_extractors(test_map));
+    OV_ASSERT_NO_THROW(this->set_extractors(test_map));
     ASSERT_EQ(this->m_extractors, test_map);
 }
 
 TEST_F(ExtractorsManagerTest, get_extractors) {
-    ASSERT_NO_THROW(this->set_extractors(test_map));
-    ASSERT_NO_THROW(this->get_extractors());
+    OV_ASSERT_NO_THROW(this->set_extractors(test_map));
+    OV_ASSERT_NO_THROW(this->get_extractors());
     ASSERT_EQ(this->m_extractors, this->get_extractors());
 }
 
 TEST_F(ExtractorsManagerTest, extract) {
     this->set_extractors(test_map);
-    ASSERT_NO_THROW(this->extract(test_model_0_0));
+    OV_ASSERT_NO_THROW(this->extract(test_model_0_0));
 }
 
 }  // namespace

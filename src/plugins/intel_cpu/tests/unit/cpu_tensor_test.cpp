@@ -17,6 +17,7 @@
 #include "cpu_memory.h"
 #include "cpu_tensor.h"
 #include "openvino/runtime/itensor.hpp"
+#include "common_test_utils/test_assertions.hpp"
 
 
 using namespace ov::intel_cpu;
@@ -211,7 +212,7 @@ TEST_F(CPUTensorTest, canSetShape) {
 
         const void* orig_data = t->data();
         ASSERT_EQ(t->get_shape(), ov_origShape);
-        ASSERT_NO_THROW(t->set_shape(ov_newShape));
+        OV_ASSERT_NO_THROW(t->set_shape(ov_newShape));
         ASSERT_EQ(ov_newShape, t->get_shape());
         ASSERT_EQ(byte_strides(ov::row_major_strides(ov_newShape), t->get_element_type()), t->get_strides());
         ASSERT_NE(orig_data, t->data());

@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/graph_comparator.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "op/device_subgraph.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/op/ops.hpp"
@@ -490,7 +491,7 @@ TEST_F(SubgraphCollectorTest, submodel_with_different_affinity_parameter) {
         {"res", "MOCK.0"},
     };
     auto supported_ops = supported_ops_with_affinity;
-    ASSERT_NO_THROW(ov::hetero::mask_model_subgraphs_by_ops(m_model, supported_ops, false, "TEST"));
+    OV_ASSERT_NO_THROW(ov::hetero::mask_model_subgraphs_by_ops(m_model, supported_ops, false, "TEST"));
 }
 
 TEST_F(SubgraphCollectorTest, submodel_with_constant_subgraphs) {
@@ -609,6 +610,7 @@ TEST_F(SubgraphCollectorTest, merge_independent_submodel) {
         actual_submodels.push_back(std::make_shared<ov::Model>(actual_subgraph._results, actual_subgraph._parameters));
     }
     // Merge submodels into one model back
-    ASSERT_NO_THROW(ov::hetero::merge_submodels(actual_submodels, actual_mapping_info._submodels_input_to_prev_output));
+    OV_ASSERT_NO_THROW(
+        ov::hetero::merge_submodels(actual_submodels, actual_mapping_info._submodels_input_to_prev_output));
     ASSERT_EQ(1, actual_submodels.size());
 }

@@ -28,20 +28,20 @@ void FrontEndConvertModelTest::initParamTest() {
 
 void FrontEndConvertModelTest::doLoadFromFile() {
     std::vector<std::string> frontends;
-    ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
-    ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework(m_feName));
+    OV_ASSERT_NO_THROW(frontends = m_fem.get_available_front_ends());
+    OV_ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework(m_feName));
     ASSERT_NE(m_frontEnd, nullptr);
-    ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(m_modelFile));
+    OV_ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(m_modelFile));
     ASSERT_NE(m_inputModel, nullptr);
 }
 
 TEST_P(FrontEndConvertModelTest, test_convert_partially_equal_convert) {
-    ASSERT_NO_THROW(doLoadFromFile());
+    OV_ASSERT_NO_THROW(doLoadFromFile());
     std::shared_ptr<ov::Model> model_ref;
-    ASSERT_NO_THROW(model_ref = m_frontEnd->convert(m_inputModel));
+    OV_ASSERT_NO_THROW(model_ref = m_frontEnd->convert(m_inputModel));
     ASSERT_NE(model_ref, nullptr);
     std::shared_ptr<ov::Model> model;
-    ASSERT_NO_THROW(model = m_frontEnd->convert_partially(m_inputModel));
+    OV_ASSERT_NO_THROW(model = m_frontEnd->convert_partially(m_inputModel));
     ASSERT_NE(model, nullptr);
 
     FunctionsComparator func_comparator = FunctionsComparator::with_default();
@@ -54,13 +54,13 @@ TEST_P(FrontEndConvertModelTest, test_convert_partially_equal_convert) {
 }
 
 TEST_P(FrontEndConvertModelTest, test_decode_convert_equal_convert) {
-    ASSERT_NO_THROW(doLoadFromFile());
+    OV_ASSERT_NO_THROW(doLoadFromFile());
     std::shared_ptr<ov::Model> model_ref;
-    ASSERT_NO_THROW(model_ref = m_frontEnd->convert(m_inputModel));
+    OV_ASSERT_NO_THROW(model_ref = m_frontEnd->convert(m_inputModel));
     ASSERT_NE(model_ref, nullptr);
     std::shared_ptr<ov::Model> model;
-    ASSERT_NO_THROW(model = m_frontEnd->decode(m_inputModel));
-    ASSERT_NO_THROW(m_frontEnd->convert(model));
+    OV_ASSERT_NO_THROW(model = m_frontEnd->decode(m_inputModel));
+    OV_ASSERT_NO_THROW(m_frontEnd->convert(model));
     ASSERT_NE(model, nullptr);
 
     FunctionsComparator func_comparator = FunctionsComparator::with_default();

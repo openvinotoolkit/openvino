@@ -100,13 +100,13 @@ TEST(TensorTest, smoke_canSetShapeForPreallocatedTensor) {
 
     // Check set_shape call for pre-allocated input/output tensors
     auto input_tensor = inf_req.get_input_tensor(0);
-    ASSERT_NO_THROW(input_tensor.set_shape({1, 4, 20, 20}));
-    ASSERT_NO_THROW(input_tensor.set_shape({1, 3, 20, 20}));
-    ASSERT_NO_THROW(input_tensor.set_shape({2, 3, 20, 20}));
+    OV_ASSERT_NO_THROW(input_tensor.set_shape({1, 4, 20, 20}));
+    OV_ASSERT_NO_THROW(input_tensor.set_shape({1, 3, 20, 20}));
+    OV_ASSERT_NO_THROW(input_tensor.set_shape({2, 3, 20, 20}));
     auto output_tensor = inf_req.get_output_tensor(0);
-    ASSERT_NO_THROW(output_tensor.set_shape({1, 10, 12, 12}));
-    ASSERT_NO_THROW(output_tensor.set_shape({1, 10, 10, 10}));
-    ASSERT_NO_THROW(output_tensor.set_shape({2, 10, 20, 20}));
+    OV_ASSERT_NO_THROW(output_tensor.set_shape({1, 10, 12, 12}));
+    OV_ASSERT_NO_THROW(output_tensor.set_shape({1, 10, 10, 10}));
+    OV_ASSERT_NO_THROW(output_tensor.set_shape({2, 10, 20, 20}));
 }
 
 TEST(TensorTest, smoke_canSetScalarTensor) {
@@ -131,7 +131,7 @@ TEST(TensorTest, smoke_canSetScalarTensor) {
     double real_data = 1.0;
     ov::Tensor input_data(ov::element::f64, {}, &real_data);
     request.set_tensor("scalar1", input_data);
-    ASSERT_NO_THROW(request.infer());
+    OV_ASSERT_NO_THROW(request.infer());
 }
 
 TEST(TensorTest, smoke_canSetTensorForDynamicInput) {
@@ -152,23 +152,23 @@ TEST(TensorTest, smoke_canSetTensorForDynamicInput) {
     ov::Tensor t3(ov::element::i8, {1, 4, 40, 40});
 
     // Check set_shape call for pre-allocated input/output tensors
-    ASSERT_NO_THROW(inf_req.set_input_tensor(t1));
-    ASSERT_NO_THROW(inf_req.infer());
+    OV_ASSERT_NO_THROW(inf_req.set_input_tensor(t1));
+    OV_ASSERT_NO_THROW(inf_req.infer());
 
-    ASSERT_NO_THROW(inf_req.set_input_tensor(t2));
-    ASSERT_NO_THROW(inf_req.infer());
+    OV_ASSERT_NO_THROW(inf_req.set_input_tensor(t2));
+    OV_ASSERT_NO_THROW(inf_req.infer());
 
-    ASSERT_NO_THROW(inf_req.set_input_tensor(t3));
-    ASSERT_NO_THROW(inf_req.infer());
+    OV_ASSERT_NO_THROW(inf_req.set_input_tensor(t3));
+    OV_ASSERT_NO_THROW(inf_req.infer());
 
-    ASSERT_NO_THROW(inf_req.set_input_tensor(t3));
-    ASSERT_NO_THROW(inf_req.infer());
+    OV_ASSERT_NO_THROW(inf_req.set_input_tensor(t3));
+    OV_ASSERT_NO_THROW(inf_req.infer());
 
-    ASSERT_NO_THROW(inf_req.set_input_tensor(t1));
-    ASSERT_NO_THROW(inf_req.infer());
+    OV_ASSERT_NO_THROW(inf_req.set_input_tensor(t1));
+    OV_ASSERT_NO_THROW(inf_req.infer());
 
-    ASSERT_NO_THROW(inf_req.set_input_tensor(t2));
-    ASSERT_NO_THROW(inf_req.infer());
+    OV_ASSERT_NO_THROW(inf_req.set_input_tensor(t2));
+    OV_ASSERT_NO_THROW(inf_req.infer());
 }
 
 TEST(TensorTest, smoke_canSetTensorForDynamicOutput) {
@@ -189,9 +189,9 @@ TEST(TensorTest, smoke_canSetTensorForDynamicOutput) {
     ov::Tensor t2(out_tensor.get_element_type(), out_tensor.get_shape());
     ASSERT_EQ(t2.get_byte_size(), 0);
     // Check set_shape call for pre-allocated input/output tensors
-    ASSERT_NO_THROW(inf_req.set_input_tensor(t1));
-    ASSERT_NO_THROW(inf_req.set_output_tensor(t2));
-    ASSERT_NO_THROW(inf_req.infer());
+    OV_ASSERT_NO_THROW(inf_req.set_input_tensor(t1));
+    OV_ASSERT_NO_THROW(inf_req.set_output_tensor(t2));
+    OV_ASSERT_NO_THROW(inf_req.infer());
     ASSERT_NE(t2.get_byte_size(), 0);
 }
 
@@ -210,11 +210,11 @@ TEST(TensorTest, smoke_canReallocateDeviceInputForHostTensor) {
     ov::Tensor host_tensor(input.get_element_type(), input.get_shape());
 
     // Infer with pre-allocated input tensor
-    ASSERT_NO_THROW(inf_req.infer());
+    OV_ASSERT_NO_THROW(inf_req.infer());
 
     // Infer with host_tensor
-    ASSERT_NO_THROW(inf_req.set_input_tensor(host_tensor));
-    ASSERT_NO_THROW(inf_req.infer());
+    OV_ASSERT_NO_THROW(inf_req.set_input_tensor(host_tensor));
+    OV_ASSERT_NO_THROW(inf_req.infer());
 }
 
 TEST(VariablesTest, smoke_canSetStateTensor) {
@@ -236,7 +236,7 @@ TEST(VariablesTest, smoke_canSetStateTensor) {
     auto default_state_tensor = variable.get_state();
     ASSERT_EQ(default_state_tensor.get_shape(), virable_shape);
 
-    ASSERT_NO_THROW(request.infer());
+    OV_ASSERT_NO_THROW(request.infer());
 }
 
 TEST(VariablesTest, smoke_set_get_state_with_convert) {
@@ -357,16 +357,16 @@ TEST(TensorTest, smoke_outputTensorShapesForDynamicInput) {
     const ov::Shape output3_shape = {1, 10, 12, 32};
 
     // Check output shape of output tensor is correct
-    ASSERT_NO_THROW(inf_req.set_input_tensor(t1));
-    ASSERT_NO_THROW(inf_req.infer());
+    OV_ASSERT_NO_THROW(inf_req.set_input_tensor(t1));
+    OV_ASSERT_NO_THROW(inf_req.infer());
     ASSERT_EQ(inf_req.get_output_tensor().get_shape(), output1_shape);
 
-    ASSERT_NO_THROW(inf_req.set_input_tensor(t2));
-    ASSERT_NO_THROW(inf_req.infer());
+    OV_ASSERT_NO_THROW(inf_req.set_input_tensor(t2));
+    OV_ASSERT_NO_THROW(inf_req.infer());
     ASSERT_EQ(inf_req.get_output_tensor().get_shape(), output2_shape);
 
-    ASSERT_NO_THROW(inf_req.set_input_tensor(t3));
-    ASSERT_NO_THROW(inf_req.infer());
+    OV_ASSERT_NO_THROW(inf_req.set_input_tensor(t3));
+    OV_ASSERT_NO_THROW(inf_req.infer());
     ASSERT_EQ(inf_req.get_output_tensor().get_shape(), output3_shape);
 }
 } // namespace

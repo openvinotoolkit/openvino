@@ -1038,6 +1038,6 @@ TEST(condition_gpu, set_empty_tensor) {
     net.set_input_data(empty_input_id, empty_input_mem);
     net.set_input_data(input_id, input_mem);
 
-    ASSERT_NO_THROW(net.execute());
-    ASSERT_NO_THROW(net.get_output(cond_id).get_memory());
+    OV_ASSERT_NO_THROW(net.execute());
+    OV_ASSERT_NO_THROW(net.get_output(cond_id).get_memory());
 }

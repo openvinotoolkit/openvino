@@ -67,7 +67,7 @@ TEST_P(AutoStartupFallback, propertytest) {
             .Times(1);
     }
 
-    ASSERT_NO_THROW(plugin->compile_model(model, config));
+    OV_ASSERT_NO_THROW(plugin->compile_model(model, config));
 }
 
 const std::vector<ConfigParams> testConfigs = {ConfigParams{true, {{"ENABLE_STARTUP_FALLBACK", "YES"}}},

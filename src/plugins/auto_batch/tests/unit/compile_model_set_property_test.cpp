@@ -91,7 +91,7 @@ public:
 
         const ov::AnyMap configs = {{ov::auto_batch_timeout(static_cast<uint32_t>(200))}, {ov::device::priorities("CPU(16)")}};
 
-        ASSERT_NO_THROW(m_auto_batch_compile_model = m_plugin->compile_model(m_model, configs));
+        OV_ASSERT_NO_THROW(m_auto_batch_compile_model = m_plugin->compile_model(m_model, configs));
     }
 };
 
@@ -99,7 +99,7 @@ TEST_P(CompileModelSetPropertyTest, CompileModelSetPropertyTestCase) {
     if (m_throw_exception)
         ASSERT_ANY_THROW(m_auto_batch_compile_model->set_property(m_properities));
     else
-        ASSERT_NO_THROW(m_auto_batch_compile_model->set_property(m_properities));
+        OV_ASSERT_NO_THROW(m_auto_batch_compile_model->set_property(m_properities));
 }
 
 const std::vector<set_property_param> compile_model_set_property_param_test = {

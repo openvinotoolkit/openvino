@@ -37,7 +37,7 @@ TEST_P(ReshapeSinkingTest, ReshapeSinkingOnlyMatMul) {
             std::make_shared<ov::opset9::Reshape>(matmul, create_constant(p.output_pattern_back), false);
         model = std::make_shared<ov::Model>(ov::NodeVector{reshape_back}, ov::ParameterVector{parameter});
     }
-    ASSERT_NO_THROW(model->reshape(p.new_shape));
+    OV_ASSERT_NO_THROW(model->reshape(p.new_shape));
 }
 
 class ReshapeSinkingTestWithAdd : public testing::WithParamInterface<ReshapeSinkingAttributes>,
@@ -59,7 +59,7 @@ TEST_P(ReshapeSinkingTestWithAdd, ReshapeSinkingMatMulAdd) {
         auto reshape_back = std::make_shared<ov::opset9::Reshape>(add, create_constant(p.output_pattern_back), false);
         model = std::make_shared<ov::Model>(ov::NodeVector{reshape_back}, ov::ParameterVector{parameter});
     }
-    ASSERT_NO_THROW(model->reshape(p.new_shape));
+    OV_ASSERT_NO_THROW(model->reshape(p.new_shape));
 }
 
 static std::vector<ReshapeSinkingAttributes> params = {

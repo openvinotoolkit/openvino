@@ -297,7 +297,7 @@ TEST_P(OVCompiledModelBaseTest, CanSetInputPrecisionForNetwork) {
     input.model().set_layout("??HW");
     input.preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
     model = ppp.build();
-    ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
+    OV_ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
 }
 
 TEST_P(OVCompiledModelBaseTest, CanSetOutputPrecisionForNetwork) {
@@ -307,7 +307,7 @@ TEST_P(OVCompiledModelBaseTest, CanSetOutputPrecisionForNetwork) {
     ov::preprocess::OutputInfo& output = ppp.output();
     output.postprocess().convert_element_type(ov::element::u8);
     model = ppp.build();
-    ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
+    OV_ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
 }
 
 TEST_P(OVCompiledModelBaseTest, CanGetOutputsInfo) {
@@ -461,8 +461,8 @@ TEST_P(OVCompiledModelBaseTest, CheckExecGraphInfoSerialization) {
     std::shared_ptr<const ov::Model> runtime_model;
 
     auto compiled_model = core->compile_model(function, target_device, configuration);
-    ASSERT_NO_THROW(runtime_model = compiled_model.get_runtime_model());
-    ASSERT_NO_THROW(ov::serialize(runtime_model, out_xml_path, out_bin_path));
+    OV_ASSERT_NO_THROW(runtime_model = compiled_model.get_runtime_model());
+    OV_ASSERT_NO_THROW(ov::serialize(runtime_model, out_xml_path, out_bin_path));
     ov::test::utils::removeIRFiles(out_xml_path, out_bin_path);
 }
 
@@ -698,7 +698,7 @@ TEST_P(CompiledModelSetType, canSetInputTypeAndCompileModel) {
     auto& input = ppp.input();
     input.preprocess().convert_element_type(convert_type);
     model = ppp.build();
-    ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
+    OV_ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
 }
 
 TEST_P(CompiledModelSetType, canSetOutputTypeAndCompileModel) {
@@ -709,7 +709,7 @@ TEST_P(CompiledModelSetType, canSetOutputTypeAndCompileModel) {
     auto& output = ppp.output();
     output.postprocess().convert_element_type(convert_type);
     model = ppp.build();
-    ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
+    OV_ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
 }
 
 TEST_P(CompiledModelSetType, canSetInputOutputTypeAndCompileModel) {
@@ -722,7 +722,7 @@ TEST_P(CompiledModelSetType, canSetInputOutputTypeAndCompileModel) {
     auto& output = ppp.output();
     output.postprocess().convert_element_type(convert_type);
     model = ppp.build();
-    ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
+    OV_ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
 }
 }  // namespace behavior
 }  // namespace test

@@ -58,10 +58,10 @@ TEST_P(OVInferRequestPerfCountersExceptionTest, perfCountWereNotEnabledException
 
 TEST_P(OVInferRequestPerfCountersTest, CheckOperationInProfilingInfo) {
     req = execNet.create_infer_request();
-    ASSERT_NO_THROW(req.infer());
+    OV_ASSERT_NO_THROW(req.infer());
 
     std::vector<ov::ProfilingInfo> profiling_info;
-    ASSERT_NO_THROW(profiling_info = req.get_profiling_info());
+    OV_ASSERT_NO_THROW(profiling_info = req.get_profiling_info());
 
     for (const auto& op : function->get_ops()) {
         if (!strcmp(op->get_type_info().name, "Constant"))
