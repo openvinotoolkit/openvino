@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
@@ -40,15 +41,42 @@ jobs:
           skip_when_only_listed_labels_set: 'docs'
           skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
 
-  Build:
+      - name: Show affected components
+        run: |
+          echo "${{ toJSON(steps.smart_ci.outputs.affected_components) }}"
+        shell: bash
+
+  Docker:
     needs: Smart_CI
+    runs-on: aks-linux-4-cores-16gb-docker-build
+    container:
+      image: openvinogithubactions.azurecr.io/docker_build:0.2
+      volumes:
+        - /mount:/mount
+    outputs:
+      images: "${{ steps.handle_docker.outputs.images }}"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - uses: ./.github/actions/handle_docker
+        id: handle_docker
+        with:
+          images: |
+            ov_build/fedora_33
+          registry: 'openvinogithubactions.azurecr.io'
+          dockerfiles_root_dir: '.github/dockerfiles'
+          changed_components: ${{ needs.smart_ci.outputs.changed_components }}
+
+  Build:
+    needs: [Docker, Smart_CI]
     timeout-minutes: 150
     defaults:
       run:
         shell: bash
     runs-on: aks-linux-16-cores-32gb
     container:
-      image: fedora:33
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.fedora_33 }}
       volumes:
         - /mount:/mount
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING
@@ -69,9 +97,6 @@ jobs:
       SCCACHE_AZURE_KEY_PREFIX: fedora33_x86_64_Release
     if: "!needs.smart_ci.outputs.skip_workflow"
     steps:
-      - name: Install git
-        run: yum update -y && yum install -y git
-
       - name: Clone OpenVINO
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
@@ -88,14 +113,6 @@ jobs:
       #
       # Dependencies
       #
-
-      - name: Install build dependencies
-        run: bash ${OPENVINO_REPO}/install_build_dependencies.sh
-
-      - name: Install sccache
-        uses: mozilla-actions/sccache-action@2e7f9ec7921547d4b46598398ca573513895d0bd # v0.0.4
-        with:
-          version: "v0.7.5"
 
       - name: Install python dependencies
         run: |
@@ -204,14 +221,14 @@ jobs:
           if-no-files-found: 'error'
 
   RPM_Packages:
-    needs: Build
+    needs: [Docker, Build]
     timeout-minutes: 10
     defaults:
       run:
         shell: bash
-    runs-on: ubuntu-20.04
+    runs-on: aks-linux-4-cores-16gb
     container:
-      image: fedora:33
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.fedora_33 }}
     env:
       RPM_PACKAGES_DIR: /__w/openvino/packages/
 
@@ -254,7 +271,7 @@ jobs:
           python3 -c 'from openvino import Core; Core().get_property("MULTI", "SUPPORTED_PROPERTIES")'
           python3 -c 'from openvino import Core; Core().get_property("HETERO", "SUPPORTED_PROPERTIES")'
           python3 -c 'from openvino import Core; Core().get_property("BATCH", "SUPPORTED_PROPERTIES")'
-          python3 -c 'from openvino.frontend import FrontEndManager; assert len(FrontEndManager().get_available_front_ends()) == 6'
+          python3 -c 'from openvino.frontend import FrontEndManager; assert len(FrontEndManager().get_available_front_ends()) == 7'
           benchmark_app --help
           ovc --help
 

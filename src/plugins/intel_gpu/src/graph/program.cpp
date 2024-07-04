@@ -224,7 +224,7 @@ void program::init_program() {
     if (_task_executor == nullptr)
         _task_executor = program::make_task_executor(_config);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
-                                                                      kernel_selector::KernelBase::get_db().get_batch_header_str()));
+                                                                      kernel_selector::KernelBase::get_db().get_batch_headers()));
 
     if (!_compilation_context)
         _compilation_context = program::make_compilation_context(_config);
@@ -518,7 +518,10 @@ void program::init_graph() {
     apply_opt_pass<graph_initializations>();
 
     apply_opt_pass<mark_nodes>();
-
+    for (auto& node : processing_order) {
+        if (!node->is_type<data>())
+            node->get_output_layouts();
+    }
     // Perform initial shape_of subgraphs markup
     apply_opt_pass<mark_shape_of_subgraphs>();
 }
@@ -534,10 +537,6 @@ void program::pre_optimize_graph(bool is_internal) {
     processing_order.calculate_BFS_processing_order();  // this method makes sense only for OOOQ (out of order execution queue)
 
     bool output_size_handling_enabled = analyze_output_size_handling_need();
-    for (auto& node : processing_order) {
-        if (!node->is_type<data>())
-            node->get_output_layouts();
-    }
 
     bool optimize_data = _config.get_property(ov::intel_gpu::optimize_data);
     if (optimize_data) {
@@ -978,9 +977,12 @@ void program::add_intermediate(program_node& node,
     add_intermediate(node, next, idx, connect_int_node_with_old_dep, move_usrs_of_prev_to_node);
 }
 
-void program::add_connection(program_node& prev, program_node& next) {
+void program::add_connection(program_node& prev, program_node& next, int32_t port_idx) {
     prev.users.push_back(&next);
-    auto port_idx = next.get_port_from_deps(prev.id());
+    // When this function is called from program::replace, we need to keep the port number as it was
+    if (port_idx < 0)
+        port_idx = next.get_port_from_deps(prev.id());
+
     next.dependencies.push_back({&prev, port_idx});
 }
 
@@ -1062,7 +1064,7 @@ void program::replace(program_node& old_node, program_node& new_node) {
     // copy old's dependencies
     // First copy them from old node to new node
     for (auto& dependency : old_node.dependencies) {
-        add_connection(*dependency.first, new_node);
+        add_connection(*dependency.first, new_node, dependency.second);
     }
     // Second delete them from old node
     while (!old_node.dependencies.empty()) {

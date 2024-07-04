@@ -4,6 +4,7 @@
 
 #include "activation.hpp"
 #include "gtest/gtest.h"
+#include "internal_properties.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "common_test_utils/node_builders/activation.hpp"
 #include "shared_test_classes/single_op/activation.hpp"
@@ -19,7 +20,9 @@ std::string ActivationLayerCPUTest::getTestCaseName(const testing::TestParamInfo
     std::pair<utils::ActivationTypes, std::vector<float>> activationTypeAndConstValue;
     ov::element::Type netPrecision, inPrecision, outPrecision;
     CPUTestUtils::CPUSpecificParams cpuParams;
-    std::tie(inputShapes, activationShapes, activationTypeAndConstValue, netPrecision, inPrecision, outPrecision, cpuParams) = obj.param;
+    bool enforceSnippets;
+    std::tie(inputShapes, activationShapes, activationTypeAndConstValue, netPrecision, inPrecision, outPrecision, cpuParams, enforceSnippets) =
+             obj.param;
 
     std::ostringstream result;
     result << activationNames[activationTypeAndConstValue.first] << "_";
@@ -43,6 +46,7 @@ std::string ActivationLayerCPUTest::getTestCaseName(const testing::TestParamInfo
     result << "inPRC=" << inPrecision.to_string() << "_";
     result << "outPRC=" << outPrecision.to_string() << "_";
     result << CPUTestUtils::CPUTestsBase::getTestCaseName(cpuParams);
+    result << "_enforceSnippets=" << enforceSnippets;
 
     return result.str();
 }
@@ -107,7 +111,9 @@ void ActivationLayerCPUTest::SetUp() {
     std::pair<utils::ActivationTypes, std::vector<float>> activationTypeAndConstValue;
     ov::element::Type inPrecision, outPrecision;
     CPUTestUtils::CPUSpecificParams cpuParams;
-    std::tie(inputShapes, activationShapes, activationTypeAndConstValue, netPrecision, inPrecision, outPrecision, cpuParams) = this->GetParam();
+    bool enforceSnippets;
+    std::tie(inputShapes, activationShapes, activationTypeAndConstValue, netPrecision, inPrecision, outPrecision, cpuParams, enforceSnippets) =
+             this->GetParam();
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     activationType = activationTypeAndConstValue.first;
     auto constantsValue = activationTypeAndConstValue.second;
@@ -136,6 +142,12 @@ void ActivationLayerCPUTest::SetUp() {
 
     init_input_shapes(inputShapes);
 
+    if (enforceSnippets) {
+        configuration.insert(ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::IGNORE_CALLBACK));
+    } else {
+        configuration.insert(ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::DISABLE));
+    }
+
     auto params = std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes.front());
     auto activation = utils::make_activation(params, netPrecision, activationType, activationShapes, constantsValue);
     activation->get_rt_info() = getCPUInfo();
@@ -163,6 +175,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         (activation_type == utils::ActivationTypes::HSwish) ||
         (activation_type == utils::ActivationTypes::IsInf) ||
         (activation_type == utils::ActivationTypes::HardSigmoid) ||
+        (activation_type == utils::ActivationTypes::IsNaN) ||
         (activation_type == utils::ActivationTypes::Mish) ||
         (activation_type == utils::ActivationTypes::GeluErf) ||
         (activation_type == utils::ActivationTypes::GeluTanh) ||
@@ -178,7 +191,8 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
         return "";
     }
 #endif
-    if (activation_type == utils::ActivationTypes::Floor) {
+    if ((activation_type == utils::ActivationTypes::Floor) ||
+       (activation_type == utils::ActivationTypes::IsNaN)) {
         return "ref";
     }
     return "acl";
@@ -215,6 +229,29 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {GeluTanh,    {{}}},
         {SoftSign,    {{}}},
         {SoftPlus,    {{}}},
+        {IsNaN,    {{}}},
+    };
+
+    return activationTypes;
+}
+
+const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activationTypesSnippets() {
+    static const std::map<utils::ActivationTypes, std::vector<std::vector<float>>> activationTypes {
+        {Abs,         {{}}},
+        {Exp,         {{}}},
+        {Clamp,       {{-2.0f, 2.0f}}},
+        {Elu,         {{0.1f}}},
+        {Floor,       {{}}},
+        {GeluErf,     {{}}},
+        {GeluTanh,    {{}}},
+        {Relu,        {{}}},
+        {HSwish,      {{}}},
+#if defined(OPENVINO_ARCH_ARM64)
+        {Mish,        {{}}},
+#endif
+        {Sigmoid,     {{}}},
+        {Swish,       {{0.1f}}},
+        {Tanh,        {{}}},
     };
 
     return activationTypes;

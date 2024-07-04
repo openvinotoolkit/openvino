@@ -29,8 +29,8 @@ it. Additional models quantization step is employed to improve models
 inference speed. In the end of the notebook there’s a Gradio-based
 interactive demo.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Prepare an example audio <#prepare-an-example-audio>`__
@@ -127,7 +127,7 @@ Specify ``streaming=True`` to not download the entire dataset.
     from datasets import load_dataset
     
     
-    mls_dataset = load_dataset("facebook/multilingual_librispeech", SAMPLE_LANG.value, split="test", streaming=True)
+    mls_dataset = load_dataset("facebook/multilingual_librispeech", SAMPLE_LANG.value, split="test", streaming=True, trust_remote_code=True)
     mls_dataset = iter(mls_dataset)  # make it iterable
     
     example = next(mls_dataset)  # get one example
@@ -330,7 +330,7 @@ Let’s check another language.
 
 .. code:: ipython3
 
-    mls_dataset = load_dataset("facebook/multilingual_librispeech", SAMPLE_LANG.value, split="test", streaming=True)
+    mls_dataset = load_dataset("facebook/multilingual_librispeech", SAMPLE_LANG.value, split="test", streaming=True, trust_remote_code=True)
     mls_dataset = iter(mls_dataset)
     
     example = next(mls_dataset)
@@ -606,7 +606,7 @@ dataset for the selected language.
 
     %%skip not $to_quantize.value
     
-    mls_dataset = iter(load_dataset("facebook/multilingual_librispeech", SAMPLE_LANG.value, split="validation", streaming=True))
+    mls_dataset = iter(load_dataset("facebook/multilingual_librispeech", SAMPLE_LANG.value, split="validation", streaming=True, trust_remote_code=True))
     example = next(mls_dataset)
 
 Create calibration dataset for quantization.
@@ -815,7 +815,7 @@ speech recognition models.
     from jiwer import wer
     
     TEST_DATASET_SIZE = 20
-    test_dataset = load_dataset("facebook/multilingual_librispeech", SAMPLE_LANG.value, split="test", streaming=True)
+    test_dataset = load_dataset("facebook/multilingual_librispeech", SAMPLE_LANG.value, split="test", streaming=True, trust_remote_code=True)
     test_dataset = test_dataset.take(TEST_DATASET_SIZE)
     
     def calculate_transcription_time_and_accuracy(lid_model, asr_model):
