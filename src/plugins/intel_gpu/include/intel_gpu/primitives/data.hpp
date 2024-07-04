@@ -6,6 +6,8 @@
 #include "primitive.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/util/mmap_object.hpp"
 
 namespace cldnn {
 
@@ -48,14 +50,22 @@ struct data : public primitive_base<data> {
         size_t data_size = mem->size();
         ob << make_data(&data_size, sizeof(size_t));
 
-        if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
-            ob << make_data(mem->buffer_ptr(), data_size);
+        bool cache_without_weights = bin_offset != static_cast<size_t>(-1);
+
+        if (cache_without_weights) {
+            ob << true;
+            ob << bin_offset;
         } else {
-            std::vector<uint8_t> _buf;
-            _buf.resize(data_size);
-            stream* strm = reinterpret_cast<stream*>(ob.get_stream());
-            mem->copy_to(*strm, _buf.data());
-            ob << make_data(_buf.data(), data_size);
+            ob << false;
+            if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
+                ob << make_data(mem->buffer_ptr(), data_size);
+            } else {
+                std::vector<uint8_t> _buf;
+                _buf.resize(data_size);
+                stream* strm = reinterpret_cast<stream*>(ob.get_stream());
+                mem->copy_to(*strm, _buf.data());
+                ob << make_data(_buf.data(), data_size);
+            }
         }
     }
 
@@ -73,48 +83,59 @@ struct data : public primitive_base<data> {
 
         mem = ib.get_engine().allocate_memory(output_layout, _allocation_type, false);
 
-        if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
-            ib >> make_data(mem->buffer_ptr(), data_size);
-        } else {
-            const size_t DATA_BLOCK_SIZE = 2 * 1024 * 1024;
-            auto& strm = ib.get_engine().get_service_stream();
-            if (data_size < DATA_BLOCK_SIZE || output_layout.format.is_image_2d()) {
-                std::vector<uint8_t> _buf(data_size);
-                ib >> make_data(_buf.data(), data_size);
-                mem->copy_from(strm, _buf.data());
-            } else {
-                std::vector<uint8_t> _buf1(DATA_BLOCK_SIZE);
-                std::vector<uint8_t> _buf2(DATA_BLOCK_SIZE);
-                bool buf_flag = true;
-                event::ptr ev1, ev2;
-                ev1 = ev2 = nullptr;
+        bool cache_without_weights;
+        ib >> cache_without_weights;
 
-                size_t dst_offset = 0;
-                while (dst_offset < data_size) {
-                    size_t copy_size = (data_size > (dst_offset + DATA_BLOCK_SIZE)) ? DATA_BLOCK_SIZE : (data_size - dst_offset);
-                    if (buf_flag) {
-                        ib >> make_data(_buf1.data(), copy_size);
-                        if (ev2 != nullptr) {
-                            ev2->wait();
-                            ev2 = nullptr;
+        if (cache_without_weights) {
+            size_t bin_offset;
+            ib >> bin_offset;
+            // TODO: propagate weights_path here
+            auto mapped_memory = ov::load_mmap_object("/home/tkrupa/test/shufflenet.bin");
+            std::memcpy(mem->buffer_ptr(), mapped_memory->data() + bin_offset, data_size);
+        } else {
+            if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
+                ib >> make_data(mem->buffer_ptr(), data_size);
+            } else {
+                const size_t DATA_BLOCK_SIZE = 2 * 1024 * 1024;
+                auto& strm = ib.get_engine().get_service_stream();
+                if (data_size < DATA_BLOCK_SIZE || output_layout.format.is_image_2d()) {
+                    std::vector<uint8_t> _buf(data_size);
+                    ib >> make_data(_buf.data(), data_size);
+                    mem->copy_from(strm, _buf.data());
+                } else {
+                    std::vector<uint8_t> _buf1(DATA_BLOCK_SIZE);
+                    std::vector<uint8_t> _buf2(DATA_BLOCK_SIZE);
+                    bool buf_flag = true;
+                    event::ptr ev1, ev2;
+                    ev1 = ev2 = nullptr;
+
+                    size_t dst_offset = 0;
+                    while (dst_offset < data_size) {
+                        size_t copy_size = (data_size > (dst_offset + DATA_BLOCK_SIZE)) ? DATA_BLOCK_SIZE : (data_size - dst_offset);
+                        if (buf_flag) {
+                            ib >> make_data(_buf1.data(), copy_size);
+                            if (ev2 != nullptr) {
+                                ev2->wait();
+                                ev2 = nullptr;
+                            }
+                            ev1 = mem->copy_from(strm, _buf1.data(), false, dst_offset, copy_size);
+                        } else {
+                            ib >> make_data(_buf2.data(), copy_size);
+                            if (ev1 != nullptr) {
+                                ev1->wait();
+                                ev1 = nullptr;
+                            }
+                            ev2 = mem->copy_from(strm, _buf2.data(), false, dst_offset, copy_size);
                         }
-                        ev1 = mem->copy_from(strm, _buf1.data(), false, dst_offset, copy_size);
-                    } else {
-                        ib >> make_data(_buf2.data(), copy_size);
-                        if (ev1 != nullptr) {
-                            ev1->wait();
-                            ev1 = nullptr;
-                        }
-                        ev2 = mem->copy_from(strm, _buf2.data(), false, dst_offset, copy_size);
+                        dst_offset += DATA_BLOCK_SIZE;
+                        buf_flag = !buf_flag;
                     }
-                    dst_offset += DATA_BLOCK_SIZE;
-                    buf_flag = !buf_flag;
-                }
-                if (ev2 != nullptr) {
-                    ev2->wait();
-                }
-                if (ev1 != nullptr) {
-                    ev1->wait();
+                    if (ev2 != nullptr) {
+                        ev2->wait();
+                    }
+                    if (ev1 != nullptr) {
+                        ev1->wait();
+                    }
                 }
             }
         }
