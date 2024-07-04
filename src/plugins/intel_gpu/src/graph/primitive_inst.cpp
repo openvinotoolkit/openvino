@@ -589,8 +589,13 @@ event::ptr primitive_inst::realloc_if_needed() {
         auto is_fused_prim_of_user = [&](primitive_id id) -> bool {
             for (auto& p : user->get_node().get_fused_primitives()) {
                 if (p.has_outer_dep()) {
-                    if (user->get_node().get_dependency(p.outer_dep_start_idx).id() == id) {
-                        return true;
+                    const auto start_idx = p.outer_dep_start_idx;
+                    // exclude fused_node from total_num_deps
+                    const auto end_idx = p.outer_dep_start_idx + p.total_num_deps -1;
+                    for (size_t idx = start_idx; idx < end_idx; idx++) {
+                        if (user->get_node().get_dependency(idx).id() == id) {
+                            return true;
+                        }
                     }
                 }
             }
