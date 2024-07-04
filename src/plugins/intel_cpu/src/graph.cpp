@@ -77,6 +77,8 @@ void Graph::CreateGraph(NET &net, const GraphContext::CPtr ctx) {
 
     InitGraph();
 
+    Allocate();
+
     CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
@@ -110,11 +112,16 @@ void Graph::CreateGraph(const std::vector<NodePtr>& graphNodes,
 
     InitGraph();
 
+    Allocate();
+
     CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
 
 template void Graph::CreateGraph(const std::shared_ptr<const ov::Model>&, const GraphContext::CPtr);
-void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
+
+void Graph::Replicate(const std::shared_ptr<const ov::Model> &model,
+                      const VecMemoryDescs& inputDescriptors,
+                      bool zeroCopyOutputs) {
     OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::intel_cpu_LT, "Graph::Replicate", "ov::Model");
     this->_name = model->get_friendly_name();
     this->reuse_io_tensors = false;
@@ -152,6 +159,11 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
             if (node->isDynamicNode()) {
                 graphHasDynamicInput = true;
             }
+
+            if (!inputDescriptors.empty()) {
+                auto inputNode = std::dynamic_pointer_cast<node::Input>(node);
+                inputNode->setMemDesc(inputDescriptors[input_index]);
+            }
         }
 
         if (op->get_type_info() == op::v0::Result::get_type_info_static()) {
@@ -161,6 +173,10 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model) {
                             op->get_friendly_name(),
                             " in model result list!");
             outputNodesMap[output_index] = node;
+            if (zeroCopyOutputs) {
+                auto inputNode = std::dynamic_pointer_cast<node::Input>(node);
+                inputNode->setZeroCopyOutput();
+            }
         }
 
         op2node[op] = node;
@@ -322,8 +338,41 @@ static std::tuple<std::vector<NodePtr>, std::vector<size_t>> ExtractExecutableNo
                            std::move(executableSyncNodesInds));
 }
 
+void Graph::Configure(const std::shared_ptr<const ov::Model>& network,
+                      const GraphContext::CPtr ctx,
+                      const VecMemoryDescs& inputDescriptors,
+                      const bool zeroCopyOutputs) {
+    OPENVINO_ASSERT(status == Status::NotReady, "Invalid graph status");
+
+    context = ctx;
+
+    Replicate(network, inputDescriptors, zeroCopyOutputs);
+
+    InitGraph();
+}
+
+void Graph::Allocate() {
+    OPENVINO_ASSERT(status == Status::Initialized, "Invalid graph status");
+
+    const bool hasDynNodes = ProcessDynNodes();
+    const auto syncNodesInds = hasDynNodes ? IdentifySyncPoints(graphNodes) : std::vector<size_t>{};
+
+    Allocate(syncNodesInds);
+
+    CreatePrimitivesAndExecConstants();
+
+    CPU_DEBUG_CAP_ENABLE(for (auto &graphNode : graphNodes) { graphNode->cleanup(); })
+
+    std::tie(m_executableGraphNodes, m_executableSyncNodesInds) = ExtractExecutableNodesAndSyncPoints(syncNodesInds, graphNodes);
+
+    status = hasDynNodes ? (parallel_get_max_threads() > 1 ? Status::ReadyDynamic : Status::ReadyDynamicSeq)
+        : Status::ReadyStatic;
+
+    CPU_DEBUG_CAP_ENABLE(serialize(*this));
+}
+
 void Graph::InitGraph(bool optimize) {
-    DEBUG_LOG("Initializing graph with name: ",  GetName());
+    OPENVINO_ASSERT(status == Status::NotReady, "Invalid graph status");
 
     GraphOptimizer optimizer;
 
@@ -353,25 +402,7 @@ void Graph::InitGraph(bool optimize) {
 
     SortTopologically();
 
-    const bool hasDynNodes = ProcessDynNodes();
-    const auto syncNodesInds = hasDynNodes ? IdentifySyncPoints(graphNodes) : std::vector<size_t>{};
-
-    Allocate(syncNodesInds);
-
-    CreatePrimitivesAndExecConstants();
-
-#ifndef CPU_DEBUG_CAPS
-    for (auto &graphNode : graphNodes) {
-        graphNode->cleanup();
-    }
-#endif
-
-    std::tie(m_executableGraphNodes, m_executableSyncNodesInds) = ExtractExecutableNodesAndSyncPoints(syncNodesInds, graphNodes);
-
-    status = hasDynNodes ? (parallel_get_max_threads() > 1 ? Status::ReadyDynamic : Status::ReadyDynamicSeq)
-        : Status::ReadyStatic;
-
-    CPU_DEBUG_CAP_ENABLE(serialize(*this));
+    status = Status::Initialized;
 }
 
 void Graph::InitNodes() {
@@ -1121,6 +1152,18 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
             cpu_parallel_memcpy(ext_blob_ptr, intr_blob_ptr, size_to_copy);
         }
     }
+}
+
+VecMemoryDescs Graph::getOutputMemoryDescriptors() {
+    OPENVINO_ASSERT(status == Status::Initialized, "Invalid graph status");
+
+    VecMemoryDescs result;
+    for (const auto& output : outputNodesMap) {
+        const auto& node = output.second;
+        result.emplace_back(node->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc());
+    }
+
+    return result;
 }
 
 void Graph::InferStatic(SyncInferRequest* request) {

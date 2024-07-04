@@ -34,9 +34,10 @@ public:
 
     enum class Status {
         NotReady = 0,
-        ReadyStatic = 1,
-        ReadyDynamic = 2,
-        ReadyDynamicSeq = 3,
+        Initialized = 1,
+        ReadyStatic = 2,
+        ReadyDynamic = 3,
+        ReadyDynamicSeq = 4,
     };
 
     Graph() = default;
@@ -44,7 +45,7 @@ public:
     ~Graph();
 
     bool IsReady() {
-        return (status != Status::NotReady);
+        return !one_of(status, Status::ReadyStatic, Status::ReadyDynamic, Status::ReadyDynamicSeq);
     }
 
     const Config & getConfig() const {
@@ -61,6 +62,9 @@ public:
 
     void PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& input);
     void PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& output);
+
+    // Returns Output nodes memory descriptors
+    VecMemoryDescs getOutputMemoryDescriptors();
 
     void Infer(SyncInferRequest* request = nullptr);
 
@@ -186,6 +190,12 @@ public:
 
     Status getStatus() const {return status;}
     const std::unordered_map<std::string, node::MemoryStateNode*>& getInternalStateNodes() const;
+    void Configure(const std::shared_ptr<const ov::Model>& network,
+                   const GraphContext::CPtr ctx,
+                   const VecMemoryDescs& inputDescriptors = {},
+                   const bool zeroCopyOutputs = false);
+    void Allocate();
+
     void InitGraph(bool optimize = true);
 
 protected:
@@ -215,7 +225,9 @@ protected:
 
     bool graphHasDynamicInput = false;
 
-    void Replicate(const std::shared_ptr<const ov::Model> &subgraph);
+    void Replicate(const std::shared_ptr<const ov::Model> &subgraph,
+                   const VecMemoryDescs& inputDescriptors = {},
+                   bool zeroCopyOutputs = false);
     void InitNodes();
     void InitDescriptors();
     void ResolveInplaceDirections();

@@ -5,6 +5,7 @@
 #include "input.h"
 
 #include "cpu/x64/jit_generator.hpp"
+#include "nodes/node_config.h"
 #include "openvino/core/parallel.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
 
@@ -470,6 +471,20 @@ void Input::initSupportedPrimitiveDescriptors() {
     }
 }
 
+void Input::selectOptimalPrimitiveDescriptor() {
+    if (!(zeroCopyOutput && getType() == Type::Output))
+        return Node::selectOptimalPrimitiveDescriptor();
+
+    // ignore previous configuration
+    supportedPrimitiveDescriptors.clear();
+
+    // and just use parent memory descriptor for Output node to avoid reorders insertion
+    NodeConfig config({PortConfig(getParentOutputMemDesc(getParentEdgeAt(0)))}, {});
+
+    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+    selectPrimitiveDescriptorByIndex(0);
+}
+
 void Input::createPrimitive() {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto dstMemPtr = getDstMemoryAtPort(i);
@@ -528,7 +543,6 @@ void Input::initSupportedPdFromMemDesc() {
     }
     supportedPrimitiveDescriptors.emplace_back(std::move(config), impl_desc_type::unknown);
 }
-
 }   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

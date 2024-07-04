@@ -415,6 +415,19 @@ MemoryDescPtr Node::getBaseMemDescAtOutputPort(size_t portNum) const {
     OPENVINO_THROW("Can't get output memory desc, primitive descriptor is not selected");
 }
 
+MemoryDescPtr Node::getParentOutputMemDesc(const EdgePtr& edge) {
+    const auto parentPtr = edge->getParent();
+    const auto parentSpd = parentPtr->getSelectedPrimitiveDescriptor();
+    OPENVINO_ASSERT(parentSpd, "Parent selected primitive descriptor is missed");
+
+    const auto& parentOutConfs = parentSpd->getConfig().outConfs;
+    OPENVINO_ASSERT(!parentOutConfs.empty(), "Parent output configuration is empty");
+
+    const int inNum = edge->getInputNum();
+
+    return parentSpd->getConfig().outConfs[inNum].getMemDesc();
+}
+
 std::string Node::getPrimitiveDescriptorType() const {
     auto selectedPrimitiveDesc = getSelectedPrimitiveDescriptor();
 
