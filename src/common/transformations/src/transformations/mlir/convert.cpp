@@ -257,8 +257,12 @@ public:
                                                   // in `create` independently
         engineOptions.llvmModuleBuilder = lowerToLLVMIR;
         auto maybeEngine = mlir::ExecutionEngine::create(module.get(), engineOptions);
-        assert(maybeEngine && "failed to construct an execution engine");
-        engine = std::move(maybeEngine.get());
+        if (maybeEngine) {
+            engine = std::move(maybeEngine.get());
+        } else {
+            llvm::errs() << "failed to construct an execution engine\n";
+            abort();
+        }
     }
 
     bool invoke_packed(std::vector<void*>& args) {
