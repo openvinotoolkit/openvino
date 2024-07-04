@@ -20,6 +20,10 @@ on:
         type: string
         required: false
         default: '{"image": null}'
+      os:
+        description: 'OS'
+        type: string
+        required: true
 
 permissions: read-all
 
@@ -95,10 +99,23 @@ jobs:
       - name: Install media & display runtimes
         if: ${{ inputs.device == 'dgpu' }}
         run: |
-          apt-get update && apt-get install -y \
+          
+          if [[ ${{ inputs.os }} == 'ubuntu20' ]]; then
+            apt-get update && apt-get install -y \
+            libegl-mesa0 libegl1-mesa libegl1-mesa-dev libgbm1 libgl1-mesa-dev libgl1-mesa-dri \
+            libglapi-mesa libgles2-mesa-dev libglx-mesa0 libigdgmm11 libxatracker2 mesa-va-drivers \
+            mesa-vdpau-drivers mesa-vulkan-drivers va-driver-all
+          elif [[ ${{ inputs.os }} == 'ubuntu22' ]]; then
+            apt-get update && apt-get install -y \
             libegl-mesa0 libegl1-mesa libegl1-mesa-dev libgbm1 libgl1-mesa-dev libgl1-mesa-dri \
             libglapi-mesa libgles2-mesa-dev libglx-mesa0 libigdgmm12 libxatracker2 mesa-va-drivers \
             mesa-vdpau-drivers mesa-vulkan-drivers va-driver-all
+          elif [[ ${{ inputs.os }} == 'ubuntu24' ]]; then
+            apt-get update && apt-get install -y \
+            libegl-mesa0 libegl1-mesa-dev libgbm1 libgl1-mesa-dev libgl1-mesa-dri \
+            libglapi-mesa libgles2-mesa-dev libglx-mesa0 libigdgmm12 libxatracker2 mesa-va-drivers \
+            mesa-vdpau-drivers mesa-vulkan-drivers va-driver-all
+          fi
 
       - name: Verify devices
         run: clinfo
