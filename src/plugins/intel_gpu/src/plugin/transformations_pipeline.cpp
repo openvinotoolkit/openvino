@@ -58,6 +58,7 @@
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/fc_convert_fusion.hpp"
+#include "plugin/transformations/fc_horizontal_fusion.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/bcast_and_pad_zp_buffers.hpp"
@@ -187,6 +188,10 @@ static bool is_non_supported_decompression_op(const std::shared_ptr<const ov::No
     return true;
 }
 }  // namespace
+
+namespace cldnn {
+extern bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config);
+}  // namespace cldnn
 
 namespace ov {
 namespace intel_gpu {
@@ -341,18 +346,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
             }
 
-            // - Head size should be static dim
-            const auto head_size_dim = query_ps[query_ps.size() - 1];
-            if (head_size_dim.is_dynamic())
-                return false;
+            const auto head_size = query_ps[query_ps.size() - 1].get_length();
+            if (device_info.supports_immad && cldnn::query_microkernels_supported(m_context->get_engine(), config) && head_size <= 256)
+                return true;
 
             // - Head size should be 128 for any model type; or should be in the range of 64 to 256 for stateful LLMs because of performance reasons.
             //   This limitations is recommended to prevent performance drop in models with small head size, such as SD,
             //   until the SDPA operation is optimized for these cases
             const auto optimal_subgroup_size = 16;
-            const auto head_size = query_ps[query_ps.size() - 1].get_length();
             bool valid_head_size = head_size % optimal_subgroup_size == 0;
-            valid_head_size &= (head_size == 128) || (func->get_variables().size() > 0 && head_size >= 64 && head_size <= 256);
+            valid_head_size &= (head_size >= 64 && head_size <= 256);
             if (!valid_head_size) {
                 return false;
             }
@@ -786,12 +789,24 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>(device_info.supports_immad);
+
+        bool disable_horizontal_fc_fusion = false;
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(debug_config->disable_horizontal_fc_fusion == 1)
+            disable_horizontal_fc_fusion = true;
+
+        if (!disable_horizontal_fc_fusion)
+            manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>();
         if (device_info.supports_immad) {
             // For OneDNN, ZP should not be folded for FC. But still, ZP should be folded for Gather.
             // Therefore, run MarkDequantizationSubgraph again to fold ZP constant.
             manager.register_pass<ov::pass::MarkDequantizationSubgraph>(supported_woq_types, true);
-            manager.register_pass<ov::pass::ConstantFolding>();
+            if (disable_horizontal_fc_fusion)
+                manager.register_pass<ov::pass::ConstantFolding>();
         }
+        if (!disable_horizontal_fc_fusion)
+            manager.register_pass<ov::pass::ConstantFolding>();
+
         manager.register_pass<ov::pass::ConvertGatherToGatherCompressed>();
         auto pass_config = manager.get_pass_config();
         pass_config->set_callback<ov::pass::RMSFusion>([=](const_node_ptr& root) -> bool {
