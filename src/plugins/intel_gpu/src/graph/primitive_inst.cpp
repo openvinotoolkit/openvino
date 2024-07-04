@@ -556,11 +556,11 @@ event::ptr primitive_inst::realloc_if_needed() {
         // For nodes that can be optimized, variable memory is used as output memory
         // so there is no need for output memory reallocation
         if (can_be_optimized()) {
-            _max_output_layout_count = variable.get_actual_mem_size();
+            _max_output_layout_count = variable.get_actual_mem_size() / (dt_size / 8);
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("can_be_optimized");
             return ev;
         }
-    }
+    }S
 
     // Update output layout with respect to FC's fake alignment
     auto updated_layout = actual_layout;
@@ -1656,7 +1656,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     }
     _impl_params->strm = _network.get_stream_ptr();
     if (_outputs[0])
-        _max_output_layout_count = _outputs[0]->get_layout().get_tensor().count();
+        _max_output_layout_count = _outputs[0]->get_layout().get_buffer_size().count();
 }
 
 memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
