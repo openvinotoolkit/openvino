@@ -11,6 +11,7 @@
 #include "intel_npu/al/prefix.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "zero_types.hpp"
 
 namespace intel_npu {
 

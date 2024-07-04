@@ -9,6 +9,7 @@
 
 #include "intel_npu/utils/logger/logger.hpp"
 #include "npu.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "zero_init.hpp"
 #include "zero_wrappers.hpp"
 
@@ -31,7 +32,10 @@ public:
         uint32_t idx;
     };
 
+    void updateConfig(const Config& config);
+
     void setArgumentValue(uint32_t argi_, const void* argv_) const;
+    void setWorkloadType(const ov::WorkloadType workloadType) const;
     inline ze_graph_handle_t graph() const {
         return _graph;
     }
@@ -55,7 +59,7 @@ public:
     }
 
 private:
-    const Config _config;
+    Config _config;
     Logger _logger;
 
     const std::shared_ptr<const ZeroInitStructsHolder> _initStructs;

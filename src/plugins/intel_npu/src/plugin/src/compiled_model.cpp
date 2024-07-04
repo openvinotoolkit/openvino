@@ -140,8 +140,22 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
     return _model;
 }
 
-void CompiledModel::set_property(const ov::AnyMap& /*properties*/) {
-    OPENVINO_NOT_IMPLEMENTED;
+void CompiledModel::set_property(const ov::AnyMap& properties) {
+    std::map<std::string, std::string> config;
+    for (auto&& value : properties) {
+        config.emplace(value.first, value.second.as<std::string>());
+    }
+    for (const auto& configEntry : config) {
+        if (_properties.find(configEntry.first) == _properties.end()) {
+            OPENVINO_THROW("Unsupported configuration key: ", configEntry.first);
+        } else {
+            if (std::get<1>(_properties[configEntry.first]) == ov::PropertyMutability::RO) {
+                OPENVINO_THROW("READ-ONLY configuration key: ", configEntry.first);
+            }
+        }
+    }
+
+    _config.update(config);
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
@@ -237,6 +251,12 @@ void CompiledModel::initialize_properties() {
           ov::PropertyMutability::RO,
           [](const Config& config) {
               return config.get<LOADED_FROM_CACHE>();
+          }}},
+        {ov::workload_type.name(),
+         {true,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<WORKLOAD_TYPE>();
           }}},
         // OV Public Hints
         // =========

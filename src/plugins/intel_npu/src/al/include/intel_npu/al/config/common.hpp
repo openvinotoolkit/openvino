@@ -213,6 +213,24 @@ struct LOADED_FROM_CACHE final : OptionBase<LOADED_FROM_CACHE, bool> {
 };
 
 //
+// WORKLOAD_TYPE
+//
+
+struct WORKLOAD_TYPE final : OptionBase<WORKLOAD_TYPE, ov::WorkloadType> {
+    static std::string_view key() {
+        return ov::workload_type.name();
+    }
+
+    static ov::WorkloadType defaultValue() {
+        return ov::WorkloadType::DEFAULT;
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "ov::WorkloadType";
+    }
+};
+
+//
 // CACHING PROPERTIES
 //
 
