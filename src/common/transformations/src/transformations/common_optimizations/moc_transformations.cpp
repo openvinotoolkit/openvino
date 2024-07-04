@@ -251,31 +251,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, ConvToBinaryConv)
 
     auto decomp = manager.register_pass<ov::pass::GraphRewrite>();
-    if (getenv("REPLACE")) {
-        ADD_MATCHER(decomp, MatmulGatherDecomposition)
-        ADD_MATCHER(decomp, MatmulVariadicSplitDecomposition)
-
-        // REGISTER_PASS(manager, ConstantFolding)
-
-        // // manager.register_pass<ov::pass::VisualizeTree>("before_MatmulSplitDecomposition_moc.svg");
-        // manager.run_passes(f);
-        // ov::pass::Serialize serializer1("before_matmul_gathers.xml", "before_matmul_gathers.bin");
-        // serializer1.run_on_model(f);
-
-        
-        // ADD_MATCHER(decomp_tmp, MatmulGatherDecomposition)
-        // decomp_tmp->set_name("ov::pass::MatmulGatherDecomposition");
-        // ADD_MATCHER(decomp_tmp, MatmulVariadicSplitDecomposition)
-        // decomp_tmp->set_name("ov::pass::MatmulVariadicSplitDecomposition");
-
-        // // manager.register_pass<ov::pass::VisualizeTree>("after_MatmulSplitDecomposition_moc.svg");
-        // manager.run_passes(f);
-
-        // // ADD_MATCHER(decomp, MatmulGatherDecomposition)
-        // // ADD_MATCHER(decomp, MatmulVariadicSplitDecomposition)
-        // ov::pass::Serialize serializer2("after_matmul_gathers.xml", "after_matmul_gathers.bin");
-        // serializer2.run_on_model(f);
-    }
+    ADD_MATCHER(decomp, MatmulGatherDecomposition)
     ADD_MATCHER(decomp, BatchNormDecomposition)
     ADD_MATCHER(decomp, ConvertDivideWithConstant)
     ADD_MATCHER(decomp, ConvertSubtractWithConstant)

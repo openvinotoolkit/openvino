@@ -16,11 +16,5 @@ TEST_P(MatMulGatherDecompose, CompareWithRefs) {
     check_results();
 }
 
-TEST_P(MatMulSplitDecompose, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    run();
-    check_results();
-}
-
 }  // namespace test
 }  // namespace ov

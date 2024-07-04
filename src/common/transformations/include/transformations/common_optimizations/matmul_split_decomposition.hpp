@@ -11,7 +11,6 @@ namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API MatmulGatherDecomposition;
-class TRANSFORMATIONS_API MatmulVariadicSplitDecomposition;
 
 }  // namespace pass
 }  // namespace ov
@@ -20,42 +19,49 @@ class TRANSFORMATIONS_API MatmulVariadicSplitDecomposition;
  * @ingroup ov_transformation_common_api
  * @brief MatmulGatherDecomposition transformation matches following graph:
  *
- *         +----------+            +----------+
- *         |    A     |            |    B     |
- *         +----------+            +----------+
- *              |                       |
- *              -----------    ----------
- *                        |    |
- *                        v    v
- *                      +--------+
- *                      | MatMul |
- *                      +--------+
- *                          |
- *                          v
- *                     +----------+     +----------+
- *                     | Multiply |<----| Constant |
- *                     +----------+     +----------+
- *
- *
+ *         +----------+
+ *         |  input   |
+ *         +----------+
+ *              |
+ *              v
+ *         +----------+
+ *         |  MatMul  |
+ *         +----------+
+ *              |
+ *              v
+ *         +------------+
+ *         | Some nodes |
+ *         +------------+
+ *              |
+ *              v
+ *         +-----------------------+
+ *         |       Transpose       |
+ *         +-----------------------+
+ *          |          |          |
+ *          v          v          v
+ *     +-------+   +-------+   +-------+
+ *     |Gather |   |Gather |   |Gather |
+ *     +-------+   +-------+   +-------+
  * and replaces with:
  *
- *                           +-------+   +----------+
- *                           |   B   |   | Constant |
- *                           +-------+   +----------+
- *                                |            |
- *                                ------  ------
- *                                     |  |
- *                                     v  v
- *         +----------+            +----------+
- *         |    A     |            | Multiply |
- *         +----------+            +----------+
- *              |                       |
- *              -----------    ----------
- *                        |    |
- *                        v    v
- *                      +--------+
- *                      | MatMul |
- *                      +--------+
+ *         +-----------------------+
+ *         |       input           |
+ *         +-----------------------+
+ *          |          |          |
+ *          v          v          v
+ *     +-------+   +-------+   +-------+
+ *     |MatMul |   |MatMul |   |MatMul |
+ *     +-------+   +-------+   +-------+
+ *          |          |          |
+ *          v          v          v
+ *     +-------+   +-------+   +-------+
+ *     |Nodes  |   |Nodes  |   |Nodes  |
+ *     +-------+   +-------+   +-------+
+ *          |          |          |
+ *          v          v          v
+ *   +---------+  +---------+  +---------+
+ *   |Transpose|  |Transpose|  |Transpose|
+ *   +---------+  +---------+  +---------+
  */
 class ov::pass::MatmulGatherDecomposition : public ov::pass::MatcherPass {
 public:
@@ -66,14 +72,4 @@ public:
                        const bool& have_bias,
                        const Output<Node>& bias,
                        OutputVector& new_bias);
-};
-
-class ov::pass::MatmulVariadicSplitDecomposition : public ov::pass::MatcherPass {
-public:
-    OPENVINO_RTTI("MatmulVariadicSplitDecomposition", "0");
-    MatmulVariadicSplitDecomposition();
-    void split_weights(const Output<Node>& weights,
-                       const bool& transpose_b,
-                       OutputVector& new_weights,
-                       const Output<Node>& split_length);
 };

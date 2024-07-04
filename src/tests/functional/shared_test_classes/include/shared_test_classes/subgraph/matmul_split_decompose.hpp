@@ -37,30 +37,5 @@ protected:
     void check_results();
 };
 
-struct MatMulSplitDecomposeShapeParams {
-    ov::Shape input_shape;    // [-1,-1,5120]
-    ov::Shape weights_shape;  // [7680, 5120]
-    bool trans_b;
-    std::vector<int> split_lengths_data;  // split 7680 to 3 part[7680/3, 7680/3, 7680/3]
-    ov::Shape reshape_shape1;  // [-1,-1,7680/3]
-    ov::Shape reshape_shape2;  // [-1,-1,7680/3]
-    ov::Shape reshape_shape3;  // [-1,-1,7680/3]
-};
-
-typedef std::tuple<MatMulSplitDecomposeShapeParams,
-                   std::string  // Device name
-                   >
-    MatMulSplitDecomposeParams;
-
-class MatMulSplitDecompose : public testing::WithParamInterface<MatMulSplitDecomposeParams>,
-                             virtual public ov::test::SubgraphBaseStaticTest {
-public:
-    static std::string getTestCaseName(const testing::TestParamInfo<MatMulSplitDecomposeParams>& obj);
-
-protected:
-    void SetUp() override;
-    void check_results();
-};
-
 }  // namespace test
 }  // namespace ov

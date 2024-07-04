@@ -20,18 +20,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulGatherDecompose,
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(false, true)),
                          MatMulGatherDecompose::getTestCaseName);
-
-std::vector<MatMulSplitDecomposeShapeParams> mm_split_shape_params = {
-    // {{1, 1, 5120}, {7680, 5120}, true, {5120, 1280, 1280}, {1, 1, 40, 128}, {1, 1, 10, 128}, {1, 1, 10, 128}},
-    {{1, 1, 32}, {128, 32}, true, {64, 32, 32}, {1, 1, 4, 16}, {1, 1, 1, 32}, {1, 1, 1, 32}},
-    {{2, 2, 32}, {32, 128}, false, {64, 32, 32}, {2, 2, 4, 16}, {2, 2, 1, 32}, {2, 2, 1, 32}},
-    {{1, 16}, {36, 16}, true, {12, 12, 12}, {1, 2, 6}, {1, 1, 12}, {1, 1, 12}},
-};
-
-INSTANTIATE_TEST_SUITE_P(smoke_MatMulSplitDecompose,
-                         MatMulSplitDecompose,
-                         ::testing::Combine(::testing::ValuesIn(mm_split_shape_params),
-                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                         MatMulSplitDecompose::getTestCaseName);
-
 }  // namespace
