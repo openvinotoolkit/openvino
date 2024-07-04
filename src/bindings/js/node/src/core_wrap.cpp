@@ -91,7 +91,7 @@ Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
             OPENVINO_THROW("'readModelSync'", ov::js::get_parameters_error_msg(info, allowed_signatures));
         }
 
-        return ModelWrap::wrap(info.Env(), model);
+        return cpp_to_js(info.Env(), model);
     } catch (std::runtime_error& err) {
         reportError(info.Env(), err.what());
 

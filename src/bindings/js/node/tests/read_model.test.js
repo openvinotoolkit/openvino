@@ -71,7 +71,7 @@ describe('Core.readModel', () => {
       modelStr,
       weightsTensor,
     );
-    // assert.ok(model instanceof ov.Model);
+    assert.ok(model instanceof ov.Model);
     assert.equal(model.inputs.length, 1);
   });
 
