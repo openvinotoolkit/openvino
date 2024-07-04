@@ -560,7 +560,7 @@ event::ptr primitive_inst::realloc_if_needed() {
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("can_be_optimized");
             return ev;
         }
-    }S
+    }
 
     // Update output layout with respect to FC's fake alignment
     auto updated_layout = actual_layout;
