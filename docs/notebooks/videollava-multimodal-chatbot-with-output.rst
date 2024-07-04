@@ -27,35 +27,35 @@ The tutorial consists from following steps:
 -  Prepare OpenVINO-based inference pipeline
 -  Run OpenVINO model
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
-- `About model <#about-model>`__
-- `Prerequisites <#prerequisites>`__
-- `Build model and convert it to OpenVINO IR
-  format <#build-model-and-convert-it-to-openvino-ir-format>`__
 
-  - `Prepare helpers for model
-    conversion <#prepare-helpers-for-model-conversion>`__
-  - `Convert and Optimize Model <#convert-and-optimize-model>`__
+-  `About model <#about-model>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Build model and convert it to OpenVINO IR
+   format <#build-model-and-convert-it-to-openvino-ir-format>`__
 
-    - `Instantiate PyTorch model
-      <#instantiate-pytorch-model-uparrow#table-of-content>`__
-    - `Compress Model weights to 4 and 8 bits using NNCF
-      <#compress-model-weights-to-4-and-8-bits-using-nncf-uparrow#table-of-content>`__
-    - `Convert model to OpenVINO IR format
-      <#convert-model-to-openvino-ir-format-uparrow#table-of-content>`__
+   -  `Prepare helpers for model
+      conversion <#prepare-helpers-for-model-conversion>`__
+   -  `Convert and Optimize Model <#convert-and-optimize-model>`__
 
-- `Prepare OpenVINO based inference
-  pipeline <#prepare-openvino-based-inference-pipeline>`__
-- `Run model inference <#run-model-inference>`__
+      -  `Instantiate PyTorch model
+          <#instantiate-pytorch-model>`__
+      -  `Compress Model weights to 4 and 8 bits using NNCF
+          <#compress-model-weights-to-4-and-8-bits-using-nncf>`__
+      -  `Convert model to OpenVINO IR format
+          <#convert-model-to-openvino-ir-format>`__
 
-  - `Select inference device <#select-inference-device>`__
-  - `Load OpenVINO model <#load-openvino-model>`__
-  - `Prepare input data <#prepare-input-data>`__
-  - `Test model inference <#test-model-inference>`__
+-  `Prepare OpenVINO based inference
+   pipeline <#prepare-openvino-based-inference-pipeline>`__
+-  `Run model inference <#run-model-inference>`__
 
-- `Interactive demo <#interactive-demo>`__
+   -  `Select inference device <#select-inference-device>`__
+   -  `Load OpenVINO model <#load-openvino-model>`__
+   -  `Prepare input data <#prepare-input-data>`__
+   -  `Test model inference <#test-model-inference>`__
+
+-  `Interactive demo <#interactive-demo>`__
 
 About model
 -----------
@@ -384,7 +384,7 @@ Convert model to OpenVINO format and save it on disk.
 
 Let’s consider each step more deeply.
 
-Instantiate PyTorch model `:math:`\Uparrow` <#table-of-content>`__
+Instantiate PyTorch model
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
@@ -395,7 +395,7 @@ from `HuggingFace hub <https://huggingface.co/models>`__ during first
 run. It may takes some time and requires at least 13 Gb free space on
 disk.
 
-Compress Model weights to 4 and 8 bits using NNCF `:math:`\Uparrow` <#table-of-content>`__
+Compress Model weights to 4 and 8 bits using NNCF
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
@@ -438,7 +438,7 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
    **Note**: There is no speedup for INT4 compressed models on dGPU.
 
-Convert model to OpenVINO IR format `:math:`\Uparrow` <#table-of-content>`__
+Convert model to OpenVINO IR format
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
@@ -526,17 +526,17 @@ compression instead of INT8 weight compression.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -559,17 +559,17 @@ compression instead of INT8 weight compression.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -585,17 +585,17 @@ compression instead of INT8 weight compression.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -618,17 +618,17 @@ compression instead of INT8 weight compression.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 

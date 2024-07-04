@@ -1,8 +1,8 @@
 Video generation with ZeroScope and OpenVINO
 ============================================
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Install and import required
    packages <#install-and-import-required-packages>`__
@@ -50,7 +50,7 @@ create and consume video content.
 
 Both versions of the ZeroScope model are available on Hugging Face:
 
-- `ZeroScope_v2576w <https://huggingface.co/cerspense/zeroscope_v2_576w>`__
+- `ZeroScope_v2 576w <https://huggingface.co/cerspense/zeroscope_v2_576w>`__
 - `ZeroScope_v2 XL <https://huggingface.co/cerspense/zeroscope_v2_XL>`__
 
 We will use the first one.
