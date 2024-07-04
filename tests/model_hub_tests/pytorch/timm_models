@@ -495,11 +495,11 @@ vit_small_r26_s32_224.augreg_in21k,None
 vit_so400m_patch14_siglip_224.webli,None
 vit_srelpos_small_patch16_224.sw_in1k,None
 vit_tiny_r_s16_p8_224.augreg_in21k,None
-volo_d1_224.sail_in1k,None,xfail,Unsupported aten::col2im
-volo_d2_224.sail_in1k,None,xfail,Unsupported aten::col2im
-volo_d3_224.sail_in1k,None,xfail,Unsupported aten::col2im
-volo_d4_224.sail_in1k,None,xfail,Unsupported aten::col2im
-volo_d5_224.sail_in1k,None,xfail,Unsupported aten::col2im
+volo_d1_224.sail_in1k,None
+volo_d2_224.sail_in1k,None
+volo_d3_224.sail_in1k,None
+volo_d4_224.sail_in1k,None
+volo_d5_224.sail_in1k,None
 wide_resnet101_2.tv2_in1k,None
 wide_resnet50_2.racm_in1k,None
 xception41.tf_in1k,None
