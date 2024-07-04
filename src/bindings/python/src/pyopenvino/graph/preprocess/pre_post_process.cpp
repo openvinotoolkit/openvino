@@ -220,7 +220,7 @@ static void regclass_graph_PreProcessSteps(py::module m) {
             :type pads_end: 1D tensor of type T_INT.
             :param value: All new elements are populated with this value or with 0 if input not provided. Shouldn’t be set for other pad_mode values.
             :type value: scalar tensor of type T. 
-            :param mode: ad_mode specifies the method used to generate new element values.
+            :param mode: pad_mode specifies the method used to generate new element values.
             :type mode: string
             :return: Reference to itself, allows chaining of calls in client's code in a builder-like manner.
             :rtype: openvino.runtime.PreProcessSteps
