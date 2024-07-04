@@ -10,6 +10,7 @@
 #include "concatenation_inst.h"
 #include "crop_inst.h"
 #include "eltwise_inst.h"
+#include "gemm_inst.h"
 #include "read_value_inst.h"
 #include "reshape_inst.h"
 #include "depth_to_space_inst.h"
@@ -475,7 +476,8 @@ bool crop_in_place_optimization::match(const program_node& node,
         // If the input tensor of convolution includes dynamic padding, there is an issue
         // where the total size of tensor is not properly calculated and becomes 0
         // It causes issue for internal buffer allocation during runtime
-        if (node.is_dynamic() && user->is_type<convolution>())
+        // TODO: Need to allow optimization for gemm user
+        if (node.is_dynamic() && (user->is_type<convolution>() || user->is_type<gemm>()))
             return false;
         if (user->is_type<reshape>()) {
             // runtime buffer fusing is only handled when there is only one reshape user

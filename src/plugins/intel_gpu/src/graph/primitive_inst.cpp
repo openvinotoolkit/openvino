@@ -1370,9 +1370,6 @@ void primitive_inst::do_runtime_in_place_crop() {
                 u->update_shape();
                 u->update_shape_done_by_other = true;
 
-                if (!u->shape_changed())
-                    return;
-
                 const auto& crop_users = u->get_user_insts();
                 std::vector<layout> reshape_layouts;
                 if (crop_users.front()->get_node().is_type<reshape>()) {
@@ -1413,7 +1410,7 @@ void primitive_inst::do_runtime_in_place_crop() {
                 }
                 u->_impl_params->output_layouts[0] = crop_layout;
                 u->set_can_be_optimized(true);
-                GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << ": can_be_optimized " << std::endl;
+                GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << ": can_be_optimized | crop_layout=" << crop_layout.to_string() << std::endl;
             }
         }
     }
