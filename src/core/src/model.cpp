@@ -950,7 +950,6 @@ ov::Output<ov::Node> ov::Model::add_output(const ov::Output<ov::Node>& port) {
         }
     }
     auto result = std::make_shared<ov::op::v0::Result>(port);
-    std::cout << "RESULT CREATED" << std::endl;
     m_results.push_back(result);
     if (m_shared_rt_info->get_use_topological_cache()) {
         if (cache_valid()) {
