@@ -44,7 +44,7 @@ const auto params_MultiAxis_5D = testing::Combine(
         testing::ValuesIn(additionalConfig()));
 
 //There are dedicated instences of smoke_Reduce_MultiAxis_5D_CPU test in arm and x64 folders
-//because ACL does not support 0 as reduction axe
+//because ACL does not support 0 as reduction axis
 INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_MultiAxis_5D_CPU,
         ReduceCPULayerTest,
