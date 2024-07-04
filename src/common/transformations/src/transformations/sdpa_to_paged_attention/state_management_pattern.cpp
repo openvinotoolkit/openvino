@@ -164,7 +164,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                           &sliding_window,
                                           &parameters_to_remove,
                                           &layer_index](ov::pass::pattern::Matcher& m) {
-        std::cout << "___" << matcher_name << "___" << std::endl;
         const auto& pattern_map = m.get_pattern_value_map();
 
         // std::cout << "SLIDING WINDOW" << std::endl;
@@ -310,14 +309,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         std::shared_ptr<ov::Node> scale;
         if (pattern_map.count(scale_input)) {
             scale = pattern_map.at(scale_input).get_node_shared_ptr();
-            // auto pow = scale->get_input_source_output(1).get_node_shared_ptr();
-            // auto conv = pow->get_input_source_output(0).get_node_shared_ptr();
-            // auto param = conv->get_input_source_output(0).get_node_shared_ptr();
-
-            // std::cout << param << std::endl;
-            // std::cout << conv << std::endl;
-            // std::cout << pow << std::endl;
-            // std::cout << scale << std::endl;
         } else {
             // most likely `scale` below will always be a constant in real inference, but dynamic dimension
             // propagation may not always derive it as a constant. That's why a sub-graph computing `scale` is built
@@ -386,7 +377,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         }
 
         replace_node(m.get_match_root(), pa_transpose);
-        std::cout << "AAAA" << std::endl;
         return true;
     };
 

@@ -17,7 +17,7 @@
 
 using namespace ov::op;
 
-ov::pass::MakeSDPA::MakeSDPA(std::shared_ptr<ov::Model> model) {
+ov::pass::MakeSDPA::MakeSDPA() {
     MATCHER_SCOPE(MakeSDPA);
 
     auto Q_label = pattern::any_input();
@@ -36,8 +36,7 @@ ov::pass::MakeSDPA::MakeSDPA(std::shared_ptr<ov::Model> model) {
     auto V_label = pattern::any_input();
     auto final_matmul_label = pattern::wrap_type<op::v0::MatMul>({softmax_label, V_label});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &model](pattern::Matcher& m) {
-        std::cout << "____" << matcher_name << "____" << std::endl;
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto Q = pattern_map.at(Q_label);
@@ -47,9 +46,6 @@ ov::pass::MakeSDPA::MakeSDPA(std::shared_ptr<ov::Model> model) {
         auto scale = pattern_map.at(scale_label);
         auto scale_converted = std::make_shared<op::v1::Divide>(op::v0::Constant::create(element::f32, Shape{}, {1}), scale);
         auto dummy_mask = op::v0::Constant::create(element::i32, Shape{}, {0});
-
-        auto res_output = model->add_output(scale_converted->output(0));
-        res_output.add_names({"ANDREW"});
 
         auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(Q, K, V, dummy_mask, scale_converted, true);
         sdpa->set_friendly_name(m.get_match_root()->get_friendly_name());

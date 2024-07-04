@@ -26,7 +26,6 @@ ov::pass::PrevSequenceLengthPattern::PrevSequenceLengthPattern(std::shared_ptr<o
     auto seq = pattern::wrap_type<v8::Gather>({kv_shape, pattern::any_input(), pattern::any_input()});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-        std::cout << "___" << matcher_name << "___" << std::endl;
         // TODO: Check that seq has axis that really takes sequence len but not any other dimension -- use symbolics or
         // look at the constant input
         // Detect the case by taking initialization expression for ReadValue and compare it with the second gather index

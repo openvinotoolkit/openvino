@@ -18,5 +18,5 @@ class TRANSFORMATIONS_API MakeSDPA;
 class ov::pass::MakeSDPA : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("MakeSDPA", "0");
-    MakeSDPA(std::shared_ptr<ov::Model> model);
+    MakeSDPA();
 };
