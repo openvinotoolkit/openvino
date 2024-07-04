@@ -9,8 +9,8 @@
 #include <compress_quantize_weights.hpp>
 #include <openvino/pass/make_stateful.hpp>
 #include <openvino/pass/sdpa_to_paged_attention.hpp>
-#include <openvino/pass/stateful_to_stateless.hpp>
 #include <openvino/pass/serialize.hpp>
+#include <openvino/pass/stateful_to_stateless.hpp>
 #include <pruning.hpp>
 #include <transformations/common_optimizations/compress_float_constants.hpp>
 #include <transformations/common_optimizations/fused_names_cleanup.hpp>
