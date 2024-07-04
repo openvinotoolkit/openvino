@@ -20,6 +20,7 @@
 #include "eltwise_inst.h"
 #include "loop_inst.h"
 #include "deconvolution_inst.h"
+#include "sync_tensor_inst.h"
 #include "shape_of_inst.h"
 #include "softmax_inst.h"
 #include "strided_slice_inst.h"
@@ -652,7 +653,7 @@ event::ptr primitive_inst::realloc_if_needed() {
         GPU_DEBUG_CODE(std::string memalloc_info = "");
         GPU_DEBUG_CODE(for (size_t out_idx = 0; out_idx < _outputs.size(); ++out_idx) {
             memalloc_info += (((_outputs.size() > 1) ? ("o" + to_string(out_idx) + ":") : "") +
-                              (_outputs[out_idx]->from_memory_pool ? "from_pool" : "new_alloc"));
+                              (_outputs[out_idx] ? (_outputs[out_idx]->from_memory_pool ? "from_pool" : "new_alloc") : "not allocated"));
         })
         GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(memalloc_info);
 
@@ -1316,8 +1317,6 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "Execute " << id() << " (type: " << _impl_params->desc->type_string() << ") " << std::endl;
-    if (id() == "synctensor:__module.model.layers.0.self_attn.v_proj/aten::linear/MatMul_TP")
-        std::cout << "break" << std::endl;
     for (size_t i = 0; i < _deps.size(); ++i) {
         GPU_DEBUG_TRACE_DETAIL << "- inputs[" << i << "] : " <<  _deps[i].first->id() << std::endl;
     }
@@ -1944,7 +1943,15 @@ std::vector<memory::ptr> primitive_inst::allocate_outputs(kernel_impl_params* up
     auto impl_params = updated_params != nullptr ? *updated_params : *_impl_params;
     auto& out_layouts = impl_params.output_layouts;
     for (size_t i = 0; i < get_node().get_outputs_count() ; ++i) {
-        if (out_layouts[i].is_dynamic() && !out_layouts[i].has_upper_bound()) {
+        // skip mem alloc for current rank, as it will share in on_execute
+        auto skip_alloc = [&](int index) {
+            if (out_layouts[index].is_dynamic() && !out_layouts[index].has_upper_bound())
+                return true;
+            else if (_node->is_type<sync_tensor>() && static_cast<int>(index) == updated_params->w_rank)
+                return true;
+            return false;
+        };
+        if (skip_alloc(i)) {
             outputs.push_back(memory::ptr());
         } else {
             auto current_memory_ptr = _outputs.size() > i ? output_memory_ptr(i).get() : nullptr;

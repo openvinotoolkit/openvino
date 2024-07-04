@@ -836,7 +836,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
 
         manager.run_passes(func);
-        ov::serialize(func, "model_folder_org.xml");
     }
 }
 }  // namespace intel_gpu
