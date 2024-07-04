@@ -37,24 +37,11 @@ std::vector<layout> experimental_detectron_roi_feature_extractor_inst::calc_outp
     layout data_layout = impl_param.get_input_layout(1);
     auto desc = impl_param.typed_desc<experimental_detectron_roi_feature_extractor>();
     if (rois_layout.is_dynamic() || data_layout.is_dynamic()) {
-        if (!node.is_dynamic()) {
-            int num_rois = rois_layout.batch();
-            int num_channels = data_layout.feature();
-            return {
-                layout(ov::PartialShape{num_rois, num_channels, desc->output_dim, desc->output_dim}, data_layout.data_type, format::bfyx),
-                layout(ov::PartialShape{num_rois, 4}, data_layout.data_type, format::bfyx)
-            };
-        }
-        auto input_layout_roi = node.get_input_layout(0);
-        auto roi_dim = ov::Dimension(input_layout_roi.get<ov::PartialShape>()[0].get_min_length(), \
-        input_layout_roi.get<ov::PartialShape>()[0].get_max_length());
-        auto input_layout_data = node.get_input_layout(1);
-        auto data_dim = ov::Dimension(input_layout_data.get<ov::PartialShape>()[1].get_min_length(), \
-        input_layout_data.get<ov::PartialShape>()[1].get_max_length());
-        auto first_partial_shape = ov::PartialShape{roi_dim, data_dim, desc->output_dim, desc->output_dim};
+        auto num_rois = rois_layout.get_partial_shape()[0];
+        auto num_channels = data_layout.get_partial_shape()[1];
         return {
-            layout(first_partial_shape, data_layout.data_type, format::bfyx),
-            layout(ov::PartialShape{roi_dim, 4}, data_layout.data_type, format::bfyx)
+            layout(ov::PartialShape{num_rois, num_channels, desc->output_dim, desc->output_dim}, data_layout.data_type, format::bfyx),
+            layout(ov::PartialShape{num_rois, 4}, data_layout.data_type, format::bfyx)
         };
     }
     int num_rois = rois_layout.batch();
