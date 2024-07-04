@@ -10,7 +10,9 @@ const { getModelPath } = require('./utils.js');
 
 const { xml: modelPath, bin: weightsPath } = getModelPath();
 const modelFile = fs.readFileSync(modelPath);
+const modelStr = fs.readFileSync(modelPath, 'utf8');
 const weightsFile = fs.readFileSync(weightsPath);
+const weightsTensor = new ov.Tensor(ov.element.u8, [weightsFile.buffer.byteLength], new Uint8Array(weightsFile.buffer));
 
 const core = new ov.Core();
 
@@ -35,11 +37,9 @@ describe('Core.readModeSync', () => {
   });
 
   it('readModelSync(model string, weightsTensor) ', () => {
-    const model_str = fs.readFileSync(modelPath, 'utf8');
-    const weights = new ov.Tensor(ov.element.u8, [weightsFile.buffer.byteLength], new Uint8Array(weightsFile.buffer));
     const model = core.readModelSync(
-      model_str,
-      weights,
+      modelStr,
+      weightsTensor,
     );
     assert.ok(model instanceof ov.Model);
     assert.equal(model.inputs.length, 1);
@@ -63,6 +63,15 @@ describe('Core.readModel', () => {
 
   it('readModel(xmlPath, weightsPath) ', async () => {
     const model = await core.readModel(modelPath, weightsPath);
+    assert.equal(model.inputs.length, 1);
+  });
+
+  it('readModel(model string, weightsTensor) ', async () => {
+    const model = await core.readModel(
+      modelStr,
+      weightsTensor,
+    );
+    // assert.ok(model instanceof ov.Model);
     assert.equal(model.inputs.length, 1);
   });
 
