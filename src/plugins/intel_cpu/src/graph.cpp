@@ -344,6 +344,7 @@ void Graph::Configure(const std::shared_ptr<const ov::Model>& model,
     OPENVINO_ASSERT(status == Status::NotReady, "Invalid graph status");
 
     m_context = context;
+    m_stream = dnnl::stream(getEngine());
 
     Replicate(model, inputDescriptors, zeroCopyOutputs);
 
