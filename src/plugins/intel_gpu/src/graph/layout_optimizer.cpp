@@ -13,6 +13,7 @@
 #include "reshape_inst.h"
 #include "arg_max_min_inst.h"
 #include "shape_of_inst.h"
+#include "select_inst.h"
 #include "condition_inst.h"
 #include "strided_slice_inst.h"
 #include <sstream>
@@ -33,6 +34,7 @@
 #include "prior_box_inst.h"
 #include "scatter_nd_update_inst.h"
 #include "gather_inst.h"
+#include "broadcast_inst.h"
 #include "loop_inst.h"
 #include "dft_inst.h"
 #include "to_string_utils.h"
@@ -428,10 +430,18 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
     bool allow_new_shape_infer = node.get_program().is_new_shape_infer();
     // Because mvn and concatenation kernel can work cross-layout, if reorder only performs type conversion,
     // fusing reorder to the previous node can be done even if it is a dynamic shape case
-    if ((prev.is_type<mvn>() || prev.is_type<concatenation>()) &&
+    if ((prev.is_type<mvn>() || prev.is_type<concatenation>() || prev.is_type<gather>() || prev.is_type<broadcast>() ||
+         prev.is_type<select>() || prev.is_type<eltwise>()) &&
         !prev.is_in_shape_of_subgraph() && node.is_type_conversion_only() &&
-        (format::is_simple_data_format(fmt_prev) && format::is_simple_data_format(fmt_next)))
+        (format::is_simple_data_format(fmt_prev) && format::is_simple_data_format(fmt_next)) &&
+        // If the prev node is backedge of the loop, the type will be changed by fusing reorder.
+        // We can void only that case if we can check whether the current node is backedge of the network.
+        // However no such handle is existing yet. (To be done in the future when we need to optimize out the type converting
+        // reorders in the body network)
+        !node.get_program().is_body_program() &&
+        prev.get_preferred_impl_type() != cldnn::impl_types::cpu) {
         return true;
+    }
 
     if (prev.is_dynamic() || (!node.get_users().empty() && node.get_users().front()->is_dynamic()))
         return false;
@@ -923,6 +933,10 @@ static bool is_node_for_onednn(fully_connected_node const& node) {
             auto decompression_zp_idx = fc_prim->bias.empty() ? 3 : 4;
             auto decompression_zp_dt = node.get_input_layout(decompression_zp_idx).data_type;
             if (weights_dt != decompression_zp_dt)
+                return false;
+
+            auto input_dt = node.get_input_layout(0).data_type;
+            if (input_dt == data_types::f32)
                 return false;
         }
     }

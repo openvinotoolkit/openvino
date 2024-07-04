@@ -356,7 +356,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         // @todo should we always convert to f32 regardless of hardware support, as it is done for f16?
         if (!hasHardwareSupport(ov::element::bf16))
             map.insert({ov::element::bf16, ov::element::f32});
-        if (!one_of(inferencePrecision, element::f16, element::undefined)) {
+        // TODO: Remove 'hasHardwareSupport' when all nodes are able to handle f16 properly.
+        if (!one_of(inferencePrecision, element::f16, element::undefined) || !hasHardwareSupport(element::f16)) {
             map.insert({ov::element::f16, ov::element::f32});
         }
         return map;
@@ -874,10 +875,13 @@ void Transformations::MainSnippets(void) {
     // The optimization "SplitDimensionM" depends on target machine (thread count).
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is Config::SnippetsMode::IgnoreCallback
     bool split_m_dimension = !ignoreCallback;
+    // [113198] Add dynamic Subgraph with MHA pattern inside execution support
+    bool is_dynamic_mha_token_enabled = false;
     // [122706] Some 3D MHA Patterns have perf regressions when Transpose op is tokenized
     std::set<size_t> mha_supported_transpose_ranks = { 4 };
-    ov::snippets::pass::SnippetsTokenization::Config tokenization_config(concurrency, data_ptr_gpr_count, split_m_dimension,
-                                                     mha_token_enable_transpose_on_output, mha_supported_transpose_ranks);
+    snippets::pass::SnippetsTokenization::Config tokenization_config(concurrency, data_ptr_gpr_count, split_m_dimension,
+                                                                     mha_token_enable_transpose_on_output, is_dynamic_mha_token_enabled,
+                                                                     mha_supported_transpose_ranks);
 
     ov::pass::Manager snippetsManager;
     snippetsManager.set_per_pass_validation(false);

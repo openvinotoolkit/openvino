@@ -179,16 +179,17 @@ std::shared_ptr<ov::Node> ov::util::convert_to_supported_precision(Node* const n
             type_relaxed->set_origin_input_type(origin_input_types[i], i);
         }
 
-        auto cloned_type_relaxed = std::dynamic_pointer_cast<op::TypeRelaxedBase>(cloned_node);
-        // Override TypeRelaxed types
-        for (size_t i = 0; i < num_inputs; i++) {
-            if (ov::util::is_type_unsupported(cloned_type_relaxed->get_origin_input_type(i))) {
-                cloned_type_relaxed->set_origin_input_type(cloned_node->get_input_element_type(i), i);
+        if (auto cloned_type_relaxed = std::dynamic_pointer_cast<op::TypeRelaxedBase>(cloned_node)) {
+            // Override TypeRelaxed types
+            for (size_t i = 0; i < num_inputs; i++) {
+                if (ov::util::is_type_unsupported(cloned_type_relaxed->get_origin_input_type(i))) {
+                    cloned_type_relaxed->set_origin_input_type(cloned_node->get_input_element_type(i), i);
+                }
             }
-        }
-        for (size_t i = 0; i < cloned_node->get_output_size(); i++) {
-            if (ov::util::is_type_unsupported(cloned_node->get_output_element_type(i))) {
-                cloned_type_relaxed->set_overridden_output_type(element::f32, i);
+            for (size_t i = 0; i < cloned_node->get_output_size(); i++) {
+                if (ov::util::is_type_unsupported(cloned_node->get_output_element_type(i))) {
+                    cloned_type_relaxed->set_overridden_output_type(element::f32, i);
+                }
             }
         }
         cloned_node->validate_and_infer_types();
