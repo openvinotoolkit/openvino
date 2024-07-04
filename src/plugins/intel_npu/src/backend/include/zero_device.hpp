@@ -12,7 +12,7 @@
 #include "npu.hpp"
 #include "zero_init.hpp"
 #include "zero_types.hpp"
-#include "zero_utils.hpp"
+
 namespace intel_npu {
 
 class ZeroDevice : public IDevice {

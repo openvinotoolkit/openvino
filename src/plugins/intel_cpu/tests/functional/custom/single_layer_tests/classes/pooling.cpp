@@ -59,7 +59,8 @@ std::string PoolingLayerCPUTest::getTestCaseName(const testing::TestParamInfo<po
     bool isInt8;
     CPUSpecificParams cpuParams;
     fusingSpecificParams fusingParams;
-    std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams) = obj.param;
+    ov::AnyMap additionalConfig;
+    std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams, additionalConfig) = obj.param;
 
     utils::PoolingTypes poolType;
     std::vector<size_t> kernel, stride;
@@ -93,6 +94,12 @@ std::string PoolingLayerCPUTest::getTestCaseName(const testing::TestParamInfo<po
     results << "Rounding=" << roundingType << "_";
     results << "AutoPad=" << padType << "_";
     results << "INT8=" << isInt8 << "_";
+    if (!additionalConfig.empty()) {
+        results << "_PluginConf";
+            for (auto& item : additionalConfig) {
+                results << "_" << item.first << "=" << item.second.as<std::string>();
+            }
+        }
 
     results << CPUTestsBase::getTestCaseName(cpuParams);
     results << CpuTestWithFusing::getTestCaseName(fusingParams);
@@ -108,7 +115,9 @@ void PoolingLayerCPUTest::SetUp() {
     bool isInt8;
     CPUSpecificParams cpuParams;
     fusingSpecificParams fusingParams;
-    std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams) = this->GetParam();
+    ov::AnyMap additionalConfig;
+    std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams, additionalConfig) = this->GetParam();
+    configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
     utils::PoolingTypes poolType;
     std::vector<size_t> kernel, stride;
@@ -127,7 +136,7 @@ void PoolingLayerCPUTest::SetUp() {
     if (isInt8)
         selectedType = selectedType + "_I8";
     else
-        selectedType = makeSelectedTypeStr(selectedType, inPrc);
+        selectedType = makeSelectedTypeStr(selectedType, deduce_expected_precision(inPrc, configuration));
 
     init_input_shapes({inputShapes});
 
@@ -429,7 +438,8 @@ std::string MaxPoolingV14LayerRefFallbackTest::getTestCaseName(
     InputShape inputShapes;
     ElementType inPrc;
     CPUSpecificParams cpuParams;
-    std::tie(basicParamsSet, inputShapes, inPrc, cpuParams) = obj.param;
+    ov::AnyMap additionalConfig;
+    std::tie(basicParamsSet, inputShapes, inPrc, cpuParams, additionalConfig) = obj.param;
 
     std::vector<size_t> kernel, stride, dilation;
     std::vector<size_t> padBegin, padEnd;
@@ -456,6 +466,12 @@ std::string MaxPoolingV14LayerRefFallbackTest::getTestCaseName(
     results << "PE" << ov::test::utils::vec2str(padEnd) << "_";
     results << "Rounding=" << roundingType << "_";
     results << "AutoPad=" << padType << "_";
+    if (!additionalConfig.empty()) {
+        results << "_PluginConf";
+        for (auto& item : additionalConfig) {
+            results << "_" << item.first << "=" << item.second.as<std::string>();
+        }
+    }
 
     results << CPUTestsBase::getTestCaseName(cpuParams);
     return results.str();
@@ -468,7 +484,9 @@ void MaxPoolingV14LayerRefFallbackTest::SetUp() {
     InputShape inputShapes;
     ElementType inPrc;
     CPUSpecificParams cpuParams;
-    std::tie(basicParamsSet, inputShapes, inPrc, cpuParams) = this->GetParam();
+    ov::AnyMap additionalConfig;
+    std::tie(basicParamsSet, inputShapes, inPrc, cpuParams, additionalConfig) = this->GetParam();
+    configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
     std::vector<size_t> kernel, stride, dilation;
     std::vector<size_t> padBegin, padEnd;
@@ -482,7 +500,7 @@ void MaxPoolingV14LayerRefFallbackTest::SetUp() {
     if (selectedType.empty()) {
         selectedType = getPrimitiveType();
     }
-    selectedType = makeSelectedTypeStr(selectedType, inPrc);
+    selectedType = makeSelectedTypeStr(selectedType, deduce_expected_precision(inPrc, configuration));
 
     init_input_shapes({inputShapes});
 
