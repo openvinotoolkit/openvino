@@ -183,8 +183,7 @@ ov::pass::SymbolicOptimizations::SymbolicOptimizations(bool full_run) {
         REGISTER_SYMBOLIC(ChainedMaximumOptimization)
         REGISTER_SYMBOLIC(NopBroadcast)
         // regular transformations which are needed right now since they clean up unnecessary operations
-        //REGISTER_SYMBOLIC(NopElimination)        // Broadcast (Tile) Ones + Remove Slice Before GatherElements
-        REGISTER_SYMBOLIC(NopEliminationModelPass)
+        REGISTER_SYMBOLIC(NopElimination)        // Broadcast (Tile) Ones + Remove Slice Before GatherElements
         REGISTER_SYMBOLIC(SharedOpOptimization)  // Shared GatherElements
     }
     // transformations which use symbols for optimizations
@@ -206,8 +205,8 @@ bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Mod
     // it may break NNCF patterns and lead to unexpected FakeQuantize ops in the model.
     // So we decided to disable these passes in SymbolicOptimizations.
     const auto& pass_config = m_manager->get_pass_config();
-    pass_config->disable<EliminateSqueeze>();
-    pass_config->disable<EliminateUnsqueeze>();
+    // pass_config->disable<EliminateSqueeze>(); // TODO EMUTEX
+    // pass_config->disable<EliminateUnsqueeze>(); // TODO EMUTEX
 
     m_manager->run_passes(m);
     ov::remove_skip_invalidation_rti(m);

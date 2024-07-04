@@ -143,7 +143,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     // In particular, if zero dim tensor is consumed in body of MultiSubGraphOp
     // RemoveConcatZeroDimInput and RemoveMultiSubGraphOpDanglingParamsResults should be called together.
     using namespace ov::pass;
-    REGISTER_PASS(manager, EliminateScatterUpdate)
+    // REGISTER_PASS(manager, EliminateScatterUpdate) // TODO EMUTEX
     REGISTER_PASS(manager, RemoveConcatZeroDimInput)
     REGISTER_PASS(manager, EliminateLoopInputsOutputs);
     REGISTER_PASS(manager, Validate)
@@ -199,11 +199,10 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     ADD_MATCHER(transpose_sinking, SplitSqueezeConcatFusion, m_use_shapes)
 
     REGISTER_PASS(manager, TransposeMatMul)
-    REGISTER_PASS(manager, NopEliminationModelPass)
+    REGISTER_PASS(manager, NopElimination)
 
     auto eliminations = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(eliminations, EliminateUnsqueezeGather)
-    //ADD_MATCHER(eliminations, NopElimination, m_use_shapes)
     ADD_MATCHER(eliminations, SelectWithOneValueCondition)
     eliminations->set_name("ov::pass::CommonEliminations");
 

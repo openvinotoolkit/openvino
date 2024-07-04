@@ -429,7 +429,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // element type convert is disabled.
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPrecision, precisions, type_to_fuse, false, convert_input_output_precision);
 
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert);
+    // CPU_REGISTER_PASS_COMMON(manager, ov::pass::EliminateConvert); // TODO EMUTEX
     CPU_REGISTER_PASS_COMMON(manager, SwapConvertTranspose);
     CPU_REGISTER_PASS_X64(manager, ConvertToInteraction);
     CPU_REGISTER_PASS_X64(manager, ConvertInteractionInt8);

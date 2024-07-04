@@ -139,5 +139,5 @@ ov::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
 ov::pass::ConcatReduceFusion::ConcatReduceFusion() {
     ADD_MATCHER_FOR_THIS(ReplaceConcatReduceByMinOrMax)
     ADD_MATCHER_FOR_THIS(PullSqueezeThroughEltwise)
-    ADD_MATCHER_FOR_THIS(EliminateSqueeze)
+    // ADD_MATCHER_FOR_THIS(EliminateSqueeze) // TODO EMUTEX
 }

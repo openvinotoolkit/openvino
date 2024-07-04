@@ -356,14 +356,13 @@ bool pass::SimplifyShapeOfSubGraph::run_on_model(const std::shared_ptr<Model>& f
     Manager manager(get_pass_config());
     manager.set_per_pass_validation(false);
 
-    REGISTER_PASS(manager, PrepareShapeOpsForEliminationAroundBE)
+    // REGISTER_PASS(manager, PrepareShapeOpsForEliminationAroundBE) // TODO EMUTEX
     REGISTER_PASS(manager, AbsSinking)
     // FIXME: manager runs Validate based on the last pass, when fixed the following line must be deleted
     REGISTER_PASS(manager, Validate)
     REGISTER_PASS(manager, SharedOpOptimization)
     REGISTER_PASS(manager, EliminateGatherUnsqueeze)  // should run after SharedOpOptimization
-    //REGISTER_PASS(manager, NopElimination, m_use_shapes)
-    REGISTER_PASS(manager, NopEliminationModelPass, m_use_shapes)
+    REGISTER_PASS(manager, NopElimination, m_use_shapes)
     REGISTER_PASS(manager, GroupedGatherElimination)
     // GatherNopElimination depends on shape, so it requires shape propagation
     // if previous transformations has resolved some dynamic shapes.

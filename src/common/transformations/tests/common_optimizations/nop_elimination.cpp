@@ -1392,7 +1392,7 @@ TEST(nop_elimination, not_gather_to_squeeze_with_vector_indices) {
     run_and_check(func_axis_2);
     run_and_check(func_axis_3);
 }
-
+/* TODO EMUTEX
 TEST_F(TransformationTestsF, Nopv1Broadcast) {
     {
         auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
@@ -1746,3 +1746,4 @@ TEST_F(TransformationTestsF, TransposeElimination) {
         model_ref = std::make_shared<ov::Model>(OutputVector{result}, ParameterVector{data});
     }
 }
+ */

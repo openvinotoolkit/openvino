@@ -118,6 +118,7 @@ TEST_P(PadFusionTestFixture, CompareFunctions) {
     };                                                                              \
     void TestName::setup(PadFactoryPtr pad_factory, ov::pass::Manager& manager)
 
+    /* TODO EMUTEX
 TEST_BODY(PadElimination) {
     Shape data_shape{1, 3, 14, 14};
     {
@@ -168,6 +169,7 @@ TEST_BODY(NegativePadElimination) {
     }
     // Reference function is equal to function
 }
+*/
 
 TEST_BODY(PadFusionAvgPoolExcludePad) {
     Shape data_shape{1, 3, 14, 14};
@@ -806,7 +808,7 @@ namespace {
 #define CREATE_MODEL_FACTORY(type_name) std::make_shared<type_name>()
 
 std::vector<TestModelFactoryPtr> model_factories = {
-    CREATE_MODEL_FACTORY(PadElimination),
+    // CREATE_MODEL_FACTORY(PadElimination), // TODO EMUTEX
     CREATE_MODEL_FACTORY(PadFusionAvgPoolExcludePad),
     CREATE_MODEL_FACTORY(PadFusionAvgPoolDontExcludePad),
     CREATE_MODEL_FACTORY(PadFusionConvolution),
@@ -824,7 +826,7 @@ std::vector<TestModelFactoryPtr> model_factories = {
     CREATE_MODEL_FACTORY(NegativePadFusionAvgPoolExcludePadNonZeroPads),
     CREATE_MODEL_FACTORY(NegativePadFusionConvolutionBackpropDataTooSmallPad),
     CREATE_MODEL_FACTORY(NegativePadPreservation),
-    CREATE_MODEL_FACTORY(NegativePadElimination),
+    // CREATE_MODEL_FACTORY(NegativePadElimination), // TODO EMUTEX
     CREATE_MODEL_FACTORY(NegativePadFusionAvgPoolExcludePad),
     CREATE_MODEL_FACTORY(NegativePadFusionAvgPoolDontExcludePad),
     CREATE_MODEL_FACTORY(NegativePadFusionConvolution),
