@@ -45,6 +45,8 @@ private:
     bool is_metric(const std::string& name) const;
     ov::Any get_metric(const std::string& name, const ov::AnyMap& arguments) const;
 
+    void set_cache_info(const std::shared_ptr<const ov::Model>& model, ExecutionConfig& properties) const;
+
 public:
     Plugin();
 
