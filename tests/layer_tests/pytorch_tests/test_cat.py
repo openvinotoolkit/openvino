@@ -161,7 +161,7 @@ class TestCatAlignTypes(PytorchLayerTest):
 
 class TestCatAlignTypesPT(PytorchLayerTest):
     def _prepare_input(self, in_types):
-        in_vals = [np.random.randn(2, 1, 3).astype(in_types[0])]
+        in_vals = [np.random.randn(2, 2, 3).astype(in_types[0])]
         return in_vals
 
     def create_model_param_first(self, in_types):
@@ -171,7 +171,8 @@ class TestCatAlignTypesPT(PytorchLayerTest):
                 self.y = torch.randn(2, 1, 3).to(in_types[1])
 
             def forward(self, x):
-                ins = [x, self.y]
+                x_ = torch.split(x, 1, 1)[1]
+                ins = [x_, self.y]
                 return torch.cat(ins, 1)
 
         class aten_align_types_cat_three_args(torch.nn.Module):
@@ -181,7 +182,8 @@ class TestCatAlignTypesPT(PytorchLayerTest):
                 self.z = torch.randn(2, 1, 3).to(in_types[2])
 
             def forward(self, x):
-                ins = [x, self.y, self.z]
+                x_ = torch.split(x, 1, 1)[1]
+                ins = [x_, self.y, self.z]
                 return torch.cat(ins, 1)
 
         in_count = len(in_types)
@@ -199,7 +201,8 @@ class TestCatAlignTypesPT(PytorchLayerTest):
                 self.z = torch.randn(2, 1, 3).to(in_types[2])
 
             def forward(self, y):
-                ins = [self.x, y, self.z]
+                y_ = torch.split(y, 1, 1)[1]
+                ins = [self.x, y_, self.z]
                 return torch.cat(ins, 1)
         return aten_align_types_cat_three_args()
 
@@ -211,7 +214,8 @@ class TestCatAlignTypesPT(PytorchLayerTest):
                 self.y = torch.randn(2, 1, 3).to(in_types[2])
 
             def forward(self, z):
-                ins = [self.x, self.y, z]
+                z_ = torch.split(z, 1, 1)[1]
+                ins = [self.x, self.y, z_]
                 return torch.cat(ins, 1)
         return aten_align_types_cat_three_args()
 

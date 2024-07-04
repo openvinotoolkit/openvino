@@ -173,11 +173,6 @@ a.nav-link:hover {
     color: white;
 }
 
-li.toctree-l1.has-children  > a.reference.internal {
-    font-weight: 700;
-    color: black;
-}
-
 .rotate {
     transform: rotate(270deg);
 }
