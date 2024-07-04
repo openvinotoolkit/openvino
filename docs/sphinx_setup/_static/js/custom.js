@@ -20,7 +20,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         var parentElement = toggle.parentElement;
-        console.log(parentElement)
         if (!parentElement.parentElement
             || !parentElement.parentElement.parentElement
             || !parentElement.classList.contains('current')
