@@ -18,10 +18,11 @@ namespace ov {
 namespace snippets {
 
 class DebugCapsConfig {
-struct PropertySetter;
-public:
+private:
+    struct PropertySetter;
     using PropertySetterPtr = std::shared_ptr<PropertySetter>;
 
+public:
     DebugCapsConfig() {
         readProperties();
     }
@@ -49,13 +50,13 @@ public:
     struct : PropertyGroup {
         std::string dir = "snippets_LIR_dump";
         LIRFormatFilter format = {1 << LIRFormatFilter::controlFlow};
-        std::string passes = "";
+        std::vector<std::string> passes;
 
         std::vector<PropertySetterPtr> getPropertySetters() override {
             return {PropertySetterPtr(new StringPropertySetter("dir", dir, "path to dumped LIRs")),
                     format.getPropertySetter(),
-                    PropertySetterPtr(
-                        new StringPropertySetter("passes", passes, "indicate dumped LIRs around these passes"))};
+                    PropertySetterPtr(new MultipleStringPropertySetter("passes", passes,
+                    "indicate dump LIRs around the passes. Support mutiple passes with comma separated and case insensitive. 'all' means dump all passes"))};
         }
     } dumpLIR;
 
@@ -104,6 +105,27 @@ private:
 
     private:
         std::string& property;
+        const std::string propertyValueDescription;
+    };
+
+    struct MultipleStringPropertySetter : PropertySetter {
+        MultipleStringPropertySetter(const std::string& name, std::vector<std::string>& ref, const std::string&& valueDescription)
+            : PropertySetter(name),
+              propertyValues(ref),
+              propertyValueDescription(valueDescription) {}
+        ~MultipleStringPropertySetter() override = default;
+
+        bool parseAndSet(const std::string& str) override {
+            propertyValues = ov::util::split(ov::util::to_lower(str), ',');
+            return true;
+        }
+
+        std::string getPropertyValueDescription() const override {
+            return propertyValueDescription;
+        }
+
+    private:
+        std::vector<std::string>& propertyValues;
         const std::string propertyValueDescription;
     };
 
