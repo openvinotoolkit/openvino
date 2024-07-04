@@ -151,8 +151,8 @@ bool ov::pass::StatefulToStateless::run_on_model(const std::shared_ptr<ov::Model
     for (const auto& variable_id : variables) {
         auto future_param = future_params[variable_id.variable_name];
         auto parameter = ::set_name(std::make_shared<v0::Parameter>(future_param->get_output_element_type(0),
-                                                                 future_param->get_output_partial_shape(0)),
-                                 variable_id.input_name);
+                                                                    future_param->get_output_partial_shape(0)),
+                                    variable_id.input_name);
 
         replace_node(future_param, parameter);
 
