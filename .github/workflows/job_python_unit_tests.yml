@@ -70,7 +70,7 @@ jobs:
           popd
 
       - name: Fetch setup_python action
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
@@ -121,7 +121,7 @@ jobs:
       #
 
       - name: Python API Tests
-        # if: ${{ fromJSON(inputs.affected-components).Python_API.test && runner.arch != 'ARM64' }} # Ticket: 126380, 127101
+        if: ${{ fromJSON(inputs.affected-components).Python_API.test }}
         run: |
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
@@ -246,6 +246,14 @@ jobs:
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
+      
+      - name: JAX Layer Tests - JAX FE
+        if: ${{ fromJSON(inputs.affected-components).JAX_FE.test && runner.arch != 'ARM64' && runner.os != 'macOS' }}
+        run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit_jax_fe --junitxml=${INSTALL_TEST_DIR}/TEST-jax_fe.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+          JAX_TRACE_MODE: JAXPR
 
       - name: TensorFlow Lite Layer Tests - TFL FE
         if: fromJSON(inputs.affected-components).TFL_FE.test
@@ -270,9 +278,9 @@ jobs:
 
       - name: Clone API snippets
         if: runner.os != 'macOS'
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
-          sparse-checkout: docs/snippets
+          sparse-checkout: docs/articles_en/assets/snippets
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'false'
 
@@ -280,10 +288,10 @@ jobs:
         if: runner.os != 'macOS'
         run: |
           # to find 'snippets' module in docs
-          export PYTHONPATH=${OPENVINO_REPO}/docs
+          export PYTHONPATH=${OPENVINO_REPO}/docs/articles_en/assets
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
-          python3 ${OPENVINO_REPO}/docs/snippets/main.py
+          python3 ${OPENVINO_REPO}/docs/articles_en/assets/snippets/main.py
 
       - name: Upload Test Results
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3

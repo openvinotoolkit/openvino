@@ -61,15 +61,14 @@ How AUTO Works
 ##############
 
 To put it simply, when loading the model to the first device on the list fails, AUTO will try to load it to the next device in line, until one of them succeeds.
-What is important, **AUTO starts inference with the CPU of the system by default**, as it provides very low latency and can start inference with no additional delays.
+What is important, **AUTO starts inference with the CPU of the system by default unless there is model cached for the best suited device**, as it provides very low latency and can start inference with no additional delays.
 While the CPU is performing inference, AUTO continues to load the model to the device best suited for the purpose and transfers the task to it when ready.
 This way, the devices which are much slower in compiling models, GPU being the best example, do not impact inference at its initial stages.
 For example, if you use a CPU and a GPU, the first-inference latency of AUTO will be better than that of using GPU alone.
 
 Note that if you choose to exclude CPU from the priority list or disable the initial
 CPU acceleration feature via ``ov::intel_auto::enable_startup_fallback``, it will be
-unable to support the initial model compilation stage. The models with dynamic
-input/output or :doc:`stateful operations <../stateful-models>`
+unable to support the initial model compilation stage. The models with :doc:`stateful operations <../stateful-models>`
 will be loaded to the CPU if it is in the candidate list. Otherwise,
 these models will follow the normal flow and be loaded to the device based on priority.
 
@@ -510,8 +509,9 @@ For more information, refer to the :doc:`Benchmark Tool <../../../learn-openvino
 Additional Resources
 ####################
 
-- :doc:`Debugging AUTO <auto-device-selection/debugging-auto-device>`
-- :doc:`Running on Multiple Devices Simultaneously <multi-device>`
-- :doc:`Inference Devices and Modes <../inference-devices-and-modes>`
+* `Automatic Device Selection with OpenVINO™ Notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/auto-device/auto-device.ipynb>`__
+* :doc:`Debugging AUTO <auto-device-selection/debugging-auto-device>`
+* :doc:`Running on Multiple Devices Simultaneously <multi-device>`
+* :doc:`Inference Devices and Modes <../inference-devices-and-modes>`
 
 

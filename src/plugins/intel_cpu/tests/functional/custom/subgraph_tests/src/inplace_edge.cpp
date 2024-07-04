@@ -37,7 +37,7 @@ public:
 
     void SetUp() override {
         targetDevice = utils::DEVICE_CPU;
-        configuration.insert({ov::hint::inference_precision.name(), ov::element::f16.to_string()});
+        configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
         const ov::Shape inputShape = {1, 11, 3, 3};
         targetStaticShapes = {{inputShape, inputShape}};
         ElementType prc = this->GetParam();
