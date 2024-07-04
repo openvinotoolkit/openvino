@@ -277,9 +277,6 @@ void convert_impl<float, float16, true>(const float* arg, float16* out, size_t c
         }
     }
 }
-// 0x3140 0.1640625
-
-// 0.1641845703125
 
 template <typename data_t, typename range_t>
 void jit_count_out_of_range_vec_prepare(jit::Generator&) {}
