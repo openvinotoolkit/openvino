@@ -6,6 +6,7 @@ clip-language-saliency-map
 convert-to-openvino
 cross-lingual-books-alignment
 depth-anything
+depth-anything-v2
 detectron2-to-openvino
 distilbert-sequence-classification
 fast-segment-anything
@@ -41,7 +42,6 @@ softvc-voice-conversion
 sparsity-optimization
 speculative-sampling
 speech-recognition-quantization-wav2vec2
-speech-to-text
 style-transfer
 surya-line-level-text-detection
 table-question-answering

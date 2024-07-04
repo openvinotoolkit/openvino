@@ -20,8 +20,9 @@ NPU Plugin is now available through all relevant OpenVINO distribution channels.
 
 NPU Plugin needs an NPU Driver to be installed on the system for both compiling and executing a model.
 Follow the instructions below to install the latest NPU drivers:
-* Windows driver: https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html
-* Linux driver: https://github.com/intel/linux-npu-driver/releases
+
+* `Windows driver <https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html>`__
+* `Linux driver <https://github.com/intel/linux-npu-driver/releases>`__
 
 
 The plugin uses the graph extension API exposed by the driver to convert the OpenVINO specific representation
@@ -151,7 +152,8 @@ guaranteed.
 Additional Resources
 #############################
 
-* `Vision colorization Notebook <notebooks/vision-image-colorization-with-output.html>`__
+* `Working with NPUs in OpenVINO™ Notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/hello-npu/hello-npu.ipynb>`__
+* `Vision colorization Notebook <./../../../notebooks/vision-image-colorization-with-output.html>`__
 * `Classification Benchmark C++ Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/classification_benchmark_demo/cpp>`__
 * `3D Human Pose Estimation Python Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/3d_segmentation_demo/python>`__
 * `Object Detection C++ Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/object_detection_demo/cpp>`__

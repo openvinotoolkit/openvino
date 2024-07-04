@@ -294,4 +294,6 @@ inline void update_shapes(kernel_selector::Params& p, const kernel_impl_params& 
     }
 }
 
+bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config);
+
 }  // namespace cldnn

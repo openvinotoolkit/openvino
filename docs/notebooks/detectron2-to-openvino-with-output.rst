@@ -15,8 +15,8 @@ using OpenVINO™. We will use ``Faster R-CNN FPN x1`` model and
 `COCO <https://cocodataset.org/#home>`__ dataset as examples for object
 detection and instance segmentation respectively.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 
