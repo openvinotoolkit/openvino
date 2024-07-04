@@ -15,79 +15,94 @@ namespace {
 
 constexpr float EPS = 2e-3f;
 
+// Converts float vector to another type vector.
+template <typename T>
+std::vector<T> ConverFloatVector(const std::vector<float>& vec) {
+    std::vector<T> ret;
+    ret.reserve(vec.size());
+    for (const auto& val : vec) {
+        ret.push_back(T(val));
+    }
+    return ret;
+}
+
 // Allocates tensoer with given shape and data.
 template <typename TDataType>
-memory::ptr AllocateTensor(ov::PartialShape shape, cldnn::format fmt, const std::vector<TDataType>& data) {
-    const layout lo = {shape, ov::element::from<TDataType>(), fmt};
+memory::ptr AllocateTensor(ov::PartialShape shape, const std::vector<TDataType>& data) {
+    const layout lo = {shape, ov::element::from<TDataType>(), cldnn::format::bfyx};
     EXPECT_EQ(lo.get_linear_size(), data.size());
     memory::ptr tensor = get_test_engine().allocate_memory(lo);
     set_values<TDataType>(tensor, data);
     return tensor;
 }
 
-struct ROIAlignRotatedParams {
+struct ROIAlignRotatedTestParams {
+    ov::PartialShape inputShape;
     int32_t pooledH;
     int32_t pooledW;
     float spatialScale;
     int32_t samplingRatio;
     bool clockwise;
+    std::vector<float> input;
+    std::vector<float> rois;
+    std::vector<int32_t> roiBatchIdxs;
+    std::vector<float> expectedOutput;
     std::string testcaseName;
-    memory::ptr input;
-    memory::ptr rois;
-    memory::ptr roiBatchIdxs;
-    memory::ptr expectedOutput;
 };
 
-template <typename T>
-ROIAlignRotatedParams PrepareParams(const ov::PartialShape& inputShape,
-                                    int32_t pooledH,
-                                    int32_t pooledW,
-                                    float spatialScale,
-                                    int32_t samplingRatio,
-                                    bool clockwise,
-                                    const std::vector<T>& inputValues,
-                                    const std::vector<T>& roisVals,
-                                    const std::vector<int32_t>& roiBatchIdx,
-                                    const std::vector<float>& expectedValues,
-                                    const std::string& testcaseName) {
-    ROIAlignRotatedParams ret;
-
-    constexpr ov::Dimension::value_type rois_second_dim_size = 5;  //< By definition of the ROIAlignRotated op
-
-    const ov::Dimension::value_type numOfRois = roisVals.size() / rois_second_dim_size;
-    const ov::Dimension::value_type channels = static_cast<ov::Dimension::value_type>(inputShape[1].get_length());
-
-    ret.pooledH = pooledH;
-    ret.pooledW = pooledW;
-    ret.spatialScale = spatialScale;
-    ret.samplingRatio = samplingRatio;
-    ret.clockwise = clockwise;
-    ret.testcaseName = testcaseName;
-
-    ret.input = AllocateTensor<T>(inputShape, cldnn::format::bfyx, inputValues);
-    ret.rois = AllocateTensor<T>({numOfRois, rois_second_dim_size}, cldnn::format::bfyx, roisVals);
-    ret.roiBatchIdxs = AllocateTensor<int32_t>({numOfRois}, cldnn::format::bfyx, roiBatchIdx);
-    ret.expectedOutput = AllocateTensor<float>({numOfRois,
-                                                channels,
-                                                static_cast<ov::Dimension::value_type>(ret.pooledH),
-                                                static_cast<ov::Dimension::value_type>(ret.pooledW)},
-                                               cldnn::format::bfyx,
-                                               expectedValues);
-
-    return ret;
-}
-
-class roi_align_rotated_test : public ::testing::TestWithParam<ROIAlignRotatedParams> {
+class roi_align_rotated_test : public ::testing::TestWithParam<ROIAlignRotatedTestParams> {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<ROIAlignRotatedParams>& obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ROIAlignRotatedTestParams>& obj) {
         auto param = obj.param;
         std::ostringstream result;
-        result << "_type_" << param.input->get_layout().data_type;
         result << "_" << param.testcaseName;
         return result.str();
     }
 
-    void Execute(const ROIAlignRotatedParams& params) {
+    struct ROIAlignRotatedInferenceParams {
+        int32_t pooledH;
+        int32_t pooledW;
+        float spatialScale;
+        int32_t samplingRatio;
+        bool clockwise;
+        std::string testcaseName;
+        memory::ptr input;
+        memory::ptr rois;
+        memory::ptr roiBatchIdxs;
+        memory::ptr expectedOutput;
+    };
+
+    template <ov::element::Type_t ET>
+    ROIAlignRotatedInferenceParams PrepareInferenceParams(const ROIAlignRotatedTestParams& testParam) {
+        using T = typename ov::element_type_traits<ET>::value_type;
+        ROIAlignRotatedInferenceParams ret;
+
+        constexpr ov::Dimension::value_type rois_second_dim_size = 5;  //< By definition of the ROIAlignRotated op
+
+        const ov::Dimension::value_type numOfRois = testParam.rois.size() / rois_second_dim_size;
+        const ov::Dimension::value_type channels =
+            static_cast<ov::Dimension::value_type>(testParam.inputShape[1].get_length());
+
+        ret.pooledH = testParam.pooledH;
+        ret.pooledW = testParam.pooledW;
+        ret.spatialScale = testParam.spatialScale;
+        ret.samplingRatio = testParam.samplingRatio;
+        ret.clockwise = testParam.clockwise;
+        ret.testcaseName = testParam.testcaseName;
+
+        ret.input = AllocateTensor<T>(testParam.inputShape, ConverFloatVector<T>(testParam.input));
+        ret.rois = AllocateTensor<T>({numOfRois, rois_second_dim_size}, ConverFloatVector<T>(testParam.rois));
+        ret.roiBatchIdxs = AllocateTensor<int32_t>({numOfRois}, testParam.roiBatchIdxs);
+        ret.expectedOutput = AllocateTensor<float>({numOfRois,
+                                                    channels,
+                                                    static_cast<ov::Dimension::value_type>(ret.pooledH),
+                                                    static_cast<ov::Dimension::value_type>(ret.pooledW)},
+                                                   testParam.expectedOutput);
+
+        return ret;
+    }
+
+    void Execute(const ROIAlignRotatedInferenceParams& params) {
         // Prepare the network.
         auto stream = get_test_stream_ptr(get_test_default_config(engine_));
 
@@ -130,57 +145,47 @@ private:
     engine& engine_ = get_test_engine();
 };
 
-template <ov::element::Type_t ET>
-std::vector<ROIAlignRotatedParams> generateParams() {
-    using T = typename ov::element_type_traits<ET>::value_type;
-    std::vector<ROIAlignRotatedParams> params;
-    // NOTE: expected output were generated using mmvc roi_align_rotated implementation.
-#define TEST_DATA(input_shape,                            \
-                  pooled_height,                          \
-                  pooled_width,                           \
-                  spatial_scale,                          \
-                  sampling_ratio,                         \
-                  clockwise,                              \
-                  input_data,                             \
-                  rois_data,                              \
-                  batch_indices_data,                     \
-                  expected_output,                        \
-                  description)                            \
-    params.push_back(PrepareParams<T>(input_shape,        \
-                                      pooled_height,      \
-                                      pooled_width,       \
-                                      spatial_scale,      \
-                                      sampling_ratio,     \
-                                      clockwise,          \
-                                      input_data,         \
-                                      rois_data,          \
-                                      batch_indices_data, \
-                                      expected_output,    \
-                                      description));
+std::vector<ROIAlignRotatedTestParams> generateTestParams() {
+    std::vector<ROIAlignRotatedTestParams> params;
+#define TEST_DATA(input_shape,                                     \
+                  pooled_height,                                   \
+                  pooled_width,                                    \
+                  spatial_scale,                                   \
+                  sampling_ratio,                                  \
+                  clockwise,                                       \
+                  input_data,                                      \
+                  rois_data,                                       \
+                  batch_indices_data,                              \
+                  expected_output,                                 \
+                  description)                                     \
+    params.push_back(ROIAlignRotatedTestParams{input_shape,        \
+                                               pooled_height,      \
+                                               pooled_width,       \
+                                               spatial_scale,      \
+                                               sampling_ratio,     \
+                                               clockwise,          \
+                                               input_data,         \
+                                               rois_data,          \
+                                               batch_indices_data, \
+                                               expected_output,    \
+                                               description});
 
 #include "unit_test_utils/tests_data/roi_align_rotated_data.h"
 #undef TEST_DATA
     return params;
 }
 
-std::vector<ROIAlignRotatedParams> generateCombinedParams() {
-    const std::vector<std::vector<ROIAlignRotatedParams>> generatedParams{generateParams<ov::element::Type_t::f16>(),
-                                                                          generateParams<ov::element::Type_t::f32>()};
-
-    std::vector<ROIAlignRotatedParams> combinedParams;
-    for (const auto& params : generatedParams) {
-        combinedParams.insert(combinedParams.end(), params.begin(), params.end());
-    }
-    return combinedParams;
-}
-
 }  // namespace
 
-TEST_P(roi_align_rotated_test, ref_comp) {
-    Execute(GetParam());
-}
+#define ROI_ALIGN_ROTATED_TEST_P(precision)                                            \
+    TEST_P(roi_align_rotated_test, ref_comp_##precision) {                           \
+        Execute(PrepareInferenceParams<ov::element::Type_t::precision>(GetParam())); \
+    }
+
+ROI_ALIGN_ROTATED_TEST_P(f16);
+ROI_ALIGN_ROTATED_TEST_P(f32);
 
 INSTANTIATE_TEST_SUITE_P(roi_align_rotated_test_suit,
                          roi_align_rotated_test,
-                         testing::ValuesIn(generateCombinedParams()),
+                         testing::ValuesIn(generateTestParams()),
                          roi_align_rotated_test::getTestCaseName);
