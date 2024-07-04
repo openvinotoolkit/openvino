@@ -12,6 +12,7 @@
 
 #include "common.hpp"
 #include "pyopenvino/core/remote_context.hpp"
+#include "pyopenvino/graph/model.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
@@ -391,7 +392,11 @@ void regclass_Core(py::module m) {
 
     cls.def(
         "read_model",
-        (std::shared_ptr<ov::Model>(ov::Core::*)(const std::string&, const std::string&) const) & ov::Core::read_model,
+        [](ov::Core& self, const std::string& xml, const std::string& bin) {
+            auto re = self.read_model(xml, bin);
+            std::cout << "model use count on read: " << re.use_count() << std::endl;
+            return ModelWrapper(re);
+        },
         py::call_guard<py::gil_scoped_release>(),
         py::arg("model"),
         py::arg("weights") = "",

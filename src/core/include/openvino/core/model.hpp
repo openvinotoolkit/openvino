@@ -107,7 +107,9 @@ public:
     /// based on traversing the graph from the results and the sinks.
     Model(const ov::OutputVector& results, const ov::SinkVector& sinks, const std::string& name = "");
 
-    virtual ~Model() = default;
+    virtual ~Model() {
+        std::cout << "model destroyed" << std::endl;
+    };
     /// Return the number of outputs for this Model.
     size_t get_output_size() const;
 
