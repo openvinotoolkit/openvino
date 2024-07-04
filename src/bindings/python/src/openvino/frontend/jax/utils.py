@@ -113,7 +113,6 @@ def ivalue_to_constant(ivalue, shared_memory=True):
     ov_type = get_type_from_py_type(ivalue)
     if ov_type.is_static():
         return op.Constant(ov_type, Shape([]), [ivalue]).outputs()
-    
     if isinstance(ivalue, (list, tuple)):
         assert len(ivalue) > 0, "Can't deduce type for empty list"
         if isinstance(ivalue[0], (list, tuple)):
