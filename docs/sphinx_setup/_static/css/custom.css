@@ -147,6 +147,16 @@ nav.bd-links .current>a {
     padding-right: 0;
     padding: 0 0.8rem;
 }
+ul.bd-breadcrumbs li.breadcrumb-item:not(.breadcrumb-home):before {
+    padding: .2rem .5rem 0 !important;
+}
+li.breadcrumb-item {
+    align-items: center !important;
+}
+
+.bd-sidebar-primary {
+    display:block !important;
+}
 
 a.nav-link:hover {
     text-decoration:none !important;
@@ -456,6 +466,9 @@ div.highlight {
     .container-sm,
     .container-xl {
         max-width: 100%;
+    }
+    .bd-main .bd-content .bd-article-container .bd-article {
+        padding-left: 1rem !important;
     }
 }
 
