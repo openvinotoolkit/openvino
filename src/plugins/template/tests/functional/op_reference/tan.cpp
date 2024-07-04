@@ -33,14 +33,13 @@ struct TanParams {
 class ReferenceTanLayerTest : public testing::TestWithParam<TanParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        legacy_compare = true;
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params.pshape, params.inType);
         inputData = {params.inputData};
         refOutData = {params.refData};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<TanParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "shape=" << param.pshape << "_";
         result << "iType=" << param.inType << "_";
