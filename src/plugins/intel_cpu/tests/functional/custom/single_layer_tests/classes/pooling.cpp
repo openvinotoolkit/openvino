@@ -19,7 +19,8 @@ namespace util {
     bool isInt8;
     CPUSpecificParams cpuParams;
     fusingSpecificParams fusingParams;
-    std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams) = obj.param;
+    ov::AnyMap additionalConfig;
+    std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams, additionalConfig) = obj.param;
 
     utils::PoolingTypes poolType;
     std::vector<size_t> kernel, stride;
@@ -45,6 +46,12 @@ namespace util {
     results << "Rounding=" << roundingType << "_";
     results << "AutoPad=" << padType << "_";
     results << "INT8=" << isInt8 << "_";
+    if (!additionalConfig.empty()) {
+        results << "_PluginConf";
+            for (auto& item : additionalConfig) {
+                results << "_" << item.first << "=" << item.second.as<std::string>();
+            }
+        }
 
     results << CPUTestsBase::getTestCaseName(cpuParams);
     results << CpuTestWithFusing::getTestCaseName(fusingParams);
@@ -175,7 +182,9 @@ void AvgPoolingV14LayerCPUTest::SetUp() {
     bool isInt8;
     CPUSpecificParams cpuParams;
     fusingSpecificParams fusingParams;
-    std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams) = this->GetParam();
+    ov::AnyMap additionalConfig;
+    std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams, additionalConfig) = this->GetParam();
+    configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
     utils::PoolingTypes poolType;
     std::vector<size_t> kernel, stride;
@@ -228,7 +237,9 @@ void AvgPoolingV14LayerRefFallbackTest::SetUp() {
     bool isInt8;
     CPUSpecificParams cpuParams;
     fusingSpecificParams fusingParams;
-    std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams) = this->GetParam();
+    ov::AnyMap additionalConfig;
+    std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams, additionalConfig) = this->GetParam();
+    configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
     utils::PoolingTypes poolType;
     std::vector<size_t> kernel, stride;
@@ -274,7 +285,8 @@ std::string MaxPoolingV8LayerCPUTest::getTestCaseName(
     InputShape inputShapes;
     ElementType inPrc;
     CPUSpecificParams cpuParams;
-    std::tie(basicParamsSet, inputShapes, inPrc, cpuParams) = obj.param;
+    ov::AnyMap additionalConfig;
+    std::tie(basicParamsSet, inputShapes, inPrc, cpuParams, additionalConfig) = obj.param;
 
     std::vector<size_t> kernel, stride, dilation;
     std::vector<size_t> padBegin, padEnd;
@@ -301,6 +313,12 @@ std::string MaxPoolingV8LayerCPUTest::getTestCaseName(
     results << "PE" << ov::test::utils::vec2str(padEnd) << "_";
     results << "Rounding=" << roundingType << "_";
     results << "AutoPad=" << padType << "_";
+    if (!additionalConfig.empty()) {
+        results << "_PluginConf";
+        for (auto& item : additionalConfig) {
+            results << "_" << item.first << "=" << item.second.as<std::string>();
+        }
+    }
 
     results << CPUTestsBase::getTestCaseName(cpuParams);
     return results.str();
@@ -313,7 +331,9 @@ void MaxPoolingV8LayerCPUTest::SetUp() {
     InputShape inputShapes;
     ElementType inPrc;
     CPUSpecificParams cpuParams;
-    std::tie(basicParamsSet, inputShapes, inPrc, cpuParams) = this->GetParam();
+    ov::AnyMap additionalConfig;
+    std::tie(basicParamsSet, inputShapes, inPrc, cpuParams, additionalConfig) = this->GetParam();
+    configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
     std::vector<size_t> kernel, stride, dilation;
     std::vector<size_t> padBegin, padEnd;
@@ -327,7 +347,7 @@ void MaxPoolingV8LayerCPUTest::SetUp() {
     if (selectedType.empty()) {
         selectedType = getPrimitiveType();
     }
-    selectedType = makeSelectedTypeStr(selectedType, inPrc);
+    selectedType = makeSelectedTypeStr(selectedType, deduce_expected_precision(inPrc, configuration));
 
     init_input_shapes({inputShapes});
 
@@ -351,12 +371,13 @@ void MaxPoolingV8LayerCPUTest::SetUp() {
 }
 
 std::string MaxPoolingV14LayerCPUTest::getTestCaseName(
-    const testing::TestParamInfo<maxPoolV8LayerCpuTestParamsSet>& obj) {
+const testing::TestParamInfo<maxPoolV8LayerCpuTestParamsSet>& obj) {
     maxPoolV8SpecificParams basicParamsSet;
     InputShape inputShapes;
     ElementType inPrc;
     CPUSpecificParams cpuParams;
-    std::tie(basicParamsSet, inputShapes, inPrc, cpuParams) = obj.param;
+    ov::AnyMap additionalConfig;
+    std::tie(basicParamsSet, inputShapes, inPrc, cpuParams, additionalConfig) = obj.param;
 
     std::vector<size_t> kernel, stride, dilation;
     std::vector<size_t> padBegin, padEnd;
@@ -383,6 +404,12 @@ std::string MaxPoolingV14LayerCPUTest::getTestCaseName(
     results << "PE" << ov::test::utils::vec2str(padEnd) << "_";
     results << "Rounding=" << roundingType << "_";
     results << "AutoPad=" << padType << "_";
+    if (!additionalConfig.empty()) {
+        results << "_PluginConf";
+        for (auto& item : additionalConfig) {
+            results << "_" << item.first << "=" << item.second.as<std::string>();
+        }
+    }
 
     results << CPUTestsBase::getTestCaseName(cpuParams);
     return results.str();
@@ -395,7 +422,9 @@ void MaxPoolingV14LayerCPUTest::SetUp() {
     InputShape inputShapes;
     ElementType inPrc;
     CPUSpecificParams cpuParams;
-    std::tie(basicParamsSet, inputShapes, inPrc, cpuParams) = this->GetParam();
+    ov::AnyMap additionalConfig;
+    std::tie(basicParamsSet, inputShapes, inPrc, cpuParams, additionalConfig) = this->GetParam();
+    configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
     std::vector<size_t> kernel, stride, dilation;
     std::vector<size_t> padBegin, padEnd;
@@ -409,7 +438,7 @@ void MaxPoolingV14LayerCPUTest::SetUp() {
     if (selectedType.empty()) {
         selectedType = getPrimitiveType();
     }
-    selectedType = makeSelectedTypeStr(selectedType, inPrc);
+    selectedType = makeSelectedTypeStr(selectedType, deduce_expected_precision(inPrc, configuration));
 
     init_input_shapes({inputShapes});
 
@@ -594,16 +623,7 @@ const std::vector<maxPoolV8SpecificParams>& paramsMaxV143D() {
     static const std::vector<maxPoolV8SpecificParams> paramsMaxV143D = {
             maxPoolV8SpecificParams{ {2}, {2}, {1}, {0}, {0},
                                                             ov::element::Type_t::i32, 0,
-                                                            ov::op::RoundingType::CEIL, ov::op::PadType::SAME_LOWER },
-            maxPoolV8SpecificParams{ {7}, {2}, {1}, {2}, {2},
-                                                            ov::element::Type_t::i32, 0,
-                                                            ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT},
-            maxPoolV8SpecificParams{ {2}, {2}, {1}, {0}, {0},
-                                                            ov::element::Type_t::i32, 0,
-                                                            ov::op::RoundingType::FLOOR, ov::op::PadType::SAME_LOWER },
-            maxPoolV8SpecificParams{ {7}, {2}, {1}, {2}, {2},
-                                                            ov::element::Type_t::i32, 0,
-                                                            ov::op::RoundingType::FLOOR, ov::op::PadType::EXPLICIT},
+                                                            ov::op::RoundingType::CEIL_TORCH, ov::op::PadType::SAME_UPPER },
             maxPoolV8SpecificParams{ {2}, {2}, {1}, {0}, {0},
                                                             ov::element::Type_t::i32, 0,
                                                             ov::op::RoundingType::CEIL_TORCH, ov::op::PadType::SAME_LOWER },
@@ -632,6 +652,10 @@ const std::vector<poolSpecificParams>& paramsAvgV143D() {
                                 expectedAvgRoundingType(ov::op::RoundingType::CEIL_TORCH), ov::op::PadType::EXPLICIT, true },
             poolSpecificParams{ utils::PoolingTypes::AVG, {4}, {4}, {2}, {2},
                                 expectedAvgRoundingType(ov::op::RoundingType::CEIL_TORCH), ov::op::PadType::EXPLICIT, true },
+            poolSpecificParams{ utils::PoolingTypes::AVG, {3}, {2}, {0}, {0},
+                                expectedAvgRoundingType(ov::op::RoundingType::CEIL_TORCH), ov::op::PadType::SAME_UPPER, true },
+            poolSpecificParams{ utils::PoolingTypes::AVG, {4}, {4}, {2}, {2},
+                                expectedAvgRoundingType(ov::op::RoundingType::CEIL_TORCH), ov::op::PadType::SAME_LOWER, true },
     };
     return paramsAvgV143D;
 }
@@ -673,16 +697,7 @@ const std::vector<maxPoolV8SpecificParams>& paramsMaxV144D() {
     static const std::vector<maxPoolV8SpecificParams> paramsMaxV144D = {
             maxPoolV8SpecificParams{ {2, 2}, {2, 2}, {1, 1}, {0, 0}, {0, 0},
                                                             ov::element::Type_t::i32, 0,
-                                                            ov::op::RoundingType::CEIL, ov::op::PadType::SAME_LOWER },
-            maxPoolV8SpecificParams{ {11, 7}, {2, 2}, {1, 1}, {2, 2}, {2, 2},
-                                                            ov::element::Type_t::i32, 0,
-                                                            ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT},
-            maxPoolV8SpecificParams{ {2, 2}, {2, 2}, {1, 1}, {0, 0}, {0, 0},
-                                                            ov::element::Type_t::i32, 0,
-                                                            ov::op::RoundingType::FLOOR, ov::op::PadType::SAME_LOWER },
-            maxPoolV8SpecificParams{ {11, 7}, {2, 2}, {1, 1}, {2, 2}, {2, 2},
-                                                            ov::element::Type_t::i32, 0,
-                                                            ov::op::RoundingType::FLOOR, ov::op::PadType::EXPLICIT},
+                                                            ov::op::RoundingType::CEIL_TORCH, ov::op::PadType::SAME_UPPER },
             maxPoolV8SpecificParams{ {2, 2}, {2, 2}, {1, 1}, {0, 0}, {0, 0},
                                                             ov::element::Type_t::i32, 0,
                                                             ov::op::RoundingType::CEIL_TORCH, ov::op::PadType::SAME_LOWER },
@@ -691,48 +706,6 @@ const std::vector<maxPoolV8SpecificParams>& paramsMaxV144D() {
                                                             ov::op::RoundingType::CEIL_TORCH, ov::op::PadType::EXPLICIT},
     };
     return paramsMaxV144D;
-}
-
-const std::vector<maxPoolV8SpecificParams>& paramsMaxV144DCeilTorch() {
-    static const std::vector<maxPoolV8SpecificParams> paramsMaxV144D = {
-            maxPoolV8SpecificParams{ {2, 2}, {2, 2}, {1, 1}, {0, 0}, {0, 0},
-                                                            ov::element::Type_t::i32, 0,
-                                                            ov::op::RoundingType::CEIL_TORCH, ov::op::PadType::SAME_LOWER },
-            maxPoolV8SpecificParams{ {11, 7}, {2, 2}, {1, 1}, {2, 2}, {2, 2},
-                                                            ov::element::Type_t::i32, 0,
-                                                            ov::op::RoundingType::CEIL_TORCH, ov::op::PadType::EXPLICIT},
-    };
-    return paramsMaxV144D;
-}
-
-const std::vector<InputShape>& inputShapes3D() {
-    static const std::vector<InputShape> inputShapes3D = {
-            { {}, {{3, 4, 64}} },
-            { {}, {{2, 8, 12}} },
-            { {}, {{1, 16, 12}} },
-            { {}, {{1, 21, 4}} },
-            { {}, {{1, 32, 8}} },
-            {
-                // dynamic
-                {-1, -1, -1},
-                // target
-                {
-                    {1, 32, 8},
-                    {1, 21, 4},
-                    {2, 8, 12}
-                }
-            },
-            {
-                // dynamic
-                {{1, 5}, {4, 32}, {1, 64}},
-                // target
-                {
-                    {3, 4, 64},
-                    {1, 16, 12},
-                    {1, 32, 8}
-                }
-            }};
-    return inputShapes3D;
 }
 
 const std::vector<InputShape>& inputShapes3DStatic() {
@@ -772,48 +745,17 @@ const std::vector<InputShape>& inputShapes3DDynamic() {
     return inputShapes3D;
 }
 
-const std::vector<InputShape>& inputShapes4D() {
-    static const std::vector<InputShape> inputShapes4D = {
-            { {}, {{3, 4, 64, 64}} },
-            { {}, {{2, 8, 8, 12}} },
-            { {}, {{1, 16, 16, 12}} },
-            { {}, {{1, 21, 8, 4}} },
-            { {}, {{1, 32, 8, 8}} },
-            {
-                // dynamic
-                {-1, -1, -1, -1},
-                // target
-                {
-                    {1, 32, 8, 8},
-                    {1, 21, 8, 4},
-                    {2, 8, 8, 12},
-                    {1, 96, 125, 125}
-                }
-            },
-            {
-                // dynamic
-                {{1, 5}, {4, 32}, {1, 64}, {1, 64}},
-                // target
-                {
-                    {3, 4, 64, 64},
-                    {1, 16, 16, 12},
-                    {1, 32, 8, 8}
-                }
-            },
-            {
-                // dynamic
-                {{1, 10}, 16, 8, 8},
-                // target
-                {
-                    {1, 16, 8, 8},
-                    {2, 16, 8, 8},
-                }
-            }
-    };
-    return inputShapes4D;
+const std::vector<InputShape>& inputShapes3D() {
+    static std::vector<InputShape> combinedInputShapes;
+    if (combinedInputShapes.empty()) {
+        combinedInputShapes = inputShapes3DStatic();
+        const auto& dynamicShapes = inputShapes3DDynamic();
+        combinedInputShapes.insert(combinedInputShapes.end(), dynamicShapes.begin(), dynamicShapes.end());
+    }
+    return combinedInputShapes;
 }
 
-const std::vector<InputShape>& inputShapes4DCeilTorch() {
+const std::vector<InputShape>& inputShapes4DStatic() {
     static const std::vector<InputShape> inputShapes4D = {
             { {}, {{3, 4, 64, 64}} },
             { {}, {{2, 8, 8, 12}} },
@@ -825,11 +767,6 @@ const std::vector<InputShape>& inputShapes4DCeilTorch() {
 
 const std::vector<InputShape>& inputShapes4DDynamic() {
     static const std::vector<InputShape> inputShapes4D = {
-            { {}, {{3, 4, 64, 64}} },
-            { {}, {{2, 8, 8, 12}} },
-            { {}, {{1, 16, 16, 12}} },
-            { {}, {{1, 21, 8, 4}} },
-            { {}, {{1, 32, 8, 8}} },
             {
                 // dynamic
                 {-1, -1, -1, -1},
@@ -864,38 +801,17 @@ const std::vector<InputShape>& inputShapes4DDynamic() {
     return inputShapes4D;
 }
 
-const std::vector<InputShape>& inputShapes5D() {
-    static const std::vector<InputShape> inputShapes5D = {
-            { {}, {{1, 4, 16, 16, 16}} },
-            { {}, {{2, 8, 8, 8, 8}} },
-            { {}, {{2, 16, 12, 16, 20}} },
-            { {}, {{1, 19, 16, 20, 8}} },
-            { {}, {{1, 32, 16, 8, 12}} },
-            {
-                // dynamic
-                {-1, -1, -1, -1, -1},
-                // target
-                {
-                    {2, 8, 8, 8, 8},
-                    {1, 19, 16, 20, 8},
-                    {1, 4, 16, 16, 16}
-                }
-            },
-            {
-                // dynamic
-                {{1, 5}, {4, 32}, {1, 64}, {1, 64}, {1, 25}},
-                // target
-                {
-                    {1, 4, 16, 16, 16},
-                    {1, 32, 16, 8, 12},
-                    {3, 16, 4, 8, 3}
-                }
-            }
-    };
-    return inputShapes5D;
+const std::vector<InputShape>& inputShapes4D() {
+    static std::vector<InputShape> combinedInputShapes;
+    if (combinedInputShapes.empty()) {
+        combinedInputShapes = inputShapes4DStatic();
+        const auto& dynamicShapes = inputShapes4DDynamic();
+        combinedInputShapes.insert(combinedInputShapes.end(), dynamicShapes.begin(), dynamicShapes.end());
+    }
+    return combinedInputShapes;
 }
 
-const std::vector<InputShape>& inputShapes5DCeilTorch() {
+const std::vector<InputShape>& inputShapes5DStatic() {
     static const std::vector<InputShape> inputShapes5D = {
             { {}, {{1, 4, 32, 32, 32}} },
             { {}, {{2, 8, 8, 8, 8}} },
@@ -928,6 +844,16 @@ const std::vector<InputShape>& inputShapes5DDynamic() {
     return inputShapes5D;
 }
 
+const std::vector<InputShape>& inputShapes5D() {
+    static std::vector<InputShape> combinedInputShapes;
+    if (combinedInputShapes.empty()) {
+        combinedInputShapes = inputShapes5DStatic();
+        const auto& dynamicShapes = inputShapes5DDynamic();
+        combinedInputShapes.insert(combinedInputShapes.end(), dynamicShapes.begin(), dynamicShapes.end());
+    }
+    return combinedInputShapes;
+}
+
 const std::vector<maxPoolV8SpecificParams>& paramsMaxV85D() {
     static const std::vector<maxPoolV8SpecificParams> paramsMaxV85D = {
             maxPoolV8SpecificParams{ {2, 2, 2}, {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0},
@@ -944,16 +870,7 @@ const std::vector<maxPoolV8SpecificParams>& paramsMaxV145D() {
     static const std::vector<maxPoolV8SpecificParams> paramsMaxV145DCeilTorch = {
             maxPoolV8SpecificParams{ {2, 2, 2}, {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0},
                                                             ov::element::Type_t::i32, 0,
-                                                            ov::op::RoundingType::CEIL, ov::op::PadType::SAME_LOWER },
-            maxPoolV8SpecificParams{ {7, 11, 6}, {2, 2, 2}, {1, 1, 1}, {2, 2, 2}, {2, 2, 2},
-                                                            ov::element::Type_t::i32, 0,
-                                                            ov::op::RoundingType::CEIL, ov::op::PadType::EXPLICIT },
-            maxPoolV8SpecificParams{ {2, 2, 2}, {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0},
-                                                            ov::element::Type_t::i32, 0,
-                                                            ov::op::RoundingType::FLOOR, ov::op::PadType::SAME_LOWER },
-            maxPoolV8SpecificParams{ {7, 11, 6}, {2, 2, 2}, {1, 1, 1}, {2, 2, 2}, {2, 2, 2},
-                                                            ov::element::Type_t::i32, 0,
-                                                            ov::op::RoundingType::FLOOR, ov::op::PadType::EXPLICIT },
+                                                            ov::op::RoundingType::CEIL_TORCH, ov::op::PadType::SAME_UPPER },
             maxPoolV8SpecificParams{ {2, 2, 2}, {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0},
                                                             ov::element::Type_t::i32, 0,
                                                             ov::op::RoundingType::CEIL_TORCH, ov::op::PadType::SAME_LOWER },
@@ -985,21 +902,9 @@ const std::vector<poolSpecificParams>& paramsAvg4D() {
 const std::vector<poolSpecificParams>& paramsAvgV144D() {
     static const std::vector<poolSpecificParams> paramsAvgV144D = {
             poolSpecificParams{ utils::PoolingTypes::AVG, {2, 2}, {2, 2}, {1, 0}, {0, 0},
-                                expectedAvgRoundingType(), ov::op::PadType::SAME_LOWER, true },
-            poolSpecificParams{ utils::PoolingTypes::AVG, {2, 2}, {2, 2}, {1, 0}, {0, 0},
-                                expectedAvgRoundingType(), ov::op::PadType::SAME_UPPER, true },
-            poolSpecificParams{ utils::PoolingTypes::AVG, {2, 2}, {2, 2}, {1, 0}, {0, 0},
-                                expectedAvgRoundingType(), ov::op::PadType::SAME_LOWER, false },
-            poolSpecificParams{ utils::PoolingTypes::AVG, {2, 2}, {2, 2}, {1, 0}, {0, 0},
-                                expectedAvgRoundingType(), ov::op::PadType::SAME_UPPER, false },
-            poolSpecificParams{ utils::PoolingTypes::AVG, {2, 2}, {2, 2}, {0, 0}, {0, 0},
-                                expectedAvgRoundingType(), ov::op::PadType::EXPLICIT, true },
-            poolSpecificParams{ utils::PoolingTypes::AVG, {4, 4}, {4, 4}, {2, 2}, {2, 2},
-                                expectedAvgRoundingType(), ov::op::PadType::EXPLICIT, true },
-            poolSpecificParams{ utils::PoolingTypes::AVG, {2, 2}, {2, 2}, {1, 0}, {0, 0},
                                 expectedAvgRoundingType(ov::op::RoundingType::CEIL_TORCH), ov::op::PadType::SAME_UPPER, false },
             poolSpecificParams{ utils::PoolingTypes::AVG, {2, 2}, {2, 2}, {0, 0}, {0, 0},
-                                expectedAvgRoundingType(ov::op::RoundingType::CEIL_TORCH), ov::op::PadType::EXPLICIT, true },
+                                expectedAvgRoundingType(ov::op::RoundingType::CEIL_TORCH), ov::op::PadType::SAME_LOWER, true },
             poolSpecificParams{ utils::PoolingTypes::AVG, {4, 4}, {4, 4}, {2, 2}, {2, 2},
                                 expectedAvgRoundingType(ov::op::RoundingType::CEIL_TORCH), ov::op::PadType::EXPLICIT, true },
     };
@@ -1028,36 +933,10 @@ const std::vector<poolSpecificParams>& paramsAvg5D() {
 
 const std::vector<poolSpecificParams>& paramsAvgV145D() {
     static const std::vector<poolSpecificParams> paramsAvgV145D = {
-            poolSpecificParams{ utils::PoolingTypes::AVG, {2, 2, 2}, {2, 2, 2}, {1, 0, 0}, {0, 0, 0},
-                                expectedAvgRoundingType(), ov::op::PadType::SAME_LOWER, true },
-            poolSpecificParams{ utils::PoolingTypes::AVG, {2, 2, 2}, {2, 2, 2}, {1, 0, 0}, {0, 0, 0},
-                                expectedAvgRoundingType(), ov::op::PadType::SAME_UPPER, true },
-            poolSpecificParams{ utils::PoolingTypes::AVG, {2, 2, 2}, {2, 2, 2}, {1, 0, 0}, {0, 0, 0},
-                                expectedAvgRoundingType(), ov::op::PadType::SAME_LOWER, false },
-            poolSpecificParams{ utils::PoolingTypes::AVG, {2, 2, 2}, {2, 2, 2}, {1, 0, 0}, {0, 0, 0},
-                                expectedAvgRoundingType(), ov::op::PadType::SAME_UPPER, false },
             poolSpecificParams{ utils::PoolingTypes::AVG, {2, 2, 2}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0},
-                                expectedAvgRoundingType(), ov::op::PadType::EXPLICIT, true },
+                                expectedAvgRoundingType(ov::op::RoundingType::CEIL_TORCH), ov::op::PadType::SAME_UPPER, true },
             poolSpecificParams{ utils::PoolingTypes::AVG, {3, 3, 3}, {3, 3, 3}, {1, 1, 1}, {0, 0, 0},
-                                expectedAvgRoundingType(), ov::op::PadType::EXPLICIT, true },
-            poolSpecificParams{ utils::PoolingTypes::AVG, {4, 4, 4}, {2, 2, 2}, {2, 2, 2}, {2, 2, 2},
-                                expectedAvgRoundingType(), ov::op::PadType::EXPLICIT, true },
-            poolSpecificParams{ utils::PoolingTypes::AVG, {2, 2, 2}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0},
-                                expectedAvgRoundingType(ov::op::RoundingType::CEIL_TORCH), ov::op::PadType::EXPLICIT, true },
-            poolSpecificParams{ utils::PoolingTypes::AVG, {3, 3, 3}, {3, 3, 3}, {1, 1, 1}, {0, 0, 0},
-                                expectedAvgRoundingType(ov::op::RoundingType::CEIL_TORCH), ov::op::PadType::EXPLICIT, true },
-            poolSpecificParams{ utils::PoolingTypes::AVG, {4, 4, 4}, {2, 2, 2}, {2, 2, 2}, {2, 2, 2},
-                                expectedAvgRoundingType(ov::op::RoundingType::CEIL_TORCH), ov::op::PadType::EXPLICIT, true },
-    };
-    return paramsAvgV145D;
-}
-
-const std::vector<poolSpecificParams>& paramsAvgV145DCeilTorch() {
-    static const std::vector<poolSpecificParams> paramsAvgV145D = {
-            poolSpecificParams{ utils::PoolingTypes::AVG, {2, 2, 2}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0},
-                                expectedAvgRoundingType(ov::op::RoundingType::CEIL_TORCH), ov::op::PadType::EXPLICIT, true },
-            poolSpecificParams{ utils::PoolingTypes::AVG, {3, 3, 3}, {3, 3, 3}, {1, 1, 1}, {0, 0, 0},
-                                expectedAvgRoundingType(ov::op::RoundingType::CEIL_TORCH), ov::op::PadType::EXPLICIT, true },
+                                expectedAvgRoundingType(ov::op::RoundingType::CEIL_TORCH), ov::op::PadType::SAME_LOWER, true },
             poolSpecificParams{ utils::PoolingTypes::AVG, {4, 4, 4}, {2, 2, 2}, {2, 2, 2}, {2, 2, 2},
                                 expectedAvgRoundingType(ov::op::RoundingType::CEIL_TORCH), ov::op::PadType::EXPLICIT, true },
     };

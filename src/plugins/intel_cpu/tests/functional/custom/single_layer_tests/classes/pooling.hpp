@@ -101,28 +101,25 @@ const std::vector<maxPoolV8SpecificParams>& paramsMaxV85D();
 
 const std::vector<maxPoolV8SpecificParams>& paramsMaxV143D();
 const std::vector<maxPoolV8SpecificParams>& paramsMaxV144D();
-const std::vector<maxPoolV8SpecificParams>& paramsMaxV144DCeilTorch();
 const std::vector<maxPoolV8SpecificParams>& paramsMaxV145D();
 
 const std::vector<InputShape>& inputShapes3D();
 const std::vector<InputShape>& inputShapes3DDynamic();
 const std::vector<InputShape>& inputShapes3DStatic();
 const std::vector<InputShape>& inputShapes4D();
-const std::vector<InputShape>& inputShapes4DCeilTorch();
+const std::vector<InputShape>& inputShapes4DStatic();
 const std::vector<InputShape>& inputShapes4DDynamic();
 const std::vector<InputShape>& inputShapes4D_Large();
 const std::vector<InputShape>& inputShapes5D();
-const std::vector<InputShape>& inputShapes5DCeilTorch();
+const std::vector<InputShape>& inputShapes5DStatic();
 const std::vector<InputShape>& inputShapes5DDynamic();
 
 const std::vector<poolSpecificParams>& paramsAvg4D();
 const std::vector<poolSpecificParams>& paramsAvgV144D();
 const std::vector<poolSpecificParams>& paramsAvg4D_Large();
 const std::vector<poolSpecificParams>& paramsAvg5D();
-const std::vector<poolSpecificParams>& paramsAvgV145DCeilTorch();
 const std::vector<poolSpecificParams>& paramsAvgV145D();
 const std::vector<poolSpecificParams>& paramsMax5D();
-
 }  // namespace Pooling
 }  // namespace test
 }  // namespace ov
