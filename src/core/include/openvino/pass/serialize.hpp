@@ -35,10 +35,6 @@ public:
 
     Serialize(const std::string& xmlPath, const std::string& binPath, Version version = Version::UNSPECIFIED);
 
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
-    Serialize(const std::wstring& xmlPath, const std::wstring& binPath, Version version = Version::UNSPECIFIED);
-#endif
-
 private:
     std::ostream* m_xmlFile;
     std::ostream* m_binFile;
@@ -46,10 +42,6 @@ private:
     const std::string m_binPath;
     const Version m_version;
     const std::map<std::string, ov::OpSet> m_custom_opsets;
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
-    const std::wstring m_xmlPath_wchar;
-    const std::wstring m_binPath_wchar;
-#endif
 };
 
 /**

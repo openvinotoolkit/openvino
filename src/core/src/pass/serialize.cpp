@@ -1144,29 +1144,6 @@ std::string valid_xml_path(const std::string& path) {
     return path;
 }
 
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
-std::wstring valid_xml_path(const std::wstring& path) {
-    OPENVINO_ASSERT(path.size() > 4, "Path for xml file is too short.");
-
-    const std::wstring extension = L".xml";
-    const bool has_xml_extension = path.rfind(extension) == path.size() - extension.size();
-    OPENVINO_ASSERT(has_xml_extension, "Path for xml file doesn't contains file name with 'xml' extension.");
-    return path;
-}
-
-std::wstring provide_bin_path(const std::wstring& xmlPath, const std::wstring& binPath) {
-    if (!binPath.empty()) {
-        return binPath;
-    }
-    assert(xmlPath.size() > 4);
-    std::wstring bestPath = xmlPath;
-    const std::wstring extension = L"bin";
-    const auto ext_size = extension.size();
-    bestPath.replace(bestPath.size() - ext_size, ext_size, extension);
-    return bestPath;
-}
-#endif
-
 std::string provide_bin_path(const std::string& xmlPath, const std::string& binPath) {
     if (!binPath.empty()) {
         return binPath;
@@ -1229,38 +1206,28 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     if (m_xmlFile && m_binFile) {
         serializeFunc(*m_xmlFile, *m_binFile, model, m_version);
     } else {
-        if (m_xmlPath.size()) {
-            auto xmlDir = ov::util::get_directory(m_xmlPath);
-            if (xmlDir != m_xmlPath)
-                ov::util::create_directory_recursive(xmlDir);
-        }
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
-        else {
-            auto xmlDir = ov::util::get_directory(m_xmlPath_wchar);
-            if (xmlDir != m_xmlPath_wchar)
-                ov::util::create_directory_recursive(xmlDir);
-        }
-#endif
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+        auto xmlPath_wstr = ov::util::string_to_wstring(m_xmlPath);
+        auto binPath_wstr = ov::util::string_to_wstring(m_binPath);
+        auto xmlDir = ov::util::get_directory(xmlPath_wstr);
+        if (xmlDir != xmlPath_wstr)
+            ov::util::create_directory_recursive(xmlDir);
+        std::ofstream bin_file(binPath_wstr, std::ios::out | std::ios::binary);
+        OPENVINO_ASSERT(bin_file, "Can't open bin file.");
 
-        std::ofstream bin_file;
-        std::ofstream xml_file;
-        if (m_binPath.size()) {
-            bin_file.open(m_binPath, std::ios::out | std::ios::binary);
-            OPENVINO_ASSERT(bin_file, "Can't open bin file: \"" + m_binPath + "\"");
+        // create xml file
+        std::ofstream xml_file(xmlPath_wstr, std::ios::out);
+        OPENVINO_ASSERT(xml_file, "Can't open xml file.");
+#else
+        auto xmlDir = ov::util::get_directory(m_xmlPath);
+        if (xmlDir != m_xmlPath)
+            ov::util::create_directory_recursive(xmlDir);
+        std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);
+        OPENVINO_ASSERT(bin_file, "Can't open bin file: \"" + m_binPath + "\"");
 
-            // create xml file
-            xml_file.open(m_xmlPath, std::ios::out);
-            OPENVINO_ASSERT(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
-        }
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
-        else {
-            bin_file.open(m_binPath_wchar.c_str(), std::ios::out | std::ios::binary);
-            OPENVINO_ASSERT(bin_file, "Can't open bin file.");
-
-            // create xml file
-            xml_file.open(m_xmlPath_wchar.c_str(), std::ios::out);
-            OPENVINO_ASSERT(xml_file, "Can't open xml file.");
-        }
+        // create xml file
+        std::ofstream xml_file(m_xmlPath, std::ios::out);
+        OPENVINO_ASSERT(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
 #endif
 
         try {
@@ -1273,10 +1240,6 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
             bin_file.close();
             std::remove(m_xmlPath.c_str());
             std::remove(m_binPath.c_str());
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
-            _wremove(m_xmlPath_wchar.c_str());
-            _wremove(m_binPath_wchar.c_str());
-#endif
             throw;
         }
     }
@@ -1290,10 +1253,6 @@ pass::Serialize::Serialize(std::ostream& xmlFile, std::ostream& binFile, pass::S
       m_binFile{&binFile},
       m_xmlPath{},
       m_binPath{},
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
-      m_xmlPath_wchar{},
-      m_binPath_wchar{},
-#endif
       m_version{version} {
 }
 
@@ -1302,23 +1261,8 @@ pass::Serialize::Serialize(const std::string& xmlPath, const std::string& binPat
       m_binFile{nullptr},
       m_xmlPath{valid_xml_path(xmlPath)},
       m_binPath{provide_bin_path(xmlPath, binPath)},
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
-      m_xmlPath_wchar{},
-      m_binPath_wchar{},
-#endif
       m_version{version} {
 }
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
-pass::Serialize::Serialize(const std::wstring& xmlPath, const std::wstring& binPath, pass::Serialize::Version version)
-    : m_xmlFile{nullptr},
-      m_binFile{nullptr},
-      m_xmlPath{},
-      m_binPath{},
-      m_xmlPath_wchar{valid_xml_path(xmlPath)},
-      m_binPath_wchar{provide_bin_path(xmlPath, binPath)},
-      m_version{version} {}
-#endif
 
 pass::StreamSerialize::StreamSerialize(std::ostream& stream,
                                        const std::function<void(std::ostream&)>& custom_data_serializer,
