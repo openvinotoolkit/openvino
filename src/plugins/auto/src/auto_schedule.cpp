@@ -162,19 +162,19 @@ void AutoSchedule::init() {
                               device.c_str(),
                               m_compile_context[CPU].m_is_enabled ? "not found" : "found",
                               cached_model_path.c_str());
-                if (m_compile_context[CPU].m_is_enabled) {
-                    m_compile_context[CPU].m_device_info = *cpu_iter;
-                    m_compile_context[CPU].m_device_info.config[ov::hint::performance_mode.name()] =
-                        ov::hint::PerformanceMode::LATENCY;
-                    if (m_compile_context[ACTUALDEVICE].m_device_info.config.count(ov::cache_dir.name()) &&
-                        (m_context->m_startup_fallback || m_context->m_runtime_fallback)) {
-                        m_compile_context[CPU].m_device_info.config[ov::cache_dir.name()] = "";
-                        LOG_INFO_TAG("Clear cache dir setting for CPU accelerator");
-                    }
-                    m_compile_context[CPU].m_worker_name = "CPU_HELP";
-                    LOG_INFO_TAG("will load CPU for accelerator");
-                }
             }
+        }
+        if (m_compile_context[CPU].m_is_enabled) {
+            m_compile_context[CPU].m_device_info = *cpu_iter;
+            m_compile_context[CPU].m_device_info.config[ov::hint::performance_mode.name()] =
+                ov::hint::PerformanceMode::LATENCY;
+            if (m_compile_context[ACTUALDEVICE].m_device_info.config.count(ov::cache_dir.name()) &&
+                (m_context->m_startup_fallback || m_context->m_runtime_fallback)) {
+                m_compile_context[CPU].m_device_info.config[ov::cache_dir.name()] = "";
+                LOG_INFO_TAG("Clear cache dir setting for CPU accelerator");
+            }
+            m_compile_context[CPU].m_worker_name = "CPU_HELP";
+            LOG_INFO_TAG("will load CPU for accelerator");
         }
     };
     if (m_compile_context[ACTUALDEVICE].m_is_enabled) {
