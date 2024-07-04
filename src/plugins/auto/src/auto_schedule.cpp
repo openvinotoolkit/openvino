@@ -98,7 +98,7 @@ void AutoSchedule::init() {
                                 m_compile_context[ACTUALDEVICE].m_model_precision,
                                 m_context->m_model_priority);
 
-    auto load_device_task = [&](AutoCompileContext* context_ptr,  const std::shared_ptr<ov::Model>& model) {
+    auto load_device_task = [&](AutoCompileContext* context_ptr, const std::shared_ptr<ov::Model>& model) {
         try_to_compile_model(*context_ptr, model);
         if (context_ptr->m_is_load_success) {
             if (context_ptr->m_worker_name.empty()) {
@@ -130,47 +130,38 @@ void AutoSchedule::init() {
             m_firstload_promise.set_value();
         });
     };
-    if (m_compile_context[ACTUALDEVICE].m_is_enabled) {
-        LOG_INFO_TAG("select device:%s", m_compile_context[ACTUALDEVICE].m_device_info.device_name.c_str());
-        bool is_actual_cpu = m_compile_context[ACTUALDEVICE].m_device_info.device_name.find("CPU") != std::string::npos;
-        // if Actual device is CPU or perf_hint is cumulative, disabled m_compile_context[CPU], only use
-        // m_compile_context[ACTUALDEVICE]
-        if (is_actual_cpu || !m_context->m_startup_fallback) {
+    auto update_cache_setting = [this](bool is_actual_cpu,
+                                       AutoCompileContext m_compile_context[],
+                                       ScheduleContext::Ptr& m_context) {
+        const auto cpu_iter = deviceChecker().check_and_return_if_device_in_list("CPU", m_context->m_device_priorities);
+        if (cpu_iter == m_context->m_device_priorities.end()) {
             m_compile_context[CPU].m_is_enabled = false;
-        } else {
-            const auto cpu_iter =
-                deviceChecker().check_and_return_if_device_in_list("CPU", m_context->m_device_priorities);
-            // if have CPU Device,  enable m_compile_context[CPU]
-            if (cpu_iter != m_context->m_device_priorities.end()) {
-                m_compile_context[CPU].m_is_enabled = true;
-                if (!is_actual_cpu) {
-                    // user does not set the compiling threads
-                    // limit the threads num for compiling
-                    auto device = m_compile_context[ACTUALDEVICE].m_device_info.device_name;
-                    auto& device_config = m_compile_context[ACTUALDEVICE].m_device_info.config;
-                    std::string cache_dir = device_config.count(ov::cache_dir.name())
-                                                ? device_config[ov::cache_dir.name()].as<std::string>()
-                                                : m_context->m_ov_core->get_property("", ov::cache_dir);
+            return;
+        }
+        m_compile_context[CPU].m_is_enabled = true;
+        if (!is_actual_cpu) {
+            auto device = m_compile_context[ACTUALDEVICE].m_device_info.device_name;
+            auto& device_config = m_compile_context[ACTUALDEVICE].m_device_info.config;
+            std::string cache_dir = device_config.count(ov::cache_dir.name())
+                                        ? device_config[ov::cache_dir.name()].as<std::string>()
+                                        : m_context->m_ov_core->get_property("", ov::cache_dir);
 
-                    if (m_context->m_startup_fallback && !cache_dir.empty()) {
-                        const auto properties =
-                            m_context->m_ov_core->create_compile_config(ov::DeviceIDParser(device).get_device_name(),
-                                                                        device_config);
-                        std::string blobId;
-                        if (m_context->m_model)
-                            blobId = ov::ModelCache::compute_hash(
-                                std::const_pointer_cast<const ov::Model>(m_context->m_model),
-                                properties);
-                        else
-                            blobId = ov::ModelCache::compute_hash(m_context->m_model_path, properties);
-                        std::string cached_model_path = ov::util::make_path(cache_dir, blobId + ".blob");
-                        m_compile_context[CPU].m_is_enabled = !ov::util::file_exists(cached_model_path);
-                        LOG_DEBUG_TAG("device: %s %s cached blob: %s ",
-                                      device.c_str(),
-                                      m_compile_context[CPU].m_is_enabled ? "not found" : "found",
-                                      cached_model_path.c_str());
-                    }
-                }
+            if (m_context->m_startup_fallback && !cache_dir.empty()) {
+                const auto properties =
+                    m_context->m_ov_core->create_compile_config(ov::DeviceIDParser(device).get_device_name(),
+                                                                device_config);
+                std::string blobId;
+                if (m_context->m_model)
+                    blobId = ov::ModelCache::compute_hash(std::const_pointer_cast<const ov::Model>(m_context->m_model),
+                                                          properties);
+                else
+                    blobId = ov::ModelCache::compute_hash(m_context->m_model_path, properties);
+                std::string cached_model_path = ov::util::make_path(cache_dir, blobId + ".blob");
+                m_compile_context[CPU].m_is_enabled = !ov::util::file_exists(cached_model_path);
+                LOG_DEBUG_TAG("device: %s %s cached blob: %s ",
+                              device.c_str(),
+                              m_compile_context[CPU].m_is_enabled ? "not found" : "found",
+                              cached_model_path.c_str());
                 if (m_compile_context[CPU].m_is_enabled) {
                     m_compile_context[CPU].m_device_info = *cpu_iter;
                     m_compile_context[CPU].m_device_info.config[ov::hint::performance_mode.name()] =
@@ -183,9 +174,18 @@ void AutoSchedule::init() {
                     m_compile_context[CPU].m_worker_name = "CPU_HELP";
                     LOG_INFO_TAG("will load CPU for accelerator");
                 }
-            } else {
-                m_compile_context[CPU].m_is_enabled = false;
             }
+        }
+    };
+    if (m_compile_context[ACTUALDEVICE].m_is_enabled) {
+        LOG_INFO_TAG("select device:%s", m_compile_context[ACTUALDEVICE].m_device_info.device_name.c_str());
+        bool is_actual_cpu = m_compile_context[ACTUALDEVICE].m_device_info.device_name.find("CPU") != std::string::npos;
+        // if Actual device is CPU or perf_hint is cumulative, disabled m_compile_context[CPU], only use
+        // m_compile_context[ACTUALDEVICE]
+        if (is_actual_cpu || !m_context->m_startup_fallback) {
+            m_compile_context[CPU].m_is_enabled = false;
+        } else {
+            update_cache_setting(is_actual_cpu, m_compile_context, m_context);
         }
         // initialize the rest members of load context
         for (int i = 0; i < CONTEXTNUM; i++) {
