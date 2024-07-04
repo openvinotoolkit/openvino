@@ -135,7 +135,7 @@ jobs:
         if: always()
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v -k "not (TestTimmConvertModel or TestTorchHubConvertModel)"
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v -k "not (TestTimmConvertModel or TestTorchHubConvertModel or test_pa_precommit)"
         env:
           TYPE: ${{ inputs.event == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
@@ -146,7 +146,7 @@ jobs:
         if: always()
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/test_pa_transformation.py -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_pagedattention_tests.html --self-contained-html -v --tb=short
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/test_pa_transformation.py -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_pagedattention_tests.html --self-contained-html -v --tb=short -n 4
         env:
           TYPE: ${{ inputs.event == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
