@@ -120,13 +120,12 @@ public:
     /*** Register KernelExecutor in the KernelExecutorTable so it can be later updated in runtime. */
     template<typename T, class ...C,
             typename std::enable_if<std::is_base_of<KernelExecutorBase, T>::value, bool>::type = true>
-    const std::shared_ptr<T>& register_kernel(const lowered::ExpressionPtr& expr, C... args) {
-        OPENVINO_ASSERT(!m_table.count(expr), "This expression already has an alterable kernel");
+    std::shared_ptr<T> register_kernel(const lowered::ExpressionPtr& expr, C... args) {
         const auto& instance = std::make_shared<T>(args...);
-        m_table[expr] = instance;
+        OPENVINO_ASSERT(m_table.insert({expr, instance}).second, "This expression already has an alterable kernel");
         return instance;
     }
-    std::shared_ptr<KernelExecutorBase> get_kernel_executor(const lowered::ExpressionPtr& expr) const {
+   const std::shared_ptr<KernelExecutorBase>& get_kernel_executor(const lowered::ExpressionPtr& expr) const {
         OPENVINO_ASSERT(m_table.count(expr), "This expression doesn't have a registered kernel executor");
         return m_table.at(expr);
     }
