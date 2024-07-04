@@ -7,6 +7,9 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "utils.hpp"
 
@@ -20,12 +23,14 @@ using namespace ov::op;
 OutputVector translate_layer_norm(const NodeContext& context) {
     num_inputs_check(context, 5, 6);
     auto eps = context.const_input<float>(4);
-    auto normalized_shape = context.const_input<Shape>(1);
-    PYTORCH_OP_CONVERSION_CHECK(normalized_shape.size() == 1,
-                                "Translation for aten::layer_norm supports only single normalized_shape value, "
-                                "which means normalizing over the last dimension.");
-    // TODO: support any dimension
-    auto axes = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
+    auto normalized_shape = context.get_input(1);
+    auto num_axes = context.mark_node(std::make_shared<v3::ShapeOf>(normalized_shape, element::i32));
+    num_axes = context.mark_node(std::make_shared<v0::Squeeze>(num_axes));
+    auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    auto minus_one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {-1}));
+    auto axes_range = context.mark_node(std::make_shared<v4::Range>(num_axes, zero, minus_one, element::i32));
+
+    auto axes = context.mark_node(std::make_shared<v1::Multiply>(axes_range, minus_one));
     auto out_node =
         context.mark_node(std::make_shared<v6::MVN>(context.get_input(0), axes, true, eps, MVNEpsMode::INSIDE_SQRT));
     if (!context.input_is_none(2)) {
