@@ -42,8 +42,8 @@ The tutorial consists of the following steps:
    API <https://github.com/openvinotoolkit/openvino.genai/blob/master/src/README.md>`__.
 -  Run chat pipeline
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Select model for inference <#select-model-for-inference>`__
@@ -185,6 +185,7 @@ The available options are:
 .. code:: python
 
        ## login to huggingfacehub to get access to pretrained model
+   [back to top ⬆️](#Table-of-contents:)
 
 
 
@@ -521,7 +522,7 @@ to make it
 `symmetric <https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md#symmetric-quantization>`__
 you can add ``--sym``.
 
-For INT4 quantization you can also specify the following arguments :
+For INT4 quantization you can also specify the following arguments:
 
 - The ``--group-size`` parameter will define the group size to use for
   quantization, -1 it will results in per-column quantization.
@@ -760,20 +761,13 @@ We can now save floating point and compressed model variants
 
 .. parsed-literal::
 
-    2024-06-20 00:02:37.229229: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-06-20 00:02:37.263502: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-07-02 00:50:04.949521: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-07-02 00:50:04.983760: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-06-20 00:02:37.780256: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+    2024-07-02 00:50:05.502308: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
       torch.utils._pytree._register_pytree_node(
-    config.json: 100%|█████████████████████████████| 659/659 [00:00<00:00, 68.6kB/s]
     Framework not specified. Using pt to export the model.
-    model.safetensors: 100%|█████████████████████| 988M/988M [00:10<00:00, 94.5MB/s]
-    generation_config.json: 100%|██████████████████| 242/242 [00:00<00:00, 27.1kB/s]
-    tokenizer_config.json: 100%|████████████████| 1.29k/1.29k [00:00<00:00, 775kB/s]
-    vocab.json: 100%|██████████████████████████| 2.78M/2.78M [00:00<00:00, 5.12MB/s]
-    merges.txt: 100%|██████████████████████████| 1.67M/1.67M [00:00<00:00, 3.81MB/s]
-    tokenizer.json: 100%|██████████████████████| 7.03M/7.03M [00:00<00:00, 16.1MB/s]
     Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
     Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
     Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
@@ -781,15 +775,15 @@ We can now save floating point and compressed model variants
     Using framework PyTorch: 2.3.1+cpu
     Overriding 1 configuration item(s)
     	- use_cache -> True
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:114: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:114: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if (input_shape[-1] > 1 or self.sliding_window is not None) and self.is_causal:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/optimum/exporters/onnx/model_patcher.py:300: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/optimum/exporters/onnx/model_patcher.py:300: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if past_key_values_length > 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:120: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:120: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if seq_len > self.max_seq_len_cached:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:667: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/qwen2/modeling_qwen2.py:667: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attention_mask.size() != (bsz, 1, q_len, kv_seq_len):
-    [2KMixed-Precision assignment ━━━━━━━━━━━━━━━━━━━━ 100% 168/168 • 0:00:04 • 0:00:00
+    [2KMixed-Precision assignment ━━━━━━━━━━━━━━━━━━━━ 100% 168/168 • 0:00:02 • 0:00:00
     INFO:nncf:Statistics of the bitwidth distribution:
     ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
     │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
@@ -919,6 +913,8 @@ LLMPipeline.
 
 .. code:: ipython3
 
+    from transformers import AutoTokenizer
+    from openvino_tokenizers import convert_tokenizer
     from openvino_genai import LLMPipeline
 
     if model_to_run.value == "INT4":
@@ -929,7 +925,15 @@ LLMPipeline.
         model_dir = fp16_model_dir
     print(f"Loading model from {model_dir}\n")
 
-    pipe = LLMPipeline(model_dir.as_posix(), device.value)
+    # optionally convert tokenizer if used cached model without it
+    if not (model_dir / "openvino_tokenizer.xml").exists() or not (model_dir / "openvino_detokenizer.xml").exists():
+        hf_tokenizer = AutoTokenizer.from_pretrained(model_dir, trust_remote_code=True)
+        ov_tokenizer, ov_detokenizer = convert_tokenizer(hf_tokenizer, with_detokenizer=True)
+        ov.save_model(ov_tokenizer, model_dir / "openvino_tokenizer.xml")
+        ov.save_model(ov_tokenizer, model_dir / "openvino_detokenizer.xml")
+
+
+    pipe = LLMPipeline(str(model_dir), device.value)
     print(pipe.generate("The Sun is yellow bacause", temperature=1.2, top_k=4, do_sample=True, max_new_tokens=50))
 
 
@@ -937,7 +941,7 @@ LLMPipeline.
 
     Loading model from qwen2-0.5b-instruct/INT4_compressed_weights
 
-     the light rays of the Sun hit the earth at the same angle of incidence. The same angle of incidence is also at the same angle for every other point on the Earth. This is the phenomenon of refraction. The Sun is the source of light
+     the light of the sun travels faster through the air than the light of a lamp. 120% of the sunlight is absorbed by plants in an area. 10% of the sunlight passes through the sky and is lost. If
 
 
 Run Chatbot
@@ -1100,7 +1104,7 @@ After that it’s generate new chatbot message and we add it to history.
     from uuid import uuid4
     from threading import Event, Thread
 
-    pipe = LLMPipeline(model_dir.as_posix(), device.value)
+    pipe = LLMPipeline(str(model_dir), device.value)
 
     max_new_tokens = 80
 
