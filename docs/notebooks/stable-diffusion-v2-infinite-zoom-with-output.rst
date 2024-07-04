@@ -67,8 +67,8 @@ Intel <https://huggingface.co/docs/optimum/intel/inference#stable-diffusion>`__.
 And how to use the model to generate sequence of images for infinite
 zoom video effect.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Stable Diffusion v2 Infinite Zoom
    Showcase <#stable-diffusion-v2-infinite-zoom-showcase>`__
