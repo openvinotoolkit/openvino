@@ -493,6 +493,24 @@ void jit_uni_eltwise_generic<isa>::store_vector(const XReg& ptr,
                 }
                 break;
             }
+            case ov::element::f16: {
+                switch (dst_prc) {
+                    case ov::element::i8: {
+                        fcvtms(data.h, data.h);
+                        xtn(data.b8, data.h8);
+                        break;
+                    }
+                    case ov::element::u8: {
+                        fcvtmu(data.h, data.h);
+                        xtn(data.b8, data.h8);
+                        break;
+                    }
+                    default: {
+                        OPENVINO_THROW("dst_prc " + dst_prc.to_string() + " is not supported, src_prc is " + src_prc.to_string());
+                    }
+                }
+                break;
+            }
             default: {
                 OPENVINO_THROW("src_prc " + src_prc.to_string() + " is not supported, dst_prc is " + dst_prc.to_string());
             }
@@ -554,6 +572,26 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const XReg& ptr,
                         TReg vec_data(data.getIdx());
                         fcvtmu(vec_data.s, vec_data.s);
                         xtn(vec_data.h4, vec_data.s4);
+                        xtn(vec_data.b8, vec_data.h8);
+                        break;
+                    }
+                    default: {
+                        OPENVINO_THROW("dst_prc " + dst_prc.to_string() + " is not supported, src_prc is " + src_prc.to_string());
+                    }
+                }
+                break;
+            }
+            case ov::element::f16: {
+                switch (dst_prc) {
+                    case ov::element::i8: {
+                        TReg vec_data(data.getIdx());
+                        fcvtms(vec_data.h, vec_data.h);
+                        xtn(vec_data.b8, vec_data.h8);
+                        break;
+                    }
+                    case ov::element::u8: {
+                        TReg vec_data(data.getIdx());
+                        fcvtmu(vec_data.h, vec_data.h);
                         xtn(vec_data.b8, vec_data.h8);
                         break;
                     }
