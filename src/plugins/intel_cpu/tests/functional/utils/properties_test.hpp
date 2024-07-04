@@ -8,6 +8,7 @@
 #include "openvino/runtime/compiled_model.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+#include "common_test_utils/test_assertions.hpp"
 
 class OVClassConfigTestCPU : public ::testing::Test {
 public:

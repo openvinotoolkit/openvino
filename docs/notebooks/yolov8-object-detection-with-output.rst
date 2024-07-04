@@ -23,9 +23,8 @@ The tutorial consists of the following steps:
 - Other optimization possibilities with OpenVINO api
 - Live demo
 
+**Table of contents:**
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
 -  `Get PyTorch model <#get-pytorch-model>`__
 
@@ -804,17 +803,17 @@ point precision, using the ``ignored_scope`` parameter.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -831,17 +830,17 @@ point precision, using the ``ignored_scope`` parameter.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1170,14 +1169,14 @@ meets passing criteria.
 Next steps
 ----------
 
- This section contains
+This section contains
 suggestions on how to additionally improve the performance of your
 application using OpenVINO.
 
 Async inference pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
- The key advantage of the Async
+The key advantage of the Async
 API is that when a device is busy with inference, the application can
 perform other tasks in parallel (for example, populating inputs or
 scheduling other requests) rather than wait for the current inference to
