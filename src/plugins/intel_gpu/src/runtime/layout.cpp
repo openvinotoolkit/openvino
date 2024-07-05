@@ -41,18 +41,18 @@ size_t layout::get_spatial_rank() const {
 }
 
 tensor::value_type layout::get_dim(size_t idx) const {
-    auto dims = get_dims();
+    const auto& dims = get_dims();
     return dims[idx];
 }
 
 tensor::value_type layout::batch() const {
-    auto dims = get_dims();
+    const auto& dims = get_dims();
     const size_t dim_idx = 0;
     return dims[dim_idx];
 }
 
 tensor::value_type layout::feature() const {
-    auto dims = get_dims();
+    const auto& dims = get_dims();
     const size_t dim_idx = 1;
     return dims[dim_idx];
 }
@@ -60,13 +60,13 @@ tensor::value_type layout::feature() const {
 tensor::value_type layout::spatial(size_t spatial_idx) const {
     if (spatial_idx >= format.spatial_num() )
         return 1;
-    auto dims = get_dims();
+    const auto& dims = get_dims();
     const size_t dim_idx = (format::is_grouped(format) ? 3 : 2) + (format.spatial_num() - 1 - spatial_idx);
     return dims[dim_idx];
 }
 
 tensor::value_type layout::group() const {
-    auto dims = get_dims();
+    const auto& dims = get_dims();
     if (!format::is_weights_format(format)) {
         throw std::logic_error("[GPU] can't get group dimension for data layout");
     }
@@ -81,7 +81,7 @@ tensor::value_type layout::ofm() const {
     if (!format::is_weights_format(format)) {
         throw std::logic_error("[GPU] can't get OFM dimension for data layout");
     }
-    auto dims = get_dims();
+    const auto& dims = get_dims();
     const size_t dim_idx = format::is_grouped(format) ? 1 : 0;
 
     return dims[dim_idx];
@@ -91,7 +91,7 @@ tensor::value_type layout::ifm() const {
     if (!format::is_weights_format(format)) {
         throw std::logic_error("[GPU] can't get IFM dimension for data layout");
     }
-    auto dims = get_dims();
+    const auto& dims = get_dims();
     const size_t dim_idx = format::is_grouped(format) ? 2 : 1;
     return dims[dim_idx];
 }
@@ -99,10 +99,10 @@ tensor::value_type layout::ifm() const {
 std::vector<tensor::value_type> layout::get_dims() const {
     if (is_dynamic())
         throw std::runtime_error("[GPU] get_dims() is called for dynamic shape");
-    auto shape = size.to_shape();
+
     std::vector<tensor::value_type> res;
-    for (auto dim : shape) {
-        res.push_back(static_cast<tensor::value_type>(dim));
+    for (const auto& dim : size) {
+        res.push_back(static_cast<tensor::value_type>(dim.get_length()));
     }
 
     if (res.size() < format.dimension())
@@ -116,7 +116,7 @@ std::vector<tensor::value_type> layout::get_padded_dims() const {
         throw std::runtime_error("[GPU] get_padded_dims() is called for dynamic shape");
 
     auto default_fmt = format::get_default_format(format.dimension(), format::is_weights_format(format), format::is_grouped(format));
-    auto t = get_tensor();
+    const auto& t = get_tensor();
     auto padded_size = t.add(data_padding.lower_size()).add(data_padding.upper_size());
     return padded_size.sizes(default_fmt);
 }
@@ -168,7 +168,7 @@ std::vector<tensor::value_type> layout::get_ordered_dims() const {
     if (is_dynamic())
         throw std::runtime_error("[GPU] get_ordered_dims() is called for dynamic shape");
 
-    auto t = get_tensor();
+    const auto& t = get_tensor();
     return t.sizes(format);
 }
 
@@ -245,8 +245,8 @@ tensor layout::get_tensor() const {
     OPENVINO_ASSERT(!is_dynamic() || has_upper_bound(), "[GPU] get_tensor() is called for dynamic shape without upper bound");
     ov::Shape shape;
     if (is_dynamic() && has_upper_bound()) {
-        for (auto dim : size) {
-                shape.push_back(dim.get_max_length());
+        for (const auto& dim : size) {
+            shape.push_back(dim.get_max_length());
         }
     } else {
         shape = size.to_shape();
@@ -295,16 +295,16 @@ void layout::set_partial_shape(const ov::PartialShape& size) {
 
 tensor layout::get_buffer_size() const {
     if (is_dynamic() && !has_upper_bound()) {
-            throw std::runtime_error("[GPU] get_buffer_size() is called for dynamic shape");
+        throw std::runtime_error("[GPU] get_buffer_size() is called for dynamic shape");
     }
 
-    auto t = get_tensor();
+    const auto& t = get_tensor();
 
     return t.add(data_padding.lower_size()).add(data_padding.upper_size());
 }
 
 tensor layout::get_pitches() const {
-    auto sizes = get_buffer_size().sizes(format);
+    const auto& sizes = get_buffer_size().sizes(format);
 
     std::vector<tensor::value_type> pitches(sizes.size(), tensor::value_type(1));
     std::partial_sum(sizes.rbegin(), sizes.rend() - 1, pitches.rbegin() + 1, std::multiplies<tensor::value_type>());
@@ -312,10 +312,10 @@ tensor layout::get_pitches() const {
 }
 
 size_t layout::get_linear_offset(tensor element) const {
-    auto l_padd = data_padding.lower_size();
-    auto u_padd = data_padding.upper_size();
+    const auto& l_padd = data_padding.lower_size();
+    const auto& u_padd = data_padding.upper_size();
 
-    auto t = get_tensor();
+    const auto& t = get_tensor();
 
     if ((element.batch[0] < 0 && -element.batch[0] > l_padd.batch[0]) ||
         (element.feature[0] < 0 && -element.feature[0] > l_padd.feature[0]) ||
@@ -524,12 +524,12 @@ ov::PartialShape layout::transform(const ov::PartialShape& pshape, const cldnn::
     int32_t default_size = -1;
     std::vector<int32_t> dims;
     dims.reserve(pshape.size());
-    for (auto dim : pshape) {
+    for (const auto& dim : pshape) {
         dims.push_back(static_cast<int32_t>(dim.get_length()));
     }
 
     const cldnn::format default_fmt = cldnn::format::bfvuwzyx;
-    auto old_sizes = convert_dimensions(dims, old_fmt.order(), default_fmt.internal_order()); // convert to internal order (bfxyzwuv)
+    const auto& old_sizes = convert_dimensions(dims, old_fmt.order(), default_fmt.internal_order()); // convert to internal order (bfxyzwuv)
 
     const auto& val_order = default_fmt.internal_order();
     const auto& new_order = new_fmt.internal_order();

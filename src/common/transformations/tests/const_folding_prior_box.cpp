@@ -42,7 +42,7 @@ TEST(TransformationTests, ConstFoldingPriorBox) {
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<pass::ConstantFolding>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -89,7 +89,7 @@ TEST(TransformationTests, ConstFoldingPriorBoxClustered) {
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<pass::ConstantFolding>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -163,7 +163,7 @@ TEST(TransformationTests, ConstFoldingPriorBoxSubgraph) {
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<pass::ConstantFolding>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -225,7 +225,7 @@ TEST(TransformationTests, ConstFoldingPriorBoxClusteredSubgraph) {
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<pass::ConstantFolding>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -281,7 +281,7 @@ TEST(TransformationTests, ConstFoldingPriorBox8) {
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<pass::ConstantFolding>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -354,7 +354,7 @@ TEST(TransformationTests, ConstFoldingPriorBox8Subgraph) {
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<pass::ConstantFolding>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
