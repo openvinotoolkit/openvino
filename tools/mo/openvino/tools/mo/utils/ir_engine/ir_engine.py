@@ -35,8 +35,7 @@ def read_rt_info_attr(elem):
     val_dict = {}
     for child in elem:
         child_val = read_rt_info_attr(child)
-        node_name = child.attrib.get('name', child.tag)
-        val_dict[node_name] = child_val
+        val_dict[child.attrib.get('name', child.tag)] = child_val
     return val_dict
 
 
@@ -105,8 +104,7 @@ class IREngine(object):
                     statistics[layer.find('name').text] = {'min': layer.find('min').text, 'max': layer.find('max').text}
             elif child.tag == 'rt_info':
                 for elem in child:
-                    node_name = elem.attrib['name'] if elem.attrib['name'] else elem.tag
-                    self.meta_data[node_name] = read_rt_info_attr(elem)
+                    self.meta_data[elem.attrib.get('name', elem.tag)] = read_rt_info_attr(elem)
 
             # TODO: Remove this part when POT updates to using of rt_info
             elif child.tag == 'quantization_parameters':
