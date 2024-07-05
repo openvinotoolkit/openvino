@@ -71,7 +71,7 @@ public:
         manager.register_pass<ov::pass::ShuffleChannelsFusion>(values.check_values);
         manager.register_pass<ov::pass::CheckUniqueNames>(unh);
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ShuffleChannelsFusionTestValues> obj) {

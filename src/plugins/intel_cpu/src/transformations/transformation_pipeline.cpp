@@ -235,37 +235,37 @@ bool Transformations::fuse_type_to_convert(const std::shared_ptr<ov::Node>& node
         return false;
     const auto& to = it->second;
 
-    // For Convert node, converting precision from floating point to boolean will lead to mathematical
-    // error, because here the output precision boolean is replaced by u8:
-    //  - floating point value 0.01 is converted to be 1 for boolean, but 0 for u8 - need to insert Ceil.
-    //  - floating point value 256 is converted to be 1 for boolean, but 0 for u8 - need to insert Min(x, UINT8_MAX)
-    //  - floating point value -256 is converted to be 1 for boolean, but 0 for u8 - need to insert Abs before Min.
-    // Thus an Abs, Ceil and Min nodes should be added before the Convert node for this scenario.
-    if (convert->input(0).get_element_type().is_real() &&
-        convert->get_convert_element_type() == ov::element::boolean && to.is_integral_number()) {
+    if (convert->get_convert_element_type() == ov::element::boolean && to.is_integral_number()) {
+        // For Convert node, converting precision from numerical data types to boolean will lead to mathematical
+        // error, because here the output precision boolean is replaced by u8:
+        //  - floating point value 0.01 is converted to be 1 for boolean, but 0 for u8 - need to insert Ceil.
+        //  - either float or int values should be clipped with the interval [0; 1] to mimic bool cast behavior, i.e.
+        //  0 - is false, 1 - is true
+        //  - to perform clamping correctly an Abs op should be inserted before Clamp
+        // Thus an Abs, Ceil and Clamp nodes should be added before the Convert node for this scenario.
         ov::pass::NodeRegistry reg;
         const auto& in_prec = convert->get_input_element_type(0);
-        auto data = convert->input_value(0).get_node_shared_ptr();
+        auto parent_node = convert->input_value(0).get_node_shared_ptr();
         auto item = precisions.find(in_prec);
         if (item != precisions.end()) {
-            // Add convert node for unsupported precision, such as FP64
-            data = reg.make<ov::opset10::Convert>(data, item->second);
+            // Add convert node for unsupported precision, such as FP64 or INT64
+            parent_node = reg.make<ov::opset10::Convert>(parent_node, item->second);
         }
-        const auto abs = reg.make<ov::opset10::Abs>(data);
-        const auto to_max_value = reg.make<ov::opset10::Constant>(ov::util::make_tensor_of_max_value(to));
-        const auto to_max_convert = reg.make<ov::opset10::Convert>(to_max_value, abs->get_output_element_type(0));
-        const auto min = reg.make<ov::opset10::Minimum>(abs, to_max_convert);
-        const auto ceil = reg.make<ov::opset10::Ceiling>(min);
-        const auto new_convert = reg.make<ov::opset10::Convert>(ceil, to);
+        if (in_prec.is_signed()) {
+            parent_node = reg.make<ov::opset10::Abs>(parent_node);
+        }
+        if (in_prec.is_real()) {
+            parent_node = reg.make<ov::opset10::Ceiling>(parent_node);
+        }
+        parent_node = reg.make<ov::opset10::Clamp>(parent_node, 0, 1);
+        const auto new_convert = reg.make<ov::opset10::Convert>(parent_node, to);
         new_convert->set_friendly_name(convert->get_friendly_name());
         ov::copy_runtime_info(convert, reg.get());
         ov::replace_node(convert, new_convert);
         return true;
-    } else {
-        convert->set_convert_element_type(to);
-        return true;
     }
-    return false;
+    convert->set_convert_element_type(to);
+    return true;
 }
 
 void Transformations::UpToLpt() {
@@ -356,7 +356,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         // @todo should we always convert to f32 regardless of hardware support, as it is done for f16?
         if (!hasHardwareSupport(ov::element::bf16))
             map.insert({ov::element::bf16, ov::element::f32});
-        if (!one_of(inferencePrecision, element::f16, element::undefined)) {
+        // TODO: Remove 'hasHardwareSupport' when all nodes are able to handle f16 properly.
+        if (!one_of(inferencePrecision, element::f16, element::undefined) || !hasHardwareSupport(element::f16)) {
             map.insert({ov::element::f16, ov::element::f32});
         }
         return map;
@@ -874,10 +875,13 @@ void Transformations::MainSnippets(void) {
     // The optimization "SplitDimensionM" depends on target machine (thread count).
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is Config::SnippetsMode::IgnoreCallback
     bool split_m_dimension = !ignoreCallback;
+    // [113198] Add dynamic Subgraph with MHA pattern inside execution support
+    bool is_dynamic_mha_token_enabled = false;
     // [122706] Some 3D MHA Patterns have perf regressions when Transpose op is tokenized
     std::set<size_t> mha_supported_transpose_ranks = { 4 };
-    ov::snippets::pass::SnippetsTokenization::Config tokenization_config(concurrency, data_ptr_gpr_count, split_m_dimension,
-                                                     mha_token_enable_transpose_on_output, mha_supported_transpose_ranks);
+    snippets::pass::SnippetsTokenization::Config tokenization_config(concurrency, data_ptr_gpr_count, split_m_dimension,
+                                                                     mha_token_enable_transpose_on_output, is_dynamic_mha_token_enabled,
+                                                                     mha_supported_transpose_ranks);
 
     ov::pass::Manager snippetsManager;
     snippetsManager.set_per_pass_validation(false);
