@@ -13,9 +13,6 @@
 #include "node/include/type_validation.hpp"
 #include "openvino/util/common_util.hpp"
 
-namespace {
-std::mutex core_mutex;
-}
 
 void validate_set_property_args(const Napi::CallbackInfo& info) {
     const size_t args_length = info.Length();
@@ -360,9 +357,9 @@ void ImportModelFinalizer(Napi::Env env, void* finalizeData, ImportModelContext*
     delete context;
 };
 
-void importModelThread(ImportModelContext* context) {
+void importModelThread(ImportModelContext* context, std::mutex& mutex) {
     {
-        const std::lock_guard<std::mutex> lock(core_mutex);
+        const std::lock_guard<std::mutex> lock(mutex);
         context->_compiled_model = context->_core.import_model(context->_stream, context->_device, context->_config);
     }
 
@@ -398,7 +395,7 @@ Napi::Value CoreWrap::import_model_async(const Napi::CallbackInfo& info) {
                                                                ImportModelFinalizer,
                                                                (void*)nullptr);
 
-            context_data->nativeThread = std::thread(importModelThread, context_data);
+            context_data->nativeThread = std::thread(importModelThread, context_data, std::ref(_mutex));
             return context_data->deferred.Promise();
         } else {
             OPENVINO_THROW("'importModel'", ov::js::get_parameters_error_msg(info, allowed_signatures));

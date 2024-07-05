@@ -102,6 +102,7 @@ protected:
 
 private:
     ov::Core _core;
+    std::mutex _mutex;
 };
 
 struct TsfnContextModel {
