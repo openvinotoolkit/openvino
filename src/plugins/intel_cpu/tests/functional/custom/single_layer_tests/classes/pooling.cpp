@@ -197,7 +197,7 @@ void AvgPoolingV14LayerCPUTest::SetUp() {
     if (isInt8)
         selectedType = selectedType + "_I8";
     else
-        selectedType = makeSelectedTypeStr(selectedType, inPrc);
+        selectedType = makeSelectedTypeStr(selectedType, deduce_expected_precision(inPrc, configuration));
 
     init_input_shapes({inputShapes});
 
