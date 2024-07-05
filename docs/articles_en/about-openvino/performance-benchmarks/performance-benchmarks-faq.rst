@@ -174,6 +174,6 @@ Performance Information F.A.Q.
 
 .. container:: benchmark-banner
 
-   Results may vary. For more information, see
-   :doc:`Platforms, Configurations, Methodology <../performance-benchmarks>`.
-   See :doc:`Legal Information <../additional-resources/legal-information>`.
+   Results may vary. For more information, see:
+   :doc:`Platforms, Configurations, Methodology <../performance-benchmarks>`,
+   :doc:`Legal Information <../additional-resources/terms-of-use>`.
