@@ -20,14 +20,34 @@ NPU Plugin is now available through all relevant OpenVINO distribution channels.
 
 NPU Plugin needs an NPU Driver to be installed on the system for both compiling and executing a model.
 Follow the instructions below to install the latest NPU drivers:
-* Windows driver: https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html
-* Linux driver: https://github.com/intel/linux-npu-driver/releases
+
+* `Windows driver <https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html>`__
+* `Linux driver <https://github.com/intel/linux-npu-driver/releases>`__
 
 
 The plugin uses the graph extension API exposed by the driver to convert the OpenVINO specific representation
 of the model into a proprietary format. The compiler included in the user mode driver (UMD) performs
 platform specific optimizations in order to efficiently schedule the execution of network layers and
 memory transactions on various NPU hardware submodules.
+
+To use NPU for inference, pass the device name to the ``ov::Core::compile_model()`` method:
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_npu.py
+         :language: py
+         :fragment: [compile_model_default_npu]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_npu.cpp
+         :language: cpp
+         :fragment: [compile_model_default_npu]
+
 
 Model Caching
 #############################

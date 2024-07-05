@@ -135,7 +135,7 @@ public:
         m_i_compile_model_with_batch = std::make_shared<NiceMock<MockICompiledModel>>(reshaped, m_hardware_plugin);
         m_compile_model_with_batch = {m_i_compile_model_with_batch, {}};
 
-        ASSERT_NO_THROW(m_auto_batch_compile_model = std::make_shared<CompiledModel>(m_model->clone(),
+        OV_ASSERT_NO_THROW(m_auto_batch_compile_model = std::make_shared<CompiledModel>(m_model->clone(),
                                                                                      m_auto_batch_plugin,
                                                                                      m_config,
                                                                                      m_device_info,

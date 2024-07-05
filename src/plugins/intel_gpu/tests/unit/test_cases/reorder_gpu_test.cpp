@@ -911,6 +911,11 @@ TEST(reorder_gpu, basic_convert_int8) {
     std::initializer_list<float> input_f = { 1.0f, -2.5f, 3.1f, -4.0f, 5.03f, -6.99f, 7.0f, -8.0f, 9.0f };
     std::list<float> final_results = { 1.0f, -2.0f, 3.0f, -4.0f, 5.0f, -6.0f, 7.0f, -8.0f, 9.0f };
 
+    if (engine.get_device_info().supports_immad) {
+        // Use onednn when reordering byxf format.
+        final_results = { 1.0f, -2.0f, 3.0f, -4.0f, 5.0f, -7.0f, 7.0f, -8.0f, 9.0f };
+    }
+
     // Allocate memory for input image.
     auto input_memory = engine.allocate_memory(in_layout);
     set_values(input_memory, input_f);
@@ -954,6 +959,11 @@ TEST(reorder_gpu, basic_convert_uint8) {
     layout byte_layout = { ov::element::from<uint8_t>(), format::bfyx,{ 1, 1, 3, 3 } };
     std::initializer_list<float> input_f = { 1.0f, -2.5f, 3.1f, -4.0f, 5.03f, -6.99f, 7.0f, -8.0f, 9.0f };
     std::list<float> final_results = { 1.0f, 254.0f, 3.0f, 252.0f, 5.0f, 250.0f, 7.0f, 248.0f, 9.0f };
+
+    if (engine.get_device_info().supports_immad) {
+        // Use onednn when reordering byxf format.
+        final_results = { 1.0f, 0.0f, 3.0f, 0.0f, 5.0f, 0.0f, 7.0f, 0.0f, 9.0f };
+    }
 
     // Allocate memory for input image.
     auto input_memory = engine.allocate_memory(in_layout);
