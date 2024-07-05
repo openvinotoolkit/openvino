@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "custom/subgraph_tests/include/fuse_transpose_reorder.hpp"
+#include "custom/subgraph_tests/src/classes/fuse_transpose_reorder.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
 #include "common_test_utils/subgraph_builders/preprocess_builders.hpp"

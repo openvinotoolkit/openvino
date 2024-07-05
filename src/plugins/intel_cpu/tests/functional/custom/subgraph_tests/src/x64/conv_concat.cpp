@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "custom/subgraph_tests/include/conv_concat.hpp"
+#include "custom/subgraph_tests/src/classes/conv_concat.hpp"
 
 #include "common_test_utils/node_builders/convolution.hpp"
 #include "common_test_utils/node_builders/convolution_backprop_data.hpp"
