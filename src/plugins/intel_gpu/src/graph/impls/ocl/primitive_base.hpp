@@ -90,7 +90,8 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
                impl_param.is_type<gather>() ||
                impl_param.is_type<permute>() ||
                impl_param.is_type<strided_slice>() ||
-               impl_param.is_type<broadcast>()) && impl_param.is_dynamic())) {
+               impl_param.is_type<broadcast>() ||
+               impl_param.is_type<crop>()) && impl_param.is_dynamic())) {
             return make_unique<ImplType>(kernel_selector::kernel_data{});
         }
         auto kernel_params = ImplType::get_kernel_params(ImplType::static_canonicalize_shapes(impl_param));
