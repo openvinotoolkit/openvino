@@ -240,7 +240,7 @@ static void iterate_files_worker(const std::string& path,
         } catch (...) {
             std::exception_ptr p = std::current_exception();
             closedir(dir);
-            std::rethrow_exception(p);
+            std::rethrow_exception(std::move(p));
         }
         closedir(dir);
     } else {
@@ -386,7 +386,7 @@ std::string ov::util::get_absolute_file_path(const std::string& path) {
         // on Linux if file does not exist or no access, function will return NULL, but
         // `absolutePath` will contain resolved path
         absolutePath.resize(absolutePath.find('\0'));
-        return std::string(absolutePath);
+        return absolutePath;
     }
     std::stringstream ss;
     ss << "Can't get absolute file path for [" << path << "], err = " << strerror(errno);

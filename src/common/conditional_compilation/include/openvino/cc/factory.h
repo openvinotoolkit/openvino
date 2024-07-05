@@ -39,7 +39,7 @@ public:
     template <typename Impl>
     void registerImpl1(const Key& key) {
         builders[key] = [](Args... args) -> T {
-            Impl* impl = new Impl(args...);
+            Impl* impl = new Impl(std::move(args)...);
             return static_cast<T>(impl);
         };
     }
@@ -47,7 +47,7 @@ public:
     T createImpl(const Key& key, Args... args) {
         auto builder = builders.find(key);
         if (builder != builders.end()) {
-            return builder->second(args...);
+            return builder->second(std::move(args)...);
         }
         return nullptr;
     }
@@ -63,7 +63,7 @@ public:
         const std::string task_name = "REG$" + name + "$" + to_string(key) + "$" + typeName;
         openvino::itt::ScopedTask<domain> task(openvino::itt::handle(task_name));
         builders[key] = [](Args... args) -> T {
-            Impl* impl = new Impl(args...);
+            Impl* impl = new Impl(std::move(args)...);
             return static_cast<T>(impl);
         };
     }
@@ -74,7 +74,7 @@ public:
         if (builder != builders.end()) {
             const std::string task_name = "CREATE$" + name + "$" + to_string(key);
             openvino::itt::ScopedTask<domain> task(openvino::itt::handle(task_name));
-            return builder->second(args...);
+            return builder->second(std::move(args)...);
         }
         return nullptr;
     }
@@ -87,7 +87,7 @@ public:
     template <typename Impl>
     void registerImpl(const Key& key) {
         builders[key] = [](Args... args) -> T {
-            Impl* impl = new Impl(args...);
+            Impl* impl = new Impl(std::move(args)...);
             return static_cast<T>(impl);
         };
     }
@@ -95,7 +95,7 @@ public:
     T createImpl(const Key& key, Args... args) {
         auto builder = builders.find(key);
         if (builder != builders.end()) {
-            return builder->second(args...);
+            return builder->second(std::move(args)...);
         }
         return nullptr;
     }
