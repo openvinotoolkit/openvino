@@ -345,13 +345,37 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
             break;
         }
         case ov::element::i8: {
-            utils::load_vector(data.b, data.s, ptr_reg, ptr_offset, broadcast, this);
+            if (broadcast) {
+                utils::load_vector(data.b, data.s, ptr_reg, ptr_offset, broadcast, this);
+            } else {
+                if (ptr_offset == 0) {
+                    ld1(Xbyak_aarch64::VRegSElem(data.getIdx(), 0, 0), ptr(ptr_reg));
+                    ld1(Xbyak_aarch64::VRegSElem(data.getIdx(), 0, 0), ptr(ptr_reg));
+                    ld1(Xbyak_aarch64::VRegSElem(data.getIdx(), 0, 0), ptr(ptr_reg));
+                } else {
+                    add_imm(X_DEFAULT_ADDR, ptr_reg, ptr_offset, X_TMP_0);
+                    ld1(Xbyak_aarch64::VRegSElem(data.getIdx(), 0, 0), ptr(X_DEFAULT_ADDR));
+                }
+            }
+
             sshll(data.h8, data.b8, 0);
             sshll(data.s4, data.h4, 0);
             break;
         }
         case ov::element::u8: {
-            utils::load_vector(data.b, data.s, ptr_reg, ptr_offset, broadcast, this);
+            if (broadcast) {
+                utils::load_vector(data.b, data.s, ptr_reg, ptr_offset, broadcast, this);
+            } else {
+                if (ptr_offset == 0) {
+                    ld1(Xbyak_aarch64::VRegSElem(data.getIdx(), 0, 0), ptr(ptr_reg));
+                    ld1(Xbyak_aarch64::VRegSElem(data.getIdx(), 0, 0), ptr(ptr_reg));
+                    ld1(Xbyak_aarch64::VRegSElem(data.getIdx(), 0, 0), ptr(ptr_reg));
+                } else {
+                    add_imm(X_DEFAULT_ADDR, ptr_reg, ptr_offset, X_TMP_0);
+                    ld1(Xbyak_aarch64::VRegSElem(data.getIdx(), 0, 0), ptr(X_DEFAULT_ADDR));
+                }
+            }
+
             ushll(data.h8, data.b8, 0);
             ushll(data.s4, data.h4, 0);
             break;
