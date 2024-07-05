@@ -10,7 +10,6 @@
 #include <string>
 
 #include "openvino/runtime/core.hpp"
-#include "openvino/util/file_util.hpp"
 #include "pyopenvino/graph/axis_set.hpp"
 #include "pyopenvino/graph/axis_vector.hpp"
 #include "pyopenvino/graph/coordinate.hpp"
