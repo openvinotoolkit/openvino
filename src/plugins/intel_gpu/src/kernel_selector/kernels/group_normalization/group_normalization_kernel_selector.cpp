@@ -10,7 +10,7 @@ namespace kernel_selector {
 
 group_normalization_kernel_selector::group_normalization_kernel_selector() {
     // Attach<GroupNormalizationKernelRef>();
-    Attach<GroupNormalizationKernelBfyxOpt>();
+    Attach<GroupNormalizationKernelBfyx>();
     Attach<GroupNormalizationKernel_b_fs_yx_fsv16>();
 }
 

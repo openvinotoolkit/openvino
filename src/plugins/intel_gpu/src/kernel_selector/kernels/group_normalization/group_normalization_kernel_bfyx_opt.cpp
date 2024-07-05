@@ -6,7 +6,7 @@
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
-ParamsKey GroupNormalizationKernelBfyxOpt::GetSupportedKey() const {
+ParamsKey GroupNormalizationKernelBfyx::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
@@ -18,151 +18,278 @@ ParamsKey GroupNormalizationKernelBfyxOpt::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
-    k.EnableInputLayout(DataLayout::bfzyx);
-    k.EnableOutputLayout(DataLayout::bfzyx);
     k.EnableBatching();
+    k.EnableTensorOffset();
+    k.EnableTensorPitches();
     k.EnableDifferentTypes();
     k.EnableDynamicShapesSupport();
     return k;
 }
 
-GroupNormalizationKernelBfyxOpt::Parent::DispatchData GroupNormalizationKernelBfyxOpt::SetDefault(
-    const group_normalization_params &params) const {
-    DispatchData dispatchData;
+GroupNormalizationKernelBase::MultiDispatchData GroupNormalizationKernelBfyx::SetDefault(const group_normalization_params &params) const {
+    MultiDispatchData dispatchData;
 
-    const auto& input = params.inputs[0];
-
-    // We have two units of data per work item in current implementation.
-    auto local_mem_per_wi = 2 * BytesPerElement(params.inputs[0].GetDType());
-    // Combining device execution and local memory restrictions to compute maximum possible LWS.
-    auto max_lws = std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi);
-    dispatchData.maxSlmSize = max_lws;
     if (!params.has_dynamic_tensors()) {
-        dispatchData.dataSetSize = input.Feature().v / params.num_groups * input.X().v * input.Y().v * input.Z().v;
-        dispatchData.dataSetsCount = input.Batch().v * params.num_groups;
+        const auto& input = params.inputs[0];
 
-        // start with 1 thread per data set
-        dispatchData.gws[0] = 1;
-        dispatchData.gws[1] = dispatchData.dataSetsCount;
-        dispatchData.gws[2] = 1;
-        dispatchData.itemsNum = dispatchData.dataSetSize;
+        dispatchData.stage_1.gws[0] = input.X().v;
+        dispatchData.stage_1.gws[1] = input.Y().v;
+        dispatchData.stage_1.gws[2] = input.Feature().v * input.Batch().v;
 
-        dispatchData.lws[0] = 1;
-        dispatchData.lws[1] = 1;
-        dispatchData.lws[2] = 1;
-        // Compute maximum possible LWS that does not exceed device capabilities and optimizes number of global memory
-        // reads.
-        // WA: itemsNum value has been adjusted less than or equal to 8 to increase the number of work items.
-        while ((dispatchData.itemsNum > 8 || dispatchData.lws[0] < dispatchData.itemsNum) && (2 * dispatchData.lws[0] <= max_lws)) {
-            dispatchData.lws[0] *= 2;
-            dispatchData.itemsNum /= 2;
+        dispatchData.stage_1.lws[0] = input.X().v;
+        dispatchData.stage_1.lws[1] = input.Y().v;
+        dispatchData.stage_1.lws[2] = 1;
+
+        if ((input.X().v * input.Y().v) > params.engineInfo.maxWorkGroupSize) {
+            if (input.Y().v > params.engineInfo.maxWorkGroupSize) {
+                dispatchData.stage_1.lws[0] = 1;
+                for (size_t lws = 2; lws <= input.Y().v; ++lws) {
+                    if (input.Y().v % lws == 0 && (input.Y().v / lws) <= params.engineInfo.maxWorkGroupSize) {
+                        dispatchData.stage_1.lws[1] = input.Y().v / lws;
+                        break;
+                    } 
+                }
+            } else {
+                for (size_t lws = 2; lws <= input.X().v; ++lws) {
+                    if (input.X().v % lws == 0 && (input.X().v / lws * input.Y().v) <= params.engineInfo.maxWorkGroupSize) {
+                        dispatchData.stage_1.lws[0] = input.X().v / lws;
+                        break;
+                    } 
+                }
+            }
         }
+        dispatchData.stage_1.gws[0] = dispatchData.stage_1.lws[0];
+        dispatchData.stage_1.gws[1] = dispatchData.stage_1.lws[1];
 
-        dispatchData.gws[0] = dispatchData.lws[0];
-        dispatchData.leftovers = dispatchData.dataSetSize % dispatchData.lws[0];
+        dispatchData.stage_2.gws[0] = input.Feature().v;
+        dispatchData.stage_2.gws[1] = input.Batch().v;
+        dispatchData.stage_2.gws[2] = 1;
+
+        dispatchData.stage_2.lws[0] = input.Feature().v / params.num_groups;
+        dispatchData.stage_2.lws[1] = 1;
+        dispatchData.stage_2.lws[2] = 1;
+
+        dispatchData.stage_final.gws[0] = input.X().v * input.Y().v;
+        dispatchData.stage_final.gws[1] = input.Feature().v * input.Batch().v;
+        dispatchData.stage_final.gws[2] = 1;
+
+        dispatchData.stage_final.lws[0] = 1;
+        dispatchData.stage_final.lws[1] = 1;
+        dispatchData.stage_final.lws[2] = 1;
+
+        while((dispatchData.stage_final.lws[0] * 2) <= params.engineInfo.maxWorkGroupSize &&
+              (dispatchData.stage_final.lws[0] * 2) <= dispatchData.stage_final.gws[0]) {
+            if (dispatchData.stage_final.gws[0] % (dispatchData.stage_final.lws[0] * 2) == 0) {
+                dispatchData.stage_final.lws[0] *= 2;
+            } else {
+                break;
+            }
+        }
     }
+
     return dispatchData;
 }
 
-JitConstants GroupNormalizationKernelBfyxOpt::GetJitConstants(const group_normalization_params &params,
-                                                              GroupNormalizationKernelBase::DispatchData dispatchData) const {
+JitConstants GroupNormalizationKernelBfyx::GetJitConstants(const group_normalization_params &params,
+                                                           GroupNormalizationKernelBase::DispatchData dispatchData) const {
     auto jit = GroupNormalizationKernelBase::GetJitConstants(params);
 
     if (params.has_dynamic_tensors()) {
-        const auto& input = params.inputs[0];
-        DimensionAccessHelperJit dims(input);
-        std::string data_set_size = toVectorMulString({dims.x(), dims.y(), dims.z(), dims.f() + "/" + std::to_string(params.num_groups)});
-        std::string data_set_count = toVectorMulString({dims.b(), std::to_string(params.num_groups)});
-        const std::string lws_0 = "get_local_size(0)";
         jit.AddConstants({
-            MakeJitConstant("LWS", lws_0),
             MakeJitConstant("SLM_SIZE", dispatchData.maxSlmSize),
-            MakeJitConstant("DATA_SET_SIZE", data_set_size),
-            MakeJitConstant("DATA_SETS_COUNT", data_set_count),
         });
     } else {
         jit.AddConstants({
-            MakeJitConstant("ITEMS_NUM", dispatchData.itemsNum),
-            MakeJitConstant("LWS", dispatchData.lws[0]),
-            MakeJitConstant("SLM_SIZE", dispatchData.lws[0]),
-            MakeJitConstant("DATA_SETS_COUNT", dispatchData.dataSetsCount),
-            MakeJitConstant("DATA_SET_SIZE", dispatchData.dataSetSize),
-            MakeJitConstant("LEFTOVERS", dispatchData.leftovers),
+            MakeJitConstant("SLM_SIZE", (dispatchData.lws[0] * dispatchData.lws[1])),
         });
     }
     auto activation_dt = GetActivationType(params);
     jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
+    jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order;
         if (params.inputs[0].GetDims().size() <= 4) {
-            idx_order = { "(data_set_idx / OUTPUT_FEATURE_NUM)",
-                            "(data_set_idx % OUTPUT_FEATURE_NUM)",
-                            "((in_data_set_idx + iteration_in_data_set_offset) / OUTPUT_SIZE_X)",
-                            "((in_data_set_idx + iteration_in_data_set_offset) % OUTPUT_SIZE_X)" };
-        } else if (params.inputs[0].GetDims().size() == 5) {
-            idx_order = { "(data_set_idx / OUTPUT_FEATURE_NUM)",
-                            "(data_set_idx % OUTPUT_FEATURE_NUM)",
-                            "((in_data_set_idx + iteration_in_data_set_offset) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y))",
-                            "((in_data_set_idx + iteration_in_data_set_offset) / OUTPUT_SIZE_X % OUTPUT_SIZE_Y)",
-                            "((in_data_set_idx + iteration_in_data_set_offset) % OUTPUT_SIZE_X)" };
+            idx_order = { "(b)", "(f)", "(y)", "(x)" };
+        } else {
+            OPENVINO_THROW("group_normalization_bfyx doesn't support 5D or higher dims.");
         }
-        auto conf = FusedOpsConfiguration("", idx_order, "result", activation_dt, 1, LoadType::LT_UNALIGNED, BoundaryCheck::DISABLED);
+        auto conf = FusedOpsConfiguration("", idx_order, "normalized", activation_dt, 1);
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }
 
     return jit;
 }
 
-void GroupNormalizationKernelBfyxOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
+void GroupNormalizationKernelBfyx::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const group_normalization_params&>(params);
         auto dispatchData = SetDefault(prim_params);
-        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
-        kd.kernels[0].params.workGroups.global = dispatchData.gws;
-        kd.kernels[0].params.workGroups.local = dispatchData.lws;
-        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+
+        kd.kernels[0].params.workGroups.global = dispatchData.stage_1.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.stage_1.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params, 0);
+
+        kd.kernels[1].params.workGroups.global = dispatchData.stage_2.gws;
+        kd.kernels[1].params.workGroups.local = dispatchData.stage_2.lws;
+        kd.kernels[1].skip_execution = KernelData::SkipKernelExecution(prim_params, 1);
+
+        kd.kernels[2].params.workGroups.global = dispatchData.stage_1.gws;
+        kd.kernels[2].params.workGroups.local = dispatchData.stage_1.lws;
+        kd.kernels[2].skip_execution = KernelData::SkipKernelExecution(prim_params, 2);
+
+        kd.kernels[3].params.workGroups.global = dispatchData.stage_2.gws;
+        kd.kernels[3].params.workGroups.local = dispatchData.stage_2.lws;
+        kd.kernels[3].skip_execution = KernelData::SkipKernelExecution(prim_params, 3);
+
+        kd.kernels[4].params.workGroups.global = dispatchData.stage_final.gws;
+        kd.kernels[4].params.workGroups.local = dispatchData.stage_final.lws;
+        kd.kernels[4].skip_execution = KernelData::SkipKernelExecution(prim_params, 4);
+
+        kd.internalBufferSizes.clear();
+        kd.internalBufferSizes.push_back(prim_params.outputs[0].Batch().v * prim_params.outputs[0].Feature().v * 4);
+        kd.internalBufferSizes.push_back(prim_params.outputs[0].Batch().v * prim_params.outputs[0].Feature().v * 4);
     };
 }
 
-KernelsData GroupNormalizationKernelBfyxOpt::GetKernelsData(const Params &params) const {
+KernelsData GroupNormalizationKernelBfyx::GetKernelsData(const Params &params) const {
     assert(params.GetType() == KernelType::GROUP_NORMALIZATION);
 
     if (!Validate(params))
         return {};
 
-    const group_normalization_params& orgParams = static_cast<const group_normalization_params&>(params);
+    const group_normalization_params& prim_params = static_cast<const group_normalization_params&>(params);
 
-    DispatchData dispatchData = SetDefault(orgParams);
+    MultiDispatchData dispatchData = SetDefault(prim_params);
 
-    KernelData kd = KernelData::Default<group_normalization_params>(params);
-
-    auto finalKernelName = GetKernelName(orgParams);
-    auto cldnn_jit = GetJitConstants(orgParams, dispatchData);
-    auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, params);
-    auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
-
+    KernelData kd = KernelData::Default<group_normalization_params>(params, 5);
+    kd.internalBufferDataType = GetAccumulatorType(prim_params);
     GetUpdateDispatchDataFunc(kd);
 
-    auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel,
-                     dispatchData,
-                     params.engineInfo,
-                     finalKernelName,
-                     jit,
-                     entry_point,
-                     "",
-                     false,
-                     false,
-                     3,
-                     GetFusedPrimitiveInputsCount(params),
-                     1,
-                     orgParams.is_shape_agnostic);
+    auto finalKernelName = GetKernelName(prim_params);
+    size_t entry_part_id = 0;
+
+    {
+        // Mean first stage
+        auto cldnn_jit = GetJitConstants(prim_params, dispatchData.stage_1);
+        cldnn_jit.AddConstant(MakeJitConstant("GROUP_NORM_KERNEL_FEATURE_MEAN", 1));
+        auto entry_point = GetEntryPoint(finalKernelName, prim_params.layerID, params, entry_part_id++);
+        auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
+        auto& kernel = kd.kernels[0];
+        FillCLKernelData(kernel,
+                        dispatchData.stage_1,
+                        params.engineInfo,
+                        finalKernelName,
+                        jit,
+                        entry_point,
+                        "",
+                        false,
+                        false,
+                        1,
+                        0,
+                        0,
+                        prim_params.is_shape_agnostic);
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        if (!prim_params.has_dynamic_tensors()) {
+            kd.internalBufferSizes.push_back(prim_params.outputs[0].Batch().v * prim_params.outputs[0].Feature().v * 4);
+        }
+    }
+    {
+        // Mean second stage
+        auto cldnn_jit = GetJitConstants(prim_params, dispatchData.stage_2);
+        cldnn_jit.AddConstant(MakeJitConstant("GROUP_NORM_KERNEL_GROUP_MEAN", 1));
+        auto entry_point = GetEntryPoint(finalKernelName, prim_params.layerID, params, entry_part_id++);
+        auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
+        auto& kernel = kd.kernels[1];
+        FillCLKernelData(kernel,
+                        dispatchData.stage_2,
+                        params.engineInfo,
+                        finalKernelName,
+                        jit,
+                        entry_point,
+                        "",
+                        false,
+                        false,
+                        0,
+                        0);
+        kernel.params.arguments.clear();
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+    }
+    {
+        // Variance first stage
+        auto cldnn_jit = GetJitConstants(prim_params, dispatchData.stage_1);
+        cldnn_jit.AddConstant(MakeJitConstant("GROUP_NORM_KERNEL_FEATURE_VAR", 1));
+        auto entry_point = GetEntryPoint(finalKernelName, prim_params.layerID, params, entry_part_id++);
+        auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
+        auto& kernel = kd.kernels[2];
+        FillCLKernelData(kernel,
+                        dispatchData.stage_1,
+                        params.engineInfo,
+                        finalKernelName,
+                        jit,
+                        entry_point,
+                        "",
+                        false,
+                        false,
+                        1,
+                        0,
+                        0,
+                        prim_params.is_shape_agnostic);
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        if (!prim_params.has_dynamic_tensors()) {
+            kd.internalBufferSizes.push_back(prim_params.outputs[0].Batch().v * prim_params.outputs[0].Feature().v * 4);
+        }
+    }
+    {
+        // Variance second stage
+        auto cldnn_jit = GetJitConstants(prim_params, dispatchData.stage_2);
+        cldnn_jit.AddConstant(MakeJitConstant("GROUP_NORM_KERNEL_GROUP_VAR", 1));
+        auto entry_point = GetEntryPoint(finalKernelName, prim_params.layerID, params, entry_part_id++);
+        auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
+        auto& kernel = kd.kernels[3];
+        FillCLKernelData(kernel,
+                        dispatchData.stage_2,
+                        params.engineInfo,
+                        finalKernelName,
+                        jit,
+                        entry_point,
+                        "",
+                        false,
+                        false,
+                        0,
+                        0);
+        kernel.params.arguments.clear();
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+    }
+    {
+        // final stage
+        auto cldnn_jit = GetJitConstants(prim_params, dispatchData.stage_final);
+        cldnn_jit.AddConstant(MakeJitConstant("GROUP_NORM_KERNEL_FINAL", 1));
+        auto entry_point = GetEntryPoint(finalKernelName, prim_params.layerID, params, entry_part_id++);
+        auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
+        auto& kernel = kd.kernels[4];
+        FillCLKernelData(kernel,
+                        dispatchData.stage_final,
+                        params.engineInfo,
+                        finalKernelName,
+                        jit,
+                        entry_point,
+                        "",
+                        false,
+                        false,
+                        3,
+                        GetFusedPrimitiveInputsCount(params),
+                        1,
+                        prim_params.is_shape_agnostic);
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+    }
 
     return {kd};
 }
 
-KernelsPriority GroupNormalizationKernelBfyxOpt::GetKernelsPriority(const Params& /*params*/) const {
+KernelsPriority GroupNormalizationKernelBfyx::GetKernelsPriority(const Params& /*params*/) const {
     return FORCE_PRIORITY_7;
 }
 } // namespace kernel_selector

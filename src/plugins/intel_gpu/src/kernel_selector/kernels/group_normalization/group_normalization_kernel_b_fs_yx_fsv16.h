@@ -18,15 +18,6 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    struct MultiDispatchData {
-        DispatchData stage_1;
-        DispatchData stage_1_1;
-        DispatchData stage_2;
-        DispatchData stage_final;
-
-        size_t item_groups;
-    };
-
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return {
             FusedOpType::ACTIVATION,

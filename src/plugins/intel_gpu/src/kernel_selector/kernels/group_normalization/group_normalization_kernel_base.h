@@ -35,6 +35,15 @@ public:
         DispatchData() : itemsNum(0), leftovers(0), dataSetsCount(0), dataSetSize(0), maxSlmSize(0) {}
     };
 
+    struct MultiDispatchData {
+        DispatchData stage_1;
+        DispatchData stage_1_1;
+        DispatchData stage_2;
+        DispatchData stage_final;
+
+        size_t item_groups;
+    };
+
 protected:
     bool Validate(const Params&) const override;
     virtual JitConstants GetJitConstants(const group_normalization_params& params) const;

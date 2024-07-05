@@ -6,12 +6,12 @@
 #include "group_normalization_kernel_base.h"
 
 namespace kernel_selector {
-class GroupNormalizationKernelBfyxOpt : public GroupNormalizationKernelBase {
+class GroupNormalizationKernelBfyx : public GroupNormalizationKernelBase {
 public:
     using Parent = GroupNormalizationKernelBase;
 
-    GroupNormalizationKernelBfyxOpt() : GroupNormalizationKernelBase{"group_normalization_gpu_bfyx_opt"} {}
-    virtual ~GroupNormalizationKernelBfyxOpt() {}
+    GroupNormalizationKernelBfyx() : GroupNormalizationKernelBase{"group_normalization_gpu_bfyx_opt"} {}
+    virtual ~GroupNormalizationKernelBfyx() {}
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
@@ -25,7 +25,7 @@ protected:
             FusedOpType::ELTWISE
         };
     }
-    DispatchData SetDefault(const group_normalization_params& params) const;
+    MultiDispatchData SetDefault(const group_normalization_params& params) const;
     JitConstants GetJitConstants(const group_normalization_params& params, GroupNormalizationKernelBase::DispatchData dispatchData) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };

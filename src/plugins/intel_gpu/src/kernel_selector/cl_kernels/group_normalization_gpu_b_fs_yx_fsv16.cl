@@ -36,11 +36,12 @@ KERNEL(calc_mean_per_feature)(
     }
 
     mean_per_feature[in_data_set_idx] = mean;
+    const uint num_local_workers = get_local_size(0);
     const uint worker_block_idx = in_data_set_idx / 16;
     uint reduce_add_level = 1;
     while ((SLM_SIZE / SIMD) / reduce_add_level > 1) {
         barrier(CLK_LOCAL_MEM_FENCE);
-        if (worker_block_idx % (reduce_add_level * 2) == 0) {
+        if (worker_block_idx % (reduce_add_level * 2) == 0 && (in_data_set_idx + SIMD * reduce_add_level) < num_local_workers) {
             mean_per_feature[in_data_set_idx] += mean_per_feature[in_data_set_idx + SIMD * reduce_add_level];
         }
         reduce_add_level *= 2;

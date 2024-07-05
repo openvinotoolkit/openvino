@@ -9,7 +9,6 @@ namespace kernel_selector {
 
 static constexpr size_t fsv = 16;
 static constexpr size_t simd = fsv;
-static constexpr size_t pref_work_groups = 16;
 
 ParamsKey GroupNormalizationKernel_b_fs_yx_fsv16::GetSupportedKey() const {
     ParamsKey k;
@@ -29,7 +28,7 @@ ParamsKey GroupNormalizationKernel_b_fs_yx_fsv16::GetSupportedKey() const {
     return k;
 }
 
-GroupNormalizationKernel_b_fs_yx_fsv16::MultiDispatchData GroupNormalizationKernel_b_fs_yx_fsv16::SetDefault(const group_normalization_params &params) const {
+GroupNormalizationKernelBase::MultiDispatchData GroupNormalizationKernel_b_fs_yx_fsv16::SetDefault(const group_normalization_params &params) const {
     MultiDispatchData dispatchData;
 
     if (!params.has_dynamic_tensors()) {
@@ -43,9 +42,12 @@ GroupNormalizationKernel_b_fs_yx_fsv16::MultiDispatchData GroupNormalizationKern
         dispatchData.stage_1.lws[1] = 1;
         dispatchData.stage_1.lws[2] = 1;
 
-        while((dispatchData.stage_1.lws[0] * 2) <= params.engineInfo.maxWorkGroupSize) {
+        while((dispatchData.stage_1.lws[0] * 2) <= params.engineInfo.maxWorkGroupSize &&
+              (dispatchData.stage_1.lws[0] * 2) <= dispatchData.stage_1.gws[0]) {
             if (dispatchData.stage_1.gws[0] % (dispatchData.stage_1.lws[0] * 2) == 0) {
                 dispatchData.stage_1.lws[0] *= 2;
+            } else {
+                break;
             }
         }
         dispatchData.stage_1.gws[0] = dispatchData.stage_1.lws[0];
@@ -66,9 +68,12 @@ GroupNormalizationKernel_b_fs_yx_fsv16::MultiDispatchData GroupNormalizationKern
         dispatchData.stage_final.lws[1] = 1;
         dispatchData.stage_final.lws[2] = 1;
 
-        while((dispatchData.stage_final.lws[0] * 2) <= params.engineInfo.maxWorkGroupSize) {
+        while((dispatchData.stage_final.lws[0] * 2) <= params.engineInfo.maxWorkGroupSize &&
+              (dispatchData.stage_final.lws[0] * 2) <= dispatchData.stage_final.gws[0]) {
             if (dispatchData.stage_final.gws[0] % (dispatchData.stage_final.lws[0] * 2) == 0) {
                 dispatchData.stage_final.lws[0] *= 2;
+            } else {
+                break;
             }
         }
     }
@@ -86,11 +91,11 @@ JitConstants GroupNormalizationKernel_b_fs_yx_fsv16::GetJitConstants(const group
     });
 
     if (params.has_dynamic_tensors()) {
-        const auto& input = params.inputs[0];
-        DimensionAccessHelperJit dims(input);
-        std::string data_set_size = toVectorMulString({dims.x(), dims.y(), dims.z(), dims.f() + "/" + std::to_string(params.num_groups)});
-        std::string data_set_count = toVectorMulString({dims.b(), std::to_string(params.num_groups)});
-        const std::string lws_0 = "get_local_size(0)";
+        // const auto& input = params.inputs[0];
+        // DimensionAccessHelperJit dims(input);
+        // std::string data_set_size = toVectorMulString({dims.x(), dims.y(), dims.z(), dims.f() + "/" + std::to_string(params.num_groups)});
+        // std::string data_set_count = toVectorMulString({dims.b(), std::to_string(params.num_groups)});
+        // const std::string lws_0 = "get_local_size(0)";
         jit.AddConstants({
             // MakeJitConstant("LWS", lws_0),
             MakeJitConstant("SLM_SIZE", dispatchData.maxSlmSize),
@@ -289,7 +294,6 @@ KernelsData GroupNormalizationKernel_b_fs_yx_fsv16::GetKernelsData(const Params 
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
     }
-
 
     return {kd};
 }

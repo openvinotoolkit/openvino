@@ -3,131 +3,212 @@
 //
 
 #include "include/batch_headers/fetch_data.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
 
-#if IS_DYNAMIC
-#define CALC_POWER(n) ({uint pos = 0; uint i = n; do { i >>= 1; ++pos; } while (i); --pos;})
-#endif
+#ifdef GROUP_NORM_KERNEL_FEATURE_MEAN
+KERNEL(calc_mean_per_feature)(
+    OPTIONAL_SHAPE_INFO_ARG
+    const __global INPUT0_TYPE* input,
+    __global ACCUMULATOR_TYPE* internal_mean
+) {
+    const uint bf = get_global_id(2);     // batch * feature
+    const uint b = bf / INPUT0_FEATURE_NUM;
+    const uint f = bf % INPUT0_FEATURE_NUM;
 
-#if !IS_DYNAMIC
-__attribute__((reqd_work_group_size(LWS, 1, 1)))
-#endif
-KERNEL (group_normalization_gpu_bfyx_opt)(
+    const uint y_num_workers = get_local_size(1);
+    const uint y_block_size = INPUT0_SIZE_Y / y_num_workers;
+    const uint y_base = get_local_id(1) * y_block_size;
+    const uint y_leftover = INPUT0_SIZE_Y - y_num_workers * y_block_size;
+
+    const uint x_num_workers = get_local_size(0);
+    const uint x_block_size = INPUT0_SIZE_X / x_num_workers;
+    const uint x_base = get_local_id(0);
+    const uint x_leftover = INPUT0_SIZE_X - x_num_workers * x_block_size;
+
+    const uint num_local_workers = y_num_workers * x_num_workers;
+    const uint worker_idx = get_local_linear_id();
+
+    __local ACCUMULATOR_TYPE mean_per_feature[SLM_SIZE];
+
+    ACCUMULATOR_TYPE mean = ACCUMULATOR_VAL_ZERO;
+
+    for (uint y = y_base; y < (y_base + y_block_size); ++y) {
+        uint my_data_offset = INPUT0_GET_INDEX(b, f, y, x_base);
+        for (uint i = 0; i < x_block_size; ++i) {
+            mean += TO_ACCUMULATOR_TYPE(input[my_data_offset + i * x_num_workers]);
+        }
+    }
+
+    if (get_local_id(1) < y_leftover) {
+        uint my_data_offset = INPUT0_GET_INDEX(b, f, (get_local_id(1) + y_num_workers * y_block_size), x_base);
+        for (uint i = 0; i < x_block_size; ++i) {
+            mean += TO_ACCUMULATOR_TYPE(input[my_data_offset + i * x_num_workers]);
+        }
+    }
+
+    if (get_local_id(0) < x_leftover) {
+        for (uint y = y_base; y < (y_base + y_block_size); ++y) {
+            uint my_data_offset = INPUT0_GET_INDEX(b, f, y, (get_local_id(0) + x_num_workers * x_block_size));
+            mean += TO_ACCUMULATOR_TYPE(input[my_data_offset]);
+        }
+    }
+
+    if (get_local_id(1) < y_leftover && get_local_id(0) < x_leftover) {
+        uint my_data_offset = INPUT0_GET_INDEX(b, f, (get_local_id(1) + y_num_workers * y_block_size),
+                                                     (get_local_id(0) + x_num_workers * x_block_size));
+        mean += TO_ACCUMULATOR_TYPE(input[my_data_offset]);
+    }
+
+    mean_per_feature[worker_idx] = mean;
+    uint reduce_add_level = 1;
+    while (num_local_workers / reduce_add_level > 1) {
+        barrier(CLK_LOCAL_MEM_FENCE);
+        if (worker_idx % (reduce_add_level * 2) == 0 && (worker_idx + reduce_add_level) < num_local_workers) {
+            mean_per_feature[worker_idx] += mean_per_feature[worker_idx + reduce_add_level];
+        }
+        reduce_add_level *= 2;
+    }
+
+    if (worker_idx == 0) {
+        mean = mean_per_feature[0] / TO_ACCUMULATOR_TYPE(INPUT0_SIZE_Y * INPUT0_SIZE_X);
+        internal_mean[bf] = mean;
+    }
+}
+#elif GROUP_NORM_KERNEL_GROUP_MEAN
+KERNEL(calc_mean_per_group)(
+    __global ACCUMULATOR_TYPE* internal_mean
+) {
+    const uint data_idx = get_global_id(0) + get_global_id(1) * get_global_size(0);
+    const uint group_size = get_local_size(0);
+
+    ACCUMULATOR_TYPE mean = work_group_reduce_add(internal_mean[data_idx]);
+    mean /= TO_ACCUMULATOR_TYPE(group_size);
+    internal_mean[data_idx] = mean;
+}
+#elif GROUP_NORM_KERNEL_FEATURE_VAR
+KERNEL(calc_var_per_feature)(
+    OPTIONAL_SHAPE_INFO_ARG
+    const __global INPUT0_TYPE* input,
+    __global ACCUMULATOR_TYPE* internal_mean,
+    __global ACCUMULATOR_TYPE* internal_variance
+) {
+    const uint bf = get_global_id(2);     // batch * feature
+    const uint b = bf / INPUT0_FEATURE_NUM;
+    const uint f = bf % INPUT0_FEATURE_NUM;
+
+    const uint y_num_workers = get_local_size(1);
+    const uint y_block_size = INPUT0_SIZE_Y / y_num_workers;
+    const uint y_base = get_local_id(1) * y_block_size;
+    const uint y_leftover = INPUT0_SIZE_Y - y_num_workers * y_block_size;
+
+    const uint x_num_workers = get_local_size(0);
+    const uint x_block_size = INPUT0_SIZE_X / x_num_workers;
+    const uint x_base = get_local_id(0);
+    const uint x_leftover = INPUT0_SIZE_X - x_num_workers * x_block_size;
+
+    __local ACCUMULATOR_TYPE var_per_feature[SLM_SIZE];
+
+    const ACCUMULATOR_TYPE mean = internal_mean[bf];
+    ACCUMULATOR_TYPE variance = ACCUMULATOR_VAL_ZERO;
+
+    for (uint y = y_base; y < (y_base + y_block_size); ++y) {
+        uint my_data_offset = INPUT0_GET_INDEX(b, f, y, x_base);
+        for (uint i = 0; i < x_block_size; ++i) {
+            ACCUMULATOR_TYPE tmp = TO_ACCUMULATOR_TYPE(input[my_data_offset + i * x_num_workers]);
+            tmp -= mean;
+            variance = fma(tmp, tmp, variance);
+        }
+    }
+
+    if (get_local_id(1) < y_leftover) {
+        uint my_data_offset = INPUT0_GET_INDEX(b, f, (get_local_id(1) + y_num_workers * y_block_size), x_base);
+        for (uint i = 0; i < x_block_size; ++i) {
+            ACCUMULATOR_TYPE tmp = TO_ACCUMULATOR_TYPE(input[my_data_offset + i * x_num_workers]);
+            tmp -= mean;
+            variance = fma(tmp, tmp, variance);
+        }
+    }
+
+    if (get_local_id(0) < x_leftover) {
+        for (uint y = y_base; y < (y_base + y_block_size); ++y) {
+            uint my_data_offset = INPUT0_GET_INDEX(b, f, y, (get_local_id(0) + x_num_workers * x_block_size));
+            ACCUMULATOR_TYPE tmp = TO_ACCUMULATOR_TYPE(input[my_data_offset]);
+            tmp -= mean;
+            variance = fma(tmp, tmp, variance);
+        }
+    }
+
+    if (get_local_id(1) < y_leftover && get_local_id(0) < x_leftover) {
+        uint my_data_offset = INPUT0_GET_INDEX(b, f, (get_local_id(1) + y_num_workers * y_block_size),
+                                                     (get_local_id(0) + x_num_workers * x_block_size));
+        ACCUMULATOR_TYPE tmp = TO_ACCUMULATOR_TYPE(input[my_data_offset]);
+        tmp -= mean;
+        variance = fma(tmp, tmp, variance);
+    }
+
+    const uint num_local_workers = y_num_workers * x_num_workers;
+    const uint worker_idx = get_local_linear_id();
+
+    var_per_feature[worker_idx] = variance;
+    uint reduce_add_level = 1;
+    while (num_local_workers / reduce_add_level > 1) {
+        barrier(CLK_LOCAL_MEM_FENCE);
+        if (worker_idx % (reduce_add_level * 2) == 0 && (worker_idx + reduce_add_level) < num_local_workers) {
+            var_per_feature[worker_idx] += var_per_feature[worker_idx + reduce_add_level];
+        }
+        reduce_add_level *= 2;
+    }
+
+    if (worker_idx == 0) {
+        variance = var_per_feature[0] / TO_ACCUMULATOR_TYPE(INPUT0_SIZE_Y * INPUT0_SIZE_X);
+        internal_variance[bf] = variance;
+    }
+}
+#elif GROUP_NORM_KERNEL_GROUP_VAR
+KERNEL(calc_var_per_group)(
+    __global ACCUMULATOR_TYPE* internal_variance
+) {
+    const uint data_idx = get_global_id(0) + get_global_id(1) * get_global_size(0);
+    const uint group_size = get_local_size(0);
+
+    ACCUMULATOR_TYPE variance = work_group_reduce_add(internal_variance[data_idx]);
+    variance /= TO_ACCUMULATOR_TYPE(group_size);
+    variance = native_powr(variance + TO_ACCUMULATOR_TYPE(EPSILON), -0.5f);
+    internal_variance[data_idx] = variance;
+}
+#elif GROUP_NORM_KERNEL_FINAL
+KERNEL(group_normalization_b_fs_yx_fsv16)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
     const __global INPUT1_TYPE* scale,
     const __global INPUT2_TYPE* bias,
-    __global OUTPUT_TYPE* restrict output
+    __global OUTPUT_TYPE* restrict output,
 #if HAS_FUSED_OPS_DECLS
-    , FUSED_OPS_DECLS
+    FUSED_OPS_DECLS,
 #endif
+    __global ACCUMULATOR_TYPE* internal_mean,
+    __global ACCUMULATOR_TYPE* internal_variance
 ) {
-    const uint data_set_idx = get_global_id(1);     // in processing of which data set this WI participates?
-    const uint workers_per_data_set = LWS;          // how many WI participates in processing of one data set
-    const uint in_data_set_idx = get_global_id(0);  // this WI's id in group of items processing single data set
-    const uint data_set_size = DATA_SET_SIZE;       // how many elements are in one data set
-    const uint data_sets_count = DATA_SETS_COUNT;   // how many data sets are in the processing payload
-#if !IS_DYNAMIC
-    const uint items_num = ITEMS_NUM;               // how many elements are processed per one WI
-    const uint leftovers = LEFTOVERS;
-#else
-    // since workers_per_data_set is calculated by power of 2
-    // items_num can be calculated by dividing data_set_size by power of 2
-    const uint power = CALC_POWER(workers_per_data_set);
-    const uint items_num = data_set_size>>power;
-    const uint leftovers = data_set_size-(items_num<<power);
-#endif
+    const uint bf = get_global_id(1);
+    const uint b = bf / OUTPUT_FEATURE_NUM;
+    const uint f = bf % OUTPUT_FEATURE_NUM;
+    const uint yx = get_global_id(0);
+    const uint y = yx / OUTPUT_SIZE_X;
+    const uint x = yx % OUTPUT_SIZE_X;
 
-    const uint data_set_offset = data_set_idx * data_set_size;
-    const uint my_data_offset = data_set_offset + in_data_set_idx;
+    const uint input_data_index = INPUT0_GET_INDEX(b, f, y, x);
 
-    float my_mean = 0.f;
+    ACTIVATION_TYPE mean = TO_ACTIVATION_TYPE(internal_mean[bf]);
+    ACTIVATION_TYPE variance = TO_ACTIVATION_TYPE(internal_variance[bf]);
+    ACTIVATION_TYPE normalized = (TO_ACTIVATION_TYPE(input[input_data_index]) - mean) * variance;
+    normalized = normalized * TO_ACTIVATION_TYPE(scale[f]) + TO_ACTIVATION_TYPE(bias[f]);
 
-    __local float lg_storage[SLM_SIZE];
-
-    //each WI reads items_num consecutive items from batch*feature
-    for (uint i=0; i<items_num; ++i)
-    {
-        my_mean += (float)input[my_data_offset + i * workers_per_data_set];
-    }
-
-    if (in_data_set_idx < leftovers)
-    {
-        my_mean += (float)input[data_set_offset + workers_per_data_set * items_num + in_data_set_idx];
-    }
-
-    lg_storage[in_data_set_idx] = my_mean;
-
-    barrier(CLK_LOCAL_MEM_FENCE);
-    if (in_data_set_idx == 0)
-    {
-        for (uint i=1; i<LWS; ++i)
-            my_mean += lg_storage[i];
-
-        lg_storage[0] = my_mean / data_set_size;
-    }
-    barrier(CLK_LOCAL_MEM_FENCE);
-
-    my_mean = lg_storage[0];
-
-    barrier(CLK_LOCAL_MEM_FENCE);
-
-    float my_variance = 0.f;
-    //each WI reads items_num consecutive items from batch*feature
-    for (uint i=0; i<items_num; ++i)
-    {
-        float tmp = (float)input[my_data_offset + i * workers_per_data_set];
-        tmp -= my_mean;
-        my_variance = fma(tmp, tmp, my_variance);
-    }
-
-    if (in_data_set_idx < leftovers)
-    {
-        float tmp = (float)input[data_set_offset + workers_per_data_set * items_num + in_data_set_idx];
-        tmp -= my_mean;
-        my_variance = fma(tmp, tmp, my_variance);
-    }
-
-    lg_storage[in_data_set_idx] = my_variance;
-
-    barrier(CLK_LOCAL_MEM_FENCE);
-    if (in_data_set_idx == 0)
-    {
-        for (uint i=1; i<LWS; ++i)
-            my_variance += lg_storage[i];
-
-        my_variance /= data_set_size;
-
-        lg_storage[0] = native_powr(my_variance + (float)EPSILON, -0.5f);
-    }
-    barrier(CLK_LOCAL_MEM_FENCE);
-
-    my_variance = lg_storage[0];
-
-    for (uint i=0; i<items_num; ++i) {
-        uint output_index = my_data_offset + i * workers_per_data_set;
-        uint channel_index = (output_index % OUTPUT_BATCH_PITCH) / OUTPUT_FEATURE_PITCH;
-        
-        ACTIVATION_TYPE result = (TO_ACTIVATION_TYPE(input[output_index]) - TO_ACTIVATION_TYPE(my_mean)) * TO_ACTIVATION_TYPE(my_variance);
-        result = result * TO_ACTIVATION_TYPE(scale[channel_index]) + TO_ACTIVATION_TYPE(bias[channel_index]);
-        #if HAS_FUSED_OPS
-            FUSED_OPS;
-            output[output_index] = FUSED_OPS_RESULT;
-        #else
-            output[output_index] = TO_OUTPUT_TYPE(ACTIVATION(result, ACTIVATION_PARAMS));
-        #endif
-    }
-
-    if (in_data_set_idx < leftovers) {
-        uint output_index = my_data_offset + items_num * workers_per_data_set;
-        uint channel_index = (output_index % OUTPUT_BATCH_PITCH) / OUTPUT_FEATURE_PITCH;
-
-        ACTIVATION_TYPE result = (TO_ACTIVATION_TYPE(input[output_index]) - TO_ACTIVATION_TYPE(my_mean)) * TO_ACTIVATION_TYPE(my_variance);
-        result = result * TO_ACTIVATION_TYPE(scale[channel_index]) + TO_ACTIVATION_TYPE(bias[channel_index]);
-        #if HAS_FUSED_OPS
-            FUSED_OPS;
-            output[output_index] = FUSED_OPS_RESULT;
-        #else
-            output[output_index] = TO_OUTPUT_TYPE(ACTIVATION(result, ACTIVATION_PARAMS));
-        #endif
-    }
+    const uint output_data_index = OUTPUT_GET_INDEX(b, f, y, x);
+    #if HAS_FUSED_OPS
+        FUSED_OPS;
+        output[output_data_index] = FUSED_OPS_RESULT;
+    #else
+        output[output_data_index] = TO_OUTPUT_TYPE(ACTIVATION(normalized, ACTIVATION_PARAMS));
+    #endif
 }
+#endif
