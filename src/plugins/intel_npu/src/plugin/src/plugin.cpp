@@ -141,61 +141,6 @@ size_t getFileSize(std::istream& stream) {
     return streamEnd - streamStart;
 }
 
-inline ov::log::Level convertStringToLog(std::string log_str) {
-    if (log_str == "LOG_NONE")
-        return ov::log::Level::NO;
-    else if (log_str == "LOG_ERROR")
-        return ov::log::Level::ERR;
-    else if (log_str == "LOG_WARNING")
-        return ov::log::Level::WARNING;
-    else if (log_str == "LOG_INFO")
-        return ov::log::Level::INFO;
-    else if (log_str == "LOG_DEBUG")
-        return ov::log::Level::DEBUG;
-    else if (log_str == "LOG_TRACE")
-        return ov::log::Level::TRACE;
-    else
-        OPENVINO_THROW("Unsupported log level string");
-}
-
-inline std::string convertLogToString(const ov::log::Level level) {
-    switch (level) {
-    case ov::log::Level::NO:
-        return "LOG_NONE";
-    case ov::log::Level::ERR:
-        return "LOG_ERROR";
-    case ov::log::Level::WARNING:
-        return "LOG_WARNING";
-    case ov::log::Level::INFO:
-        return "LOG_INFO";
-    case ov::log::Level::DEBUG:
-        return "LOG_DEBUG";
-    case ov::log::Level::TRACE:
-        return "LOG_TRACE";
-    default:
-        OPENVINO_THROW("Unsupported log level");
-    }
-}
-
-inline int convertLogToNum(ov::log::Level level) {
-    switch (level) {
-    case ov::log::Level::NO:
-        return -1;
-    case ov::log::Level::ERR:
-        return 0;
-    case ov::log::Level::WARNING:
-        return 1;
-    case ov::log::Level::INFO:
-        return 2;
-    case ov::log::Level::DEBUG:
-        return 3;
-    case ov::log::Level::TRACE:
-        return 4;
-    default:
-        OPENVINO_THROW("Unsupported log level");
-    }
-}
-
 }  // namespace
 
 namespace intel_npu {
@@ -204,25 +149,16 @@ static Config merge_configs(const Config& globalConfig,
                             const std::map<std::string, std::string>& rawConfig,
                             OptionMode mode = OptionMode::Both) {
     Config localConfig = globalConfig;
-    std::map<std::string, std::string>& copy_config = const_cast<std::map<std::string, std::string>&>(rawConfig);
-    auto it = copy_config.find(std::string(LOG_LEVEL::key()));
+    auto it = rawConfig.find(std::string(LOG_LEVEL::key()));
     
-    if (it != copy_config.end()) {
+    if (it != rawConfig.end()) {
         std::istringstream is(it->second);
         ov::log::Level level;
         is >> level;
-        if (convertLogToNum(localConfig.get<LOG_LEVEL>()) > convertLogToNum(level)) {
-            copy_config[std::string(LOG_LEVEL::key())] = convertLogToString(localConfig.get<LOG_LEVEL>());
-        }
-
-        if (convertLogToNum(Logger::global().level()) < convertLogToNum(level)) {
-            Logger::global().setLevel(level);
-        }
+        Logger::global().setLevel(level);
     }
 
-    const std::map<std::string, std::string>& pass_config = copy_config;
-
-    localConfig.update(pass_config, mode);
+    localConfig.update(rawConfig, mode);
     return localConfig;
 }
 
@@ -610,7 +546,10 @@ void Plugin::set_property(const ov::AnyMap& properties) {
 
     auto it = config.find(std::string(LOG_LEVEL::key()));
     if (it != config.end()) {
-        Logger::global().setLevel(convertStringToLog(it->second));
+        std::istringstream is(it->second);
+        ov::log::Level level;
+        is >> level;
+        Logger::global().setLevel(level);
     }
 
     for (const auto& configEntry : config) {
