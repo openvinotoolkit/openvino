@@ -31,6 +31,8 @@ public:
     explicit MemoryTracker(engine* engine, void* buffer_ptr, size_t buffer_size, allocation_type alloc_type);
     ~MemoryTracker();
 
+    size_t size() const { return m_buffer_size; }
+
 private:
     engine* m_engine;
     void* m_buffer_ptr;
