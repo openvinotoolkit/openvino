@@ -37,17 +37,7 @@ static size_t get_match_vector_size(const dynamic_quantize_params& params) {
 ParamsKey DynamicQuantizeKernelOpt::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
-    k.EnableInputDataType(Datatype::F32);
-    k.EnableInputDataType(Datatype::INT8);
-    k.EnableInputDataType(Datatype::UINT8);
-    k.EnableInputDataType(Datatype::INT32);
-    k.EnableInputDataType(Datatype::INT64);
-    k.EnableOutputDataType(Datatype::F16);
-    k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
-    k.EnableOutputDataType(Datatype::UINT8);
-    k.EnableOutputDataType(Datatype::INT32);
-    k.EnableOutputDataType(Datatype::INT64);
     k.EnableDifferentTypes();
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
@@ -74,7 +64,7 @@ JitConstants DynamicQuantizeKernelOpt::GetJitConstants(const dynamic_quantize_pa
     jit.AddConstant(MakeJitConstant("BLOCK_NUM", block_num));
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.outputs[0]));
 
-    GPU_DEBUG_LOG << "DynamicQuantizeKernelOpt VEC_SIZE(" << vec_size << ") input bfyx (" << params.inputs[0].Batch().v
+    GPU_DEBUG_TRACE_DETAIL << "DynamicQuantizeKernelOpt VEC_SIZE(" << vec_size << ") input bfyx (" << params.inputs[0].Batch().v
             << ", " << params.inputs[0].Feature().v << ", " << params.inputs[0].Y().v << ", "  << params.inputs[0].X().v << ")" << std::endl;
 
 
@@ -106,7 +96,7 @@ void DynamicQuantizeKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
         kd.kernels[0].skip_execution = false;
 
-        GPU_DEBUG_LOG << "Update Dispatch data DynamicQuantizeKernelOpt gws : " << dispatchData.gws[0] << ", "
+        GPU_DEBUG_TRACE_DETAIL << "Update Dispatch data DynamicQuantizeKernelOpt gws : " << dispatchData.gws[0] << ", "
                 << dispatchData.gws[1] << ", " << dispatchData.gws[2] << std::endl;
     };
 }

@@ -849,10 +849,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::RoPEShareCosSin>();
 
         auto dynamic_quantization_group_size = config.get_property(ov::hint::dynamic_quantization_group_size);
-        GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->dynamic_quantization_group_size > 0) {
-            dynamic_quantization_group_size = cldnn::debug_configuration::get_instance()->dynamic_quantization_group_size;
+        GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->enable_dynamic_quantize) {
+            dynamic_quantization_group_size = 1048576;
         }
-
+        dynamic_quantization_group_size = 1048576; // XXX: temporal enabling for test
         if (device_info.supports_immad && dynamic_quantization_group_size == 1048576) // XXX: 1048576 is considered per-token
             manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size);
 

@@ -14,7 +14,6 @@ struct dynamic_quantize : public primitive_base<dynamic_quantize> {
 
     dynamic_quantize() : primitive_base("", {}), group_size(0) {}
 
-    // [TODO] should fix size of outputs
     /// @brief Constructs dynamic_quantize primitive
     /// @param id This primitive id
     /// @param input Input primitive id

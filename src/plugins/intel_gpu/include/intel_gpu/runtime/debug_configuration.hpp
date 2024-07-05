@@ -129,7 +129,6 @@ public:
     int serialize_compile;                                      // Serialize creating primitives and compiling kernels
     std::vector<std::string> forced_impl_types;                 // Force implementation type either ocl or onednn
     int max_kernels_per_batch;                                  // Maximum number of kernels in a batch during compiling kernels
-    int dynamic_quantization_group_size;                        // Set dynamic quantization group size. Default is 0.(ignored)
     int impls_cache_capacity;                                   // The maximum number of entries in the kernel impl cache
     int enable_sdpa;                                            // Allows to control SDPA decomposition
     int disable_async_compilation;                              // Disable async compilation

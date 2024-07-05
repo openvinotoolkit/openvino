@@ -33,7 +33,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
 
     const uint iteration = ALIGNED_BLOCK_NUM / BLOCK_NUM;
 
-    __local int local_mem[BLOCK_NUM];
+    __local half local_mem[BLOCK_NUM];
 
     MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE) val[iteration];
     MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE) abs_val;
@@ -59,8 +59,6 @@ KERNEL(dynamic_quantize_gpu_opt)(
 
         grp_max = fmax(grp_max, max);
     }
-
-    barrier(CLK_LOCAL_MEM_FENCE);
 
     max_value = sub_group_reduce_max(grp_max);
     if (sglid == 0)
