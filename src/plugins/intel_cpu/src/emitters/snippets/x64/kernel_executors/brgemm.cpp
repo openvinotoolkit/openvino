@@ -213,20 +213,6 @@ void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* executor, call_ar
     brgemm_p.BS = 1;  // default value
     OV_CPU_JIT_EMITTER_ASSERT(kernel->compiled_kernel, "has nullptr kernel");
     (*kernel->compiled_kernel)(&brgemm_p);
-
-//    auto A = reinterpret_cast<const float*>(args->A);
-//    auto B = reinterpret_cast<const float*>(args->B);
-//    auto C = reinterpret_cast<float*>(args->C);
-//    for (dnnl_dim_t m = 0; m < config.get_M(); m++) {
-//        for (dnnl_dim_t n = 0; n < config.get_N(); n++, B++) {
-//            C[n] = 0;
-//            for (dnnl_dim_t k = 0; k < config.get_K(); k++)
-//                C[n] += A[k] * B[k * config.get_LDB()];
-//        }
-//        B -= config.get_N();
-//        A += config.get_LDA();
-//        C += config.get_LDC();
-//    }
 }
 
 }   // namespace intel_cpu
