@@ -117,7 +117,6 @@ void SyncInferRequest::infer() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::infer");
     auto message = ov::threading::message_manager();
     if (m_asyncRequest->m_has_sub_infers) {
-        std::cout << "m_asyncRequest->m_sub_infers\n";
         message->server_wait();
         ov::threading::MessageInfo msg_info;
         msg_info.msg_type = ov::threading::MsgType::START_INFER;
@@ -144,7 +143,6 @@ void SyncInferRequest::sub_streams_infer() {
     size_t requests_num = requests.size();
     auto inputs = get_inputs();
     auto outputs = get_outputs();
-    std::cout << "[ sub_streams_infer ] inputs: " << inputs.size() << " requests: " << requests_num << "\n";
     // auto inputs = get_inputs();
     // auto outputs = get_outputs();
 
@@ -179,6 +177,15 @@ std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
 }
 
 std::vector<ov::SoPtr<ov::IVariableState>> SyncInferRequest::query_state() const {
+    if (m_asyncRequest->m_has_sub_infers) {
+        auto requests = m_asyncRequest->getSubInferRequest();
+        std::vector<ov::SoPtr<ov::IVariableState>> states;
+        for (auto request : requests) {
+            auto cur = request->query_state();
+            states.insert(states.end(), cur.begin(), cur.end());
+        }
+        return states;
+    }
     std::vector<ov::SoPtr<ov::IVariableState>> ret{};
     for (const auto& pair : m_variables) {
         ret.emplace_back(pair.second, nullptr);

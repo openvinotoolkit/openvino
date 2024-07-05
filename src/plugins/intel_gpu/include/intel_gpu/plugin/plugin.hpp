@@ -27,8 +27,10 @@ private:
 
     std::map<std::string, std::shared_ptr<RemoteContextImpl>> get_default_contexts() const;
 
-    std::shared_ptr<ov::Model> clone_and_transform_model(const std::shared_ptr<const ov::Model>& network, const ExecutionConfig& config) const;
-    void transform_model(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config) const;
+    std::shared_ptr<ov::Model> clone_and_transform_model(const std::shared_ptr<const ov::Model>& network,
+                                                         const ExecutionConfig& config,
+                                                         const std::shared_ptr<RemoteContextImpl>& context) const;
+    void transform_model(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config, const std::shared_ptr<RemoteContextImpl>& context) const;
     void register_primitives() const;
     std::string get_device_id_from_config(const ov::AnyMap& config) const;
     std::string get_device_id(const ov::AnyMap& config) const;

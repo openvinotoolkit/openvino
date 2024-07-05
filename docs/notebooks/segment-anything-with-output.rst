@@ -1,8 +1,8 @@
 Object masks from prompts with SAM and OpenVINO
 ===============================================
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Background <#background>`__
 -  `Prerequisites <#prerequisites>`__
@@ -1499,6 +1499,8 @@ activations.
 
 
 
+
+
 .. code:: ipython3
 
     ov_encoder_path_int8 = "sam_image_encoder_int8.xml"
@@ -1573,7 +1575,7 @@ Run ``INT8`` model in automatic mask generation mode
 Compare Performance of the Original and Quantized Models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
- Finally, use the OpenVINO
+Finally, use the OpenVINO
 `Benchmark
 Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
 to measure the inference performance of the ``FP32`` and ``INT8``

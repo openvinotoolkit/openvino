@@ -24,8 +24,8 @@ top-performing models, allowing also cheaper and faster inference.
 We will use PyTorch version of Würstchen `model from HuggingFace
 Hub <https://huggingface.co/warp-ai/wuerstchen>`__.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Load the original model <#load-the-original-model>`__
@@ -59,12 +59,12 @@ Prerequisites
 .. code:: ipython3
 
     import platform
-    
+
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
         %pip install -q "matplotlib>=3.4,<3.7"
-    
+
     %pip install -q  "diffusers>=0.21.0" "torch>=2.1" transformers accelerate "gradio>=4.19" "openvino>=2023.2.0" "peft==0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q datasets "nncf>=2.7.0"
 
@@ -79,13 +79,13 @@ Prerequisites
     from pathlib import Path
     from collections import namedtuple
     import gc
-    
+
     import diffusers
     import torch
     import matplotlib.pyplot as plt
     import gradio as gr
     import numpy as np
-    
+
     import openvino as ov
 
 .. code:: ipython3
@@ -96,7 +96,7 @@ Prerequisites
     DECODER_PATH = MODELS_DIR / "decoder.xml"
     TEXT_ENCODER_PATH = MODELS_DIR / "text_encoder.xml"
     VQGAN_PATH = MODELS_DIR / "vqgan.xml"
-    
+
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
 .. code:: ipython3
@@ -174,7 +174,7 @@ The pipeline consists of 2 sub-pipelines: Prior pipeline accessed by
     # Prior pipeline
     pipeline.prior_text_encoder.eval()
     pipeline.prior_prior.eval()
-    
+
     # Decoder pipeline
     pipeline.decoder.eval()
     pipeline.text_encoder.eval()
@@ -192,12 +192,12 @@ file.
             converted_model = ov.convert_model(model, **convert_kwargs)
             ov.save_model(converted_model, xml_path, compress_to_fp16=False)
             del converted_model
-    
+
             # Clean torch jit cache
             torch._C._jit_clear_class_registry()
             torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
             torch.jit._state._clear_class_state()
-    
+
             gc.collect()
 
 Prior pipeline
@@ -209,10 +209,12 @@ This pipeline consists of text encoder and prior diffusion model. From
 here, we always use fixed shapes in conversion by using an ``input``
 parameter to generate a less memory-demanding model.
 
-Text encoder model has 2 inputs: - ``input_ids``: vector of tokenized
-input sentence. Default tokenizer vector length is 77. -
-``attention_mask``: vector of same length as ``input_ids`` describing
-the attention mask.
+Text encoder model has 2 inputs:
+
+- ``input_ids``: vector of tokenized
+  input sentence. Default tokenizer vector length is 77.
+- ``attention_mask``: vector of same length as ``input_ids`` describing
+  the attention mask.
 
 .. code:: ipython3
 
@@ -274,9 +276,12 @@ Decoder pipeline
 
 Decoder pipeline consists of 3 parts: decoder, text encoder and VQGAN.
 
-Decoder model is the WuerstchenDiffNeXt UNet decoder. Inputs are: -
-``x``: sample - ``r``: timestep - ``effnet``: interpolation block -
-``clip``: encoder hidden states
+Decoder model is the WuerstchenDiffNeXt UNet decoder. Inputs are:
+
+- ``x``: sample
+- ``r``: timestep
+- ``effnet``: interpolation block
+- ``clip``: encoder hidden states
 
 .. code:: ipython3
 
@@ -346,7 +351,7 @@ decoder takes as input 4x256x256 latent image.
         def __init__(self, vqgan):
             super().__init__()
             self.vqgan = vqgan
-    
+
         def forward(self, h):
             return self.vqgan.decode(h)
 
@@ -384,14 +389,14 @@ Select device from dropdown list for running inference using OpenVINO.
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -437,10 +442,10 @@ that all of wrapper classes return ``torch.Tensor``\ s instead of
 
     class TextEncoderWrapper:
         dtype = torch.float32  # accessed in the original workflow
-    
+
         def __init__(self, text_encoder):
             self.text_encoder = text_encoder
-    
+
         def __call__(self, input_ids, attention_mask):
             output = self.text_encoder({"input_ids": input_ids, "attention_mask": attention_mask})["last_hidden_state"]
             output = torch.tensor(output)
@@ -450,10 +455,10 @@ that all of wrapper classes return ``torch.Tensor``\ s instead of
 
     class PriorPriorWrapper:
         config = namedtuple("PriorPriorWrapperConfig", "c_in")(16)  # accessed in the original workflow
-    
+
         def __init__(self, prior):
             self.prior = prior
-    
+
         def __call__(self, x, r, c):
             output = self.prior([x, r, c])[0]
             return torch.tensor(output)
@@ -462,10 +467,10 @@ that all of wrapper classes return ``torch.Tensor``\ s instead of
 
     class DecoderWrapper:
         dtype = torch.float32  # accessed in the original workflow
-    
+
         def __init__(self, decoder):
             self.decoder = decoder
-    
+
         def __call__(self, x, r, effnet, clip):
             output = self.decoder({"x": x, "r": r, "effnet": effnet, "clip": clip})[0]
             output = torch.tensor(output)
@@ -475,10 +480,10 @@ that all of wrapper classes return ``torch.Tensor``\ s instead of
 
     class VqganWrapper:
         config = namedtuple("VqganWrapperConfig", "scale_factor")(0.3764)  # accessed in the original workflow
-    
+
         def __init__(self, vqgan):
             self.vqgan = vqgan
-    
+
         def decode(self, h):
             output = self.vqgan(h)[0]
             output = torch.tensor(output)
@@ -490,7 +495,7 @@ And insert wrappers instances in the pipeline:
 
     pipeline.prior_pipe.text_encoder = TextEncoderWrapper(ov_prior_text_encoder)
     pipeline.prior_pipe.prior = PriorPriorWrapper(ov_prior_prior)
-    
+
     pipeline.decoder_pipe.decoder = DecoderWrapper(ov_decoder)
     pipeline.decoder_pipe.text_encoder = TextEncoderWrapper(ov_text_encoder)
     pipeline.decoder_pipe.vqgan = VqganWrapper(ov_vqgan)
@@ -505,7 +510,7 @@ Inference
     caption = "Anthropomorphic cat dressed as a fire fighter"
     negative_prompt = ""
     generator = torch.Generator().manual_seed(1)
-    
+
     output = pipeline(
         prompt=caption,
         height=1024,
@@ -567,7 +572,7 @@ improve model inference speed.
         description="Quantization",
         disabled=False,
     )
-    
+
     to_quantize
 
 Let’s load ``skip magic`` extension to skip quantization if
@@ -577,14 +582,14 @@ Let’s load ``skip magic`` extension to skip quantization if
 
     # Fetch `skip_kernel_extension` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
     )
     open("skip_kernel_extension.py", "w").write(r.text)
-    
+
     int8_pipeline = None
-    
+
     %load_ext skip_kernel_extension
 
 Prepare calibration datasets
@@ -593,19 +598,19 @@ Prepare calibration datasets
 
 
 We use a portion of
-`conceptual_captions <https://huggingface.co/datasets/conceptual_captions>`__
+`conceptual_captions <https://huggingface.co/datasets/google-research-datasets/conceptual_captions>`__
 dataset from Hugging Face as calibration data. To collect intermediate
 model inputs for calibration we should customize ``CompiledModel``.
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     class CompiledModelDecorator(ov.CompiledModel):
         def __init__(self, compiled_model):
             super().__init__(compiled_model)
             self.data_cache = []
-    
+
         def __call__(self, *args, **kwargs):
             self.data_cache.append(*args)
             return super().__call__(*args, **kwargs)
@@ -613,22 +618,22 @@ model inputs for calibration we should customize ``CompiledModel``.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import datasets
     from tqdm.notebook import tqdm
     from transformers import set_seed
-    
+
     set_seed(1)
-    
+
     def collect_calibration_data(pipeline, subset_size):
         pipeline.set_progress_bar_config(disable=True)
-    
+
         original_prior = pipeline.prior_pipe.prior.prior
         original_decoder = pipeline.decoder_pipe.decoder.decoder
         pipeline.prior_pipe.prior.prior = CompiledModelDecorator(original_prior)
         pipeline.decoder_pipe.decoder.decoder = CompiledModelDecorator(original_decoder)
-    
-        dataset = datasets.load_dataset("conceptual_captions", split="train").shuffle(seed=42)
+
+        dataset = datasets.load_dataset("google-research-datasets/conceptual_captions", split="train", trust_remote_code=True).shuffle(seed=42)
         pbar = tqdm(total=subset_size)
         diff = 0
         for batch in dataset:
@@ -650,7 +655,7 @@ model inputs for calibration we should customize ``CompiledModel``.
                 break
             pbar.update(collected_subset_size - diff)
             diff = collected_subset_size
-    
+
         prior_calibration_dataset = pipeline.prior_pipe.prior.prior.data_cache
         decoder_calibration_dataset = pipeline.decoder_pipe.decoder.decoder.data_cache
         pipeline.prior_pipe.prior.prior = original_prior
@@ -661,10 +666,10 @@ model inputs for calibration we should customize ``CompiledModel``.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     PRIOR_PRIOR_INT8_PATH = MODELS_DIR / "prior_prior_int8.xml"
     DECODER_INT8_PATH = MODELS_DIR / "decoder_int8.xml"
-    
+
     if not (PRIOR_PRIOR_INT8_PATH.exists() and DECODER_INT8_PATH.exists()):
         subset_size = 300
         prior_calibration_dataset, decoder_calibration_dataset = collect_calibration_data(pipeline, subset_size=subset_size)
@@ -693,10 +698,10 @@ precision.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import nncf
     from nncf.scopes import IgnoredScope
-    
+
     if not PRIOR_PRIOR_INT8_PATH.exists():
         prior_model = core.read_model(PRIOR_PRIOR_PATH)
         quantized_prior_prior = nncf.quantize(
@@ -717,7 +722,7 @@ precision.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     if not DECODER_INT8_PATH.exists():
         decoder_model = core.read_model(DECODER_PATH)
         quantized_decoder = nncf.quantize(
@@ -737,14 +742,14 @@ pipelines.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import matplotlib.pyplot as plt
     from PIL import Image
-    
+
     def visualize_results(orig_img:Image.Image, optimized_img:Image.Image):
         """
         Helper function for results visualization
-    
+
         Parameters:
            orig_img (Image.Image): generated image using FP16 models
            optimized_img (Image.Image): generated image using quantized models
@@ -766,7 +771,7 @@ pipelines.
         list_axes[1].imshow(np.array(optimized_img))
         list_axes[0].set_title(orig_title, fontsize=15)
         list_axes[1].set_title(control_title, fontsize=15)
-    
+
         fig.subplots_adjust(wspace=0.01, hspace=0.01)
         fig.tight_layout()
         return fig
@@ -774,18 +779,18 @@ pipelines.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     caption = "Anthropomorphic cat dressed as a fire fighter"
     negative_prompt = ""
-    
+
     int8_pipeline = diffusers.AutoPipelineForText2Image.from_pretrained("warp-diffusion/wuerstchen")
-    
+
     int8_prior_prior = core.compile_model(PRIOR_PRIOR_INT8_PATH)
     int8_pipeline.prior_pipe.prior = PriorPriorWrapper(int8_prior_prior)
-    
+
     int8_decoder = core.compile_model(DECODER_INT8_PATH)
     int8_pipeline.decoder_pipe.decoder = DecoderWrapper(int8_decoder)
-    
+
     int8_pipeline.prior_pipe.text_encoder = TextEncoderWrapper(ov_prior_text_encoder)
     int8_pipeline.decoder_pipe.text_encoder = TextEncoderWrapper(ov_text_encoder)
     int8_pipeline.decoder_pipe.vqgan = VqganWrapper(ov_vqgan)
@@ -793,7 +798,7 @@ pipelines.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     generator = torch.Generator().manual_seed(1)
     int8_output = int8_pipeline(
         prompt=caption,
@@ -809,7 +814,7 @@ pipelines.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     fig = visualize_results(output[0], int8_output[0])
 
 
@@ -825,10 +830,10 @@ Compare model file sizes
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     fp16_ir_model_size = PRIOR_PRIOR_PATH.with_suffix(".bin").stat().st_size / 2**20
     quantized_model_size = PRIOR_PRIOR_INT8_PATH.with_suffix(".bin").stat().st_size / 2**20
-    
+
     print(f"FP16 Prior size: {fp16_ir_model_size:.2f} MB")
     print(f"INT8 Prior size: {quantized_model_size:.2f} MB")
     print(f"Prior compression rate: {fp16_ir_model_size / quantized_model_size:.3f}")
@@ -844,10 +849,10 @@ Compare model file sizes
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     fp16_ir_model_size = DECODER_PATH.with_suffix(".bin").stat().st_size / 2**20
     quantized_model_size = DECODER_INT8_PATH.with_suffix(".bin").stat().st_size / 2**20
-    
+
     print(f"FP16 Decoder size: {fp16_ir_model_size:.2f} MB")
     print(f"INT8 Decoder size: {quantized_model_size:.2f} MB")
     print(f"Decoder compression rate: {fp16_ir_model_size / quantized_model_size:.3f}")
@@ -875,9 +880,9 @@ pipelines, we use mean inference time on 3 samples.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import time
-    
+
     def calculate_inference_time(pipeline):
         inference_time = []
         pipeline.set_progress_bar_config(disable=True)
@@ -901,7 +906,7 @@ pipelines, we use mean inference time on 3 samples.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     fp_latency = calculate_inference_time(pipeline)
     print(f"FP16 pipeline: {fp_latency:.3f} seconds")
     int8_latency = calculate_inference_time(int8_pipeline)
@@ -927,20 +932,20 @@ launch the interactive demo.
 .. code:: ipython3
 
     quantized_model_present = int8_pipeline is not None
-    
+
     use_quantized_model = widgets.Checkbox(
         value=quantized_model_present,
         description="Use quantized model",
         disabled=not quantized_model_present,
     )
-    
+
     use_quantized_model
 
 .. code:: ipython3
 
     pipe = int8_pipeline if use_quantized_model.value else pipeline
-    
-    
+
+
     def generate(caption, negative_prompt, prior_guidance_scale, seed):
         generator = torch.Generator().manual_seed(seed)
         image = pipe(

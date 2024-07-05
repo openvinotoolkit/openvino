@@ -73,7 +73,7 @@ struct sync_tensor_impl : public typed_primitive_impl<sync_tensor> {
         sub_mem_mgr->_memorys_table[id][w_rank].flag = true;
         std::vector<int> wait_list(w_size, 1);
         wait_list[w_rank] = 0; // no need to wait for itself
-         while (true) {
+        while (true) {
             int wait_size = 0;
             for (int idx = 0; idx < static_cast<int>(w_size); idx++) {
                 if (idx != w_rank && wait_list[idx] > 0 && sub_mem_mgr->_memorys_table[id][idx].flag) {

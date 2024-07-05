@@ -421,7 +421,7 @@ public:
     static std::unique_ptr<primitive_impl> create(const fully_connected_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
-        auto attr = arg.get_onednn_primitive_attributes();
+        auto attr = impl_params.attrs_onednn;
         auto prim = impl_params.typed_desc<fully_connected>();
         memory::ptr zp_mem(nullptr);
         int group_size = 0;

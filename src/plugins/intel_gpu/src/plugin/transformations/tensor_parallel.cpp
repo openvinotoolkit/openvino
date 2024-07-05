@@ -10,7 +10,6 @@
 
 #include "intel_gpu/op/fully_connected.hpp"
 #include "intel_gpu/op/placeholder.hpp"
-#include "intel_gpu/op/rank_constant.hpp"
 #include "intel_gpu/op/sync_tensor.hpp"
 
 #include "openvino/core/rt_info.hpp"
