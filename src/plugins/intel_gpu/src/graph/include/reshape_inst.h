@@ -40,7 +40,7 @@ public:
             return false;
 
         // TODO: If user is RoPE and dynamic padding exists, ouput padding propagation is not supported in the base mode
-        if (get_users().front()->is_type<rope>())
+        if (get_users().size() == 1 && get_users().front()->is_type<rope>())
             return false;
 
         auto axis = input().as<crop>().get_primitive()->axis;
