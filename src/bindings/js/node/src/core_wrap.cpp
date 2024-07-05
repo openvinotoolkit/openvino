@@ -13,7 +13,6 @@
 #include "node/include/type_validation.hpp"
 #include "openvino/util/common_util.hpp"
 
-
 void validate_set_property_args(const Napi::CallbackInfo& info) {
     const size_t args_length = info.Length();
     const bool is_device_specified = info[0].IsString();
@@ -358,15 +357,18 @@ void ImportModelFinalizer(Napi::Env env, void* finalizeData, ImportModelContext*
 };
 
 void importModelThread(ImportModelContext* context, std::mutex& mutex) {
+    // Imports model without blocking the main thread.
     {
         const std::lock_guard<std::mutex> lock(mutex);
         context->_compiled_model = context->_core.import_model(context->_stream, context->_device, context->_config);
     }
 
+    // Callback to return to JS the results of core.import_model()
     auto callback = [](Napi::Env env, Napi::Function, ImportModelContext* context) {
         context->deferred.Resolve(cpp_to_js(env, context->_compiled_model));
     };
 
+    // Addon's main thread will safely invoke the JS callback function on the behalf of the additional thread.
     context->tsfn.BlockingCall(context, callback);
     context->tsfn.Release();
 }
@@ -378,6 +380,7 @@ Napi::Value CoreWrap::import_model_async(const Napi::CallbackInfo& info) {
     try {
         if (ov::js::validate<Napi::Buffer<uint8_t>, Napi::String>(info, allowed_signatures) ||
             ov::js::validate<Napi::Buffer<uint8_t>, Napi::String, Napi::Object>(info, allowed_signatures)) {
+            // Prepare validated data that will be transferred to the new thread.
             auto context_data = new ImportModelContext(env, _core);
 
             const auto& model_data = info[0].As<Napi::Buffer<uint8_t>>();
@@ -396,6 +399,7 @@ Napi::Value CoreWrap::import_model_async(const Napi::CallbackInfo& info) {
                                                                (void*)nullptr);
 
             context_data->nativeThread = std::thread(importModelThread, context_data, std::ref(_mutex));
+            // Returns a Promise to JS. Method import_model() is performed on additional thread.
             return context_data->deferred.Promise();
         } else {
             OPENVINO_THROW("'importModel'", ov::js::get_parameters_error_msg(info, allowed_signatures));
