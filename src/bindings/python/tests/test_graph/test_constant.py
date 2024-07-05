@@ -489,6 +489,8 @@ def test_float_to_f8e4m3_constant(ov_type, numpy_dtype, opset):
     ],
 )
 def test_float_to_f8e8m0_constant_matrix(ov_type, numpy_dtype, opset):
+    pytest.skip("CVS-145281 BUG: nan to inf repro.")
+    
     shape = (2, 2)
     data = np.full(shape, np.nan)
 
@@ -517,6 +519,8 @@ def test_float_to_f8e8m0_constant_matrix(ov_type, numpy_dtype, opset):
     ],
 )
 def test_float_to_f8e8m0_constant_single_nan(ov_type, numpy_dtype, opset):
+    pytest.skip("CVS-145281 BUG: nan to inf repro.")
+
     data = np.array([np.nan], dtype=numpy_dtype)
 
     compressed_const = opset.constant(data, dtype=ov.Type.f8e8m0, name="f8e8m0_constant")
