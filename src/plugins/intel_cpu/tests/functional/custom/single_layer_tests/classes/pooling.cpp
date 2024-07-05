@@ -11,54 +11,6 @@ using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
-namespace util {
-    static std::string AvgPoolV14GetTestCaseNameUtil(const testing::TestParamInfo<poolLayerCpuTestParamsSet>& obj) {
-    ov::test::poolSpecificParams basicParamsSet;
-    InputShape inputShapes;
-    ElementType inPrc;
-    bool isInt8;
-    CPUSpecificParams cpuParams;
-    fusingSpecificParams fusingParams;
-    ov::AnyMap additionalConfig;
-    std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams, additionalConfig) = obj.param;
-
-    utils::PoolingTypes poolType;
-    std::vector<size_t> kernel, stride;
-    std::vector<size_t> padBegin, padEnd;
-    ov::op::PadType padType;
-    ov::op::RoundingType roundingType;
-    bool excludePad;
-    std::tie(poolType, kernel, stride, padBegin, padEnd, roundingType, padType, excludePad) = basicParamsSet;
-
-    std::ostringstream results;
-    results << "IS=(";
-    results << ov::test::utils::partialShape2str({inputShapes.first}) << ")_";
-    results << "TS=";
-    for (const auto& shape : inputShapes.second) {
-        results << ov::test::utils::vec2str(shape) << "_";
-    }
-    results << "Prc=" << inPrc << "_";
-    results << "ExcludePad=" << excludePad << "_";
-    results << "K" << ov::test::utils::vec2str(kernel) << "_";
-    results << "S" << ov::test::utils::vec2str(stride) << "_";
-    results << "PB" << ov::test::utils::vec2str(padBegin) << "_";
-    results << "PE" << ov::test::utils::vec2str(padEnd) << "_";
-    results << "Rounding=" << roundingType << "_";
-    results << "AutoPad=" << padType << "_";
-    results << "INT8=" << isInt8 << "_";
-    if (!additionalConfig.empty()) {
-        results << "_PluginConf";
-            for (auto& item : additionalConfig) {
-                results << "_" << item.first << "=" << item.second.as<std::string>();
-            }
-        }
-
-    results << CPUTestsBase::getTestCaseName(cpuParams);
-    results << CpuTestWithFusing::getTestCaseName(fusingParams);
-    return results.str();
-}
-}  // namespace util
-
 std::string PoolingLayerCPUTest::getTestCaseName(const testing::TestParamInfo<poolLayerCpuTestParamsSet>& obj) {
     ov::test::poolSpecificParams basicParamsSet;
     InputShape inputShapes;
@@ -170,7 +122,49 @@ void PoolingLayerCPUTest::SetUp() {
 }
 
 std::string AvgPoolingV14LayerCPUTest::getTestCaseName(const testing::TestParamInfo<poolLayerCpuTestParamsSet>& obj) {
-    return util::AvgPoolV14GetTestCaseNameUtil(obj);
+    ov::test::poolSpecificParams basicParamsSet;
+    InputShape inputShapes;
+    ElementType inPrc;
+    bool isInt8;
+    CPUSpecificParams cpuParams;
+    fusingSpecificParams fusingParams;
+    ov::AnyMap additionalConfig;
+    std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams, additionalConfig) = obj.param;
+
+    utils::PoolingTypes poolType;
+    std::vector<size_t> kernel, stride;
+    std::vector<size_t> padBegin, padEnd;
+    ov::op::PadType padType;
+    ov::op::RoundingType roundingType;
+    bool excludePad;
+    std::tie(poolType, kernel, stride, padBegin, padEnd, roundingType, padType, excludePad) = basicParamsSet;
+
+    std::ostringstream results;
+    results << "IS=(";
+    results << ov::test::utils::partialShape2str({inputShapes.first}) << ")_";
+    results << "TS=";
+    for (const auto& shape : inputShapes.second) {
+        results << ov::test::utils::vec2str(shape) << "_";
+    }
+    results << "Prc=" << inPrc << "_";
+    results << "ExcludePad=" << excludePad << "_";
+    results << "K" << ov::test::utils::vec2str(kernel) << "_";
+    results << "S" << ov::test::utils::vec2str(stride) << "_";
+    results << "PB" << ov::test::utils::vec2str(padBegin) << "_";
+    results << "PE" << ov::test::utils::vec2str(padEnd) << "_";
+    results << "Rounding=" << roundingType << "_";
+    results << "AutoPad=" << padType << "_";
+    results << "INT8=" << isInt8 << "_";
+    if (!additionalConfig.empty()) {
+        results << "_PluginConf";
+            for (auto& item : additionalConfig) {
+                results << "_" << item.first << "=" << item.second.as<std::string>();
+            }
+        }
+
+    results << CPUTestsBase::getTestCaseName(cpuParams);
+    results << CpuTestWithFusing::getTestCaseName(fusingParams);
+    return results.str();
 }
 
 void AvgPoolingV14LayerCPUTest::SetUp() {
@@ -554,6 +548,11 @@ const std::vector<maxPoolV8SpecificParams>& paramsMaxV144D() {
 
 const std::vector<InputShape>& inputShapes3D() {
     static const std::vector<InputShape> inputShapes3D = {
+            { {}, {{3, 4, 64}} },
+            { {}, {{2, 8, 12}} },
+            { {}, {{1, 16, 12}} },
+            { {}, {{1, 21, 4}} },
+            { {}, {{1, 32, 8}} },
             {
                 // dynamic
                 {-1, -1, -1},
@@ -573,18 +572,18 @@ const std::vector<InputShape>& inputShapes3D() {
                     {1, 16, 12},
                     {1, 32, 8}
                 }
-            },
-            { {}, {{3, 4, 64}} },
-            { {}, {{2, 8, 12}} },
-            { {}, {{1, 16, 12}} },
-            { {}, {{1, 21, 4}} },
-            { {}, {{1, 32, 8}} }
+            }
     };
     return inputShapes3D;
 }
 
 const std::vector<InputShape>& inputShapes4D() {
     static const std::vector<InputShape> inputShapes4D = {
+            { {}, {{3, 4, 64, 64}} },
+            { {}, {{2, 8, 8, 12}} },
+            { {}, {{1, 16, 16, 12}} },
+            { {}, {{1, 21, 8, 4}} },
+            { {}, {{1, 32, 8, 8}} },
             {
                 // dynamic
                 {-1, -1, -1, -1},
@@ -614,20 +613,22 @@ const std::vector<InputShape>& inputShapes4D() {
                     {1, 16, 8, 8},
                     {2, 16, 8, 8},
                 }
-            },
-            { {}, {{3, 4, 64, 64}} },
-            { {}, {{2, 8, 8, 12}} },
-            { {}, {{1, 16, 16, 12}} },
-            { {}, {{1, 21, 8, 4}} },
-            { {}, {{1, 32, 8, 8}} }
+            }
     };
     return inputShapes4D;
 }
 
 const std::vector<InputShape>& inputShapes5D() {
     static const std::vector<InputShape> inputShapes5D = {
+            { {}, {{1, 4, 16, 16, 16}} },
+            { {}, {{2, 8, 8, 8, 8}} },
+            { {}, {{2, 16, 12, 16, 20}} },
+            { {}, {{1, 19, 16, 20, 8}} },
+            { {}, {{1, 32, 16, 8, 12}} },
             {
+                // dynamic
                 {-1, -1, -1, -1, -1},
+                // target
                 {
                     {2, 8, 8, 8, 8},
                     {1, 19, 16, 20, 8},
@@ -635,18 +636,15 @@ const std::vector<InputShape>& inputShapes5D() {
                 }
             },
             {
+                // dynamic
                 {{1, 5}, {4, 32}, {1, 64}, {1, 64}, {1, 25}},
+                // target
                 {
                     {1, 4, 16, 16, 16},
                     {1, 32, 16, 8, 12},
                     {3, 16, 4, 8, 3}
                 }
-            },
-            { {}, {{1, 4, 32, 32, 32}} },
-            { {}, {{2, 8, 8, 8, 8}} },
-            { {}, {{2, 16, 12, 16, 20}} },
-            { {}, {{1, 19, 16, 20, 8}} },
-            { {}, {{1, 32, 16, 8, 12}} }
+            }
     };
     return inputShapes5D;
 }

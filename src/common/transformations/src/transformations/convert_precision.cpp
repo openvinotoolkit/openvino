@@ -931,8 +931,7 @@ bool fuse_type_to_maxpool(const std::shared_ptr<ov::Node>& node, const precision
         return update_type(1, node, precisions, [&](const element::Type& to) {
             maxpool_v14->set_index_element_type(to);
         });
-    }
-    if (maxpool_v8) {
+    } else if (maxpool_v8) {
         return update_type(1, node, precisions, [&](const element::Type& to) {
             maxpool_v8->set_index_element_type(to);
         });
