@@ -136,7 +136,7 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
                 const auto indices_node = as_type_ptr<opset6::Constant>(gather->input_value(1).get_node_shared_ptr());
                 if (indices_node) {
                     const auto& indices_val = indices_node->cast_vector<int32_t>();
-                    if (indices_val.size() != 1) {
+                    if (indices_val.size() != 1u) {
                         return false;
                     }
                     if (indices_val[0] < 0 || indices_val[0] >= 3) {

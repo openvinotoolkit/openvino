@@ -78,7 +78,13 @@ void MatMulGatherDecompose::SetUp() {
         reshape_productor = std::shared_ptr<ov::Node>(add);
     }
 
-    auto reshape_const = ov::op::v0::Constant::create(element::i64, {reshape_shape.size()}, reshape_shape.data());
+    std::vector<int64_t> reshape_shape_vec;
+    reshape_shape_vec.resize(reshape_shape.size());
+    for (size_t i = 0; i < reshape_shape.size(); i++) {
+        reshape_shape_vec[i] = static_cast<int64_t>(reshape_shape[i]);
+    }
+
+    auto reshape_const = ov::op::v0::Constant::create(element::i64, {reshape_shape_vec.size()}, reshape_shape_vec.data());
     auto reshape = std::make_shared<ov::op::v1::Reshape>(reshape_productor, reshape_const, false);
 
     auto transpose_const = ov::op::v0::Constant::create(element::i64, {5}, {2, 0, 3, 1, 4});
