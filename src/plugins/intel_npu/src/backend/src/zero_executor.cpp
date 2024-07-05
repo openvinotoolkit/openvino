@@ -145,7 +145,7 @@ void ZeroExecutor::setWorkloadType(const ov::WorkloadType workloadType) const {
     ze_command_queue_workload_type_t zeWorkloadType;
     std::stringstream ss;
     ss << workloadType;
-    _logger.debug("ZeroExecutor::setWorkloadType - Setting workload type to ", ss.str());
+    _logger.debug("ZeroExecutor::setWorkloadType - Setting workload type to %s", ss.str());
     switch (workloadType) {
     case ov::WorkloadType::DEFAULT:
         zeWorkloadType = ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_DEFAULT;
