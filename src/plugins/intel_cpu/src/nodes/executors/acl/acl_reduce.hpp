@@ -69,14 +69,17 @@ public:
                       " dimensions maximum. src[0] shape rank is ", srcDescs[0]->getShape().getRank());
             return false;
         }
-        if (reduceAttrs.operation == Algorithm::ReduceMean) {
-            arm_compute::Coordinates axesMean;
-            for (size_t i = 0; i < reduceAttrs.axes.size(); ++i) {
-                auto axe = axisCast(reduceAttrs.axes[i], srcDescs[0]->getShape().getRank());
-                if (axe > 3) {
-                    DEBUG_LOG("ACL supports tensor rank up to 4 for ReduceMean operation. Tensor rank: ", axe);
-                    return false;
-                }
+        auto srcShapeRank = srcDescs[0]->getShape().getRank();
+        bool hasSrcNspcLayout = srcDescs[0]->hasLayoutType(LayoutType::nspc);
+        for (size_t i = 0; i < reduceAttrs.axes.size(); ++i) {
+            int axis = axisCast(reduceAttrs.axes[i], srcShapeRank, hasSrcNspcLayout ? NHWC_TO_NCHW : NO_LAYOUT_CONVERSION);
+            if (axis == -1) {
+                DEBUG_LOG("Layout conversion to NHWC has failed");
+                return false;
+            }
+            if (axis > 3) {
+                DEBUG_LOG("ACL supports reduction axis 0, 1, 2, 3. Unsupported reduction axis specified: ", axis);
+                return false;
             }
         }
         if ((reduceAttrs.operation == Algorithm::ReduceSum ||
