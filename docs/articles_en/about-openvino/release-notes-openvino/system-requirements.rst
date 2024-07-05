@@ -88,6 +88,7 @@ Intel® Neural Processing Unit
 
    .. tab-item:: Operating Systems for NPU
 
+      * openSUSE Tumbleweed, 64-bit
       * Ubuntu 22.04 long-term support (LTS), 64-bit
       * Windows 11, 64-bit (22H2, 23H2)
 
@@ -108,6 +109,7 @@ Operating systems and developer environment
 
       * Ubuntu 22.04 with Linux kernel 5.15+
       * Ubuntu 20.04 with Linux kernel 5.15+
+      * openSUSE Tumbleweed with Linux kernel 5.14+
       * Red Hat Enterprise Linux 8 with Linux kernel 5.4
 
       Build environment components:
