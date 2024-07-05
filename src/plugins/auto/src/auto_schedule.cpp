@@ -130,9 +130,9 @@ void AutoSchedule::init() {
             m_firstload_promise.set_value();
         });
     };
-    auto update_cache_setting = [this](bool is_actual_cpu,
-                                       AutoCompileContext m_compile_context[],
-                                       ScheduleContext::Ptr& m_context) {
+    auto customize_helper_context_from_cache_setting = [this](bool is_actual_cpu,
+                                                              AutoCompileContext m_compile_context[],
+                                                              ScheduleContext::Ptr& m_context) {
         const auto cpu_iter = deviceChecker().check_and_return_if_device_in_list("CPU", m_context->m_device_priorities);
         if (cpu_iter == m_context->m_device_priorities.end()) {
             m_compile_context[CPU].m_is_enabled = false;
@@ -185,7 +185,7 @@ void AutoSchedule::init() {
         if (is_actual_cpu || !m_context->m_startup_fallback) {
             m_compile_context[CPU].m_is_enabled = false;
         } else {
-            update_cache_setting(is_actual_cpu, m_compile_context, m_context);
+            customize_helper_context_from_cache_setting(is_actual_cpu, m_compile_context, m_context);
         }
         // initialize the rest members of load context
         for (int i = 0; i < CONTEXTNUM; i++) {
