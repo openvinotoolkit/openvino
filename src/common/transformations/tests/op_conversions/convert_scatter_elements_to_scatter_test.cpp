@@ -91,7 +91,7 @@ void gen_test(std::shared_ptr<ov::Model> f, std::shared_ptr<ov::Model> f_ref) {
         check_rt_info(f);
     });
     manager.register_pass<pass::ConstantFolding>();
-    ASSERT_NO_THROW(manager.run_passes(f));
+    OV_ASSERT_NO_THROW(manager.run_passes(f));
 
     auto fc =
         FunctionsComparator::no_default().enable(FunctionsComparator::NODES).enable(FunctionsComparator::PRECISIONS);

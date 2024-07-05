@@ -57,6 +57,7 @@
 #include "plugin/transformations/clamp_fp16_output.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
+#include "plugin/transformations/convert_stridedslices_to_variadicsplit.hpp"
 #include "plugin/transformations/fc_convert_fusion.hpp"
 #include "plugin/transformations/fc_horizontal_fusion.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
@@ -337,12 +338,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
 
             // - The head size of all Q, K, and V inputs should be the same static value
-            if (query_ps[query_ps.size() - 1].is_dynamic() || key_ps[key_ps.size() - 1].is_dynamic() || value_ps[query_ps.size() - 1].is_dynamic()) {
+            if (query_ps[query_ps.size() - 1].is_dynamic() || key_ps[key_ps.size() - 1].is_dynamic() || value_ps[value_ps.size() - 1].is_dynamic()) {
                 return false;
             }
 
             if (query_ps[query_ps.size() - 1].get_length() != key_ps[key_ps.size() - 1].get_length() ||
-                query_ps[query_ps.size() - 1].get_length() != value_ps[query_ps.size() - 1].get_length()) {
+                query_ps[query_ps.size() - 1].get_length() != value_ps[value_ps.size() - 1].get_length()) {
                 return false;
             }
 
@@ -831,6 +832,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::SwiGLUFusion>();
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
         manager.register_pass<ov::intel_gpu::ConvertConvolutionToInternal>();
+        manager.register_pass<ov::intel_gpu::ConvertStridedSlicesToVariadicSplit>();
 
         const size_t zp_pad_size = device_info.supports_immad ? 16 : 32;
         manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size);

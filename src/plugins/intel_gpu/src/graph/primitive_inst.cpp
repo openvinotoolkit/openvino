@@ -586,19 +586,42 @@ event::ptr primitive_inst::realloc_if_needed() {
                         user_insts.size(), " and ", user_insts_origin.size());
     }
     for (auto user : user_insts) {
+        auto is_fused_prim_of_user = [&](primitive_id id) -> bool {
+            for (auto& p : user->get_node().get_fused_primitives()) {
+                if (p.has_outer_dep()) {
+                    const auto start_idx = p.outer_dep_start_idx;
+                    // exclude fused_node from total_num_deps
+                    const auto end_idx = p.outer_dep_start_idx + p.total_num_deps -1;
+                    for (size_t idx = start_idx; idx < end_idx; idx++) {
+                        if (user->get_node().get_dependency(idx).id() == id) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        };
         // Since fake alignment is applicable for input tensor as well, make sure we allocate enough memory
         // to prevent reading beyond the allocated memory bounds
-        if (user->get_node().is_type<fully_connected>() && user->is_dynamic() && user->_deps[0].first == this) {
-            GPU_DEBUG_TRACE_DETAIL << "Check fc user " << user->id() << "'s fake alignment-ed input size" << std::endl;
-            user->update_shape();
-            user->update_shape_done_by_other = true;
+        if (user->get_node().is_type<fully_connected>() && user->is_dynamic()) {
+            if (user->_deps[0].first == this) {
+                GPU_DEBUG_TRACE_DETAIL << "Check fc user " << user->id() << "'s fake alignment-ed input size" << std::endl;
+                user->update_shape();
+                user->update_shape_done_by_other = true;
 
-            auto fc_impl_params = *user->_impl_params;
-            auto fc_input_layout = user->get_node().type()->get_fake_aligned_params(fc_impl_params).input_layouts[0];
-            if (fc_input_layout.bytes_count() > updated_layout.bytes_count()) {
-                GPU_DEBUG_TRACE_DETAIL << id() << ": increase output layout allocation size from " << actual_layout.to_short_string() << " -> "
-                                       << fc_input_layout.to_short_string() << " to meet the input buffer alignment requirements for FC\n";
-                updated_layout = fc_input_layout;
+                auto fc_impl_params = *user->_impl_params;
+                auto fc_input_layout = user->get_node().type()->get_fake_aligned_params(fc_impl_params).input_layouts[0];
+                if (fc_input_layout.bytes_count() > updated_layout.bytes_count()) {
+                    GPU_DEBUG_TRACE_DETAIL << id() << ": increase output layout allocation size from " << actual_layout.to_short_string() << " -> "
+                                        << fc_input_layout.to_short_string() << " to meet the input buffer alignment requirements for FC\n";
+                    updated_layout = fc_input_layout;
+                }
+            } else if (is_fused_prim_of_user(id()) && user->update_shape_done_by_other) {
+                // Since the output layout of fused prim in user is determined after user's update_shape
+                // Rerun update_shape w/ new output layout of fused prim
+                user->update_shape_done_by_other = false;
+                user->update_shape();
+                user->update_shape_done_by_other = true;
             }
         }
     }
@@ -626,13 +649,13 @@ event::ptr primitive_inst::realloc_if_needed() {
 
     // If we allocated too large memory, reclaim the memory.
     if (updated_layout.get_buffer_size().count() * 10 < _max_output_layout_count) {
-        GPU_DEBUG_TRACE_DETAIL << id() << ": Updated output size " << updated_layout.count()
+        GPU_DEBUG_TRACE_DETAIL << id() << ": Updated output size " << updated_layout.get_buffer_size().count()
                                << " is much smaller than current memory size! " << _max_output_layout_count
                                << "Reset memory" << std::endl;
         _max_output_layout_count = 0;
     }
 
-    bool can_reuse_buffer = _outputs[0] && updated_layout.count() <= _max_output_layout_count;
+    bool can_reuse_buffer = _outputs[0] && updated_layout.get_buffer_size().count() <= _max_output_layout_count;
     // Handle runtime dynamic concat optimization
     if (_node->is_type<concatenation>() && can_be_optimized() && allocation_done_by_other) {
         allocation_done_by_other = false;
@@ -658,7 +681,7 @@ event::ptr primitive_inst::realloc_if_needed() {
         updated_params.output_layouts[0] = updated_layout;
     if (can_reuse_buffer) {
         GPU_DEBUG_TRACE_DETAIL << id() << ": reuse previously allocated output buffer - "
-                               << actual_layout.count() << "/" << _max_output_layout_count
+                               << actual_layout.get_buffer_size().count() << "/" << _max_output_layout_count
                                << std::endl;
         if (_outputs[0]->get_layout() != actual_layout) {
             _outputs[0] = _network.get_engine().reinterpret_buffer(*_outputs[0], actual_layout);
@@ -671,7 +694,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     } else {
         GPU_DEBUG_TRACE_DETAIL << id() << ": realloc output memory. "
                                <<  " Current buffer_size=" << _max_output_layout_count
-                               <<  " Requested buffer_size=" << updated_layout.count() << std::endl;
+                               <<  " Requested buffer_size=" << updated_layout.get_buffer_size().count() << std::endl;
         _outputs = allocate_outputs(&updated_params, need_reset_output_memory(), true);
         GPU_DEBUG_CODE(std::string memalloc_info = "");
         GPU_DEBUG_CODE(for (size_t out_idx = 0; out_idx < _outputs.size(); ++out_idx) {
@@ -1597,7 +1620,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     , _inputs_memory_count(node.get_inputs_count())
     , _outputs_memory_count(node.get_outputs_count())
     , _fused_mem_count(node.get_fused_inputs_count())
-    , _fused_mem_offset((_fused_mem_count > 0 && node.has_fused_dep()) ? node.get_first_fused_dep_idx() : 0)
+    , _fused_mem_offset((_fused_mem_count > 0 && node.get_first_fused_dep_idx() > 0) ? node.get_first_fused_dep_idx() : 0)
     , _can_be_optimized(node.can_be_optimized())
     , _can_share_buffer(node.can_share_buffer())
     , _is_constant(node.is_constant())
@@ -1656,7 +1679,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     }
     _impl_params->strm = _network.get_stream_ptr();
     if (_outputs[0])
-        _max_output_layout_count = _outputs[0]->get_layout().get_tensor().count();
+        _max_output_layout_count = _outputs[0]->get_layout().get_buffer_size().count();
 }
 
 memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {

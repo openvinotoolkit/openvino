@@ -15,11 +15,11 @@ TEST(FrontEndConvertModelTest, test_zerolen) {
     FrontEndManager fem;
     FrontEnd::Ptr frontEnd;
     InputModel::Ptr inputModel;
-    ASSERT_NO_THROW(frontEnd = fem.load_by_framework(TF_LITE_FE));
+    OV_ASSERT_NO_THROW(frontEnd = fem.load_by_framework(TF_LITE_FE));
     ASSERT_NE(frontEnd, nullptr);
     auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME) +
                                                              string("bad_header/zerolen.tflite"));
-    ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
+    OV_ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
     ASSERT_NE(inputModel, nullptr);
     shared_ptr<ov::Model> model;
     ASSERT_THROW(model = frontEnd->convert(inputModel), std::exception);
@@ -29,11 +29,11 @@ TEST(FrontEndConvertModelTest, test_wrong_len) {
     FrontEndManager fem;
     FrontEnd::Ptr frontEnd;
     InputModel::Ptr inputModel;
-    ASSERT_NO_THROW(frontEnd = fem.load_by_framework(TF_LITE_FE));
+    OV_ASSERT_NO_THROW(frontEnd = fem.load_by_framework(TF_LITE_FE));
     ASSERT_NE(frontEnd, nullptr);
     auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME) +
                                                              string("bad_header/wrong_len_3.tflite"));
-    ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
+    OV_ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
     ASSERT_NE(inputModel, nullptr);
     shared_ptr<ov::Model> model;
     ASSERT_THROW(model = frontEnd->convert(inputModel), std::exception);
@@ -43,11 +43,11 @@ TEST(FrontEndConvertModelTest, test_wrong_pos) {
     FrontEndManager fem;
     FrontEnd::Ptr frontEnd;
     InputModel::Ptr inputModel;
-    ASSERT_NO_THROW(frontEnd = fem.load_by_framework(TF_LITE_FE));
+    OV_ASSERT_NO_THROW(frontEnd = fem.load_by_framework(TF_LITE_FE));
     ASSERT_NE(frontEnd, nullptr);
     auto model_filename = FrontEndTestUtils::make_model_path(string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME) +
                                                              string("bad_header/wrong_pos.tflite"));
-    ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
+    OV_ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
     ASSERT_NE(inputModel, nullptr);
     shared_ptr<ov::Model> model;
     ASSERT_THROW(model = frontEnd->convert(inputModel), std::exception);
