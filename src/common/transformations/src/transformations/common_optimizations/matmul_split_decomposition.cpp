@@ -39,7 +39,8 @@ using namespace ov::pass::pattern;
 void pass::MatmulGatherDecomposition::split_weights(const Output<Node>& weights,
                                                     OutputVector& new_weights,
                                                     Output<Node>* bias,
-                                                    OutputVector& new_bias) {
+                                                    OutputVector& new_bias,
+                                                    const bool& transpos_b) {
     const auto& weights_shape = weights.get_partial_shape();
     int64_t weights_rank = static_cast<int64_t>(weights_shape.rank().get_length());
 
@@ -52,7 +53,7 @@ void pass::MatmulGatherDecomposition::split_weights(const Output<Node>& weights,
     }
 
     // Decompose weights
-    auto axis = register_new_node(v0::Constant::create(element::i32, Shape{}, {0}));  // axis 0
+    auto axis = register_new_node(v0::Constant::create(element::i32, Shape{}, {transpos_b ? 0 : 1}));
     auto split = register_new_node<opset1::Split>(weights, axis, 3);
     for (auto& out : split->outputs()) {
         new_weights.emplace_back(out);
@@ -107,6 +108,7 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
                 break;
             }
         }
+        const bool& transpose_b = as_type_ptr<opset1::MatMul>(matmul)->get_transpose_b();
         const auto& reshape = pattern_map.at(reshape_pattern);
         auto concat = reshape.get_node_shared_ptr()->input_value(1);
 
@@ -161,7 +163,7 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
         if (have_bias) {
             bias = pattern_map.at(bias_pattern);
         }
-        split_weights(weights, new_weights, have_bias ? &bias : nullptr, new_bias);
+        split_weights(weights, new_weights, have_bias ? &bias : nullptr, new_bias, transpose_b);
         if (new_weights.size() != 3u || (have_bias && new_bias.size() != 3u)) {
             return false;
         }
@@ -171,7 +173,7 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
         auto new_shape = register_new_node<v1::Gather>(concat, const_indices, const_axis);
         const auto& input = pattern_map.at(input_pattern);
         for (size_t i = 0; i < 3u; i++) {
-            auto new_mm = register_new_node<v0::MatMul>(input, new_weights[i], false, true);
+            auto new_mm = register_new_node<v0::MatMul>(input, new_weights[i], false, transpose_b);
             std::shared_ptr<ov::Node> reshape_productor = new_mm;
             if (have_bias) {
                 reshape_productor = register_new_node<v1::Add>(new_mm, new_bias[i]);

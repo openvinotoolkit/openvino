@@ -70,5 +70,6 @@ public:
     void split_weights(const Output<Node>& weights,
                        OutputVector& new_weights,
                        Output<Node>* bias,
-                       OutputVector& new_bias);
+                       OutputVector& new_bias,
+                       const bool& transpos_b);
 };
