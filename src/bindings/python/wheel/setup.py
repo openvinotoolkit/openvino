@@ -506,7 +506,7 @@ class PrepareLibs(build_clib):
                     dst_file = os.path.join(package_cmake_dir, file_name)
                     self.announce(f"Move {file_path} to {dst_file}", level=3)
                     move(file_path, dst_file)
-                    self.announce(f"Patch cmake configurations", level=3)
+                    self.announce("Patch cmake configurations", level=3)
                     replace_strings_in_file(dst_file, replacements)
 
             if os.path.isdir(src) and os.listdir(src):
