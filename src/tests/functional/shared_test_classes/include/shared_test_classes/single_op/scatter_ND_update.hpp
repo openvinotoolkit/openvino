@@ -38,9 +38,9 @@ protected:
 using scatterNDUpdate15ParamsTuple = typename std::tuple<
         scatterNDUpdateSpecParams,
         ov::op::v15::ScatterNDUpdate::Reduction,  // Reduce mode
-        ov::element::Type,                 // Model type
-        ov::element::Type,                 // Indices type
-        ov::test::TargetDevice             // Device name
+        ov::element::Type,                        // Model type
+        ov::element::Type,                        // Indices type
+        ov::test::TargetDevice                    // Device name
 >;
 
 class ScatterNDUpdate15LayerTest : public testing::WithParamInterface<scatterNDUpdate15ParamsTuple>,
