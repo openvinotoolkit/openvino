@@ -44,5 +44,30 @@ protected:
     std::string pluginTypeNode;
 };
 
+namespace ConvConcat {
+const ov::Shape inputShapes2D();
+const ov::Shape inputShapes3D();
+const int axis();
+const ov::op::PadType paddingType();
+const size_t numOutChannels();
+
+const ov::Shape kernelSize3D();
+const ov::Shape strides3D();
+const std::vector<ptrdiff_t> padBegin3D();
+const std::vector<ptrdiff_t> padEnd3D();
+const ov::Shape dilation3D();
+
+const ov::Shape kernelSize2D();
+const ov::Shape strides2D();
+const std::vector<ptrdiff_t> padBegin2D();
+const std::vector<ptrdiff_t> padEnd2D();
+const ov::Shape dilation2D();
+
+const commonConvParams convParams2D();
+const commonConvParams convParams3D();
+const commonConvParams groupConvParams2D();
+const commonConvParams groupConvParams3D();
+} // namespace ConvConcat
+
 }  // namespace test
 }  // namespace ov

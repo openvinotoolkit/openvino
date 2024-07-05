@@ -150,5 +150,83 @@ TEST_P(ConvConcatSubgraphTest, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, pluginTypeNode);
 };
 
+namespace ConvConcat {
+
+const ov::Shape inputShapes2D() {
+    return ov::Shape{1, 64, 16, 16};
+}
+
+const ov::Shape inputShapes3D() {
+    return ov::Shape{1, 64, 8, 16, 16};
+}
+
+const int axis() {
+    return 1;
+}
+
+const ov::op::PadType paddingType() {
+    return ov::op::PadType::EXPLICIT;
+}
+const size_t numOutChannels() {
+    return 32;
+}
+
+const ov::Shape kernelSize2D() {
+    return ov::Shape{3, 3};
+}
+
+const ov::Shape strides2D() {
+    return ov::Shape{2, 2};
+}
+
+const std::vector<ptrdiff_t> padBegin2D() {
+    return std::vector<ptrdiff_t>{1, 1};
+}
+
+const std::vector<ptrdiff_t> padEnd2D() {
+    return std::vector<ptrdiff_t>{1, 1};
+}
+
+const ov::Shape dilation2D() {
+    return ov::Shape{1, 1};
+}
+
+const ov::Shape kernelSize3D() {
+    return ov::Shape{3, 3, 3};
+}
+
+const ov::Shape strides3D() {
+    return ov::Shape{2, 2, 2};
+}
+
+const std::vector<ptrdiff_t> padBegin3D() {
+    return std::vector<ptrdiff_t>{1, 1, 1};
+}
+
+const std::vector<ptrdiff_t> padEnd3D() {
+    return std::vector<ptrdiff_t>{1, 1, 1};
+}
+
+const ov::Shape dilation3D() {
+    return ov::Shape{1, 1, 1};
+}
+
+const commonConvParams convParams2D() {
+    return commonConvParams{kernelSize2D(), strides2D(), padBegin2D(), padEnd2D(), dilation2D(), numOutChannels(), paddingType(), 1};
+}
+
+const commonConvParams convParams3D() {
+    return commonConvParams{kernelSize3D(), strides3D(), padBegin3D(), padEnd3D(), dilation3D(), numOutChannels(), paddingType(), 1};
+}
+
+const commonConvParams groupConvParams2D() {
+    return commonConvParams{kernelSize2D(), strides2D(), padBegin2D(), padEnd2D(), dilation2D(), numOutChannels(), paddingType(), 2};
+}
+
+const commonConvParams groupConvParams3D() {
+    return commonConvParams{kernelSize3D(), strides3D(), padBegin3D(), padEnd3D(), dilation3D(), numOutChannels(), paddingType(), 2};
+}
+
+}  // namespace ConvConcat
 }  // namespace test
 }  // namespace ov
