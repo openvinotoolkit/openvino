@@ -59,8 +59,11 @@ protected:
                                         std::make_shared<ov::op::v0::Parameter>(ngPrec, inShapes.second)};
         const auto matMul = std::make_shared<ov::op::v0::MatMul>(inputParams[0], inputParams[1], false, false);
 
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+        selectedType = makeSelectedTypeStr("gemm_acl", ngPrec);
+#else
         selectedType = makeSelectedTypeStr(with_cpu_x86_avx512_core() ? "brgemm_avx512" : "jit_gemm", ngPrec);
-
+#endif
         function = makeNgraphFunction(ngPrec, inputParams, matMul, "AlignMatMulInputRanks");
     }
 

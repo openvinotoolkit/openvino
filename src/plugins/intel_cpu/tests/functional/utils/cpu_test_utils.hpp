@@ -179,7 +179,6 @@ const ov::AnyMap cpu_bf16_plugin_config = {{ov::hint::inference_precision(ov::el
 const ov::AnyMap cpu_f32_plugin_config = {{ov::hint::inference_precision(ov::element::f32)}};
 
 // utility functions
-std::vector<CPUSpecificParams> filterCPUSpecificParams(const std::vector<CPUSpecificParams>& paramsVector);
 void CheckNumberOfNodesWithType(const ov::CompiledModel& compiledModel,
                                 const std::string& nodeType,
                                 size_t expectedCount);
