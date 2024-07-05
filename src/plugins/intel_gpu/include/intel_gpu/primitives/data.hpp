@@ -89,9 +89,18 @@ struct data : public primitive_base<data> {
         if (cache_without_weights) {
             size_t bin_offset;
             ib >> bin_offset;
+
+            //std::ifstream ifstr("/home/tkrupa/test/shufflenet.bin");
+            //BinaryInputBuffer weightsBuffer(ifstr, ib.get_engine());
+            //weightsBuffer.seekg(bin_offset);
+            //ifstr.close();
             // TODO: propagate weights_path here
             auto mapped_memory = ov::load_mmap_object("/home/tkrupa/test/shufflenet.bin");
-            std::memcpy(mem->buffer_ptr(), mapped_memory->data() + bin_offset, data_size);
+            auto shared_buf = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
+                mapped_memory->data() + bin_offset,
+                data_size,
+                mapped_memory);
+            std::memcpy(reinterpret_cast<uint8_t*>(mem->buffer_ptr()), shared_buf->get_ptr<uint8_t>(), data_size);
         } else {
             if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
                 ib >> make_data(mem->buffer_ptr(), data_size);
