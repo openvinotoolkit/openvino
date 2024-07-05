@@ -193,6 +193,13 @@ DATA_INSTALL_CFG = {
         "install_dir": "runtime",
         "binary_dir": OPENVINO_BINARY_DIR,
         "source_dir": OPENVINO_SOURCE_DIR
+    },
+    "tbb_dev": {
+        "name": "tbb_dev",
+        "prefix": f"{BUILD_BASE}/libs.tbb.dev",
+        "install_dir": "runtime/3rdparty/tbb",
+        "binary_dir": OPENVINO_BINARY_DIR,
+        "source_dir": OPENVINO_SOURCE_DIR
     }
 }
 
@@ -469,6 +476,8 @@ class PrepareLibs(build_clib):
         os.makedirs(package_dir, exist_ok=True)
         package_clibs_dir = os.path.join(PACKAGE_DIR, WHEEL_LIBS_INSTALL_DIR)
         os.makedirs(package_clibs_dir, exist_ok=True)
+        package_cmake_dir = os.path.join(package_dir, "cmake")
+        os.makedirs(package_cmake_dir, exist_ok=True)
 
         replacements = {
             # change the path where the libraries are installed (runtime/lib/intel64/Release -> openvino/libs)
@@ -490,14 +499,19 @@ class PrepareLibs(build_clib):
                     move(file_path, dst_file)
                     self.announce(f"Move {file_path} to {dst_file}", level=3)
 
+            # collect all cmake files in one directory
+            for file_path in Path(src).rglob("*.cmake"):
+                file_name = os.path.basename(file_path)
+                if file_path.is_file():
+                    dst_file = os.path.join(package_cmake_dir, file_name)
+                    self.announce(f"Move {file_path} to {dst_file}", level=3)
+                    move(file_path, dst_file)
+                    self.announce(f"Patch cmake configurations", level=3)
+                    replace_strings_in_file(dst_file, replacements)
+
             if os.path.isdir(src) and os.listdir(src):
                 # copy the rest of the files to the package directly
                 shutil.copytree(src, dst, dirs_exist_ok=True)
-
-                # patch cmake configurations
-                for file_path in Path(dst).rglob("*.cmake"):
-                    if file_path.is_file():
-                        replace_strings_in_file(file_path, replacements)
 
 
 def copy_file(src, dst, verbose=False, dry_run=False):
