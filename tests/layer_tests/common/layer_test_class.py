@@ -180,7 +180,7 @@ class CommonLayerTest:
                 if infer_res[ie_out_name].dtype != bool:
                     print("Max diff is {}".format(
                         np.array(
-                            abs(infer_res[ie_out_name] - framework_res[framework_out_name])).max()))
+                            abs(ie_res - framework_res[framework_out_name])).max()))
                 else:
                     print("Boolean results are not equal")
             else:
