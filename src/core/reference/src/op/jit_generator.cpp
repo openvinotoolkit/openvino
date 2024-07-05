@@ -12,6 +12,7 @@
 #    include <xbyak/xbyak_util.h>
 
 #    include "jit_generator.hpp"
+#    include "openvino/core/type/bfloat16.hpp"
 #    include "openvino/core/type/float16.hpp"
 
 namespace ov {
@@ -183,6 +184,11 @@ void Generator::copy<float16>(const Xbyak::Reg64& dst, const Xbyak::Reg64& src, 
 template <>
 void Generator::copy<float>(const Xbyak::Reg64& dst, const Xbyak::Reg64& src, const Xbyak::Reg64& size) {
     copy<uint32_t>(dst, src, size);
+}
+
+template <>
+void Generator::copy<bfloat16>(const Xbyak::Reg64& dst, const Xbyak::Reg64& src, const Xbyak::Reg64& size) {
+    copy<uint16_t>(dst, src, size);
 }
 }  // namespace jit
 }  // namespace runtime
