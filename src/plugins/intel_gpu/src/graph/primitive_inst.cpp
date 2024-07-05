@@ -525,7 +525,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     auto dt_size = ov::element::Type(actual_layout.data_type).bitwidth();
     // read_value/assign nodes are supposed to always use variable memory
     if (auto stateful_prim = dynamic_cast<memory_state::variable*>(this)) {
-        std::string variable_id = stateful_prim->variable_id();
+        auto& variable_id = stateful_prim->variable_id();
         auto& variable = get_network().get_variable(variable_id);
         if (_node->is_type<kv_cache>()) {
             // Reuse state memory as output for kv cache if possible
@@ -626,13 +626,13 @@ event::ptr primitive_inst::realloc_if_needed() {
 
     // If we allocated too large memory, reclaim the memory.
     if (updated_layout.get_buffer_size().count() * 10 < _max_output_layout_count) {
-        GPU_DEBUG_TRACE_DETAIL << id() << ": Updated output size " << updated_layout.count()
+        GPU_DEBUG_TRACE_DETAIL << id() << ": Updated output size " << updated_layout.get_buffer_size().count()
                                << " is much smaller than current memory size! " << _max_output_layout_count
                                << "Reset memory" << std::endl;
         _max_output_layout_count = 0;
     }
 
-    bool can_reuse_buffer = _outputs[0] && updated_layout.count() <= _max_output_layout_count;
+    bool can_reuse_buffer = _outputs[0] && updated_layout.get_buffer_size().count() <= _max_output_layout_count;
     // Handle runtime dynamic concat optimization
     if (_node->is_type<concatenation>() && can_be_optimized() && allocation_done_by_other) {
         allocation_done_by_other = false;
@@ -658,7 +658,7 @@ event::ptr primitive_inst::realloc_if_needed() {
         updated_params.output_layouts[0] = updated_layout;
     if (can_reuse_buffer) {
         GPU_DEBUG_TRACE_DETAIL << id() << ": reuse previously allocated output buffer - "
-                               << actual_layout.count() << "/" << _max_output_layout_count
+                               << actual_layout.get_buffer_size().count() << "/" << _max_output_layout_count
                                << std::endl;
         if (_outputs[0]->get_layout() != actual_layout) {
             _outputs[0] = _network.get_engine().reinterpret_buffer(*_outputs[0], actual_layout);
@@ -671,7 +671,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     } else {
         GPU_DEBUG_TRACE_DETAIL << id() << ": realloc output memory. "
                                <<  " Current buffer_size=" << _max_output_layout_count
-                               <<  " Requested buffer_size=" << updated_layout.count() << std::endl;
+                               <<  " Requested buffer_size=" << updated_layout.get_buffer_size().count() << std::endl;
         _outputs = allocate_outputs(&updated_params, need_reset_output_memory(), true);
         GPU_DEBUG_CODE(std::string memalloc_info = "");
         GPU_DEBUG_CODE(for (size_t out_idx = 0; out_idx < _outputs.size(); ++out_idx) {
@@ -1354,7 +1354,7 @@ bool primitive_inst::has_inner_networks() const {
 
 event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("primitive_inst::execute: " + id()));
-    const auto primitive_id = id();
+    const auto& primitive_id = id();
     OPENVINO_ASSERT(_has_valid_input, primitive_id, " has invalid/unset input");
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_TRACE_DETAIL << "-----------------------------------------------------------------" << std::endl;
@@ -1497,7 +1497,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         if (out_of_order_queue || (_impl->is_cpu() && !can_be_optimized()) || (can_be_optimized() && needs_completion_event() && !is_output())) {
             dependencies.reserve(dependencies.size() + _exec_deps.size());
             for (auto& input : _exec_deps) {
-                auto id = input->id();
+                auto& id = input->id();
                 try {
                     // if the requested event does not exists it means that it has not been executed, so the processing_order is
                     // wrong or synchronization failed.
@@ -1597,7 +1597,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     , _inputs_memory_count(node.get_inputs_count())
     , _outputs_memory_count(node.get_outputs_count())
     , _fused_mem_count(node.get_fused_inputs_count())
-    , _fused_mem_offset((_fused_mem_count > 0 && node.has_fused_dep()) ? node.get_first_fused_dep_idx() : 0)
+    , _fused_mem_offset((_fused_mem_count > 0 && node.get_first_fused_dep_idx() > 0) ? node.get_first_fused_dep_idx() : 0)
     , _can_be_optimized(node.can_be_optimized())
     , _can_share_buffer(node.can_share_buffer())
     , _is_constant(node.is_constant())
@@ -1656,7 +1656,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     }
     _impl_params->strm = _network.get_stream_ptr();
     if (_outputs[0])
-        _max_output_layout_count = _outputs[0]->get_layout().get_tensor().count();
+        _max_output_layout_count = _outputs[0]->get_layout().get_buffer_size().count();
 }
 
 memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
