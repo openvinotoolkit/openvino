@@ -1008,7 +1008,6 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
     for (size_t tupleIdx = 0; tupleIdx < idxTupleNum; tupleIdx++) {
         size_t indicesOffset = tupleIdx * k;
         size_t dstOffset = 0;
-        size_t uniqueDstIdx = 0;
         for (size_t i = 0; i < k; i++) {
             int64_t idxValue = getIndicesValue(indices, indicesOffset + i);
             if (idxValue < 0) {
