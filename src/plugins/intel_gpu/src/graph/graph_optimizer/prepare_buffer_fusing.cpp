@@ -484,7 +484,8 @@ bool crop_in_place_optimization::match(const program_node& node,
             if (node.is_dynamic() && node.get_users().size() != 1)
                 return false;
             auto& reshape_node = user->as<reshape>();
-            if (!reshape_node.is_runtime_propagatable_padding() && can_reshape_be_optimized(reshape_node))
+            if (can_reshape_be_optimized(reshape_node) &&
+                (!node.is_dynamic() || !reshape_node.is_runtime_propagatable_padding()))
                 return false;
         }
         if (user->is_type<experimental_detectron_roi_feature_extractor>() && user->get_dependency_index(node) == 0)
