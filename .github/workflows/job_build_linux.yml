@@ -62,6 +62,7 @@ jobs:
       - name: Clone OpenVINO
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
+          ref: 'ce80952e96623bce5a55496a84546b39480cf210'
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
 
