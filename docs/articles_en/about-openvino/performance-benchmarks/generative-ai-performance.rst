@@ -14,47 +14,7 @@ For complete information on the system config, see:
 .. raw:: html
 
    <label><link rel="stylesheet" type="text/css" href="../../_static/css/openVinoDataTables.css"></label>
-   <br/><label>hide/reveal additional columns:</label><br/>
-   <label class="column-container">
-       Token latency
-       <input type="checkbox" checked id="1st" name="1st" value="1st" data-column="2" class="toggle-vis"/>
-       <label for="1st" class="checkmark"></label>
-    </label>
-    <label class="column-container">
-       Memory used
-       <input type="checkbox" checked id="maxrss" name="maxrss" value="maxrss" data-column="3" class="toggle-vis"/>
-       <label for="maxrss" class="checkmark"></label>
-    </label>
-    <label class="column-container">
-       Input tokens
-       <input type="checkbox" checked id="input" name="input" value="input" data-column="4" class="toggle-vis"/>
-       <label for="input" class="checkmark"></label>
-    </label>
-    <label class="column-container">
-       Output tokens
-       <input type="checkbox" checked id="output" name="output" value="output" data-column="5" class="toggle-vis"/>
-       <label for="output" class="checkmark"></label>
-    </label>
-    <label class="column-container">
-       Model precision
-       <input type="checkbox" checked id="precision" name="precision" value="precision" data-column="6" class="toggle-vis"/>
-       <label for="precision" class="checkmark"></label>
-    </label>
-    <label class="column-container">
-       Beam
-       <input type="checkbox" checked id="beam" name="beam" value="beam" data-column="7" class="toggle-vis"/>
-       <label for="beam" class="checkmark"></label>
-    </label>
-    <label class="column-container">
-       Batch size
-       <input type="checkbox" checked id="batch" name="batch" value="batch" data-column="8" class="toggle-vis"/>
-       <label for="batch" class="checkmark"></label>
-    </label>
-    <label class="column-container">
-       Framework
-       <input type="checkbox" checked id="framework" name="framework" value="framework" data-column="9" class="toggle-vis"/>
-       <label for="framework" class="checkmark"></label>
-    </label>
+
 
 
 .. csv-table::
