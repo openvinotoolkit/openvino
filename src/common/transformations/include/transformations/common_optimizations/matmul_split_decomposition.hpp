@@ -69,7 +69,6 @@ public:
     MatmulGatherDecomposition();
     void split_weights(const Output<Node>& weights,
                        OutputVector& new_weights,
-                       const bool& have_bias,
-                       const Output<Node>& bias,
+                       Output<Node>* bias,
                        OutputVector& new_bias);
 };

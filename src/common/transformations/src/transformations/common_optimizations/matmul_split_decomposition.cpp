@@ -38,14 +38,13 @@ using namespace ov::pass::pattern;
 
 void pass::MatmulGatherDecomposition::split_weights(const Output<Node>& weights,
                                                     OutputVector& new_weights,
-                                                    const bool& have_bias,
-                                                    const Output<Node>& bias,
+                                                    Output<Node>* bias,
                                                     OutputVector& new_bias) {
     const auto& weights_shape = weights.get_partial_shape();
     int64_t weights_rank = static_cast<int64_t>(weights_shape.rank().get_length());
 
-    if (have_bias) {
-        const auto& bias_shape = bias.get_partial_shape();
+    if (bias) {
+        const auto& bias_shape = bias->get_partial_shape();
         int64_t bias_rank = static_cast<int64_t>(bias_shape.rank().get_length());
         if (weights_rank != 2 || (bias_rank != 3 && bias_rank != 1)) {
             return;
@@ -59,10 +58,10 @@ void pass::MatmulGatherDecomposition::split_weights(const Output<Node>& weights,
         new_weights.emplace_back(out);
     }
 
-    if (have_bias) {
+    if (bias) {
         // Decompose bias
         auto axis2 = register_new_node(v0::Constant::create(element::i32, Shape{}, {-1}));  // axis -1
-        auto split2 = register_new_node<opset1::Split>(bias, axis2, 3);
+        auto split2 = register_new_node<opset1::Split>(*bias, axis2, 3);
         for (auto& out : split2->outputs()) {
             new_bias.emplace_back(out);
         }
@@ -157,12 +156,12 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
             return false;
         }
 
+        Output<Node> bias;
         OutputVector new_weights, new_bias;
-        split_weights(weights,
-                      new_weights,
-                      have_bias,
-                      have_bias ? pattern_map.at(bias_pattern) : Output<Node>(),
-                      new_bias);
+        if (have_bias) {
+            bias = pattern_map.at(bias_pattern);
+        }
+        split_weights(weights, new_weights, have_bias ? &bias : nullptr, new_bias);
         if (new_weights.size() != 3u || (have_bias && new_bias.size() != 3u)) {
             return false;
         }
