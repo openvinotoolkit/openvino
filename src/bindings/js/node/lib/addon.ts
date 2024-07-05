@@ -123,7 +123,7 @@ interface Core {
     },
   };
   /**
-   * Asynchronously  imports a previously exported compiled model.
+   * Asynchronously imports a previously exported compiled model.
    * @param modelStream The input stream that contains a model, previously exported
    * with the {@link CompiledModel.exportModelSync} method.
    * @param device The name of a device, for which you import a compiled model.

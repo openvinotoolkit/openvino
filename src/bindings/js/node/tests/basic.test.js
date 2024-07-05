@@ -290,7 +290,7 @@ describe('Test exportModel()/importModel()', () => {
   });
 
   it('Test importModel(stream, device)', () => {
-    core.importModel(userStream, 'CPU').then( newCompiled => {
+    core.importModel(userStream, 'CPU').then(newCompiled => {
       const newInferRequest = newCompiled.createInferRequest();
       const res2 = newInferRequest.infer([tensor]);
       assert.deepStrictEqual(res1['fc_out'].data[0], res2['fc_out'].data[0]);
