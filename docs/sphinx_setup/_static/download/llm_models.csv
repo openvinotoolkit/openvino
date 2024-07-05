@@ -1,4 +1,4 @@
-﻿Model name,"Throughput: (tokens/sec. 2nd token)",1st token latency (msec),Max_RSS_memory used. (MB),Input tokens,Output tokens,Model Precision,Beam,Batch size,Framework
+﻿Model name,"Throughput: (tokens/sec. 2nd token)",1st token latency (msec),Max RSS memory used. (MB),Input tokens,Output tokens,Model Precision,Beam,Batch size,Framework
 OPT-2.7b,20.2,2757,7084,937,128,INT4,1,1,PT
 Phi-3-mini-4k-instruct,19.9,2776,7028,1062,128,INT4,1,1,PT
 Orca-mini-3b,19.2,2966,7032,1024,128,INT4,1,1,PT
