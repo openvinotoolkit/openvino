@@ -213,12 +213,10 @@ TEST_F(RTInfoSerializationTest, tag_names_verification) {
     auto ir_model = getWithIRFrontend(m_out_xml_path, m_out_bin_path);
     ASSERT_NE(nullptr, ir_model);
 
-    auto check_info = [&test_cases](const ov::RTMap& info) {};
-
     auto model_rt_info = ir_model->get_rt_info();
     std::for_each(test_cases.begin(),
                   test_cases.end(),
-                  [&test_cases, &model_rt_info](const std::pair<std::string, std::string>& item) {
+                  [&model_rt_info](const std::pair<std::string, std::string>& item) {
                       ASSERT_TRUE(model_rt_info.count(item.first));
                       ASSERT_EQ(model_rt_info[item.first], item.second);
                   });
