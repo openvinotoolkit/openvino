@@ -913,8 +913,8 @@ void jit_is_nan_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const 
 
 void jit_is_nan_emitter::register_table_entries() {
     // Registers constant values that comply with the IEEE 754 standard.
-    push_arg_entry_of("one", 0x3f800000, true);
-    push_arg_entry_of("zero", 0x00000000, true);
+    push_arg_entry_of("one", 0x3f800000, true, exec_prc_);
+    push_arg_entry_of("zero", 0x00000000, true, exec_prc_);
 }
 
 /// MAX ///
