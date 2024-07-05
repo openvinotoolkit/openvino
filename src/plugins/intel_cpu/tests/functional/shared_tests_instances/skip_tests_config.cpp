@@ -361,11 +361,6 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_VariableState/OVInferRequestVariableStateTest.*)");
     // Issue: 141705
     retVector.emplace_back(R"(.*smoke_arm_Deconv_2D_Planar_FP16/DeconvolutionLayerCPUTest.*INFERENCE_PRECISION_HINT=f16.*)");
-    // Issue: 146103
-    retVector.emplace_back(R"(.*smoke_ConvertRangeSubgraphCPUTest.*Prc=f16.*)");
-    retVector.emplace_back(R"(.*smoke_MergeTransposeReorder_dynamic.*)");
-    retVector.emplace_back(R"(.*smoke_Check/AlignMatMulInputRanksTest.*IS_A=\[2,3,4,4,4,10,5\].*)");
-    retVector.emplace_back(R"(.*smoke_Check/AlignMatMulInputRanksTest.*IS_A=\[7,1,10,3,2,7\].*)");
 #endif
 
 #if defined(OPENVINO_ARCH_ARM)
