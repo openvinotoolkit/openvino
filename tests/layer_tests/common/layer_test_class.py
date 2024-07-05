@@ -177,7 +177,7 @@ class CommonLayerTest:
                             atol=framework_eps,
                             rtol=framework_eps):
                 is_ok = False
-                if ie_res.dtype != bool:
+                if infer_res[ie_out_name].dtype != bool:
                     print("Max diff is {}".format(
                         np.array(
                             abs(infer_res[ie_out_name] - framework_res[framework_out_name])).max()))
