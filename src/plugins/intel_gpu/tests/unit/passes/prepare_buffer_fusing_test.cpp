@@ -759,8 +759,10 @@ TEST(prepare_buffer_fusing, test_implicit_crop_and_outerpadding_conv) {
         }
     }
 
-    auto crop_prim = network.get_primitive("crop_input");
-    ASSERT_EQ(crop_prim->can_be_optimized(), true);
+    if (!engine.get_device_info().supports_immad) {
+        auto crop_prim = network.get_primitive("crop_input");
+        ASSERT_EQ(crop_prim->can_be_optimized(), true);
+    }
 }
 
 // For deconv, Check padded input and weight propagated by implicit crop are handled properly
@@ -805,8 +807,10 @@ TEST(prepare_buffer_fusing, test_implicit_crop_and_outerpadding_deconv) {
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
         ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
 
-    auto crop_prim = network.get_primitive("crop_input");
-    ASSERT_EQ(crop_prim->can_be_optimized(), true);
+    if (!engine.get_device_info().supports_immad) {
+        auto crop_prim = network.get_primitive("crop_input");
+        ASSERT_EQ(crop_prim->can_be_optimized(), true);
+    }
 }
 
 TEST(prepare_buffer_fusing, test_checking_padding_supported) {
