@@ -223,7 +223,7 @@ void program::init_program() {
     if (_task_executor == nullptr)
         _task_executor = program::make_task_executor(_config);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
-                                                                      kernel_selector::KernelBase::get_db().get_batch_header_str()));
+                                                                      kernel_selector::KernelBase::get_db().get_batch_headers()));
 
     if (!_compilation_context)
         _compilation_context = program::make_compilation_context(_config);

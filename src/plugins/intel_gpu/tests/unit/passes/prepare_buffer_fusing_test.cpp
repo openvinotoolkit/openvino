@@ -95,7 +95,7 @@ TEST(prepare_buffer_fusing, static_node_after_optimized_out_dyn_reshape) {
     prog->get_node("reorder").get_output_layout(true);
     program_wrapper::apply_opt_pass<prepare_buffer_fusing>(*prog);
     program_wrapper::apply_opt_pass<compile_graph>(*prog);
-    ASSERT_NO_THROW(prog->get_node("reshape"));
+    OV_ASSERT_NO_THROW(prog->get_node("reshape"));
     ASSERT_TRUE(prog->get_node("reshape").can_be_optimized());
     program_wrapper::apply_opt_pass<build_implementations>(*prog);
 
@@ -108,7 +108,7 @@ TEST(prepare_buffer_fusing, static_node_after_optimized_out_dyn_reshape) {
 
     net.set_input_data("input", input_memory);
     std::map<cldnn::primitive_id, cldnn::network_output> output;
-    ASSERT_NO_THROW(output = net.execute());
+    OV_ASSERT_NO_THROW(output = net.execute());
     auto out_l = net.get_output_layout("reorder");
     auto out_mem = output.at("reorder").get_memory();
 
@@ -759,8 +759,10 @@ TEST(prepare_buffer_fusing, test_implicit_crop_and_outerpadding_conv) {
         }
     }
 
-    auto crop_prim = network.get_primitive("crop_input");
-    ASSERT_EQ(crop_prim->can_be_optimized(), true);
+    if (!engine.get_device_info().supports_immad) {
+        auto crop_prim = network.get_primitive("crop_input");
+        ASSERT_EQ(crop_prim->can_be_optimized(), true);
+    }
 }
 
 // For deconv, Check padded input and weight propagated by implicit crop are handled properly
@@ -805,8 +807,10 @@ TEST(prepare_buffer_fusing, test_implicit_crop_and_outerpadding_deconv) {
     for (unsigned int i = 0; i < expected_output_vec.size(); i++)
         ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
 
-    auto crop_prim = network.get_primitive("crop_input");
-    ASSERT_EQ(crop_prim->can_be_optimized(), true);
+    if (!engine.get_device_info().supports_immad) {
+        auto crop_prim = network.get_primitive("crop_input");
+        ASSERT_EQ(crop_prim->can_be_optimized(), true);
+    }
 }
 
 TEST(prepare_buffer_fusing, test_checking_padding_supported) {
