@@ -212,7 +212,7 @@ const std::vector<CPUSpecificParams> CPUParams2D = {
 const auto params2D = ::testing::Combine(
     ::testing::Values(nodeType::groupConvolutionBackpropData),
     ::testing::Values(groupConvParams2D()),
-    ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams2D)),
+    ::testing::ValuesIn(filterCPUSpecificParams(CPUParams2D)),
     ::testing::Values(inputShapes2D()),
     ::testing::Values(axis())
 );
@@ -229,7 +229,7 @@ const std::vector<CPUSpecificParams> CPUParams3D = {
 const auto params3D = ::testing::Combine(
     ::testing::Values(nodeType::groupConvolutionBackpropData),
     ::testing::Values(groupConvParams3D()),
-    ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams3D)),
+    ::testing::ValuesIn(filterCPUSpecificParams(CPUParams3D)),
     ::testing::Values(inputShapes3D()),
     ::testing::Values(axis())
 );
