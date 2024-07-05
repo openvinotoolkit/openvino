@@ -397,7 +397,7 @@ protected:
     void fill_shape_info_data(const layout& runtime_layout, const layout& node_layout, int32_t* shape_info_ptr, size_t& offset);
     bool use_async_compilation();
     // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
-    bool update_impl();
+    bool update_impl(bool use_async_compilation);
     event::ptr realloc_if_needed();
 
     cldnn::network::ptr get_unfused_subgraph();

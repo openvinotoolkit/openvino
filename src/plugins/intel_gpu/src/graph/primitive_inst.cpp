@@ -714,7 +714,7 @@ event::ptr primitive_inst::realloc_if_needed() {
                     GPU_DEBUG_TRACE_DETAIL << id() << ": Update impl with new output padding" << std::endl;
                     set_shape_change();
                     _impl_params->output_layouts[0] = present_layout;
-                    update_impl();
+                    update_impl(use_async_compilation());
                 }
                 GPU_DEBUG_TRACE_DETAIL << id() << ": Update variable " << variable.get_name()
                                        << "'s memory with allocated kv cache output: "
@@ -858,7 +858,7 @@ void primitive_inst::update_shape_info_tensor(const kernel_impl_params& params) 
     }
 }
 
-bool primitive_inst::update_impl() {
+bool primitive_inst::update_impl(bool use_async_compilation) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("update_impl: " + id()));
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::update_implementation);
     auto prev_impl_str =  _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
@@ -906,10 +906,9 @@ bool primitive_inst::update_impl() {
         const auto is_current_impl_dynamic = _impl && _impl->is_dynamic();
         const auto& prog = get_network().get_program();
         auto& cache = prog->get_implementations_cache();
-        const bool async_compilation = use_async_compilation();
         std::shared_ptr<primitive_impl> cached_impl = nullptr;
         {
-            if (async_compilation)
+            if (use_async_compilation)
                 cached_impl = cache.get(updated_params);
 
             if (cached_impl) {
@@ -926,7 +925,7 @@ bool primitive_inst::update_impl() {
         }
         if (!cached_impl) {
             if (_dynamic_impl || is_current_impl_dynamic) {
-                if (async_compilation) {
+                if (use_async_compilation) {
                     auto& compilation_context = prog->get_compilation_context();
                     compilation_context.push_task(updated_params, [this, &compilation_context, updated_params]() {
                         if (compilation_context.is_stopped())
@@ -1442,8 +1441,9 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
 
         // Try update impl if current impl is dynamic because opt kernel may be added to impl cache through async compilation.
         // Only try update weight and realloc when impl is updated.
-        if (shape_changed() || !_impl || (!shape_changed() && _impl->is_dynamic())) {
-            if (update_impl()) {
+        const bool can_use_async_compilation = use_async_compilation();
+        if (shape_changed() || !_impl || (!shape_changed() && _impl->is_dynamic() && can_use_async_compilation)) {
+            if (update_impl(can_use_async_compilation)) {
                 need_args_update = true;
                 auto ev = update_weights();
                 if (ev)
@@ -1460,14 +1460,23 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
     update_shape_done_by_other = false; // reset
     OPENVINO_ASSERT(_impl != nullptr, "[GPU] Implementation is nullptr for ", primitive_id,  " primitive");
 
-    // Dynamic insts may reallocate its' output buffer, so we need to update kernel's args respectively
-    bool has_dynamic_dependencies_insts = std::any_of(_deps.begin(), _deps.end(),
-        [](const std::pair<primitive_inst*, int32_t>& dep) {
-            return dep.first->mem_changed();
-    });
+    std::function<bool(const cldnn::primitive_inst*)> has_dynamic_dependencies_insts =
+        [&has_dynamic_dependencies_insts](const cldnn::primitive_inst* prim_inst) {
+        for (auto& dep : prim_inst->_deps) {
+            const cldnn::primitive_inst* dep_inst = dep.first;
+            if (dep_inst->mem_changed()) {
+                return true;
+            } else if (dep_inst->can_be_optimized()) {
+                if (has_dynamic_dependencies_insts(dep_inst)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
 
     // Output buffer may be changed under the following conditions, so we need to set args to kernel on each iteration
-    if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || has_dynamic_dependencies_insts) {
+    if ((is_dynamic() && need_args_update) || has_mutable_input() || is_output() || has_dynamic_dependencies_insts(this)) {
         set_arguments();
     }
     on_execute();
