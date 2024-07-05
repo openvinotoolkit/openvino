@@ -224,61 +224,6 @@ void AvgPoolingV14LayerCPUTest::SetUp() {
     function = makeNgraphFunction(inPrc, params, pooling, "PoolingCPU");
 }
 
-std::string AvgPoolingV14LayerRefFallbackTest::getTestCaseName(const testing::TestParamInfo<poolLayerCpuTestParamsSet>& obj) {
-    return util::AvgPoolV14GetTestCaseNameUtil(obj);
-}
-
-void AvgPoolingV14LayerRefFallbackTest::SetUp() {
-    targetDevice = ov::test::utils::DEVICE_CPU;
-
-    poolSpecificParams basicParamsSet;
-    InputShape inputShapes;
-    ElementType inPrc;
-    bool isInt8;
-    CPUSpecificParams cpuParams;
-    fusingSpecificParams fusingParams;
-    ov::AnyMap additionalConfig;
-    std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams, additionalConfig) = this->GetParam();
-    configuration.insert(additionalConfig.begin(), additionalConfig.end());
-
-    utils::PoolingTypes poolType;
-    std::vector<size_t> kernel, stride;
-    std::vector<size_t> padBegin, padEnd;
-    ov::op::PadType padType;
-    ov::op::RoundingType roundingType;
-    bool excludePad;
-    std::tie(poolType, kernel, stride, padBegin, padEnd, roundingType, padType, excludePad) = basicParamsSet;
-
-    std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-    std::tie(postOpMgrPtr, fusedOps) = fusingParams;
-
-    if (selectedType.empty()) {
-        selectedType = getPrimitiveType();
-    }
-    if (isInt8)
-        selectedType = selectedType + "_I8";
-    else
-        selectedType = makeSelectedTypeStr(selectedType, inPrc);
-
-    init_input_shapes({inputShapes});
-
-    ov::ParameterVector params;
-    for (auto&& shape : inputDynamicShapes) {
-        params.push_back(std::make_shared<ov::op::v0::Parameter>(inPrc, shape));
-    }
-
-    std::shared_ptr<ov::Node> poolInput = params[0];
-    if (isInt8) {
-        abs_threshold = 2e-2;
-        ov::Shape newShape(poolInput->get_output_partial_shape(0).size(), 1);
-        poolInput = ov::test::utils::make_fake_quantize(poolInput, inPrc, 256, newShape);
-    }
-
-    auto pooling = std::make_shared<ov::op::v14::AvgPool>(poolInput, stride, padBegin, padEnd, kernel, excludePad, roundingType, padType);
-
-    function = makeNgraphFunction(inPrc, params, pooling, "PoolingCPU");
-}
-
 std::string MaxPoolingV8LayerCPUTest::getTestCaseName(
     const testing::TestParamInfo<maxPoolV8LayerCpuTestParamsSet>& obj) {
     maxPoolV8SpecificParams basicParamsSet;
@@ -461,97 +406,6 @@ void MaxPoolingV14LayerCPUTest::SetUp() {
     function = std::make_shared<ov::Model>(results, params, "MaxPooling");
 }
 
-std::string MaxPoolingV14LayerRefFallbackTest::getTestCaseName(
-    const testing::TestParamInfo<maxPoolV8LayerCpuTestParamsSet>& obj) {
-    maxPoolV8SpecificParams basicParamsSet;
-    InputShape inputShapes;
-    ElementType inPrc;
-    CPUSpecificParams cpuParams;
-    ov::AnyMap additionalConfig;
-    std::tie(basicParamsSet, inputShapes, inPrc, cpuParams, additionalConfig) = obj.param;
-
-    std::vector<size_t> kernel, stride, dilation;
-    std::vector<size_t> padBegin, padEnd;
-    ov::op::PadType padType;
-    ov::op::RoundingType roundingType;
-    ov::element::Type indexElementType;
-    int64_t axis;
-    std::tie(kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType) =
-        basicParamsSet;
-
-    std::ostringstream results;
-    results << "IS=(";
-    results << ov::test::utils::partialShape2str({inputShapes.first}) << ")_";
-    results << "TS=";
-    for (const auto& shape : inputShapes.second) {
-        results << ov::test::utils::vec2str(shape) << "_";
-    }
-    results << "Prc=" << inPrc << "_";
-    results << "MaxPool_";
-    results << "K" << ov::test::utils::vec2str(kernel) << "_";
-    results << "S" << ov::test::utils::vec2str(stride) << "_";
-    results << "D" << ov::test::utils::vec2str(dilation) << "_";
-    results << "PB" << ov::test::utils::vec2str(padBegin) << "_";
-    results << "PE" << ov::test::utils::vec2str(padEnd) << "_";
-    results << "Rounding=" << roundingType << "_";
-    results << "AutoPad=" << padType << "_";
-    if (!additionalConfig.empty()) {
-        results << "_PluginConf";
-        for (auto& item : additionalConfig) {
-            results << "_" << item.first << "=" << item.second.as<std::string>();
-        }
-    }
-
-    results << CPUTestsBase::getTestCaseName(cpuParams);
-    return results.str();
-}
-
-void MaxPoolingV14LayerRefFallbackTest::SetUp() {
-    targetDevice = ov::test::utils::DEVICE_CPU;
-
-    maxPoolV8SpecificParams basicParamsSet;
-    InputShape inputShapes;
-    ElementType inPrc;
-    CPUSpecificParams cpuParams;
-    ov::AnyMap additionalConfig;
-    std::tie(basicParamsSet, inputShapes, inPrc, cpuParams, additionalConfig) = this->GetParam();
-    configuration.insert(additionalConfig.begin(), additionalConfig.end());
-
-    std::vector<size_t> kernel, stride, dilation;
-    std::vector<size_t> padBegin, padEnd;
-    ov::op::PadType padType;
-    ov::op::RoundingType roundingType;
-    ov::element::Type indexElementType;
-    int64_t axis;
-    std::tie(kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType) =
-        basicParamsSet;
-    std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-    if (selectedType.empty()) {
-        selectedType = getPrimitiveType();
-    }
-    selectedType = makeSelectedTypeStr(selectedType, deduce_expected_precision(inPrc, configuration));
-
-    init_input_shapes({inputShapes});
-
-    ov::ParameterVector params;
-    for (auto&& shape : inputDynamicShapes) {
-        params.push_back(std::make_shared<ov::op::v0::Parameter>(inPrc, shape));
-    }
-    auto pooling = std::make_shared<ov::op::v14::MaxPool>(params[0],
-                                                         stride,
-                                                         dilation,
-                                                         padBegin,
-                                                         padEnd,
-                                                         kernel,
-                                                         roundingType,
-                                                         padType,
-                                                         indexElementType,
-                                                         axis);
-    pooling->get_rt_info() = getCPUInfo();
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(pooling->output(0))};
-    function = std::make_shared<ov::Model>(results, params, "MaxPooling");
-}
-
 TEST_P(PoolingLayerCPUTest, CompareWithRefs) {
     run();
     CheckPluginRelatedResults(compiledModel, "Pooling");
@@ -562,11 +416,6 @@ TEST_P(AvgPoolingV14LayerCPUTest, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, "Pooling");
 }
 
-TEST_P(AvgPoolingV14LayerRefFallbackTest, CompareWithRefs) {
-    run();
-    CheckPluginRelatedResults(compiledModel, "Reference");
-}
-
 TEST_P(MaxPoolingV8LayerCPUTest, CompareWithRefs) {
     run();
     CheckPluginRelatedResults(compiledModel, "Pooling");
@@ -575,11 +424,6 @@ TEST_P(MaxPoolingV8LayerCPUTest, CompareWithRefs) {
 TEST_P(MaxPoolingV14LayerCPUTest, CompareWithRefs) {
     run();
     CheckPluginRelatedResults(compiledModel, "Pooling");
-}
-
-TEST_P(MaxPoolingV14LayerRefFallbackTest, CompareWithRefs) {
-    run();
-    CheckPluginRelatedResults(compiledModel, "Reference");
 }
 
 namespace Pooling {
@@ -708,18 +552,7 @@ const std::vector<maxPoolV8SpecificParams>& paramsMaxV144D() {
     return paramsMaxV144D;
 }
 
-const std::vector<InputShape>& inputShapes3DStatic() {
-    static const std::vector<InputShape> inputShapes3D = {
-            { {}, {{3, 4, 64}} },
-            { {}, {{2, 8, 12}} },
-            { {}, {{1, 16, 12}} },
-            { {}, {{1, 21, 4}} },
-            { {}, {{1, 32, 8}} }
-    };
-    return inputShapes3D;
-}
-
-const std::vector<InputShape>& inputShapes3DDynamic() {
+const std::vector<InputShape>& inputShapes3D() {
     static const std::vector<InputShape> inputShapes3D = {
             {
                 // dynamic
@@ -740,32 +573,17 @@ const std::vector<InputShape>& inputShapes3DDynamic() {
                     {1, 16, 12},
                     {1, 32, 8}
                 }
-            }
+            },
+            { {}, {{3, 4, 64}} },
+            { {}, {{2, 8, 12}} },
+            { {}, {{1, 16, 12}} },
+            { {}, {{1, 21, 4}} },
+            { {}, {{1, 32, 8}} }
     };
     return inputShapes3D;
 }
 
-const std::vector<InputShape>& inputShapes3D() {
-    static std::vector<InputShape> combinedInputShapes;
-    if (combinedInputShapes.empty()) {
-        combinedInputShapes = inputShapes3DStatic();
-        const auto& dynamicShapes = inputShapes3DDynamic();
-        combinedInputShapes.insert(combinedInputShapes.end(), dynamicShapes.begin(), dynamicShapes.end());
-    }
-    return combinedInputShapes;
-}
-
-const std::vector<InputShape>& inputShapes4DStatic() {
-    static const std::vector<InputShape> inputShapes4D = {
-            { {}, {{3, 4, 64, 64}} },
-            { {}, {{2, 8, 8, 12}} },
-            { {}, {{1, 16, 16, 12}} },
-            { {}, {{1, 21, 8, 4}} },
-            { {}, {{1, 32, 8, 8}} }};
-    return inputShapes4D;
-}
-
-const std::vector<InputShape>& inputShapes4DDynamic() {
+const std::vector<InputShape>& inputShapes4D() {
     static const std::vector<InputShape> inputShapes4D = {
             {
                 // dynamic
@@ -796,33 +614,17 @@ const std::vector<InputShape>& inputShapes4DDynamic() {
                     {1, 16, 8, 8},
                     {2, 16, 8, 8},
                 }
-            }
+            },
+            { {}, {{3, 4, 64, 64}} },
+            { {}, {{2, 8, 8, 12}} },
+            { {}, {{1, 16, 16, 12}} },
+            { {}, {{1, 21, 8, 4}} },
+            { {}, {{1, 32, 8, 8}} }
     };
     return inputShapes4D;
 }
 
-const std::vector<InputShape>& inputShapes4D() {
-    static std::vector<InputShape> combinedInputShapes;
-    if (combinedInputShapes.empty()) {
-        combinedInputShapes = inputShapes4DStatic();
-        const auto& dynamicShapes = inputShapes4DDynamic();
-        combinedInputShapes.insert(combinedInputShapes.end(), dynamicShapes.begin(), dynamicShapes.end());
-    }
-    return combinedInputShapes;
-}
-
-const std::vector<InputShape>& inputShapes5DStatic() {
-    static const std::vector<InputShape> inputShapes5D = {
-            { {}, {{1, 4, 32, 32, 32}} },
-            { {}, {{2, 8, 8, 8, 8}} },
-            { {}, {{2, 16, 12, 16, 20}} },
-            { {}, {{1, 19, 16, 20, 8}} },
-            { {}, {{1, 32, 16, 8, 12}} },
-    };
-    return inputShapes5D;
-}
-
-const std::vector<InputShape>& inputShapes5DDynamic() {
+const std::vector<InputShape>& inputShapes5D() {
     static const std::vector<InputShape> inputShapes5D = {
             {
                 {-1, -1, -1, -1, -1},
@@ -839,19 +641,14 @@ const std::vector<InputShape>& inputShapes5DDynamic() {
                     {1, 32, 16, 8, 12},
                     {3, 16, 4, 8, 3}
                 }
-            }
+            },
+            { {}, {{1, 4, 32, 32, 32}} },
+            { {}, {{2, 8, 8, 8, 8}} },
+            { {}, {{2, 16, 12, 16, 20}} },
+            { {}, {{1, 19, 16, 20, 8}} },
+            { {}, {{1, 32, 16, 8, 12}} }
     };
     return inputShapes5D;
-}
-
-const std::vector<InputShape>& inputShapes5D() {
-    static std::vector<InputShape> combinedInputShapes;
-    if (combinedInputShapes.empty()) {
-        combinedInputShapes = inputShapes5DStatic();
-        const auto& dynamicShapes = inputShapes5DDynamic();
-        combinedInputShapes.insert(combinedInputShapes.end(), dynamicShapes.begin(), dynamicShapes.end());
-    }
-    return combinedInputShapes;
 }
 
 const std::vector<maxPoolV8SpecificParams>& paramsMaxV85D() {

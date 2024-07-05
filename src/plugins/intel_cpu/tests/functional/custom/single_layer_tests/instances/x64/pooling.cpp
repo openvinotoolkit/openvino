@@ -237,7 +237,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV14_CPU_3D_FP16, AvgPoolingV14LayerCPUTest
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV14_CPU_3D_FP16_Ceil_Torch, AvgPoolingV14LayerCPUTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(paramsAvgV143D()),
-                                 ::testing::ValuesIn(inputShapes3DStatic()),
+                                 ::testing::ValuesIn(inputShapes3D()),
                                  ::testing::ValuesIn(inpOutPrecision()),
                                  ::testing::Values(false),
                                  ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigs)),
@@ -277,20 +277,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_CPU_4D_FP16, MaxPoolingV14LayerCPUTest
 INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_CPU_4D_FP16_Ceil_Torch, MaxPoolingV14LayerCPUTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(paramsMaxV144D()),
-                                 ::testing::ValuesIn(inputShapes4DStatic()),
+                                 ::testing::ValuesIn(inputShapes4D()),
                                  ::testing::ValuesIn(inpOutPrecision()),
                                  ::testing::ValuesIn(filterCPUInfoForDeviceWithFP16(vecCpuConfigs)),
                                  ::testing::Values(cpu_f16_plugin_config)),
                          MaxPoolingV14LayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_Ref_Fallback_4D_FP16, MaxPoolingV14LayerRefFallbackTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(paramsMaxV144D()),
-                                 ::testing::ValuesIn(inputShapes4DDynamic()),
-                                 ::testing::ValuesIn(inpOutPrecision()),
-                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"}),
-                                 ::testing::Values(cpu_f16_plugin_config)),
-                         MaxPoolingV14LayerRefFallbackTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV14_CPU_4D_FP16, AvgPoolingV14LayerCPUTest,
                         ::testing::Combine(
@@ -374,15 +365,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_CPU_5D_FP16_Ceil_Torch, MaxPoolingV14L
                                  ::testing::Values(cpu_f16_plugin_config)),
                          MaxPoolingV14LayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_Ref_Fallback_5D_FP16, MaxPoolingV14LayerRefFallbackTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(paramsMaxV145D()),
-                                 ::testing::ValuesIn(inputShapes5DDynamic()),
-                                 ::testing::ValuesIn(inpOutPrecision()),
-                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"}),
-                                 ::testing::Values(cpu_f16_plugin_config)),
-                         MaxPoolingV14LayerRefFallbackTest::getTestCaseName);
-
 INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_3D, PoolingLayerCPUTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(paramsMax3D()),
@@ -415,20 +397,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_CPU_3D, MaxPoolingV14LayerCPUTest,
 INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_CPU_3D_Ceil_Torch, MaxPoolingV14LayerCPUTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(paramsMaxV143D()),
-                                 ::testing::ValuesIn(inputShapes3DStatic()),
+                                 ::testing::ValuesIn(inputShapes3D()),
                                  ::testing::ValuesIn((inpOutPrecision())),
                                  ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigsFusing_3D)),
                                  ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MaxPoolingV14LayerCPUTest::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_Ref_Fallback_3D, MaxPoolingV14LayerRefFallbackTest,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(paramsMaxV143D()),
-                                 ::testing::ValuesIn(inputShapes3DDynamic()),
-                                 ::testing::ValuesIn((inpOutPrecision())),
-                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"}),
-                                 ::testing::Values(CPUTestUtils::empty_plugin_config)),
-                         MaxPoolingV14LayerRefFallbackTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_CPU_5D, PoolingLayerCPUTest,
                          ::testing::Combine(
@@ -459,14 +432,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_CPU_5D, MaxPoolingV14LayerCPUTest,
                                  ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MaxPoolingV14LayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14_Ref_Fallback_5D, MaxPoolingV14LayerRefFallbackTest,
+INSTANTIATE_TEST_SUITE_P(smoke_MaxPoolV14CeilTorch_CPU_5D, MaxPoolingV14LayerCPUTest,
                          ::testing::Combine(
                                  ::testing::ValuesIn(paramsMaxV145D()),
-                                 ::testing::ValuesIn(inputShapes5DDynamic()),
+                                 ::testing::ValuesIn(inputShapes5D()),
                                  ::testing::ValuesIn((inpOutPrecision())),
-                                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref"}),
+                                 ::testing::ValuesIn(filterCPUInfoForDevice(vecCpuConfigsFusing_5D)),
                                  ::testing::Values(CPUTestUtils::empty_plugin_config)),
-                         MaxPoolingV14LayerRefFallbackTest::getTestCaseName);
+                         MaxPoolingV14LayerCPUTest::getTestCaseName);
 }  // namespace
 }  // namespace Pooling
 }  // namespace test

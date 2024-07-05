@@ -47,15 +47,6 @@ protected:
     void SetUp() override;
 };
 
-class AvgPoolingV14LayerRefFallbackTest : public testing::WithParamInterface<poolLayerCpuTestParamsSet>,
-                            virtual public SubgraphBaseTest, public CpuTestWithFusing {
-public:
-    static std::string getTestCaseName(const testing::TestParamInfo<poolLayerCpuTestParamsSet>& obj);
-
-protected:
-    void SetUp() override;
-};
-
 class MaxPoolingV8LayerCPUTest : public testing::WithParamInterface<maxPoolV8LayerCpuTestParamsSet>,
                                  virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
@@ -68,15 +59,6 @@ class MaxPoolingV14LayerCPUTest : public testing::WithParamInterface<maxPoolV8La
                                  virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<maxPoolV8LayerCpuTestParamsSet>& obj);
-protected:
-    void SetUp() override;
-};
-
-class MaxPoolingV14LayerRefFallbackTest : public testing::WithParamInterface<maxPoolV8LayerCpuTestParamsSet>,
-                            virtual public SubgraphBaseTest, public CpuTestWithFusing {
-public:
-    static std::string getTestCaseName(const testing::TestParamInfo<maxPoolV8LayerCpuTestParamsSet>& obj);
-
 protected:
     void SetUp() override;
 };
@@ -104,15 +86,9 @@ const std::vector<maxPoolV8SpecificParams>& paramsMaxV144D();
 const std::vector<maxPoolV8SpecificParams>& paramsMaxV145D();
 
 const std::vector<InputShape>& inputShapes3D();
-const std::vector<InputShape>& inputShapes3DDynamic();
-const std::vector<InputShape>& inputShapes3DStatic();
 const std::vector<InputShape>& inputShapes4D();
-const std::vector<InputShape>& inputShapes4DStatic();
-const std::vector<InputShape>& inputShapes4DDynamic();
 const std::vector<InputShape>& inputShapes4D_Large();
 const std::vector<InputShape>& inputShapes5D();
-const std::vector<InputShape>& inputShapes5DStatic();
-const std::vector<InputShape>& inputShapes5DDynamic();
 
 const std::vector<poolSpecificParams>& paramsAvg4D();
 const std::vector<poolSpecificParams>& paramsAvgV144D();

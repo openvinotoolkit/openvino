@@ -314,16 +314,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_LoopForCommon/LoopLayerCPUTest.CompareWithRefs/Input0_IS=\[1..10.1.1..10\]_.*_Input1_IS=\[1..8.1.1..8\]_.*_Input2_IS=\[1..10.\?.1..10\]_TS=.*_types=0_0_1_trip_count_type=.*_trip_count=(1|5)_exec_cond=1_netType=i8.*)",
         // Issue: 142997
         R"(.*smoke_TestsROIAlign.*)",
-        // Issue: 146063
-        R"(.*smoke_MaxPoolV14_Ref_Fallback_5D_ceil_torch/MaxPoolingV14LayerCPUTest.CompareWithRefs/IS=\(\[\?.\?.\?.\?.\?\]\)_TS=\(2.8.8.8.8\)_\(1.19.16.20.8\)_\(1.4.16.16.16\)_Prc=f32_MaxPool_K\(2.2.2\)_S\(1.1.1\)_D\(1.1.1\)_PB\(0.0.0\)_PE\(0.0.0\)_Rounding=ceil_torch_AutoPad=same_lower__primitive=ref_any.*)",
-        R"(.*smoke_MaxPoolV14_Ref_Fallback_5D_ceil_torch/MaxPoolingV14LayerCPUTest.CompareWithRefs/IS=\(\[1..5.4..32.1..64.1..64.1..25\]\)_TS=\(1.4.16.16.16\)_\(1.32.16.8.12\)_\(3.16.4.8.3\)_Prc=f32_MaxPool_K\(2.2.2\)_S\(1.1.1\)_D\(1.1.1\)_PB\(0.0.0\)_PE\(0.0.0\)_Rounding=ceil_torch_AutoPad=same_lower__primitive=ref_any.*)",
-        R"(.*smoke_MaxPoolV14_Ref_Fallback_4D_ceil_torch/MaxPoolingV14LayerRefFallbackTest.CompareWithRefs/IS=\(\[\?.\?.\?.\?\]\)_TS=\(1.32.8.8\)_\(1.21.8.4\)_\(2.8.8.12\)_\(1.96.125.125\)_Prc=f32_MaxPool_K\(2.2\)_S\(2.2\)_D\(1.1\)_PB\(0.0\)_PE\(0.0\)_Rounding=ceil_torch_AutoPad=same_lower__primitive=ref.*)",
-        R"(.*smoke_MaxPoolV14_Ref_Fallback_5D/MaxPoolingV14LayerRefFallbackTest.CompareWithRefs/IS=\(\[1..5.4..32.1..64.1..64.1..25\]\)_TS=\(1.4.16.16.16\)_\(1.32.16.8.12\)_\(3.16.4.8.3\)_Prc=f32_MaxPool_K\(2.2.2\)_S\(1.1.1\)_D\(1.1.1\)_PB\(0.0.0\)_PE\(0.0.0\)_Rounding=ceil_torch_AutoPad=same_lower__primitive=ref.*)",
-        R"(.*smoke_MaxPoolV14_Ref_Fallback_5D/MaxPoolingV14LayerRefFallbackTest.CompareWithRefs/IS=\(\[\?.\?.\?.\?.\?\]\)_TS=\(2.8.8.8.8\)_\(1.19.16.20.8\)_\(1.4.16.16.16\)_Prc=f32_MaxPool_K\(2.2.2\)_S\(1.1.1\)_D\(1.1.1\)_PB\(0.0.0\)_PE\(0.0.0\)_Rounding=ceil_torch_AutoPad=same_lower__primitive=ref.*)",
-        R"(.*smoke_AvgPoolV14_Ref_Fallback_4D_Ceil_torch/AvgPoolingV14LayerRefFallbackTest.CompareWithRefs/IS=\(\[\?.\?.\?.\?\]\)_TS=\(1.32.8.8\)_\(1.21.8.4\)_\(2.8.8.12\)_\(1.96.125.125\)_Prc=f32_ExcludePad=1_K\(2.2\)_S\(2.2\)_PB\(0.0\)_PE\(0.0\)_Rounding=ceil_torch_AutoPad=same_lower_INT8=0__primitive=ref.*)",
-        R"(.*smoke_AvgPoolV14_Ref_Fallback_4D_Ceil_torch/AvgPoolingV14LayerRefFallbackTest.CompareWithRefs/IS=\(\[\?.\?.\?.\?\]\)_TS=\(1.32.8.8\)_\(1.21.8.4\)_\(2.8.8.12\)_\(1.96.125.125\)_Prc=f32_ExcludePad=0_K\(2.2\)_S\(2.2\)_PB\(1.0\)_PE\(0.0\)_Rounding=ceil_torch_AutoPad=same_upper_INT8=0__primitive=ref.*)",
-        R"(.*smoke_AvgPoolV14_Ref_Fallback_5D/AvgPoolingV14LayerRefFallbackTest.CompareWithRefs/IS=\(\[\?.\?.\?.\?.\?\]\)_TS=\(2.8.8.8.8\)_\(1.19.16.20.8\)_\(1.4.16.16.16\)_Prc=f32_ExcludePad=1_K\(3.3.3\)_S\(3.3.3\)_PB\(1.1.1\)_PE\(0.0.0\)_Rounding=ceil_torch_AutoPad=same_lower_INT8=0__primitive=ref.*)",
-        R"(.*smoke_AvgPoolV14_Ref_Fallback_5D/AvgPoolingV14LayerRefFallbackTest.CompareWithRefs/IS=\(\[1..5.4..32.1..64.1..64.1..25\]\)_TS=\(1.4.16.16.16\)_\(1.32.16.8.12\)_\(3.16.4.8.3\)_Prc=f32_ExcludePad=1_K\(3.3.3\)_S\(3.3.3\)_PB\(1.1.1\)_PE\(0.0.0\)_Rounding=ceil_torch_AutoPad=same_lower_INT8=0__primitive=ref.*)"
     };
 
     // fp32 floor for bf16 models: conversion issue
