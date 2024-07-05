@@ -586,48 +586,25 @@ event::ptr primitive_inst::realloc_if_needed() {
                         user_insts.size(), " and ", user_insts_origin.size());
     }
     for (auto user : user_insts) {
-        auto is_fused_prim_of_user = [&](primitive_id id) -> bool {
-            for (auto& p : user->get_node().get_fused_primitives()) {
-                if (p.has_outer_dep()) {
-                    const auto start_idx = p.outer_dep_start_idx;
-                    // exclude fused_node from total_num_deps
-                    const auto end_idx = p.outer_dep_start_idx + p.total_num_deps -1;
-                    for (size_t idx = start_idx; idx < end_idx; idx++) {
-                        if (user->get_node().get_dependency(idx).id() == id) {
-                            return true;
-                        }
-                    }
-                }
-            }
-            return false;
-        };
         // Since fake alignment is applicable for input tensor as well, make sure we allocate enough memory
         // to prevent reading beyond the allocated memory bounds
-        if (user->get_node().is_type<fully_connected>() && user->is_dynamic()) {
-            if (user->_deps[0].first == this) {
-                GPU_DEBUG_TRACE_DETAIL << "Check fc user " << user->id() << "'s fake alignment-ed input size" << std::endl;
-                user->update_shape();
-                user->update_shape_done_by_other = true;
+        if (user->get_node().is_type<fully_connected>() && user->is_dynamic() && user->_deps[0].first == this) {
+            GPU_DEBUG_TRACE_DETAIL << "Check fc user " << user->id() << "'s fake alignment-ed input size" << std::endl;
+            user->update_shape();
+            user->update_shape_done_by_other = true;
 
-                auto fc_impl_params = *user->_impl_params;
-                auto fc_input_layout = user->get_node().type()->get_fake_aligned_params(fc_impl_params).input_layouts[0];
-                if (fc_input_layout.bytes_count() > updated_layout.bytes_count()) {
-                    GPU_DEBUG_TRACE_DETAIL << id() << ": increase output layout allocation size from " << actual_layout.to_short_string() << " -> "
-                                        << fc_input_layout.to_short_string() << " to meet the input buffer alignment requirements for FC\n";
-                    updated_layout = fc_input_layout;
-                }
-            } else if (is_fused_prim_of_user(id()) && user->update_shape_done_by_other) {
-                // Since the output layout of fused prim in user is determined after user's update_shape
-                // Rerun update_shape w/ new output layout of fused prim
-                user->update_shape_done_by_other = false;
-                user->update_shape();
-                user->update_shape_done_by_other = true;
+            auto fc_impl_params = *user->_impl_params;
+            auto fc_input_layout = user->get_node().type()->get_fake_aligned_params(fc_impl_params).input_layouts[0];
+            if (fc_input_layout.bytes_count() > updated_layout.bytes_count()) {
+                GPU_DEBUG_TRACE_DETAIL << id() << ": increase output layout allocation size from " << actual_layout.to_short_string() << " -> "
+                                       << fc_input_layout.to_short_string() << " to meet the input buffer alignment requirements for FC\n";
+                updated_layout = fc_input_layout;
             }
         }
     }
 
     // Clear out memory if if was previously reused, but now primitive can't be optimized
-    if (_node->is_runtime_skippable()) {
+    if (_node->is_runtime_skippable() || _node->is_type<crop>()) {
         if (can_be_optimized()) {
             _max_output_layout_count = _deps[0].first->_max_output_layout_count;
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("can_be_optimized");
@@ -1030,6 +1007,14 @@ void primitive_inst::update_paddings() {
             reset_pad(*_impl_params, _node);
         return;
     }
+    // Reset paddings used in the previous iteration for crop before executing do_runtime_in_place_crop
+    for (auto u : get_user_insts()) {
+        if (u->get_node().is_type<crop>() && u->_impl_params->output_layouts[0].data_padding.get_dynamic_pad_dims() != tensor(0)) {
+            if (u->get_node().can_be_optimized()) {
+                reset_pad(*u->_impl_params, u->_node);
+            }
+        }
+    }
 }
 
 void primitive_inst::do_runtime_skip_reorder() {
@@ -1371,6 +1356,66 @@ void primitive_inst::do_runtime_in_place_concat() {
     GPU_DEBUG_TRACE_DETAIL << "[In place concat] " << concat_inst->id() << ": can_be_optimized " << std::endl;
 }
 
+void primitive_inst::do_runtime_in_place_crop() {
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_in_place_crop: " + id()));
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->disable_runtime_buffer_fusing) {
+        return;
+    }
+
+    for (auto u : get_user_insts()) {
+        if (u->get_node().is_type<crop>()) {
+            if (u->get_node().can_be_optimized()) {
+                GPU_DEBUG_TRACE_DETAIL << "[In place crop] update shape for " << u->id() << std::endl;
+                u->update_shape();
+                u->update_shape_done_by_other = true;
+
+                const auto& crop_users = u->get_user_insts();
+                std::vector<layout> reshape_layouts;
+                if (crop_users.front()->get_node().is_type<reshape>()) {
+                    OPENVINO_ASSERT(crop_users.size() == 1, "[GPU] Expected number of reshape users is 1, but it is ", crop_users.size());
+                    auto reshape_inst = crop_users.front();
+                    if (!reshape_inst->update_shape_done_by_other) {
+                        GPU_DEBUG_TRACE_DETAIL << "[In place crop] update shape for " << reshape_inst->id() << std::endl;
+                        reshape_inst->update_shape();
+                        reshape_inst->update_shape_done_by_other = true;
+                        reshape_layouts.push_back(reshape_inst->_impl_params->get_output_layout());
+                    }
+                }
+
+                layout crop_layout = u->_impl_params->get_output_layout();
+                auto pred_layout = _impl_params->get_output_layout();
+                if (!crop_in_place_optimization::match(u->get_node(), *u->_impl_params, pred_layout, true)) {
+                    u->set_can_be_optimized(false);
+                    GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " cannot be optimized " << std::endl;
+                    return;
+                }
+
+                auto crop_axis = u->_impl_params->typed_desc<crop>()->axis;
+                auto offsets = u->_impl_params->input_offsets[0];
+                if (crop_in_place_optimization::can_crop_be_optimized_along_feature(crop_layout, pred_layout)) {
+                    crop_in_place_optimization::update_in_place_crop_padding_along_feature(u->get_node(), crop_layout, pred_layout, offsets, crop_axis, true);
+                } else if (crop_in_place_optimization::can_crop_be_optimized_simple_data_format(crop_layout, pred_layout)) {
+                    crop_in_place_optimization::update_in_place_crop_padding_simple_data_format(crop_layout, pred_layout, reshape_layouts,
+                                                                                                offsets, crop_axis, true);
+                    if (crop_users.front()->get_node().is_type<reshape>() && reshape_layouts.size() > 0) {
+                        auto reshape_inst = crop_users.front();
+                        reshape_inst->_impl_params->output_layouts[0] = reshape_layouts[0];
+                        reshape_inst->set_shape_change();
+                    }
+                } else {
+                    u->set_can_be_optimized(false);
+                    GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << " cannot be optimized " << std::endl;
+                    return;
+                }
+                u->_impl_params->output_layouts[0] = crop_layout;
+                u->set_can_be_optimized(true);
+                GPU_DEBUG_TRACE_DETAIL << "[In place crop] " << u->id() << ": can_be_optimized " << std::endl;
+            }
+        }
+    }
+}
+
 bool primitive_inst::has_inner_networks() const {
     return (_impl_params->inner_nets.size() > 0);
 }
@@ -1433,6 +1478,7 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
         do_runtime_skip_permute();
         do_runtime_skip_strided_slice();
         do_runtime_skip_broadcast();
+        do_runtime_in_place_crop();
 
         if (!is_valid_fusion()) {
             OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("unfused_subgraph_exec: " + id()));

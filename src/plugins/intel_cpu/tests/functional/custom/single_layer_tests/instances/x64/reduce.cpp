@@ -24,7 +24,8 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_3D_fuse_dyn = {
     {{{{1, 5}, 19, {1, 10}}, {{1, 19, 2}, {1, 19, 9}, {1, 19, 2}}}},
 };
 
-std::vector<std::vector<ov::test::InputShape>> inputShapes_5D_dyn = {
+std::vector<std::vector<ov::test::InputShape>> inputShapes_5D = {
+    {{{}, {{2, 19, 2, 2, 9}}}},
     {{{{1, 5}, 19, {1, 5}, {1, 5}, {1, 5}}, {{2, 19, 2, 2, 2}, {2, 19, 3, 2, 2}}}},
 };
 
@@ -211,7 +212,7 @@ const auto params_MultiAxis_5D = testing::Combine(
                 testing::ValuesIn(inpOutPrc()),
                 testing::Values(ElementType::undefined),
                 testing::Values(ElementType::undefined),
-                testing::ValuesIn(inputShapes_5D_dyn)),
+                testing::ValuesIn(inputShapes_5D)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
         testing::Values(emptyFusingSpec),
         testing::ValuesIn(additionalConfig()));
@@ -239,7 +240,7 @@ const auto params_MultiAxis_5D_Hybrid = testing::Combine(
             testing::ValuesIn(inpOutPrc()),
             testing::Values(ElementType::undefined),
             testing::Values(ElementType::undefined),
-            testing::ValuesIn(inputShapes_5D_dyn)),
+            testing::ValuesIn(inputShapes_5D)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_HybridLayout_5D)),
         testing::Values(emptyFusingSpec),
         testing::ValuesIn(additionalConfigFP32()));
@@ -464,7 +465,7 @@ const auto params_MultiAxis_5D_Logical = testing::Combine(
                 testing::Values(ElementType::boolean),
                 testing::Values(ElementType::undefined),
                 testing::Values(ElementType::undefined),
-                testing::ValuesIn(inputShapes_5D_dyn)),
+                testing::ValuesIn(inputShapes_5D)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
         testing::Values(emptyFusingSpec),
         testing::ValuesIn(additionalConfigFP32()));
@@ -492,7 +493,7 @@ const auto params_MultiAxis_5D_Hybrid_Logical = testing::Combine(
             testing::Values(ElementType::boolean),
             testing::Values(ElementType::undefined),
             testing::Values(ElementType::undefined),
-            testing::ValuesIn(inputShapes_5D_dyn)),
+            testing::ValuesIn(inputShapes_5D)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_HybridLayout_5D)),
         testing::Values(emptyFusingSpec),
         testing::ValuesIn(additionalConfigFP32()));
@@ -605,7 +606,7 @@ const auto params_MultiAxis_5D_fusing = testing::Combine(
                 testing::ValuesIn(inpOutPrc()),
                 testing::Values(ElementType::undefined),
                 testing::Values(ElementType::undefined),
-                testing::ValuesIn(inputShapes_5D_dyn)),
+                testing::ValuesIn(inputShapes_5D)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
         testing::ValuesIn(fusingParamsSet),
         testing::ValuesIn(additionalConfig()));
@@ -697,7 +698,7 @@ const auto params_MultiAxis_5D_Hybrid_fusing_KeepNoDims = testing::Combine(
             testing::ValuesIn(inpOutPrc()),
             testing::Values(ElementType::undefined),
             testing::Values(ElementType::undefined),
-            testing::ValuesIn(inputShapes_5D_dyn)),
+            testing::ValuesIn(inputShapes_5D)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_HybridLayout_5D)),
         testing::ValuesIn(fusingParamsSet_KeepNoDims),
         testing::ValuesIn(additionalConfigFP32()));

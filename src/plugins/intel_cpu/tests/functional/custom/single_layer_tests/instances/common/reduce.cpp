@@ -25,10 +25,6 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_dynamic_2dims = {
     {{{2, 19, {1, 5}, {1, 10}}, {{2, 19, 2, 2}, {2, 19, 2, 9}}}},
 };
 
-std::vector<std::vector<ov::test::InputShape>> inputShapes_5D = {
-    {{{}, {{2, 19, 2, 2, 9}}}},
-};
-
 std::vector<std::vector<ov::test::InputShape>> inputShapes_6D = {
     {{{}, {{2, 19, 2, 2, 2, 2}}}},
 };
