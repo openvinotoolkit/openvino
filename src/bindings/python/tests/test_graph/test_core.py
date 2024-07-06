@@ -392,6 +392,7 @@ def test_discrete_type_info():
     assert n3.get_type_info().name < n1.get_type_info().name
     assert n3.get_type_info().name <= n1.get_type_info().name
 
+
 @pytest.mark.parametrize("input_data", [
     [1, 2, 3],
     (1, 2, 3),
