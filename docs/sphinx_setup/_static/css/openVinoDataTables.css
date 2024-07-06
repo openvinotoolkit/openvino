@@ -17,7 +17,7 @@ div.dt-buttons>.dt-button:hover, div.dt-buttons>div.dt-button-split .dt-button:h
     color: white !important;
 }
 
-table.dataTable thead th, table.dataTable tfoot th {
+table.dataTable thead th {
     font-weight: 400 !important;
 }
 
@@ -26,8 +26,21 @@ table.dataTable {
     width: 100%;
 }
 
-p {
+th span p {
     margin-bottom: .15rem !important;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+
+
+    @supports (-webkit-line-clamp: 2) {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: initial;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
 }
 
 table.dataTable.stripe>tbody>tr:nth-child(odd)>*, table.dataTable.display>tbody>tr:nth-child(odd)>* {
@@ -146,8 +159,14 @@ table.dataTable thead>tr>th.dt-orderable-asc span.dt-column-order, table.dataTab
 }
 
 table.dataTable thead>tr>th.dt-orderable-asc, table.dataTable thead>tr>th.dt-orderable-desc, table.dataTable thead>tr>th.dt-ordering-asc, table.dataTable thead>tr>th.dt-ordering-desc, table.dataTable thead>tr>td.dt-orderable-asc, table.dataTable thead>tr>td.dt-orderable-desc, table.dataTable thead>tr>td.dt-ordering-asc, table.dataTable thead>tr>td.dt-ordering-desc {
-    padding-left: 20px !important;
+    padding-right: 2px !important;
 }
+
+table.dataTable thead>tr>th.dt-orderable-asc, table.dataTable thead>tr>th.dt-orderable-desc, table.dataTable thead>tr>th.dt-ordering-asc, table.dataTable thead>tr>th.dt-ordering-desc, table.dataTable thead>tr>td.dt-orderable-asc, table.dataTable thead>tr>td.dt-orderable-desc, table.dataTable thead>tr>td.dt-ordering-asc, table.dataTable thead>tr>td.dt-ordering-desc {
+    padding-left: 20px !important;
+    text-align:left !important;
+}
+
 div.dt-container .dt-paging .dt-paging-button {
     box-sizing: border-box;
     display: inline-block;

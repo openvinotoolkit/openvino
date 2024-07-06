@@ -1,6 +1,7 @@
 $(document).ready(function () {
   var table = $('table.modeldata').DataTable({
     "autoWidth": false,
+    stateSave: true,
     layout: {
       topStart: {
         buttons: [
