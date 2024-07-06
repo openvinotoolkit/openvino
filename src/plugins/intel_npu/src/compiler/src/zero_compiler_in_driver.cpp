@@ -648,7 +648,6 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::getQu
 template <typename TableExtension>
 ov::SupportedOpsMap LevelZeroCompilerInDriver<TableExtension>::query(const std::shared_ptr<const ov::Model>& model,
                                                                      const Config& config) const {
-    _logger.setLevel(config.get<LOG_LEVEL>());
     _logger.debug("query");
 
     ov::SupportedOpsMap result;
@@ -711,7 +710,6 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_grap
 template <typename TableExtension>
 NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std::shared_ptr<const ov::Model>& model,
                                                                       const Config& config) const {
-    _logger.setLevel(config.get<LOG_LEVEL>());
     _logger.debug("compile");
 
     ze_device_graph_properties_t deviceGraphProperties{};
@@ -813,7 +811,6 @@ template <typename TableExtension>
 NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::parse(const std::vector<uint8_t>& network,
                                                                  const Config& config) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "LevelZeroCompilerInDriver::parse", "desc");
-    _logger.setLevel(config.get<LOG_LEVEL>());
     _logger.debug("getNetworkMeta");
     ze_graph_handle_t graphHandle;
 

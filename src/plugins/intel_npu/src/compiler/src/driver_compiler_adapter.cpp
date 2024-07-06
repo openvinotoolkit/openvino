@@ -183,20 +183,17 @@ uint32_t LevelZeroCompilerAdapter::getSupportedOpsetVersion() const {
 
 NetworkDescription LevelZeroCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
                                                      const Config& config) const {
-    _logger.setLevel(config.get<LOG_LEVEL>());
     _logger.debug("compile");
     return apiAdapter->compile(model, config);
 }
 
 ov::SupportedOpsMap LevelZeroCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
                                                     const Config& config) const {
-    _logger.setLevel(config.get<LOG_LEVEL>());
     _logger.debug("query");
     return apiAdapter->query(model, config);
 }
 
 NetworkMetadata LevelZeroCompilerAdapter::parse(const std::vector<uint8_t>& network, const Config& config) const {
-    _logger.setLevel(config.get<LOG_LEVEL>());
     _logger.debug("parse");
     return apiAdapter->parse(network, config);
 }
