@@ -198,11 +198,6 @@ void NPUBackends::registerOptions(OptionsDesc& options) const {
     }
 }
 
-// TODO config should be also specified to backends, to allow use logging in devices and all levels below
-void NPUBackends::setup(const Config& config) {
-    _logger.setLevel(config.get<LOG_LEVEL>());
-}
-
 std::string NPUBackends::getCompilationPlatform(const std::string_view platform, const std::string& deviceId) const {
     // Platform parameter has a higher priority than deviceID
     if (platform != ov::intel_npu::Platform::AUTO_DETECT) {

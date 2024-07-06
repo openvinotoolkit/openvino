@@ -35,8 +35,6 @@ public:
     void registerOptions(OptionsDesc& options) const;
     std::string getCompilationPlatform(const std::string_view platform, const std::string& deviceId) const;
 
-    void setup(const Config& config);
-
 private:
     Logger _logger;
     ov::SoPtr<IEngineBackend> _backend;
