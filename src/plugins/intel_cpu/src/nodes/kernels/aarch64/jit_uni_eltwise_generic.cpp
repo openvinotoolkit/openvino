@@ -49,11 +49,13 @@ void jit_uni_eltwise_generic<isa>::generate() {
         return true;
     };
 
+    // 1. execution precision bitness can not be less than destination:
+    // if source precision is fp16 and destination is fp32 then execution precision can be fp32 only
+    // 2. if source precision is low precision the execution precision is fp32 to keep accuracy
     auto const exec_prc =
-            (jep_.dst_prc != jep_.src_prc[0]) &&
-            (check_src_prc(jep_.src_prc, element::f16)) &&
-            (jep_.dst_prc == element::f32) ?
-                jep_.dst_prc :
+            (jep_.dst_prc == element::f32) ||
+            (check_src_prc(jep_.src_prc, element::i8) || check_src_prc(jep_.src_prc, element::u8)) ?
+                element::f32 :
                 eltwise_precision_helper::get_precision(jep_.inputs_number, jep_.src_prc, eltwise_data_);
 
     eltwise_emitter = create_eltwise_emitter(eltwise_data_.front(), exec_prc);

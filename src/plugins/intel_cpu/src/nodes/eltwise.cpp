@@ -3049,11 +3049,6 @@ bool Eltwise::canFuse(const NodePtr& node) const {
     };
 
 #if defined (OPENVINO_ARCH_ARM64)
-    if (this->getOriginalOutputPrecisions().empty() || node->getOriginalOutputPrecisions().empty() ||
-        (this->getOriginalOutputPrecisionAtPort(0) != node->getOriginalOutputPrecisionAtPort(0))) {
-        return false;
-    }
-
     if (!mayiuse(dnnl::impl::cpu::aarch64::asimd) || (getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK))
         return false;
 
