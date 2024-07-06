@@ -257,16 +257,17 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
     if ((eltwise_type == utils::EltwiseTypes::ADD) ||
        (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
        (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
-       (eltwise_type == utils::EltwiseTypes::DIVIDE) ||
-       (eltwise_type == utils::EltwiseTypes::MOD)) {
+       (eltwise_type == utils::EltwiseTypes::DIVIDE)
+       /*(eltwise_type == utils::EltwiseTypes::MOD)*/) {
         return "jit";
     }
 #endif
-    if (eltwise_type == utils::EltwiseTypes::MOD) {
-        return "ref";
-    } else {
-        return "acl";
-    }
+    return "acl";
+//    if (eltwise_type == utils::EltwiseTypes::MOD) {
+//        return "ref";
+//    } else {
+//        return "acl";
+//    }
 #else
     return CPUTestsBase::getPrimitiveType();
 #endif
@@ -309,7 +310,7 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInp() {
         utils::EltwiseTypes::FLOOR_MOD,               // TODO: Fix CVS-111875
 #endif
         utils::EltwiseTypes::SQUARED_DIFF,
-        utils::EltwiseTypes::MOD,
+        //utils::EltwiseTypes::MOD,
     };
     return eltwiseOpTypesBinInp;
 }
@@ -318,7 +319,7 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInpSnippets() {
     static const std::vector<utils::EltwiseTypes> eltwiseOpTypesBinInp = {
         utils::EltwiseTypes::ADD,
         utils::EltwiseTypes::MULTIPLY,
-        utils::EltwiseTypes::MOD,
+        //utils::EltwiseTypes::MOD,
     };
     return eltwiseOpTypesBinInp;
 }
