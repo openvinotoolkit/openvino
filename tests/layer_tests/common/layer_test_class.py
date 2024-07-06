@@ -167,19 +167,21 @@ class CommonLayerTest:
         is_ok = True
         from common.utils.common_utils import allclose
         for framework_out_name in framework_res:
-            ie_out_name = framework_out_name
-            if ie_out_name not in infer_res and len(infer_res) == 1:
+            if framework_out_name not in infer_res and len(infer_res) == 1:
                 ie_res = list(infer_res.values())[0]
             else:
-                ie_res = infer_res[ie_out_name]
+                ie_res = infer_res[framework_out_name]
 
             if not allclose(ie_res, framework_res[framework_out_name],
                             atol=framework_eps,
                             rtol=framework_eps):
                 is_ok = False
-                print("Max diff is {}".format(
-                    np.array(
-                        abs(infer_res[ie_out_name] - framework_res[framework_out_name])).max()))
+                if ie_res.dtype != bool:
+                    print("Max diff is {}".format(
+                        np.array(
+                            abs(ie_res - framework_res[framework_out_name])).max()))
+                else:
+                    print("Boolean results are not equal")
             else:
                 print("Accuracy validation successful!\n")
                 print("absolute eps: {}, relative eps: {}".format(framework_eps, framework_eps))
