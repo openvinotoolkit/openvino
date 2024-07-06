@@ -176,8 +176,7 @@ static Config add_platform_to_the_config(Config config, const std::string_view p
 
 Plugin::Plugin()
     : _options(std::make_shared<OptionsDesc>()),
-      _globalConfig(_options),
-      _logger("NPUPlugin", Logger::global().level()) {
+      _globalConfig(_options) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
     set_device_name("NPU");
 
@@ -600,6 +599,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     const std::map<std::string, std::string> propertiesMap = any_copy(properties);
     auto localConfig = merge_configs(_globalConfig, propertiesMap);
+    Logger logger("NPUPlugin", Logger::global().level());
 
     const auto set_cache_dir = localConfig.get<CACHE_DIR>();
     if (!set_cache_dir.empty()) {
@@ -620,7 +620,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             OPENVINO_THROW("This model contains states, thus it is not supported when handling batching on the plugin");
         }
 
-        _logger.info("The batching will be handled by the compiler due to states found inside the IR");
+        logger.info("The batching will be handled by the compiler due to states found inside the IR");
 
         std::stringstream strStream;
         strStream << ov::intel_npu::BatchMode::COMPILER;
@@ -634,7 +634,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         try {
             localConfig.update({{ov::intel_npu::stepping.name(), std::to_string(device->getSubDevId())}});
         } catch (...) {
-            _logger.warning("Stepping information not implemented by selected backend. Skipping. Please provide "
+            logger.warning("Stepping information not implemented by selected backend. Skipping. Please provide "
                             "NPU_STEPPING if required.");
         }
     }
@@ -645,7 +645,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         try {
             localConfig.update({{ov::intel_npu::max_tiles.name(), std::to_string(device->getMaxNumSlices())}});
         } catch (...) {
-            _logger.warning("Max tiles information not implemented by selected backend. Skipping. Please provide "
+            logger.warning("Max tiles information not implemented by selected backend. Skipping. Please provide "
                             "NPU_MAX_TILES if required.");
         }
     }
@@ -700,7 +700,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
     set_batch_config(_backends->isBatchingSupported(), localConfig);
 
-    Logger logger("NPUPlugin", localConfig.get<LOG_LEVEL>());
+    Logger logger("NPUPlugin", Logger::global().level());
 
     const auto loadedFromCache = localConfig.get<LOADED_FROM_CACHE>();
     if (!loadedFromCache) {
@@ -780,8 +780,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
 ov::SoPtr<ICompiler> Plugin::getCompiler(const Config& config) const {
     auto compilerType = config.get<COMPILER_TYPE>();
-    _logger.setLevel(config.get<LOG_LEVEL>());
-    return createCompiler(compilerType, _logger);
+    return createCompiler(compilerType);
 }
 
 std::atomic<int> Plugin::_compiledModelLoadCounter{1};
