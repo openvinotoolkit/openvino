@@ -2,19 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/multinomial.hpp"
-
-#include "exceptions.hpp"
 #include "openvino/op/multinomial.hpp"
-#include "utils/common.hpp"
 
+#include "core/operator_set.hpp"
+#include "exceptions.hpp"
+#include "utils/common.hpp"
 using namespace ov::op;
 using ::ONNX_NAMESPACE::TensorProto_DataType;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 
 ov::OutputVector multinomial(const ov::frontend::onnx::Node& node) {
     const auto input = node.get_ov_inputs().at(0);
@@ -34,8 +33,9 @@ ov::OutputVector multinomial(const ov::frontend::onnx::Node& node) {
     return {multinomial_op};
 }
 
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("Multinomial", OPSET_SINCE(1), ai_onnx::opset_1::multinomial);
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
