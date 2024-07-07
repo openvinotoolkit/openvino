@@ -97,7 +97,7 @@ model and perform the first inference) is reduced when using AUTO. For example:
 
 .. note::
 
-   **It is not recommended to test accuracy with AUTO.** Since CPU and GPU(or other target device) have slightly different accuracy numbers, AUTO may have different accuracy numbers in run to run due to different numbers of inferences running on CPU and GPU, especially when testing accuracy with a small number of inputs. Disable CPU acceleration via ``ov::intel_auto::enable_startup_fallback`` can result to run inference on GPU (or target device) only.
+   **Testing accuracy with the AUTO device is not recommended.** Since the CPU and GPU (or other target devices) may produce slightly different accuracy numbers, using AUTO could lead to inconsistent accuracy results from run to run due to a different number of inferences on CPU and GPU. This is particularly true when testing with a small number of inputs. To achieve consistent inference on the GPU (or another target device), you can disable CPU acceleration using ``ov::intel_auto::enable_startup_fallback``.
 
 
 Using AUTO
