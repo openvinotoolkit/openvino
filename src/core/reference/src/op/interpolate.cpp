@@ -63,56 +63,45 @@ InterpolateEvalHelper::InfoForGenericLinearONNXMode InterpolateEvalHelper::get_i
         output_shape = m_out_shape;
     }
 
-    int64_t batch_size = input_shape[0];
-    int64_t num_channels;
-    if (channel_last)
-        num_channels = input_shape[input_shape.size() - 1];
-    else
-        num_channels = input_shape[1];
-
     std::size_t spatial_rank = input_shape.size() - 2;
-
     std::vector<int64_t> input_index_multipliers(spatial_rank);
     std::vector<int64_t> output_index_multipliers(spatial_rank);
+
+    int64_t input_data_ptr_increment;
+    int64_t output_data_ptr_increment;
+
+    const auto mutipliers_offset = channel_last ? 2 : 3;
+    const auto spatial_offset = channel_last ? 1 : 2;
+    const auto ptr_offset = channel_last ? 1 : 2;
+
+    int64_t batch_size = input_shape[0];
+    int64_t num_channels;
     if (channel_last) {
+        num_channels = input_shape[input_shape.size() - 1];
         input_index_multipliers[spatial_rank - 1] = num_channels;
         output_index_multipliers[spatial_rank - 1] = num_channels;
     } else {
+        num_channels = input_shape[1];
         input_index_multipliers[spatial_rank - 1] = 1;
         output_index_multipliers[spatial_rank - 1] = 1;
     }
 
     for (int64_t i = static_cast<int64_t>(spatial_rank) - 2; i >= 0; --i) {
-        if (channel_last) {
-            input_index_multipliers[i] = input_index_multipliers[i + 1] * static_cast<int64_t>(input_shape[i + 2]);
-            output_index_multipliers[i] = output_index_multipliers[i + 1] * static_cast<int64_t>(output_shape[i + 2]);
-        } else {
-            input_index_multipliers[i] = input_index_multipliers[i + 1] * static_cast<int64_t>(input_shape[i + 3]);
-            output_index_multipliers[i] = output_index_multipliers[i + 1] * static_cast<int64_t>(output_shape[i + 3]);
-        }
+        input_index_multipliers[i] =
+            input_index_multipliers[i + 1] * static_cast<int64_t>(input_shape[i + mutipliers_offset]);
+        output_index_multipliers[i] =
+            output_index_multipliers[i + 1] * static_cast<int64_t>(output_shape[i + mutipliers_offset]);
     }
 
-    int64_t input_data_ptr_increment;
-    int64_t output_data_ptr_increment;
-    if (channel_last) {
-        input_data_ptr_increment = input_index_multipliers[0] * static_cast<int64_t>(input_shape[1]);
-        output_data_ptr_increment = output_index_multipliers[0] * static_cast<int64_t>(output_shape[1]);
-    } else {
-        input_data_ptr_increment = input_index_multipliers[0] * static_cast<int64_t>(input_shape[2]);
-        output_data_ptr_increment = output_index_multipliers[0] * static_cast<int64_t>(output_shape[2]);
-    }
+    input_data_ptr_increment = input_index_multipliers[0] * static_cast<int64_t>(input_shape[ptr_offset]);
+    output_data_ptr_increment = output_index_multipliers[0] * static_cast<int64_t>(output_shape[ptr_offset]);
 
     std::vector<int64_t> input_spatial_shape(spatial_rank);
     std::vector<int64_t> output_spatial_shape(spatial_rank);
 
     for (size_t i = 0; i < spatial_rank; ++i) {
-        if (channel_last) {
-            input_spatial_shape[i] = static_cast<int64_t>(input_shape[i + 1]);
-            output_spatial_shape[i] = static_cast<int64_t>(output_shape[i + 1]);
-        } else {
-            input_spatial_shape[i] = static_cast<int64_t>(input_shape[i + 2]);
-            output_spatial_shape[i] = static_cast<int64_t>(output_shape[i + 2]);
-        }
+        input_spatial_shape[i] = static_cast<int64_t>(input_shape[i + spatial_offset]);
+        output_spatial_shape[i] = static_cast<int64_t>(output_shape[i + spatial_offset]);
     }
 
     result.input_data_ptr_increment = input_data_ptr_increment;

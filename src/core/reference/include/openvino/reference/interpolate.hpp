@@ -425,8 +425,8 @@ void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out) {
         }
 
         correct_axes = ((num_of_axes == input_rank) && (m_axes == all_axes)) ||
-                       ((num_of_axes == input_rank - 2) && (m_axes == axes_without_batch_and_channels)) ||
-                       ((num_of_axes == input_rank - 2) && (m_axes == axes_without_batch_and_channels_last));
+                       ((num_of_axes == input_rank - 2) &&
+                        (m_axes == axes_without_batch_and_channels || m_axes == axes_without_batch_and_channels_last));
 
         if ((num_of_axes == input_rank - 2) && (m_axes == axes_without_batch_and_channels_last))
             channel_last = true;
@@ -465,10 +465,11 @@ void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out) {
     const T* xdata = input_data;
     T* ydata = out;
 
+    const auto loop_channels = channel_last ? 1 : num_channels;
+    const auto last_spatial_divider = channel_last ? num_channels : 1;
+
     for (int64_t n = 0; n < batch_size; ++n) {
-        for (int64_t c = 0; c < num_channels; ++c) {
-            if (channel_last && c > 0)
-                break;
+        for (int64_t c = 0; c < loop_channels; ++c) {
             for (int64_t idx = 0; idx < output_data_ptr_increment; ++idx) {
                 // 1. Get the current spatial coords vector.
                 std::vector<int64_t> output_coords(spatial_rank);
@@ -477,10 +478,7 @@ void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out) {
                     output_coords[j] = curr / output_index_multipliers[j];
                     curr %= output_index_multipliers[j];
                 }
-                if (channel_last)
-                    output_coords[spatial_rank - 1] = curr / num_channels;
-                else
-                    output_coords[spatial_rank - 1] = curr;
+                output_coords[spatial_rank - 1] = curr / last_spatial_divider;
 
                 // 2. Some preliminaries.
                 std::vector<int64_t> in1(spatial_rank);
@@ -518,10 +516,6 @@ void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out) {
                         } else {
                             offset += in2[j] * input_index_multipliers[j];
                         }
-                    }
-                    if (channel_last) {
-                        int64_t tmp_channel_idx = curr % num_channels;
-                        offset += tmp_channel_idx;
                     }
                     values_of_input_points[i] = xdata[offset];
                 }
