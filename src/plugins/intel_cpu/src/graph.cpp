@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "edge.h"
+#include "graph_context.h"
 #include "graph_dumper.h"
 #include "graph_optimizer.h"
 #include "infer_request.h"
@@ -70,7 +71,7 @@ void Graph::CreateGraph(NET &net, const GraphContext::CPtr ctx) {
     if (IsReady())
         ForgetGraphData();
 
-    context = ctx;
+    context = ctx->down();
 
     Replicate(net);
 
@@ -86,7 +87,7 @@ void Graph::CreateGraph(const std::vector<NodePtr>& graphNodes,
     if (IsReady())
         ForgetGraphData();
 
-    context = ctx;
+    context = ctx->down();
 
     this->_name = std::move(name);
     this->reuse_io_tensors = false;
@@ -1817,8 +1818,18 @@ void Graph::EnforceInferencePrecision() {
         searchForNodesToSkip(output, nodesToSkip);
     }
 
+    // always force precision (by ignoring the skip logic) for certain cases
+    auto ignoreSkip = [](const NodePtr& node, const GraphContext::CPtr context) {
+        // this is an inner graph
+        if (context->level() > 0) { return true; }
+        // precision is forced for the node
+        if (node->enforceBF16evenForGraphTail) { return true; }
+
+        return false;
+    };
+
     for (const auto& node : graphNodes) {
-        if (nodesToSkip.count(node) && !node->enforceBF16evenForGraphTail)
+        if (nodesToSkip.count(node) && !ignoreSkip(node, getGraphContext()))
             continue;
 
         if (one_of(node->getType(), Type::Input, Type::Output, Type::MemoryInput, Type::MemoryOutput))

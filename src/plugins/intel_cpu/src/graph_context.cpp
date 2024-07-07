@@ -1,17 +1,16 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "dnnl_types.h"
 #include "graph_context.h"
 #include "nodes/memory.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
-GraphContext::GraphContext(const Config& config,
-                           WeightsSharing::Ptr w_cache,
-                           bool isGraphQuantized,
-                           ov::threading::IStreamsExecutor::Ptr streamExecutor)
+GraphGlobalContext::GraphGlobalContext(const Config& config,
+                                       WeightsSharing::Ptr w_cache,
+                                       bool isGraphQuantized,
+                                       ov::threading::IStreamsExecutor::Ptr streamExecutor)
     : config(config),
       weightsCache(std::move(w_cache)),
       isGraphQuantizedFlag(isGraphQuantized),
@@ -27,10 +26,19 @@ GraphContext::GraphContext(const Config& config,
         if (numNumaNodes < nNumaNodes)
             numNumaNodes = nNumaNodes;
     }
+
     for (int i = 0; i < numNumaNodes; i++) {
-        rtScratchPads.push_back(std::make_shared<DnnlScratchPad>(getEngine(), i));
+        rtScratchPads.push_back(std::make_shared<DnnlScratchPad>(GraphContext::getEngine(), i));
     }
 }
+
+GraphContext::GraphContext(const Config& config,
+                           WeightsSharing::Ptr w_cache,
+                           bool isGraphQuantized,
+                           ov::threading::IStreamsExecutor::Ptr streamExecutor,
+                           int level)
+    : global(std::make_shared<GraphGlobalContext>(config, w_cache, isGraphQuantized, streamExecutor)),
+      local{level} {}
 
 const dnnl::engine& GraphContext::getEngine() {
     static const dnnl::engine eng(dnnl::engine::kind::cpu, 0);
