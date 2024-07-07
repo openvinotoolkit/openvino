@@ -37,9 +37,9 @@ Following the OpenVINO™ naming convention, the Hetero execution plugin is assi
 | |                                          | | comma-separated, no spaces                                | | from high to low.                                       |
 +--------------------------------------------+-------------------------------------------------------------+-----------------------------------------------------------+
 | |                                          | | ``empty``                                                 | | Model distribution policy for inference with            |
-| | "MODEL_DISTRIBUTION_POLICY"              | | ``ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL``  | | multiple devices. Distribute model to multiple          |
+| | "MODEL_DISTRIBUTION_POLICY"              | | ``ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL``  | | multiple devices. Distributes the model to multiple     |
 | |                                          | |                                                           | | devices during model compilation.                       |
-| | ``ov::hint::model_distribution_policy``  | | HETERO only support PIPELINE_PARALLEL, The default value  | |                                                         |
+| | ``ov::hint::model_distribution_policy``  | | HETERO only supports PIPELINE_PARALLEL, The default value | |                                                         |
 | |                                          | | is empty                                                  | |                                                         |
 +--------------------------------------------+-------------------------------------------------------------+-----------------------------------------------------------+
 
