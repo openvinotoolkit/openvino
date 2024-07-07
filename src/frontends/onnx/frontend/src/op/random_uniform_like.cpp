@@ -33,17 +33,11 @@ ov::OutputVector random_uniform_like(const ov::frontend::onnx::Node& node) {
 
     const auto high_const = node.get_attribute_as_constant<float>("high", 1.0f);
     const auto low_const = node.get_attribute_as_constant<float>("low", 0.0f);
-    const auto seed = node.get_attribute_value<float>("seed", 0.f);
+    const auto seed = common::convert_float_seed(node.get_attribute_value<float>("seed", 0.f));
 
     const uint64_t global_seed = 0;
-    const auto seed_uint64 = static_cast<uint64_t>(seed * 1000);
 
-    return {std::make_shared<v8::RandomUniform>(target_shape,
-                                                low_const,
-                                                high_const,
-                                                target_type,
-                                                global_seed,
-                                                seed_uint64)};
+    return {std::make_shared<v8::RandomUniform>(target_shape, low_const, high_const, target_type, global_seed, seed)};
 }
 
 }  // namespace set_1
