@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/lp_pool.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/concat.hpp"
@@ -12,15 +11,14 @@
 #include "utils/common.hpp"
 #include "utils/norm.hpp"
 #include "utils/split.hpp"
-
 using namespace ov::op;
 using ov::Shape;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector global_lp_pool(const ov::frontend::onnx::Node& node) {
     const ov::Output<ov::Node> data{node.get_ov_inputs().at(0)};
     const std::size_t channel_axis{1};
@@ -57,8 +55,9 @@ ov::OutputVector global_lp_pool(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::Concat>(slices, channel_axis)};
 }
 
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("GlobalLpPool", OPSET_SINCE(1), ai_onnx::opset_1::global_lp_pool);
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

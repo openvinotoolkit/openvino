@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/dynamic_quantize_linear.hpp"
-
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
@@ -21,7 +20,6 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils/common.hpp"
-
 using namespace ov::op;
 using ov::Shape;
 
@@ -77,8 +75,8 @@ std::shared_ptr<ov::Node> quantize_linear(ov::Output<ov::Node> x,
     return std::make_shared<v0::Convert>(result_clamped, ov::element::u8);
 }
 }  // namespace
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector dynamic_quantize_linear(const ov::frontend::onnx::Node& node) {
     const ov::OutputVector& inputs = node.get_ov_inputs();
     const auto& x = inputs.at(0);
@@ -106,8 +104,9 @@ ov::OutputVector dynamic_quantize_linear(const ov::frontend::onnx::Node& node) {
 
     return {y, y_scale, y_zero_point};
 }
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("DynamicQuantizeLinear", OPSET_SINCE(1), ai_onnx::opset_1::dynamic_quantize_linear);
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

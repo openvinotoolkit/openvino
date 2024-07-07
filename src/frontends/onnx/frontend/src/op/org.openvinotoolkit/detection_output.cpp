@@ -2,19 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/org.openvinotoolkit/detection_output.hpp"
-
-#include "core/node.hpp"
-#include "openvino/frontend/exception.hpp"
 #include "openvino/op/detection_output.hpp"
+
+#include "core/operator_set.hpp"
+#include "openvino/frontend/exception.hpp"
 
 using namespace ov::op;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace org_openvinotoolkit {
+namespace opset_1 {
 ov::OutputVector detection_output(const ov::frontend::onnx::Node& node) {
     auto inputs = node.get_ov_inputs();
 
@@ -67,8 +66,9 @@ ov::OutputVector detection_output(const ov::frontend::onnx::Node& node) {
     }
 }
 
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("DetectionOutput", OPSET_SINCE(1), org_openvinotoolkit::opset_1::detection_output, OPENVINO_ONNX_DOMAIN);
+}  // namespace opset_1
+}  // namespace org_openvinotoolkit
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

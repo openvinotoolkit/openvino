@@ -2,17 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/log_softmax.hpp"
+#include "openvino/op/log_softmax.hpp"
 
+#include "core/operator_set.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/log.hpp"
-#include "openvino/op/log_softmax.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "utils/reshape.hpp"
-
 using namespace ov::op;
 using ov::Shape;
 
@@ -60,20 +59,22 @@ ov::OutputVector log_softmax(const ov::frontend::onnx::Node& node, const int64_t
 }
 }  // namespace
 
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector log_softmax(const ov::frontend::onnx::Node& node) {
     return ov::frontend::onnx::log_softmax(node, 1);
 }
-}  // namespace set_1
+ONNX_OP("LogSoftmax", OPSET_RANGE(1, 12), ai_onnx::opset_1::log_softmax);
+}  // namespace opset_1
 
-namespace set_13 {
+namespace opset_13 {
 ov::OutputVector log_softmax(const ov::frontend::onnx::Node& node) {
     const auto axis = node.get_attribute_value<int64_t>("axis", -1);
     return {std::make_shared<v5::LogSoftmax>(node.get_ov_inputs()[0], axis)};
 }
-}  // namespace set_13
-}  // namespace op
+ONNX_OP("LogSoftmax", OPSET_SINCE(13), ai_onnx::opset_13::log_softmax);
+}  // namespace opset_13
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

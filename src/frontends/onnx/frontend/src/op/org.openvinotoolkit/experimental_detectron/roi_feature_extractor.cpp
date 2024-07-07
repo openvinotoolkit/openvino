@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/org.openvinotoolkit/experimental_detectron/roi_feature_extractor.hpp"
-
-#include "core/node.hpp"
+#include "core/operator_set.hpp"
 #include "openvino/op/experimental_detectron_roi_feature.hpp"
 
 using namespace ov::op;
@@ -12,8 +10,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace org_openvinotoolkit {
+namespace opset_1 {
 ov::OutputVector experimental_detectron_roi_feature_extractor(const ov::frontend::onnx::Node& node) {
     using ROIFeatureExtractor = v6::ExperimentalDetectronROIFeatureExtractor;
 
@@ -28,8 +26,12 @@ ov::OutputVector experimental_detectron_roi_feature_extractor(const ov::frontend
     return {roi_feature_extractor->output(0), roi_feature_extractor->output(1)};
 }
 
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("ExperimentalDetectronROIFeatureExtractor",
+        OPSET_SINCE(1),
+        org_openvinotoolkit::opset_1::experimental_detectron_roi_feature_extractor,
+        OPENVINO_ONNX_DOMAIN);
+}  // namespace opset_1
+}  // namespace org_openvinotoolkit
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

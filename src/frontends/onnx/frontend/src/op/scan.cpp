@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/scan.hpp"
-
 #include "core/graph.hpp"
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
@@ -13,13 +12,12 @@
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
-
 using namespace ov::op;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
+namespace ai_onnx {
 
 namespace {
 
@@ -156,7 +154,7 @@ ov::OutputVector import_onnx_scan(const ov::frontend::onnx::Node& node,
 
 }  // namespace
 
-namespace set_1 {
+namespace opset_1 {
 
 ov::OutputVector scan(const ov::frontend::onnx::Node& node) {
     // ONNX Scan-8 can have optional `sequence_lens` input,
@@ -167,9 +165,10 @@ ov::OutputVector scan(const ov::frontend::onnx::Node& node) {
     return import_onnx_scan(node, 1, 1, "directions");
 }
 
-}  // namespace set_1
+ONNX_OP("Scan", OPSET_RANGE(1, 8), ai_onnx::opset_1::scan);
+}  // namespace opset_1
 
-namespace set_9 {
+namespace opset_9 {
 
 ov::OutputVector scan(const ov::frontend::onnx::Node& node) {
     // Since ONNX Scan-9 the optional `sequence_lens input` was removed,
@@ -177,8 +176,9 @@ ov::OutputVector scan(const ov::frontend::onnx::Node& node) {
     return import_onnx_scan(node, 0, 0, "scan_input_directions");
 }
 
-}  // namespace set_9
-}  // namespace op
+ONNX_OP("Scan", OPSET_SINCE(9), ai_onnx::opset_9::scan);
+}  // namespace opset_9
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

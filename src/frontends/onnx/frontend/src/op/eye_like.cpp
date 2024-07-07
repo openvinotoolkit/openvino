@@ -2,21 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/eye_like.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/eye.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "utils/common.hpp"
-
 using namespace ov::op;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
+namespace ai_onnx {
 namespace detail {
 namespace {
 
@@ -31,7 +29,7 @@ ov::OutputVector get_shape_width_and_height(const ov::Output<ov::Node>& shape) {
 }  // namespace
 }  // namespace detail
 
-namespace set_1 {
+namespace opset_1 {
 
 ov::OutputVector eye_like(const ov::frontend::onnx::Node& node) {
     const auto input = node.get_ov_inputs().at(0);
@@ -63,8 +61,9 @@ ov::OutputVector eye_like(const ov::frontend::onnx::Node& node) {
     return {output};
 }
 
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("EyeLike", OPSET_SINCE(1), ai_onnx::opset_1::eye_like);
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

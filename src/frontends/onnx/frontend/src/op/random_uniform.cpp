@@ -2,20 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/random_uniform.hpp"
-
-#include "exceptions.hpp"
 #include "openvino/op/random_uniform.hpp"
-#include "utils/common.hpp"
 
+#include "core/operator_set.hpp"
+#include "exceptions.hpp"
+#include "utils/common.hpp"
 using namespace ov::op;
 using ::ONNX_NAMESPACE::TensorProto_DataType;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 
 ov::OutputVector random_uniform(const ov::frontend::onnx::Node& node) {
     CHECK_VALID_NODE(node, node.has_attribute("shape"), "RandomUniform operator must specify a 'shape' attribute.");
@@ -35,8 +34,9 @@ ov::OutputVector random_uniform(const ov::frontend::onnx::Node& node) {
         std::make_shared<v8::RandomUniform>(target_shape_const, low_const, high_const, target_type, global_seed, seed)};
 }
 
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("RandomUniform", OPSET_SINCE(1), ai_onnx::opset_1::random_uniform);
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

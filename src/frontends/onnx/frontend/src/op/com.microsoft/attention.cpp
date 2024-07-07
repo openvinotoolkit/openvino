@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/com.microsoft/attention.hpp"
-
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -37,14 +36,13 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "utils/split.hpp"
-
 using namespace ov::op;
 using ov::Shape;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
+namespace com_microsoft {
 namespace detail {
 namespace {
 ov::NodeVector split_to_QKV(const std::shared_ptr<v1::Add>& node,
@@ -70,7 +68,7 @@ std::shared_ptr<ov::Node> get_present_state(const std::shared_ptr<ov::Node>& K,
 }  // namespace
 }  // namespace detail
 
-namespace set_1 {
+namespace opset_1 {
 ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
     auto nodes = node.get_ov_inputs();
     const auto& input = nodes[0];
@@ -115,7 +113,8 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
 
     return {output, present};
 }
-}  // namespace set_1
+ONNX_OP("Attention", OPSET_SINCE(1), com_microsoft::opset_1::attention, MICROSOFT_DOMAIN);
+}  // namespace opset_1
 
 namespace detail {
 namespace {
@@ -560,7 +559,7 @@ std::shared_ptr<ov::Node> get_present_state(const std::shared_ptr<ov::Node>& K,
 }
 }  // namespace
 }  // namespace detail
-}  // namespace op
+}  // namespace com_microsoft
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

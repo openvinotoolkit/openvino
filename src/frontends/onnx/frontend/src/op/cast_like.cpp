@@ -2,25 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/cast_like.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/op/convert_like.hpp"
-
 using namespace ov::op;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 
 ov::OutputVector cast_like(const ov::frontend::onnx::Node& node) {
     auto inputs = node.get_ov_inputs();
     return {std::make_shared<v1::ConvertLike>(inputs.at(0), inputs.at(1))};
 }
 
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("CastLike", OPSET_SINCE(1), ai_onnx::opset_1::cast_like);
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

@@ -83,11 +83,8 @@ private:
     //    domain_2: { ... },
     //    ...
     // }
-    using DomainOpset = std::unordered_map<std::string, std::map<std::int64_t, Operator>>;
     std::unordered_map<std::string, DomainOpset> m_map;
 };
-
-extern const char* OPENVINO_ONNX_DOMAIN;
 
 }  // namespace onnx
 }  // namespace frontend

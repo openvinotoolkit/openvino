@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/layer_normalization.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -15,22 +14,21 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "utils/common.hpp"
-
 using namespace ov::op;
 using namespace ov::op::v0;
 using namespace ov::op::v1;
 using ::ONNX_NAMESPACE::TensorProto_DataType;
 using ov::Shape;
 
-inline ov::Output<ov::Node> rank(const ov::Output<ov::Node>& source) {
+ov::Output<ov::Node> rank(const ov::Output<ov::Node>& source) {
     return std::make_shared<Squeeze>(std::make_shared<v3::ShapeOf>(std::make_shared<v3::ShapeOf>(source)));
 }
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 
 ov::OutputVector layer_normalization(const ov::frontend::onnx::Node& node) {
     // Operator definition: https://github.com/onnx/onnx/blob/main/onnx/defs/nn/defs.cc#L2562:L2611
@@ -83,8 +81,9 @@ ov::OutputVector layer_normalization(const ov::frontend::onnx::Node& node) {
     return ov::OutputVector{biased};
 }
 
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("LayerNormalization", OPSET_SINCE(1), ai_onnx::opset_1::layer_normalization);
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
