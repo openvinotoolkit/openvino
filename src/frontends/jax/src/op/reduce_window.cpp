@@ -4,14 +4,18 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
+#include <tuple>
 #include <vector>
 
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/strides.hpp"
 #include "openvino/frontend/jax/node_context.hpp"
+#include "openvino/op/avg_pool.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/max_pool.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/transpose.hpp"
 #include "utils.hpp"
 
@@ -22,7 +26,15 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_reduce_window_max(const NodeContext& context) {
+std::tuple<std::shared_ptr<v0::Constant>,
+           std::shared_ptr<v0::Constant>,
+           Output<Node>,
+           Strides,
+           Strides,
+           Shape,
+           Shape,
+           Shape>
+reduce_window_preprocess(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
     Output<Node> input = context.get_input(0);
 
@@ -83,12 +95,45 @@ OutputVector translate_reduce_window_max(const NodeContext& context) {
         std::make_shared<v0::Constant>(element::i64, Shape{in_transpose_vector.size()}, in_transpose_vector);
     auto output_transpose_order =
         std::make_shared<v0::Constant>(element::i64, Shape{out_transpose_vector.size()}, out_transpose_vector);
+    return {input_transpose_order, output_transpose_order, input, strides, dilations, pads_begin, pads_end, kernel};
+};
 
-    input = std::make_shared<v1::Transpose>(input, input_transpose_order);
+OutputVector translate_reduce_window_max(const NodeContext& context) {
+    auto elements = reduce_window_preprocess(context);
+    auto input_transpose_order = std::get<0>(elements);
+    auto output_transpose_order = std::get<1>(elements);
+    auto input = std::get<2>(elements);
+    auto strides = std::get<3>(elements);
+    auto dilations = std::get<4>(elements);
+    auto pads_begin = std::get<5>(elements);
+    auto pads_end = std::get<6>(elements);
+    auto kernel = std::get<7>(elements);
+
     Output<Node> res = std::make_shared<v14::MaxPool>(input, strides, dilations, pads_begin, pads_end, kernel);
     res = std::make_shared<v1::Transpose>(res, output_transpose_order);
     return {res};
-};
+}
+
+// OutputVector translate_reduce_window_sum(const NodeContext& context) {
+//     auto elements = reduce_window_preprocess(context);
+//     auto input_transpose_order = std::get<0>(elements);
+//     auto output_transpose_order = std::get<1>(elements);
+//     auto input = std::get<2>(elements);
+//     auto strides = std::get<3>(elements);
+//     auto dilations = std::get<4>(elements);
+//     auto pads_begin = std::get<5>(elements);
+//     auto pads_end = std::get<6>(elements);
+//     auto kernel = std::get<7>(elements);
+
+//     input = std::make_shared<v1::Transpose>(input, input_transpose_order);
+//     Output<Node> res = std::make_shared<v14::AvgPool>(input, strides, pads_begin, pads_end, kernel, true);
+//     res = std::make_shared<v1::Transpose>(res, output_transpose_order);
+//     auto kernel_size = std::accumulate(kernel.begin(), kernel.end(), 1, std::multiplies<size_t>());
+//     Output<Node> kernel_size_constant =
+//         std::make_shared<v0::Constant>(res.get_element_type(), Shape{}, std::vector<int64_t>{kernel_size});
+//     res = std::make_shared<v1::Multiply>(res, kernel_size_constant);
+//     return {res};
+// }
 
 }  // namespace op
 }  // namespace jax
