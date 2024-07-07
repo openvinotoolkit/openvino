@@ -69,7 +69,9 @@ void ConvPoolActivTest::SetUp() {
 }
 
 bool ConvPoolActivTest::primTypeCheck(std::string primType) const {
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM)
+    return primType == "ref";
+#elif defined(OPENVINO_ARCH_ARM64)
     return primType == makeSelectedTypeStr(std::string("gemm_acl"), element::f32);
 #else
     auto isaType = getISA(true);

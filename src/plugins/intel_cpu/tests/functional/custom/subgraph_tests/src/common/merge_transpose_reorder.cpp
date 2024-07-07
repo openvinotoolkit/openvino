@@ -152,7 +152,12 @@ std::vector<InputShape> static_shapes = {
     InputShape{{}, {{1, 32, 16, 16}}},
 };
 
+#if defined(OPENVINO_ARCH_ARM)
+const ExpectedResult successfull_fuse_result{1, 1, 3};
+#else
 const ExpectedResult successfull_fuse_result{1, 1, 2};
+#endif
+
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 const ExpectedResult unsuccessfull_fuse_result{3, 3, 3};
 #else

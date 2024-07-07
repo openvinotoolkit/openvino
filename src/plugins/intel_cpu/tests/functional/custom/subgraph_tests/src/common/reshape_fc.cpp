@@ -113,7 +113,9 @@ static std::vector<fusingSpecificParams> filterFusingParams(const std::vector<fu
 
 std::vector<fusingSpecificParams> fusingParamsSet{emptyFusingSpec, fusingBias, fusingMultiplyPerChannel};
 
-#ifdef OV_CPU_WITH_ACL
+#if defined(OPENVINO_ARCH_ARM)
+const auto gemmParam = CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"};
+#elif OPENVINO_ARCH_ARM64
 const auto gemmParam = CPUSpecificParams{{}, {}, {"acl"}, "acl"};
 #elif OV_CPU_WITH_MLAS
 const auto gemmParam = CPUSpecificParams{{}, {}, {"gemm_mlas"}, "gemm_mlas"};
