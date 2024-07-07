@@ -214,7 +214,7 @@ size_t jit_equal_emitter::get_aux_vecs_count() const { return 1; }
 size_t jit_equal_emitter::get_aux_gprs_count() const { return 1; }
 
 std::set<std::vector<element::Type>> jit_equal_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
-    return {{element::f16, element::f16}, {element::f32, element::f32}};
+    return {{element::f32, element::f32}};
 }
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa, typename type>
