@@ -750,6 +750,71 @@ void regclass_graph_Model(py::module m) {
                 :rtype: int
              )");
 
+    model.def("get_sink_index",
+              [](ov::Model& self, const ov::Output<ov::Node>& value) -> int64_t {
+                if (ov::is_type<ov::op::v6::Assign>(value.get_node_shared_ptr())) {
+                    auto sink = std::dynamic_pointer_cast<ov::op::Sink>(value.get_node_shared_ptr());
+                    int64_t pos = 0;
+                    for (const auto& s: self.get_sinks()) {
+                        if (s == sink) {
+                            return pos;
+                        }
+                        pos++;
+                    };
+                } else {
+                    throw py::type_error("Incorrect argument type. Output sink node is expected as argument.");
+                }
+                return -1;
+              },
+              py::arg("value"),
+              R"(
+                    Return index of sink.
+
+                    Return -1 if `value` not matched.
+
+                    :param value: Output sink node handle
+                    :type value: openvino.runtime.Output
+                    :return: Index of sink node referenced by output handle.
+                    :rtype: int
+                  )");
+
+    model.def("get_sink_index",
+              [](ov::Model& self, const py::object& node) -> int64_t {
+                if (py::isinstance<ov::op::v6::Assign>(node)) {
+                    auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node.cast<std::shared_ptr<ov::op::v6::Assign>>());
+                    int64_t pos = 0;
+                    for (const auto& s: self.get_sinks()) {
+                        if (s == sink) {
+                            return pos;
+                        }
+                        pos++;
+                    };
+                } else if (py::isinstance<ov::Node>(node)) {
+                    auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node.cast<std::shared_ptr<ov::Node>>());
+                    int64_t pos = 0;
+                    for (const auto& s: self.get_sinks()) {
+                        if (s == sink) {
+                            return pos;
+                        }
+                        pos++;
+                    };
+                } else {
+                    throw py::type_error("Incorrect argument type. Sink node is expected as argument.");
+                }
+                return -1;
+              },
+              py::arg("sink"),
+              R"(
+                    Return index of sink node.
+
+                    Return -1 if `sink` not matched.
+
+                    :param sink: Sink node.
+                    :type sink: openvino.runtime.Node
+                    :return: Index of sink node.
+                    :rtype: int
+                 )");
+
     model.def("get_name",
               &ov::Model::get_name,
               R"(

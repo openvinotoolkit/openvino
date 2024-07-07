@@ -204,6 +204,35 @@ def test_replace_parameter():
     assert model.get_parameter_index(param1) == -1
 
 
+def test_get_sink_index(device):
+    input_shape = PartialShape([2, 2])
+    param = ops.parameter(input_shape, dtype=np.float64, name="data")
+    relu1 = ops.relu(param, name="relu1")
+    relu1.get_output_tensor(0).set_names({"relu_t1"})
+    model = Model(relu1, [param], "TestModel")
+
+    # test get_sink_index with openvino.runtime.Node argument
+    assign = ops.assign()
+    assign2 = ops.assign()
+    assign3 = ops.assign()
+    model.add_sinks([assign, assign2, assign3])
+    assign_nodes = model.sinks
+    assert model.get_sink_index(assign_nodes[2]) == 2
+    assert model.get_sink_index(relu1) == -1
+
+    # test get_sink_index with openvino.runtime.Output argument
+    assign4 = ops.assign(relu1, "assign4")
+    model.add_sinks([assign4])
+    assert model.get_sink_index(assign4.output(0)) == 3
+
+    # check exceptions
+    with pytest.raises(TypeError) as e:
+        model.get_sink_index(0)
+    assert (
+        "Incorrect argument type. Sink node is expected as argument." in str(e.value)
+    )
+
+
 @pytest.mark.parametrize(("args1", "args2", "expectation", "raise_msg"), [
     (Tensor("float32", Shape([2, 1])),
      [Tensor(np.array([2, 1], dtype=np.float32).reshape(2, 1)),
