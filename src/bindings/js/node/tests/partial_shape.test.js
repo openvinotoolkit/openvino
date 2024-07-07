@@ -10,12 +10,18 @@ const staticShape = '1, 3, 224, 224';
 const dynamicShape = '?, -1, 1..3, 224';
 
 describe('PartialShape', () => {
+  it('Allows create empty shape', () => {
+    const partialShape = new ov.PartialShape();
+
+    assert.strictEqual(partialShape.toString(), '[]');
+  });
+
   it('Should detect static shape', () => {
     const partialShape = new ov.PartialShape(staticShape);
 
     assert.ok(partialShape.isStatic());
   });
-  
+
   it('Should detect dynamic shape', () => {
     const partialShape = new ov.PartialShape(dynamicShape);
 
