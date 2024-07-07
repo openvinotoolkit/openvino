@@ -15,12 +15,17 @@ KERNEL(calc_mean_per_feature)(
     const uint b = bf / INPUT0_FEATURE_NUM;
     const uint f = bf % INPUT0_FEATURE_NUM;
 
-    const uint y_num_workers = get_local_size(1);
+    #if IS_DYNAMIC
+        const uint y_num_workers = get_local_size(1);
+        const uint x_num_workers = get_local_size(0);
+    #else
+        const uint y_num_workers = Y_NUM_WORKERS;
+        const uint x_num_workers = X_NUM_WORKERS;
+    #endif
     const uint y_block_size = INPUT0_SIZE_Y / y_num_workers;
     const uint y_base = get_local_id(1) * y_block_size;
     const uint y_leftover = INPUT0_SIZE_Y - y_num_workers * y_block_size;
 
-    const uint x_num_workers = get_local_size(0);
     const uint x_block_size = INPUT0_SIZE_X / x_num_workers;
     const uint x_base = get_local_id(0);
     const uint x_leftover = INPUT0_SIZE_X - x_num_workers * x_block_size;
@@ -96,12 +101,17 @@ KERNEL(calc_var_per_feature)(
     const uint b = bf / INPUT0_FEATURE_NUM;
     const uint f = bf % INPUT0_FEATURE_NUM;
 
-    const uint y_num_workers = get_local_size(1);
+    #if IS_DYNAMIC
+        const uint y_num_workers = get_local_size(1);
+        const uint x_num_workers = get_local_size(0);
+    #else
+        const uint y_num_workers = Y_NUM_WORKERS;
+        const uint x_num_workers = X_NUM_WORKERS;
+    #endif
     const uint y_block_size = INPUT0_SIZE_Y / y_num_workers;
     const uint y_base = get_local_id(1) * y_block_size;
     const uint y_leftover = INPUT0_SIZE_Y - y_num_workers * y_block_size;
 
-    const uint x_num_workers = get_local_size(0);
     const uint x_block_size = INPUT0_SIZE_X / x_num_workers;
     const uint x_base = get_local_id(0);
     const uint x_leftover = INPUT0_SIZE_X - x_num_workers * x_block_size;

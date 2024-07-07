@@ -105,7 +105,7 @@ JitConstants GroupNormalizationKernel_b_fs_yx_fsv16::GetJitConstants(const group
     } else {
         jit.AddConstants({
             // MakeJitConstant("ITEMS_NUM", dispatchData.itemsNum),
-            // MakeJitConstant("LWS", dispatchData.lws[0]),
+            MakeJitConstant("WORKERS_PER_DATASET", dispatchData.lws[0] / fsv),
             MakeJitConstant("SLM_SIZE", dispatchData.lws[0]),
             // MakeJitConstant("DATA_SETS_COUNT", dispatchData.dataSetsCount),
             // MakeJitConstant("DATA_SET_SIZE", dispatchData.dataSetSize),

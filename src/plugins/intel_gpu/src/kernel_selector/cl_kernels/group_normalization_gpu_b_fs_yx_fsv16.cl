@@ -13,12 +13,15 @@ KERNEL(calc_mean_per_feature)(
     __global ACCUMULATOR_TYPE* internal_mean
 ) {
     const uint data_set_idx = get_global_id(1);     // batch * feature split
-    const uint workers_per_data_set = get_local_size(0) / FSV;    // 16 datasets are handled by one local workgroup
     const uint in_data_set_idx = get_global_id(0);
-
+    #if IS_DYNAMIC
+        const uint workers_per_dataset = get_local_size(0) / FSV;    // 16 datasets are handled by one local workgroup
+    #else
+        const uint workers_per_dataset = WORKERS_PER_DATASET;
+    #endif
     const uint data_set_size = INPUT0_SIZE_X * INPUT0_SIZE_Y;
-    const uint items_num = data_set_size / workers_per_data_set;
-    const uint leftovers = data_set_size - (items_num * workers_per_data_set);
+    const uint items_num = data_set_size / workers_per_dataset;
+    const uint leftovers = data_set_size - (items_num * workers_per_dataset);
 
     const uint data_set_offset = data_set_idx * INPUT0_FEATURE_PITCH * FSV;
     const uint my_data_offset = data_set_offset + in_data_set_idx;
@@ -28,11 +31,11 @@ KERNEL(calc_mean_per_feature)(
     ACCUMULATOR_TYPE mean = ACCUMULATOR_VAL_ZERO;
 
     for (uint i = 0; i < items_num; ++i) {
-        mean += TO_ACCUMULATOR_TYPE(input[my_data_offset + i * workers_per_data_set * FSV]);
+        mean += TO_ACCUMULATOR_TYPE(input[my_data_offset + i * workers_per_dataset * FSV]);
     }
 
     if (in_data_set_idx < leftovers) {
-        mean += TO_ACCUMULATOR_TYPE(input[my_data_offset + items_num * workers_per_data_set * FSV + in_data_set_idx]);
+        mean += TO_ACCUMULATOR_TYPE(input[my_data_offset + items_num * workers_per_dataset * FSV + in_data_set_idx]);
     }
 
     mean_per_feature[in_data_set_idx] = mean;
@@ -73,12 +76,15 @@ KERNEL(calc_var_per_feature)(
     __global ACCUMULATOR_TYPE* internal_variance
 ) {
     const uint data_set_idx = get_global_id(1);     // batch * feature split
-    const uint workers_per_data_set = get_local_size(0) / FSV;    // 16 datasets are handled by one local workgroup
     const uint in_data_set_idx = get_global_id(0);
-
+    #if IS_DYNAMIC
+        const uint workers_per_dataset = get_local_size(0) / FSV;    // 16 datasets are handled by one local workgroup
+    #else
+        const uint workers_per_dataset = WORKERS_PER_DATASET;
+    #endif
     const uint data_set_size = INPUT0_SIZE_X * INPUT0_SIZE_Y;
-    const uint items_num = data_set_size / workers_per_data_set;
-    const uint leftovers = data_set_size - (items_num * workers_per_data_set);
+    const uint items_num = data_set_size / workers_per_dataset;
+    const uint leftovers = data_set_size - (items_num * workers_per_dataset);
 
     const uint data_set_offset = data_set_idx * INPUT0_FEATURE_PITCH * FSV;
     const uint my_data_offset = data_set_offset + in_data_set_idx;
@@ -91,13 +97,13 @@ KERNEL(calc_var_per_feature)(
     ACCUMULATOR_TYPE variance = ACCUMULATOR_VAL_ZERO;
 
     for (uint i = 0; i < items_num; ++i) {
-        ACCUMULATOR_TYPE tmp = TO_ACCUMULATOR_TYPE(input[my_data_offset + i * workers_per_data_set * FSV]);
+        ACCUMULATOR_TYPE tmp = TO_ACCUMULATOR_TYPE(input[my_data_offset + i * workers_per_dataset * FSV]);
         tmp -= mean;
         variance = fma(tmp, tmp, variance);
     }
 
     if (in_data_set_idx < leftovers) {
-        ACCUMULATOR_TYPE tmp = TO_ACCUMULATOR_TYPE(input[my_data_offset + items_num * workers_per_data_set * FSV + in_data_set_idx]);
+        ACCUMULATOR_TYPE tmp = TO_ACCUMULATOR_TYPE(input[my_data_offset + items_num * workers_per_dataset * FSV + in_data_set_idx]);
         tmp -= mean;
         variance = fma(tmp, tmp, variance);
     }

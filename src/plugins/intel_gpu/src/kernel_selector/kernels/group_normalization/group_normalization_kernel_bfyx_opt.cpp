@@ -101,6 +101,8 @@ JitConstants GroupNormalizationKernelBfyx::GetJitConstants(const group_normaliza
     } else {
         jit.AddConstants({
             MakeJitConstant("SLM_SIZE", (dispatchData.lws[0] * dispatchData.lws[1])),
+            MakeJitConstant("Y_NUM_WORKERS", dispatchData.lws[1]),
+            MakeJitConstant("X_NUM_WORKERS", dispatchData.lws[0]),
         });
     }
     auto activation_dt = GetActivationType(params);
