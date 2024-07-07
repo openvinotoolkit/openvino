@@ -34,29 +34,67 @@ template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_uni_eltwise_generic<isa>::generate() {
     preamble();
 
-    const auto check_src_prc = [](
-            const ov::element::Type src_prc[MAX_ELTWISE_INPUTS],
-            const ov::element::Type& type) {
-        for (auto i = 0; i <= MAX_ELTWISE_INPUTS; ++i) {
-            if (src_prc[i] == ov::element::undefined) {
-                break;
-            }
+//    const auto check_src_prc = [](
+//            const ov::element::Type src_prc[MAX_ELTWISE_INPUTS],
+//            const ov::element::Type& type) {
+//        for (auto i = 0; i < MAX_ELTWISE_INPUTS; ++i) {
+//            std::cout << "src_prc[i]=" << src_prc[i] << std::endl;
+//            if (src_prc[i] == ov::element::undefined) {
+//                break;
+//            }
+//
+//            if (src_prc[i] != type) {
+//                return false;
+//            }
+//        }
+//        return true;
+//    };
 
-            if (src_prc[i] != type) {
-                return false;
-            }
-        }
-        return true;
-    };
+    //std::cout << "jit_uni_eltwise_generic::generate:" << std::endl;
 
     // 1. execution precision bitness can not be less than destination:
     // if source precision is fp16 and destination is fp32 then execution precision can be fp32 only
     // 2. if source precision is low precision the execution precision is fp32 to keep accuracy
-    auto const exec_prc =
-            (jep_.dst_prc == element::f32) ||
-            (check_src_prc(jep_.src_prc, element::i8) || check_src_prc(jep_.src_prc, element::u8)) ?
-                element::f32 :
-                eltwise_precision_helper::get_precision(jep_.inputs_number, jep_.src_prc, eltwise_data_);
+//    auto const exec_prc =
+//            (jep_.dst_prc == element::f32) ||
+//            (check_src_prc(jep_.src_prc, element::i8) || check_src_prc(jep_.src_prc, element::u8)) ?
+//                element::f32 :
+//                eltwise_precision_helper::get_precision(jep_.inputs_number, jep_.src_prc, eltwise_data_);
+
+//    auto const exec_prc = (jep_.dst_prc == element::f32) ?
+//            element::f32 :
+//            eltwise_precision_helper::get_precision(jep_.inputs_number, jep_.src_prc, eltwise_data_);
+
+//    auto const exec_prc = ov::element::f16;
+
+    const auto any_of = [](
+            const ov::element::Type src_prc[MAX_ELTWISE_INPUTS],
+            const ov::element::Type& type) {
+        for (auto i = 0; i < MAX_ELTWISE_INPUTS; ++i) {
+            if (src_prc[i] == ov::element::undefined) {
+                break;
+            }
+
+            if (src_prc[i] == type) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    // if any precision is fp32 then we don't need fp16 (no performance gain)
+    auto const exec_prc = (jep_.dst_prc == element::f32) || any_of(jep_.src_prc, element::f32) ?
+            element::f32 :
+            eltwise_precision_helper::get_precision(jep_.inputs_number, jep_.src_prc, eltwise_data_);
+
+//    for (auto i = 0; i < MAX_ELTWISE_INPUTS; ++i) {
+//        if (jep_.src_prc[i] == ov::element::undefined) {
+//            break;
+//        }
+//        std::cout << "src_prc[" << i << "]=" << jep_.src_prc[i] << std::endl;
+//    }
+//    std::cout << "dst_prc=" << jep_.dst_prc << std::endl;
+//    std::cout << "exec_prc=" << exec_prc << std::endl;
 
     eltwise_emitter = create_eltwise_emitter(eltwise_data_.front(), exec_prc);
     for (size_t i = 1; i < eltwise_data_.size(); ++i) {
@@ -352,16 +390,11 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
             } else {
                 if (ptr_offset == 0) {
                     ld1(Xbyak_aarch64::VRegSElem(data.getIdx(), 0, 0), ptr(ptr_reg));
-                    ld1(Xbyak_aarch64::VRegSElem(data.getIdx(), 0, 0), ptr(ptr_reg));
-                    ld1(Xbyak_aarch64::VRegSElem(data.getIdx(), 0, 0), ptr(ptr_reg));
                 } else {
                     add_imm(X_DEFAULT_ADDR, ptr_reg, ptr_offset, X_TMP_0);
                     ld1(Xbyak_aarch64::VRegSElem(data.getIdx(), 0, 0), ptr(X_DEFAULT_ADDR));
                 }
             }
-
-            sshll(data.h8, data.b8, 0);
-            sshll(data.s4, data.h4, 0);
             break;
         }
         case ov::element::u8: {
@@ -370,16 +403,11 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
             } else {
                 if (ptr_offset == 0) {
                     ld1(Xbyak_aarch64::VRegSElem(data.getIdx(), 0, 0), ptr(ptr_reg));
-                    ld1(Xbyak_aarch64::VRegSElem(data.getIdx(), 0, 0), ptr(ptr_reg));
-                    ld1(Xbyak_aarch64::VRegSElem(data.getIdx(), 0, 0), ptr(ptr_reg));
                 } else {
                     add_imm(X_DEFAULT_ADDR, ptr_reg, ptr_offset, X_TMP_0);
                     ld1(Xbyak_aarch64::VRegSElem(data.getIdx(), 0, 0), ptr(X_DEFAULT_ADDR));
                 }
             }
-
-            ushll(data.h8, data.b8, 0);
-            ushll(data.s4, data.h4, 0);
             break;
         }
         default: {
@@ -400,11 +428,31 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
                         break;
                     }
                     case ov::element::i8: {
+                        sshll(data.h8, data.b8, 0);
+                        sshll(data.s4, data.h4, 0);
                         scvtf(data.s, data.s);
                         break;
                     }
                     case ov::element::u8: {
+                        ushll(data.h8, data.b8, 0);
+                        ushll(data.s4, data.h4, 0);
                         ucvtf(data.s, data.s);
+                        break;
+                    }
+                    default:
+                        OPENVINO_THROW("src_prc " + src_prc.to_string() + " is not supported, dst_prc is " + dst_prc.to_string());
+                }
+                break;
+            case ov::element::f16:
+                switch (src_prc) {
+                    case ov::element::i8: {
+                        sshll(data.h8, data.b8, 0);
+                        scvtf(data.h, data.h);
+                        break;
+                    }
+                    case ov::element::u8: {
+                        ushll(data.h8, data.b8, 0);
+                        ucvtf(data.h, data.h);
                         break;
                     }
                     default:
@@ -435,20 +483,10 @@ void jit_uni_eltwise_generic<isa>::load_scalar(const SReg& data,
         }
         case ov::element::i8: {
             ldr(Xbyak_aarch64::BReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
-
-            // scalar is loaded, operates with vector
-            TReg vec(data.getIdx());
-            sshll(vec.h8, vec.b8, 0);
-            sshll(vec.s4, vec.h4, 0);
             break;
         }
         case ov::element::u8: {
             ldr(Xbyak_aarch64::BReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
-
-            // scalar is loaded, operates with vector
-            TReg vec(data.getIdx());
-            ushll(vec.h8, vec.b8, 0);
-            ushll(vec.s4, vec.h4, 0);
             break;
         }
         default: {
@@ -458,7 +496,7 @@ void jit_uni_eltwise_generic<isa>::load_scalar(const SReg& data,
 
     if (dst_prc != src_prc) {
         switch (dst_prc) {
-            case ov::element::f32:
+            case ov::element::f32: {
                 switch (src_prc) {
                     case ov::element::f16: {
                         fcvt(Xbyak_aarch64::SReg(data.getIdx()), Xbyak_aarch64::HReg(data.getIdx()));
@@ -471,6 +509,21 @@ void jit_uni_eltwise_generic<isa>::load_scalar(const SReg& data,
                     }
                     case ov::element::u8: {
                         ucvtf(Xbyak_aarch64::SReg(data.getIdx()), Xbyak_aarch64::SReg(data.getIdx()));
+                        break;
+                    }
+                    default:
+                        OPENVINO_THROW("src_prc " + src_prc.to_string() + " is not supported, dst_prc is " + dst_prc.to_string());
+                }
+                break;
+            }
+            case ov::element::f16:
+                switch (src_prc) {
+                    case ov::element::i8: {
+                        scvtf(Xbyak_aarch64::HReg(data.getIdx()), Xbyak_aarch64::HReg(data.getIdx()));
+                        break;
+                    }
+                    case ov::element::u8: {
+                        ucvtf(Xbyak_aarch64::HReg(data.getIdx()), Xbyak_aarch64::HReg(data.getIdx()));
                         break;
                     }
                     default:
