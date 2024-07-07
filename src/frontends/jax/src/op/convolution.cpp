@@ -10,6 +10,7 @@
 
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
+#include "openvino/core/strides.hpp"
 #include "openvino/frontend/jax/node_context.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -44,13 +45,13 @@ OutputVector translate_convolution(const NodeContext& context) {
     Output<Node> kernel = context.get_input(1);
 
     auto dimension_numbers = context.const_named_param<std::vector<std::vector<int64_t>>>("dimension_numbers");
-    auto window_strides = context.const_named_param<std::vector<int64_t>>("window_strides");
+    auto strides = context.const_named_param<Strides>("window_strides");
     auto padding = context.const_named_param<std::vector<std::vector<int64_t>>>("padding");
-    auto input_dilation = context.const_named_param<std::vector<int64_t>>("lhs_dilation");
+    auto dilations = context.const_named_param<Strides>("lhs_dilation");
     auto kernel_dilation = context.const_named_param<std::vector<int64_t>>("rhs_dilation");
     auto feature_group_count = context.const_named_param<int64_t>("feature_group_count");
     auto batch_group_count = context.const_named_param<int64_t>("batch_group_count");
-    size_t spatial_dim = window_strides.size();
+    size_t spatial_dim = strides.size();
 
     JAX_OP_CONVERSION_CHECK(dimension_numbers.size() == 3,
                             "Internal error: dimension_numbers must have 3 vectors but actually got " +
@@ -72,7 +73,7 @@ OutputVector translate_convolution(const NodeContext& context) {
     JAX_OP_CONVERSION_CHECK(padding[0].size() == spatial_dim,
                             "Inconsistent model: padding vector must contain elements equal to "
                             "doubled spatial dimensions ");
-    JAX_OP_CONVERSION_CHECK(input_dilation.size() == spatial_dim,
+    JAX_OP_CONVERSION_CHECK(dilations.size() == spatial_dim,
                             "Inconsistent model: input_dilation vector must contain elements equal to "
                             "spatial dimensions ");
     JAX_OP_CONVERSION_CHECK(kernel_dilation.size() == spatial_dim,
@@ -91,13 +92,9 @@ OutputVector translate_convolution(const NodeContext& context) {
         kernel = std::make_shared<v1::Transpose>(kernel, kernel_transpose_order);
     }
 
-    Strides strides(spatial_dim);
-    Strides dilations(spatial_dim);
     CoordinateDiff pads_begin(spatial_dim);
     CoordinateDiff pads_end(spatial_dim);
     for (size_t ind = 0; ind < spatial_dim; ++ind) {
-        strides[ind] = static_cast<size_t>(window_strides[ind]);
-        dilations[ind] = static_cast<size_t>(input_dilation[ind]);
         pads_begin[ind] = padding[ind][0];
         pads_end[ind] = padding[ind][1];
     }

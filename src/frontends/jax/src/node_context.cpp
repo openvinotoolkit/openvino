@@ -153,6 +153,24 @@ std::vector<std::vector<int64_t>> NodeContext::const_named_param<std::vector<std
     // return get_constant_from_params(*this, name)->cast_vector<std::vector<int64_t>>();
 }
 
+template <>
+Strides NodeContext::const_named_param<Strides>(const std::string& name) const {
+    auto c = get_constant_from_params(*this, name);
+    if (c)
+        return c->cast_vector<Strides::value_type>();
+    else
+        return {};
+}
+
+template <>
+CoordinateDiff NodeContext::const_named_param<CoordinateDiff>(const std::string& name) const {
+    auto c = get_constant_from_params(*this, name);
+    if (c)
+        return c->cast_vector<CoordinateDiff::value_type>();
+    else
+        return {};
+}
+
 namespace {
 template <typename T>
 Any get_constant_data(const std::shared_ptr<v0::Constant>& constant) {

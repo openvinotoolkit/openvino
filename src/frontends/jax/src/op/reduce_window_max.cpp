@@ -8,6 +8,7 @@
 
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
+#include "openvino/core/strides.hpp"
 #include "openvino/frontend/jax/node_context.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/max_pool.hpp"
@@ -26,10 +27,10 @@ OutputVector translate_reduce_window_max(const NodeContext& context) {
     Output<Node> input = context.get_input(0);
 
     auto window_dimensions = context.const_named_param<std::vector<int64_t>>("window_dimensions");
-    auto window_strides = context.const_named_param<std::vector<int64_t>>("window_strides");
+    auto window_strides = context.const_named_param<Strides>("window_strides");
     auto padding = context.const_named_param<std::vector<std::vector<int64_t>>>("padding");
-    auto base_dilation = context.const_named_param<std::vector<int64_t>>("base_dilation");
-    auto window_dilation = context.const_named_param<std::vector<int64_t>>("window_dilation");
+    auto base_dilation = context.const_named_param<Strides>("base_dilation");
+    auto window_dilation = context.const_named_param<Strides>("window_dilation");
     size_t total_dim = window_dimensions.size();
 
     JAX_OP_CONVERSION_CHECK(window_strides.size() == total_dim,

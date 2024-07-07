@@ -71,7 +71,16 @@ def get_type_from_py_type(value):
     return OVType.dynamic
 
 def get_type_from_np_type(value):
-    return numpy_to_ov_type_map[value] if value in numpy_to_ov_type_map else None
+    for np_dtype, ov_type in numpy_to_ov_type_map.items():
+        if isinstance(value, np_dtype):
+            return ov_type
+    return None
+
+def _get_ov_type_from_value(value):
+    ov_type = get_type_from_np_type(value)
+    if ov_type is None:
+        ov_type = get_type_from_py_type(value)
+    return ov_type
 
 def get_ov_type_for_value(value):
     if isinstance(value, (jax.core.Var, jax.core.Literal)):
@@ -113,9 +122,7 @@ def ivalue_to_constant(ivalue, shared_memory=True):
     Convert a python object to an openvino constant.
     '''
     ivalue = filter_ivalue(ivalue)
-    ov_type = get_type_from_np_type(ivalue)
-    if ov_type is None:
-        ov_type = get_type_from_py_type(ivalue)
+    ov_type = _get_ov_type_from_value(ivalue)
     if ov_type.is_static():
         return op.Constant(ov_type, Shape([]), [ivalue]).outputs()
     if isinstance(ivalue, (list, tuple)):
@@ -128,11 +135,11 @@ def ivalue_to_constant(ivalue, shared_memory=True):
                 assert len(value) == second_len or len(value) == 0, "Can't deduce type for nested list with different lengths."
                 flattened_ivalue.extend([filter_element(item) for item in value])
             flattened_ivalue = [item for sublist in ivalue for item in sublist]
-            ov_type = get_type_from_py_type(flattened_ivalue[0])
+            ov_type = _get_ov_type_from_value(flattened_ivalue[0])
             assert ov_type.is_static(), f"Can't deduce type {flattened_ivalue[0].__class__} for list"
             return op.Constant(ov_type, Shape([len(ivalue), second_len]), flattened_ivalue).outputs()
         ivalue = [filter_element(item) for item in ivalue]
-        ov_type = get_type_from_py_type(ivalue[0])
+        ov_type = _get_ov_type_from_value(ivalue[0])
         assert ov_type.is_static(), f"Can't deduce type {ivalue[0].__class__} for list"
         return op.Constant(ov_type, Shape([len(ivalue)]), ivalue).outputs()
 
