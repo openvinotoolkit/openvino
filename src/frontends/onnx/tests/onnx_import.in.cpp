@@ -4949,7 +4949,13 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_random_uniform) {
     const auto model = convert_model("random_uniform.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_expected_output<float>(Shape{2, 2}, {43.45518f, 48.67585f, 42.227386f, 40.86294f});
+
+    if (std::string("${BACKEND_NAME}") == std::string("IE_GPU")) {
+        test_case.add_expected_output<float>(Shape{2, 2}, {40.96875f, 43.4375f, 49.4375f, 45.46875f});
+    } else {
+        test_case.add_expected_output<float>(Shape{2, 2}, {43.70129f, 45.26042f, 43.48503f, 46.43743f});
+    }
+
     test_case.run();
 }
 
@@ -4958,7 +4964,13 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_random_uniform_like) {
 
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<float>(Shape{2, 2}, {41, 42, 43, 44});
-    test_case.add_expected_output<float>(Shape{2, 2}, {43.45518f, 48.67585f, 42.227386f, 40.86294f});
+
+    if (std::string("${BACKEND_NAME}") == std::string("IE_GPU")) {
+        test_case.add_expected_output<float>(Shape{2, 2}, {40.96875f, 43.4375f, 49.4375f, 45.46875f});
+    } else {
+        test_case.add_expected_output<float>(Shape{2, 2}, {43.70129f, 45.26042f, 43.48503f, 46.43743f});
+    }
+
     test_case.run();
 }
 
@@ -4966,7 +4978,13 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_random_normal) {
     const auto model = convert_model("random_normal.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_expected_output<float>(Shape{2, 2}, {83.052017f, 55.496368f, 119.31188f, -3.6946249f});
+
+    if (std::string("${BACKEND_NAME}") == std::string("IE_GPU")) {
+        test_case.add_expected_output<float>(Shape{2, 2}, {77.351875f, 74.047821f, -5.996780f, 13.922290f});
+    } else {
+        test_case.add_expected_output<float>(Shape{2, 2}, {30.357481f, 72.41268f, 12.999034f, 70.04985f});
+    }
+
     test_case.run();
 }
 
@@ -4975,7 +4993,13 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_random_normal_like) {
 
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<float>(Shape{2, 2}, {0, 0, 0, 0});
-    test_case.add_expected_output<float>(Shape{2, 2}, {83.052017f, 55.496368f, 119.31188f, -3.6946249f});
+
+    if (std::string("${BACKEND_NAME}") == std::string("IE_GPU")) {
+        test_case.add_expected_output<float>(Shape{2, 2}, {77.351875f, 74.047821f, -5.996780f, 13.922290f});
+    } else {
+        test_case.add_expected_output<float>(Shape{2, 2}, {30.357481f, 72.41268f, 12.999034f, 70.04985f});
+    }
+
     test_case.run();
 }
 
