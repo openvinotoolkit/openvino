@@ -9,6 +9,7 @@
 #include <string>
 
 #include "common_test_utils/test_constants.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/frontend/extension.hpp"
 #include "openvino/frontend/manager.hpp"

@@ -30,7 +30,7 @@ struct rope : public primitive_base<rope> {
           gather_rank(gather_rank) {}
 
     RoPE::Config config;
-    size_t gather_rank;
+    size_t gather_rank = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
