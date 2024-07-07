@@ -83,7 +83,7 @@ OutputVector translate_full_fx(const NodeContext& context) {
     } else {
         sizes = context.get_input(0);
     }
-    auto value = context.get_input(num_inputs - 1);
+    auto value = context.get_input(static_cast<int>(num_inputs - 1));
 
     auto filled_tensor = base_translate_full(context, sizes, value);
     if (context.has_attribute("dtype")) {
