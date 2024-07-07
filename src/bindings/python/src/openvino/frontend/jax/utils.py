@@ -66,9 +66,12 @@ def get_type_from_py_type(value):
         return OVType.f32
     if isinstance(value, bool):
         return OVType.boolean
-    if isinstance(value,(int, np.int64)):
+    if isinstance(value, int):
         return OVType.i64
     return OVType.dynamic
+
+def get_type_from_np_type(value):
+    return numpy_to_ov_type_map[value] if value in numpy_to_ov_type_map else None
 
 def get_ov_type_for_value(value):
     if isinstance(value, (jax.core.Var, jax.core.Literal)):
@@ -110,7 +113,9 @@ def ivalue_to_constant(ivalue, shared_memory=True):
     Convert a python object to an openvino constant.
     '''
     ivalue = filter_ivalue(ivalue)
-    ov_type = get_type_from_py_type(ivalue)
+    ov_type = get_type_from_np_type(ivalue)
+    if ov_type is None:
+        ov_type = get_type_from_py_type(ivalue)
     if ov_type.is_static():
         return op.Constant(ov_type, Shape([]), [ivalue]).outputs()
     if isinstance(ivalue, (list, tuple)):
