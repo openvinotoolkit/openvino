@@ -12,6 +12,7 @@
 #include "openvino/core/shape_util.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/variable_context.hpp"
 #include "perf_counter.hpp"
@@ -53,15 +54,14 @@ void ov::runtime::interpreter::INTExecutable::cancel() {
     m_cancel_execution = true;
 }
 
-bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outputs,
-                                                   const std::vector<ov::Tensor>& inputs,
-                                                   bool collect_performance) {
-    EvaluationContext eval_context;
-    ov::op::util::VariableContext variable_context;
-    eval_context.emplace("VariableContext", variable_context);
+void collect_variables(const ov::NodeVector& nodes, ov::op::util::VariableContext& variable_context) {
+    for (const auto& op : nodes) {
+        if (auto multi_subgraph_op = std::dynamic_pointer_cast<ov::op::util::MultiSubGraphOp>(op)) {
+            for (const auto& sub_graph : multi_subgraph_op->get_functions()) {
+                collect_variables(sub_graph->get_ordered_ops(), variable_context);
+            }
+        }
 
-    // for each ordered op in the graph
-    for (const auto& op : m_nodes) {
         if (auto var_extension = std::dynamic_pointer_cast<ov::op::util::VariableExtension>(op)) {
             auto variable = var_extension->get_variable();
             if (!variable_context.get_variable_value(variable)) {
@@ -70,7 +70,16 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
             }
         }
     }
+}
 
+bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outputs,
+                                                   const std::vector<ov::Tensor>& inputs,
+                                                   bool collect_performance) {
+    EvaluationContext eval_context;
+    ov::op::util::VariableContext variable_context;
+    eval_context.emplace("VariableContext", variable_context);
+
+    collect_variables(m_nodes, variable_context);
     return call(outputs, inputs, eval_context, collect_performance);
 }
 

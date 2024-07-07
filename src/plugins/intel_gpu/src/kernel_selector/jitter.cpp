@@ -326,8 +326,8 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
     JitDefinitions baseDefinitions = TensorBaseTJitConstant::GetDefinitions(_tensor);
 
     JitDefinitions definitions{};
-    DimensionAccessHelper dims(_tensor);
-    DimensionAccessHelper dims_padded(_tensor, true);
+    DimensionAccessHelperJit dims(_tensor);
+    DimensionAccessHelperJit dims_padded(_tensor, true);
     // shape_info layout
     // if only y has dynamic padding:
     // [dim_b, dim_f, dim_v, dim_u, dim_w, dim_z, dim_y, dim_x, pad_before_y, pad_after_y]
@@ -363,7 +363,8 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
     if (_tensor.is_dynamic()) {
         if (_tensor.GetLayout() == DataLayout::bf || _tensor.GetLayout() == DataLayout::bfyx ||
             _tensor.GetLayout() == DataLayout::bfzyx || _tensor.GetLayout() == DataLayout::bfwzyx ||
-            _tensor.GetLayout() == DataLayout::bfuwzyx || _tensor.GetLayout() == DataLayout::bfvuwzyx) {
+            _tensor.GetLayout() == DataLayout::bfuwzyx || _tensor.GetLayout() == DataLayout::bfvuwzyx ||
+            _tensor.GetLayout() == DataLayout::b_fs_yx_fsv16) {
             definitions.push_back({_name + "_X_PITCH", "1"});
             definitions.push_back({_name + "_Y_PITCH", dims_padded.x()});
             definitions.push_back({_name + "_Z_PITCH", toVectorMulString({dims_padded.x(), dims_padded.y()})});
@@ -1489,6 +1490,15 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             type_size = "0.5f";
             is_fp = false;
             break;
+        case Datatype::BF16:
+            type = "ushort";
+            val_one = "(ushort) 1";
+            val_zero = "(ushort) 0";
+            to_type = "_convert_bfloat16_as_ushort(v)";
+            to_type_sat = "_convert_bfloat16_as_ushort(v)";
+            type_size = "2";
+            is_fp = false;
+            break;
         default:
             type = "float";
             max_val = "FLT_MAX";
@@ -1540,6 +1550,8 @@ JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& ma
             return MakeTypeJitConstants(Datatype::UINT4, macroName);
         case WeightsType::INT32:
             return MakeTypeJitConstants(Datatype::INT32, macroName);
+        case WeightsType::BF16:
+            return MakeTypeJitConstants(Datatype::BF16, macroName);
     }
     assert(false || "Unreachable!");
     // FIXME: Is there some builtin_unreachable available?

@@ -210,10 +210,12 @@ max_pooling_test_params = [
     ("op_params", "input_shape", "expected_output_shape"),
     avg_pooling_test_params,
 )
-def test_avg_pool(op_params, input_shape, expected_output_shape):
+@pytest.mark.parametrize("op_name", ["avg_pool", "avgPool", "avgPoolOpset14"])
+def test_avg_pool(op_params, input_shape, expected_output_shape, op_name):
     param = ov.parameter(input_shape, name="A", dtype=np.float32)
-    node = ov.avg_pool(param, *op_params)
+    node = ov.avg_pool(param, *op_params, name=op_name)
     assert node.get_type_name() == "AvgPool"
+    assert node.get_friendly_name() == op_name
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == expected_output_shape
     assert node.get_output_element_type(0) == Type.f32
@@ -223,10 +225,12 @@ def test_avg_pool(op_params, input_shape, expected_output_shape):
     ("op_params", "input_shape", "expected_output_shape"),
     max_pooling_test_params,
 )
-def test_max_pool(op_params, input_shape, expected_output_shape):
+@pytest.mark.parametrize("op_name", ["avg_pool", "avgPool", "avgPoolOpset14"])
+def test_max_pool(op_params, input_shape, expected_output_shape, op_name):
     data_node = ov.parameter(input_shape, name="A", dtype=np.float32)
-    node = ov.max_pool(data_node, *op_params, "i32")
+    node = ov.max_pool(data_node, *op_params, "i32", name=op_name)
     assert node.get_type_name() == "MaxPool"
+    assert node.get_friendly_name() == op_name
     assert node.get_output_size() == 2
     assert list(node.get_output_shape(0)) == expected_output_shape
     assert list(node.get_output_shape(1)) == expected_output_shape

@@ -258,6 +258,7 @@ public:
                 uint32_t int64 : 1;
                 uint32_t F16 : 1;
                 uint32_t F32 : 1;
+                uint32_t BF16 : 1;
             } val;
             uint32_t raw;
         } DataTypesKey;
@@ -357,6 +358,21 @@ enum class dev_type {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Arch type
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+enum class gpu_arch {
+    unknown = 0,
+    gen9 = 1,
+    gen11 = 2,
+    xe_lp = 3,
+    xe_hp = 4,
+    xe_hpg = 5,
+    xe_hpc = 6,
+    xe2 = 7,
+};
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // EngineInfo
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct EngineInfo {
@@ -376,9 +392,12 @@ struct EngineInfo {
     bool enable_sub_groups_emulation = false;
     bool bOptHintsSupport = false;
     bool bLocalBlockIOSupport = false;
+    bool supports_microkernels = false;
     uint32_t vendor_id = 0x0;
     dev_type deviceType = dev_type::integrated_gpu;
     uint32_t computeUnitsCount = 0;
+    uint32_t ip_version = 0;
+    gpu_arch arch = gpu_arch::unknown;
     uint32_t maxThreadsPerExecutionUnit = 0;
     uint32_t maxThreadsPerDevice = 0;
     uint64_t maxWorkGroupSize = 0;
@@ -441,6 +460,7 @@ struct base_activation_params {
                                                                                        m(m),
                                                                                        n(n) {}
 
+    virtual ~base_activation_params() = default;
     virtual std::string to_string() const;
 };
 

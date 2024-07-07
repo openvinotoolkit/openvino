@@ -53,6 +53,8 @@ macro(ov_cpack_settings)
            (NOT item MATCHES "^${OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE}_python.*" OR ENABLE_PYTHON_PACKAGING) AND
            # temporary block nvidia
            NOT item STREQUAL "nvidia" AND
+           # don't install node_addon
+           NOT item MATCHES "node_addon" AND
            # don't install Intel OpenMP
            NOT item STREQUAL "omp" AND
            # the same for pugixml
@@ -89,8 +91,12 @@ macro(ov_cpack_settings)
         2023.1.0
         2023.2.0
         2023.3.0 2023.3.1 2023.3.2 2023.3.3 2023.3.4 2023.3.5
-        2024.0
+        2024.0.0
+        2024.1.0
+        2024.2.0
         )
+
+    ov_check_conflicts_versions(conflicting_versions)
 
     #
     # core: base dependency for each component
@@ -228,6 +234,19 @@ macro(ov_cpack_settings)
         set(ir_copyright "generic")
     endif()
 
+    if(ENABLE_OV_JAX_FRONTEND)
+        set(CPACK_COMPONENT_JAX_DESCRIPTION "OpenVINO JAX Frontend")
+        set(CPACK_COMPONENT_JAX_DEPENDS "${OV_CPACK_COMP_CORE}")
+        set(CPACK_DEBIAN_JAX_PACKAGE_NAME "libopenvino-jax-frontend-${cpack_name_ver}")
+        # since we JAX FE is linkable target, we need to call ldconfig (i.e. `def_triggers`)
+        set(CPACK_DEBIAN_JAX_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
+        ov_debian_add_lintian_suppression(jax
+            # we have different package name strategy; it suggests libopenvino-jax-frontend202230
+            "package-name-doesnt-match-sonames")
+        list(APPEND frontends jax)
+        set(jax_copyright "generic")
+    endif()
+
     if(ENABLE_OV_ONNX_FRONTEND)
         set(CPACK_COMPONENT_ONNX_DESCRIPTION "OpenVINO ONNX Frontend")
         set(CPACK_COMPONENT_ONNX_DEPENDS "${OV_CPACK_COMP_CORE}")
@@ -344,7 +363,7 @@ macro(ov_cpack_settings)
     # Samples
     #
 
-    set(samples_build_deps "cmake, g++, gcc, libc6-dev, make, pkg-config")
+    set(samples_build_deps "cmake, g++, gcc, libc6-dev, make, pkgconf")
     set(samples_build_deps_suggest "libopencv-core-dev, libopencv-imgproc-dev, libopencv-imgcodecs-dev")
     set(samples_opencl_suggest "ocl-icd-opencl-dev, opencl-headers")
 

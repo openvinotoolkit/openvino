@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "memory_desc/cpu_memory_desc_utils.h"
+
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "graph_context.h"
 #include "cpu_memory_desc.h"
-#include "memory_desc/cpu_memory_desc_utils.h"
+#include "memory_desc/empty_memory_desc.h"
 #include <cpu_memory.h>
 #include <vector>
 #include <cpu_memory.h>
@@ -24,6 +27,8 @@ DnnlMemoryDescPtr MemoryDescUtils::convertToDnnlMemoryDesc(const MemoryDescPtr &
         return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(cpuDesc->getPrecision(), cpuDesc->getShape(), cpuDesc->getBlockDims(),
                                                         cpuDesc->getOrder(), cpuDesc->getOffsetPadding(),
                                                         cpuDesc->getOffsetPaddingToData(), cpuDesc->getStrides()));
+    } else if (MemoryDescType::Empty == desc->getType()) {
+        return DnnlExtensionUtils::makeDescriptor(dnnl::memory::desc());
     } else if (MemoryDescType::Dnnl & desc->getType()) {
         return std::dynamic_pointer_cast<DnnlMemoryDesc>(desc);
     } else {
@@ -39,7 +44,7 @@ DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const Memo
         return DnnlBlockedMemoryDesc(cpuDesc->getPrecision(), cpuDesc->getShape(), cpuDesc->getBlockDims(), cpuDesc->getOrder(), cpuDesc->getOffsetPadding(),
                                      cpuDesc->getOffsetPaddingToData(), cpuDesc->getStrides());
     } else {
-        OPENVINO_THROW("Cannot convert MemoryDesc to DnnlMemoryDesc");
+        OPENVINO_THROW("Cannot convert MemoryDesc to DnnlBlockedMemoryDesc");
     }
 }
 
@@ -47,7 +52,7 @@ BlockedMemoryDescPtr MemoryDescUtils::convertToBlockedMemoryDesc(const MemoryDes
     if (desc->getType() & MemoryDescType::Blocked) {
         return std::dynamic_pointer_cast<BlockedMemoryDesc>(desc);
     } else {
-        OPENVINO_THROW("Can not convert unsupported memory descriptor");
+        OPENVINO_THROW("Cannot convert MemoryDesc to BlockedMemoryDesc");
     }
 }
 
@@ -92,28 +97,18 @@ CpuBlockedMemoryDescPtr MemoryDescUtils::generateCpuBlockedMemoryDesc(const ov::
         blk_strides);
 }
 
-std::string MemoryDescUtils::dim2str(Dim dim) {
-    return dim == Shape::UNDEFINED_DIM ? "?" : std::to_string(dim);
-}
-
-std::string MemoryDescUtils::dims2str(const VectorDims& dims) {
-    std::stringstream output;
-    output << "{";
-
-    if (!dims.empty()) {
-        auto itr = dims.begin();
-        do {
-            output << dim2str(*itr);
-        } while (++itr != dims.end() && output << ", ");
-    }
-
-    output << "}";
-    return output.str();
-}
-
 std::shared_ptr<MemoryDesc> MemoryDescUtils::makeDummyDesc(const MemoryDesc &desc, Dim dummyVal) {
     auto dummyShape = makeDummyShape(desc.getShape(), dummyVal);
     return desc.cloneWithNewDims(dummyShape.getStaticDims());
+}
+
+std::shared_ptr<MemoryDesc> MemoryDescUtils::makeEmptyDesc() {
+    static auto emptyDesc = std::make_shared<EmptyMemoryDesc>();
+    return emptyDesc;
+}
+
+std::shared_ptr<IMemory> MemoryDescUtils::makeEmptyMemory(const GraphContext::CPtr context) {
+    return std::make_shared<StaticMemory>(context->getEngine(), makeEmptyDesc(), nullptr);
 }
 
 Shape MemoryDescUtils::makeDummyShape(const Shape &shape, Dim dummyVal) {

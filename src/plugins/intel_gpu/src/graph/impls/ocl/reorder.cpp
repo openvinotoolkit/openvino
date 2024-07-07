@@ -28,8 +28,12 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
         parent::load(ib);
         if (is_dynamic()) {
             auto& kernel_selector = kernel_selector_t::Instance();
-            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
-            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+            if (!_kernel_data.kernelName.empty()) {
+                auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+                kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+            } else {
+                GPU_DEBUG_TRACE_DETAIL << "Fail to update dispatch data because kernel name is empty" << std::endl;
+            }
         }
     }
 
@@ -144,7 +148,7 @@ public:
 
         r_params.input = convert_weights_tensor(weights_params->get_input_layout(), weights_params->get_grouped());
         r_params.output = convert_weights_tensor(weights_params->get_output_layout());
-        r_params.layerID = impl_param.desc->id + "_reorder_weigths";
+        r_params.layerID = impl_param.desc->id + "_reorder_weights";
         r_params.uniqueID = std::to_string(impl_param.unique_id) + "_weight";
         r_params.rotate_180 = weights_params->should_be_transposed();
 

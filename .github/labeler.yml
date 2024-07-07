@@ -71,6 +71,9 @@
 - 'src/plugins/intel_gpu/**/*'
 - 'thirdparty/ocl/**/*'
 
+'category: NPU':
+- 'src/plugins/intel_npu/**/*'
+
 'category: HETERO':
 - 'src/plugins/hetero/**/*'
 
@@ -138,6 +141,7 @@
 'category: TF FE':
 - 'src/frontends/tensorflow/**/*'
 - 'src/frontends/tensorflow_common/**/*'
+- 'src/bindings/python/src/openvino/frontend/tensorflow/**/*'
 - 'tests/layer_tests/tensorflow_tests/**/*'
 - 'tests/layer_tests/tensorflow2_keras_tests/**/*'
 - 'tests/layer_tests/jax_tests/**/*'
@@ -158,6 +162,11 @@
 - any: ['tests/model_hub_tests/**',
         '!tests/model_hub_tests/tensorflow/**/*']
 
+'category: JAX FE':
+- 'src/frontends/jax/**/*'
+- 'src/bindings/python/src/openvino/frontend/jax/**/*'
+- 'tests/layer_tests/jax_tests/**/*'
+
 'category: tools':
 - any: ['tools/**',
         '!tools/mo/**/*',
@@ -173,3 +182,12 @@
 'category: licensing':
 - 'licensing/**/*'
 - 'LICENSE'
+
+'category: docker_env':
+- '.dockerignore'
+- 'install_build_dependencies.sh'
+- '**/install_openvino_dependencies.sh'
+- '.github/actions/handle_docker/**/*'
+
+'category: dockerfiles':
+- '.github/dockerfiles/**/*'

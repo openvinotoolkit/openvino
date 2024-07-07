@@ -70,7 +70,6 @@ void Convolution::validate_and_infer_types() {
     if (m_output_type != ov::element::undefined) {
         result_et = m_output_type;
     } else if (data_batch_et.compatible(filters_et)) {
-        ov::element::Type::merge(result_et, data_batch_et, filters_et);
         NODE_VALIDATION_CHECK(this,
                               element::Type::merge(result_et, data_batch_et, filters_et),
                               "Element types for data batch and filters do not match (data batch element type: ",

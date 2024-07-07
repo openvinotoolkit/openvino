@@ -76,23 +76,24 @@ public:
         };
 
     private:
-        std::string _name;            //!< Used by `ITT` to name executor threads
-        int _streams = 1;             //!< Number of streams.
-        int _threads_per_stream = 0;  //!< Number of threads per stream that executes `ov_parallel` calls
-        ThreadBindingType _threadBindingType = ThreadBindingType::NONE;  //!< Thread binding to hardware resource type.
-                                                                         //!< No binding by default
-        int _threadBindingStep = 1;                                      //!< In case of @ref CORES binding offset type
-                                                                         //!< thread binded to cores with defined step
+        std::string _name;             //!< Used by `ITT` to name executor threads
+        int _streams = 1;              //!< Number of streams.
+        int _threads_per_stream = 0;   //!< Number of threads per stream that executes `ov_parallel` calls
+        int _threadBindingStep = 1;    //!< In case of @ref CORES binding offset type
+                                       //!< thread binded to cores with defined step
         int _threadBindingOffset = 0;  //!< In case of @ref CORES binding offset type thread binded to cores
                                        //!< starting from offset
         int _threads = 0;              //!< Number of threads distributed between streams.
                                        //!< Reserved. Should not be used.
-        PreferredCoreType _thread_preferred_core_type =
-            PreferredCoreType::ANY;  //!< LITTLE and BIG are valid in hybrid core machine, ANY is valid in all machines.
-                                     //!< Core type priority: physical PCore, ECore, logical PCore
+        ov::hint::SchedulingCoreType _thread_preferred_core_type =
+            ov::hint::SchedulingCoreType::ANY_CORE;  //!< PCORE_ONLY and ECORE_ONLY are valid in hybrid core machine,
+                                                     //!< ANY_CORE is valid in all machines. Core type priority:
+                                                     //!< physical PCore, ECore, logical PCore
+        bool _cpu_reservation = false;  //!< Whether to reserve current cores which will not be used by other plugin.
+                                        //!< If it is true, cpu_pinning defaults to true.
+        bool _cpu_pinning = false;      //!< Whether to bind threads to cores.
         std::vector<std::vector<int>> _streams_info_table = {};
         std::vector<std::vector<int>> _stream_processor_ids;
-        bool _cpu_reservation = false;
         int _sub_streams = 0;
 
         /**
@@ -116,37 +117,28 @@ public:
         /**
          * @brief      A constructor with arguments
          *
-         * @param[in]  name                     The executor name
-         * @param[in]  streams                  @copybrief Config::_streams
-         * @param[in]  threadsPerStream         @copybrief Config::_threads_per_stream
-         * @param[in]  threadBindingType        @copybrief Config::_threadBindingType
-         * @param[in]  threadBindingStep        @copybrief Config::_threadBindingStep
-         * @param[in]  threadBindingOffset      @copybrief Config::_threadBindingOffset
-         * @param[in]  threads                  @copybrief Config::_threads
-         * @param[in]  threadPreferredCoreType  @copybrief Config::_thread_preferred_core_type
-         * @param[in]  streamsInfoTable         @copybrief Config::_streams_info_table
-         * @param[in]  cpuReservation           @copybrief Config::_cpu_reservation
+         * @param[in]  name                         The executor name
+         * @param[in]  streams                      @copybrief Config::_streams
+         * @param[in]  threads_per_stream           @copybrief Config::_threads_per_stream
+         * @param[in]  thread_preferred_core_type   @copybrief Config::_thread_preferred_core_type
+         * @param[in]  cpu_reservation              @copybrief Config::_cpu_reservation
+         * @param[in]  cpu_pinning                  @copybrief Config::_cpu_pinning
+         * @param[in]  streams_info_table           @copybrief Config::_streams_info_table
          */
         Config(std::string name = "StreamsExecutor",
                int streams = 1,
-               int threadsPerStream = 0,
-               ThreadBindingType threadBindingType = ThreadBindingType::NONE,
-               int threadBindingStep = 1,
-               int threadBindingOffset = 0,
-               int threads = 0,
-               PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY,
-               std::vector<std::vector<int>> streamsInfoTable = {},
-               bool cpuReservation = false)
-            : _name{std::move(name)},
+               int threads_per_stream = 0,
+               ov::hint::SchedulingCoreType thread_preferred_core_type = ov::hint::SchedulingCoreType::ANY_CORE,
+               bool cpu_reservation = false,
+               bool cpu_pinning = false,
+               std::vector<std::vector<int>> streams_info_table = {})
+            : _name{name},
               _streams{streams},
-              _threads_per_stream{threadsPerStream},
-              _threadBindingType{threadBindingType},
-              _threadBindingStep{threadBindingStep},
-              _threadBindingOffset{threadBindingOffset},
-              _threads{threads},
-              _thread_preferred_core_type(threadPreferredCoreType),
-              _streams_info_table{std::move(streamsInfoTable)},
-              _cpu_reservation{cpuReservation} {
+              _threads_per_stream{threads_per_stream},
+              _thread_preferred_core_type(thread_preferred_core_type),
+              _cpu_reservation{cpu_reservation},
+              _cpu_pinning{cpu_pinning},
+              _streams_info_table{streams_info_table} {
             update_executor_config();
         }
 
@@ -187,14 +179,14 @@ public:
         bool get_cpu_reservation() const {
             return _cpu_reservation;
         }
+        bool get_cpu_pinning() const {
+            return _cpu_pinning;
+        }
         std::vector<std::vector<int>> get_streams_info_table() const {
             return _streams_info_table;
         }
         std::vector<std::vector<int>> get_stream_processor_ids() const {
             return _stream_processor_ids;
-        }
-        ThreadBindingType get_thread_binding_type() const {
-            return _threadBindingType;
         }
         int get_thread_binding_step() const {
             return _threadBindingStep;
@@ -213,7 +205,7 @@ public:
         }
         bool operator==(const Config& config) {
             if (_name == config._name && _streams == config._streams &&
-                _threads_per_stream == config._threads_per_stream && _threadBindingType == config._threadBindingType &&
+                _threads_per_stream == config._threads_per_stream &&
                 _thread_preferred_core_type == config._thread_preferred_core_type) {
                 return true;
             } else {
@@ -230,15 +222,6 @@ public:
         static Config make_default_multi_threaded(const Config& initial);
 
         static int get_default_num_streams();  // no network specifics considered (only CPU's caps);
-
-        /**
-         * @brief Get and reserve cpu ids based on configuration and hardware information
-         *        streams_info_table must be present in the configuration
-         * @param initial Inital configuration
-         * @return configured values
-         */
-        // It will be removed when other plugins will no longer call it.
-        static Config reserve_cpu_threads(const Config& initial);
     };
 
     /**

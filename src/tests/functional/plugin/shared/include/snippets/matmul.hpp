@@ -11,7 +11,7 @@ namespace test {
 namespace snippets {
 
 typedef std::tuple<
-        std::vector<ov::PartialShape>, // Input  Shapes
+        std::vector<InputShape>,       // Input  Shapes
         std::vector<ov::element::Type>,// Input Element types
         size_t,                        // Expected num nodes
         size_t,                        // Expected num subgraphs
@@ -26,32 +26,32 @@ public:
 protected:
     void SetUp() override;
 
-    virtual void init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types);
+    virtual void init_subgraph(const std::vector<ov::element::Type>& types);
 };
 
 class MatMulFQ : public MatMul {
 protected:
-    void init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) override;
+    void init_subgraph(const std::vector<ov::element::Type>& types) override;
 };
 
 class MatMulBias : public MatMul {
 protected:
-    void init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) override;
+    void init_subgraph(const std::vector<ov::element::Type>& types) override;
 };
 
 class MatMulBiasQuantized : public MatMul {
 protected:
-    void init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) override;
+    void init_subgraph(const std::vector<ov::element::Type>& types) override;
 };
 
-class MatMulsQuantized : public MatMul {
+class MatMulQuantized : public MatMul {
 protected:
-    void init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) override;
+    void init_subgraph(const std::vector<ov::element::Type>& types) override;
 };
 
-class MatMulsQuantizedSoftmax : public MatMul {
+class MatMulQuantizedSoftmax : public MatMul {
 protected:
-    void init_subgraph(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& types) override;
+    void init_subgraph(const std::vector<ov::element::Type>& types) override;
 };
 
 } // namespace snippets

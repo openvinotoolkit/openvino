@@ -12,14 +12,17 @@
 
 #include "shared_test_classes/base/utils/generate_inputs.hpp"
 
+
 #include "op_conformance_utils/utils/dynamism.hpp"
 #include "op_conformance_utils/meta_info/meta_info.hpp"
 #include "conformance.hpp"
 
 #include "utils/models.hpp"
 #include "utils/types.hpp"
+#include "utils/generate_static_shapes.hpp"
 
 #include "read_ir_test/read_ir.hpp"
+#include "utils/generate_static_shapes.hpp"
 
 namespace ov {
 namespace test {
@@ -143,7 +146,7 @@ void ReadIRTest::SetUp() {
             // auto next_node = param->get_default_output().get_node_shared_ptr();
             auto next_node = param->get_default_output().get_target_inputs().begin()->get_node()->shared_from_this();
             auto it = inputMap.find(next_node->get_type_info());
-            auto tensor = it->second(next_node, function->get_parameter_index(param), param->get_element_type(), param->get_shape());
+            auto tensor = it->second(next_node, function->get_parameter_index(param), param->get_element_type(), param->get_shape(), nullptr);
             auto const_node = std::make_shared<ov::op::v0::Constant>(tensor);
             const_node->set_friendly_name(param->get_friendly_name());
             ov::replace_node(param, const_node);
@@ -234,41 +237,24 @@ void ReadIRTest::SetUp() {
     }
 
     std::vector<InputShape> inputShapes;
+    auto shapeMap = utils::getShapeMap();
     for (const auto& param : function -> get_parameters()) {
         if (param->get_partial_shape().is_static()) {
             inputShapes.push_back(InputShape{{}, {param->get_shape()}});
-        } else {
-            std::vector<ov::Shape> staticShapes = { param->get_partial_shape().get_min_shape(),
-                                                    param->get_partial_shape().get_min_shape(),
-                                                    param->get_partial_shape().get_max_shape() };
-            ov::Shape midShape;
-            for (const auto s : param->get_partial_shape()) {
-                int dimValue = 1;
-                if (s.is_dynamic()) {
-                    size_t range = s.get_max_length() - s.get_min_length();
-                    if (range > std::numeric_limits<char>::max()) {
-                        ov::test::utils::fill_data_random(&range, 1, std::numeric_limits<char>::max(), s.get_min_length(), 1);
+            continue;
+        }
+        for (size_t i = 0; i < param->get_output_size(); i++) {
+            for (const auto &node : param->get_output_target_inputs(i)) {
+                std::shared_ptr<ov::Node> nodePtr = node.get_node()->shared_from_this();
+                auto it = shapeMap.find(nodePtr->get_type_info());
+                ASSERT_NE(it, shapeMap.end());
+                for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
+                    if (nodePtr->get_input_node_ptr(port)->shared_from_this() == param) {
+                        inputShapes.push_back(it->second(nodePtr, port));
+                        break;
                     }
-                    ov::test::utils::fill_data_random(&dimValue, 1, range, s.get_min_length(), 1);
-                } else {
-                    dimValue = s.get_length();
-                }
-                midShape.push_back(dimValue);
-            }
-            staticShapes[1] = midShape;
-
-            // Shape validation to avoid large values
-            uint64_t dimMin = 1;
-            uint64_t dimMax = std::numeric_limits<char>::max();
-            for (int i = 0; i < staticShapes[0].size(); ++i) {
-                auto& dim0 = staticShapes[0][i];
-                auto& dim2 = staticShapes[2][i];
-                if (dim0 != dim2) {
-                    dim0 = clip(dim0, dimMin, dimMax);
-                    dim2 = clip(dim2, dimMin, dimMax);
                 }
             }
-            inputShapes.push_back(InputShape{param->get_partial_shape(), staticShapes});
         }
     }
     if (inputShapes.empty()) {

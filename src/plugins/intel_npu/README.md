@@ -13,6 +13,7 @@ OpenVINO™ toolkit is officially supported and validated on the following platf
 | :---                         | :---        | :---                                 |
 | Raptor Lake (discrete   NPU)   | NPU 3700    | MS Windows* 11                       |
 | Meteor Lake (integrated NPU)   | NPU 3720    | Ubuntu* 22, MS Windows* 11           |
+| Lunar Lake (integrated NPU)    | NPU 4000    | Ubuntu* 22, MS Windows* 11           |
 
 
 &nbsp;
@@ -157,10 +158,10 @@ The following properties are supported:
 | `ov::hint::num_requests`/</br>`PERFORMANCE_HINT_NUM_REQUESTS` | RW | Sets the number of outstanding inference requests. | `[0-]` | `1` |
 | `ov::hint::model_priority`/</br>`MODEL_PRIORITY` | RW | Assigns a priority for the model execution. | `LOW`/</br>`MEDIUM`/</br>`HIGH` | `MEDIUM` |
 | `ov::hint::enable_cpu_pinning`/</br>`ENABLE_CPU_PINNING` | RW | Allows CPU threads pinning during inference. | `YES`/ `NO` /</br>`NO` 
-| `ov::log::level`/</br>`LOG_LEVEL` | RW |  Sets the log level for NPU Plugin. An environment variable is also made available to expose logs from early initialization phase: OV_NPU_LOG_LEVEL. | `LOG_LEVEL_NONE`/</br>`LOG_LEVEL_ERROR`/</br>`LOG_LEVEL_WARNING`/</br>`LOG_LEVEL_DEBUG`/</br>`LOG_LEVEL_TRACE` |  `_NONE` |
+| `ov::log::level`/</br>`LOG_LEVEL` | RW |  Sets the log level for NPU Plugin. An environment variable is also made available to expose logs from early initialization phase: OV_NPU_LOG_LEVEL. | `LOG_NONE`/</br>`LOG_ERROR`/</br>`LOG_WARNING`/</br>`LOG_INFO`/</br>`LOG_DEBUG`/</br>`LOG_TRACE` |  `LOG_NONE` |
 | `ov::cache_dir`/</br>`CACHE_DIR` | RW | Folder path to be used by the OpenVINO cache. | `N/A` | empty |
 | `ov::available_devices`/</br>`AVAILABLE_DEVICES` | RO | Returns the list of enumerated NPU devices. </br> NPU plugin does not currently support multiple devices. | `N/A`| `N/A` |
-| `ov::device::id`/</br>`DEVICE_ID` | RW | Device identifier. Empty means auto detection. | empty/</br> `3700`/</br> `3720` | empty |
+| `ov::device::id`/</br>`DEVICE_ID` | RW | Device identifier. Empty means auto detection. | empty/</br> `3700`/</br> `3720`/</br> `4000` | empty |
 | `ov::device::uuid`/</br> | RO | Returns the Universal Unique ID of the NPU device. | `N/A`| `N/A` |
 | `ov::device::architecture`/</br>`DEVICE_ARCHITECTURE` | RO | Returns the platform information. | `N/A`| `N/A` |
 | `ov::device::full_name`/</br>`FULL_DEVICE_NAME` | RO | Returns the full name of the NPU device. | `N/A`| `N/A` |
@@ -175,8 +176,10 @@ The following table shows the default values for the number of DPU Groups (Tiles
 | :---             | :---                | :---                 | :---                            |
 | THROUGHPUT       | 3700                | 1                    | 1                               |
 | THROUGHPUT       | 3720                | 2 (all of them)      | 2 (all of them)                 |
+| THROUGHPUT       | 4000                | 2 (out of 5/6)       | 2 (all of them)                 |
 | LATENCY          | 3700                | 4 (all of them)      | 1                               |
 | LATENCY          | 3720                | 2 (all of them)      | 2 (all of them)                 |
+| LATENCY          | 4000                | 4 (out of 5/6)       | 2 (all of them)                 |
 
 &nbsp;
 ### Performance Hint: Optimal Number of Inference Requests
@@ -187,6 +190,7 @@ The following table shows the optimal number of inference requests returned by t
 | :---                | :---                                        | :---                                    |
 | 3700                | 8                                           | 1                                       |
 | 3720                | 4                                           | 1                                       |
+| 4000                | 8                                           | 1                                       |
 
 
 &nbsp;

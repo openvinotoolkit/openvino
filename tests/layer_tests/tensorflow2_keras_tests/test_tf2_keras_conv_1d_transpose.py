@@ -1,4 +1,4 @@
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -15,6 +15,7 @@ class TestKerasConv1DTranspose(CommonTF2LayerTest):
             # tf.nn.<activation> operation have no "==" operation to be compared
             "relu": tf.nn.relu
         }
+        params = params.copy()
         if "activation" in params:
             params["activation"] = activation_func_structure[params["activation"]]
 
@@ -32,31 +33,25 @@ class TestKerasConv1DTranspose(CommonTF2LayerTest):
         return tf2_net, ref_net
 
     test_data_float32_set1 = [
-        pytest.param(dict(params=dict(filters=27, kernel_size=3, padding="valid", strides=2),
-                          input_names=["x"],
-                          input_shapes=[[5, 7, 6]], input_type=tf.float32),
-                     marks=pytest.mark.precommit),
-        pytest.param(dict(params=dict(filters=10, kernel_size=5, padding="same", activation="relu",
-                                      use_bias=True),
-                          input_names=["x"], input_shapes=[[5, 7, 8]], input_type=tf.float32),
-                     marks=pytest.mark.precommit),
-
-        pytest.param(dict(params=dict(filters=27, kernel_size=3, padding="valid", dilation_rate=3),
-                          input_names=["x"],
-                          input_shapes=[[5, 7, 6]], input_type=tf.float32),
-                     marks=pytest.mark.xfail(reason="49505")),
-        pytest.param(dict(
+        dict(params=dict(filters=27, kernel_size=3, padding="valid", strides=2),
+             input_names=["x"],
+             input_shapes=[[5, 7, 6]], input_type=tf.float32),
+        dict(params=dict(filters=10, kernel_size=5, padding="same", activation="relu",
+                         use_bias=True),
+             input_names=["x"], input_shapes=[[5, 7, 8]], input_type=tf.float32),
+        dict(params=dict(filters=27, kernel_size=3, padding="valid", dilation_rate=3),
+             input_names=["x"],
+             input_shapes=[[5, 7, 6]], input_type=tf.float32),
+        dict(
             params=dict(filters=20, kernel_size=7, padding="valid", data_format="channels_first"),
             input_names=["x"], input_shapes=[[5, 7, 8]], input_type=tf.float32),
-            marks=pytest.mark.xfail(reason="49505")),
-
         dict(params=dict(filters=10, kernel_size=5, padding="same", strides=3), input_names=["x"],
              input_shapes=[[5, 7, 8]], input_type=tf.float32),
         dict(params=dict(filters=20, kernel_size=7, padding="valid", strides=4), input_names=["x"],
              input_shapes=[[5, 7, 8]], input_type=tf.float32),
-        pytest.param(dict(params=dict(filters=27, kernel_size=3, padding="valid", dilation_rate=3),
-                          input_names=["x"],
-                          input_shapes=[[5, 7, 6]], input_type=tf.float32), marks=pytest.mark.precommit_tf_fe),
+        dict(params=dict(filters=27, kernel_size=3, padding="valid", dilation_rate=3),
+             input_names=["x"],
+             input_shapes=[[5, 7, 6]], input_type=tf.float32),
         dict(params=dict(filters=20, kernel_size=7, padding="valid", data_format="channels_first"),
              input_names=["x"],
              input_shapes=[[5, 7, 8]], input_type=tf.float32),
@@ -64,6 +59,7 @@ class TestKerasConv1DTranspose(CommonTF2LayerTest):
 
     # TODO: This test works only with tensorflow 2.3.0 or higher version
     @pytest.mark.parametrize("params", test_data_float32_set1)
+    @pytest.mark.precommit
     @pytest.mark.nightly
     @pytest.mark.xfail(reason="Needs tensorflow 2.3.0.")
     def test_keras_conv_1d_case1_transpose_float32(self, params, ie_device, precision, ir_version,

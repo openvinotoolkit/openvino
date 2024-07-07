@@ -11,7 +11,7 @@ import tensorflow as tf
 from openvino.frontend import OpConversionFailure
 
 from common import constants
-from common.tf_layer_test_class import save_to_pb
+from common.utils.tf_utils import save_to_pb
 
 
 @tf.function(

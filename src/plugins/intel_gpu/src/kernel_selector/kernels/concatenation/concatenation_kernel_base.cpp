@@ -128,7 +128,8 @@ void ConcatenationKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
             kernel.params.scalars.resize(1);
             kernel.params.scalars[0] = s;
 
-            size_t concatChannelIndex = (size_t)DataTensor::Channelndex(input.GetLayout(), GetConcatChannel(prim_params));
+            auto concatChannelIndex = DataTensor::Channelndex(input.GetLayout(), GetConcatChannel(prim_params));
+            OPENVINO_ASSERT(concatChannelIndex >= 0, "concatChannelIndex shouldn't be negative");
             lastOffset += (uint32_t)input.GetDims()[concatChannelIndex].v;
         }
     };

@@ -237,7 +237,7 @@ void inline fill_data_random(T* pointer,
         start_from = 0;
     }
     for (std::size_t i = 0; i < size; i++) {
-        pointer[i] = static_cast<T>(start_from + static_cast<T>(random.Generate(k_range)) / k);
+        pointer[i] = static_cast<T>(start_from + static_cast<double>(random.Generate(k_range)) / k);
     }
 }
 
@@ -248,8 +248,7 @@ void inline fill_data_ptr_real_random_float(T* pointer,
                                             const float max,
                                             const int seed) {
     std::mt19937 gen(seed);
-    std::uniform_real_distribution<float> dist(min, max);
-
+    std::uniform_real_distribution<double> dist(min, max);
     for (std::size_t i = 0; i < size; i++) {
         pointer[i] = static_cast<T>(dist(gen));
     }
@@ -413,6 +412,10 @@ inline ov::float8_e4m3 ie_abs(const ov::float8_e4m3& val) {
 
 inline ov::float8_e5m2 ie_abs(const ov::float8_e5m2& val) {
     return ov::float8_e5m2::from_bits(val.to_bits() & 0x7F);
+}
+
+inline ov::float8_e8m0 ie_abs(const ov::float8_e8m0& val) {
+    return val;
 }
 
 template <class T_ACTUAL, class T_EXPECTED>

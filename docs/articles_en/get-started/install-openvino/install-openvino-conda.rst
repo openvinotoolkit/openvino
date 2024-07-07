@@ -24,7 +24,7 @@ Install OpenVINO™ Runtime from Conda Forge
       :sync: system-requirements
 
       | Full requirement listing is available in:
-      | :doc:`System Requirements Page <../../../about-openvino/system-requirements>`
+      | :doc:`System Requirements Page <../../../about-openvino/release-notes-openvino/system-requirements>`
 
 
    .. tab-item:: Processor Notes
@@ -64,7 +64,7 @@ Installing OpenVINO Runtime with Anaconda Package Manager
 
    .. code-block:: sh
 
-      conda install -c conda-forge openvino=2024.0.0
+      conda install -c conda-forge openvino=2024.2.0
 
 Congratulations! You've just Installed OpenVINO! For some use cases you may still
 need to install additional components. Check the description below, as well as the
@@ -74,12 +74,13 @@ to see if your case needs any of them.
 Compiling with OpenVINO Runtime from Conda-Forge on Linux
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-When linking OpenVINO libraries from Conda on Linux, ensure that you have the necessary Conda compilers installed.
+When linking OpenVINO libraries from Conda on Linux, ensure that you have the necessary Conda compilers installed and Conda standard libraries are used.
 To do so, run the following command in your Conda environment:
 
 .. code-block:: sh
 
     conda install cmake c-compiler cxx-compiler make
+    conda env config vars set LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
 
 It is crucial to reactivate your Conda environment after installing the compilers.
 This step ensures that all the environment variables are set correctly for successful linkage.
@@ -93,6 +94,18 @@ To reactivate your Conda environment, execute the following command:
 Once you have reactivated your Conda environment, make sure that all the necessary environment
 variables are properly set and proceed with linking the OpenVINO libraries.
 
+Enabling GPU device for inference
++++++++++++++++++++++++++++++++++
+
+To use a GPU device for OpenVINO inference on Linux, you must install OpenCL ICD:
+
+.. code-block:: sh
+
+   conda install ocl-icd-system
+
+This step is not required on Windows, as Intel® Graphics Compute Runtime for
+OpenCL™ Driver is included with the Intel® Graphics Driver package.
+
 
 Uninstalling OpenVINO™ Runtime
 ###########################################################
@@ -102,9 +115,7 @@ with the proper OpenVINO version number:
 
 .. code-block:: sh
 
-   conda remove openvino=2024.0.0
-
-
+   conda remove openvino=2024.2.0
 
 What's Next?
 ############################################################
@@ -122,7 +133,4 @@ Visit the :doc:`Samples <../../../learn-openvino/openvino-samples>` page for oth
 
 * :doc:`Basic object detection with the Hello Reshape SSD C++ sample <../../../learn-openvino/openvino-samples/hello-reshape-ssd>`
 * :doc:`Object classification sample <../../../learn-openvino/openvino-samples/hello-classification>`
-
-
-
 

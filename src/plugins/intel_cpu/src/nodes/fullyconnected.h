@@ -63,7 +63,7 @@ public:
     void fuseDecompressionSubtract(const MemoryCPtr& memory);
 
 protected:
-    void toNumaNode(int numaID) override;
+    void toNumaNodeImpl(int numaID) override;
 
 private:
     static const size_t DATA_ID = 0;
@@ -76,7 +76,6 @@ private:
     FCAttrs attrs;
     PostOps postOps;
     MemoryArgs memory;
-    MemoryPtr emptyMemory;
     ExecutorFactoryPtr<FCAttrs, node::FullyConnected> factory;
     ExecutorPtr executor = nullptr;
     std::string errorPrefix;

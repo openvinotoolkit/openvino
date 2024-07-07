@@ -7,6 +7,7 @@
 #include <map>
 #include <memory>
 
+#include "intel_npu/utils/logger/logger.hpp"
 #include "npu.hpp"
 #include "zero_init.hpp"
 
@@ -21,11 +22,16 @@ public:
         return "LEVEL0";
     }
     const std::vector<std::string> getDeviceNames() const override;
+    uint32_t getDriverVersion() const override;
+    uint32_t getDriverExtVersion() const override;
+
+    bool isBatchingSupported() const override;
 
 private:
     std::shared_ptr<ZeroInitStructsHolder> _instance;
 
     std::map<std::string, std::shared_ptr<IDevice>> _devices{};
+    Logger _logger;
 };
 
 }  // namespace intel_npu

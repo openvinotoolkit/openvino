@@ -12,8 +12,8 @@ if(ENABLE_ONEDNN_FOR_GPU)
         set(ONEDNN_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_build")
         set(ONEDNN_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_install" CACHE PATH "Installation path for oneDNN GPU library")
         set(ONEDNN_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_root")
-        set(ONEDNN_ENABLED_PRIMITIVES "CONCAT;CONVOLUTION;DECONVOLUTION;INNER_PRODUCT;MATMUL;REORDER;POOLING;REDUCTION")
-        set(ONEDNN_ENABLED_ISA "XEHP;XEHPG;XEHPC")
+        set(ONEDNN_ENABLED_PRIMITIVES "CONCAT;CONVOLUTION;DECONVOLUTION;INNER_PRODUCT;MATMUL;REORDER;POOLING;REDUCTION;SDPA")
+        set(ONEDNN_ENABLED_ISA "XEHPG;XEHPC;XE2")
         set(DNNL_GPU_LIBRARY_NAME "openvino_onednn_gpu" CACHE STRING "Name of oneDNN library for Intel GPU Plugin")
 
         if(X86_64)
@@ -30,7 +30,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
             message(WARNING "Intel GPU plugin unsupported architecture: ${CMAKE_SYSTEM_PROCESSOR}")
         endif()
 
-        if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+        if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
             ov_add_compiler_flags(-Wno-undef)
             ov_add_compiler_flags(-Wno-missing-declarations)
             if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND CMAKE_COMPILER_IS_GNUCXX)
@@ -47,11 +47,13 @@ if(ENABLE_ONEDNN_FOR_GPU)
 
         foreach(cmake_var IN ITEMS CMAKE_SYSTEM_NAME CMAKE_SYSTEM_VERSION
                                    CMAKE_SYSTEM_PROCESSOR CMAKE_TOOLCHAIN_FILE)
-            list(APPEND cmake_extra_args "-D${cmake_var}=${${cmake_var}}")
+            if(${cmake_var})
+                list(APPEND cmake_extra_args "-D${cmake_var}=${${cmake_var}}")
+            endif()
         endforeach()
 
         if(OV_GENERATOR_MULTI_CONFIG)
-            if(CMAKE_GENERATOR MATCHES "^Ninja Multi-Config$")
+            if(CMAKE_GENERATOR STREQUAL "Ninja Multi-Config")
                 list(APPEND cmake_extra_args "-DCMAKE_CONFIGURATION_TYPES=${CMAKE_DEFAULT_BUILD_TYPE}")
                 list(APPEND cmake_extra_args "-DCMAKE_DEFAULT_BUILD_TYPE=${CMAKE_DEFAULT_BUILD_TYPE}")
             endif()
@@ -85,8 +87,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
 
         # remove CMAKE_COMPILE_WARNING_AS_ERROR for onednn_gpu
         if(WIN32 AND CMAKE_COMPILE_WARNING_AS_ERROR AND CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND CMAKE_VERSION VERSION_LESS 3.24)
-            string(REPLACE "/WX" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-            string(REPLACE "/WX" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+            ov_add_compiler_flags(/WX-)
         endif()
 
         ExternalProject_Add(onednn_gpu_build
@@ -140,11 +141,24 @@ if(ENABLE_ONEDNN_FOR_GPU)
             EXCLUDE_FROM_ALL ON
         )
 
+        list(APPEND LIB_INCLUDE_DIRS ${ONEDNN_INSTALL_DIR}/include)
+        list(APPEND LIB_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/src)
+        set(LIB_DEFINITIONS ENABLE_ONEDNN_FOR_GPU
+                            DNNL_DLL
+                            DNNL_DLL_EXPORTS
+                            DNNL_ENABLE_CPU_ISA_HINTS
+                            DNNL_ENABLE_MAX_CPU_ISA
+                            DNNL_X64=1
+                            NGEN_CPP11
+                            NGEN_NEO_INTERFACE
+                            NGEN_NO_OP_NAMES
+                            NGEN_SAFE
+                            NGEN_WINDOWS_COMPAT)
         add_library(onednn_gpu_tgt INTERFACE)
         set_target_properties(onednn_gpu_tgt PROPERTIES
             INTERFACE_LINK_LIBRARIES $<BUILD_INTERFACE:${ONEDNN_GPU_LIB_PATH}>
-            INTERFACE_INCLUDE_DIRECTORIES $<BUILD_INTERFACE:${ONEDNN_INSTALL_DIR}/include>
-            INTERFACE_COMPILE_DEFINITIONS ENABLE_ONEDNN_FOR_GPU
+            INTERFACE_INCLUDE_DIRECTORIES "$<BUILD_INTERFACE:${LIB_INCLUDE_DIRS}>"
+            INTERFACE_COMPILE_DEFINITIONS "${LIB_DEFINITIONS}"
         )
         add_dependencies(onednn_gpu_tgt onednn_gpu_build)
 

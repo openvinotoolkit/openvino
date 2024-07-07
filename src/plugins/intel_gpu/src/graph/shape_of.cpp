@@ -15,7 +15,7 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(shape_of)
 namespace {
 data_types get_output_data_type(const kernel_impl_params& impl_param) {
     if (impl_param.has_fused_primitives()) {
-        return impl_param.get_fused_output_layout().data_type;
+        return impl_param.get_output_element_type();
     }
 
     const auto prim = impl_param.typed_desc<shape_of>();

@@ -11,7 +11,7 @@ import pytest
 from openvino.runtime import PartialShape, Type, Dimension
 
 from common.mo_convert_test_class import CommonMOConvertTest
-from common.tf_layer_test_class import save_to_pb
+from common.utils.tf_utils import save_to_pb
 
 
 class TestComplexParams(CommonMOConvertTest):
@@ -276,6 +276,27 @@ class TestComplexParams(CommonMOConvertTest):
 
         self._test(temp_dir, convert_model_params, cli_tool_params)
 
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_non_numpy_types(self, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
+        import tensorflow as tf
+        def func(a, b):
+            return [a, b]
+        model = tf.function(func, input_signature=[tf.TensorSpec([2], tf.float32, "a"),
+                                                   tf.TensorSpec([2], tf.float32, "b")])
+        parameter1 = ov.opset8.parameter(ov.Shape([2]), ov.Type.bf16)
+        parameter2 = ov.opset8.parameter(ov.Shape([2]), ov.Type.bf16)
+        bf16_ref = ov.Model([parameter1, parameter2], [parameter1, parameter2])
+
+        parameter1 = ov.opset8.parameter(ov.Shape([2]), ov.Type.string)
+        parameter2 = ov.opset8.parameter(ov.Shape([2]), ov.Type.string)
+        string_ref = ov.Model([parameter1, parameter2], [parameter1, parameter2])
+
+        self._test_by_ref_graph(temp_dir, {'input_model': model, 'input': [ov.Type.bf16, tf.bfloat16]}, bf16_ref, compare_tensor_names=False)
+        self._test_by_ref_graph(temp_dir, {'input_model': model, 'input': {'a': ov.Type.bf16, 'b': tf.bfloat16}}, bf16_ref, compare_tensor_names=False)
+        self._test_by_ref_graph(temp_dir, {'input_model': model, 'input': [ov.Type.string, tf.string]}, string_ref, compare_tensor_names=False)
+        self._test_by_ref_graph(temp_dir, {'input_model': model, 'input': {'a': ov.Type.string, 'b': tf.string}}, string_ref, compare_tensor_names=False)
 
 class NegativeCases(unittest.TestCase):
     test_directory = os.path.dirname(os.path.realpath(__file__))

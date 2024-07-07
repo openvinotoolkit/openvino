@@ -60,7 +60,9 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
 
 #undef SEARCH_WORD_2
 #undef SEARCH_WORD
-
+    // Deconv case would set both jit and any in onednn, only set the jit bit.
+    if ((res & jit) && (res & any))
+        res = static_cast<impl_desc_type> (res & ~any);
     return res;
 }
 

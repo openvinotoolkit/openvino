@@ -248,7 +248,7 @@ inline bool broadcastable(const ov::PartialShape& first_pshape, const ov::Partia
 
 inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& impl_params) {
     auto updated_impl_params = impl_params;
-    bool use_new_shape_infer = impl_params.prog->get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+    bool use_new_shape_infer = impl_params.prog->is_new_shape_infer();
 
     for (auto& fd : updated_impl_params.fused_desc) {
         if (fd.is_type<eltwise>() && fd.total_num_deps == 2 && fd.has_outer_dep()) {
@@ -274,5 +274,26 @@ inline std::shared_ptr<WeightsReorderParams> create_weights_reorder_params(const
 
     return std::make_shared<WeightsReorderParams>(from_weights_tensor(params.src), from_weights_tensor(params.dest), params.rotate);
 }
+
+inline void update_shapes(kernel_selector::Params& p, const kernel_impl_params& impl_param) {
+    auto& bp = static_cast<kernel_selector::base_params&>(p);
+    for (size_t i = 0; i < bp.inputs.size(); i++) {
+        bp.inputs[i] = convert_data_tensor(impl_param.input_layouts[i]);
+    }
+    for (size_t i = 0; i < bp.outputs.size(); i++) {
+        bp.outputs[i] = convert_data_tensor(impl_param.output_layouts[i]);
+    }
+
+    for (size_t i = 0; i < bp.fused_ops.size(); i++) {
+        const auto& fused_prim = impl_param.fused_desc[i];
+        auto& fd = bp.fused_ops[i];
+        fd.output_tensor = convert_data_tensor(fused_prim.output_layout);
+        for (size_t i = fd.dep_idx_start; i < fd.dep_idx_start + fd.dep_size; i++) {
+            fd.tensors.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
+        }
+    }
+}
+
+bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config);
 
 }  // namespace cldnn

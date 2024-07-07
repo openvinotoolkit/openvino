@@ -14,7 +14,7 @@ import multiprocessing
 import logging as log
 from fnmatch import fnmatchcase
 from pathlib import Path
-from shutil import copyfile, rmtree
+from shutil import copyfile, rmtree, move
 from setuptools import setup, find_namespace_packages, Extension, Command
 from setuptools.command.build_ext import build_ext
 from setuptools.command.build_clib import build_clib
@@ -22,8 +22,8 @@ from setuptools.command.install import install
 from setuptools.command.build import build
 from setuptools.errors import SetupError
 
-
-WHEEL_LIBS_INSTALL_DIR = os.path.join("openvino", "libs")
+WHEEL_PACKAGE_DIR = "openvino"
+WHEEL_LIBS_INSTALL_DIR = f"{WHEEL_PACKAGE_DIR}/libs"
 WHEEL_LIBS_PACKAGE = "openvino.libs"
 PYTHON_VERSION = f"python{sys.version_info.major}.{sys.version_info.minor}"
 
@@ -38,6 +38,8 @@ elif machine == "arm" or machine == "armv7l":
     ARCH = "arm"
 elif machine == "aarch64" or machine == "arm64" or machine == "ARM64":
     ARCH = "arm64"
+elif machine == "riscv64":
+    ARCH = "riscv64"
 
 # The following variables can be defined in environment or .env file
 SCRIPT_DIR = Path(__file__).resolve().parents[0]
@@ -60,6 +62,13 @@ LIB_INSTALL_CFG = {
     "ie_libs": {
         "name": "core",
         "prefix": f"{BUILD_BASE}/libs.core",
+        "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BINARY_DIR,
+    },
+    "ie_libs_с": {
+        "name": "core_c",
+        "prefix": f"{BUILD_BASE}/libs.core_с",
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
@@ -126,6 +135,13 @@ LIB_INSTALL_CFG = {
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
     },
+    "jax_libs": {
+        "name": "jax",
+        "prefix": f"{BUILD_BASE}/libs.jax",
+        "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BINARY_DIR,
+    },
     "paddle_libs": {
         "name": "paddle",
         "prefix": f"{BUILD_BASE}/libs.paddle",
@@ -160,7 +176,24 @@ LIB_INSTALL_CFG = {
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
+    }
+}
+
+DATA_INSTALL_CFG = {
+    "core_dev": {
+        "name": "core_dev",
+        "prefix": f"{BUILD_BASE}/libs.core.dev",
+        "install_dir": "runtime",
+        "binary_dir": OPENVINO_BINARY_DIR,
+        "source_dir": OPENVINO_SOURCE_DIR
     },
+    "core_c_dev": {
+        "name": "core_c_dev",
+        "prefix": f"{BUILD_BASE}/libs.core_c.dev",
+        "install_dir": "runtime",
+        "binary_dir": OPENVINO_BINARY_DIR,
+        "source_dir": OPENVINO_SOURCE_DIR
+    }
 }
 
 PY_INSTALL_CFG = {
@@ -194,7 +227,7 @@ PY_INSTALL_CFG = {
         "source_dir": f"{OPENVINO_SOURCE_DIR}/tools/benchmark_tool",
         "install_dir": PY_PACKAGES_DIR,
         "binary_dir": "benchmark_app",
-    },
+    }
 }
 
 
@@ -240,12 +273,11 @@ class CustomBuild(build):
         plat_specifier = ".{0}-{1}.{2}".format(self.plat_name, *sys.version_info[:2])
         self.build_temp = os.path.join(self.build_base, "temp" + plat_specifier)
         self.announce(f"Create build directory: {self.build_temp}", level=3)
-
         # build some components which have not been built yet
         for comp, comp_data in install_cfg.items():
             cpack_comp_name = comp_data.get("name")
-            source_dir = comp_data.get("source_dir")
-            binary_dir = comp_data.get("binary_dir")
+            source_dir = comp_data.get("source_dir", OPENVINO_SOURCE_DIR)
+            binary_dir = comp_data.get("binary_dir", OPENVINO_BINARY_DIR)
             install_dir = comp_data.get("install_dir")
             prefix = comp_data.get("prefix")
 
@@ -256,17 +288,19 @@ class CustomBuild(build):
 
                 # even perform a build in case of binary directory does not exist
                 binary_dir = binary_dir if os.path.isabs(binary_dir) else os.path.join(self.build_temp, binary_dir)
+
                 if not os.path.exists(binary_dir):
                     binary_dir = os.path.join(self.build_temp, binary_dir)
                     self.announce(f"Configuring {comp} cmake project", level=3)
-                    self.spawn(["cmake", f"-DOpenVINODeveloperPackage_DIR={OPENVINO_BINARY_DIR}",
-                                         f"-DPython3_EXECUTABLE={sys.executable}",
-                                         f"-DCPACK_GENERATOR={CPACK_GENERATOR}",
-                                         f"-DCMAKE_BUILD_TYPE={CONFIG}",
-                                         "-DENABLE_WHEEL=OFF",
-                                         self.cmake_args,
-                                         "-S", source_dir,
-                                         "-B", binary_dir])
+                    self.spawn(["cmake",
+                                f"-DOpenVINODeveloperPackage_DIR={OPENVINO_BINARY_DIR}",
+                                f"-DPython3_EXECUTABLE={sys.executable}",
+                                f"-DCMAKE_BUILD_TYPE={CONFIG}",
+                                f"-DCPACK_GENERATOR={CPACK_GENERATOR}",
+                                "-DENABLE_WHEEL=OFF",
+                                self.cmake_args,
+                                "-S", source_dir,
+                                "-B", binary_dir])
 
                     self.announce(f"Building {comp} project", level=3)
                     self.spawn(["cmake", "--build", binary_dir,
@@ -280,9 +314,11 @@ class CustomBuild(build):
                                      "--component", cpack_comp_name])
 
     def run(self):
-        # build and install clib into temporary directories
         if not PYTHON_EXTENSIONS_ONLY:
+            # build and install clib into temporary directories
             self.cmake_build_and_install(LIB_INSTALL_CFG)
+            # build and install additional files into temporary directories
+            self.cmake_build_and_install(DATA_INSTALL_CFG)
 
         # install python code into a temporary directory (site-packages)
         self.cmake_build_and_install(PY_INSTALL_CFG)
@@ -313,7 +349,10 @@ class PrepareLibs(build_clib):
         # remove symlink to avoid copying it, set RPATH
         self.post_install(LIB_INSTALL_CFG)
         # copy clib to package data (to WHEEL_LIBS_INSTALL_DIR)
-        self.copy_package_data(get_install_dirs_list(LIB_INSTALL_CFG))
+        self.copy_package_libs(get_install_dirs_list(LIB_INSTALL_CFG))
+        # copy package data (everything except python or libraries)
+        if CPACK_GENERATOR in ["7Z", "TBZ2", "TGZ", "TXZ", "TZ", "TZST", "ZIP"]:
+            self.copy_package_data(get_install_dirs_list(DATA_INSTALL_CFG))
 
     def post_install(self, install_cfg):
         """Install prebuilt libraries to the temp directories, set rpath."""
@@ -389,7 +428,7 @@ class PrepareLibs(build_clib):
             os.rename(real_name, symlink)
             self.announce(f"Resolved symlink {symlink} as {real_name}", level=3)
 
-    def copy_package_data(self, src_dirs):
+    def copy_package_libs(self, src_dirs):
         """Collect package data files (clibs and other plugin support files) from preinstalled dirs and put all runtime libraries to the subpackage."""
         package_clibs_dir = os.path.join(PACKAGE_DIR, WHEEL_LIBS_INSTALL_DIR)
         os.makedirs(package_clibs_dir, exist_ok=True)
@@ -397,7 +436,7 @@ class PrepareLibs(build_clib):
         for src_dir in src_dirs:
             # additional blacklist filter, just to fix cmake install issues
             blacklist_patterns = [  # static libraries and PBD files
-                                    "^.*\\.a$", "^.*\\.lib$", "^.*\\.pdb$",
+                                    "^.*\\.a$", "^.*\\.pdb$",
                                     # TBB debug libraries
                                     "^.*_debug\\.dll$", "^.*_debug\\.\\d*\\.dylib$", "^.*_debug\\.so\\.\\d*$",
                                     # hwloc static libs on Windows
@@ -424,6 +463,42 @@ class PrepareLibs(build_clib):
             packages.append(WHEEL_LIBS_PACKAGE)
             package_data.update({WHEEL_LIBS_PACKAGE: ["*"]})
 
+    def copy_package_data(self, src_dirs):
+        """Collect package data files from preinstalled dirs and put to the subpackage."""
+        package_dir = os.path.join(PACKAGE_DIR, WHEEL_PACKAGE_DIR)
+        os.makedirs(package_dir, exist_ok=True)
+        package_clibs_dir = os.path.join(PACKAGE_DIR, WHEEL_LIBS_INSTALL_DIR)
+        os.makedirs(package_clibs_dir, exist_ok=True)
+
+        replacements = {
+            # change the path where the libraries are installed (runtime/lib/intel64/Release -> openvino/libs)
+            r"({_IMPORT_PREFIX})\/(.*)\/(.*.[lib|dylib|so|dll])": rf"\1/{WHEEL_LIBS_INSTALL_DIR}/\3",
+            # change the path where the include files are installed (runtime/include -> openvino/include)
+            r"({_IMPORT_PREFIX})\/(.*)\/(include)": rf"\1/{WHEEL_PACKAGE_DIR}/\3",
+            # change the libs versions (so.2024.3.0 -> so.2430 or 2024.3.0.dylib -> 2430.dylib)
+            r"(.so)?.(\d\d)(\d\d).(\d+).(\d+)(.dylib)?": r"\1.\3\4\5\6",
+        }
+
+        for src_dir in src_dirs:
+            src, dst = Path(src_dir), Path(package_dir)
+
+            # move the static libs to the directory with the shared libraries
+            for file_path in Path(src).rglob("*.lib"):
+                file_name = os.path.basename(file_path)
+                if file_path.is_file():
+                    dst_file = os.path.join(package_clibs_dir, file_name)
+                    move(file_path, dst_file)
+                    self.announce(f"Move {file_path} to {dst_file}", level=3)
+
+            if os.path.isdir(src) and os.listdir(src):
+                # copy the rest of the files to the package directly
+                shutil.copytree(src, dst, dirs_exist_ok=True)
+
+                # patch cmake configurations
+                for file_path in Path(dst).rglob("*.cmake"):
+                    if file_path.is_file():
+                        replace_strings_in_file(file_path, replacements)
+
 
 def copy_file(src, dst, verbose=False, dry_run=False):
     """Custom file copy."""
@@ -433,6 +508,23 @@ def copy_file(src, dst, verbose=False, dry_run=False):
         shutil.copyfile(src, dst)
         if verbose:
             log.info(f"Copied '{src}' to '{dst}'")
+
+
+def replace_strings_in_file(file_path, replacements):
+    """Replace strings in a text file.
+
+    :param file_path: Path to the source file.
+    :param replacements: A dictionary where keys are strings or regex patterns to be replaced and values are the new strings.
+    """
+    # Read the content of the file
+    with open(file_path, "r", encoding="utf-8") as file:
+        content = file.read()
+
+    for pattern, new_string in replacements.items():
+        content = re.sub(pattern, new_string, content)
+
+    with open(file_path, "w", encoding="utf-8") as file:
+        file.write(content)
 
 
 class CopyExt(build_ext):
@@ -619,6 +711,7 @@ def find_entry_points(install_cfg):
     """Creates a list of entry points for OpenVINO runtime package."""
     entry_points = {
         "console_scripts": [],
+        "torch_dynamo_backends": ["openvino=openvino.frontend.pytorch.torchdynamo.backend:openvino"],
     }
     for comp_info in install_cfg.values():
         empty_point = comp_info.get("entry_point")

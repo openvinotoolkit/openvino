@@ -22,7 +22,7 @@ template <typename NodeType, typename... Args>
 static std::shared_ptr<ov::Node> make_layer_with_bias(Args&&... args) {
     const auto node = std::make_shared<NodeType>(std::forward<Args>(args)...);
     const auto& precision = node->get_output_element_type(0);
-    const auto bias_const = ov::test::utils::deprecated::make_constant<float>(precision, ov::Shape{}, {}, true);
+    const auto bias_const = ov::test::utils::make_constant(precision, ov::Shape{});
     const auto bias = std::make_shared<ov::opset10::Add>(node, bias_const);
     return bias;
 }
@@ -96,7 +96,7 @@ protected:
 
         const size_t channels = inputDynamicShapes[0][1].get_length();
         const size_t fc_out_channels = 512;
-        const auto fc_weights_1 = ov::test::utils::deprecated::make_constant<float>(precision, ov::Shape{fc_out_channels, channels}, {}, true);
+        const auto fc_weights_1 = ov::test::utils::make_constant(precision, ov::Shape{fc_out_channels, channels});
         const auto fc_1 = make_layer_with_bias<ov::opset10::MatMul>(transpose_1, fc_weights_1, false, true);
 
         const auto transpose_const_2 = ov::opset10::Constant::create(shapeof_subgraph_prc, {3}, {0, 2, 1});
@@ -106,7 +106,7 @@ protected:
         const auto reshape_const_2 = ov::op::util::make_try_fold<ov::opset10::Concat>(ov::OutputVector{unchangable_dims, spatial_dims}, 0);
         const auto reshape_2 = std::make_shared<ov::opset10::Reshape>(transpose_2, reshape_const_2, true);
 
-        const auto conv_weights = ov::test::utils::deprecated::make_constant<float>(precision, ov::Shape{fc_out_channels, 1, 1, 3, 3}, {}, true);
+        const auto conv_weights = ov::test::utils::make_constant(precision, ov::Shape{fc_out_channels, 1, 1, 3, 3});
         const auto conv_with_bias = make_layer_with_bias<ov::opset10::GroupConvolution>(reshape_2,
                                                                               conv_weights,
                                                                               ov::Strides{1, 1},
@@ -127,7 +127,7 @@ protected:
         const auto transpose_const_3 = ov::opset10::Constant::create(shapeof_subgraph_prc, {3}, {0, 2, 1});
         const auto transpose_3 = std::make_shared<ov::opset10::Transpose>(reshape_3, transpose_const_3);
 
-        const auto fc_weights_2 = ov::test::utils::deprecated::make_constant<float>(precision, ov::Shape{channels, fc_out_channels}, {}, true);
+        const auto fc_weights_2 = ov::test::utils::make_constant(precision, ov::Shape{channels, fc_out_channels});
         const auto fc_2 = make_layer_with_bias<ov::opset10::MatMul>(transpose_3, fc_weights_2, false, true);
         function = std::make_shared<ov::Model>(fc_2, ov::ParameterVector{param}, "MergeTransposeReorderModel");
     }

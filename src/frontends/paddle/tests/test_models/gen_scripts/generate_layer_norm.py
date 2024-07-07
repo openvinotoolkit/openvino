@@ -5,10 +5,14 @@
 # layer_norm paddle model generator
 #
 import numpy as np
-from paddle.fluid import param_attr
 from save_model import saveModel
 import paddle
 import sys
+
+if paddle.__version__ >= '2.6.0':
+    from paddle.base import param_attr
+else:
+    from paddle.fluid import param_attr
 
 data_type = 'float32'
 
@@ -29,7 +33,7 @@ def layer_norm(name:str, x, begin_norm_axis, scale=True, shift=True, param_attr=
             feed={'x': x},
             fetch_list=[out])
 
-        saveModel(name, exe, feedkeys=['x'], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
+        saveModel(name, exe, feed_vars=[data], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
 

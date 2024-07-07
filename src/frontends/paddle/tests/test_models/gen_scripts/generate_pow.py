@@ -33,7 +33,7 @@ def paddle_pow(name : str, x, y, data_type):
             feed={'x': x},
             fetch_list=[out])             
 
-        saveModel(name, exe, feedkeys=['x'], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
+        saveModel(name, exe, feed_vars=[node_x], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]
 
@@ -59,7 +59,7 @@ def paddle_pow_tensor(name : str, x, y, data_type):
             feed={'x': x, 'y': y},
             fetch_list=[out])
 
-        saveModel(name, exe, feedkeys=['x', 'y'], fetchlist=[out],
+        saveModel(name, exe, feed_vars=[node_x, node_y], fetchlist=[out],
                   inputs=[x, y], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]

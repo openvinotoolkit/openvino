@@ -43,9 +43,9 @@ def eye(
     :return: New node performing deformable convolution operation.
     """
     if batch_shape is not None:
-        inputs = as_nodes(num_rows, num_columns, diagonal_index, batch_shape)
+        inputs = as_nodes(num_rows, num_columns, diagonal_index, batch_shape, name=name)
     else:
-        inputs = as_nodes(num_rows, num_columns, diagonal_index)
+        inputs = as_nodes(num_rows, num_columns, diagonal_index, name=name)
 
     return _get_node_factory_opset9().create("Eye", inputs, {"output_type": output_type})
 
@@ -83,7 +83,7 @@ def non_max_suppression(
     score_threshold = score_threshold if score_threshold is not None else make_constant_node(0, np.float32)
     soft_nms_sigma = soft_nms_sigma if soft_nms_sigma is not None else make_constant_node(0, np.float32)
 
-    inputs = as_nodes(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, soft_nms_sigma)
+    inputs = as_nodes(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, soft_nms_sigma, name=name)
 
     attributes = {
         "box_encoding": box_encoding,
@@ -129,7 +129,7 @@ def roi_align(
 
     :return: The new node which performs ROIAlign
     """
-    inputs = as_nodes(data, rois, batch_indices)
+    inputs = as_nodes(data, rois, batch_indices, name=name)
     attributes = {
         "pooled_h": pooled_h,
         "pooled_w": pooled_w,
@@ -148,7 +148,7 @@ def softsign(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: The optional name for the output node.
     :return: New node with SoftSign operation applied on each element of it.
     """
-    return _get_node_factory_opset9().create("SoftSign", [as_node(node)], {})
+    return _get_node_factory_opset9().create("SoftSign", [as_node(node, name=name)], {})
 
 
 @nameable_op
@@ -156,18 +156,20 @@ def rdft(
     data: NodeInput,
     axes: NodeInput,
     signal_size: Optional[NodeInput] = None,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs RDFT operation.
 
     :param data: Tensor with data.
     :param axes: Tensor with axes to transform.
     :param signal_size: Optional tensor specifying signal size with respect to axes from the input 'axes'.
+    :param name: Optional output node name.
     :return: The new node which performs RDFT operation on the input data tensor.
     """
     if signal_size is None:
-        inputs = as_nodes(data, axes)
+        inputs = as_nodes(data, axes, name=name)
     else:
-        inputs = as_nodes(data, axes, signal_size)
+        inputs = as_nodes(data, axes, signal_size, name=name)
 
     return _get_node_factory_opset9().create("RDFT", inputs)
 
@@ -177,18 +179,20 @@ def irdft(
     data: NodeInput,
     axes: NodeInput,
     signal_size: Optional[NodeInput] = None,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs IRDFT operation.
 
     :param data: Tensor with data.
     :param axes: Tensor with axes to transform.
     :param signal_size: Optional tensor specifying signal size with respect to axes from the input 'axes'.
+    :param name: Optional output node name.
     :return: The new node which performs IRDFT operation on the input data tensor.
     """
     if signal_size is None:
-        inputs = as_nodes(data, axes)
+        inputs = as_nodes(data, axes, name=name)
     else:
-        inputs = as_nodes(data, axes, signal_size)
+        inputs = as_nodes(data, axes, signal_size, name=name)
 
     return _get_node_factory_opset9().create("IRDFT", inputs)
 
@@ -208,6 +212,7 @@ def multiclass_nms(
     background_class: Optional[int] = -1,
     nms_eta: Optional[float] = 1.0,
     normalized: Optional[bool] = True,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs MulticlassNms.
 
@@ -232,12 +237,13 @@ def multiclass_nms(
     :param background_class: Specifies the background class id, -1 meaning to keep all classes
     :param nms_eta: Specifies eta parameter for adpative NMS, in close range [0, 1.0]
     :param normalized: Specifies whether boxes are normalized or not
+    :param name: The optional name for the output node
     :return: The new node which performs MuticlassNms
     """
     if roisnum is None:
-        inputs = as_nodes(boxes, scores)
+        inputs = as_nodes(boxes, scores, name=name)
     else:
-        inputs = as_nodes(boxes, scores, roisnum)
+        inputs = as_nodes(boxes, scores, roisnum, name=name)
 
     attributes = {
         "sort_result_type": sort_result_type,
@@ -286,7 +292,7 @@ def generate_proposals(
     :param name: The optional name for the output node.
     :return: New node performing GenerateProposals operation.
     """
-    inputs = as_nodes(im_info, anchors, deltas, scores)
+    inputs = as_nodes(im_info, anchors, deltas, scores, name=name)
 
     attributes = {
         "min_size": min_size,
@@ -332,4 +338,4 @@ def grid_sample(
 
     :return: A new GridSample node.
     """
-    return _get_node_factory_opset9().create("GridSample", as_nodes(data, grid), attributes)
+    return _get_node_factory_opset9().create("GridSample", as_nodes(data, grid, name=name), attributes)

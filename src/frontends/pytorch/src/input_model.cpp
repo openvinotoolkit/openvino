@@ -49,11 +49,22 @@ std::vector<ov::frontend::Place::Ptr> InputModel::get_outputs() const {
 }
 
 Place::Ptr InputModel::get_place_by_tensor_name(const std::string& tensor_name) const {
+    if (tensor_name.empty())
+        return {};
     auto place_it = m_name_to_place.find(tensor_name);
     if (place_it != m_name_to_place.end()) {
         return place_it->second;
+    } else {
+        // Return fake place that can be used to change shape or type of inputs that will exist after conversion
+        auto place = std::make_shared<pytorch::Place>(*this, tensor_name, 0);
+        return place;
     }
-    return nullptr;
+}
+
+Place::Ptr InputModel::get_place_by_input_index(size_t input_idx) const {
+    // Return place that can be used to change shape or type of inputs that will exist after conversion
+    auto place = std::make_shared<pytorch::Place>(*this, "", input_idx);
+    return place;
 }
 
 void InputModel::set_partial_shape(const Place::Ptr& place, const ov::PartialShape& shape) {
@@ -61,6 +72,18 @@ void InputModel::set_partial_shape(const Place::Ptr& place, const ov::PartialSha
                             "Provided place is invalid, only inputs are supported for setting shape.");
     auto pytorch_place = std::dynamic_pointer_cast<pytorch::Place>(place);
     FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported");
+    if (pytorch_place->m_is_fake) {
+        bool is_new = true;
+        for (auto& p : m_requested_places) {
+            if (p->is_equal(pytorch_place)) {
+                is_new = false;
+                pytorch_place = std::dynamic_pointer_cast<pytorch::Place>(p);
+                FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported");
+            }
+        }
+        if (is_new)
+            m_requested_places.push_back(place);
+    }
     pytorch_place->m_pshape = shape;
 }
 
@@ -77,6 +100,18 @@ void InputModel::set_element_type(const Place::Ptr& place, const ov::element::Ty
                             "Provided place is invalid, only inputs are supported for setting element type.");
     auto pytorch_place = std::dynamic_pointer_cast<pytorch::Place>(place);
     FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported");
+    if (pytorch_place->m_is_fake) {
+        bool is_new = true;
+        for (auto& p : m_requested_places) {
+            if (p->is_equal(pytorch_place)) {
+                is_new = false;
+                pytorch_place = std::dynamic_pointer_cast<pytorch::Place>(p);
+                FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported");
+            }
+        }
+        if (is_new)
+            m_requested_places.push_back(place);
+    }
     pytorch_place->m_type = type;
 }
 
@@ -93,8 +128,8 @@ void InputModel::set_tensor_value(const Place::Ptr& place, const void* value) {
                             "Provided place is invalid, only inputs are supported for setting tensor value.");
     auto pytorch_place = std::dynamic_pointer_cast<pytorch::Place>(place);
     FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported");
-    const auto el_type = pytorch_place->m_type;
-    const auto p_shape = pytorch_place->m_pshape;
+    const auto& el_type = pytorch_place->m_type;
+    const auto& p_shape = pytorch_place->m_pshape;
     FRONT_END_GENERAL_CHECK(el_type.is_static() && p_shape.is_static(),
                             "Shape and type must be statically defined before calling set_tensor_value");
     auto const_node = ov::op::v0::Constant::create(el_type, p_shape.to_shape(), value);
@@ -169,6 +204,25 @@ const std::string& InputModel::decoder_type_name() const {
 
 std::shared_ptr<TorchDecoder> InputModel::get_decoder() const {
     return m_model_decoder;
+}
+
+void InputModel::flush_places() {
+    auto input_places = get_inputs();
+    if (m_requested_places.size() > input_places.size())
+        return;
+    for (auto place : m_requested_places) {
+        auto pt_place = std::dynamic_pointer_cast<pytorch::Place>(place);
+        if (!pt_place || pt_place->get_input_index() >= input_places.size() || pt_place->m_names.size() != 0)
+            return;
+        auto to_update_place = std::dynamic_pointer_cast<pytorch::Place>(input_places[pt_place->get_input_index()]);
+        if (!to_update_place || !to_update_place->m_type.is_dynamic() || !to_update_place->m_pshape.rank().is_dynamic())
+            return;
+        if (pt_place->m_type.is_static())
+            to_update_place->m_type = pt_place->m_type;
+        if (pt_place->m_pshape.rank().is_static())
+            to_update_place->m_pshape = pt_place->m_pshape;
+    }
+    m_requested_places = {};
 }
 
 }  // namespace pytorch

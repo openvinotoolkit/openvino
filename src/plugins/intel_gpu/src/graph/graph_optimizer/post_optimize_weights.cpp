@@ -8,10 +8,11 @@
 
 #include "convolution_inst.h"
 #include "deconvolution_inst.h"
-#include "deformable_convolution_inst.h"
 #include "fully_connected_inst.h"
 #include "intel_gpu/runtime/format.hpp"
-
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include "graph/impls/onednn/utils.hpp"
+#endif // ENABLE_ONEDNN_FOR_GPU
 namespace cldnn {
 
 post_optimize_weights::post_optimize_weights(reorder_factory& rf_ref)
@@ -91,6 +92,15 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
                 updated_input_layout.format = from_weights_layout(to_weights_layout(input_fmt, false));
 
                 weights_reorder_params->set_input_layout(updated_input_layout);
+#ifdef ENABLE_ONEDNN_FOR_GPU
+                // Need to update WeightsReorderParamsOneDNN of fc onednn imple when input layout data_type/format is different
+                auto onednn_weights_params = std::dynamic_pointer_cast<onednn::WeightsReorderParamsOneDNN>(weights_reorder_params);
+                if (onednn_weights_params &&
+                   (updated_input_layout.format != onednn::find_data_format(onednn_weights_params->_in_desc) ||
+                    onednn::convert_data_type(updated_input_layout.data_type) != onednn_weights_params->_in_desc.get_data_type())) {
+                    onednn_weights_params->_in_desc = onednn::layout_to_memory_desc(updated_input_layout);
+                }
+#endif // ENABLE_ONEDNN_FOR_GPU
                 auto weights_reorder = _rf.get_weights_reorder(prev_node.get_primitive()->input[0].pid,
                                                                weights_reorder_params);
                 auto& weights_reorder_node = p.get_or_create(weights_reorder.first);
@@ -124,8 +134,6 @@ void post_optimize_weights::run(program& p) {
             optimize_weights(node->as<convolution>(), p);
         } else if (node->is_type<deconvolution>()) {
             optimize_weights(node->as<deconvolution>(), p);
-        } else if (node->is_type<deformable_conv>()) {
-            optimize_weights(node->as<deformable_conv>(), p);
         } else if (node->is_type<fully_connected>()) {
             optimize_weights(node->as<fully_connected>(), p);
         }

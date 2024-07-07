@@ -7,21 +7,23 @@ on:
         description: 'Machine on which the tests would run'
         type: string
         required: true
-      image:
-        description: 'Docker image in which the tests would run'
+      container:
+        description: 'JSON to be converted to the value of the "container" configuration for the job'
         type: string
         required: false
-        default: null
+        default: '{"image": null}'
       affected-components:
         description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
         type: string
         required: true
 
+permissions: read-all
+
 jobs:
   Samples:
+    timeout-minutes: 30
     runs-on: ${{ inputs.runner }}
-    container:
-      image: ${{ inputs.image }}
+    container: ${{ fromJSON(inputs.container) }}
     defaults:
       run:
         shell: bash
@@ -31,18 +33,14 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       BUILD_DIR: ${{ github.workspace }}/build
     steps:
-      - name: Set apt retries
-        if: runner.os == 'Linux'
-        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
-
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -63,16 +61,14 @@ jobs:
             tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
           popd
 
-      - name: Install OpenVINO dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -y
-
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
         run: brew install coreutils
 
       - name: Fetch setup_python action
-        uses: actions/checkout@v4
+        # Python is already installed on Ubuntu within Dockerfile
+        if: runner.os != 'Linux'
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
@@ -80,11 +76,12 @@ jobs:
           path: 'openvino'
 
       - name: Setup Python 3.11
+        # Python is already installed on Ubuntu within Dockerfile
+        if: runner.os != 'Linux'
         uses: ./openvino/.github/actions/setup_python
         with:
           version: '3.11'
           should-setup-pip-paths: 'false'
-          self-hosted-runner: ${{ runner.os == 'Linux' }}
 
       - name: Build cpp samples - GCC
         run: $INSTALL_DIR/samples/cpp/build_samples.sh -i $INSTALL_DIR -b $BUILD_DIR/cpp_samples
@@ -94,7 +91,7 @@ jobs:
       - name: Build cpp samples - Clang
         if: runner.os == 'Linux'
         run: |
-          apt-get install -y clang
+          apt-get update && apt-get install -y clang
           $INSTALL_DIR/samples/cpp/build_samples.sh -i $INSTALL_DIR -b $BUILD_DIR/cpp_samples_clang
         env:
           CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
@@ -124,13 +121,4 @@ jobs:
 
           source ${INSTALL_DIR}/setupvars.sh
 
-          PYTHONCOERCECLOCALE=warn python3 -bb -W error -X dev -m pytest $INSTALL_TEST_DIR/smoke_tests \
-            --junitxml=$INSTALL_TEST_DIR/TEST-SamplesSmokeTests.xml
-
-      - name: Upload Test Results
-        uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
-        with:
-          name: test-results-samples
-          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
-          if-no-files-found: 'warn'
+          PYTHONCOERCECLOCALE=warn python3 -bb -W error -X dev -m pytest $INSTALL_TEST_DIR/smoke_tests

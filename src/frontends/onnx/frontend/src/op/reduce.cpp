@@ -136,6 +136,14 @@ std::shared_ptr<ov::Node> make_ov_reduction_op(const Node& node,
         return set_1::identity(node).at(0).get_node_shared_ptr();
     }
 }
+
+std::shared_ptr<ov::Node> onnx_reduce_sum_square(const ov::frontend::onnx::Node& node,
+                                                 const std::set<element::Type>& supported_types,
+                                                 const bool axes_as_attr = true) {
+    const auto input = ov::Output<ov::Node>{node.get_ov_inputs().at(0)};
+    const auto square_node = std::make_shared<v1::Multiply>(input, input);
+    return make_ov_reduction_op<v1::ReduceSum>(node, square_node, supported_types, axes_as_attr);
+}
 }  // namespace
 
 namespace set_1 {
@@ -180,11 +188,10 @@ ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
 }
 
 ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
-    const auto input = ov::Output<ov::Node>{node.get_ov_inputs().at(0)};
-    const auto square_node = std::make_shared<v1::Multiply>(input, input);
-    return {make_ov_reduction_op<v1::ReduceSum>(node, square_node, supported_types_v1)};
+    return {onnx_reduce_sum_square(node, supported_types_v1)};
 }
 }  // namespace set_1
+
 /*
     Opset 11 is skipped because there are no significant difference between opset1 and opset 11.
     Found difference is:
@@ -198,28 +205,47 @@ namespace set_13 {
 ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
 }
+
+ov::OutputVector reduce_l2(const Node& node) {
+    return {make_ov_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0), supported_types_v2)};
+}
+
 ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceMax>(node, node.get_ov_inputs().at(0), supported_types_v3)};
 }
-
+ov::OutputVector reduce_mean(const ov::frontend::onnx::Node& node) {
+    return {make_ov_reduction_op<v1::ReduceMean>(node, node.get_ov_inputs().at(0), supported_types_v2)};
+}
 ov::OutputVector reduce_min(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceMin>(node, node.get_ov_inputs().at(0), supported_types_v3)};
+}
+
+ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
+    return {onnx_reduce_sum_square(node, supported_types_v2)};
 }
 }  // namespace set_13
 
 namespace set_18 {
+ov::OutputVector reduce_l2(const Node& node) {
+    return {make_ov_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
+}
 ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceMax>(node, node.get_ov_inputs().at(0), supported_types_v3, false)};
 }
-
+ov::OutputVector reduce_mean(const ov::frontend::onnx::Node& node) {
+    return {make_ov_reduction_op<v1::ReduceMean>(node, node.get_ov_inputs().at(0), supported_types_v3, false)};
+}
 ov::OutputVector reduce_min(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceMin>(node, node.get_ov_inputs().at(0), supported_types_v3, false)};
 }
-
 ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node) {
     const ov::Output<ov::Node> sum_node =
         make_ov_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), supported_types_v2, false);
     return {std::make_shared<v0::Log>(sum_node)};
+}
+
+ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
+    return {onnx_reduce_sum_square(node, supported_types_v2, false)};
 }
 }  // namespace set_18
 

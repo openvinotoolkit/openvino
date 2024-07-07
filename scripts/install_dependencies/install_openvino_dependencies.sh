@@ -61,12 +61,12 @@ if [ -n "$selftest" ] ; then
                  raspbian:9 debian:9 ubuntu:18.04 \
                  raspbian:10 debian:10 ubuntu:20.04 ubuntu:20.10 ubuntu:21.04 \
                  raspbian:11 debian:11 ubuntu:21.10 ubuntu:22.04 \
-                 raspbian:12 debian:12 ubuntu:22.10 ubuntu:23.04 ; do
+                 raspbian:12 debian:12 ubuntu:22.10 ubuntu:23.04 ubuntu:24.04 ; do
         for opt in  "-h" "-p" "-e -p" "-n" "-n -e" "-y" "-y -e" ; do
             echo "||"
             echo "|| Test $image / '$opt'"
             echo "||"
-            SCRIPT_DIR="$( cd "$( dirname "$(realpath "${BASH_SOURCE[0]}")" )" >/dev/null 2>&1 && pwd )"
+            SCRIPT_DIR="$( cd "$( dirname "$(realpath "${BASH_SOURCE:-$0}")" )" >/dev/null 2>&1 && pwd )"
             docker run -it --rm \
                 --volume "${SCRIPT_DIR}":/scripts:ro,Z  \
                 --volume yum-cache:/var/cache/yum \
@@ -96,6 +96,8 @@ if [ "$os" == "auto" ] ; then
     case $os in
         centos7|centos8|centos9|\
         rhel8|rhel9.1|\
+        opencloudos8.5|opencloudos8.6|opencloudos8.8|opencloudos9.0|opencloudos9.2|\
+        tencentos3.1|tencentos3.2|tencentos3.3|tencentos4.0|tencentos4.2|\
         anolis8.6|anolis8.8|\
         openEuler20.03|openEuler22.03|openEuler23.03|\
         almalinux8.7|almalinux8.8|almalinux9.2|\
@@ -107,7 +109,7 @@ if [ "$os" == "auto" ] ; then
         raspbian9|debian9|ubuntu18.04|\
         raspbian10|debian10|ubuntu20.04|ubuntu20.10|ubuntu21.04|\
         raspbian11|debian11|ubuntu21.10|ubuntu22.04|\
-        raspbian12|debian12|ubuntu22.10) [ -z "$print" ] && echo "Detected OS: ${os}" ;;
+        raspbian12|debian12|ubuntu22.10:ubuntu23.04|ubuntu23.10|ubuntu24.04) [ -z "$print" ] && echo "Detected OS: ${os}" ;;
         *) echo "Unsupported OS: ${os:-detection failed}" >&2 ; exit 1 ;;
     esac
 fi
@@ -124,33 +126,23 @@ if [ "$os" == "raspbian9" ] || [ "$os" == "debian9" ] ; then
     # - cmake version is 3.7.2
     # which are not supported by OpenVINO
 
-    pkgs_core=()
     pkgs_gpu=(ocl-icd-libopencl1)
     pkgs_python=()
     pkgs_dev=(pkg-config g++ gcc libc6-dev make sudo)
 
 elif [ "$os" == "ubuntu18.04" ] ; then
 
-    pkgs_core=(libtbb2)
     pkgs_gpu=(ocl-icd-libopencl1)
     pkgs_python=(python3.8 libpython3.8 python3.8-venv python3-pip)
     pkgs_dev=(cmake pkg-config g++ gcc libc6-dev make sudo)
 
 elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "debian10" ] || [ "$os" == "raspbian10" ] ||
      [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubuntu22.04" ] || [ "$os" == "debian11" ] || [ "$os" == "raspbian11" ] ||
-     [ "$os" == "ubuntu22.10" ] || [ "$os" == "ubuntu23.04" ] || [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ]; then
+     [ "$os" == "ubuntu22.10" ] || [ "$os" == "ubuntu23.04" ] || [ "$os" == "ubuntu24.04" ] || [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ]; then
 
-    pkgs_core=()
     pkgs_gpu=(ocl-icd-libopencl1)
     pkgs_python=(python3 python3-venv python3-pip)
-    pkgs_dev=(cmake pkg-config g++ gcc libc6-dev make sudo)
-
-    if [ "$os" == "ubuntu22.04" ] || [ "$os" == "ubuntu22.10" ] || [ "$os" == "ubuntu23.04" ] ||
-       [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ] ; then
-        pkgs_core+=(libtbb12)
-    else
-        pkgs_core+=(libtbb2)
-    fi
+    pkgs_dev=(cmake pkgconf g++ gcc libc6-dev make sudo)
 
     if [ "$os" == "debian10" ] || [ "$os" == "raspbian10" ] ; then
         pkgs_python+=(libpython3.7)
@@ -164,10 +156,16 @@ elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "debian10" ] || [ "$os" == "raspbi
         pkgs_python+=(libpython3.10)
     elif [ "$os" == "ubuntu23.04" ] ; then
         pkgs_python+=(libpython3.11)
+    elif [ "$os" == "ubuntu24.04" ] ; then
+        pkgs_python+=(libpython3.12)
     fi
 
 elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] || [ "$os" == "centos9" ] ||
      [ "$os" == "rhel8" ] || [ "$os" == "rhel9.1" ] ||
+     [ "$os" == "opencloudos8.5" ] || [ "$os" == "opencloudos8.6" ] || [ "$os" == "opencloudos8.8" ] ||
+     [ "$os" == "opencloudos9.0" ] || [ "$os" == "opencloudos9.2" ] ||
+     [ "$os" == "tencentos3.1" ] || [ "$os" == "tencentos3.2" ] || [ "$os" == "tencentos3.3" ] ||
+     [ "$os" == "tencentos4.0" ] || [ "$os" == "tencentos4.2" ] ||
      [ "$os" == "anolis8.6" ] || [ "$os" == "anolis8.8" ] ||
      [ "$os" == "openEuler20.03" ] || [ "$os" == "openEuler22.03" ] || [ "$os" == "openEuler23.03" ] ||
      [ "$os" == "fedora29" ] || [ "$os" == "fedora30" ] || [ "$os" == "fedora31" ] || [ "$os" == "fedora32" ] ||
@@ -184,7 +182,6 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] || [ "$os" == "centos9" ] 
         amazon-linux-extras install epel python3.8
     fi
 
-    pkgs_core=()
     pkgs_gpu=()
     pkgs_python=()
     pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake3 sudo)
@@ -205,7 +202,6 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] || [ "$os" == "centos9" ] 
        [ "$os" == "amzn2022" ] || [ "$os" == "amzn2023" ] ||
        [ "$os" == "anolis8.6" ] || [ "$os" == "anolis8.8" ] ||
        [ "$os" == "openEuler20.03" ] || [ "$os" == "openEuler22.03" ] || [ "$os" == "openEuler23.03" ] ; then
-        pkgs_core+=("tbb.$arch")
         pkgs_python+=(python3 python3-pip)
     fi
 
@@ -213,18 +209,15 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] || [ "$os" == "centos9" ] 
         pkgs_gpu+=("ocl-icd.$arch")
         extra_repos+=("https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm")
     elif [ "$os" == "rhel8" ] ; then
-        pkgs_core+=("https://vault.centos.org/centos/8/AppStream/$arch/os/Packages/tbb-2018.2-9.el8.$arch.rpm")
         pkgs_gpu+=("http://mirror.centos.org/centos/8-stream/AppStream/$arch/os/Packages/ocl-icd-2.2.12-1.el8.$arch.rpm")
         pkgs_python+=(python38 python38-pip)
         extra_repos+=("https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm")
     elif [ "$os" == "rhel9.1" ] ; then
-        pkgs_core+=("http://mirror.stream.centos.org/9-stream/AppStream/$arch/os/Packages/tbb-2020.3-8.el9.$arch.rpm")
         pkgs_gpu+=("https://mirror.stream.centos.org/9-stream/AppStream/$arch/os/Packages/ocl-icd-2.2.13-4.el9.$arch.rpm")
         pkgs_python+=(python3 python3-pip)
         extra_repos+=("https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm")
     fi
 elif [ "$os" == "opensuse-leap15.3" ] ; then
-    pkgs_core=(libtbb2 libtbbmalloc2)
     pkgs_gpu=(libOpenCL1)
     pkgs_python=(python39-base python39 python39-venv python39-pip)
     pkgs_dev=(cmake pkg-config gcc-c++ gcc make sudo)
@@ -271,7 +264,7 @@ iopt=
 if [ "$os" == "debian9" ] || [ "$os" == "raspbian9" ] || [ "$os" == "ubuntu18.04" ] ||
    [ "$os" == "debian10" ] || [ "$os" == "raspbian10" ] || [ "$os" == "ubuntu20.04" ] || [ "$os" == "ubuntu20.10" ] || [ "$os" == "ubuntu21.04" ] ||
    [ "$os" == "debian11" ] || [ "$os" == "raspbian11" ] || [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubuntu22.04" ] ||
-   [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ] || [ "$os" == "ubuntu22.10" ] ; then
+   [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ] || [ "$os" == "ubuntu22.10" ] || [ "$os" == "ubuntu23.04" ] || [ "$os" == "ubuntu23.10" ] || [ "$os" == "ubuntu24.04" ] ; then
 
     [ -z "$interactive" ] && iopt="-y"
     [ -n "$dry" ] && iopt="--dry-run"

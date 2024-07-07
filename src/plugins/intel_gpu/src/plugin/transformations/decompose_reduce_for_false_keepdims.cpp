@@ -11,6 +11,7 @@
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include "decompose_reduce_for_false_keepdims.hpp"
 
@@ -34,7 +35,7 @@ DecomposeReduceForFalseKeepDims::DecomposeReduceForFalseKeepDims() {
         ov::pass::pattern::has_static_shape());
 
     // register callback
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto reduce =
             as_type_ptr<op::util::ArithmeticReductionKeepDims>(pattern_map.at(reduce_pattern).get_node_shared_ptr());

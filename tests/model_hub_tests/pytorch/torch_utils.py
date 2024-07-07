@@ -80,7 +80,7 @@ class TestTorchConvertModel(TestConvertModel):
                 gm = graph.module()
                 print(gm.code)
 
-                decoder = TorchFXPythonDecoder(gm, gm)
+                decoder = TorchFXPythonDecoder(gm)
                 decoder._input_signature = list(self.example.keys())
                 ov_model = convert_model(decoder, verbose=True)
             else:

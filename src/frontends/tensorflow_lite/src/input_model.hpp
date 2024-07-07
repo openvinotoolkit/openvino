@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "graph_iterator_flatbuffer.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/input_model.hpp"
 #include "openvino/frontend/tensorflow_lite/frontend.hpp"
+#include "openvino/frontend/tensorflow_lite/graph_iterator.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "tensor_lite_place.hpp"
 
@@ -28,13 +28,14 @@ class InputModel : public ov::frontend::InputModel {
     std::vector<std::shared_ptr<InputModel>> get_subgraphs() const;
 
 public:
-    explicit InputModel(const ov::frontend::tensorflow_lite::GraphIteratorFlatBuffer::Ptr& graph_iterator,
+    explicit InputModel(const ov::frontend::tensorflow_lite::GraphIterator::Ptr& graph_iterator,
                         const std::shared_ptr<TelemetryExtension>& telemetry = {});
 
     /////  Searching for places  /////
     std::vector<ov::frontend::Place::Ptr> get_inputs() const override;
     std::vector<ov::frontend::Place::Ptr> get_outputs() const override;
     ov::frontend::Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const override;
+    ov::frontend::Place::Ptr get_place_by_input_index(size_t input_idx) const override;
 
     ///// Naming and annotation  /////
     void set_name_for_tensor(const Place::Ptr& tensor, const std::string& new_name) override;

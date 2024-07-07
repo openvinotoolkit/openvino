@@ -40,9 +40,9 @@ def pad(
     :param arg_pad_value: value used for padding if pad_mode is "constant"
     :return: Pad operation node.
     """
-    input_nodes = as_nodes(arg, pads_begin, pads_end)
+    input_nodes = as_nodes(arg, pads_begin, pads_end, name=name)
     if arg_pad_value:
-        input_nodes.append(as_node(arg_pad_value))
+        input_nodes.append(as_node(arg_pad_value, name=name))
 
     pad_mode = pad_mode.upper()
     return _get_node_factory_opset12().create("Pad", input_nodes, {"pad_mode": pad_mode})
@@ -79,7 +79,7 @@ def scatter_elements_update(
     corresponding entry in `indices` and the index-value for dimension not equal
     to `axis` is obtained from the index of the entry itself.
     """
-    input_nodes = as_nodes(data, indices, updates, axis)
+    input_nodes = as_nodes(data, indices, updates, axis, name=name)
     return _get_node_factory_opset12().create(
         "ScatterElementsUpdate",
         input_nodes,
@@ -109,7 +109,7 @@ def group_normalization(
                     Ensures that division by zero does not occur for any normalized element.
     :return: GroupNormalization node
     """
-    input_nodes = as_nodes(data, scale, bias)
+    input_nodes = as_nodes(data, scale, bias, name=name)
     return _get_node_factory_opset12().create(
         "GroupNormalization",
         input_nodes,

@@ -15,6 +15,9 @@ namespace intel_cpu {
 using Dim = std::size_t;
 using VectorDims = std::vector<Dim>;
 
+std::string dim2str(Dim dim);
+std::string dims2str(const VectorDims& dims);
+
 enum class Type {
     Unknown,
     If,
@@ -38,6 +41,7 @@ enum class Type {
     NonZero,
     Tile,
     ROIAlign,
+    ROIAlignRotated,
     ROIPooling,
     PSROIPooling,
     BatchToSpace,
@@ -65,6 +69,8 @@ enum class Type {
     Interpolate,
     Reduce,
     Broadcast,
+    EmbeddingBagPacked,
+    EmbeddingBagOffsets,
     EmbeddingSegmentsSum,
     EmbeddingBagPackedSum,
     EmbeddingBagOffsetsSum,
@@ -115,8 +121,11 @@ enum class Type {
     Unique,
     Ngram,
     ScaledDotProductAttention,
+    PagedAttention,
     RoPE,
     CausalMaskPreprocess,
+    LLMMLP,
+    QKVProjection,
 };
 
 enum class Algorithm {
@@ -146,6 +155,7 @@ enum class Algorithm {
     EltwiseMultiply,
     EltwiseSubtract,
     EltwiseDivide,
+    EltwiseFloor,
     EltwiseFloorMod,
     EltwiseMod,
     EltwiseMaximum,

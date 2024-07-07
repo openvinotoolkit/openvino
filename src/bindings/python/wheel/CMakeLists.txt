@@ -24,7 +24,7 @@ macro(_ov_platform_arch)
     elseif(UNIVERSAL2)
         set(_arch "universal2")
     elseif(ARM)
-        set(_arch "armvl7")
+        set(_arch "armv7l")
     elseif(X86_64)
         set(_arch "x86_64")
     elseif(X86)
@@ -58,19 +58,27 @@ if(APPLE)
 elseif(LINUX)
     _ov_platform_arch()
 
-    string(REPLACE "." "_" _ov_glibc_version "${OV_GLIBC_VERSION}")
-    set(manylinux "manylinux_${_ov_glibc_version}")
-
-    # convert to well-known formats according to PEP 600
-    if(manylinux STREQUAL "manylinux_2_5")
-        set(manylinux "manylinux1")
-    elseif(manylinux STREQUAL "manylinux_2_12")
-        set(manylinux "manylinux2010")
-    elseif(manylinux STREQUAL "manylinux_2_17")
-        set(manylinux "manylinux2014")
+    if(OPENVINO_GNU_LIBC)
+        set(platform "manylinux")
+    elseif(OPENVINO_MUSL_LIBC)
+        set(platform "musllinux")
+    else()
+        message(FATAL_ERROR "Undefined libc type")
     endif()
 
-    set(PLATFORM_TAG "${manylinux}_${_arch}")
+    string(REPLACE "." "_" _ov_libc_version "${OV_LIBC_VERSION}")
+    set(platform "${platform}_${_ov_libc_version}")
+
+    # convert to well-known formats according to PEP 600
+    if(platform STREQUAL "manylinux_2_5")
+        set(platform "manylinux1")
+    elseif(platform STREQUAL "manylinux_2_12")
+        set(platform "manylinux2010")
+    elseif(platform STREQUAL "manylinux_2_17")
+        set(platform "manylinux2014")
+    endif()
+
+    set(PLATFORM_TAG "${platform}_${_arch}")
 endif()
 
 set(openvino_wheel_name "openvino-${WHEEL_VERSION}-${WHEEL_BUILD}-${PYTHON_TAG}-${ABI_TAG}-${PLATFORM_TAG}.whl")
@@ -92,7 +100,7 @@ if(pip_version VERSION_GREATER_EQUAL 22.0)
         ${Python3_EXECUTABLE} -m pip wheel
             --no-deps
             --wheel-dir ${openvino_wheels_output_dir}
-            # --verbose
+            --verbose
             --build-option --build-number=${WHEEL_BUILD}
             --build-option --plat-name=${PLATFORM_TAG}
             "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -105,6 +113,11 @@ else()
             --dist-dir ${openvino_wheels_output_dir}
             --build-number=${WHEEL_BUILD}
             --plat-name=${PLATFORM_TAG})
+endif()
+
+# dev target includes c headers and we need to include c bindings
+if(TARGET openvino_c)
+    list(APPEND ov_setup_py_deps openvino_c)
 endif()
 
 add_custom_command(OUTPUT ${openvino_wheel_path}

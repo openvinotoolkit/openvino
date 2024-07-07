@@ -18,11 +18,11 @@ namespace tensorflow_lite {
 namespace op {
 
 void set_output_names(const ov::frontend::tensorflow_lite::NodeContext& node, OutputVector& outputs) {
-    const auto& decoder_with_name = std::dynamic_pointer_cast<DecoderFlatBuffer>(node.get_decoder());
-    FRONT_END_GENERAL_CHECK(decoder_with_name != nullptr,
-                            "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
+    const auto& decoder_with_name =
+        std::dynamic_pointer_cast<tensorflow_lite::DecoderBaseOperation>(node.get_decoder());
+    FRONT_END_GENERAL_CHECK(decoder_with_name != nullptr, "Unexpected decoder during operation translation.");
     FRONT_END_GENERAL_CHECK(outputs.size() == decoder_with_name->get_output_size(),
-                            "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
+                            "Unexpected decoder during operation translation.");
     for (size_t i = 0; i < decoder_with_name->get_output_size(); ++i) {
         outputs[i].set_names({decoder_with_name->get_output_tensor_name(i)});
     }
@@ -36,7 +36,7 @@ void del_output_names(OutputVector& outputs) {
 
 void get_conv(ov::OutputVector& output,
               const ov::frontend::NodeContext& node,
-              const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderMap>& decoder,
+              const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderBase>& decoder,
               ov::OutputVector (*converter)(const ov::frontend::NodeContext&),
               ov::AxisVector transpose_axes) {
     ov::OutputVector inputs = {node.get_input(0),
@@ -48,7 +48,7 @@ void get_conv(ov::OutputVector& output,
 
 void get_pool(ov::OutputVector& output,
               const ov::frontend::NodeContext& node,
-              const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderMap>& decoder,
+              const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderBase>& decoder,
               ov::OutputVector (*converter)(const ov::frontend::NodeContext&)) {
     ov::OutputVector inputs = {node.get_input(0)};
     auto context = ov::frontend::tensorflow_lite::NodeContext(decoder, inputs);
@@ -58,7 +58,7 @@ void get_pool(ov::OutputVector& output,
 
 void get_bias(ov::OutputVector& output,
               const ov::frontend::NodeContext& node,
-              const std::shared_ptr<ov::frontend::DecoderBase>& decoder) {
+              const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderBase>& decoder) {
     if (node.get_input_size() == 3) {
         const OutputVector inputs_for_bias = {output[0], node.get_input(2)};
         auto context_for_bias_add = ov::frontend::tensorflow_lite::NodeContext(decoder, inputs_for_bias);
@@ -97,93 +97,10 @@ void get_activation(ov::OutputVector& output,
 }
 
 void get_activation(ov::OutputVector& output,
-                    const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderMap>& decoder) {
+                    const std::shared_ptr<ov::frontend::tensorflow_lite::DecoderBase>& decoder) {
     auto context_for_activation = ov::frontend::tensorflow_lite::NodeContext(decoder, output);
     const auto activation = decoder->get_attribute("activation").as<std::string>();
     get_activation(output, context_for_activation, activation);
-}
-
-std::shared_ptr<ov::frontend::tensorflow_lite::DecoderMap> get_pool_decoder_map(
-    const std::string& new_type_name,
-    const ov::frontend::tensorflow_lite::NodeContext& node) {
-    const auto& decoder = std::dynamic_pointer_cast<DecoderFlatBuffer>(node.get_decoder());
-    FRONT_END_GENERAL_CHECK(decoder != nullptr,
-                            "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
-
-    const std::map<std::string, ov::Any> attrs{
-        {"strides",
-         std::vector<int64_t>{1,
-                              decoder->get_attribute(&tflite::Pool2DOptions::stride_h),
-                              decoder->get_attribute(&tflite::Pool2DOptions::stride_w),
-                              1}},
-        {"padding", std::string(EnumNamePadding(decoder->get_attribute(&tflite::Pool2DOptions::padding)))},
-        {"ksize",
-         std::vector<int64_t>{1,
-                              decoder->get_attribute(&tflite::Pool2DOptions::filter_height),
-                              decoder->get_attribute(&tflite::Pool2DOptions::filter_width),
-                              1}},
-        {"data_format", "NHWC"},
-        {"activation",
-         EnumNameActivationFunctionType(decoder->get_attribute(&tflite::Pool2DOptions::fused_activation_function))},
-    };
-    return std::make_shared<ov::frontend::tensorflow_lite::DecoderMap>(node.get_decoder(), attrs, new_type_name, true);
-}
-
-OutputVector attribute_helper(const ov::frontend::tensorflow_lite::NodeContext& node,
-                              const std::map<std::string, ov::Any>& attrs,
-                              ov::frontend::CreatorFunction converter,
-                              std::string new_op_type,
-                              bool empty_name,
-                              ov::OutputVector inputs) {
-    const auto& original_decoder = std::dynamic_pointer_cast<DecoderFlatBuffer>(node.get_decoder());
-    FRONT_END_GENERAL_CHECK(original_decoder != nullptr,
-                            "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
-    auto decoder = std::make_shared<ov::frontend::tensorflow_lite::DecoderMap>(
-        original_decoder,
-        attrs,
-        (new_op_type.empty() ? original_decoder->get_op_type() : new_op_type),
-        empty_name);
-
-    if (inputs.size() == 0)
-        inputs = node.get_inputs();
-    auto context = ov::frontend::tensorflow_lite::NodeContext(decoder, inputs);
-    auto outputs = converter(context);
-    del_output_names(outputs);
-    return outputs;
-}
-
-OutputVector attribute_helper(const ov::frontend::tensorflow_lite::NodeContext& node,
-                              const std::map<std::string, ov::Any>& attrs,
-                              ov::frontend::CreatorFunctionNamedAndIndexed converter,
-                              std::string new_op_type,
-                              bool empty_name,
-                              ov::OutputVector inputs) {
-    return attribute_helper(
-        node,
-        attrs,
-        [&](const ov::frontend::NodeContext& ctx) {
-            return indexed_from_named(converter(ctx));
-        },
-        new_op_type,
-        empty_name,
-        inputs);
-}
-
-std::shared_ptr<DecoderFlatBuffer> get_decoder(const ov::frontend::tensorflow_lite::NodeContext& node) {
-    const auto& decoder = std::dynamic_pointer_cast<DecoderFlatBuffer>(node.get_decoder());
-    FRONT_END_GENERAL_CHECK(decoder != nullptr,
-                            "Unexpected decoder during operation translation. Expected DecoderFlatBuffer");
-    return decoder;
-}
-
-void transform_reduce_name(std::string& op_type) {
-    std::string substring = "REDUCE_";
-    auto ind = op_type.find(substring);
-    if (ind != std::string::npos)
-        op_type.erase(ind, substring.length());
-    std::transform(op_type.begin() + 1, op_type.end(), op_type.begin() + 1, [](unsigned char c) {
-        return std::tolower(c);
-    });
 }
 
 }  // namespace op

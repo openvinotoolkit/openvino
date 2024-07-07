@@ -169,6 +169,19 @@ void regmodule_properties(py::module m) {
         return ov::device::priorities(value);
     });
 
+    // Special case: ov::device::PCIInfo
+    py::class_<ov::device::PCIInfo, std::shared_ptr<ov::device::PCIInfo>> cls_pciinfo(m_device, "PCIInfo");
+    cls_pciinfo.def(py::init<const uint32_t&, const uint32_t&, const uint32_t&, const uint32_t&>());
+    cls_pciinfo.def_readonly("domain", &ov::device::PCIInfo::domain);
+    cls_pciinfo.def_readonly("bus", &ov::device::PCIInfo::bus);
+    cls_pciinfo.def_readonly("device", &ov::device::PCIInfo::device);
+    cls_pciinfo.def_readonly("function", &ov::device::PCIInfo::function);
+    cls_pciinfo.def("__repr__", [](const ov::device::PCIInfo& info) {
+        std::stringstream pciinfo_stream;
+        pciinfo_stream << info;
+        return py::cast(pciinfo_stream.str());
+    });
+
     // Submodule device - properties
     wrap_property_RW(m_device, ov::device::id, "id");
 
@@ -176,6 +189,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RO(m_device, ov::device::architecture, "architecture");
     wrap_property_RO(m_device, ov::device::type, "type");
     wrap_property_RO(m_device, ov::device::gops, "gops");
+    wrap_property_RO(m_device, ov::device::pci_info, "pci_info");
     wrap_property_RO(m_device, ov::device::thermal, "thermal");
     wrap_property_RO(m_device, ov::device::capabilities, "capabilities");
     wrap_property_RO(m_device, ov::device::uuid, "uuid");

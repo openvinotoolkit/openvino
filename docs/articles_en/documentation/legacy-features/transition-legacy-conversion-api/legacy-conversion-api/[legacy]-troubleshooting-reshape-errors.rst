@@ -48,7 +48,7 @@ To fix some operators which prevent normal shape propagation:
   With ``->[0 -1]``, this new ``Parameter`` is replaced by a ``Constant`` operator which has the ``[0, -1]`` value.
   Since the ``Reshape`` operator has ``0`` and ``-1`` as specific values, it allows propagating shapes freely without losing the intended meaning of ``Reshape``.   For more information, see :doc:`the specification <../../../openvino-ir-format/operation-sets/operation-specs/shape/reshape-1>`.
 
-  .. image:: ../../../../_static/images/batch_relaxation.png
+  .. image:: ../../../../assets/images/batch_relaxation.png
 
 * transform the model conversion on the back phase. For more information, see the :doc:`How to Convert a Model <../legacy-model-optimizer-extensibility>`,
 * transform OpenVINO Model during the runtime. For more information, see :doc:`OpenVINO Runtime Transformations <../../../openvino-extensibility/transformation-api>`,

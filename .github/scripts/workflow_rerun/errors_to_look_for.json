@@ -1,0 +1,62 @@
+[
+    {
+        "error_text": "This is a problem related to network connectivity",
+        "ticket": 135929
+    },
+    {
+        "error_text": "Unable to make request",
+        "ticket": 135715
+    },
+    {
+        "error_text": "GnuTLS recv error",
+        "ticket": 131918
+    },
+    {
+        "error_text": "Connection was reset",
+        "ticket": 131818
+    },
+    {
+        "error_text": "Failed to connect to github.com",
+        "ticket": 131657
+    },
+    {
+        "error_text": "Could not resolve host: github.com",
+        "ticket": 131546
+    },
+    {
+        "error_text": "retrieving gpg key timed out",
+        "ticket": 131538
+    },
+    {
+        "error_text": "Retry limit has been reached for chunk",
+        "ticket": 131537
+    },
+    {
+        "error_text": "fatal error: downloading",
+        "ticket": 131424
+    },
+    {
+        "error_text": "Failure when receiving data from the peer",
+        "ticket": 137121
+    },
+    {
+        "error_text": "Network is unreachable",
+        "ticket": 130955
+    },
+    {
+        "error_text": "connection timed out",
+        "ticket": 130955
+    },
+    {
+        "error_text": "The requested URL returned error: 500",
+        "ticket": 139384
+    },
+    {
+        "error_text": "Unable to fetch some archives",
+        "ticket": 130965
+    },
+    {
+        "error_text": "status_string: \"Timeout was reached\"",
+        "ticket": 142653
+    }
+]

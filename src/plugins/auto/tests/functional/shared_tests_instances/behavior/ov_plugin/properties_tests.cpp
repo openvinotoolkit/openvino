@@ -9,6 +9,17 @@
 using namespace ov::test::behavior;
 
 namespace {
+const std::vector<ov::AnyMap> inproperties = {
+    {ov::device::id("UNSUPPORTED_DEVICE_ID_STRING")},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         OVPropertiesIncorrectTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_MULTI,
+                                                              ov::test::utils::DEVICE_AUTO),
+                                            ::testing::ValuesIn(inproperties)),
+                         OVPropertiesIncorrectTests::getTestCaseName);
+
 const std::vector<ov::AnyMap> multi_Auto_properties = {
     {ov::device::priorities(ov::test::utils::DEVICE_TEMPLATE),
      ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},

@@ -28,7 +28,7 @@ def grid_sampler(name: str, x, grid, mode="bilinear", padding_mode="zeros", alig
         exe = paddle.static.Executor(place)
         exe.run(paddle.static.default_startup_program())
         outs = exe.run(feed={"x": x, "grid": grid}, fetch_list=[out])
-        saveModel(name, exe, feedkeys=['x', 'grid'], fetchlist=[out], inputs=[x, grid], outputs=[outs[0]],
+        saveModel(name, exe, feed_vars=[x_node, grid_node], fetchlist=[out], inputs=[x, grid], outputs=[outs[0]],
                   target_dir=sys.argv[1])
 
     return outs[0]
