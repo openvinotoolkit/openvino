@@ -129,8 +129,8 @@ class CommonLayerTest:
         # Compare Ie results with Framework results
         assert self.compare_ie_results_with_framework(infer_res=infer_res, framework_res=fw_res,
                                                       framework_eps=custom_eps), \
-            "Comparing with Framework failed: ie_res={}; framework_res={}.".format(infer_res,
-                                                                                   fw_res)
+            "\n\nComparing with Framework failed:\nie_res={};\nframework_res={};\ninput={}.\n\n".format(infer_res,
+                                                                                   fw_res, inputs_dict)
 
         if len(inputs_dict.keys()) > 1 or len(infer_res.keys()) > 1:
             tree = ET.parse(path_to_xml)

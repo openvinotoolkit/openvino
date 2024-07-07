@@ -30,6 +30,15 @@ class TestDivNoNan(CommonTFLayerTest):
             x = tf.compat.v1.placeholder(input_type, input_shape, 'x')
             y = tf.compat.v1.placeholder(input_type, input_shape, 'y')
             tf.raw_ops.DivNoNan(x=x, y=y)
+
+            # TODO: from CPU runtime guys: for debugging only
+            tensor_value = tf.make_tensor_proto([0.], dtype=input_type)
+            equal_const = tf.raw_ops.Const(
+                value=tensor_value,
+                dtype=input_type,
+                name="equal_const")
+            tf.raw_ops.Equal(x=y, y=equal_const)
+
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
