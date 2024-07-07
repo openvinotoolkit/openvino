@@ -86,7 +86,7 @@
         {
             "language": "markdown",
             "source": [
-                "# Load the Detection Model"
+                "# Load Detection Model"
             ],
             "outputs": []
         },
@@ -121,7 +121,7 @@
         {
             "language": "markdown",
             "source": [
-                "# Inference of Detection Model"
+                "# Do Inference on Detection Model"
             ],
             "outputs": []
         },
@@ -179,7 +179,7 @@
         {
             "language": "typescript",
             "source": [
-                "// process each bounding box and run inference on the recognition model\n\nconst [batchSize, channels, height, width] = recInputLayer.shape;\nconst { ratioX, ratioY, grayscaleImage } = preprocessImage(originalImage, resizedImage);\n\nconst annotations = [];\nconst croppedImages = [];\n\nboundingBoxesArray.forEach((crop, i) => {\n    const [xMin, yMin, xMax, yMax] = multiplyByRatio(ratioX, ratioY, crop).map(Math.floor);\n    const cropRect = new cv.Rect(xMin, yMin, xMax - xMin, yMax - yMin);\n    const croppedImage = grayscaleImage.roi(cropRect);\n\n    try {\n        const preprocessedCrop = runPreprocessingOnCrop(croppedImage, [width, height]);\n        const tensorData = new Float32Array(preprocessedCrop);\n        const tensor = new ov.Tensor(ov.element.f32, Int32Array.from(recInputLayer.shape), tensorData);\n\n        const inferRequest = recModelCompiled.createInferRequest();\n        inferRequest.setInputTensor(tensor);\n        inferRequest.infer();\n\n        const output = inferRequest.getTensor(recOutputLayer);\n        const recognitionResults = extractRecognitionResults(output);\n\n        const annotation = parseAnnotations(recognitionResults);\n        annotations.push(annotation);\n\n        croppedImages.push(cropImage(originalImage, xMin, yMin, xMax, yMax));\n    } catch (error) {\n        console.error('Error during preprocessing:', error);\n    }\n\n    croppedImage.delete();\n});\n\n\ngrayscaleImage.delete();\n\n\nconst boxesWithAnnotations = boundingBoxesArray.map((box, index) => ({ box, annotation: annotations[index] }));\n\n\nconst resultImage = convertResultToImage(originalImage, resizedImage, boxesWithAnnotations, { threshold: 0.3, confLabels: true });\ndisplayArrayAsImage(resultImage.data, resultImage.cols, resultImage.rows, display);\n\ncroppedImages.forEach((croppedImage, i) => {\n    displayArrayAsImage(croppedImage.data, croppedImage.cols, croppedImage.rows, display);\n});\n"
+                "// process each bounding box and run inference on the recognition model\n\nconst [batchSize, channels, height, width] = recInputLayer.shape;\nconst { ratioX, ratioY, grayscaleImage } = preprocessImage(inputImageMat, resizedImage);\n\nconst annotations = [];\nconst croppedImages = [];\n\nboundingBoxesArray.forEach((crop, i) => {\n    const [xMin, yMin, xMax, yMax] = multiplyByRatio(ratioX, ratioY, crop).map(Math.floor);\n    const cropRect = new cv.Rect(xMin, yMin, xMax - xMin, yMax - yMin);\n    const croppedImage = grayscaleImage.roi(cropRect);\n\n    try {\n        const preprocessedCrop = runPreprocessingOnCrop(croppedImage, [width, height]);\n        const tensorData = new Float32Array(preprocessedCrop);\n        const tensor = new ov.Tensor(ov.element.f32, Int32Array.from(recInputLayer.shape), tensorData);\n\n        const inferRequest = recModelCompiled.createInferRequest();\n        inferRequest.setInputTensor(tensor);\n        inferRequest.infer();\n\n        const output = inferRequest.getTensor(recOutputLayer);\n        const recognitionResults = extractRecognitionResults(output);\n\n        const annotation = parseAnnotations(recognitionResults);\n        annotations.push(annotation);\n\n        croppedImages.push(cropImage(inputImageMat, xMin, yMin, xMax, yMax));\n    } catch (error) {\n        console.error('Error during preprocessing:', error);\n    }\n\n    croppedImage.delete();\n});\n\n\ngrayscaleImage.delete();\n\n\nconst boxesWithAnnotations = boundingBoxesArray.map((box, index) => ({ box, annotation: annotations[index] }));\n\n\nconst resultImage = convertResultToImage(inputImageMat, resizedImage, boxesWithAnnotations, { threshold: 0.3, confLabels: true });\ndisplayArrayAsImage(resultImage.data, resultImage.cols, resultImage.rows, display);\n\ncroppedImages.forEach((croppedImage, i) => {\n    displayArrayAsImage(croppedImage.data, croppedImage.cols, croppedImage.rows, display);\n});\n"
             ],
             "outputs": [
                 {
