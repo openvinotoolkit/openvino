@@ -1215,6 +1215,7 @@ void jit_power_static_emitter::register_table_entries() {
     push_arg_entry_of("power", float2int(power, exec_prc_), true, exec_prc_);
     push_arg_entry_of("scale", float2int(scale, exec_prc_), true, exec_prc_);
     push_arg_entry_of("shift", float2int(shift, exec_prc_), true, exec_prc_);
+    push_arg_entry_of("one", float2int(1.f, exec_prc_), true, exec_prc_);
 }
 
 std::set<std::vector<element::Type>> jit_power_static_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
@@ -1259,6 +1260,13 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, 
         if (!get_from_dst && (in_vec_idxs[0] != dst.getIdx())) {
             h->mov(BReg(dst.getIdx()), BReg(src().getIdx()));
         }
+        return;
+    }
+
+    if (power == -1.f) {
+        auto adr = table_val2("one");
+        h->ld1r(aux, adr);
+        h->fdiv(dst, aux, src());
         return;
     }
 
