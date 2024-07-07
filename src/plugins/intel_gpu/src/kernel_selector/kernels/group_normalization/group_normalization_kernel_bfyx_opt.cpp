@@ -96,7 +96,7 @@ JitConstants GroupNormalizationKernelBfyx::GetJitConstants(const group_normaliza
 
     if (params.has_dynamic_tensors()) {
         jit.AddConstants({
-            MakeJitConstant("SLM_SIZE", dispatchData.maxSlmSize),
+            MakeJitConstant("SLM_SIZE", params.engineInfo.maxWorkGroupSize),
         });
     } else {
         jit.AddConstants({

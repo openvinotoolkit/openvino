@@ -61,7 +61,7 @@ KERNEL(calc_mean_per_feature)(
 
     mean_per_feature[worker_idx] = mean;
     uint reduce_add_level = 1;
-    while (num_local_workers / reduce_add_level > 1) {
+    while (num_local_workers > reduce_add_level) {
         barrier(CLK_LOCAL_MEM_FENCE);
         if (worker_idx % (reduce_add_level * 2) == 0 && (worker_idx + reduce_add_level) < num_local_workers) {
             mean_per_feature[worker_idx] += mean_per_feature[worker_idx + reduce_add_level];
@@ -151,7 +151,7 @@ KERNEL(calc_var_per_feature)(
 
     var_per_feature[worker_idx] = variance;
     uint reduce_add_level = 1;
-    while (num_local_workers / reduce_add_level > 1) {
+    while (num_local_workers > reduce_add_level) {
         barrier(CLK_LOCAL_MEM_FENCE);
         if (worker_idx % (reduce_add_level * 2) == 0 && (worker_idx + reduce_add_level) < num_local_workers) {
             var_per_feature[worker_idx] += var_per_feature[worker_idx + reduce_add_level];

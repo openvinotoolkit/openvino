@@ -47,20 +47,51 @@ GroupNormComposition::GroupNormComposition() {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto data = pattern_map.at(data_m);
+        auto data_pshape = data.get_partial_shape();
+        // Feature dim should be static.
+        if (data_pshape[1].is_dynamic()) {
+            return false;
+        }
+        auto feature_dim = data_pshape[1].get_max_length();
+
         auto scale = pattern_map.at(scale_const_m);
+        {
+            // The total number of elements in scale must be equal to feature_dim.
+            auto const_scale = std::dynamic_pointer_cast<ov::op::v0::Constant>(scale.get_node_shared_ptr());
+            auto const_scale_shape = const_scale->get_output_shape(0);
+            int64_t const_scale_size = 1;
+            for (auto& dim : const_scale_shape) {
+                const_scale_size *= dim;
+            }
+            if (const_scale_size != feature_dim) {
+                return false;
+            }
+        }
         if (pattern_map.count(convert_scale_const_m) != 0) {
             scale = pattern_map.at(convert_scale_const_m);
         }
         auto scale_1d = std::make_shared<ov::op::v0::Squeeze>(scale);
         auto bias = pattern_map.at(bias_const_m);
+        {
+            // The total number of elements in bias must be equal to feature_dim.
+            auto const_bias = std::dynamic_pointer_cast<ov::op::v0::Constant>(bias.get_node_shared_ptr());
+            auto const_bias_shape = const_bias->get_output_shape(0);
+            int64_t const_bias_size = 1;
+            for (auto& dim : const_bias_shape) {
+                const_bias_size *= dim;
+            }
+            if (const_bias_size != feature_dim) {
+                return false;
+            }
+        }
         if (pattern_map.count(convert_bias_const_m) != 0) {
             bias = pattern_map.at(convert_bias_const_m);
         }
         auto bias_1d = std::make_shared<ov::op::v0::Squeeze>(bias);
 
         auto pre_reshape = std::dynamic_pointer_cast<ov::op::v1::Reshape>(pattern_map.at(pre_reshape_m).get_node_shared_ptr());
-        auto data_pshape = pre_reshape->get_output_partial_shape(0);
-        auto num_groups = data_pshape[1].get_max_length();
+        auto pre_reshape_pshape = pre_reshape->get_output_partial_shape(0);
+        auto num_groups = pre_reshape_pshape[1].get_max_length();
 
         auto mvn = std::dynamic_pointer_cast<ov::op::v6::MVN>(pattern_map.at(mvn_m).get_node_shared_ptr());
 
@@ -70,7 +101,7 @@ GroupNormComposition::GroupNormComposition() {
         ov::copy_runtime_info(m.get_matched_nodes(), group_norm);
         ov::replace_node(m.get_match_root(), group_norm);
 
-        return false;
+        return true;
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(add_m, "GroupNormComposition");

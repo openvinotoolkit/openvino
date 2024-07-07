@@ -98,7 +98,7 @@ JitConstants GroupNormalizationKernel_b_fs_yx_fsv16::GetJitConstants(const group
         // const std::string lws_0 = "get_local_size(0)";
         jit.AddConstants({
             // MakeJitConstant("LWS", lws_0),
-            MakeJitConstant("SLM_SIZE", dispatchData.maxSlmSize),
+            MakeJitConstant("SLM_SIZE", params.engineInfo.maxWorkGroupSize),
             // MakeJitConstant("DATA_SET_SIZE", data_set_size),
             // MakeJitConstant("DATA_SETS_COUNT", data_set_count),
         });

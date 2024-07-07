@@ -68,7 +68,7 @@ attach_group_normalization_impl::attach_group_normalization_impl() {
 
     const std::vector<format::type> dyn_formats {
         format::bfyx,
-        format::bfzyx,
+        format::b_fs_yx_fsv16,
     };
 
     implementation_map<group_normalization>::add(impl_types::ocl, shape_types::dynamic_shape,

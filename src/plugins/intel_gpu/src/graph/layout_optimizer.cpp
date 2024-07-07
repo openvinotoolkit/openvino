@@ -163,7 +163,7 @@ std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive
 
     auto reorder = std::make_shared<cldnn::reorder>(ss.str(), input_info{src_id, src_port}, out_layout);
     _cached_reorders[ckey] = reorder;
-std::cout << " >>>>>>>>>>>>>>>>>>>>>>>> " << reorder->id << std::endl;
+
     return std::make_pair(reorder, false);
 }
 
