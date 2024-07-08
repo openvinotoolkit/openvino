@@ -47,14 +47,14 @@ GroupNormalizationKernelBase::MultiDispatchData GroupNormalizationKernelBfyx::Se
                     if (input.Y().v % lws == 0 && (input.Y().v / lws) <= params.engineInfo.maxWorkGroupSize) {
                         dispatchData.stage_1.lws[1] = input.Y().v / lws;
                         break;
-                    } 
+                    }
                 }
             } else {
                 for (size_t lws = 2; lws <= input.X().v; ++lws) {
                     if (input.X().v % lws == 0 && (input.X().v / lws * input.Y().v) <= params.engineInfo.maxWorkGroupSize) {
                         dispatchData.stage_1.lws[0] = input.X().v / lws;
                         break;
-                    } 
+                    }
                 }
             }
         }
@@ -77,7 +77,7 @@ GroupNormalizationKernelBase::MultiDispatchData GroupNormalizationKernelBfyx::Se
         dispatchData.stage_final.lws[1] = 1;
         dispatchData.stage_final.lws[2] = 1;
 
-        while((dispatchData.stage_final.lws[0] * 2) <= params.engineInfo.maxWorkGroupSize &&
+        while ((dispatchData.stage_final.lws[0] * 2) <= params.engineInfo.maxWorkGroupSize &&
               (dispatchData.stage_final.lws[0] * 2) <= dispatchData.stage_final.gws[0]) {
             if (dispatchData.stage_final.gws[0] % (dispatchData.stage_final.lws[0] * 2) == 0) {
                 dispatchData.stage_final.lws[0] *= 2;

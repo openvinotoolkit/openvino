@@ -42,7 +42,7 @@ GroupNormalizationKernelBase::MultiDispatchData GroupNormalizationKernel_b_fs_yx
         dispatchData.stage_1.lws[1] = 1;
         dispatchData.stage_1.lws[2] = 1;
 
-        while((dispatchData.stage_1.lws[0] * 2) <= params.engineInfo.maxWorkGroupSize &&
+        while ((dispatchData.stage_1.lws[0] * 2) <= params.engineInfo.maxWorkGroupSize &&
               (dispatchData.stage_1.lws[0] * 2) <= dispatchData.stage_1.gws[0]) {
             if (dispatchData.stage_1.gws[0] % (dispatchData.stage_1.lws[0] * 2) == 0) {
                 dispatchData.stage_1.lws[0] *= 2;
@@ -68,7 +68,7 @@ GroupNormalizationKernelBase::MultiDispatchData GroupNormalizationKernel_b_fs_yx
         dispatchData.stage_final.lws[1] = 1;
         dispatchData.stage_final.lws[2] = 1;
 
-        while((dispatchData.stage_final.lws[0] * 2) <= params.engineInfo.maxWorkGroupSize &&
+        while ((dispatchData.stage_final.lws[0] * 2) <= params.engineInfo.maxWorkGroupSize &&
               (dispatchData.stage_final.lws[0] * 2) <= dispatchData.stage_final.gws[0]) {
             if (dispatchData.stage_final.gws[0] % (dispatchData.stage_final.lws[0] * 2) == 0) {
                 dispatchData.stage_final.lws[0] *= 2;
