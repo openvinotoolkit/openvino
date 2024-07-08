@@ -27,6 +27,7 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/log.hpp"
 #include "tf_framework_node.hpp"
+#include "transformations/common_optimizations/eliminate_loop_inputs_outputs.hpp"
 #include "transformations/common_optimizations/remove_concat_zero_dim_input.hpp"
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
@@ -281,9 +282,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 HashTableKeysValuesMap{},
                                                 graph_iterator->get_checkpoint_v1_reader(),
                                                 false);
-        }
-        auto saved_model_tags = paths[1];
-        if (GraphIteratorSavedModel::is_supported(model_path)) {
+        } else if (GraphIteratorSavedModel::is_supported(model_path)) {
+            auto saved_model_tags = paths[1];
             std::shared_ptr<GraphIteratorSavedModel> graph_iterator;
             graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, saved_model_tags, mmap_enabled);
             return std::make_shared<InputModel>(graph_iterator,
@@ -568,7 +568,16 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<pass::TensorArrayV3Replacer>();
     manager.register_pass<pass::ConstToResultRemover>();
     manager.register_pass<pass::SwitchMergeResolver>();
-    manager.register_pass<pass::TensorListOperationsResolver>();
+
+    // apply EliminateLoopInputsOutputs to avoid extra Results
+    // that output the same value as receiving on input
+    // it is needed for applying TensorListInLoopOptimization
+    manager.register_pass<ov::pass::EliminateLoopInputsOutputs>();
+    manager.register_pass<pass::TensorListReplacer>();
+    manager.register_pass<pass::TensorListInLoopOptimization>();
+    manager.register_pass<pass::TensorListSetItemReplacer>();
+    manager.register_pass<pass::TensorListGetItemReplacer>();
+
     manager.register_pass<ov::pass::UnrollIf>();
     manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
     manager.register_pass<ov::pass::TransposeSinkingGeneral>();

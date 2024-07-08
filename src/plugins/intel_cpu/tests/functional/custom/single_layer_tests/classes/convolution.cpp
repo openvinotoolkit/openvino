@@ -160,11 +160,16 @@ void ConvolutionLayerCPUTest::SetUp() {
     init_input_shapes({inputShape});
 
     auto it = configuration.find(ov::hint::inference_precision.name());
-    if (it != configuration.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
+    ov::element::Type inference_precision = (it != configuration.end()) ?
+                                            it->second.as<ov::element::Type>() : ov::element::undefined;
+    if (inference_precision == ov::element::bf16) {
         selectedType += "_BF16";
         rel_threshold = 1e-2f;
         if (selectedType == "jit_gemm_BF16")
             rel_threshold = 0.05f;
+    } else if (inference_precision == ov::element::f16) {
+            selectedType +=  "_FP16";
+            rel_threshold = 0.00125f;
     } else {
         selectedType = makeSelectedTypeStr(selectedType, netType);
     }

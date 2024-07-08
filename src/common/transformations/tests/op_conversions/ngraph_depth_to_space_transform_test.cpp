@@ -34,7 +34,7 @@ TEST(TransformationTests, TestDepthToSpaceTransformBlockFirst) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertDepthToSpace>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     auto consumers = input->output(0).get_target_inputs();
@@ -78,7 +78,7 @@ TEST(TransformationTests, TestDepthToSpaceTransformDepthFirst) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertDepthToSpace>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     auto consumers = input->output(0).get_target_inputs();
@@ -122,7 +122,7 @@ TEST(TransformationTests, TestSpaceToDepthTransformBlockFirst) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertSpaceToDepth>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     auto consumers = input->output(0).get_target_inputs();
@@ -166,7 +166,7 @@ TEST(TransformationTests, TestSpaceToDepthTransformDepthFirst) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertSpaceToDepth>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     auto consumers = input->output(0).get_target_inputs();
@@ -208,7 +208,7 @@ TEST(TransformationTests, TestSpaceToDepthDynamic) {
         f = std::make_shared<ov::Model>(ov::NodeVector{space_to_depth}, ParameterVector{input});
         pass::Manager m;
         m.register_pass<ov::pass::ConvertSpaceToDepth>();
-        ASSERT_NO_THROW(m.run_passes(f));
+        OV_ASSERT_NO_THROW(m.run_passes(f));
     }
 }
 
@@ -222,6 +222,6 @@ TEST(TransformationTests, TestDepthToSpaceDynamic) {
         f = std::make_shared<ov::Model>(ov::NodeVector{depth_to_space}, ParameterVector{input});
         pass::Manager m;
         m.register_pass<ov::pass::ConvertDepthToSpace>();
-        ASSERT_NO_THROW(m.run_passes(f));
+        OV_ASSERT_NO_THROW(m.run_passes(f));
     }
 }

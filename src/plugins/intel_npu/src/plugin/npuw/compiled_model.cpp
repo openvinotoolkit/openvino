@@ -278,6 +278,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         // Do it just once if that's a function
         if (real_id == id) {
             remove_long_output_names(m_compiled_submodels[real_id].model);
+            fill_empty_tensor_names(m_compiled_submodels[real_id].model);
         }
 
         if (ov::npuw::util::is_set(id, dump_sub_opt)) {
@@ -383,12 +384,38 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
 void ov::npuw::CompiledModel::remove_long_output_names(const std::shared_ptr<ov::Model>& model) {
     NPUW_ASSERT(model.get() != nullptr);
     for (auto& output : model->outputs()) {
-        auto tensor_names = output.get_tensor().get_names();
+        const auto& tensor_names = output.get_tensor().get_names();
         if (tensor_names.size() > 32) {  // maximum supported
             output.get_tensor().set_names({});
             LOG_INFO("Removed output tensor names for " << model->get_friendly_name());
             LOG_BLOCK();
         }
+    }
+}
+
+void ov::npuw::CompiledModel::fill_empty_tensor_names(const std::shared_ptr<ov::Model>& model) {
+    NPUW_ASSERT(model.get() != nullptr);
+
+    size_t in_tensor_idx = 0;
+    size_t out_tensor_idx = 0;
+
+    for (auto& input : model->inputs()) {
+        const auto& tensor_names = input.get_tensor().get_names();
+        if (tensor_names.empty()) {
+            input.get_tensor().set_names({"npuw_in_tensor_" + std::to_string(in_tensor_idx)});
+            LOG_INFO("Added input tensor name for " << model->get_friendly_name());
+            LOG_BLOCK();
+        }
+        in_tensor_idx++;
+    }
+    for (auto& output : model->outputs()) {
+        const auto& tensor_names = output.get_tensor().get_names();
+        if (tensor_names.empty()) {
+            output.get_tensor().set_names({"npuw_out_tensor_" + std::to_string(out_tensor_idx)});
+            LOG_INFO("Added output tensor name for " << model->get_friendly_name());
+            LOG_BLOCK();
+        }
+        out_tensor_idx++;
     }
 }
 
@@ -421,11 +448,11 @@ void ov::npuw::CompiledModel::reset_io() {
         LOG_VERB("Input (Parameter) " << inputs()[idx_in] << " from Subgraph[" << submodel_idx << "]/" << input_idx);
         idx_in++;
     }
-    for (const auto& to_submodel : m_outputs_to_submodels_outputs) {
-        NPUW_ASSERT(to_submodel != NO_LINK);
+    for (const auto& from_submodel : m_outputs_to_submodels_outputs) {
+        NPUW_ASSERT(from_submodel != NO_LINK);
         LOG_BLOCK();  // in fact, to_submodel <is> from_submodel here, but who cares
-        const auto& submodel_idx = to_submodel.first;
-        const auto& output_idx = to_submodel.second;
+        const auto& submodel_idx = from_submodel.first;
+        const auto& output_idx = from_submodel.second;
         LOG_VERB("Output (Result) " << outputs()[idx_out] << " from Subgraph[" << submodel_idx << "]/" << output_idx);
         idx_out++;
     }
@@ -576,7 +603,7 @@ void ov::npuw::CompiledModel::export_model(std::ostream& model_stream) const {
 
 std::string ov::npuw::CompiledModel::submodel_device(const std::size_t idx) const {
     std::size_t real_idx = m_compiled_submodels[idx].replaced_by.value_or(idx);
-    auto comp_subm_desc = m_compiled_submodels[real_idx];
+    const auto& comp_subm_desc = m_compiled_submodels[real_idx];
 
     if (!comp_subm_desc.compiled_model) {
         return "";
@@ -659,7 +686,6 @@ void ov::npuw::CompiledModel::implement_properties() {
                      BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),
                      BIND(npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE),
                      BIND(npuw::partitioning::dcoff_with_scale, NPUW_DCOFF_SCALE),
-                     BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),
                      BIND(npuw::funcall_async, NPUW_FUNCALL_ASYNC),
                      BIND(npuw::accuracy::check, NPUW_ACC_CHECK),
                      BIND(npuw::accuracy::threshold, NPUW_ACC_THRESH),
@@ -677,7 +703,7 @@ void ov::npuw::CompiledModel::implement_properties() {
     m_prop_to_opt.insert(
         {{ov::supported_properties.name(),
           {ov::PropertyMutability::RO,
-           [&](const ::intel_npu::Config&) {
+           [&](const ::intel_npu::Config&) -> const std::vector<ov::PropertyName, std::allocator<ov::PropertyName>>& {
                return m_all_supported_props;
            }}},
          {ov::device::properties.name(),
@@ -685,7 +711,7 @@ void ov::npuw::CompiledModel::implement_properties() {
            [&](const ::intel_npu::Config&) {
                ov::AnyMap all_devices = {};
                for (size_t i = 0; i < m_compiled_submodels.size(); ++i) {
-                   auto comp_model_desc = m_compiled_submodels[i];
+                   const auto& comp_model_desc = m_compiled_submodels[i];
                    if (!comp_model_desc.compiled_model)  // Handle if optimized out
                        continue;
                    ov::AnyMap device_properties = {};
@@ -702,7 +728,7 @@ void ov::npuw::CompiledModel::implement_properties() {
            }}},
          {ov::model_name.name(),
           {ov::PropertyMutability::RO,
-           [&](const ::intel_npu::Config&) {
+           [&](const ::intel_npu::Config&) -> const std::string& {
                return m_name;
            }}},
          {ov::optimal_number_of_infer_requests.name(),
@@ -733,7 +759,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                    s.insert(submodel_device(i));
                    device_names.push_back(submodel_device(i));
                }
-               return decltype(ov::execution_devices)::value_type{device_names};
+               return decltype(ov::execution_devices)::value_type{std::move(device_names)};
            }}},
          {ov::loaded_from_cache.name(), {ov::PropertyMutability::RO, [&](const ::intel_npu::Config&) {
                                              return m_loaded_from_cache;
