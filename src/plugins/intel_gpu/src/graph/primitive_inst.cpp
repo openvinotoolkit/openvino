@@ -492,6 +492,15 @@ kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(kernel_im
 
 
 event::ptr primitive_inst::realloc_if_needed() {
+    auto has_subgraph_dependency = [](std::vector<std::pair<const cldnn::primitive_inst*, int>> dependencies) {
+        for (auto dependency : dependencies) {
+            if (dependency.first && dependency.first->get_node().is_in_shape_of_subgraph()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("realloc_if_needed: " + id()));
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
@@ -500,7 +509,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     const auto& users = get_user_insts();
     if (users.size() == 1 && users.front()->get_node().is_type<concatenation>()) {
         auto concat_inst = users.front();
-        if (concat_inst->can_be_optimized()) {
+        if (concat_inst->can_be_optimized() && !has_subgraph_dependency(concat_inst->dependencies())) {
             if (!concat_inst->allocation_done_by_other) {
                 concat_inst->realloc_if_needed();
                 concat_inst->allocation_done_by_other = true;
