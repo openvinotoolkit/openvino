@@ -40,14 +40,6 @@ Linux
 
       .. tab-set::
 
-         .. tab-item:: Ubuntu 24.04
-            :sync: ubuntu-24
-
-            .. code-block:: sh
-
-               curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2024.2/linux/openvino_genai_ubuntu24_2024.2.0.0_x86_64.tar.gz --output openvino_genai_2024.2.0.0.tgz
-               tar -xf openvino_genai_2024.2.0.0.tgz
-
          .. tab-item:: Ubuntu 22.04
             :sync: ubuntu-22
 

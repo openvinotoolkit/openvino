@@ -117,16 +117,6 @@ Step 1: Download and Install the OpenVINO Core Components
 
          .. tab-set::
 
-            .. tab-item:: Ubuntu 24.04
-               :sync: ubuntu-24
-
-               .. code-block:: sh
-
-
-                  curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.2/linux/l_openvino_toolkit_ubuntu24_2024.2.0.15519.5c0f38f83f6_x86_64.tgz --output openvino_2024.2.0.tgz
-                  tar -xf openvino_2024.2.0.tgz
-                  sudo mv l_openvino_toolkit_ubuntu24_2024.2.0.15519.5c0f38f83f6_x86_64 /opt/intel/openvino_2024.2.0
-
             .. tab-item:: Ubuntu 22.04
                :sync: ubuntu-22
 
