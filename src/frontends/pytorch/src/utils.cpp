@@ -568,8 +568,7 @@ Output<Node> concat_list_from_inputs(const NodeContext& context, size_t begin, s
             auto input_dim = context.get_input(static_cast<int>(i));
             if (input_dim.get_partial_shape().rank() == 0) {
                 auto zero = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
-                auto unsqueezed_dim =
-                    context.mark_node(std::make_shared<ov::op::v0::Unsqueeze>(input_dim, zero));
+                auto unsqueezed_dim = context.mark_node(std::make_shared<ov::op::v0::Unsqueeze>(input_dim, zero));
                 list_elems.push_back(unsqueezed_dim);
             } else {
                 list_elems.push_back(input_dim);
