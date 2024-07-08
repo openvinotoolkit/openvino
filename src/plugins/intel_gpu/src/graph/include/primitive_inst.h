@@ -240,6 +240,7 @@ public:
     void do_runtime_skip_broadcast();
     void do_runtime_in_place_concat();
     void do_runtime_in_place_kv_cache();
+    void do_runtime_in_place_crop();
     void configure_shape_of_dependencies();
 
     memory::ptr fused_memory(size_t dep_id) const {
