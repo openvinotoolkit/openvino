@@ -36,7 +36,7 @@ different conditions:
 |    :doc:`Heterogeneous Execution (HETERO) <inference-devices-and-modes/hetero-execution>`
 |    :doc:`Automatic Batching Execution (Auto-batching) <inference-devices-and-modes/automatic-batching>`
 
-
+To learn how to change the device configuration, read the :doc:`Query device properties article <inference-devices-and-modes/query-device-properties>`.
 
 Enumerating Available Devices
 #######################################
@@ -83,4 +83,10 @@ Accordingly, the code that loops over all available devices of the "GPU" type on
          :language: cpp
          :fragment: [part3]
 
+Additional Resources
+####################
 
+* `OpenVINO™ Runtime API Tutorial <./../../notebooks/openvino-api-with-output.html>`__
+* `AUTO Device Tutorial <./../../notebooks/auto-device-with-output.html>`__
+* `GPU Device Tutorial <./../../notebooks/gpu-device-with-output.html>`__
+* `NPU Device Tutorial <./../../notebooks/hello-npu-with-output.html>`__
