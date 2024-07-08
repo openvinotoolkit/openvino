@@ -22,8 +22,8 @@ segmentation, to scene semantic parsing. It is highly efficient and
 effective, showing strong performance on par or even better than state
 of the art.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Imports <#imports>`__
 -  `Prepare the Model <#prepare-the-model>`__
@@ -216,7 +216,7 @@ chair for example.
 
 .. parsed-literal::
 
-    /tmp/ipykernel_1006815/2434168836.py:12: UserWarning: No data for colormapping provided via 'c'. Parameters 'cmap' will be ignored
+    /tmp/ipykernel_2758943/2434168836.py:12: UserWarning: No data for colormapping provided via 'c'. Parameters 'cmap' will be ignored
       ax.scatter3D(X, Y, Z, s=5, cmap="jet", marker="o", label="chair")
 
 
@@ -317,7 +317,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    /tmp/ipykernel_1006815/2804603389.py:23: UserWarning: No data for colormapping provided via 'c'. Parameters 'cmap' will be ignored
+    /tmp/ipykernel_2758943/2804603389.py:23: UserWarning: No data for colormapping provided via 'c'. Parameters 'cmap' will be ignored
       ax.scatter(XCur, YCur, ZCur, s=5, cmap="jet", marker="o", label=classes[i])
 
 

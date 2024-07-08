@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/org.openvinotoolkit/prior_box.hpp"
+#include "openvino/op/prior_box.hpp"
 
-#include "core/node.hpp"
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/prior_box.hpp"
 #include "openvino/op/prior_box_clustered.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/strided_slice.hpp"
@@ -20,7 +19,7 @@ using ov::Shape;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
+namespace org_openvinotoolkit {
 namespace detail {
 namespace {
 std::shared_ptr<v1::StridedSlice> make_slice(std::shared_ptr<ov::Node> node, int64_t start, int64_t end) {
@@ -34,7 +33,7 @@ std::shared_ptr<v1::StridedSlice> make_slice(std::shared_ptr<ov::Node> node, int
 }  // namespace
 }  // namespace detail
 
-namespace set_1 {
+namespace opset_1 {
 ov::OutputVector prior_box(const ov::frontend::onnx::Node& node) {
     auto inputs = node.get_ov_inputs();
     FRONT_END_GENERAL_CHECK(inputs.size() == 2, "Invalid number of inputs");
@@ -105,8 +104,18 @@ ov::OutputVector prior_box_clustered(const ov::frontend::onnx::Node& node) {
         axes)};
 }
 
-}  // namespace set_1
-}  // namespace op
+static bool register_multiple_translators(void) {
+    ONNX_OP_M("PriorBox", OPSET_SINCE(1), org_openvinotoolkit::opset_1::prior_box, OPENVINO_ONNX_DOMAIN);
+    ONNX_OP_M("PriorBoxClustered",
+              OPSET_SINCE(1),
+              org_openvinotoolkit::opset_1::prior_box_clustered,
+              OPENVINO_ONNX_DOMAIN);
+    return true;
+}
+
+static bool registered = register_multiple_translators();
+}  // namespace opset_1
+}  // namespace org_openvinotoolkit
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

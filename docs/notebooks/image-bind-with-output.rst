@@ -67,8 +67,8 @@ represented on the image below:
 In this tutorial, we consider how to use ImageBind for multimodal
 zero-shot classification.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Instantiate PyTorch model <#instantiate-pytorch-model>`__
@@ -677,7 +677,7 @@ consists of 5-second-long recordings organized into 50 semantic classes.
         Collects audio data from the dataloader by calling the `collect_audio_data` function.
         Returns a list containing the collected calibration audio data batches.
         """
-        audio_dataset = load_dataset("ashraq/esc50", streaming=True)
+        audio_dataset = load_dataset("ashraq/esc50", streaming=True, trust_remote_code=True)
         train_dataset = audio_dataset["train"].shuffle(seed=42, buffer_size=1000)
 
         def collate_fn(examples):
@@ -763,6 +763,7 @@ Quantize ImageBind model for text modality
 
 Quantize ImageBind model for audio modality
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 
 
 .. code:: ipython3
