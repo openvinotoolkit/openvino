@@ -39,8 +39,8 @@ The notebook contains the following steps:
 5. Compare results of original and optimized pipelines.
 6. Run Interactive demo for DeciDiffusion model.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Prepare DeciDiffusion models for OpenVINO format

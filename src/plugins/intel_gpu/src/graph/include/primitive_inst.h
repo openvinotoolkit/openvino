@@ -58,7 +58,7 @@ struct primitive_impl {
     virtual void set_arguments(primitive_inst& instance) = 0;
     virtual void set_arguments(primitive_inst& instance, kernel_arguments_data& args) = 0;
     virtual event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) = 0;
-    std::string get_kernel_name() const { return _kernel_name; }
+    const std::string& get_kernel_name() const { return _kernel_name; }
 
     // class typed_primitive_gpu_impl override this with return false;
     virtual bool is_cpu() const { return true; }
@@ -166,8 +166,8 @@ public:
         return true;
     }
     primitive_type_id type() const { return _type; }
-    primitive_id id() const { return _id; }
-    primitive_id org_id() const { return _org_id; }
+    const primitive_id& id() const { return _id; }
+    const primitive_id& org_id() const { return _org_id; }
     bool can_be_optimized() const { return _can_be_optimized; }
     void set_can_be_optimized(bool optimized) {
         // TODO: consolidate to _impl_param in the future
@@ -240,6 +240,7 @@ public:
     void do_runtime_skip_broadcast();
     void do_runtime_in_place_concat();
     void do_runtime_in_place_kv_cache();
+    void do_runtime_in_place_crop();
     void configure_shape_of_dependencies();
 
     memory::ptr fused_memory(size_t dep_id) const {
@@ -397,7 +398,7 @@ protected:
     void fill_shape_info_data(const layout& runtime_layout, const layout& node_layout, int32_t* shape_info_ptr, size_t& offset);
     bool use_async_compilation();
     // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
-    bool update_impl();
+    bool update_impl(bool use_async_compilation);
     event::ptr realloc_if_needed();
 
     cldnn::network::ptr get_unfused_subgraph();
