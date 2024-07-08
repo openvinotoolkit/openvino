@@ -103,13 +103,15 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     manager.register_pass<PositionIDsReplacer>(unsqueezed_position_ids->output(0));
     manager.run_passes(model);
 
-    // Remove all Assigns aggressively, the path from the kv-cache concat to Assign can be complicated,
-    // but there is no reason to track it and reject part of the Assigns, because the model will remain
-    // in incorrect form anyway.
-    auto sinks = model->get_sinks();
+    {
+        // Remove all Assigns aggressively, the path from the kv-cache concat to Assign can be complicated,
+        // but there is no reason to track it and reject part of the Assigns, because the model will remain
+        // in incorrect form anyway.
+        auto sinks = model->get_sinks();
 
-    for (auto& sink : sinks) {
-        model->remove_sink(sink);
+        for (auto& sink : sinks) {
+            model->remove_sink(sink);
+        }
     }
 
     for (auto& result : results_to_remove) {
@@ -120,9 +122,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         if (const auto& beam_idx =
                 std::dynamic_pointer_cast<v0::Parameter>(model->input("beam_idx").get_node_shared_ptr())) {
             model->remove_parameter(beam_idx);
-            for (auto& input : beam_idx->get_output_target_inputs(0)) {
-                beam_idx->output(0).remove_target_input(input);
-            }
 
             std::stringstream consumers;
             consumers << std::endl;
@@ -142,9 +141,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     if (const auto& attn_mask =
             std::dynamic_pointer_cast<v0::Parameter>(model->input("attention_mask").get_node_shared_ptr())) {
         model->remove_parameter(attn_mask);
-        for (auto& input : attn_mask->get_output_target_inputs(0)) {
-            attn_mask->output(0).remove_target_input(input);
-        }
 
         std::stringstream consumers;
         consumers << std::endl;

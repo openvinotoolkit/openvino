@@ -5,13 +5,13 @@
 #include "transformations/sdpa_to_paged_attention/total_sequence_length_pattern.hpp"
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/core/validation_util.hpp"
 
 using namespace ov::op;
 
@@ -66,10 +66,7 @@ ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
             }
         } else {
             if (concat->get_output_partial_shape(0)[gather_idx_data].is_static()) {
-                replacement =
-                    op::v0::Constant::create(element::i32,
-                                             Shape{},
-                                             {concat->get_output_partial_shape(0)[gather_idx_data].get_length()});
+                replacement = ov::util::get_constant_from_source(gather->output(0));
             }
             // Currently we skip the else case when the taken dimension is dynamic. To be done later.
         }
