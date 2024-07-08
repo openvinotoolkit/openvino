@@ -3,22 +3,42 @@
 //
 
 #pragma once
-
+#include <memory>
+#include <vector>
+#include <unordered_map>
 #include "openvino/core/core_visibility.hpp"
-#include "openvino/core/symbol_utils.hpp"
 
 namespace ov {
+class Symbol;
+using SymbolPtr = std::shared_ptr<ov::Symbol>;
+
 namespace symbol {
+using WeakSymbol = std::weak_ptr<ov::Symbol>;
+using WeakSymbolVector = std::vector<WeakSymbol>;
+
+struct WeakSymbolVectorHash {
+    std::size_t operator()(const ov::symbol::WeakSymbolVector& v) const {
+        size_t seed = 0;
+        for (const auto& element : v) {
+            const auto& el_hash = element.expired() ? 0 : std::hash<ov::SymbolPtr>()(element.lock());
+            seed ^= el_hash + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        }
+        return seed;
+    }
+};
+
+using MathMap = std::unordered_map<WeakSymbolVector, WeakSymbol, WeakSymbolVectorHash>;
+
 /// \brief If both symbols are valid, sets them as equal
-void OPENVINO_API set_equal(const SharedSymbol& lhs, const SharedSymbol& rhs);
+void OPENVINO_API set_equal(const SymbolPtr& lhs, const SymbolPtr& rhs);
 /// \brief Returns true if both symbols are valid and are equal otherwise returns false
-bool OPENVINO_API are_equal(const SharedSymbol& lhs, const SharedSymbol& rhs);
+bool OPENVINO_API are_equal(const SymbolPtr& lhs, const SymbolPtr& rhs);
 /// \brief Returns a representative (the most distant parent) of an equality group of this symbol
-std::shared_ptr<Symbol> OPENVINO_API ancestor_of(const SharedSymbol& x);
+std::shared_ptr<Symbol> OPENVINO_API ancestor_of(const SymbolPtr& x);
 }  // namespace symbol
 
-SharedSymbol OPENVINO_API operator+(const SharedSymbol& lhs, const SharedSymbol& rhs);
-SharedSymbol OPENVINO_API operator-(const SharedSymbol& lhs, const SharedSymbol& rhs);
+SymbolPtr OPENVINO_API operator+(const SymbolPtr& lhs, const SymbolPtr& rhs);
+SymbolPtr OPENVINO_API operator-(const SymbolPtr& lhs, const SymbolPtr& rhs);
 
 /// \brief Class representing unique symbol for the purpose of symbolic shape inference
 /// \ingroup ov_model_cpp_api
@@ -40,10 +60,10 @@ private:
      * field is nullptr and ancestor_of would return current symbol.
      * */
 
-    SharedSymbol m_parent = nullptr;
+    SymbolPtr m_parent = nullptr;
 
-    friend SharedSymbol ov::symbol::ancestor_of(const SharedSymbol& x);
-    friend void ov::symbol::set_equal(const SharedSymbol& lhs, const SharedSymbol& rhs);
+    friend SymbolPtr ov::symbol::ancestor_of(const SymbolPtr& x);
+    friend void ov::symbol::set_equal(const SymbolPtr& lhs, const SymbolPtr& rhs);
 
     /*
      * Shared MathMap represents mathematical relations between symbols. Rules:
@@ -61,8 +81,14 @@ private:
      */
     std::shared_ptr<symbol::MathMap> m_add;
 
-    friend SharedSymbol ov::operator+(const SharedSymbol& lhs, const SharedSymbol& rhs);
-    friend SharedSymbol ov::operator-(const SharedSymbol& lhs, const SharedSymbol& rhs);
+    friend SymbolPtr ov::operator+(const SymbolPtr& lhs, const SymbolPtr& rhs);
+    friend SymbolPtr ov::operator-(const SymbolPtr& lhs, const SymbolPtr& rhs);
 };
 
 }  // namespace ov
+
+namespace std {
+bool operator==(const ov::symbol::WeakSymbol &lhs, const ov::symbol::WeakSymbol &rhs);
+bool operator!=(const ov::symbol::WeakSymbol &lhs, const ov::symbol::WeakSymbol &rhs);
+bool operator<(const ov::symbol::WeakSymbol &lhs, const ov::symbol::WeakSymbol &rhs);
+}
