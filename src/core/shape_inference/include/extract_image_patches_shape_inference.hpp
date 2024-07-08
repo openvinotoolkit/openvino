@@ -17,13 +17,17 @@ std::vector<TRShape> shape_infer(const ExtractImagePatches* op, const std::vecto
     using TDim = typename T::value_type;
 
     constexpr size_t num_spatial_dim = 2;
+    constexpr size_t input_shape_static_rank = 4;
     constexpr auto is_zero = cmp::Less<size_t>(1);
 
     const auto& input_shape = input_shapes[0];
     auto output_shapes = std::vector<TRShape>(1);
     auto& output_shape = output_shapes[0];
 
-    NODE_SHAPE_INFER_CHECK(op, input_shapes, input_shape.rank().compatible(4), "input tensor must be 4D tensor.");
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           input_shape.rank().compatible(input_shape_static_rank),
+                           "input tensor must be 4D tensor.");
 
     const auto& sizes = op->get_sizes();
     NODE_VALIDATION_CHECK(op,
@@ -53,7 +57,7 @@ std::vector<TRShape> shape_infer(const ExtractImagePatches* op, const std::vecto
         "Attribute padding should be in either valid or same_lower or same_upper.");
 
     if (input_shape.rank().is_static()) {
-        const auto num_non_spatial_dims = input_shape.size() - num_spatial_dim;
+        constexpr auto num_non_spatial_dims = input_shape_static_rank - num_spatial_dim;
 
         auto out_it = std::copy_n(input_shape.begin(), num_non_spatial_dims, std::back_inserter(output_shape));
         output_shape[1] *=

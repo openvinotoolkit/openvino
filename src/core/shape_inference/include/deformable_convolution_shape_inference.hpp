@@ -18,7 +18,8 @@ size_t calculate_num_spatial(const util::DeformableConvolutionBase* op, const st
     auto num_spatial = util::num_spatial_from_shapes(input_shapes[0], input_shapes[2], non_spatial_count);
 
     if (num_spatial == convolution::num_spatial_undefined && input_shapes[1].rank().is_static()) {
-        num_spatial = input_shapes[1].size() - non_spatial_count;
+        constexpr size_t offsets_shape_rank = 4;
+        num_spatial = offsets_shape_rank - non_spatial_count;
     }
 
     return num_spatial;
