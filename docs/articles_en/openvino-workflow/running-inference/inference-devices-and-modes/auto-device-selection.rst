@@ -510,8 +510,9 @@ For more information, refer to the :doc:`Benchmark Tool <../../../learn-openvino
 Additional Resources
 ####################
 
-- :doc:`Debugging AUTO <auto-device-selection/debugging-auto-device>`
-- :doc:`Running on Multiple Devices Simultaneously <multi-device>`
-- :doc:`Inference Devices and Modes <../inference-devices-and-modes>`
+* `Automatic Device Selection with OpenVINO™ Notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/auto-device/auto-device.ipynb>`__
+* :doc:`Debugging AUTO <auto-device-selection/debugging-auto-device>`
+* :doc:`Running on Multiple Devices Simultaneously <multi-device>`
+* :doc:`Inference Devices and Modes <../inference-devices-and-modes>`
 
 
