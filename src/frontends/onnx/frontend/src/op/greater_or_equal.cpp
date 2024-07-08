@@ -2,19 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/greater_or_equal.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
-
 using namespace ov::op;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector greater_or_equal(const ov::frontend::onnx::Node& node) {
     const auto A = node.get_ov_inputs().at(0);
     const auto B = node.get_ov_inputs().at(1);
@@ -26,9 +24,10 @@ ov::OutputVector greater_or_equal(const ov::frontend::onnx::Node& node) {
 
     return {C};
 }
-}  // namespace set_1
+ONNX_OP("GreaterOrEqual", OPSET_RANGE(1, 15), ai_onnx::opset_1::greater_or_equal);
+}  // namespace opset_1
 
-namespace set_16 {
+namespace opset_16 {
 ov::OutputVector greater_or_equal(const ov::frontend::onnx::Node& node) {
     const auto A = node.get_ov_inputs().at(0);
     const auto B = node.get_ov_inputs().at(1);
@@ -37,8 +36,9 @@ ov::OutputVector greater_or_equal(const ov::frontend::onnx::Node& node) {
 
     return {C};
 }
-}  // namespace set_16
-}  // namespace op
+ONNX_OP("GreaterOrEqual", OPSET_SINCE(16), ai_onnx::opset_16::greater_or_equal);
+}  // namespace opset_16
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
