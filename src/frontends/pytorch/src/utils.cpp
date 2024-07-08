@@ -567,10 +567,10 @@ Output<Node> concat_list_from_inputs(const NodeContext& context, size_t begin, s
         } else {
             auto input_dim = context.get_input(static_cast<int>(i));
             if (input_dim.get_partial_shape().rank() == 0) {
-                auto dims_1d_shape = context.mark_node(ov::op::v0::Constant::create(element::i32, Shape{1}, {-1}));
-                auto reshape_dim =
-                    context.mark_node(std::make_shared<ov::op::v1::Reshape>(input_dim, dims_1d_shape, false));
-                list_elems.push_back(reshape_dim);
+                auto zero = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
+                auto unsqueezed_dim =
+                    context.mark_node(std::make_shared<ov::op::v0::Unsqueeze>(input_dim, zero));
+                list_elems.push_back(unsqueezed_dim);
             } else {
                 list_elems.push_back(input_dim);
             }
