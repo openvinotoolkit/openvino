@@ -34,6 +34,10 @@ bool ZeroEngineBackend::isBatchingSupported() const {
     return _instance->getDriverExtVersion() >= ZE_GRAPH_EXT_VERSION_1_6;
 }
 
+bool ZeroEngineBackend::isWorkloadTypeSupported() const {
+    return _instance->getCommandQueueDdiTable() != nullptr;
+}
+
 ZeroEngineBackend::~ZeroEngineBackend() = default;
 
 const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice() const {
