@@ -72,7 +72,12 @@ static std::vector<layout> calc_output_layouts(resample_node const& /*node*/, co
     auto pads_end = desc->pads_end;
     const auto output_shapes = ov::op::v4::shape_infer(&op, input_shapes, pads_begin, pads_end, ta);
 
-    return { layout{output_shapes[0], input_layout.data_type, format::adjust_to_rank(input_layout.format, output_shapes[0].size())} };
+    auto output_type = input_layout.data_type;
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_output_element_type();
+    }
+
+    return { layout{output_shapes[0], output_type, format::adjust_to_rank(input_layout.format, output_shapes[0].size())} };
 }
 } // namespace v4
 
@@ -119,8 +124,11 @@ static std::vector<layout> calc_output_layouts(resample_node const& /*node*/, co
     auto pads_begin = desc->pads_begin;
     auto pads_end = desc->pads_end;
     const auto output_shapes = ov::op::v11::shape_infer(&op, input_shapes, pads_begin, pads_end, ta);
-
-    return { layout{output_shapes[0], input_layout.data_type, format::adjust_to_rank(input_layout.format, output_shapes[0].size())} };
+    auto output_type = input_layout.data_type;
+    if (impl_param.has_fused_primitives()) {
+        output_type = impl_param.get_output_element_type();
+    }
+    return { layout{output_shapes[0], output_type, format::adjust_to_rank(input_layout.format, output_shapes[0].size())} };
 }
 } // namespace v11
 
