@@ -4,6 +4,7 @@
 
 #include "openvino/frontend/jax/node_context.hpp"
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -169,6 +170,13 @@ CoordinateDiff NodeContext::const_named_param<CoordinateDiff>(const std::string&
         return c->cast_vector<CoordinateDiff::value_type>();
     else
         return {};
+}
+
+template <>
+std::shared_ptr<v0::Constant> NodeContext::const_named_param<std::shared_ptr<v0::Constant>>(
+    const std::string& name) const {
+    auto c = get_constant_from_params(*this, name);
+    return c;
 }
 
 namespace {

@@ -46,17 +46,25 @@ reduce_window_preprocess(const NodeContext& context) {
     size_t total_dim = window_dimensions.size();
 
     JAX_OP_CONVERSION_CHECK(window_strides.size() == total_dim,
-                            "Internal error: window_strides must have the same size as window_dimensions, but got " +
-                                std::to_string(window_strides.size()) + " and " + std::to_string(total_dim));
+                            "Internal error: window_strides must have the same size as window_dimensions, but got ",
+                            window_strides.size(),
+                            " and ",
+                            total_dim);
     JAX_OP_CONVERSION_CHECK(padding.size() == total_dim,
-                            "Internal error: padding must have the same size as window_dimensions, but got " +
-                                std::to_string(padding.size()) + " and " + std::to_string(total_dim));
+                            "Internal error: padding must have the same size as window_dimensions, but got ",
+                            padding.size(),
+                            " and ",
+                            total_dim);
     JAX_OP_CONVERSION_CHECK(base_dilation.size() == total_dim,
-                            "Internal error: base_dilation must have the same size as window_dimensions, but got " +
-                                std::to_string(base_dilation.size()) + " and " + std::to_string(total_dim));
+                            "Internal error: base_dilation must have the same size as window_dimensions, but got ",
+                            base_dilation.size(),
+                            " and ",
+                            total_dim);
     JAX_OP_CONVERSION_CHECK(window_dilation.size() == total_dim,
-                            "Internal error: window_dilation must have the same size as window_dimensions, but got " +
-                                std::to_string(window_dilation.size()) + " and " + std::to_string(total_dim));
+                            "Internal error: window_dilation must have the same size as window_dimensions, but got ",
+                            window_dilation.size(),
+                            " and ",
+                            total_dim);
 
     Strides strides(total_dim - 2);
     Strides dilations(total_dim - 2);

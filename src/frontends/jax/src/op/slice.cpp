@@ -4,6 +4,7 @@
 
 #include "openvino/op/slice.hpp"
 
+#include <memory>
 #include <vector>
 
 #include "openvino/core/node.hpp"
@@ -22,21 +23,14 @@ using namespace ov::op;
 OutputVector translate_slice(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
     Output<Node> input = context.get_input(0);
-    auto start_indices_vector = context.const_named_param<std::vector<int64_t>>("start_indices");
-    auto limit_indices_vector = context.const_named_param<std::vector<int64_t>>("limit_indices");
+    auto start_indices = context.const_named_param<std::shared_ptr<v0::Constant>>("start_indices");
+    auto limit_indices = context.const_named_param<std::shared_ptr<v0::Constant>>("limit_indices");
 
-    auto start_indices =
-        std::make_shared<op::v0::Constant>(element::i64, Shape{start_indices_vector.size()}, start_indices_vector);
-    auto limit_indices =
-        std::make_shared<op::v0::Constant>(element::i64, Shape{limit_indices_vector.size()}, limit_indices_vector);
     Output<Node> strides;
     if (context.has_param("strides")) {
-        auto strides_vector = context.const_named_param<std::vector<int64_t>>("strides");
-        strides = std::make_shared<op::v0::Constant>(element::i64, Shape{strides_vector.size()}, strides_vector);
+        strides = context.const_named_param<std::shared_ptr<v0::Constant>>("strides");
     } else {
-        strides = std::make_shared<op::v0::Constant>(element::i64,
-                                                     Shape{start_indices_vector.size()},
-                                                     std::vector<int64_t>(start_indices_vector.size(), 1));
+        strides = std::make_shared<op::v0::Constant>(element::i64, start_indices->get_shape(), 1);
     }
     Output<Node> res = std::make_shared<v8::Slice>(input, start_indices, limit_indices, strides);
     return {res};

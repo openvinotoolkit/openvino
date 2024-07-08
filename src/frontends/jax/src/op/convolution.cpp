@@ -54,17 +54,19 @@ OutputVector translate_convolution(const NodeContext& context) {
     size_t spatial_dim = strides.size();
 
     JAX_OP_CONVERSION_CHECK(dimension_numbers.size() == 3,
-                            "Internal error: dimension_numbers must have 3 vectors but actually got " +
-                                std::to_string(dimension_numbers.size()));
+                            "Internal error: dimension_numbers must have 3 vectors but actually got ",
+                            dimension_numbers.size());
     auto lhs_spec = dimension_numbers[0];
     auto rhs_spec = dimension_numbers[1];
     auto out_spec = dimension_numbers[2];
     JAX_OP_CONVERSION_CHECK(lhs_spec.size() == rhs_spec.size() && lhs_spec.size() == out_spec.size(),
                             "Internal error: specs in dimension_numbers must have the same size, but "
-                            "got lhs_spec.size() = " +
-                                std::to_string(lhs_spec.size()) +
-                                ", rhs_spec.size() = " + std::to_string(rhs_spec.size()) +
-                                ", out_spec.size() = " + std::to_string(out_spec.size()));
+                            "got lhs_spec.size() = ",
+                            lhs_spec.size(),
+                            ", rhs_spec.size() = ",
+                            rhs_spec.size(),
+                            ", out_spec.size() = ",
+                            out_spec.size());
     JAX_OP_CONVERSION_CHECK(lhs_spec.size() == 4, "Internal error: specs in dimension_numbers must have 4 elements.");
 
     JAX_OP_CONVERSION_CHECK(spatial_dim == 2 || spatial_dim == 3,

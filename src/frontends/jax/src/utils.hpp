@@ -4,7 +4,10 @@
 
 #pragma once
 
+#include <memory>
+
 #include "openvino/frontend/jax/node_context.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 
