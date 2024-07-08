@@ -94,6 +94,7 @@ private:
     // cache sub_dst
     std::vector<MemoryPtr> cur_dst_vec;
     Shape dst_shape;
+    MemoryDescPtr memory_desc;
 };
 
 }  // namespace node

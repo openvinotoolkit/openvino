@@ -96,25 +96,20 @@ ExecutorPtr FullyConnected::createExecutor() {
         };
 
         int dim = -1;
-        if (cur_dst_vec[w_rank] == nullptr) {
-            cur_dst_vec[w_rank] = split_vertical(context->getEngine(), dstMemoryBuffer, -1, w_rank, w_size, false);
-        } else if (dst_shape != dstMemoryBuffer->getShape()) {
-            dst_shape = dstMemoryBuffer->getShape();
-            auto dst_desc = dstMemoryBuffer->getDescPtr();
-            auto dims = dst_shape.getDims();
-            if (dim < 0) {
-                dim += dims.size();
-            }
-            assert(dims[dim] >= w_size);
-            auto splited_dim_vec = split_parts(dims[dim], w_size);
-
-            VectorDims new_dims = dims;
-            new_dims[dim] = splited_dim_vec[w_rank];
-            auto cur_desc = dst_desc->cloneWithNewDims(new_dims, true);
-            cur_dst_vec[w_rank]->redefineDesc(cur_desc);
-        }
         dst_shape = dstMemoryBuffer->getShape();
-        memory[ARG_DST] = cur_dst_vec[w_rank];
+        auto dst_desc = dstMemoryBuffer->getDescPtr();
+        auto dims = dst_shape.getDims();
+        if (dim < 0) {
+            dim += dims.size();
+        }
+        assert(dims[dim] >= w_size);
+        auto splited_dim_vec = split_parts(dims[dim], w_size);
+
+        VectorDims new_dims = dims;
+        new_dims[dim] = splited_dim_vec[w_rank];
+        memory_desc = dst_desc->cloneWithNewDims(new_dims, true);
+        memory[ARG_DST] =
+            std::static_pointer_cast<Memory>(sub_memory->get_shared_memory(context->getEngine(), memory_desc, w_rank));
     }
     const auto& executor = factory->make(memory);
     getSelectedPrimitiveDescriptor()->setImplementationType(executor->implType());
@@ -142,18 +137,8 @@ void FullyConnected::execute(dnnl::stream strm) {
                 break;
             }
         }
-
-        auto dstMemoryBuffer = memory[ARG_DST];
-        if (sub_memory->_memorys_table[id][w_rank].buf == nullptr) {
-            sub_memory->_memorys_table[id][w_rank].buf = memory[ARG_DST];
-        } else {
-            MemoryPtr dst_mem = std::static_pointer_cast<Memory>(sub_memory->_memorys_table[id][w_rank].buf);
-            if (dst_mem->getSize() < dstMemoryBuffer->getSize()) {
-                sub_memory->_memorys_table[id][w_rank].buf = memory[ARG_DST];
-            } else {
-                memory[ARG_DST] = dst_mem;
-            }
-        }
+        memory[ARG_DST] = std::static_pointer_cast<Memory>(
+            sub_memory->get_pingpang_memory(context->getEngine(), memory_desc, id, w_rank));
     }
 
     {
