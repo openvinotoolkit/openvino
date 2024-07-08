@@ -32,7 +32,7 @@ void experimental_detectron_roi_feature_extractor_inst::copy_rois_input_to_secon
 
 template<typename ShapeType>
 std::vector<layout> experimental_detectron_roi_feature_extractor_inst::calc_output_layouts(
-        experimental_detectron_roi_feature_extractor_node const& node, const kernel_impl_params& impl_param) {
+        experimental_detectron_roi_feature_extractor_node const& /*node*/, const kernel_impl_params& impl_param) {
     layout rois_layout = impl_param.get_input_layout(0);
     layout data_layout = impl_param.get_input_layout(1);
     auto desc = impl_param.typed_desc<experimental_detectron_roi_feature_extractor>();
