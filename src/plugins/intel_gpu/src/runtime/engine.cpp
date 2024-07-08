@@ -234,7 +234,6 @@ std::map<std::string, uint64_t> engine::get_memory_statistics() const {
 
 void engine::add_memory_used(uint64_t bytes, allocation_type type) {
     auto idx = static_cast<size_t>(type);
-    _memory_usage_data[idx] += bytes;
     auto new_val = _memory_usage_data[idx].fetch_add(bytes);
     // Make sure actual maximum value is stored
     while (new_val > _peak_memory_usage_data[idx]) {
