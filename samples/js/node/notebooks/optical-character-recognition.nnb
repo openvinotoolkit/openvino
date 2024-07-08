@@ -10,7 +10,7 @@
         {
             "language": "markdown",
             "source": [
-                "This Notebook demostrates Ocr Sample with openvino"
+                "This tutorial demonstrates how to perform optical character recognition (OCR) with OpenVINO models"
             ],
             "outputs": []
         },
@@ -128,7 +128,7 @@
         {
             "language": "typescript",
             "source": [
-                "const inferRequest = detCompiledModel.createInferRequest();\ninferRequest.setInputTensor(tensor);\ninferRequest.infer();\nconst output = inferRequest.getTensor(detOutputLayer);\nconst boundingBoxesArray = extractBoundingBoxes(output);\ndisplayArrayAsImage(displayImageMat.data, displayImageMat.cols, displayImageMat.rows, display);\n"
+                "// Create infer request\nconst inferRequest = detCompiledModel.createInferRequest();\nlet boundingBoxesArray;\n// Define the completion callback function\nconst completionCallback = (outputTensor, displayImageMat) => {\n  boundingBoxesArray = extractBoundingBoxes(outputTensor);\n  displayArrayAsImage(displayImageMat.data, displayImageMat.cols, displayImageMat.rows, display);\n};\n\n// Start inference in asynchronous mode\nconst inferAsyncProcess = async () => {\n  try {\n    const result = await inferRequest.inferAsync([tensor]);\n    completionCallback(result[detOutputLayer], displayImageMat);\n  } catch (error) {\n    console.error('Error during inference:', error);\n  }\n};\n\n\nawait inferAsyncProcess();\n"
             ],
             "outputs": [
                 {
@@ -172,6 +172,20 @@
         {
             "language": "markdown",
             "source": [
+                "# Async Inference Helper Function"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "const inferAsyncProcess = async (tensor, recModelCompiled, recOutputLayer, i, annotations) => {\n    // Create infer request\n    const inferRequest = recModelCompiled.createInferRequest();\n  \n    // Define the completion callback function\n    const completionCallback = (outputTensor, i, annotations) => {\n      const recognitionResults = extractRecognitionResults(outputTensor);\n      const annotation = parseAnnotations(recognitionResults);\n      annotations.push(annotation);\n    };\n  \n    // Start inference in asynchronous mode\n    try {\n      const result = await inferRequest.inferAsync([tensor]);\n      completionCallback(result[recOutputLayer], i, annotations);\n    } catch (error) {\n      console.error('Error during inference:', error);\n    }\n  };\n  "
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
                 "# Process Result"
             ],
             "outputs": []
@@ -179,7 +193,7 @@
         {
             "language": "typescript",
             "source": [
-                "// process each bounding box and run inference on the recognition model\n\nconst [batchSize, channels, height, width] = recInputLayer.shape;\nconst { ratioX, ratioY, grayscaleImage } = preprocessImage(inputImageMat, resizedImage);\n\nconst annotations = [];\nconst croppedImages = [];\n\nboundingBoxesArray.forEach((crop, i) => {\n    const [xMin, yMin, xMax, yMax] = multiplyByRatio(ratioX, ratioY, crop).map(Math.floor);\n    const cropRect = new cv.Rect(xMin, yMin, xMax - xMin, yMax - yMin);\n    const croppedImage = grayscaleImage.roi(cropRect);\n\n    try {\n        const preprocessedCrop = runPreprocessingOnCrop(croppedImage, [width, height]);\n        const tensorData = new Float32Array(preprocessedCrop);\n        const tensor = new ov.Tensor(ov.element.f32, Int32Array.from(recInputLayer.shape), tensorData);\n\n        const inferRequest = recModelCompiled.createInferRequest();\n        inferRequest.setInputTensor(tensor);\n        inferRequest.infer();\n\n        const output = inferRequest.getTensor(recOutputLayer);\n        const recognitionResults = extractRecognitionResults(output);\n\n        const annotation = parseAnnotations(recognitionResults);\n        annotations.push(annotation);\n\n        croppedImages.push(cropImage(inputImageMat, xMin, yMin, xMax, yMax));\n    } catch (error) {\n        console.error('Error during preprocessing:', error);\n    }\n\n    croppedImage.delete();\n});\n\n\ngrayscaleImage.delete();\n\n\nconst boxesWithAnnotations = boundingBoxesArray.map((box, index) => ({ box, annotation: annotations[index] }));\n\n\nconst resultImage = convertResultToImage(inputImageMat, resizedImage, boxesWithAnnotations, { threshold: 0.3, confLabels: true });\ndisplayArrayAsImage(resultImage.data, resultImage.cols, resultImage.rows, display);\n\ncroppedImages.forEach((croppedImage, i) => {\n    displayArrayAsImage(croppedImage.data, croppedImage.cols, croppedImage.rows, display);\n});\n"
+                "// process each bounding box and run inference on the recognition model\nconst [batchSize, channels, height, width] = recInputLayer.shape;\nconst { ratioX, ratioY, grayscaleImage } = preprocessImage(inputImageMat, resizedImage);\n\nconst annotations = [];\nconst croppedImages = [];\nlet boxesWithAnnotations;\n\n// Process bounding boxes asynchronously\nconst processBoundingBoxes = async () => {\n  for (let i = 0; i < boundingBoxesArray.length; i++) {\n    const crop = boundingBoxesArray[i];\n    const [xMin, yMin, xMax, yMax] = multiplyByRatio(ratioX, ratioY, crop).map(Math.floor);\n    const cropRect = new cv.Rect(xMin, yMin, xMax - xMin, yMax - yMin);\n    const croppedImage = grayscaleImage.roi(cropRect);\n\n    try {\n      const preprocessedCrop = runPreprocessingOnCrop(croppedImage, [width, height]);\n      const tensorData = new Float32Array(preprocessedCrop);\n      const tensor = new ov.Tensor(ov.element.f32, Int32Array.from(recInputLayer.shape), tensorData);\n\n      await inferAsyncProcess(tensor, recModelCompiled, recOutputLayer, i, annotations);\n\n      croppedImages.push(cropImage(inputImageMat, xMin, yMin, xMax, yMax));\n    } catch (error) {\n      console.error('Error during preprocessing:', error);\n    }\n\n    croppedImage.delete();\n  }\n\n  grayscaleImage.delete();\n\n  boxesWithAnnotations = boundingBoxesArray.map((box, index) => ({ box, annotation: annotations[index] }));\n  const resultImage = convertResultToImage(inputImageMat, resizedImage, boxesWithAnnotations, { threshold: 0.3, confLabels: true });\n  displayArrayAsImage(resultImage.data, resultImage.cols, resultImage.rows, display);\n\n  croppedImages.forEach((croppedImage, i) => {\n    displayArrayAsImage(croppedImage.data, croppedImage.cols, croppedImage.rows, display);\n  });\n};\n\n// Call the async function to process the bounding boxes\nawait processBoundingBoxes();\n"
             ],
             "outputs": [
                 {
