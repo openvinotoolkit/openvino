@@ -47,7 +47,7 @@ All currently supported versions are:
       NPU              V\*         V\*     V\ *             n/a       n/a          n/a        n/a        V\*
       ===============  ==========  ======  ===============  ========  ============ ========== ========== ==========
 
-      | \* **Of the Linux systems, version 22.04 includes drivers for NPU.**
+      | \* **Of the Linux systems, versions 22.04 and 24.04 include drivers for NPU.**
       |  **For Windows, CPU inference on ARM64 is not supported.**
 
 .. dropdown:: Effortless GenAI integration with OpenVINO GenAI Flavor
