@@ -729,7 +729,7 @@ inline std::istream& operator>>(std::istream& is, WorkloadType& mode) {
 
 /**
  * @brief Read-write property to select in which mode the workload will be executed
- * This is only supported from GPU.
+ * This is only supported by NPU.
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<WorkloadType, PropertyMutability::RW> workload_type{"WORKLOAD_TYPE"};
