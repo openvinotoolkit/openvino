@@ -618,9 +618,14 @@ private:
 
     ov::AnyMap parse_node(const pugi::xml_node& node) const {
         ov::AnyMap result;
-        const std::string node_name = node.name();
+        // Old version may produce nodes like <name value="..."/>, but it may brake xml-naming convention
+        // Now it should look like <info name="..." value="..."/>.
+        // Also we keep an option to read an old XMLs where it doesn't have name attribute
+        const auto name_attr = node.attribute("name");
+        const std::string node_name = name_attr.empty() ? node.name() : name_attr.value();
         for (const auto& data : node.children()) {
-            const std::string data_name = data.name();
+            const auto name_attr = data.attribute("name");
+            const std::string data_name = name_attr.empty() ? data.name() : name_attr.value();
             // WA for legacy POT config
             if (data_name == "config" && node_name == "quantization_parameters") {
                 // Read legacy pot config
@@ -658,12 +663,17 @@ void ov::XmlDeserializer::read_meta_data(const std::shared_ptr<ov::Model>& model
     for (const auto& data : meta_section.children()) {
         if (data.empty())
             continue;
+        // Old version may produce nodes like <name value="..."/>, but it may brake xml-naming convention
+        // Now it should look like <info name="..." value="..."/>.
+        // Also we keep an option to read an old XMLs where it doesn't have name attribute
+        const auto name_attr = data.attribute("name");
+        const auto node_name = name_attr.empty() ? data.name() : name_attr.value();
         if (!data.attribute("value").empty()) {
-            rt_info[data.name()] = pugixml::get_str_attr(data, "value");
+            rt_info[node_name] = pugixml::get_str_attr(data, "value");
         } else {
             // Use meta data for set of parameters
             std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>(data.name(), data);
-            rt_info[data.name()] = meta;
+            rt_info[node_name] = meta;
         }
     }
 }
