@@ -592,10 +592,10 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             so = ov::util::load_shared_object(desc.libraryLocation.c_str());
             std::shared_ptr<ov::IPlugin> plugin_impl;
             reinterpret_cast<ov::CreatePluginFunc*>(ov::util::get_symbol(so, ov::create_plugin_function))(plugin_impl);
-            auto plugin_name = plugin_impl->get_device_name();
+            const auto& plugin_name = plugin_impl->get_device_name();
 
-            // Check that device plugin name is the same as requested for non virtual plugins
-            if (!is_virtual_device(plugin_name)) {
+            // Check that HW device plugin name is the same as requested for non virtual plugins
+            if (!plugin_name.empty() && !is_virtual_device(plugin_name)) {
                 OPENVINO_ASSERT(plugin_name == deviceName,
                                 deviceName,
                                 " device loaded with incorrect name: ",
