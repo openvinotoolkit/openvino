@@ -1,15 +1,12 @@
 name: Linux developer workflow for CPU plugin (Ubuntu 20.04)
 on:
   workflow_dispatch:
-  # push:
-  #   paths:
-  #     - '.github/workflows/linux_cpu_dev.yml'
   pull_request:
     paths:
       - '.github/workflows/linux_cpu_dev.yml'
 
 concurrency:
-  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux-cpu-dev
   cancel-in-progress: true
 
 permissions: read-all
@@ -67,7 +64,6 @@ jobs:
       DEVELOPER_PACKAGE_DIR: /__w/openvino/openvino/developer_package_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
-      # ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/src/frontends/onnx/tests/ci_utils/onnxruntime
 
     steps:
       - name: Clone OpenVINO
@@ -146,9 +142,6 @@ jobs:
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
 
-      # it looks like ov. dev. pkg is used (downloaded) only in nvidia tests
-      # Upload openvino developer package - removed
-
       - name: Upload openvino tests package
         if: ${{ always() }}
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
@@ -222,14 +215,6 @@ jobs:
       - name: Install python dependencies for run_parallel.py
         run: python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
 
-      - name: Restore tests execution time
-        uses: actions/cache/restore@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
-        with:
-          path: ${{ env.PARALLEL_TEST_CACHE }}
-          key: ${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp
-
       - name: Intel CPU plugin func tests (parallel)
         run: |
           # Needed as the Linux CC does not require setupvars to work
@@ -239,15 +224,8 @@ jobs:
           # Needed as ze_loader.so is under INSTALL_TEST_DIR
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALL_TEST_DIR}
 
-          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests --gtest_filter=*smoke_Snippets* -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1
+          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests --gtest_filter=*smoke_Snippets* -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1
         timeout-minutes: 25
-
-      - name: Save tests execution time
-        uses: actions/cache/save@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
-        if: github.ref_name == 'master'
-        with:
-          path: ${{ env.PARALLEL_TEST_CACHE }}
-          key: ${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp-${{ github.sha }}
 
       - name: Upload Test Results
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
