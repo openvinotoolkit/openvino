@@ -28,7 +28,7 @@ GraphContext::GraphContext(const Config& config,
             numNumaNodes = nNumaNodes;
     }
     for (int i = 0; i < numNumaNodes; i++) {
-        rtScratchPads.push_back(std::make_shared<DnnlScratchPad>(getEngine(), i));
+        rtScratchPads.push_back(std::make_shared<DnnlScratchPad>(getEngine()));
     }
 }
 

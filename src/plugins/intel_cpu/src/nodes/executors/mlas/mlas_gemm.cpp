@@ -155,15 +155,5 @@ void MlasGemmExecutor::execute(const MemoryArgs& memory) {
                        biasRawMemPtr);
 }
 
-void MlasGemmExecutor::moveMemToNumaNode(int numaNodeID) {
-    if (curNumaNode == numaNodeID)
-        return;
-    curNumaNode = numaNodeID;
-    mbind_move(packedWeights, numaNodeID);
-    if (m_attrs.withBias) {
-        mbind_move(m_memoryArgs.at(ARG_BIAS), numaNodeID);
-    }
-}
-
 }  // namespace intel_cpu
 }  // namespace ov

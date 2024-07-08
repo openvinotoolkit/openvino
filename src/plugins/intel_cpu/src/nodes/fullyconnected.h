@@ -62,9 +62,6 @@ public:
     void fuseDecompressionMultiply(const MemoryCPtr& memory);
     void fuseDecompressionSubtract(const MemoryCPtr& memory);
 
-protected:
-    void toNumaNodeImpl(int numaID) override;
-
 private:
     static const size_t DATA_ID = 0;
     static const size_t WEIGHTS_ID = 1;

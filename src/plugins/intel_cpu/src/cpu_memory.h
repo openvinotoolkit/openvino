@@ -72,7 +72,7 @@ public:
  */
 class MemoryMngrWithReuse : public IMemoryMngr {
 public:
-    MemoryMngrWithReuse(int numa_node = -1) : m_data(nullptr, release), numa_node(numa_node) {}
+    MemoryMngrWithReuse() : m_data(nullptr, release) {}
     void* getRawPtr() const noexcept override;
     void setExtBuff(void* ptr, size_t size) override;
     bool resize(size_t size) override;
@@ -82,7 +82,6 @@ private:
     bool m_useExternalStorage = false;
     size_t m_memUpperBound = 0ul;
     std::unique_ptr<void, void (*)(void *)> m_data;
-    int numa_node;
 
     static void release(void *ptr);
     static void destroy(void *ptr);
@@ -458,10 +457,6 @@ private:
 using MemoryPtr = std::shared_ptr<IMemory>;
 using MemoryCPtr = std::shared_ptr<const IMemory>;
 using StringMemoryPtr = std::shared_ptr<StringMemory>;
-
-bool mbind_move(void* data, size_t size, int numaNodeID);
-bool mbind_move(const MemoryCPtr mem, int numaNodeID);
-bool mbind_move(const dnnl::memory mem, int numaNodeID);
 
 }   // namespace intel_cpu
 }   // namespace ov

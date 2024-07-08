@@ -122,10 +122,6 @@ bool FullyConnected::created() const {
     return getType() == Type::FullyConnected;
 }
 
-void FullyConnected::toNumaNodeImpl(int numaID) {
-    executor->moveMemToNumaNode(numaID);
-}
-
 const std::vector<impl_desc_type>& FullyConnected::getDefaultImplPriority() {
     static const std::vector<impl_desc_type> priorities = {
         impl_desc_type::unknown,

@@ -247,30 +247,6 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model,
     }
 }
 
-void Graph::GroupParallelNodes() {
-    std::map<std::string, std::vector<NodePtr>> pdomain_nodes;
-    for (size_t k = 0; k < graphNodes.size(); k++) {
-        auto& node = graphNodes[k];
-        auto& domain = node->getParallelDomain();
-        if (domain.empty())
-            continue;
-        if (pdomain_nodes.count(domain) == 0)
-            pdomain_nodes[domain] = {};
-        pdomain_nodes[domain].push_back(node);
-    }
-
-    // record valid paralell_nodes
-    for (auto& pn : pdomain_nodes) {
-        auto& node_ptrs = pn.second;
-        if (node_ptrs.size() > 1) {
-            // parallelWith includes pointer to itself
-            for (auto& pnode : node_ptrs) {
-                pnode->parallelWith = node_ptrs;
-            }
-        }
-    }
-}
-
 static std::vector<size_t> IdentifySyncPoints(const std::vector<NodePtr>& graphNodes) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::IdentifySyncPoints");
     std::vector<size_t> syncNodesInds;
@@ -397,8 +373,6 @@ void Graph::InitGraph(bool optimize) {
     ResolveComplexInplaceConflicts();
 
     optimizer.ApplyImplSpecificGraphOptimizations(*this);
-
-    GroupParallelNodes();
 
     SortTopologically();
 
@@ -1403,87 +1377,15 @@ void Graph::InferDynamic(SyncInferRequest* request, UpdateStrategy&& update) {
 }
 
 inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const {
-    if (!node->parallelWith.empty()) {
-        // run nodes in parallel
-        auto& parallelNodes = node->parallelWith;
-        if (node == parallelNodes[0]) {
-            if (const auto& cpuExecutor = m_context->getCPUStreamExecutor()) {
-                auto num_parallel_nodes = parallelNodes.size();
-                ParalleMtNuma(num_parallel_nodes, cpuExecutor, [&](int subStreamID, size_t i) {
-                    auto& n = parallelNodes[i];
+    DUMP(node, getConfig().debugCaps, infer_count);
+    OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, node->profiling.execute);
+    DEBUG_LOG(*node);
 
-                    if (n->isDynamicNode()) {
-                        n->executeDynamic(stream, subStreamID);
-                    } else {
-                        n->executeStatic(stream, subStreamID);
-                    }
-                });
-            } else {
-                // fallback to serialize executor
-                for (auto& node : parallelNodes) {
-                    if (node->isDynamicNode()) {
-                        node->executeDynamic(stream);
-                    } else {
-                        node->executeStatic(stream);
-                    }
-                }
-            }
-        }
+    if (node->isDynamicNode()) {
+        node->executeDynamic(stream);
     } else {
-        DUMP(node, getConfig().debugCaps, infer_count);
-        OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, node->profiling.execute);
-        DEBUG_LOG(*node);
-        // TODO: 132954 workaround for latency
-        int subStreamID = -1;
-#if defined(__x86_64__) && defined(__linux__)
-        if ((getGraphContext()->getCPUStreamExecutor()) && (getConfig().hintPerfMode == ov::hint::PerformanceMode::LATENCY)) {
-            subStreamID = getGraphContext()->getCPUStreamExecutor()->get_numa_node_id();
-        }
-#endif
-        if (node->isDynamicNode()) {
-            node->executeDynamic(stream, subStreamID);
-        } else {
-            node->executeStatic(stream, subStreamID);
-        }
+        node->executeStatic(stream);
     }
-}
-
-void Graph::ParalleMtNuma(size_t num_nodes,
-                          ov::threading::CPUStreamsExecutor::Ptr executor,
-                          const std::function<void(size_t, size_t)>& func) const {
-    OPENVINO_ASSERT(num_nodes > 1, "Parallel Nodes must be more than 1. But now got ",
-                                   num_nodes,
-                                   " Nodes, which shouldn't invoke multi nodes parallel.");
-    std::atomic<int> nodes_remain(num_nodes);
-    int cur_numa_id = executor->get_numa_node_id();
-    // enqueue (nsockets-1) sub stream tasks
-    int sub_stream_id = 0;
-    for (size_t socket_id = 0; socket_id < num_nodes; socket_id++) {
-        if (socket_id != static_cast<size_t>(cur_numa_id)) {
-            size_t i0{0}, i1{0};
-            splitter(num_nodes, num_nodes, socket_id, i0, i1);
-            executor->run_sub_stream(
-                [socket_id, i0, i1, &func, &nodes_remain]() {
-                    for (size_t i = i0; i < i1; i++) {
-                        func(socket_id, i);
-                        nodes_remain--;
-                    }
-                },
-                sub_stream_id);
-            sub_stream_id++;
-        }
-    }
-    // run in main stream (current socket)
-    {
-        size_t i0{0}, i1{0};
-        splitter(num_nodes, num_nodes, static_cast<size_t>(cur_numa_id), i0, i1);
-        for (size_t i = i0; i < i1; i++) {
-            func(cur_numa_id, i);
-            nodes_remain--;
-        }
-    }
-    // wait and sync
-    while (nodes_remain.load() > 0) {}
 }
 
 void Graph::Infer(SyncInferRequest* request) {
@@ -1521,26 +1423,11 @@ void Graph::SortTopologically() {
             if (!inserted)
                 return; // already visited
 
-            if (!node->parallelWith.empty()) {
-                for (auto& n : node->parallelWith) {
-                    for (size_t i = 0; i < n->getChildEdges().size(); i++) {
-                        visit(n->getChildEdgeAt(i)->getChild());
-                    }
-                }
-
-                // make sure parallel nodes are always enqueue together
-                for (auto& n : node->parallelWith) {
-                    if (std::find(sorted.begin(), sorted.end(), n) == sorted.end()) {
-                        sorted.push_back(n);
-                    }
-                }
-            } else {
-                for (size_t i = 0; i < node->getChildEdges().size(); i++) {
-                    visit(node->getChildEdgeAt(i)->getChild());
-                }
-
-                sorted.push_back(node);
+            for (size_t i = 0; i < node->getChildEdges().size(); i++) {
+                visit(node->getChildEdgeAt(i)->getChild());
             }
+
+            sorted.push_back(node);
         };
 
         for (const auto& node : nodes) {
@@ -1555,20 +1442,8 @@ void Graph::SortTopologically() {
     // reverse to the actual topological order
     std::reverse(graphNodes.begin(), graphNodes.end());
     // number the nodes based on topological order
-    for (size_t i = 0; i < graphNodes.size(); i++) {
-        // parallel nodes has same execIndex
-        // so they can provide correct start/end time point for
-        // their input and output memory object
-        if (graphNodes[i]->parallelWith.size()) {
-            if (graphNodes[i]->parallelWith[0] == graphNodes[i]) {
-                for (auto& n : graphNodes[i]->parallelWith) {
-                    n->execIndex = static_cast<int>(i);
-                }
-            }
-            continue;
-        }
+    for (size_t i = 0; i < graphNodes.size(); i++)
         graphNodes[i]->execIndex = static_cast<int>(i);
-    }
 
     // Sort in / out child edges by port index
     // Make first N (N == port_num) edge indexes match with port index
