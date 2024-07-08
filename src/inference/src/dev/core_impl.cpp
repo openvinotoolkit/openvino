@@ -598,7 +598,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             // skip for meta
             // TODO: Create API to detect meta plugins
             if (plugin_name != "AUTO" && plugin_name != "MULTI") {
-                OPENVINO_ASSERT(plugin_name == deviceName, "Error: Device loaded with incorrect name");
+                OPENVINO_ASSERT(plugin_name == deviceName, "Error: Device loaded with incorrect name\"", plugin_name, deviceName);
             }
             plugin = Plugin{plugin_impl, so};
         }
