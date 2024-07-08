@@ -18,6 +18,8 @@ class TRANSFORMATIONS_API ConvertTensorIteratorToRNNSequence;
 class TRANSFORMATIONS_API ConvertTensorIteratorToGRUSequence;
 class TRANSFORMATIONS_API ConvertTensorIteratorToSequence;
 
+class TRANSFORMATIONS_API ConvertLoopWithSlicedInputConcatOutputToLSTMSequence;
+class TRANSFORMATIONS_API ConvertLoopWithScatterUpdateToLSTMSequence;
 class TRANSFORMATIONS_API ConvertLoopToLSTMSequence;
 class TRANSFORMATIONS_API FuseReverseLSTMSequence;
 
@@ -68,14 +70,29 @@ public:
     ConvertTensorIteratorToSequence();
 };
 
+class ov::pass::ConvertLoopWithSlicedInputConcatOutputToLSTMSequence : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("ConvertLoopWithSlicedInputConcatOutputToLSTMSequence", "0");
+    ConvertLoopWithSlicedInputConcatOutputToLSTMSequence();
+};
+
+class ov::pass::ConvertLoopWithScatterUpdateToLSTMSequence : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("ConvertLoopWithScatterUpdateToLSTMSequence", "0");
+    ConvertLoopWithScatterUpdateToLSTMSequence();
+};
+
 /**
  * @ingroup ov_transformation_common_api
  * @brief Replaces Loop with LSTMCell inside to LSTMSequence
  */
-class ov::pass::ConvertLoopToLSTMSequence : public ov::pass::MatcherPass {
+class ov::pass::ConvertLoopToLSTMSequence : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("ConvertLoopToLSTMSequence", "0");
-    ConvertLoopToLSTMSequence();
+    ConvertLoopToLSTMSequence() {
+        add_matcher<ov::pass::ConvertLoopWithScatterUpdateToLSTMSequence>();
+        add_matcher<ov::pass::ConvertLoopWithSlicedInputConcatOutputToLSTMSequence>();
+    }
 };
 
 /**

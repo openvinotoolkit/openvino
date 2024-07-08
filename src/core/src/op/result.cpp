@@ -162,7 +162,7 @@ bool AttributeAdapter<ResultVector>::visit_attributes(AttributeVisitor& visitor)
         }
         visitor.on_attribute(index.str(), id);
         if (!m_ref[i]) {
-            m_ref[i] = as_type_ptr<op::v0::Result>(visitor.get_registered_node(id));
+            m_ref[i] = as_type_ptr<op::v0::Result>(visitor.get_registered_node(std::move(id)));
         }
     }
     return true;

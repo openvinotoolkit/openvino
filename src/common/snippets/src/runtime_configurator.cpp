@@ -30,7 +30,8 @@ void init_data_ptr_shifts(const lowered::UnifiedLoopInfoPtr& unified_loop_info, 
 }
 }  // namespace
 
-RuntimeConfigurator::RuntimeConfigurator(std::shared_ptr<RuntimeConfig> c) : m_config(std::move(c)) {
+RuntimeConfigurator::RuntimeConfigurator(std::shared_ptr<RuntimeConfig> c) :
+    m_config(std::move(c)) {
     OPENVINO_ASSERT(m_config, "Runtime config is nullptr!");
 }
 

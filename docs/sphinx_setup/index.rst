@@ -31,9 +31,9 @@ Check out the `OpenVINO Cheat Sheet. <https://docs.openvino.ai/2024/_static/down
                   <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/genai-guide.html">Check out our guide</a>
                   </li>
                   <li id="ov-homepage-slide2" class="splide__slide">
-                  <p class="ov-homepage-slide-title">Python custom operations</p>
-                  <p class="ov-homepage-slide-subtitle">Implement specialized operations for any model out of the box!</p>
-                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html">Learn more</a>
+                  <p class="ov-homepage-slide-title">Improved model serving</p>
+                  <p class="ov-homepage-slide-subtitle">OpenVINO Model Server has improved parallel inferencing!</p>
+                  <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2024/ovms_what_is_openvino_model_server.html">Learn more</a>
                   </li>
                   <li id="ov-homepage-slide3" class="splide__slide">
                   <p class="ov-homepage-slide-title">OpenVINO via PyTorch 2.0 torch.compile()</p>
@@ -106,7 +106,7 @@ Places to Begin
 
       Get started in just a few lines of code.
 
-      .. button-link:: openvino-workflow/running-inference.html
+      .. button-link:: openvino-workflow/running-inference/integrate-openvino-with-your-application.html
          :color: primary
          :outline:
 
