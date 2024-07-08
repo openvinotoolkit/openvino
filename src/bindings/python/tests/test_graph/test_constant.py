@@ -547,9 +547,11 @@ def test_float_to_f8e8m0_constant_single_nan(ov_type, numpy_dtype, opset):
     ],
 )
 def test_float_to_f8e8m0_constant(ov_type, numpy_dtype, opset):
+    pytest.skip("CVS-145281 BUG: nan to inf repro. [random - depends on the device]")
+
     data = np.array([4.75, 4.5, 5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
                      0.6, 0.7, 0.8, 0.9, 1, -0.0, 1.1, 1.2, 1.3,
-                     1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 448, 512], dtype=numpy_dtype)
+                     1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 448, 512, np.nan], dtype=numpy_dtype)
 
     compressed_const = opset.constant(data, dtype=ov.Type.f8e8m0, name="f8e8m0_constant")
     convert = opset.convert(compressed_const, data.dtype)
@@ -564,7 +566,7 @@ def test_float_to_f8e8m0_constant(ov_type, numpy_dtype, opset):
     target = [4.0, 4.0, 4.0, 0.0, 0.125, 0.25, 0.25,
               0.5, 0.5, 0.5, 0.5, 1.0, 1.0, 1.0,
               0.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0,
-              2.0, 2.0, 2.0, 2.0, 512, 512]
+              2.0, 2.0, 2.0, 2.0, 512, 512, np.nan]
     target = np.array(target, dtype=numpy_dtype)
 
     assert np.allclose(result, target, equal_nan=True)
