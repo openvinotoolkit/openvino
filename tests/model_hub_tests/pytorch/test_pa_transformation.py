@@ -9,7 +9,7 @@ import pytest
 import os
 
 def run_pa(tmp_path, model_id, model_link):
-    model = OVModelForCausalLM.from_pretrained(model_id, export=True)
+    model = OVModelForCausalLM.from_pretrained(model_id, export=True, trust_remote_code=True)
 
     paged_attention_transformation(model.model)
 
