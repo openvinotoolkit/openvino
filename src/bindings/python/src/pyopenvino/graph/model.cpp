@@ -353,7 +353,7 @@ void regclass_graph_Model(py::module m) {
 
     model.def(
         "reshape",
-        [](ov::Model& self, const py::list& partial_shape) {
+        [](ov::Model& self, const py::list& partial_shape, const py::dict& variables_shapes) {
             if (py::len(partial_shape) > 0 && (py::isinstance<py::list>(partial_shape[0]) || py::isinstance<ov::PartialShape>(partial_shape[0]) || py::isinstance<py::str>(partial_shape[0]) || py::isinstance<py::tuple>(partial_shape[0]))) {
                 if (py::len(partial_shape) != self.inputs().size()) {
                     throw py::value_error("Reshape failed due to mismatched lengths");
@@ -370,15 +370,18 @@ void regclass_graph_Model(py::module m) {
                     }
                 }
 
+                const auto new_variables_shapes = get_variables_shapes(variables_shapes);
                 py::gil_scoped_release release;
-                self.reshape(shapes_map);
+                self.reshape(shapes_map, new_variables_shapes);
             } else {
                 ov::PartialShape new_shape(Common::partial_shape_from_list(partial_shape));
+                const auto new_variables_shapes = get_variables_shapes(variables_shapes);
                 py::gil_scoped_release release;
-                self.reshape(new_shape);
+                self.reshape(new_shape, new_variables_shapes);
             }
         },
         py::arg("partial_shape"),
+        py::arg("variables_shapes") = py::dict(),
         R"(
                 Reshape model input.
 
@@ -440,60 +443,6 @@ void regclass_graph_Model(py::module m) {
                 :param variables_shapes: New shapes for variables
                 :type variables_shapes: Dict[keys, values]
                 :return : void
-             )");
-
-    model.def(
-        "reshape",
-        [](ov::Model& self, const py::list& partial_shape, const py::dict& variables_shapes) {
-            const auto new_shape = Common::partial_shape_from_list(partial_shape);
-            const auto new_variables_shapes = get_variables_shapes(variables_shapes);
-            py::gil_scoped_release release;
-            self.reshape(new_shape, new_variables_shapes);
-        },
-        py::arg("partial_shape"),
-        py::arg("variables_shapes") = py::dict(),
-        R"(
-                Reshape model input.
-
-                The allowed types of keys in the `variables_shapes` dictionary is `str`.
-                The allowed types of values in the `variables_shapes` are:
-
-                (1) `openvino.runtime.PartialShape`
-                (2) `list` consisting of dimensions
-                (3) `tuple` consisting of dimensions
-                (4) `str`, string representation of `openvino.runtime.PartialShape`
-
-                When list or tuple are used to describe dimensions, each dimension can be written in form:
-
-                (1) non-negative `int` which means static value for the dimension
-                (2) `[min, max]`, dynamic dimension where `min` specifies lower bound and `max` specifies upper bound;
-                the range includes both `min` and `max`; using `-1` for `min` or `max` means no known bound (3) `(min,
-                max)`, the same as above (4) `-1` is a dynamic dimension without known bounds (4)
-                `openvino.runtime.Dimension` (5) `str` using next syntax:
-                    '?' - to define fully dynamic dimension
-                    '1' - to define dimension which length is 1
-                    '1..10' - to define bounded dimension
-                    '..10' or '1..' to define dimension with only lower or only upper limit
-
-                GIL is released while running this function.
-
-                :param partial_shape: New shape.
-                :type partial_shape: list
-                :param variables_shapes: New shapes for variables
-                :type variables_shapes: Dict[keys, values]
-                :return : void
-
-                If a list of integers is provided, the model input will be reshaped to the specified shape.
-                If a list of lists is provided, each sublist represents the new shape for the corresponding model input.
-
-                Example usage:
-                
-                # Reshaping a single input
-                model.reshape([1, 224, 224, 3])
-
-                # Reshaping multiple inputs
-                model.reshape([[1, 224, 224, 3], [1, 10], [2, 3, 224, 224]])
-
              )");
 
     model.def(
