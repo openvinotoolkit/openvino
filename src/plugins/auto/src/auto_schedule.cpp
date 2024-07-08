@@ -140,7 +140,7 @@ void AutoSchedule::init() {
         }
         m_compile_context[CPU].m_is_enabled = true;
         if (!is_actual_cpu) {
-            auto device = m_compile_context[ACTUALDEVICE].m_device_info.device_name;
+            const auto& device = m_compile_context[ACTUALDEVICE].m_device_info.device_name;
             auto& device_config = m_compile_context[ACTUALDEVICE].m_device_info.config;
             std::string cache_dir = device_config.count(ov::cache_dir.name())
                                         ? device_config[ov::cache_dir.name()].as<std::string>()
@@ -462,7 +462,6 @@ bool AutoSchedule::schedule_to_worker_infer_request(ov::threading::Task pipeline
         wait_actual_compiled_model_ready();
         devices.push_back(m_compile_context[ACTUALDEVICE].m_device_info);
         if (!deviceChecker().check_if_device_in_list<DeviceInformation>(preferred_device, devices)) {
-            lock.unlock();
             OPENVINO_THROW("The preferred device should be the selected device");
         }
     } else {
