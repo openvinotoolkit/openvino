@@ -32,7 +32,7 @@ Below are the instructions on how to install the OpenCL packages on supported Li
 
 .. tab-set::
 
-   .. tab-item:: Ubuntu 22.04 LTS / Ubuntu 24.04 LTS
+   .. tab-item:: Ubuntu 22.04 LTS
       :sync: ubuntu-22
 
       Download and install the `deb` packages published `here <https://github.com/intel/compute-runtime/releases/latest>`__
@@ -123,7 +123,7 @@ Below are the required steps to make it work with OpenVINO:
      wsl --update
      wsl --shutdown
 
-- When booting Ubuntu 20.04, 22.04, or 24.04 install the same drivers as described above in the Linux section
+- When booting Ubuntu 20.04 or 22.04, install the same drivers as described above in the Linux section
 
 .. note::
 

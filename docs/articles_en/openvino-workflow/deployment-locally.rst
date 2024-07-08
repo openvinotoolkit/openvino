@@ -43,11 +43,11 @@ The table below shows which distribution type can be used for what target operat
    * - Distribution type
      - Operating systems
    * - Debian packages
-     - Ubuntu 18.04, 20.04, 22.04, 24.04 (64-bit)
+     - Ubuntu 18.04, 20.04, 22.04 (64-bit)
    * - RPM packages
      - Red Hat Enterprise Linux 8, 64-bit
    * - Docker images
-     - Ubuntu 20.04, 22.04, 24.04 (64-bit); Red Hat Enterprise Linux 8, 64-bit
+     - Ubuntu 20.04, 22.04 (64-bit); Red Hat Enterprise Linux 8, 64-bit
    * - PyPI (PIP package manager)
      - See https://pypi.org/project/openvino
    * - :doc:`Libraries for Local Distribution <deployment-locally/local-distribution-libraries>`
