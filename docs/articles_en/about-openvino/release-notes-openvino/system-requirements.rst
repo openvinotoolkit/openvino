@@ -60,7 +60,7 @@ GPU
 
    .. tab-item::  Supported Operating Systems
 
-      * Ubuntu 24.04 long-term support (LTS), 64-
+      * Ubuntu 24.04 long-term support (LTS), 64-bit
       * Ubuntu 22.04 long-term support (LTS), 64-bit
       * Ubuntu 20.04 long-term support (LTS), 64-bit
       * Windows 10, 64-bit
