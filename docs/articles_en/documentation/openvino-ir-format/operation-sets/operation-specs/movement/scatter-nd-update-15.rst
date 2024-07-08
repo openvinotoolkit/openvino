@@ -43,7 +43,7 @@ Operator ScatterNDUpdate-15 is an equivalent to following NumPy snippet:
         out = np.copy(data)
         # Order of loop iteration is undefined.
         for ndidx in np.ndindex(indices.shape[:-1]):
-            out[tuple(indices[ndidx])] = func(tuple(out[indices[ndidx])], updates[ndidx])
+            out[tuple(indices[ndidx])] = func(tuple(out[indices[ndidx]]), updates[ndidx])
         return out
 
 Example 1 that shows simple case of update with *reduction* set to ``none``.:
