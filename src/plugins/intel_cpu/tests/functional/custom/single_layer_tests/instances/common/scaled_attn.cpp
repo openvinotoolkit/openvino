@@ -17,15 +17,18 @@ const std::vector<std::vector<InputShape>> shapes{
     {
         // q shape
         {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
-            {ov::Shape{1, 8, 100, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 10, 64}}}
+            {ov::Shape{1, 8, 100, 64}, ov::Shape{1, 8, 1, 64},
+             ov::Shape{2, 8, 10, 64}, ov::Shape{2, 8, 10, 64}}}
         },
         // kv shape
         {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
-            {ov::Shape{1, 8, 100, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 10, 64}}}
+            {ov::Shape{1, 8, 100, 64}, ov::Shape{1, 8, 1, 64},
+             ov::Shape{2, 8, 10, 64}, ov::Shape{2, 8, 10, 64}}}
         },
         // attn shape: [B, 1, -1, L0+L1]
         {ov::test::InputShape{ov::PartialShape{-1, 1, -1, -1},
-            {ov::Shape{1, 1, 100, 100}, ov::Shape{1, 1, 1, 1}, ov::Shape{2, 1, 10, 10}}}
+            {ov::Shape{1, 1, 1, 100}, ov::Shape{1, 1, 1, 1},
+             ov::Shape{2, 1, 1, 10}, ov::Shape{2, 1, 10, 10}}}
         },
     },
     // heads number of kv is 1, attn mask: [B, H, L1, L0+L1]
@@ -56,6 +59,21 @@ const std::vector<std::vector<InputShape>> shapes{
         // attn shape
         {ov::test::InputShape{ov::PartialShape{8, -1, -1},
             {ov::Shape{8, 100, 100}, ov::Shape{8, 1, 1}, ov::Shape{8, 10, 10}}}
+        },
+    },
+    // More attention mask broadcast cases
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{-1, -1, -1, -1},
+            {ov::Shape{2, 8, 16, 32}, ov::Shape{2, 8, 16, 32}, ov::Shape{2, 8, 16, 32}}}
+        },
+        // kv shape
+        {ov::test::InputShape{ov::PartialShape{-1, -1, -1, -1},
+            {ov::Shape{1, 8, 48, 32}, ov::Shape{1, 8, 48, 32}, ov::Shape{1, 8, 48, 32}}}
+        },
+        // attn shape
+        {ov::test::InputShape{ov::PartialShape{-1, -1},
+           {ov::Shape{16, 48},  ov::Shape{16, 1}, ov::Shape{1, 48}}}
         },
     },
 };

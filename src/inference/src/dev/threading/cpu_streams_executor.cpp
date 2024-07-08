@@ -498,6 +498,10 @@ int CPUStreamsExecutor::get_stream_id() {
     return stream->_streamId;
 }
 
+int CPUStreamsExecutor::get_streams_num() {
+    return _impl->_config.get_streams();
+}
+
 int CPUStreamsExecutor::get_numa_node_id() {
     auto stream = _impl->_streams.local();
     return stream->_numaNodeId;
