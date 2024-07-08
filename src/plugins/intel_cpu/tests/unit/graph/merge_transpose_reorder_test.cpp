@@ -173,6 +173,31 @@ protected:
     std::unique_ptr<Graph> m_graph;
 };  // class MergeTransposeReorderCPUTest
 
+/*
+ ┌───────┐  
+ │ Input │  
+ └───┬───┘  
+     │      
+ ┌───┴───┐  
+ │ Dummy │  
+ └───┬───┘  
+     │      
+ ┌───┴───┐  
+ │Reshape│  
+ └───┬───┘  
+     │      
+┌────┴────┐ 
+│Transpose│ 
+└────┬────┘ 
+     │      
+ ┌───┴───┐  
+ │ Dummy │  
+ └───┬───┘  
+     │      
+┌────┴───┐  
+│ Output │  
+└────────┘  
+ */
 class MergeTransposeReorderWithReshapeCPUTest : public MergeTransposeReorderCPUTest {
     std::pair<std::vector<NodePtr>, std::vector<EdgePtr>> CreateModelAndReplicate(const ov::Shape& testShape,
                                                                                   LayoutType firstNodeLayout,
