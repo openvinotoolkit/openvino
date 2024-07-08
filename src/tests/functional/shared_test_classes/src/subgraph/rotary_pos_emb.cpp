@@ -773,8 +773,7 @@ RoPETestLlama2Slice::buildROPE_Llama2(int batch,
     // concat KV length
     auto transpose_Transpose = makeOP<ov::op::v1::Transpose>({input, {0, 2, 1, 3}});
     auto slice_Unsqueeze_426 = makeOP<ov::op::v0::Unsqueeze>({pos_id_end, 0});
-    auto ScatterUpdate_152236 = makeOP<ov::op::v3::ScatterUpdate>({{0, 0, 0}, {2}, slice_Unsqueeze_426, {0}});
-    auto slice_Slice = makeOP<ov::op::v8::Slice>({Constant582, {0, 0, 0}, ScatterUpdate_152236, {1, 1, 1}});
+    auto slice_Slice = makeOP<ov::op::v8::Slice>({Constant582, {0}, slice_Unsqueeze_426, {1}, {2}});
     auto squeeze_Squeeze = makeOP<ov::op::v0::Squeeze>({slice_Slice, 1});
     auto squeeze_Squeeze_435 = makeOP<ov::op::v0::Squeeze>({squeeze_Squeeze, 0});
     auto index_441_Gather = makeOP<ov::op::v8::Gather>({squeeze_Squeeze_435, pos_ids, 0}, {{"batch_dims", 0}});
@@ -787,8 +786,7 @@ RoPETestLlama2Slice::buildROPE_Llama2(int batch,
             makeOP<ov::op::v1::Divide>({size_Gather_450, 2}, {{"auto_broadcast", "numpy"}, {"m_pythondiv", true}});
     auto floor_divide_Floor = makeOP<ov::op::v0::Floor>({floor_divide_Divide});
     auto slice_Unsqueeze_452 = makeOP<ov::op::v0::Unsqueeze>({floor_divide_Floor, 0});
-    auto ScatterUpdate_152312 = makeOP<ov::op::v3::ScatterUpdate>({{0, 0, 0, 0}, {3}, slice_Unsqueeze_452, {0}});
-    auto slice_Slice_459 = makeOP<ov::op::v8::Slice>({transpose_Transpose, ScatterUpdate_152312, {0ll, 0ll, 0ll, LLONG_MAX}, {1, 1, 1, 1}});
+    auto slice_Slice_459 = makeOP<ov::op::v8::Slice>({transpose_Transpose, slice_Unsqueeze_452, {LLONG_MAX}, {1}, {3}});
     auto Constant_182988 = makeConst(element::f32,
                                      ov::Shape({
                                                        1,
@@ -798,12 +796,10 @@ RoPETestLlama2Slice::buildROPE_Llama2(int batch,
                                                }),
                                      {-1.000000f});
     auto neg_Multiply = makeOP<ov::op::v1::Multiply>({slice_Slice_459, Constant_182988}, {{"auto_broadcast", "numpy"}});
-    auto ScatterUpdate_152368 = makeOP<ov::op::v3::ScatterUpdate>({{0, 0, 0, 0}, {3}, slice_Unsqueeze_452, {0}});
     auto slice_Slice2 =
-            makeOP<ov::op::v8::Slice>({transpose_Transpose, {0, 0, 0, 0}, ScatterUpdate_152368, {1, 1, 1, 1}});
+            makeOP<ov::op::v8::Slice>({transpose_Transpose, {0}, slice_Unsqueeze_452, {1}, {3}});
     auto cat_Concat = makeOP<ov::op::v0::Concat>({neg_Multiply, slice_Slice2}, {{"axis", -1}});
-    auto ScatterUpdate_152421 = makeOP<ov::op::v3::ScatterUpdate>({{0, 0, 0}, {2}, slice_Unsqueeze_426, {0}});
-    auto slice_Slice_433 = makeOP<ov::op::v8::Slice>({Constant585, {0, 0, 0}, ScatterUpdate_152421, {1, 1, 1}});
+    auto slice_Slice_433 = makeOP<ov::op::v8::Slice>({Constant585, {0}, slice_Unsqueeze_426, {1}, {2}});
     auto squeeze_Squeeze_436 = makeOP<ov::op::v0::Squeeze>({slice_Slice_433, 1});
     auto squeeze_Squeeze_437 = makeOP<ov::op::v0::Squeeze>({squeeze_Squeeze_436, 0});
     auto index_446_Gather = makeOP<ov::op::v8::Gather>({squeeze_Squeeze_437, pos_ids, 0}, {{"batch_dims", 0}});
@@ -854,9 +850,8 @@ RoPETestChatGLMSlice::buildROPE_ChatGLM(int batch, int head_cnt, int rotary_dims
     auto view_Reshape =
             makeOP<opset1::Reshape>({ListUnpack_321->output(0), {0, 0, 32, 128}}, {{"special_zero", true}});
 
-    auto ScatterUpdate_229053 = makeOP<opset3::ScatterUpdate>({{0, 0, 0, 0}, {3}, slice_Unsqueeze_112, {0}});
     auto slice_Slice_357 =
-            makeOP<opset8::Slice>({view_Reshape, {0, 0, 0, 0}, ScatterUpdate_229053, {1, 1, 1, 1}});
+            makeOP<opset8::Slice>({view_Reshape, {0}, slice_Unsqueeze_112, {1}, {3}});
     auto size_ShapeOf_346 = makeOP<opset3::ShapeOf>({view_Reshape}, {{"output_type", "i32"}});
     auto size_Gather_348 = makeOP<opset8::Gather>({size_ShapeOf_346, 0, 0}, {{"batch_dims", 0}});
     auto ListConstruct_372_Reshape = makeOP<opset1::Reshape>({size_Gather_348, {-1}}, {{"special_zero", false}});
@@ -897,9 +892,8 @@ RoPETestChatGLMSlice::buildROPE_ChatGLM(int batch, int head_cnt, int rotary_dims
     auto flatten_Slice_417 = makeOP<opset8::Slice>({flatten_ShapeOf_402, {0}, {3}, {1}});
     auto flatten_Concat_420 = makeOP<opset1::Concat>({flatten_Slice_417, {-1}}, {{"axis", 0}});
     auto flatten_Reshape_421 = makeOP<opset1::Reshape>({stack_401, flatten_Concat_420}, {{"special_zero", true}});
-    auto ScatterUpdate_229067 = makeOP<opset3::ScatterUpdate>({{0, 0, 0, 0}, {3}, slice_Unsqueeze_112, {0}});
     auto slice_Slice_363 =
-            makeOP<opset8::Slice>({view_Reshape, ScatterUpdate_229067, {0, 0, 0, INT_MAX}, {1, 1, 1, 1}});
+            makeOP<opset8::Slice>({view_Reshape, slice_Unsqueeze_112, {INT_MAX}, {1}, {3}});
     auto cat_Concat_425 = makeOP<opset1::Concat>({flatten_Reshape_421, slice_Slice_363}, {{"axis", -1}});
     return std::make_shared<ov::Model>(ov::NodeVector{cat_Concat_425},
                                        ov::ParameterVector{input, cos_sin_cache, position_ids});
@@ -929,18 +923,12 @@ RoPETestQwen7bSlice::buildROPE_Qwen7b(bool specialReshape) {
     auto size_Gather_416 = makeOP<opset8::Gather>({size_ShapeOf_414, 1, 0}, {{"batch_dims", 0}});
     auto neg_Multiply = makeOP<opset1::Multiply>({size_Gather_416, -1}, {{"auto_broadcast", "numpy"}});
     auto slice_Unsqueeze_422 = makeOP<opset1::Unsqueeze>({neg_Multiply, 0});
-    auto ScatterUpdate_261437 = makeOP<opset3::ScatterUpdate>({{0, 0}, {1}, slice_Unsqueeze_422, {0}});
-    auto slice_Slice_425 = makeOP<opset8::Slice>({cos_cache, ScatterUpdate_261437, {0ll, LLONG_MAX}, {1, 1}});
-    auto slice_Slice_431 =
-            makeOP<opset8::Slice>({slice_Slice_425, {0, 0, 0}, {0ll, 0ll, LLONG_MAX}, {1, 1, 1}});
-    auto slice_Slice_437 =
-            makeOP<opset8::Slice>({slice_Slice_431, {0, 0, 0, 0}, {0ll, 0ll, 0ll, LLONG_MAX}, {1, 1, 1, 1}});
-    auto size_ShapeOf_462 = makeOP<opset3::ShapeOf>({slice_Slice_437}, {{"output_type", "i32"}});
+    auto slice_Slice_425 = makeOP<opset8::Slice>({cos_cache, slice_Unsqueeze_422, {LLONG_MAX}, {1}, {1}});
+    auto size_ShapeOf_462 = makeOP<opset3::ShapeOf>({slice_Slice_425}, {{"output_type", "i32"}});
     auto size_Gather_464 = makeOP<opset8::Gather>({size_ShapeOf_462, {3}, 0}, {{"batch_dims", 0}});
-    auto ScatterUpdate_261533 = makeOP<opset3::ScatterUpdate>({{0, 0, 0, 0}, {3}, size_Gather_464, {0}});
     auto slice_Slice_470 =
-            makeOP<opset8::Slice>({view_Reshape, {0, 0, 0, 0}, ScatterUpdate_261533, {1, 1, 1, 1}});
-    auto mul_Multiply = makeOP<opset1::Multiply>({slice_Slice_470, slice_Slice_437}, {{"auto_broadcast", "numpy"}});
+            makeOP<opset8::Slice>({view_Reshape, {0}, size_Gather_464, {1}, {3}});
+    auto mul_Multiply = makeOP<opset1::Multiply>({slice_Slice_470, slice_Slice_425}, {{"auto_broadcast", "numpy"}});
     auto size_ShapeOf_478 = makeOP<opset3::ShapeOf>({slice_Slice_470}, {{"output_type", "i32"}});
     auto Gather_239390 = makeOP<opset8::Gather>({size_ShapeOf_478, {0, 1, 2}, 0}, {{"batch_dims", 0}});
     auto size_Gather_489 = makeOP<opset8::Gather>({size_ShapeOf_478, 3, 0}, {{"batch_dims", 0}});
@@ -973,12 +961,8 @@ RoPETestQwen7bSlice::buildROPE_Qwen7b(bool specialReshape) {
             makeOP<opset1::Multiply>({ListUnpack_496_Squeeze_0, Constant_296840}, {{"auto_broadcast", "numpy"}});
     auto ListUnpack_496_Squeeze = makeOP<opset1::Squeeze>({ListUnpack_496_Split->output(0), -2});
     auto cat_Concat = makeOP<opset1::Concat>({neg_Multiply_499, ListUnpack_496_Squeeze}, {{"axis", -1}});
-    auto slice_Slice_449 = makeOP<opset8::Slice>({sin_cache, ScatterUpdate_261437, {0ll, LLONG_MAX}, {1, 1}});
-    auto slice_Slice_455 =
-            makeOP<opset8::Slice>({slice_Slice_449, {0, 0, 0}, {0ll, 0ll, LLONG_MAX}, {1, 1, 1}});
-    auto slice_Slice_461 =
-            makeOP<opset8::Slice>({slice_Slice_455, {0, 0, 0, 0}, {0ll, 0ll, 0ll, LLONG_MAX}, {1, 1, 1, 1}});
-    auto mul_Multiply_503 = makeOP<opset1::Multiply>({cat_Concat, slice_Slice_461}, {{"auto_broadcast", "numpy"}});
+    auto slice_Slice_449 = makeOP<opset8::Slice>({sin_cache, slice_Unsqueeze_422, {LLONG_MAX}, {1}, {1}});
+    auto mul_Multiply_503 = makeOP<opset1::Multiply>({cat_Concat, slice_Slice_449}, {{"auto_broadcast", "numpy"}});
     auto add_Add = makeOP<opset1::Add>({mul_Multiply, mul_Multiply_503}, {{"auto_broadcast", "numpy"}});
     return std::make_shared<ov::Model>(ov::NodeVector{add_Add}, ov::ParameterVector{input, cos_cache, sin_cache});
 }
@@ -1006,7 +990,7 @@ RoPETestGPTJSlice::buildROPE_GPTJ(int num_head, int hidden_dims, int rotary_dims
             std::make_shared<ov::opset1::Parameter>(ov::element::f32, PartialShape{-1, -1, num_head, hidden_dims});
     auto sincos = std::make_shared<ov::opset1::Parameter>(ov::element::f32, PartialShape{-1, -1, rotary_dims});
 
-    auto slice_Slice_965 = makeOP<ov::op::v8::Slice>({input, {0, 0, 0, 0}, {0, 0, 0, rotary_dims}, {1, 1, 1, 1}});
+    auto slice_Slice_965 = makeOP<ov::op::v8::Slice>({input, {0}, {rotary_dims}, {1}, {3}});
     slice_Slice_965->set_friendly_name("slice_Slice_965");
 
     auto varsplit = makeOP<ov::op::v1::VariadicSplit>({sincos, -1, {rotary_dims / 2, -1}});
@@ -1036,12 +1020,12 @@ RoPETestGPTJSlice::buildROPE_GPTJ(int num_head, int hidden_dims, int rotary_dims
     repeat_interleave_cos->set_friendly_name("repeat_interleave_cos");
     // x interleave (-x[:,:,:, 1::2], x[:,:,:, 0::2])
     auto slice_Slice_1174 =
-            makeOP<ov::op::v8::Slice>({slice_Slice_965, {0, 0, 0, 1}, {0, 0, 0, int32_max}, {1, 1, 1, 2}});
+            makeOP<ov::op::v8::Slice>({slice_Slice_965, {1}, {int32_max}, {2}, {3}});
     auto neg_Multiply_1177 =
             makeOP<opset1::Multiply>({slice_Slice_1174, constant_155588}, {{"auto_broadcast", "numpy"}});
     auto Unsqueeze_65524 = makeOP<opset1::Unsqueeze>({neg_Multiply_1177, -1});
 
-    auto slice_Slice_1168 = makeOP<ov::op::v8::Slice>({slice_Slice_965, {0, 0, 0, 0}, {0, 0, 0, int32_max}, {1, 1, 1, 2}});
+    auto slice_Slice_1168 = makeOP<ov::op::v8::Slice>({slice_Slice_965, {0}, {int32_max}, {2}, {3}});
     auto Unsqueeze_65525 = makeOP<opset1::Unsqueeze>({slice_Slice_1168, -1});
     auto stack_1182 = makeOP<opset1::Concat>({Unsqueeze_65524, Unsqueeze_65525}, {{"axis", -1}});
     auto flatten_Reshape_1198 =
@@ -1055,7 +1039,7 @@ RoPETestGPTJSlice::buildROPE_GPTJ(int num_head, int hidden_dims, int rotary_dims
     // *cos + *sin
     auto rotary_emb = makeOP<opset1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
 
-    auto slice_Slice_971 = makeOP<ov::op::v8::Slice>({input, {0, 0, 0, rotary_dims}, {0, 0, 0, int32_max}, {1, 1, 1, 1}});
+    auto slice_Slice_971 = makeOP<ov::op::v8::Slice>({input, {rotary_dims}, {int32_max}, {1}, {3}});
     auto cat_Concat_1211 = makeOP<opset1::Concat>({rotary_emb, slice_Slice_971}, {{"axis", -1}});
     auto permute_Transpose_1213 = makeOP<opset1::Transpose>({cat_Concat_1211, {0, 2, 1, 3}});
     ov::NodeVector model_output = {permute_Transpose_1213};

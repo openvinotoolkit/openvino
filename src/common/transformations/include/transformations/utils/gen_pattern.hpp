@@ -38,6 +38,7 @@
 namespace ov {
 namespace gen_pattern {
 
+#ifdef CPU_DEBUG_CAPS
 
 template <typename... Args>
 static inline void _verbose_log(Args&&... args) {
@@ -49,14 +50,20 @@ static inline void _verbose_log(Args&&... args) {
 }
 
 static bool matcher_verbose_enabled() {
-    static const bool enabled = false;
+    static const bool enabled = std::getenv("GENP_VERBOSE") ? (atoi(std::getenv("GENP_VERBOSE")) != 0) : false;
     return enabled;
 }
 
 #    define _VERBOSE_LOG(...)          \
         if (matcher_verbose_enabled()) \
         _verbose_log(__VA_ARGS__)
+#else
+static bool matcher_verbose_enabled() {
+    return false;
+}
 
+#    define _VERBOSE_LOG(...)
+#endif
 
 namespace detail {
 inline std::vector<std::string> split_string(const std::string& s, const std::string& delimiter) {

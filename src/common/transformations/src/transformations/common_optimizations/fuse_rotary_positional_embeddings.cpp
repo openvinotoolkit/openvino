@@ -64,7 +64,6 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
         if (!validator) {
             return false;
         }
-        std::cout << "XXXXXX " << "RoPEFusionGPTNEOX" << std::endl;
 
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
@@ -156,8 +155,6 @@ ov::pass::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
         if (!validator) {
             return false;
         }
-        std::cout << "XXXXXX " << "RoPEFusionCosSinPreprocess" << std::endl;
-
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         auto rope_node = as_type_ptr<op::internal::RoPE>(pattern_map.at(rope).get_node_shared_ptr());
@@ -218,9 +215,6 @@ ov::pass::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
         if (!validator) {
             return false;
         }
-        std::cout << "XXXXXX " << "RoPEFusionIOSlicing" << std::endl;
-
-
         auto ndims = validator["ndims"];
 
         const auto& config = rope_node->get_config();
@@ -263,8 +257,6 @@ ov::pass::RoPEFusionPreprocess::RoPEFusionPreprocess() {
         if (!validator) {
             return false;
         }
-        std::cout << "XXXXXX " << "RoPEFusionPreprocess" << std::endl;
-
 
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
@@ -372,8 +364,6 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
         if (!validator) {
             return false;
         }
-        std::cout << "XXXXXX " << "RoPEFusionGPTJ" << std::endl;
-
 
         op::internal::RoPE::Config config;
         OutputVector new_args;
@@ -628,15 +618,12 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
 
     auto result = add_Add_597;
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-        std::cout << "XXXXXX " << "RoPEFusionQwen before validation" << std::endl;
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         PatternValidator validator(m);
         if (!validator) {
-            std::cout << "XXXXXX failed" << "RoPEFusionQwen" << std::endl;
             return false;
         }
-        std::cout << "XXXXXX " << "RoPEFusionQwen" << std::endl;
 
         op::internal::RoPE::Config config;
         OutputVector new_args;
@@ -732,8 +719,6 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
         if (!validator) {
             return false;
         }
-        std::cout << "XXXXXX " << "RoPEShareCosSin" << std::endl;
-
         auto it = pattern_map.find(const_inv_freq);
         auto cur_inv_freq = std::dynamic_pointer_cast<opset1::Constant>(it->second.get_node_shared_ptr());
 
