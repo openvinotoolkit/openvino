@@ -498,8 +498,6 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id) {
         if (!validator) {
             return false;
         }
-        std::cout << "XXXXXX " << "RoPEFusionChatGLM" << std::endl;
-
 
         op::internal::RoPE::Config config;
         OutputVector new_args;
