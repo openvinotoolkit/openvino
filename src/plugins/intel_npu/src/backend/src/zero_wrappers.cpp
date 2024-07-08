@@ -133,7 +133,7 @@ void CommandQueue::setWorkloadType(ze_command_queue_workload_type_t workloadType
         zeroUtils::throwOnFail("zeSetWorkloadType",
                                _command_queue_npu_dditable_ext->pfnSetWorkloadType(_handle, workloadType));
     } else {
-        _log.warning("Current Driver Version does not support WorkloadType");
+        OPENVINO_THROW("The WorkloadType property is not supported by the current Driver Version!");
     }
 }
 
