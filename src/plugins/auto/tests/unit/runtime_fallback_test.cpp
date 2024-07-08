@@ -235,12 +235,12 @@ TEST_P(AutoRuntimeFallback, releaseResource) {
     std::shared_ptr<ov::ICompiledModel> exeNetwork;
     std::shared_ptr<ov::IAsyncInferRequest> infer_request;
 
-    ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
-    ASSERT_NO_THROW(infer_request = exeNetwork->create_infer_request());
+    OV_ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
+    OV_ASSERT_NO_THROW(infer_request = exeNetwork->create_infer_request());
     if (expectThrow) {
         EXPECT_THROW(infer_request->infer(), ov::Exception);
     } else {
-        ASSERT_NO_THROW(infer_request->infer());
+        OV_ASSERT_NO_THROW(infer_request->infer());
     }
 }
 
@@ -380,12 +380,12 @@ TEST_P(AutoCTPUTRuntimeFallback, ctputDeviceInferFailTest) {
     std::shared_ptr<ov::ICompiledModel> exeNetwork;
     std::shared_ptr<ov::IAsyncInferRequest> infer_request;
 
-    ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
-    ASSERT_NO_THROW(infer_request = exeNetwork->create_infer_request());
+    OV_ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
+    OV_ASSERT_NO_THROW(infer_request = exeNetwork->create_infer_request());
     if (expectThrow) {
         EXPECT_THROW(infer_request->infer(), ov::Exception);
     } else {
-        ASSERT_NO_THROW(infer_request->infer());
+        OV_ASSERT_NO_THROW(infer_request->infer());
     }
 }
 

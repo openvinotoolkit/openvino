@@ -14,8 +14,8 @@ Additionally, you can also upload a video file.
    work. However, you can still do inference on a video in the final
    step.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Imports <#imports>`__
 -  `The model <#the-model>`__

@@ -769,6 +769,8 @@ std::string get_precision_name(const ov::element::Type& elem_type) {
         return "STRING";
     case ::ov::element::Type_t::f4e2m1:
         return "F4E2M1";
+    case ::ov::element::Type_t::f8e8m0:
+        return "F8E8M0";
     default:
         OPENVINO_THROW("Unsupported precision: ", elem_type);
     }
@@ -941,7 +943,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         for (const auto& res : model.get_results()) {
             result.emplace_back(res);
         }
-        sorted_ops = result;
+        sorted_ops = std::move(result);
     }
 
     for (const auto& n : sorted_ops) {
@@ -1204,16 +1206,27 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     if (m_xmlFile && m_binFile) {
         serializeFunc(*m_xmlFile, *m_binFile, model, m_version);
     } else {
-        auto xmlDir = ov::util::get_directory(m_xmlPath);
-        if (xmlDir != m_xmlPath)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+        const auto& xmlPath_ref = ov::util::string_to_wstring(m_xmlPath);
+        const auto& binPath_ref = ov::util::string_to_wstring(m_binPath);
+        std::string message_bin = "Can't open bin file.";
+        std::string message_xml = "Can't open xml file.";
+#else
+        const auto& xmlPath_ref = m_xmlPath;
+        const auto& binPath_ref = m_binPath;
+        std::string message_bin = "Can't open bin file: \"" + binPath_ref + "\"";
+        std::string message_xml = "Can't open xml file: \"" + xmlPath_ref + "\"";
+#endif
+        auto xmlDir = ov::util::get_directory(xmlPath_ref);
+        if (xmlDir != xmlPath_ref)
             ov::util::create_directory_recursive(xmlDir);
 
-        std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);
-        OPENVINO_ASSERT(bin_file, "Can't open bin file: \"" + m_binPath + "\"");
+        std::ofstream bin_file(binPath_ref, std::ios::out | std::ios::binary);
+        OPENVINO_ASSERT(bin_file, message_bin);
 
         // create xml file
-        std::ofstream xml_file(m_xmlPath, std::ios::out);
-        OPENVINO_ASSERT(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
+        std::ofstream xml_file(xmlPath_ref, std::ios::out);
+        OPENVINO_ASSERT(xml_file, message_xml);
 
         try {
             serializeFunc(xml_file, bin_file, model, m_version);

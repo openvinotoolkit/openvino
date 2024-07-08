@@ -45,7 +45,7 @@ KERNEL(select)(
     uint output_offset = OUTPUT_GET_INDEX(b, f, y, x);
 #endif
 
-    const OUTPUT_TYPE res = select(INPUT_2, INPUT_1, MASK);
+    const OUTPUT_TYPE res = TO_OUTPUT_TYPE(select(INPUT_2, INPUT_1, MASK));
 
     output[output_offset] = res;
 }
