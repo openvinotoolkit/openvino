@@ -1220,15 +1220,15 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
         auto xmlDir = ov::util::get_directory(xmlPath_ref);
         if (xmlDir != xmlPath_ref)
             ov::util::create_directory_recursive(xmlDir);
-      
+
         try {
             // create bin file
             std::ofstream bin_file;
             bin_file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
             bin_file.open(m_binPath, std::ios::out | std::ios::binary);
             OPENVINO_ASSERT(bin_file, "Can't open bin file: \"" + m_binPath + "\"");
-        
-            // create xml file 
+
+            // create xml file
             std::ofstream xml_file;
             xml_file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
             xml_file.open(m_xmlPath, std::ios::out | std::ios::binary);

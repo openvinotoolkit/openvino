@@ -33,7 +33,7 @@ bool createReadOnlyFile(const std::string& filename) {
     }
     return false;
 }
-} // namespace
+}  // namespace
 
 using SerializationParams = std::tuple<std::string, std::string>;
 
@@ -84,7 +84,7 @@ TEST(SerializationTest, WriteInReadOnly) {
 
     // Set up the serializer with the current paths
     ov::pass::Serialize serializer(m_out_xml_path, m_out_bin_path);
-    
+
     auto m = std::make_shared<ov::Model>(ov::OutputVector{}, ov::ParameterVector{}, "");
 
     // Expect that running the serializer on a read-only file throws an exception
