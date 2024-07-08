@@ -47,6 +47,6 @@ runs:
         --target_arch "${{ inputs.target_arch }}" --build_type "${{ inputs.build_type }}"
         -a "${{ inputs.artifacts }}" -r "${{ inputs.repos }}"
       env:
-        BASE_BRANCH: github.event.pull_request.base.ref
-        BASE_SHA: github.event.pull_request.base.sha
-        PR_HEAD_SHA: github.event.pull_request.head.sha
+        BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}

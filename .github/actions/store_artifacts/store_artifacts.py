@@ -167,7 +167,7 @@ def main():
     repositories = []
     for repo_dir in args.repos.split():
         repo_data = get_repo_data(repo_dir)
-        repositories += Repository(**repo_data)
+        repositories.append(Repository(**repo_data))
     # TODO: add wheels product version to custom params
     component = Component(name='dldt', version=version, product_type=args.storage_dir, target_arch=args.target_arch,
                           build_type=args.build_type, build_event=event_type, repositories=repositories)
