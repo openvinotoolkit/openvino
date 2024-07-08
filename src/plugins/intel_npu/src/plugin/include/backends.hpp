@@ -23,7 +23,7 @@ enum class AvailableBackends { LEVEL_ZERO, IMD };
 /** @brief Represent container for all backends and hide all related searching logic */
 class NPUBackends final {
 public:
-    explicit NPUBackends(const std::vector<AvailableBackends>& backendRegistry, const Config& config);
+    explicit NPUBackends(const std::vector<AvailableBackends>& backendRegistry);
 
     std::shared_ptr<IDevice> getDevice(const std::string& specificName = "") const;
     std::shared_ptr<IDevice> getDevice(const ov::AnyMap& paramMap) const;
