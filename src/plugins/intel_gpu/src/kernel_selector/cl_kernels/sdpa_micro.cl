@@ -223,7 +223,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
 #ifdef PREFETCH_K0
     /* Prefetch first K tile. */
-    cooperative_prefetch_2d_k(K, k, d, ugemm_kq_wg_tile_m, PREFETCH_D_MAX, ldk,
+    cooperative_prefetch_2d_k(K, d, k, ugemm_kq_wg_tile_m, PREFETCH_D_MAX, ldk,
             sg_ij, sg_per_wg, SUBGROUP_SIZE, LSC_LDCC_L1C_L3C);
 #endif
 
