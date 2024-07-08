@@ -506,7 +506,6 @@ def test_float_to_f8e8m0_constant_matrix(ov_type, numpy_dtype, opset):
     tensor = np.zeros(data.shape, dtype=numpy_dtype)
     result = compiled(tensor)[0]
 
-
     target = np.full(shape, np.nan)
 
     assert np.allclose(result, target, equal_nan=True)
