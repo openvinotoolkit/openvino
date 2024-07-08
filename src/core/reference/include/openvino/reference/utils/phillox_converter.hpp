@@ -9,28 +9,28 @@
 
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/util/attr_types.hpp"
-#include "openvino/reference/utils/phillox_generator.hpp"
+#include "openvino/reference/utils/philox_generator.hpp"
 
 namespace ov {
 namespace reference {
-namespace phillox {
+namespace philox {
 
-class PhilloxConverter {
+class PhiloxConverter {
 public:
-    PhilloxConverter() = delete;
+    PhiloxConverter() = delete;
 
-    virtual ~PhilloxConverter(){};
+    virtual ~PhiloxConverter(){};
 
     /// \brief Returns the number of generated elements per execution
     /// based on the requested data type.
     virtual size_t get_converted_elements_count() const = 0;
 
-    /// \brief Converts the given array (PhilloxOutput) to the target dtype and assigns them at the k-th index of the
+    /// \brief Converts the given array (PhiloxOutput) to the target dtype and assigns them at the k-th index of the
     /// output array.
-    virtual void convert(PhilloxOutput result, size_t k) = 0;
+    virtual void convert(PhiloxOutput result, size_t k) = 0;
 
 protected:
-    PhilloxConverter(char* out,
+    PhiloxConverter(char* out,
                      const element::Type& elem_type,
                      const size_t elem_count,
                      const char* min_val,
@@ -48,9 +48,9 @@ protected:
     const char* m_max_val;
 };
 
-class MockPhilloxConverter : public PhilloxConverter {
+class MockPhiloxConverter : public PhiloxConverter {
 public:
-    MockPhilloxConverter(char* out,
+    MockPhiloxConverter(char* out,
                          const element::Type& elem_type,
                          const size_t elem_count,
                          const char* min_val,
@@ -60,14 +60,14 @@ public:
     /// based on the requested data type.
     size_t get_converted_elements_count() const override;
 
-    /// \brief Converts the given array (PhilloxOutput) to the target dtype and assigns them at the k-th index of the
+    /// \brief Converts the given array (PhiloxOutput) to the target dtype and assigns them at the k-th index of the
     /// output array.
-    void convert(PhilloxOutput result, size_t idx) override;
+    void convert(PhiloxOutput result, size_t idx) override;
 };
 
-class TensorflowPhilloxConverter : public PhilloxConverter {
+class TensorflowPhiloxConverter : public PhiloxConverter {
 public:
-    TensorflowPhilloxConverter(char* out,
+    TensorflowPhiloxConverter(char* out,
                                const element::Type& elem_type,
                                const size_t elem_count,
                                const char* min_val,
@@ -77,16 +77,16 @@ public:
     /// based on the requested data type.
     size_t get_converted_elements_count() const override;
 
-    /// \brief Converts the given array (PhilloxOutput) to the target dtype and assigns them at the k-th index of the
+    /// \brief Converts the given array (PhiloxOutput) to the target dtype and assigns them at the k-th index of the
     /// output array.
-    void convert(PhilloxOutput result, size_t idx) override;
+    void convert(PhiloxOutput result, size_t idx) override;
 };
 
-class PyTorchPhilloxConverter : public PhilloxConverter {
+class PyTorchPhiloxConverter : public PhiloxConverter {
 public:
-    PyTorchPhilloxConverter() = delete;
+    PyTorchPhiloxConverter() = delete;
 
-    PyTorchPhilloxConverter(char* out,
+    PyTorchPhiloxConverter(char* out,
                             const element::Type& elem_type,
                             const size_t elem_count,
                             const char* min_val,
@@ -96,9 +96,9 @@ public:
     /// based on the requested data type.
     size_t get_converted_elements_count() const override;
 
-    /// \brief Converts the given array (PhilloxOutput) to the target dtype and assigns them at the k-th index of the
+    /// \brief Converts the given array (PhiloxOutput) to the target dtype and assigns them at the k-th index of the
     /// output array.
-    void convert(PhilloxOutput result, size_t idx) override;
+    void convert(PhiloxOutput result, size_t idx) override;
 
 private:
     // Determines whether the ghenerator uses optimized execution
@@ -108,13 +108,13 @@ private:
 };
 
 /// \brief Constructs and returns a shared pointer to the converter matching to the provided gtenerator.
-std::shared_ptr<PhilloxConverter> make_phillox_converter(char* out,
+std::shared_ptr<PhiloxConverter> make_philox_converter(char* out,
                                                          const element::Type& elem_type,
                                                          const size_t elem_count,
                                                          const char* min_val,
                                                          const char* max_val,
-                                                         const op::PhilloxAlignment alignment);
+                                                         const op::PhiloxAlignment alignment);
 
-}  // namespace phillox
+}  // namespace philox
 }  // namespace reference
 }  // namespace ov
