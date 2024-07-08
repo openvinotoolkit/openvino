@@ -3,34 +3,22 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
-from typing import Callable, Iterable, List, Optional, Set, Union, Dict, Any
+from typing import Optional, Union, Dict, Any
 
-import numpy as np
 from functools import partial, singledispatch
 
-from openvino.runtime import Node, Shape, Type, PartialShape
-from openvino.runtime.op import assign, Constant, Parameter
+from openvino.runtime import Node, Type, PartialShape
+from openvino.runtime.op import assign, read_value, Constant, Parameter
+from openvino.runtime.op.util import VariableInfo, Variable
 from openvino.runtime.opset_utils import _get_node_factory
-from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op
-from openvino.runtime.utils.input_validation import (
-    assert_list_of_ints,
-    check_valid_attributes,
-    is_non_negative_value,
-    is_positive_value,
-)
-from openvino.runtime.utils.node_factory import NodeFactory
+from openvino.runtime.utils.decorators import nameable_op
 from openvino.runtime.utils.types import (
     NodeInput,
-    NumericData,
     NumericType,
-    ScalarData,
     TensorShape,
     as_node,
     as_nodes,
-    get_dtype,
-    get_element_type,
     get_element_type_str,
-    make_constant_node,
 )
 
 _get_node_factory_opset6 = partial(_get_node_factory, "opset6")
@@ -140,22 +128,22 @@ def read_value(init_value: NodeInput,
     :param name:         Optional name for output node.
     :return: ReadValue node
     """
-    attr_map: Dict[str, Any] = {"variable_id": variable_id}
+    info = VariableInfo()
+    info.variable_id = variable_id
+    # attr_map: Dict[str, Any] = {"variable_id": variable_id}
 
     if variable_type is not None:
         if not isinstance(variable_type, Type) and not isinstance(variable_type, str):
-            attr_map["variable_type"] = get_element_type_str(variable_type)
+            info.data_type = get_element_type_str(variable_type)
         else:
-            attr_map["variable_type"] = variable_type
+            info.data_type = variable_type
 
     if variable_shape is not None:
-        attr_map["variable_shape"] = PartialShape(variable_shape)
+        info.data_shape = PartialShape(variable_shape)
 
-    return _get_node_factory_opset6().create(
-        "ReadValue",
-        [as_node(init_value, name=name)],
-        attr_map,
-    )
+    var_from_info = Variable(info)
+
+    return read_value(as_node(init_value, name=name), var_from_info, name)
 
 
 @read_value.register
@@ -171,19 +159,19 @@ def _(variable_id: str,
     :param name:         Optional name for output node.
     :return: ReadValue node
     """
-    attr_map: Dict[str, Any] = {"variable_id": variable_id}
+    info = VariableInfo()
+    info.variable_id = variable_id
+    # attr_map: Dict[str, Any] = {"variable_id": variable_id}
 
     if variable_type is not None:
         if not isinstance(variable_type, Type) and not isinstance(variable_type, str):
-            attr_map["variable_type"] = get_element_type_str(variable_type)
+            info.data_type = get_element_type_str(variable_type)
         else:
-            attr_map["variable_type"] = variable_type
+            info.data_type = variable_type
 
     if variable_shape is not None:
-        attr_map["variable_shape"] = PartialShape(variable_shape)
+        info.data_shape = PartialShape(variable_shape)
 
-    return _get_node_factory_opset6().create(
-        "ReadValue",
-        [],
-        attr_map,
-    )
+    var_from_info = Variable(info)
+
+    return read_value(var_from_info, name)
