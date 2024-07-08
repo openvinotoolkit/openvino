@@ -593,7 +593,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             std::shared_ptr<ov::IPlugin> plugin_impl;
             reinterpret_cast<ov::CreatePluginFunc*>(ov::util::get_symbol(so, ov::create_plugin_function))(plugin_impl);
             // Try to test plugin name
-            if(plugin_impl->get_device_name() != deviceName)
+            if (plugin_impl->get_device_name() != deviceName)
                 OPENVINO_THROW("Device loading error");
             plugin = Plugin{plugin_impl, so};
         }
