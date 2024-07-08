@@ -3,6 +3,7 @@
 
 #include "node/include/helper.hpp"
 
+#include "node/include/compiled_model.hpp"
 #include "node/include/tensor.hpp"
 #include "node/include/type_validation.hpp"
 
@@ -256,6 +257,17 @@ Napi::Boolean cpp_to_js<bool, Napi::Boolean>(const Napi::CallbackInfo& info, con
     return Napi::Boolean::New(info.Env(), value);
 }
 
+Napi::Object cpp_to_js(const Napi::Env& env, const ov::CompiledModel& compiled_model) {
+    const auto& prototype = env.GetInstanceData<AddonData>()->compiled_model;
+    if (!prototype) {
+        OPENVINO_THROW("Invalid pointer to CompiledModel prototype.");
+    }
+    auto obj = prototype.New({});
+    const auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
+    cm->set_compiled_model(compiled_model);
+    return obj;
+}
+
 ov::TensorVector parse_input_data(const Napi::Value& input) {
     ov::TensorVector parsed_input;
     if (input.IsArray()) {
@@ -314,6 +326,23 @@ ov::Tensor cast_to_tensor(const Napi::TypedArray& typed_array,
     if (tensor.get_byte_size() != array_buffer.ByteLength()) {
         OPENVINO_THROW("Memory allocated using shape and element::type mismatch passed data's size");
     }
+    return tensor;
+}
+
+void fill_tensor_from_strings(ov::Tensor& tensor, const Napi::Array& arr) {
+    if (tensor.get_size() != static_cast<size_t>(arr.Length())) {
+        OPENVINO_THROW("Passed array must have the same size (number of elements) as the Tensor!");
+    }
+    const auto data = tensor.data<std::string>();
+    for (uint32_t i = 0; i < tensor.get_size(); ++i) {
+        OPENVINO_ASSERT(arr[i].IsString(), "The array passed to create string tensor must contain only strings.");
+        data[i] = arr[i].ToString().Utf8Value();
+    }
+}
+
+ov::Tensor cast_to_tensor(const Napi::Array& array) {
+    auto tensor = ov::Tensor(ov::element::string, ov::Shape{array.Length()});
+    fill_tensor_from_strings(tensor, array);
     return tensor;
 }
 

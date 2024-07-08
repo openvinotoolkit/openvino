@@ -8,6 +8,7 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/openvino.hpp"
 

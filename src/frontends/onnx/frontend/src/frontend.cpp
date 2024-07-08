@@ -192,11 +192,13 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     std::ifstream model_stream;
     if (variants[0].is<std::string>()) {
         const auto path = variants[0].as<std::string>();
+        validate_path(path);
         model_stream.open(path, std::ios::in | std::ifstream::binary);
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     else if (variants[0].is<std::wstring>()) {
         const auto path = variants[0].as<std::wstring>();
+        validate_path(path);
         model_stream.open(path.c_str(), std::ios::in | std::ifstream::binary);
     }
 #endif

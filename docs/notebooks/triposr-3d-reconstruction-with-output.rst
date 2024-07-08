@@ -18,8 +18,8 @@ from a Single Image <https://arxiv.org/abs/2403.02151>`__.
 
    Teaser Video
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Get the original model <#get-the-original-model>`__
@@ -36,24 +36,19 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q wheel setuptools pip --upgrade
     %pip install -q "gradio>=4.19" "torch==2.2.2" rembg trimesh einops "omegaconf>=2.3.0" "transformers>=4.35.0" "openvino>=2024.0.0" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/tatsy/torchmcubes.git"
 
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    descript-audiotools 0.7.2 requires protobuf<3.20,>=3.9.2, but you have protobuf 3.20.3 which is incompatible.
     mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.2.2+cpu which is incompatible.
     mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.18.1+cpu which is incompatible.
-    pytorch-lightning 1.6.5 requires protobuf<=3.20.1, but you have protobuf 3.20.3 which is incompatible.
     torchaudio 2.3.1+cpu requires torch==2.3.1, but you have torch 2.2.2+cpu which is incompatible.
     torchvision 0.18.1+cpu requires torch==2.3.1, but you have torch 2.2.2+cpu which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -75,7 +70,7 @@ Prerequisites
     remote: Counting objects: 100% (113/113), done.[K
     remote: Compressing objects: 100% (111/111), done.[K
     remote: Total 117 (delta 36), reused 0 (delta 0), pack-reused 4 (from 1)[K
-    Receiving objects: 100% (117/117), 569.16 KiB | 7.49 MiB/s, done.
+    Receiving objects: 100% (117/117), 569.16 KiB | 2.03 MiB/s, done.
     Resolving deltas: 100% (36/36), done.
 
 
@@ -114,8 +109,8 @@ Get the original model
           (encoder): ViTEncoder(
             (layer): ModuleList(
               (0-11): 12 x ViTLayer(
-                (attention): ViTSdpaAttention(
-                  (attention): ViTSdpaSelfAttention(
+                (attention): ViTAttention(
+                  (attention): ViTSelfAttention(
                     (query): Linear(in_features=768, out_features=768, bias=True)
                     (key): Linear(in_features=768, out_features=768, bias=True)
                     (value): Linear(in_features=768, out_features=768, bias=True)
@@ -283,7 +278,7 @@ models one by one.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/vit/modeling_vit.py:164: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/vit/modeling_vit.py:167: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if num_channels != self.num_channels:
 
 

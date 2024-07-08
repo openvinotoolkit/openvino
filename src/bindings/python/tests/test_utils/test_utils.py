@@ -3,7 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-from openvino.utils import deprecated
+import os
+from pathlib import Path
+from openvino.utils import deprecated, get_cmake_path
 from tests.utils.helpers import compare_models, get_relu_model
 
 
@@ -58,3 +60,37 @@ def test_deprecation_decorator():
         deprecated_function3()
     with pytest.warns(DeprecationWarning, match="deprecated_function4 is deprecated and will be removed in version 2025.4. Use another function instead"):
         deprecated_function4()
+
+
+def test_cmake_file_found(monkeypatch):
+    fake_package_path = "/fake/site-packages/openvino"
+
+    def mock_walk(path):
+        return [
+            ("/fake/site-packages/openvino/dir1", ("subdir",), ("OpenVINOConfig.cmake", "otherfile.txt")),
+            ("/fake/site-packages/openvino/dir2", ("subdir",), ("otherfile.txt",)),
+        ]
+
+    monkeypatch.setattr(Path, "parent", fake_package_path)
+    monkeypatch.setattr(os, "walk", mock_walk)
+
+    result = get_cmake_path()
+
+    assert result == f"{fake_package_path}/dir1"
+
+
+def test_cmake_file_not_found(monkeypatch):
+    fake_package_path = "/fake/site-packages/openvino"
+
+    def mock_walk(path):
+        return [
+            ("/fake/site-packages/openvino/dir1", ("subdir",), ("otherfile.txt", "OpenVINOConfig")),
+            ("/fake/site-packages/openvino/dir2", ("subdir",), ("otherfile.txt", "OpenVINO.cmake")),
+        ]
+
+    monkeypatch.setattr(Path, "parent", fake_package_path)
+    monkeypatch.setattr(os, "walk", mock_walk)
+
+    result = get_cmake_path()
+
+    assert result == ""
