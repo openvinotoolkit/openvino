@@ -34,7 +34,7 @@ runs:
     - name: Install Python dependencies
       uses: py-actions/py-dependency-install@v4
       with:
-        path: "${{ inputs.action_path }}/requirements.txt"
+        path: "${{ inputs.action_path && inputs.action_path || github.action_path }}/requirements.txt"
         update-setuptools: "false"
         update-wheel: "false"
 
