@@ -480,6 +480,7 @@ def test_float_to_f8e4m3_constant(ov_type, numpy_dtype, opset):
 
     assert np.allclose(result, target, equal_nan=True)
 
+
 @pytest.mark.parametrize(("opset"), OPSETS)
 @pytest.mark.parametrize(
     ("ov_type", "numpy_dtype"),
@@ -510,6 +511,7 @@ def test_float_to_f8e8m0_constant_matrix(ov_type, numpy_dtype, opset):
 
     assert np.allclose(result, target, equal_nan=True)
 
+
 @pytest.mark.parametrize(("opset"), OPSETS)
 @pytest.mark.parametrize(
     ("ov_type", "numpy_dtype"),
@@ -537,6 +539,7 @@ def test_float_to_f8e8m0_constant_single_nan(ov_type, numpy_dtype, opset):
     target = np.array(target, dtype=numpy_dtype)
 
     assert np.allclose(result, target, equal_nan=True)
+
 
 @pytest.mark.parametrize(("opset"), OPSETS)
 @pytest.mark.parametrize(
