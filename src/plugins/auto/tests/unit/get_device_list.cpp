@@ -9,6 +9,7 @@ using namespace ov::mock_auto_plugin;
 
 const std::vector<std::string> availableDevs = {"CPU", "GPU", "NPU"};
 const std::vector<std::string> availableDevsWithId = {"CPU", "GPU.0", "GPU.1", "NPU"};
+const std::vector<std::string> netPrecisions = {"FP32", "FP16", "INT8", "BIN"};
 using Params = std::tuple<std::string, std::string>;
 using ConfigParams = std::tuple<std::vector<std::string>,  // Available devices retrieved from Core
                                 Params                     // Params {devicePriority, expect metaDevices}
@@ -188,3 +189,157 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests_GetDeviceListNotInteldGPU,
 
 // toDo need add test for ParseMetaDevices(_, config) to check device config of
 // return metaDevices
+
+using ConfigFilterParams = std::tuple<double,                                                // utilization threshold,
+                                      std::vector<ov::auto_plugin::DeviceInformation>,       // device candidate list
+                                      std::map<std::string, std::map<std::string, double>>,  // device utilization
+                                      std::list<ov::auto_plugin::DeviceInformation>          // expected device list
+                                      >;
+class GetValidDeviceListTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigFilterParams> {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<ConfigFilterParams> obj) {
+        double threshold;
+        std::vector<ov::auto_plugin::DeviceInformation> devicesInfo;
+        std::list<ov::auto_plugin::DeviceInformation> filteredDevicesInfo;
+        std::map<std::string, std::map<std::string, double>> deviceUtilization;
+        std::tie(threshold, devicesInfo, deviceUtilization, filteredDevicesInfo) = obj.param;
+        std::ostringstream result;
+        result << "utilizationThreshold_" << threshold << "_";
+        result << "candidateDeviceList_";
+        for (auto dev : devicesInfo)
+            result << dev.device_name << "_priority_" << dev.device_priority << "_";
+
+        result << "deviceUtilization_";
+        for (auto dev : deviceUtilization) {
+            result << dev.first << "_";
+            for (auto& item : dev.second)
+                result << item.first << "_" << item.second << "_";
+        }
+
+        result << "expectedFilteredDeviceList_";
+        for (auto dev : filteredDevicesInfo)
+            result << dev.device_name << "_priority_" << dev.device_priority << "_";
+        return result.str();
+    }
+
+    void SetUp() override {
+        std::tie(threshold, devicesInfo, deviceUtilization, filteredDevicesInfo) = GetParam();
+        ov::AnyMap config = {};
+        ON_CALL(*plugin, get_property(StrEq(ov::intel_auto::device_utilization_threshold.name()), config))
+            .WillByDefault(Return(ov::Any(threshold)));
+        ON_CALL(*core, get_property(StrEq("GPU"), StrEq(ov::device::luid.name()), _))
+            .WillByDefault(Return(ov::Any("00000000")));
+        ON_CALL(*core, get_property(StrEq("GPU.0"), StrEq(ov::device::luid.name()), _))
+            .WillByDefault(Return(ov::Any("00000001")));
+        ON_CALL(*core, get_property(StrEq("GPU.1"), StrEq(ov::device::luid.name()), _))
+            .WillByDefault(Return(ov::Any("00000002")));
+        ON_CALL(*core,
+                get_property(StrEq(ov::test::utils::DEVICE_AUTO),
+                             StrEq(ov::intel_auto::device_utilization_threshold.name()),
+                             _))
+            .WillByDefault(Return(ov::Any(threshold)));
+        ON_CALL(*plugin, get_device_utilization).WillByDefault([this](const std::string& device) {
+            ov::DeviceIDParser parsed{device};
+            return deviceUtilization[parsed.get_device_name()];
+        });
+        ON_CALL(*plugin, get_valid_device)
+            .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
+                return plugin->Plugin::get_valid_device(metaDevices, netPrecision);
+            });
+    }
+
+protected:
+    double threshold;
+    std::vector<ov::auto_plugin::DeviceInformation> devicesInfo;
+    std::list<ov::auto_plugin::DeviceInformation> filteredDevicesInfo;
+    std::map<std::string, std::map<std::string, double>> deviceUtilization;
+};
+
+TEST_P(GetValidDeviceListTest, GetValidFilteredDeviceListTest) {
+    // get Parameter
+    std::list<ov::auto_plugin::DeviceInformation> result;
+    for (auto& precision : netPrecisions) {
+        ASSERT_NO_THROW(result = plugin->get_valid_device(devicesInfo, precision));
+        int actualSize = result.size();
+        int expectedSize = filteredDevicesInfo.size();
+        EXPECT_EQ(actualSize, expectedSize);
+        // EXPECT_EQ(result, filteredDevicesInfo);
+    }
+}
+
+const std::vector<ConfigFilterParams> testValidConfigs = {
+    ConfigFilterParams{80,
+                       {{"CPU", {}, -1, "01", "CPU_01", 0}},
+                       {{"CPU", {{"Total", 15.3}}}},
+                       {{"CPU", {}, -1, "01", "CPU_01", 0}}},
+    ConfigFilterParams{80,
+                       {{"CPU", {}, -1, "01", "CPU_01", 0}},
+                       {{"CPU", {{"Total", 85.2}}}},
+                       {{"CPU", {}, -1, "01", "CPU_01", 0}}},
+    ConfigFilterParams{80,
+                       {{"CPU", {}, -1, "01", "CPU_01", 0}, {"GPU", {}, -1, "01", "GPU", 0}},
+                       {{"CPU", {{"Total", 15.3}}}, {"GPU", {{"00000000", 20}}}},
+                       {{"CPU", {}, -1, "01", "CPU_01", 0}, {"GPU", {}, -1, "01", "GPU", 0}}},
+    ConfigFilterParams{80,
+                       {{"CPU", {}, -1, "01", "CPU_01", 0}, {"GPU", {}, -1, "01", "GPU", 0}},
+                       {{"CPU", {{"Total", 85.2}}}, {"GPU", {{"00000000", 20}}}},
+                       {{"GPU", {}, -1, "01", "GPU", 0}}},
+    ConfigFilterParams{15,
+                       {{"CPU", {}, -1, "01", "CPU_01", 0}, {"GPU", {}, -1, "01", "GPU", 0}},
+                       {{"CPU", {{"Total", 85.2}}}, {"GPU", {{"00000000", 20}}}},
+                       {{"CPU", {}, -1, "01", "CPU_01", 0}, {"GPU", {}, -1, "01", "GPU", 0}}},
+    ConfigFilterParams{80,
+                       {{"CPU", {}, -1, "01", "CPU_01", 1}, {"GPU", {}, -1, "01", "GPU", 2}},
+                       {{"CPU", {{"Total", 85.2}}}, {"GPU", {{"00000000", 20}}}},
+                       {{"GPU", {}, -1, "01", "GPU", 2}}},
+    ConfigFilterParams{15,
+                       {{"CPU", {}, -1, "01", "CPU_01", 1}, {"GPU", {}, -1, "01", "GPU", 2}},
+                       {{"CPU", {{"Total", 85.2}}}, {"GPU", {{"00000000", 20}}}},
+                       {{"CPU", {}, -1, "01", "CPU_01", 1}, {"GPU", {}, -1, "01", "GPU", 2}}},
+    ConfigFilterParams{15,
+                       {{"CPU", {}, -1, "01", "CPU_01", 0}, {"GPU.0", {}, -1, "01", "iGPU_01", 0}},
+                       {{"CPU", {{"Total", 85.2}}}, {"GPU", {{"00000001", 20}}}},
+                       {{"CPU", {}, -1, "01", "CPU_01", 0}, {"GPU.0", {}, -1, "01", "iGPU_01", 0}}},
+    ConfigFilterParams{15,
+                       {{"CPU", {}, -1, "01", "CPU_01", 0},
+                        {"GPU.0", {}, -1, "01", "iGPU_01", 0},
+                        {"GPU.1", {}, -1, "01", "dGPU_01", 0}},
+                       {{"CPU", {{"Total", 85.2}}}, {"GPU", {{"00000001", 20}, {"00000002", 50}}}},
+                       {{"CPU", {}, -1, "01", "CPU_01", 0},
+                        {"GPU.0", {}, -1, "01", "iGPU_01", 0},
+                        {"GPU.1", {}, -1, "01", "dGPU_01", 0}}},
+    ConfigFilterParams{80,
+                       {{"CPU", {}, -1, "01", "CPU_01", 0},
+                        {"GPU.0", {}, -1, "01", "iGPU_01", 0},
+                        {"GPU.1", {}, -1, "01", "dGPU_01", 0}},
+                       {{"CPU", {{"Total", 85.2}}}, {"GPU", {{"00000001", 20}, {"00000002", 50}}}},
+                       {{"GPU.0", {}, -1, "01", "iGPU_01", 0}, {"GPU.1", {}, -1, "01", "dGPU_01", 0}}},
+    ConfigFilterParams{80,
+                       {{"CPU", {}, -1, "01", "CPU_01", 0},
+                        {"GPU.0", {}, -1, "01", "iGPU_01", 0},
+                        {"GPU.1", {}, -1, "01", "dGPU_01", 0}},
+                       {{"CPU", {{"Total", 15.2}}}, {"GPU", {{"00000001", 90}, {"00000002", 50}}}},
+                       {{"CPU", {}, -1, "01", "CPU_01", 0}, {"GPU.1", {}, -1, "01", "dGPU_01", 0}}},
+    ConfigFilterParams{80,
+                       {{"CPU", {}, -1, "01", "CPU_01", 0},
+                        {"GPU.0", {}, -1, "01", "iGPU_01", 0},
+                        {"GPU.1", {}, -1, "01", "dGPU_01", 0}},
+                       {{"CPU", {{"Total", 15.2}}}, {"GPU", {{"00000001", 10}, {"00000002", 90}}}},
+                       {{"CPU", {}, -1, "01", "CPU_01", 0}, {"GPU.0", {}, -1, "01", "iGPU_01", 0}}},
+    ConfigFilterParams{80,
+                       {{"CPU", {}, -1, "01", "CPU_01", 1},
+                        {"GPU.0", {}, -1, "01", "iGPU_01", 2},
+                        {"GPU.1", {}, -1, "01", "dGPU_01", 3}},
+                       {{"CPU", {{"Total", 15.2}}}, {"GPU", {{"00000001", 10}, {"00000002", 90}}}},
+                       {{"CPU", {}, -1, "01", "CPU_01", 1}, {"GPU.0", {}, -1, "01", "iGPU_01", 2}}},
+    ConfigFilterParams{80,
+                       {{"CPU", {}, -1, "01", "CPU_01", 1},
+                        {"GPU.0", {}, -1, "01", "iGPU_01", 2},
+                        {"GPU.1", {}, -1, "01", "dGPU_01", 3}},
+                       {{"CPU", {{"Total", 15.2}}}, {"GPU", {{"00000001", 90}, {"00000002", 10}}}},
+                       {{"CPU", {}, -1, "01", "CPU_01", 1}, {"GPU.1", {}, -1, "01", "dGPU_01", 3}}}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests_GetValidDeviceList,
+                         GetValidDeviceListTest,
+                         ::testing::ValuesIn(testValidConfigs),
+                         GetValidDeviceListTest::getTestCaseName);

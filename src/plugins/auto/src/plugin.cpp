@@ -513,6 +513,7 @@ std::list<DeviceInformation> Plugin::get_valid_device(
     }
     bool is_default_list = true;
     std::list<DeviceInformation> valid_devices;
+    std::list<DeviceInformation> valid_filtered_devices;
     std::list<DeviceInformation> CPU;
     std::list<DeviceInformation> dGPU;
     std::list<DeviceInformation> iGPU;
@@ -531,8 +532,10 @@ std::list<DeviceInformation> Plugin::get_valid_device(
         return support_model != capability.end() || is_support_fp16;
     };
 
-    auto utilization_threshold = m_plugin_config.get_property(ov::intel_auto::device_utilization_threshold);
+    //auto utilization_threshold = m_plugin_config.get_property(ov::intel_auto::device_utilization_threshold);
+    auto utilization_threshold = this->get_property(ov::intel_auto::device_utilization_threshold.name(), {}).as<double>();
     for (auto&& device_info : meta_devices) {
+        bool is_excluded = false;
         if (device_info.device_priority > 0)
             is_default_list = false;
         // check if device support this model precision
@@ -544,6 +547,7 @@ std::list<DeviceInformation> Plugin::get_valid_device(
             if (device_utilization.count("Total") == 0 || device_utilization["Total"] < utilization_threshold) {
                 CPU.push_back(device_info);
             } else {
+                is_excluded = true;
                 LOG_DEBUG_TAG("[%s] Current utilization [%s] exceeds the threshold[%d]",
                               device_info.device_name.c_str(),
                               std::to_string(device_utilization["Total"]).c_str(),
@@ -576,6 +580,7 @@ std::list<DeviceInformation> Plugin::get_valid_device(
                     LOG_DEBUG_TAG("Unknown device type for %s", device_info.device_name.c_str());
                 }
             } else {
+                is_excluded = true;
                 LOG_DEBUG_TAG("[%s] Current utilization [%s] exceeds the threshold[%d]",
                               device_info.device_name.c_str(),
                               std::to_string(device_utilization[device_luid]).c_str(),
@@ -586,6 +591,8 @@ std::list<DeviceInformation> Plugin::get_valid_device(
             // TODO: to be implemented for other device
             Others.push_back(device_info);
         }
+        if (!is_excluded)
+            valid_filtered_devices.push_back(device_info);
         valid_devices.push_back(device_info);
     }
 
@@ -611,8 +618,13 @@ std::list<DeviceInformation> Plugin::get_valid_device(
     valid_devices.sort([](const DeviceInformation& a, const DeviceInformation& b) {
         return a.device_priority < b.device_priority;
     });
+    if (valid_filtered_devices.empty())
+        return valid_devices;
 
-    return valid_devices;
+    valid_filtered_devices.sort([](const DeviceInformation& a, const DeviceInformation& b) {
+        return a.device_priority < b.device_priority;
+    });
+    return valid_filtered_devices;
 }
 
 DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& meta_devices,
