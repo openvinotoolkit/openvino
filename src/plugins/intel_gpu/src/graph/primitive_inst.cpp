@@ -586,19 +586,44 @@ event::ptr primitive_inst::realloc_if_needed() {
                         user_insts.size(), " and ", user_insts_origin.size());
     }
     for (auto user : user_insts) {
+        auto is_fused_prim_of_user = [&](primitive_id id) -> bool {
+            for (auto& p : user->get_node().get_fused_primitives()) {
+                if (p.has_outer_dep()) {
+                    const auto start_idx = p.outer_dep_start_idx;
+                    // exclude fused_node from total_num_deps
+                    const auto end_idx = p.outer_dep_start_idx + p.total_num_deps -1;
+                    for (size_t idx = start_idx; idx < end_idx; idx++) {
+                        if (user->get_node().get_dependency(idx).id() == id) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        };
         // Since fake alignment is applicable for input tensor as well, make sure we allocate enough memory
         // to prevent reading beyond the allocated memory bounds
-        if (user->get_node().is_type<fully_connected>() && user->is_dynamic() && user->_deps[0].first == this) {
-            GPU_DEBUG_TRACE_DETAIL << "Check fc user " << user->id() << "'s fake alignment-ed input size" << std::endl;
-            user->update_shape();
-            user->update_shape_done_by_other = true;
-
-            auto fc_impl_params = *user->_impl_params;
-            auto fc_input_layout = user->get_node().type()->get_fake_aligned_params(fc_impl_params).input_layouts[0];
-            if (fc_input_layout.bytes_count() > updated_layout.bytes_count()) {
-                GPU_DEBUG_TRACE_DETAIL << id() << ": increase output layout allocation size from " << actual_layout.to_short_string() << " -> "
-                                       << fc_input_layout.to_short_string() << " to meet the input buffer alignment requirements for FC\n";
-                updated_layout = fc_input_layout;
+        if (user->get_node().is_type<fully_connected>() && user->is_dynamic()) {
+            if (user->_deps[0].first == this
+                || (is_fused_prim_of_user(id()) && user->update_shape_done_by_other)) {
+                GPU_DEBUG_TRACE_DETAIL << "Check fc user " << user->id() << "'s fake alignment-ed input size" << std::endl;
+                // Setting update_shape_done_by_other to false before running update_shape,
+                // since update_Shape is already called in realloc_if_needed of current node's dep node
+                // but current node's output layout is not updated to the this user node yet.
+                user->update_shape_done_by_other = false;
+                bool prev_shape_changed = user->shape_changed();
+                user->update_shape();
+                // Set again shape_change status if shape is changed in the prev udpate_shape() for this user node.
+                if (prev_shape_changed)
+                    user->set_shape_change();
+                user->update_shape_done_by_other = true;
+                auto fc_impl_params = *user->_impl_params;
+                auto fc_input_layout = user->get_node().type()->get_fake_aligned_params(fc_impl_params).input_layouts[0];
+                if (fc_input_layout.bytes_count() > updated_layout.bytes_count()) {
+                    GPU_DEBUG_TRACE_DETAIL << id() << ": increase output layout allocation size from " << actual_layout.to_short_string() << " -> "
+                                        << fc_input_layout.to_short_string() << " to meet the input buffer alignment requirements for FC\n";
+                    updated_layout = fc_input_layout;
+                }
             }
         }
     }
