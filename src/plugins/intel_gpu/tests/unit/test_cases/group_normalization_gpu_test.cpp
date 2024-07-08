@@ -118,7 +118,6 @@ TEST_P(GroupNormalizationGPUTest, random) {
 
 const std::vector<cldnn::format> f_planar_4d_formats {
     format::bfyx,
-    format::bfzyx,
 };
 
 const std::vector<cldnn::format> f_blocked_4d_formats {

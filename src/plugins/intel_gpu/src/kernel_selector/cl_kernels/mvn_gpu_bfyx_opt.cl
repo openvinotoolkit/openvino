@@ -72,22 +72,22 @@ KERNEL (mvn_gpu_bfyx_opt)(
     for (uint i=0; i<items_num; ++i) {
         uint iteration_in_data_set_offset = i * workers_per_data_set;
         ACTIVATION_TYPE result = TO_ACTIVATION_TYPE(input[my_data_offset + iteration_in_data_set_offset]) - TO_ACTIVATION_TYPE(my_sum);
-        #if HAS_FUSED_OPS
-            FUSED_OPS;
-            output[my_data_offset + iteration_in_data_set_offset] = FUSED_OPS_RESULT;
-        #else
-            output[my_data_offset + iteration_in_data_set_offset] = TO_OUTPUT_TYPE(ACTIVATION(result, ACTIVATION_PARAMS));
-        #endif
+#   if HAS_FUSED_OPS
+        FUSED_OPS;
+        output[my_data_offset + iteration_in_data_set_offset] = FUSED_OPS_RESULT;
+#   else
+        output[my_data_offset + iteration_in_data_set_offset] = TO_OUTPUT_TYPE(ACTIVATION(result, ACTIVATION_PARAMS));
+#   endif
     }
     if (in_data_set_idx < leftovers) {
         uint iteration_in_data_set_offset = items_num * workers_per_data_set;
         ACTIVATION_TYPE result = TO_ACTIVATION_TYPE(input[my_data_offset + iteration_in_data_set_offset]) - TO_ACTIVATION_TYPE(my_sum);
-        #if HAS_FUSED_OPS
-            FUSED_OPS;
-            output[my_data_offset + iteration_in_data_set_offset] = FUSED_OPS_RESULT;
-        #else
-            output[my_data_offset + iteration_in_data_set_offset] = TO_OUTPUT_TYPE(ACTIVATION(result, ACTIVATION_PARAMS));
-        #endif
+#   if HAS_FUSED_OPS
+        FUSED_OPS;
+        output[my_data_offset + iteration_in_data_set_offset] = FUSED_OPS_RESULT;
+#   else
+        output[my_data_offset + iteration_in_data_set_offset] = TO_OUTPUT_TYPE(ACTIVATION(result, ACTIVATION_PARAMS));
+#   endif
     }
 #else
     barrier(CLK_LOCAL_MEM_FENCE);
