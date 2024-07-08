@@ -1,8 +1,5 @@
-.. {#openvino_supported_devices}
-
-
-Inference Device Support
-========================
+Supported Inference Devices
+============================
 
 .. meta::
    :description: Check the list of devices used by OpenVINO to run inference

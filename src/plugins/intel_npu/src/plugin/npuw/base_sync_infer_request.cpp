@@ -179,9 +179,11 @@ void ov::npuw::IBaseInferRequest::check_tensors() const {
 }
 
 void ov::npuw::IBaseInferRequest::infer() {
+    m_now_idx.reset();
     prepare_for_infer();
     bool failover_happened = false;
     for (std::size_t idx = 0u; idx < m_num_submodels; idx++) {
+        m_now_idx = idx;
         if (!valid_subrequest(idx)) {
             continue;
         }
@@ -204,6 +206,7 @@ void ov::npuw::IBaseInferRequest::infer() {
         LOG_BLOCK();
         m_npuw_model->log_device_dist();
     }
+    m_now_idx.reset();
 }
 
 void ov::npuw::IBaseInferRequest::dump_input_tensors(std::size_t idx) {
@@ -278,4 +281,44 @@ std::string ov::npuw::IBaseInferRequest::iter_path_suffix(std::size_t idx) const
     // Hope alignment to 4 digits is fine to this case (no problem if this number
     // is exceeded)
     return "_iter_" + ov::npuw::util::fmt(m_run_iter, 1000);
+}
+
+bool ov::npuw::IBaseInferRequest::needs_copy(std::size_t idx) const {
+    // Answer if the given subgraph needs copy for I/O or tolerates
+    // the set/get_ tensor API
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+    const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
+    if (ov::npuw::util::starts_with(m_subrequest_devices[real_idx], "CPU")) {
+        return false;
+    }
+
+    // Assume all others prefer copy unless remote tensors are supported
+    return true;
+}
+
+std::size_t ov::npuw::IBaseInferRequest::next(std::size_t idx_base) const {
+    // Answer the next valid subrequest which is possible to prepare
+    // FIXME: this could be a predefined map, not a lookup
+    for (std::size_t idx = idx_base; idx < m_num_submodels; idx++) {
+        auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+        if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
+            continue;
+        }
+        return idx;
+    }
+
+    // went over entire list and nothing found?
+    // NOTE: this recursive call is a short-cut and may enter the recursion
+    // if all the subgraphs are OPTIMIZED OUT (shouldn't be possible but
+    // there's a Murphy's law on this).
+    return next(0);
+}
+
+std::size_t ov::npuw::IBaseInferRequest::real(std::size_t idx) const {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+    return comp_model_desc.replaced_by.value_or(idx);
+}
+
+ov::npuw::IBaseInferRequest::now_t ov::npuw::IBaseInferRequest::now_idx() const {
+    return m_now_idx;
 }
