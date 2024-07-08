@@ -82,6 +82,7 @@ inline int8_t upc(int8_t h) {
     return h | (-((h & (1 << 3)) >> 3) & (-8));
 }
 
+// NOTE: This routine implements the OLD ORDER
 #define avx2_i4toi8(vinput, vout0, vout1)                                         \
     {                                                                             \
         __m256i himask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0xF0));    \
@@ -133,8 +134,82 @@ inline __m128i avx2_u8tof16_lo(__m128i vu8, __m256 z, __m256 s) {
     return avx2_u8tof16_hi(vu8h, z, s);
 }
 
-inline __m128i avx2_f32tof16(__m256 f32vec) {
-    return _mm256_cvtps_ph(f32vec, _MM_FROUND_TO_NEAREST_INT);
+// NOTE: This routine implements the NEW ORDER
+inline void avx2_u4tof16(__m256i vinput, __m128i vout[8], __m256 zvalVec, __m256 svalVec[8]) {
+    // vinput -  64       x u4  elements - 256 bits
+    // vout[]  - 64 (8x8) x f16 elements
+
+    // NOTE: This is largely a copy of unpack_u4f16() {{
+    __m256i himask = _mm256_set1_epi8(static_cast<char>(0xF0));
+    __m256i lomask = _mm256_set1_epi8(static_cast<char>(0x0F));
+
+    // unpacking with interleaving
+    __m256i vht = _mm256_and_si256(vinput, himask);
+    __m256i xmmUnpackedLo = _mm256_srli_epi16(vht, 4);         // 32 x i8 - Extracting High Nibbles
+    __m256i xmmUnpackedHi = _mm256_and_si256(vinput, lomask);  // 32 x i8 - Extracting Low Nibbles
+
+    // need 4 portions of 16 x i8 elements
+    __m128i unpacked32LoHi = _mm256_castsi256_si128(xmmUnpackedLo);       //  lower  16 x i8 - Lower 16 of High Nibbles
+    __m128i unpacked32LoLo = _mm256_extractf128_si256(xmmUnpackedLo, 1);  //  higher 16 x i8 - Higher 16 of High Nibbles
+
+    __m128i unpacked32HiHi = _mm256_castsi256_si128(xmmUnpackedHi);       //  lower  16 x i8 - Lower 16 of Low Nibbles
+    __m128i unpacked32HiLo = _mm256_extractf128_si256(xmmUnpackedHi, 1);  //  higher 16 x i8 - Higher 16 of Low Nibbles
+
+    // Rearranging of scales
+    __m256i indices = _mm256_setr_epi32(0, 2, 4, 6, 1, 3, 5, 7);
+    // Extracting all 64 scales as per the indices specified above
+    __m256 scale_v_rearranged[] = {_mm256_permutevar8x32_ps(svalVec[0], indices),
+                                   _mm256_permutevar8x32_ps(svalVec[1], indices),
+                                   _mm256_permutevar8x32_ps(svalVec[2], indices),
+                                   _mm256_permutevar8x32_ps(svalVec[3], indices),
+                                   _mm256_permutevar8x32_ps(svalVec[4], indices),
+                                   _mm256_permutevar8x32_ps(svalVec[5], indices),
+                                   _mm256_permutevar8x32_ps(svalVec[6], indices),
+                                   _mm256_permutevar8x32_ps(svalVec[7], indices)};
+
+    // Scaling should happen like this:
+    // low_nibble[0]->scale[0], high_nibble[0]->scale[1]...low_nibble[31]->scale[60],high_nibble[31]->scale[61]
+
+    // Extracting all the even-indexed scales for the low nibbles
+    __m256 scale_v_even[] = {
+        _mm256_permute2f128_ps(scale_v_rearranged[0], scale_v_rearranged[1], 0x20),
+        _mm256_permute2f128_ps(scale_v_rearranged[2], scale_v_rearranged[3], 0x20),
+        _mm256_permute2f128_ps(scale_v_rearranged[4], scale_v_rearranged[5], 0x20),
+        _mm256_permute2f128_ps(scale_v_rearranged[6], scale_v_rearranged[7], 0x20),
+    };
+
+    // Extracting all the odd-indexed scales for the high nibbles
+    __m256 scale_v_odd[] = {
+        _mm256_permute2f128_ps(scale_v_rearranged[0], scale_v_rearranged[1], 0x31),
+        _mm256_permute2f128_ps(scale_v_rearranged[2], scale_v_rearranged[3], 0x31),
+        _mm256_permute2f128_ps(scale_v_rearranged[4], scale_v_rearranged[5], 0x31),
+        _mm256_permute2f128_ps(scale_v_rearranged[6], scale_v_rearranged[7], 0x31),
+    };
+
+    // converting to 64 x f16
+    // Higher 16 of High Nibbles
+    __m128i f16LoLo[] = {avx2_u8tof16_hi(unpacked32LoLo, zvalVec, scale_v_odd[2]),
+                         avx2_u8tof16_lo(unpacked32LoLo, zvalVec, scale_v_odd[3])};
+    // Lower 16 of High Nibbles
+    __m128i f16LoHi[] = {avx2_u8tof16_hi(unpacked32LoHi, zvalVec, scale_v_odd[0]),
+                         avx2_u8tof16_lo(unpacked32LoHi, zvalVec, scale_v_odd[1])};
+    // Higher 16 of Low Nibbles
+    __m128i f16HiLo[] = {avx2_u8tof16_hi(unpacked32HiLo, zvalVec, scale_v_even[2]),
+                         avx2_u8tof16_lo(unpacked32HiLo, zvalVec, scale_v_even[3])};
+    // Lower 16 of Low Nibbles
+    __m128i f16HiHi[] = {avx2_u8tof16_hi(unpacked32HiHi, zvalVec, scale_v_even[0]),
+                         avx2_u8tof16_lo(unpacked32HiHi, zvalVec, scale_v_even[1])};
+
+    // interleaving back:
+    // Interleaving lower 8 of low nibbles with lower 8 of high nibbles and so on
+    vout[0] = _mm_unpacklo_epi16(f16HiHi[0], f16LoHi[0]);
+    vout[1] = _mm_unpackhi_epi16(f16HiHi[0], f16LoHi[0]);
+    vout[2] = _mm_unpacklo_epi16(f16HiHi[1], f16LoHi[1]);
+    vout[3] = _mm_unpackhi_epi16(f16HiHi[1], f16LoHi[1]);
+    vout[4] = _mm_unpacklo_epi16(f16HiLo[0], f16LoLo[0]);
+    vout[5] = _mm_unpackhi_epi16(f16HiLo[0], f16LoLo[0]);
+    vout[6] = _mm_unpacklo_epi16(f16HiLo[1], f16LoLo[1]);
+    vout[7] = _mm_unpackhi_epi16(f16HiLo[1], f16LoLo[1]);
 }
 
 inline __m256 avx2_load_scale(const int8_t* data, ov::element::Type type) {
@@ -622,14 +697,14 @@ void unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
     // Only single-size ZP is supported
     NPUW_ASSERT(zerop->get_size() == 1);
 
-    const auto from_shape = from->get_shape();
+    const auto& from_shape = from->get_shape();
     NPUW_ASSERT(from_shape.back() % 64 == 0);
 
     // 2-channel (Symmetric) and 3-channel (group-wise)
     // scale factors are supported. The scale/value loop
     // iteration is based on stotal, so should work for
     // both cases.
-    const auto scale_shape = scale->get_shape();
+    const auto& scale_shape = scale->get_shape();
     NPUW_ASSERT(scale_shape.size() == 3 || scale_shape.size() == 2);
     if (scale_shape.size() == 3) {
         NPUW_ASSERT(scale_shape[0] == from_shape[0]);
@@ -799,10 +874,10 @@ void unpack_u4f16_z(const ov::SoPtr<ov::ITensor>& from,
     // Only single-size ZP is supported
     NPUW_ASSERT(zerop->get_size() == 1);
 
-    const auto from_shape = from->get_shape();
+    const auto& from_shape = from->get_shape();
     NPUW_ASSERT(from_shape.back() % 64 == 0);
 
-    const auto scale_shape = scale->get_shape();
+    const auto& scale_shape = scale->get_shape();
     NPUW_ASSERT(scale_shape.size() == 3);
     NPUW_ASSERT(scale_shape[0] == from_shape[0]);
     NPUW_ASSERT(scale_shape[2] == from_shape[2]);
@@ -824,9 +899,10 @@ void unpack_u4f16_z(const ov::SoPtr<ov::ITensor>& from,
 
     const uint8_t* const pSrc = static_cast<uint8_t*>(from->data());  // 2 x u4  elements
     const float* const pScl = static_cast<float*>(scale->data());     // 1 x f32 element
-    const int16_t* pDst = static_cast<int16_t*>(to->data());          // 1 x f16 element
+    int16_t* pDst = static_cast<int16_t*>(to->data());                // 1 x f16 element
 
     const float zval = avx2_load_f32(reinterpret_cast<const int8_t*>(zerop->data()), zerop_elem_type);
+    __m256 zvalVec = _mm256_set1_ps(zval);
 
     auto unpack_body = [&](size_t job_index, size_t stride) {
         size_t start_c = job_index * stride;
@@ -835,23 +911,22 @@ void unpack_u4f16_z(const ov::SoPtr<ov::ITensor>& from,
         for (size_t c = start_c; c < end_c; ++c) {
             for (size_t h = 0; h < H; ++h) {
                 for (size_t w = 0; w < W; w += 64) {
-                    float tmp[64];
-                    for (size_t i = 0; i < 32; ++i) {
-                        size_t input_index = w + i * 2 + W * h + W * H * c;
-                        uint8_t packed_val = pSrc[input_index / 2];
-                        float f0 = static_cast<float>(lo4(packed_val));
-                        float f1 = static_cast<float>(hi4(packed_val));
-                        size_t scale_index = w + i * 2 + W * c;
-                        tmp[i * 2] = (f0 - zval) * pScl[scale_index];
-                        tmp[i * 2 + 1] = (f1 - zval) * pScl[scale_index + 1];
-                    }
-                    __m128i vresults[8];
+                    const uint8_t* pSrc_iter = pSrc + (w + W * h + W * H * c) / 2;
+                    __m256i vinput = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(pSrc_iter));
+                    const float* pScl_iter = pScl + w + W * c;
+                    int16_t* pDst_iter = pDst + w + W * h + W * H * c;
+
+                    __m256 svalVec[8];
                     for (int i = 0; i < 8; ++i) {
-                        vresults[i] = avx2_f32tof16(_mm256_loadu_ps(tmp + i * 8));
+                        svalVec[i] = _mm256_loadu_ps(pScl_iter + i * 8);
                     }
-                    int16_t* pDstLocal = const_cast<int16_t*>(pDst) + w + W * h + W * H * c;
+
+                    // vectorized unpack u4 to f16
+                    __m128i htmp[8];  // 64 x f16
+                    avx2_u4tof16(vinput, htmp, zvalVec, svalVec);
+
                     for (int i = 0; i < 8; ++i) {
-                        _mm_storeu_si128(reinterpret_cast<__m128i*>(pDstLocal + i * 8), vresults[i]);
+                        _mm_storeu_si128(reinterpret_cast<__m128i*>(pDst_iter + i * 8), htmp[i]);
                     }
                 }
             }
@@ -1049,8 +1124,8 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
     // Unsupported Case for scale tensor:
     //     - [s1, 1, s2, 1, s3]
 
-    const auto from_shape = from->get_shape();
-    const auto scale_shape = scale->get_shape();
+    const auto& from_shape = from->get_shape();
+    const auto& scale_shape = scale->get_shape();
 
     if (scale_shape.size() == 3 && scale_shape[0] == from_shape[0] && scale_shape[1] == 1 &&
         scale_shape[2] == from_shape[2]) {

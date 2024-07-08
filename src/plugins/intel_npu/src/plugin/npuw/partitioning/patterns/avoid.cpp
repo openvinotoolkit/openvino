@@ -62,7 +62,7 @@ RMSNormPattern::RMSNormPattern(const std::shared_ptr<ov::npuw::online::Snapshot>
 
         return false;  // root hasn't changed
     };
-    register_matcher(std::make_shared<opp::Matcher>(sqrt, "TagRMSNorm"), callback);
+    register_matcher(std::make_shared<opp::Matcher>(sqrt, "TagRMSNorm"), std::move(callback));
 }
 
 }  // namespace patterns
