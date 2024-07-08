@@ -661,10 +661,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (input.in_shape_of_subgraph || node->in_shape_of_subgraph)
                 return;
 
-            if (activation_node.get_users().size() >= 2) {
-                return;
-            }
-
             if (_lo.get_optimization_attributes().use_onednn_impls) {
                 if (input.is_type<reshape>() || input.is_type<concatenation>())
                     return;
@@ -995,7 +991,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto p2_dt = parents[peer_idx].first->get_output_layout().data_type;
 
             if (can_fuse_parents[peer_idx] &&
-               ((p1_pnum < p2_pnum && p1_dt == p2_dt) || (data_type_traits::is_floating_point(p2_dt) && !data_type_traits::is_floating_point(p1_dt)))) {
+               ((p1_pnum < p2_pnum && fused_idx > peer_idx && p1_dt == p2_dt) ||
+                (data_type_traits::is_floating_point(p2_dt) && !data_type_traits::is_floating_point(p1_dt)))) {
                 // Swap in 2 cases:
                 // 1. Both branches have same data type. Select branch with lower processing number
                 // 2. Peer node has fp32 output type, but fused node - int8. In that case we have to fuse to the branch
