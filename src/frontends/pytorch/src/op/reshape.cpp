@@ -31,7 +31,7 @@ OutputVector translate_reshape_fx(const NodeContext& context) {
     num_inputs_check(context, 2, num_inputs);
     std::vector<int32_t> shape_vec;
     if (context.get_input_type(1).is<type::List>()) {
-        auto concat = concat_dims_to_shape(context, 1, num_inputs);
+        auto concat = concat_list_from_inputs(context, 1, num_inputs);
         auto reshape = std::make_shared<ov::op::v1::Reshape>(context.get_input(0), concat, true);
         return {context.mark_node(reshape)};
     } else {

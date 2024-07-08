@@ -119,7 +119,7 @@ Output<Node> masked_fill(ov::pass::NodeRegistry& rg,
                          const Output<Node>& mask,
                          const Output<Node>& value);
 
-Output<Node> concat_dims_to_shape(const NodeContext& context, size_t begin, size_t end);
+Output<Node> concat_list_from_inputs(const NodeContext& context, size_t begin, size_t end);
 
 namespace op {
 template <OutputVector (*T)(const NodeContext&), size_t idx = 0>
