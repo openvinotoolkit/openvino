@@ -320,9 +320,14 @@ jobs:
             ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
             ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
             ${{ env.BUILD_DIR }}/deb
+          repos: |
+            ${{ env.OPENVINO_REPO }}
+            ${{ env.OPENVINO_CONTRIB_REPO }}
           storage_dir: 'public_linux_ubuntu_20_04_release'
           storage_root: ${{ env.ARTIFACTS_SHARE }}
           action_path: ${{ env.GITHUB_WORKSPACE }}/openvino/.github/actions/store_artifacts
+          target_arch: 'intel64'
+          build_type: 'release'
 
       # TODO: remove
       - name: Show artifacts on share

@@ -4,6 +4,9 @@ inputs:
   artifacts:
     description: "Multi-line list of artifacts to store"
     required: true
+  repos:
+    description: "Multi-line list of repositories participated in artifacts generation"
+    required: true
   storage_dir:
     description: "Directory name to store artifacts in"
     required: true
@@ -22,7 +25,12 @@ outputs:
 runs:
   using: "composite"
   steps:
-    # TODO: also generate/collect and store manifest based on the repositories checked out in the workflow
+    - name: Install Python dependencies
+      uses: py-actions/py-dependency-install@v4
+      with:
+        path: "${{ inputs.action_path }}/requirements.txt"
+        update-setuptools: "false"
+        update-wheel: "false"
 
     - name: 'Copy artifacts'
       id: copy_artifacts
@@ -30,4 +38,9 @@ runs:
       run: >-
         python ${{ inputs.action_path && inputs.action_path || github.action_path }}/store_artifacts.py
         --storage_dir "${{ inputs.storage_dir }}" --storage_root "${{ inputs.storage_root }}"
-        -a "${{ inputs.artifacts }}"
+        --target_arch "${{ inputs.target_arch }}" --build_type "${{ inputs.build_type }}"
+        -a "${{ inputs.artifacts }}" -r "${{ inputs.repos }}"
+      env:
+        BASE_BRANCH: github.event.pull_request.base.ref
+        BASE_SHA: github.event.pull_request.base.sha
+        PR_HEAD_SHA: github.event.pull_request.head.sha

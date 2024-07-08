@@ -1,11 +1,19 @@
+# Copyright (C) 2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+from __future__ import annotations
+
 import argparse
 import logging
 import os
 import re
 import sys
+import git
 import shutil
 from contextlib import contextmanager
 from pathlib import Path
+from datetime import timezone
+from manifest_manager import Manifest, Repository, Component
 
 
 def parse_args():
@@ -14,8 +22,12 @@ def parse_args():
     parser.add_argument('-b', '--branch_name', help='Name of GitHub branch', required=False)
     parser.add_argument('-s', '--commit_sha', help='Commit hash for which artifacts were generated', required=False)
     parser.add_argument('-a', '--artifacts', type=str, help='Paths to artifacts to store (files/dirs)', required=True)
+    parser.add_argument('-r', '--repos', type=str, help='Paths to repositories used to generate artifacts',
+                        required=True)
     parser.add_argument('--storage_dir', help='Directory name to store artifacts in', required=True)
     parser.add_argument('--storage_root', help='Root path of the storage to place artifacts to', required=True)
+    parser.add_argument('--target_arch', help='Architecture for which artifacts were generated', required=True)
+    parser.add_argument('--build_type', help='Build type: release | debug | release_with_debug', required=True)
     args = parser.parse_args()
     return args
 
@@ -73,6 +85,36 @@ def rotate_dir(directory: Path) -> bool:
     return True
 
 
+def get_repo_data(repo_dir: str | Path) -> dict:
+    repo = git.Repo(str(repo_dir))
+    repo_url = next(repo.remote().urls)
+    repo_name_match = re.search(r'github\.com/[^/]+/([^/]+)', repo_url)
+    repo_name = repo_name_match.group(1) if repo_name_match else None
+
+    trigger_repo_url = f"{os.getenv('GITHUB_SERVER_URL')}/{os.getenv('GITHUB_REPOSITORY')}"
+    is_trigger_repo = repo_url == trigger_repo_url
+
+    branch = os.getenv('GITHUB_REF_NAME') if is_trigger_repo else repo.references[0].name
+    target_brach = os.getenv('BASE_BRANCH') if is_trigger_repo else None
+    revision = os.getenv('PR_HEAD_SHA') or os.getenv('GITHUB_SHA') if is_trigger_repo else repo.head.commit.hexsha
+    target_revision = os.getenv('BASE_SHA') if is_trigger_repo else None
+    # Commit time of a merge commit (in case of PR merged to target)
+    # TODO: Save commit time of a head commit in PR as well?
+    commit_time = repo.head.commit.committed_datetime.astimezone(timezone.utc)
+    merge_target = branch.endswith('/merge')
+    return {
+        'name': repo_name,
+        'url': repo_url,
+        'branch': branch,
+        'target_branch': target_brach,
+        'revision': revision,
+        'target_revision': target_revision,
+        'commit_time': commit_time,
+        'merge_target': merge_target,
+        'trigger': is_trigger_repo,
+    }
+
+
 def main():
     init_logger()
     logger = logging.getLogger(__name__)
@@ -109,6 +151,7 @@ def main():
             logger.error(f'Failed to copy {artifact}: {e}')
             error_found = True
 
+    # TODO: move this and manifest generation before copying artifacts?
     github_server = os.getenv('GITHUB_SERVER_URL')
     if github_server:  # If running from GHA context
         repository = os.getenv('GITHUB_REPOSITORY')
@@ -117,6 +160,21 @@ def main():
         workflow_link = f"{github_server}/{repository}/actions/runs/{run_id}"
         with open(storage / 'workflow_link.txt', 'w') as file:
             file.write(workflow_link)
+
+    # Generate manifest
+    manifest = Manifest()
+    version = 'TBD' # TODO: retrieve version
+    repositories = []
+    for repo_dir in args.repos.split():
+        repo_data = get_repo_data(repo_dir)
+        repositories += Repository(**repo_data)
+    # TODO: add wheels product version to custom params
+    component = Component(name='dldt', version=version, product_type=args.storage_dir, target_arch=args.target_arch,
+                          build_type=args.build_type, build_event=event_type, repositories=repositories)
+
+    manifest.add_component(component)
+    manifest.save_manifest('manifest.yml') # Locally, to upload to GitHub artifacts
+    manifest.save_manifest(storage / 'manifest.yml') # Remotely
 
     logger.debug(f"Copying finished")
     (storage / 'copying_finished').touch()

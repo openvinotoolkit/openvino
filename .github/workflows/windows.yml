@@ -248,8 +248,13 @@ jobs:
           artifacts: |
             ${{ env.BUILD_DIR }}/openvino_package.zip
             ${{ env.BUILD_DIR }}/openvino_tests.zip
+          repos: |
+            ${{ env.OPENVINO_REPO }}
+            ${{ env.OPENVINO_CONTRIB_REPO }}
           storage_dir: 'public_windows_vs2019_release'
           storage_root: ${{ env.ARTIFACTS_SHARE }}
+          target_arch: 'intel64'
+          build_type: 'release'
 
   Samples:
     needs: [ Build, Smart_CI ]
