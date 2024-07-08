@@ -541,7 +541,9 @@ std::list<DeviceInformation> Plugin::get_valid_device(
         // check if device support this model precision
         if (!is_supported_model(device_info.device_name) && meta_devices.size() > 1)
             continue;
-        auto device_utilization = get_device_utilization(device_info.device_name);
+        std::map<std::string, double> device_utilization;
+        if (utilization_threshold < 100)
+            device_utilization = get_device_utilization(device_info.device_name);
         if (device_info.device_name.find("CPU") == 0) {
             // checking utilization
             if (device_utilization.count("Total") == 0 || device_utilization["Total"] < utilization_threshold) {
