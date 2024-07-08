@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/org.openvinotoolkit/experimental_detectron/topk_rios.hpp"
-
-#include "core/node.hpp"
+#include "core/operator_set.hpp"
 #include "openvino/op/experimental_detectron_topkrois.hpp"
 
 using namespace ov::op;
@@ -12,8 +10,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace org_openvinotoolkit {
+namespace opset_1 {
 ov::OutputVector experimental_detectron_topk_rois(const ov::frontend::onnx::Node& node) {
     using TopKROIs = v6::ExperimentalDetectronTopKROIs;
 
@@ -25,8 +23,12 @@ ov::OutputVector experimental_detectron_topk_rois(const ov::frontend::onnx::Node
     return {std::make_shared<TopKROIs>(input_rois, rois_probs, max_rois)};
 }
 
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("ExperimentalDetectronTopKROIs",
+        OPSET_SINCE(1),
+        org_openvinotoolkit::opset_1::experimental_detectron_topk_rois,
+        OPENVINO_ONNX_DOMAIN);
+}  // namespace opset_1
+}  // namespace org_openvinotoolkit
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

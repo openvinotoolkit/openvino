@@ -2,23 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/clip.hpp"
-
 #include <limits>
 
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/minimum.hpp"
-
 using namespace ov::op;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector clip(const ov::frontend::onnx::Node& node) {
     const auto data = node.get_ov_inputs().at(0);
 
@@ -29,9 +27,10 @@ ov::OutputVector clip(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::Clamp>(data, min_value, max_value)};
 }
 
-}  // namespace set_1
+ONNX_OP("Clip", OPSET_RANGE(1, 10), ai_onnx::opset_1::clip);
+}  // namespace opset_1
 
-namespace set_11 {
+namespace opset_11 {
 namespace {
 std::shared_ptr<ov::op::v0::Constant> get_constant_lowest_of_type(ov::element::Type_t t) {
 #define OPENVINO_TYPE_TO_LOWEST_CONST(t)                                                       \
@@ -99,8 +98,9 @@ ov::OutputVector clip(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Minimum>(max, max_of_min_and_data)};
 }
 
-}  // namespace set_11
-}  // namespace op
+ONNX_OP("Clip", OPSET_SINCE(11), ai_onnx::opset_11::clip);
+}  // namespace opset_11
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
