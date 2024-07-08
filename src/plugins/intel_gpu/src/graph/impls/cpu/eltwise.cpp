@@ -179,41 +179,25 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
 
         auto output_mem_ptr = instance.output_memory_ptr();
 
+        cldnn::mem_lock<uint8_t, mem_lock_type::read> output_read_lock(output_mem_ptr, stream);
+        cldnn::mem_lock<uint8_t, mem_lock_type::write> output_write_lock(output_mem_ptr, stream);
+
         for (size_t i = 0; i < input_mem_ptrs.size(); i++)
             input_host_tensors.push_back(make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
 
-        std::vector<event::ptr> new_events(events);
-
-        cldnn::memory::ptr temp_buffer_ptr;
-        if (output_mem_ptr && output_mem_ptr->get_allocation_type() != allocation_type::usm_device) {
-            cldnn::mem_lock<uint8_t, mem_lock_type::write> output_write_lock(output_mem_ptr, stream);
-            output_host_tensors.push_back(make_tensor(params->output_layouts[0], output_write_lock.data()));
-        } else {
-            auto engine = input_mem_ptrs[0]->get_engine();
-            if (engine) {
-                temp_buffer_ptr = engine->allocate_memory(output_mem_ptr->get_layout());
-                cldnn::mem_lock<uint8_t, mem_lock_type::write> temp_buffer_ptr_lock(temp_buffer_ptr, stream);
-                output_host_tensors.push_back(make_tensor(params->output_layouts[0], temp_buffer_ptr_lock.data()));
-            }
-        }
+        output_host_tensors.push_back(make_tensor(params->output_layouts[0], output_write_lock.data()));
 
         OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
                         "[GPU] Couldn't execute eltwise primitive with id ", instance.id());
-
-        if (temp_buffer_ptr) {
-            auto copy_event = output_mem_ptr->copy_from(stream, *temp_buffer_ptr);
-            copy_event->set();
-            new_events.push_back(copy_event);
-        }
 
         for (size_t i = 0; i < input_mem_ptrs.size(); i++)
             input_mem_ptrs[i]->unlock(stream);
 
         if (pass_through_events) {
-            if (new_events.size() > 1) {
-                return stream.group_events(new_events);
-            } else if (new_events.size() == 1) {
-                return new_events[0];
+            if (events.size() > 1) {
+                return stream.group_events(events);
+            } else if (events.size() == 1) {
+                return events[0];
             }
         }
 
