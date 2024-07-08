@@ -15,7 +15,7 @@ struct BrgemmKernelConfig : public snippets::KernelExecutorBase::GenericConfig {
 public:
     BrgemmKernelConfig(const element::Type& in0_dtype, const element::Type& in1_dtype, float beta,
                        bool is_with_amx, bool is_with_comp);
-    BrgemmKernelConfig() = default;
+    BrgemmKernelConfig() = delete;
     bool is_completed() const override;
     size_t hash() const override { return m_hash; }
     bool operator==(const BrgemmKernelConfig& rhs) const;
@@ -53,15 +53,15 @@ public:
 private:
     struct StaticParams {
         StaticParams(const element::Type& in0_dtype, const element::Type& in1_dtype, float beta,
-                            bool is_with_amx, bool is_with_comp);
+                     bool is_with_amx, bool is_with_comp);
         const dnnl_data_type_t dt_in0 {dnnl_f32}, dt_in1 {dnnl_f32};
         const float beta {0};
         const bool is_with_amx {false};
         const bool is_with_comp {false};
         const dnnl::impl::cpu::x64::cpu_isa_t isa {dnnl::impl::cpu::x64::isa_undef};
-        const size_t hash{0};
+        const size_t hash {0};
         bool operator==(const StaticParams& rhs) const;
-        bool operator!=(const StaticParams& rhs) const {return !(*this == rhs);}
+        bool operator!=(const StaticParams& rhs) const { return !(*this == rhs); }
 #ifdef SNIPPETS_DEBUG_CAPS
         std::string to_string() const;
 #endif
