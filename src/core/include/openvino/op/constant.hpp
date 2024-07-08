@@ -290,7 +290,6 @@ public:
     ///
     /// \tparam T             Type to which data vector's entries will be cast.
     /// \param  num_elements  (Optional) Number of elements to cast. In default case returns all elements
-    /// \param  validate_data (Optional) Enable validation data on casting. Default false, no validation.
     /// \return    Constant's data vector.
     template <typename T>
     std::vector<T> cast_vector(int64_t num_elements = -1) const {
@@ -463,11 +462,10 @@ private:
 
     /// \brief Cast constant data to std::vector of User type.
     /// This version is for user type which is unknown for OpenVINO.
-    /// The minimum requirement for this type is to support conversion from OV type and support std::numeric_limits.
+    /// The minimum requirement for this type is to support conversion from OV type.
     ///
     /// \param output_vector  Output vector with casted data.
     /// \param num_elements   number of elements to cast from constant.
-    /// \param validate_data  Enable validation of constant data if in range of user type.
     template <
         element::Type_t Type,
         class UserT,
