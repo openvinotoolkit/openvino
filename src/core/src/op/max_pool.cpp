@@ -422,10 +422,9 @@ bool MaxPool::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
     auto pads_begin = m_pads_begin;
     auto pads_end = m_pads_end;
     const auto output_shapes = shape_infer(this, input_shapes, pads_begin, pads_end);
+
     outputs[0].set_shape(output_shapes[0].get_shape());
-    if (outputs.size() == 2) {
-        outputs[1].set_shape(output_shapes[1].get_shape());
-    }
+
     return ov::op::maxpool::evaluate_util(this, outputs, inputs, get_dilations(), get_axis());
 }
 

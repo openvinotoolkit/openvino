@@ -469,10 +469,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         manager,
         [](const_node_ptr& node) -> bool {
             const auto maxpool = std::dynamic_pointer_cast<const ov::op::v14::MaxPool>(node);
-            if (maxpool && maxpool->get_rounding_type() != ov::op::RoundingType::CEIL_TORCH) {
-                return false;
-            }
-            return true;
+            return !maxpool || maxpool->get_rounding_type() == ov::op::RoundingType::CEIL_TORCH;
         },
         ov::pass::ConvertMaxPool14ToMaxPool8);
 
@@ -480,10 +477,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         manager,
         [](const_node_ptr& node) -> bool {
             const auto avgpool = std::dynamic_pointer_cast<const ov::op::v14::AvgPool>(node);
-            if (avgpool && avgpool->get_rounding_type() != ov::op::RoundingType::CEIL_TORCH) {
-                return false;
-            }
-            return true;
+            return !avgpool || avgpool->get_rounding_type() == ov::op::RoundingType::CEIL_TORCH;
         },
         ov::pass::ConvertAvgPool14ToAvgPool1);
 
