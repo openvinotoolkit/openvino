@@ -109,31 +109,32 @@ OutputVector translate_reduce_window_max(const NodeContext& context) {
     auto pads_end = std::get<6>(elements);
     auto kernel = std::get<7>(elements);
 
+    input = std::make_shared<v1::Transpose>(input, input_transpose_order);
     Output<Node> res = std::make_shared<v14::MaxPool>(input, strides, dilations, pads_begin, pads_end, kernel);
     res = std::make_shared<v1::Transpose>(res, output_transpose_order);
     return {res};
 }
 
-// OutputVector translate_reduce_window_sum(const NodeContext& context) {
-//     auto elements = reduce_window_preprocess(context);
-//     auto input_transpose_order = std::get<0>(elements);
-//     auto output_transpose_order = std::get<1>(elements);
-//     auto input = std::get<2>(elements);
-//     auto strides = std::get<3>(elements);
-//     auto dilations = std::get<4>(elements);
-//     auto pads_begin = std::get<5>(elements);
-//     auto pads_end = std::get<6>(elements);
-//     auto kernel = std::get<7>(elements);
+OutputVector translate_reduce_window_sum(const NodeContext& context) {
+    auto elements = reduce_window_preprocess(context);
+    auto input_transpose_order = std::get<0>(elements);
+    auto output_transpose_order = std::get<1>(elements);
+    auto input = std::get<2>(elements);
+    auto strides = std::get<3>(elements);
+    auto dilations = std::get<4>(elements);
+    auto pads_begin = std::get<5>(elements);
+    auto pads_end = std::get<6>(elements);
+    auto kernel = std::get<7>(elements);
 
-//     input = std::make_shared<v1::Transpose>(input, input_transpose_order);
-//     Output<Node> res = std::make_shared<v14::AvgPool>(input, strides, pads_begin, pads_end, kernel, true);
-//     res = std::make_shared<v1::Transpose>(res, output_transpose_order);
-//     auto kernel_size = std::accumulate(kernel.begin(), kernel.end(), 1, std::multiplies<size_t>());
-//     Output<Node> kernel_size_constant =
-//         std::make_shared<v0::Constant>(res.get_element_type(), Shape{}, std::vector<int64_t>{kernel_size});
-//     res = std::make_shared<v1::Multiply>(res, kernel_size_constant);
-//     return {res};
-// }
+    input = std::make_shared<v1::Transpose>(input, input_transpose_order);
+    Output<Node> res = std::make_shared<v14::AvgPool>(input, strides, pads_begin, pads_end, kernel, false);
+    res = std::make_shared<v1::Transpose>(res, output_transpose_order);
+    auto kernel_size = std::accumulate(kernel.begin(), kernel.end(), 1, std::multiplies<size_t>());
+    Output<Node> kernel_size_constant =
+        std::make_shared<v0::Constant>(res.get_element_type(), Shape{}, std::vector<int64_t>{kernel_size});
+    res = std::make_shared<v1::Multiply>(res, kernel_size_constant);
+    return {res};
+}
 
 }  // namespace op
 }  // namespace jax

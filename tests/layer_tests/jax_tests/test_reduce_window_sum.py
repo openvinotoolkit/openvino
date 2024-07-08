@@ -20,8 +20,8 @@ class TestReduceWindoSum(JaxLayerTest):
         def jax_reduce_window_sum(inp):
             out = lax.reduce_window(
                 inp, 
-                -jnp.inf, 
-                lax.max, 
+                0.0, 
+                lax.add, 
                 window_dimensions=window_dimensions, 
                 window_strides=window_strides,
                 padding=padding
@@ -31,7 +31,7 @@ class TestReduceWindoSum(JaxLayerTest):
         return jax_reduce_window_sum, None
 
     test_data_basic = [
-        dict(input_shape=[1, 112, 112, 64], window_dimensions=[1, 3, 3, 1]),
+        dict(input_shape=[1, 4, 4, 1], window_dimensions=[1, 3, 3, 1]),
         dict(input_shape=[1, 112, 112, 64], window_dimensions=[1, 2, 2, 1]),
         dict(input_shape=[1, 60, 85, 16], window_dimensions=[1, 3, 4, 1]),
         dict(input_shape=[1, 100, 50, 16], window_dimensions=[1, 3, 2, 1]),
