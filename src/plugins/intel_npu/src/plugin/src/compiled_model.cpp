@@ -156,6 +156,9 @@ void CompiledModel::set_property(const ov::AnyMap& properties) {
     }
 
     _config.update(config);
+    if (_executorPtr != nullptr) {
+        _executorPtr->updateConfig(_config);
+    }
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {

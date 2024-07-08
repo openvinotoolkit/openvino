@@ -47,6 +47,8 @@ protected:
 class IExecutor {
 public:
     virtual ~IExecutor() = default;
+
+    virtual void updateConfig(const Config& config) = 0;
 };
 
 //------------------------------------------------------------------------------

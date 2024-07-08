@@ -32,7 +32,7 @@ public:
         uint32_t idx;
     };
 
-    void updateConfig(const Config& config);
+    void updateConfig(const Config& config) override;
 
     void setArgumentValue(uint32_t argi_, const void* argv_) const;
     void setWorkloadType(const ov::WorkloadType workloadType) const;
