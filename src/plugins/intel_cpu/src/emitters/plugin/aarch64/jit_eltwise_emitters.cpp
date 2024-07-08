@@ -824,7 +824,7 @@ jit_is_finite_emitter::jit_is_finite_emitter(dnnl::impl::cpu::aarch64::jit_gener
 
 size_t jit_is_finite_emitter::get_inputs_count() const { return 1; }
 
-size_t jit_is_finite_emitter::get_aux_vecs_count() const { return 1; }
+size_t jit_is_finite_emitter::get_aux_vecs_count() const { return 2; }
 
 size_t jit_is_finite_emitter::get_aux_gprs_count() const { return 1; }
 
@@ -848,24 +848,23 @@ void jit_is_finite_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, con
 
     TReg src = TReg(in_vec_idxs[0]);
     TReg dst = TReg(out_vec_idxs[0]);
-    TReg aux = TReg(aux_vec_idxs[0]);
+    TReg aux0 = TReg(aux_vec_idxs[0]);
+    TReg aux1 = TReg(aux_vec_idxs[1]);
 
     // According to the IEEE standard, NaN values have the odd property that comparisons involving them are always false.
-    h->fcmeq(dst.s, src.s, src.s);
-    h->ld1r(aux.s, table_val2("zero"));
-    h->fcmeq(dst.s, dst.s, aux.s);
+    h->fcmeq(aux0.s, src.s, src.s);
+    h->not_(aux0.b16, aux0.b16);
 
     h->fabs(src.s, src.s);
-    h->ld1r(aux.s, table_val2("inf"));
-    h->fcmeq(src.s, src.s, aux.s);
+    h->ld1r(aux1.s, table_val2("inf"));
+    h->fcmeq(src.s, src.s, aux1.s);
 
-    h->orr(dst.b16, dst.b16, src.b16);
+    h->orr(dst.b16, aux0.b16, src.b16);
 
-    h->ld1r(aux.s, table_val2("zero"));
-    h->fcmeq(dst.s, dst.s, aux.s);
+    h->not_(dst.b16, dst.b16);
 
-    h->ld1r(aux.s, table_val2("one"));
-    h->and_(dst.b16, dst.b16, aux.b16);
+    h->ld1r(aux0.s, table_val2("one"));
+    h->and_(dst.b16, dst.b16, aux0.b16);
 }
 
 void jit_is_finite_emitter::register_table_entries() {
