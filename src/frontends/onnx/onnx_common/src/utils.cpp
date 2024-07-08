@@ -27,9 +27,9 @@ size_t get_onnx_data_size(int32_t onnx_type) {
     case TensorProto_DataType_FLOAT:
         return sizeof(float);
     case TensorProto_DataType_FLOAT8E4M3FN:
-        return sizeof(int8_t);
+        return sizeof(ov::float8_e4m3);
     case TensorProto_DataType_FLOAT8E5M2:
-        return sizeof(int8_t);
+        return sizeof(ov::float8_e5m2);
     case TensorProto_DataType_INT8:
         return sizeof(int8_t);
     case TensorProto_DataType_INT16:
