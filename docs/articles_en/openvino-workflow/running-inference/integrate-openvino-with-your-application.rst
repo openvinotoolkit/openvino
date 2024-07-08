@@ -76,6 +76,7 @@ Step 2. Compile the Model
 #########################
 
 ``ov::CompiledModel`` class represents a device specific compiled model. ``ov::CompiledModel`` allows you to get information inputs or output ports by a tensor name or index. This approach is aligned with the majority of frameworks.
+:doc:```AUTO`` mode <./inference-devices-and-modes/auto-device-selection>` automatically selects the most suitable hardware for running inference.
 
 Compile the model for a specific device using ``ov::Core::compile_model()``:
 
@@ -226,12 +227,12 @@ Compile the model for a specific device using ``ov::Core::compile_model()``:
 The ``ov::Model`` object represents any models inside the OpenVINO™ Runtime.
 For more details please read article about :doc:`OpenVINO™ Model representation <integrate-openvino-with-your-application/model-representation>`.
 
-OpenVINO includes experimental support for NPU, learn more in the
-:doc:`NPU Device section <./inference-devices-and-modes/npu-device>`
-
 The code above creates a compiled model associated with a single hardware device from the model object.
 It is possible to create as many compiled models as needed and use them simultaneously (up to the limitation of the hardware).
 To learn more about supported devices and inference modes, read the :doc:`Inference Devices and Modes <./inference-devices-and-modes>` article.
+
+OpenVINO includes experimental support for NPU, learn more in the
+:doc:`NPU Device section <./inference-devices-and-modes/npu-device>`.
 
 Step 3. Create an Inference Request
 ###################################
