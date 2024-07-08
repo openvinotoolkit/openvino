@@ -968,7 +968,7 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
         idxTupleNum *= indicesDim[ri];
     }
 
-    size_t sizeToUpdate = srcBlockND[k] * dataSize;
+    size_t sizeToUpdate = srcBlockND[k];
     parallel_for(idxTupleNum, [&](size_t tupleIdx) {
         size_t indicesOffset = tupleIdx * k;
         size_t dstOffset = 0;
@@ -980,9 +980,12 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
             }
             dstOffset += idxValue * srcBlockND[i + 1];
         }
-        dstOffset *= dataSize;
         size_t updateOffset = tupleIdx * sizeToUpdate;
-        cpu_memcpy(dstData + dstOffset, update + updateOffset, sizeToUpdate);
+        DataType* dstDataWithOffset = dstData + dstOffset;
+        DataType* updateWithOffset = update + updateOffset;
+        for (size_t idx = 0; idx < sizeToUpdate; idx++) {
+            kernel(dstDataWithOffset + idx, updateWithOffset + idx);
+        }
     });
 }
 
