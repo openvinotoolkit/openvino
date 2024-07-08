@@ -18,7 +18,7 @@ Performance Benchmarks
 
 This page presents benchmark results for
 `Intel® Distribution of OpenVINO™ toolkit <https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html>`__
-and :doc:`OpenVINO Model Server <../ovms_what_is_openvino_model_server>`, for a representative "./../"
+and :doc:`OpenVINO Model Server <../ovms_what_is_openvino_model_server>`, for a representative
 selection of public neural networks and Intel® devices. The results may help you decide which
 hardware to use in your applications or plan AI workload for the hardware you have already
 implemented in your solutions. Click the buttons below to see the chosen benchmark data.
