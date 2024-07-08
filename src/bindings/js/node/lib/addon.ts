@@ -123,7 +123,7 @@ interface Core {
     },
   };
   /**
-   * It imports a previously exported compiled model.
+   * Asynchronously imports a previously exported compiled model.
    * @param modelStream The input stream that contains a model,
    * previously exported with the {@link CompiledModel.exportModelSync} method.
    * @param device The name of a device, for which you import a compiled model.
@@ -131,6 +131,15 @@ interface Core {
    * an exception is thrown.
    * @param config An object with the key-value pairs
    * (property name, property value): relevant only for this load operation.
+   */
+  importModel(
+    modelStream: Buffer,
+    device: string,
+    config?: { [key: string]: string | number | boolean }
+  ): Promise<CompiledModel>;
+  /**
+   * A synchronous version of {@link Core.importModel}.
+   * It imports a previously exported compiled model.
    */
   importModelSync(
     modelStream: Buffer,

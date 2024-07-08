@@ -236,7 +236,7 @@ describe('Test exportModel()/importModel()', () => {
   const inferRequest = compiledModel.createInferRequest();
   const res1 = inferRequest.infer([tensor]);
 
-  it('Test importModel(stream, device)', () => {
+  it('Test importModelSync(stream, device)', () => {
     const newCompiled = core.importModelSync(userStream, 'CPU');
     const newInferRequest = newCompiled.createInferRequest();
     const res2 = newInferRequest.infer([tensor]);
@@ -244,7 +244,7 @@ describe('Test exportModel()/importModel()', () => {
     assert.deepStrictEqual(res1['fc_out'].data[0], res2['fc_out'].data[0]);
   });
 
-  it('Test importModel(stream, device, config)', () => {
+  it('Test importModelSync(stream, device, config)', () => {
     const newCompiled = core.importModelSync(userStream, 'CPU', { 'NUM_STREAMS': 1 });
     const newInferRequest = newCompiled.createInferRequest();
     const res2 = newInferRequest.infer([tensor]);
@@ -252,27 +252,27 @@ describe('Test exportModel()/importModel()', () => {
     assert.deepStrictEqual(res1['fc_out'].data[0], res2['fc_out'].data[0]);
   });
 
-  it('Test importModel(stream, device) throws', () => {
+  it('Test importModelSync(stream, device) throws', () => {
     assert.throws(
       () => core.importModelSync(epsilon, 'CPU'),
       /The first argument must be of type Buffer./
     );
   });
 
-  it('Test importModel(stream, device) throws', () => {
+  it('Test importModelSync(stream, device) throws', () => {
     assert.throws(
       () => core.importModelSync(userStream, tensor),
       /The second argument must be of type String./
     );
   });
-  it('Test importModel(stream, device, config: tensor) throws', () => {
+  it('Test importModelSync(stream, device, config: tensor) throws', () => {
     assert.throws(
       () => core.importModelSync(userStream, 'CPU', tensor),
       /NotFound: Unsupported property 0 by CPU plugin./
     );
   });
 
-  it('Test importModel(stream, device, config: string) throws', () => {
+  it('Test importModelSync(stream, device, config: string) throws', () => {
     const testString = 'test';
     assert.throws(
       () => core.importModelSync(userStream, 'CPU', testString),
@@ -280,11 +280,53 @@ describe('Test exportModel()/importModel()', () => {
     );
   });
 
-  it('Test importModel(stream, device, config: unsupported property) throws', () => {
+  it('Test importModelSync(stream, device, config: unsupported property) \
+    throws', () => {
     const tmpDir = '/tmp';
     assert.throws(
       () => core.importModelSync(userStream, 'CPU', { 'CACHE_DIR': tmpDir }),
       /Unsupported property CACHE_DIR by CPU plugin./
     );
   });
+
+  it('Test importModel(stream, device)', () => {
+    core.importModel(userStream, 'CPU').then(newCompiled => {
+      const newInferRequest = newCompiled.createInferRequest();
+      const res2 = newInferRequest.infer([tensor]);
+      assert.deepStrictEqual(res1['fc_out'].data[0], res2['fc_out'].data[0]);
+    });
+  });
+
+  it('Test importModel(stream, device, config)', () => {
+    core.importModel(userStream, 'CPU', { 'NUM_STREAMS': 1 }).then(
+      newCompiled => {
+        const newInferRequest = newCompiled.createInferRequest();
+        const res2 = newInferRequest.infer([tensor]);
+
+        assert.deepStrictEqual(res1['fc_out'].data[0], res2['fc_out'].data[0]);
+      });
+  });
+
+  it('Test importModel(stream, device) throws', () => {
+    assert.throws(
+      () => core.importModel(epsilon, 'CPU').then(),
+      /'importModel' method called with incorrect parameters./
+    );
+  });
+
+  it('Test importModel(stream, device) throws', () => {
+    assert.throws(
+      () => core.importModel(userStream, tensor).then(),
+      /'importModel' method called with incorrect parameters./
+    );
+  });
+
+  it('Test importModel(stream, device, config: string) throws', () => {
+    const testString = 'test';
+    assert.throws(
+      () => core.importModel(userStream, 'CPU', testString).then(),
+      /'importModel' method called with incorrect parameters./
+    );
+  });
+
 });
