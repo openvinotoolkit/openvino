@@ -90,7 +90,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     auto batch_dim =
         std::make_shared<v3::ShapeOf>(position_ids);  // it is not always required, so will be disposed if not needed
 
-
     ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
     manager.register_pass<StateManagementPattern>(kv_parameters,
@@ -130,8 +129,11 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
             for (auto& input : beam_idx->output(0).get_target_inputs()) {
                 consumers << *input.get_node() << std::endl;
             }
-            OPENVINO_ASSERT(beam_idx->output(0).get_target_inputs().size() == 0, "PagedAttention transformation failed: couldn't remove ",
-            beam_idx->output(0).get_target_inputs().size(), " inputs of 'beam_idx' input: ", consumers.str());
+            OPENVINO_ASSERT(beam_idx->output(0).get_target_inputs().size() == 0,
+                            "PagedAttention transformation failed: couldn't remove ",
+                            beam_idx->output(0).get_target_inputs().size(),
+                            " inputs of 'beam_idx' input: ",
+                            consumers.str());
         } else {
             return false;
         }
@@ -149,8 +151,11 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         for (auto& input : attn_mask->output(0).get_target_inputs()) {
             consumers << *input.get_node() << std::endl;
         }
-        OPENVINO_ASSERT(attn_mask->output(0).get_target_inputs().size() == 0, "PagedAttention transformation failed: couldn't remove ",
-        attn_mask->output(0).get_target_inputs().size(), " inputs of 'attention_mask' input: ", consumers.str());
+        OPENVINO_ASSERT(attn_mask->output(0).get_target_inputs().size() == 0,
+                        "PagedAttention transformation failed: couldn't remove ",
+                        attn_mask->output(0).get_target_inputs().size(),
+                        " inputs of 'attention_mask' input: ",
+                        consumers.str());
     } else {
         return false;
     }
