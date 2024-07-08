@@ -25,8 +25,7 @@ ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
     auto kv_concat = pattern::wrap_type<v0::Concat>({kv_gather, kv_current});
     auto kv_shape = pattern::wrap_type<v3::ShapeOf>({kv_concat});
     auto gather_idx_label = pattern::wrap_type<v0::Constant>();
-    auto gather_axis_label = pattern::wrap_type<v0::Constant>();
-    auto seq = pattern::wrap_type<v8::Gather>({kv_shape, gather_idx_label, gather_axis_label});
+    auto seq = pattern::wrap_type<v8::Gather>({kv_shape, gather_idx_label, pattern::any_input()});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         // TODO: Check that seq has axis that really takes sequence len but not any other dimension --
@@ -35,7 +34,8 @@ ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
 
         auto concat = std::dynamic_pointer_cast<v0::Concat>(pattern_map.at(kv_concat).get_node_shared_ptr());
         auto gather = std::dynamic_pointer_cast<v8::Gather>(pattern_map.at(seq).get_node_shared_ptr());
-        auto gather_idx = std::dynamic_pointer_cast<v0::Constant>(pattern_map.at(gather_idx_label).get_node_shared_ptr());
+        auto gather_idx =
+            std::dynamic_pointer_cast<v0::Constant>(pattern_map.at(gather_idx_label).get_node_shared_ptr());
         auto gather_idx_data = *gather_idx->get_data_ptr<int64_t>();
         if (!concat || !gather || !gather_idx) {
             return false;
@@ -66,7 +66,10 @@ ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
             }
         } else {
             if (concat->get_output_partial_shape(0)[gather_idx_data].is_static()) {
-                replacement = op::v0::Constant::create(element::i32, Shape{}, {concat->get_output_partial_shape(0)[gather_idx_data].get_length()});
+                replacement =
+                    op::v0::Constant::create(element::i32,
+                                             Shape{},
+                                             {concat->get_output_partial_shape(0)[gather_idx_data].get_length()});
             }
             // Currently we skip the else case when the taken dimension is dynamic. To be done later.
         }
