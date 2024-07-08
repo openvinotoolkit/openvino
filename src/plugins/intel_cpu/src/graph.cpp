@@ -1539,6 +1539,23 @@ void Graph::SortTopologically() {
     };
 
     graphNodes = sort(graphNodes);
+
+    // Sort in / out child edges by port index
+    // Make first N (N == port_num) edge indexes match with port index
+    for (auto &node : graphNodes) {
+        int port_num = node->outputShapes.size();
+        std::vector<EdgePtr> res(port_num);
+
+        for (size_t i = 0; i < node->childEdges.size(); i++) {
+            auto edge = node->getChildEdgeAt(i);
+            int port = edge->getInputNum();
+            if (port < port_num && !res[port])
+                res[port] = edge;
+            else
+                res.push_back(edge);
+        }
+        node->childEdges = {res.begin(), res.end()};
+    }
 }
 
 void Graph::GetPerfData(std::vector<ov::ProfilingInfo>& perfMap) const {
