@@ -445,8 +445,16 @@ std::shared_ptr<Repeated> Snapshot::tryGrowRepeatingGroups(const detail::GPtrSet
             if (a.empty()) {
                 return false;  // doesn't matter for stability - no groups are fused
             }
-            return a.at(0).first->getId() < b.at(0).first->getId();
+            // This std::sort allows to prioritize groups from the tail
+            // of the original model. It's possible due to preservation of
+            // group IDs in topological order throughout the whole partitioning process.
+            // In the networks we're looking at, ensuring the merge order from the bottom
+            // of the network gives a better structure of a repeated block which can be
+            // later optimized by the plugin.
+            return a.at(0).first->getId() > b.at(0).first->getId();
         }
+        // Generally we prefer bigger blocks (in terms of number of layers)
+        // to be merged first. For other cases check the comment above
         return a.size() > b.size();
     });
 
