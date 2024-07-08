@@ -2,20 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/mod.hpp"
+#include "openvino/op/mod.hpp"
 
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/floor_mod.hpp"
-#include "openvino/op/mod.hpp"
-
 using namespace ov::op;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector mod(const ov::frontend::onnx::Node& node) {
     ov::Output<ov::Node> dividend{node.get_ov_inputs().at(0)};
     ov::Output<ov::Node> divisor{node.get_ov_inputs().at(1)};
@@ -35,8 +34,9 @@ ov::OutputVector mod(const ov::frontend::onnx::Node& node) {
     return output;
 }
 
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("Mod", OPSET_SINCE(1), ai_onnx::opset_1::mod);
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
