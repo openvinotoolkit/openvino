@@ -31,9 +31,9 @@ uint32_t twist(uint32_t u, uint32_t v) {
 // ====== PhiloxGenerator base class functions ======
 
 PhiloxGenerator::PhiloxGenerator(const op::PhiloxAlignment alignment,
-                                   const uint64_t global_seed,
-                                   const uint64_t operator_seed,
-                                   const std::pair<uint64_t, uint64_t> previous_state)
+                                 const uint64_t global_seed,
+                                 const uint64_t operator_seed,
+                                 const std::pair<uint64_t, uint64_t> previous_state)
     : m_alignment(alignment),
       m_global_seed(global_seed),
       m_operator_seed(operator_seed),
@@ -77,12 +77,12 @@ PhiloxOutput MockPhiloxGenerator::random() {
 
 // ====== OpenvinoPhiloxGenerator functions ======
 TensorflowPhiloxGenerator::TensorflowPhiloxGenerator(const uint64_t global_seed,
-                                                       const uint64_t operator_seed,
-                                                       const std::pair<uint64_t, uint64_t> previous_state)
+                                                     const uint64_t operator_seed,
+                                                     const std::pair<uint64_t, uint64_t> previous_state)
     : PhiloxGenerator(op::PhiloxAlignment::TENSORFLOW,
-                       global_seed,
-                       previous_state.second > 0 ? previous_state.second : operator_seed,
-                       previous_state),
+                      global_seed,
+                      previous_state.second > 0 ? previous_state.second : operator_seed,
+                      previous_state),
       m_n64(previous_state.first),
       m_key64(global_seed),
       m_counter64(previous_state.second > 0 ? previous_state.second : operator_seed),
@@ -202,10 +202,10 @@ PhiloxOutput PytorchPhiloxGenerator::random() {
 // ====== General selector function to construct a desired generator  ======
 
 std::shared_ptr<PhiloxGenerator> make_philox_generator(uint64_t seed,
-                                                         uint64_t seed2,
-                                                         std::pair<uint64_t, uint64_t> prev_state,
-                                                         size_t elem_count,
-                                                         op::PhiloxAlignment alignment) {
+                                                       uint64_t seed2,
+                                                       std::pair<uint64_t, uint64_t> prev_state,
+                                                       size_t elem_count,
+                                                       op::PhiloxAlignment alignment) {
     switch (alignment) {
     case op::PhiloxAlignment::TENSORFLOW:
         return std::make_shared<TensorflowPhiloxGenerator>(seed, seed2, prev_state);

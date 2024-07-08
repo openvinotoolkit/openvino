@@ -70,9 +70,9 @@ protected:
     /// \param previous_state The previous state (if any) of the algorithm.
     /// \param generated_elements_count The amount of elements generated per execution of random().
     PhiloxGenerator(const ov::op::PhiloxAlignment alignment,
-                     const uint64_t global_seed,
-                     const uint64_t operator_seed,
-                     const std::pair<uint64_t, uint64_t> previous_state);
+                    const uint64_t global_seed,
+                    const uint64_t operator_seed,
+                    const std::pair<uint64_t, uint64_t> previous_state);
 
 private:
     const ov::op::PhiloxAlignment m_alignment;
@@ -107,8 +107,8 @@ public:
     /// \param operator_seed The operator seed for the Philox algorithm
     /// \param previous_state The state returned from the previous execution of the generator
     TensorflowPhiloxGenerator(const uint64_t global_seed,
-                               const uint64_t operator_seed,
-                               const std::pair<uint64_t, uint64_t> previous_state);
+                              const uint64_t operator_seed,
+                              const std::pair<uint64_t, uint64_t> previous_state);
 
     /// @brief Get a set of 4 random 32-bit unsigned integers based on the seeds.
     /// @return A structure with a random set of 32-bit unsigned integers.
@@ -176,10 +176,10 @@ private:
 
 /// \brief Constructs and returns a shared pointer to the generator chosen by alignment.
 std::shared_ptr<PhiloxGenerator> make_philox_generator(const uint64_t seed,
-                                                         const uint64_t seed2,
-                                                         const std::pair<uint64_t, uint64_t> prev_state,
-                                                         const size_t elem_count,
-                                                         const op::PhiloxAlignment alignment);
+                                                       const uint64_t seed2,
+                                                       const std::pair<uint64_t, uint64_t> prev_state,
+                                                       const size_t elem_count,
+                                                       const op::PhiloxAlignment alignment);
 
 }  // namespace philox
 

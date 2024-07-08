@@ -203,10 +203,10 @@ void convert_to_output_type(const std::vector<uint32_t>& generated_numbers,
 
 // ======= MockPhiloxConverter functions =======
 MockPhiloxConverter::MockPhiloxConverter(char* out,
-                                           const element::Type& elem_type,
-                                           const size_t elem_count,
-                                           const char* min_val,
-                                           const char* max_val)
+                                         const element::Type& elem_type,
+                                         const size_t elem_count,
+                                         const char* min_val,
+                                         const char* max_val)
     : PhiloxConverter(out, elem_type, elem_count, min_val, max_val) {}
 
 void MockPhiloxConverter::convert(PhiloxOutput result, size_t idx) {
@@ -221,10 +221,10 @@ size_t MockPhiloxConverter::get_converted_elements_count() const {
 // ======= TensorflowPhiloxConverter functions =======
 
 TensorflowPhiloxConverter::TensorflowPhiloxConverter(char* out,
-                                                       const element::Type& elem_type,
-                                                       const size_t elem_count,
-                                                       const char* min_val,
-                                                       const char* max_val)
+                                                     const element::Type& elem_type,
+                                                     const size_t elem_count,
+                                                     const char* min_val,
+                                                     const char* max_val)
     : PhiloxConverter(out, elem_type, elem_count, min_val, max_val) {}
 
 size_t TensorflowPhiloxConverter::get_converted_elements_count() const {
@@ -323,10 +323,10 @@ void TensorflowPhiloxConverter::convert(PhiloxOutput result, size_t idx) {
 // ======= PyTorchPhiloxConverter functions =======
 
 PyTorchPhiloxConverter::PyTorchPhiloxConverter(char* out,
-                                                 const element::Type& elem_type,
-                                                 const size_t elem_count,
-                                                 const char* min_val,
-                                                 const char* max_val)
+                                               const element::Type& elem_type,
+                                               const size_t elem_count,
+                                               const char* min_val,
+                                               const char* max_val)
     : PhiloxConverter(out, elem_type, elem_count, min_val, max_val) {
     // Check for optimization conditions for int64_t.
     // If both min and max fall below the maximum value of uint32_t,
@@ -466,11 +466,11 @@ void PyTorchPhiloxConverter::convert(PhiloxOutput result, size_t idx) {
 // ====== General selector function to construct a desired converter for a generator ======
 
 std::shared_ptr<PhiloxConverter> make_philox_converter(char* out,
-                                                         const element::Type& elem_type,
-                                                         const size_t elem_count,
-                                                         const char* min_val,
-                                                         const char* max_val,
-                                                         const op::PhiloxAlignment alignment) {
+                                                       const element::Type& elem_type,
+                                                       const size_t elem_count,
+                                                       const char* min_val,
+                                                       const char* max_val,
+                                                       const op::PhiloxAlignment alignment) {
     switch (alignment) {
     case op::PhiloxAlignment::TENSORFLOW:
         return std::make_shared<TensorflowPhiloxConverter>(out, elem_type, elem_count, min_val, max_val);

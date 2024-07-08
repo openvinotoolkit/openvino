@@ -31,10 +31,10 @@ public:
 
 protected:
     PhiloxConverter(char* out,
-                     const element::Type& elem_type,
-                     const size_t elem_count,
-                     const char* min_val,
-                     const char* max_val)
+                    const element::Type& elem_type,
+                    const size_t elem_count,
+                    const char* min_val,
+                    const char* max_val)
         : m_out(out),
           m_elem_count(elem_count),
           m_elem_type(elem_type),
@@ -51,10 +51,10 @@ protected:
 class MockPhiloxConverter : public PhiloxConverter {
 public:
     MockPhiloxConverter(char* out,
-                         const element::Type& elem_type,
-                         const size_t elem_count,
-                         const char* min_val,
-                         const char* max_val);
+                        const element::Type& elem_type,
+                        const size_t elem_count,
+                        const char* min_val,
+                        const char* max_val);
 
     /// \brief Returns the number of generated elements per execution
     /// based on the requested data type.
@@ -68,10 +68,10 @@ public:
 class TensorflowPhiloxConverter : public PhiloxConverter {
 public:
     TensorflowPhiloxConverter(char* out,
-                               const element::Type& elem_type,
-                               const size_t elem_count,
-                               const char* min_val,
-                               const char* max_val);
+                              const element::Type& elem_type,
+                              const size_t elem_count,
+                              const char* min_val,
+                              const char* max_val);
 
     /// \brief Returns the number of generated elements per execution
     /// based on the requested data type.
@@ -87,10 +87,10 @@ public:
     PyTorchPhiloxConverter() = delete;
 
     PyTorchPhiloxConverter(char* out,
-                            const element::Type& elem_type,
-                            const size_t elem_count,
-                            const char* min_val,
-                            const char* max_val);
+                           const element::Type& elem_type,
+                           const size_t elem_count,
+                           const char* min_val,
+                           const char* max_val);
 
     /// \brief Returns the number of generated elements per execution
     /// based on the requested data type.
@@ -109,11 +109,11 @@ private:
 
 /// \brief Constructs and returns a shared pointer to the converter matching to the provided gtenerator.
 std::shared_ptr<PhiloxConverter> make_philox_converter(char* out,
-                                                         const element::Type& elem_type,
-                                                         const size_t elem_count,
-                                                         const char* min_val,
-                                                         const char* max_val,
-                                                         const op::PhiloxAlignment alignment);
+                                                       const element::Type& elem_type,
+                                                       const size_t elem_count,
+                                                       const char* min_val,
+                                                       const char* max_val,
+                                                       const op::PhiloxAlignment alignment);
 
 }  // namespace philox
 }  // namespace reference
