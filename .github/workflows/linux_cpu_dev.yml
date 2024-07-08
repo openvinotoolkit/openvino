@@ -256,7 +256,7 @@ jobs:
           # Needed as ze_loader.so is under INSTALL_TEST_DIR
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALL_TEST_DIR}
 
-          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests --gtest_filter=*smoke_Snippets* -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1
+          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_filter=*smoke_Snippets* --gtest_print_time=1
         timeout-minutes: 25
 
       - name: Upload Test Results
