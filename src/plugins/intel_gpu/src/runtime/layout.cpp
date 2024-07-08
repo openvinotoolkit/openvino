@@ -598,8 +598,20 @@ static inline bool check_redundant_1d_along_feature(layout const& l1, layout con
         auto l1_inner_blk = format::is_single_blocked(l1.format) ? l1.format.traits().block_sizes.at(0).second : 1;
         auto l2_inner_blk = format::is_single_blocked(l2.format) ? l2.format.traits().block_sizes.at(0).second : 1;
         auto max_inner_blk = std::max(l1_inner_blk, l2_inner_blk);
-        if (static_cast<size_t>(l2.feature()) == l1.count() && l2.feature() == l1.feature() &&
-           (l2.feature() % max_inner_blk == 0)) {
+        auto is_1x1_spatial = [](layout const& l) {
+            int32_t sptial_sum = 1;
+            for (size_t i = 0; i < l.get_spatial_rank(); ++i) {
+                sptial_sum *= l.spatial(i);
+            }
+            if (sptial_sum == 1)
+                return true;
+            else
+                return false;
+        };
+
+        if ((static_cast<size_t>(l2.feature()) == l1.count() ||
+            (l1.get_dims_order()[0] == 0 && l2.get_dims_order()[0] == 0 && is_1x1_spatial(l1) && is_1x1_spatial(l2))) &&
+            l2.feature() == l1.feature() && (l2.feature() % max_inner_blk == 0)) {
             return true;
         }
 
