@@ -53,7 +53,20 @@ OutputVector translate_max_poolnd(const NodeContext& context) {
         rounding_type = context.const_input<bool>(5) ? RoundingType::CEIL_TORCH : RoundingType::FLOOR;
     }
 
-    auto res = context.mark_node(std::make_shared<v14::MaxPool>(context.get_input(0),
+    std::shared_ptr<Node> res;
+    if (context.get_input(0).get_partial_shape().is_dynamic() && rounding_type == RoundingType::CEIL_TORCH) {
+        res = context.mark_node(std::make_shared<v8::MaxPool>(context.get_input(0),
+                                                                strides,
+                                                                dilations,
+                                                                pads,
+                                                                pads,
+                                                                kernel,
+                                                                RoundingType::CEIL,
+                                                                PadType::EXPLICIT,
+                                                                element::i64,
+                                                                2));
+    } else {
+        res = context.mark_node(std::make_shared<v14::MaxPool>(context.get_input(0),
                                                                 strides,
                                                                 dilations,
                                                                 pads,
@@ -63,6 +76,7 @@ OutputVector translate_max_poolnd(const NodeContext& context) {
                                                                 PadType::EXPLICIT,
                                                                 element::i64,
                                                                 2));
+    }
     if (context.get_output_size() == 2) {
         auto out1 = res->output(0);
         auto out2 = res->output(1);
