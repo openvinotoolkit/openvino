@@ -128,7 +128,7 @@
         {
             "language": "typescript",
             "source": [
-                "// Create infer request\nconst inferRequest = detCompiledModel.createInferRequest();\nlet boundingBoxesArray;\n// Define the completion callback function\nconst completionCallback = (outputTensor, displayImageMat) => {\n  boundingBoxesArray = extractBoundingBoxes(outputTensor);\n  displayArrayAsImage(displayImageMat.data, \n                      displayImageMat.cols, \n                      displayImageMat.rows, \n                      display);\n};\n\n// Start inference in asynchronous mode\nconst inferAsyncProcess = async () => {\n  try {\n    const result = await inferRequest.inferAsync([tensor]);\n    completionCallback(result[detOutputLayer], displayImageMat);\n  } catch (error) {\n    console.error('Error during inference:', error);\n  }\n};\n\n\nawait inferAsyncProcess();\n"
+                "// Create infer request\nconst inferRequest = detCompiledModel.createInferRequest();\nlet boundingBoxesArray;\n// Define the completion callback function\nconst completionCallback = (outputTensor, displayImageMat) => {\n  boundingBoxesArray = extractBoundingBoxes(outputTensor);\n  displayArrayAsImage(displayImageMat.data, \n                      displayImageMat.cols, \n                      displayImageMat.rows, \n                      display);\n};\n\n// Start inference in asynchronous mode\nconst inferAsyncProcess = async () => {\n  try {\n    const result = await inferRequest.inferAsync([tensor]);\n    completionCallback(result[detOutputLayer], displayImageMat);\n  } catch (error) {\n    console.error('Error during inference:', error);\n  }\n};\n\nawait inferAsyncProcess();\n"
             ],
             "outputs": [
                 {
