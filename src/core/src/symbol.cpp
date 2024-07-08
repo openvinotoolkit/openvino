@@ -37,32 +37,41 @@ void replace_no_check(const ov::SharedSymbol& old_symbol, const ov::SharedSymbol
     }
 }
 
+void remove_same_elements(ov::symbol::WeakSymbolVector& lhs, ov::symbol::WeakSymbolVector& rhs) {
+    for (auto lhs_it = lhs.begin(); lhs_it != lhs.end();) {
+        if (lhs_it->expired())
+            continue;
+        auto rhs_it = std::find(rhs.begin(), rhs.end(), *lhs_it);
+        if (rhs_it != rhs.end()) {
+            rhs.erase(rhs_it);
+            lhs_it = lhs.erase(lhs_it);
+        } else {
+            ++lhs_it;
+        }
+    }
+}
+
 void insert_with_check(const ov::symbol::WeakSymbolVector& key,
                        const ov::symbol::WeakSymbol& value,
                        ov::symbol::MathMap& m,
                        std::queue<std::pair<ov::symbol::WeakSymbol, ov::symbol::WeakSymbol>>& to_equalize) {
     bool insert = true;
     auto it = m.find(key);
-    if (it != m.end()) {  // find key, compare value
+    if (it != m.end()) {
+        // map m already contains the record with same key, no need to insert new record into the map m
         insert = false;
         if (it->second != value)
+            // if the record had different value, then we need to equalize original and new key
             to_equalize.emplace(it->second, value);
-    } else {  // find value, compare key
+    } else {
+        // map m doesn't have records with the key, however we are in a search for new equality rules
         for (const auto& item : m) {
-            if (item.second == value) {
-                if (item.first == key) {
-                    insert = false;
-                    break;
-                } else if (item.first.size() == key.size()) {
-                    // try find one element difference to write to equalize
-                    ov::symbol::WeakSymbolVector result;
-                    std::set_symmetric_difference(item.first.begin(),
-                                                  item.first.end(),
-                                                  key.begin(),
-                                                  key.end(),
-                                                  std::back_inserter(result));
-                    if (result.size() == 2) {
-                        to_equalize.emplace(result[0], result[1]);
+            if (item.second == value) {  // map_ker
+                if (item.first.size() == key.size()) {
+                    auto item_diff = item.first, key_diff = key;
+                    remove_same_elements(item_diff, key_diff);
+                    if (item_diff.size() == 1 && key_diff.size() == 1) {
+                        to_equalize.emplace(item_diff[0], key_diff[0]);
                         insert = false;
                     }
                 }
@@ -80,13 +89,13 @@ void replace_inplace_with_check(const ov::SharedSymbol& old_symbol,
     ov::symbol::MathMap with_old;
     for (const auto& item : m)
         if (item.second == old_symbol || item.first.has(old_symbol))
-            with_old.insert({item.first, (item.second == old_symbol ? new_symbol : item.second)});
+            with_old.insert({item.first, item.second});
     for (const auto& item : with_old)
         m.erase(item.first);
     for (const auto& item : with_old) {
         auto new_key = item.first;
         new_key.replace(old_symbol, new_symbol);
-        insert_with_check(new_key, item.second, m, to_equalize);
+        insert_with_check(new_key, (item.second == old_symbol ? new_symbol : item.second), m, to_equalize);
     }
 }
 
@@ -107,7 +116,7 @@ void replace_with_check(const ov::SharedSymbol& old_symbol,
         if (item.second == old_symbol || item.first.has(old_symbol)) {
             auto new_key = item.first;
             new_key.replace(old_symbol, new_symbol);
-            with_old.insert({new_key, (item.second == old_symbol ? new_symbol : item.second)});
+            with_old.insert({new_key, item.second});
         } else {
             new_map.insert({item.first, item.second});
         }
@@ -118,7 +127,7 @@ void replace_with_check(const ov::SharedSymbol& old_symbol,
 
     // merging with_new and with_old, performing necessary checks to figure out if we have more equality rules
     for (const auto& item : with_old)
-        insert_with_check(item.first, item.second, with_new, to_equalize);
+        insert_with_check(item.first, (item.second == old_symbol ? new_symbol : item.second), with_new, to_equalize);
     // with_old is merged into the with_new; necessary checks were made to ensure all new equality rules are collected
 
     for (const auto& item : with_new)
@@ -175,10 +184,11 @@ ov::Symbol::~Symbol() {
     if (m_add) {
         for (auto item = m_add->begin(), last = m_add->end(); item != last;) {
             if (item->first.has(nullptr) || item->first.has(this) || item->second.expired() ||
-                item->second.lock().get() == this)
+                item->second.lock().get() == this) {
                 item = m_add->erase(item);
-            else
+            } else {
                 ++item;
+            }
         }
         m_add = nullptr;
     }
@@ -193,8 +203,9 @@ ov::SharedSymbol ov::operator+(const SharedSymbol& lhs, const SharedSymbol& rhs)
     auto shared_map = std::make_shared<symbol::MathMap>();
     if (A->m_add && B->m_add && A->m_add.get() == B->m_add.get()) {  // maps are shared
         auto it = A->m_add->find({A, B});
-        if (it != A->m_add->end() && it->second.lock())  // elements were summed before
+        if (it != A->m_add->end() && it->second.lock()) {  // elements were summed before
             return it->second.lock();
+        }
         shared_map = A->m_add;
     } else {
         if (A->m_add)
@@ -213,6 +224,7 @@ ov::SharedSymbol ov::operator+(const SharedSymbol& lhs, const SharedSymbol& rhs)
     }
     auto C = std::make_shared<ov::Symbol>();
     C->m_add = shared_map;
+
     // add L + R = result  to the shared map
     // search for X + Y = L and W + Z = R records to make X + Y + W + Z = result records
     std::vector<ov::symbol::WeakSymbolVector> this_components{{A}}, other_components{{B}};
@@ -220,10 +232,10 @@ ov::SharedSymbol ov::operator+(const SharedSymbol& lhs, const SharedSymbol& rhs)
     collect_records_with_result(B, shared_map, other_components);
     for (const auto& this_element : this_components) {
         for (const auto& other_element : other_components) {
-            std::vector<ov::symbol::WeakSymbol> new_key;
-            new_key.insert(new_key.begin(), this_element.begin(), this_element.end());
+            ov::symbol::WeakSymbolVector new_key = this_element;
             new_key.insert(new_key.begin(), other_element.begin(), other_element.end());
-            shared_map->insert({{new_key}, C});
+            new_key.sort();
+            shared_map->insert({new_key, C});
         }
     }
     return C;
@@ -241,12 +253,22 @@ ov::SharedSymbol ov::operator-(const SharedSymbol& lhs, const SharedSymbol& rhs)
         std::vector<ov::symbol::WeakSymbolVector> A_components{}, B_components{};
         collect_records_with_result(A, A->m_add, A_components);
         for (const auto& item : A_components) {
-            if (item.size() == 2 && item[0] == B && !item[1].expired())
+            if (item.size() == 2 && item[0] == B && !item[1].expired()) {
                 return item[1].lock();
-            if (item.size() == 2 && item[1] == B && !item[0].expired())
+            }
+            if (item.size() == 2 && item[1] == B && !item[0].expired()) {
                 return item[0].lock();
+            }
         }
-        // TODO: search for components of A and B and try to find one element difference of it to return
+        collect_records_with_result(B, B->m_add, B_components);
+        for (auto A_equasion : A_components) {
+            for (auto B_equasion : B_components) {
+                remove_same_elements(A_equasion, B_equasion);
+                if (A_equasion.size() == 1 && B_equasion.empty() && !A_equasion[0].expired()) {
+                    return A_equasion[0].lock();
+                }
+            }
+        }
         shared_map = A->m_add;
     } else {
         if (A->m_add)
@@ -268,11 +290,10 @@ ov::SharedSymbol ov::operator-(const SharedSymbol& lhs, const SharedSymbol& rhs)
 
     std::vector<ov::symbol::WeakSymbolVector> B_components{{B}};
     collect_records_with_result(B, B->m_add, B_components);
-    for (const auto& B_elements : B_components) {
-        std::vector<ov::symbol::WeakSymbol> new_key;
-        new_key.insert(new_key.begin(), B_elements.begin(), B_elements.end());
+    for (auto& new_key : B_components) {
         new_key.insert(new_key.begin(), C);
-        shared_map->insert({{new_key}, A});
+        new_key.sort();
+        shared_map->insert({new_key, A});
     }
     return C;
 }

@@ -61,6 +61,5 @@ TEST(shape, test_symbol_add_sub) {
     auto F = B + C;
 
     auto G = E - F;  // G = A + B + C - B - C = A
-    // TODO: update operator-, then switch to ASSERT_TRUE
-    ASSERT_FALSE(ov::symbol::are_equal(A, G));
+    ASSERT_TRUE(ov::symbol::are_equal(A, G));
 }
