@@ -36,8 +36,8 @@ convert the model to OpenVINO™ IR format. To further improve OpenVINO
 Distil-Whisper model performance ``INT8`` post-training quantization
 from `NNCF <https://github.com/openvinotoolkit/nncf/>`__ is applied.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Load PyTorch model <#load-pytorch-model>`__
@@ -186,7 +186,7 @@ by Hugging Face datasets implementation.
         return input_features
     
     
-    dataset = load_dataset("hf-internal-testing/librispeech_asr_dummy", "clean", split="validation")
+    dataset = load_dataset("hf-internal-testing/librispeech_asr_dummy", "clean", split="validation", trust_remote_code=True)
     sample = dataset[0]
     input_features = extract_input_features(sample)
 
@@ -475,7 +475,7 @@ seconds is optimal. To activate batching, pass the argument batch_size.
 
 .. code:: ipython3
 
-    dataset = load_dataset("distil-whisper/librispeech_long", "clean", split="validation")
+    dataset = load_dataset("distil-whisper/librispeech_long", "clean", split="validation", trust_remote_code=True)
     sample_long = dataset[0]
     
     
@@ -687,7 +687,7 @@ improves quantization quality.
                                                                  apply_caching=True)
     
         try:
-            calibration_dataset = load_dataset("librispeech_asr", "clean", split="validation", streaming=True)
+            calibration_dataset = load_dataset("openslr/librispeech_asr", "clean", split="validation", streaming=True, trust_remote_code=True)
             for sample in tqdm(islice(calibration_dataset, calibration_dataset_size), desc="Collecting calibration data",
                                total=calibration_dataset_size):
                 input_features = extract_input_features(sample)
@@ -833,7 +833,7 @@ models.
     %%skip not $to_quantize.value
     
     dataset = load_dataset(
-        "hf-internal-testing/librispeech_asr_dummy", "clean", split="validation"
+        "hf-internal-testing/librispeech_asr_dummy", "clean", split="validation", trust_remote_code=True
     )
     sample = dataset[0]
     input_features = extract_input_features(sample)
@@ -944,7 +944,7 @@ decoder-with-past model forwards, and for the whole model inference too.
         mean_decoder_with_time_infer_time = sum(decoder_with_past_infer_times)
         return word_accuracy, (mean_whole_infer_time, mean_encoder_infer_time, mean_decoder_with_time_infer_time)
     
-    test_dataset = load_dataset("librispeech_asr", "clean", split="test", streaming=True)
+    test_dataset = load_dataset("openslr/librispeech_asr", "clean", split="test", streaming=True, trust_remote_code=True)
     test_dataset = test_dataset.shuffle(seed=42).take(TEST_DATASET_SIZE)
     test_samples = [sample for sample in test_dataset]
     

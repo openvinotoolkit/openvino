@@ -16,9 +16,12 @@ In this tutorial, we consider how to run an instruction-following text
 generation pipeline using popular LLMs and OpenVINO. We will use
 pre-trained models from the `Hugging Face
 Transformers <https://huggingface.co/docs/transformers/index>`__
-library. To simplify the user experience, the `Hugging Face Optimum
+library. The `Hugging Face Optimum
 Intel <https://huggingface.co/docs/optimum/intel/index>`__ library
-converts the models to OpenVINO™ IR format.
+converts the models to OpenVINO™ IR format. To simplify the user
+experience, we will use `OpenVINO Generate
+API <https://github.com/openvinotoolkit/openvino.genai>`__ for
+generation of instruction-following inference pipeline.
 
 The tutorial consists of the following steps:
 
@@ -28,20 +31,21 @@ The tutorial consists of the following steps:
    Optimum <https://huggingface.co/blog/openvino>`__.
 -  Compress model weights to INT8 and INT4 with `OpenVINO
    NNCF <https://github.com/openvinotoolkit/nncf>`__
--  Create an instruction-following inference pipeline
+-  Create an instruction-following inference pipeline with `Generate
+   API <https://github.com/openvinotoolkit/openvino.genai>`__
 -  Run instruction-following pipeline
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Select model for inference <#select-model-for-inference>`__
--  `Instantiate Model using Optimum
-   Intel <#instantiate-model-using-optimum-intel>`__
+-  `Download and convert model to OpenVINO IR via Optimum Intel
+   CLI <#download-and-convert-model-to-openvino-ir-via-optimum-intel-cli>`__
 -  `Compress model weights <#compress-model-weights>`__
 
-   -  `Weights Compression using Optimum
-      Intel <#weights-compression-using-optimum-intel>`__
+   -  `Weights Compression using Optimum Intel
+      CLI <#weights-compression-using-optimum-intel-cli>`__
    -  `Weights Compression using
       NNCF <#weights-compression-using-nncf>`__
 
@@ -51,8 +55,8 @@ Table of contents:
    pipeline <#create-an-instruction-following-inference-pipeline>`__
 
    -  `Setup imports <#setup-imports>`__
-   -  `Prepare template for user
-      prompt <#prepare-template-for-user-prompt>`__
+   -  `Prepare text streamer to get results
+      runtime <#prepare-text-streamer-to-get-results-runtime>`__
    -  `Main generation function <#main-generation-function>`__
    -  `Helpers for application <#helpers-for-application>`__
 
@@ -66,10 +70,19 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -Uq pip
     %pip uninstall -q -y optimum optimum-intel
-    %pip install --pre -Uq openvino openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
-    %pip install -q "torch>=2.1" "nncf>=2.7" "transformers>=4.36.0" onnx "optimum>=1.16.1" "accelerate" "datasets>=2.14.6" "gradio>=4.19" "git+https://github.com/huggingface/optimum-intel.git" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "openvino-genai>=2024.2"
+    %pip install -q "torch>=2.1" "nncf>=2.7" "transformers>=4.40.0" onnx "optimum>=1.16.1" "accelerate" "datasets>=2.14.6" "gradio>=4.19" "git+https://github.com/huggingface/optimum-intel.git" --extra-index-url https://download.pytorch.org/whl/cpu
+
+
+.. parsed-literal::
+
+    WARNING: Skipping optimum as it is not installed.
+    WARNING: Skipping optimum-intel as it is not installed.
+    Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+
 
 Select model for inference
 --------------------------
@@ -211,81 +224,60 @@ The available options are:
 
 .. parsed-literal::
 
-    Selected model llama-3-8b-instruct
+    Selected model dolly-v2-3b
 
 
-Instantiate Model using Optimum Intel
--------------------------------------
+Download and convert model to OpenVINO IR via Optimum Intel CLI
+---------------------------------------------------------------
 
 
 
-Optimum Intel can be used to load optimized models from the `Hugging
-Face Hub <https://huggingface.co/docs/optimum/intel/hf.co/models>`__ and
-create pipelines to run an inference with OpenVINO Runtime using Hugging
-Face APIs. The Optimum Inference models are API compatible with Hugging
-Face Transformers models. This means we just need to replace
-``AutoModelForXxx`` class with the corresponding ``OVModelForXxx``
-class.
+Listed model are available for downloading via the `HuggingFace
+hub <https://huggingface.co/models>`__. We will use optimum-cli
+interface for exporting it into OpenVINO Intermediate Representation
+(IR) format.
 
-Below is an example of the RedPajama model
+Optimum CLI interface for converting models supports export to OpenVINO
+(supported starting optimum-intel 1.12 version). General command format:
 
-.. code:: diff
+.. code:: bash
 
-   -from transformers import AutoModelForCausalLM
-   +from optimum.intel.openvino import OVModelForCausalLM
-   from transformers import AutoTokenizer, pipeline
+   optimum-cli export openvino --model <model_id_or_path> --task <task> <output_dir>
 
-   model_id = "togethercomputer/RedPajama-INCITE-Chat-3B-v1"
-   -model = AutoModelForCausalLM.from_pretrained(model_id)
-   +model = OVModelForCausalLM.from_pretrained(model_id, export=True)
-
-Model class initialization starts with calling ``from_pretrained``
-method. When downloading and converting the Transformers model, the
-parameter ``export=True`` should be added. We can save the converted
-model for the next usage with the ``save_pretrained`` method. Tokenizer
-class and pipelines API are compatible with Optimum models.
-
-To optimize the generation process and use memory more efficiently, the
-``use_cache=True`` option is enabled. Since the output side is
-auto-regressive, an output token hidden state remains the same once
-computed for every further generation step. Therefore, recomputing it
-every time you want to generate a new token seems wasteful. With the
-cache, the model saves the hidden state once it has been computed. The
-model only computes the one for the most recently generated output token
-at each time step, re-using the saved ones for hidden tokens. This
-reduces the generation complexity from :math:`O(n^3)` to :math:`O(n^2)`
-for a transformer model. More details about how it works can be found in
-this
-`article <https://scale.com/blog/pytorch-improvements#Text%20Translation>`__.
-With this option, the model gets the previous step’s hidden states
-(cached attention keys and values) as input and additionally provides
-hidden states for the current step as output. It means for all next
-iterations, it is enough to provide only a new token obtained from the
-previous step and cached key values to get the next token prediction.
+where ``--model`` argument is model id from HuggingFace Hub or local
+directory with model (saved using ``.save_pretrained`` method),
+``--task`` is one of `supported
+task <https://huggingface.co/docs/optimum/exporters/task_manager>`__
+that exported model should solve. For LLMs it will be
+``text-generation-with-past``. If model initialization requires to use
+remote code, ``--trust-remote-code`` flag additionally should be passed.
+Full list of supported arguments available via ``--help`` For more
+details and examples of usage, please check `optimum
+documentation <https://huggingface.co/docs/optimum/intel/inference#export>`__.
 
 Compress model weights
 ----------------------
 
- The Weights Compression
-algorithm is aimed at compressing the weights of the models and can be
-used to optimize the model footprint and performance of large models
-where the size of weights is relatively larger than the size of
-activations, for example, Large Language Models (LLM). Compared to INT8
-compression, INT4 compression improves performance even more but
-introduces a minor drop in prediction quality.
 
-Weights Compression using Optimum Intel
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The Weights Compression algorithm is aimed at compressing the weights of
+the models and can be used to optimize the model footprint and
+performance of large models where the size of weights is relatively
+larger than the size of activations, for example, Large Language Models
+(LLM). Compared to INT8 compression, INT4 compression improves
+performance even more but introduces a minor drop in prediction quality.
+
+Weights Compression using Optimum Intel CLI
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 
 Optimum Intel supports weight compression via NNCF out of the box. For
-8-bit compression we pass ``load_in_8bit=True`` to ``from_pretrained()``
-method of ``OVModelForCausalLM``. For 4 bit compression we provide
-``quantization_config=OVWeightQuantizationConfig(bits=4, ...)`` argument
-containing number of bits and other compression parameters. An example
-of this approach usage you can find in `llm-chatbot
-notebook <../llm-chatbot>`__
+8-bit compression we pass ``--weight-format int8`` to ``optimum-cli``
+command line. For 4 bit compression we provide ``--weight-format int4``
+and some other options containing number of bits and other compression
+parameters. An example of this approach usage you can find in
+`llm-chatbot notebook <../llm-chatbot>`__
 
 Weights Compression using NNCF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -306,7 +298,7 @@ compression.
 
 .. code:: ipython3
 
-    from IPython.display import display
+    from IPython.display import display, Markdown
     
     prepare_int4_model = widgets.Checkbox(
         value=True,
@@ -353,9 +345,6 @@ compression.
     import logging
     import openvino as ov
     import nncf
-    from optimum.intel.openvino import OVModelForCausalLM, OVWeightQuantizationConfig
-    import gc
-    
     
     nncf.set_log_level(logging.ERROR)
     
@@ -370,20 +359,22 @@ compression.
     def convert_to_fp16():
         if (fp16_model_dir / "openvino_model.xml").exists():
             return
-        ov_model = OVModelForCausalLM.from_pretrained(pt_model_id, export=True, compile=False, load_in_8bit=False)
-        ov_model.half()
-        ov_model.save_pretrained(fp16_model_dir)
-        del ov_model
-        gc.collect()
+        export_command_base = "optimum-cli export openvino --model {} --task text-generation-with-past --weight-format fp16".format(pt_model_id)
+        export_command = export_command_base + " " + str(fp16_model_dir)
+        display(Markdown("**Export command:**"))
+        display(Markdown(f"`{export_command}`"))
+        ! $export_command
     
     
     def convert_to_int8():
         if (int8_model_dir / "openvino_model.xml").exists():
             return
-        ov_model = OVModelForCausalLM.from_pretrained(pt_model_id, export=True, compile=False, load_in_8bit=True)
-        ov_model.save_pretrained(int8_model_dir)
-        del ov_model
-        gc.collect()
+        int8_model_dir.mkdir(parents=True, exist_ok=True)
+        export_command_base = "optimum-cli export openvino --model {} --task text-generation-with-past --weight-format int8".format(pt_model_id)
+        export_command = export_command_base + " " + str(int8_model_dir)
+        display(Markdown("**Export command:**"))
+        display(Markdown(f"`{export_command}`"))
+        ! $export_command
     
     
     def convert_to_int4():
@@ -410,15 +401,15 @@ compression.
         model_compression_params = compression_configs.get(model_id.value, compression_configs["default"])
         if (int4_model_dir / "openvino_model.xml").exists():
             return
-        ov_model = OVModelForCausalLM.from_pretrained(
-            pt_model_id,
-            export=True,
-            compile=False,
-            quantization_config=OVWeightQuantizationConfig(bits=4, **model_compression_params),
-        )
-        ov_model.save_pretrained(int4_model_dir)
-        del ov_model
-        gc.collect()
+        export_command_base = "optimum-cli export openvino --model {} --task text-generation-with-past --weight-format int4".format(pt_model_id)
+        int4_compression_args = " --group-size {} --ratio {}".format(model_compression_params["group_size"], model_compression_params["ratio"])
+        if model_compression_params["sym"]:
+            int4_compression_args += " --sym"
+        export_command_base += int4_compression_args
+        export_command = export_command_base + " " + str(int4_model_dir)
+        display(Markdown("**Export command:**"))
+        display(Markdown(f"`{export_command}`"))
+        ! $export_command
     
     
     if prepare_fp16_model.value:
@@ -431,71 +422,7 @@ compression.
 
 .. parsed-literal::
 
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-
-
-.. parsed-literal::
-
-    2024-04-19 10:35:50.012050: I tensorflow/core/util/port.cc:111] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-04-19 10:35:50.025002: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-04-19 10:35:50.060073: E tensorflow/compiler/xla/stream_executor/cuda/cuda_dnn.cc:9342] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
-    2024-04-19 10:35:50.060108: E tensorflow/compiler/xla/stream_executor/cuda/cuda_fft.cc:609] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
-    2024-04-19 10:35:50.060134: E tensorflow/compiler/xla/stream_executor/cuda/cuda_blas.cc:1518] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
-    2024-04-19 10:35:50.068691: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-04-19 10:35:50.069448: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-04-19 10:35:51.045741: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
-    Framework not specified. Using pt to export the model.
-
-
-
-.. parsed-literal::
-
-    Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]
-
-
-.. parsed-literal::
-
-    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
-    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
-    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
-    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
-    Using framework PyTorch: 2.2.2+cpu
-    Overriding 1 configuration item(s)
-    	- use_cache -> True
-    /home/ea/miniconda3/lib/python3.11/site-packages/transformers/modeling_utils.py:4225: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
-      warnings.warn(
-    The cos_cached attribute will be removed in 4.39. Bear in mind that its contents changed in v4.38. Use the forward method of RoPE from now on instead. It is not used in the `LlamaAttention` class
-    The sin_cached attribute will be removed in 4.39. Bear in mind that its contents changed in v4.38. Use the forward method of RoPE from now on instead. It is not used in the `LlamaAttention` class
-    /home/ea/miniconda3/lib/python3.11/site-packages/optimum/exporters/openvino/model_patcher.py:311: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
-      if sequence_length != 1:
-
-
-
-.. parsed-literal::
-
-    Output()
-
-
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-
-
-
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
-
-
-
-.. parsed-literal::
-
-    Configuration saved in llama-3-8b-instruct/INT4_compressed_weights/openvino_config.json
+    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, onnx, openvino
 
 
 Let’s compare model size for different compression types
@@ -517,7 +444,11 @@ Let’s compare model size for different compression types
 
 .. parsed-literal::
 
-    Size of model with INT4 compressed weights is 4435.75 MB
+    Size of FP16 model is 5297.21 MB
+    Size of model with INT8 compressed weights is 2656.29 MB
+    Compression rate for INT8 model: 1.994
+    Size of model with INT4 compressed weights is 2154.54 MB
+    Compression rate for INT4 model: 2.459
 
 
 Select device for inference and model variant
@@ -550,7 +481,7 @@ Select device for inference and model variant
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'GPU.0', 'GPU.1', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
 
 
 
@@ -578,13 +509,14 @@ Select device for inference and model variant
 
 .. parsed-literal::
 
-    Dropdown(description='Model to run:', options=('INT4',), value='INT4')
+    Dropdown(description='Model to run:', options=('INT4', 'INT8', 'FP16'), value='INT4')
 
 
 
 .. code:: ipython3
 
     from transformers import AutoTokenizer
+    from openvino_tokenizers import convert_tokenizer
     
     if model_to_run.value == "INT4":
         model_dir = int4_model_dir
@@ -594,27 +526,17 @@ Select device for inference and model variant
         model_dir = fp16_model_dir
     print(f"Loading model from {model_dir}")
     
-    model_name = model_configuration["model_id"]
-    ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
-    
-    tok = AutoTokenizer.from_pretrained(model_name)
-    
-    ov_model = OVModelForCausalLM.from_pretrained(
-        model_dir,
-        device=device.value,
-        ov_config=ov_config,
-    )
+    # optionally convert tokenizer if used cached model without it
+    if not (model_dir / "openvino_tokenizer.xml").exists() or not (model_dir / "openvino_detokenizer.xml").exists():
+        hf_tokenizer = AutoTokenizer.from_pretrained(model_dir, trust_remote_code=True)
+        ov_tokenizer, ov_detokenizer = convert_tokenizer(hf_tokenizer, with_detokenizer=True)
+        ov.save_model(ov_tokenizer, model_dir / "openvino_tokenizer.xml")
+        ov.save_model(ov_tokenizer, model_dir / "openvino_detokenizer.xml")
 
 
 .. parsed-literal::
 
-    Loading model from llama-3-8b-instruct/INT4_compressed_weights
-
-
-.. parsed-literal::
-
-    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
-    Compiling the model to CPU ...
+    Loading model from dolly-v2-3b/INT8_compressed_weights
 
 
 Create an instruction-following inference pipeline
@@ -626,11 +548,7 @@ The ``run_generation`` function accepts user-provided text input,
 tokenizes it, and runs the generation process. Text generation is an
 iterative process, where each next token depends on previously generated
 until a maximum number of tokens or stop generation condition is not
-reached. To obtain intermediate generation results without waiting until
-when generation is finished, we will use
-`TextIteratorStreamer <https://huggingface.co/docs/transformers/main/en/internal/generation_utils#transformers.TextIteratorStreamer>`__,
-provided as part of HuggingFace `Streaming
-API <https://huggingface.co/docs/transformers/main/en/generation_strategies#streaming>`__.
+reached.
 
 The diagram below illustrates how the instruction-following pipeline
 works
@@ -640,13 +558,61 @@ works
 
    generation pipeline)
 
-As can be seen, on the first iteration, the user provided instructions
-converted to token ids using a tokenizer, then prepared input provided
-to the model. The model generates probabilities for all tokens in logits
-format The way the next token will be selected over predicted
-probabilities is driven by the selected decoding methodology. You can
-find more information about the most popular decoding methods in this
-`blog <https://huggingface.co/blog/how-to-generate>`__.
+As can be seen, on the first iteration, the user provided instructions.
+Instructions is converted to token ids using a tokenizer, then prepared
+input provided to the model. The model generates probabilities for all
+tokens in logits format. The way the next token will be selected over
+predicted probabilities is driven by the selected decoding methodology.
+You can find more information about the most popular decoding methods in
+this `blog <https://huggingface.co/blog/how-to-generate>`__.
+
+To simplify user experience we will use `OpenVINO Generate
+API <https://github.com/openvinotoolkit/openvino.genai/blob/master/src/README.md>`__.
+Firstly we will create pipeline with ``LLMPipeline``. ``LLMPipeline`` is
+the main object used for decoding. You can construct it straight away
+from the folder with the converted model. It will automatically load the
+``main model``, ``tokenizer``, ``detokenizer`` and default
+``generation configuration``. After that we will configure parameters
+for decoding. We can get default config with
+``get_generation_config()``, setup parameters and apply the updated
+version with ``set_generation_config(config)`` or put config directly to
+``generate()``. It’s also possible to specify the needed options just as
+inputs in the ``generate()`` method, as shown below. Then we just run
+``generate`` method and get the output in text format. We do not need to
+encode input prompt according to model expected template or write
+post-processing code for logits decoder, it will be done easily with
+LLMPipeline.
+
+To obtain intermediate generation results without waiting until when
+generation is finished, we will write class-iterator based on
+``StreamerBase`` class of ``openvino_genai``.
+
+.. code:: ipython3
+
+    from openvino_genai import LLMPipeline
+    
+    pipe = LLMPipeline(model_dir.as_posix(), device.value)
+    print(pipe.generate("The Sun is yellow bacause", temperature=1.2, top_k=4, do_sample=True, max_new_tokens=150))
+
+
+.. parsed-literal::
+
+     of the presence of chlorophyll
+    in its leaves. Chlorophyll absorbs all
+    visible sunlight and this causes it to
+    turn from a green to yellow colour.
+    The Sun is yellow bacause of the presence of chlorophyll in its leaves. Chlorophyll absorbs all
+    visible sunlight and this causes it to
+    turn from a green to yellow colour.
+    The yellow colour of the Sun is the
+    colour we perceive as the colour of the
+    sun. It also causes us to perceive the
+    sun as yellow. This property is called
+    the yellow colouration of the Sun and it
+    is caused by the presence of chlorophyll
+    in the leaves of plants.
+    Chlorophyll is also responsible for the green colour of plants
+
 
 There are several parameters that can control text generation quality:
 
@@ -699,23 +665,6 @@ There are several parameters that can control text generation quality:
    if k=3, then only “playing”, “sleeping” and “eating” will be taken
    into account as possible next word.
 
-To optimize the generation process and use memory more efficiently, the
-``use_cache=True`` option is enabled. Since the output side is
-auto-regressive, an output token hidden state remains the same once
-computed for every further generation step. Therefore, recomputing it
-every time you want to generate a new token seems wasteful. With the
-cache, the model saves the hidden state once it has been computed. The
-model only computes the one for the most recently generated output token
-at each time step, re-using the saved ones for hidden tokens. This
-reduces the generation complexity from O(n^3) to O(n^2) for a
-transformer model. More details about how it works can be found in this
-`article <https://scale.com/blog/pytorch-improvements#Text%20Translation>`__.
-With this option, the model gets the previous step’s hidden states
-(cached attention keys and values) as input and additionally provides
-hidden states for the current step as output. It means for all next
-iterations, it is enough to provide only a new token obtained from the
-previous step and cached key values to get the next token prediction.
-
 The generation cycle repeats until the end of the sequence token is
 reached or it also can be interrupted when maximum tokens will be
 generated. As already mentioned before, we can enable printing current
@@ -734,72 +683,55 @@ Setup imports
     from time import perf_counter
     from typing import List
     import gradio as gr
-    from transformers import AutoTokenizer, TextIteratorStreamer
     import numpy as np
+    from openvino_genai import StreamerBase
+    from queue import Queue
+    import re
 
-Prepare template for user prompt
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Prepare text streamer to get results runtime
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 
-For effective generation, model expects to have input in specific
-format. The code below prepare template for passing user instruction
-into model with providing additional context.
+Load the ``detokenizer``, use it to convert token_id to string output
+format. We will collect print-ready text in a queue and give the text
+when it is needed. It will help estimate performance.
 
 .. code:: ipython3
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    tokenizer_kwargs = model_configuration.get("toeknizer_kwargs", {})
+    core = ov.Core()
+    
+    detokinizer_dir = Path(model_dir, "openvino_detokenizer.xml")
     
     
-    def get_special_token_id(tokenizer: AutoTokenizer, key: str) -> int:
-        """
-        Gets the token ID for a given string that has been added to the tokenizer as a special token.
+    class TextIteratorStreamer(StreamerBase):
+        def __init__(self, tokenizer):
+            super().__init__()
+            self.tokenizer = tokenizer
+            self.compiled_detokenizer = core.compile_model(detokinizer_dir.as_posix())
+            self.text_queue = Queue()
+            self.stop_signal = None
     
-        Args:
-            tokenizer (PreTrainedTokenizer): the tokenizer
-            key (str): the key to convert to a single token
+        def __iter__(self):
+            return self
     
-        Raises:
-            RuntimeError: if more than one ID was generated
+        def __next__(self):
+            value = self.text_queue.get()
+            if value == self.stop_signal:
+                raise StopIteration()
+            else:
+                return value
     
-        Returns:
-            int: the token ID for the given key
-        """
-        token_ids = tokenizer.encode(key)
-        if len(token_ids) > 1:
-            raise ValueError(f"Expected only a single token for '{key}' but found {token_ids}")
-        return token_ids[0]
+        def put(self, token_id):
+            openvino_output = self.compiled_detokenizer([[0, token_id]])
+            text = str(openvino_output["string_output"][0])
+            # remove labels/special symbols
+            text = text.lstrip("!")
+            text = re.sub("<.*>", "", text)
+            self.text_queue.put(text)
     
-    
-    response_key = model_configuration.get("response_key")
-    tokenizer_response_key = None
-    
-    if response_key is not None:
-        tokenizer_response_key = next(
-            (token for token in tokenizer.additional_special_tokens if token.startswith(response_key)),
-            None,
-        )
-    
-    end_key_token_id = None
-    if tokenizer_response_key:
-        try:
-            end_key = model_configuration.get("end_key")
-            if end_key:
-                end_key_token_id = get_special_token_id(tokenizer, end_key)
-            # Ensure generation stops once it generates "### End"
-        except ValueError:
-            pass
-    
-    prompt_template = model_configuration.get("prompt_template", "{instruction}")
-    end_key_token_id = end_key_token_id or tokenizer.eos_token_id
-    pad_token_id = end_key_token_id or tokenizer.pad_token_id
-
-
-.. parsed-literal::
-
-    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
-
+        def end(self):
+            self.text_queue.put(self.stop_signal)
 
 Main generation function
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -835,30 +767,21 @@ parameter and returns model response.
           perf_text (str) - updated perf text filed content
         """
     
-        # Prepare input prompt according to model expected template
-        prompt_text = prompt_template.format(instruction=user_text)
-    
-        # Tokenize the user text.
-        model_inputs = tokenizer(prompt_text, return_tensors="pt", **tokenizer_kwargs)
+        # setup config for decoding stage
+        config = pipe.get_generation_config()
+        config.temperature = temperature
+        if top_k > 0:
+            config.top_k = top_k
+        config.top_p = top_p
+        config.do_sample = True
+        config.max_new_tokens = max_new_tokens
     
         # Start generation on a separate thread, so that we don't block the UI. The text is pulled from the streamer
-        # in the main thread. Adds timeout to the streamer to handle exceptions in the generation thread.
-        streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
-        generate_kwargs = dict(
-            model_inputs,
-            streamer=streamer,
-            max_new_tokens=max_new_tokens,
-            do_sample=True,
-            top_p=top_p,
-            temperature=float(temperature),
-            top_k=top_k,
-            eos_token_id=end_key_token_id,
-            pad_token_id=pad_token_id,
-        )
-        t = Thread(target=ov_model.generate, kwargs=generate_kwargs)
+        # in the main thread.
+        streamer = TextIteratorStreamer(pipe.get_tokenizer())
+        t = Thread(target=pipe.generate, args=(user_text, config, streamer))
         t.start()
     
-        # Pull the generated text from the streamer, and update the model output.
         model_output = ""
         per_token_time = []
         num_tokens = 0
@@ -866,7 +789,7 @@ parameter and returns model response.
         for new_text in streamer:
             current_time = perf_counter() - start
             model_output += new_text
-            perf_text, num_tokens = estimate_latency(current_time, perf_text, new_text, per_token_time, num_tokens)
+            perf_text, num_tokens = estimate_latency(current_time, perf_text, per_token_time, num_tokens)
             yield model_output, perf_text
             start = perf_counter()
         return model_output, perf_text
@@ -885,7 +808,6 @@ elements.
     def estimate_latency(
         current_time: float,
         current_perf_text: str,
-        new_gen_text: str,
         per_token_time: List[float],
         num_tokens: int,
     ):
@@ -895,7 +817,6 @@ elements.
         Parameters:
           current_time (float): This step time in seconds.
           current_perf_text (str): Current content of performance UI field.
-          new_gen_text (str): New generated text.
           per_token_time (List[float]): history of performance from previous steps.
           num_tokens (int): Total number of generated tokens.
     
@@ -903,9 +824,8 @@ elements.
           update for performance text field
           update for a total number of tokens
         """
-        num_current_toks = len(tokenizer.encode(new_gen_text))
-        num_tokens += num_current_toks
-        per_token_time.append(num_current_toks / current_time)
+        num_tokens += 1
+        per_token_time.append(1 / current_time)
         if len(per_token_time) > 10 and len(per_token_time) % 4 == 0:
             current_bucket = per_token_time[:-10]
             return (
@@ -927,6 +847,7 @@ elements.
         Returns:
           empty string for each placeholder
         """
+    
         return "", "", ""
 
 Run instruction-following pipeline
@@ -1019,7 +940,6 @@ generation parameters:
                     interactive=True,
                     label="Temperature",
                 )
-    
         user_text.submit(
             run_generation,
             [user_text, top_p, temperature, top_k, max_new_tokens, performance],
@@ -1035,7 +955,6 @@ generation parameters:
             [user_text, model_output, performance],
             [user_text, model_output, performance],
         )
-    
     if __name__ == "__main__":
         demo.queue()
         try:
@@ -1046,17 +965,3 @@ generation parameters:
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/
-
-
-.. parsed-literal::
-
-    Running on local URL:  http://127.0.0.1:7860
-    
-    To create a public link, set `share=True` in `launch()`.
-
-
-
-
-
-
-

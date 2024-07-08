@@ -2,22 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/gemm.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "utils/reshape.hpp"
-
 using namespace ov::op;
 using ov::Shape;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector gemm(const ov::frontend::onnx::Node& node) {
     ov::OutputVector inputs{node.get_ov_inputs()};
     ov::Output<ov::Node> input_a = inputs.at(0);
@@ -59,9 +57,10 @@ ov::OutputVector gemm(const ov::frontend::onnx::Node& node) {
     return ov::OutputVector{std::make_shared<v1::Add>(matmul_node, beta_times_input_c)};
 }
 
-}  // namespace set_1
+ONNX_OP("Gemm", OPSET_RANGE(1, 5), ai_onnx::opset_1::gemm);
+}  // namespace opset_1
 
-namespace set_6 {
+namespace opset_6 {
 ov::OutputVector gemm(const ov::frontend::onnx::Node& node) {
     ov::OutputVector inputs{node.get_ov_inputs()};
     ov::Output<ov::Node> input_a = inputs.at(0);
@@ -89,8 +88,9 @@ ov::OutputVector gemm(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Add>(matmul_times_alpha, beta_times_input_c)};
 }
 
-}  // namespace set_6
-}  // namespace op
+ONNX_OP("Gemm", OPSET_SINCE(6), ai_onnx::opset_6::gemm);
+}  // namespace opset_6
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

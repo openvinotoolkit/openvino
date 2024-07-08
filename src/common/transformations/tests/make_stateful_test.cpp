@@ -118,7 +118,7 @@ TEST(TransformationTests, make_stateful_by_tensor_name) {
         manager.register_pass<ov::pass::MakeStateful>(tensor_names);
 
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     { f_ref = get_ref_model(true, false); }
@@ -137,7 +137,7 @@ TEST(TransformationTests, make_stateful_by_param_res) {
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::MakeStateful>(pairs);
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     { f_ref = get_ref_model(true, true); }
@@ -189,7 +189,7 @@ TEST(TransformationTests, make_stateful_one_out_to_several_results_by_tensor_nam
         manager.register_pass<ov::pass::MakeStateful>(tensor_names);
 
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     { f_ref = get_ref_model(false, false); }
@@ -208,7 +208,7 @@ TEST(TransformationTests, make_stateful_one_out_to_several_results_by_param_res)
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::MakeStateful>(pairs);
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     { f_ref = get_ref_model(false, true); }

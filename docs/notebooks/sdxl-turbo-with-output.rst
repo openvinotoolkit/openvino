@@ -29,8 +29,8 @@ simplify the user experience, the `Hugging Face Optimum
 Intel <https://huggingface.co/docs/optimum/intel/index>`__ library is
 used to convert the models to OpenVINO™ IR format.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Convert model to OpenVINO
@@ -445,7 +445,7 @@ model inputs for calibration we should customize ``CompiledModel``.
         original_unet = pipe.unet.request
         pipe.unet.request = CompiledModelDecorator(original_unet)
     
-        dataset = datasets.load_dataset("conceptual_captions", split="train").shuffle(seed=42)
+        dataset = datasets.load_dataset("google-research-datasets/conceptual_captions", split="train", trust_remote_code=True).shuffle(seed=42)
         disable_progress_bar(pipe)
     
         # Run inference for data collection
@@ -639,7 +639,7 @@ pipelines, we use median inference time on calibration subset.
     import time
     
     validation_size = 7
-    calibration_dataset = datasets.load_dataset("conceptual_captions", split="train")
+    calibration_dataset = datasets.load_dataset("google-research-datasets/conceptual_captions", split="train", trust_remote_code=True)
     validation_data = []
     for batch in calibration_dataset:
         prompt = batch["caption"]

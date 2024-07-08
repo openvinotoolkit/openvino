@@ -5,18 +5,16 @@
 // Disabled in CMakeList
 // Update to higher opset required
 
-#include "op/scatter_nd.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/scatter_nd_update.hpp"
-
 using namespace ov::op;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector scatter_nd(const ov::frontend::onnx::Node& node) {
     ov::OutputVector ov_inputs{node.get_ov_inputs()};
     auto data = ov_inputs.at(0);
@@ -33,8 +31,9 @@ ov::OutputVector scatter_nd(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v3::ScatterNDUpdate>(data, indices, updates)};
 }
 
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("ScatterND", OPSET_SINCE(1), ai_onnx::opset_1::scatter_nd);
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
