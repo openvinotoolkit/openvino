@@ -4,8 +4,9 @@
 
 #pragma once
 #include <memory>
-#include <vector>
 #include <unordered_map>
+#include <vector>
+
 #include "openvino/core/core_visibility.hpp"
 
 namespace ov {
@@ -88,7 +89,7 @@ private:
 }  // namespace ov
 
 namespace std {
-bool operator==(const ov::symbol::WeakSymbol &lhs, const ov::symbol::WeakSymbol &rhs);
-bool operator!=(const ov::symbol::WeakSymbol &lhs, const ov::symbol::WeakSymbol &rhs);
-bool operator<(const ov::symbol::WeakSymbol &lhs, const ov::symbol::WeakSymbol &rhs);
-}
+bool operator==(const ov::symbol::WeakSymbol& lhs, const ov::symbol::WeakSymbol& rhs);
+bool operator!=(const ov::symbol::WeakSymbol& lhs, const ov::symbol::WeakSymbol& rhs);
+bool operator<(const ov::symbol::WeakSymbol& lhs, const ov::symbol::WeakSymbol& rhs);
+}  // namespace std

@@ -36,16 +36,16 @@ bool std::operator!=(const ov::symbol::WeakSymbol& lhs, const ov::symbol::WeakSy
 }
 
 bool std::operator<(const ov::symbol::WeakSymbol& lhs, const ov::symbol::WeakSymbol& rhs) {
-    return std::owner_less<>()(lhs.lock(), rhs.lock());
+    return std::owner_less<ov::SymbolPtr>()(lhs.lock(), rhs.lock());
 }
 
 namespace {  // helpers to work with shared math maps in symbols
-bool has(const ov::symbol::WeakSymbolVector& vec, const ov::symbol::WeakSymbol& s) {
+bool contains(const ov::symbol::WeakSymbolVector& vec, const ov::symbol::WeakSymbol& s) {
     return std::any_of(vec.cbegin(), vec.cend(), [&s](const ov::symbol::WeakSymbol& i) {
         return i == s;
     });
 }
-bool has(const ov::symbol::WeakSymbolVector& vec, const ov::Symbol* s) {
+bool contains(const ov::symbol::WeakSymbolVector& vec, const ov::Symbol* s) {
     return std::any_of(vec.cbegin(), vec.cend(), [&s](const ov::symbol::WeakSymbol& i) {
         if (i.lock() == nullptr)
             return s == nullptr;
@@ -56,7 +56,9 @@ bool has(const ov::symbol::WeakSymbolVector& vec, const ov::Symbol* s) {
 void sort(ov::symbol::WeakSymbolVector& vec) {
     std::sort(vec.begin(), vec.end());
 }
-void replace(ov::symbol::WeakSymbolVector& vec, const ov::symbol::WeakSymbol& old_s, const ov::symbol::WeakSymbol& new_s) {
+void replace(ov::symbol::WeakSymbolVector& vec,
+             const ov::symbol::WeakSymbol& old_s,
+             const ov::symbol::WeakSymbol& new_s) {
     std::replace_if(
         vec.begin(),
         vec.end(),
@@ -67,11 +69,10 @@ void replace(ov::symbol::WeakSymbolVector& vec, const ov::symbol::WeakSymbol& ol
     sort(vec);
 }
 
-
 void replace_no_check(const ov::SymbolPtr& old_symbol, const ov::SymbolPtr& new_symbol, ov::symbol::MathMap& m) {
     ov::symbol::MathMap map_with_old;
     for (const auto& item : m)
-        if (item.second == old_symbol || has(item.first, old_symbol))
+        if (item.second == old_symbol || contains(item.first, old_symbol))
             map_with_old.insert(item);
     for (const auto& item : map_with_old)
         m.erase(item.first);
@@ -133,7 +134,7 @@ void replace_inplace_with_check(const ov::SymbolPtr& old_symbol,
                                 std::queue<std::pair<ov::symbol::WeakSymbol, ov::symbol::WeakSymbol>>& to_equalize) {
     ov::symbol::MathMap with_old;
     for (const auto& item : m)
-        if (item.second == old_symbol || has(item.first, old_symbol))
+        if (item.second == old_symbol || contains(item.first, old_symbol))
             with_old.insert({item.first, item.second});
     for (const auto& item : with_old)
         m.erase(item.first);
@@ -151,14 +152,14 @@ void replace_with_check(const ov::SymbolPtr& old_symbol,
                         std::queue<std::pair<ov::symbol::WeakSymbol, ov::symbol::WeakSymbol>>& to_equalize) {
     ov::symbol::MathMap with_new;
     for (const auto& item : new_map)
-        if (item.second == new_symbol || has(item.first, new_symbol))
+        if (item.second == new_symbol || contains(item.first, new_symbol))
             with_new.insert({item.first, item.second});
     for (const auto& item : with_new)
         new_map.erase(item.first);
     // new_map contains only independent records, with_new contains records with new_symbol
     ov::symbol::MathMap with_old;
     for (const auto& item : old_map) {
-        if (item.second == old_symbol || has(item.first, old_symbol)) {
+        if (item.second == old_symbol || contains(item.first, old_symbol)) {
             auto new_key = item.first;
             replace(new_key, old_symbol, new_symbol);
             with_old.insert({new_key, item.second});
@@ -228,7 +229,7 @@ void ov::symbol::set_equal(const SymbolPtr& l, const SymbolPtr& r) {
 ov::Symbol::~Symbol() {
     if (m_add) {
         for (auto item = m_add->begin(), last = m_add->end(); item != last;) {
-            if (has(item->first, nullptr) || has(item->first, this) || item->second.expired() ||
+            if (contains(item->first, nullptr) || contains(item->first, this) || item->second.expired() ||
                 item->second.lock().get() == this) {
                 item = m_add->erase(item);
             } else {
