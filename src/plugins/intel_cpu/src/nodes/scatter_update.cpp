@@ -168,13 +168,14 @@ void ScatterUpdate::initSupportedPrimitiveDescriptors() {
     }
 
     dataPrec = getOriginalInputPrecisionAtPort(DATA_ID);
-    if (one_of(scatterUpdateMode, ScatterUpdateMode::ScatterElementsUpdate, ScatterUpdateMode::ScatterNDUpdate) && !one_of(dataPrec,
-                                                                                 ov::element::f32,
-                                                                                 ov::element::i32,
-                                                                                 ov::element::bf16,
-                                                                                 ov::element::f16,
-                                                                                 ov::element::u8,
-                                                                                 ov::element::i8)) {
+    if (one_of(scatterUpdateMode, ScatterUpdateMode::ScatterElementsUpdate, ScatterUpdateMode::ScatterNDUpdate) &&
+        !one_of(dataPrec,
+                ov::element::f32,
+                ov::element::i32,
+                ov::element::bf16,
+                ov::element::f16,
+                ov::element::u8,
+                ov::element::i8)) {
         dataPrec = ov::element::f32;
     }
     dataSize = dataPrec.size();
@@ -463,6 +464,15 @@ struct ScatterNDUpdateReduceDispatcher {
     }
 };
 
+// tier 2 dispatcher with ReduceNone that does not depend on DatType
+template<>
+struct ScatterNDUpdateReduceDispatcher<scatter_reductions::ReduceNone> {
+    void operator()(ScatterNDUpdateContext& ctx) {
+        ctx.node->scatterNDUpdate(ctx.dstMemPtr, ctx.indicesMemPtr, ctx.updateMemPtr,
+                                  scatter_reductions::ReduceNone{});
+    }
+};
+
 // tier 1 dispatcher with DataType
 template<typename DataType>
 struct ScatterNDUpdateDispatcher {
@@ -473,7 +483,8 @@ struct ScatterNDUpdateDispatcher {
 private:
     void scatterNDUpdate_dispatch(ScatterNDUpdateContext& ctx) {
         using namespace scatter_reductions;
-        using DT_NONE = std::pair<DataType, ReduceNone>;
+        // ReduceNone does not depend on DataType.
+        using DT_NONE = ReduceNone;
         using DT_SUM = std::pair<DataType, ReduceAdd>;
         using DT_SUB = std::pair<DataType, ReduceSub>;
         using DT_MAX = std::pair<DataType, ReduceMaximum>;
@@ -948,14 +959,13 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& dstMemPtr, const MemoryPtr&
 // indices is a (q-1)-dimension tensor of k-tuple,
 // k is indices.shape[-1] and should not be greater than rank of input, q is rank of indicies.
 // updates is a (q-1)-dimension tensor of replacement-slice-values
-template <typename DataType>
 void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
                                     const MemoryPtr& mem_indices,
                                     const MemoryPtr& mem_updates,
                                     const scatter_reductions::ReduceNone& kernel) {
     uint8_t* indices = mem_indices->getDataAs<uint8_t>();
-    DataType* update = mem_updates->getDataAs<DataType>();
-    DataType* dstData = mem_data->getDataAs<DataType>();
+    uint8_t* update = mem_updates->getDataAs<uint8_t>();
+    uint8_t* dstData = mem_data->getDataAs<uint8_t>();
     const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
     const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
     size_t indicesRank = indicesDim.size();
@@ -968,7 +978,7 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
         idxTupleNum *= indicesDim[ri];
     }
 
-    size_t sizeToUpdate = srcBlockND[k];
+    size_t sizeToUpdate = srcBlockND[k] * dataSize;
     parallel_for(idxTupleNum, [&](size_t tupleIdx) {
         size_t indicesOffset = tupleIdx * k;
         size_t dstOffset = 0;
@@ -980,12 +990,9 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
             }
             dstOffset += idxValue * srcBlockND[i + 1];
         }
+        dstOffset *= dataSize;
         size_t updateOffset = tupleIdx * sizeToUpdate;
-        DataType* dstDataWithOffset = dstData + dstOffset;
-        DataType* updateWithOffset = update + updateOffset;
-        for (size_t idx = 0; idx < sizeToUpdate; idx++) {
-            kernel(dstDataWithOffset + idx, updateWithOffset + idx);
-        }
+        cpu_memcpy(dstData + dstOffset, update + updateOffset, sizeToUpdate);
     });
 }
 
@@ -994,20 +1001,21 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
                                     const MemoryPtr& mem_indices,
                                     const MemoryPtr& mem_updates,
                                     const KernelType& kernel) {
+    OPENVINO_ASSERT(reduction_type != ScatterUpdate::Reduction::NONE, "The reduction should not be NONE.");
     uint8_t* indices = mem_indices->getDataAs<uint8_t>();
     DataType* update = mem_updates->getDataAs<DataType>();
     DataType* dstData = mem_data->getDataAs<DataType>();
     const auto& srcDataDim = getParentEdgeAt(DATA_ID)->getMemory().getStaticDims();
     const auto& indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
-    size_t indicesRank = indicesDim.size();
+    const auto indicesRank = indicesDim.size();
 
     std::vector<size_t> srcBlockND = getBlockND(srcDataDim);
-    size_t k = indicesDim[indicesRank - 1];
+    const auto k = indicesDim[indicesRank - 1];
     size_t idxTupleNum = 1;
     for (size_t ri = 0; ri < indicesRank - 1; ri++) {
         idxTupleNum *= indicesDim[ri];
     }
-    size_t sizeToUpdate = srcBlockND[k];
+    const auto sizeToUpdate = srcBlockND[k];
     for (size_t tupleIdx = 0; tupleIdx < idxTupleNum; tupleIdx++) {
         size_t indicesOffset = tupleIdx * k;
         size_t dstOffset = 0;
@@ -1019,9 +1027,9 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
             }
             dstOffset += idxValue * srcBlockND[i + 1];
         }
-        size_t updateOffset = tupleIdx * sizeToUpdate;
+        const auto updateOffset = tupleIdx * sizeToUpdate;
         DataType* dstDataWithOffset = dstData + dstOffset;
-        DataType* updateWithOffset = update + updateOffset;
+        const DataType* updateWithOffset = update + updateOffset;
         for (size_t idx = 0; idx < sizeToUpdate; idx++) {
             kernel(dstDataWithOffset + idx, updateWithOffset + idx);
         }

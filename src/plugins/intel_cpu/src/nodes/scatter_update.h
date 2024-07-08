@@ -99,12 +99,11 @@ public:
     using Reduction = scatter_reductions::CommonReduction;
     template <typename DataType, typename KernelType>
     void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, int axis, const KernelType& kernel);
-    template <typename DataType, typename KernelType>
-    void scatterNDUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, const KernelType& kernel);
     template <typename DataType>
     void scatterElementsUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates,
                                 int axis, const scatter_reductions::ReduceMean& kernel);
-    template <typename DataType>
+    template <typename DataType, typename KernelType>
+    void scatterNDUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates, const KernelType& kernel);
     void scatterNDUpdate(const MemoryPtr& mem_data, const MemoryPtr& mem_indices, const MemoryPtr& mem_updates,
                          const scatter_reductions::ReduceNone& kernel);
 
