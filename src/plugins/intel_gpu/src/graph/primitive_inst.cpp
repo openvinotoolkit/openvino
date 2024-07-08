@@ -604,25 +604,17 @@ event::ptr primitive_inst::realloc_if_needed() {
         // Since fake alignment is applicable for input tensor as well, make sure we allocate enough memory
         // to prevent reading beyond the allocated memory bounds
         if (user->get_node().is_type<fully_connected>() && user->is_dynamic()) {
-            if (user->_deps[0].first == this) {
+            if (user->_deps[0].first == this
+                || (is_fused_prim_of_user(id()) && user->update_shape_done_by_other)) {
                 GPU_DEBUG_TRACE_DETAIL << "Check fc user " << user->id() << "'s fake alignment-ed input size" << std::endl;
-                user->update_shape();
-                user->update_shape_done_by_other = true;
-                auto fc_impl_params = *user->_impl_params;
-                auto fc_input_layout = user->get_node().type()->get_fake_aligned_params(fc_impl_params).input_layouts[0];
-                if (fc_input_layout.bytes_count() > updated_layout.bytes_count()) {
-                    GPU_DEBUG_TRACE_DETAIL << id() << ": increase output layout allocation size from " << actual_layout.to_short_string() << " -> "
-                                        << fc_input_layout.to_short_string() << " to meet the input buffer alignment requirements for FC\n";
-                    updated_layout = fc_input_layout;
-                }
-            } else if (is_fused_prim_of_user(id()) && user->update_shape_done_by_other) {
-                // Since the output layout of fused prim in user is determined after user's update_shape
-                // Rerun update_shape w/ new output layout of fused prim
-                GPU_DEBUG_TRACE_DETAIL << "Check fc user " << user->id() << "'s fake alignment-ed input size for already shape updated node" << std::endl;
+                // Setting update_shape_done_by_other to false before running update_shape,
+                // since update_Shape is already called in realloc_if_needed of current node's dep node
+                // but current node's output layout is not updated to the this user node yet.
                 user->update_shape_done_by_other = false;
-                bool shape_changed = user->shape_changed();
+                bool prev_shape_changed = user->shape_changed();
                 user->update_shape();
-                if (shape_changed)
+                // Set again shape_change status if shape is changed in the prev udpate_shape() for this user node.
+                if (prev_shape_changed)
                     user->set_shape_change();
                 user->update_shape_done_by_other = true;
                 auto fc_impl_params = *user->_impl_params;
