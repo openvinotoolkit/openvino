@@ -112,6 +112,13 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
         const auto& reshape = pattern_map.at(reshape_pattern);
         auto concat = reshape.get_node_shared_ptr()->input_value(1);
 
+        auto reshape_output_shape_rank = reshape.get_node_shared_ptr()->get_output_partial_shape(0).rank().get_length();
+        if (reshape_output_shape_rank != 5) {
+            // Baichun also match this pattern, but it only has rank 4, and have performance regression, so filter it
+            // out.
+            return false;
+        }
+
         NodeVector gathers, fake_quantizes;
         gathers.resize(3);
         fake_quantizes.resize(3);
