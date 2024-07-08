@@ -36,7 +36,7 @@ describe('Core.readModeSync', () => {
     )
   });
 
-  it('readModelSync(model string, weightsTensor) ', () => {
+  it('readModelSync(modelString, weightsTensor) ', () => {
     const model = core.readModelSync(
       modelStr,
       weightsTensor,
@@ -66,7 +66,7 @@ describe('Core.readModel', () => {
     assert.equal(model.inputs.length, 1);
   });
 
-  it('readModel(model string, weightsTensor) ', async () => {
+  it('readModel(modelString, weightsTensor) ', async () => {
     const model = await core.readModel(
       modelStr,
       weightsTensor,
