@@ -594,11 +594,9 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             reinterpret_cast<ov::CreatePluginFunc*>(ov::util::get_symbol(so, ov::create_plugin_function))(plugin_impl);
             auto plugin_name = plugin_impl->get_device_name();
 
-            // Check that device plugin name is the same as requested
-            // skip for meta
-            // TODO: Create API to detect meta plugins
-            if (plugin_name != "AUTO" && plugin_name != "MULTI") {
-                OPENVINO_ASSERT(plugin_name == deviceName, "Error: Device loaded with incorrect name\"", plugin_name, deviceName);
+            // Check that device plugin name is the same as requested for non virtual plugins
+            if (!is_virtual_device(plugin_name)) {
+                OPENVINO_ASSERT(plugin_name == deviceName, deviceName, " device loaded with incorrect name: ", plugin_name);
             }
             plugin = Plugin{plugin_impl, so};
         }
