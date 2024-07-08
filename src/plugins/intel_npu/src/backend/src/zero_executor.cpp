@@ -129,8 +129,6 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
 
     if (config.has<WORKLOAD_TYPE>()) {
         setWorkloadType(config.get<WORKLOAD_TYPE>());
-    } else {
-        setWorkloadType(ov::WorkloadType::DEFAULT);
     }
 }
 

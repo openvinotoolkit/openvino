@@ -6,6 +6,7 @@
 
 #include "intel_npu/al/itt.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "ze_api.h"
 #include "ze_command_queue_npu_ext.h"
 #include "zero_utils.hpp"
 
@@ -120,11 +121,15 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
               graph_ext_name.c_str());
 
     // Load our command queue extension
-    zeroUtils::throwOnFail(
-        "zeDriverGetExtensionFunctionAddress",
-        zeDriverGetExtensionFunctionAddress(driver_handle,
-                                            ZE_COMMAND_QUEUE_NPU_EXT_NAME,
-                                            reinterpret_cast<void**>(&_command_queue_npu_dditable_ext)));
+    try {
+        zeroUtils::throwOnFail(
+            "zeDriverGetExtensionFunctionAddress " + std::string(ZE_COMMAND_QUEUE_NPU_EXT_NAME),
+            zeDriverGetExtensionFunctionAddress(driver_handle,
+                                                ZE_COMMAND_QUEUE_NPU_EXT_NAME,
+                                                reinterpret_cast<void**>(&_command_queue_npu_dditable_ext)));
+    } catch (const ov::Exception& error) {
+        log.debug("Current Driver Version does not have the command queue extension");
+    }
 
     // Load our graph extension
     ze_graph_dditable_ext_last_t* graph_ddi_table_ext = nullptr;

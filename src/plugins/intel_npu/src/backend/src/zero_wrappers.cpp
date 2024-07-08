@@ -129,8 +129,12 @@ void CommandQueue::executeCommandList(CommandList& command_list, Fence& fence) c
 }
 
 void CommandQueue::setWorkloadType(ze_command_queue_workload_type_t workloadType) const {
-    zeroUtils::throwOnFail("zeSetWorkloadType",
-                           _command_queue_npu_dditable_ext->pfnSetWorkloadType(_handle, workloadType));
+    if (_command_queue_npu_dditable_ext != nullptr) {
+        zeroUtils::throwOnFail("zeSetWorkloadType",
+                               _command_queue_npu_dditable_ext->pfnSetWorkloadType(_handle, workloadType));
+    } else {
+        _log.warning("Current Driver Version does not support WorkloadType");
+    }
 }
 
 CommandQueue::~CommandQueue() {
