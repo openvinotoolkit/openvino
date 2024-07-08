@@ -199,13 +199,13 @@ std::vector<ov::float8_e4m3> Tensor::get_data() const {
         using std::end;
 
         const auto& int32_data = m_tensor_proto->int32_data();
-        std::vector<ov::float8_e4m3> float16_data;
-        float16_data.reserve(int32_data.size());
-        std::transform(begin(int32_data), end(int32_data), std::back_inserter(float16_data), [](int32_t elem) {
+        std::vector<ov::float8_e4m3> float8_data;
+        float8_data.reserve(int32_data.size());
+        std::transform(begin(int32_data), end(int32_data), std::back_inserter(float8_data), [](int32_t elem) {
             return ov::float8_e4m3::from_bits(static_cast<uint8_t>(elem));
         });
 
-        return detail::__get_data<ov::float8_e4m3>(float16_data);
+        return detail::__get_data<ov::float8_e4m3>(float8_data);
     }
     ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "FLOAT8E4M3, raw data");
 }
@@ -223,13 +223,13 @@ std::vector<ov::float8_e5m2> Tensor::get_data() const {
         using std::end;
 
         const auto& int32_data = m_tensor_proto->int32_data();
-        std::vector<ov::float8_e5m2> float16_data;
-        float16_data.reserve(int32_data.size());
-        std::transform(begin(int32_data), end(int32_data), std::back_inserter(float16_data), [](int32_t elem) {
+        std::vector<ov::float8_e5m2> float8_data;
+        float8_data.reserve(int32_data.size());
+        std::transform(begin(int32_data), end(int32_data), std::back_inserter(float8_data), [](int32_t elem) {
             return ov::float8_e5m2::from_bits(static_cast<uint8_t>(elem));
         });
 
-        return detail::__get_data<ov::float8_e5m2>(float16_data);
+        return detail::__get_data<ov::float8_e5m2>(float8_data);
     }
     ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "FLOAT8E5M2, raw data");
 }
