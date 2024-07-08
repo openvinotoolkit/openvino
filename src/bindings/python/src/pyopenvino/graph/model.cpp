@@ -354,7 +354,9 @@ void regclass_graph_Model(py::module m) {
     model.def(
         "reshape",
         [](ov::Model& self, const py::list& partial_shape, const py::dict& variables_shapes) {
-            if (py::len(partial_shape) > 0 && (py::isinstance<py::list>(partial_shape[0]) || py::isinstance<ov::PartialShape>(partial_shape[0]) || py::isinstance<py::str>(partial_shape[0]) || py::isinstance<py::tuple>(partial_shape[0]))) {
+            if (py::len(partial_shape) > 0 &&
+                (py::isinstance<py::list>(partial_shape[0]) || py::isinstance<ov::PartialShape>(partial_shape[0]) ||
+                 py::isinstance<py::str>(partial_shape[0]) || py::isinstance<py::tuple>(partial_shape[0]))) {
                 if (py::len(partial_shape) != self.inputs().size()) {
                     throw py::value_error("Reshape failed due to mismatched lengths");
                 }
@@ -363,7 +365,8 @@ void regclass_graph_Model(py::module m) {
                 for (size_t i = 0; i < py::len(partial_shape); ++i) {
                     if (py::isinstance<ov::PartialShape>(partial_shape[i])) {
                         shapes_map[self.input(i)] = partial_shape[i].cast<ov::PartialShape>();
-                    } else if (py::isinstance<py::list>(partial_shape[i]) || py::isinstance<py::tuple>(partial_shape[i])) {
+                    } else if (py::isinstance<py::list>(partial_shape[i]) ||
+                               py::isinstance<py::tuple>(partial_shape[i])) {
                         shapes_map[self.input(i)] = Common::partial_shape_from_list(partial_shape[i].cast<py::list>());
                     } else if (py::isinstance<py::str>(partial_shape[i])) {
                         shapes_map[self.input(i)] = ov::PartialShape(partial_shape[i].cast<std::string>());
