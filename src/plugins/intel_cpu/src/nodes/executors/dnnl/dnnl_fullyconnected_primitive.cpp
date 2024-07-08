@@ -150,6 +150,11 @@ bool DnnlFCPrimitive::useDynamicQuantizationImpl(size_t dqGroupSize, const Memor
     if (zpPtr && !one_of(zpPtr->getDesc().getPrecision(), ov::element::u8, ov::element::u4, ov::element::undefined))
         return false;
 
+    // TODO: heuristic: disable avx2 asymmetric
+    bool is_asymmetric_weights = one_of(weightsDesc->getPrecision(), ov::element::u8, ov::element::u4);
+    if (is_asymmetric_weights && !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni))
+        return false;
+
     const size_t simdWidth = 16;
     if (dqGroupSize % simdWidth)
         return false;
