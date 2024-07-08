@@ -11,10 +11,6 @@ on:
       - master
       - 'releases/**'
 
-concurrency:
-  # github.ref is not unique in post-commit
-  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux
-  cancel-in-progress: true
 
 permissions: read-all
 
@@ -512,7 +508,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_cpu_functional_tests.yml
     with:
-      runner: 'linux-gpu-vm-6'
+      runner: 'linux-gpu-vm-17'
       image: 'ubuntu:20.04'
 
   TensorFlow_Models_Tests_Precommit:
@@ -662,7 +658,7 @@ jobs:
     with:
       device: 'igpu'
       test_type: ${{ matrix.TEST_TYPE }}
-      runner: "[ 'linux-gpu-vm-6' ]"
+      runner: "[ 'linux-gpu-vm-17' ]"
       container: '{"image": "ubuntu:20.04", "volumes": ["/dev/dri:/dev/dri"], "options": "--group-add 109 --group-add 44
         --device /dev/dri:/dev/dri"}'
     if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
@@ -679,7 +675,7 @@ jobs:
     with:
       device: 'dgpu'
       test_type: ${{ matrix.TEST_TYPE }}
-      runner: "[ 'linux-gpu-vm-6' ]"
+      runner: "[ 'linux-gpu-vm-17' ]"
       container: '{"image": "ubuntu:20.04", "volumes": ["/dev/dri:/dev/dri"], "options": "--group-add 109 --group-add 44
         --device /dev/dri/card0:/dev/dri/card0  --device /dev/dri/renderD128:/dev/dri/renderD128"}'
 
