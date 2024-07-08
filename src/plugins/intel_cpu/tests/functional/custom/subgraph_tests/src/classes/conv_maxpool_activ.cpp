@@ -60,7 +60,9 @@ void ConvPoolActivTest::SetUp() {
                                                          paddingType);
      }
 
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM)
+    selectedType = makeSelectedTypeStr("ref_any", element::f32);
+#elif defined(OPENVINO_ARCH_ARM64)
     selectedType = makeSelectedTypeStr("gemm_acl", element::f32);
 #else
     selectedType = makeSelectedTypeStr(getPrimitiveType(), element::f32);

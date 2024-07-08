@@ -115,7 +115,7 @@ std::vector<fusingSpecificParams> fusingParamsSet{emptyFusingSpec, fusingBias, f
 
 #if defined(OPENVINO_ARCH_ARM)
 const auto gemmParam = CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"};
-#elif OPENVINO_ARCH_ARM64
+#elif defined(OPENVINO_ARCH_ARM64)
 const auto gemmParam = CPUSpecificParams{{}, {}, {"acl"}, "acl"};
 #elif OV_CPU_WITH_MLAS
 const auto gemmParam = CPUSpecificParams{{}, {}, {"gemm_mlas"}, "gemm_mlas"};
