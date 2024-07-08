@@ -594,7 +594,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             reinterpret_cast<ov::CreatePluginFunc*>(ov::util::get_symbol(so, ov::create_plugin_function))(plugin_impl);
             const auto& plugin_name = plugin_impl->get_device_name();
 
-            // Check that HW device plugin name is the same as requested for non virtual plugins
+            // Check that device plugin name is the same as requested for HW plugins
             if (!plugin_name.empty() && !is_virtual_device(plugin_name)) {
                 OPENVINO_ASSERT(plugin_name == deviceName,
                                 deviceName,
