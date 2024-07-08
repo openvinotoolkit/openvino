@@ -87,17 +87,7 @@ public:
 
         ASSERT_EQ(output_gpu_mem.size(), reference_output.size());
         for (std::size_t i = 0; i < reference_output.size(); i++) {
-            if (output_gpu_mem[i] > reference_output[i]) {
-                if ((output_gpu_mem[i] - reference_output[i]) > 0.0001) {
-                    std::cout << "i: " << i << std::endl;
-                    ASSERT_NEAR(output_gpu_mem[i], reference_output[i], 0.0001);
-                }
-            } else {
-                if ((reference_output[i] - output_gpu_mem[i]) > 0.0001) {
-                    std::cout << "i: " << i << std::endl;
-                    ASSERT_NEAR(output_gpu_mem[i], reference_output[i], 0.0001);
-                }
-            }
+            ASSERT_NEAR(output_gpu_mem[i], reference_output[i], 0.0001);
         }
     }
 
@@ -128,6 +118,7 @@ TEST_P(GroupNormalizationGPUTest, random) {
 
 const std::vector<cldnn::format> f_planar_4d_formats {
     format::bfyx,
+    format::bfzyx,
 };
 
 const std::vector<cldnn::format> f_blocked_4d_formats {
