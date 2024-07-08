@@ -406,8 +406,7 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
 
     if (params.engineInfo.arch >= gpu_arch::xe_hpc) {
         jit.AddConstant(MakeJitConstant("PREFETCH_MASK", 1));
-        // WA: Temporary disable this prefetch as it may cause page fault on LNL
-        // jit.AddConstant(MakeJitConstant("PREFETCH_K0", 1));
+        jit.AddConstant(MakeJitConstant("PREFETCH_K0", 1));
         jit.AddConstant(MakeJitConstant("PREFETCH_K", 1));
         jit.AddConstant(MakeJitConstant("PREFETCH_V", 1));
         bool no_rem = d_full && v_full && k_full;
