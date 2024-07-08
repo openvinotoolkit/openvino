@@ -97,9 +97,11 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
             real = m_scheduler->m_compile_context[ACTUALDEVICE].
                 m_compiled_model->get_property(name).as<unsigned int>();
         } else {
-            std::unique_lock<std::mutex> lock(m_context->m_mutex);
-            auto device_info = m_scheduler->m_compile_context[ACTUALDEVICE].m_device_info;
-            lock.unlock();
+            DeviceInformation device_info;
+            {
+                std::lock_guard<std::mutex> lock(m_context->m_mutex);
+                device_info = m_scheduler->m_compile_context[ACTUALDEVICE].m_device_info;
+            }
             unsigned int optimal_batch_size = 0;
             unsigned int requests = 0;
             bool tput_enabled_in_plugin = false;

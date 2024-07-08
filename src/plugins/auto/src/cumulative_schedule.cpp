@@ -227,17 +227,17 @@ bool CumuSchedule::schedule_to_worker_infer_request(ov::threading::Task pipeline
     std::vector<DeviceInformation> devices;
     // AUTO work mode
     // Devices that fail infer will be removed from the priority list in the callback, need lock here
-    std::unique_lock<std::mutex> lock(m_context->m_fallback_mutex);
-    if (!preferred_device.empty()) {
-        devices = m_context->m_device_priorities;
-        if (!deviceChecker().check_if_device_in_list<DeviceInformation>(preferred_device, devices)) {
-            lock.unlock();
-            OPENVINO_THROW("The preferred device should be the selected device");
+    {
+        std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
+        if (!preferred_device.empty()) {
+            devices = m_context->m_device_priorities;
+            if (!deviceChecker().check_if_device_in_list<DeviceInformation>(preferred_device, devices)) {
+                OPENVINO_THROW("The preferred device should be the selected device");
+            }
+        } else {
+            devices = m_context->m_device_priorities;
         }
-    } else {
-        devices = m_context->m_device_priorities;
     }
-    lock.unlock();
 
     std::size_t current_device_index = 0;
     while (current_device_index < devices.size()) {
