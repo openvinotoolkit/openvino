@@ -7,7 +7,6 @@ Quantized models compute and restrictions
    :maxdepth: 1
    :hidden:
 
-   quantized-models/low-precision-model-representation
 
 .. meta::
    :description: Learn about the support for quantized models with different
@@ -16,8 +15,7 @@ Quantized models compute and restrictions
 
 One of the feature of OpenVINO is the support of quantized models with different precisions: INT8, INT4, etc.
 However, it is up to the plugin to define what exact precisions are supported by the particular HW.
-All quantized models which can be expressed in IR have a unified representation by means of *FakeQuantize* operation.
-For more details about low-precision model representation please refer to this :doc:`document <quantized-models/low-precision-model-representation>`.
+
 
 Interpreting FakeQuantize at runtime
 ####################################
