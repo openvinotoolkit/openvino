@@ -11,12 +11,11 @@
 namespace ov {
 namespace intel_cpu {
 namespace kernel {
+namespace random_uniform {
 
-struct RandomUniformCompileParams {
+struct GeneratorCompileParams {
     element::Type out_data_type = element::f32;
 };
-
-namespace random_uniform {
 
 struct PhiloxGeneratorCallArgs {
     void* dst_ptr;
@@ -28,14 +27,22 @@ struct PhiloxGeneratorCallArgs {
     uint64_t work_amount = 0lu;
 };
 
+struct MersenneTwisterGeneratorCallArgs {
+    void* dst_ptr;
+    const void* seed_ptr;
+    const void* state_ptr;
+    const void* min_ptr;
+    const void* range_ptr;
+    uint64_t work_amount = 0lu;
+};
+
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-class PhiloxGenerator : public JitKernel<RandomUniformCompileParams, PhiloxGeneratorCallArgs> {
+class PhiloxGenerator : public JitKernel<GeneratorCompileParams, PhiloxGeneratorCallArgs> {
 public:
-    using call_args = PhiloxGeneratorCallArgs;
 
     DECLARE_CPU_JIT_AUX_FUNCTIONS(PhiloxGenerator)
 
-    explicit PhiloxGenerator(const RandomUniformCompileParams& jcp);
+    explicit PhiloxGenerator(const GeneratorCompileParams& jcp);
 
     void generate() override;
 
@@ -96,23 +103,13 @@ private:
     static constexpr uint64_t STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER = 0xCD9E8D57;
 };
 
-struct MersenneTwisterCallArgs {
-    void* dst_ptr;
-    const void* key_ptr;
-    const void* counter_ptr;
-    const void* n_ptr;
-    const void* min_ptr;
-    const void* range_ptr;
-    uint64_t work_amount = 0lu;
-};
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-class MersenneTwisterGenerator : public JitKernel<MersenneTwisterCompileParams, MersenneTwisterCallArgs> {
+class MersenneTwisterGenerator : public JitKernel<GeneratorCompileParams, MersenneTwisterGeneratorCallArgs> {
 public:
-    using call_args = MersenneTwisterCallArgs;
 
     DECLARE_CPU_JIT_AUX_FUNCTIONS(MersenneTwisterGenerator)
 
-    explicit MersenneTwisterGenerator(const RandomUniformCompileParams& jcp);
+    explicit MersenneTwisterGenerator(const GeneratorCompileParams& jcp);
 
     void generate() override;
 
@@ -162,7 +159,6 @@ private:
     static constexpr uint32_t MT_L = 18;
 
     uint32_t mt_state[MT_N];
-    uint32_t mt_index;
 };
 
 }   // namespace random_uniform

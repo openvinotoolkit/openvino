@@ -62,7 +62,6 @@ private:
 
     void prepareAlgorithmSpecificParams(uint64_t group_size, uint64_t parallel_execution_threshold);
 
-    template <typename KERNEL_T>
     void prepareGeneratorKernel();
 
     enum PortIndex { SHAPE = 0, MIN_VAL, MAX_VAL };
@@ -85,7 +84,7 @@ private:
     /////////////////////////////////////////////////////////////////////////////////
 
     ///// PARALLELISM /////
-
+    
     std::shared_ptr<kernel::JitKernelBase> m_jit_kernel;
 
     struct ThreadParams {

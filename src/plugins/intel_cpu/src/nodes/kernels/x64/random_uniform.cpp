@@ -12,13 +12,29 @@ namespace kernel {
 
 namespace random_uniform {
 
-#define GET_OFF(field) offsetof(RandomUniformCallArgs, field)
+#define BROADCAST_R(F, V, R, C)           \
+    mov(R, C);                            \
+    F(V, R);
+
+#define BROADCAST_P(F, V, R, C)           \
+    mov(R, ptr[r64_params + GET_OFF(C)]);  \
+    F(V, ptr[R]);
+
+#define INIT_ARR(A, V, R, T)                                                                \
+    static const T A[8] = { V, V, V, V, V, V, V, V };                                       \
+    if (isa == x64::avx2) {                                                                 \
+        mov(R, reinterpret_cast<uintptr_t>(A));                                             \
+    } else {                                                                                \
+        static const T* A##_aligned = A + (reinterpret_cast<int64_t>(A) % 16) / sizeof(T);  \
+        mov(R, reinterpret_cast<uintptr_t>(A##_aligned));                                   \
+    }
 
 ////////////// PHILOX GENERATOR /////////////////////////
 
+#define GET_OFF(field) offsetof(PhiloxGeneratorCallArgs, field)
 
 template <x64::cpu_isa_t isa>
-PhiloxGenerator<isa>::PhiloxGenerator(const RandomUniformCompileParams& jcp) :
+PhiloxGenerator<isa>::PhiloxGenerator(const GeneratorCompileParams& jcp) :
         JitKernel(jit_name(), jcp, isa) {
 }
 
@@ -63,13 +79,7 @@ void PhiloxGenerator<x64::avx512_core>::initVectors() {
         v_convert_1 = getVmm();
     }
 
-    // Initialize constants.
-#define BROADCAST_R(F, V, R, C)           \
-    mov(R, C);                            \
-    F(V, R);
-#define BROADCAST_P(F, V, R, C)           \
-    mov(R, ptr[r64_params + GET_OFF(C)]);  \
-    F(V, ptr[R]);
+    // Initialize constants
 
     BROADCAST_R(vpbroadcastq, v_max_mul_n_64, r64_aux, STATISTIC_MAXIMIZING_MULTIPLIER_N)
     BROADCAST_R(vpbroadcastq, v_max_mul_c_64, r64_aux, STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER)
@@ -143,9 +153,6 @@ void PhiloxGenerator<x64::avx512_core>::initVectors() {
         mov(r64_aux, reinterpret_cast<uintptr_t>(perm_16));
         uni_vmovups(v_perm_16, ptr[r64_aux]);
     }
-
-#undef BROADCAST_R
-#undef BROADCAST_P
 }
 
 template <x64::cpu_isa_t isa> // Works for AVX2, SSE41
@@ -164,14 +171,7 @@ void PhiloxGenerator<isa>::initVectors() {
     r64_n_inc      = getReg64();
     r64_min        = getReg64();
 
-#define INIT_ARR(A, V, R, T)                                                                \
-    static const T A[8] = { V, V, V, V, V, V, V, V };                                       \
-    if (isa == x64::avx2) {                                                                 \
-        mov(R, reinterpret_cast<uintptr_t>(A));                                             \
-    } else {                                                                                \
-        static const T* A##_aligned = A + (reinterpret_cast<int64_t>(A) % 16) / sizeof(T);  \
-        mov(R, reinterpret_cast<uintptr_t>(A##_aligned));                                   \
-    }
+
 
     // Initialize constants.
     INIT_ARR(max_mul_n_64, STATISTIC_MAXIMIZING_MULTIPLIER_N, r64_aux, uint64_t);
@@ -253,7 +253,6 @@ void PhiloxGenerator<isa>::initVectors() {
 
     uni_vpaddq(v_n_64, v_n_64, ptr[r64_aux]);
 
-#undef INIT_ARR
 }
 
 template <x64::cpu_isa_t isa>
@@ -635,10 +634,14 @@ template class PhiloxGenerator<x64::avx512_core>;
 template class PhiloxGenerator<x64::avx2>;
 template class PhiloxGenerator<x64::sse41>;
 
+#undef GET_OFF
+
 //////////////// MERSENNE TWISTER GENERATOR ////////////////////
 
+#define GET_OFF(field) offsetof(MersenneTwisterGeneratorCallArgs, field)
+
 template <x64::cpu_isa_t isa>
-MersenneTwisterGenerator<isa>::MersenneTwisterGenerator(const RandomUniformCompileParams& jcp) :
+MersenneTwisterGenerator<isa>::MersenneTwisterGenerator(const GeneratorCompileParams& jcp) :
         JitKernel(jit_name(), jcp, isa) {
 }
 
@@ -669,11 +672,9 @@ void MersenneTwisterGenerator<x64::avx512_core>::initVectors() {
     v_mt_index = getVmm();
     v_temp = getVmm();
 
-    // Initialize the state array and index.
+    // Initialize the state array.
     mov(r64_aux, ptr[r64_params + GET_OFF(state_ptr)]);
-    uni_vmovdqa(v_state, ptr[r64_aux]);
-    mov(r64_aux, ptr[r64_params + GET_OFF(index_ptr)]);
-    uni_vpbroadcastd(v_mt_index, ptr[r64_aux]);
+    uni_vmovdqu(v_state, ptr[r64_aux]);
 
     // Initialize constants
     mov(r32_aux, MT_CONST_1);
@@ -689,15 +690,13 @@ void MersenneTwisterGenerator<isa>::initVectors() {
     v_mt_index = getVmm();
     v_temp = getVmm();
 
-    // Initialize the state array and index.
+    // Initialize the state array.
     mov(r64_aux, ptr[r64_params + GET_OFF(state_ptr)]);
-    uni_vmovdqa(v_state, ptr[r64_aux]);
-    mov(r64_aux, ptr[r64_params + GET_OFF(index_ptr)]);
-    uni_vpbroadcastd(v_mt_index, ptr[r64_aux]);
+    uni_vmovdqu(v_state, ptr[r64_aux]);
 
     // Initialize constants
     mov(r64_aux, MT_CONST_1);
-    uni_vmovdqa(v_temp, ptr[r64_aux]);
+    uni_vmovdqu(v_temp, ptr[r64_aux]);
 
 }
 
@@ -705,6 +704,8 @@ template <x64::cpu_isa_t isa>
 void MersenneTwisterGenerator<isa>::process() {
     auto v_dst_0 = getVmm();
     auto v_dst_1 = getVmm();
+
+    const auto VECTOR_LENGTH = 10ul;
 
     Xbyak::Label l_loop, l_tail;
     L(l_loop); {
@@ -729,10 +730,10 @@ void MersenneTwisterGenerator<isa>::generateRandomNumbers(const Vmm& v_dst_0, co
     // MT19937 algorithm steps for generating random numbers
 
     uni_vpxor(v_temp, v_temp, v_state);
-    uni_vpsrlq(v_temp, v_temp, 11);
+    // uni_vpsrlq(v_temp, v_temp, 11);
 
     uni_vpxor(v_dst_0, v_temp, v_state);
-    uni_vpsrlq(v_temp, v_dst_0, 7);
+    // uni_vpsrlq(v_temp, v_dst_0, 7);
     uni_vpxor(v_dst_0, v_dst_0, v_temp);
 
     uni_vmovups(v_dst_1, v_dst_0); 
@@ -741,15 +742,21 @@ void MersenneTwisterGenerator<isa>::generateRandomNumbers(const Vmm& v_dst_0, co
 template <x64::cpu_isa_t isa>
 void MersenneTwisterGenerator<isa>::tail(const Vmm& v_dst_0, const Vmm& v_dst_1) {
     // Handle the remaining elements
-    if (r64_work_amount > 0) {
-        generateRandomNumbers(v_dst_0, v_dst_1);
-        uni_vmovups(ptr[r64_dst], v_dst_0);
-    }
+    // if (remaining_elements > 0) {
+    generateRandomNumbers(v_dst_0, v_dst_1);
+    uni_vmovups(ptr[r64_dst], v_dst_0);
+    //}
 }
 
 template class MersenneTwisterGenerator<x64::avx512_core>;
 template class MersenneTwisterGenerator<x64::avx2>;
 template class MersenneTwisterGenerator<x64::sse41>;
+
+#undef GET_OFF
+
+#undef INIT_ARR
+#undef BROADCAST_R
+#undef BROADCAST_P
 
 }   // namespace random_uniform
 }   // namespace kernel

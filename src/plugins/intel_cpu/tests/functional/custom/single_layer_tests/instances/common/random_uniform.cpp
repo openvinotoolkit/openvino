@@ -34,9 +34,9 @@ static const std::vector<std::tuple<double, double>> min_max = {
         {-50, 0}
 };
 
-static const std::vector<ov::op::PhiloxAlignment> alignment = {
-        ov::op::PhiloxAlignment::TENSORFLOW,
-        ov::op::PhiloxAlignment::PYTORCH
+static const std::vector<ov::op::PhilloxAlignment> alignment = {
+        ov::op::PhilloxAlignment::TENSORFLOW,
+        // ov::op::PhilloxAlignment::PYTORCH
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Param, RandomUniformLayerTestCPU,

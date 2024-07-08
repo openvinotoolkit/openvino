@@ -103,14 +103,7 @@ void RandomUniform::createPrimitive() {
         evalRange();
     }
 
-
-    if (m_algo == PHILOX) {
-        prepareGeneratorKernel<kernel::random_uniform::PhiloxGenerator>();
-    } else if (m_algo == MERSENNE_TWISTER) {
-        prepareGeneratorKernel<kernel::random_uniform::MersenneTwisterGenerator>();
-    } else if (m_algo == STL) {
-        m_generator = std::default_random_engine{static_cast<uint32_t>(m_op_seed)};
-    }
+    prepareGeneratorKernel();
 
     if (m_const_inputs[SHAPE]) {
         Node::createPrimitive();
@@ -309,27 +302,37 @@ void RandomUniform::prepareAlgorithmSpecificParams(uint64_t group_size, uint64_t
     });
 }
 
-template <typename KERNEL_T>
 void RandomUniform::prepareGeneratorKernel() {
+    if (m_algo == PHILOX || m_algo == MERSENNE_TWISTER) {
 #if defined(OPENVINO_ARCH_X86_64)
-    kernel::RandomUniformCompileParams jcp;
-    jcp.out_data_type = m_output_prc;
 
-    m_jit_kernel = kernel::JitKernel<kernel::RandomUniformCompileParams, KERNEL_T::call_args>::createInstance<KERNEL_T>(jcp);
+        kernel::random_uniform::GeneratorCompileParams jcp;
+        jcp.out_data_type = m_output_prc;
 
-    if (m_jit_kernel) {
-        if (auto selected_pd = getSelectedPrimitiveDescriptor()) {
-            using namespace dnnl::impl::cpu;
-            if (m_jit_kernel->getIsa() == x64::avx512_core) {
-                selected_pd->setImplementationType(jit_avx512);
-            } else if (m_jit_kernel->getIsa() == x64::avx2) {
-                selected_pd->setImplementationType(jit_avx2);
-            } else if (m_jit_kernel->getIsa() == x64::sse41) {
-                selected_pd->setImplementationType(jit_sse42);
+        if(m_algo == PHILOX) {
+            m_jit_kernel = kernel::JitKernel<kernel::random_uniform::GeneratorCompileParams, kernel::random_uniform::PhiloxGeneratorCallArgs>::createInstance<kernel::random_uniform::PhiloxGenerator>(jcp);
+        } else {
+            m_jit_kernel = kernel::JitKernel<kernel::random_uniform::GeneratorCompileParams, kernel::random_uniform::MersenneTwisterGeneratorCallArgs>::createInstance<kernel::random_uniform::MersenneTwisterGenerator>(jcp);
+        }
+
+        if (m_jit_kernel) {
+            if (auto selected_pd = getSelectedPrimitiveDescriptor()) {
+                using namespace dnnl::impl::cpu;
+                if (m_jit_kernel->getIsa() == x64::avx512_core) {
+                    selected_pd->setImplementationType(jit_avx512);
+                } else if (m_jit_kernel->getIsa() == x64::avx2) {
+                    selected_pd->setImplementationType(jit_avx2);
+                } else if (m_jit_kernel->getIsa() == x64::sse41) {
+                    selected_pd->setImplementationType(jit_sse42);
+                }
             }
         }
-    }
 #endif // OPENVINO_ARCH_X86_64
+    }
+
+    else if (m_algo == STL) {
+        m_generator = std::default_random_engine{static_cast<uint32_t>(m_op_seed)};
+    }
 }
 
 
@@ -556,7 +559,7 @@ inline void runMersenneTwister(uint64_t key, uint64_t counter, uint64_t n, uint3
         calculateRound(key_32, counter_32, n_32);
         raiseKey(key_32);
     }
-    raiseKey(key_32);
+    calculateRound(key_32, counter_32, n_32);
 
 
     res[0] = n_32[0];
@@ -647,13 +650,13 @@ void RandomUniform::computeMersenneTwister(void* out, size_t out_el_num) {
                 if (p.work_amount == 0lu) {
                     return;
                 }
-                auto n = p.n_shift;
+                // auto n = p.n_shift;
 
-                kernel::random_uniform::MersenneTwisterCallArgs args;
+                kernel::random_uniform::MersenneTwisterGeneratorCallArgs args;
 
                 args.dst_ptr     = (out_u8 + p.dst_shift);
-                args.key_ptr     = &m_global_seed;
-                args.n_ptr       = &n;
+                args.seed_ptr     = &m_global_seed;
+                args.state_ptr    = &mersenne_state;
                 args.min_ptr     = &m_min_val;
                 args.range_ptr   = &m_range_val;
                 args.work_amount = p.work_amount;
@@ -662,10 +665,12 @@ void RandomUniform::computeMersenneTwister(void* out, size_t out_el_num) {
             });
 #endif // OPENVINO_ARCH_X86_64
     } else {
-        uint32_t left = 1;
-        uint32_t next = 0;
+        // uint32_t left = 1;
+        // uint32_t next = 0;
+        uint64_t counter = 1;
 
         auto threadBody = [&](const int ithr, const int nthr) {
+            next_mersenne_state(mersenne_state);
             auto& p = m_thread_params[ithr];
             if (p.work_amount == 0lu) {
                 return;

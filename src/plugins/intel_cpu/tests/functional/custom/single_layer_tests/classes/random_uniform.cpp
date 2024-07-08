@@ -25,13 +25,13 @@ std::string RandomUniformLayerTestCPU::getTestCaseName(const testing::TestParamI
     result << "_GlobalSeed="      << std::get<4>(obj.param);
     result << "_OperationalSeed=" << std::get<5>(obj.param);
     result << "_Alignment="       << std::get<6>(obj.param);
-    result << "_ConstIn={"        << utils::bool2str(std::get<7>/(obj.param)) << ","
+    result << "_ConstIn={"        << utils::bool2str(std::get<7>(obj.param)) << ","
                                   << utils::bool2str(std::get<8>(obj.param)) << ","
                                   << utils::bool2str(std::get<9>(obj.param)) << "}";
 
-    result << CPUTestsBase::getTestCaseName(std::get<9>(obj.param));
+    result << CPUTestsBase::getTestCaseName(std::get<10>(obj.param));
 
-    const auto& config = std::get<10>(obj.param);
+    const auto& config = std::get<11>(obj.param);
     if (!config.empty()) {
         result << "_PluginConf={";
         for (const auto& conf_item : config) {
