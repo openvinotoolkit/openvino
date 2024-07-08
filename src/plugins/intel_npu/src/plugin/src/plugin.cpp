@@ -207,7 +207,7 @@ Plugin::Plugin()
 #endif
 
     OV_ITT_TASK_CHAIN(PLUGIN, itt::domains::NPUPlugin, "Plugin::Plugin", "NPUBackends");
-    _backends = std::make_shared<NPUBackends>(backendRegistry, _globalConfig);
+    _backends = std::make_shared<NPUBackends>(backendRegistry);
     OV_ITT_TASK_NEXT(PLUGIN, "registerOptions");
     _backends->registerOptions(*_options);
 
