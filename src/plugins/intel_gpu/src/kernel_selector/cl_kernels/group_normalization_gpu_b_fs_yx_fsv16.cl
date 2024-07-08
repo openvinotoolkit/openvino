@@ -23,7 +23,10 @@ KERNEL(calc_mean_per_feature)(
     const uint items_num = data_set_size / workers_per_dataset;
     const uint leftovers = data_set_size - (items_num * workers_per_dataset);
 
-    const uint data_set_offset = data_set_idx * INPUT0_FEATURE_PITCH * FSV;
+    const uint INPUT0_ALIGNED_FEATURE_NUM = ALIGN(INPUT0_FEATURE_NUM, FSV);
+    const uint b = (data_set_idx * FSV) / INPUT0_ALIGNED_FEATURE_NUM;
+    const uint f_base = (data_set_idx * FSV) % INPUT0_ALIGNED_FEATURE_NUM;
+    const uint data_set_offset = INPUT0_GET_INDEX(b, f_base, 0, 0);
     const uint my_data_offset = data_set_offset + in_data_set_idx;
 
     __local ACCUMULATOR_TYPE mean_per_feature[SLM_SIZE];
@@ -50,9 +53,9 @@ KERNEL(calc_mean_per_feature)(
         reduce_add_level *= 2;
     }
 
-    if (worker_block_idx == 0) {
+    if (worker_block_idx == 0 && (f_base + in_data_set_idx) < INPUT0_FEATURE_NUM) {
         mean = mean_per_feature[in_data_set_idx] / TO_ACCUMULATOR_TYPE(data_set_size);
-        uint bf = data_set_idx * FSV + in_data_set_idx;
+        uint bf = b * INPUT0_FEATURE_NUM + f_base + in_data_set_idx;
         internal_mean[bf] = mean;
     }
 }
@@ -86,12 +89,15 @@ KERNEL(calc_var_per_feature)(
     const uint items_num = data_set_size / workers_per_dataset;
     const uint leftovers = data_set_size - (items_num * workers_per_dataset);
 
-    const uint data_set_offset = data_set_idx * INPUT0_FEATURE_PITCH * FSV;
+    const uint INPUT0_ALIGNED_FEATURE_NUM = ALIGN(INPUT0_FEATURE_NUM, FSV);
+    const uint b = (data_set_idx * FSV) / INPUT0_ALIGNED_FEATURE_NUM;
+    const uint f_base = (data_set_idx * FSV) % INPUT0_ALIGNED_FEATURE_NUM;
+    const uint data_set_offset = INPUT0_GET_INDEX(b, f_base, 0, 0);
     const uint my_data_offset = data_set_offset + in_data_set_idx;
 
     __local ACCUMULATOR_TYPE var_per_feature[SLM_SIZE];
 
-    uint bf = data_set_idx * FSV + get_sub_group_local_id();
+    uint bf = b * INPUT0_FEATURE_NUM + f_base + get_sub_group_local_id();
 
     ACCUMULATOR_TYPE mean = internal_mean[bf];
     ACCUMULATOR_TYPE variance = ACCUMULATOR_VAL_ZERO;
@@ -119,7 +125,7 @@ KERNEL(calc_var_per_feature)(
         reduce_add_level *= 2;
     }
 
-    if (worker_block_idx == 0) {
+    if (worker_block_idx == 0 && (f_base + get_sub_group_local_id()) < INPUT0_FEATURE_NUM) {
         variance = var_per_feature[in_data_set_idx] / TO_ACCUMULATOR_TYPE(data_set_size);
         internal_variance[bf] = variance;
     }
@@ -150,28 +156,27 @@ KERNEL(group_normalization_b_fs_yx_fsv16)(
     __global ACCUMULATOR_TYPE* internal_mean,
     __global ACCUMULATOR_TYPE* internal_variance
 ) {
-    const uint bfs = get_global_id(1);
-    const uint data_index = bfs * INPUT0_FEATURE_PITCH * FSV + get_global_id(0);
-    uint bf = bfs * FSV + get_sub_group_local_id();
-    uint feature_index = bf % OUTPUT_FEATURE_NUM;
+    const uint bf = get_global_id(1) * FSV + get_sub_group_local_id();
+    const uint b = bf / OUTPUT_FEATURE_NUM;
+    const uint f = bf % OUTPUT_FEATURE_NUM;
+    const uint yx = get_global_id(0) / FSV;
+    const uint y = yx / OUTPUT_SIZE_X;
+    const uint x = yx % OUTPUT_SIZE_X;
+    const uint data_index = OUTPUT_GET_INDEX(b, f, y, x);
 
-    if (feature_index < OUTPUT_FEATURE_NUM) {
+    if (f < OUTPUT_FEATURE_NUM) {
         ACTIVATION_TYPE mean = TO_ACTIVATION_TYPE(internal_mean[bf]);
         ACTIVATION_TYPE variance = TO_ACTIVATION_TYPE(internal_variance[bf]);
         ACTIVATION_TYPE normalized = (TO_ACTIVATION_TYPE(input[data_index]) - mean) * variance;
-        normalized = normalized * TO_ACTIVATION_TYPE(scale[feature_index]) + TO_ACTIVATION_TYPE(bias[feature_index]);
+        normalized = normalized * TO_ACTIVATION_TYPE(scale[f]) + TO_ACTIVATION_TYPE(bias[f]);
         #if HAS_FUSED_OPS
-            uint b = bf / OUTPUT_FEATURE_NUM;
-            uint yx = get_global_id(0) / FSV;
-            uint y = yx / OUTPUT_SIZE_X;
-            uint x = yx % OUTPUT_SIZE_X;
             FUSED_OPS;
             output[data_index] = FUSED_OPS_RESULT;
         #else
             output[data_index] = TO_OUTPUT_TYPE(ACTIVATION(normalized, ACTIVATION_PARAMS));
         #endif
     } else {
-        output[data_index] = ACTIVATION_VAL_ZERO;
+        output[data_index] = OUTPUT_VAL_ZERO;
     }
 }
 #endif

@@ -16,10 +16,11 @@ using namespace ::tests;
 namespace {
 
 typedef std::tuple<
-std::vector<std::int32_t>,  // Input shape
-std::size_t,                // Number of groups
-double,                     // Epsilon
-format                      // First input layout
+    std::vector<std::int32_t>,  // Input shape
+    std::size_t,                // Number of groups
+    double,                     // Epsilon
+    format,                     // First input layout
+    padding                     // Output padding
 >
 GroupNormalizationParams;
 
@@ -30,7 +31,7 @@ public:
     void SetUp() override {
         std::vector<std::int32_t> input_shape;
         const auto& params = GetParam();
-        std::tie(input_shape, num_groups_, epsilon_, format_) = params;
+        std::tie(input_shape, num_groups_, epsilon_, format_, output_pad_) = params;
         std::copy(std::begin(input_shape), std::end(input_shape), std::back_inserter(data_shape_));
         tests::random_generator rg{"GroupNormalizationGPUTest"};
         data_ = rg.generate_random_1d<float>(ov::shape_size(input_shape), -1, 1);
@@ -58,6 +59,7 @@ public:
             static_cast<std::int64_t>(num_groups_),
             epsilon_
         };
+        g.output_paddings = {output_pad_};
         tp.add(g);
         tp.add(reorder{"output", input_info("group_normalization_output"), planar_format, data_types::f32});
 
@@ -85,7 +87,17 @@ public:
 
         ASSERT_EQ(output_gpu_mem.size(), reference_output.size());
         for (std::size_t i = 0; i < reference_output.size(); i++) {
-            ASSERT_NEAR(output_gpu_mem[i], reference_output[i], 0.0001);
+            if (output_gpu_mem[i] > reference_output[i]) {
+                if ((output_gpu_mem[i] - reference_output[i]) > 0.0001) {
+                    std::cout << "i: " << i << std::endl;
+                    ASSERT_NEAR(output_gpu_mem[i], reference_output[i], 0.0001);
+                }
+            } else {
+                if ((reference_output[i] - output_gpu_mem[i]) > 0.0001) {
+                    std::cout << "i: " << i << std::endl;
+                    ASSERT_NEAR(output_gpu_mem[i], reference_output[i], 0.0001);
+                }
+            }
         }
     }
 
@@ -96,6 +108,7 @@ private:
     std::size_t num_groups_{};
     double epsilon_{};
     format format_{format::any};
+    padding output_pad_{padding()};
     network::ptr network_{};
     layout data_layout_{};
     layout scale_bias_layout_{};
@@ -109,9 +122,13 @@ const primitive_id GroupNormalizationGPUTest::data_primitive_{"data"};
 const primitive_id GroupNormalizationGPUTest::scale_primitive_{"scale"};
 const primitive_id GroupNormalizationGPUTest::bias_primitive_{"bias"};
 
-TEST_P(GroupNormalizationGPUTest, blocked_layouts_support) {
+TEST_P(GroupNormalizationGPUTest, random) {
     Test();
 }
+
+const std::vector<cldnn::format> f_planar_4d_formats {
+    format::bfyx,
+};
 
 const std::vector<cldnn::format> f_blocked_4d_formats {
     format::b_fs_yx_fsv2,
@@ -128,12 +145,22 @@ const std::vector<cldnn::format> f_blocked_5d_formats {
 };
 
 INSTANTIATE_TEST_SUITE_P(
-    GroupNormalizationGPUTest_blocked_layouts_support_4d, GroupNormalizationGPUTest,
+    GroupNormalizationGPUTest_planar_layouts_support_4d, GroupNormalizationGPUTest,
     ::testing::Combine(
-        ::testing::Values(std::vector<int32_t>{3, 64, 32, 64}),
+        ::testing::ValuesIn({std::vector<int32_t>{3, 64, 32, 64}, std::vector<int32_t>{3, 124, 97, 61}}),
         ::testing::Values(4),
         ::testing::Values(0.0025),
-        ::testing::ValuesIn(f_blocked_4d_formats)));
+        ::testing::ValuesIn(f_planar_4d_formats),
+        ::testing::ValuesIn({padding(), padding({0, 0, 1, 1})})));
+
+INSTANTIATE_TEST_SUITE_P(
+    GroupNormalizationGPUTest_blocked_layouts_support_4d, GroupNormalizationGPUTest,
+    ::testing::Combine(
+        ::testing::ValuesIn({std::vector<int32_t>{3, 64, 32, 64}, std::vector<int32_t>{3, 124, 97, 61}}),
+        ::testing::Values(4),
+        ::testing::Values(0.0025),
+        ::testing::ValuesIn(f_blocked_4d_formats),
+        ::testing::Values(padding())));
 
 INSTANTIATE_TEST_SUITE_P(
     GroupNormalizationGPUTest_blocked_layouts_support_5d, GroupNormalizationGPUTest,
@@ -141,6 +168,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(std::vector<int32_t>{3, 64, 28, 32, 12}),
         ::testing::Values(4),
         ::testing::Values(0.0025),
-        ::testing::ValuesIn(f_blocked_5d_formats)));
+        ::testing::ValuesIn(f_blocked_5d_formats),
+        ::testing::Values(padding())));
 
 } // anonymous namespace

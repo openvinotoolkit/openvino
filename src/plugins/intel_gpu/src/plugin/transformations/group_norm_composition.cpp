@@ -43,7 +43,7 @@ GroupNormComposition::GroupNormComposition() {
     auto bias_m = std::make_shared<Or>(OutputVector{bias_const_m, convert_bias_const_m});
     auto add_m = wrap_type<ov::op::v1::Add>({mul_m, bias_m});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto data = pattern_map.at(data_m);

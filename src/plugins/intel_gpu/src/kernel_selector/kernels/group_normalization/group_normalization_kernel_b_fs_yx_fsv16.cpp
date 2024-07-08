@@ -35,7 +35,7 @@ GroupNormalizationKernelBase::MultiDispatchData GroupNormalizationKernel_b_fs_yx
         const auto& input = params.inputs[0];
 
         dispatchData.stage_1.gws[0] = input.X().v * input.Y().v * fsv;
-        dispatchData.stage_1.gws[1] = CeilDiv(input.Feature().v * input.Batch().v, fsv);
+        dispatchData.stage_1.gws[1] = CeilDiv(input.Feature().v, fsv) * input.Batch().v;
         dispatchData.stage_1.gws[2] = 1;
 
         dispatchData.stage_1.lws[0] = simd;
@@ -61,7 +61,7 @@ GroupNormalizationKernelBase::MultiDispatchData GroupNormalizationKernel_b_fs_yx
         dispatchData.stage_2.lws[2] = 1;
 
         dispatchData.stage_final.gws[0] = input.X().v * input.Y().v * fsv;
-        dispatchData.stage_final.gws[1] = CeilDiv(input.Feature().v * input.Batch().v, fsv);
+        dispatchData.stage_final.gws[1] = CeilDiv(input.Feature().v, fsv) * input.Batch().v;
         dispatchData.stage_final.gws[2] = 1;
 
         dispatchData.stage_final.lws[0] = simd;
@@ -107,7 +107,7 @@ JitConstants GroupNormalizationKernel_b_fs_yx_fsv16::GetJitConstants(const group
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order;
         if (params.inputs[0].GetDims().size() <= 4) {
-            idx_order = { "(b)", "(feature_index)", "(y)", "(x)" };
+            idx_order = { "(b)", "(f)", "(y)", "(x)" };
         } else {
             OPENVINO_THROW("group_normalization_b_fs_yx_fsv16 doesn't support 5D or higher dims.");
         }
