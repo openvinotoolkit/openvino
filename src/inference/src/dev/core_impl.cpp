@@ -596,7 +596,10 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
 
             // Check that device plugin name is the same as requested for non virtual plugins
             if (!is_virtual_device(plugin_name)) {
-                OPENVINO_ASSERT(plugin_name == deviceName, deviceName, " device loaded with incorrect name: ", plugin_name);
+                OPENVINO_ASSERT(plugin_name == deviceName,
+                                deviceName,
+                                " device loaded with incorrect name: ",
+                                plugin_name);
             }
             plugin = Plugin{plugin_impl, so};
         }
