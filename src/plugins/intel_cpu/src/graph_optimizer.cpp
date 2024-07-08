@@ -2900,6 +2900,19 @@ void GraphOptimizer::MergeReorderAndTranspose(Graph &graph) {
         auto& outOrder = outBlockedDesc->getOrder();
 
         if (checkAscendingFinalOrder(transposeOrder, layoutOrder, inOrder, outOrder)) {
+            const auto parentInPlace = parentNode->getParentEdgeAt(0)->inPlace(Edge::LOOK_UP);
+            const auto& childEdges = childNode->getChildEdgesAtPort(0);
+            const auto childInPlace = std::any_of(childEdges.begin(), childEdges.end(), [](const EdgePtr& edge) {
+                return edge->inPlace(Edge::LOOK_DOWN);
+            });
+            bool isOptimizedReorder = !(parentInPlace && childInPlace);
+            // In case of non optimized reorder OneDNN primitive is used,
+            // which doesn't support reordering in case of different ranks on input and output.
+            // So the fusion is skipped for such case.
+            if (!isOptimizedReorder &&
+                parentNode->getInputShapeAtPort(0).getRank() != childNode->getOutputShapeAtPort(0).getRank()) {
+                continue;
+            }
             mergeTransposeReshapeReorder(graph, transposeNode, reshapeNode, reorderNode, true);
         }
     }
