@@ -17,6 +17,7 @@
 #include "gemm_inst.h"
 #include "condition_inst.h"
 #include "loop_inst.h"
+#include "group_normalization_inst.h"
 #include "program_node.h"
 
 #include <iostream>
@@ -111,9 +112,11 @@ void compile_graph::run(program& p) {
 
         bool is_planar = format::is_default_format(node->get_output_layout().format);
 
-        if ((node->is_dynamic() && !is_planar &&
-            (!node->is_type<convolution>() || (node->is_type<convolution>() && node->get_output_layout().format != cldnn::format::b_fs_yx_fsv16)))) {
-            can_select_impl = false;
+        if (node->is_dynamic() && !is_planar) {
+            if (!(node->is_type<convolution>() && node->get_output_layout().format == cldnn::format::b_fs_yx_fsv16) &&
+                !(node->is_type<group_normalization>() && node->get_output_layout().format == cldnn::format::b_fs_yx_fsv16)) {
+                can_select_impl = false;
+            }
         }
 
         if (node->is_type<condition>() || node->is_type<loop>() || node->is_type<proposal>())

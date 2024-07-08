@@ -1,28 +1,14 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2023-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
-#include "kernel_base_opencl.h"
-#include "kernel_selector_params.h"
+
+#include "group_normalization_kernel_base.h"
 
 namespace kernel_selector {
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// GroupNormalizationParams
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct group_normalization_params : public base_params {
-    group_normalization_params() : base_params(KernelType::GROUP_NORMALIZATION) {}
-
-    std::int64_t num_groups{};
-    double epsilon{};
-
-    ParamsKey GetParamsKey() const override {
-        return base_params::GetParamsKey();
-    }
-};
-
-class GroupNormalizationKernelRef : public KernelBaseOpenCL {
+class GroupNormalizationKernelRef : public GroupNormalizationKernelBase {
 public:
-    using DispatchData = CommonDispatchData;
+    using Parent = GroupNormalizationKernelBase;
     enum KernelId {
         eCalcMeanKernel,
         eCalcStandardDeviationKernel,
@@ -30,8 +16,11 @@ public:
         eKernelsNum
     };
 
-    GroupNormalizationKernelRef() : KernelBaseOpenCL{"group_normalization_gpu_ref"} {}
+    GroupNormalizationKernelRef() : GroupNormalizationKernelBase{"group_normalization_gpu_ref"} {}
+    virtual ~GroupNormalizationKernelRef() {}
+
     KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return {

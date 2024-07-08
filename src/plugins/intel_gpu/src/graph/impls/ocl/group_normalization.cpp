@@ -65,6 +65,15 @@ attach_group_normalization_impl::attach_group_normalization_impl() {
                                      typed_primitive_impl_ocl<group_normalization>::create<group_normalization_impl>,
                                      types,
                                      formats);
+
+    const std::vector<format::type> dyn_formats {
+        format::bfyx,
+        format::b_fs_yx_fsv16,
+    };
+
+    implementation_map<group_normalization>::add(impl_types::ocl, shape_types::dynamic_shape,
+                                                 typed_primitive_impl_ocl<group_normalization>::create<group_normalization_impl>,
+                                                 types, dyn_formats);
 }
 
 }  // namespace detail
