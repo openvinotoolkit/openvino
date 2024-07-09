@@ -160,7 +160,14 @@ interface Core {
    * For the TFLite format (*.tflite), the weights parameter is not used.
    */
   readModel(modelPath: string, weightsPath?: string): Promise<Model>;
-
+  /**
+   * It reads models from IR / ONNX / PDPD / TF and TFLite formats.
+   * @param model A string with model in IR / ONNX / PDPD / TF
+   * and TFLite format.
+   * @param weights Tensor with weights. Reading ONNX / PDPD / TF
+   * and TFLite models doesn’t support loading weights from weights tensors.
+   */
+  readModel(model: string, weights: Tensor): Promise<Model>;
   /**
    * It reads models from the IR / ONNX / PDPD / TF and TFLite formats.
    * @param modelBuffer Binary data with a model
@@ -174,6 +181,11 @@ interface Core {
    * It reads models from the IR / ONNX / PDPD / TF and TFLite formats.
    */
   readModelSync(modelPath: string, weightsPath?: string): Model;
+  /**
+   * A synchronous version of {@link Core.readModel}.
+   * It reads models from the IR / ONNX / PDPD / TF and TFLite formats.
+   */
+  readModelSync(model: string, weights: Tensor): Model;
   /**
    * A synchronous version of {@link Core.readModel}.
    * It reads models from the IR / ONNX / PDPD / TF and TFLite formats.
