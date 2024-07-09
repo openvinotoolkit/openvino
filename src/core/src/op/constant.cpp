@@ -1165,7 +1165,7 @@ struct Validate : element::NoAction<void> {
 };
 
 template <class U>
-struct Convert : element::NotSupported<void> {
+struct ElementConvert : element::NotSupported<void> {
     using element::NotSupported<void>::visit;
 
     template <element::Type_t ET,
@@ -1190,7 +1190,7 @@ struct Convert : element::NotSupported<void> {
 };
 
 template <>
-struct Convert<bool> : element::NotSupported<void> {
+struct ElementConvert<bool> : element::NotSupported<void> {
     using element::NotSupported<void>::visit;
 
     template <element::Type_t ET,
@@ -1214,21 +1214,24 @@ struct Convert<bool> : element::NotSupported<void> {
     }
 };
 
-#define CONSTANT_CAST_VECTOR(DTYPE, ET_REQ_VALIDATION)                                                               \
-    template <>                                                                                                      \
-    OPENVINO_API std::vector<DTYPE> Constant::cast_vector(int64_t num_elements) const {                              \
-        std::vector<DTYPE> output(get_num_elements_to_cast(num_elements));                                           \
-        using namespace ov::element;                                                                                 \
-        IfTypeOf<ET_REQ_VALIDATION>::apply<Validate<DTYPE>>(m_element_type, get_data_ptr(), output.size());          \
-        IfTypeOf<SUPPORTED_ET>::apply<Convert<DTYPE>>(m_element_type, get_data_ptr(), output.data(), output.size()); \
-        return output;                                                                                               \
+#define CONSTANT_CAST_VECTOR(DTYPE, ET_REQ_VALIDATION)                                                      \
+    template <>                                                                                             \
+    OPENVINO_API std::vector<DTYPE> Constant::cast_vector(int64_t num_elements) const {                     \
+        std::vector<DTYPE> output(get_num_elements_to_cast(num_elements));                                  \
+        using namespace ov::element;                                                                        \
+        IfTypeOf<ET_REQ_VALIDATION>::apply<Validate<DTYPE>>(m_element_type, get_data_ptr(), output.size()); \
+        IfTypeOf<SUPPORTED_ET>::apply<ElementConvert<DTYPE>>(m_element_type,                                \
+                                                             get_data_ptr(),                                \
+                                                             output.data(),                                 \
+                                                             output.size());                                \
+        return output;                                                                                      \
     }
 
 template <>
 OPENVINO_API std::vector<bool> Constant::cast_vector(int64_t num_elements) const {
     std::vector<bool> output(get_num_elements_to_cast(num_elements));
     using namespace ov::element;
-    IfTypeOf<SUPPORTED_ET>::apply<Convert<bool>>(m_element_type, get_data_ptr(), output.begin(), output.size());
+    IfTypeOf<SUPPORTED_ET>::apply<ElementConvert<bool>>(m_element_type, get_data_ptr(), output.begin(), output.size());
     return output;
 }
 
