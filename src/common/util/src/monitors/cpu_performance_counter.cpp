@@ -29,8 +29,8 @@ class CpuPerformanceCounter::PerformanceCounterImpl {
 public:
     PerformanceCounterImpl() {
         PDH_STATUS status;
-        int nCores = getNumberOfCores();
-        if (nCores == 0) {
+        int n_cores = getNumberOfCores();
+        if (n_cores == 0) {
             coreTimeCounters.resize(1);
             std::wstring fullCounterPath{L"\\Processor(_Total)\\% Processor Time"};
             status = PdhAddCounterW(query, fullCounterPath.c_str(), 0, &coreTimeCounters[0]);
@@ -42,8 +42,8 @@ public:
                 throw std::runtime_error("PdhSetCounterScaleFactor() failed. Error status: " + std::to_string(status));
             }
         } else {
-            coreTimeCounters.resize(nCores);
-            for (std::size_t i = 0; i < nCores; ++i) {
+            coreTimeCounters.resize(n_cores);
+            for (std::size_t i = 0; i < n_cores; ++i) {
                 std::wstring fullCounterPath{L"\\Processor(" + std::to_wstring(i) + L")\\% Processor Time"};
                 status = PdhAddCounterW(query, fullCounterPath.c_str(), 0, &coreTimeCounters[i]);
                 if (ERROR_SUCCESS != status) {
@@ -68,8 +68,8 @@ public:
         if (ts > lastTimeStamp) {
             auto delta =
                 std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - lastTimeStamp);
-            if (delta.count() < 500) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(500 - delta.count()));
+            if (delta.count() < monitor_duration) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(monitor_duration - delta.count()));
             }
         }
         lastTimeStamp = std::chrono::system_clock::now();
@@ -116,6 +116,7 @@ private:
     QueryWrapper query;
     std::vector<PDH_HCOUNTER> coreTimeCounters;
     std::chrono::time_point<std::chrono::system_clock> lastTimeStamp = std::chrono::system_clock::now();
+    int monitor_duration = 500;
 };
 
 #elif defined(__linux__)
@@ -188,15 +189,15 @@ public:
 #endif
 CpuPerformanceCounter::CpuPerformanceCounter(int numCores)
     : PerformanceCounter("CPU"),
-      nCores(numCores >= 0 ? numCores : 0) {}
+      n_cores(numCores >= 0 ? numCores : 0) {}
 std::map<std::string, double> CpuPerformanceCounter::get_load() {
     if (!performance_counter)
         performance_counter = std::make_shared<PerformanceCounterImpl>();
-    if (nCores == 0)
+    if (n_cores == 0)
         return performance_counter->get_load();
     std::map<std::string, double> ret;
     ret["Total"] = 0.0;
-    for (int i = 0; i < nCores; i++) {
+    for (int i = 0; i < n_cores; i++) {
         ret[std::to_string(i)] = 0.0;
     }
     return ret;

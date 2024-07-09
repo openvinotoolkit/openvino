@@ -14,7 +14,7 @@ namespace util {
 namespace monitor {
 class DeviceMonitor {
 public:
-    DeviceMonitor(std::size_t historySize = 1);
+    DeviceMonitor(std::size_t history_size = 1);
     virtual ~DeviceMonitor() = default;
     void set_history_size(std::size_t size);
     std::size_t get_history_size() const;
@@ -23,13 +23,13 @@ public:
     std::map<std::string, double> get_mean_device_load(const std::string& deviceName);
 
 private:
-    std::uint32_t samplesNumber;
-    std::size_t historySize;
-    std::map<std::string, double> deviceLoadSum;
-    const std::vector<std::string> supportedDevices = {"CPU", "GPU"};
-    std::deque<std::map<std::string, double>> deviceLoadHistory;
+    std::size_t sample_number;
+    std::size_t history_size;
+    std::map<std::string, double> deviceLoad_sum;
+    const std::vector<std::string> supported_devices = {"CPU", "GPU"};
+    std::deque<std::map<std::string, double>> deviceLoad_history;
     const std::shared_ptr<ov::util::monitor::PerformanceCounter> performance_counter;
-    std::map<std::string, std::shared_ptr<ov::util::monitor::PerformanceCounter>> devicesPerformanceCounters;
+    std::map<std::string, std::shared_ptr<ov::util::monitor::PerformanceCounter>> devices_performance_counters;
 };
 }  // namespace monitor
 }  // namespace util

@@ -76,5 +76,12 @@ static constexpr Property<bool, PropertyMutability::RO> compiled_model_runtime_p
  */
 static constexpr Property<float, PropertyMutability::RW> query_model_ratio{"QUERY_MODEL_RATIO"};
 
+/**
+ * @brief Allow to pass device utilization map(using luid/uuid as the key) from hw plugin to meta plugin.
+ * @ingroup ov_dev_api_plugin_api
+ */
+static constexpr Property<std::map<std::string, double>, PropertyMutability::RW> device_utilization{
+    "DEVICE_UTILIZATION"};
+
 }  // namespace internal
 }  // namespace ov

@@ -91,6 +91,20 @@ IDevice::Uuid Metrics::GetDeviceUuid(const std::string& specifiedDeviceName) con
     return IDevice::Uuid{};
 }
 
+std::map<std::string, double> Metrics::GetUtilization(const std::string& specifiedDeviceName) const {
+    const auto devName = getDeviceName(specifiedDeviceName);
+    const auto uuid = GetDeviceUuid(specifiedDeviceName);
+    std::stringstream ssuuid;
+    ssuuid << uuid;
+    std::string uuidStr = ssuuid.str();
+    auto device = _backends->getDevice(devName);
+    double utilization = 0.0;
+    if (device) {
+        utilization = device->getUtilization();
+    }
+    return {{uuidStr, utilization}};
+}
+
 std::vector<ov::PropertyName> Metrics::GetCachingProperties() const {
     return _cachingProperties;
 }

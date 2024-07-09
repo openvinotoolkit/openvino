@@ -416,6 +416,12 @@ Plugin::Plugin()
           [&](const Config&) {
               return _metrics->GetInternalSupportedProperties();
           }}},
+        {ov::internal::device_utilization.name(),
+         {false,
+          ov::PropertyMutability::RO,
+          [&](const Config& config) {
+              return _metrics->GetUtilization(get_specified_device_name(config));
+          }}},
         // NPU Public
         // =========
         {ov::intel_npu::device_alloc_mem_size.name(),
@@ -528,13 +534,9 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.getString<BACKEND_COMPILATION_PARAMS>();
           }}},
-        {ov::intel_npu::batch_mode.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.getString<BATCH_MODE>();
-          }}}
-    };
+        {ov::intel_npu::batch_mode.name(), {false, ov::PropertyMutability::RW, [](const Config& config) {
+                                                return config.getString<BATCH_MODE>();
+                                            }}}};
 
     for (auto& property : _properties) {
         if (std::get<0>(property.second)) {

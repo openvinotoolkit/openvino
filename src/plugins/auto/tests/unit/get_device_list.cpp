@@ -3,6 +3,7 @@
 //
 
 #include "include/auto_unit_test.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 
 using Config = std::map<std::string, std::string>;
 using namespace ov::mock_auto_plugin;
@@ -10,6 +11,7 @@ using namespace ov::mock_auto_plugin;
 const std::vector<std::string> availableDevs = {"CPU", "GPU", "NPU"};
 const std::vector<std::string> availableDevsWithId = {"CPU", "GPU.0", "GPU.1", "NPU"};
 const std::vector<std::string> netPrecisions = {"FP32", "FP16", "INT8", "BIN"};
+const char npuUuid[] = "000102030405060708090a0b0c0d0e0f";
 using Params = std::tuple<std::string, std::string>;
 using ConfigParams = std::tuple<std::vector<std::string>,  // Available devices retrieved from Core
                                 Params                     // Params {devicePriority, expect metaDevices}
@@ -224,6 +226,13 @@ public:
 
     void SetUp() override {
         std::tie(threshold, devicesInfo, deviceUtilization, filteredDevicesInfo) = GetParam();
+        std::vector<std::string> npuCability = {"FP32", "FP16", "INT8", "BIN"};
+        ON_CALL(*core, get_property(StrEq(ov::test::utils::DEVICE_NPU), StrEq(ov::device::capabilities.name()), _))
+            .WillByDefault(RETURN_MOCK_VALUE(npuCability));
+        std::map<std::string, double> npuUtilization = {};
+        if (deviceUtilization.count("NPU")) {
+            npuUtilization = deviceUtilization["NPU"];
+        }
         ov::AnyMap config = {};
         ON_CALL(*plugin, get_property(StrEq(ov::intel_auto::device_utilization_threshold.name()), config))
             .WillByDefault(Return(ov::Any(threshold)));
@@ -233,6 +242,10 @@ public:
             .WillByDefault(Return(ov::Any("00000001")));
         ON_CALL(*core, get_property(StrEq("GPU.1"), StrEq(ov::device::luid.name()), _))
             .WillByDefault(Return(ov::Any("00000002")));
+        ON_CALL(*core, get_property(StrEq("NPU"), StrEq(ov::device::uuid.name()), _))
+            .WillByDefault(Return(ov::Any(npuUuid)));
+        ON_CALL(*core, get_property(StrEq("NPU"), StrEq(ov::internal::device_utilization.name()), _))
+            .WillByDefault(Return(ov::Any(npuUtilization)));
         ON_CALL(*core,
                 get_property(StrEq(ov::test::utils::DEVICE_AUTO),
                              StrEq(ov::intel_auto::device_utilization_threshold.name()),
@@ -240,7 +253,10 @@ public:
             .WillByDefault(Return(ov::Any(threshold)));
         ON_CALL(*plugin, get_device_utilization).WillByDefault([this](const std::string& device) {
             ov::DeviceIDParser parsed{device};
-            return deviceUtilization[parsed.get_device_name()];
+            std::map<std::string, double> ret = {};
+            if (deviceUtilization.count(parsed.get_device_name()))
+                ret = deviceUtilization[parsed.get_device_name()];
+            return ret;
         });
         ON_CALL(*plugin, get_valid_device)
             .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
@@ -260,18 +276,18 @@ TEST_P(GetValidDeviceListTest, GetValidFilteredDeviceListTest) {
     std::list<ov::auto_plugin::DeviceInformation> result;
     for (auto& precision : netPrecisions) {
         ASSERT_NO_THROW(result = plugin->get_valid_device(devicesInfo, precision));
-        int actualSize = result.size();
-        int expectedSize = filteredDevicesInfo.size();
+        auto actualSize = result.size();
+        auto expectedSize = filteredDevicesInfo.size();
         EXPECT_EQ(actualSize, expectedSize);
         // EXPECT_EQ(result, filteredDevicesInfo);
     }
 }
 
 const std::vector<ConfigFilterParams> testValidConfigs = {
-    ConfigFilterParams{80,
-                       {{"CPU", {}, -1, "01", "CPU_01", 0}},
-                       {{"CPU", {{"Total", 15.3}}}},
-                       {{"CPU", {}, -1, "01", "CPU_01", 0}}},
+    ConfigFilterParams{80,                                     // utilization threshold
+                       {{"CPU", {}, -1, "01", "CPU_01", 0}},   // device candidates list
+                       {{"CPU", {{"Total", 15.3}}}},           // device utilization
+                       {{"CPU", {}, -1, "01", "CPU_01", 0}}},  // expected list of device candidates after filtering
     ConfigFilterParams{80,
                        {{"CPU", {}, -1, "01", "CPU_01", 0}},
                        {{"CPU", {{"Total", 85.2}}}},
@@ -281,9 +297,14 @@ const std::vector<ConfigFilterParams> testValidConfigs = {
                        {{"CPU", {{"Total", 15.3}}}, {"GPU", {{"00000000", 20}}}},
                        {{"CPU", {}, -1, "01", "CPU_01", 0}, {"GPU", {}, -1, "01", "GPU", 0}}},
     ConfigFilterParams{80,
-                       {{"CPU", {}, -1, "01", "CPU_01", 0}, {"GPU", {}, -1, "01", "GPU", 0}},
-                       {{"CPU", {{"Total", 85.2}}}, {"GPU", {{"00000000", 20}}}},
-                       {{"GPU", {}, -1, "01", "GPU", 0}}},
+                       {{"CPU", {}, -1, "01", "CPU_01", 0}, {"NPU", {}, -1, "01", "NPU", 0}},
+                       {{"CPU", {{"Total", 15.3}}}, {"NPU", {{npuUuid, 20}}}},
+                       {{"CPU", {}, -1, "01", "CPU_01", 0}, {"NPU", {}, -1, "01", "NPU", 0}}},
+    ConfigFilterParams{
+        80,
+        {{"CPU", {}, -1, "01", "CPU_01", 0}, {"GPU", {}, -1, "01", "GPU", 0}, {"NPU", {}, -1, "01", "NPU", 0}},
+        {{"CPU", {{"Total", 85.2}}}, {"GPU", {{"00000000", 20}}}, {"NPU", {{npuUuid, 20}}}},
+        {{"GPU", {}, -1, "01", "GPU", 0}, {"NPU", {}, -1, "01", "NPU", 0}}},
     ConfigFilterParams{15,
                        {{"CPU", {}, -1, "01", "CPU_01", 0}, {"GPU", {}, -1, "01", "GPU", 0}},
                        {{"CPU", {{"Total", 85.2}}}, {"GPU", {{"00000000", 20}}}},
@@ -292,6 +313,10 @@ const std::vector<ConfigFilterParams> testValidConfigs = {
                        {{"CPU", {}, -1, "01", "CPU_01", 1}, {"GPU", {}, -1, "01", "GPU", 2}},
                        {{"CPU", {{"Total", 85.2}}}, {"GPU", {{"00000000", 20}}}},
                        {{"GPU", {}, -1, "01", "GPU", 2}}},
+    ConfigFilterParams{80,
+                       {{"CPU", {}, -1, "01", "CPU_01", 1}, {"NPU", {}, -1, "01", "NPU", 2}},
+                       {{"CPU", {{"Total", 85.2}}}, {"NPU", {{npuUuid, 20}}}},
+                       {{"NPU", {}, -1, "01", "NPU", 2}}},
     ConfigFilterParams{15,
                        {{"CPU", {}, -1, "01", "CPU_01", 1}, {"GPU", {}, -1, "01", "GPU", 2}},
                        {{"CPU", {{"Total", 85.2}}}, {"GPU", {{"00000000", 20}}}},
@@ -308,12 +333,24 @@ const std::vector<ConfigFilterParams> testValidConfigs = {
                        {{"CPU", {}, -1, "01", "CPU_01", 0},
                         {"GPU.0", {}, -1, "01", "iGPU_01", 0},
                         {"GPU.1", {}, -1, "01", "dGPU_01", 0}}},
-    ConfigFilterParams{80,
-                       {{"CPU", {}, -1, "01", "CPU_01", 0},
-                        {"GPU.0", {}, -1, "01", "iGPU_01", 0},
-                        {"GPU.1", {}, -1, "01", "dGPU_01", 0}},
-                       {{"CPU", {{"Total", 85.2}}}, {"GPU", {{"00000001", 20}, {"00000002", 50}}}},
-                       {{"GPU.0", {}, -1, "01", "iGPU_01", 0}, {"GPU.1", {}, -1, "01", "dGPU_01", 0}}},
+    ConfigFilterParams{
+        80,
+        {{"CPU", {}, -1, "01", "CPU_01", 0},
+         {"GPU.0", {}, -1, "01", "iGPU_01", 0},
+         {"GPU.1", {}, -1, "01", "dGPU_01", 0},
+         {"NPU", {}, -1, "01", "NPU", 0}},
+        {{"CPU", {{"Total", 85.2}}}, {"GPU", {{"00000001", 20}, {"00000002", 50}}}, {"NPU", {{npuUuid, 30}}}},
+        {{"GPU.0", {}, -1, "01", "iGPU_01", 0},
+         {"GPU.1", {}, -1, "01", "dGPU_01", 0},
+         {"NPU", {}, -1, "01", "NPU", 0}}},
+    ConfigFilterParams{
+        80,
+        {{"CPU", {}, -1, "01", "CPU_01", 0},
+         {"GPU.0", {}, -1, "01", "iGPU_01", 0},
+         {"GPU.1", {}, -1, "01", "dGPU_01", 0},
+         {"NPU", {}, -1, "01", "NPU", 0}},
+        {{"CPU", {{"Total", 85.2}}}, {"GPU", {{"00000001", 82}, {"00000002", 50}}}, {"NPU", {{npuUuid, 30}}}},
+        {{"GPU.1", {}, -1, "01", "dGPU_01", 0}, {"NPU", {}, -1, "01", "NPU", 0}}},
     ConfigFilterParams{80,
                        {{"CPU", {}, -1, "01", "CPU_01", 0},
                         {"GPU.0", {}, -1, "01", "iGPU_01", 0},
@@ -332,14 +369,25 @@ const std::vector<ConfigFilterParams> testValidConfigs = {
                         {"GPU.1", {}, -1, "01", "dGPU_01", 3}},
                        {{"CPU", {{"Total", 15.2}}}, {"GPU", {{"00000001", 10}, {"00000002", 90}}}},
                        {{"CPU", {}, -1, "01", "CPU_01", 1}, {"GPU.0", {}, -1, "01", "iGPU_01", 2}}},
-    ConfigFilterParams{100,
-                       {{"CPU", {}, -1, "01", "CPU_01", 1},
-                        {"GPU.0", {}, -1, "01", "iGPU_01", 2},
-                        {"GPU.1", {}, -1, "01", "dGPU_01", 3}},
-                       {{"CPU", {{"Total", 200}}}, {"GPU", {{"00000001", 200}, {"00000002", 200}}}},
-                       {{"CPU", {}, -1, "01", "CPU_01", 1},
-                        {"GPU.0", {}, -1, "01", "iGPU_01", 2},
-                        {"GPU.1", {}, -1, "01", "dGPU_01", 3}}},
+    ConfigFilterParams{
+        80,
+        {{"CPU", {}, -1, "01", "CPU_01", 1},
+         {"GPU.0", {}, -1, "01", "iGPU_01", 2},
+         {"GPU.1", {}, -1, "01", "dGPU_01", 3},
+         {"NPU", {}, -1, "01", "NPU", 4}},
+        {{"CPU", {{"Total", 15.2}}}, {"GPU", {{"00000001", 10}, {"00000002", 90}}}, {"NPU", {{npuUuid, 88}}}},
+        {{"CPU", {}, -1, "01", "CPU_01", 1}, {"GPU.0", {}, -1, "01", "iGPU_01", 2}}},
+    ConfigFilterParams{
+        100,
+        {{"CPU", {}, -1, "01", "CPU_01", 1},
+         {"GPU.0", {}, -1, "01", "iGPU_01", 2},
+         {"GPU.1", {}, -1, "01", "dGPU_01", 3},
+         {"NPU", {}, -1, "01", "NPU", 4}},
+        {{"CPU", {{"Total", 200}}}, {"GPU", {{"00000001", 200}, {"00000002", 200}}}, {"NPU", {{npuUuid, 200}}}},
+        {{"CPU", {}, -1, "01", "CPU_01", 1},
+         {"GPU.0", {}, -1, "01", "iGPU_01", 2},
+         {"GPU.1", {}, -1, "01", "dGPU_01", 3},
+         {"NPU", {}, -1, "01", "NPU", 4}}},
     ConfigFilterParams{80,
                        {{"CPU", {}, -1, "01", "CPU_01", 1},
                         {"GPU.0", {}, -1, "01", "iGPU_01", 2},

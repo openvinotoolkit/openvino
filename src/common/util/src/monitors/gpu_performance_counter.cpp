@@ -158,8 +158,8 @@ public:
         if (ts > lastTimeStamp) {
             auto delta =
                 std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - lastTimeStamp);
-            if (delta.count() < 500) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(500 - delta.count()));
+            if (delta.count() < monitor_duration) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(monitor_duration - delta.count()));
             }
         }
         lastTimeStamp = std::chrono::system_clock::now();
@@ -189,6 +189,7 @@ private:
     std::map<std::string, std::vector<std::vector<PDH_HCOUNTER>>> coreTimeCounters;
     std::chrono::time_point<std::chrono::system_clock> lastTimeStamp = std::chrono::system_clock::now();
     std::size_t numDevices = 0;
+    int monitor_duration = 500;
 };
 
 #elif defined(__linux__)
