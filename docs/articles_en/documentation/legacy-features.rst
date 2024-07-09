@@ -72,8 +72,8 @@ offering.
     option of the Automatic Device Selection. The only difference is that ``CUMULATIVE_THROUGHPUT`` uses
     the devices specified by AUTO, which means that adding devices manually is not mandatory,
     while with MULTI, the devices had to be specified before the inference.
-|   :doc:`Check the Automati Device Selection <../openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection>`
-|   :doc:`See how to transition from the legacy solution <legacy-features/transition-legacy-conversion-api>`
+|   :doc:`Check the Automatic Device Selection <../openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection>`
+|   :doc:`Check the legacy solution <legacy-features/multi-device>`
 
 Discontinued:
 #############
