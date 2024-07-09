@@ -74,7 +74,8 @@ ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
             // TODO: change in the future when we start supporting dynamic shapes here
             replacement = ov::util::get_constant_from_source(gather->output(0));
             OPENVINO_ASSERT(replacement,
-            "TotalSequenceLengthPattern transformation failed to determine the dimension value after the Gather operation. Most probably, the required dimension is dynamic: ",
+            "TotalSequenceLengthPattern transformation failed to determine the dimension value after "
+            "the Gather operation. Most probably, the required dimension is dynamic: ",
             concat);
         }
 
