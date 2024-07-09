@@ -119,7 +119,7 @@ void ov::npuw::dump_failure(const std::shared_ptr<ov::Model>& model, const std::
 
     std::ofstream details(extra_path, std::ios_base::app);
     auto t = std::time(nullptr);
-    auto tm = *std::localtime(&t);
+    const auto& tm = *std::localtime(&t);
     details << std::put_time(&tm, "%d-%m-%Y %H:%M:%S") << ": Failed to compile submodel for " << device << ", error:\n"
             << extra << "\n"
             << std::endl;
