@@ -11,6 +11,8 @@ namespace ov {
 namespace frontend {
 namespace pytorch {
 
+using DecoderRTInfo = std::unordered_map<std::string, ov::Any>;
+
 /// Plays a role of node, block and module decoder (kind of temporary fat API)
 class TorchDecoder : public IDecoder {
 public:
@@ -123,6 +125,9 @@ public:
 
     /// Returns the id of the decoder type ("fx": TorchFX, "ts": TorchScript)
     virtual const std::string& decoder_type_name() const = 0;
+
+    /// \brief Returns the rt_info for the element
+    virtual DecoderRTInfo get_rt_info() const = 0;
 };
 
 }  // namespace pytorch

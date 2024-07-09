@@ -287,7 +287,14 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::IndexLoopGetitemReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::QuantizedNodeRemover>();
     manager.register_pass<ov::frontend::pytorch::pass::SoftmaxReshapeElimination>();
-    manager.register_pass<ov::frontend::pytorch::pass::U4BlockRepack>();
+
+    // Check if model is symmetrically quantized
+    bool sym = false;
+    if (model->has_rt_info("symmetric_quantization")) {
+        sym = model->get_rt_info()["symmetric_quantization"].as<bool>();
+    }
+    manager.register_pass<ov::frontend::pytorch::pass::U4BlockRepack>(sym);
+
     manager.register_pass<ov::frontend::pytorch::pass::ReversepropResolver>();
     manager.register_pass<ov::frontend::pytorch::pass::MovePackThroughLstm>();
     manager.register_pass<ov::frontend::pytorch::pass::RemovePackingOps>();

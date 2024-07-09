@@ -68,6 +68,13 @@ std::shared_ptr<ov::Model> TranslateSession::translate_graph(const ov::frontend:
             param->output(0).set_names({param->get_friendly_name()});
         }
     }
+
+    // process model rt_info
+    auto rt_info = pytorch_model->get_decoder()->get_rt_info();
+    for (auto item : rt_info) {
+        model->set_rt_info(item.second, item.first);
+    }
+
     return model;
 }
 
