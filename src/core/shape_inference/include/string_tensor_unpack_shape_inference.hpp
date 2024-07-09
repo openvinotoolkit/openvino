@@ -19,14 +19,14 @@ std::vector<TRShape> shape_infer(const StringTensorUnpack* op,
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 1);
     const auto& data_shape = input_shapes[0];
     auto output_shapes = std::vector<TRShape>(3);
-    
+
     // output 1 and 2: begins and ends
     output_shapes[0] = data_shape;
     output_shapes[1] = data_shape;
 
     // output 3: symbols
-    const auto strings = ov::op::get_input_const_data_as<TRShape, uint8_t>(op, 0, tensor_accessor);
-    if (data_shape.is_static() && strings) {
+    const auto strings = ov::op::get_input_const_data_as<TRShape, ov::element::string>(op, 0, tensor_accessor);
+    if (strings) {
         const uint64_t string_count = data_shape[0].get_length();
         size_t total_length = 0;
         for(size_t i = 0; i <= string_count; ++i)
