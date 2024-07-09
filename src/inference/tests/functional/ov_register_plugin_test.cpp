@@ -26,7 +26,8 @@ using namespace std;
 
 #ifndef OPENVINO_STATIC_LIBRARY
 
-inline void mockPlugin(ov::Core& core, std::shared_ptr<ov::IPlugin>& plugin, std::shared_ptr<void>& m_so) {
+namespace {
+void mockPlugin(ov::Core& core, std::shared_ptr<ov::IPlugin>& plugin, std::shared_ptr<void>& m_so) {
     std::string libraryPath = ov::test::utils::get_mock_engine_path();
     if (!m_so)
         m_so = ov::util::load_shared_object(libraryPath.c_str());
@@ -35,6 +36,13 @@ inline void mockPlugin(ov::Core& core, std::shared_ptr<ov::IPlugin>& plugin, std
 
     injectProxyEngine(plugin.get());
 }
+
+void clearMockPlugin(const std::shared_ptr<void>& m_so) {
+    std::string libraryPath = ov::test::utils::get_mock_engine_path();
+    ASSERT_TRUE(m_so);
+    ov::test::utils::make_std_function<void()>(m_so, "ClearTargets")();
+}
+}  // namespace
 
 TEST(RegisterPluginTests, getVersionforRegisteredPluginThrows) {
     ov::Core core;
@@ -49,6 +57,7 @@ TEST(RegisterPluginTests, getVersionforRegisteredPluginThrows) {
                                            std::string("mock_registered_engine") + OV_BUILD_POSTFIX),
         mock_plugin_name));
     ASSERT_THROW(core.get_versions("MOCK_REGISTERED_HARDWARE"), ov::Exception);
+    clearMockPlugin(m_so);
 }
 
 TEST(RegisterPluginTests, getVersionforNoRegisteredPluginNoThrows) {
@@ -113,6 +122,7 @@ TEST(RegisterPluginTests, registerExistingPluginThrows) {
                                                                          std::string("mock_engine") + OV_BUILD_POSTFIX),
                                       mock_plugin_name),
                  ov::Exception);
+    clearMockPlugin(m_so);
 }
 
 inline std::string getPluginFile() {
