@@ -7,6 +7,10 @@
 #include <algorithm>
 #include <functional>
 #include <openvino/op/add.hpp>
+#include <openvino/op/subtract.hpp>
+#include <openvino/op/multiply.hpp>
+#include <openvino/op/divide.hpp>
+
 #include <openvino/pass/graph_rewrite.hpp>
 #include <openvino/pass/manager.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
@@ -55,11 +59,20 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations_visibility.hpp"
+#include "openvino/core/symbol.hpp"
+
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
+
+namespace {
 
 using namespace mlir;
 
+using NodePtr = std::shared_ptr<ov::Node>;
+using SymbolPtr = std::shared_ptr<ov::Symbol>;
 
-static void prepareMLIRKernelWithoutWrapper(mlir::OwningOpRef<mlir::ModuleOp>& module) {
+
+
+void prepareMLIRKernelWithoutWrapper(mlir::OwningOpRef<mlir::ModuleOp>& module) {
     // A set of default passes that lower any input IR to LLVM
     PassManager pm(module->getContext());
 
@@ -121,7 +134,7 @@ static void prepareMLIRKernelWithoutWrapper(mlir::OwningOpRef<mlir::ModuleOp>& m
     }
 }
 
-static std::unique_ptr<llvm::Module> lowerToLLVMIR(Operation* module, llvm::LLVMContext& llvmContext) {
+std::unique_ptr<llvm::Module> lowerToLLVMIR(Operation* module, llvm::LLVMContext& llvmContext) {
     // Default lowering for mlir-cpu-runner
     auto llvmModule = translateModuleToLLVMIR(module, llvmContext);
     assert(llvmModule);
@@ -277,7 +290,7 @@ public:
 
 typedef std::vector<std::tuple<ov::element::Type, ov::PartialShape>> OVOutputTypes;
 
-class OPENVINO_API MLIROp : public ov::op::Op {
+class MLIROp : public ov::op::Op {
     std::shared_ptr<MLIREvaluate> engine;
     OVOutputTypes output_types;
 
@@ -298,13 +311,11 @@ public:
         }
     }
 
-    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override {
+    NodePtr clone_with_new_inputs(const ov::OutputVector& new_args) const override {
         return std::make_shared<MLIROp>(new_args, engine, output_types);
     }
 
     bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override {
-        // FIXME: Assumes an output contains only one tensor which shape is just propagated from inputs[0].
-        // TODO: Involve internal for a partition shape propagation or rely on symbolic shape info.
         outputs[0].set_shape(inputs[0].get_shape());
 
         std::vector<MemRef> memref_args;
@@ -329,7 +340,7 @@ public:
     }
 };
 
-static mlir::Location createLayerLocation(mlir::MLIRContext* ctx, const std::string& layerName, const std::string& layerType) {
+mlir::Location createLayerLocation(mlir::MLIRContext* ctx, const std::string& layerName, const std::string& layerType) {
     const auto layerNameAttr = mlir::StringAttr::get(ctx, layerName);
     const auto nameLoc = mlir::NameLoc::get(layerNameAttr);
 
@@ -341,7 +352,7 @@ static mlir::Location createLayerLocation(mlir::MLIRContext* ctx, const std::str
     return mlir::FusedLoc::get(ctx, {nameLoc}, metadata);
 }
 
-static SmallVector<int64_t> importShape(const ov::PartialShape& shape) {
+SmallVector<int64_t> importShape(const ov::PartialShape& shape) {
     SmallVector<int64_t> out(shape.rank().get_length());
     // TODO: Add support for dynamically ranked shapes
     for (size_t i = 0; i < out.size(); ++i) {
@@ -351,76 +362,76 @@ static SmallVector<int64_t> importShape(const ov::PartialShape& shape) {
     return out;
 }
 
-static mlir::IntegerType getInt1Type(mlir::MLIRContext* ctx) {
+mlir::IntegerType getInt1Type(mlir::MLIRContext* ctx) {
     return mlir::IntegerType::get(ctx, 1);
 }
 
-static mlir::IntegerType getInt4Type(mlir::MLIRContext* ctx) {
+mlir::IntegerType getInt4Type(mlir::MLIRContext* ctx) {
     return mlir::IntegerType::get(ctx, 4);
 }
 
-static mlir::IntegerType getInt8Type(mlir::MLIRContext* ctx) {
+mlir::IntegerType getInt8Type(mlir::MLIRContext* ctx) {
     return mlir::IntegerType::get(ctx, 8);
 }
 
-static mlir::IntegerType getInt16Type(mlir::MLIRContext* ctx) {
+mlir::IntegerType getInt16Type(mlir::MLIRContext* ctx) {
     return mlir::IntegerType::get(ctx, 16);
 }
 
-static mlir::IntegerType getInt32Type(mlir::MLIRContext* ctx) {
+mlir::IntegerType getInt32Type(mlir::MLIRContext* ctx) {
     return mlir::IntegerType::get(ctx, 32);
 }
 
-static mlir::IntegerType getInt64Type(mlir::MLIRContext* ctx) {
+mlir::IntegerType getInt64Type(mlir::MLIRContext* ctx) {
     return mlir::IntegerType::get(ctx, 64);
 }
 
-static mlir::IntegerType getSInt4Type(mlir::MLIRContext* ctx) {
+mlir::IntegerType getSInt4Type(mlir::MLIRContext* ctx) {
     return mlir::IntegerType::get(ctx, 4, mlir::IntegerType::Signed);
 }
 
-static mlir::IntegerType getSInt8Type(mlir::MLIRContext* ctx) {
+mlir::IntegerType getSInt8Type(mlir::MLIRContext* ctx) {
     return mlir::IntegerType::get(ctx, 8, mlir::IntegerType::Signed);
 }
 
-static mlir::IntegerType getSInt16Type(mlir::MLIRContext* ctx) {
+mlir::IntegerType getSInt16Type(mlir::MLIRContext* ctx) {
     return mlir::IntegerType::get(ctx, 16, mlir::IntegerType::Signed);
 }
 
-static mlir::IntegerType getSInt32Type(mlir::MLIRContext* ctx) {
+mlir::IntegerType getSInt32Type(mlir::MLIRContext* ctx) {
     return mlir::IntegerType::get(ctx, 32, mlir::IntegerType::Signed);
 }
 
-static mlir::IntegerType getSInt64Type(mlir::MLIRContext* ctx) {
+mlir::IntegerType getSInt64Type(mlir::MLIRContext* ctx) {
     return mlir::IntegerType::get(ctx, 64, mlir::IntegerType::Signed);
 }
 
-static mlir::IntegerType getUInt4Type(mlir::MLIRContext* ctx) {
+mlir::IntegerType getUInt4Type(mlir::MLIRContext* ctx) {
     return mlir::IntegerType::get(ctx, 4, mlir::IntegerType::Unsigned);
 }
 
-static mlir::IntegerType getUInt8Type(mlir::MLIRContext* ctx) {
+mlir::IntegerType getUInt8Type(mlir::MLIRContext* ctx) {
     return mlir::IntegerType::get(ctx, 8, mlir::IntegerType::Unsigned);
 }
 
-static mlir::IntegerType getUInt16Type(mlir::MLIRContext* ctx) {
+mlir::IntegerType getUInt16Type(mlir::MLIRContext* ctx) {
     return mlir::IntegerType::get(ctx, 16, mlir::IntegerType::Unsigned);
 }
 
-static mlir::IntegerType getUInt32Type(mlir::MLIRContext* ctx) {
+mlir::IntegerType getUInt32Type(mlir::MLIRContext* ctx) {
     return mlir::IntegerType::get(ctx, 32, mlir::IntegerType::Unsigned);
 }
 
-static mlir::IntegerType getUInt64Type(mlir::MLIRContext* ctx) {
+mlir::IntegerType getUInt64Type(mlir::MLIRContext* ctx) {
     return mlir::IntegerType::get(ctx, 64, mlir::IntegerType::Unsigned);
 }
 
-static mlir::IntegerType getBool8Type(mlir::MLIRContext* ctx) {
+mlir::IntegerType getBool8Type(mlir::MLIRContext* ctx) {
     // Signless 8-bit integer use for BOOL, to distinguish it from U8
     return mlir::IntegerType::get(ctx, 8, mlir::IntegerType::Signless);
 }
 
-static mlir::Type importPrecision(mlir::MLIRContext* ctx, const ov::element::Type& precision) {
+mlir::Type importPrecision(mlir::MLIRContext* ctx, const ov::element::Type& precision) {
     switch (precision) {
     case ov::element::Type_t::f64:
         return mlir::Float64Type::get(ctx);
@@ -457,15 +468,18 @@ static mlir::Type importPrecision(mlir::MLIRContext* ctx, const ov::element::Typ
     }
 }
 
-static mlir::RankedTensorType importTensor(mlir::MLIRContext* ctx,
+mlir::RankedTensorType importTensor(mlir::MLIRContext* ctx,
                                     const ov::PartialShape& shape,
                                     const ov::element::Type& elemType) {
     return mlir::RankedTensorType::get(ArrayRef(importShape(shape)), importPrecision(ctx, elemType));
 }
 
-static mlir::Location createLocation(mlir::MLIRContext* ctx, std::shared_ptr<ov::Node> node) {
+mlir::Location createLocation(mlir::MLIRContext* ctx, NodePtr node) {
     return createLayerLocation(ctx, node->get_friendly_name(), node->get_type_name());
 }
+
+} // namespace
+
 
 namespace std {
 
@@ -488,14 +502,16 @@ struct hash<ov::Output<ov::Node>> final {
 }  // namespace std
 
 
-static MemRefType convertTensorToMemRef(TensorType tensorType) {
+namespace {
+
+MemRefType convertTensorToMemRef(TensorType tensorType) {
     ArrayRef<int64_t> shape = tensorType.getShape();
     Type elementType = tensorType.getElementType();
     return MemRefType::get(shape, elementType);
 }
 
 
-static SmallVector<mlir::Type> tensorsToMemRefs(SmallVector<mlir::Type> tensors) {
+SmallVector<mlir::Type> tensorsToMemRefs(SmallVector<mlir::Type> tensors) {
     SmallVector<mlir::Type> out;
     out.reserve(tensors.size());
     for (const auto& tensor : tensors) {
@@ -505,7 +521,7 @@ static SmallVector<mlir::Type> tensorsToMemRefs(SmallVector<mlir::Type> tensors)
 }
 
 
-static SmallVector<mlir::Type> get_types_for_values(mlir::MLIRContext* context, const ov::OutputVector& values) {
+SmallVector<mlir::Type> get_types_for_values(mlir::MLIRContext* context, const ov::OutputVector& values) {
     SmallVector<mlir::Type> types;
     types.reserve(values.size());
     for (const auto& output : values) {
@@ -516,7 +532,7 @@ static SmallVector<mlir::Type> get_types_for_values(mlir::MLIRContext* context, 
 
 class ConversionContext {
 public:
-    using Convertor = std::function<void(ConversionContext&, std::shared_ptr<ov::Node>)>;
+    using Convertor = std::function<void(ConversionContext&, NodePtr)>;
     using NodeOutputMap = std::unordered_map<ov::Output<ov::Node>, mlir::Value>;
 
     static const std::map<ov::DiscreteTypeInfo, Convertor> convertors;
@@ -528,7 +544,7 @@ public:
         : context(context),
           block_builder(block_builder) {}
 
-    SmallVector<mlir::Value> getInputs(std::shared_ptr<ov::Node> node) {
+    SmallVector<mlir::Value> getInputs(NodePtr node) {
         SmallVector<mlir::Value> out;
         out.reserve(node->get_input_size());
         for (const auto& input : node->inputs()) {
@@ -537,7 +553,7 @@ public:
         return out;
     }
 
-    void addOutputs(std::shared_ptr<ov::Node> node, mlir::Operation* op) {
+    void addOutputs(NodePtr node, mlir::Operation* op) {
         const auto results = op->getOpResults();
 
         OPENVINO_ASSERT(
@@ -556,14 +572,14 @@ public:
         return *block_builder;
     }
 
-    void convert(std::shared_ptr<ov::Node> node) {
+    void convert(NodePtr node) {
         convertors.at(node->get_type_info())(*this, node);
     }
 };
 
 template <typename TargetOp>
 struct ConvertBinary {
-    void operator()(ConversionContext& context, std::shared_ptr<ov::Node> node) {
+    void operator()(ConversionContext& context, NodePtr node) {
         auto loc = createLocation(context.context, node);
         auto& builder = context.builder();
         // TODO: Support broadcasts
@@ -586,9 +602,13 @@ struct ConvertBinary {
 };
 
 const std::map<ov::DiscreteTypeInfo, ConversionContext::Convertor> ConversionContext::convertors = {
-    {ov::op::v1::Add::get_type_info_static(), Convertor(ConvertBinary<linalg::AddOp>())}};
+    {ov::op::v1::Add::get_type_info_static(), Convertor(ConvertBinary<linalg::AddOp>())},
+    {ov::op::v1::Subtract::get_type_info_static(), Convertor(ConvertBinary<linalg::SubOp>())},
+    {ov::op::v1::Multiply::get_type_info_static(), Convertor(ConvertBinary<linalg::MulOp>())},
+    {ov::op::v1::Divide::get_type_info_static(), Convertor(ConvertBinary<linalg::DivOp>())},
+};
 
-static mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
+mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
                                                  const ov::OutputVector& inputs,
                                                  const ov::NodeVector& nodes,
                                                  const ov::OutputVector& outputs) {
@@ -646,51 +666,335 @@ static mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
     return module;
 }
 
-class AddLowering : public ov::pass::MatcherPass {
+
+using InputVector = std::vector<ov::Input<ov::Node>>;
+
+
+struct Subgraph {
+    ov::NodeVector nodes;
+    ov::OutputVector inputs;
+    ov::OutputVector outputs;
+    std::vector<InputVector> output_consumers;
+
+    // Consumes other subgraph
+    void merge (Subgraph& other) {
+        nodes.insert(nodes.end(), other.nodes.begin(), other.nodes.end());
+    }
+};
+
+
+using SubgraphPtr = std::shared_ptr<Subgraph>;
+using SubgraphID = SymbolPtr;
+
+
+class SubgraphTracker {
 public:
-    OPENVINO_RTTI("AddLowering", "0");
-    explicit AddLowering(mlir::MLIRContext* context) {
-        auto pattern = ov::pass::pattern::wrap_type<ov::op::v1::Add>(
-            {ov::pass::pattern::any_input(), ov::pass::pattern::any_input()});
 
-        auto callback = [context](ov::pass::pattern::Matcher& m) {
-            std::cout << "[ INFO ] Matched AddLowering\n";
-            auto add = m.get_match_root();
+    // callback to finalize the subgraph when it is terminated
+    using Finalizer = std::function<void(SubgraphPtr)>;
 
-            mlir::OwningOpRef<mlir::ModuleOp> module;
+    SubgraphTracker(Finalizer finalizer): m_finalizer(finalizer) {}
 
-            // FIXME: Suppose no broadcast
-            module = ngraph_to_mlir(context, add->input_values(), {add}, add->outputs());
-
-            auto expected_outputs = add->outputs();
-            OVOutputTypes output_types;
-            for (size_t i = 0; i < expected_outputs.size(); ++i) {
-                output_types.push_back(
-                    std::make_tuple(expected_outputs[i].get_element_type(), expected_outputs[i].get_partial_shape()));
+    void add_node (NodePtr node, bool belongs) {
+        // collect all subgraph ids that input nodes belong to and all dependencies
+        Dependencies input_subgraphs;
+        Dependencies input_dependencies;
+        for(auto input_value: node->input_values()) {
+            auto node = input_value.get_node_shared_ptr();
+            if(auto id = get_subgraph_id(node)) {
+                input_subgraphs.insert(ov::symbol::ancestor_of(id));
             }
-            auto replacement = std::make_shared<MLIROp>(add->input_values(),
-                                                        std::make_shared<MLIREvaluate>(std::move(module)),
-                                                        output_types);
+            const auto& deps = get_dependencies(node);
+            for(auto dep: deps) {
+                input_dependencies.insert(ov::symbol::ancestor_of(dep));
+            }
+        }
 
-            replace_node(add, replacement);
+        if(belongs) {
+            // Below we refuse to merge subgraphs if all of them cannot merge to a single subgraph, this is rough because
+            // there are cases when part of the input subgraphs can consume the node and others will come as inputs -- TODO.
+            // TODO: leave only those input subgraphs that are not conflicting with other subgraphs nor with any dependencies
+            if(input_subgraphs.empty() || intersected(input_subgraphs, input_dependencies)) {   // no input subgraphs || cannot merge all due to cycles
+                try_terminate_subgraphs(input_subgraphs, node);
+
+                // start a new subgraph
+                auto subgraph_id = new_subgraph();
+                add_node_to_subgraph(node, subgraph_id);
+                set_subgraph_id(node, subgraph_id);
+                input_dependencies.insert(input_subgraphs.begin(), input_subgraphs.end());
+            } else {
+                auto merged_subgraph_id = std::accumulate(
+                    input_subgraphs.begin(),
+                    input_subgraphs.end(),
+                    *input_subgraphs.begin(),
+                    [this](SubgraphID a, SubgraphID b) {
+                        merge_subgraphs(a, b);
+                        return a;
+                    }
+                );
+                set_subgraph_id(node, merged_subgraph_id);
+                add_node_to_subgraph(node, merged_subgraph_id);
+            }
+
+        } else {
+            try_terminate_subgraphs(input_subgraphs, node);
+            set_subgraph_id(node, nullptr);
+            input_dependencies.insert(input_subgraphs.begin(), input_subgraphs.end());
+        }
+        set_dependencies(node, input_dependencies);
+    }
+
+    void finalize() {
+        for(auto subgraph_record: m_subgraphs) {
+            terminate_subgraph(subgraph_record.first);
+        }
+    }
+
+private:
+
+    std::unordered_map<SubgraphID, SubgraphPtr> m_subgraphs;
+    using Dependencies = std::unordered_set<SubgraphID>;
+    Finalizer m_finalizer;
+
+    // // Detects if `node` depends on a node from `subgraph` but goes via node that doesn't belongs to `subgraph`
+    // bool depends_via_break (NodePtr node, const Subgraph& subgraph);
+
+    SubgraphID new_subgraph() {
+        SubgraphID id = std::make_shared<ov::Symbol>();
+        m_subgraphs[id] = std::make_shared<Subgraph>();
+        return id;
+    }
+
+    void add_node_to_subgraph(NodePtr node, SubgraphID id) {
+        get_subgraph(id)->nodes.push_back(node);
+    }
+
+    void merge_subgraphs(SubgraphID id1, SubgraphID id2) {
+        id1 = ov::symbol::ancestor_of(id1);
+        id2 = ov::symbol::ancestor_of(id2);
+        if (id1 == id2) return;
+
+        auto subgraph1 = get_subgraph(id1);
+        auto subgraph2 = get_subgraph(id2);
+        subgraph1->merge(*subgraph2);
+        m_subgraphs.erase(id1);
+        m_subgraphs.erase(id2);
+        ov::symbol::set_equal(id1, id2);
+        id1 = ov::symbol::ancestor_of(id1);
+        m_subgraphs[id1] = subgraph1;
+    }
+
+    SubgraphPtr get_subgraph(SubgraphID id) {
+        return m_subgraphs.at(ov::symbol::ancestor_of(id));
+    }
+
+    // set/get all subgraph ids that contribute to a given node
+
+    const Dependencies& get_dependencies(NodePtr node) {
+        return node->get_rt_info().at("__subgraph_dependencies").as<Dependencies>();
+    }
+    void set_dependencies(NodePtr node, const Dependencies& dependencies) {
+        node->get_rt_info()["__subgraph_dependencies"] = dependencies;
+    }
+
+    // set/get subgraph id that a give node belongs to
+
+    SubgraphID get_subgraph_id(NodePtr node) {
+        auto id = node->get_rt_info().at("__subgraph_id").as<SubgraphID>();
+        if(id) {
+            id = ov::symbol::ancestor_of(id);
+        }
+        return id;
+    }
+
+    void set_subgraph_id(NodePtr node, SubgraphID id) {
+        node->get_rt_info()["__subgraph_id"] = id;
+    }
+
+    bool intersected(const Dependencies& a, const Dependencies& b) {
+        for(const auto& x: a) {
+            if(b.count(x))
+                return true;
+        }
+        return false;
+    }
+
+    void terminate_subgraph(SubgraphID id) {
+        id = ov::symbol::ancestor_of(id);
+        auto subgraph = get_subgraph(id);
+        // Build subgraph inputs and outputs
+        std::unordered_set<ov::Output<ov::Node>> inputs;
+        auto& outputs = subgraph->outputs;
+        auto& output_consumers = subgraph->output_consumers;
+        for(auto node: subgraph->nodes) {
+            for(auto input: node->input_values()) {
+                auto input_id = get_subgraph_id(input.get_node_shared_ptr());
+                if(!ov::symbol::are_equal(id, input_id)) {
+                    inputs.insert(input);
+                }
+            }
+            for(auto output: node->outputs()) {
+                const auto& consumers = output.get_target_inputs();
+                InputVector external_consumers;
+                for(auto consumer: consumers) {
+                    auto consumer_id = get_subgraph_id(consumer.get_node()->shared_from_this());
+                    if(!ov::symbol::are_equal(id, consumer_id)) {
+                        external_consumers.push_back(consumer);
+                    }
+                }
+                bool used_outside = !external_consumers.empty();
+                if(used_outside) {
+                    outputs.push_back(output);
+                    output_consumers.push_back(external_consumers);
+                }
+            }
+        }
+        subgraph->inputs.assign(inputs.begin(), inputs.end());
+        m_finalizer(subgraph);
+    }
+
+    void try_terminate_subgraphs(const Dependencies& subgraphs, NodePtr terminator) {
+        // TODO: Terminate subgraphs earlier when all terminating nodes are known
+        // TODO: try to merge subgraphs if they are being terminated simultaniously
+    }
+};
+
+// This pass find marked with a special flag group of nodes and collapse each group to a single MLIR function
+NodePtr ngraph_to_mlir_op(MLIRContext* context, SubgraphPtr subgraph) {
+
+    mlir::OwningOpRef<mlir::ModuleOp> module;
+
+    module = ngraph_to_mlir(context, subgraph->inputs, subgraph->nodes, subgraph->outputs);
+
+    OVOutputTypes output_types;
+    for (size_t i = 0; i < subgraph->outputs.size(); ++i) {
+        output_types.push_back(
+            std::make_tuple(subgraph->outputs[i].get_element_type(), subgraph->outputs[i].get_partial_shape()));
+    }
+    return std::make_shared<MLIROp>(
+        subgraph->inputs,
+        std::make_shared<MLIREvaluate>(std::move(module)),
+        output_types
+    );
+};
+
+
+const std::string& subgraph_mark() {
+    static const std::string mark = "__subgraph_mlir_mark";
+    return mark;
+}
+
+void set_subgraph_mark(NodePtr node) {
+    node->get_rt_info()[subgraph_mark()];
+}
+
+bool get_subgraph_mark(NodePtr node) {
+    return node->get_rt_info().count(subgraph_mark());
+}
+
+class MarkPattern : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("MarkPattern", "0");
+    MarkPattern(NodePtr pattern) {
+        auto callback = [](ov::pass::pattern::Matcher& m) {
+            // TODO: support multi-node patterns marking
+            auto node = m.get_match_root();
+            set_subgraph_mark(node);
             return true;
         };
 
-        auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern, "AddLowering");
+        auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern, "MarkPattern");
         register_matcher(m, callback);
     }
 };
 
 
-static void injectMLIR(std::shared_ptr<ov::Model> model, MLIRContext* context) {
-    ov::pass::Manager manager;
-    manager.set_per_pass_validation(true);
-    manager.register_pass<AddLowering>(context);
-    manager.run_passes(model);
+void replace_subgraph(SubgraphPtr subgraph, NodePtr node) {
+    const auto& output_consumers = subgraph->output_consumers;
+    assert(output_consumers.size() == node->get_output_size());
+    for(size_t i = 0; i < node->get_output_size(); ++i) {
+        auto replacement = node->output(i);
+        for(auto consumer: output_consumers[i]) {
+            consumer.replace_source_output(replacement);
+        }
+    }
 }
 
 
-static MLIRContext* get_shared_mlir_context() {
+class Partitioner : public ov::pass::ModelPass {
+    MLIRContext* context;
+public:
+    OPENVINO_RTTI("Partitioner");
+
+    Partitioner(MLIRContext* context) : context(context) {}
+
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
+        SubgraphTracker tracker([this](SubgraphPtr subgraph) {
+                auto mlir_op = ngraph_to_mlir_op(context, subgraph);
+                replace_subgraph(subgraph, mlir_op);
+                std::cerr << "Created MLIR op: " << mlir_op << "\n";
+            }
+        );
+        for(auto node: model->get_ordered_ops()) {
+            tracker.add_node(node, get_subgraph_mark(node));
+        }
+        tracker.finalize();
+    }
+};
+
+
+bool elementwise_f32_binary_no_broadcast_predicate(const ov::Output<ov::Node>& output) {
+    if(output.get_element_type() != ov::element::f32) {
+        return false;
+    }
+    // Check if implicit broadcast is possible, reject in this case
+    // Relies on symbolic information -- register SymbolicPropagation before applying this pattern
+    auto input_shape_a = output.get_node_shared_ptr()->get_input_partial_shape(0);
+    auto input_shape_b = output.get_node_shared_ptr()->get_input_partial_shape(1);
+    auto output_shape = output.get_partial_shape();
+    if(output_shape.rank().is_dynamic() || input_shape_a.rank().is_dynamic() || input_shape_b.rank().is_dynamic()) {
+        return false;
+    }
+    if(output_shape.rank().get_length() != input_shape_a.rank().get_length() || output_shape.rank().get_length() != input_shape_b.rank().get_length()) {
+        return false;
+    }
+
+    for(size_t i = 0; i < output_shape.size(); ++i) {
+        if(output_shape[i] != input_shape_a[i] || output_shape[i] != input_shape_b[i]) {
+            return false;
+        }
+        if(!ov::symbol::are_equal(output_shape[i].get_symbol(), input_shape_a[i].get_symbol()) || !ov::symbol::are_equal(output_shape[i].get_symbol(), input_shape_b[i].get_symbol())) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
+template <typename Op>
+NodePtr elementwise_f32_binary_no_broadcast() {
+    using namespace ov::pass::pattern;
+    return wrap_type<Op>({any_input(), any_input()}, elementwise_f32_binary_no_broadcast_predicate);
+}
+
+
+void injectMLIR(std::shared_ptr<ov::Model> model, MLIRContext* context) {
+    ov::pass::Manager manager;
+    using namespace ov::op;
+    manager.set_per_pass_validation(false);
+    manager.register_pass<ov::pass::SymbolicPropagation>();
+    manager.register_pass<MarkPattern>(elementwise_f32_binary_no_broadcast<v1::Add>());
+    manager.register_pass<MarkPattern>(elementwise_f32_binary_no_broadcast<v1::Subtract>());
+    manager.register_pass<MarkPattern>(elementwise_f32_binary_no_broadcast<v1::Multiply>());
+    manager.register_pass<MarkPattern>(elementwise_f32_binary_no_broadcast<v1::Divide>());
+    manager.register_pass<Partitioner>(context);
+    manager.run_passes(model);
+    model->validate_nodes_and_infer_types();
+}
+
+
+MLIRContext* get_shared_mlir_context() {
     // Gives MLIRContext instance shared for entire OV process and initialized once upon the initial request
     // FIXME: Bind with OpenVINO lifetime in the sutable class instead of dirty tricking with static lifetime
 
@@ -728,6 +1032,8 @@ static MLIRContext* get_shared_mlir_context() {
 
     return context.get();
 }
+
+} // namespace
 
 void ov::pass::transformMLIR(std::shared_ptr<ov::Model> model) {
     injectMLIR(model, get_shared_mlir_context());
