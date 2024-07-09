@@ -14,6 +14,11 @@ Use the **openvino-node** package:
 const { addon: ov } = require('openvino-node');
 ```
 
+## Package usage in Electron applications
+
+To use this package in development of Electron applications, make sure that
+in your system installed [Build Tools for Visual Studio](https://aka.ms/vs/17/release/vs_BuildTools.exe)
+
 ## Build From Sources
 
 For more details, refer to the [OpenVINO™ JavaScript API Developer Documentation](https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/docs/README.md#openvino-node-package-developer-documentation)
