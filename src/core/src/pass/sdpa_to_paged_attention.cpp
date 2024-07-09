@@ -9,6 +9,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/sdpa_to_paged_attention/position_ids_replacer.hpp"
