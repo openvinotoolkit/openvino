@@ -175,6 +175,24 @@ const auto params2D = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
 
+/* ============= Convolution (3D) ============= */
+const std::vector<CPUSpecificParams> CPUParams3D = {
+    conv_ref_3D_nspc,
+    conv_gemm_3D,
+    conv_avx2_3D,
+    conv_avx512_3D
+};
+
+const auto params3D = ::testing::Combine(
+    ::testing::Values(nodeType::convolution),
+    ::testing::Values(convParams3D()),
+    ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams3D)),
+    ::testing::Values(inputShapes3D()),
+    ::testing::Values(axis())
+);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution3D, ConvConcatSubgraphTest, params3D, ConvConcatSubgraphTest::getTestCaseName);
+
 }  // namespace ConvolutionConact
 
 namespace GroupConvolutionConcat {
@@ -197,6 +215,24 @@ const auto params2D = ::testing::Combine(
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
+
+/* ============= GroupConvolution (3D) ============= */
+const std::vector<CPUSpecificParams> CPUParams3D = {
+    conv_ref_3D_nspc,
+    conv_gemm_3D,
+    conv_avx2_3D,
+    conv_avx512_3D
+};
+
+const auto params3D = ::testing::Combine(
+    ::testing::Values(nodeType::groupConvolution),
+    ::testing::Values(groupConvParams3D()),
+    ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams3D)),
+    ::testing::Values(inputShapes3D()),
+    ::testing::Values(axis())
+);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution3D, ConvConcatSubgraphTest, params3D, ConvConcatSubgraphTest::getTestCaseName);
 
 }  // namespace GroupConvolutionConcat
 

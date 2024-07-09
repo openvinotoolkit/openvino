@@ -34,10 +34,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D, ConvConcatSubgraphTest, params2D, 
 
 /* ============= Convolution (3D) ============= */
 const std::vector<CPUSpecificParams> CPUParams3D = {
-    conv_ref_3D,
-    conv_gemm_3D,
-    conv_avx2_3D,
-    conv_avx512_3D
+    conv_ref_3D
 };
 
 const auto params3D = ::testing::Combine(
@@ -69,10 +66,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution2D, ConvConcatSubgraphTest, param
 
 /* ============= GroupConvolution (3D) ============= */
 const std::vector<CPUSpecificParams> CPUParams3D = {
-    conv_ref_3D,
-    conv_gemm_3D,
-    conv_avx2_3D,
-    conv_avx512_3D
+    conv_ref_3D
 };
 
 const auto params3D = ::testing::Combine(
