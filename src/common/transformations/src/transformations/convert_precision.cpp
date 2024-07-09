@@ -441,6 +441,7 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
         {ov::op::v3::TopK::get_type_info_static(), fuse_type_to_topk},
         {ov::op::v11::TopK::get_type_info_static(), fuse_type_to_topk},
         {ov::op::v8::MaxPool::get_type_info_static(), fuse_type_to_maxpool},
+        {ov::op::v14::MaxPool::get_type_info_static(), fuse_type_to_maxpool},
         {ov::op::v3::NonZero::get_type_info_static(), fuse_type_to_nonzero},
         {ov::op::v3::Bucketize::get_type_info_static(), fuse_type_to_bucketize},
         {ov::op::v1::Equal::get_type_info_static(), fuse_type_to_binary_comparision<ov::op::v1::Equal>},
@@ -924,9 +925,15 @@ bool fuse_type_to_topk(const std::shared_ptr<ov::Node>& node, const precisions_m
 }
 
 bool fuse_type_to_maxpool(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
-    if (auto maxpool = ov::as_type_ptr<ov::op::v8::MaxPool>(node)) {
+    auto maxpool_v8 = ov::as_type_ptr<ov::op::v8::MaxPool>(node);
+    auto maxpool_v14 = ov::as_type_ptr<ov::op::v14::MaxPool>(node);
+    if (maxpool_v14) {
         return update_type(1, node, precisions, [&](const element::Type& to) {
-            maxpool->set_index_element_type(to);
+            maxpool_v14->set_index_element_type(to);
+        });
+    } else if (maxpool_v8) {
+        return update_type(1, node, precisions, [&](const element::Type& to) {
+            maxpool_v8->set_index_element_type(to);
         });
     }
     return false;

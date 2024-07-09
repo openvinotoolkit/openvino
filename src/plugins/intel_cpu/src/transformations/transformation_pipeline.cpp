@@ -37,6 +37,7 @@
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
+#include "transformations/op_conversions/convert_avgpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
 #include "transformations/op_conversions/convert_bitwise_to_logical_bool.hpp"
 #include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"
@@ -468,9 +469,17 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         manager,
         [](const_node_ptr& node) -> bool {
             const auto maxpool = std::dynamic_pointer_cast<const ov::op::v14::MaxPool>(node);
-            return !maxpool ||  maxpool->get_rounding_type() == ov::op::RoundingType::CEIL_TORCH;
+            return !maxpool || maxpool->get_rounding_type() == ov::op::RoundingType::CEIL_TORCH;
         },
         ov::pass::ConvertMaxPool14ToMaxPool8);
+
+    CPU_SET_CALLBACK_COMMON(
+        manager,
+        [](const_node_ptr& node) -> bool {
+            const auto avgpool = std::dynamic_pointer_cast<const ov::op::v14::AvgPool>(node);
+            return !avgpool || avgpool->get_rounding_type() == ov::op::RoundingType::CEIL_TORCH;
+        },
+        ov::pass::ConvertAvgPool14ToAvgPool1);
 
     CPU_SET_CALLBACK_COMMON(manager,
         [](const_node_ptr &node) -> bool {

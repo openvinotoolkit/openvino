@@ -97,6 +97,7 @@ private:
 #define TYPE_RELAXED_EXTENSIONS                                         \
     TYPE_RELAXED_OP_EXTENSION(ov::op::v1::Add)                          \
     TYPE_RELAXED_OP_EXTENSION(ov::op::v1::AvgPool)                      \
+    TYPE_RELAXED_OP_EXTENSION(ov::op::v14::AvgPool)                     \
     TYPE_RELAXED_OP_EXTENSION(ov::op::v0::Clamp)                        \
     TYPE_RELAXED_OP_EXTENSION(ov::op::v0::Concat)                       \
     TYPE_RELAXED_OP_EXTENSION(ov::op::v1::Convolution)                  \
