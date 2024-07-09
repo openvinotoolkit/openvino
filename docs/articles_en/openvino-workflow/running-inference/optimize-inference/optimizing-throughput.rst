@@ -78,5 +78,5 @@ Keep in mind that the resulting performance is usually a fraction of the "ideal"
 
 .. note::
 
-   While the legacy approach of optimizing the parameters of each device separately works, the :doc:`Automatic Device Selection <../inference-devices-and-modes/multi-device>` allow configuring all devices (that are part of the specific multi-device configuration) at once.
+   While the legacy approach of optimizing the parameters of each device separately works, the :doc:`Automatic Device Selection <../inference-devices-and-modes/auto-device-selection>` allow configuring all devices (that are part of the specific multi-device configuration) at once.
 
