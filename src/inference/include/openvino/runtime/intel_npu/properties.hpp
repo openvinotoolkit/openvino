@@ -53,5 +53,13 @@ static constexpr ov::Property<uint64_t, ov::PropertyMutability::RO> device_total
  */
 static constexpr ov::Property<uint32_t, ov::PropertyMutability::RO> driver_version{"NPU_DRIVER_VERSION"};
 
+/**
+ * @brief [Only for NPU compiler]
+ * Type: std::string, default is empty.
+ * Sets various parameters supported by the NPU compiler.
+ * Available values: low-precision=true/low-precision=false
+ */
+static constexpr ov::Property<std::string> compilation_mode_params{"NPU_COMPILATION_MODE_PARAMS"};
+
 }  // namespace intel_npu
 }  // namespace ov

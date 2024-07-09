@@ -436,6 +436,12 @@ Plugin::Plugin()
           [&](const Config& config) {
               return _metrics->GetDriverVersion();
           }}},
+        {ov::intel_npu::compilation_mode_params.name(),
+         {true,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<COMPILATION_MODE_PARAMS>();
+          }}},
         // NPU Private
         // =========
         {ov::intel_npu::dma_engines.name(),
@@ -473,12 +479,6 @@ Plugin::Plugin()
           ov::PropertyMutability::RW,
           [](const Config& config) {
               return config.get<COMPILATION_MODE>();
-          }}},
-        {ov::intel_npu::compilation_mode_params.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<COMPILATION_MODE_PARAMS>();
           }}},
         {ov::intel_npu::compiler_type.name(),
          {false,
