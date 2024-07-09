@@ -55,10 +55,12 @@ bool evaluate(const std::shared_ptr<ov::op::v5::RNNSequence>& op,
 }
 
 namespace lstm_seq_v1 {
+OPENVINO_SUPPRESS_DEPRECATED_START
 template <ov::element::Type_t t1, ov::element::Type_t t2>
 inline void evaluate(const std::shared_ptr<ov::op::v0::LSTMSequence>& op,
                      ov::TensorVector& outputs,
                      const ov::TensorVector& inputs) {
+    OPENVINO_SUPPRESS_DEPRECATED_END
     using T1 = typename ov::element_type_traits<t1>::value_type;
     using T2 = typename ov::element_type_traits<t2>::value_type;
     ov::reference::lstm_sequence_v1<T1, T2>(static_cast<char*>(inputs[0].data()),
@@ -122,10 +124,12 @@ inline void evaluate(const std::shared_ptr<ov::op::v5::LSTMSequence>& op,
 }
 }  // namespace lstm_seq_v5
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 template <ov::element::Type_t ET>
 bool evaluate(const std::shared_ptr<ov::op::v0::LSTMSequence>& op,
               ov::TensorVector& outputs,
               const ov::TensorVector& inputs) {
+    OPENVINO_SUPPRESS_DEPRECATED_END
     switch (inputs[3].get_element_type()) {
     case ov::element::i64:
     case ov::element::u64:
@@ -398,6 +402,7 @@ bool evaluate_node<ov::op::v5::LSTMSequence>(std::shared_ptr<ov::Node> node,
     }
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 template <>
 bool evaluate_node<ov::op::v0::LSTMSequence>(std::shared_ptr<ov::Node> node,
                                              ov::TensorVector& outputs,
@@ -444,6 +449,7 @@ bool evaluate_node<ov::op::v0::LSTMSequence>(std::shared_ptr<ov::Node> node,
                        std::string("in evaluate_node()"));
     }
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 template <>
 bool evaluate_node<ov::op::v5::RNNSequence>(std::shared_ptr<ov::Node> node,

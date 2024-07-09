@@ -90,6 +90,7 @@ shared_ptr<opset5::LSTMSequence> lstm_seq_direction_initialization(const recurre
     return lstm_sequence;
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 shared_ptr<opset1::LSTMSequence> lstm_seq_v0_tensor_initialization(const recurrent_sequence_parameters& param) {
     auto batch_size = param.batch_size;
     auto seq_length = param.seq_length;
@@ -122,6 +123,7 @@ shared_ptr<opset1::LSTMSequence> lstm_seq_v0_tensor_initialization(const recurre
 
     return lstm_sequence;
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 }  // namespace
 
@@ -191,6 +193,7 @@ TEST(type_prop, lstm_sequence_v0_forward) {
 
     const auto lstm_direction = op::RecurrentSequenceDirection::FORWARD;
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto lstm_sequence = make_shared<opset1::LSTMSequence>(X,
                                                                  initial_hidden_state,
                                                                  initial_cell_state,
@@ -217,6 +220,7 @@ TEST(type_prop, lstm_sequence_v0_forward) {
     EXPECT_EQ(lstm_sequence->get_output_shape(1), (Shape{batch_size, num_directions, hidden_size}));
     EXPECT_EQ(lstm_sequence->get_output_element_type(2), element::f32);
     EXPECT_EQ(lstm_sequence->get_output_shape(2), (Shape{batch_size, num_directions, hidden_size}));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST(type_prop, lstm_sequence_bidirectional) {
@@ -295,6 +299,7 @@ TEST(type_prop, lstm_sequence_v0_bidirectional) {
     const std::vector<float> activations_beta = {0.0f, 5.49f, 6.0f};
     const std::vector<std::string> activations = {"tanh", "sigmoid", "sigmoid"};
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto lstm_sequence = make_shared<opset1::LSTMSequence>(X,
                                                                  initial_hidden_state,
                                                                  initial_cell_state,
@@ -310,6 +315,7 @@ TEST(type_prop, lstm_sequence_v0_bidirectional) {
                                                                  activations,
                                                                  clip_threshold,
                                                                  input_forget);
+
     EXPECT_EQ(lstm_sequence->get_hidden_size(), hidden_size);
     EXPECT_EQ(lstm_sequence->get_direction(), opset5::LSTMSequence::direction::BIDIRECTIONAL);
     EXPECT_EQ(lstm_sequence->get_activations_alpha(), activations_alpha);
@@ -326,6 +332,7 @@ TEST(type_prop, lstm_sequence_v0_bidirectional) {
     EXPECT_EQ(lstm_sequence->get_output_shape(1), (Shape{batch_size, num_directions, hidden_size}));
     EXPECT_EQ(lstm_sequence->get_output_element_type(2), element::f32);
     EXPECT_EQ(lstm_sequence->get_output_shape(2), (Shape{batch_size, num_directions, hidden_size}));
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
 TEST(type_prop, lstm_sequence_dynamic_batch_size) {
@@ -567,6 +574,7 @@ TEST(type_prop, lstm_sequence_invalid_input_direction_num_mismatch) {
     check_error(op::RecurrentSequenceDirection::REVERSE, 2);
 }
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 TEST(type_prop, lstm_sequence_v0_dynamic_num_directions) {
     recurrent_sequence_parameters param;
 
@@ -774,4 +782,5 @@ TEST(type_prop, lstm_sequence_v0_invalid_input_P) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(), "Inorrect shape of P input. Second dimension is: 1280, expected: 768");
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 }

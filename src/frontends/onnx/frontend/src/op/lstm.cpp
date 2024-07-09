@@ -213,6 +213,7 @@ ov::OutputVector lstm(const ov::frontend::onnx::Node& node) {
 
     if ((input_map.at(LSTMInput::LSTM_INPUT_P).get_names() != std::unordered_set<std::string>({"P_blank"})) ||
         (attributes.m_input_forget == true)) {
+        OPENVINO_SUPPRESS_DEPRECATED_START
         lstm_sequence = std::make_shared<ov::op::v0::LSTMSequence>(input_map.at(LSTMInput::LSTM_INPUT_X),
                                                                    input_map.at(LSTMInput::LSTM_INPUT_INIT_H),
                                                                    input_map.at(LSTMInput::LSTM_INPUT_INIT_C),
@@ -229,6 +230,7 @@ ov::OutputVector lstm(const ov::frontend::onnx::Node& node) {
                                                                    attributes.m_activations,
                                                                    attributes.m_clip_threshold,
                                                                    attributes.m_input_forget);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     } else {
         lstm_sequence = std::make_shared<v5::LSTMSequence>(input_map.at(LSTMInput::LSTM_INPUT_X),
                                                            input_map.at(LSTMInput::LSTM_INPUT_INIT_H),
