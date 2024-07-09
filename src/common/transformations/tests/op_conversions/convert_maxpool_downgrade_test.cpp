@@ -122,7 +122,7 @@ std::shared_ptr<ov::Model> create_ceil_torch_workaround_model(const ov::op::Roun
     const auto selected_pads = std::make_shared<Select>(in_gt_out, padding_end_node, zero);
 
     // apply padding on input clear pads attribute
-    const auto pb = std::make_shared<Concat>(ov::OutputVector{pads_remaining, padding_end_node}, 0);
+    const auto pb = std::make_shared<Concat>(ov::OutputVector{pads_remaining, padding_begin_node}, 0);
     const auto pe = std::make_shared<Concat>(ov::OutputVector{pads_remaining, selected_pads}, 0);
     auto minus_inf = Constant::create(ov::element::f32, ov::Shape{}, {-std::numeric_limits<float>::infinity()});
     std::shared_ptr<ov::Node> convert_like_node = std::make_shared<ConvertLike>(minus_inf, input);
