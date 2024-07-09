@@ -177,3 +177,47 @@ TEST_F(RTInfoSerializationTest, all_attributes_v10) {
     check_info(add->output(0).get_rt_info());
     EXPECT_EQ(f->get_parameters()[0]->get_layout(), "");
 }
+
+TEST_F(RTInfoSerializationTest, tag_names_verification) {
+    std::map<std::string, std::string> test_cases = {
+        {"0", "bad"},
+        {"0a", "bad"},
+        {"-a", "bad"},
+        {"a 0", "bad"},
+        {"a0", "good"},
+        {"a.0", "good"},
+        {".a0", "bad"},
+        {"a_0", "good"},
+        {"_0a", "bad"},
+        {"aXmL", "good"},
+        {"xMLa", "bad"},
+        {"XML", "bad"},
+    };
+    auto init_info = [&test_cases](ov::RTMap& info) {
+        for (const auto& item : test_cases) {
+            info[item.first] = item.second;
+        }
+    };
+
+    std::shared_ptr<ov::Model> model;
+    {
+        auto data = std::make_shared<ov::opset8::Parameter>(ov::element::Type_t::f32, ov::Shape{1, 3, 10, 10});
+        model = std::make_shared<ov::Model>(ov::OutputVector{data}, ov::ParameterVector{data});
+        init_info(model->get_rt_info());
+    }
+
+    ov::pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::Serialize>(m_out_xml_path, m_out_bin_path);
+    pass_manager.run_passes(model);
+
+    auto ir_model = getWithIRFrontend(m_out_xml_path, m_out_bin_path);
+    ASSERT_NE(nullptr, ir_model);
+
+    auto model_rt_info = ir_model->get_rt_info();
+    std::for_each(test_cases.begin(),
+                  test_cases.end(),
+                  [&model_rt_info](const std::pair<std::string, std::string>& item) {
+                      ASSERT_TRUE(model_rt_info.count(item.first));
+                      ASSERT_EQ(model_rt_info[item.first], item.second);
+                  });
+}
