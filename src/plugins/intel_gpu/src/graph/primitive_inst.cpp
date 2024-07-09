@@ -522,9 +522,9 @@ event::ptr primitive_inst::realloc_if_needed() {
         return ev;
 
     auto& sp = *get_network().get_shape_predictor();
-    std::vector<size_t> dt_sizes;
+    std::vector<size_t> dt_sizes_in_B;
     for (size_t i = 0; i < actual_layouts.size(); ++i) {
-        dt_sizes.push_back(ov::element::Type(actual_layouts[i].data_type).bitwidth());
+        dt_sizes_in_B.push_back(ov::element::Type(actual_layouts[i].data_type).size());
     }
     // read_value/assign nodes are supposed to always use variable memory
     if (auto stateful_prim = dynamic_cast<memory_state::variable*>(this)) {
@@ -541,19 +541,16 @@ event::ptr primitive_inst::realloc_if_needed() {
 
                 _outputs[0] = variable.get_memory();
                 // To record shape predictor
-                sp.predict_preallocation_shape(id(), _impl_params->output_layouts[0], true, 0);
-                if (_outputs.size() > 1) {
-                    sp.predict_preallocation_shape(id(), _impl_params->output_layouts[1], true, 1);
-                }
+                for (size_t j = 0; j < _impl_params->output_layouts.size(); ++j)
+                    sp.predict_preallocation_shape(id(), _impl_params->output_layouts[j], true, j);
                 return ev;
             } else if (_outputs[0] && variable.get_memory() && get_network().get_engine().is_the_same_buffer(*_outputs[0], *variable.get_memory())) {
                 GPU_DEBUG_TRACE_DETAIL << id() << " : realloc_if_needed: Reset output mem" << std::endl;
-                _outputs[0] = nullptr;
-                _max_output_layout_count[0] = 0;
-                if (_outputs.size() > 1) {
-                    _outputs[1] = nullptr;
-                    _max_output_layout_count[1] = 0;
+                for (size_t j = 0; j < _impl_params->output_layouts.size(); ++j) {
+                    _outputs[j] = nullptr;
+                    _max_output_layout_count[j] = 0;
                 }
+ 
             } else {
                 GPU_DEBUG_TRACE_DETAIL << id() << " : realloc_if_needed: can_be_optimized = false and memories are not being shared" << std::endl;
             }
@@ -566,7 +563,7 @@ event::ptr primitive_inst::realloc_if_needed() {
         // For nodes that can be optimized, variable memory is used as output memory
         // so there is no need for output memory reallocation
         if (can_be_optimized()) {
-            _max_output_layout_count[0] = variable.get_actual_mem_size() / (dt_sizes[0] / 8);
+            _max_output_layout_count[0] = variable.get_actual_mem_size() / dt_sizes_in_B[0];
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("can_be_optimized");
             return ev;
         }
@@ -693,7 +690,7 @@ event::ptr primitive_inst::realloc_if_needed() {
         bool can_reuse_buffer = (_outputs[i] && updated_layouts[i].get_buffer_size().count() <= _max_output_layout_count[i]);
         std::pair<bool, ov::Shape> prealloc_info =
             sp.predict_preallocation_shape(id(), updated_layouts[i], can_reuse_buffer, i, tmp_prealloc_count);
-        if (prealloc_info.first && sp.can_preallocate(ov::shape_size(prealloc_info.second) * (dt_sizes[i] / 8))) {
+        if (prealloc_info.first && sp.can_preallocate(ov::shape_size(prealloc_info.second) * (dt_sizes_in_B[i]))) {
             auto new_layout = updated_layouts[i];
             new_layout.set_partial_shape(prealloc_info.second);
             updated_params.output_layouts[i] = new_layout;
@@ -707,9 +704,7 @@ event::ptr primitive_inst::realloc_if_needed() {
             GPU_DEBUG_TRACE_DETAIL << id() << ": reuse previously allocated output buffer - "
                                    << actual_layouts[i].get_buffer_size().count() << "/" << _max_output_layout_count[i]
                                    << std::endl;
-            if (_outputs[i]->get_layout() != actual_layouts[i]) {
-                _outputs[i] = _network.get_engine().reinterpret_buffer(*_outputs[i], actual_layouts[i]);
-            }
+            _outputs[i] = _network.get_engine().reinterpret_buffer(*_outputs[i], actual_layouts[i]);
             // TODO: check need_reset_output_memory per output
             if (need_reset_output_memory() && !can_be_optimized()) {
                 GPU_DEBUG_TRACE_DETAIL << id() << " : Need reset output memory considering user" << std::endl;
@@ -1798,7 +1793,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
         if (_outputs.size() > i) {
             _max_output_layout_count.push_back(_outputs[i] ? _outputs[i]->get_layout().get_buffer_size().count() : 0);
         } else {
-            _outputs.push_back(memory::ptr());
+            _outputs.push_back(nullptr);
             _max_output_layout_count.push_back(0);
         }
     }
