@@ -9,6 +9,11 @@ Multi-device execution
                  multiple available computing devices to particular inference
                  requests to execute in parallel.
 
+.. danger::
+
+   The Multi-device execution mode described has been **deprecated** and this article will be removed in the future.
+
+   You can use the :ref:`CUMULATIVE_THROUGHPUT <cumulative throughput>` option of the :doc:`Automatic Device Selection <auto-device-selection.rst>` instead.
 
 To run inference on multiple devices, you can choose either of the following ways:
 
