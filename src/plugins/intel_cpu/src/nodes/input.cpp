@@ -472,17 +472,18 @@ void Input::initSupportedPrimitiveDescriptors() {
 }
 
 void Input::selectOptimalPrimitiveDescriptor() {
-    if (!(m_useParentMemoryDescForOutput && getType() == Type::Output))
-        return Node::selectOptimalPrimitiveDescriptor();
+    if (m_useParentMemoryDescForOutput && getType() == Type::Output) {
+        // ignore previous configuration
+        supportedPrimitiveDescriptors.clear();
 
-    // ignore previous configuration
-    supportedPrimitiveDescriptors.clear();
+        // and just use parent memory descriptor for Output node to avoid reorders insertion
+        NodeConfig config({PortConfig(getParentOutputMemDesc(getParentEdgeAt(0)))}, {});
 
-    // and just use parent memory descriptor for Output node to avoid reorders insertion
-    NodeConfig config({PortConfig(getParentOutputMemDesc(getParentEdgeAt(0)))}, {});
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+        return selectPrimitiveDescriptorByIndex(0);
+    }
 
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
-    selectPrimitiveDescriptorByIndex(0);
+    return Node::selectOptimalPrimitiveDescriptor();
 }
 
 void Input::createPrimitive() {

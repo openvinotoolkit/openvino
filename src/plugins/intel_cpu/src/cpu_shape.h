@@ -112,7 +112,7 @@ public:
      */
     const VectorDims& getStaticDims() const {
         if (type != ShapeType::Static) {
-            OPENVINO_THROW("Cannot get dims for non static shape");
+            OPENVINO_THROW("Cannot get dims for non static shape: ", this->toString());
         }
 
         return minDims;

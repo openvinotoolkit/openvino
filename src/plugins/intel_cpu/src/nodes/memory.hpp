@@ -63,6 +63,7 @@ public:
     }
 
     void execute(dnnl::stream strm) override final; // NOLINT
+    void executeDynamicSeq(dnnl::stream strm) override final; // NOLINT
     void executeDynamicImpl(dnnl::stream strm) override final; // NOLINT
     bool isExecutable() const override final; // NOLINT
 

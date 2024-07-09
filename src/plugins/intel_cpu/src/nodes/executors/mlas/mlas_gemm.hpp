@@ -32,8 +32,6 @@ public:
     static bool supports(const FCConfig& config);
 
 private:
-    const FCAttrs& m_attrs;
-    const MemoryArgs& m_memoryArgs;
     const MemoryCPtr packedWeights;
     int64_t M, N, K;
 };

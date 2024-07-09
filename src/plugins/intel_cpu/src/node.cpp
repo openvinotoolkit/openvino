@@ -379,6 +379,9 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
             const auto& childEdges = getChildEdgesAtPort(i);
 
             for (auto& childEdge : childEdges) {
+                if (childEdge->getStatus() != Edge::Status::NotAllocated) {
+                    break;
+                }
                 OPENVINO_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated,
                                 " Unexpected inplace resolve call to an allocated edge: ",
                                 childEdge->name());
@@ -602,6 +605,10 @@ void Node::executeDynamic(dnnl::stream strm) {
     updateLastInputDims();
 }
 
+void Node::executeDynamicSeq(dnnl::stream strm) {
+    return execute(strm);
+}
+
 bool Node::outputShapeDataDependency() const {
     auto port_mask = shapeInference->get_port_mask();
     if (EMPTY_PORT_MASK != port_mask) {
@@ -640,6 +647,8 @@ void Node::redefineOutputMemory(const size_t port, const VectorDims& new_output_
     const bool has_zero_dims = std::count(std::begin(new_shape), std::end(new_shape), 0lu) > 0;
     const auto mem_desc = getBaseMemDescAtOutputPort(port)->cloneWithNewDims(new_shape, has_zero_dims);
     for (size_t j = 0lu; j < edges.size(); j++) {
+        // std::cout << "Redefine output memory port: " << port << " for edge: " << *edges[j]
+        //           << " using desc: " << *mem_desc << " " << edges[j]->getMemory().getData() << "\n";
         edges[j]->getMemoryPtr()->redefineDesc(mem_desc);
     }
 }

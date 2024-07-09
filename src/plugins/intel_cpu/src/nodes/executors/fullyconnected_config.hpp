@@ -18,6 +18,8 @@ struct FCAttrs {
     // a part of src memory descs
     bool withBias = false;
     bool weightsNonTransposed = false;
+    int weightsSubMemoryOffset = -1;
+    VectorDims baseWeightsDescShape;
     bool sparseWeights = false;
     // @todo only memory descriptors should be a part of attributes
     // actual memory should be passed into "execute" or "prepareMemory" calls

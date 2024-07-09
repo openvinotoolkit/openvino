@@ -278,6 +278,13 @@ static dnnl::inner_product_forward::primitive_desc createDescriptorInternal(cons
         useSparseWeights ? dnnl::memory::desc().sparse_desc(weightDesc.get_dims(), wdt)
                          : dnnl::memory::desc(weightDesc.get_dims(), wdt, memory::format_tag::any);
 
+    // std::cout << "initial intput desc: " << inputDesc << "\n";
+    // std::cout << "intput desc: " << normalizedInputDesc << "\n";
+    // std::cout << "initial wei desc: " << weightDesc << "\n";
+    // std::cout << "wei desc: " << weightsDesc << "\n";
+    // std::cout << "initial bias desc: " << biasDesc << "\n";
+    // std::cout << "output desc: " << normalizedOutputDesc << "\n";
+
     return dnnl::inner_product_forward::primitive_desc(engine,
                                                        dnnl::prop_kind::forward_inference,
                                                        normalizedInputDesc,
@@ -397,8 +404,12 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
 
     const auto weightsDesc = DnnlExtensionUtils::makeDescriptor(primDesc.weights_desc());
     auto originalWeightsDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc);
-    if (attrs.weightsNonTransposed)
-        originalWeightsDesc = utils::makeTransposedWeightDescriptor(originalWeightsDesc, weightsDesc);
+
+    originalWeightsDesc = utils::makeTransposedWeightDescriptor(originalWeightsDesc,
+                                                                weightsDesc,
+                                                                attrs.weightsNonTransposed,
+                                                                attrs.baseWeightsDescShape,
+                                                                attrs.weightsSubMemoryOffset);
 
     // ignore the result since we just need to put the packed weights into the cache
     (void)utils::prepareWeightsMemory(originalWeightsDesc,
