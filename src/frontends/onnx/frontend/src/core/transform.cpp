@@ -114,7 +114,7 @@ void ov::frontend::onnx::transform::expand_onnx_functions(ModelProto& model_prot
             try {
                 shape_inference::InferShapes(model_proto);
             } catch (const std::exception& e) {
-                OPENVINO_WARN << "ONNX ov::Shape inference failed: " << e.what();
+                OPENVINO_WARN("ONNX ov::Shape inference failed: ", e.what());
             }
 
             std::vector<TypeProto> input_types;

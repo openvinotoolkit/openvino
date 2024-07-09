@@ -37,7 +37,7 @@ const std::set<ov::NodeTypeInfo>& ov::OpSet::get_types_info() const {
 ov::Node* ov::OpSet::create(const std::string& name) const {
     auto type_info_it = m_name_type_info_map.find(name);
     if (type_info_it == m_name_type_info_map.end()) {
-        OPENVINO_WARN << "Couldn't create operator of type: " << name << " . Operation not registered in opset.";
+        OPENVINO_WARN("Couldn't create operator of type: ", name, ". Operation not registered in opset.");
         return nullptr;
     }
     REGISTER_OP(m_name, name);
@@ -47,7 +47,7 @@ ov::Node* ov::OpSet::create(const std::string& name) const {
 ov::Node* ov::OpSet::create_insensitive(const std::string& name) const {
     auto type_info_it = m_case_insensitive_type_info_map.find(to_upper_name(name));
     if (type_info_it == m_case_insensitive_type_info_map.end()) {
-        OPENVINO_WARN << "Couldn't create operator of type: " << name << " . Operation not registered in opset.";
+        OPENVINO_WARN("Couldn't create operator of type:", name, ". Operation not registered in opset.");
         return nullptr;
     }
     REGISTER_OP(m_name, name);

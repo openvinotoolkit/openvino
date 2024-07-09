@@ -66,7 +66,7 @@ static bool simplify_gather(shared_ptr<Node> node) {
 
         auto axis = gather->get_axis();
         if (axis == ov::op::v1::Gather::AXIS_NOT_SET_VALUE) {
-            OPENVINO_DEBUG << "axis value not set";
+            OPENVINO_DEBUG("axis value not set");
             return false;
         }
 
@@ -141,7 +141,7 @@ static bool eliminate_reshape_v1(const shared_ptr<Node>& node) {
 
     // check if reshape is not identity op
     if (input.get_partial_shape().is_dynamic() || node->get_output_partial_shape(0).is_dynamic()) {
-        OPENVINO_DEBUG << node << " has dynamic shapes.";
+        OPENVINO_DEBUG(node ," has dynamic shapes.");
         return false;
     }
     // remove identity op

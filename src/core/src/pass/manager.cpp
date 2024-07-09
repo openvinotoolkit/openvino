@@ -105,7 +105,7 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
     bool needs_validate = false;
     for (auto& pass : m_pass_list) {
         if (m_pass_config->is_disabled(pass->get_type_info())) {
-            OPENVINO_DEBUG << "Pass " << pass->get_name() << " is disabled";
+            OPENVINO_DEBUG("Pass ", pass->get_name(), " is disabled");
             continue;
         }
 
@@ -117,8 +117,8 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
             // This checks is to skip the graph transformation when the graph pass relies on
             // static shape but the function state is dynamic.
             if (matcher_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic()) {
-                OPENVINO_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
-                               << "model is dynamic. Skipping this transformation";
+                OPENVINO_DEBUG("Pass ", pass->get_name(), " requires static shape but the "
+                               "model is dynamic. Skipping this transformation");
                 continue;
             }
             // GraphRewrite is a temporary container for MatcherPass to make execution
@@ -128,8 +128,8 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
             // This checks is to skip the graph transformation when the graph pass relies on
             // static shape but the function state is dynamic.
             if (function_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic()) {
-                OPENVINO_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
-                               << "model is dynamic. Skipping this transformation";
+                OPENVINO_DEBUG("Pass ", pass->get_name(), " requires static shape but the "
+                               "model is dynamic. Skipping this transformation");
                 continue;
             }
 

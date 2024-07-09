@@ -88,7 +88,7 @@ public:
         auto pattern = std::make_shared<pattern::op::Label>(iconst1);
 
         auto callback = [pattern](pattern::Matcher& m) {
-            OPENVINO_DEBUG << "In a callback for construct_multiply_by_one against " << m.get_match_root()->get_name();
+            OPENVINO_DEBUG("In a callback for construct_multiply_by_one against ", m.get_match_root()->get_name());
             OPENVINO_ASSERT(m.get_match_root()->input_values().size() == 2);
 
             auto pattern_map = m.get_pattern_map();
@@ -97,12 +97,12 @@ public:
             auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(
                 m.get_match_root()->input_value(const_node_index).get_node_shared_ptr());
             auto second_node = m.get_match_root()->input_value(const_node_index).get_node_shared_ptr();
-            OPENVINO_DEBUG << "second_node = " << second_node->get_name()
-                           << " , pattern = " << pattern_map[pattern]->get_name();
+            OPENVINO_DEBUG("second_node = ", second_node->get_name(),
+                           " , pattern = ", pattern_map[pattern]->get_name());
 
             if (pattern_map[pattern]->get_element_type() != const_node->get_element_type() ||
                 pattern_map[pattern]->get_shape() != const_node->get_shape()) {
-                OPENVINO_DEBUG << "Operands' types and/or shape don't match";
+                OPENVINO_DEBUG("Operands' types and/or shape don't match");
                 return false;
             }
 
@@ -112,7 +112,7 @@ public:
             });
 
             if (!all_ones) {
-                OPENVINO_DEBUG << "Constant vector's values aren't equal to 1";
+                OPENVINO_DEBUG("Constant vector's values aren't equal to 1");
                 return false;
             }
 
@@ -125,9 +125,9 @@ public:
             m->get_name(),
             m,
             [m, callback](const std::shared_ptr<Node>& node) -> bool {
-                OPENVINO_DEBUG << "Running matcher " << m->get_name() << " on " << node;
+                OPENVINO_DEBUG("Running matcher ", m->get_name(), " on ", node);
                 if (std::dynamic_pointer_cast<ov::pass::pattern::Matcher>(m)->match(node->output(0))) {
-                    OPENVINO_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+                    OPENVINO_DEBUG("Matcher ", m->get_name(), " matched ", node);
                     bool status = callback(*m.get());
                     // explicitly clear Matcher state because it holds pointers to matched nodes
                     m->clear_state();
@@ -146,7 +146,7 @@ public:
         auto pattern = std::make_shared<pattern::op::Label>(iconst0);
 
         auto callback = [pattern](pattern::Matcher& m) {
-            OPENVINO_DEBUG << "In a callback for construct_add_zero against " << m.get_match_root()->get_name();
+            OPENVINO_DEBUG("In a callback for construct_add_zero against ", m.get_match_root()->get_name());
             OPENVINO_ASSERT(m.get_match_root()->input_values().size() == 2);
 
             auto pattern_map = m.get_pattern_map();
@@ -155,12 +155,12 @@ public:
             auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(
                 m.get_match_root()->input_value(const_node_index).get_node_shared_ptr());
             auto second_node = m.get_match_root()->input_value(const_node_index).get_node_shared_ptr();
-            OPENVINO_DEBUG << "second_node = " << second_node->get_name()
-                           << " , pattern = " << pattern_map[pattern]->get_name();
+            OPENVINO_DEBUG("second_node = ", second_node->get_name(),
+                           " , pattern = ", pattern_map[pattern]->get_name());
 
             if (pattern_map[pattern]->get_element_type() != const_node->get_element_type() ||
                 pattern_map[pattern]->get_shape() != const_node->get_shape()) {
-                OPENVINO_DEBUG << "Operands' types and/or shape don't match";
+                OPENVINO_DEBUG("Operands' types and/or shape don't match");
                 return false;
             }
 
@@ -170,7 +170,7 @@ public:
             });
 
             if (!all_zeros) {
-                OPENVINO_DEBUG << "Constant vector's values aren't equal to 0";
+                OPENVINO_DEBUG("Constant vector's values aren't equal to 0");
                 return false;
             }
 
@@ -184,9 +184,9 @@ public:
             m->get_name(),
             m,
             [m, callback](const std::shared_ptr<Node>& node) -> bool {
-                OPENVINO_DEBUG << "Running matcher " << m->get_name() << " on " << node;
+                OPENVINO_DEBUG("Running matcher ", m->get_name(), " on ", node);
                 if (std::dynamic_pointer_cast<ov::pass::pattern::Matcher>(m)->match(node->output(0))) {
-                    OPENVINO_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+                    OPENVINO_DEBUG("Matcher ", m->get_name(), " matched ", node);
                     bool status = callback(*m.get());
                     // explicitly clear Matcher state because it holds pointers to matched nodes
                     m->clear_state();
