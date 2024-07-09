@@ -236,7 +236,7 @@ size_t TensorflowPhilloxConverter::get_converted_elements_count() const {
     return m_elem_type.size() > 4 ? ELEMENTS_PER_EXECUTION / 2 : ELEMENTS_PER_EXECUTION;
 }
 
-void TensorflowPhilloxConverter::convert(PhilloxOutput result, size_t idx) {
+void TensorflowPhilloxConverter::convert(const PhilloxOutput result, size_t idx) {
     // convert values to corresponding output_type
     switch (m_elem_type) {
     case element::Type_t::f32: {
@@ -352,7 +352,7 @@ size_t PyTorchPhilloxConverter::get_converted_elements_count() const {
     return m_elem_type.size() > 4 && !m_optimization_enabled ? ELEMENTS_PER_EXECUTION / 2 : ELEMENTS_PER_EXECUTION;
 }
 
-void PyTorchPhilloxConverter::convert(PhilloxOutput result, size_t idx) {
+void PyTorchPhilloxConverter::convert(const PhilloxOutput result, size_t idx) {
     // convert values to corresponding output_type
     switch (m_elem_type) {
     case element::Type_t::f32: {
