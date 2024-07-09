@@ -260,8 +260,8 @@ TEST_P(GetValidDeviceListTest, GetValidFilteredDeviceListTest) {
     std::list<ov::auto_plugin::DeviceInformation> result;
     for (auto& precision : netPrecisions) {
         ASSERT_NO_THROW(result = plugin->get_valid_device(devicesInfo, precision));
-        int actualSize = result.size();
-        int expectedSize = filteredDevicesInfo.size();
+        auto actualSize = result.size();
+        auto expectedSize = filteredDevicesInfo.size();
         EXPECT_EQ(actualSize, expectedSize);
         // EXPECT_EQ(result, filteredDevicesInfo);
     }
