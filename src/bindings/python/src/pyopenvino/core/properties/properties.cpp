@@ -4,7 +4,6 @@
 
 #include "pyopenvino/core/properties/properties.hpp"
 
-#include "openvino/runtime/properties.hpp"
 #include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/any.hpp"
 #include "pyopenvino/utils/utils.hpp"
