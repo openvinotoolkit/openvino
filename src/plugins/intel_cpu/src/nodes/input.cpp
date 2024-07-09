@@ -472,7 +472,7 @@ void Input::initSupportedPrimitiveDescriptors() {
 }
 
 void Input::selectOptimalPrimitiveDescriptor() {
-    if (!(zeroCopyOutput && getType() == Type::Output))
+    if (!(m_useParentMemoryDescForOutput && getType() == Type::Output))
         return Node::selectOptimalPrimitiveDescriptor();
 
     // ignore previous configuration

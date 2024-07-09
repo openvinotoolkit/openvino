@@ -64,16 +64,15 @@ Graph::~Graph() {
 }
 
 template<typename NET>
-void Graph::CreateGraph(NET &net, const GraphContext::CPtr ctx) {
+void Graph::CreateGraph(NET &model, const GraphContext::CPtr context) {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "CreateGraph");
 
     if (IsReady())
         ForgetGraphData();
 
-    context = ctx;
-    m_stream = dnnl::stream(getEngine());
+    m_context = context;
 
-    Replicate(net);
+    Replicate(model);
 
     InitGraph();
 
@@ -84,12 +83,12 @@ void Graph::CreateGraph(NET &net, const GraphContext::CPtr ctx) {
 
 void Graph::CreateGraph(const std::vector<NodePtr>& graphNodes,
                         const std::vector<EdgePtr>& graphEdges,
-                        const GraphContext::CPtr ctx,
+                        const GraphContext::CPtr context,
                         std::string name) {
     if (IsReady())
         ForgetGraphData();
 
-    context = ctx;
+    m_context = context;
     m_stream = dnnl::stream(getEngine());
 
     this->_name = std::move(name);
@@ -146,7 +145,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model,
     };
 
     for (const auto& op : model->get_ordered_ops()) {
-        const NodePtr node {Node::factory().create(op, context)};
+        const NodePtr node {Node::factory().create(op, m_context)};
 
         AddNode(node);
         if (op->get_type_info() == op::v0::Parameter::get_type_info_static()) {
@@ -175,7 +174,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model,
             outputNodesMap[output_index] = node;
             if (zeroCopyOutputs) {
                 auto inputNode = std::dynamic_pointer_cast<node::Input>(node);
-                inputNode->setZeroCopyOutput();
+                inputNode->useParentMemoryDescForOutput();
             }
         }
 
@@ -207,7 +206,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &model,
         const auto nodeName = std::string("stub_") + std::to_string(unusedOutput.get_index()) + "_" + parentNode->getName();
         const NodePtr outNode = std::make_shared<node::Input>(parentNode->outputShapes[port],
                                                                         parentNode->getOriginalOutputPrecisionAtPort(port),
-                                                                        nodeName, "Result", context);
+                                                                        nodeName, "Result", m_context);
         CreateEdge(parentNode, outNode, port, 0);
         AddNode(outNode);
     }
@@ -338,15 +337,15 @@ static std::tuple<std::vector<NodePtr>, std::vector<size_t>> ExtractExecutableNo
                            std::move(executableSyncNodesInds));
 }
 
-void Graph::Configure(const std::shared_ptr<const ov::Model>& network,
-                      const GraphContext::CPtr ctx,
+void Graph::Configure(const std::shared_ptr<const ov::Model>& model,
+                      const GraphContext::CPtr context,
                       const VecMemoryDescs& inputDescriptors,
                       const bool zeroCopyOutputs) {
     OPENVINO_ASSERT(status == Status::NotReady, "Invalid graph status");
 
-    context = ctx;
+    m_context = context;
 
-    Replicate(network, inputDescriptors, zeroCopyOutputs);
+    Replicate(model, inputDescriptors, zeroCopyOutputs);
 
     InitGraph();
 }
@@ -484,7 +483,7 @@ void Graph::CreatePrimitivesAndExecConstants() const {
             auto edgePtr = node->getChildEdgeAt(i);
             if (edgePtr) {
                 if (edgePtr->isUseExternalMemory()) {
-                    auto ptr = context->getWeightsCache()->get(edgePtr->name());
+                    auto ptr = m_context->getWeightsCache()->get(edgePtr->name());
                     outputs.emplace_back(ptr);
                     if (!ptr->isValid())
                         hasExternalInvalidEdges = true;
@@ -508,7 +507,7 @@ void Graph::CreatePrimitivesAndExecConstants() const {
             continue;
         }
 
-        if (context->getWeightsCache()) {
+        if (m_context->getWeightsCache()) {
             auto sharedOutputs = acquireSharedOutputs(node);
 
             if (std::get<0>(sharedOutputs) || std::get<1>(sharedOutputs)) {
@@ -603,7 +602,7 @@ void Graph::ResolveEdgeConflicts() {
                                           inDesc.getPrecision().get_type_name() + "_" + outDesc.getPrecision().get_type_name();
 
                 auto convertNode = std::make_shared<node::Convert>(inDesc.getShape(), inDesc.getPrecision(), outDesc.getPrecision(),
-                                                                   convertName, context);
+                                                                   convertName, m_context);
                 convertNode->setDescs(inDesc, outDesc);
                 InsertNode(edge, convertNode, true);
 
@@ -746,7 +745,7 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
                         auto constNode = static_cast<node::Input *>(edge->getParent().get());
                         edge->reuse(std::const_pointer_cast<IMemory>(constNode->getMemoryPtr()));
                     } else {
-                        edge->externalAllocate(context->getWeightsCache());
+                        edge->externalAllocate(m_context->getWeightsCache());
                     }
                     auto stringMemory = dynamic_cast<StringMemory *>(edge->getMemoryPtr().get());
                     OPENVINO_ASSERT(stringMemory, "[CPU] Edge between nodes '",
@@ -782,7 +781,7 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
                 auto constNode = std::static_pointer_cast<node::Input>(edge->getParent());
                 edge->reuse(std::const_pointer_cast<IMemory>(constNode->getMemoryPtr()));
             } else {
-                edge->externalAllocate(context->getWeightsCache());
+                edge->externalAllocate(m_context->getWeightsCache());
             }
             erase = true;
         }
@@ -1158,9 +1157,11 @@ VecMemoryDescs Graph::getOutputMemoryDescriptors() {
     OPENVINO_ASSERT(status == Status::Initialized, "Invalid graph status");
 
     VecMemoryDescs result;
+    result.reserve(outputNodesMap.size());
+
     for (const auto& output : outputNodesMap) {
         const auto& node = output.second;
-        result.emplace_back(node->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc());
+        result.emplace_back(node->getBaseMemDescAtInputPort(0));
     }
 
     return result;
@@ -1405,7 +1406,7 @@ inline void Graph::ExecuteNode(const NodePtr& node, const dnnl::stream& stream) 
         // run nodes in parallel
         auto& parallelNodes = node->parallelWith;
         if (node == parallelNodes[0]) {
-            if (const auto& cpuExecutor = context->getCPUStreamExecutor()) {
+            if (const auto& cpuExecutor = m_context->getCPUStreamExecutor()) {
                 auto num_parallel_nodes = parallelNodes.size();
                 ParalleMtNuma(num_parallel_nodes, cpuExecutor, [&](int subStreamID, size_t i) {
                     auto& n = parallelNodes[i];
@@ -1735,7 +1736,7 @@ NodePtr Graph::InsertReorder(EdgePtr edge,
                              const MemoryDesc& outDesc,
                              bool isOptimized,
                              const std::vector<int> & src_perm) {
-    auto reorder = std::make_shared<node::Reorder>(inDesc, outDesc, layerName, context);
+    auto reorder = std::make_shared<node::Reorder>(inDesc, outDesc, layerName, m_context);
     reorder->setOptimized(isOptimized);
     reorder->setSrcPermutation(src_perm);
 
@@ -1939,7 +1940,7 @@ std::shared_ptr<ov::Model> Graph::dump() const {
 }
 
 const std::unordered_map<std::string, node::MemoryStateNode*>& Graph::getInternalStateNodes() const {
-    return context->getMemoryStatesRegister()->getMemoryStates();
+    return m_context->getMemoryStatesRegister()->getMemoryStates();
 }
 
 }   // namespace intel_cpu
