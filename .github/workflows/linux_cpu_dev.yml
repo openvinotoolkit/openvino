@@ -281,17 +281,3 @@ jobs:
             ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
             ${{ env.INSTALL_TEST_DIR }}/logs/hash_table.csv
           if-no-files-found: 'error'
-
-  Overall_Status:
-    name: ci/gha_overall_status
-    needs: [Smart_CI, Build, CPU_Functional_Tests ]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check status of all jobs
-        if: >-
-          ${{
-            contains(needs.*.result, 'failure') ||
-            contains(needs.*.result, 'cancelled')
-          }}
-        run: exit 1
