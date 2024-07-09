@@ -32,10 +32,8 @@ public:
         uint32_t idx;
     };
 
-    void updateConfig(const Config& config) override;
-
     void setArgumentValue(uint32_t argi_, const void* argv_) const;
-    void setWorkloadType(const ov::WorkloadType workloadType) const;
+    void setWorkloadType(const ov::WorkloadType workloadType) const override;
     inline ze_graph_handle_t graph() const {
         return _graph;
     }
@@ -59,7 +57,7 @@ public:
     }
 
 private:
-    Config _config;
+    const Config _config;
     Logger _logger;
 
     const std::shared_ptr<const ZeroInitStructsHolder> _initStructs;

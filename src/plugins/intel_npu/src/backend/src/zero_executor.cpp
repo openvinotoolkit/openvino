@@ -132,13 +132,6 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
     }
 }
 
-void ZeroExecutor::updateConfig(const Config& config) {
-    _config = config;
-    if (config.has<WORKLOAD_TYPE>()) {
-        setWorkloadType(config.get<WORKLOAD_TYPE>());
-    }
-}
-
 void ZeroExecutor::setWorkloadType(const ov::WorkloadType workloadType) const {
     ze_command_queue_workload_type_t zeWorkloadType;
     switch (workloadType) {

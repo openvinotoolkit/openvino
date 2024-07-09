@@ -156,8 +156,9 @@ void CompiledModel::set_property(const ov::AnyMap& properties) {
     }
 
     _config.update(config);
-    if (_executorPtr != nullptr) {
-        _executorPtr->updateConfig(_config);
+    if (_executorPtr != nullptr && config.find(ov::workload_type.name()) != config.end()) {
+        const auto workloadType = properties.at(ov::workload_type.name()).as<ov::WorkloadType>();
+        _executorPtr->setWorkloadType(workloadType);
     }
 }
 
