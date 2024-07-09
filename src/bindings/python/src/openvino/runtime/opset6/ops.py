@@ -8,7 +8,8 @@ from typing import Optional, Union, Dict, Any
 from functools import partial, singledispatch
 
 from openvino.runtime import Node, Type, PartialShape
-from openvino.runtime.op import assign, read_value, Constant, Parameter
+from openvino.runtime.op import assign, Constant, Parameter
+from openvino.runtime.op import read_value as _read_value
 from openvino.runtime.op.util import VariableInfo, Variable
 from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.decorators import nameable_op
@@ -130,7 +131,6 @@ def read_value(init_value: NodeInput,
     """
     info = VariableInfo()
     info.variable_id = variable_id
-    # attr_map: Dict[str, Any] = {"variable_id": variable_id}
 
     if variable_type is not None:
         if not isinstance(variable_type, Type) and not isinstance(variable_type, str):
@@ -143,7 +143,7 @@ def read_value(init_value: NodeInput,
 
     var_from_info = Variable(info)
 
-    return read_value(as_node(init_value, name=name), var_from_info, name)
+    return _read_value(as_node(init_value, name=name), var_from_info, name)
 
 
 @read_value.register
@@ -161,7 +161,6 @@ def _(variable_id: str,
     """
     info = VariableInfo()
     info.variable_id = variable_id
-    # attr_map: Dict[str, Any] = {"variable_id": variable_id}
 
     if variable_type is not None:
         if not isinstance(variable_type, Type) and not isinstance(variable_type, str):
@@ -174,4 +173,4 @@ def _(variable_id: str,
 
     var_from_info = Variable(info)
 
-    return read_value(var_from_info, name)
+    return _read_value(var_from_info, name)
