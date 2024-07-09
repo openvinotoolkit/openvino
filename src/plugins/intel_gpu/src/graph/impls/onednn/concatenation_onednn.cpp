@@ -71,6 +71,7 @@ public:
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         if (_prim.get(true) == nullptr) {
             ob << false;
+            primitive_impl::save(ob);
             return;
         } else {
             ob << true;
@@ -93,8 +94,10 @@ public:
         bool has_prim;
         ib >> has_prim;
 
-        if (!has_prim)
+        if (!has_prim) {
+            primitive_impl::load(ib);
             return;
+        }
 
         parent::load(ib);
 
