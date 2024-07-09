@@ -143,60 +143,7 @@ void ScatterUpdate::getSupportedDescriptors() {
 void ScatterUpdate::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
-    indicesPrec = getOriginalInputPrecisionAtPort(INDICES_ID);
-    auto indicesType = DnnlExtensionUtils::ElementTypeToDataType(indicesPrec);
-    indicesSize = DnnlExtensionUtils::sizeOfDataType(indicesType);
-    if (indicesSize >= 8) {
-        indicesPrec = ov::element::i64;
-        indicesSize = 8;
-    } else {
-        indicesPrec = ov::element::i32;
-        indicesSize = 4;
-    }
 
-    if (axisRelaxed) {
-        axisPrec = getOriginalInputPrecisionAtPort(AXIS_ID);
-        auto axisType = DnnlExtensionUtils::ElementTypeToDataType(axisPrec);
-        axisSize = DnnlExtensionUtils::sizeOfDataType(axisType);
-        if (axisSize >= 8) {
-            axisPrec = ov::element::i64;
-            axisSize = 8;
-        } else {
-            axisPrec = ov::element::i32;
-            axisSize = 4;
-        }
-    }
-
-    dataPrec = getOriginalInputPrecisionAtPort(DATA_ID);
-    if (one_of(scatterUpdateMode, ScatterUpdateMode::ScatterElementsUpdate, ScatterUpdateMode::ScatterNDUpdate) &&
-        !one_of(dataPrec,
-                ov::element::f32,
-                ov::element::i32,
-                ov::element::bf16,
-                ov::element::f16,
-                ov::element::u8,
-                ov::element::i8)) {
-        dataPrec = ov::element::f32;
-    }
-    dataSize = dataPrec.size();
-
-    bool canBeInplace = !getParentEdgeAt(DATA_ID)->getParent()->isConstant();
-
-    std::vector<PortConfigurator> inPortConfig{{LayoutType::ncsp, dataPrec, false, canBeInplace ? 0 : -1},
-                                               {LayoutType::ncsp, indicesPrec},
-                                               {LayoutType::ncsp, dataPrec}};
-    if (axisRelaxed)
-        inPortConfig.emplace_back(LayoutType::ncsp, axisPrec);
-    addSupportedPrimDesc(inPortConfig,
-                         {{LayoutType::ncsp, dataPrec, false, canBeInplace ? 0 : -1}},
-                          impl_desc_type::unknown);
-}
-
-bool ScatterUpdate::needPrepareParams() const {
-    return true;
-}
-
-void ScatterUpdate::prepareParams() {
     const auto& srcDataDim = getInputShapeAtPort(DATA_ID).getDims();
     const auto& indicesDim = getInputShapeAtPort(INDICES_ID).getDims();
     const auto& updateDim =  getInputShapeAtPort(UPDATE_ID).getDims();
@@ -285,6 +232,58 @@ void ScatterUpdate::prepareParams() {
             THROW_CPU_NODE_ERR(errorPrefix, " is not supported");
         }
     }
+
+    indicesPrec = getOriginalInputPrecisionAtPort(INDICES_ID);
+    auto indicesType = DnnlExtensionUtils::ElementTypeToDataType(indicesPrec);
+    indicesSize = DnnlExtensionUtils::sizeOfDataType(indicesType);
+    if (indicesSize >= 8) {
+        indicesPrec = ov::element::i64;
+        indicesSize = 8;
+    } else {
+        indicesPrec = ov::element::i32;
+        indicesSize = 4;
+    }
+
+    if (axisRelaxed) {
+        axisPrec = getOriginalInputPrecisionAtPort(AXIS_ID);
+        auto axisType = DnnlExtensionUtils::ElementTypeToDataType(axisPrec);
+        axisSize = DnnlExtensionUtils::sizeOfDataType(axisType);
+        if (axisSize >= 8) {
+            axisPrec = ov::element::i64;
+            axisSize = 8;
+        } else {
+            axisPrec = ov::element::i32;
+            axisSize = 4;
+        }
+    }
+
+    dataPrec = getOriginalInputPrecisionAtPort(DATA_ID);
+    if (one_of(scatterUpdateMode, ScatterUpdateMode::ScatterElementsUpdate, ScatterUpdateMode::ScatterNDUpdate) &&
+        !one_of(dataPrec,
+                ov::element::f32,
+                ov::element::i32,
+                ov::element::bf16,
+                ov::element::f16,
+                ov::element::u8,
+                ov::element::i8)) {
+        dataPrec = ov::element::f32;
+    }
+    dataSize = dataPrec.size();
+
+    bool canBeInplace = !getParentEdgeAt(DATA_ID)->getParent()->isConstant();
+
+    std::vector<PortConfigurator> inPortConfig{{LayoutType::ncsp, dataPrec, false, canBeInplace ? 0 : -1},
+                                               {LayoutType::ncsp, indicesPrec},
+                                               {LayoutType::ncsp, dataPrec}};
+    if (axisRelaxed)
+        inPortConfig.emplace_back(LayoutType::ncsp, axisPrec);
+    addSupportedPrimDesc(inPortConfig,
+                         {{LayoutType::ncsp, dataPrec, false, canBeInplace ? 0 : -1}},
+                          impl_desc_type::unknown);
+}
+
+bool ScatterUpdate::needPrepareParams() const {
+    return false;
 }
 
 void ScatterUpdate::executeDynamicImpl(dnnl::stream strm) {

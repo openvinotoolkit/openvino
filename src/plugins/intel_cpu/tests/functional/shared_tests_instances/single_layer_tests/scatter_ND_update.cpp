@@ -100,6 +100,8 @@ const std::vector<ov::op::v15::ScatterNDUpdate::Reduction> reduceModesDuplicate{
 // update_shape is gotten from input_shape and indices_shape
 std::map<std::vector<size_t>, std::map<std::vector<size_t>, std::vector<int>>> sliceSelectInShape15Duplicate = {
     {{1}, {{{1}, {0}}, {{2, 1}, {0, 0}}, {{8, 1}, {0, -1, 0, -1, 0, -1, 0, -1}}}},
+    {{10, 9, 9, 11}, {{{4, 1}, {1, 7, 1, 7}}, {{2, 3}, {0, 1, 1, 0, 1, 1}}, {{2, 4}, {5, 5, 4, 9, 5, 5, 4, 9}}}},
+    {{10, 9, 10, 9, 10}, {{{2, 2, 1}, {5, 5, 5, 5}}, {{2, 3}, {0, 4, -1, 0, 4, -1}}}},
 };
 const auto ScatterNDUpdate15DuplicateCases = ::testing::Combine(
         ::testing::ValuesIn(combineShapes(sliceSelectInShape15Duplicate)),
