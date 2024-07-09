@@ -376,6 +376,7 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
     const Config& config,
     ze_graph_compiler_version_info_t& compilerVersion) const {
     std::string content = config.toString();
+    _logger.debug("Original content of config: %s", content.c_str());
 
     // Remove optimization-level and performance-hint-override for old driver which not support them
     if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 7)) {
@@ -391,7 +392,8 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
         content = std::regex_replace(content, std::regex(perfHintStr.str()), "");
 
         std::ostringstream compilationParamsStr;
-        compilationParamsStr << ov::intel_npu::compilation_mode_params.name() << KEY_VALUE_SEPARATOR << "";
+        compilationParamsStr << ov::intel_npu::compilation_mode_params.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER
+                             << "\\s*\"*";
         _logger.warning("Clear empty NPU_COMPILATION_MODE_PARAMS. Removing from parameters");
         content = std::regex_replace(content, std::regex(compilationParamsStr.str()), "");
     }

@@ -55,9 +55,9 @@ static constexpr ov::Property<uint32_t, ov::PropertyMutability::RO> driver_versi
 
 /**
  * @brief [Only for NPU compiler]
- * Type: std::string, default is empty.
- * Sets various parameters supported by the NPU compiler.
- * Available values: low-precision=true/low-precision=false
+ * Type: std::string
+ * Set various parameters supported by the NPU compiler.
+ * @ingroup ov_runtime_npu_prop_cpp_api
  */
 static constexpr ov::Property<std::string> compilation_mode_params{"NPU_COMPILATION_MODE_PARAMS"};
 
