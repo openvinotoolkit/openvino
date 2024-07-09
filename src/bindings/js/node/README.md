@@ -16,7 +16,7 @@ const { addon: ov } = require('openvino-node');
 
 ## Package usage in Electron applications
 
-To use this package in development of Electron applications, make sure that
+To use this package in development of Electron applications on Windows, make sure that
 in your system installed [Build Tools for Visual Studio](https://aka.ms/vs/17/release/vs_BuildTools.exe)
 
 ## Build From Sources
