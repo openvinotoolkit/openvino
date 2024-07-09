@@ -83,7 +83,7 @@ std::shared_ptr<ov::Model> create_ceil_torch_workaround_model(const ov::op::Roun
     using ov::op::v3::ShapeOf;
     using ov::op::v4::Range;
     using ov::op::v8::Gather;
-    const auto input_shape =
+    const auto& input_shape =
         dynamic_input
             ? ov::PartialShape{ov::Dimension::dynamic(), 3, ov::Dimension::dynamic(), ov::Dimension::dynamic()}
             : ov::PartialShape{1, 3, 64, 64};
