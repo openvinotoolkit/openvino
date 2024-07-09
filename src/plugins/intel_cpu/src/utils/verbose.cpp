@@ -25,9 +25,9 @@ bool Verbose::shouldBePrinted() const {
     if (lvl < 1)
         return false;
 
-    if (node->isConstant() ||
-        node->getType() == Type::Input || node->getType() == Type::Output)
+    if (lvl < 2 && (node->isConstant() || node->getType() == Type::Input || node->getType() == Type::Output))
         return false;
+
     return true;
 }
 /**
@@ -36,11 +36,7 @@ bool Verbose::shouldBePrinted() const {
  * Formating written in C using oneDNN format functions.
  * Can be rewritten in pure C++ if necessary
  */
-void Verbose::printInfo() {
-    /* 1,  2,  3,  etc -> no color
-     * 11, 22, 33, etc -> colorize */
-    bool colorUp = lvl / 10 > 0 ? true : false;
-
+void Verbose::printInfo(const int numaId) {
     enum Color {
         RED,
         GREEN,
@@ -153,6 +149,7 @@ void Verbose::printInfo() {
 
     stream << "ov_cpu_verbose" << ','
            << "exec" << ','
+           << numaId << ','
            << nodeImplementer << ','
            << nodeName << ":" << nodeType << ":" << nodeAlg << ','
            << nodePrimImplType << ','

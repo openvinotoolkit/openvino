@@ -106,9 +106,7 @@ MlasGemmExecutor::MlasGemmExecutor(const FCAttrs& attrs,
                                    const PostOps& postOps,
                                    const MemoryArgs& memory,
                                    const ExecutorContext::CPtr context)
-    : m_attrs(attrs),
-      m_memoryArgs(memory),
-      packedWeights(prepareWeightMemory(memory.at(ARG_WEI), context, !attrs.weightsNonTransposed)) {}
+    : packedWeights(prepareWeightMemory(memory.at(ARG_WEI), context, !attrs.weightsNonTransposed)) {}
 
 bool MlasGemmExecutor::update(const MemoryArgs& memory) {
     const auto& weiDesc = memory.at(ARG_WEI)->getDescPtr();

@@ -117,6 +117,8 @@ private:
     ExecutorFactoryLegacyPtr executorFactory;
 };
 
+class Graph;
+
 class Node {
 public:
     Node(const Node &) = delete;
@@ -436,11 +438,16 @@ public:
     PerfCount &PerfCounter() { return perfCounter; }
 
     virtual void resolveInPlaceEdges(Edge::LOOK look = Edge::LOOK_BOTH);
+    virtual void resolveInPlaceEdgesNew(Edge::LOOK look = Edge::LOOK_BOTH,
+                                        MemoryPtr memory = nullptr) {
+        resolveInPlaceEdges(look);
+    }
 
-    void executeStatic(const dnnl::stream strm);
+    void executeStatic(const dnnl::stream strm, int numaId = -1);
     void updateShapes();
     void updateDynamicParams();
-    void executeDynamic(dnnl::stream strm);
+    void executeDynamic(dnnl::stream strm, int numaId = -1);
+    virtual void executeDynamicSeq(dnnl::stream strm);
     virtual void redefineOutputMemory(const std::vector<VectorDims> &newShapes);
     void redefineOutputMemory(const size_t port, const VectorDims& new_output_shape);
     bool outputShapeDataDependency() const;
@@ -659,6 +666,10 @@ protected:
     std::vector <NodePtr> fusedWith;
     std::vector <NodePtr> mergedWith;
 
+    int curNumaNode = -1;
+    void toNumaNode(int numaNodeID);
+    virtual void toNumaNodeImpl(int numaNodeID);
+
     std::string primitivesPriority;
     std::vector <impl_desc_type> customImplPriorities;
     std::vector <dnnl::memory::format_tag> inputMemoryFormatsFilter;
@@ -768,6 +779,10 @@ protected:
                                        NameFromType(getType()));
     }
 
+    virtual int subStreamId() const {
+        return -1;
+    }
+
     MemoryPtr getScratchPadMem(const DnnlMemoryDescPtr& desc) {
         if (!scratchpadMem || !scratchpadMem->getDesc().isCompatible(*desc)) {
             scratchpadMem = context->getScratchPad()->createScratchPadMem(desc);
@@ -825,6 +840,7 @@ private:
     std::vector<float> DQScales;
 
     CPU_DEBUG_CAP_ENABLE(friend class Verbose);
+    friend void average_counters(const Graph& graph);
 };
 
 #ifndef CPU_DEBUG_CAPS

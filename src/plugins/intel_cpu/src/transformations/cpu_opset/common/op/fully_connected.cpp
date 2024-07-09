@@ -5,26 +5,36 @@
 #include "fully_connected.hpp"
 #include "transformations/itt.hpp"
 
-ov::intel_cpu::FullyConnectedNode::FullyConnectedNode(const ov::Output<Node>& A,
-                                                     const ov::Output<Node>& B,
-                                                     const ov::Rank& output_rank,
-                                                     const ov::element::Type output_type)
-    : Op({A, B}), m_output_rank(output_rank), m_output_type(output_type) {
-    validate_and_infer_types();
-}
-
-std::shared_ptr<ov::Node> ov::intel_cpu::FullyConnectedNode::clone_with_new_inputs(const ov::OutputVector& new_args) const {
+std::shared_ptr<ov::Node> ov::intel_cpu::FullyConnectedNode::clone_with_new_inputs(
+    const ov::OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(FullyConnectedNode_clone_with_new_inputs);
     check_new_args_count(this, new_args);
 
-    return std::make_shared<ov::intel_cpu::FullyConnectedNode>(new_args.at(0), new_args.at(1), m_output_rank, m_output_type);
+    if (new_args.size() == 3)
+        return std::make_shared<ov::intel_cpu::FullyConnectedNode>(new_args.at(0),
+                                                                   new_args.at(1),
+                                                                   m_output_rank,
+                                                                   m_output_type,
+                                                                   new_args.at(2));
+    else if (new_args.size() == 4)
+        return std::make_shared<ov::intel_cpu::FullyConnectedNode>(new_args.at(0),
+                                                                   new_args.at(1),
+                                                                   m_output_rank,
+                                                                   m_output_type,
+                                                                   new_args.at(2),
+                                                                   new_args.at(3));
+    else
+        return std::make_shared<ov::intel_cpu::FullyConnectedNode>(new_args.at(0),
+                                                                   new_args.at(1),
+                                                                   m_output_rank,
+                                                                   m_output_type);
 }
 
 void ov::intel_cpu::FullyConnectedNode::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(FullyConnectedNode_validate_and_infer_types);
     const auto input_size = get_input_size();
     NODE_VALIDATION_CHECK(this,
-        input_size == 2,
+        input_size >= 2,
         "Number of inputs is incorrect. Current value is: ",
         input_size,
         ", expected: 2.");

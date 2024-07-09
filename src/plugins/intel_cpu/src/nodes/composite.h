@@ -35,6 +35,10 @@ public:
         return true;
     }
 
+    int subStreamId() const override {
+        return m_subStreamId;
+    }
+
     void getSupportedDescriptors() override{};
     void selectOptimalPrimitiveDescriptor() override;
     void createPrimitive() override;
@@ -49,6 +53,7 @@ private:
     std::shared_ptr<const ov::Model> m_body;
     Graph m_graph;
     std::shared_ptr<Executor> m_executor;
+    int m_subStreamId = -1;
 };
 
 }  // namespace node

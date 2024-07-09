@@ -42,11 +42,11 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>&
             errorMessage = "Only legacy FullyConnected operation is supported";
             return false;
         }
-        if (fc->get_input_size() == 3 &&
-            std::dynamic_pointer_cast<const ov::op::v0::Constant>(fc->get_input_node_shared_ptr(BIAS_ID)) == nullptr) {
-            errorMessage = "Only Constant operation on 'bias' input is supported";
-            return false;
-        }
+        // if (fc->get_input_size() == 3 &&
+        //     std::dynamic_pointer_cast<const ov::op::v0::Constant>(fc->get_input_node_shared_ptr(BIAS_ID)) == nullptr) {
+        //     errorMessage = "Only Constant operation on 'bias' input is supported";
+        //     return false;
+        // }
         const auto weightRank = fc->get_input_partial_shape(WEIGHTS_ID).size();
         if (weightRank != 2) {
             errorMessage = "Doesn't support 'weight' input with rank: " + std::to_string(weightRank);
@@ -64,6 +64,10 @@ FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphC
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage))
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
+
+    const auto fc = std::dynamic_pointer_cast<const FullyConnectedNode>(op);
+    hasDecompressionSubtract = fc->has_subtract();
+    BIAS_ID = hasDecompressionSubtract ? 4 : 3;
 }
 
 bool FullyConnected::canBeExecutedInInt8() const {
@@ -120,6 +124,10 @@ bool FullyConnected::canFuse(const NodePtr& node) const {
 
 bool FullyConnected::created() const {
     return getType() == Type::FullyConnected;
+}
+
+void FullyConnected::toNumaNodeImpl(int numaID) {
+    executor->moveMemToNumaNode(numaID);
 }
 
 const std::vector<impl_desc_type>& FullyConnected::getDefaultImplPriority() {
@@ -219,7 +227,7 @@ static bool useSparseWeightsDecompression(const NodePtr& weightsInput,
 }
 
 void FullyConnected::initSupportedPrimitiveDescriptors() {
-    attrs.withBias = getOriginalInputsNumber() == 3;
+    attrs.withBias = hasDecompressionSubtract ? getOriginalInputsNumber() == 5 : getOriginalInputsNumber() == 4;
     attrs.dequantizationScales = getDQScales();
     attrs.sparseWeights = useSparseWeightsDecompression(getParentEdgeAt(WEIGHTS_ID)->getParent(),
                                                         getOriginalInputPrecisionAtPort(DATA_ID),
@@ -251,7 +259,8 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     MemoryDescArgs descs{
         {ARG_SRC, srcDescs[0]},
         {ARG_WEI, srcDescs[1]},
-        {ARG_BIAS, attrs.withBias ? srcDescs[2] : MemoryDescUtils::makeEmptyDesc()},
+        // {ARG_BIAS, attrs.withBias ? srcDescs[2] : MemoryDescUtils::makeEmptyDesc()},
+        {ARG_BIAS, attrs.withBias ? srcDescs[BIAS_ID] : MemoryDescUtils::makeEmptyDesc()},
         {ARG_DST, dstDescs[0]},
     };
 
@@ -264,6 +273,12 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     nodeConfig.inConfs.emplace_back(nodeDescriptors.at(ARG_WEI));
     if (attrs.withBias) nodeConfig.inConfs.emplace_back(nodeDescriptors.at(ARG_BIAS));
 
+    if (nodeConfig.inConfs.size() < srcTypes.size()) {
+        nodeConfig.inConfs.emplace_back(srcDescs[2]);
+        if (hasDecompressionSubtract)
+            nodeConfig.inConfs.emplace_back(srcDescs[3]);
+    }
+
     const int inPlace = canBeInPlace() ? 0 : -1;
     nodeConfig.outConfs.emplace_back(nodeDescriptors.at(ARG_DST), BlockedMemoryDesc::FULL_MASK, inPlace);
 
@@ -273,7 +288,14 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
 void FullyConnected::createPrimitive() {
     memory[ARG_SRC] = getSrcMemoryAtPort(DATA_ID);
     memory[ARG_WEI] = getSrcMemoryAtPort(WEIGHTS_ID);
-    memory[ARG_BIAS] = attrs.withBias ? getSrcMemoryAtPort(BIAS_ID) : MemoryDescUtils::makeEmptyMemory(context);
+    // memory[ARG_WEI | ARG_ATTR_SCALES]      = getSrcMemoryAtPort(2);
+    // memory[ARG_WEI | ARG_ATTR_ZERO_POINTS] = getSrcMemoryAtPort(3);
+    if (getOriginalInputsNumber() > 2) {
+        attrs.decompressionMultiplyPtr = getSrcMemoryAtPort(2);
+        if (hasDecompressionSubtract)
+            attrs.decompressionSubtractPtr = getSrcMemoryAtPort(3);
+    }
+    memory[ARG_BIAS] = attrs.withBias ? getSrcMemoryAtPort(4) : MemoryDescUtils::makeEmptyMemory(context);
     memory[ARG_DST] = getDstMemoryAtPort(0);
     // @todo should we preconfigure only for dynamic shapes?
     // Since for static shapes primitive is created in scope of compile_model() anyway

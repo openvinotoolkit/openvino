@@ -16,11 +16,11 @@ namespace intel_cpu {
 
 class Verbose {
 public:
-    Verbose(const NodePtr& _node, const std::string& _lvl)
-        : node(_node), lvl(atoi(_lvl.c_str())) {
+    Verbose(const NodePtr& _node, const std::string& _lvl, const int numaId = 0)
+        : node(_node), lvl(atoi(_lvl.c_str()) % 10), colorUp(atoi(_lvl.c_str()) / 10) {
         if (!shouldBePrinted())
             return;
-        printInfo();
+        printInfo(numaId);
     }
 
     ~Verbose() {
@@ -33,11 +33,14 @@ public:
 
 private:
     const NodePtr& node;
-    const int lvl;
+    const int lvl = 0;
+    /* 1,  2,  3,  etc -> no color
+     * 11, 22, 33, etc -> colorize */
+    const bool colorUp = false;
     std::stringstream stream;
 
     bool shouldBePrinted() const;
-    void printInfo();
+    void printInfo(const int numaId);
     void printDuration();
     void flush() const;
 };

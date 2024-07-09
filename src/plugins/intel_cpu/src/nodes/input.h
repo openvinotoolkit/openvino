@@ -28,9 +28,11 @@ public:
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
+    void initOptimalPrimitiveDescriptor() override;
     void createPrimitive() override;
     bool created() const override;
-
+    void resolveInPlaceEdgesNew(Edge::LOOK look = Edge::LOOK_BOTH,
+                                MemoryPtr memory = nullptr) override;
     void withMeanImage();
     MemoryCPtr getMemoryPtr() const;
 

@@ -5,6 +5,8 @@
 #include "graph_optimizer.h"
 
 #include "dnnl_extension_utils.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "nodes/bin_conv.h"
 #include "nodes/common/cpu_convert.h"
 #include "nodes/conv.h"
@@ -19,6 +21,7 @@
 #include "nodes/reshape.h"
 #include "nodes/rnn.h"
 #include "nodes/scaled_attn.h"
+#include "nodes/strided_slice.h"
 #include "nodes/transpose.h"
 #include "onednn/dnnl.h"
 #include "openvino/opsets/opset1.hpp"
@@ -67,9 +70,9 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
     FuseConvMatmulFCDeconvAndDQScales(graph);
     graph.RemoveDroppedNodes();
 
-    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFCAndWeightsDecompression");
-    FuseFCAndWeightsDecompression(graph);
-    graph.RemoveDroppedNodes();
+    // OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFCAndWeightsDecompression");
+    // FuseFCAndWeightsDecompression(graph);
+    // graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseConvolutionAndBias");
     FuseConvolutionMatMulDeconvAndBias(graph);
@@ -89,6 +92,10 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFCAndTransposeOnWeights");
     FuseFCAndTransposeOnWeights(graph);
+    graph.RemoveDroppedNodes();
+
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseFCAndTransposeOnWeights");
+    FuseFCAndStridedSliceOnWeights(graph);
     graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseDeconvolutionAndSimpleOperation");
@@ -973,6 +980,35 @@ void GraphOptimizer::FuseFCAndTransposeOnWeights(Graph& graph) {
             fcNode->keepWeightsNonTransposed(true);
             auto transposeNode = std::dynamic_pointer_cast<Transpose>(parent);
             transposeNode->setOptimized(true);
+        }
+    }
+}
+
+void GraphOptimizer::FuseFCAndStridedSliceOnWeights(Graph& graph) {
+    // This optimization allows us to avoid transposing the weights in Transpose node and do it directly along with reordering in FC node
+    auto& graphNodes = graph.GetNodes();
+
+    auto isSuitablePattern = [](NodePtr parent) {
+        bool res = true && parent->getType() == Type::StridedSlice
+                        && parent->getChildEdges().size() == 1
+                        // && parent->getChildEdgeAt(0)->getOutputNum() == 1
+                        && parent->getChildEdgeAt(0)->getChild()->getType() == Type::FullyConnected
+                        && parent->getOutputShapeAtPort(0).getRank() == 2
+                        && parent->isConstant();
+        return res;
+    };
+
+    for (auto parent : graphNodes) {
+        if (isSuitablePattern(parent)) {
+            CPU_GRAPH_OPTIMIZER_SCOPE(FuseFCAndTransposeOnWeights);
+            auto ss = std::dynamic_pointer_cast<StridedSlice>(parent);
+            const auto& begin = ss->begin();
+            int offset = begin[0];
+            auto weightDims = ss->getInputShapeAtPort(0).getStaticDims();
+
+            auto fc = std::dynamic_pointer_cast<FullyConnected>(parent->getChildEdgeAt(0)->getChild());
+            fc->setWeightsSubMemoryInfo(weightDims, offset);
+            ss->setOptimized(true);
         }
     }
 }

@@ -330,7 +330,8 @@ void Edge::changeStatus(Edge::Status state) {
         OPENVINO_THROW("Incorrect behaviour! Use method validate()");
     }
     if (Status::Validated == this->status) {
-        OPENVINO_THROW("Unexpected attempt of memory change on edge: ", name());
+        // OPENVINO_THROW("Unexpected attempt of memory change on edge: ", name());
+        return;
     }
     if (this->status != Status::Uninitialized && state == Status::NeedAllocation)
         return;

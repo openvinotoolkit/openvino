@@ -379,6 +379,9 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
             const auto& childEdges = getChildEdgesAtPort(i);
 
             for (auto& childEdge : childEdges) {
+                if (childEdge->getStatus() != Edge::Status::NotAllocated) {
+                    break;
+                }
                 OPENVINO_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated,
                                 " Unexpected inplace resolve call to an allocated edge: ",
                                 childEdge->name());
@@ -591,15 +594,49 @@ void Node::updateDynamicParams() {
     }
 }
 
-void Node::executeStatic(const dnnl::stream strm) {
+void Node::toNumaNode(int numaNodeID) {
+    // std::cout << getName() << " from numa: " << context->getCPUStreamExecutor()->get_numa_node_id()
+    //           << " to numa: " << numaNodeID << "\n";
+
+    return toNumaNodeImpl(numaNodeID);
+}
+
+void Node::toNumaNodeImpl(int numaNodeID) {
+    if (curNumaNode == numaNodeID)
+        return;
+
+    // create scratch pad from specified numa node
+    if (scratchpadMem) {
+        scratchpadMem = context->getScratchPad()->createScratchPadMem(scratchpadMem->getDescPtr());
+        primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
+    }
+
+    // mbind constant prim args to numa nodes
+    if (primArgs.count(DNNL_ARG_WEIGHTS))
+        mbind_move(primArgs[DNNL_ARG_WEIGHTS], numaNodeID);
+    if (primArgs.count(DNNL_ARG_BIAS))
+        mbind_move(primArgs[DNNL_ARG_BIAS], numaNodeID);
+
+    curNumaNode = numaNodeID;
+}
+
+void Node::executeStatic(const dnnl::stream strm, int numaId) {
+    if (numaId >= 0)
+        toNumaNode(numaId);
     execute(strm);
 }
 
-void Node::executeDynamic(dnnl::stream strm) {
+void Node::executeDynamic(dnnl::stream strm, int numaId) {
     if (isExecutable()) {
+        if (numaId >= 0)
+            toNumaNode(numaId);
         executeDynamicImpl(strm);
     }
     updateLastInputDims();
+}
+
+void Node::executeDynamicSeq(dnnl::stream strm) {
+    return execute(strm);
 }
 
 bool Node::outputShapeDataDependency() const {
@@ -640,7 +677,9 @@ void Node::redefineOutputMemory(const size_t port, const VectorDims& new_output_
     const bool has_zero_dims = std::count(std::begin(new_shape), std::end(new_shape), 0lu) > 0;
     const auto mem_desc = getBaseMemDescAtOutputPort(port)->cloneWithNewDims(new_shape, has_zero_dims);
     for (size_t j = 0lu; j < edges.size(); j++) {
+        // std::cout << "Before: Redefine output memory port: " << port << " for edge: " << *edges[j] << "\n";
         edges[j]->getMemoryPtr()->redefineDesc(mem_desc);
+        // std::cout << "Afterf; Redefine output memory port: " << port << " for edge: " << *edges[j] << "\n";
     }
 }
 

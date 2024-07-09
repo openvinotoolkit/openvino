@@ -34,19 +34,19 @@ std::shared_ptr<ov::Node> SubModel::clone_with_new_inputs(const ov::OutputVector
 }
 
 void SubModel::validate_and_infer_types() {
-    ov::ParameterVector old_parameters = body_ptr()->get_parameters();
+    // ov::ParameterVector old_parameters = body_ptr()->get_parameters();
 
-    for (size_t i = 0; i < get_input_size(); ++i) {
-        body_ptr()->replace_parameter(
-            i,
-            std::make_shared<ov::op::v0::Parameter>(get_input_element_type(i), get_input_partial_shape(i)));
-    }
+    // for (size_t i = 0; i < get_input_size(); ++i) {
+    //     body_ptr()->replace_parameter(
+    //         i,
+    //         std::make_shared<ov::op::v0::Parameter>(get_input_element_type(i), get_input_partial_shape(i)));
+    // }
 
     body_ptr()->validate_nodes_and_infer_types();
 
-    for (size_t i = 0; i < body_ptr()->get_parameters().size(); i++) {
-        body_ptr()->get_parameters()[i]->set_friendly_name(old_parameters[i]->get_friendly_name());
-    }
+    // for (size_t i = 0; i < body_ptr()->get_parameters().size(); i++) {
+    //     body_ptr()->get_parameters()[i]->set_friendly_name(old_parameters[i]->get_friendly_name());
+    // }
 
     set_output_size(body_ptr()->get_output_size());
     for (size_t i = 0; i < get_output_size(); ++i) {

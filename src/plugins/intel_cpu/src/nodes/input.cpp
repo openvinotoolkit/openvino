@@ -6,7 +6,10 @@
 
 #include "cpu/x64/jit_generator.hpp"
 #include "nodes/node_config.h"
+#include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
+#include "partitioned_mem_mgr.h"
+#include "proxy_mem_mgr.h"
 #include "shape_inference/shape_inference_pass_through.hpp"
 
 using namespace dnnl;
@@ -382,8 +385,11 @@ void Input::cloneBlobIfRequired() {
         isBlobAligned() && (!needFlushDenormalsToZero || !hasSubnormals()) &&
         // Blob should be cloned in cache only if original weights are stored on other numa node.
         // This is possible only in multistream case on multisocket machine.
-        // TODO: don't clone blob for multisocket + multistream case if current stream is run on the numa node where original weights are stored.
-        (!weightCache || context->getNumNumaNodes() == 1 || context->getCPUStreamExecutor()->get_streams_num() == 1);
+        // TODO: don't clone blob for multisocket + multistream case if current stream is run on the numa node where
+        // original weights are stored.
+        (!weightCache || context->getNumNumaNodes() == 1 ||
+         (context->getCPUStreamExecutor()->get_streams_num() == 1 &&
+          context->getCPUStreamExecutor()->get_sub_streams_num() == 0));
 
     memoryPtr = clone_is_not_needed ? std::make_shared<Memory>(getEngine(), memDesc, constOp->get_data_ptr())
                                     : std::const_pointer_cast<const IMemory>(
@@ -472,17 +478,26 @@ void Input::initSupportedPrimitiveDescriptors() {
 }
 
 void Input::selectOptimalPrimitiveDescriptor() {
-    if (!(m_useParentMemoryDescForOutput && getType() == Type::Output))
-        return Node::selectOptimalPrimitiveDescriptor();
+    if (m_useParentMemoryDescForOutput && getType() == Type::Output) {
+        // ignore previous configuration
+        supportedPrimitiveDescriptors.clear();
 
-    // ignore previous configuration
-    supportedPrimitiveDescriptors.clear();
+        // and just use parent memory descriptor for Output node to avoid reorders insertion
+        // NodeConfig config({PortConfig(getParentOutputMemDesc(getParentEdgeAt(0)))}, {});
+        NodeConfig config({PortConfig(getParentOutputMemDesc(getParentEdgeAt(0)), BlockedMemoryDesc::FULL_MASK, 0)}, {});
 
-    // and just use parent memory descriptor for Output node to avoid reorders insertion
-    NodeConfig config({PortConfig(getParentOutputMemDesc(getParentEdgeAt(0)))}, {});
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
+        return selectPrimitiveDescriptorByIndex(0);
+    }
 
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
-    selectPrimitiveDescriptorByIndex(0);
+    return Node::selectOptimalPrimitiveDescriptor();
+}
+
+void Input::initOptimalPrimitiveDescriptor() {
+    if (m_useParentMemoryDescForOutput || extMemDesc)
+        return;
+
+    Node::initOptimalPrimitiveDescriptor();
 }
 
 void Input::createPrimitive() {
@@ -533,7 +548,8 @@ void Input::initSupportedPdDefault() {
 void Input::initSupportedPdFromMemDesc() {
     NodeConfig config;
     PortConfig portConfig;
-    portConfig.inPlace(-1);
+    // portConfig.inPlace(-1);
+    portConfig.inPlace(0);
     portConfig.constant(false);
     portConfig.setMemDesc(extMemDesc);
     if (getType() == Type::Input || getType() == Type::MemoryInput) {
@@ -543,6 +559,72 @@ void Input::initSupportedPdFromMemDesc() {
     }
     supportedPrimitiveDescriptors.emplace_back(std::move(config), impl_desc_type::unknown);
 }
+
+void Input::resolveInPlaceEdgesNew(Edge::LOOK look, MemoryPtr memory) {
+    OPENVINO_ASSERT(memory, "Cannot resolve inplace edges without memory object");
+
+    // std::cout << "Resolving inplace edges for node: " << getName() << ":" << getTypeStr() << "\n";
+
+    if (getType() == Type::Input) {
+        if (!(look & Edge::LOOK_UP)) {
+            Node::resolveInPlaceEdges(look);
+            return;
+        }
+
+        auto selected_pd = getSelectedPrimitiveDescriptor();
+        OPENVINO_ASSERT(selected_pd,
+                        "MemoryInput ",
+                        getName(),
+                        " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
+
+        auto memDesc = selected_pd->getConfig().outConfs.front().getMemDesc();
+        // auto baseMemMngr = memory->getMemoryMngr();
+        // ProxyMemoryMngrPtr memMngr = std::make_shared<ProxyMemoryMngr>(baseMemMngr);
+        // auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr);
+        // MemoryMngrPtr memMngr = memory->getMemoryMngr();
+
+        for (auto&& edge : getChildEdgesAtPort(0)) {  // always only one child port
+            OPENVINO_ASSERT(one_of(edge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
+                            " Unexpected inplace resolve call to an allocated edge: ",
+                            edge->name());
+
+            // auto edgeMem = std::make_shared<Memory>(getEngine(), memDesc, memMngr);
+            // edge->reuse(edgeMem);
+
+            // std::cout << "resolveInPlaceEdgesNew: node: " << getName()
+            //           << " using memory: " << memory << " for edge: " << *edge
+            //           << "\n";
+
+            edge->reuse(memory);
+        }
+    } else { // type = Type::Output
+        if (!(look & Edge::LOOK_DOWN)) {
+            Node::resolveInPlaceEdges(look);
+            return;
+        }
+
+        auto selected_pd = getSelectedPrimitiveDescriptor();
+        OPENVINO_ASSERT(selected_pd,
+                        "MemoryOutput ",
+                        getName(),
+                        " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
+
+        auto parentEdge = getParentEdgeAt(0);  // always only one parent edge
+
+        OPENVINO_ASSERT(one_of(parentEdge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
+                        " Unexpected inplace resolve call to an allocated edge: ",
+                        parentEdge->name());
+
+        auto memDesc = selected_pd->getConfig().inConfs.front().getMemDesc();
+        auto baseMemMngr = memory->getMemoryMngr();
+        // ProxyMemoryMngrPtr memMngr = std::make_shared<ProxyMemoryMngr>(baseMemMngr);
+        auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr);
+        // auto edgeMem = std::make_shared<Memory>(getEngine(), memDesc, memMngr);
+        // parentEdge->reuse(edgeMem);
+        parentEdge->reuse(memory);
+    }
+}
+
 }   // namespace node
 }   // namespace intel_cpu
 }   // namespace ov

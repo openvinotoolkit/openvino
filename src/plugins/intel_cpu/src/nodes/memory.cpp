@@ -190,6 +190,16 @@ void MemoryOutputBase::executeDynamicImpl(dnnl::stream strm) {
     state->commit();
 }
 
+void MemoryOutputBase::executeDynamicSeq(dnnl::stream strm) {
+    if (isDynamicNode()) {
+        updateShapes();
+        updateDynamicParams();
+    }
+
+    runDynamic(strm);
+    state->commit();
+}
+
 void MemoryOutputBase::assignState(MemStatePtr newState) {
     OPENVINO_ASSERT(newState, "MemoryOutput ", getName(), " got null state");
     state = newState;
@@ -497,6 +507,11 @@ void MemoryInputBase::execute(dnnl::stream strm) {
 }
 
 void MemoryInputBase::executeDynamicImpl(dnnl::stream strm) {
+    if (isDynamicNode()) {
+        updateShapes();
+        updateDynamicParams();
+    }
+
     getOutputNode().assignState(getAssignedState());
     runDynamic(strm);
 }
@@ -586,6 +601,8 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
     }
 
     const bool processInitGraph = needInitGraphProcessing();
+    // std::cout << "Input node: " << getName() << " Using memory from edge: " << *getParentEdgeAt(0) << "\n";
+
     //reshape output
     const auto& newDims = processInitGraph ? getSrcMemoryAtPort(0)->getStaticDims() : stateDims;
 

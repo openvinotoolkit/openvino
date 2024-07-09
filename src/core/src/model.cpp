@@ -281,11 +281,15 @@ void ov::Model::validate_nodes_and_infer_types() const {
     }
 
     OPENVINO_ASSERT(unregistered_parameters.str().empty(),
-                    "Model references undeclared parameters: ",
+                    "Model ",
+                    get_friendly_name(),
+                    " references undeclared parameters: ",
                     unregistered_parameters.str());
 
     OPENVINO_ASSERT(unregistered_variables.str().empty(),
-                    "Model references undeclared Variables: ",
+                    "Model ",
+                    get_friendly_name(),
+                    " references undeclared Variables: ",
                     unregistered_variables.str());
 
     for (const auto& output : outputs()) {

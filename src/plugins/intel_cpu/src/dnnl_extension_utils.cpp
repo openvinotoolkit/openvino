@@ -7,6 +7,8 @@
 #include <common/primitive_desc.hpp>
 #include <common/primitive_desc_iface.hpp>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <utils/debug_capabilities.h>
+
 #include <vector>
 
 #include "cpu_memory.h"
@@ -48,6 +50,7 @@ dnnl::memory::data_type DnnlExtensionUtils::ElementTypeToDataType(const ov::elem
         case ov::element::f32:
             return memory::data_type::f32;
         case ov::element::i32:
+        CPU_DEBUG_CAP_ENABLE(case ov::element::i64:)
             return memory::data_type::s32;
         case ov::element::bf16:
             return memory::data_type::bf16;

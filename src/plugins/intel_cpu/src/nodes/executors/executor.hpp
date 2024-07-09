@@ -91,7 +91,7 @@ public:
                     const std::vector<impl_desc_type>& implPriorities,
                     std::shared_ptr<std::unordered_map<std::string, MemoryPtr>> privateWeighCache = nullptr)
         : runtimeCache(graphContext->getParamsCache()),
-          scratchPads(graphContext->getScratchPads()),
+          scratchPads(graphContext->getScratchPad()),
           weightsCache(graphContext->getWeightsCache()),
           engine(graphContext->getEngine()),
           implPriorities(implPriorities),
@@ -106,11 +106,7 @@ public:
     }
 
     DnnlScratchPadPtr getScratchPad(int subStreamID = 0) const {
-        if (subStreamID < 0)
-            subStreamID = 0;
-        if (subStreamID >= numNumaNodes - 1)
-            subStreamID = numNumaNodes - 1;
-        return scratchPads[subStreamID];
+        return scratchPads;
     }
 
     std::shared_ptr<std::unordered_map<std::string, MemoryPtr>> getPrivateWeighCache() const {
@@ -133,7 +129,7 @@ private:
     // weak_ptr is required to avoid cycle dependencies with MultiCache
     // since ExecutorContext is stored in Executor itself
     MultiCacheWeakPtr runtimeCache;
-    std::vector<DnnlScratchPadPtr> scratchPads;
+    DnnlScratchPadPtr scratchPads;
     WeightsSharing::Ptr weightsCache;
     const dnnl::engine& engine;
     std::vector<impl_desc_type> implPriorities;
@@ -170,6 +166,9 @@ public:
         OPENVINO_THROW_NOT_IMPLEMENTED("This version of the 'execute' method is not implemented by executor");
     }
     virtual impl_desc_type implType() const = 0;
+    virtual void moveMemToNumaNode(int numaID) {
+        OPENVINO_THROW_NOT_IMPLEMENTED("This version of the 'moveMemToNumaNode' method is not implemented by executor");
+    }
     virtual ~Executor() = default;
 };
 using ExecutorPtr = std::shared_ptr<Executor>;

@@ -201,11 +201,15 @@ public:
     void Configure(const std::shared_ptr<const ov::Model>& model,
                    const GraphContext::CPtr context,
                    const VecMemoryDescs& inputDescriptors = {},
-                   const bool zeroCopyOutputs = false);
+                   const bool zeroCopyOutputs = false,
+                   int level = 0);
     //
-    void Allocate();
+    void Allocate(const std::vector<MemoryPtr>& inputMemory = {},
+                  const std::vector<MemoryPtr>& outputMemory = {});
 
     void InitGraph(bool optimize = true);
+    void InferDynamicSync(SyncInferRequest* request);
+    void InferStaticSync(SyncInferRequest* request);
 
 protected:
     void ForgetGraphData() {
@@ -244,13 +248,22 @@ protected:
     void ResolveEdgeConflicts();
     void ResolveComplexInplaceConflicts();
     bool ProcessDynNodes();
-    void Allocate(const std::vector<size_t>& syncNodesInds);
+    void Allocate(const std::vector<size_t>& syncNodesInds,
+                  const std::vector<MemoryPtr>& inputMemory = {},
+                  const std::vector<MemoryPtr>& outputMemory = {});
     void AllocateWithReuse(const std::vector<size_t>& syncNodesInds);
+    void UpdateAndExecuteNode(const NodePtr& node, const dnnl::stream& stream);
     void ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const;
     void CreatePrimitivesAndExecConstants() const;
     void InferStatic(SyncInferRequest* request);
     template<typename UpdateStrategy>
     void InferDynamic(SyncInferRequest* request, UpdateStrategy&& update);
+    void InferDynamicWithAsync(SyncInferRequest* request);
+    void CreateDependencyMap();
+
+    void WaitForControlDependencies(const std::vector<std::vector<size_t>>& m_contolDependencies,
+                                    const NodePtr& node,
+                                    const std::shared_ptr<std::vector<std::atomic<bool>>>& m_waitHandles);
 
     friend class intel_cpu::SyncInferRequest;
     friend std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph);
@@ -267,9 +280,14 @@ private:
     // non-executable (optimized out) nodes, such as Input, Reshape, etc.
     std::vector<NodePtr> m_executableGraphNodes;
     std::vector<size_t> m_executableSyncNodesInds;
+    std::vector<std::vector<size_t>> m_contolDependencies;
+    // use something like unordered_flat_map instead?
+    std::shared_ptr<std::vector<std::atomic<bool>>> m_waitHandles;
+    std::vector<int> m_subStreamId;
 
     GraphContext::CPtr m_context;
     dnnl::stream m_stream;
+    int m_level = 0;
 
     void EnforceInferencePrecision();
     void EnforceBF16();
