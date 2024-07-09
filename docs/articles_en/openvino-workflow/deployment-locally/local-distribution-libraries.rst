@@ -127,7 +127,7 @@ Refer to the table below for details:
 Libraries for Execution Modes
 +++++++++++++++++++++++++++++
 
-The ``HETERO``, ``MULTI``, ``BATCH``, and ``AUTO`` execution modes can also be used by the application explicitly or implicitly.
+The ``HETERO``, ``BATCH``, and ``AUTO`` execution modes can also be used by the application explicitly or implicitly.
 Use the following recommendation scheme to decide whether to add the appropriate libraries to the distribution package:
 
 - If :doc:`AUTO <../running-inference/inference-devices-and-modes/auto-device-selection>` is used
@@ -139,8 +139,6 @@ Use the following recommendation scheme to decide whether to add the appropriate
      If you are not sure which inference devices are available on the target system, put all inference plugin libraries in the distribution.
      If ov::device::priorities is used for `AUTO` to specify a limited device list, grab the corresponding device plugins only.
 
-- If :doc:`MULTI <../running-inference/inference-devices-and-modes/multi-device>` is used explicitly,
-  put ``openvino_auto_plugin`` in the distribution.
 - If :doc:`HETERO <../running-inference/inference-devices-and-modes/hetero-execution>` is either
   used explicitly or ``ov::hint::performance_mode`` is used with GPU, put ``openvino_hetero_plugin`` in the distribution.
 - If :doc:`BATCH <../running-inference/inference-devices-and-modes/automatic-batching>` is either
@@ -180,23 +178,6 @@ Examples
    - The ``openvino`` library is used as a private dependency for ``openvino_c`` and is also used in the deployment.
    - ``openvino_intel_cpu_plugin`` is used for inference.
    - ``openvino_ir_frontend`` is used to read source models.
-
-.. dropdown:: MULTI execution on GPU and CPU in tput mode
-
-   In this example, the application is written in C++, performs inference
-   :doc:`simultaneously on GPU and CPU devices <../running-inference/inference-devices-and-modes/multi-device>` with
-   the ``ov::hint::PerformanceMode::THROUGHPUT`` property set, and reads models stored in the ONNX format.
-
-   The following libraries are used: ``openvino``, ``openvino_intel_gpu_plugin``, ``openvino_intel_cpu_plugin``,
-   ``openvino_auto_plugin``, ``openvino_auto_batch_plugin``, and ``openvino_onnx_frontend``.
-
-   - The ``openvino`` library is a main dependency of the application. The app links against this library.
-   - ``openvino_intel_gpu_plugin`` and ``openvino_intel_cpu_plugin`` are used for inference.
-   - ``openvino_auto_plugin`` is used for Multi-Device Execution.
-   - ``openvino_auto_batch_plugin`` can be also put in the distribution to improve the saturation
-     of :doc:`Intel® GPU <../running-inference/inference-devices-and-modes/gpu-device>` device.
-     If there is no such plugin, :doc:`Automatic Batching <../running-inference/inference-devices-and-modes/automatic-batching>` is turned off.
-   - ``openvino_onnx_frontend`` is used to read source models.
 
 .. dropdown:: Auto-Device Selection between GPU and CPU
 

@@ -186,7 +186,7 @@ the following setup options:
 |                                              | ``DEVICE_PRIORITY``                                                |
 |                                              |                                                                    |
 |                                              | Specify the schedule policy of infer request assigned to hardware  |
-|                                              | plugin for AUTO cumulative mode (MULTI).                           |
+|                                              | plugin for AUTO cumulative mode.                                   |
 |                                              |                                                                    |
 |                                              | The default value is ``DEVICE_PRIORITY``.                          |
 +----------------------------------------------+--------------------------------------------------------------------+
@@ -337,9 +337,9 @@ This option prioritizes high throughput, balancing between latency and power. It
 
 While ``LATENCY`` and ``THROUGHPUT`` can select one target device with your preferred performance option, the ``CUMULATIVE_THROUGHPUT`` option enables running inference on multiple devices for higher throughput. With ``CUMULATIVE_THROUGHPUT``, AUTO loads the network model to all available devices in the candidate list, and then runs inference on them based on the default or specified priority.
 
-`CUMULATIVE_THROUGHPUT` has similar behavior as :doc:`the Multi-Device execution mode (MULTI) <multi-device>`. The only difference is that ``CUMULATIVE_THROUGHPUT`` uses the devices specified by AUTO, which means that it's not mandatory to add devices manually, while with MULTI, you need to specify the devices before inference.
+``CUMULATIVE_THROUGHPUT`` has similar behavior as the deprecated :doc:`the Multi-Device execution mode (MULTI) <multi-device>`. The only difference is that ``CUMULATIVE_THROUGHPUT`` uses the devices specified by AUTO, which means that it's not mandatory to add devices manually, while with MULTI, you need to specify the devices before inference.
 
-If device priority is specified when using `CUMULATIVE_THROUGHPUT`, AUTO will run inference requests on devices based on the priority. In the following example, AUTO will always try to use GPU first, and then use CPU if GPU is busy:
+If device priority is specified when using ``CUMULATIVE_THROUGHPUT``, AUTO will run inference requests on devices based on the priority. In the following example, AUTO will always try to use GPU first, and then use CPU if GPU is busy:
 
 .. tab-set::
 
