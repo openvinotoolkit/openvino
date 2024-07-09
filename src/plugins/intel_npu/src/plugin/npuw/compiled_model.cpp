@@ -315,7 +315,9 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 m_compiled_submodels[real_id].devices_to_avoid.insert(std::move(d));
             }
         }
-        m_compiled_submodels[real_id].device_it = m_dev_list.cbegin();
+
+        m_compiled_submodels[id].device_it =
+            id != real_id ? m_compiled_submodels[real_id].device_it : m_dev_list.cbegin();
 
         if (forced_sub_devices.count(id)) {
             std::string forced_device = forced_sub_devices[id];
