@@ -83,7 +83,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-32gb-debug # TODO: revert
+    runs-on: aks-linux-16-cores-32gb
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}
       volumes:
@@ -328,11 +328,6 @@ jobs:
           action_path: ${{ env.GITHUB_WORKSPACE }}/openvino/.github/actions/store_artifacts
           target_arch: 'intel64'
           build_type: 'release'
-
-      # TODO: remove
-      - name: Show artifacts on share
-        run: |
-          ls -la ${{ steps.store_artifacts.outputs.artifacts_storage_path }}
 
   Debian_Packages:
     name: Debian Packages
