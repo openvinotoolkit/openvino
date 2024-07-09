@@ -52,6 +52,21 @@ private:
 void default_logger_handler_func(const std::string& s);
 
 #ifdef ENABLE_OPENVINO_DEBUG
+/* Template function _write_all_to_stream has duplicates
+ * It's defined in:
+ * intel_cpu/src/utils/debug_capabilities and src/core/include/openvino/core/except.hpp
+ * To prevent loop dependencies this code is currently duplicated, but should be moved
+ * from intel_cpu, core and this place into one common library.
+ */
+static inline std::ostream& _write_all_to_stream(std::ostream& os) {
+    return os;
+}
+
+template <typename T, typename... TS>
+static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg, TS&&... args) {
+    return ov::util::_write_all_to_stream(os << arg, std::forward<TS>(args)...);
+}
+
 #    define OPENVINO_LOG_STREAM(OPENVINO_HELPER_LOG_TYPE)                     \
         ::ov::util::LogHelper(::ov::util::LOG_TYPE::OPENVINO_HELPER_LOG_TYPE, \
                               __FILE__,                                       \
@@ -59,24 +74,24 @@ void default_logger_handler_func(const std::string& s);
                               ::ov::util::default_logger_handler_func)        \
             .stream()
 
-#    define OPENVINO_ERR(...)                                                             \
-        do {                                                                              \
-            ::ov::write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_ERROR), __VA_ARGS__); \
+#    define OPENVINO_ERR(...)                                                                 \
+        do {                                                                                  \
+            ov::util::write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_ERROR), __VA_ARGS__); \
         } while (0)
 
-#    define OPENVINO_WARN(...)                                                              \
-        do {                                                                                \
-            ::ov::write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_WARNING), __VA_ARGS__); \
+#    define OPENVINO_WARN(...)                                                                  \
+        do {                                                                                    \
+            ov::util::write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_WARNING), __VA_ARGS__); \
         } while (0)
 
-#    define OPENVINO_INFO(...)                                                           \
-        do {                                                                             \
-            ::ov::write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_INFO), __VA_ARGS__); \
+#    define OPENVINO_INFO(...)                                                               \
+        do {                                                                                 \
+            ov::util::write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_INFO), __VA_ARGS__); \
         } while (0)
 
-#    define OPENVINO_DEBUG(...)                                                           \
-        do {                                                                              \
-            ::ov::write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_DEBUG), __VA_ARGS__); \
+#    define OPENVINO_DEBUG(...)                                                               \
+        do {                                                                                  \
+            ov::util::write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_DEBUG), __VA_ARGS__); \
         } while (0)
 #else
 #    define OPENVINO_ERR(...)

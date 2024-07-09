@@ -327,12 +327,9 @@ bool ov::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ov::Model>& f) 
 #endif
                 if (prev_shape.is_static() && last_output.get_partial_shape().is_static()) {
                     reduced_weights_count += shape_size(prev_shape.get_shape()) - shape_size(last_output.get_shape());
-                }
-#ifdef ENABLE_OPENVINO_DEBUG
-                else {
+                } else {
                     OPENVINO_DEBUG("[ WARNING ] Can not find the number of reduced elements due to dynamic shapes.");
                 }
-#endif
             }
             // Trying to fold sequence of Gather ops to avoid additional constant folding.
             if (auto folded_const = ov::util::get_constant_from_source(last_output)) {
