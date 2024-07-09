@@ -48,8 +48,9 @@ ov::pass::ConvertAvgPool14ToAvgPool1::ConvertAvgPool14ToAvgPool1() {
         using ov::op::v3::Broadcast;
         using ov::op::v3::ShapeOf;
         using ov::op::v4::Range;
-
-        if (!exclude_pad && rounding_type_v14 == ov::op::RoundingType::CEIL_TORCH) {
+        std::cout << "\n\nPERFORMING DOWNGRADE\n\n";
+        if (!exclude_pad) {
+            std::cout << "\n\nWITH BIG SUBGRAPH\n\n";
             const auto zero = node_registry.make<Constant>(element::f32, Shape{}, 0);
             const auto zero_node = node_registry.make<ConvertLike>(zero, input);
             const auto zero_i64 = node_registry.make<Constant>(element::i64, Shape{}, 0);

@@ -17,9 +17,8 @@ d2_params = [{'kernel_size': [3, 3], 'stride': 1, 'padding': 0},
              {'kernel_size': [2, 1], 'stride': [2, 1], 'padding': 0},
              {'kernel_size': [2, 1], 'stride': None, 'padding': 0},
              {'kernel_size': [2, 1], 'stride': [], 'padding': 0},
+             {'kernel_size': [8, 8], 'stride': [8, 4], 'padding': 1},
              ]
-
-d2_params_corner_case = [{'kernel_size': [8, 8], 'stride': [8, 4], 'padding': 1}]
 
 d1_params = [{'kernel_size': 3, 'stride': 1, 'padding': 0},
              {'kernel_size': (4,), 'stride': 1, 'padding': 1},
@@ -144,14 +143,7 @@ class TestPooling(PytorchLayerTest):
                    dynamic_shapes=False)
 
     @pytest.mark.parametrize(
-        "params",
-        d2_params
-        + [
-            pytest.param(
-                {"kernel_size": [8, 8], "stride": [8, 4], "padding": 1},
-                marks=pytest.mark.xfail(reason="Sliding windows that would start in the right padded are ignored.")
-            )
-        ])
+        "params", d2_params)
     @pytest.mark.parametrize("ceil_mode", [True, False])
     @pytest.mark.parametrize("count_include_pad", [True, False])
     @pytest.mark.nightly
@@ -161,6 +153,8 @@ class TestPooling(PytorchLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_avg_pool2d(self, params, ceil_mode, count_include_pad, ie_device, precision, ir_version):
+        if ceil_mode and count_include_pad and np.array_equal(np.array(params["kernel_size"]), np.array([8, 8])):
+            pytest.skip("ticket TODO")
         self._test(*self.create_model("avg_pool2d", **params, ceil_mode=ceil_mode, count_include_pad=count_include_pad),
                    ie_device, precision, ir_version, trace_model=True, freeze_model=False, dynamic_shapes=False)
 
@@ -190,7 +184,7 @@ class TestPooling(PytorchLayerTest):
         self._test(*self.create_model("max_pool1d", **params, ceil_mode=ceil_mode, dilation=dilation),
                    ie_device, precision, ir_version, kwargs_to_prepare_input={'ndim': 3}, dynamic_shapes=False)
 
-    @pytest.mark.parametrize("params", d2_params + d2_params_corner_case)
+    @pytest.mark.parametrize("params", d2_params)
     @pytest.mark.parametrize("ceil_mode", [True, False])
     @pytest.mark.parametrize("dilation", [1, 2])
     @pytest.mark.parametrize("dtype", [torch.float32, torch.int32])
@@ -227,7 +221,7 @@ class TestPooling(PytorchLayerTest):
         self._test(*self.create_model("max_pool1d_with_indices", **params, ceil_mode=ceil_mode, dilation=dilation),
                    ie_device, precision, ir_version, kwargs_to_prepare_input={'ndim': 3}, dynamic_shapes=False)
 
-    @pytest.mark.parametrize("params", d2_params + d2_params_corner_case)
+    @pytest.mark.parametrize("params", d2_params)
     @pytest.mark.parametrize("ceil_mode", [True, False])
     @pytest.mark.parametrize("dilation", [1, 2])
     @pytest.mark.nightly
