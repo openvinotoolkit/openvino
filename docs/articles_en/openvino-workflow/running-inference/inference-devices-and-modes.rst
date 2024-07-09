@@ -33,7 +33,7 @@ different conditions:
 |    :doc:`Automatic Device Selection (AUTO) <inference-devices-and-modes/auto-device-selection>`
 |    :doc:`Heterogeneous Execution (HETERO) <inference-devices-and-modes/hetero-execution>`
 |    :doc:`Automatic Batching Execution (Auto-batching) <inference-devices-and-modes/automatic-batching>`
-|    :doc:`[DEPRECATED] Multi-Device Execution (MULTI) <inference-devices-and-modes/multi-device>`
+|    :doc:`[DEPRECATED] Multi-Device Execution (MULTI) <../../documentation/legacy-features/multi-device>`
 
 To learn how to change the device configuration, read the :doc:`Query device properties article <inference-devices-and-modes/query-device-properties>`.
 

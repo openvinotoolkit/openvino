@@ -28,7 +28,7 @@ OpenVINO offers the option of running automated inference with the following inf
 * :doc:`Automatic Batching <../../openvino-workflow/running-inference/inference-devices-and-modes/automatic-batching>` - automatically groups inference requests to improve
   device utilization.
 
-
+``
 
 Feature Support and API Coverage
 #################################
@@ -37,7 +37,7 @@ Feature Support and API Coverage
  Supported Feature                                                                                                                        CPU     GPU        NPU
 ======================================================================================================================================== ======= ========== ===========
  :doc:`Heterogeneous execution <../../openvino-workflow/running-inference/inference-devices-and-modes/hetero-execution>`                  Yes     Yes        No
- :doc:`(LEGACY) Multi-device execution <../../openvino-workflow/running-inference/inference-devices-and-modes/multi-device>`              Yes     Yes        Partial
+ :doc:`(LEGACY) Multi-device execution <./../../documentation/legacy-features/multi-device.rst>`                                          Yes     Yes        Partial
  :doc:`Automatic batching <../../openvino-workflow/running-inference/inference-devices-and-modes/automatic-batching>`                     No      Yes        No
  :doc:`Multi-stream execution <../../openvino-workflow/running-inference/optimize-inference/optimizing-throughput>`                       Yes     Yes        No
  :doc:`Models caching <../../openvino-workflow/running-inference/optimize-inference/optimizing-latency/model-caching-overview>`           Yes     Partial    Yes
