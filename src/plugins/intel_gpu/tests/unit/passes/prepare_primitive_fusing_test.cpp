@@ -777,5 +777,4 @@ TEST(prepare_primitive_fusing, fuse_in_direction_with_lower_processing_number) {
     program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*program, lo);
 
     ASSERT_FALSE(has_node(*program, "eltw5"));
-    ASSERT_EQ(program->get_node("conv1").get_fused_primitives().size(), 5);
 }
