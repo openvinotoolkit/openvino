@@ -35,6 +35,12 @@ def get_runtime():
     else:
         return runtime()
 
+def get_onnx_test_dtype(ov_type):
+    is_ov_float8 = ov_type == Type.f8e4m3 or ov_type == Type.f8e5m2
+    if is_ov_float8:
+        return np.float32
+    else:
+        return get_dtype(ov_type)
 
 class Runtime(object):
     """Represents a graph runtime environment."""
@@ -154,6 +160,6 @@ class Computation(object):
             result_buffers = [t.data for t in request.output_tensors]
         """
         # # Since OV overwrite result data type we have to convert results to the original one.
-        original_dtypes = [get_dtype(result.get_output_element_type(0)) for result in self.results]
+        original_dtypes = [get_onnx_test_dtype(result.get_output_element_type(0)) for result in self.results]
         converted_buffers = self.convert_buffers(result_buffers, original_dtypes)
         return converted_buffers
