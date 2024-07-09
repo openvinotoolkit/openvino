@@ -294,6 +294,33 @@ jobs:
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
 
+      - name: Prepare debian packages for storage on share
+        if: ${{ always() }}
+        continue-on-error: true
+        run: |
+          pushd ${{ env.BUILD_DIR }}
+          mkdir deb && mv *.deb deb/
+          popd
+
+      - name: Store artifacts to a shared drive
+        id: store_artifacts
+        if: ${{ always() }}
+        uses: ./openvino/.github/actions/store_artifacts
+        with:
+          artifacts: |
+            ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+            ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
+            ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+            ${{ env.BUILD_DIR }}/deb
+          repos: |
+            ${{ env.OPENVINO_REPO }}
+            ${{ env.OPENVINO_CONTRIB_REPO }}
+          storage_dir: 'public_linux_ubuntu_20_04_arm64_release'
+          storage_root: ${{ env.ARTIFACTS_SHARE }}
+          action_path: ${{ env.GITHUB_WORKSPACE }}/openvino/.github/actions/store_artifacts
+          target_arch: 'aarch64'
+          build_type: 'release'
+
   Debian_Packages:
     name: Debian Packages
     needs: Build
