@@ -11,6 +11,7 @@ Legacy Features and Components
    OpenVINO Development Tools package <legacy-features/install-dev-tools>
    Model Optimizer / Conversion API <legacy-features/transition-legacy-conversion-api>
    Open Model ZOO <legacy-features/model-zoo>
+   legacy-features/multi-device
 
 
 Since OpenVINO has grown very rapidly in recent years, a number of its features

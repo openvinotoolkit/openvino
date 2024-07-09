@@ -511,7 +511,7 @@ Additional Resources
 
 * `Automatic Device Selection with OpenVINO™ Notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/auto-device/auto-device.ipynb>`__
 * :doc:`Debugging AUTO <auto-device-selection/debugging-auto-device>`
-* :doc:`Running on Multiple Devices Simultaneously <multi-device>`
+* :doc:`(LEGACY) Running on Multiple Devices Simultaneously <./../../../documentation/legacy-features/multi-device.rst>`
 * :doc:`Inference Devices and Modes <../inference-devices-and-modes>`
 
 
