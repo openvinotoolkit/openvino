@@ -25,7 +25,6 @@ protected:
             std::remove(vt_svg_file_path.c_str());
         }
 
-        const auto dot_file_path = vt_svg_file_path + ".dot";
         if (util::file_exists(dot_file_path)) {
             std::remove(dot_file_path.c_str());
         }
@@ -41,6 +40,7 @@ protected:
 
     const std::string vt_svg_file_path =
         util::path_join({utils::getExecutableDirectory(), utils::generateTestFilePrefix() + "_tree.svg"});
+    const std::string dot_file_path = vt_svg_file_path + ".dot";
 };
 
 TEST_F(VisualizeTreeTest, model_has_constant_with_inf) {
@@ -50,7 +50,7 @@ TEST_F(VisualizeTreeTest, model_has_constant_with_inf) {
     pass::VisualizeTree vt(vt_svg_file_path);
 
     OV_ASSERT_NO_THROW(vt.run_on_model(model));
-    ASSERT_TRUE(util::file_exists(vt_svg_file_path)) << vt_svg_file_path;
+    ASSERT_TRUE(util::file_exists(dot_file_path)) << dot_file_path;
 }
 
 TEST_F(VisualizeTreeTest, model_has_constant_with_no_inf) {
@@ -60,7 +60,7 @@ TEST_F(VisualizeTreeTest, model_has_constant_with_no_inf) {
     pass::VisualizeTree vt(vt_svg_file_path);
 
     OV_ASSERT_NO_THROW(vt.run_on_model(model));
-    ASSERT_TRUE(util::file_exists(vt_svg_file_path)) << vt_svg_file_path;
+    ASSERT_TRUE(util::file_exists(dot_file_path)) << dot_file_path;
 }
 }  // namespace test
 }  // namespace ov
