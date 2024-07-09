@@ -209,7 +209,7 @@ For more details and code examples, see the :doc:`Precision Control <../optimize
 Supported Features
 ###########################################################
 
-Multi-device Execution
+Automatic Device Selection
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 If a system includes OpenVINO-supported devices other than the CPU (e.g. an integrated GPU), then any supported model can be executed on all the devices simultaneously.
