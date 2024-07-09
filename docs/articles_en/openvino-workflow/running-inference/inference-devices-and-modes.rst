@@ -12,7 +12,6 @@ Inference Devices and Modes
    inference-devices-and-modes/gpu-device
    inference-devices-and-modes/npu-device
    inference-devices-and-modes/auto-device-selection
-   inference-devices-and-modes/multi-device
    inference-devices-and-modes/hetero-execution
    inference-devices-and-modes/automatic-batching
    inference-devices-and-modes/query-device-properties
