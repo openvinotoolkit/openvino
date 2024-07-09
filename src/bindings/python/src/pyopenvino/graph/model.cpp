@@ -767,7 +767,7 @@ void regclass_graph_Model(py::module m) {
             int64_t pos = -1;
             if (ov::is_type<ov::op::v6::Assign>(value.get_node_shared_ptr())) {
                 auto sink = std::dynamic_pointer_cast<ov::op::Sink>(value.get_node_shared_ptr());
-                pos = find_sink_position(self.get_sinks(), sink);
+                return find_sink_position(self.get_sinks(), sink);
             } else {
                 throw py::type_error("Incorrect argument type. Output sink node is expected as argument.");
             }
