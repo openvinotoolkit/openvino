@@ -115,6 +115,23 @@ def get_repo_data(repo_dir: str | Path) -> dict:
     }
 
 
+def generate_manifest(version: str, repos: list, product_type: str, event_type: str, build_type: str,
+                      target_arch: str) -> Manifest:
+    manifest = Manifest()
+    version = version
+    component_name = 'dldt' # historical, keep for internal compatibility
+    repositories = []
+    for repo_dir in repos:
+        repo_data = get_repo_data(repo_dir)
+        repositories.append(Repository(**repo_data))
+    # TODO: add wheels product version to custom params
+    component = Component(name=component_name, version=version, product_type=product_type, target_arch=target_arch,
+                          build_type=build_type, build_event=event_type, repositories=repositories)
+
+    manifest.add_component(component)
+    return manifest
+
+
 def main():
     init_logger()
     logger = logging.getLogger(__name__)
@@ -154,25 +171,14 @@ def main():
     # TODO: move this and manifest generation before copying artifacts?
     github_server = os.getenv('GITHUB_SERVER_URL')
     if github_server:  # If running from GHA context
-        repository = os.getenv('GITHUB_REPOSITORY')
-        run_id = os.getenv('GITHUB_RUN_ID')
         # TODO: write an exact job link, but it's not trivial to get
-        workflow_link = f"{github_server}/{repository}/actions/runs/{run_id}"
+        workflow_link = f"{github_server}/{os.getenv('GITHUB_REPOSITORY')}/actions/runs/{os.getenv('GITHUB_RUN_ID')}"
         with open(storage / 'workflow_link.txt', 'w') as file:
             file.write(workflow_link)
 
     # Generate manifest
-    manifest = Manifest()
-    version = 'TBD' # TODO: retrieve version
-    repositories = []
-    for repo_dir in args.repos.split():
-        repo_data = get_repo_data(repo_dir)
-        repositories.append(Repository(**repo_data))
-    # TODO: add wheels product version to custom params
-    component = Component(name='dldt', version=version, product_type=args.storage_dir, target_arch=args.target_arch,
-                          build_type=args.build_type, build_event=event_type, repositories=repositories)
-
-    manifest.add_component(component)
+    version = 'TBD' # TODO: generate version
+    manifest = generate_manifest(version, args.repos, args.storage_dir, event_type, args.build_type, args.target_arch)
     manifest.save_manifest('manifest.yml') # Locally, to upload to GitHub artifacts
     manifest.save_manifest(storage / 'manifest.yml') # Remotely
 
