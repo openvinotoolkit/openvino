@@ -1310,6 +1310,11 @@ void primitive_inst::do_runtime_in_place_concat() {
     auto concat_inst = get_user_insts().front();
     if (!concat_inst->get_node().is_type<concatenation>() || !concat_inst->get_node().can_be_optimized())
         return;
+
+    if (has_subgraph_dependency(concat_inst->dependencies())) {
+        concat_inst->set_can_be_optimized(false);
+        return;
+    }
     // Currently does not support cascaded concats
     std::vector<primitive_inst*> concat_preds;
     for (auto pred : concat_inst->_deps) {
@@ -1359,11 +1364,6 @@ void primitive_inst::do_runtime_in_place_concat() {
         ++i;
     }
     concat_inst->_impl_params->output_layouts[0] = concat_layout; // TODO : Once this primitive_inst::can_be_optimized, consolidate it to impl_params->optimized
-
-    if (has_subgraph_dependency(concat_inst->dependencies())) {
-        concat_inst->set_can_be_optimized(false);
-        return;
-    }
 
     concat_inst->set_can_be_optimized(true);
     GPU_DEBUG_TRACE_DETAIL << "[In place concat] " << concat_inst->id() << ": can_be_optimized " << std::endl;
