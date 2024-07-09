@@ -76,22 +76,22 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
 
 #    define OPENVINO_ERR(...)                                                                 \
         do {                                                                                  \
-            ov::util::write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_ERROR), __VA_ARGS__); \
+            ov::util::_write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_ERROR), __VA_ARGS__); \
         } while (0)
 
 #    define OPENVINO_WARN(...)                                                                  \
         do {                                                                                    \
-            ov::util::write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_WARNING), __VA_ARGS__); \
+            ov::util::_write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_WARNING), __VA_ARGS__); \
         } while (0)
 
 #    define OPENVINO_INFO(...)                                                               \
         do {                                                                                 \
-            ov::util::write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_INFO), __VA_ARGS__); \
+            ov::util::_write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_INFO), __VA_ARGS__); \
         } while (0)
 
 #    define OPENVINO_DEBUG(...)                                                               \
         do {                                                                                  \
-            ov::util::write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_DEBUG), __VA_ARGS__); \
+            ov::util::_write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_DEBUG), __VA_ARGS__); \
         } while (0)
 #else
 #    define OPENVINO_ERR(...)

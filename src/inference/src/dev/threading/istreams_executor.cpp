@@ -303,7 +303,7 @@ void IStreamsExecutor::Config::update_executor_config() {
     for (size_t i = 0; i < _streams_info_table.size(); i++) {
         OPENVINO_DEBUG(_streams_info_table[i][NUMBER_OF_STREAMS],
                        " ",
-                       streams_info_table[i][PROC_TYPE],
+                       _streams_info_table[i][PROC_TYPE],
                        " ",
                        _streams_info_table[i][THREADS_PER_STREAM],
                        " ",
@@ -311,7 +311,7 @@ void IStreamsExecutor::Config::update_executor_config() {
                        " ",
                        _streams_info_table[i][STREAM_SOCKET_ID]);
     }
-    OPENVINO_DEBUG("[ threading ] )", _name << ": ", _streams, "(", _threads, ")");
+    OPENVINO_DEBUG("[ threading ] )", _name, ": ", _streams, "(", _threads, ")");
 #endif
 }
 

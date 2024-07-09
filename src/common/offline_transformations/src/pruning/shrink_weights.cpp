@@ -291,7 +291,6 @@ bool ov::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ov::Model>& f) 
             copy_runtime_info(const_node, new_const);
             OPENVINO_DEBUG("Transform shape like (",
                            last_output.get_node()->get_friendly_name(),
-                           ,
                            "): ",
                            const_node->get_shape_val(),
                            " to ",
