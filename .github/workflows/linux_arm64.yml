@@ -104,6 +104,7 @@ jobs:
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       SCCACHE_AZURE_KEY_PREFIX: 'ubuntu20_aarch64_Release'
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/src/frontends/onnx/tests/ci_utils/onnxruntime
+      ARTIFACTS_SHARE: "/mount/build-artifacts"
     if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:

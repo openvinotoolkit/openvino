@@ -178,7 +178,8 @@ def main():
 
     # Generate manifest
     version = 'TBD' # TODO: generate version
-    manifest = generate_manifest(version, args.repos, args.storage_dir, event_type, args.build_type, args.target_arch)
+    repos = args.repos.split()
+    manifest = generate_manifest(version, repos, args.storage_dir, event_type, args.build_type, args.target_arch)
     manifest.save_manifest('manifest.yml') # Locally, to upload to GitHub artifacts
     manifest.save_manifest(storage / 'manifest.yml') # Remotely
 
