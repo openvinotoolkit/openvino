@@ -26,7 +26,7 @@ OutputVector translate_slice_scatter_fx(const NodeContext& context) {
     ov::Output<ov::Node> dim;
     if (!context.input_is_none(2)) {
         dim = context.get_input(2);
-        if (!(dim.get_partial_shape().rank().is_dynamic()) && dim.get_partial_shape().rank().get_length() == 0) {
+        if (dim.get_partial_shape().rank().is_static() && dim.get_partial_shape().rank().get_length() == 0) {
             dim = context.mark_node(std::make_shared<v0::Unsqueeze>(dim, axis_0));
         }
     } else {
