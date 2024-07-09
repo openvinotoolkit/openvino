@@ -325,13 +325,12 @@ This option prioritizes low latency, providing short response time for each infe
 
    If no performance hint is set explicitly, AUTO will set LATENCY for devices that have not set ``ov::device::properties``, for example, ``ov::device::properties(<DEVICE_NAME>, ov::hint::performance_mode(ov::hint::LATENCY))``.
 
+.. _cumulative throughput:
 
 ``THROUGHPUT``
 --------------------
 
 This option prioritizes high throughput, balancing between latency and power. It is best suited for tasks involving multiple jobs, such as inference of video feeds or large numbers of images.
-
-.. _cumulative throughput:
 
 ``CUMULATIVE_THROUGHPUT``
 ---------------------------------
