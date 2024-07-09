@@ -81,12 +81,12 @@ def test_symbol():
 
 
 def test_symbol_operators():
-    A, B = Symbol(), Symbol()
-    assert A + B == B + A
+    symbol_a, symbol_b = Symbol(), Symbol()
+    assert symbol_a + symbol_b == symbol_b + symbol_a
 
-    C, D = Symbol(), Symbol()
-    assert C + D - D == C
-    assert C + D - C == D
+    symbol_c, symbol_d = Symbol(), Symbol()
+    assert symbol_c + symbol_d - symbol_d == symbol_c
+    assert symbol_c + symbol_d - symbol_c == symbol_d
 
 
 def test_symbol_hash():
