@@ -47,7 +47,7 @@ Methods
 
 .. rubric:: addExtension
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -68,7 +68,7 @@ Methods
 .. rubric:: compileModel
    :name: compileModel
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -149,7 +149,7 @@ Methods
 
 .. rubric:: compileModelSync
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -207,7 +207,7 @@ Methods
 
 .. rubric:: getAvailableDevices
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -230,7 +230,7 @@ Methods
 
 .. rubric:: getProperty
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -249,7 +249,7 @@ Methods
    * **Defined in:**
      `addon.ts:104 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L104>`__
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -275,7 +275,7 @@ Methods
 
 .. rubric:: getVersions
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -315,7 +315,7 @@ Methods
 .. rubric:: importModel
    :name: importModel
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -355,7 +355,7 @@ Methods
 
 .. rubric:: importModelSync
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -397,7 +397,7 @@ Methods
 .. rubric:: readModel
    :name: readModel
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -483,7 +483,7 @@ Methods
 
 .. rubric:: readModelSync
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -548,7 +548,7 @@ Methods
 
 .. rubric:: setProperty
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 

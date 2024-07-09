@@ -18,7 +18,7 @@ Methods
 
 .. rubric:: resize
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
