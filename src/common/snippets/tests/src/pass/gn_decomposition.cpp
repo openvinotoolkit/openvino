@@ -42,22 +42,22 @@ TEST_P(GNDecompositionTest, GNDecomposition) {
     model_ref = snippets_model->getLowered();
 }
 
-namespace {
+namespace GNDecompositionTestInstantiation {
 
-const std::vector<ov::PartialShape> gn_decomposition_input_shapes{{1, 8},
-                                                        {1, 8, 18},
-                                                        {1, 16, 8, 5},
-                                                        {3, 8, 2, 2, 3},
-                                                        {3, 8, 2, 2, 3, 3}};
+const std::vector<ov::PartialShape> input_shapes{{1, 8},
+                                                 {1, 8, 18},
+                                                 {1, 16, 8, 5},
+                                                 {3, 8, 2, 2, 3},
+                                                 {3, 8, 2, 2, 3, 3}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_GNDecomposition,
                          GNDecompositionTest,
-                         ::testing::Combine(::testing::ValuesIn(gn_decomposition_input_shapes),
+                         ::testing::Combine(::testing::ValuesIn(input_shapes),
                                             ::testing::Values(4),
                                             ::testing::Values(0.0001)),
                          GNDecompositionTest::getTestCaseName);
 
-} // namespace
+}  // namespace GNDecompositionTestInstantiation
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

@@ -41,22 +41,22 @@ TEST_P(TokenizeGNSnippetsTests, smoke_TokenizeGNSnippets) {
     model_ref = snippets_model->getReference();
 }
 
-namespace {
+namespace TokenizeGNSnippetsTestsInstantiation {
 
-static const std::vector<ov::PartialShape> gn_tokenize_input_shapes{{3, 10},
-                                                                    {3, 10, 1},
-                                                                    {3, 10, 2, 2},
-                                                                    {1, 20, 2, 2, 3},
-                                                                    {1, 20, 2, 2, 3, 3}};
+static const std::vector<ov::PartialShape> input_shapes{{3, 10},
+                                                        {3, 10, 1},
+                                                        {3, 10, 2, 2},
+                                                        {1, 20, 2, 2, 3},
+                                                        {1, 20, 2, 2, 3, 3}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_GNTokenize,
                          TokenizeGNSnippetsTests,
-                         ::testing::Combine(::testing::ValuesIn(gn_tokenize_input_shapes),
+                         ::testing::Combine(::testing::ValuesIn(input_shapes),
                                             ::testing::Values(5),
                                             ::testing::Values(0.0001)),
                          TokenizeGNSnippetsTests::getTestCaseName);
 
-}  // namespace
+}  // namespace TokenizeGNSnippetsTestsInstantiation
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov
