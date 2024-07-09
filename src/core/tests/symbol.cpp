@@ -8,9 +8,6 @@
 
 #include <memory>
 
-using namespace std;
-using namespace ov;
-
 TEST(shape, test_symbol_add) {
     auto A = std::make_shared<ov::Symbol>();
     auto B = std::make_shared<ov::Symbol>();
