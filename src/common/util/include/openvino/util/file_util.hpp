@@ -12,6 +12,20 @@
 
 #include "openvino/util/util.hpp"
 
+#if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__)
+#    if (__cplusplus >= 201703L) || (defined(_MSVC_LANG) && (_MSVC_LANG >= 201703L) && (_MSC_VER >= 1913))
+#        if __has_include(<filesystem>)
+#            include <filesystem>
+namespace fs = std::filesystem;
+#        endif
+#    else
+#        define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
+#        define _LIBCPP_NO_EXPERIMENTAL_DEPRECATION_WARNING_FILESYSTEM
+#        include <experimental/filesystem>
+namespace fs = std::experimental::filesystem;
+#    endif
+#endif
+
 namespace ov {
 namespace util {
 
