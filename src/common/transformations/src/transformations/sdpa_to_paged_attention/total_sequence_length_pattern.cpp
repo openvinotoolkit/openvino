@@ -32,20 +32,27 @@ ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto concat = std::dynamic_pointer_cast<v0::Concat>(pattern_map.at(kv_concat).get_node_shared_ptr());
-        auto gather = std::dynamic_pointer_cast<v8::Gather>(pattern_map.at(seq).get_node_shared_ptr());
+        auto gather = pattern_map.at(seq).get_node_shared_ptr();
         auto gather_idx =
             std::dynamic_pointer_cast<v0::Constant>(pattern_map.at(gather_idx_label).get_node_shared_ptr());
-        auto gather_idx_data = *gather_idx->get_data_ptr<int64_t>();
+        auto gather_idx_data = gather_idx->cast_vector<int64_t>();
+
         if (!concat || !gather || !gather_idx) {
             return false;
         }
 
-        int64_t gather_idx_to_compare = gather_idx_data;
+        if (gather_idx_data.size() == 0) {
+            return false;
+        }
 
-        if (gather_idx_data < 0) {
+        int64_t gather_idx_to_compare = gather_idx_data[0];
+
+        if (gather_idx_data[0] < 0) {
             if (gather->input(0).get_partial_shape().is_static()) {
                 const auto& gather_data_shape = gather->input(0).get_shape();
-                gather_idx_to_compare = ov::util::normalize(gather_idx_data, gather_data_shape[0]);
+                gather_idx_to_compare = ov::util::normalize(gather_idx_data[0], gather_data_shape[0]);
+            } else {
+                return false;
             }
         }
 
@@ -65,10 +72,10 @@ ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
             }
         } else {
             // TODO: change in the future when we start supporting dynamic shapes here
-            OPENVINO_ASSERT(concat->get_output_partial_shape(0)[gather_idx_data].is_static(),
-            "Currently the TotalSequenceLengthPattern transformation does not support dynamic dimension in Concat: ",
-            concat);
             replacement = ov::util::get_constant_from_source(gather->output(0));
+            OPENVINO_ASSERT(replacement,
+            "TotalSequenceLengthPattern transformation failed to determine the dimension value after the Gather operation. Most probably, the required dimension is dynamic: ",
+            concat);
         }
 
         replace_node(gather, replacement);
