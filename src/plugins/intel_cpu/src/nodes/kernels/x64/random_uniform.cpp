@@ -34,9 +34,8 @@ namespace random_uniform {
 #define GET_OFF(field) offsetof(PhiloxGeneratorCallArgs, field)
 
 template <x64::cpu_isa_t isa>
-PhiloxGenerator<isa>::PhiloxGenerator(const GeneratorCompileParams& jcp) :
-        JitKernel(jit_name(), jcp, isa) {
-}
+PhiloxGenerator<isa>::PhiloxGenerator(const GeneratorCompileParams& jcp) : 
+    JitKernel(jit_name(), jcp, isa) {}
 
 template <x64::cpu_isa_t isa>
 void PhiloxGenerator<isa>::generate() {
@@ -80,7 +79,6 @@ void PhiloxGenerator<x64::avx512_core>::initVectors() {
     }
 
     // Initialize constants
-
     BROADCAST_R(vpbroadcastq, v_max_mul_n_64, r64_aux, STATISTIC_MAXIMIZING_MULTIPLIER_N)
     BROADCAST_R(vpbroadcastq, v_max_mul_c_64, r64_aux, STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER)
     BROADCAST_R(vpbroadcastd, v_add_low_k,    r32_aux, CRUSH_RESISTANCE_CONST_LOWER_VALUE)
@@ -170,8 +168,6 @@ void PhiloxGenerator<isa>::initVectors() {
 
     r64_n_inc      = getReg64();
     r64_min        = getReg64();
-
-
 
     // Initialize constants.
     INIT_ARR(max_mul_n_64, STATISTIC_MAXIMIZING_MULTIPLIER_N, r64_aux, uint64_t);
