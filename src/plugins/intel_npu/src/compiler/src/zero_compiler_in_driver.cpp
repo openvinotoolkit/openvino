@@ -377,6 +377,25 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
     ze_graph_compiler_version_info_t& compilerVersion) const {
     std::string content = config.toString();
 
+    // Remove optimization-level and performance-hint-override for old driver which not support them
+    if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 7)) {
+        std::ostringstream optLevelStr;
+        optLevelStr << "optimization-level" << KEY_VALUE_SEPARATOR << "\\d+";
+        std::ostringstream perfHintStr;
+        perfHintStr << "performance-hint-override" << KEY_VALUE_SEPARATOR << "\\S+";
+        _logger.warning(
+            "optimization-level property is not suppored by this compiler version. Removing from parameters");
+        content = std::regex_replace(content, std::regex(optLevelStr.str()), "");
+        _logger.warning("performance-hint-override property is not suppored by this compiler version. Removing "
+                        "from parameters");
+        content = std::regex_replace(content, std::regex(perfHintStr.str()), "");
+
+        std::ostringstream compilationParamsStr;
+        compilationParamsStr << ov::intel_npu::compilation_mode_params.name() << KEY_VALUE_SEPARATOR << "";
+        _logger.warning("Clear empty NPU_COMPILATION_MODE_PARAMS. Removing from parameters");
+        content = std::regex_replace(content, std::regex(compilationParamsStr.str()), "");
+    }
+
     // As a consequence of complying to the conventions established in the 2.0 OV API, the set of values corresponding
     // to the "model priority" key has been modified
     // cpu_pinning property is not supported in compilers < v5.2 - need to remove it
