@@ -29,7 +29,7 @@ Properties
 
 .. rubric:: inputs
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -43,7 +43,7 @@ Properties
 
 .. rubric:: outputs
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -62,7 +62,7 @@ Methods
 .. rubric:: createInferRequest
    :name: createInferRequest
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -79,7 +79,7 @@ Methods
 .. rubric:: exportModelSync
    :name: exportModelSync
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -93,7 +93,7 @@ Methods
 
 .. rubric:: input
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -152,7 +152,7 @@ Methods
 
 .. rubric:: output
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 

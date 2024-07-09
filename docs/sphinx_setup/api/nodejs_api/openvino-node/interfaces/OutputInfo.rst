@@ -17,7 +17,7 @@ Methods
 
 .. rubric:: tensor
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 

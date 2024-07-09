@@ -19,7 +19,7 @@ Methods
 
 .. rubric:: build
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -33,7 +33,7 @@ Methods
 
 .. rubric:: input
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -54,7 +54,7 @@ Methods
 
 .. rubric:: output
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 

@@ -60,7 +60,7 @@ Properties
 
 .. rubric:: Core
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -76,7 +76,7 @@ Properties
 
 .. rubric:: PartialShape
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -91,7 +91,7 @@ Properties
 
 .. rubric:: Tensor
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -107,7 +107,7 @@ Properties
 
 .. rubric:: element
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -123,7 +123,7 @@ Properties
 
 .. rubric:: preprocess
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
