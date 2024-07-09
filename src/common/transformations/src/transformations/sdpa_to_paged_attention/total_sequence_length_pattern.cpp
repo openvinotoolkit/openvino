@@ -8,7 +8,6 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/gather.hpp"
-#include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
@@ -65,13 +64,15 @@ ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
                 replacement = op::util::reshapeTo(replacement, Shape(required_shape.rank().get_length(), 1));
             }
         } else {
-            if (concat->get_output_partial_shape(0)[gather_idx_data].is_static()) {
-                replacement = ov::util::get_constant_from_source(gather->output(0));
-            }
-            // Currently we skip the else case when the taken dimension is dynamic. To be done later.
+            //TODO: change in the future when we start supporting dynamic shapes here
+            OPENVINO_ASSERT(concat->get_output_partial_shape(0)[gather_idx_data].is_static(),
+            "Currently the TotalSequenceLengthPattern transformation does not support dynamic dimension in Concat: ",
+            concat);
+            replacement = ov::util::get_constant_from_source(gather->output(0));
         }
 
         replace_node(gather, replacement);
+        std::cout << "END OF CALLBACK" << std::endl;
         return true;
     };
 
