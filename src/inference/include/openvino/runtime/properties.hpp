@@ -694,11 +694,14 @@ static constexpr Property<bool, PropertyMutability::RO> loaded_from_cache{"LOADE
 
 /**
  * @brief Enum to define possible workload types
+ *
+ * Workload type represents the execution priority for an inference.
+ *
  * @ingroup ov_runtime_cpp_prop_api
  */
 enum class WorkloadType {
-    DEFAULT = 0,
-    EFFICIENT = 1,
+    DEFAULT = 0,    // Default execution priority
+    EFFICIENT = 1,  // Lower execution priority
 };
 
 /** @cond INTERNAL */
