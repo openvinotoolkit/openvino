@@ -12,17 +12,18 @@
 
 using namespace cldnn;
 
-static bool eltwise_supports_fusings(eltwise_node& node) {
-    auto out_layout = node.get_output_layout();
-    // This condition refers to optimizied kernel EltwiseKernel_fs_b_yx_fsv32
-    if (out_layout.data_type == data_types::f16 && out_layout.batch() > 1 && out_layout.format == format::fs_b_yx_fsv32) {
-        return false;
-    }
-
-    return true;
-}
-
 void fuse_primitives_with_layout::run(program& p) {
+    auto eltwise_supports_fusings = [&](eltwise_node& node) -> bool {
+        auto out_layout = node.get_output_layout();
+        // This condition refers to optimizied kernel EltwiseKernel_fs_b_yx_fsv32
+        if (out_layout.data_type == data_types::f16 && out_layout.batch() > 1 &&
+            (_lo.get_optimization_attributes().fs_b_yx_fsv32_network || out_layout.format == format::fs_b_yx_fsv32)) {
+            return false;
+        }
+
+        return true;
+    };
+
     bool need_recalc_processing_order = false;
     std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>> fusing_history;
 
@@ -35,7 +36,7 @@ void fuse_primitives_with_layout::run(program& p) {
             continue;
 
         // No optimized Eltwise kernel supports fused-operation for fs_b_yx_fsv32
-        // Check fusing quantize to eltwsise for this case
+        // Check fusing quantize to eltwise for this case
         auto func_fuse_quantize = [&](quantize_node& node) {
             bool should_fuse = false;
             auto out_layout = node.get_output_layout();
@@ -49,7 +50,6 @@ void fuse_primitives_with_layout::run(program& p) {
                 return;
 
             should_fuse |= input_node.is_type<eltwise>() && eltwise_supports_fusings(input_node.as<eltwise>());
-
             if (!should_fuse)
                 return;
 
