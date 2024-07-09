@@ -34,6 +34,19 @@ bool ScatterUpdate::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
             errorMessage = std::string("Type ") + opType + " is not supported.";
             return false;
         }
+        if (const auto node_element = ov::as_type_ptr<const ov::op::v12::ScatterElementsUpdate>(op)) {
+            using Reduction = ov::op::v12::ScatterElementsUpdate::Reduction;
+            if (!one_of(node_element->get_reduction(), Reduction::MAX, Reduction::MEAN, Reduction::MIN, Reduction::NONE, Reduction::PROD, Reduction::SUM)) {
+                errorMessage = "ScatterElementsUpdate CPU does not support reduction mode: " + ov::as_string(node_element->get_reduction());
+                return false;
+            }
+        } else if (const auto node_element = ov::as_type_ptr<const ov::op::v15::ScatterNDUpdate>(op)) {
+            using Reduction = ov::op::v15::ScatterNDUpdate::Reduction;
+            if (!one_of(node_element->get_reduction(), Reduction::MAX, Reduction::MIN, Reduction::NONE, Reduction::PROD, Reduction::SUM, Reduction::SUB)) {
+                errorMessage = "ScatterNDUpdate CPU does not support reduction mode: " + ov::as_string(node_element->get_reduction());
+                return false;
+            }
+        }
     } catch (...) {
         return false;
     }
