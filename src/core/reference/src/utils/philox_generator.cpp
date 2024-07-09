@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/reference/utils/phillox_generator.hpp"
+#include "openvino/reference/utils/philox_generator.hpp"
 
 namespace ov {
 namespace reference {
-namespace phillox {
+namespace philox {
 
 // ====== Utils functions ======
 namespace {
@@ -28,61 +28,61 @@ uint32_t twist(uint32_t u, uint32_t v) {
 
 }  // namespace
 
-// ====== PhilloxGenerator base class functions ======
+// ====== PhiloxGenerator base class functions ======
 
-PhilloxGenerator::PhilloxGenerator(const op::PhilloxAlignment alignment,
-                                   const uint64_t global_seed,
-                                   const uint64_t operator_seed,
-                                   const std::pair<uint64_t, uint64_t> previous_state)
+PhiloxGenerator::PhiloxGenerator(const op::PhiloxAlignment alignment,
+                                 const uint64_t global_seed,
+                                 const uint64_t operator_seed,
+                                 const std::pair<uint64_t, uint64_t> previous_state)
     : m_alignment(alignment),
       m_global_seed(global_seed),
       m_operator_seed(operator_seed),
       m_previous_state(previous_state) {}
 
-uint64_t PhilloxGenerator::get_global_seed() const {
+uint64_t PhiloxGenerator::get_global_seed() const {
     return m_global_seed;
 }
 
-uint64_t PhilloxGenerator::get_operator_seed() const {
+uint64_t PhiloxGenerator::get_operator_seed() const {
     return m_operator_seed;
 }
 
-std::pair<uint64_t, uint64_t> PhilloxGenerator::get_previous_state() const {
+std::pair<uint64_t, uint64_t> PhiloxGenerator::get_previous_state() const {
     return m_previous_state;
 }
 
-op::PhilloxAlignment PhilloxGenerator::get_alignment() const {
+op::PhiloxAlignment PhiloxGenerator::get_alignment() const {
     return m_alignment;
 }
 
-void PhilloxGenerator::set_global_seed(const uint64_t global_seed) {
+void PhiloxGenerator::set_global_seed(const uint64_t global_seed) {
     m_global_seed = global_seed;
 }
 
-void PhilloxGenerator::set_operator_seed(const uint64_t op_seed) {
+void PhiloxGenerator::set_operator_seed(const uint64_t op_seed) {
     m_operator_seed = op_seed;
 }
 
-// ====== MockPhilloxGenerator functions ======
-MockPhilloxGenerator::MockPhilloxGenerator() : PhilloxGenerator(op::PhilloxAlignment::MOCK, 0, 0, {0, 0}){};
+// ====== MockPhiloxGenerator functions ======
+MockPhiloxGenerator::MockPhiloxGenerator() : PhiloxGenerator(op::PhiloxAlignment::MOCK, 0, 0, {0, 0}){};
 
-std::pair<uint64_t, uint64_t> MockPhilloxGenerator::get_next_state() {
+std::pair<uint64_t, uint64_t> MockPhiloxGenerator::get_next_state() {
     return get_previous_state();
 }
 
-PhilloxOutput MockPhilloxGenerator::random() {
-    PhilloxOutput result(ELEMENTS_PER_EXECUTION, 0);
+PhiloxOutput MockPhiloxGenerator::random() {
+    PhiloxOutput result(ELEMENTS_PER_EXECUTION, 0);
     return result;
 }
 
-// ====== OpenvinoPhilloxGenerator functions ======
-TensorflowPhilloxGenerator::TensorflowPhilloxGenerator(const uint64_t global_seed,
-                                                       const uint64_t operator_seed,
-                                                       const std::pair<uint64_t, uint64_t> previous_state)
-    : PhilloxGenerator(op::PhilloxAlignment::TENSORFLOW,
-                       global_seed,
-                       previous_state.second > 0 ? previous_state.second : operator_seed,
-                       previous_state),
+// ====== OpenvinoPhiloxGenerator functions ======
+TensorflowPhiloxGenerator::TensorflowPhiloxGenerator(const uint64_t global_seed,
+                                                     const uint64_t operator_seed,
+                                                     const std::pair<uint64_t, uint64_t> previous_state)
+    : PhiloxGenerator(op::PhiloxAlignment::TENSORFLOW,
+                      global_seed,
+                      previous_state.second > 0 ? previous_state.second : operator_seed,
+                      previous_state),
       m_n64(previous_state.first),
       m_key64(global_seed),
       m_counter64(previous_state.second > 0 ? previous_state.second : operator_seed),
@@ -91,12 +91,12 @@ TensorflowPhilloxGenerator::TensorflowPhilloxGenerator(const uint64_t global_see
       m_counter(split_high_low(m_counter64)),
       m_total_generated_elements(0) {}
 
-void TensorflowPhilloxGenerator::increment_key() {
+void TensorflowPhiloxGenerator::increment_key() {
     m_key.first += CRUSH_RESISTANCE_LOWER_VALUE;
     m_key.second += CRUSH_RESISTANCE_UPPER_VALUE;
 }
 
-void TensorflowPhilloxGenerator::execute_single_round() {
+void TensorflowPhiloxGenerator::execute_single_round() {
     // Each round performs following updating for n and counter:
     // left uint32 part = mullo(R, M)
     // right uint32 part  = mulhi(R, M) xor k xor L
@@ -111,7 +111,7 @@ void TensorflowPhilloxGenerator::execute_single_round() {
     m_counter.second = prod0.first;
 }
 
-std::pair<uint64_t, uint64_t> TensorflowPhilloxGenerator::get_next_state() {
+std::pair<uint64_t, uint64_t> TensorflowPhiloxGenerator::get_next_state() {
     // 256 is chosen to match Tensorflow's 'Reserve128Samples()' behavior
     const auto previous_state = get_previous_state();
     uint64_t skip_count = m_total_generated_elements * 256;
@@ -121,8 +121,8 @@ std::pair<uint64_t, uint64_t> TensorflowPhilloxGenerator::get_next_state() {
     return {new_n, new_op_seed};
 }
 
-PhilloxOutput TensorflowPhilloxGenerator::random() {
-    PhilloxOutput result(ELEMENTS_PER_EXECUTION);
+PhiloxOutput TensorflowPhiloxGenerator::random() {
+    PhiloxOutput result(ELEMENTS_PER_EXECUTION);
 
     // There are 10 rounds in the execution,
     // but the final one does not perform key increment
@@ -150,9 +150,9 @@ PhilloxOutput TensorflowPhilloxGenerator::random() {
     return result;
 }
 
-// ====== PytorchPhilloxGenerator functions ======
-PytorchPhilloxGenerator::PytorchPhilloxGenerator(const uint64_t global_seed)
-    : PhilloxGenerator(op::PhilloxAlignment::PYTORCH, global_seed, 0UL, {0UL, 0UL}),
+// ====== PytorchPhiloxGenerator functions ======
+PytorchPhiloxGenerator::PytorchPhiloxGenerator(const uint64_t global_seed)
+    : PhiloxGenerator(op::PhiloxAlignment::PYTORCH, global_seed, 0UL, {0UL, 0UL}),
       m_left(1),
       m_next(0) {
     m_mersenne_state[0] = global_seed & 0xffffffff;
@@ -161,11 +161,11 @@ PytorchPhilloxGenerator::PytorchPhilloxGenerator(const uint64_t global_seed)
     }
 }
 
-std::pair<uint64_t, uint64_t> PytorchPhilloxGenerator::get_next_state() {
+std::pair<uint64_t, uint64_t> PytorchPhiloxGenerator::get_next_state() {
     return get_previous_state();
 }
 
-void PytorchPhilloxGenerator::next_mersenne_state() {
+void PytorchPhiloxGenerator::next_mersenne_state() {
     uint32_t* p = m_mersenne_state.data();
     m_left = MERSENNE_STATE_N;
     m_next = 0;
@@ -181,8 +181,8 @@ void PytorchPhilloxGenerator::next_mersenne_state() {
     *p = p[MERSENNE_STATE_M - MERSENNE_STATE_N] ^ twist(p[0], m_mersenne_state[0]);
 }
 
-PhilloxOutput PytorchPhilloxGenerator::random() {
-    PhilloxOutput result(ELEMENTS_PER_EXECUTION);
+PhiloxOutput PytorchPhiloxGenerator::random() {
+    PhiloxOutput result(ELEMENTS_PER_EXECUTION);
 
     for (size_t i = 0; i < ELEMENTS_PER_EXECUTION; ++i) {
         if (--m_left == 0) {
@@ -201,21 +201,21 @@ PhilloxOutput PytorchPhilloxGenerator::random() {
 
 // ====== General selector function to construct a desired generator  ======
 
-std::shared_ptr<PhilloxGenerator> make_phillox_generator(uint64_t seed,
-                                                         uint64_t seed2,
-                                                         std::pair<uint64_t, uint64_t> prev_state,
-                                                         size_t elem_count,
-                                                         op::PhilloxAlignment alignment) {
+std::shared_ptr<PhiloxGenerator> make_philox_generator(uint64_t seed,
+                                                       uint64_t seed2,
+                                                       std::pair<uint64_t, uint64_t> prev_state,
+                                                       size_t elem_count,
+                                                       op::PhiloxAlignment alignment) {
     switch (alignment) {
-    case op::PhilloxAlignment::TENSORFLOW:
-        return std::make_shared<TensorflowPhilloxGenerator>(seed, seed2, prev_state);
-    case op::PhilloxAlignment::PYTORCH:
-        return std::make_shared<PytorchPhilloxGenerator>(seed);
+    case op::PhiloxAlignment::TENSORFLOW:
+        return std::make_shared<TensorflowPhiloxGenerator>(seed, seed2, prev_state);
+    case op::PhiloxAlignment::PYTORCH:
+        return std::make_shared<PytorchPhiloxGenerator>(seed);
     default:
-        return std::make_shared<MockPhilloxGenerator>();
+        return std::make_shared<MockPhiloxGenerator>();
     }
 }
 
-}  // namespace phillox
+}  // namespace philox
 }  // namespace reference
 }  // namespace ov

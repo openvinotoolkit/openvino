@@ -22,7 +22,7 @@ struct RandomUniformParams {
                         ov::element::Type out_type,
                         int64_t global_seed,
                         int64_t op_seed,
-                        const op::PhilloxAlignment alignment,
+                        const op::PhiloxAlignment alignment,
                         const reference_tests::Tensor& expected,
                         const std::string name)
         : out_shape(out_shape),
@@ -41,7 +41,7 @@ struct RandomUniformParams {
     ov::element::Type out_type;
     int64_t global_seed;
     int64_t op_seed;
-    op::PhilloxAlignment alignment;
+    op::PhiloxAlignment alignment;
     reference_tests::Tensor expected;
     std::string test_case_name;
 };
@@ -85,7 +85,7 @@ private:
                                                  const ov::element::Type& out_type,
                                                  int64_t global_seed,
                                                  int64_t op_seed,
-                                                 const op::PhilloxAlignment alignment) {
+                                                 const op::PhiloxAlignment alignment) {
         const auto out_shape_const =
             std::make_shared<op::v0::Constant>(element::i64, Shape{out_shape.size()}, out_shape);
         const auto min_val_param = std::make_shared<op::v0::Parameter>(min_val.type, min_val.shape);
@@ -119,7 +119,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::Type_t::f32,
                             150,
                             10,
-                            op::PhilloxAlignment::TENSORFLOW,
+                            op::PhiloxAlignment::TENSORFLOW,
                             reference_tests::Tensor{
                                 {3, 2, 4},
                                 element::f32,
@@ -135,7 +135,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::Type_t::f16,
                             150,
                             10,
-                            op::PhilloxAlignment::TENSORFLOW,
+                            op::PhiloxAlignment::TENSORFLOW,
                             reference_tests::Tensor{
                                 {3, 2, 4},
                                 element::f16,
@@ -151,7 +151,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::Type_t::f32,
                             150,
                             10,
-                            op::PhilloxAlignment::TENSORFLOW,
+                            op::PhiloxAlignment::TENSORFLOW,
                             reference_tests::Tensor{
                                 {3, 2, 4},
                                 element::f32,
@@ -168,7 +168,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::Type_t::f16,
                             150,
                             10,
-                            op::PhilloxAlignment::TENSORFLOW,
+                            op::PhiloxAlignment::TENSORFLOW,
                             reference_tests::Tensor{
                                 {3, 2, 4},
                                 element::f16,
@@ -184,7 +184,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::Type_t::i32,
                             100,
                             350,
-                            op::PhilloxAlignment::TENSORFLOW,
+                            op::PhiloxAlignment::TENSORFLOW,
                             reference_tests::Tensor{{2, 3, 4},
                                                     element::i32,
                                                     std::vector<int32_t>{
@@ -198,7 +198,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::Type_t::i64,
                             755,
                             951,
-                            op::PhilloxAlignment::TENSORFLOW,
+                            op::PhiloxAlignment::TENSORFLOW,
                             reference_tests::Tensor{
                                 {5, 4, 3},
                                 element::i64,
@@ -215,7 +215,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::Type_t::bf16,
                             4978,
                             5164,
-                            op::PhilloxAlignment::TENSORFLOW,
+                            op::PhiloxAlignment::TENSORFLOW,
                             reference_tests::Tensor{
                                 {7, 3},
                                 element::bf16,
@@ -230,7 +230,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::Type_t::bf16,
                             4978,
                             5164,
-                            op::PhilloxAlignment::TENSORFLOW,
+                            op::PhiloxAlignment::TENSORFLOW,
                             reference_tests::Tensor{
                                 {7, 3},
                                 element::bf16,
@@ -244,7 +244,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::f64,
                             12345,
                             54321,
-                            op::PhilloxAlignment::TENSORFLOW,
+                            op::PhiloxAlignment::TENSORFLOW,
                             reference_tests::Tensor{
                                 {7, 6},
                                 element::f64,
@@ -267,7 +267,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::f64,
                             12345,
                             54321,
-                            op::PhilloxAlignment::TENSORFLOW,
+                            op::PhiloxAlignment::TENSORFLOW,
                             reference_tests::Tensor{
                                 {7, 6},
                                 element::f64,
@@ -291,7 +291,7 @@ INSTANTIATE_TEST_SUITE_P(
             element::f32,
             12345,
             54321,
-            op::PhilloxAlignment::TENSORFLOW,
+            op::PhiloxAlignment::TENSORFLOW,
             reference_tests::Tensor{
                 {7, 6},
                 element::f32,
@@ -308,7 +308,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::f32,
                             12345,
                             54321,
-                            op::PhilloxAlignment::TENSORFLOW,
+                            op::PhiloxAlignment::TENSORFLOW,
                             reference_tests::Tensor{
                                 {7, 6},
                                 element::f32,
@@ -326,7 +326,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::f16,
                             12345,
                             54321,
-                            op::PhilloxAlignment::TENSORFLOW,
+                            op::PhiloxAlignment::TENSORFLOW,
                             reference_tests::Tensor{
                                 {7, 6},
                                 element::f16,
@@ -343,7 +343,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::f16,
                             12345,
                             54321,
-                            op::PhilloxAlignment::TENSORFLOW,
+                            op::PhiloxAlignment::TENSORFLOW,
                             reference_tests::Tensor{
                                 {7, 6},
                                 element::f16,
@@ -359,7 +359,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::bf16,
                             12345,
                             54321,
-                            op::PhilloxAlignment::TENSORFLOW,
+                            op::PhiloxAlignment::TENSORFLOW,
                             reference_tests::Tensor{
                                 {7, 6},
                                 element::bf16,
@@ -377,7 +377,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::bf16,
                             12345,
                             54321,
-                            op::PhilloxAlignment::TENSORFLOW,
+                            op::PhiloxAlignment::TENSORFLOW,
                             reference_tests::Tensor{
                                 {7, 6},
                                 element::bf16,
@@ -393,7 +393,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::i64,
                             12345,
                             54321,
-                            op::PhilloxAlignment::TENSORFLOW,
+                            op::PhiloxAlignment::TENSORFLOW,
                             reference_tests::Tensor{
                                 {7, 6},
                                 element::i64,
@@ -408,7 +408,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::i32,
                             12345,
                             54321,
-                            op::PhilloxAlignment::TENSORFLOW,
+                            op::PhiloxAlignment::TENSORFLOW,
                             reference_tests::Tensor{
                                 {7, 6},
                                 element::i32,
@@ -425,7 +425,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::f64,
                             12345,
                             54321,
-                            op::PhilloxAlignment::PYTORCH,
+                            op::PhiloxAlignment::PYTORCH,
                             reference_tests::Tensor{
                                 {7, 6},
                                 element::f64,
@@ -449,7 +449,7 @@ INSTANTIATE_TEST_SUITE_P(
             element::f64,
             12345,
             54321,
-            op::PhilloxAlignment::PYTORCH,
+            op::PhiloxAlignment::PYTORCH,
             reference_tests::Tensor{
                 {7, 6},
                 element::f64,
@@ -470,7 +470,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::f32,
                             12345,
                             54321,
-                            op::PhilloxAlignment::PYTORCH,
+                            op::PhiloxAlignment::PYTORCH,
                             reference_tests::Tensor{
                                 {7, 6},
                                 element::f32,
@@ -493,7 +493,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::f32,
                             12345,
                             54321,
-                            op::PhilloxAlignment::PYTORCH,
+                            op::PhiloxAlignment::PYTORCH,
                             reference_tests::Tensor{
                                 {7, 6},
                                 element::f32,
@@ -517,7 +517,7 @@ INSTANTIATE_TEST_SUITE_P(
             element::f16,
             12345,
             54321,
-            op::PhilloxAlignment::PYTORCH,
+            op::PhiloxAlignment::PYTORCH,
             reference_tests::Tensor{
                 {7, 6},
                 element::f16,
@@ -536,7 +536,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::f16,
                             12345,
                             54321,
-                            op::PhilloxAlignment::PYTORCH,
+                            op::PhiloxAlignment::PYTORCH,
                             reference_tests::Tensor{
                                 {7, 6},
                                 element::f16,
@@ -554,7 +554,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::bf16,
                             12345,
                             54321,
-                            op::PhilloxAlignment::PYTORCH,
+                            op::PhiloxAlignment::PYTORCH,
                             reference_tests::Tensor{
                                 {7, 6},
                                 element::bf16,
@@ -572,7 +572,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::bf16,
                             12345,
                             54321,
-                            op::PhilloxAlignment::PYTORCH,
+                            op::PhiloxAlignment::PYTORCH,
                             reference_tests::Tensor{
                                 {7, 6},
                                 element::bf16,
@@ -588,7 +588,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::i64,
                             12345,
                             54321,
-                            op::PhilloxAlignment::PYTORCH,
+                            op::PhiloxAlignment::PYTORCH,
                             reference_tests::Tensor{
                                 {7, 6},
                                 element::i64,
@@ -603,7 +603,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::i64,
                             12345,
                             54321,
-                            op::PhilloxAlignment::PYTORCH,
+                            op::PhiloxAlignment::PYTORCH,
                             reference_tests::Tensor{{2, 4},
                                                     element::i64,
                                                     std::vector<int64_t>{737404521,
@@ -621,7 +621,7 @@ INSTANTIATE_TEST_SUITE_P(
                             element::i32,
                             12345,
                             54321,
-                            op::PhilloxAlignment::PYTORCH,
+                            op::PhiloxAlignment::PYTORCH,
                             reference_tests::Tensor{
                                 {7, 6},
                                 element::i32,

@@ -34,9 +34,9 @@ namespace multinomial {
  * @param output_shape Shape of the 'output' tensor.
  * @param with_replacement Boolean that determines whether a sampled class can appear more than once in the output.
  * @param log_probs Boolean that determines whether to treat input probabilities as log probabilities.
- * @param global_seed First seed value (key) of Phillox random number generation algorithm. (See RandomUniform for
+ * @param global_seed First seed value (key) of Philox random number generation algorithm. (See RandomUniform for
  * details)
- * @param op_seed Second seed value (counter) of Phillox random number generation algorithm. (See RandomUniform for
+ * @param op_seed Second seed value (counter) of Philox random number generation algorithm. (See RandomUniform for
  * details)
  */
 template <typename T, typename U, typename V>

@@ -18,7 +18,7 @@ bool RandomUniform::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
             errorMessage = "Only RandomUniform operation from the opset8 is supported by the CPU plugin.";
             return false;
         }
-        if (as_type_ptr<const op::v8::RandomUniform>(op)->get_alignment() != op::PhilloxAlignment::TENSORFLOW) {
+        if (as_type_ptr<const op::v8::RandomUniform>(op)->get_alignment() != op::PhiloxAlignment::TENSORFLOW) {
             errorMessage = "Only TENSORFLOW alignment mode is supported by the CPU plugin.";
             return false;
         }
