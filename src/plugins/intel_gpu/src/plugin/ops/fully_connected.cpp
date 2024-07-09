@@ -29,6 +29,7 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
     validate_inputs_count(op, {4, 5});
     auto inputs = p.GetInputInfo(op);
     std::string primitive_name = layer_type_name_ID(op);
+    auto supports_immad = p.get_engine().get_device_info().supports_immad;
 
     const int INPUT_CNT_WITH_ZP = 5;
     auto input_name = inputs[0].pid;
@@ -46,12 +47,14 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
             zp_value = zp_const->cast_vector<float>()[0];
         }
     }
+
+    // The decompression zp node should be kept for onednn FC.
     auto fc = cldnn::fully_connected(primitive_name,
                                      cldnn::input_info(input_name),
                                      weights_name,
                                      bias_name,
                                      scale_name,
-                                     has_scalar_zp ? "" : zp_name,
+                                     has_scalar_zp && !supports_immad ? "" : zp_name,
                                      cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                      cldnn::padding(),
                                      op->get_input_partial_shape(0).size(),
