@@ -27,7 +27,7 @@ public:
 
     /// \brief Converts the given array (PhiloxOutput) to the target dtype and assigns them at the k-th index of the
     /// output array.
-    virtual void convert(PhiloxOutput result, size_t k) = 0;
+    virtual void convert(const PhiloxOutput result, size_t k) = 0;
 
 protected:
     PhiloxConverter(char* out,
@@ -62,7 +62,7 @@ public:
 
     /// \brief Converts the given array (PhiloxOutput) to the target dtype and assigns them at the k-th index of the
     /// output array.
-    void convert(PhiloxOutput result, size_t idx) override;
+    void convert(const PhiloxOutput result, size_t idx) override;
 };
 
 class TensorflowPhiloxConverter : public PhiloxConverter {
@@ -79,7 +79,7 @@ public:
 
     /// \brief Converts the given array (PhiloxOutput) to the target dtype and assigns them at the k-th index of the
     /// output array.
-    void convert(PhiloxOutput result, size_t idx) override;
+    void convert(const PhiloxOutput result, size_t idx) override;
 };
 
 class PyTorchPhiloxConverter : public PhiloxConverter {
@@ -98,7 +98,7 @@ public:
 
     /// \brief Converts the given array (PhiloxOutput) to the target dtype and assigns them at the k-th index of the
     /// output array.
-    void convert(PhiloxOutput result, size_t idx) override;
+    void convert(const PhiloxOutput result, size_t idx) override;
 
 private:
     // Determines whether the ghenerator uses optimized execution

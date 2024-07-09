@@ -105,7 +105,7 @@ TEST(TransformationTests, ConvertPrecision_NMS4) {
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
 }
@@ -137,7 +137,7 @@ TEST(TransformationTests, ConvertPrecision_NMS5) {
     manager.register_pass<pass::InitNodeInfo>();
     manager.register_pass<pass::ConvertPrecision>(precisions);
     manager.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
     ASSERT_FALSE(has_type<element::Type_t::f32>(f));
 }
@@ -171,7 +171,7 @@ TEST(TransformationTests, DoubleConvertPrecision_NMS5) {
     manager.register_pass<pass::ConvertPrecision>(precisions1);
     manager.register_pass<pass::ConvertPrecision>(precisions2);
     manager.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
     ASSERT_FALSE(has_type<element::Type_t::f32>(f));
 }
@@ -205,7 +205,7 @@ TEST(TransformationTests, DoubleConvertPrecision_NMS9) {
     manager.register_pass<pass::ConvertPrecision>(precisions1);
     manager.register_pass<pass::ConvertPrecision>(precisions2);
     manager.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
     ASSERT_FALSE(has_type<element::Type_t::f32>(f));
 }
@@ -230,7 +230,7 @@ TEST(TransformationTests, ConvertPrecision_MatrixNms) {
     manager.register_pass<pass::InitNodeInfo>();
     manager.register_pass<pass::ConvertPrecision>(precisions);
     manager.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
 }
@@ -255,7 +255,7 @@ TEST(TransformationTests, ConvertPrecision_MulticlassNms) {
     manager.register_pass<pass::InitNodeInfo>();
     manager.register_pass<pass::ConvertPrecision>(precisions);
     manager.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
 }
@@ -276,7 +276,7 @@ TEST(TransformationTests, ConvertPrecision_ShapeOf) {
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
 }
@@ -299,7 +299,7 @@ TEST(TransformationTests, ConvertPrecision_Range) {
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
 }
@@ -321,7 +321,7 @@ TEST(TransformationTests, ConvertPrecision_ConstantRelu) {
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
 }
@@ -342,7 +342,7 @@ TEST(TransformationTests, ConvertPrecision_Convert) {
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
 }
@@ -498,7 +498,7 @@ TEST(TransformationTests, ConvertPrecision_ConvertElimination) {
 
         f_ref = std::make_shared<Model>(NodeVector{relu}, ParameterVector{input});
     }
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
@@ -520,7 +520,7 @@ TEST(TransformationTests, ConvertPrecision_TopK) {
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
 }
@@ -541,7 +541,7 @@ TEST(TransformationTests, ConvertPrecision_Unique10) {
         manager.register_pass<ov::pass::ConvertPrecision>(precisions);
         manager.run_passes(model);
     }
-    ASSERT_NO_THROW(check_rt_info(model));
+    OV_ASSERT_NO_THROW(check_rt_info(model));
     ASSERT_EQ(model->outputs().size(), 4);
     EXPECT_EQ(model->outputs()[0].get_element_type(), element::f32);
     EXPECT_EQ(model->outputs()[1].get_element_type(), element::i32);
@@ -570,7 +570,7 @@ TEST(TransformationTests, ConvertPrecision_NonZero) {
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
 }
@@ -592,7 +592,7 @@ TEST(TransformationTests, ConvertPrecision_Bucketize) {
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
 }
@@ -629,7 +629,7 @@ TEST(TransformationTests, ConvertPrecision_Roundings) {
         ASSERT_EQ(casted_end->cast_vector<int32_t>(),
                   std::vector<int32_t>({max_int32, max_int32, max_int32, max_int32}));
     }
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
 }
@@ -681,7 +681,7 @@ TEST(TransformationTests, ConvertPrecision_TIBody) {
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
 
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
         ASSERT_FALSE(has_type<element::Type_t::f16>(f));
         ASSERT_FALSE(has_type<element::Type_t::i64>(f));
         ASSERT_FALSE(has_type<element::Type_t::f16>(tensor_iterator->get_body()));
@@ -706,7 +706,7 @@ TEST(TransformationTests, ConvertPrecision_Equal) {
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
     ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
     ASSERT_TRUE(has_type<element::Type_t::u8>(f));
@@ -729,7 +729,7 @@ TEST(TransformationTests, ConvertPrecision_NotEqual) {
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
     ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
     ASSERT_TRUE(has_type<element::Type_t::u8>(f));
@@ -752,7 +752,7 @@ TEST(TransformationTests, ConvertPrecision_Greater) {
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
     ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
     ASSERT_TRUE(has_type<element::Type_t::u8>(f));
@@ -775,7 +775,7 @@ TEST(TransformationTests, ConvertPrecision_GreaterEqual) {
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
     ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
     ASSERT_TRUE(has_type<element::Type_t::u8>(f));
@@ -798,7 +798,7 @@ TEST(TransformationTests, ConvertPrecision_Less) {
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
     ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
     ASSERT_TRUE(has_type<element::Type_t::u8>(f));
@@ -821,7 +821,7 @@ TEST(TransformationTests, ConvertPrecision_LessEqual) {
         manager.register_pass<pass::ConvertPrecision>(precisions);
         manager.run_passes(f);
     }
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
     ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
     ASSERT_TRUE(has_type<element::Type_t::u8>(f));
@@ -841,7 +841,7 @@ TEST(TransformationTests, ConvertPrecision_LogicalAnd) {
         manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::boolean, element::u8}});
         manager.run_passes(f);
     }
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
     ASSERT_TRUE(has_type<element::Type_t::u8>(f));
 }
@@ -860,7 +860,7 @@ TEST(TransformationTests, ConvertPrecision_LogicalOr) {
         manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::boolean, element::u8}});
         manager.run_passes(f);
     }
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
     ASSERT_TRUE(has_type<element::Type_t::u8>(f));
 }
@@ -879,7 +879,7 @@ TEST(TransformationTests, ConvertPrecision_LogicalXor) {
         manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::boolean, element::u8}});
         manager.run_passes(f);
     }
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
     ASSERT_TRUE(has_type<element::Type_t::u8>(f));
 }
@@ -897,7 +897,7 @@ TEST(TransformationTests, ConvertPrecision_LogicalNot) {
         manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::boolean, element::u8}});
         manager.run_passes(f);
     }
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
     ASSERT_TRUE(has_type<element::Type_t::u8>(f));
 
@@ -924,7 +924,7 @@ TEST(TransformationTests, ConvertPrecision_Select) {
         manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::boolean, element::u8}});
         manager.run_passes(f);
     }
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
     ASSERT_TRUE(has_type<element::Type_t::u8>(f));
 }
@@ -944,7 +944,7 @@ TEST(TransformationTests, ConvertPrecision_TypeRelaxedWithSelect) {
         manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::i32, element::i64}});
         manager.run_passes(f);
     }
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
     ASSERT_FALSE(has_type<element::Type_t::i32>(f));
     ASSERT_TRUE(has_type<element::Type_t::i64>(f));
@@ -967,7 +967,7 @@ TEST(TransformationTests, ConvertPrecision_TypeRelaxed) {
         manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::i32, element::i64}});
         manager.run_passes(f);
 
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
         ASSERT_FALSE(has_type<element::Type_t::boolean>(f));
         ASSERT_FALSE(has_type<element::Type_t::i32>(f));
         ASSERT_TRUE(has_type<element::Type_t::i64>(f));
@@ -994,7 +994,7 @@ TEST(TransformationTests, ConvertPrecision_Variables) {
         manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f16, element::f32}});
         manager.run_passes(f);
     }
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
 }
 
@@ -1028,7 +1028,7 @@ TEST(TransformationTests, ConvertPrecision_skip_precision_sensitive) {
                                                       keep_precision_sensitive_in_fp32);
         manager.run_passes(model);
     }
-    ASSERT_NO_THROW(check_rt_info(model));
+    OV_ASSERT_NO_THROW(check_rt_info(model));
     ASSERT_TRUE(has_type<element::Type_t::f32>(model));
     ASSERT_TRUE(interpolate->input_value(2).get_element_type() == element::Type_t::f32);
 }
@@ -1063,7 +1063,7 @@ TEST(TransformationTests, ConvertPrecision_without_keep_precision_sensitive_in_f
                                                       keep_precision_sensitive_in_fp32);
         manager.run_passes(model);
     }
-    ASSERT_NO_THROW(check_rt_info(model));
+    OV_ASSERT_NO_THROW(check_rt_info(model));
     ASSERT_FALSE(has_type<element::Type_t::f32>(model));
     ASSERT_TRUE(interpolate->input_value(2).get_element_type() == element::Type_t::f16);
 }
@@ -1351,7 +1351,7 @@ TEST(TransformationTests, ConvertCompressedToMixedPrecission_do_not_keep_in_fp32
                                                       keep_precision_sensitive_in_fp32);
         manager.run_passes(model);
     }
-    ASSERT_NO_THROW(check_rt_info(model));
+    OV_ASSERT_NO_THROW(check_rt_info(model));
     ASSERT_FALSE(has_type<element::Type_t::f32>(model));
     ASSERT_TRUE(interpolate->input_value(2).get_element_type() == element::Type_t::f16);
     ASSERT_TRUE(interpolate->output(0).get_partial_shape() == PartialShape({1, 3, 287, 511}));

@@ -306,8 +306,15 @@ TEST_P(fc_compressed_int8_bias_dynamic, basic) {
     auto p = GetParam();
     auto test_input_layout = get_input_layout(p);
     auto dynamic_input_layout = layout{ov::PartialShape::dynamic(test_input_layout.get_partial_shape().rank()), test_input_layout.data_type, test_input_layout.format};
+    auto supports_immad = this->engine.get_device_info().supports_immad;
 
-    auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, padding(), get_output_dim_size(p), get_input_weights_rank(p));
+    auto dcomp_zp_mem = engine.allocate_memory({ {1, 1, 1, 1}, data_types::f32, format::bfyx });
+    set_values(dcomp_zp_mem, {8.0f});
+
+    auto dcomp_zp_name = supports_immad ? "dcomp_zp" : "";
+
+    auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", dcomp_zp_name, data_types::f16, padding(), get_output_dim_size(p), get_input_weights_rank(p));
+
     fc_prim.decompression_zero_point_scalar = 8.0f;
 
     create_topologies(
@@ -315,6 +322,7 @@ TEST_P(fc_compressed_int8_bias_dynamic, basic) {
         data("weights", get_mem(get_weights_layout(p))),
         data("scale", get_mem(get_scale_layout(p, 128))),
         data("bias", get_mem(get_bias_layout(p))),
+        data("dcomp_zp", dcomp_zp_mem),
         fc_prim,
         eltwise("bias_add", { input_info("fc_prim"), input_info("bias") }, eltwise_mode::sum),
         reorder("reorder_bfyx", input_info("bias_add"), p.default_format, data_types::f32)
@@ -599,14 +607,21 @@ TEST_P(fc_compressed_int8_bias_dynamic_onednn, basic) {
     auto test_input_layout = get_input_layout(p);
     auto dynamic_input_layout = layout{ov::PartialShape::dynamic(test_input_layout.get_partial_shape().rank()), test_input_layout.data_type, test_input_layout.format};
 
-    auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, padding(), get_output_dim_size(p), get_input_weights_rank(p));
+    auto supports_immad = engine.get_device_info().supports_immad;
+    auto dcomp_zp_name = supports_immad ? "dcomp_zp" : "";
+
+    auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", dcomp_zp_name, data_types::f16, padding(), get_output_dim_size(p), get_input_weights_rank(p));
     fc_prim.decompression_zero_point_scalar = 8.0f;
+
+    // onednn FC supports scalar ZP for int4 compressed weight.
+    auto dcomp_zp_layout = layout{ {1, 1, 1, 1}, data_types::u8, format::bfyx };
 
     create_topologies(
         input_layout("input", dynamic_input_layout),
         data("weights", get_mem(get_weights_layout(p))),
         data("scale", get_mem(get_scale_layout(p, 128))),
         data("bias", get_mem(get_bias_layout(p))),
+        data("dcomp_zp", get_mem(dcomp_zp_layout, 8.0f)),
         fc_prim,
         eltwise("bias_add", { input_info("fc_prim"), input_info("bias") }, eltwise_mode::sum),
         reorder("reorder_bfyx", input_info("bias_add"), p.default_format, data_types::f32)

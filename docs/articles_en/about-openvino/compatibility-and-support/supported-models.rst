@@ -10,22 +10,6 @@ HuggingFace). This list is not comprehensive and only includes models tested by 
 .. raw:: html
 
    <link rel="stylesheet" type="text/css" href="../../_static/css/openVinoDataTables.css">
-   <label>hide/reveal additional columns:</label><br/>
-   <label class="column-container">
-      CPU
-      <input type="checkbox" id="AI PC CPU" name="AI PC CPU" value="AI PC CPU" data-column="3" class="toggle-vis"/>
-      <label for="AI PC CPU" class="checkmark"></label>
-   </label>
-   <label class="column-container">
-      GPU
-      <input type="checkbox" id="AI PC GPU" name="AI PC GPU" value="AI PC GPU" data-column="4" class="toggle-vis"/>
-      <label for="AI PC GPU" class="checkmark"></label>
-   </label>
-   <label class="column-container">
-      NPU
-      <input type="checkbox" id="AI PC NPU" name="AI PC NPU" value="AI PC NPU" data-column="5" class="toggle-vis"/>
-      <label for="AI PC NPU" class="checkmark"></label>
-   </label>
 
 
 .. csv-table::
