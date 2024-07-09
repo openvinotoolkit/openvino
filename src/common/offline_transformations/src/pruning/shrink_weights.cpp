@@ -316,18 +316,23 @@ bool ov::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ov::Model>& f) 
                 }
 
                 const auto& prev_shape = last_output.get_partial_shape();
-                const auto& prev_name = last_output.get_node()->get_friendly_name();
+
                 last_output = std::make_shared<opset6::Gather>(
                     last_output,
                     opset6::Constant::create(element::i64, Shape{dims_to_keep.size()}, dims_to_keep),
                     opset6::Constant::create(element::i64, Shape{}, {dim}));
+#ifdef ENABLE_OPENVINO_DEBUG
+                const auto& prev_name = last_output.get_node()->get_friendly_name();
                 OPENVINO_DEBUG("Transform(", prev_name, "): ", prev_shape, " to ", last_output.get_partial_shape());
-
+#endif
                 if (prev_shape.is_static() && last_output.get_partial_shape().is_static()) {
                     reduced_weights_count += shape_size(prev_shape.get_shape()) - shape_size(last_output.get_shape());
-                } else {
+                }
+#ifdef ENABLE_OPENVINO_DEBUG
+                else {
                     OPENVINO_DEBUG("[ WARNING ] Can not find the number of reduced elements due to dynamic shapes.");
                 }
+#endif
             }
             // Trying to fold sequence of Gather ops to avoid additional constant folding.
             if (auto folded_const = ov::util::get_constant_from_source(last_output)) {

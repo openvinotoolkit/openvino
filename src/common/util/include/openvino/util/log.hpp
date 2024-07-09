@@ -9,8 +9,6 @@
 #include <sstream>
 #include <vector>
 
-#include "openvino/core/except.hpp"
-
 namespace ov {
 namespace util {
 
@@ -81,10 +79,10 @@ void default_logger_handler_func(const std::string& s);
             ::ov::write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_DEBUG), __VA_ARGS__); \
         } while (0)
 #else
-#    define OPENVINO_ERR
-#    define OPENVINO_WARN
-#    define OPENVINO_INFO
-#    define OPENVINO_DEBUG
+#    define OPENVINO_ERR(...)
+#    define OPENVINO_WARN(...)
+#    define OPENVINO_INFO(...)
+#    define OPENVINO_DEBUG(...)
 #endif
 
 }  // namespace util
