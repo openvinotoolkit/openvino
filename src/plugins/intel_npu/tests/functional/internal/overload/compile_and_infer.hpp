@@ -94,7 +94,14 @@ TEST_P(OVCompileAndInferRequest, AsyncInferRequest) {
 
 TEST_P(OVCompileAndInferRequest, PluginWorkloadType) {
     configuration[workload_type.name()] = WorkloadType::DEFAULT;
+    auto supportedProperties = core->get_property("NPU", supported_properties.name()).as<std::vector<PropertyName>>();
+    bool workloadTypeSupported =
+        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
+            return property == workload_type.name();
+        });
+
     if (isWorkloadTypeSupported()) {
+        ASSERT_TRUE(workloadTypeSupported);
         ov::InferRequest req;
         OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
 
@@ -113,14 +120,14 @@ TEST_P(OVCompileAndInferRequest, PluginWorkloadType) {
         OV_ASSERT_NO_THROW(req.wait());
         ASSERT_TRUE(is_called);
     } else {
+        ASSERT_FALSE(workloadTypeSupported);
         OV_EXPECT_THROW_HAS_SUBSTRING(core->compile_model(function, target_device, configuration),
                                       ov::Exception,
-                                      "\'WORKLOAD_TYPE\' is not supported for current configuration");
+                                      "WorkloadType property is not supported by the current Driver Version!");
     }
 }
 
 TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadType) {
-    configuration[intel_npu::create_executor.name()] = 0;
     OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
     ov::AnyMap modelConfiguration;
     modelConfiguration[workload_type.name()] = WorkloadType::DEFAULT;
@@ -138,7 +145,9 @@ TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadType) {
         OV_ASSERT_NO_THROW(req.wait());
         ASSERT_TRUE(is_called);
     } else {
-        OV_EXPECT_THROW_HAS_SUBSTRING(execNet.set_property(modelConfiguration), ov::Exception, "WorkloadType");
+        OV_EXPECT_THROW_HAS_SUBSTRING(execNet.set_property(modelConfiguration),
+                                      ov::Exception,
+                                      "WorkloadType property is not supported by the current Driver Version!");
     }
 }
 
@@ -161,7 +170,9 @@ TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadTypeDelayedExecutor) {
         OV_ASSERT_NO_THROW(req.wait());
         ASSERT_TRUE(is_called);
     } else {
-        OV_EXPECT_THROW_HAS_SUBSTRING(execNet.create_infer_request(), ov::Exception, "WorkloadType");
+        OV_EXPECT_THROW_HAS_SUBSTRING(execNet.create_infer_request(),
+                                      ov::Exception,
+                                      "WorkloadType property is not supported by the current Driver Version!");
     }
 }
 

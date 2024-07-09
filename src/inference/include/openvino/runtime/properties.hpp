@@ -716,6 +716,7 @@ inline std::ostream& operator<<(std::ostream& os, const WorkloadType& mode) {
 inline std::istream& operator>>(std::istream& is, WorkloadType& mode) {
     std::string str;
     is >> str;
+    std::transform(str.begin(), str.end(), str.begin(), tolower);
     if (str == "default") {
         mode = WorkloadType::DEFAULT;
     } else if (str == "efficient") {

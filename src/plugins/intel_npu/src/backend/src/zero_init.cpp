@@ -128,7 +128,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
                                                 ZE_COMMAND_QUEUE_NPU_EXT_NAME,
                                                 reinterpret_cast<void**>(&_command_queue_npu_dditable_ext)));
     } catch (const ov::Exception& error) {
-        log.debug("Current Driver Version does not have the command queue extension");
+        log.debug("Current Driver Version does not have the command queue extension: %s", error.what());
     }
 
     // Load our graph extension
