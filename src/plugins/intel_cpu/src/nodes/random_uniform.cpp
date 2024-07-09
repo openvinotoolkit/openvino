@@ -42,7 +42,7 @@ RandomUniform::RandomUniform(const std::shared_ptr<ov::Node>& op, const GraphCon
     m_output_prc = op->get_output_element_type(0);
 
     const auto alignment = rnd_op->get_alignment();
-    switch(alignment) {
+    switch (alignment) {
         case ov::op::PhilloxAlignment::TENSORFLOW:
             m_algo = PHILOX;
             break;
@@ -77,7 +77,7 @@ void RandomUniform::initSupportedPrimitiveDescriptors() {
 
     auto out_prc = getOriginalOutputPrecisionAtPort(0);
     if (out_prc.is_real() && (
-            ((m_algo == PHILOX || m_algo == MERSENNE_TWISTER) && !one_of(out_prc, ov::element::f32, ov::element::f16, ov::element::bf16)) 
+            ((m_algo == PHILOX || m_algo == MERSENNE_TWISTER) && !one_of(out_prc, ov::element::f32, ov::element::f16, ov::element::bf16))
             ||
             (m_algo == STL && !one_of(out_prc, ov::element::f32)))) {
         out_prc = ov::element::f32;
@@ -309,10 +309,14 @@ void RandomUniform::prepareGeneratorKernel() {
         kernel::random_uniform::GeneratorCompileParams jcp;
         jcp.out_data_type = m_output_prc;
 
-        if(m_algo == PHILOX) {
-            m_jit_kernel = kernel::JitKernel<kernel::random_uniform::GeneratorCompileParams, kernel::random_uniform::PhiloxGeneratorCallArgs>::createInstance<kernel::random_uniform::PhiloxGenerator>(jcp);
+        if (m_algo == PHILOX) {
+            m_jit_kernel = kernel::JitKernel<kernel::random_uniform::GeneratorCompileParams,
+                                            kernel::random_uniform::PhiloxGeneratorCallArgs>
+                                            ::createInstance<kernel::random_uniform::PhiloxGenerator>(jcp);
         } else {
-            m_jit_kernel = kernel::JitKernel<kernel::random_uniform::GeneratorCompileParams, kernel::random_uniform::MersenneTwisterGeneratorCallArgs>::createInstance<kernel::random_uniform::MersenneTwisterGenerator>(jcp);
+            m_jit_kernel = kernel::JitKernel<kernel::random_uniform::GeneratorCompileParams,
+                                            kernel::random_uniform::MersenneTwisterGeneratorCallArgs>
+                                            ::createInstance<kernel::random_uniform::MersenneTwisterGenerator>(jcp);
         }
 
         if (m_jit_kernel) {
@@ -328,9 +332,7 @@ void RandomUniform::prepareGeneratorKernel() {
             }
         }
 #endif // OPENVINO_ARCH_X86_64
-    }
-
-    else if (m_algo == STL) {
+    } else if (m_algo == STL) {
         m_generator = std::default_random_engine{static_cast<uint32_t>(m_op_seed)};
     }
 }
@@ -573,7 +575,6 @@ inline void convertToOutputTypeMersenne(const uint32_t* in,
                                 float range,
                                 float* out,
                                 size_t el_to_copy) {
-
     const auto mask = static_cast<uint32_t>((uint64_t(1) << std::numeric_limits<float>::digits) - 1);
     const auto divisor = static_cast<float>(1) / (uint64_t(1) << std::numeric_limits<float>::digits);
 
@@ -630,7 +631,7 @@ inline void convertToOutputTypeMersenne(const uint32_t* in,
         out[i] = static_cast<int64_t>(((static_cast<uint64_t>(in[i * 2]) << 32) + in[i * 2 + 1]) % range + min);
     }
 }
-}
+} // namespace
 
 void RandomUniform::computeMersenneTwister(void* out, size_t out_el_num) {
     // When both seed values are equal to zero RandomUniform should generate non-deterministic sequence.
