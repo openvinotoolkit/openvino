@@ -21,8 +21,8 @@ public:
           const GraphContext::CPtr context);
     Input(MemoryDescPtr memDesc, const std::string& name, const std::string& type, const GraphContext::CPtr context);
     void setMemDesc(MemoryDescPtr memDesc) { extMemDesc = memDesc; }
-    void setZeroCopyOutput() {
-        zeroCopyOutput = true;
+    void useParentMemoryDescForOutput() {
+        m_useParentMemoryDescForOutput = true;
     }
 
     void getSupportedDescriptors() override;
@@ -52,7 +52,7 @@ private:
     std::shared_ptr<ov::op::v0::Constant> constOp;
     MemoryCPtr memoryPtr;
     MemoryDescPtr extMemDesc = nullptr;
-    bool zeroCopyOutput = false;
+    bool m_useParentMemoryDescForOutput = false;
     bool isMeanImage = false;
 };
 

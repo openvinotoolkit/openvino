@@ -20,7 +20,7 @@ public:
     Composite(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     bool created() const override {
-        return true;
+        return getType() == Type::SubModel;
     }
 
     bool needShapeInfer() const override {

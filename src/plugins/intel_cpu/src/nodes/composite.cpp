@@ -27,8 +27,8 @@ Composite::Composite(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
 void Composite::selectOptimalPrimitiveDescriptor() {
     // for the input configution, just always use the parent configuration
     VecMemoryDescs inputDescriptors;
-    for (size_t j = 0; j < getParentEdges().size(); j++) {
-        inputDescriptors.emplace_back(getParentOutputMemDesc(getParentEdgeAt(0)));
+    for (size_t i = 0; i < getParentEdges().size(); i++) {
+        inputDescriptors.emplace_back(getParentOutputMemDesc(getParentEdgeAt(i)));
     }
 
     std::vector<PortConfig> inConfs;
@@ -46,7 +46,6 @@ void Composite::selectOptimalPrimitiveDescriptor() {
     for (const auto& desc : outputDescriptors) {
         outConfs.emplace_back(desc);
     }
-
     const NodeConfig config(inConfs, outConfs);
 
     supportedPrimitiveDescriptors.clear();
@@ -92,12 +91,14 @@ void Composite::execute(dnnl::stream) {
     // since the shape inference is not performed for the composite node
     // a memory of the extra child edges, attached to the output ports
     // has to be updated after an inference of the inner graph finished
+    auto& childEdges = getChildEdges();
     for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
         const auto mem = getDstMemoryAtPort(i);
-        auto& childEdges = getChildEdges();
         for (size_t j = getOriginalOutputsNumber(); j < childEdges.size(); j++) {
             auto& childEdge = childEdges[j];
             auto childEdgePtr = childEdge.lock();
+            assert(childEdgePtr);
+
             if (childEdgePtr->getInputNum() == static_cast<int>(i)) {
                 childEdgePtr->getMemoryPtr()->redefineDesc(mem->getDescPtr());
             }
