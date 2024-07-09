@@ -598,32 +598,21 @@ static inline bool check_redundant_1d_along_feature(layout const& l1, layout con
         auto l1_inner_blk = format::is_single_blocked(l1.format) ? l1.format.traits().block_sizes.at(0).second : 1;
         auto l2_inner_blk = format::is_single_blocked(l2.format) ? l2.format.traits().block_sizes.at(0).second : 1;
         auto max_inner_blk = std::max(l1_inner_blk, l2_inner_blk);
-        if (static_cast<size_t>(l2.feature()) == l1.count() && l2.feature() == l1.feature() &&
-           (l2.feature() % max_inner_blk == 0)) {
-            return true;
-        }
+        auto has_batch_block = format::is_single_blocked(l1.format) ? (l1.format.traits().block_sizes.at(0).first == 0) : false;
+        has_batch_block |= format::is_single_blocked(l2.format) ? (l2.format.traits().block_sizes.at(0).first == 0) : false;
 
-        if (max_inner_blk > 1) {
-            auto l1_inner_blk_idx = format::is_single_blocked(l1.format) ? l1.format.traits().block_sizes.at(0).first : SIZE_MAX;
-            auto l2_inner_blk_idx = format::is_single_blocked(l2.format) ? l2.format.traits().block_sizes.at(0).first : SIZE_MAX;
-            auto min_inner_blk_idx = std::min(l1_inner_blk_idx, l2_inner_blk_idx);
-            auto is_scalar_below_block_idx = [](layout const& l, size_t block_idx) {
-                if (block_idx >= l.get_rank())
+        auto is_1x1_spatial = [](layout const& l) {
+            for (size_t i = 0; i < l.get_spatial_rank(); ++i) {
+                if (l.spatial(i) > 1)
                     return false;
-                int32_t total = 1;
-                for (size_t i = block_idx + 1; i < l.get_rank(); ++i) {
-                    total *= l.get_dim(i);
-                }
-                if (total == 1)
-                    return true;
-                else
-                    return false;
-            };
-            if (l1.batch() == l2.batch() &&
-                is_scalar_below_block_idx(l1, min_inner_blk_idx) && is_scalar_below_block_idx(l2, min_inner_blk_idx) &&
-                l2.feature() == l1.feature() && (l2.feature() % max_inner_blk == 0)) {
-                return true;
             }
+            return true;
+        };
+
+        if ((static_cast<size_t>(l2.feature()) == l1.count() ||
+            (!has_batch_block && l1.batch() == l2.batch() && is_1x1_spatial(l1) && is_1x1_spatial(l2))) &&
+            l2.feature() == l1.feature() && (l2.feature() % max_inner_blk == 0)) {
+            return true;
         }
 
         // Acceptable if a feature size of l2 'byxf' fits to l1's inner block size of 'b_fs_yx_fsv'
