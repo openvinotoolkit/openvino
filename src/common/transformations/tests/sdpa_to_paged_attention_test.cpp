@@ -8,17 +8,16 @@
 
 #include "common_test_utils/test_common.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/convert.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/power.hpp"
-#include "openvino/op/shape_of.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/pass/manager.hpp"
-
 #include "transformations/sdpa_to_paged_attention/total_sequence_length_pattern.hpp"
 
 using namespace ov;
@@ -70,9 +69,11 @@ TEST(SDPATOPATest, GatherIdx_ConcatAxis_EQ) {
     bool transformation_run = manager.run_passes(model);
 
     EXPECT_TRUE(transformation_run);
-    const auto new_convert = std::dynamic_pointer_cast<op::v0::Convert>(result->input(0).get_source_output().get_node_shared_ptr());
+    const auto new_convert =
+        std::dynamic_pointer_cast<op::v0::Convert>(result->input(0).get_source_output().get_node_shared_ptr());
     EXPECT_TRUE(new_convert);
-    const auto new_max_context_len = std::dynamic_pointer_cast<op::v0::Parameter>(new_convert->input(0).get_source_output().get_node_shared_ptr());
+    const auto new_max_context_len =
+        std::dynamic_pointer_cast<op::v0::Parameter>(new_convert->input(0).get_source_output().get_node_shared_ptr());
     EXPECT_TRUE(new_max_context_len);
     EXPECT_TRUE(new_max_context_len == max_context_len);
 }
@@ -111,7 +112,8 @@ TEST(SDPATOPATest, GatherIdx_ConcatAxis_NOTEQ_STATIC) {
     bool transformation_run = manager.run_passes(model);
 
     EXPECT_TRUE(transformation_run);
-    const auto new_constant = std::dynamic_pointer_cast<op::v0::Constant>(result->input(0).get_source_output().get_node_shared_ptr());
+    const auto new_constant =
+        std::dynamic_pointer_cast<op::v0::Constant>(result->input(0).get_source_output().get_node_shared_ptr());
     EXPECT_TRUE(new_constant);
 }
 
@@ -129,8 +131,9 @@ TEST(SDPATOPATest, GatherIdx_ConcatAxis_NOTEQ_DYNAMIC) {
     const auto gather_axis = op::v0::Constant::create(element::i64, Shape{}, {0});
     const auto gather = std::make_shared<op::v8::Gather>(read_value, beam_idx, gather_axis);
 
-    // const auto concat_input = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1, 2, 3});
-    const auto concat_input = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{Dimension(1, 2), Dimension(1, 3), Dimension(1, 4)});
+    const auto concat_input =
+        std::make_shared<op::v0::Parameter>(element::i32,
+                                            PartialShape{Dimension(1, 2), Dimension(1, 3), Dimension(1, 4)});
     const auto concat = std::make_shared<op::v0::Concat>(NodeVector{gather, concat_input}, CONCAT_AXIS);
 
     const auto shape_of = std::make_shared<op::v3::ShapeOf>(concat, element::i64);

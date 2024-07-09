@@ -64,7 +64,7 @@ ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
                 replacement = op::util::reshapeTo(replacement, Shape(required_shape.rank().get_length(), 1));
             }
         } else {
-            //TODO: change in the future when we start supporting dynamic shapes here
+            // TODO: change in the future when we start supporting dynamic shapes here
             OPENVINO_ASSERT(concat->get_output_partial_shape(0)[gather_idx_data].is_static(),
             "Currently the TotalSequenceLengthPattern transformation does not support dynamic dimension in Concat: ",
             concat);
@@ -72,7 +72,6 @@ ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
         }
 
         replace_node(gather, replacement);
-        std::cout << "END OF CALLBACK" << std::endl;
         return true;
     };
 
