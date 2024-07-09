@@ -1296,7 +1296,7 @@ void primitive_inst::do_runtime_in_place_concat() {
             }
         }
         return false;
-    }
+    };
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_in_place_concat: " + id()));
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(debug_config->disable_runtime_buffer_fusing) {
