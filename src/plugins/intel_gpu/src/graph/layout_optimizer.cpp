@@ -1570,6 +1570,8 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
                 }
             }
         }
+    } else if (node.is_type<non_max_suppression_gather>()) {
+        return impl_types::cpu;
     } else if (node.is_type<reorder>()) {
         if (!_optimization_attributes.use_onednn_impls)
             return impl_types::ocl;
