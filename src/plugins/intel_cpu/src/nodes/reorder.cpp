@@ -265,11 +265,15 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
 
     const auto engine = getEngine();
     src_blocked = std::make_shared<Memory>(engine, DnnlExtensionUtils::makeDescriptor(srcDesc), srcPtr, false);
-
     dst_blocked = std::make_shared<Memory>(engine, DnnlExtensionUtils::makeDescriptor(dstDesc), dstPtr, false);
-
     auto src_desc = src_blocked->getPrimitive().get_desc();
     if (!src_permutation.empty()) {
+        CPU_NODE_ASSERT(src_permutation.size() == static_cast<size_t>(src_desc.get_ndims()),
+                        "src_permutation size (",
+                        src_permutation.size(),
+                        ") doesn't match with src_desc ndims(",
+                        src_desc.get_ndims(),
+                        ")");
         // reorder requires exact matching of logical dimensions between src & dst
         // sometime we have to permute source's logical dimensions to satisfy
         // this requirement, this dosn't affect plugin's node input memory desc.
@@ -304,11 +308,10 @@ void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
         src_desc = src_blocked->getPrimitive().get_desc();
     }
 
+    DEBUG_LOG("CreateReorderPrimitive is called for node", getName(), " src desc: ", src_desc, " dst_desc: ", dst_desc);
+    CPU_NODE_ASSERT(src_desc.get_ndims() == dst_desc.get_ndims(), "OneDNN doesn't support reorder with different ranks.");
     auto result = getReorderPrim(context->getParamsCache(), getEngine(), src_desc, dst_desc);
-    if (!result) {
-        DEBUG_LOG("src desc: ", src_desc, " dst_desc: ", dst_desc);
-        THROW_CPU_NODE_ERR("could not create reorder primitive: unsupported reorder case.");
-    }
+    CPU_NODE_ASSERT(result, "could not create reorder primitive: unsupported reorder case.");
     prim = result;
 
     selectedPD->setImplementationType(
