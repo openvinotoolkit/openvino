@@ -55,7 +55,6 @@ protected:
     bool needShapeInfer() const override;
 
 private:
-
     void evalRange();
 
     void initEdgeValues(OutputType& dst, const void* src, const element::Type& output_type);
@@ -84,7 +83,7 @@ private:
     /////////////////////////////////////////////////////////////////////////////////
 
     ///// PARALLELISM /////
-    
+
     std::shared_ptr<kernel::JitKernelBase> m_jit_kernel;
 
     struct ThreadParams {
@@ -137,7 +136,6 @@ private:
     void generateData(DISTR_TYPE distribution, void* out, size_t work_amount);
 
     void computeStl(void* out, size_t work_amount);
-
 };
 
 }   // namespace node
