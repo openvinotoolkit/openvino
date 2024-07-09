@@ -25,7 +25,8 @@
 
 namespace {
 
-std::shared_ptr<ov::Model> create_v14_model(const ov::op::RoundingType rounding_type, const ov::PartialShape input_shape) {
+std::shared_ptr<ov::Model> create_v14_model(const ov::op::RoundingType rounding_type,
+                                            const ov::PartialShape input_shape) {
     const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
     const ov::Strides strides{2, 2}, dilations{1, 1};
     const ov::Shape pads_begin{1, 1}, pads_end{1, 1}, kernel{2, 2};
@@ -67,7 +68,8 @@ std::shared_ptr<ov::Model> create_v8_model(const ov::op::RoundingType rounding_t
     return std::make_shared<ov::Model>(max_pool_v8->outputs(), ov::ParameterVector{input});
 }
 
-std::shared_ptr<ov::Model> create_ceil_torch_workaround_model(const ov::op::RoundingType rounding_type) {
+std::shared_ptr<ov::Model> create_ceil_torch_workaround_model(const ov::op::RoundingType rounding_type,
+                                                              const bool dynamic_input = false) {
     using ov::op::v0::Concat;
     using ov::op::v0::Constant;
     using ov::op::v0::Parameter;
@@ -81,8 +83,9 @@ std::shared_ptr<ov::Model> create_ceil_torch_workaround_model(const ov::op::Roun
     using ov::op::v3::ShapeOf;
     using ov::op::v4::Range;
     using ov::op::v8::Gather;
-
-    const auto input = std::make_shared<Parameter>(ov::element::f32, ov::Shape{1, 3, 64, 64});
+    const auto input_shape = dynamic_input ? ov::PartialShape{1, 3, ov::Dimension::dynamic(), ov::Dimension::dynamic()}
+                                           : ov::PartialShape{1, 3, 64, 64};
+    const auto input = std::make_shared<Parameter>(ov::element::f32, input_shape);
     const ov::Strides strides{2, 2}, dilations{1, 1};
     ov::Shape pads_begin{1, 1}, pads_end{1, 1}, kernel{2, 2};
 
@@ -177,8 +180,9 @@ TEST_F(TransformationTestsF, ConvertMaxPool14ToMaxPool8_ceil_torch_to_ceil) {
 }
 
 TEST_F(TransformationTestsF, ConvertMaxPool14ToMaxPool8_ceil_torch_to_ceil_dynamic) {
-    model = create_v14_model(ov::op::RoundingType::CEIL_TORCH, ov::PartialShape{1, 3, ov::Dimension::dynamic(), ov::Dimension::dynamic()});
-    model_ref = create_ceil_torch_workaround_model(ov::op::RoundingType::CEIL);
+    model = create_v14_model(ov::op::RoundingType::CEIL_TORCH,
+                             ov::PartialShape{1, 3, ov::Dimension::dynamic(), ov::Dimension::dynamic()});
+    model_ref = create_ceil_torch_workaround_model(ov::op::RoundingType::CEIL, true);
     manager.register_pass<ov::pass::ConvertMaxPool14ToMaxPool8>();
     comparator.disable(FunctionsComparator::CmpValues::ACCURACY);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
