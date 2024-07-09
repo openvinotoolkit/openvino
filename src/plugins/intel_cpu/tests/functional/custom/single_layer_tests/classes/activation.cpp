@@ -95,15 +95,12 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
             // cover Sign NAN test case
             if ((activationType == utils::ActivationTypes::Sign) && funcInput.get_element_type() == ov::element::f32) {
                 static_cast<float*>(tensor.data())[0] = std::numeric_limits<float>::quiet_NaN();
-            } else if ((activationType == utils::ActivationTypes::IsFinite) && funcInput.get_element_type() == ov::element::f32 && tensor.get_size() >= 8) {
+            } else if ((activationType == utils::ActivationTypes::IsFinite) && funcInput.get_element_type() == ov::element::f32 && tensor.get_size() >= 5) {
                 static_cast<float*>(tensor.data())[0] = std::numeric_limits<float>::quiet_NaN(); // nan
                 static_cast<float*>(tensor.data())[1] = std::numeric_limits<float>::signaling_NaN(); // nan
-                static_cast<float*>(tensor.data())[2] = std::acos(2); // nan
-                static_cast<float*>(tensor.data())[3] = std::tgamma(-1); // nan
-                static_cast<float*>(tensor.data())[4] = std::log(-1); // nan
-                static_cast<float*>(tensor.data())[5] = std::sqrt(-1); // -nan
-                static_cast<float*>(tensor.data())[6] = 0 / 0.0; // -nan
-                static_cast<float*>(tensor.data())[7] = std::numeric_limits<float>::infinity(); // infinite
+                static_cast<float*>(tensor.data())[2] = std::sqrt(-1); // -nan
+                static_cast<float*>(tensor.data())[3] = std::numeric_limits<float>::infinity(); // infinite
+                static_cast<float*>(tensor.data())[4] = -std::numeric_limits<float>::infinity(); // -infinite
             }
         } else {
             tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
