@@ -23,7 +23,7 @@ OpenVINO offers the option of running automated inference with the following inf
   multiple devices at the same time.
 * :doc:`Heterogeneous Inference <../../openvino-workflow/running-inference/inference-devices-and-modes/hetero-execution>` - enables splitting inference among several devices
   automatically, for example, if one device doesn't support certain operations.
-* :doc:`(LEGACY) Multi-device Inference <./../../documentation/legacy-features/multi-device.rst>` - executes inference on multiple devices.
+* :doc:`(LEGACY) Multi-device Inference <./../../documentation/legacy-features/multi-device>` - executes inference on multiple devices.
   Currently, this mode is considered a legacy solution. Using Automatic Device Selection is advised.
 * :doc:`Automatic Batching <../../openvino-workflow/running-inference/inference-devices-and-modes/automatic-batching>` - automatically groups inference requests to improve
   device utilization.
@@ -37,7 +37,7 @@ Feature Support and API Coverage
  Supported Feature                                                                                                                        CPU     GPU        NPU
 ======================================================================================================================================== ======= ========== ===========
  :doc:`Heterogeneous execution <../../openvino-workflow/running-inference/inference-devices-and-modes/hetero-execution>`                  Yes     Yes        No
- :doc:`(LEGACY) Multi-device execution <./../../documentation/legacy-features/multi-device.rst>`                                          Yes     Yes        Partial
+ :doc:`(LEGACY) Multi-device execution <./../../documentation/legacy-features/multi-device>`                                          Yes     Yes        Partial
  :doc:`Automatic batching <../../openvino-workflow/running-inference/inference-devices-and-modes/automatic-batching>`                     No      Yes        No
  :doc:`Multi-stream execution <../../openvino-workflow/running-inference/optimize-inference/optimizing-throughput>`                       Yes     Yes        No
  :doc:`Models caching <../../openvino-workflow/running-inference/optimize-inference/optimizing-latency/model-caching-overview>`           Yes     Partial    Yes
