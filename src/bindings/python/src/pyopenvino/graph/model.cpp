@@ -128,7 +128,7 @@ static std::unordered_map<std::string, ov::PartialShape> get_variables_shapes(co
     return variables_shape_map;
 }
 
-static int64_t find_sink_position(const ov::SinkVector sinks, std::shared_ptr<ov::op::Sink> sink) {
+static int64_t find_sink_position(const ov::SinkVector& sinks, const std::shared_ptr<ov::op::Sink>& sink) {
     int64_t pos = 0;
     for (const auto& s : sinks) {
         if (s == sink) {
