@@ -479,6 +479,12 @@ bool crop_in_place_optimization::match(const program_node& node,
         // TODO: Need to allow optimization for gemm user
         if (node.is_dynamic() && (user->is_type<convolution>() || user->is_type<gemm>()))
             return false;
+        // If the user is strieded slice and the output shape is already static,
+        // the padding w/ dyn pad mask will not be propagated properly at runtime
+        if (user->is_type<strided_slice>()) {
+            if (node.is_dynamic() && !user->get_output_layout().is_dynamic())
+                return false;
+        }
         if (user->is_type<reshape>()) {
             // runtime buffer fusing is only handled when there is only one reshape user
             if (node.is_dynamic() && node.get_users().size() != 1)
@@ -575,7 +581,8 @@ void crop_in_place_optimization::update_in_place_crop_padding_along_feature(cons
         auto spatial_size = std::max<size_t>(crop_layout.get_partial_shape().size(), 4) - 2;
         crop_axis_legacy = spatial_size - spatial_axis - 1 + 2;
     }
-    if (crop_layout.is_dynamic() && !is_runtime) {
+    // If it's build-time and node is dynamic, only dynamic padding is set first
+    if ((crop_layout.is_dynamic() || input_layout.is_dynamic()) && !is_runtime) {
         auto info_dynamic_pad = tensor(0).sizes();
         info_dynamic_pad[crop_axis_legacy] = 1;
         auto dynamic_pad_mask = tensor(info_dynamic_pad);
