@@ -10,15 +10,35 @@ namespace ov {
 namespace intel_cpu {
 namespace kernel {
 
-#define GET_OFF(field) offsetof(RandomUniformCallArgs, field)
+namespace random_uniform {
+
+#define BROADCAST_R(F, V, R, C)           \
+    mov(R, C);                            \
+    F(V, R);
+
+#define BROADCAST_P(F, V, R, C)           \
+    mov(R, ptr[r64_params + GET_OFF(C)]);  \
+    F(V, ptr[R]);
+
+#define INIT_ARR(A, V, R, T)                                                                \
+    static const T A[8] = { V, V, V, V, V, V, V, V };                                       \
+    if (isa == x64::avx2) {                                                                 \
+        mov(R, reinterpret_cast<uintptr_t>(A));                                             \
+    } else {                                                                                \
+        static const T* A##_aligned = A + (reinterpret_cast<int64_t>(A) % 16) / sizeof(T);  \
+        mov(R, reinterpret_cast<uintptr_t>(A##_aligned));                                   \
+    }
+
+////////////// PHILOX GENERATOR /////////////////////////
+
+#define GET_OFF(field) offsetof(PhiloxGeneratorCallArgs, field)
 
 template <x64::cpu_isa_t isa>
-RandomUniform<isa>::RandomUniform(const RandomUniformCompileParams& jcp) :
-        JitKernel(jit_name(), jcp, isa) {
-}
+PhiloxGenerator<isa>::PhiloxGenerator(const GeneratorCompileParams& jcp) :
+    JitKernel(jit_name(), jcp, isa) {}
 
 template <x64::cpu_isa_t isa>
-void RandomUniform<isa>::generate() {
+void PhiloxGenerator<isa>::generate() {
     this->preamble();
     registersPool = RegistersPool::create(isa, {rax, rcx, rsp, rdi, k0});
 
@@ -36,7 +56,7 @@ void RandomUniform<isa>::generate() {
 }
 
 template <>
-void RandomUniform<x64::avx512_core>::initVectors() {
+void PhiloxGenerator<x64::avx512_core>::initVectors() {
     const auto r64_aux = getReg64();
     const auto r32_aux = Xbyak::Reg32(r64_aux.getIdx());
     const auto r16_aux = Xbyak::Reg16(r64_aux.getIdx());
@@ -58,14 +78,7 @@ void RandomUniform<x64::avx512_core>::initVectors() {
         v_convert_1 = getVmm();
     }
 
-    // Initialize constants.
-#define BROADCAST_R(F, V, R, C)           \
-    mov(R, C);                            \
-    F(V, R);
-#define BROADCAST_P(F, V, R, C)           \
-    mov(R, ptr[r64_params + GET_OFF(C)]);  \
-    F(V, ptr[R]);
-
+    // Initialize constants
     BROADCAST_R(vpbroadcastq, v_max_mul_n_64, r64_aux, STATISTIC_MAXIMIZING_MULTIPLIER_N)
     BROADCAST_R(vpbroadcastq, v_max_mul_c_64, r64_aux, STATISTIC_MAXIMIZING_MULTIPLIER_COUNTER)
     BROADCAST_R(vpbroadcastd, v_add_low_k,    r32_aux, CRUSH_RESISTANCE_CONST_LOWER_VALUE)
@@ -138,13 +151,10 @@ void RandomUniform<x64::avx512_core>::initVectors() {
         mov(r64_aux, reinterpret_cast<uintptr_t>(perm_16));
         uni_vmovups(v_perm_16, ptr[r64_aux]);
     }
-
-#undef BROADCAST_R
-#undef BROADCAST_P
 }
 
 template <x64::cpu_isa_t isa> // Works for AVX2, SSE41
-void RandomUniform<isa>::initVectors() {
+void PhiloxGenerator<isa>::initVectors() {
     const auto r64_aux = getReg64();
 
     v_max_mul_n_64 = getVmm();
@@ -158,15 +168,6 @@ void RandomUniform<isa>::initVectors() {
 
     r64_n_inc      = getReg64();
     r64_min        = getReg64();
-
-#define INIT_ARR(A, V, R, T)                                                                \
-    static const T A[8] = { V, V, V, V, V, V, V, V };                                       \
-    if (isa == x64::avx2) {                                                                 \
-        mov(R, reinterpret_cast<uintptr_t>(A));                                             \
-    } else {                                                                                \
-        static const T* A##_aligned = A + (reinterpret_cast<int64_t>(A) % 16) / sizeof(T);  \
-        mov(R, reinterpret_cast<uintptr_t>(A##_aligned));                                   \
-    }
 
     // Initialize constants.
     INIT_ARR(max_mul_n_64, STATISTIC_MAXIMIZING_MULTIPLIER_N, r64_aux, uint64_t);
@@ -247,12 +248,10 @@ void RandomUniform<isa>::initVectors() {
     }
 
     uni_vpaddq(v_n_64, v_n_64, ptr[r64_aux]);
-
-#undef INIT_ARR
 }
 
 template <x64::cpu_isa_t isa>
-void RandomUniform<isa>::process() {
+void PhiloxGenerator<isa>::process() {
     auto v_dst_0 = getVmm();
     auto v_dst_1 = getVmm();
     std::vector<Vmm> v_res{ v_dst_0, v_dst_1 };
@@ -294,7 +293,7 @@ void RandomUniform<isa>::process() {
 }
 
 template <x64::cpu_isa_t isa>
-void RandomUniform<isa>::calculateRound(const Vmm& vmm_k_0, const Vmm& vmm_k_1, const Vmm& vmm_c_0, const Vmm& vmm_c_1,
+void PhiloxGenerator<isa>::calculateRound(const Vmm& vmm_k_0, const Vmm& vmm_k_1, const Vmm& vmm_c_0, const Vmm& vmm_c_1,
                                         const Vmm& vmm_n_0, const Vmm& vmm_n_1, const Vmm& vmm_aux_0, const Vmm& vmm_aux_1) {
     uni_vpmuludq(vmm_aux_0, vmm_n_0, v_max_mul_n_64);  // {p0,p1,p0,p1} = {n0,_,n0,_} * {m0,_,m0,_}
     uni_vpmuludq(vmm_aux_1, vmm_c_0, v_max_mul_c_64);  // {r0,r1,r0,r1} = {c0,_,c0,_} * {m0,_,m0,_}
@@ -309,7 +308,7 @@ void RandomUniform<isa>::calculateRound(const Vmm& vmm_k_0, const Vmm& vmm_k_1, 
 }
 
 template <x64::cpu_isa_t isa>
-void RandomUniform<isa>::runPhilox(const std::vector<Vmm>& vmm_dst, const Vmm& vmm_key, const Vmm& vmm_counter, const Vmm& vmm_n) {
+void PhiloxGenerator<isa>::runPhilox(const std::vector<Vmm>& vmm_dst, const Vmm& vmm_key, const Vmm& vmm_counter, const Vmm& vmm_n) {
     auto vmm_k_0 = getVmm();
     auto vmm_k_1 = getVmm();
     auto vmm_n_0 = getVmm();
@@ -368,13 +367,13 @@ void RandomUniform<isa>::runPhilox(const std::vector<Vmm>& vmm_dst, const Vmm& v
 }
 
 template <x64::cpu_isa_t isa>
-void RandomUniform<isa>::raiseKey(const Vmm& vmm_k_0, const Vmm& vmm_k_1) {
+void PhiloxGenerator<isa>::raiseKey(const Vmm& vmm_k_0, const Vmm& vmm_k_1) {
     uni_vpaddd(vmm_k_0, vmm_k_0, v_add_low_k); // {k0,_,k0,_} + {l0,_,l0,_}
     uni_vpaddd(vmm_k_1, vmm_k_1, v_add_up_k);  // {k1,_,k1,_} + {u0,_,u0,_}
 }
 
 template <>
-void RandomUniform<x64::avx512_core>::convert(const std::vector<Vmm>& v_dst, const std::vector<Vmm>& v_src) {
+void PhiloxGenerator<x64::avx512_core>::convert(const std::vector<Vmm>& v_dst, const std::vector<Vmm>& v_src) {
     if (m_jcp.out_data_type.size() == 4) {
         for (size_t i = 0lu; i < v_src.size(); i++) {
             const auto& vmm_src = v_src[i];
@@ -453,7 +452,7 @@ void RandomUniform<x64::avx512_core>::convert(const std::vector<Vmm>& v_dst, con
 }
 
 template <x64::cpu_isa_t isa> // Works for AVX2, SSE41
-void RandomUniform<isa>::convert(const std::vector<Vmm>& v_dst, const std::vector<Vmm>& v_src) {
+void PhiloxGenerator<isa>::convert(const std::vector<Vmm>& v_dst, const std::vector<Vmm>& v_src) {
     if (m_jcp.out_data_type.size() == 4) {
         for (size_t i = 0lu; i < v_src.size(); i++) {
             auto vmm_src = v_src[i];
@@ -536,7 +535,7 @@ void RandomUniform<isa>::convert(const std::vector<Vmm>& v_dst, const std::vecto
 }
 
 template <>
-void RandomUniform<x64::avx512_core>::tail(const std::vector<Vmm>& vmm_dst) {
+void PhiloxGenerator<x64::avx512_core>::tail(const std::vector<Vmm>& vmm_dst) {
     Xbyak::Label l_end;
     const auto k_rest_mask = getMask();
 
@@ -572,7 +571,7 @@ void RandomUniform<x64::avx512_core>::tail(const std::vector<Vmm>& vmm_dst) {
 }
 
 template <>
-void RandomUniform<x64::avx2>::tail(const std::vector<Vmm>& vmm_dst) {
+void PhiloxGenerator<x64::avx2>::tail(const std::vector<Vmm>& vmm_dst) {
     Xbyak::Label l_0, l_end;
     const auto step = vlen / sizeof(uint32_t);
 
@@ -601,7 +600,7 @@ void RandomUniform<x64::avx2>::tail(const std::vector<Vmm>& vmm_dst) {
 }
 
 template <x64::cpu_isa_t isa>
-void RandomUniform<isa>::tail(const std::vector<Vmm>& vmm_dst) {
+void PhiloxGenerator<isa>::tail(const std::vector<Vmm>& vmm_dst) {
     Xbyak::Label l_0, l_end;
     const auto step = vlen / sizeof(uint32_t);
 
@@ -626,10 +625,133 @@ void RandomUniform<isa>::tail(const std::vector<Vmm>& vmm_dst) {
     L(l_end);
 }
 
-template class RandomUniform<x64::avx512_core>;
-template class RandomUniform<x64::avx2>;
-template class RandomUniform<x64::sse41>;
+template class PhiloxGenerator<x64::avx512_core>;
+template class PhiloxGenerator<x64::avx2>;
+template class PhiloxGenerator<x64::sse41>;
 
+#undef GET_OFF
+
+//////////////// MERSENNE TWISTER GENERATOR ////////////////////
+
+#define GET_OFF(field) offsetof(MersenneTwisterGeneratorCallArgs, field)
+
+template <x64::cpu_isa_t isa>
+MersenneTwisterGenerator<isa>::MersenneTwisterGenerator(const GeneratorCompileParams& jcp) :
+        JitKernel(jit_name(), jcp, isa) {
+}
+
+template <x64::cpu_isa_t isa>
+void MersenneTwisterGenerator<isa>::generate() {
+    this->preamble();
+    registersPool = RegistersPool::create(isa, {rax, rcx, rsp, rdi, k0});
+
+    r64_dst = getReg64();
+    r64_work_amount = getReg64();
+
+    mov(r64_work_amount, ptr[r64_params + GET_OFF(work_amount)]);
+    mov(r64_dst, ptr[r64_params + GET_OFF(dst_ptr)]);
+
+    initVectors();
+    process();
+
+    registersPool.reset();
+    this->postamble();
+}
+
+template <>
+void MersenneTwisterGenerator<x64::avx512_core>::initVectors() {
+    const auto r64_aux = getReg64();
+    const auto r32_aux = Xbyak::Reg32(r64_aux.getIdx());
+
+    v_state = getVmm();
+    v_mt_index = getVmm();
+    v_temp = getVmm();
+
+    // Initialize the state array.
+    mov(r64_aux, ptr[r64_params + GET_OFF(state_ptr)]);
+    uni_vmovdqu(v_state, ptr[r64_aux]);
+
+    // Initialize constants
+    mov(r32_aux, MT_CONST_1);
+    uni_vpbroadcastd(v_temp, r32_aux);
+}
+
+template <x64::cpu_isa_t isa>
+void MersenneTwisterGenerator<isa>::initVectors() {
+    const auto r64_aux = getReg64();
+
+    v_state = getVmm();
+    v_mt_index = getVmm();
+    v_temp = getVmm();
+
+    // Initialize the state array.
+    mov(r64_aux, ptr[r64_params + GET_OFF(state_ptr)]);
+    uni_vmovdqu(v_state, ptr[r64_aux]);
+
+    // Initialize constants
+    mov(r64_aux, MT_CONST_1);
+    uni_vmovdqu(v_temp, ptr[r64_aux]);
+}
+
+template <x64::cpu_isa_t isa>
+void MersenneTwisterGenerator<isa>::process() {
+    auto v_dst_0 = getVmm();
+    auto v_dst_1 = getVmm();
+
+    const auto VECTOR_LENGTH = 10ul;
+
+    Xbyak::Label l_loop, l_tail;
+    L(l_loop); {
+        cmp(r64_work_amount, VECTOR_LENGTH);
+        jl(l_tail, T_NEAR);
+
+        generateRandomNumbers(v_dst_0, v_dst_1);
+
+        uni_vmovups(ptr[r64_dst], v_dst_0);
+        add(r64_dst, VECTOR_LENGTH * sizeof(float));
+
+        sub(r64_work_amount, VECTOR_LENGTH);
+        jmp(l_loop, T_NEAR);
+    }
+
+    L(l_tail);
+    tail(v_dst_0, v_dst_1);
+}
+
+template <x64::cpu_isa_t isa>
+void MersenneTwisterGenerator<isa>::generateRandomNumbers(const Vmm& v_dst_0, const Vmm& v_dst_1) {
+    // MT19937 algorithm steps for generating random numbers
+
+    uni_vpxor(v_temp, v_temp, v_state);
+    // uni_vpsrlq(v_temp, v_temp, 11);
+
+    uni_vpxor(v_dst_0, v_temp, v_state);
+    // uni_vpsrlq(v_temp, v_dst_0, 7);
+    uni_vpxor(v_dst_0, v_dst_0, v_temp);
+
+    uni_vmovups(v_dst_1, v_dst_0);
+}
+
+template <x64::cpu_isa_t isa>
+void MersenneTwisterGenerator<isa>::tail(const Vmm& v_dst_0, const Vmm& v_dst_1) {
+    // Handle the remaining elements
+    // if (remaining_elements > 0) {
+    generateRandomNumbers(v_dst_0, v_dst_1);
+    uni_vmovups(ptr[r64_dst], v_dst_0);
+    //}
+}
+
+template class MersenneTwisterGenerator<x64::avx512_core>;
+template class MersenneTwisterGenerator<x64::avx2>;
+template class MersenneTwisterGenerator<x64::sse41>;
+
+#undef GET_OFF
+
+#undef INIT_ARR
+#undef BROADCAST_R
+#undef BROADCAST_P
+
+}   // namespace random_uniform
 }   // namespace kernel
 }   // namespace intel_cpu
 }   // namespace ov
