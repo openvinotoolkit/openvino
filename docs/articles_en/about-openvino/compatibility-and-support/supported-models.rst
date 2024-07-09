@@ -1,10 +1,10 @@
-AI Models verified for OpenVINO
+AI Models verified for OpenVINO™
 =====================================
 
 The following is a list of models that have been verified to work with OpenVINO. Note that other
 models from OpenVINO-supported frameworks may also work properly but have not been tested.
 
-**AI Models that run on Intel® Core Ultra ™ Processors with OpenVINO™ toolkit:**
+**AI Models that run on Intel® Core Ultra™ Processors with OpenVINO™ toolkit:**
 
 .. raw:: html
 
