@@ -22,7 +22,6 @@ namespace {
  */
 inline uint32_t f32_to_u32_bits(float value) {
     uint32_t bits;
-    static_assert(sizeof(bits) == sizeof(value), "'bits' must have same number bits as `float`");
     std::memcpy(&bits, &value, sizeof(bits));
     return bits;
 }
@@ -35,7 +34,6 @@ inline uint32_t f32_to_u32_bits(float value) {
  */
 inline float u32_bits_to_f32(uint32_t bits) {
     float value;
-    static_assert(sizeof(bits) == sizeof(value), "'bits' must have same number bits as `float`");
     std::memcpy(&value, &bits, sizeof(bits));
     return value;
 }
