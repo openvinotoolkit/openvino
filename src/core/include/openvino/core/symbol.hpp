@@ -87,9 +87,3 @@ private:
 };
 
 }  // namespace ov
-
-namespace std {
-bool operator==(const ov::symbol::WeakSymbol& lhs, const ov::symbol::WeakSymbol& rhs);
-bool operator!=(const ov::symbol::WeakSymbol& lhs, const ov::symbol::WeakSymbol& rhs);
-bool operator<(const ov::symbol::WeakSymbol& lhs, const ov::symbol::WeakSymbol& rhs);
-}  // namespace std

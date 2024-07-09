@@ -7,6 +7,24 @@
 #include <algorithm>
 #include <queue>
 
+namespace ov {
+inline bool operator==(const symbol::WeakSymbol& lhs, const symbol::WeakSymbol& rhs) {
+    if (lhs.expired() && rhs.expired())
+        return true;
+    if (lhs.expired() || rhs.expired())
+        return false;
+    return lhs.lock().get() == rhs.lock().get();
+}
+
+inline bool operator!=(const symbol::WeakSymbol& lhs, const symbol::WeakSymbol& rhs) {
+    return !(lhs == rhs);
+}
+
+inline bool operator<(const symbol::WeakSymbol& lhs, const symbol::WeakSymbol& rhs) {
+    return std::owner_less<ov::SymbolPtr>()(lhs.lock(), rhs.lock());
+}
+}  // namespace ov
+
 ov::SymbolPtr ov::symbol::ancestor_of(const SymbolPtr& symbol) {
     auto x = symbol;
     while (x->m_parent) {
@@ -23,30 +41,15 @@ bool ov::symbol::are_equal(const SymbolPtr& lhs, const SymbolPtr& rhs) {
     return ov::symbol::ancestor_of(lhs).get() == ov::symbol::ancestor_of(rhs).get();
 }
 
-bool std::operator==(const ov::symbol::WeakSymbol& lhs, const ov::symbol::WeakSymbol& rhs) {
-    if (lhs.expired() && rhs.expired())
-        return true;
-    if (lhs.expired() || rhs.expired())
-        return false;
-    return lhs.lock().get() == rhs.lock().get();
-}
-
-bool std::operator!=(const ov::symbol::WeakSymbol& lhs, const ov::symbol::WeakSymbol& rhs) {
-    return !(lhs == rhs);
-}
-
-bool std::operator<(const ov::symbol::WeakSymbol& lhs, const ov::symbol::WeakSymbol& rhs) {
-    return std::owner_less<ov::SymbolPtr>()(lhs.lock(), rhs.lock());
-}
-
+namespace ov {
+namespace symbol {
 namespace {  // helpers to work with shared math maps in symbols
 bool contains(const ov::symbol::WeakSymbolVector& vec, const ov::symbol::WeakSymbol& s) {
-    return std::any_of(vec.cbegin(), vec.cend(), [&s](const ov::symbol::WeakSymbol& i) {
-        return i == s;
-    });
+    return std::find(vec.cbegin(), vec.cend(), s) != vec.cend();
 }
+
 bool contains(const ov::symbol::WeakSymbolVector& vec, const ov::Symbol* s) {
-    return std::any_of(vec.cbegin(), vec.cend(), [&s](const ov::symbol::WeakSymbol& i) {
+    return std::any_of(vec.begin(), vec.end(), [&s](const ov::symbol::WeakSymbol& i) {
         if (i.lock() == nullptr)
             return s == nullptr;
         return i.lock().get() == s;
@@ -56,6 +59,7 @@ bool contains(const ov::symbol::WeakSymbolVector& vec, const ov::Symbol* s) {
 void sort(ov::symbol::WeakSymbolVector& vec) {
     std::sort(vec.begin(), vec.end());
 }
+
 void replace(ov::symbol::WeakSymbolVector& vec,
              const ov::symbol::WeakSymbol& old_s,
              const ov::symbol::WeakSymbol& new_s) {
@@ -72,7 +76,7 @@ void replace(ov::symbol::WeakSymbolVector& vec,
 void replace_no_check(const ov::SymbolPtr& old_symbol, const ov::SymbolPtr& new_symbol, ov::symbol::MathMap& m) {
     ov::symbol::MathMap map_with_old;
     for (const auto& item : m)
-        if (item.second == old_symbol || contains(item.first, old_symbol))
+        if (item.second == ov::symbol::WeakSymbol(old_symbol) || contains(item.first, old_symbol.get()))
             map_with_old.insert(item);
     for (const auto& item : map_with_old)
         m.erase(item.first);
@@ -189,6 +193,8 @@ void collect_records_with_result(const ov::SymbolPtr& result,
                 records.push_back(item.first);
 }
 }  // namespace
+}  // namespace symbol
+}  // namespace ov
 
 void ov::symbol::set_equal(const SymbolPtr& l, const SymbolPtr& r) {
     std::queue<std::pair<ov::symbol::WeakSymbol, ov::symbol::WeakSymbol>> to_equalize;
@@ -229,8 +235,8 @@ void ov::symbol::set_equal(const SymbolPtr& l, const SymbolPtr& r) {
 ov::Symbol::~Symbol() {
     if (m_add) {
         for (auto item = m_add->begin(), last = m_add->end(); item != last;) {
-            if (contains(item->first, nullptr) || contains(item->first, this) || item->second.expired() ||
-                item->second.lock().get() == this) {
+            if (symbol::contains(item->first, nullptr) || symbol::contains(item->first, this) ||
+                item->second.expired() || item->second.lock().get() == this) {
                 item = m_add->erase(item);
             } else {
                 ++item;
@@ -247,7 +253,7 @@ ov::SymbolPtr ov::operator+(const SymbolPtr& lhs, const SymbolPtr& rhs) {
     auto A = symbol::ancestor_of(lhs);
     auto B = symbol::ancestor_of(rhs);
     auto new_key = ov::symbol::WeakSymbolVector({A, B});
-    sort(new_key);
+    symbol::sort(new_key);
     auto shared_map = std::make_shared<symbol::MathMap>();
     if (A->m_add && B->m_add && A->m_add.get() == B->m_add.get()) {  // maps are shared
         auto it = A->m_add->find(new_key);
@@ -276,13 +282,13 @@ ov::SymbolPtr ov::operator+(const SymbolPtr& lhs, const SymbolPtr& rhs) {
     // add L + R = result  to the shared map
     // search for X + Y = L and W + Z = R records to make X + Y + W + Z = result records
     std::vector<ov::symbol::WeakSymbolVector> this_components{{A}}, other_components{{B}};
-    collect_records_with_result(A, shared_map, this_components);
-    collect_records_with_result(B, shared_map, other_components);
+    symbol::collect_records_with_result(A, shared_map, this_components);
+    symbol::collect_records_with_result(B, shared_map, other_components);
     for (const auto& this_element : this_components) {
         for (const auto& other_element : other_components) {
             ov::symbol::WeakSymbolVector new_key = this_element;
             new_key.insert(new_key.begin(), other_element.begin(), other_element.end());
-            sort(new_key);
+            symbol::sort(new_key);
             shared_map->insert({new_key, C});
         }
     }
@@ -295,23 +301,24 @@ ov::SymbolPtr ov::operator-(const SymbolPtr& lhs, const SymbolPtr& rhs) {
     // A - B = C  =>  B + C = A
     auto A = symbol::ancestor_of(lhs);
     auto B = symbol::ancestor_of(rhs);
+    const auto bw = symbol::WeakSymbol(B);
 
     auto shared_map = std::make_shared<symbol::MathMap>();
     if (A->m_add && B->m_add && A->m_add.get() == B->m_add.get()) {  // maps are shared
         std::vector<ov::symbol::WeakSymbolVector> A_components{}, B_components{};
-        collect_records_with_result(A, A->m_add, A_components);
+        symbol::collect_records_with_result(A, A->m_add, A_components);
         for (const auto& item : A_components) {
-            if (item.size() == 2 && item[0] == B && !item[1].expired()) {
+            if (item.size() == 2 && item[0] == bw && !item[1].expired()) {
                 return item[1].lock();
             }
-            if (item.size() == 2 && item[1] == B && !item[0].expired()) {
+            if (item.size() == 2 && item[1] == bw && !item[0].expired()) {
                 return item[0].lock();
             }
         }
-        collect_records_with_result(B, B->m_add, B_components);
+        symbol::collect_records_with_result(B, B->m_add, B_components);
         for (auto A_equation : A_components) {
             for (auto B_equation : B_components) {
-                remove_same_elements(A_equation, B_equation);
+                symbol::remove_same_elements(A_equation, B_equation);
                 if (A_equation.size() == 1 && B_equation.empty() && !A_equation[0].expired()) {
                     return A_equation[0].lock();
                 }
@@ -337,10 +344,10 @@ ov::SymbolPtr ov::operator-(const SymbolPtr& lhs, const SymbolPtr& rhs) {
     C->m_add = shared_map;
 
     std::vector<ov::symbol::WeakSymbolVector> B_components{{B}};
-    collect_records_with_result(B, B->m_add, B_components);
+    symbol::collect_records_with_result(B, B->m_add, B_components);
     for (auto& new_key : B_components) {
         new_key.insert(new_key.begin(), C);
-        sort(new_key);
+        symbol::sort(new_key);
         shared_map->insert({new_key, A});
     }
     return C;
