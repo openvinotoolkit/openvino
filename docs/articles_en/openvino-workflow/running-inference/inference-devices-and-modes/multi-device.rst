@@ -13,12 +13,9 @@ Multi-device execution
 
    The Multi-device execution mode described here has been **deprecated**.
 
-   You can use the :ref:`CUMULATIVE_THROUGHPUT <cumulative throughput>` option of the :doc:`Automatic Device Selection <auto-device-selection>` instead.
-
-To run inference on multiple devices, you can choose either of the following ways:
-
-- Use the :ref:`CUMULATIVE_THROUGHPUT option <cumulative throughput>` of the Automatic Device Selection mode. This way, you can use all available devices in the system without the need to specify them.
-- (DEPRECATED) Use the Multi-Device execution mode. It shares the same behaviors as the :ref:`CUMULATIVE_THROUGHPUT option <cumulative throughput>` of the Automatic Device Selection mode. The difference is, it needs <device list> or ``ov::device::priorities`` to be set explicitly.
+   It's functionality is now fully covered by the :ref:`CUMULATIVE_THROUGHPUT <cumulative throughput>`
+   option of the :doc:`Automatic Device Selection <auto-device-selection>` mode.
+   This way, all available devices in the system can be used without the need to specify them.
 
 How MULTI Works
 ####################
