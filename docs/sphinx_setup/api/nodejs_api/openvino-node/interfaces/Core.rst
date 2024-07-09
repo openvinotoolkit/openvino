@@ -24,10 +24,13 @@ It is recommended to have a single Core instance per application.
                description: string;
            };
        };
+       importModel(modelStream, device, config?): Promise<CompiledModel>
        importModelSync(modelStream, device, config?): CompiledModel;
        readModel(modelPath, weightsPath?): Promise<Model>;
+       readModel(model, weights): Promise<Model>;
        readModel(modelBuffer, weightsBuffer?): Promise<Model>;
        readModelSync(modelPath, weightsPath?): Model;
+       readModelSync(model, weights): Model;
        readModelSync(modelBuffer, weightsBuffer?): Model;
        setProperty(properties): void;
        setProperty(deviceName, properties): void;
@@ -309,6 +312,47 @@ Methods
      `addon.ts:119 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L119>`__
 
 
+.. rubric:: importModel
+   :name: importModel
+
+.. container:: m-4
+
+   .. code-block:: ts
+
+      importModel(modelStream, device, config?): Promise<CompiledModel>
+
+   It asynchronously imports a previously exported compiled model.
+
+   * **Parameters:**
+
+     - modelStream: Buffer
+
+       The input stream that contains a model, previously exported with the
+       :ref:`CompiledModel.exportModelSync <exportModelSync>` method.
+
+     - device: string
+
+       The name of a device, for which you import a compiled model. Note, if the device name
+       was not used to compile the original model, an exception is thrown.
+
+     - ``Optional``
+
+       .. code-block:: ts
+
+          config: {
+                    [key: string]: string | number | boolean;
+           }
+
+       An object with the key-value pairs (property name, property value): relevant only for this load operation.
+
+       - [key: string]: string | number | boolean
+
+   * **Returns:** Promise<\ :doc:`CompiledModel <CompiledModel>`\ >
+
+   * **Defined in:**
+     `addon.ts:135 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L135>`__
+
+
 .. rubric:: importModelSync
 
 .. container:: m-4
@@ -317,6 +361,7 @@ Methods
 
       importModelSync(modelStream, device, config?): CompiledModel
 
+   A synchronous version of :ref:`Core.importModel <importModel>`.
    It imports a previously exported compiled model.
 
    * **Parameters:**
@@ -346,7 +391,7 @@ Methods
    * **Returns:** :doc:`CompiledModel <CompiledModel>`
 
    * **Defined in:**
-     `addon.ts:135 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L135>`__
+     `addon.ts:144 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L144>`__
 
 
 .. rubric:: readModel
@@ -384,9 +429,31 @@ Methods
    * **Returns:** Promise<\ :doc:`Model <Model>`\ >
 
    * **Defined in:**
-     `addon.ts:152 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L152>`__
+     `addon.ts:162 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L162>`__
 
-.. container:: m-4
+
+   .. code-block:: ts
+
+      readModel(model, weights): Promise<Model>
+
+   It reads models from the IR / ONNX / PDPD / TF and TFLite formats.
+
+   * **Parameters:**
+
+     - model: string
+
+       A string with model in the IR / ONNX / PDPD / TF and TFLite format.
+
+     - weights: Tensor
+
+       Tensor with weights. Reading ONNX / PDPD / TF and TFLite models does
+       not support loading weights from weights tensors.
+
+   * **Returns:** Promise<\ :doc:`Model <Model>`\ >
+
+   * **Defined in:**
+     `addon.ts:170 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L170>`__
+
 
    .. code-block:: ts
 
@@ -411,7 +478,7 @@ Methods
    * **Returns:**  Promise<\ :doc:`Model <Model>`\ >
 
    * **Defined in:**
-     `addon.ts:160 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L160>`__
+     `addon.ts:177 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L177>`__
 
 
 .. rubric:: readModelSync
@@ -439,7 +506,25 @@ Methods
    * **Returns:** Promise<\ :doc:`Model <Model>`\ >
 
    * **Defined in:**
-     `addon.ts:166 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L166>`__
+     `addon.ts:183 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L183>`__
+
+
+   .. code-block:: ts
+
+      readModelSync(model, weights): Model
+
+   A synchronous version of :ref:`Core.readModel <readModel>`.
+   It reads models from the IR / ONNX / PDPD / TF and TFLite formats.
+
+   * **Parameters:**
+
+     - model: string
+     - weights: Tensor
+
+   * **Returns:** :doc:`Model <Model>`
+
+   * **Defined in:**
+     `addon.ts:188 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L188>`__
 
 
    .. code-block:: ts
@@ -458,7 +543,7 @@ Methods
    * **Returns:**  :doc:`Model <Model>`
 
    * **Defined in:**
-     `addon.ts:171 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L171>`__
+     `addon.ts:193 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L193>`__
 
 
 .. rubric:: setProperty
@@ -488,7 +573,7 @@ Methods
    * **Returns:**  void
 
    * **Defined in:**
-     `addon.ts:176 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L176>`__
+     `addon.ts:198 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L198>`__
 
 
    .. code-block:: ts
@@ -513,5 +598,5 @@ Methods
    * **Returns:**  string | number | boolean
 
    * **Defined in:**
-     `addon.ts:182 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L182>`__
+     `addon.ts:204 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L204>`__
 
