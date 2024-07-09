@@ -62,6 +62,13 @@ def test_properties_rw_base():
             ),
         ),
         (
+            props.WorkloadType,
+            (
+                (props.WorkloadType.DEFAULT, "WorkloadType.DEFAULT", 0),
+                (props.WorkloadType.EFFICIENT, "WorkloadType.EFFICIENT", 1),
+            ),
+        ),
+        (
             hints.Priority,
             (
                 (hints.Priority.LOW, "Priority.LOW", 0),
