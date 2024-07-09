@@ -86,11 +86,13 @@ Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
             model = _core.read_model(model_str, weight_tensor);
         } else if (ov::js::validate<Napi::String>(info, allowed_signatures)) {
             model = _core.read_model(info[0].ToString());
+        } else if (ov::js::validate<Napi::String, TensorWrap>(info, allowed_signatures)) {
+            model = _core.read_model(info[0].ToString(), cast_to_tensor(info, 1));
         } else {
             OPENVINO_THROW("'readModelSync'", ov::js::get_parameters_error_msg(info, allowed_signatures));
         }
 
-        return ModelWrap::wrap(info.Env(), model);
+        return cpp_to_js(info.Env(), model);
     } catch (std::runtime_error& err) {
         reportError(info.Env(), err.what());
 
