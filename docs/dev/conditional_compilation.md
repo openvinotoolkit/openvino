@@ -77,6 +77,7 @@ The differences are only in the code usage analysis step. The analysis step shou
 ## Limitations
 
 * Currently, Ninja build system is not supported for the conditional compilation build.
+* Currently, only IR model is supported by conditional compilation. The other model format need to convert to IR first for enabling conditional compilation.
 
 ## See also
  * [OpenVINO™ README](../../README.md)
