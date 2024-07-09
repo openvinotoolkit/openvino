@@ -78,7 +78,9 @@ public:
         uint64 = TensorProto_DataType::TensorProto_DataType_UINT64,
         bfloat16 = TensorProto_DataType::TensorProto_DataType_BFLOAT16,
         complex64 = TensorProto_DataType::TensorProto_DataType_COMPLEX64,
-        complex128 = TensorProto_DataType::TensorProto_DataType_COMPLEX128
+        complex128 = TensorProto_DataType::TensorProto_DataType_COMPLEX128,
+        float8e4m3fn = TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN,
+        float8e5m2 = TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2,
     };
 
     Tensor() = delete;
@@ -157,14 +159,19 @@ public:
             return ov::element::u64;
         case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
             return ov::element::bf16;
+        case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN:
+            return ov::element::f8e4m3;
+        case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
+            return ov::element::f8e5m2;
         case TensorProto_DataType::TensorProto_DataType_STRING:
             return ov::element::string;
         case TensorProto_DataType::TensorProto_DataType_UNDEFINED:
             FRONT_END_THROW("Data type is Undefined");
         default:
-            ONNX_UNSUPPORTED_DATA_TYPE(m_tensor_proto->data_type(),
-                                       "BOOL, BFLOAT16, FLOAT, FLOAT16, DOUBLE, INT8, INT16, INT32, INT64, UINT8, "
-                                       "UINT16, UINT32, UINT64, STRING");
+            ONNX_UNSUPPORTED_DATA_TYPE(
+                m_tensor_proto->data_type(),
+                "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT8, INT16, INT32, INT64, "
+                "UINT8, UINT16, UINT32, UINT64, STRING");
         }
     }
 
@@ -203,12 +210,17 @@ public:
             return make_ov_constant<uint64_t>(ov::element::u64);
         case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
             return make_ov_constant<ov::bfloat16>(ov::element::bf16);
+        case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN:
+            return make_ov_constant<ov::float8_e4m3>(ov::element::f8e4m3);
+        case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
+            return make_ov_constant<ov::float8_e5m2>(ov::element::f8e5m2);
         case TensorProto_DataType::TensorProto_DataType_STRING:
             return make_ov_constant<std::string>(ov::element::string);
         default:
-            ONNX_UNSUPPORTED_DATA_TYPE(m_tensor_proto->data_type(),
-                                       "BOOL, BFLOAT16, FLOAT, FLOAT16, DOUBLE, INT8, INT16, INT32, INT64, UINT8, "
-                                       "UINT16, UINT32, UINT64, STRING");
+            ONNX_UNSUPPORTED_DATA_TYPE(
+                m_tensor_proto->data_type(),
+                "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT8, INT16, INT32, INT64, "
+                "UINT8, UINT16, UINT32, UINT64, STRING");
         }
     }
 
@@ -375,6 +387,12 @@ std::vector<uint32_t> Tensor::get_data() const;
 
 template <>
 std::vector<uint64_t> Tensor::get_data() const;
+
+template <>
+std::vector<ov::float8_e4m3> Tensor::get_data() const;
+
+template <>
+std::vector<ov::float8_e5m2> Tensor::get_data() const;
 
 template <>
 std::vector<char> Tensor::get_data() const;

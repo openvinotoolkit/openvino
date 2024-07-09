@@ -6803,3 +6803,43 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_multinomial_7) {
 
     test_case.run();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_float8e5m2_input) {
+    const auto model = convert_model("float8e5m2_input.onnx");
+    auto test_case = test::TestCase(model);
+    test_case.add_input<ov::float8_e5m2>({1.0f, 0.0f, -1.0f, NAN, -INFINITY, INFINITY});
+    test_case.add_expected_output<int64_t>({6});
+    test_case.add_expected_output<ov::float8_e5m2>({1.0f, 0.0f, -1.0f, NAN, -INFINITY, INFINITY});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_float8e5m2_constant) {
+    const auto model = convert_model("float8e5m2_constant.onnx");
+    auto test_case = test::TestCase(model);
+    test_case.add_expected_output<int64_t>({6});
+    test_case.add_expected_output<ov::float8_e5m2>({-1.0f, 0.0f, 1.0f, NAN, INFINITY, -INFINITY});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_float8e4m3fn_input) {
+    const auto model = convert_model("float8e4m3fn_input.onnx");
+    auto test_case = test::TestCase(model);
+    test_case.add_input<ov::float8_e4m3>({1.0f, 0.0f, -1.0f, NAN, -256.f, 256.f});
+    test_case.add_expected_output<int64_t>({6});
+    // Float8e4m3(fn) doesn't have infinity/-infinity values
+    test_case.add_expected_output<ov::float8_e4m3>({1.0f, 0.0f, -1.0f, NAN, -256.f, 256.f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_float8e4m3fn_constant) {
+    const auto model = convert_model("float8e4m3fn_constant.onnx");
+    auto test_case = test::TestCase(model);
+    test_case.add_expected_output<int64_t>({6});
+    // Float8e4m3(fn) doesn't have infinity/-infinity values
+    test_case.add_expected_output<ov::float8_e4m3>({-1.0f, 0.0f, 1.0f, NAN, 256.f, -256.f});
+
+    test_case.run();
+}
