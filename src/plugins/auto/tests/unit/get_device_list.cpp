@@ -268,10 +268,10 @@ TEST_P(GetValidDeviceListTest, GetValidFilteredDeviceListTest) {
 }
 
 const std::vector<ConfigFilterParams> testValidConfigs = {
-    ConfigFilterParams{80,
-                       {{"CPU", {}, -1, "01", "CPU_01", 0}},
-                       {{"CPU", {{"Total", 15.3}}}},
-                       {{"CPU", {}, -1, "01", "CPU_01", 0}}},
+    ConfigFilterParams{80,                                     // utilization threshold
+                       {{"CPU", {}, -1, "01", "CPU_01", 0}},   // device candidates list
+                       {{"CPU", {{"Total", 15.3}}}},           // device utilization
+                       {{"CPU", {}, -1, "01", "CPU_01", 0}}},  // expected list of device candidates after filtering
     ConfigFilterParams{80,
                        {{"CPU", {}, -1, "01", "CPU_01", 0}},
                        {{"CPU", {{"Total", 85.2}}}},
