@@ -40,6 +40,7 @@ REGISTER_CPU(assign);
 REGISTER_CPU(proposal);
 REGISTER_CPU(read_value);
 REGISTER_CPU(non_max_suppression);
+REGISTER_CPU(non_max_suppression_gather);
 REGISTER_CPU(detection_output);
 REGISTER_CPU(shape_of);
 REGISTER_CPU(concatenation);

@@ -16,6 +16,7 @@ void register_implementations() {
     REGISTER_CPU(proposal);
     REGISTER_CPU(read_value);
     REGISTER_CPU(non_max_suppression);
+    REGISTER_CPU(non_max_suppression_gather);
     REGISTER_CPU(shape_of);
     REGISTER_CPU(concatenation);
     REGISTER_CPU(gather);

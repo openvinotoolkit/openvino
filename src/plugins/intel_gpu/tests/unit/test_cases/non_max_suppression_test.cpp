@@ -572,6 +572,125 @@ struct non_max_suppression_basic : public testing::Test {
         }
     }
 
+    void test_nms_gather_score_threshold(bool is_caching_test) {
+        auto& engine = tests::get_test_engine();
+
+        auto num_per_class_mem = engine.allocate_memory(layout(data_types::f32, format::bfyx, tensor(batch(1))));
+        tests::set_values(num_per_class_mem, {3.f});
+        auto iou_threshold_mem = engine.allocate_memory(layout(data_types::f32, format::bfyx, tensor(batch(1))));
+        tests::set_values(iou_threshold_mem, {0.4f});
+        auto score_threshold_mem = engine.allocate_memory(layout(data_types::f32, format::bfyx, tensor(batch(1))));
+        tests::set_values(score_threshold_mem, {0.4f});
+
+        const auto l_boxes = this->boxes_layout;
+        const auto l_scores = this->scores_layout;
+
+        topology topo;
+        topo.add(input_layout("boxes", layout{ov::PartialShape{l_boxes.batch(), l_boxes.feature(), l_boxes.spatial(1)}, l_boxes.data_type, l_boxes.format}));
+        topo.add(input_layout("scores", layout{ov::PartialShape{l_scores.batch(), l_scores.feature(), l_scores.spatial(1)}, l_scores.data_type, l_scores.format}));
+        topo.add(data("num_per_class", num_per_class_mem));
+        topo.add(data("iou_threshold", iou_threshold_mem));
+        topo.add(data("score_threshold", score_threshold_mem));
+        topo.add(reorder("reformat_boxes", input_info("boxes"), this->layout_format, this->data_type));
+        topo.add(reorder("reformat_scores", input_info("scores"), this->layout_format, this->data_type));
+
+        auto nms = non_max_suppression("nms",
+                                    input_info("reformat_boxes"),
+                                    input_info("reformat_scores"),
+                                    this->batch_size * this->classes_num * this->boxes_num,
+                                    false,
+                                    true,
+                                    "num_per_class",
+                                    "iou_threshold",
+                                    "score_threshold",
+                                    "", "", "", 3);
+        auto output_data_type = this->data_type;
+        nms.output_data_types = {optional_data_type{}, optional_data_type{output_data_type}, optional_data_type{}};
+        nms.output_paddings = {padding(), padding(), padding()};
+        
+        topo.add(nms);
+        topo.add(non_max_suppression_gather("nms_gather",
+                                            {input_info("nms", 0),
+                                            input_info("nms", 1),
+                                            input_info("nms", 2)},
+                                            3));
+        topo.add(reorder("plane_nms0", input_info("nms_gather", 0), format::bfyx, cldnn::data_types::i32));
+        topo.add(reorder("plane_nms1", input_info("nms_gather", 1), format::bfyx, this->data_type));
+        topo.add(reorder("plane_nms2", input_info("nms_gather", 2), format::bfyx, cldnn::data_types::i32));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+        cldnn::network::ptr net = get_network(engine, topo, config, get_test_stream_ptr(), is_caching_test);
+
+        auto boxes_mem = this->get_boxes_memory(engine);
+        auto scores_mem = this->get_scores_memory(engine);
+
+        net->set_input_data("boxes", boxes_mem);
+        net->set_input_data("scores", scores_mem);
+
+        auto result = net->execute();
+
+        // output 0
+        std::vector<int> expected_out0 = {
+            0, 0, 2,
+            0, 1, 0,
+            1, 0, 2,
+            0, 0, 1,
+            1, 0, 1
+        };
+
+        auto out_mem0 = result.at("plane_nms0").get_memory();
+        cldnn::mem_lock<int> out0_ptr(out_mem0, get_test_stream());
+
+        ASSERT_EQ(expected_out0.size(), out0_ptr.size());
+        for (size_t i = 0; i < out0_ptr.size(); ++i) {
+            ASSERT_EQ(expected_out0[i], out0_ptr[i]) << "at i = " << i;
+        }
+
+        // output 1
+        if (this->data_type == cldnn::data_types::f32) {
+            std::vector<float> expected_out1 = {
+                0.0f, 0.0f, 0.9f,
+                0.0f, 1.0f, 0.9f,
+                1.0f, 0.0f, 0.8f,
+                0.0f, 0.0f, 0.7f,
+                1.0f, 0.0f, 0.5f
+            };
+            auto out_mem1 = result.at("plane_nms1").get_memory();
+            cldnn::mem_lock<float> out1_ptr(out_mem1, get_test_stream());
+
+            ASSERT_EQ(expected_out1.size(), out1_ptr.size());
+            for (size_t i = 0; i < out1_ptr.size(); ++i) {
+                ASSERT_EQ(expected_out1[i], out1_ptr[i]) << "at i = " << i;
+            }
+        } else if (this->data_type == cldnn::data_types::f16) {
+            std::vector<ov::float16> expected_out1 = {
+                0.0f, 0.0f, 0.899902f,
+                0.0f, 1.0f, 0.899902f,
+                1.0f, 0.0f, 0.799805f,
+                0.0f, 0.0f, 0.700195f,
+                1.0f, 0.0f, 0.5f
+            };
+            auto out_mem1 = result.at("plane_nms1").get_memory();
+            cldnn::mem_lock<ov::float16> out1_ptr(out_mem1, get_test_stream());
+
+            ASSERT_EQ(expected_out1.size(), out1_ptr.size());
+            for (size_t i = 0; i < out1_ptr.size(); ++i) {
+                ASSERT_EQ(expected_out1[i], out1_ptr[i]) << "at i = " << i;
+            }
+        } else {
+            GTEST_FAIL() << "Not supported data type.";
+        }
+
+        // output 2
+        auto out_mem2 = result.at("plane_nms2").get_memory();
+        cldnn::mem_lock<int> out2_ptr(out_mem2, get_test_stream());
+        ASSERT_EQ(1, out2_ptr.size());
+        ASSERT_EQ(5, out2_ptr[0]);
+    }
+
     void test_soft_nms_sigma(bool is_caching_test) {
         auto& engine = tests::get_test_engine();
 
@@ -676,6 +795,10 @@ TYPED_TEST(non_max_suppression_basic, iou_threshold) {
 
 TYPED_TEST(non_max_suppression_basic, score_threshold) {
     this->test_score_threshold(false);
+}
+
+TYPED_TEST(non_max_suppression_basic, nms_gather_score_threshold) {
+    this->test_nms_gather_score_threshold(false);
 }
 
 TYPED_TEST(non_max_suppression_basic, soft_nms_sigma) {
