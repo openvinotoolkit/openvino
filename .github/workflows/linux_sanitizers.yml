@@ -36,10 +36,10 @@ jobs:
         include:
           - SANITIZER: 'AddressAndLeak'
             SANITIZER_CMAKE_OPTION: '-DENABLE_SANITIZER=ON'
-#          - SANITIZER: 'UndefinedBehavior'  # Ticket: 144163
-#            SANITIZER_CMAKE_OPTION: '-DENABLE_UB_SANITIZER=ON'
-#          - SANITIZER: 'Thread'  # Problems with protobuf
-#            SANITIZER_CMAKE_OPTION: '-DENABLE_THREAD_SANITIZER=ON'
+          #- SANITIZER: 'UndefinedBehavior'  # Ticket: 144163
+          #  SANITIZER_CMAKE_OPTION: '-DENABLE_UB_SANITIZER=ON'
+          #- SANITIZER: 'Thread'  # Problems with protobuf
+          #  SANITIZER_CMAKE_OPTION: '-DENABLE_THREAD_SANITIZER=ON'
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'RelWithDebInfo'
@@ -218,8 +218,8 @@ jobs:
       matrix:
         include:
           - SANITIZER: 'AddressAndLeak'
-#          - SANITIZER: 'UndefinedBehavior'  # the UB library is not linked properly at the Build stage
-#          - SANITIZER: 'Thread'  # Problems with protobuf at the Build stage
+          #- SANITIZER: 'UndefinedBehavior'  # the UB library is not linked properly at the Build stage
+          #- SANITIZER: 'Thread'  # Problems with protobuf at the Build stage
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
@@ -471,13 +471,22 @@ jobs:
           if-no-files-found: 'error'
   CPU_Functional_Tests:
     name: CPU functional tests
+    needs: Build
     timeout-minutes: 30
-    runs-on: ${{ inputs.runner }}
+    runs-on: 'aks-linux-16-cores-32gb'
     container:
-      image: ${{ inputs.image }}
+      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04'
     defaults:
       run:
         shell: bash
+    strategy:
+      max-parallel: 3
+      fail-fast: false
+      matrix:
+        include:
+          - SANITIZER: 'AddressAndLeak'
+          #- SANITIZER: 'UndefinedBehavior'  # the UB library is not linked properly at the Build stage
+          #- SANITIZER: 'Thread'  # Problems with protobuf at the Build stage
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
@@ -485,17 +494,21 @@ jobs:
       PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py
       PARALLEL_TEST_CACHE: ${{ github.workspace }}/install/tests/test_cache.lst
     steps:
+      - name: Set apt retries
+        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+
       - name: Download OpenVINO package
         uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
-          name: openvino_package
+          name: ${{ format('openvino_package_{0}', matrix.SANITIZER) }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
         uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: openvino_tests
-          path: ${{ env.INSTALL_TEST_DIR }}
+          name: ${{ format('openvino_package_{0}', matrix.SANITIZER) }}
+          path: ${{ env.INSTALL_DIR }}
 
       # Needed as ${{ github.workspace }} is not working correctly when using Docker
       - name: Setup Variables
@@ -504,6 +517,9 @@ jobs:
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "PARALLEL_TEST_SCRIPT=$GITHUB_WORKSPACE/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py" >> "$GITHUB_ENV"
           echo "PARALLEL_TEST_CACHE=$GITHUB_WORKSPACE/install/tests/test_cache.lst" >> "$GITHUB_ENV"
+
+          echo "ASAN_OPTIONS=halt_on_error=0:suppressions=$GITHUB_WORKSPACE/openvino/tests/asan/suppressions.supp" >> "$GITHUB_ENV"
+          echo "LSAN_OPTIONS=suppressions=$GITHUB_WORKSPACE/openvino/tests/lsan/suppressions.txt:NEOReadDebugKeys=1:DisableDeepBind=1" >> "$GITHUB_ENV"
 
       - name: Extract OpenVINO packages
         run: |
@@ -514,6 +530,20 @@ jobs:
           pushd $INSTALL_TEST_DIR
             tar -xzf openvino_tests.tar.gz -C $INSTALL_DIR
           popd
+
+      - name: Install dependencies (Linux)
+        run: |
+          $INSTALL_DIR/install_dependencies/install_openvino_dependencies.sh -c=core -c=dev -c=gpu -y
+          apt update && apt --assume-yes install clang lld
+
+      - name: Fetch Sanitizer Suppression Lists
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+        with:
+          sparse-checkout: |
+            tests/lsan/suppressions.txt
+            tests/asan/suppressions.supp
+          sparse-checkout-cone-mode: false
+          path: 'openvino'
 
       - name: Fetch setup_python action
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
