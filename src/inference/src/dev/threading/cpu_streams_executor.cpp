@@ -91,7 +91,7 @@ struct CPUStreamsExecutor::Impl {
             }
 #elif OV_THREAD == OV_THREAD_SEQ
             auto proc_type_table = get_org_proc_type_table();
-            if (get_num_numa_nodes() > 1) {
+            if (get_num_numa_nodes() > 1 && _impl->_config.get_cpu_pinning()) {
                 pin_current_thread_to_socket(_numaNodeId);
             } else if (proc_type_table.size() == 1 && proc_type_table[0][EFFICIENT_CORE_PROC] == 0 &&
                        _impl->_config.get_cpu_pinning()) {
@@ -519,6 +519,10 @@ int CPUStreamsExecutor::get_socket_id() {
 CPUStreamsExecutor::CPUStreamsExecutor(const IStreamsExecutor::Config& config) : _impl{new Impl{config}} {}
 
 CPUStreamsExecutor::~CPUStreamsExecutor() {
+#if OV_THREAD == OV_THREAD_SEQ
+    auto proc_type_table = get_org_proc_type_table();
+    set_all_cpus_available(proc_type_table[0][ALL_PROC]);
+#endif
     {
         std::lock_guard<std::mutex> lock(_impl->_mutex);
         _impl->_isStopped = true;

@@ -109,6 +109,17 @@ bool pin_current_thread_to_socket(int socket) {
     }
     return res;
 }
+
+void set_all_cpus_available(int ncpus) {
+    CpuSet targetMask{CPU_ALLOC(ncpus)};
+    const size_t size = CPU_ALLOC_SIZE(ncpus);
+    CPU_ZERO_S(size, targetMask.get());
+    for (int core = 0; core < ncpus; core++) {
+        CPU_SET_S(core, size, targetMask.get());
+    }
+    pin_current_thread_by_mask(ncpus, targetMask);
+}
+
 #elif defined(_WIN32)
 std::tuple<CpuSet, int> get_process_mask() {
     DWORD_PTR pro_mask, sys_mask;
@@ -134,6 +145,7 @@ bool pin_current_thread_by_mask(int ncores, const CpuSet& procMask) {
 bool pin_current_thread_to_socket(int socket) {
     return false;
 }
+void set_all_cpus_available(int ncpus) {}
 #else   // no threads pinning/binding on MacOS
 std::tuple<CpuSet, int> get_process_mask() {
     return std::make_tuple(nullptr, 0);
@@ -153,6 +165,7 @@ bool pin_current_thread_by_mask(int ncores, const CpuSet& procMask) {
 bool pin_current_thread_to_socket(int socket) {
     return false;
 }
+void set_all_cpus_available(int ncpus) {}
 #endif  // !(defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
 }  // namespace threading
 }  // namespace ov
