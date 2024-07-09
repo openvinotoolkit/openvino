@@ -322,7 +322,7 @@ class TorchFXPythonDecoder (Decoder):
         for user in self.pt_module.users:
             if "<built-in function getitem>" == str(user.target) and max_out_id < user.args[1]:
                 max_out_id = user.args[1]
-        return max_out_id+1
+        return max_out_id + 1
 
     def output(self, index):
         return self.outputs()[index]
