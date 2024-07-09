@@ -241,6 +241,7 @@ class OperatorSupport(OperatorSupport):
             "torch.ops.aten.transpose.int": None,
             "torch.ops.aten.tril.default": None,
             "torch.ops.aten.tril_.default": None,
+            "torch.ops.aten.triu.default": None,
             "torch.ops.aten.unbind.int": None,
             "torch.ops.aten.unfold.default": None,
             "torch.ops.aten.unsqueeze.default": None,

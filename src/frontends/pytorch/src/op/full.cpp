@@ -5,6 +5,7 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
@@ -74,9 +75,15 @@ OutputVector translate_full(const NodeContext& context) {
 OutputVector translate_full_fx(const NodeContext& context) {
     // aten.full.default([16, 16], 0, dtype = torch.float32, layout = torch.strided, device = device(type='cpu'),
     // pin_memory = False)
-    num_inputs_check(context, 2, 2);
-    auto sizes = context.get_input(0);
-    auto value = context.get_input(1);
+    auto num_inputs = context.get_input_size();
+    num_inputs_check(context, 2, num_inputs);
+    ov::Output<ov::Node> sizes;
+    if (context.get_input_type(0).is<type::List>()) {
+        sizes = concat_list_from_inputs(context, 0, num_inputs - 1);
+    } else {
+        sizes = context.get_input(0);
+    }
+    auto value = context.get_input(static_cast<int>(num_inputs - 1));
 
     auto filled_tensor = base_translate_full(context, sizes, value);
     if (context.has_attribute("dtype")) {
