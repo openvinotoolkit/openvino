@@ -12,7 +12,7 @@ namespace ov {
 constexpr uint32_t three_bytes_shift = 24;
 
 namespace util {
-// namespace {
+namespace {
 
 /**
  * @brief Reinterpret float value to 32 bits.
@@ -20,7 +20,7 @@ namespace util {
  * @param value  Input float value.
  * @return       The 32-bite value
  */
-static inline uint32_t f32_to_u32_bits(float value) {
+inline uint32_t f32_to_u32_bits(float value) {
     uint32_t bits;
     static_assert(sizeof(bits) == sizeof(value), "'bits' must have same number bits as `float`");
     std::memcpy(&bits, &value, sizeof(bits));
@@ -33,12 +33,12 @@ static inline uint32_t f32_to_u32_bits(float value) {
  * @param bits  Input bits.
  * @return      The float value.
  */
-static inline float u32_bits_to_f32(uint32_t bits) {
+inline float u32_bits_to_f32(uint32_t bits) {
     float value;
     static_assert(sizeof(bits) == sizeof(value), "'bits' must have same number bits as `float`");
     std::memcpy(&value, &bits, sizeof(bits));
     return value;
 }
-// }  // namespace
+}  // namespace
 }  // namespace util
 }  // namespace ov
