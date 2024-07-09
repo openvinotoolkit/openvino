@@ -209,6 +209,15 @@ void CompiledModel::configure_stream_executors() {
 }
 
 void CompiledModel::initialize_properties() {
+    const auto pluginSupportedProperties =
+        get_plugin()->get_property(ov::supported_properties.name(), {}).as<std::vector<ov::PropertyName>>();
+    const auto isPropertySupported = [&pluginSupportedProperties](const std::string& name) {
+        return std::any_of(pluginSupportedProperties.begin(),
+                           pluginSupportedProperties.end(),
+                           [&name](const ov::PropertyName& property) {
+                               return property == name;
+                           });
+    };
     _properties = {
         // OV Public
         // =========
@@ -257,7 +266,7 @@ void CompiledModel::initialize_properties() {
               return config.get<LOADED_FROM_CACHE>();
           }}},
         {ov::workload_type.name(),
-         {true,
+         {isPropertySupported(ov::workload_type.name()),
           ov::PropertyMutability::RW,
           [](const Config& config) {
               return config.get<WORKLOAD_TYPE>();

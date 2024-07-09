@@ -131,8 +131,14 @@ TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadType) {
     OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
     ov::AnyMap modelConfiguration;
     modelConfiguration[workload_type.name()] = WorkloadType::DEFAULT;
+    auto supportedProperties = execNet.get_property(supported_properties.name()).as<std::vector<PropertyName>>();
+    bool workloadTypeSupported =
+        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
+            return property == workload_type.name();
+        });
 
     if (isWorkloadTypeSupported()) {
+        ASSERT_TRUE(workloadTypeSupported);
         OV_ASSERT_NO_THROW(execNet.set_property(modelConfiguration));
         ov::InferRequest req;
         OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
@@ -145,6 +151,7 @@ TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadType) {
         OV_ASSERT_NO_THROW(req.wait());
         ASSERT_TRUE(is_called);
     } else {
+        ASSERT_FALSE(workloadTypeSupported);
         OV_EXPECT_THROW_HAS_SUBSTRING(execNet.set_property(modelConfiguration),
                                       ov::Exception,
                                       "WorkloadType property is not supported by the current Driver Version!");
