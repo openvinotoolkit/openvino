@@ -492,15 +492,6 @@ kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(kernel_im
 
 
 event::ptr primitive_inst::realloc_if_needed() {
-    auto has_subgraph_dependency = [](std::vector<std::pair<const cldnn::primitive_inst*, int>> dependencies) {
-        for (auto dependency : dependencies) {
-            if (dependency.first && dependency.first->get_node().is_in_shape_of_subgraph()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("realloc_if_needed: " + id()));
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
@@ -509,7 +500,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     const auto& users = get_user_insts();
     if (users.size() == 1 && users.front()->get_node().is_type<concatenation>()) {
         auto concat_inst = users.front();
-        if (concat_inst->can_be_optimized() && !has_subgraph_dependency(concat_inst->dependencies())) {
+        if (concat_inst->can_be_optimized()) {
             if (!concat_inst->allocation_done_by_other) {
                 concat_inst->realloc_if_needed();
                 concat_inst->allocation_done_by_other = true;
@@ -1298,6 +1289,14 @@ void primitive_inst::do_runtime_skip_broadcast() {
 }
 
 void primitive_inst::do_runtime_in_place_concat() {
+     auto has_subgraph_dependency = [](std::vector<std::pair<const cldnn::primitive_inst*, int>> dependencies) {
+        for (auto dependency : dependencies) {
+            if (dependency.first && dependency.first->get_node().is_in_shape_of_subgraph()) {
+                return true;
+            }
+        }
+        return false;
+    }
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("do_runtime_in_place_concat: " + id()));
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(debug_config->disable_runtime_buffer_fusing) {
@@ -1360,6 +1359,12 @@ void primitive_inst::do_runtime_in_place_concat() {
         ++i;
     }
     concat_inst->_impl_params->output_layouts[0] = concat_layout; // TODO : Once this primitive_inst::can_be_optimized, consolidate it to impl_params->optimized
+
+    if (has_subgraph_dependency(concat_inst->dependencies())) {
+        concat_inst->set_can_be_optimized(false);
+        return;
+    }
+
     concat_inst->set_can_be_optimized(true);
     GPU_DEBUG_TRACE_DETAIL << "[In place concat] " << concat_inst->id() << ": can_be_optimized " << std::endl;
 }
