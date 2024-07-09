@@ -39,7 +39,6 @@ struct MersenneTwisterGeneratorCallArgs {
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 class PhiloxGenerator : public JitKernel<GeneratorCompileParams, PhiloxGeneratorCallArgs> {
 public:
-
     DECLARE_CPU_JIT_AUX_FUNCTIONS(PhiloxGenerator)
 
     explicit PhiloxGenerator(const GeneratorCompileParams& jcp);
@@ -106,7 +105,6 @@ private:
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 class MersenneTwisterGenerator : public JitKernel<GeneratorCompileParams, MersenneTwisterGeneratorCallArgs> {
 public:
-
     DECLARE_CPU_JIT_AUX_FUNCTIONS(MersenneTwisterGenerator)
 
     explicit MersenneTwisterGenerator(const GeneratorCompileParams& jcp);
