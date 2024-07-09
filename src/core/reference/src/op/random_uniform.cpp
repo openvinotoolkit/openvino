@@ -6,6 +6,7 @@
 
 #include <ctime>
 #include <memory>
+#include <random>
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/shape.hpp"
@@ -30,7 +31,8 @@ std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
     // Implementation in plugins may differ for this case.
     if (seed == 0 && seed2 == 0) {
         std::srand(static_cast<unsigned int>(std::time(nullptr)));
-        seed = std::rand();
+        std::mt19937_64 gen(static_cast<uint64_t>(std::time(nullptr)));
+        seed = gen();
     }
 
     // Calculate total element count for generation
@@ -49,8 +51,8 @@ std::pair<uint64_t, uint64_t> random_uniform(const uint64_t* out_shape,
     // Generate randon numbers and convert them until the output array is full
     const size_t step = converter->get_converted_elements_count();
     for (size_t i = 0; i < elem_count; i += step) {
-        phillox::PhilloxOutput result = generator->random();
-        converter->convert(result, i);
+        const auto& result = generator->random();
+        converter->convert(std::move(result), i);
     }
 
     // Return the next state to feed into the generator
