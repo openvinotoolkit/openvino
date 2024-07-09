@@ -34,7 +34,7 @@ namespace random_uniform {
 #define GET_OFF(field) offsetof(PhiloxGeneratorCallArgs, field)
 
 template <x64::cpu_isa_t isa>
-PhiloxGenerator<isa>::PhiloxGenerator(const GeneratorCompileParams& jcp) : 
+PhiloxGenerator<isa>::PhiloxGenerator(const GeneratorCompileParams& jcp) :
     JitKernel(jit_name(), jcp, isa) {}
 
 template <x64::cpu_isa_t isa>
@@ -248,7 +248,6 @@ void PhiloxGenerator<isa>::initVectors() {
     }
 
     uni_vpaddq(v_n_64, v_n_64, ptr[r64_aux]);
-
 }
 
 template <x64::cpu_isa_t isa>
@@ -675,7 +674,6 @@ void MersenneTwisterGenerator<x64::avx512_core>::initVectors() {
     // Initialize constants
     mov(r32_aux, MT_CONST_1);
     uni_vpbroadcastd(v_temp, r32_aux);
-
 }
 
 template <x64::cpu_isa_t isa>
@@ -693,7 +691,6 @@ void MersenneTwisterGenerator<isa>::initVectors() {
     // Initialize constants
     mov(r64_aux, MT_CONST_1);
     uni_vmovdqu(v_temp, ptr[r64_aux]);
-
 }
 
 template <x64::cpu_isa_t isa>
@@ -732,7 +729,7 @@ void MersenneTwisterGenerator<isa>::generateRandomNumbers(const Vmm& v_dst_0, co
     // uni_vpsrlq(v_temp, v_dst_0, 7);
     uni_vpxor(v_dst_0, v_dst_0, v_temp);
 
-    uni_vmovups(v_dst_1, v_dst_0); 
+    uni_vmovups(v_dst_1, v_dst_0);
 }
 
 template <x64::cpu_isa_t isa>
