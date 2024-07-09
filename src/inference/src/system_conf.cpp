@@ -419,7 +419,7 @@ void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_tab
                                                cpu._proc_type_table,
                                                stream_processors,
                                                cpu_status);
-#ifdef ENABLE_OPENVINO_DEBUG
+#    ifdef ENABLE_OPENVINO_DEBUG
     OPENVINO_DEBUG("[ threading ] stream_processors:");
     for (size_t i = 0; i < stream_processors.size(); i++) {
         OPENVINO_DEBUG("{");
@@ -428,7 +428,7 @@ void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_tab
         }
         OPENVINO_DEBUG("},");
     }
-#endif
+#    endif
 }
 
 void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {

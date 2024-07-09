@@ -85,8 +85,11 @@ static bool maybe_adopt_reshape_node(std::shared_ptr<ov::Node> reshape, ov::Mask
     consumers.begin()->replace_source_output(sub);
     copy_runtime_info(shape.get_node_shared_ptr(), {sub_const, sub});
 
-    OPENVINO_DEBUG("Adopting values in (", shape.get_node()->get_friendly_name(), ")"
-                   " by substracting ", vec_to_str(sub_const_vector));
+    OPENVINO_DEBUG("Adopting values in (",
+                   shape.get_node()->get_friendly_name(),
+                   ")"
+                   " by substracting ",
+                   vec_to_str(sub_const_vector));
     return true;
 }
 
@@ -235,8 +238,12 @@ bool ov::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ov::Model>& f) 
                                                             dim_current_set.end(),
                                                             dim_init_set.begin(),
                                                             dim_init_set.end())) {
-                    OPENVINO_DEBUG("Mask was ruined for node: ", const_node->get_friendly_name(),
-                                   "\nInit mask: ", *init_mask, "\nCurrent mask: ", *mask);
+                    OPENVINO_DEBUG("Mask was ruined for node: ",
+                                   const_node->get_friendly_name(),
+                                   "\nInit mask: ",
+                                   *init_mask,
+                                   "\nCurrent mask: ",
+                                   *mask);
                     break;
                 }
             }
@@ -258,8 +265,12 @@ bool ov::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ov::Model>& f) 
             ov::copy_runtime_info(const_node, new_const);
             ov::replace_node(const_node, new_const);
 
-            OPENVINO_DEBUG("Adjust value in (", const_node->get_friendly_name(), "): ", vec_to_str(value),
-                           " to ", vec_to_str(new_const_value));
+            OPENVINO_DEBUG("Adjust value in (",
+                           const_node->get_friendly_name(),
+                           "): ",
+                           vec_to_str(value),
+                           " to ",
+                           vec_to_str(new_const_value));
             continue;
         }
         auto last_output = const_node->output(0);
@@ -278,8 +289,14 @@ bool ov::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ov::Model>& f) 
             auto new_const = opset6::Constant::create(const_node->get_element_type(), Shape{res.size()}, res);
             replace_node(const_node, new_const);
             copy_runtime_info(const_node, new_const);
-            OPENVINO_DEBUG("Transform shape like (" ,last_output.get_node()->get_friendly_name(),
-                           ,"): ", const_node->get_shape_val(), " to ", new_const->get_shape_val(), "\n");
+            OPENVINO_DEBUG("Transform shape like (",
+                           last_output.get_node()->get_friendly_name(),
+                           ,
+                           "): ",
+                           const_node->get_shape_val(),
+                           " to ",
+                           new_const->get_shape_val(),
+                           "\n");
             new_const->set_friendly_name(const_node->get_friendly_name());
         } else {
             for (size_t dim = 0; dim < mask->size(); ++dim) {
@@ -304,8 +321,7 @@ bool ov::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ov::Model>& f) 
                     last_output,
                     opset6::Constant::create(element::i64, Shape{dims_to_keep.size()}, dims_to_keep),
                     opset6::Constant::create(element::i64, Shape{}, {dim}));
-                OPENVINO_DEBUG("Transform(", prev_name, "): ", prev_shape, " to ",
-                               last_output.get_partial_shape());
+                OPENVINO_DEBUG("Transform(", prev_name, "): ", prev_shape, " to ", last_output.get_partial_shape());
 
                 if (prev_shape.is_static() && last_output.get_partial_shape().is_static()) {
                     reduced_weights_count += shape_size(prev_shape.get_shape()) - shape_size(last_output.get_shape());

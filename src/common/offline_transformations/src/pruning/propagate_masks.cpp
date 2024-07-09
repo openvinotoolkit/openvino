@@ -312,7 +312,8 @@ public:
                     setMask(m_weights, weights_mask);
                 } else {
                     OPENVINO_DEBUG("GroupConvolution: No weights mask and weights aren't constant for ",
-                                   *m_output.get_node(), "\n");
+                                   *m_output.get_node(),
+                                   "\n");
                     return false;
                 }
             }
@@ -479,7 +480,8 @@ public:
                 return false;
 
             if (m_output.get_node_shared_ptr()->get_autob() != op::AutoBroadcastType::NUMPY) {
-                OPENVINO_DEBUG("Can't propagate mask through ", m_output.get_node()->get_friendly_name(),
+                OPENVINO_DEBUG("Can't propagate mask through ",
+                               m_output.get_node()->get_friendly_name(),
                                " because node is using unsupported broadcast mode.\n");
                 return false;
             }
@@ -541,7 +543,8 @@ public:
 
             // Prevent case when input_shape and weights_shape both has broadcasted dims
             if (input_shape_broadcasted_dims.size() && weights_shape_broadcasted_dims.size()) {
-                OPENVINO_DEBUG("Can't propagate mask through ", m_output.get_node()->get_friendly_name(),
+                OPENVINO_DEBUG("Can't propagate mask through ",
+                               m_output.get_node()->get_friendly_name(),
                                " because both input shapes contains broadcasted dims.\n");
                 return false;
             }
@@ -1135,8 +1138,10 @@ public:
             if (!constant) {
                 constant = ov::util::get_constant_from_source(m_weights.get_node_shared_ptr());
                 if (!constant) {
-                    OPENVINO_DEBUG("Can't process reshape node ", m_output.get_node()->get_friendly_name(),
-                                   " with no constant node ", m_weights.get_node()->get_friendly_name(),
+                    OPENVINO_DEBUG("Can't process reshape node ",
+                                   m_output.get_node()->get_friendly_name(),
+                                   " with no constant node ",
+                                   m_weights.get_node()->get_friendly_name(),
                                    " as shape input.");
                     return false;
                 }
@@ -1380,8 +1385,10 @@ public:
 
             const auto input_order_node = ov::util::get_constant_from_source(m_weights.get_node_shared_ptr());
             if (!input_order_node) {
-                OPENVINO_DEBUG("Can't process transpose node ", m_output.get_node()->get_friendly_name(),
-                               " with no constant node ", m_weights.get_node()->get_friendly_name(),
+                OPENVINO_DEBUG("Can't process transpose node ",
+                               m_output.get_node()->get_friendly_name(),
+                               " with no constant node ",
+                               m_weights.get_node()->get_friendly_name(),
                                " as input_order input.");
                 return false;
             }
@@ -1621,7 +1628,10 @@ public:
 
                     // Invalidate current mask and its parent masks
                     output_mask->apply_callback(input_mask);
-                    OPENVINO_DEBUG("Invalidate masks for ", *input.get_node(), " because ", node,
+                    OPENVINO_DEBUG("Invalidate masks for ",
+                                   *input.get_node(),
+                                   " because ",
+                                   node,
                                    " is in scope of stop ops.\n");
                     any_input_with_masks = true;
                 }

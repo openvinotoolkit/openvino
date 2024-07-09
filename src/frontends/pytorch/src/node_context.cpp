@@ -73,8 +73,11 @@ void NodeContext::mutate_input(size_t index, Output<Node> ov_output) const {
         auto reverseprop_node = m_translate_session->get_reverseprop_op(node, node_converted_output, back_node_input);
         if (m_tensor_map->count(in_tensor)) {
             // Tensor is not found in the scope of this body, need to get it from internal context and mark mutated
-            OPENVINO_DEBUG("Couldn't find in the current body the initial aliased tensor: ", in_tensor,
-                           " for operation: ", node->get_op_type(), " creating new body input.");
+            OPENVINO_DEBUG("Couldn't find in the current body the initial aliased tensor: ",
+                           in_tensor,
+                           " for operation: ",
+                           node->get_op_type(),
+                           " creating new body input.");
             get_tensor_from_model_or_create_input(in_tensor);
         }
         m_translate_session->encode_tensor_name(reverseprop_node, in_tensor);
@@ -139,8 +142,7 @@ std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) const {
         auto parameter = model->get_parameters()[i];
         if (parameter->output(0).get_target_inputs().empty()) {
             // There is no consumers: safe to remove
-            OPENVINO_DEBUG("Removing parameter ", parameter,
-                           " in converted Pytorch model, because it is never used\n");
+            OPENVINO_DEBUG("Removing parameter ", parameter, " in converted Pytorch model, because it is never used\n");
             model->remove_parameter(parameter);
         }
     }

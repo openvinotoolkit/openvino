@@ -97,8 +97,10 @@ public:
             auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(
                 m.get_match_root()->input_value(const_node_index).get_node_shared_ptr());
             auto second_node = m.get_match_root()->input_value(const_node_index).get_node_shared_ptr();
-            OPENVINO_DEBUG("second_node = ", second_node->get_name(),
-                           " , pattern = ", pattern_map[pattern]->get_name());
+            OPENVINO_DEBUG("second_node = ",
+                           second_node->get_name(),
+                           " , pattern = ",
+                           pattern_map[pattern]->get_name());
 
             if (pattern_map[pattern]->get_element_type() != const_node->get_element_type() ||
                 pattern_map[pattern]->get_shape() != const_node->get_shape()) {
@@ -155,8 +157,10 @@ public:
             auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(
                 m.get_match_root()->input_value(const_node_index).get_node_shared_ptr());
             auto second_node = m.get_match_root()->input_value(const_node_index).get_node_shared_ptr();
-            OPENVINO_DEBUG("second_node = ", second_node->get_name(),
-                           " , pattern = ", pattern_map[pattern]->get_name());
+            OPENVINO_DEBUG("second_node = ",
+                           second_node->get_name(),
+                           " , pattern = ",
+                           pattern_map[pattern]->get_name());
 
             if (pattern_map[pattern]->get_element_type() != const_node->get_element_type() ||
                 pattern_map[pattern]->get_shape() != const_node->get_shape()) {

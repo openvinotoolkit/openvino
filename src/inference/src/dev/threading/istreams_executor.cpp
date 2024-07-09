@@ -287,16 +287,28 @@ void IStreamsExecutor::Config::update_executor_config() {
 #ifdef ENABLE_OPENVINO_DEBUG
     OPENVINO_DEBUG("[ threading ] proc_type_table:");
     for (size_t i = 0; i < proc_type_table.size(); i++) {
-        OPENVINO_DEBUG(proc_type_table[i][ALL_PROC], proc_type_table[i][MAIN_CORE_PROC], " ",
-                       proc_type_table[i][EFFICIENT_CORE_PROC], " ", proc_type_table[i][HYPER_THREADING_PROC],
-                       " ", proc_type_table[i][PROC_NUMA_NODE_ID], " ", proc_type_table[i][PROC_SOCKET_ID]);
+        OPENVINO_DEBUG(proc_type_table[i][ALL_PROC],
+                       proc_type_table[i][MAIN_CORE_PROC],
+                       " ",
+                       proc_type_table[i][EFFICIENT_CORE_PROC],
+                       " ",
+                       proc_type_table[i][HYPER_THREADING_PROC],
+                       " ",
+                       proc_type_table[i][PROC_NUMA_NODE_ID],
+                       " ",
+                       proc_type_table[i][PROC_SOCKET_ID]);
     }
 
     OPENVINO_DEBUG("[ threading ] streams_info_table:");
     for (size_t i = 0; i < _streams_info_table.size(); i++) {
-        OPENVINO_DEBUG(_streams_info_table[i][NUMBER_OF_STREAMS], " ", streams_info_table[i][PROC_TYPE], " ",
-                       _streams_info_table[i][THREADS_PER_STREAM], " ",
-                       _streams_info_table[i][STREAM_NUMA_NODE_ID], " ",
+        OPENVINO_DEBUG(_streams_info_table[i][NUMBER_OF_STREAMS],
+                       " ",
+                       streams_info_table[i][PROC_TYPE],
+                       " ",
+                       _streams_info_table[i][THREADS_PER_STREAM],
+                       " ",
+                       _streams_info_table[i][STREAM_NUMA_NODE_ID],
+                       " ",
                        _streams_info_table[i][STREAM_SOCKET_ID]);
     }
     OPENVINO_DEBUG("[ threading ] )", _name << ": ", _streams, "(", _threads, ")");

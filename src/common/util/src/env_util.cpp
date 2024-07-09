@@ -41,8 +41,11 @@ int32_t ov::util::getenv_int(const char* env_var, int32_t default_value) {
     }
 #ifdef ENABLE_OPENVINO_DEBUG
     else {
-        OPENVINO_DEBUG("Environment variable (" , env_var,
-                       ") empty or undefined, defaulted to ", default_value, " here.");
+        OPENVINO_DEBUG("Environment variable (",
+                       env_var,
+                       ") empty or undefined, defaulted to ",
+                       default_value,
+                       " here.");
     }
 #endif
     return env;

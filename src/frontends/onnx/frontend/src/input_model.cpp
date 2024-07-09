@@ -278,7 +278,8 @@ void InputModel::override_all_outputs(const std::vector<ov::frontend::Place::Ptr
     for (const auto& output : outputs) {
         bool is_correct = is_correct_place(output);
         if (!is_correct)
-            OPENVINO_WARN("Name  ", output->get_names().at(0),
+            OPENVINO_WARN("Name  ",
+                          output->get_names().at(0),
                           " of output node is not a correct node name. Ignoring this parameter.");
         else
             expected_valid_outputs.push_back(output);
@@ -311,7 +312,8 @@ void InputModel::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>
     for (const auto& input : inputs) {
         bool is_correct = is_correct_place(input);
         if (!is_correct)
-            OPENVINO_WARN("Name  ", input->get_names().at(0),
+            OPENVINO_WARN("Name  ",
+                          input->get_names().at(0),
                           " of input node is not a correct node. Ignoring this parameter.");
         else
             expected_valid_inputs.push_back(input);

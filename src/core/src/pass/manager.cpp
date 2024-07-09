@@ -117,7 +117,9 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
             // This checks is to skip the graph transformation when the graph pass relies on
             // static shape but the function state is dynamic.
             if (matcher_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic()) {
-                OPENVINO_DEBUG("Pass ", pass->get_name(), " requires static shape but the "
+                OPENVINO_DEBUG("Pass ",
+                               pass->get_name(),
+                               " requires static shape but the "
                                "model is dynamic. Skipping this transformation");
                 continue;
             }
@@ -128,7 +130,9 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
             // This checks is to skip the graph transformation when the graph pass relies on
             // static shape but the function state is dynamic.
             if (function_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic()) {
-                OPENVINO_DEBUG("Pass ", pass->get_name(), " requires static shape but the "
+                OPENVINO_DEBUG("Pass ",
+                               pass->get_name(),
+                               " requires static shape but the "
                                "model is dynamic. Skipping this transformation");
                 continue;
             }

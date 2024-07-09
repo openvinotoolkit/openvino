@@ -162,7 +162,10 @@ bool PluginInfo::load_internal() {
         so = ov::util::load_shared_object(m_file_path.c_str());
 #endif
     } catch (const std::exception& ex) {
-        OPENVINO_DEBUG("Error loading FrontEnd '", m_file_path, "': ", ex.what(),
+        OPENVINO_DEBUG("Error loading FrontEnd '",
+                       m_file_path,
+                       "': ",
+                       ex.what(),
                        " Please check that frontend library doesn't have unresolved dependencies.\n");
         return false;
     }

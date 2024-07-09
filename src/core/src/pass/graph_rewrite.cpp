@@ -142,9 +142,9 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
         // will be deprecated and removed.
         if (m_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && f->is_dynamic()) {
             OPENVINO_DEBUG("matcher callback requires static shape but the "
-                              "model is dynamic, skipping this "
-                              "optimization till the shapes are fully "
-                              "materialized");
+                           "model is dynamic, skipping this "
+                           "optimization till the shapes are fully "
+                           "materialized");
             return false;
         }
 

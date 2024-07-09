@@ -219,7 +219,8 @@ void InputModel::InputModelTFImpl::load_places() {
                 auto output_shapes = output_shapes_any.as<std::vector<ov::PartialShape>>();
                 if (output_shapes.size() == 1 && output_shapes[0].rank().is_static()) {
                     pshape = output_shapes[0];
-                    OPENVINO_DEBUG("TensorFlow Frontend: Placeholder ", op_name,
+                    OPENVINO_DEBUG("TensorFlow Frontend: Placeholder ",
+                                   op_name,
                                    " has shape from '_output_shapes' attribute.");
                 }
             }
