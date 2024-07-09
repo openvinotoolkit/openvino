@@ -113,8 +113,7 @@ Automated Device Configuration
 
 OpenVINO’s hardware device configuration options enable you to write an application once and deploy it anywhere with optimal performance.
 
-* Increase application portability with :doc:`Automatic Device Selection (AUTO) <openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection>`
-* Perform parallel inference across processors with :doc:`Multi-Device Execution (MULTI) <openvino-workflow/running-inference/inference-devices-and-modes/multi-device>`
+* Increase application portability and perform parallel inference across processors with :doc:`Automatic Device Selection (AUTO) <openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection>`
 * Efficiently split inference between hardware cores with :doc:`Heterogeneous Execution (HETERO) <openvino-workflow/running-inference/inference-devices-and-modes/hetero-execution>`
 
 Flexible Model and Pipeline Configuration

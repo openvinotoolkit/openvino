@@ -209,11 +209,11 @@ For more details and code examples, see the :doc:`Precision Control <../optimize
 Supported Features
 ###########################################################
 
-Multi-device Execution
+Automatic Device Selection
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 If a system includes OpenVINO-supported devices other than the CPU (e.g. an integrated GPU), then any supported model can be executed on all the devices simultaneously.
-This can be achieved by specifying ``MULTI:CPU,GPU.0`` as a target device in case of simultaneous usage of CPU and GPU.
+This can be achieved by specifying ``AUTO:CPU,GPU.0`` as a target device, and adding the ``CUMULATIVE_THROUGHPUT`` parameter.
 
 .. tab-set::
 
@@ -222,17 +222,17 @@ This can be achieved by specifying ``MULTI:CPU,GPU.0`` as a target device in cas
 
       .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_cpu.py
          :language: py
-         :fragment: [compile_model_multi]
+         :fragment: [compile_model_auto]
 
    .. tab-item:: C++
       :sync: cpp
 
       .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_cpu.cpp
          :language: cpp
-         :fragment: [compile_model_multi]
+         :fragment: [compile_model_auto]
 
 
-For more details, see the :doc:`Multi-device execution <multi-device>` article.
+For more details, see the :doc:`Automatic Device Selection <auto-device-selection>`.
 
 .. _multi_stream_execution:
 

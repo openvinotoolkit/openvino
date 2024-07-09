@@ -11,6 +11,7 @@ Legacy Features and Components
    OpenVINO Development Tools package <legacy-features/install-dev-tools>
    Model Optimizer / Conversion API <legacy-features/transition-legacy-conversion-api>
    Open Model ZOO <legacy-features/model-zoo>
+   legacy-features/multi-device
 
 
 Since OpenVINO has grown very rapidly in recent years, a number of its features
@@ -63,7 +64,16 @@ offering.
     become the recommended model source for OpenVINO.
 
 
-
+| **Multi-Device Execution**
+|   *New solution:* Automatic Device Selection
+|   *Old solution:* Legacy Multi-Device Execution discontinuation planned for OpenVINO 2025.0
+|
+|   The behavior and results of the Multi-Device Execution mode are covered by the ``CUMULATIVE_THROUGHPUT``
+    option of the Automatic Device Selection. The only difference is that ``CUMULATIVE_THROUGHPUT`` uses
+    the devices specified by AUTO, which means that adding devices manually is not mandatory,
+    while with MULTI, the devices had to be specified before the inference.
+|   :doc:`Check the Automatic Device Selection <../openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection>`
+|   :doc:`Check the legacy solution <legacy-features/multi-device>`
 
 Discontinued:
 #############

@@ -33,6 +33,11 @@ def main():
     compiled_model = core.compile_model(model, "MULTI:GPU.1,GPU.0")
     #! [compile_model_multi]
 
+    #! [compile_model_auto]
+    core = ov.Core()
+    compiled_model = core.compile_model(model, "AUTO:GPU.1,CPU.0", {hints.performance_mode: hints.PerformanceMode.CUMULATIVE_THROUGHPUT})
+    #! [compile_model_auto]
+
     #! [compile_model_batch_plugin]
     core = ov.Core()
     compiled_model = core.compile_model(model, "BATCH:GPU")

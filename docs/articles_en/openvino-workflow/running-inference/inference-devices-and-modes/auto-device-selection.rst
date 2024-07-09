@@ -186,7 +186,7 @@ the following setup options:
 |                                              | ``DEVICE_PRIORITY``                                                |
 |                                              |                                                                    |
 |                                              | Specify the schedule policy of infer request assigned to hardware  |
-|                                              | plugin for AUTO cumulative mode (MULTI).                           |
+|                                              | plugin for AUTO cumulative mode.                                   |
 |                                              |                                                                    |
 |                                              | The default value is ``DEVICE_PRIORITY``.                          |
 +----------------------------------------------+--------------------------------------------------------------------+
@@ -325,24 +325,24 @@ This option prioritizes low latency, providing short response time for each infe
 
    If no performance hint is set explicitly, AUTO will set LATENCY for devices that have not set ``ov::device::properties``, for example, ``ov::device::properties(<DEVICE_NAME>, ov::hint::performance_mode(ov::hint::LATENCY))``.
 
-
 .. _cumulative throughput:
 
-
-THROUGHPUT
+``THROUGHPUT``
 --------------------
 
 This option prioritizes high throughput, balancing between latency and power. It is best suited for tasks involving multiple jobs, such as inference of video feeds or large numbers of images.
 
+``CUMULATIVE_THROUGHPUT``
+---------------------------------
 
-CUMULATIVE_THROUGHPUT
----------------------
+While ``LATENCY`` and ``THROUGHPUT`` can select one target device with your preferred performance option,
+the ``CUMULATIVE_THROUGHPUT`` option enables running inference on multiple devices for higher throughput.
+With ``CUMULATIVE_THROUGHPUT``, AUTO loads the network model to all available devices (specified by AUTO)
+in the candidate list, and then runs inference on them based on the default or specified priority.
 
-While ``LATENCY`` and ``THROUGHPUT`` can select one target device with your preferred performance option, the ``CUMULATIVE_THROUGHPUT`` option enables running inference on multiple devices for higher throughput. With ``CUMULATIVE_THROUGHPUT``, AUTO loads the network model to all available devices in the candidate list, and then runs inference on them based on the default or specified priority.
-
-CUMULATIVE_THROUGHPUT has similar behavior as :doc:`the Multi-Device execution mode (MULTI) <multi-device>`. The only difference is that CUMULATIVE_THROUGHPUT uses the devices specified by AUTO, which means that it's not mandatory to add devices manually, while with MULTI, you need to specify the devices before inference.
-
-If device priority is specified when using CUMULATIVE_THROUGHPUT, AUTO will run inference requests on devices based on the priority. In the following example, AUTO will always try to use GPU first, and then use CPU if GPU is busy:
+If device priority is specified when using ``CUMULATIVE_THROUGHPUT``, AUTO will run inference
+requests on devices based on the priority. In the following example, AUTO will always
+try to use GPU first, and then use CPU if GPU is busy:
 
 .. tab-set::
 
@@ -361,7 +361,7 @@ If device priority is specified when using CUMULATIVE_THROUGHPUT, AUTO will run 
            ov::CompiledModel compiled_model = core.compile_model(model, "AUTO:GPU,CPU", ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
 
 
-If AUTO is used without specifying any device names, and if there are multiple GPUs in the system, CUMULATIVE_THROUGHPUT mode will use all of the GPUs by default. If the system has more than two GPU devices, AUTO will remove CPU from the device candidate list to keep the GPUs running at full capacity. A full list of system devices and their unique identifiers can be queried using ov::Core::get_available_devices (for more information, see :doc:`Query Device Properties <query-device-properties>`). To explicitly specify which GPUs to use, set their priority when compiling with AUTO:
+If AUTO is used without specifying any device names, and if there are multiple GPUs in the system, ``CUMULATIVE_THROUGHPUT`` mode will use all of the GPUs by default. If the system has more than two GPU devices, AUTO will remove CPU from the device candidate list to keep the GPUs running at full capacity. A full list of system devices and their unique identifiers can be queried using ov::Core::get_available_devices (for more information, see :doc:`Query Device Properties <query-device-properties>`). To explicitly specify which GPUs to use, set their priority when compiling with AUTO:
 
 .. tab-set::
 
@@ -511,7 +511,7 @@ Additional Resources
 
 * `Automatic Device Selection with OpenVINO™ Notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/auto-device/auto-device.ipynb>`__
 * :doc:`Debugging AUTO <auto-device-selection/debugging-auto-device>`
-* :doc:`Running on Multiple Devices Simultaneously <multi-device>`
+* :doc:`(LEGACY) Running on Multiple Devices Simultaneously <../../../documentation/legacy-features/multi-device>`
 * :doc:`Inference Devices and Modes <../inference-devices-and-modes>`
 
 
