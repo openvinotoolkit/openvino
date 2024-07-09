@@ -315,7 +315,9 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 m_compiled_submodels[real_id].devices_to_avoid.insert(std::move(d));
             }
         }
-        m_compiled_submodels[real_id].device_it = m_dev_list.cbegin();
+
+        m_compiled_submodels[id].device_it =
+            id != real_id ? m_compiled_submodels[real_id].device_it : m_dev_list.cbegin();
 
         if (forced_sub_devices.count(id)) {
             std::string forced_device = forced_sub_devices[id];
@@ -654,15 +656,94 @@ void ov::npuw::CompiledModel::log_device_dist() const {
 void ov::npuw::CompiledModel::implement_properties() {
     // This function fills the map: {`property name`: `getter for property value`},
     // that can be used later to return requested properties by user.
-    // It does it in 4 steps:
+    // It does it in 3 steps:
     //
-    // 1. Create mappings for all NPUW-specific properties to getters of their
-    //    values from config.
-    // 2. Create mappings for all copied from HETERO plugin properties, to
-    //    their copied implementations.
-    // 3. Fill `m_all_supported_props` with all properties, mentioned above.
+    // 1. Create mappings for OV public properties and hints, exposed
+    //    in ::intel_npu::CompiledModel.
+    // 2. Fill `m_all_supported_props` vector with property names from
+    //    the 1st step. It will be returned as response to `ov::supported_properties`
+    //    request. So the vector will define public properties.
+    // 3. Create mappings for all remaining (private) NPUW-specific properties
+    //    to getters of their values from config.
+
+#define GET_PLUGIN_PROP(property) return get_plugin()->get_property(property.name(), ov::AnyMap());
 
     // 1.
+    // OV Public
+    // ===============================================
+    m_prop_to_opt = {{ov::supported_properties.name(),
+                      {ov::PropertyMutability::RO,
+                       [&](const ::intel_npu::Config&) {
+                           return m_all_supported_props;
+                       }}},
+                     {ov::device::id.name(),
+                      {ov::PropertyMutability::RO,
+                       [&](const ::intel_npu::Config&) {
+                           GET_PLUGIN_PROP(ov::device::id);
+                       }}},
+                     {ov::enable_profiling.name(),
+                      {ov::PropertyMutability::RO,
+                       [&](const ::intel_npu::Config&) {
+                           GET_PLUGIN_PROP(ov::enable_profiling);
+                       }}},
+                     {ov::model_name.name(),
+                      {ov::PropertyMutability::RO,
+                       [&](const ::intel_npu::Config&) {
+                           return m_name;
+                       }}},
+                     {ov::optimal_number_of_infer_requests.name(),
+                      {ov::PropertyMutability::RO,
+                       [&](const ::intel_npu::Config&) {
+                           return 1u;
+                       }}},
+                     {ov::execution_devices.name(),
+                      {ov::PropertyMutability::RO,
+                       [&](const ::intel_npu::Config&) {
+                           return "NPU";
+                       }}},
+                     {ov::loaded_from_cache.name(),
+                      {ov::PropertyMutability::RO,
+                       [&](const ::intel_npu::Config&) {
+                           return m_loaded_from_cache;
+                       }}},
+                     // OV Public Hints
+                     // =====================================================
+                     {ov::hint::performance_mode.name(),
+                      {ov::PropertyMutability::RO,
+                       [&](const ::intel_npu::Config&) {
+                           GET_PLUGIN_PROP(ov::hint::performance_mode);
+                       }}},
+                     {ov::hint::execution_mode.name(),
+                      {ov::PropertyMutability::RO,
+                       [&](const ::intel_npu::Config&) {
+                           GET_PLUGIN_PROP(ov::hint::execution_mode);
+                       }}},
+                     {ov::hint::num_requests.name(),
+                      {ov::PropertyMutability::RO,
+                       [&](const ::intel_npu::Config&) {
+                           GET_PLUGIN_PROP(ov::hint::num_requests);
+                       }}},
+                     {ov::hint::inference_precision.name(),
+                      {ov::PropertyMutability::RO,
+                       [&](const ::intel_npu::Config&) {
+                           GET_PLUGIN_PROP(ov::hint::inference_precision);
+                       }}},
+                     {ov::hint::enable_cpu_pinning.name(),
+                      {ov::PropertyMutability::RO,
+                       [&](const ::intel_npu::Config&) {
+                           GET_PLUGIN_PROP(ov::hint::enable_cpu_pinning);
+                       }}},
+                     {ov::hint::model_priority.name(), {ov::PropertyMutability::RO, [&](const ::intel_npu::Config&) {
+                                                            GET_PLUGIN_PROP(ov::hint::model_priority);
+                                                        }}}};
+#undef GET_PLUGIN_PROP
+
+    // 2.
+    for (auto& p : m_prop_to_opt) {
+        m_all_supported_props.emplace_back(ov::PropertyName(p.first, std::get<0>(p.second)));
+    }
+
+    // 3.
 #define BIND(N, T)                                                                         \
     {                                                                                      \
         ov::intel_npu::N.name(), {                                                         \
@@ -672,101 +753,31 @@ void ov::npuw::CompiledModel::implement_properties() {
         }                                                                                  \
     }
 
-    m_prop_to_opt = {BIND(use_npuw, NPU_USE_NPUW),
-                     BIND(npuw::devices, NPUW_DEVICES),
-                     BIND(npuw::submodel_device, NPUW_SUBMODEL_DEVICE),
-                     BIND(npuw::partitioning::online::pipeline, NPUW_ONLINE_PIPELINE),
-                     BIND(npuw::partitioning::online::min_size, NPUW_ONLINE_MIN_SIZE),
-                     BIND(npuw::partitioning::online::avoid, NPUW_ONLINE_AVOID),
-                     BIND(npuw::partitioning::online::dump_plan, NPUW_ONLINE_DUMP_PLAN),
-                     BIND(npuw::partitioning::plan, NPUW_PLAN),
-                     BIND(npuw::partitioning::fold, NPUW_FOLD),
-                     BIND(npuw::partitioning::cwai, NPUW_CWAI),
-                     BIND(npuw::partitioning::funcall_for_all, NPUW_FUNCALL_FOR_ALL),
-                     BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),
-                     BIND(npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE),
-                     BIND(npuw::partitioning::dcoff_with_scale, NPUW_DCOFF_SCALE),
-                     BIND(npuw::funcall_async, NPUW_FUNCALL_ASYNC),
-                     BIND(npuw::accuracy::check, NPUW_ACC_CHECK),
-                     BIND(npuw::accuracy::threshold, NPUW_ACC_THRESH),
-                     BIND(npuw::accuracy::reference_device, NPUW_ACC_DEVICE),
+    m_prop_to_opt.insert({BIND(use_npuw, NPU_USE_NPUW),
+                          BIND(npuw::devices, NPUW_DEVICES),
+                          BIND(npuw::submodel_device, NPUW_SUBMODEL_DEVICE),
+                          BIND(npuw::partitioning::online::pipeline, NPUW_ONLINE_PIPELINE),
+                          BIND(npuw::partitioning::online::min_size, NPUW_ONLINE_MIN_SIZE),
+                          BIND(npuw::partitioning::online::avoid, NPUW_ONLINE_AVOID),
+                          BIND(npuw::partitioning::online::dump_plan, NPUW_ONLINE_DUMP_PLAN),
+                          BIND(npuw::partitioning::plan, NPUW_PLAN),
+                          BIND(npuw::partitioning::fold, NPUW_FOLD),
+                          BIND(npuw::partitioning::cwai, NPUW_CWAI),
+                          BIND(npuw::partitioning::funcall_for_all, NPUW_FUNCALL_FOR_ALL),
+                          BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),
+                          BIND(npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE),
+                          BIND(npuw::partitioning::dcoff_with_scale, NPUW_DCOFF_SCALE),
+                          BIND(npuw::funcall_async, NPUW_FUNCALL_ASYNC),
+                          BIND(npuw::accuracy::check, NPUW_ACC_CHECK),
+                          BIND(npuw::accuracy::threshold, NPUW_ACC_THRESH),
+                          BIND(npuw::accuracy::reference_device, NPUW_ACC_DEVICE),
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
-                     BIND(npuw::dump::full, NPUW_DUMP_FULL),
-                     BIND(npuw::dump::subgraphs, NPUW_DUMP_SUBS),
-                     BIND(npuw::dump::subgraphs_on_fail, NPUW_DUMP_SUBS_ON_FAIL),
-                     BIND(npuw::dump::inputs_outputs, NPUW_DUMP_IO),
-                     BIND(npuw::dump::io_iters, NPUW_DUMP_IO_ITERS)
+                          BIND(npuw::dump::full, NPUW_DUMP_FULL),
+                          BIND(npuw::dump::subgraphs, NPUW_DUMP_SUBS),
+                          BIND(npuw::dump::subgraphs_on_fail, NPUW_DUMP_SUBS_ON_FAIL),
+                          BIND(npuw::dump::inputs_outputs, NPUW_DUMP_IO),
+                          BIND(npuw::dump::io_iters, NPUW_DUMP_IO_ITERS)
 #endif
-    };
+    });
 #undef BIND
-    // 2.
-    m_prop_to_opt.insert(
-        {{ov::supported_properties.name(),
-          {ov::PropertyMutability::RO,
-           [&](const ::intel_npu::Config&) -> const std::vector<ov::PropertyName, std::allocator<ov::PropertyName>>& {
-               return m_all_supported_props;
-           }}},
-         {ov::device::properties.name(),
-          {ov::PropertyMutability::RO,
-           [&](const ::intel_npu::Config&) {
-               ov::AnyMap all_devices = {};
-               for (size_t i = 0; i < m_compiled_submodels.size(); ++i) {
-                   const auto& comp_model_desc = m_compiled_submodels[i];
-                   if (!comp_model_desc.compiled_model)  // Handle if optimized out
-                       continue;
-                   ov::AnyMap device_properties = {};
-                   if (all_devices.count(submodel_device(i)) == 0) {
-                       auto device_supported_props =
-                           comp_model_desc.compiled_model->get_property(ov::supported_properties.name());
-                       for (auto&& property_name : device_supported_props.as<std::vector<ov::PropertyName>>())
-                           device_properties[property_name] =
-                               comp_model_desc.compiled_model->get_property(property_name);
-                       all_devices[submodel_device(i)] = device_properties;
-                   }
-               }
-               return all_devices;
-           }}},
-         {ov::model_name.name(),
-          {ov::PropertyMutability::RO,
-           [&](const ::intel_npu::Config&) -> const std::string& {
-               return m_name;
-           }}},
-         {ov::optimal_number_of_infer_requests.name(),
-          {ov::PropertyMutability::RO,
-           [&](const ::intel_npu::Config&) {
-               unsigned int value = 0u;
-               for (const auto& comp_model_desc : m_compiled_submodels) {
-                   if (comp_model_desc.compiled_model) {  // Some models may be optimized out
-                       value = std::max(
-                           value,
-                           comp_model_desc.compiled_model->get_property(ov::optimal_number_of_infer_requests.name())
-                               .as<unsigned int>());
-                   }
-               }
-               return value;
-           }}},
-         {ov::execution_devices.name(),
-          {ov::PropertyMutability::RO,
-           [&](const ::intel_npu::Config&) {
-               std::vector<std::string> device_names;
-               std::set<std::string> s;
-               for (size_t i = 0; i < m_compiled_submodels.size(); ++i) {
-                   const auto& comp_model_desc = m_compiled_submodels[i];
-                   if (!comp_model_desc.compiled_model)  // handle optimized out
-                       continue;
-                   if (s.count(submodel_device(i)) != 0)
-                       continue;
-                   s.insert(submodel_device(i));
-                   device_names.push_back(submodel_device(i));
-               }
-               return decltype(ov::execution_devices)::value_type{std::move(device_names)};
-           }}},
-         {ov::loaded_from_cache.name(), {ov::PropertyMutability::RO, [&](const ::intel_npu::Config&) {
-                                             return m_loaded_from_cache;
-                                         }}}});
-
-    // 3.
-    for (auto& p : m_prop_to_opt) {
-        m_all_supported_props.emplace_back(ov::PropertyName(p.first, std::get<0>(p.second)));
-    }
 }
