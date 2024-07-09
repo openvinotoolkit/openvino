@@ -376,7 +376,7 @@ protected:
     bool _is_constant = false;
     bool _needs_completion_event = false;
 
-    size_t _max_output_layout_count = 0;
+    std::vector<size_t> _max_output_layout_count;
     std::vector<size_t> max_intermediates_memory_sizes;
 
     std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr,
