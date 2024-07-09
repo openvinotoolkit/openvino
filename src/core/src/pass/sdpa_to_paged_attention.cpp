@@ -115,46 +115,36 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         }
     }
 
-    for (auto& result : results_to_remove) {
-        model->remove_result(result);
+    {
+        for (auto& result : results_to_remove) {
+            model->remove_result(result);
+        }
     }
 
-    if (has_parameter(model, "beam_idx")) {
-        if (const auto& beam_idx =
-                std::dynamic_pointer_cast<v0::Parameter>(model->input("beam_idx").get_node_shared_ptr())) {
-            model->remove_parameter(beam_idx);
+    for (auto& param_name : {"beam_idx", "attention_mask"}) {
+        if (has_parameter(model, param_name)) {
+            if (const auto& param =
+                    std::dynamic_pointer_cast<v0::Parameter>(model->input(param_name).get_node_shared_ptr())) {
+                model->remove_parameter(param);
 
-            std::stringstream consumers;
-            consumers << std::endl;
-            for (auto& input : beam_idx->output(0).get_target_inputs()) {
-                consumers << *input.get_node() << std::endl;
+                if (param->output(0).get_target_inputs().size() == 0) {
+                    std::stringstream consumers;
+                    consumers << std::endl;
+                    for (auto& input : param->output(0).get_target_inputs()) {
+                        consumers << *input.get_node() << std::endl;
+                    }
+                    OPENVINO_ASSERT(param->output(0).get_target_inputs().size() == 0,
+                                    "PagedAttention transformation failed: couldn't remove ",
+                                    param->output(0).get_target_inputs().size(),
+                                    " inputs of ",
+                                    param_name,
+                                    " input: ",
+                                    consumers.str());
+                }
+            } else {
+                return false;
             }
-            OPENVINO_ASSERT(beam_idx->output(0).get_target_inputs().size() == 0,
-                            "PagedAttention transformation failed: couldn't remove ",
-                            beam_idx->output(0).get_target_inputs().size(),
-                            " inputs of 'beam_idx' input: ",
-                            consumers.str());
-        } else {
-            return false;
         }
-    }
-
-    if (const auto& attn_mask =
-            std::dynamic_pointer_cast<v0::Parameter>(model->input("attention_mask").get_node_shared_ptr())) {
-        model->remove_parameter(attn_mask);
-
-        std::stringstream consumers;
-        consumers << std::endl;
-        for (auto& input : attn_mask->output(0).get_target_inputs()) {
-            consumers << *input.get_node() << std::endl;
-        }
-        OPENVINO_ASSERT(attn_mask->output(0).get_target_inputs().size() == 0,
-                        "PagedAttention transformation failed: couldn't remove ",
-                        attn_mask->output(0).get_target_inputs().size(),
-                        " inputs of 'attention_mask' input: ",
-                        consumers.str());
-    } else {
-        return false;
     }
 
     for (auto& parameter : parameters_to_remove) {
