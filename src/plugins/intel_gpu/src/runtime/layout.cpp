@@ -610,7 +610,8 @@ static inline bool check_redundant_1d_along_feature(layout const& l1, layout con
         };
 
         if ((static_cast<size_t>(l2.feature()) == l1.count() ||
-            (max_inner_blk > 1 && !has_batch_block && l1.batch() == l2.batch() && is_1x1_spatial(l1) && is_1x1_spatial(l2))) &&
+            (max_inner_blk > 1 && !has_batch_block && l1.batch() == l2.batch() &&
+            l1.get_dims_order()[0] == 0 && l2.get_dims_order()[0] == 0 && is_1x1_spatial(l1) && is_1x1_spatial(l2))) &&
             l2.feature() == l1.feature() && (l2.feature() % max_inner_blk == 0)) {
             return true;
         }
