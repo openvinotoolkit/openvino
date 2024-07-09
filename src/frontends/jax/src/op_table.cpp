@@ -40,7 +40,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_jaxpr() {
             {"constant", op::translate_constant},
             {"convert_element_type", op::translate_convert},
             {"conv_general_dilated", op::translate_convolution},
-            {"copy", op::translate_copy},
+            {"copy", op::skip_node},
             {"dot_general", op::translate_dot_general},
             {"max", op::translate_1to1_match_2_inputs<opset14::Maximum>},
             {"reduce_window_max", op::translate_reduce_window_max},

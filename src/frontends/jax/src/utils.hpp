@@ -51,6 +51,10 @@ OutputVector translate_1to1_match_2_inputs(const NodeContext& context) {
     return {std::make_shared<T>(context.get_input(0), context.get_input(1))};
 }
 
+inline OutputVector skip_node(const NodeContext& context) {
+    return {context.get_input(0)};
+}
+
 }  // namespace op
 
 }  // namespace jax
