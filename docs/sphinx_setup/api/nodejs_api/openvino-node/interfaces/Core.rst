@@ -434,13 +434,13 @@ Methods
 
    .. code-block:: ts
 
-      readModel(model, weights): Promise<Model>
+      readModel(modelPath, weights): Promise<Model>
 
    It reads models from the IR / ONNX / PDPD / TF and TFLite formats.
 
    * **Parameters:**
 
-     - model: string
+     - modelPath: string
 
        A string with model in the IR / ONNX / PDPD / TF and TFLite format.
 
@@ -511,14 +511,14 @@ Methods
 
    .. code-block:: ts
 
-      readModelSync(model, weights): Model
+      readModelSync(modelPath, weights): Model
 
    A synchronous version of :ref:`Core.readModel <readModel>`.
    It reads models from the IR / ONNX / PDPD / TF and TFLite formats.
 
    * **Parameters:**
 
-     - model: string
+     - modelPath: string
      - weights: Tensor
 
    * **Returns:** :doc:`Model <Model>`
