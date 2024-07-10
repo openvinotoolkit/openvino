@@ -9,14 +9,14 @@ import torch
 from pytorch_layer_test_class import PytorchLayerTest
 import numpy as np
 
-d2_params = [#{'kernel_size': [3, 3], 'stride': 1, 'padding': 0},
-             #{'kernel_size': [3, 3], 'stride': [1, 1], 'padding': 1},
-             #{'kernel_size': [3, 3], 'stride': [1, 1], 'padding': [0, 1]},
-             #{'kernel_size': [3, 3], 'stride': [1, 1], 'padding': [1, 0]},
-             #{'kernel_size': [3, 3], 'stride': [2, 1], 'padding': 0},
-             #{'kernel_size': [2, 1], 'stride': [2, 1], 'padding': 0},
-             #{'kernel_size': [2, 1], 'stride': None, 'padding': 0},
-             #{'kernel_size': [2, 1], 'stride': [], 'padding': 0},
+d2_params = [{'kernel_size': [3, 3], 'stride': 1, 'padding': 0},
+             {'kernel_size': [3, 3], 'stride': [1, 1], 'padding': 1},
+             {'kernel_size': [3, 3], 'stride': [1, 1], 'padding': [0, 1]},
+             {'kernel_size': [3, 3], 'stride': [1, 1], 'padding': [1, 0]},
+             {'kernel_size': [3, 3], 'stride': [2, 1], 'padding': 0},
+             {'kernel_size': [2, 1], 'stride': [2, 1], 'padding': 0},
+             {'kernel_size': [2, 1], 'stride': None, 'padding': 0},
+             {'kernel_size': [2, 1], 'stride': [], 'padding': 0},
              {'kernel_size': [8, 8], 'stride': [8, 4], 'padding': 1},
              ]
 
