@@ -27,11 +27,10 @@
 namespace ov {
 
 namespace threading {
-enum MsgType { START_INFER, CALL_BACK, QUIT };
+enum MsgType {CALL_BACK};
 
 struct MessageInfo {
     MsgType msg_type;
-    Task task;
 };
 
 class OPENVINO_RUNTIME_API MessageManager {
@@ -40,27 +39,18 @@ public:
 
     void send_message(const MessageInfo& msg_info);
 
-    void infer_wait();
-
     void server_wait();
-
-    void stop_server_thread();
 
     ~MessageManager();
 
     void set_num_sub_streams(int num_sub_streams);
 
     int get_num_sub_streams();
-
 private:
     int _num_sub_streams = 0;
-    std::thread _serverThread;
-    bool _isServerStopped = false;
     std::vector<MessageInfo> _messageQueue;
     std::mutex _msgMutex;
-    std::mutex _inferMutex;
     std::condition_variable _msgCondVar;
-    std::condition_variable _inferCondVar;
 };
 
 OPENVINO_RUNTIME_API std::shared_ptr<MessageManager> message_manager();

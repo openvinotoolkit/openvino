@@ -109,15 +109,8 @@ void SyncInferRequest::infer() {
 
     throw_if_canceled();
     if (m_asyncRequest->m_has_sub_infers) {
+        sub_streams_infer();
         message->server_wait();
-        ov::threading::MessageInfo msg_info;
-        msg_info.msg_type = ov::threading::MsgType::START_INFER;
-        ov::threading::Task task = [&] {
-            SyncInferRequest::sub_streams_infer();
-        };
-        msg_info.task = std::move(task);
-        message->send_message(msg_info);
-        message->infer_wait();
         return;
     }
 
