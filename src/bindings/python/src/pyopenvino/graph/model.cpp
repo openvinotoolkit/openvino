@@ -139,6 +139,17 @@ static int64_t find_sink_position(const ov::SinkVector& sinks, const std::shared
     return -1;
 }
 
+static int64_t find_sink_position(const ov::SinkVector& sinks, const std::shared_ptr<const ov::op::Sink>& sink) {
+    int64_t pos = 0;
+    for (const auto& s : sinks) {
+        if (s == sink) {
+            return pos;
+        }
+        pos++;
+    };
+    return -1;
+}
+
 void regclass_graph_Model(py::module m) {
     py::class_<ov::Model, std::shared_ptr<ov::Model>> model(m, "Model", py::module_local());
     model.doc() = "openvino.runtime.Model wraps ov::Model";
@@ -787,14 +798,38 @@ void regclass_graph_Model(py::module m) {
 
     model.def(
         "get_sink_index",
+        [](ov::Model& self, const ov::Output<const ov::Node>& value) -> int64_t {
+            int64_t pos = -1;
+            if (ov::is_type<ov::op::v6::Assign>(value.get_node_shared_ptr())) {
+                auto sink = std::dynamic_pointer_cast<const ov::op::Sink>(value.get_node_shared_ptr());
+                return find_sink_position(self.get_sinks(), sink);
+            } else {
+                throw py::type_error("Incorrect argument type. Output sink node is expected as argument.");
+            }
+            return pos;
+        },
+        py::arg("value"),
+        R"(
+                    Return index of sink.
+
+                    Return -1 if `value` not matched.
+
+                    :param value: Output sink node handle
+                    :type value: openvino.runtime.Output
+                    :return: Index of sink node referenced by output handle.
+                    :rtype: int
+                  )");
+
+    model.def(
+        "get_sink_index",
         [](ov::Model& self, const py::object& node) -> int64_t {
             int64_t pos = -1;
             if (py::isinstance<ov::op::v6::Assign>(node)) {
                 auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node.cast<std::shared_ptr<ov::op::v6::Assign>>());
-                pos = find_sink_position(self.get_sinks(), sink);
+                return find_sink_position(self.get_sinks(), sink);
             } else if (py::isinstance<ov::Node>(node)) {
                 auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node.cast<std::shared_ptr<ov::Node>>());
-                pos = find_sink_position(self.get_sinks(), sink);
+                return find_sink_position(self.get_sinks(), sink);
             } else {
                 throw py::type_error("Incorrect argument type. Sink node is expected as argument.");
             }
