@@ -18,7 +18,7 @@
 #            include <filesystem>
 namespace fs = std::filesystem;
 #        endif
-#    elif defined(__clang__) && (__clang_major__ >= 5)
+#    elif defined(__clang__)
 #        if __has_include(<__fs/filesystem>)
 #            include <__fs/filesystem>
 namespace fs = std::__fs::filesystem;
