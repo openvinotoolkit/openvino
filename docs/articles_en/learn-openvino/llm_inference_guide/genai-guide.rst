@@ -30,7 +30,8 @@ will not work with these instructions, make sure to
 
    .. code-block:: python
 
-      optimum-cli export openvino --model "TinyLlama/TinyLlama-1.1B-Chat-v1.0" --weight-format int4 --trust-remote-code
+      optimum-cli export openvino --model "TinyLlama/TinyLlama-1.1B-Chat-v1.0" --weight-format int4 --trust-remote-code "TinyLlama-1.1B-Chat-v1.0"
+
 
 2. Perform generation using the new GenAI API:
 
@@ -82,7 +83,7 @@ below, where a lambda function outputs words to the console immediately upon gen
 
          import openvino_genai as ov_genai
          pipe = ov_genai.LLMPipeline(model_path, "CPU")
-         
+
          streamer = lambda x: print(x, end='', flush=True)
          pipe.generate("The Sun is yellow because", streamer=streamer)
 
@@ -97,8 +98,8 @@ below, where a lambda function outputs words to the console immediately upon gen
             std::string model_path = argv[1];
             ov::genai::LLMPipeline pipe(model_path, "CPU");
 
-            auto streamer = [](std::string word) { 
-               std::cout << word << std::flush; 
+            auto streamer = [](std::string word) {
+               std::cout << word << std::flush;
                // Return flag indicating whether generation should be stopped.
                // false means continue generation.
                return false;
@@ -143,8 +144,8 @@ You can also create your custom streamer for more sophisticated processing:
          class CustomStreamer: publict StreamerBase {
          public:
             bool put(int64_t token) {
-               bool stop_flag = false; 
-               /* 
+               bool stop_flag = false;
+               /*
                custom decoding/tokens processing code
                tokens_cache.push_back(token);
                std::string text = m_tokenizer.decode(tokens_cache);
@@ -205,7 +206,7 @@ mark a conversation session, as you can see in these simple examples:
 
             std::string model_path = argv[1];
             ov::genai::LLMPipeline pipe(model_path, "CPU");
-            
+
             ov::genai::GenerationConfig config = pipe.get_generation_config();
             config.max_new_tokens = 100;
             pipe.set_generation_cofnig(config)
