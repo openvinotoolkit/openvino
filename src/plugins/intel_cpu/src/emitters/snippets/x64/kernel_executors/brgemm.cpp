@@ -174,14 +174,6 @@ void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* executor, call_ar
     brgemm_p.do_apply_comp = static_cast<size_t>(config->is_with_comp());
     brgemm_p.skip_accm = 0;
     brgemm_p.BS = 1;  // default value
-#if 0
-    printf("brgemm_p.ptr_A = %p brgemm_p.ptr_B = %p brgemm_p.ptr_C = %p\n", brgemm_p.ptr_A, brgemm_p.ptr_B, brgemm_p.ptr_C);
-    const char *ptr_B = reinterpret_cast<const char*>(brgemm_p.ptr_B);
-    int i = 0;
-    for (i = 0; i < 45; i++) {
-        printf("brgemm_p.ptr_buf[%d] = %d\n", i, *(ptr_B + i));
-    }
-#endif
     OV_CPU_JIT_EMITTER_ASSERT(kernel->compiled_kernel, "has nullptr kernel");
     (*kernel->compiled_kernel)(&brgemm_p);
 }
