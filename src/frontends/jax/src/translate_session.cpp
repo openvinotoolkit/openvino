@@ -138,6 +138,7 @@ std::shared_ptr<Model> TranslateSession::convert_jax_model(std::shared_ptr<JaxDe
                 FRONT_END_GENERAL_CHECK(tensor_map->find(fw_tensor_id) == tensor_map->end(),
                                         "Duplicated producer for Jax value with unique ID: ",
                                         fw_tensor_id);
+#ifdef ENABLE_OPENVINO_DEBUG
                 auto out_type = context.get_output_type(i);
                 if (out_type.is<element::Type>()) {
                     if (!converted_outputs[i].get_element_type().compatible(out_type.as<element::Type>())) {
@@ -147,6 +148,7 @@ std::shared_ptr<Model> TranslateSession::convert_jax_model(std::shared_ptr<JaxDe
                                        << out_type.as<element::Type>();
                     }
                 }
+#endif
                 (*tensor_map)[fw_tensor_id] = converted_outputs[i];
                 encode_tensor_name(converted_outputs[i], fw_tensor_id, {node->get_output_name(i)});
             }
@@ -182,7 +184,7 @@ OutputVector TranslateSession::convert_node(const NodeContext& context) {
         if (it != m_translator_map.end()) {
             return it->second(context);
         }
-        OPENVINO_DEBUG << "No translator found for: " << context.get_op_type() << "\n";
+        OPENVINO_DEBUG("No translator found for: ", context.get_op_type(), "\n");
     } catch (std::exception& e) {
         exception = e.what();
         if (m_telemetry) {
@@ -202,8 +204,8 @@ void TranslateSession::encode_tensor_name(Output<Node> output,
                                           size_t tensor_idx,
                                           std::vector<std::string> additional_names) {
     if (!output.get_names().empty()) {
-        OPENVINO_DEBUG << "Tensor names already exist: " << output.get_any_name() << ". Will not be rewritten with "
-                       << tensor_idx << ". This is likely a mutated tensor.";
+        OPENVINO_DEBUG("Tensor names already exist: ", output.get_any_name(), ". Will not be rewritten with ",
+                       tensor_idx, ". This is likely a mutated tensor.");
         return;
     }
     auto name = std::to_string(tensor_idx);
