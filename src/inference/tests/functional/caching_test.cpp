@@ -15,6 +15,7 @@
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/layout.hpp"
@@ -779,7 +780,7 @@ TEST_P(CachingTest, TestNoCacheMetric_hasCacheDirConfig) {
         EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _))
             .Times(!m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, OnCompileModelFromFile()).Times(m_type == TestLoadType::EModelName ? 1 : 0);
-        ASSERT_NO_THROW(testLoad([&](ov::Core& core) {
+        OV_ASSERT_NO_THROW(testLoad([&](ov::Core& core) {
             core.set_property(ov::cache_dir(m_cacheDir));
             m_testFunction(core);
         }));
@@ -803,7 +804,7 @@ TEST_P(CachingTest, TestNoCacheMetric_hasCacheDirConfig_inline) {
         EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _))
             .Times(!m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, OnCompileModelFromFile()).Times(m_type == TestLoadType::EModelName ? 1 : 0);
-        ASSERT_NO_THROW(testLoad([&](ov::Core& core) {
+        OV_ASSERT_NO_THROW(testLoad([&](ov::Core& core) {
             m_testFunctionWithCfg(core, {{ov::cache_dir.name(), m_cacheDir}});
         }));
     }
@@ -831,7 +832,7 @@ TEST_P(CachingTest, TestNoCacheMetric_hasCacheDirConfig_by_device_name) {
         EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _))
             .Times(!m_remoteContext ? 1 : 0);
         EXPECT_CALL(*mockPlugin, OnCompileModelFromFile()).Times(m_type == TestLoadType::EModelName ? 1 : 0);
-        ASSERT_NO_THROW(testLoad([&](ov::Core& core) {
+        OV_ASSERT_NO_THROW(testLoad([&](ov::Core& core) {
             core.set_property("mock", ov::cache_dir(m_cacheDir));
             m_testFunction(core);
         }));
@@ -2079,7 +2080,7 @@ TEST_P(CachingTest, LoadAUTO_OneDevice) {
         EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _))
             .Times(TEST_COUNT - index - 1);
         EXPECT_CALL(*mockPlugin, import_model(_, _)).Times(index);
-        ASSERT_NO_THROW(testLoad([&](ov::Core& core) {
+        OV_ASSERT_NO_THROW(testLoad([&](ov::Core& core) {
             core.set_property(ov::cache_dir(cacheDir));
             m_testFunction(core);
         }));
@@ -2110,7 +2111,7 @@ TEST_P(CachingTest, LoadAUTOWithConfig) {
         EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _))
             .Times(TEST_COUNT - index - 1);
         EXPECT_CALL(*mockPlugin, import_model(_, _)).Times(index);
-        ASSERT_NO_THROW(testLoad([&](ov::Core& core) {
+        OV_ASSERT_NO_THROW(testLoad([&](ov::Core& core) {
             m_testFunctionWithCfg(core, {{ov::cache_dir.name(), cacheDir}});
         }));
     }
@@ -2188,7 +2189,7 @@ TEST_P(CachingTest, LoadMulti_race) {
         EXPECT_CALL(*mockPlugin, import_model(_, _)).Times(devCount - 1);
         testLoad([&](ov::Core& core) {
             core.set_property(ov::cache_dir(cacheDir));
-            ASSERT_NO_THROW(m_testFunction(core));
+            OV_ASSERT_NO_THROW(m_testFunction(core));
         });
         index++;
     } while (duration_cast<milliseconds>(high_resolution_clock::now() - start).count() < TEST_DURATION_MS);
@@ -2229,7 +2230,7 @@ TEST_P(CachingTest, LoadMultiWithConfig_race) {
         EXPECT_CALL(*mockPlugin, import_model(_, _, _)).Times(0);
         EXPECT_CALL(*mockPlugin, import_model(_, _)).Times(devCount - 1);
         testLoad([&](ov::Core& core) {
-            ASSERT_NO_THROW(m_testFunctionWithCfg(core, {{ov::cache_dir.name(), cacheDir}}));
+            OV_ASSERT_NO_THROW(m_testFunctionWithCfg(core, {{ov::cache_dir.name(), cacheDir}}));
         });
         index++;
     } while (duration_cast<milliseconds>(high_resolution_clock::now() - start).count() < TEST_DURATION_MS);

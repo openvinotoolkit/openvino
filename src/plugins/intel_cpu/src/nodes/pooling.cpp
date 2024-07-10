@@ -146,13 +146,15 @@ dnnl::pooling_forward::primitive_desc createDescriptorHelper(const dnnl::engine&
 
 bool Pooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (ov::is_type<const ov::op::v8::MaxPool>(op)) {
+        if (ov::is_type<const ov::op::v8::MaxPool>(op) || ov::is_type<const ov::op::v14::MaxPool>(op)) {
             if (!op->get_output_target_inputs(1).empty()) {
-                errorMessage = "MaxPool from opset8 is supported only with one output";
+                errorMessage = "MaxPool from opset8 and opset14 is supported only with one output";
                 return false;
             }
-        } else if (!ov::is_type<const ov::op::v1::MaxPool>(op) && !ov::is_type<const ov::op::v1::AvgPool>(op)) {
-            errorMessage = "MaxPool and AvgPool from opset1 and MaxPool from opset8 are supported";
+        } else if (!ov::is_type<const ov::op::v1::MaxPool>(op) && !ov::is_type<const ov::op::v8::MaxPool>(op) &&
+        !ov::is_type<const ov::op::v14::MaxPool>(op) && !ov::is_type<const ov::op::v1::AvgPool>(op) &&
+        !ov::is_type<const ov::op::v14::AvgPool>(op)) {
+            errorMessage = "Supported ops are MaxPool-1, MaxPool-8, MaxPool-14, AvgPool-1 and AvgPool-14";
             return false;
         }
     } catch (...) {
@@ -174,47 +176,37 @@ Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr c
         }
     };
 
-    if (auto maxPoolOp_v8 = ov::as_type_ptr<const ov::op::v8::MaxPool>(op)) {
-        isMaxPool8 = true;
+    if (auto maxPoolOpBase = ov::as_type_ptr<const ov::op::util::MaxPoolBase>(op)) {
         algorithm = Algorithm::PoolingMax;
         poolingAttrs.exclude_pad = false;
-        poolingAttrs.rounding = maxPoolOp_v8->get_rounding_type();
-        poolingAttrs.pad_type = maxPoolOp_v8->get_auto_pad();
-
-        get_attributes(poolingAttrs.dilation, maxPoolOp_v8->get_dilations());
-        get_attributes(poolingAttrs.stride, maxPoolOp_v8->get_strides());
-        get_attributes(poolingAttrs.kernel, maxPoolOp_v8->get_kernel());
-        get_attributes(poolingAttrs.data_pad_begin, maxPoolOp_v8->get_pads_begin());
-        get_attributes(poolingAttrs.data_pad_end, maxPoolOp_v8->get_pads_end());
-
-        poolingAttrs.auto_pad = (maxPoolOp_v8->get_auto_pad() == ov::op::PadType::SAME_LOWER || maxPoolOp_v8->get_auto_pad() == ov::op::PadType::SAME_UPPER);
-    } else if (auto maxPoolOp_v1 = ov::as_type_ptr<const ov::op::v1::MaxPool>(op)) {
-        algorithm = Algorithm::PoolingMax;
-        poolingAttrs.exclude_pad = false;
-        poolingAttrs.pad_type = maxPoolOp_v1->get_auto_pad();
-        poolingAttrs.rounding = maxPoolOp_v1->get_rounding_type();
-
-        get_attributes(poolingAttrs.stride, maxPoolOp_v1->get_strides());
-        get_attributes(poolingAttrs.kernel, maxPoolOp_v1->get_kernel());
-        get_attributes(poolingAttrs.data_pad_begin, maxPoolOp_v1->get_pads_begin());
-        get_attributes(poolingAttrs.data_pad_end, maxPoolOp_v1->get_pads_end());
-        poolingAttrs.dilation.resize(poolingAttrs.kernel.size(), 1);
-
-        poolingAttrs.auto_pad = (maxPoolOp_v1->get_auto_pad() == ov::op::PadType::SAME_LOWER || maxPoolOp_v1->get_auto_pad() == ov::op::PadType::SAME_UPPER);
-    } else if (auto avgPoolOp = ov::as_type_ptr<const ov::op::v1::AvgPool>(op)) {
-        algorithm = Algorithm::PoolingAvg;
-        poolingAttrs.exclude_pad = avgPoolOp->get_exclude_pad();
-        poolingAttrs.rounding = avgPoolOp->get_rounding_type();
-
-        get_attributes(poolingAttrs.stride, avgPoolOp->get_strides());
-        get_attributes(poolingAttrs.kernel, avgPoolOp->get_kernel());
-        get_attributes(poolingAttrs.data_pad_begin, avgPoolOp->get_pads_begin());
-        get_attributes(poolingAttrs.data_pad_end, avgPoolOp->get_pads_end());
-        poolingAttrs.dilation.resize(poolingAttrs.kernel.size(), 1);
-
-        poolingAttrs.auto_pad = (avgPoolOp->get_auto_pad() == ov::op::PadType::SAME_LOWER || avgPoolOp->get_auto_pad() == ov::op::PadType::SAME_UPPER);
+        poolingAttrs.rounding = maxPoolOpBase->get_rounding_type();
+        poolingAttrs.pad_type = maxPoolOpBase->get_auto_pad();
+        get_attributes(poolingAttrs.stride, maxPoolOpBase->get_strides());
+        get_attributes(poolingAttrs.kernel, maxPoolOpBase->get_kernel());
+        get_attributes(poolingAttrs.data_pad_begin, maxPoolOpBase->get_pads_begin());
+        get_attributes(poolingAttrs.data_pad_end, maxPoolOpBase->get_pads_end());
+        poolingAttrs.auto_pad = (poolingAttrs.pad_type == ov::op::PadType::SAME_LOWER || poolingAttrs.pad_type == ov::op::PadType::SAME_UPPER);
     }
 
+    if (auto maxPoolOp_v14 = ov::as_type_ptr<const ov::op::v14::MaxPool>(op)) {
+        isNotMaxPool1 = true;
+        get_attributes(poolingAttrs.dilation, maxPoolOp_v14->get_dilations());
+    } else if (auto maxPoolOp_v8 = ov::as_type_ptr<const ov::op::v8::MaxPool>(op)) {
+        isNotMaxPool1 = true;
+        get_attributes(poolingAttrs.dilation, maxPoolOp_v8->get_dilations());
+    } else if (auto maxPoolOp_v1 = ov::as_type_ptr<const ov::op::v1::MaxPool>(op)) {
+        poolingAttrs.dilation.resize(poolingAttrs.kernel.size(), 1);
+    } else if (auto avgPoolOpBase = ov::as_type_ptr<const ov::op::util::AvgPoolBase>(op)) {
+        algorithm = Algorithm::PoolingAvg;
+        poolingAttrs.exclude_pad = avgPoolOpBase->get_exclude_pad();
+        poolingAttrs.rounding = avgPoolOpBase->get_rounding_type();
+        get_attributes(poolingAttrs.stride, avgPoolOpBase->get_strides());
+        get_attributes(poolingAttrs.kernel, avgPoolOpBase->get_kernel());
+        get_attributes(poolingAttrs.data_pad_begin, avgPoolOpBase->get_pads_begin());
+        get_attributes(poolingAttrs.data_pad_end, avgPoolOpBase->get_pads_end());
+        poolingAttrs.dilation.resize(poolingAttrs.kernel.size(), 1);
+        poolingAttrs.auto_pad = (avgPoolOpBase->get_auto_pad() == ov::op::PadType::SAME_LOWER || avgPoolOpBase->get_auto_pad() == ov::op::PadType::SAME_UPPER);
+    }
     poolingAttrs.algorithm = algorithm;
 }
 
@@ -642,7 +634,7 @@ void Pooling::initSupportedPrimitiveDescriptors() {
         }
 
         // CPU plugin doesn't support second output of MaxPool-8, but anyway we should have out config for second port as stub
-        if (isMaxPool8) {
+        if (isNotMaxPool1) {
             const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
             const auto outputPrecision = outConfs.front().getMemDesc()->getPrecision();
             auto desc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(outputPrecision, getOutputShapeAtPort(1));

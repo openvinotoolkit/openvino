@@ -18,6 +18,10 @@ bool RandomUniform::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
             errorMessage = "Only RandomUniform operation from the opset8 is supported by the CPU plugin.";
             return false;
         }
+        if (as_type_ptr<const op::v8::RandomUniform>(op)->get_alignment() != op::PhiloxAlignment::TENSORFLOW) {
+            errorMessage = "Only TENSORFLOW alignment mode is supported by the CPU plugin.";
+            return false;
+        }
     } catch (...) {
         return false;
     }
@@ -39,7 +43,6 @@ RandomUniform::RandomUniform(const std::shared_ptr<ov::Node>& op, const GraphCon
     auto rnd_op = as_type_ptr<op::v8::RandomUniform>(op);
     m_global_seed = rnd_op->get_global_seed();
     m_op_seed = rnd_op->get_op_seed();
-
     m_output_prc = op->get_output_element_type(0);
 
     for (size_t i = 0lu; i < op->get_input_size(); i++) {

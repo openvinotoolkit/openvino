@@ -518,6 +518,135 @@ TEST(quantize_gpu, quantize_levels_256_3d_unsigned) {
     }
 }
 
+TEST(quantize_gpu, eltwise_quantize_fs_b_yx_fsv32) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    // conv to enable 'fs_b_yx_fsv32_network'
+    const int batch_num = 2;
+    const int input_xy = 5;
+    const int input_f = 32;
+    const int output_f = 32;
+    const int filter_xy = 1;
+    const int pad = filter_xy / 2;
+
+    auto input_size = tensor(batch_num, input_f, input_xy, input_xy);
+    auto input_data = rg.generate_random_4d<ov::float16>(batch_num, input_f, input_xy, input_xy, -1, 1);
+    auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
+    auto input_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
+    set_values(input_mem, input_data_bfyx);
+
+    auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy);
+    auto weights_data = rg.generate_random_4d<ov::float16>(output_f, input_f, filter_xy, filter_xy, -1, 1);
+    auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
+    auto weights_mem = engine.allocate_memory({ data_types::f16, format::bfyx, weights_size });
+    set_values(weights_mem, weights_data_bfyx);
+
+    topology topology(
+        input_layout("input_conv", input_mem->get_layout()),
+        data("weights_fsv", weights_mem));
+
+    // Reorder input to fs_byx_fsv32
+    topology.add(reorder("input_fsv", input_info("input_conv"), { data_types::f16, format::fs_b_yx_fsv32, input_size }));
+
+    topology.add(convolution("conv0", input_info("input_fsv"), "weights_fsv", "", 1, {1, 1}, {1, 1}, { pad, pad }, { pad, pad }, false));
+    topology.add(convolution("conv1", input_info("conv0"), "weights_fsv", "", 1, {1, 1}, {1, 1}, { pad, pad }, { pad, pad }, false));
+    topology.add(convolution("conv2", input_info("conv1"), "weights_fsv", "", 1, {1, 1}, {1, 1}, { pad, pad }, { pad, pad }, false));
+    topology.add(convolution("conv3", input_info("conv2"), "weights_fsv", "", 1, {1, 1}, {1, 1}, { pad, pad }, { pad, pad }, false));
+    topology.add(convolution("conv4", input_info("conv3"), "weights_fsv", "", 1, {1, 1}, {1, 1}, { pad, pad }, { pad, pad }, false));
+    topology.add(convolution("conv5", input_info("conv4"), "weights_fsv", "", 1, {1, 1}, {1, 1}, { pad, pad }, { pad, pad }, false));
+    topology.add(convolution("conv6", input_info("conv5"), "weights_fsv", "", 1, {1, 1}, {1, 1}, { pad, pad }, { pad, pad }, false));
+    topology.add(convolution("conv7", input_info("conv6"), "weights_fsv", "", 1, {1, 1}, {1, 1}, { pad, pad }, { pad, pad }, false));
+    topology.add(convolution("conv8", input_info("conv7"), "weights_fsv", "", 1, {1, 1}, {1, 1}, { pad, pad }, { pad, pad }, false));
+    topology.add(convolution("conv9", input_info("conv8"), "weights_fsv", "", 1, {1, 1}, {1, 1}, { pad, pad }, { pad, pad }, false));
+    topology.add(convolution("conv10", input_info("conv9"), "weights_fsv", "", 1, {1, 1}, {1, 1}, { pad, pad }, { pad, pad }, false));
+    topology.add(convolution("conv11", input_info("conv10"), "weights_fsv", "", 1, {1, 1}, {1, 1}, { pad, pad }, { pad, pad }, false));
+
+    topology.add(reorder("reorder_conv", input_info("conv11"), format::b_fs_yx_fsv16, data_types::f32));
+
+    // eltwise + quantize pattern
+    auto in_layout = layout{ ov::PartialShape{2, 16, 1, 2}, data_types::f16, format::b_fs_yx_fsv16 };
+    auto input = engine.allocate_memory(in_layout);
+    auto input_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
+    auto input_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 16, 1, 1 } });
+    auto output_low = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+    auto output_high = engine.allocate_memory({ data_types::f32,format::bfyx,{ 1, 1, 1, 1 } });
+
+    set_values(input, { -1.0f, 2.0f, 3.0f, 4.0f,
+                         5.0f, 2.0f, 2.0f, 3.0f,
+                         4.0f, 6.0f, 3.0f, 3.0f,
+                         3.0f, 5.0f, 1.0f, 1.0f,
+
+                         1.0f, 1.0f, 1.0f, 1.0f,
+                         4.0f, 6.0f, 3.0f, 3.0f,
+                         3.0f, 5.0f, 1.0f, 1.0f,
+                         1.0f, 1.0f, 1.0f, 1.0f,
+
+                        -1.0f, 2.0f, 3.0f, 4.0f,
+                         5.0f, 2.0f, 2.0f, 3.0f,
+                         4.0f, 6.0f, 3.0f, 3.0f,
+                         3.0f, 5.0f, 1.0f, 1.0f,
+
+                         1.0f, 1.0f, 1.0f, 1.0f,
+                         4.0f, 6.0f, 3.0f, 3.0f,
+                         3.0f, 5.0f, 1.0f, 1.0f,
+                         1.0f, 1.0f, 1.0f, 1.0f });
+
+    set_values(input_low,  { 0.0f, 1.0f, 2.0f, 3.0f,
+                             4.0f, 5.0f, 6.0f, 7.0f,
+                             7.0f, 6.0f, 5.0f, 4.0f,
+                             3.0f, 2.0f, 1.0f, 0.0f });
+    set_values(input_high, { 0.0f, 1.0f, 2.0f, 3.0f,
+                             4.0f, 5.0f, 6.0f, 7.0f,
+                             7.0f, 6.0f, 5.0f, 4.0f,
+                             3.0f, 2.0f, 1.0f, 0.0f });
+    set_values(output_low,  { -1.0f });
+    set_values(output_high, {  1.0f });
+
+    std::vector<float> ref_data = { -1, 1, -1, 1,   -1, -1, -1, -1,     -1, -1, -1, -1,
+                                    -1, 1, -1, 1,   -1, 1, -1, 1,       -1, -1, -1, -1,
+                                    -1, -1, -1, 1,  -1, 1, -1, 1,       -1, 1, -1, 1,
+                                    -1, -1, -1, -1, -1, -1, -1, 1,      -1, 1, -1, 1,
+                                    -1, 1, -1, 1,   -1, -1, -1, -1,     -1, -1, -1, -1,
+                                    -1, 1, -1, 1 };
+
+    topology.add(
+        input_layout("input1", in_layout),
+        input_layout("input2", in_layout),
+        eltwise("multiply", input_info("input1"), input_info("input2"), eltwise_mode::prod),
+        data("input_low", input_low),
+        data("input_high", input_high),
+        data("output_low", output_low),
+        data("output_high", output_high),
+        quantize("quantize", input_info("multiply"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 2, data_types::f32),
+        reorder("reorder", input_info("quantize"), format::b_fs_yx_fsv16, data_types::f32)
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc quantize_impl = { format::b_fs_yx_fsv16, "quantize_gpu_ref" };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "quantize", quantize_impl } }));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input_conv", input_mem);
+    network.set_input_data("input1", input);
+    network.set_input_data("input2", input);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("reorder").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    // Check that layout and memory contains logical size of tensor
+    ASSERT_EQ(output->count(), (size_t)64);
+    ASSERT_EQ(output->get_layout().count(), (size_t)64);
+
+    ASSERT_EQ(output->size(), ref_data.size() * sizeof(uint32_t));
+
+    for (size_t i = 0; i < ref_data.size(); ++i) {
+        ASSERT_EQ(output_ptr[i], ref_data[i]) << " index = " << i;
+    }
+}
+
 TEST(quantize_gpu, dynamic) {
     auto& engine = get_test_engine();
 

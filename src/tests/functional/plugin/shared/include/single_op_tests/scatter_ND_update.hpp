@@ -11,5 +11,9 @@ namespace test {
 TEST_P(ScatterNDUpdateLayerTest, Inference) {
     run();
 }
+
+TEST_P(ScatterNDUpdate15LayerTest, Inference) {
+    run();
+}
 }  // namespace test
 }  // namespace ov

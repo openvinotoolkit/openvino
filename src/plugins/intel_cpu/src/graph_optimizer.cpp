@@ -2471,6 +2471,15 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph &graph) {
     }
 }
 
+bool GraphOptimizer::canBeInplaced(const NodePtr& parentNode, const NodePtr& childNode) {
+    const auto parentInPlace = parentNode->getParentEdgeAt(0)->inPlace(Edge::LOOK_UP);
+    const auto& childEdges = childNode->getChildEdgesAtPort(0);
+    const auto childInPlace = std::any_of(childEdges.begin(), childEdges.end(), [](const EdgePtr& edge) {
+        return edge->inPlace(Edge::LOOK_DOWN);
+    });
+    return !(parentInPlace && childInPlace);
+}
+
 bool GraphOptimizer::checkAscendingFinalOrder(const VectorDims& transposeOrder,
                                               const VectorDims& layoutOrder,
                                               const VectorDims& reorderInOrder,
@@ -2534,21 +2543,14 @@ void GraphOptimizer::mergeTransposeReshapeReorder(Graph& graph,
     if (reshapeNode)
         graph.RemoveEdge(reshapeNode->getParentEdgeAt(1));
 
-    // to prevent inPlace conflict we must check that the memory reference is unidirectional or
-    // inPlace memory is not used
-    const auto parentInPlace = parentNode->getParentEdgeAt(0)->inPlace(Edge::LOOK_UP);
-    const auto& childEdges = childNode->getChildEdgesAtPort(0);
-
-    const auto childInPlace = std::any_of(childEdges.begin(), childEdges.end(), [](const EdgePtr& edge) {
-        return edge->inPlace(Edge::LOOK_DOWN);
-    });
-
+    // To prevent inPlace conflict, we must check that the memory reference is unidirectional
+    // or inPlace memory is not used
     // Note: this value must be computed before detaching nodes
-    bool isOptimized = !(parentInPlace && childInPlace);
+    bool isOptimized = canBeInplaced(parentNode, childNode);
 
     // hold references to all children before dropping reorder_node
     std::vector<std::pair<NodePtr, int>> reorderChildren;
-    for (auto ccEdge : childEdges)
+    for (auto ccEdge : childNode->getChildEdgesAtPort(0))
         reorderChildren.emplace_back(ccEdge->getChild(), ccEdge->getOutputNum());
 
     // detach nodes from graph by remove all of their edges
@@ -2900,6 +2902,12 @@ void GraphOptimizer::MergeReorderAndTranspose(Graph &graph) {
         auto& outOrder = outBlockedDesc->getOrder();
 
         if (checkAscendingFinalOrder(transposeOrder, layoutOrder, inOrder, outOrder)) {
+            // Reorder node doesn't support (with rare exceptions) reordering in case of different ranks on input and output.
+            // So the merge can be performed only in the case when the fused reorder will be optimized.
+            if (parentNode->getInputShapeAtPort(0).getRank() != childNode->getOutputShapeAtPort(0).getRank() &&
+                !canBeInplaced(parentNode, childNode)) {
+                continue;
+            }
             mergeTransposeReshapeReorder(graph, transposeNode, reshapeNode, reorderNode, true);
         }
     }
