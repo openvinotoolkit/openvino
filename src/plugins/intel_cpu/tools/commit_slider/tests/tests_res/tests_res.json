@@ -166,9 +166,9 @@
                 "commitList" : {
                     "getCommitListCmd" : "git log {start}..{end} --boundary --pretty=\"%h\""
                 },
-                "mode" : "bmPerf",
+                "mode" : "ac",
                 "traversal" : "firstFailedVersion",
-                "perfAppropriateDeviation" : 0.05
+                "threshold": "80%"
             }
         }
     },
