@@ -171,7 +171,7 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
         .Times(loadSuccessCount);
     EXPECT_CALL(*mockIExeNet.get(), create_infer_request()).Times(loadSuccessCount * 2);
     if (continueRun) {
-        ASSERT_NO_THROW(plugin->compile_model(model, config));
+        OV_ASSERT_NO_THROW(plugin->compile_model(model, config));
     } else {
         ASSERT_THROW(plugin->compile_model(model, config), ov::Exception);
     }

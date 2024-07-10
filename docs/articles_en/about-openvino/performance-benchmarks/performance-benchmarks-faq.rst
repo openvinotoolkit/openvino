@@ -1,5 +1,3 @@
-.. {#openvino_docs_performance_benchmarks_faq}
-
 Performance Information F.A.Q.
 ==============================
 
@@ -19,7 +17,13 @@ Performance Information F.A.Q.
 
 .. dropdown:: Where can I find the models used in the performance benchmarks?
 
-   All models used are included in the GitHub repository of :doc:`Open Model Zoo <../../documentation/legacy-features/model-zoo>`.
+   All models used are included in the GitHub repository of
+   :doc:`Open Model Zoo <../../documentation/legacy-features/model-zoo>`.
+
+   .. important::
+
+      Due to the deprecation of Open Model Zoo, models in the OpenVINO IR format are now
+      published on `Hugging Face <https://huggingface.co/OpenVINO>`__.
 
 .. dropdown:: Will there be any new models added to the list used for benchmarking?
 
@@ -119,8 +123,7 @@ Performance Information F.A.Q.
    Intel partners with vendors all over the world. For a list of Hardware Manufacturers, see the
    `Intel® AI: In Production Partners & Solutions Catalog <https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/partners-solutions-catalog.html>`__.
    For more details, see the :doc:`Supported Devices <../compatibility-and-support/supported-devices>`.
-   documentation. Before purchasing any hardware, you can test and run
-   models remotely, using `Intel® DevCloud for the Edge <http://devcloud.intel.com/edge/>`__.
+   documentation.
 
 .. dropdown:: How can I optimize my models for better performance or accuracy?
 
@@ -171,6 +174,6 @@ Performance Information F.A.Q.
 
 .. container:: benchmark-banner
 
-   Results may vary. For more information, see
-   :doc:`Platforms, Configurations, Methodology <../performance-benchmarks>`.
-   See :doc:`Legal Information <../additional-resources/legal-information>`.
+   Results may vary. For more information, see:
+   :doc:`Platforms, Configurations, Methodology <../performance-benchmarks>`,
+   :doc:`Legal Information <../additional-resources/terms-of-use>`.

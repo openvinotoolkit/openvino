@@ -41,7 +41,7 @@ ov::Node* ov::OpSet::create(const std::string& name) const {
         return nullptr;
     }
     REGISTER_OP(m_name, name);
-    return m_factory_registry.find(type_info_it->second)->second();
+    return m_factory_registry.at(type_info_it->second)();
 }
 
 ov::Node* ov::OpSet::create_insensitive(const std::string& name) const {
@@ -51,7 +51,7 @@ ov::Node* ov::OpSet::create_insensitive(const std::string& name) const {
         return nullptr;
     }
     REGISTER_OP(m_name, name);
-    return m_factory_registry.find(type_info_it->second)->second();
+    return m_factory_registry.at(type_info_it->second)();
 }
 
 bool ov::OpSet::contains_type(const ov::NodeTypeInfo& type_info) const {
@@ -123,7 +123,9 @@ const ov::OpSet& ov::get_opset1() {
     static std::once_flag flag;
     std::call_once(flag, [&]() {
 #define _OPENVINO_OP_REG(NAME, NAMESPACE) INSERT_OP(opset1, NAME, NAMESPACE);
+        OPENVINO_SUPPRESS_DEPRECATED_START
 #include "openvino/opsets/opset1_tbl.hpp"
+        OPENVINO_SUPPRESS_DEPRECATED_END
 #undef _OPENVINO_OP_REG
     });
     return opset;
@@ -134,7 +136,9 @@ const ov::OpSet& ov::get_opset2() {
     static std::once_flag flag;
     std::call_once(flag, [&]() {
 #define _OPENVINO_OP_REG(NAME, NAMESPACE) INSERT_OP(opset2, NAME, NAMESPACE);
+        OPENVINO_SUPPRESS_DEPRECATED_START
 #include "openvino/opsets/opset2_tbl.hpp"
+        OPENVINO_SUPPRESS_DEPRECATED_END
 #undef _OPENVINO_OP_REG
     });
     return opset;
@@ -145,7 +149,9 @@ const ov::OpSet& ov::get_opset3() {
     static std::once_flag flag;
     std::call_once(flag, [&]() {
 #define _OPENVINO_OP_REG(NAME, NAMESPACE) INSERT_OP(opset3, NAME, NAMESPACE);
+        OPENVINO_SUPPRESS_DEPRECATED_START
 #include "openvino/opsets/opset3_tbl.hpp"
+        OPENVINO_SUPPRESS_DEPRECATED_END
 #undef _OPENVINO_OP_REG
     });
     return opset;

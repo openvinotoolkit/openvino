@@ -16,8 +16,8 @@ Knowledge Graph Embeddings” (https://arxiv.org/abs/1707.01476). The
 sample dataset can be downloaded from:
 https://github.com/TimDettmers/ConvE/tree/master/countries/countries_S1
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Windows specific settings <#windows-specific-settings>`__
 -  `Import the packages needed for successful
@@ -222,7 +222,7 @@ Download Model Checkpoint
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/notebooks/knowledge-graphs-conve/models/conve.pt')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/notebooks/knowledge-graphs-conve/models/conve.pt')
 
 
 
@@ -384,7 +384,7 @@ typical to use metrics such as Mean Reciprocal Rank, Hits@10 etc.
 
 .. parsed-literal::
 
-    Average time taken for inference: 0.6809830665588379 ms
+    Average time taken for inference: 0.6698866685231527 ms
     Mean accuracy of the model on the test dataset: 0.875
 
 
@@ -531,7 +531,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Average time taken for inference: 0.6866355737050375 ms
+    Average time taken for inference: 0.5994141101837158 ms
     Mean accuracy of the model on the test dataset: 0.10416666666666667
 
 
@@ -550,7 +550,7 @@ Determine the platform specific speedup obtained through OpenVINO graph optimiza
 
 .. parsed-literal::
 
-    Speedup with OpenVINO optimizations: 0.99 X
+    Speedup with OpenVINO optimizations: 1.12 X
 
 
 Benchmark the converted OpenVINO model using benchmark app
@@ -584,18 +584,18 @@ inference can also be obtained by looking at the benchmark app results.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
+    [ INFO ] Build ................................. 2024.2.0-15519-5c0f38f83f6-releases/2024/2
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] CPU
-    [ INFO ] Build ................................. 2024.1.0-15008-f4afc983258-releases/2024/1
+    [ INFO ] Build ................................. 2024.2.0-15519-5c0f38f83f6-releases/2024/2
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 5.32 ms
+    [ INFO ] Read model took 4.55 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     e1 (node: e1) : i64 / [...] / []
@@ -611,13 +611,12 @@ inference can also be obtained by looking at the benchmark app results.
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: aten::softmax/Softmax) : f32 / [...] / [1,271]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 66.93 ms
+    [ INFO ] Compile model took 71.77 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
     [ INFO ]   OPTIMAL_NUMBER_OF_INFER_REQUESTS: 12
     [ INFO ]   NUM_STREAMS: 12
-    [ INFO ]   AFFINITY: Affinity.CORE
     [ INFO ]   INFERENCE_NUM_THREADS: 24
     [ INFO ]   PERF_COUNT: NO
     [ INFO ]   INFERENCE_PRECISION_HINT: <Type: 'float32'>
@@ -634,6 +633,7 @@ inference can also be obtained by looking at the benchmark app results.
     [ INFO ]   CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE: 1.0
     [ INFO ]   DYNAMIC_QUANTIZATION_GROUP_SIZE: 0
     [ INFO ]   KV_CACHE_PRECISION: <Type: 'float16'>
+    [ INFO ]   AFFINITY: Affinity.CORE
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'e1'!. This input will be filled with random values!
     [ WARNING ] No input files were given for input 'rel'!. This input will be filled with random values!
@@ -641,17 +641,17 @@ inference can also be obtained by looking at the benchmark app results.
     [ INFO ] Fill input 'rel' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 10000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 1.44 ms
+    [ INFO ] First inference took 1.40 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            100644 iterations
-    [ INFO ] Duration:         10001.37 ms
+    [ INFO ] Count:            101232 iterations
+    [ INFO ] Duration:         10000.87 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1.02 ms
-    [ INFO ]    Average:       1.03 ms
+    [ INFO ]    Median:        1.00 ms
+    [ INFO ]    Average:       1.02 ms
     [ INFO ]    Min:           0.65 ms
-    [ INFO ]    Max:           8.70 ms
-    [ INFO ] Throughput:   10063.02 FPS
+    [ INFO ]    Max:           12.95 ms
+    [ INFO ] Throughput:   10122.32 FPS
 
 
 Conclusions

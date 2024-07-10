@@ -39,8 +39,8 @@ The notebook contains the following steps:
 3. Run Inference pipeline with OpenVINO.
 4. Run Interactive demo for Tiny-SD model
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Create PyTorch Models pipeline <#create-pytorch-models-pipeline>`__
@@ -69,7 +69,7 @@ Install required dependencies
 
 .. code:: ipython3
 
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch>=2.1" torchvision "openvino>=2023.3.0" "diffusers>=0.18.0" "transformers>=4.30.2" "gradio>=4.19"
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch>=2.1" torchvision "openvino>=2023.3.0" "opencv-python" "pillow" "diffusers>=0.18.0" "transformers>=4.30.2" "gradio>=4.19"
 
 Create PyTorch Models pipeline
 ------------------------------

@@ -29,6 +29,7 @@ const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype() {
         {ov::element::u4, py::dtype("uint8")},     {ov::element::nf4, py::dtype("uint8")},
         {ov::element::i4, py::dtype("int8")},      {ov::element::f8e4m3, py::dtype("uint8")},
         {ov::element::f8e5m2, py::dtype("uint8")}, {ov::element::string, py::dtype("bytes_")},
+        {ov::element::f4e2m1, py::dtype("uint8")}, {ov::element::f8e8m0, py::dtype("uint8")},
     };
     return ov_type_to_dtype_mapping;
 }
@@ -365,39 +366,26 @@ py::array array_from_constant_view(ov::op::v0::Constant&& c) {
 };  // namespace array_helpers
 
 namespace constant_helpers {
+
+std::vector<size_t> _get_byte_strides(const ov::Shape& s, const size_t element_byte_size) {
+    auto byte_strides = ov::row_major_strides(s);
+    for (auto&& stride : byte_strides) {
+        stride *= element_byte_size;
+    }
+    return byte_strides;
+}
+
 std::vector<size_t> _get_strides(const ov::op::v0::Constant& self) {
-    auto element_type = self.get_element_type();
-    auto shape = self.get_shape();
-    if (element_type == ov::element::boolean) {
-        return _get_byte_strides<char>(shape);
-    } else if (element_type == ov::element::f16 || element_type == ov::element::bf16) {
-        // WA for bf16, returned as f16 array
-        return _get_byte_strides<ov::float16>(shape);
-    } else if (element_type == ov::element::f32) {
-        return _get_byte_strides<float>(shape);
-    } else if (element_type == ov::element::f64) {
-        return _get_byte_strides<double>(shape);
-    } else if (element_type == ov::element::i8 || element_type == ov::element::i4) {
-        // WA for i4, returned as int8 array
-        return _get_byte_strides<int8_t>(shape);
-    } else if (element_type == ov::element::i16) {
-        return _get_byte_strides<int16_t>(shape);
-    } else if (element_type == ov::element::i32) {
-        return _get_byte_strides<int32_t>(shape);
-    } else if (element_type == ov::element::i64) {
-        return _get_byte_strides<int64_t>(shape);
-    } else if (element_type == ov::element::u8 || element_type == ov::element::u1 || element_type == ov::element::u4 ||
-               element_type == ov::element::nf4) {
-        // WA for u1, u4, nf4, all returned as packed uint8 arrays
-        return _get_byte_strides<uint8_t>(shape);
-    } else if (element_type == ov::element::u16) {
-        return _get_byte_strides<uint16_t>(shape);
-    } else if (element_type == ov::element::u32) {
-        return _get_byte_strides<uint32_t>(shape);
-    } else if (element_type == ov::element::u64) {
-        return _get_byte_strides<uint64_t>(shape);
-    } else {
-        throw std::runtime_error("Unsupported data type!");
+    using namespace ov::element;
+    switch (self.get_element_type()) {
+    case i4:
+    case u1:
+    case u4:
+    case nf4:
+    case f4e2m1:
+        return _get_byte_strides(self.get_shape(), 8);
+    default:
+        return self.get_strides();
     }
 }
 };  // namespace constant_helpers
@@ -433,10 +421,14 @@ ov::op::v0::Constant create_shared(py::array& array) {
     // If ndim is equal to 0, creates scalar Constant.
     // If size is equal to 0, creates empty Constant.
     if (array_helpers::is_contiguous(array)) {
-        auto memory = std::make_shared<ov::SharedBuffer<py::array>>(
+        auto buffer = new ov::SharedBuffer<py::array>(
             static_cast<char*>((array.ndim() == 0 || array.size() == 0) ? array.mutable_data() : array.mutable_data(0)),
             array.ndim() == 0 ? array.itemsize() : array.nbytes(),
             array);
+        std::shared_ptr<ov::SharedBuffer<py::array>> memory(buffer, [](ov::SharedBuffer<py::array>* buffer) {
+            py::gil_scoped_acquire acquire;
+            delete buffer;
+        });
         return ov::op::v0::Constant(type_helpers::get_ov_type(array), array_helpers::get_shape(array), memory);
     }
     // If passed array is not C-style, throw an error.
@@ -614,7 +606,7 @@ uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
 py::dict outputs_to_dict(InferRequestWrapper& request, bool share_outputs, bool decode_strings) {
     py::dict res;
     for (const auto& out : request.m_outputs) {
-        auto t = request.m_request.get_tensor(out);
+        auto t = request.m_request->get_tensor(out);
         if (t.get_element_type() == ov::element::string) {
             if (share_outputs) {
                 PyErr_WarnEx(PyExc_RuntimeWarning, "Result of a string type will be copied to OVDict!", 1);

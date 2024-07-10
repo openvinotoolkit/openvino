@@ -270,7 +270,9 @@ void reorder_inst::update_output_memory() {
     if (!can_be_optimized())
         return;
 
-    if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+    if (static_cast<bool>(_outputs[0])
+        && _network.get_engine().is_the_same_buffer(output_memory(), input_memory())
+        && output_memory().get_layout().identical(get_output_layout()))
         return;
 
     if (_node != nullptr)

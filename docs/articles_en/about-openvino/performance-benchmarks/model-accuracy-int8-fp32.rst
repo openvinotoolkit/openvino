@@ -29,73 +29,73 @@ the table for more information.
    * - bert-base-cased
      - SST-2_bert_cased_padded
      - spearman@cosine
-     - 2.93%
-     - 2.68%
-     - 2.76%
-     - 2.72%
+     - 3.33%
+     - 3.22%
+     - 3.69%
+     - 3.28%
    * - bert-large-uncased-whole-word-masking-squad-0001
      - SQUAD_v1_1_bert_msl384_mql64_ds128_lowercase
      - F1
      - 0.19%
-     - -0.03%
+     - 0.06%
      - 0.03%
      - 0.11%
    * - efficientdet-d0
      - COCO2017_detection_91cl
      - coco_precision
-     - -0.84%
-     - -0.64%
-     - -0.62%
+     - -0.90%
      - -0.63%
+     - -0.61%
+     - -0.62%
    * - mask_rcnn_resnet50_atrous_coco
      - COCO2017_detection_91cl_bkgr
      - coco_orig_precision
      - -0.04%
+     - -0.03%
+     - 0.04%
      - 0.02%
-     - 0.04%
-     - 0.04%
    * - mobilenet-v2
      - ImageNet2012
      - accuracy @ top1
      -
-     - -0.97%
-     - -0.97%
+     - -0.87%
+     - -0.89%
      - -0.95%
    * - resnet-50
      - ImageNet2012
      - accuracy @ top1
-     - -0.09%
-     - -0.12%
+     - -0.20%
+     - -0.18%
+     - -0.18%
      - -0.13%
-     - -0.19%
    * - ssd-resnet34-1200
      - COCO2017_detection_80cl_bkgr
      - map
+     - -0.03%
      - -0.02%
-     - -0.01%
-     - -0.02%
-     - 0.04%
+     - -0.03%
+     - -0.03%
    * - ssd-mobilenet-v1-coco
      - COCO2017_detection_80cl_bkgr
      - coco-precision
-     - -2.97%
-     - -0.29%
-     - -0.31%
-     - -0.26%
+     - -2.75%
+     - -0.11%
+     - -0.11%
+     - -0.08%
    * - unet-camvid-onnx-0001
      - CamVid_12cl
      - mean_iou @ mean
      - -6.28%
-     - 6.41%
+     - 6.45%
      - 6.46%
      - 6.40%
    * - yolo_v3_tiny
      - COCO2017_detection_80cl
      - map
-     - -0.30%
-     - -0.43%
-     - -0.43%
-     - -0.87%
+     - -0.57%
+     - -0.58%
+     - -0.58%
+     - -0.70%
    * - yolo_v8n
      - COCO2017_detection_80cl
      - map
@@ -104,18 +104,18 @@ the table for more information.
      - 0.04%
      - -0.08%
    * - chatGLM2-6b
-     - lambada openai
+     - Ceval-valid-high_school_history
      - ppl
      -
      - 0.75
      - 0.75
      -
    * - Llama-2-7b-chat
-     - Wiki, StackExch, Crawl
+     - Ceval-valid-high_school_history
      - ppl
      -
-     - 3.38
-     - 3.27
+     - 0.55
+     - 0.25
      -
    * - Stable-Diffusion-V2-1
      - LIAON-5B
@@ -125,18 +125,18 @@ the table for more information.
      -
      -
    * - Mistral-7b
-     - proprietary Mistral.ai
+     - Wikitext
      - ppl
      -
-     - 3.49
-     - 3.19
+     - 8.10
+     - 8.10
      -
    * - Falcon-7b-instruct
-     - Bai Ze (65%), GPT4All (25%), GPTeacher (5%), RefinedWeb-english (5%)
+     - Wikitext
      - ppl
      -
-     -
-     -
+     - 14.54
+     - 14.55
      -
 
 .. list-table:: Model Accuracy for BF16, FP32 and FP16 (FP16: Flex-170 only. BF16: Xeon(R) 8490H only)
@@ -165,7 +165,7 @@ the table for more information.
      - 0.04%
      - 0.04%
      - 0.06%
-     - 0.05%
+     - 0.04%
    * - efficientdet-d0
      - COCO2017_detection_91cl
      - coco_precision
@@ -178,7 +178,7 @@ the table for more information.
      - COCO2017_detection_91cl_bkgr
      - coco_orig_precision
      - -0.01%
-     - -0.02%
+     - -0.01%
      - -0.01%
      - 0.09%
      - 0.00%
@@ -205,7 +205,7 @@ the table for more information.
      - 0.00%
      - 0.00%
      - -0.02%
-     - 0.02%
+     - 0.00%
    * - ssd-mobilenet-v1-coco
      - COCO2017_detection_80cl_bkgr
      - coco-precision
@@ -239,7 +239,7 @@ the table for more information.
      - 0.04%
      - -0.02%
    * - chatGLM2-6b
-     - lambada openai
+     - Ceval-valid-high_school_history
      - ppl
      -
      - 0.75
@@ -247,11 +247,11 @@ the table for more information.
      -
      -
    * - Llama-2-7b-chat
-     - Wiki, StackExch, Crawl
+     - Wikitext
      - ppl
      -
-     - 3.26
-     - 3.26
+     - 0.30
+     - 0.55
      -
      -
    * - Stable-Diffusion-V2-1
@@ -263,19 +263,19 @@ the table for more information.
      -
      -
    * - Mistral-7b
-     - proprietary Mistral.ai
+     - Wikitext
      - ppl
      -
-     - 3.18
-     - 3.19
+     - 8.09
+     - 8.09
      -
      -
    * - Falcon-7b-instruct
-     - Bai Ze (65%), GPT4All (25%), GPTeacher (5%), RefinedWeb-english (5%)
+     - Wikitext
      - ppl
      -
-     -
-     -
+     - 14.51
+     - 14.51
      -
      -
 
@@ -293,4 +293,4 @@ accuracy for the model.
    Results may vary. For more information, see
    :doc:`F.A.Q. <./performance-benchmarks-faq>` and
    :doc:`Platforms, Configurations, Methodology <../performance-benchmarks>`.
-   See :doc:`Legal Information <../additional-resources/legal-information>`.
+   See :doc:`Legal Information <../additional-resources/terms-of-use>`.

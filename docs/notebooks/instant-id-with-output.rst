@@ -50,9 +50,8 @@ additional part demonstrates how to run optimization with
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ to speed up
 pipeline.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
 
+**Table of contents:**
 
 - `Prerequisites <#prerequisites>`__
 - `Convert and prepare Face IdentityNet <#convert-and-prepare-face-identitynet>`__
@@ -61,8 +60,7 @@ Table of contents:
   - `Perform Face Identity extraction <#perform-face-identity-extraction>`__
 
 - `Prepare InstantID pipeline <#prepare-instantid-pipeline>`__
-- `Convert InstantID pipeline components to OpenVINO Intermediate Representation
-  format <#convert-instantid-pipeline-components-to-openvino-intermediate-representation-format>`__
+- `Convert InstantID pipeline components to OpenVINO Intermediate Representation format <#convert-instantid-pipeline-components-to-openvino-intermediate-representation-format>`__
 
   - `ControlNet <#controlnet>`__
   - `Unet <#unet>`__
@@ -87,12 +85,12 @@ Table of contents:
     - `Run Weights Compression <#run-weights-compression>`__
 
   - `Compare model file sizes <#compare-model-file-sizes>`__
-  - `Compare inference time of the FP16 and INT8 pipelines
-    <#compare-inference-time-of-the-fp16-and-int8-pipelines>`__
+  - `Compare inference time of the FP16 and INT8 pipelines <#compare-inference-time-of-the-fp16-and-int8-pipelines>`__
 
 - `Interactive demo <#interactive-demo>`__
 
 .. |applications.png| image:: https://github.com/InstantID/InstantID/blob/main/assets/applications.png?raw=true
+
 
 Prerequisites
 -------------
@@ -501,8 +499,7 @@ Now, let’s see models inference result
 Select Inference Device for Face Recognition
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
- ### Select Inference Device for
-Face Recognition
+
 
 .. code:: ipython3
 
@@ -1694,7 +1691,7 @@ Select inference device for InstantID
 Create pipeline
 ~~~~~~~~~~~~~~~
 
- ### Create pipeline
+
 
 .. code:: ipython3
 
@@ -1713,7 +1710,7 @@ Create pipeline
 Run inference
 ~~~~~~~~~~~~~
 
- ### Run inference
+
 
 .. code:: ipython3
 
@@ -1775,8 +1772,8 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    to_quantize = widgets.Checkbox(value=True, description="Quantization")
-
+    skip_for_device = "GPU" in device.value
+    to_quantize = widgets.Checkbox(value=not skip_for_device, description="Quantization", disabled=skip_for_device)
     to_quantize
 
 
@@ -1856,7 +1853,7 @@ image.
     ov_int8_controlnet_path = MODELS_DIR / 'controlnet_optimized.xml'
 
     num_samples = int(np.ceil(subset_size / num_inference_steps))
-    dataset = datasets.load_dataset("wider_face", split="train", streaming=True).shuffle(seed=42)
+    dataset = datasets.load_dataset("wider_face", split="train", streaming=True, trust_remote_code=True).shuffle(seed=42)
     face_info = []
     for batch in dataset:
         try:

@@ -127,6 +127,10 @@ public:
         OPENVINO_ASSERT(data_offsets.size() == inMemPtrs.size() + outMemPtrs.size(), "Incorrect data offset count!");
         OPENVINO_ASSERT(data_offsets.front().size() == m_parallel_exec_domain.size(), "Data offsets with invalid ranks detected");
 
+        // Note: we need to reset KernelExecutorTable to the state that was recorded in the SubgraphDynamicSpecializedExecutor
+        // constructor because the table might've been used for other shapes
+        reset_exec_table_state();
+
         std::vector<const uint8_t*> src_ptrs;
         std::vector<uint8_t*> dst_ptrs;
         init_original_ptrs(inMemPtrs, outMemPtrs, src_ptrs, dst_ptrs);
@@ -151,6 +155,7 @@ protected:
 
     inline void init_call_args(jit_snippets_call_args& call_args) {
         call_args.register_loops(loop_args);
+        std::copy(buffer_offsets.cbegin(), buffer_offsets.cend(), call_args.buffer_offsets);
 
         if (m_buffer_scratchpad_size > 0)
             call_args.buffer_scratchpad_ptr =
@@ -191,12 +196,16 @@ protected:
 
     void init_runtime_params(const std::shared_ptr<CPURuntimeConfig>& snippet_config) override {
         SubgraphExecutor::init_runtime_params(snippet_config);
+        buffer_offsets = snippet_config->buffer_cluster_offsets;
         data_offsets = snippet_config->io_data_offsets;
         loop_args = snippet_config->loop_args;
-    }
+        reset_exec_table_state = snippet_config->kernel_executor_table->get_state_reset();
+    };
 
+    std::vector<size_t> buffer_offsets = {};
     std::vector<std::vector<size_t>> data_offsets = {};
     std::vector<jit_snippets_call_args::loop_args_t> loop_args = {};
+    std::function<void()> reset_exec_table_state;
 };
 
 struct SubgraphKey {
@@ -628,7 +637,7 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() const {
 #    define SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(PASS_PLACE, TARGET_PASS, PASS, ...)
 #endif  // OPENVINO_ARCH_X86_64
 
-    SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineStart, ConvertToSwishCPU);
+    SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(Place::PipelineStart, ConvertToSwishCPU);
     if (context->getConfig().inferencePrecision == ov::element::bf16 && subgraph_attrs->snippet->has_domain_sensitive_ops()) {
         // enforce BF16 precisions to supported operations
         // MatMul has to be decomposed to Brgemm operations before enforcement
@@ -846,6 +855,7 @@ void Subgraph::SubgraphExecutor::init_runtime_params(const std::shared_ptr<CPURu
     OPENVINO_ASSERT(snippet_config, "Runtime Config is empty!");
 
     m_buffer_scratchpad_size = snippet_config->buffer_scratchpad_size;
+    OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(m_buffer_scratchpad_size), "Undefined buffer scratchpad size!");
     m_buffer_scratchpad.resize(m_buffer_scratchpad_size * parallel_get_max_threads(), 0);
 
     init_parallel_domain(snippet_config, m_parallel_exec_domain);
@@ -879,7 +889,7 @@ void Subgraph::SubgraphExecutor::parallel_for6d(const std::function<void(jit_sni
     segfault_detector();
 #endif
 
-    parallel_nt(m_nthreads, [&](const int ithr, const int nthr) {
+    parallel_nt_static(m_nthreads, [&](const int ithr, const int nthr) {
         jit_snippets_call_args call_args;
         initializer(call_args);
 
@@ -903,7 +913,7 @@ void Subgraph::SubgraphExecutor::parallel_forNd(const std::function<void(jit_sni
     segfault_detector();
 #endif
 
-    parallel_nt(m_nthreads, [&](const int ithr, const int nthr) {
+    parallel_nt_static(m_nthreads, [&](const int ithr, const int nthr) {
         jit_snippets_call_args call_args;
         initializer(call_args);
 

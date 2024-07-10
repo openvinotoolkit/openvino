@@ -12,16 +12,6 @@ using Result = IShapeInferSnippets::Result;
  * Merge SRC to DST with broadcasting rules defined by the Autobroadcast specifier
  */
 bool broadcast_merge_into(VectorDims& dst, const VectorDims& src, const ov::op::AutoBroadcastSpec& autob) {
-    auto broadcast_merge_dim = [](size_t& dst, const size_t& d1, const size_t& d2) {
-        if (d1 == d2 || d1 == 1 || utils::is_dynamic_value(d1)) {
-            dst = d2;
-        } else if (d2 == 1 || utils::is_dynamic_value(d2)) {
-            dst = d1;
-        } else {
-           return false;
-        }
-        return true;
-    };
     // Ranks are both static.
     const auto dst_rank = static_cast<int64_t>(dst.size());
     const auto src_rank = static_cast<int64_t>(src.size());
@@ -35,7 +25,7 @@ bool broadcast_merge_into(VectorDims& dst, const VectorDims& src, const ov::op::
             for (int64_t i = 0; i < new_rank; i++) {
                 auto dsti = i < (new_rank - dst_rank) ? 1 : dst[i - (new_rank - dst_rank)];
                 auto srci = i < (new_rank - src_rank) ? 1 : src[i - (new_rank - src_rank)];
-                success &= broadcast_merge_dim(dims[i], dsti, srci);
+                success &= utils::broadcast_merge_dim(dims[i], dsti, srci);
             }
             dst = std::move(dims);
             return success;
@@ -55,7 +45,7 @@ bool broadcast_merge_into(VectorDims& dst, const VectorDims& src, const ov::op::
                     if (src[i] > dst[axis + i])
                         return false;
                 }
-                success &= broadcast_merge_dim(dst[axis + i], dst[axis + i], src[i]);
+                success &= utils::broadcast_merge_dim(dst[axis + i], dst[axis + i], src[i]);
             }
             return success;
         }

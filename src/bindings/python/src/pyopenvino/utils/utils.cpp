@@ -23,6 +23,35 @@ using Version = ov::pass::Serialize::Version;
 namespace Common {
 namespace utils {
 
+PY_TYPE check_list_element_type(const py::list& list) {
+    PY_TYPE detected_type = PY_TYPE::UNKNOWN;
+
+    auto check_type = [&](PY_TYPE type) {
+        if (detected_type == PY_TYPE::UNKNOWN || detected_type == type) {
+            detected_type = type;
+            return;
+        }
+        OPENVINO_THROW("Incorrect attribute. Mixed types in the list are not allowed.");
+    };
+
+    for (const auto& it : list) {
+        // Check the type of elements in the list
+        if (py::isinstance<py::str>(it)) {
+            check_type(PY_TYPE::STR);
+        } else if (py::isinstance<py::int_>(it)) {
+            check_type(PY_TYPE::INT);
+        } else if (py::isinstance<py::float_>(it)) {
+            check_type(PY_TYPE::FLOAT);
+        } else if (py::isinstance<py::bool_>(it)) {
+            check_type(PY_TYPE::BOOL);
+        } else if (py::isinstance<ov::PartialShape>(it)) {
+            check_type(PY_TYPE::PARTIAL_SHAPE);
+        }
+    }
+
+    return detected_type;
+};
+
 // For complex structure if an element isn't map, then just cast it to OVAny
 py::object from_ov_any_no_leaves(const ov::Any& any) {
     if (any.is<std::shared_ptr<ov::Meta>>() || any.is<ov::AnyMap>()) {
@@ -323,28 +352,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return {};
     } else if (py::isinstance<py::list>(py_obj)) {
         auto _list = py_obj.cast<py::list>();
-        enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, FLOAT, BOOL, PARTIAL_SHAPE };
-        PY_TYPE detected_type = PY_TYPE::UNKNOWN;
-        for (const auto& it : _list) {
-            auto check_type = [&](PY_TYPE type) {
-                if (detected_type == PY_TYPE::UNKNOWN || detected_type == type) {
-                    detected_type = type;
-                    return;
-                }
-                OPENVINO_THROW("Incorrect attribute. Mixed types in the list are not allowed.");
-            };
-            if (py::isinstance<py::str>(it)) {
-                check_type(PY_TYPE::STR);
-            } else if (py::isinstance<py::int_>(it)) {
-                check_type(PY_TYPE::INT);
-            } else if (py::isinstance<py::float_>(it)) {
-                check_type(PY_TYPE::FLOAT);
-            } else if (py::isinstance<py::bool_>(it)) {
-                check_type(PY_TYPE::BOOL);
-            } else if (py::isinstance<ov::PartialShape>(it)) {
-                check_type(PY_TYPE::PARTIAL_SHAPE);
-            }
-        }
+
+        PY_TYPE detected_type = check_list_element_type(_list);
 
         if (_list.empty())
             return ov::Any(EmptyList());
@@ -418,6 +427,13 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py_obj;
     }
     OPENVINO_ASSERT(false, "Unsupported attribute type.");
+}
+std::shared_ptr<py::function> wrap_pyfunction(py::function f_callback) {
+    auto callback_sp = std::shared_ptr<py::function>(new py::function(std::move(f_callback)), [](py::function* c) {
+        py::gil_scoped_acquire acquire;
+        delete c;
+    });
+    return callback_sp;
 }
 };  // namespace utils
 };  // namespace Common

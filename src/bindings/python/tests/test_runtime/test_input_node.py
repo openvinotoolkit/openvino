@@ -3,12 +3,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-
+import numpy as np
 from openvino.runtime import Input, RTMap
 from openvino._pyopenvino import DescriptorTensor
 import openvino.runtime.opset13 as ops
 
-from openvino import Core, OVAny, Shape, PartialShape, Type
+from openvino import Core, OVAny, Shape, PartialShape, Type, Tensor, Symbol
 from tests.utils.helpers import get_relu_model
 
 
@@ -133,3 +133,36 @@ def test_input_update_rt_info(device):
     for key, value in input_node.get_rt_info().items():
         assert key == "test12345"
         assert isinstance(value, OVAny)
+
+
+def test_tensor_bounds_in_model(device):
+    core = Core()
+    model = get_relu_model()
+    compiled_model = core.compile_model(model, device)
+    tensor = compiled_model.output(0).get_tensor()
+    partial_shape = tensor.get_partial_shape().to_shape()
+    tensor_size = np.prod(partial_shape)
+
+    lower_value = np.zeros(tensor_size, dtype=np.float32)
+    lower_value_tensor = Tensor(lower_value.reshape(partial_shape))
+    upper_value = np.ones(tensor_size, dtype=np.float32)
+    upper_value_tensor = Tensor(upper_value.reshape(partial_shape))
+
+    tensor.set_lower_value(lower_value_tensor)
+    retrieved_lower_value = tensor.get_lower_value().data
+    tensor.set_upper_value(upper_value_tensor)
+    retrieved_upper_value = tensor.get_upper_value().data
+    assert np.array_equal(retrieved_lower_value, lower_value_tensor.data)
+    assert np.array_equal(retrieved_upper_value, upper_value_tensor.data)
+
+
+def test_value_symbol_in_model(device):
+    core = Core()
+    model = get_relu_model()
+    compiled_model = core.compile_model(model, device)
+    tensor = compiled_model.output(0).get_tensor()
+    partial_shape = tensor.get_partial_shape().to_shape()
+    tensor_size = np.prod(partial_shape)
+    values = [Symbol() for _ in range(tensor_size)]
+    tensor.set_value_symbol(values)
+    assert tensor.get_value_symbol() == values

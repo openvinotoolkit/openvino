@@ -25,8 +25,12 @@ bool JitEltwiseExecutor::isSupported(
                                      Algorithm::EltwiseElu,
                                      Algorithm::EltwiseEqual,
                                      Algorithm::EltwiseExp,
+                                     Algorithm::EltwiseFloor,
                                      Algorithm::EltwiseGeluErf,
+                                     Algorithm::EltwiseGeluTanh,
                                      Algorithm::EltwiseHswish,
+                                     Algorithm::EltwiseIsInf,
+                                     Algorithm::EltwiseIsNaN,
                                      Algorithm::EltwiseMaximum,
                                      Algorithm::EltwiseMinimum,
                                      Algorithm::EltwiseMish,
@@ -73,9 +77,8 @@ bool JitEltwiseExecutor::isSupported(
     };
 
     const std::set<ov::element::Type> supported_precisions =
-        (algorithm == Algorithm::EltwiseDivide) ?
-            // Divide operation doesn't support int32 tensor inference in fp32 precision.
-            // As result Divide operation supports fp16 and fp32 only.
+        // Divide and Floor (issue #138629) operations are supported for fp32 and fp16 only.
+        ((algorithm == Algorithm::EltwiseDivide) || (algorithm == Algorithm::EltwiseFloor)) ?
             std::set<ov::element::Type> { ov::element::f16, ov::element::f32 } :
             std::set<ov::element::Type> {
                 ov::element::f16,

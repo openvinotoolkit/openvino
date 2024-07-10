@@ -24,8 +24,8 @@ top-performing models, allowing also cheaper and faster inference.
 We will use PyTorch version of Würstchen `model from HuggingFace
 Hub <https://huggingface.co/warp-ai/wuerstchen>`__.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Load the original model <#load-the-original-model>`__
@@ -209,10 +209,12 @@ This pipeline consists of text encoder and prior diffusion model. From
 here, we always use fixed shapes in conversion by using an ``input``
 parameter to generate a less memory-demanding model.
 
-Text encoder model has 2 inputs: - ``input_ids``: vector of tokenized
-input sentence. Default tokenizer vector length is 77. -
-``attention_mask``: vector of same length as ``input_ids`` describing
-the attention mask.
+Text encoder model has 2 inputs:
+
+- ``input_ids``: vector of tokenized
+  input sentence. Default tokenizer vector length is 77.
+- ``attention_mask``: vector of same length as ``input_ids`` describing
+  the attention mask.
 
 .. code:: ipython3
 
@@ -274,9 +276,12 @@ Decoder pipeline
 
 Decoder pipeline consists of 3 parts: decoder, text encoder and VQGAN.
 
-Decoder model is the WuerstchenDiffNeXt UNet decoder. Inputs are: -
-``x``: sample - ``r``: timestep - ``effnet``: interpolation block -
-``clip``: encoder hidden states
+Decoder model is the WuerstchenDiffNeXt UNet decoder. Inputs are:
+
+- ``x``: sample
+- ``r``: timestep
+- ``effnet``: interpolation block
+- ``clip``: encoder hidden states
 
 .. code:: ipython3
 
@@ -593,7 +598,7 @@ Prepare calibration datasets
 
 
 We use a portion of
-`conceptual_captions <https://huggingface.co/datasets/conceptual_captions>`__
+`conceptual_captions <https://huggingface.co/datasets/google-research-datasets/conceptual_captions>`__
 dataset from Hugging Face as calibration data. To collect intermediate
 model inputs for calibration we should customize ``CompiledModel``.
 
@@ -628,7 +633,7 @@ model inputs for calibration we should customize ``CompiledModel``.
         pipeline.prior_pipe.prior.prior = CompiledModelDecorator(original_prior)
         pipeline.decoder_pipe.decoder.decoder = CompiledModelDecorator(original_decoder)
 
-        dataset = datasets.load_dataset("conceptual_captions", split="train").shuffle(seed=42)
+        dataset = datasets.load_dataset("google-research-datasets/conceptual_captions", split="train", trust_remote_code=True).shuffle(seed=42)
         pbar = tqdm(total=subset_size)
         diff = 0
         for batch in dataset:

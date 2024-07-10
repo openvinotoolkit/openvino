@@ -21,6 +21,8 @@ on:
         type: string
         required: true
 
+permissions: read-all
+
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
   PYTHON_VERSION: '3.11'
@@ -48,7 +50,7 @@ jobs:
           echo "EXTENSION_BUILD_DIR=$GITHUB_WORKSPACE/build" >> "$GITHUB_ENV"
 
       - name: checkout action
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           sparse-checkout: |
             .github/actions/setup_python
@@ -56,7 +58,6 @@ jobs:
             install_build_dependencies.sh
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
-        if: ${{ runner.os != 'Linux' }} # We do not need to install Python on Linux as we use Docker with it installed
         uses: ./.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
@@ -65,14 +66,14 @@ jobs:
           self-hosted-runner: ${{ runner.os == 'Linux' }}
 
       - name: Clone OpenVINO Tokenizers
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           repository: 'openvinotoolkit/openvino_tokenizers'
           path: ${{ env.OPENVINO_TOKENIZERS_REPO }}
           ref: 'master'
 
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
@@ -95,10 +96,21 @@ jobs:
       # Dependencies
       #
 
-      - name: Install python dependencies
+      - name: Install OpenVINO Python wheel (Linux and macOS)
+        if: runner.os != 'Windows'
         run: |
-          # wheel packaging
-          python3 -m pip install -r ${{ env.OPENVINO_TOKENIZERS_REPO }}/requirements-build.txt
+          # Find and install wheel
+          pushd ${INSTALL_DIR}/tools
+            wheel_name=$(find . -name 'openvino-*.whl')
+            python3 -m pip install $wheel_name
+          popd
+
+      - name: Install OpenVINO Python wheel (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          # Find and install wheel
+          $ovCoreWheelPath=Get-ChildItem -Path "${{ env.INSTALL_DIR }}\\tools" -Filter openvino-*.whl | % { $_.FullName }
+          python3 -m pip install "$ovCoreWheelPath"
 
       #
       # Build
@@ -107,20 +119,16 @@ jobs:
       - name: Build tokenizers wheel (Linux and macOS)
         if: runner.os != 'Windows'
         run: |
-          source ${INSTALL_DIR}/setupvars.sh
-          python -m build --wheel --outdir ${EXTENSION_BUILD_DIR} ${OPENVINO_TOKENIZERS_REPO}
+          # use OpenVINO wheel package only to build the extension
+          python -m pip wheel -v --no-deps --wheel-dir ${EXTENSION_BUILD_DIR} --find-links ${INSTALL_DIR}/tools ${OPENVINO_TOKENIZERS_REPO}
         env:
-          CMAKE_ARGS: '-DBUILD_FAST_TOKENIZERS=OFF'
           CMAKE_BUILD_PARALLEL_LEVEL: '4'
-          CMAKE_GENERATOR: 'Unix Makefiles'
 
       - name: Build tokenizers wheel (Windows)
         if: runner.os == 'Windows'
         run: |
-          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
-          python3 -m build --wheel --outdir ${env:EXTENSION_BUILD_DIR} ${env:OPENVINO_TOKENIZERS_REPO}
+          python3 -m pip wheel -v --no-deps --wheel-dir ${env:EXTENSION_BUILD_DIR} --find-links ${env:INSTALL_DIR}/tools ${env:OPENVINO_TOKENIZERS_REPO}
         env:
-          CMAKE_ARGS: '-DBUILD_FAST_TOKENIZERS=OFF'
           CMAKE_BUILD_PARALLEL_LEVEL: '4'
 
       #
@@ -129,7 +137,7 @@ jobs:
 
       - name: Upload openvino tokenizers wheel
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: openvino_tokenizers_wheel
           path: ${{ env.EXTENSION_BUILD_DIR }}/*.whl

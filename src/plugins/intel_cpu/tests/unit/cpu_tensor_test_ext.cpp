@@ -17,6 +17,7 @@
 #include "cpu_memory.h"
 #include "cpu_tensor.h"
 #include "openvino/runtime/itensor.hpp"
+#include "common_test_utils/test_assertions.hpp"
 
 using namespace ov::intel_cpu;
 
@@ -73,7 +74,7 @@ TEST_F(CPUTensorExtTest, canSetShape) {
 
     const void* orig_data = t->data();
     ASSERT_EQ(t->get_shape(), origShape);
-    ASSERT_NO_THROW(t->set_shape({4, 5, 6}));
+    OV_ASSERT_NO_THROW(t->set_shape({4, 5, 6}));
     ASSERT_EQ(newShape, t->get_shape());
     ASSERT_EQ(byteStrides(ov::row_major_strides(newShape), t->get_element_type()), t->get_strides());
     ASSERT_NE(orig_data, t->data());
@@ -109,14 +110,14 @@ TEST_F(CPUTensorExtTest, canCreateTensorWithDynamicShape) {
     std::shared_ptr<ov::ITensor> t;
 
     // construct with memory with dynamic shape
-    ASSERT_NO_THROW(t = std::make_shared<ov::intel_cpu::Tensor>(create_memory(ov::element::f32, shape)));
+    OV_ASSERT_NO_THROW(t = std::make_shared<ov::intel_cpu::Tensor>(create_memory(ov::element::f32, shape)));
     ASSERT_THROW(t->get_shape(), ov::Exception);
     ASSERT_THROW(t->get_strides(), ov::Exception);
 
     // change memory to dynamic shape
     {
         auto memptr = create_memory(ov::element::f32, {4, 3, 2});
-        ASSERT_NO_THROW(t = std::make_shared<ov::intel_cpu::Tensor>(memptr));
+        OV_ASSERT_NO_THROW(t = std::make_shared<ov::intel_cpu::Tensor>(memptr));
 
         ov::PartialShape pshape{{1, 10}, 3, 2};
         CpuBlockedMemoryDescPtr desc2 = std::make_shared<CpuBlockedMemoryDesc>(ov::element::f32, Shape(pshape));
@@ -127,10 +128,10 @@ TEST_F(CPUTensorExtTest, canCreateTensorWithDynamicShape) {
 
     // set_shape
     const ov::Shape newShape({4, 0, 2});
-    ASSERT_NO_THROW(t = std::make_shared<ov::intel_cpu::Tensor>(create_memory(ov::element::f32, {4, 3, 2})));
+    OV_ASSERT_NO_THROW(t = std::make_shared<ov::intel_cpu::Tensor>(create_memory(ov::element::f32, {4, 3, 2})));
 
     const void* orig_data = t->data();
-    ASSERT_NO_THROW(t->set_shape({4, 0, 2}));
+    OV_ASSERT_NO_THROW(t->set_shape({4, 0, 2}));
     ASSERT_EQ(newShape, t->get_shape());
     ASSERT_EQ(ov::Strides({0, 0, 0}), t->get_strides());
     ASSERT_EQ(orig_data, t->data());

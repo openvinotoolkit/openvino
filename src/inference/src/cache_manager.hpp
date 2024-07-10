@@ -98,10 +98,15 @@ public:
  */
 class FileStorageCacheManager final : public ICacheManager {
     std::string m_cachePath;
-
+#if defined(_WIN32) && defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
+    std::wstring getBlobFile(const std::string& blobHash) const {
+        return ov::util::string_to_wstring(ov::util::make_path(m_cachePath, blobHash + ".blob"));
+    }
+#else
     std::string getBlobFile(const std::string& blobHash) const {
         return ov::util::make_path(m_cachePath, blobHash + ".blob");
     }
+#endif
 
 public:
     /**
@@ -120,7 +125,6 @@ private:
     void write_cache_entry(const std::string& id, StreamWriter writer) override {
         // Fix the bug caused by pugixml, which may return unexpected results if the locale is different from "C".
         ScopedLocale plocal_C(LC_ALL, "C");
-
         std::ofstream stream(getBlobFile(id), std::ios_base::binary | std::ofstream::out);
         writer(stream);
     }
@@ -137,8 +141,14 @@ private:
 
     void remove_cache_entry(const std::string& id) override {
         auto blobFileName = getBlobFile(id);
-        if (ov::util::file_exists(blobFileName))
+
+        if (ov::util::file_exists(blobFileName)) {
+#if defined(_WIN32) && defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
+            _wremove(blobFileName.c_str());
+#else
             std::remove(blobFileName.c_str());
+#endif
+        }
     }
 };
 

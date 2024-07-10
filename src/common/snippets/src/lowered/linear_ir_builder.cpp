@@ -65,22 +65,21 @@ std::vector<std::shared_ptr<ov::Node>> clone_nodes(const std::vector<std::shared
 }
 }  // namespace
 
-std::shared_ptr<LinearIR> LinearIRBuilder::clone(const std::shared_ptr<LinearIR>& linear_ir) const {
-    auto cloned = std::make_shared<LinearIR>();
-    cloned->m_config = linear_ir->m_config;
+void LinearIRBuilder::clone(const LinearIR* src, LinearIR* dst,  ExpressionMap& expression_map) const {
+    OPENVINO_ASSERT(src && dst, "Invalid pointers were provided for LinearIRBuilder::clone");
+    dst->m_config = src->m_config;
 
-    ExpressionMap expression_map;
-    cloned->m_expressions = clone_range(linear_ir->m_expressions.cbegin(), linear_ir->m_expressions.cend(), expression_map);
-    for (const auto& expr : cloned->m_expressions) {
-        cloned->register_expression(expr, true);
+    dst->m_expressions = clone_range(src->m_expressions.cbegin(), src->m_expressions.cend(), expression_map);
+    for (const auto& expr : dst->m_expressions) {
+        dst->register_expression(expr, true);
     }
 
-    cloned->m_loop_manager = linear_ir->m_loop_manager->clone_with_new_expr(expression_map);
+    dst->m_loop_manager = src->m_loop_manager->clone_with_new_expr(expression_map);
     // It's Ok to share shapeInfer factory ptr, since the factory doesn't depend on LIR in any way
-    cloned->m_shape_infer_factory = linear_ir->m_shape_infer_factory;
-    cloned->m_shape_infer = std::make_shared<LinearIR::LIRShapeInfer>(cloned->m_expressions, cloned->m_parameter_expressions, cloned->m_result_expressions);
-    cloned->m_is_dynamic = linear_ir->m_is_dynamic;
-    return cloned;
+    dst->m_shape_infer_factory = src->m_shape_infer_factory;
+    dst->m_shape_infer = std::make_shared<LinearIR::LIRShapeInfer>(dst->m_expressions, dst->m_parameter_expressions,
+                                                                   dst->m_result_expressions);
+    dst->m_is_dynamic = src->m_is_dynamic;
 }
 
 LinearIR::container LinearIRBuilder::clone_range(LinearIR::container::const_iterator begin, LinearIR::container::const_iterator end,
@@ -111,6 +110,7 @@ LinearIR::container LinearIRBuilder::clone_range(LinearIR::container::const_iter
                         result_expr->get_input_count() == original_expr->get_input_count() &&
                         result_expr->get_output_count() == original_expr->get_output_count(),
                         "Expressions after copying aren't matched!");
+        // Copy tensor shapes as shared pointer if needed
         if (!m_config.deep_copy_of_shapes) {
             for (size_t i = 0; i < original_expr->get_input_count(); ++i)
                 result_expr->get_input_port_descriptor(i)->m_tensor_shape = original_expr->get_input_port_descriptor(i)->m_tensor_shape;

@@ -43,6 +43,7 @@ std::vector<TRShape> shape_infer(const SpaceToBatch* op,
                           "block_shape and pads inputs must have rank 1. Got: ",
                           inputs_same_ps.rank());
 
+    auto output_shapes = std::vector<TRShape>{data_shape};
     if (data_shape.rank().is_static()) {
         constexpr size_t spatial_dim_offset = 1;
         const auto data_rank_size = data_shape.size();
@@ -52,8 +53,8 @@ std::vector<TRShape> shape_infer(const SpaceToBatch* op,
                               data_rank_size,
                               ")");
 
-        TRShape out_shape;
-        out_shape.reserve(data_rank_size);
+        auto& out_shape = output_shapes[0];
+        out_shape.resize(0);
 
         auto blocks = get_input_const_data_as<TShape, int64_t>(op, 1, ta);
         if (blocks) {
@@ -83,11 +84,9 @@ std::vector<TRShape> shape_infer(const SpaceToBatch* op,
         } else {
             out_shape.insert(out_shape.end(), data_rank_size - spatial_dim_offset, dim::inf_bound);
         }
-
-        return {out_shape};
-    } else {
-        return {PartialShape::dynamic()};
     }
+
+    return output_shapes;
 }
 }  // namespace v1
 }  // namespace op

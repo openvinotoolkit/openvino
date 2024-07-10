@@ -8,6 +8,9 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
 
@@ -95,4 +98,23 @@ TEST(CoreBaseTest, LoadOVFolderOverCWPathPluginXML) {
     remove_plugin_xml(ov_file_path);
 }
 
+#    if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__)
+TEST(CoreBaseTest, ReadModelwithSymlink) {
+    fs::create_directory("test_link");
+    std::string modelName = "test_link/test.xml";
+    std::string weightsName = "test_link/test.bin";
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::Serialize>(modelName, weightsName);
+    manager.run_passes(ov::test::utils::make_conv_pool_relu({1, 3, 227, 227}, ov::element::Type_t::f32));
+
+    std::string modelNameSymlink = "test_link/test_symlink.xml";
+    fs::create_symlink(modelName, modelNameSymlink);
+    ov::Core core;
+    EXPECT_NO_THROW(core.read_model(modelName, weightsName));
+    EXPECT_THROW(core.read_model(modelNameSymlink, weightsName), std::runtime_error);
+
+    fs::remove_all("test_link");
+    ASSERT_FALSE(ov::util::directory_exists("test_link"));
+}
+#    endif
 #endif

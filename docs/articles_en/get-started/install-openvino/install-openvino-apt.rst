@@ -155,7 +155,7 @@ Step 2: Install OpenVINO Runtime Using the APT Package Manager
          .. code-block:: sh
 
 
-            sudo apt install openvino-2024.0.0
+            sudo apt install openvino-2024.2.0
 
 .. note::
 
@@ -228,7 +228,7 @@ To uninstall OpenVINO Runtime via APT, run the following command based on your n
 
       .. code-block:: sh
 
-         sudo apt autoremove openvino-2024.0.0
+         sudo apt autoremove openvino-2024.2.0
 
 
 What's Next?
@@ -252,13 +252,8 @@ You can also try the following:
 
 * Learn more about :doc:`OpenVINO Workflow <../../../openvino-workflow>`.
 * To prepare your models for working with OpenVINO, see :doc:`Model Preparation <../../../openvino-workflow/model-preparation>`.
-* See pre-trained deep learning models in our :doc:`Open Model Zoo <../../../documentation/legacy-features/model-zoo>`.
+* See pre-trained deep learning models on `Hugging Face <https://huggingface.co/OpenVINO>`__
 * Learn more about :doc:`Inference with OpenVINO Runtime <../../../openvino-workflow/running-inference>`.
 * See sample applications in :doc:`OpenVINO toolkit Samples Overview <../../../learn-openvino/openvino-samples>`.
 * Take a glance at the OpenVINO `product home page <https://software.intel.com/en-us/openvino-toolkit>`__ .
-
-
-
-
-
 

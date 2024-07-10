@@ -20,8 +20,10 @@
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "openvino/core/type/float4_e2m1.hpp"
 #include "openvino/core/type/float8_e4m3.hpp"
 #include "openvino/core/type/float8_e5m2.hpp"
+#include "openvino/core/type/float8_e8m0.hpp"
 
 /**
  * @defgroup ov_element_cpp_api Element types
@@ -59,7 +61,9 @@ enum class Type_t {
     nf4,        //!< nf4 element type
     f8e4m3,     //!< f8e4m3 element type
     f8e5m2,     //!< f8e5m2 element type
-    string      //!< string element type
+    string,     //!< string element type
+    f4e2m1,     //!< f4e2m1 element type
+    f8e8m0,     //!< f8e8m0 element type
 };
 
 /// \brief Base class to define element type
@@ -69,7 +73,6 @@ public:
     Type() = default;
     Type(const Type&) = default;
     constexpr Type(const Type_t t) : m_type{t} {}
-    Type(size_t bitwidth, bool is_real, bool is_signed, bool is_quantized, const std::string& cname);
     explicit Type(const std::string& type);
     Type& operator=(const Type&) = default;
     std::string c_type_string() const;
@@ -125,6 +128,9 @@ public:
     }
     // Return element type in string representation
     std::string to_string() const;
+
+    OPENVINO_DEPRECATED("This constructor is deprecated. It will be removed in 2025.0")
+    Type(size_t bitwidth, bool is_real, bool is_signed, bool is_quantized, const std::string& cname);
 
 private:
     Type_t m_type{Type_t::undefined};
@@ -207,6 +213,12 @@ constexpr Type f8e5m2(Type_t::f8e5m2);
 /// \brief string element type
 /// \ingroup ov_element_cpp_api
 constexpr Type string(Type_t::string);
+/// \brief f4e2m1 element type
+/// \ingroup ov_element_cpp_api
+constexpr Type f4e2m1(Type_t::f4e2m1);
+/// \brief f8e8m0 element type
+/// \ingroup ov_element_cpp_api
+constexpr Type f8e8m0(Type_t::f8e8m0);
 
 template <typename T>
 Type from() {
@@ -246,6 +258,10 @@ template <>
 OPENVINO_API Type from<ov::float8_e5m2>();
 template <>
 OPENVINO_API Type from<std::string>();
+template <>
+OPENVINO_API Type from<ov::float4_e2m1>();
+template <>
+OPENVINO_API Type from<ov::float8_e8m0>();
 
 OPENVINO_API Type fundamental_type_for(const Type& type);
 

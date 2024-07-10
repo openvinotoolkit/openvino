@@ -29,9 +29,24 @@ public:
     /**
      * @brief Make a full copy of LinearIR by rules described in `m_config`
      * @param linear_ir Linear IR
+     * @param expression_map expression map
      * @return clone of `linear_ir`
      */
-    std::shared_ptr<LinearIR> clone(const std::shared_ptr<LinearIR>& linear_ir) const;
+    inline std::shared_ptr<LinearIR> clone(const std::shared_ptr<LinearIR>& linear_ir,  ExpressionMap& expression_map) const {
+        auto result = std::make_shared<LinearIR>();
+        clone(linear_ir.get(), result.get(), expression_map);
+        return result;
+    }
+    inline std::shared_ptr<LinearIR> clone(const std::shared_ptr<LinearIR>& linear_ir) const {
+        ExpressionMap expression_map;
+        return clone(linear_ir, expression_map);
+    }
+    inline LinearIR clone(const LinearIR& linear_ir) const {
+        LinearIR result;
+        ExpressionMap expression_map;
+        clone(&linear_ir, &result, expression_map);
+        return result;
+    }
     /**
      * @brief Make a copy of LinearIR range by rules described in `m_config`
      * @param begin begin iterator of the target range of LinearIR
@@ -43,6 +58,7 @@ public:
                                     ExpressionMap& expression_map) const;
 
 private:
+    void clone(const LinearIR* src, LinearIR* dst,  ExpressionMap& expression_map) const;
     Config m_config = {};
 };
 
