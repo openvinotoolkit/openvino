@@ -717,8 +717,15 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
         if (!validator) {
             return false;
         }
+
         auto it = pattern_map.find(const_inv_freq);
+        if (it == pattern_map.end()) {
+            return false;
+        }
         auto cur_inv_freq = std::dynamic_pointer_cast<opset1::Constant>(it->second.get_node_shared_ptr());
+        if (!cur_inv_freq) {
+            return false;
+        }
 
         // the first match is the one to be shared, collect all inputs
         // and constants into the state capture by lambda
