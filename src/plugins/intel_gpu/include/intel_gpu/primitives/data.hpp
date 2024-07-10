@@ -55,13 +55,13 @@ struct data : public primitive_base<data> {
 
         if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
             if (cache_without_weights) {
-                std::ofstream ifstr_save("/home/tkrupa/test/save.bin", std::ofstream::app | std::ofstream::binary);
-                BinaryOutputBuffer saveBuffer(ifstr_save);
+                //std::ofstream ifstr_save("/home/tkrupa/test/save.bin", std::ofstream::app | std::ofstream::binary);
+                //BinaryOutputBuffer saveBuffer(ifstr_save);
                 ob << true;
                 ob << bin_offset;
-                ob << make_data(mem->buffer_ptr(), data_size);
-                saveBuffer << make_data(mem->buffer_ptr(), data_size);
-                ifstr_save.close();
+                //ob << make_data(mem->buffer_ptr(), data_size);
+                //saveBuffer << make_data(mem->buffer_ptr(), data_size);
+                //ifstr_save.close();
             } else {
                 ob << false;
                 ob << make_data(mem->buffer_ptr(), data_size);
@@ -96,8 +96,8 @@ struct data : public primitive_base<data> {
         // TODO: propagate weights_path here
         if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
             if (cache_without_weights) {
-                std::ofstream ifstr_load("/home/tkrupa/test/load.bin", std::ofstream::app | std::ofstream::binary);
-                BinaryOutputBuffer loadBuffer(ifstr_load);
+                //std::ofstream ifstr_load("/home/tkrupa/test/load.bin", std::ofstream::app | std::ofstream::binary);
+                //BinaryOutputBuffer loadBuffer(ifstr_load);
                 size_t bin_offset;
                 ib >> bin_offset;
                 //std::ifstream ifstr("/home/tkrupa/test/shufflenet.bin", std::ifstream::binary);
@@ -110,9 +110,9 @@ struct data : public primitive_base<data> {
                     data_size,
                     mapped_memory);
                 std::memcpy(reinterpret_cast<uint8_t*>(mem->buffer_ptr()), shared_buf->get_ptr<uint8_t>(), data_size);
-                loadBuffer << make_data(mem->buffer_ptr(), data_size);
-                ib >> make_data(mem->buffer_ptr(), data_size);
-                ifstr_load.close();
+                //loadBuffer << make_data(mem->buffer_ptr(), data_size);
+                //ib >> make_data(mem->buffer_ptr(), data_size);
+                //ifstr_load.close();
             } else {
                 ib >> make_data(mem->buffer_ptr(), data_size);
             }
