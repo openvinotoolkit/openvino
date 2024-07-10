@@ -10,6 +10,7 @@ import re
 import sys
 import git
 import shutil
+import dateutil
 from contextlib import contextmanager
 from pathlib import Path
 from datetime import timezone
