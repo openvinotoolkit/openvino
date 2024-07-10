@@ -190,8 +190,12 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                                                 recorded_in_tensor_id);
                     }
                     m_may_be_alias[fw_tensor_id] = {node->inputs().at(0), node, converted_outputs[i]};
-                    OPENVINO_DEBUG("Registered alias: ", fw_tensor_id, " of tensor: ", node->inputs().at(0),
-                                   " of operation: ", context.get_op_type());
+                    OPENVINO_DEBUG("Registered alias: ",
+                                   fw_tensor_id,
+                                   " of tensor: ",
+                                   node->inputs().at(0),
+                                   " of operation: ",
+                                   context.get_op_type());
                 }
                 FRONT_END_GENERAL_CHECK(tensor_map->find(fw_tensor_id) == tensor_map->end(),
                                         "Duplicated producer for PT value with unique ID: ",
@@ -199,9 +203,13 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 auto out_type = context.get_output_type(i);
                 if (out_type.is<element::Type>()) {
                     if (!converted_outputs[i].get_element_type().compatible(out_type.as<element::Type>())) {
-                        OPENVINO_DEBUG("[WARNING] Produced output type for operation ", context.get_op_type(),
-                                       " for tensor id: ", fw_tensor_id, " is incompatible: produced ",
-                                       converted_outputs[i].get_element_type(), " vs ",
+                        OPENVINO_DEBUG("[WARNING] Produced output type for operation ",
+                                       context.get_op_type(),
+                                       " for tensor id: ",
+                                       fw_tensor_id,
+                                       " is incompatible: produced ",
+                                       converted_outputs[i].get_element_type(),
+                                       " vs ",
                                        out_type.as<element::Type>());
                     }
                 }
@@ -325,8 +333,11 @@ void TranslateSession::encode_tensor_name(Output<Node> output,
                                           size_t tensor_idx,
                                           std::vector<std::string> additional_names) {
     if (!output.get_names().empty()) {
-        OPENVINO_DEBUG("Tensor names already exist: ", output.get_any_name(), ". Will not be rewritten with ",
-                       tensor_idx, ". This is likely a mutated tensor.");
+        OPENVINO_DEBUG("Tensor names already exist: ",
+                       output.get_any_name(),
+                       ". Will not be rewritten with ",
+                       tensor_idx,
+                       ". This is likely a mutated tensor.");
         return;
     }
     auto name = std::to_string(tensor_idx);
@@ -428,8 +439,12 @@ Output<Node> TranslateSession::get_reverseprop_op(const std::shared_ptr<TorchDec
         }
 
     } catch (std::exception& e) {
-        OPENVINO_DEBUG("Exception happened during conversion of backprop op: ", node->get_op_type(),
-                       " with schema: ", node->get_schema(), ": ", e.what());
+        OPENVINO_DEBUG("Exception happened during conversion of backprop op: ",
+                       node->get_op_type(),
+                       " with schema: ",
+                       node->get_schema(),
+                       ": ",
+                       e.what());
     }
     // Create PtFrameworkNode representing unconverted backprop operation
     return std::make_shared<PtFrameworkNode>(node, OutputVector{value}, 1, true);

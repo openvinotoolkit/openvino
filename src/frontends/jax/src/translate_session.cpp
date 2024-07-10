@@ -204,8 +204,11 @@ void TranslateSession::encode_tensor_name(Output<Node> output,
                                           size_t tensor_idx,
                                           std::vector<std::string> additional_names) {
     if (!output.get_names().empty()) {
-        OPENVINO_DEBUG("Tensor names already exist: ", output.get_any_name(), ". Will not be rewritten with ",
-                       tensor_idx, ". This is likely a mutated tensor.");
+        OPENVINO_DEBUG("Tensor names already exist: ",
+                       output.get_any_name(),
+                       ". Will not be rewritten with ",
+                       tensor_idx,
+                       ". This is likely a mutated tensor.");
         return;
     }
     auto name = std::to_string(tensor_idx);
