@@ -30,6 +30,9 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 
+#include "transformations/convert_precision.hpp"
+
+
 namespace {
 void split_properties(const ov::AnyMap& properties,
                       ov::AnyMap& npu_plugin_properties,
@@ -126,6 +129,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             LOG_VERB(r);
         }
     }
+
+    ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(model);
 
     auto partitioning = getPartitioning(model, m_cfg);
     m_total_stat.gflops = partitioning.total_gflops;
