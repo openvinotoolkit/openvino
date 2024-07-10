@@ -18,6 +18,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
+#include "openvino/runtime/properties.hpp"
 
 using namespace intel_npu;
 
@@ -305,7 +306,7 @@ Plugin::Plugin()
           [&](const Config&) {
               return _metrics->GetAvailableDevicesNames();
           }}},
-        {ov::cache_dir.name(),
+        {ov::workload_type.name(),
          {_backends->isWorkloadTypeSupported(),
           ov::PropertyMutability::RW,
           [](const Config& config) {
@@ -533,13 +534,9 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.getString<BACKEND_COMPILATION_PARAMS>();
           }}},
-        {ov::intel_npu::batch_mode.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.getString<BATCH_MODE>();
-          }}}
-    };
+        {ov::intel_npu::batch_mode.name(), {false, ov::PropertyMutability::RW, [](const Config& config) {
+                                                return config.getString<BATCH_MODE>();
+                                            }}}};
 
     for (auto& property : _properties) {
         if (std::get<0>(property.second)) {
