@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/reference/utils/phillox_converter.hpp"
+#include "openvino/reference/utils/philox_converter.hpp"
 
 namespace ov {
 
 namespace reference {
 
-namespace phillox {
+namespace philox {
 
 // Utils functions
 namespace {
@@ -201,33 +201,33 @@ void convert_to_output_type(const std::vector<uint32_t>& generated_numbers,
 }
 }  // namespace
 
-// ======= MockPhilloxConverter functions =======
-MockPhilloxConverter::MockPhilloxConverter(char* out,
-                                           const element::Type& elem_type,
-                                           const size_t elem_count,
-                                           const char* min_val,
-                                           const char* max_val)
-    : PhilloxConverter(out, elem_type, elem_count, min_val, max_val) {}
+// ======= MockPhiloxConverter functions =======
+MockPhiloxConverter::MockPhiloxConverter(char* out,
+                                         const element::Type& elem_type,
+                                         const size_t elem_count,
+                                         const char* min_val,
+                                         const char* max_val)
+    : PhiloxConverter(out, elem_type, elem_count, min_val, max_val) {}
 
-void MockPhilloxConverter::convert(PhilloxOutput result, size_t idx) {
+void MockPhiloxConverter::convert(PhiloxOutput result, size_t idx) {
     // Mock converter does nothing
     return;
 }
 
-size_t MockPhilloxConverter::get_converted_elements_count() const {
+size_t MockPhiloxConverter::get_converted_elements_count() const {
     return ELEMENTS_PER_EXECUTION;
 }
 
-// ======= TensorflowPhilloxConverter functions =======
+// ======= TensorflowPhiloxConverter functions =======
 
-TensorflowPhilloxConverter::TensorflowPhilloxConverter(char* out,
-                                                       const element::Type& elem_type,
-                                                       const size_t elem_count,
-                                                       const char* min_val,
-                                                       const char* max_val)
-    : PhilloxConverter(out, elem_type, elem_count, min_val, max_val) {}
+TensorflowPhiloxConverter::TensorflowPhiloxConverter(char* out,
+                                                     const element::Type& elem_type,
+                                                     const size_t elem_count,
+                                                     const char* min_val,
+                                                     const char* max_val)
+    : PhiloxConverter(out, elem_type, elem_count, min_val, max_val) {}
 
-size_t TensorflowPhilloxConverter::get_converted_elements_count() const {
+size_t TensorflowPhiloxConverter::get_converted_elements_count() const {
     // Each run of Philox algorithm generates 4 uint32 values.
     // If output_type is int32, f32, bf16, or f16 each value is converted to
     // corresponding type so we have 4 result values.
@@ -236,7 +236,7 @@ size_t TensorflowPhilloxConverter::get_converted_elements_count() const {
     return m_elem_type.size() > 4 ? ELEMENTS_PER_EXECUTION / 2 : ELEMENTS_PER_EXECUTION;
 }
 
-void TensorflowPhilloxConverter::convert(const PhilloxOutput result, size_t idx) {
+void TensorflowPhiloxConverter::convert(const PhiloxOutput result, size_t idx) {
     // convert values to corresponding output_type
     switch (m_elem_type) {
     case element::Type_t::f32: {
@@ -320,14 +320,14 @@ void TensorflowPhilloxConverter::convert(const PhilloxOutput result, size_t idx)
     }
 }
 
-// ======= PyTorchPhilloxConverter functions =======
+// ======= PyTorchPhiloxConverter functions =======
 
-PyTorchPhilloxConverter::PyTorchPhilloxConverter(char* out,
-                                                 const element::Type& elem_type,
-                                                 const size_t elem_count,
-                                                 const char* min_val,
-                                                 const char* max_val)
-    : PhilloxConverter(out, elem_type, elem_count, min_val, max_val) {
+PyTorchPhiloxConverter::PyTorchPhiloxConverter(char* out,
+                                               const element::Type& elem_type,
+                                               const size_t elem_count,
+                                               const char* min_val,
+                                               const char* max_val)
+    : PhiloxConverter(out, elem_type, elem_count, min_val, max_val) {
     // Check for optimization conditions for int64_t.
     // If both min and max fall below the maximum value of uint32_t,
     // PyTorch generates 64-bit numbers by casting
@@ -344,7 +344,7 @@ PyTorchPhilloxConverter::PyTorchPhilloxConverter(char* out,
     }
 }
 
-size_t PyTorchPhilloxConverter::get_converted_elements_count() const {
+size_t PyTorchPhiloxConverter::get_converted_elements_count() const {
     // PyTorch uses one uint32_t value per generated output for 32 bit random numbers
     // and either one or two values (if optimization is off) to generate one 64 bit random number.
     // Therefore, the only case where 2 output values are generated is when optimization is OFF and the dtype is 64 bit
@@ -352,7 +352,7 @@ size_t PyTorchPhilloxConverter::get_converted_elements_count() const {
     return m_elem_type.size() > 4 && !m_optimization_enabled ? ELEMENTS_PER_EXECUTION / 2 : ELEMENTS_PER_EXECUTION;
 }
 
-void PyTorchPhilloxConverter::convert(const PhilloxOutput result, size_t idx) {
+void PyTorchPhiloxConverter::convert(const PhiloxOutput result, size_t idx) {
     // convert values to corresponding output_type
     switch (m_elem_type) {
     case element::Type_t::f32: {
@@ -465,24 +465,24 @@ void PyTorchPhilloxConverter::convert(const PhilloxOutput result, size_t idx) {
 
 // ====== General selector function to construct a desired converter for a generator ======
 
-std::shared_ptr<PhilloxConverter> make_phillox_converter(char* out,
-                                                         const element::Type& elem_type,
-                                                         const size_t elem_count,
-                                                         const char* min_val,
-                                                         const char* max_val,
-                                                         const op::PhilloxAlignment alignment) {
+std::shared_ptr<PhiloxConverter> make_philox_converter(char* out,
+                                                       const element::Type& elem_type,
+                                                       const size_t elem_count,
+                                                       const char* min_val,
+                                                       const char* max_val,
+                                                       const op::PhiloxAlignment alignment) {
     switch (alignment) {
-    case op::PhilloxAlignment::TENSORFLOW:
-        return std::make_shared<TensorflowPhilloxConverter>(out, elem_type, elem_count, min_val, max_val);
-    case op::PhilloxAlignment::PYTORCH:
-        return std::make_shared<PyTorchPhilloxConverter>(out, elem_type, elem_count, min_val, max_val);
+    case op::PhiloxAlignment::TENSORFLOW:
+        return std::make_shared<TensorflowPhiloxConverter>(out, elem_type, elem_count, min_val, max_val);
+    case op::PhiloxAlignment::PYTORCH:
+        return std::make_shared<PyTorchPhiloxConverter>(out, elem_type, elem_count, min_val, max_val);
     default:
         // Mock conversion (no conversion)
-        return std::make_shared<MockPhilloxConverter>(out, elem_type, elem_count, min_val, max_val);
+        return std::make_shared<MockPhiloxConverter>(out, elem_type, elem_count, min_val, max_val);
     }
 }
 
-}  // namespace phillox
+}  // namespace philox
 
 }  // namespace reference
 
