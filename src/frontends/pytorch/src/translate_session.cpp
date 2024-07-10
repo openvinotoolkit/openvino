@@ -439,7 +439,7 @@ Output<Node> TranslateSession::get_reverseprop_op(const std::shared_ptr<TorchDec
         }
 
     }
-#if ENABLE_OPENVINO_DEBUG
+#ifdef ENABLE_OPENVINO_DEBUG
     catch (std::exception& e) {
         OPENVINO_DEBUG("Exception happened during conversion of backprop op: ",
                        node->get_op_type(),
