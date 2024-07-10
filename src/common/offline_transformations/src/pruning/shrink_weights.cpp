@@ -189,8 +189,10 @@ static std::shared_ptr<ov::Node> handle_split(const std::shared_ptr<ov::Node>& s
 }
 
 bool ov::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ov::Model>& f) {
+#ifdef ENABLE_OPENVINO_DEBUG
     int64_t reduced_weights_count{0};
     int64_t total_weights_count{0};
+#endif
     for (const auto& node : f->get_ordered_ops()) {
         // calculate shape for every node in graph as the input shape may change
         // during Constant shrinking
@@ -227,7 +229,9 @@ bool ov::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ov::Model>& f) 
             continue;
 
         const auto& const_shape = const_node->get_shape();
+#ifdef ENABLE_OPENVINO_DEBUG
         total_weights_count += shape_size(const_shape);
+#endif
 
 #ifdef ENABLE_OPENVINO_DEBUG
         if (init_mask) {
@@ -314,7 +318,9 @@ bool ov::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ov::Model>& f) 
                     }
                 }
 
+#ifdef ENABLE_OPENVINO_DEBUG
                 const auto& prev_shape = last_output.get_partial_shape();
+#endif
 
                 last_output = std::make_shared<opset6::Gather>(
                     last_output,
@@ -323,12 +329,13 @@ bool ov::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ov::Model>& f) 
 #ifdef ENABLE_OPENVINO_DEBUG
                 const auto& prev_name = last_output.get_node()->get_friendly_name();
                 OPENVINO_DEBUG("Transform(", prev_name, "): ", prev_shape, " to ", last_output.get_partial_shape());
-#endif
+
                 if (prev_shape.is_static() && last_output.get_partial_shape().is_static()) {
                     reduced_weights_count += shape_size(prev_shape.get_shape()) - shape_size(last_output.get_shape());
                 } else {
                     OPENVINO_DEBUG("[ WARNING ] Can not find the number of reduced elements due to dynamic shapes.");
                 }
+#endif
             }
             // Trying to fold sequence of Gather ops to avoid additional constant folding.
             if (auto folded_const = ov::util::get_constant_from_source(last_output)) {
@@ -342,7 +349,9 @@ bool ov::pass::ShrinkWeights::run_on_model(const std::shared_ptr<ov::Model>& f) 
             copy_runtime_info(const_node, last_output.get_node_shared_ptr());
         }
     }
+#ifdef ENABLE_OPENVINO_DEBUG
     OPENVINO_DEBUG("[ INFO ]   TOTAL WEIGHTS: ", total_weights_count, "\n");
     OPENVINO_DEBUG("[ INFO ] REDUCED WEIGHTS: ", reduced_weights_count, "\n");
+#endif
     return true;
 }
