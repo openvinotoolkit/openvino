@@ -1,11 +1,10 @@
-AI Models that run with OpenVINO
+AI Models verified for OpenVINO™
 =====================================
 
-This list of 500+ computer vision, LLM, and GenAI models includes pre-optimized OpenVINO
-models/notebooks plus models from public model zoos (ONNX Model Zoo, Pytorch Model Zoo, and
-HuggingFace). This list is not comprehensive and only includes models tested by Intel.
+The following is a list of models that have been verified to work with OpenVINO. Note that other
+models from OpenVINO-supported frameworks may also work properly but have not been tested.
 
-**AI Models that run on Intel® Core Ultra ™ Processors with OpenVINO™ toolkit:**
+**AI Models that run on Intel® Core Ultra™ Processors with OpenVINO™ toolkit:**
 
 .. raw:: html
 
@@ -19,11 +18,16 @@ HuggingFace). This list is not comprehensive and only includes models tested by 
    :file:  ../../_static/download/supported_models.csv
 
 
+Check marks indicate models that passed inference with no errors. Empty cells indicate models
+that were not tested. No failing runs producing an error have been recorded.
+
+In the precision column, the "optimum-intel default" label corresponds to FP32 for small models
+and INT8 for models greater than 1B parameters.
+
+
 | Note:
 | The results as of June 17 2024, for OpenVINO version 2024.2.
+| The models come from different public model repositories, such as Pytorch Model Zoo and
+  HuggingFace; they were executed on the designated hardware with OpenVINO either natively or
+  as a backend.
 
-| The validation process involved using the OpenVINO toolkit (natively or as a backend) to load
-  each model onto the designated hardware and successfully execute inference without encountering
-  any errors or failures. These successfully run models are indicated with a check mark below and
-  blanks are not tested. In the precision column where it is listed as optimum-intel default,
-  that corresponds to FP32 for small models and INT8 for models greater than 1B parameters.
