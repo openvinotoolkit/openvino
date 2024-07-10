@@ -932,8 +932,10 @@ static bool is_node_for_onednn(fully_connected_node const& node) {
         if (!fc_prim->decompression_zero_point.empty()) {
             auto decompression_zp_idx = fc_prim->bias.empty() ? 3 : 4;
             auto decompression_zp_dt = node.get_input_layout(decompression_zp_idx).data_type;
-            if (weights_dt != decompression_zp_dt)
+            if ((weights_dt != ov::element::Type_t::u4 && weights_dt != ov::element::Type_t::u8) ||
+                (decompression_zp_dt != ov::element::Type_t::u8 && decompression_zp_dt != ov::element::Type_t::i8)) {
                 return false;
+            }
 
             auto input_dt = node.get_input_layout(0).data_type;
             if (input_dt == data_types::f32)
@@ -1568,6 +1570,8 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
                 }
             }
         }
+    } else if (node.is_type<non_max_suppression_gather>()) {
+        return impl_types::cpu;
     } else if (node.is_type<reorder>()) {
         if (!_optimization_attributes.use_onednn_impls)
             return impl_types::ocl;
