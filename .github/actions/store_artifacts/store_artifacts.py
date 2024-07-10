@@ -163,7 +163,7 @@ def main():
     if merge_queue_matcher:
         branch_name = merge_queue_matcher.group(1)
 
-    commit_hash = args.commit_sha or os.getenv('GITHUB_EVENT_PULL_REQUEST_HEAD_SHA') or os.getenv('GITHUB_SHA')
+    commit_hash = args.commit_sha or os.getenv('PR_HEAD_SHA') or os.getenv('GITHUB_SHA')
     event_type = 'pre_commit' if event_name == 'pull_request' else 'commit'
     storage_root = args.storage_root or os.getenv('ARTIFACTS_SHARE')
 
