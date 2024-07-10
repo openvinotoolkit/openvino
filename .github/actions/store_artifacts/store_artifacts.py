@@ -10,7 +10,6 @@ import re
 import sys
 import git
 import shutil
-import dateutil
 from contextlib import contextmanager
 from pathlib import Path
 from datetime import timezone
@@ -143,8 +142,7 @@ def generate_manifest(repos: list, product_type: str, event_type: str, build_typ
     custom_branch_name = f'-{repo.branch}' if trigger_repo.branch != 'master' else ''
     run_number_postfix = f'-{os.environ.get("GITHUB_RUN_NUMBER")}' if os.environ.get("GITHUB_RUN_NUMBER") else ''
     product_version = f"{ov_version}-{run_number_postfix}-{trigger_repo.revision[:11]}{custom_branch_name}"
-    commit_time = dateutil.parser.parse(trigger_repo.commit_time)
-    wheel_product_version = f'{product_version}.dev{commit_time.strftime("%Y%m%d")}'
+    wheel_product_version = f'{product_version}.dev{trigger_repo.commit_time.strftime("%Y%m%d")}'
 
     component = Component(name=component_name, version=product_version, product_type=product_type, target_arch=target_arch,
                           build_type=build_type, build_event=event_type, repositories=repositories,
