@@ -58,6 +58,13 @@ TEST_P(DriverCompilerAdapterPropComTestNPU, TestNewPro) {
 }
 
 const std::vector<ov::AnyMap> configs = {
+    {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER)},
+    {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
+     ov::intel_npu::compilation_mode_params("dummy-op-replacement=true")},
+    {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
+     ov::intel_npu::compilation_mode_params("dummy-op-replacement=true optimization-level=1")},
+    {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
+     ov::intel_npu::compilation_mode_params("optimization-level=1 dummy-op-replacement=true")},
     {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
      ov::intel_npu::compilation_mode_params("optimization-level=1")},
     {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),

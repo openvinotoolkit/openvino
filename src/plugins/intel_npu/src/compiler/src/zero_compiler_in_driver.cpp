@@ -10,6 +10,7 @@
 
 #include "graph_transformations.hpp"
 #include "intel_npu/al/config/common.hpp"
+#include "intel_npu/al/config/compiler.hpp"
 #include "intel_npu/al/config/runtime.hpp"
 #include "intel_npu/al/itt.hpp"
 #include "intel_npu/al/prefix.hpp"
@@ -380,22 +381,42 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
 
     // Remove optimization-level and performance-hint-override for old driver which not support them
     if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 7)) {
-        std::ostringstream optLevelStr;
-        optLevelStr << "optimization-level" << KEY_VALUE_SEPARATOR << "\\d+";
-        std::ostringstream perfHintStr;
-        perfHintStr << "performance-hint-override" << KEY_VALUE_SEPARATOR << "\\S+";
-        _logger.warning(
-            "optimization-level property is not suppored by this compiler version. Removing from parameters");
-        content = std::regex_replace(content, std::regex(optLevelStr.str()), "");
-        _logger.warning("performance-hint-override property is not suppored by this compiler version. Removing "
-                        "from parameters");
-        content = std::regex_replace(content, std::regex(perfHintStr.str()), "");
+        std::string valueOfParams = config.get<COMPILATION_MODE_PARAMS>();
+        std::string keyOfOptL("optimization-level");
+        std::string keyOfPerfHO("performance-hint-override");
+        if (valueOfParams != "" && (valueOfParams.find(keyOfOptL) != std::string::npos ||
+                                    valueOfParams.find(keyOfPerfHO) != std::string::npos)) {
+            // Remove unsupported options from value
+            std::ostringstream optLevelStr;
+            optLevelStr << keyOfOptL << KEY_VALUE_SEPARATOR << "\\d+";
+            std::ostringstream perfHintStr;
+            perfHintStr << keyOfPerfHO << KEY_VALUE_SEPARATOR << "\\S+";
+            _logger.warning("%s property is not suppored by this compiler version. Removing from parameters",
+                            keyOfOptL.c_str());
+            valueOfParams = std::regex_replace(valueOfParams, std::regex(optLevelStr.str()), "");
+            _logger.warning("%s property is not suppored by this compiler version. Removing from parameters",
+                            keyOfPerfHO.c_str());
+            valueOfParams = std::regex_replace(valueOfParams, std::regex(perfHintStr.str()), "");
 
-        std::ostringstream compilationParamsStr;
-        compilationParamsStr << ov::intel_npu::compilation_mode_params.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER
-                             << "\\s*\"*";
-        _logger.warning("Clear empty NPU_COMPILATION_MODE_PARAMS. Removing from parameters");
-        content = std::regex_replace(content, std::regex(compilationParamsStr.str()), "");
+            // Trim space
+            valueOfParams = std::regex_replace(valueOfParams, std::regex(R"(^\s+|\s+$)"), "");
+
+            // Replace the value in content with new value
+            std::ostringstream compilationParamsStr;
+            compilationParamsStr << ov::intel_npu::compilation_mode_params.name() << KEY_VALUE_SEPARATOR
+                                 << VALUE_DELIMITER << ".*" << VALUE_DELIMITER;
+            if (valueOfParams == "") {
+                _logger.warning("Clear empty NPU_COMPILATION_MODE_PARAMS. Removing from parameters");
+                content = std::regex_replace(content, std::regex(compilationParamsStr.str()), "");
+            } else {
+                std::ostringstream newValue;
+                newValue << ov::intel_npu::compilation_mode_params.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER
+                         << valueOfParams << VALUE_DELIMITER;
+                _logger.warning("Replace value of NPU_COMPILATION_MODE_PARAMS with new value %s",
+                                newValue.str().c_str());
+                content = std::regex_replace(content, std::regex(compilationParamsStr.str()), newValue.str().c_str());
+            }
+        }
     }
 
     // As a consequence of complying to the conventions established in the 2.0 OV API, the set of values corresponding
