@@ -794,6 +794,7 @@ void Transformations::PostLpt() {
     // Execute before snippets. Otherwise FQ will be converted to Subgraph
     CPU_REGISTER_PASS_X64(postLPTPassManager, ConvertFqRnnToQuantizedRnn);
 
+    postLPTPassManager.register_pass<ov::pass::Serialize>("ser.xml", "ser.bin");
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RoPEFusion);
     CPU_REGISTER_PASS_ARM64(postLPTPassManager, ov::pass::RoPEFusion);
     CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskPreprocessFusion);

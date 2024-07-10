@@ -1102,21 +1102,11 @@ inline std::shared_ptr<Node> operator|(const std::shared_ptr<Node>& lhs, const s
         OutputVector{lhs->get_default_output(), rhs->get_default_output()});
 }
 
-inline std::shared_ptr<Node> GenSlice2(detail::PatternNode data,
-                                       detail::PatternNode start,
-                                       detail::PatternNode stop,
-                                       detail::PatternNode step,
-                                       size_t axis,
-                                       bool single_axis = false) {
-    std::shared_ptr<Node> opt1;
-    if (single_axis) {
-        opt1 = makePattern<opset8::Slice>({data, start, stop, step, Symbol(axis)});
-    } else {
-        std::vector<Symbol> axes(axis + 1);
-        std::iota(axes.begin(), axes.end(), 0);
-        opt1 = makePattern<opset8::Slice>({data, start, stop, step, axes});
-    }
-
+inline std::shared_ptr<Node> GenStridedSlice(detail::PatternNode data,
+                                             detail::PatternNode start,
+                                             detail::PatternNode stop,
+                                             detail::PatternNode step,
+                                             size_t axis) {
     std::vector<int64_t> begin_mask(axis + 1, 1);
     std::vector<int64_t> end_mask(axis + 1, 1);
     std::vector<int64_t> new_axis_mask;
@@ -1132,7 +1122,7 @@ inline std::shared_ptr<Node> GenSlice2(detail::PatternNode data,
                                                    {"new_axis_mask", new_axis_mask},
                                                    {"shrink_axis_mask", shrink_axis_mask},
                                                    {"ellipsis_mask", ellipsis_mask}});
-    return opt1 | opt2;
+    return opt2;
 }
 
 inline std::shared_ptr<Node> GenSlice(detail::PatternNode data, Symbol start, Symbol stop, Symbol step, size_t axis) {
