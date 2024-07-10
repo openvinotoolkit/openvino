@@ -84,3 +84,6 @@
 [submodule "src/plugins/intel_cpu/thirdparty/libxsmm"]
 	path = src/plugins/intel_cpu/thirdparty/libxsmm
 	url = https://github.com/libxsmm/libxsmm.git
+[submodule "src/plugins/intel_cpu/thirdparty/shl"]
+	path = src/plugins/intel_cpu/thirdparty/shl
+	url = https://github.com/openvinotoolkit/shl.git
