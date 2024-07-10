@@ -100,6 +100,12 @@ std::pair<testing::AssertionResult, size_t> TestCase::compare_results(size_t tol
         }
 
         switch (element_type) {
+        case ov::element::Type_t::f8e5m2:
+            res = compare_values<ov::float8_e5m2>(exp_result, result_tensor, tolerance_bits);
+            break;
+        case ov::element::Type_t::f8e4m3:
+            res = compare_values<ov::float8_e4m3>(exp_result, result_tensor, tolerance_bits);
+            break;
         case ov::element::Type_t::f16:
             res = compare_values<ov::float16>(exp_result, result_tensor, tolerance_bits);
             break;

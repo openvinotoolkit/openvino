@@ -1368,6 +1368,7 @@ public:
     void test_compressed_int4_scale(bool is_caching_test, bool is_dynamic, long int batch_num, long int scales_group_size = 128) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
+        auto supports_immad = engine.get_device_info().supports_immad;
 
         long int ifm_num = 256;
         long int ofm_num = 256;
@@ -1375,6 +1376,9 @@ public:
         auto input_mem = engine.allocate_memory({ { batch_num, ifm_num}, data_types::f16, format::bfyx });
         auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u4, format::bfyx });
         auto scale_mem = engine.allocate_memory({ {ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx });
+        auto dcomp_zp_mem = engine.allocate_memory({ {1, 1, 1, 1}, data_types::u8, format::bfyx });
+
+        set_values(dcomp_zp_mem, {8});
 
         auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -2.0f, 2.0f);
         set_values(input_mem, input_data);
@@ -1388,7 +1392,9 @@ public:
         auto in_layout = is_dynamic ? layout{ {-1, ifm_num}, data_types::f16, format::bfyx }
                                     : layout{ {batch_num, ifm_num}, data_types::f16, format::bfyx };
 
-        auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, padding(), 2, 2);
+        auto dcomp_zp_name = supports_immad ? "dcomp_zp" : "";
+
+        auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", dcomp_zp_name, data_types::f16, padding(), 2, 2);
 
         fc_prim.decompression_zero_point_scalar = 8;
 
@@ -1397,6 +1403,7 @@ public:
                 input_layout("input", in_layout),
                 data("weights", weights_mem),
                 data("scale", scale_mem),
+                data("dcomp_zp", dcomp_zp_mem),
                 fc_prim
             );
 
@@ -1420,6 +1427,7 @@ public:
             input_layout("input", in_layout),
             data("weights", weights_mem),
             data("scale", scale_mem),
+            data("dcomp_zp", dcomp_zp_mem),
             fc_prim
         );
 
@@ -1456,6 +1464,7 @@ public:
     void test_compressed_int4_scale_reuse(bool is_caching_test, bool is_dynamic, long int batch_num, long int scales_group_size = 128) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
+        auto supports_immad = engine.get_device_info().supports_immad;
 
         long int ifm_num = 256;
         long int ofm_num = 256;
@@ -1464,6 +1473,9 @@ public:
         auto weights_mem1 = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u4, format::bfyx });
         auto weights_mem2 = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u4, format::bfyx });
         auto scale_mem = engine.allocate_memory({ {ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx });
+        auto dcomp_zp_mem = engine.allocate_memory({ {1, 1, 1, 1}, data_types::u8, format::bfyx });
+
+        set_values(dcomp_zp_mem, {8});
 
         auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -2.0f, 2.0f);
         set_values(input_mem, input_data);
@@ -1478,8 +1490,10 @@ public:
         auto in_layout = is_dynamic ? layout{ {-1, ifm_num}, data_types::f16, format::bfyx }
                                     : layout{ {batch_num, ifm_num}, data_types::f16, format::bfyx };
 
-        auto fc_prim1 = fully_connected("fc_prim1", input_info("input"), "weights1", "", "scale", "", data_types::f16, padding(), 2, 2);
-        auto fc_prim2 = fully_connected("fc_prim2", input_info("input"), "weights2", "", "scale", "", data_types::f16, padding(), 2, 2);
+        auto dcomp_zp_name = supports_immad ? "dcomp_zp" : "";
+
+        auto fc_prim1 = fully_connected("fc_prim1", input_info("input"), "weights1", "", "scale", dcomp_zp_name, data_types::f16, padding(), 2, 2);
+        auto fc_prim2 = fully_connected("fc_prim2", input_info("input"), "weights2", "", "scale", dcomp_zp_name, data_types::f16, padding(), 2, 2);
 
         fc_prim1.decompression_zero_point_scalar = 8;
         fc_prim2.decompression_zero_point_scalar = 8;
@@ -1490,6 +1504,7 @@ public:
                 data("weights1", weights_mem1),
                 data("weights2", weights_mem2),
                 data("scale", scale_mem),
+                data("dcomp_zp", dcomp_zp_mem),
                 fc_prim1,
                 fc_prim2
             );
@@ -1516,6 +1531,7 @@ public:
             data("weights1", weights_mem1),
             data("weights2", weights_mem2),
             data("scale", scale_mem),
+            data("dcomp_zp", dcomp_zp_mem),
             fc_prim1,
             fc_prim2
         );
@@ -1835,6 +1851,7 @@ public:
 
     void test_compressed_int8_scale_zp_scalar(bool is_caching_test) {
         auto& engine = get_test_engine();
+        auto supports_immad = engine.get_device_info().supports_immad;
 
         long ifm_num = 6;
         long ofm_num = 8;
@@ -1842,6 +1859,9 @@ public:
         auto input_mem = engine.allocate_memory({ { 1, ifm_num }, data_types::f16, format::bfyx });
         auto weights_mem = engine.allocate_memory({ { ofm_num, ifm_num }, data_types::u8, format::bfyx });
         auto scale_mem = engine.allocate_memory({ { ofm_num, 1 }, data_types::f16, format::bfyx });
+        auto dcomp_zp_mem = engine.allocate_memory({ {1, 1, 1, 1}, data_types::u8, format::bfyx });
+
+        set_values(dcomp_zp_mem, {8});
 
         set_values<ov::float16>(input_mem, { -0.5f, 2.0f, 0.5f, 1.0f, 0.5f, 2.0f });
         set_values<uint8_t>(weights_mem, { 0, 1, 2, 3, 4, 5,
@@ -1854,13 +1874,17 @@ public:
                                            0, 1, 2, 3, 4, 5 });
         set_values<ov::float16>(scale_mem, { 2.0f, 4.0f, -2.0f, -4.0f, 0.5f, -0.5f, 2.0f, 2.0f });
 
-        auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16);
+        auto dcomp_zp_name = supports_immad ? "dcomp_zp" : "";
+
+        auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", dcomp_zp_name, data_types::f16);
+
         fc_prim.decompression_zero_point_scalar = 8;
 
         topology topology(
             input_layout("input", input_mem->get_layout()),
             data("weights", weights_mem),
             data("scale", scale_mem),
+            data("dcomp_zp", dcomp_zp_mem),
             fc_prim
         );
 
