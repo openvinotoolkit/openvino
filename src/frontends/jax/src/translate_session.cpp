@@ -142,10 +142,14 @@ std::shared_ptr<Model> TranslateSession::convert_jax_model(std::shared_ptr<JaxDe
                 auto out_type = context.get_output_type(i);
                 if (out_type.is<element::Type>()) {
                     if (!converted_outputs[i].get_element_type().compatible(out_type.as<element::Type>())) {
-                        OPENVINO_DEBUG << "[WARNING] Produced output type for operation " << context.get_op_type()
-                                       << " for tensor id: " << fw_tensor_id << " is incompatible: produced "
-                                       << converted_outputs[i].get_element_type() << " vs "
-                                       << out_type.as<element::Type>();
+                        OPENVINO_DEBUG("[WARNING] Produced output type for operation ",
+                                       context.get_op_type(),
+                                       " for tensor id: ",
+                                       fw_tensor_id,
+                                       " is incompatible: produced ",
+                                       converted_outputs[i].get_element_type(),
+                                       " vs ",
+                                       out_type.as<element::Type>());
                     }
                 }
 #endif
