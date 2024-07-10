@@ -1187,13 +1187,16 @@ struct ElementConvert<bool> : element::NotSupported<void> {
     }
 };
 
-#define CONSTANT_CAST_VECTOR(DTYPE)                                                                                         \
-    template <>                                                                                                             \
-    OPENVINO_API std::vector<DTYPE> Constant::cast_vector(int64_t num_elements) const {                                     \
-        std::vector<DTYPE> output(get_num_elements_to_cast(num_elements));                                                  \
-        using namespace ov::element;                                                                                        \
-        IfTypeOf<SUPPORTED_ET>::apply<ElementConvert<DTYPE>>(m_element_type, get_data_ptr(), output.data(), output.size()); \
-        return output;                                                                                                      \
+#define CONSTANT_CAST_VECTOR(DTYPE)                                                     \
+    template <>                                                                         \
+    OPENVINO_API std::vector<DTYPE> Constant::cast_vector(int64_t num_elements) const { \
+        std::vector<DTYPE> output(get_num_elements_to_cast(num_elements));              \
+        using namespace ov::element;                                                    \
+        IfTypeOf<SUPPORTED_ET>::apply<ElementConvert<DTYPE>>(m_element_type,            \
+                                                             get_data_ptr(),            \
+                                                             output.data(),             \
+                                                             output.size());            \
+        return output;                                                                  \
     }
 
 template <>
