@@ -18,6 +18,22 @@ void regclass_graph_op_ReadValue(py::module m) {
     read_value.doc() = "openvino.runtime.op.read_value wraps ov::op::v6::ReadValue";
 
     read_value.def(py::init<>());
+        read_value.def(py::init([](py::object& new_value,
+                               const std::shared_ptr<ov::op::util::Variable>& variable,
+                               const std::string& name) {
+                                if (py::isinstance<ov::Node>(new_value)) {
+                                    auto node = new_value.cast<std::shared_ptr<ov::Node>>();
+                                    return std::make_shared<ov::op::v6::ReadValue>(node, variable);
+                                } else if (py::isinstance<const ov::Output<ov::Node>>(new_value) || py::isinstance<ov::Output<ov::Node>>(new_value)) {
+                                    auto output = new_value.cast<const ov::Output<ov::Node>>();
+                                    return std::make_shared<ov::op::v6::ReadValue>(output, variable);
+                                } else {
+                                    py::type_error("Wrong type");
+                                }
+                   }),
+                   py::arg("new_value"),
+                   py::arg("variable"),
+                   py::arg("name") = "");
 
     read_value.def(py::init([](const std::shared_ptr<ov::op::util::Variable>& variable, const std::string& name) {
                        return std::make_shared<ov::op::v6::ReadValue>(variable);
@@ -25,15 +41,6 @@ void regclass_graph_op_ReadValue(py::module m) {
                    py::arg("variable"),
                    py::arg("name") = "");
 
-    read_value.def(py::init([](py::object& new_value,
-                               const std::shared_ptr<ov::op::util::Variable>& variable,
-                               const std::string& name) {
-                       auto node = new_value.cast<std::shared_ptr<ov::Node>>();
-                       return std::make_shared<ov::op::v6::ReadValue>(node, variable);
-                   }),
-                   py::arg("new_value"),
-                   py::arg("variable"),
-                   py::arg("name") = "");
 
     read_value.def(
         "get_variable_id",

@@ -24,7 +24,7 @@ from openvino import (
     serialize,
     save_model,
 )
-from openvino.runtime import Output
+from openvino.runtime import Output, Node
 from openvino.runtime.op.util import VariableInfo, Variable
 
 from tests.utils.helpers import (
@@ -725,13 +725,9 @@ def test_model_add_remove_variable():
 
 
 def test_complicated_model():
-    from openvino.runtime.op import read_value
     model = generate_model_with_memory(input_shape=Shape([2, 1]), data_type=Type.f32)
 
-    input_shape=Shape([2, 1])
-    data_type=Type.f32
-    input_data = ops.parameter(input_shape, name="input_data", dtype=data_type)
-    init_val = ops.constant(np.zeros(input_shape), data_type)
+    init_val = ops.constant(np.zeros(Shape([2, 1])), Type.f32)
 
     var_info = VariableInfo()
     var_info.data_shape = PartialShape([2, 1])
@@ -739,7 +735,7 @@ def test_complicated_model():
     var_info.variable_id = "v1"
     variable_1 = Variable(var_info)
 
-    rv = read_value(init_val, variable_1)
+    rv = ops.read_value(init_val, variable_1)
     assign = ops.assign(rv, variable_1)
 
     model.add_variables([variable_1])
