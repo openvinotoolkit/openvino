@@ -43,21 +43,21 @@ std::shared_ptr<void> loadBackendLibrary(const std::string& libpath) {
 #    endif
 }
 
-std::shared_ptr<IEngineBackend> getBackend(std::shared_ptr<void> so) {
+std::shared_ptr<IEngineBackend> getBackend(std::shared_ptr<void> so, , const Config& config) {
     static constexpr auto CreateFuncName = "CreateNPUEngineBackend";
     auto symbol = ov::util::get_symbol(so, CreateFuncName);
 
-    using CreateFuncT = void (*)(std::shared_ptr<IEngineBackend>&);
+    using CreateFuncT = void (*)(std::shared_ptr<IEngineBackend>&, const Config&);
     const auto createFunc = reinterpret_cast<CreateFuncT>(symbol);
 
     std::shared_ptr<IEngineBackend> backendPtr;
-    createFunc(backendPtr);
+    createFunc(backendPtr, config);
     return backendPtr;
 }
 
-ov::SoPtr<IEngineBackend> loadBackend(const std::string& libpath) {
+ov::SoPtr<IEngineBackend> loadBackend(const std::string& libpath, const Config& config) {
     auto backendSO = loadBackendLibrary(libpath);
-    auto backend = getBackend(backendSO);
+    auto backend = getBackend(backendSO, config);
 
     return ov::SoPtr<IEngineBackend>(backend, backendSO);
 }
@@ -68,7 +68,7 @@ ov::SoPtr<IEngineBackend> loadBackend(const std::string& libpath) {
 namespace intel_npu {
 
 // TODO Config will be useless here, since only default values will be used
-NPUBackends::NPUBackends(const std::vector<AvailableBackends>& backendRegistry)
+NPUBackends::NPUBackends(const std::vector<AvailableBackends>& backendRegistry, [[maybe_unused]] const Config& config)
     : _logger("NPUBackends", Logger::global().level()) {
     std::vector<ov::SoPtr<IEngineBackend>> registeredBackends;
     [[maybe_unused]] const auto registerBackend = [&](ov::SoPtr<IEngineBackend> backend, const std::string& name) {
@@ -78,7 +78,7 @@ NPUBackends::NPUBackends(const std::vector<AvailableBackends>& backendRegistry)
             for (const auto& device : backendDevices) {
                 deviceNames << device << " ";
             }
-            _logger.trace("Register '%s' with devices '%s'", name.c_str(), deviceNames.str().c_str());
+            _logger.debug("Register '%s' with devices '%s'", name.c_str(), deviceNames.str().c_str());
             registeredBackends.emplace_back(backend);
         }
     };
@@ -97,14 +97,14 @@ NPUBackends::NPUBackends(const std::vector<AvailableBackends>& backendRegistry)
                     _logger.debug("Backend '%s' at '%s' doesn't exist", backendName.c_str(), path.c_str());
                     continue;
                 }
-                const auto backend = loadBackend(path);
+                const auto backend = loadBackend(path, config);
                 registerBackend(backend, backendName);
             }
 #endif
 
 #if defined(ENABLE_ZEROAPI_BACKEND)
             if (name == AvailableBackends::LEVEL_ZERO) {
-                const auto backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>());
+                const auto backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>(config));
                 registerBackend(backend, backendName);
             }
 #endif
@@ -127,7 +127,7 @@ NPUBackends::NPUBackends(const std::vector<AvailableBackends>& backendRegistry)
     if (_backend != nullptr) {
         _logger.info("Use '%s' backend for inference", _backend->getName().c_str());
     } else {
-        _logger.warning("Cannot find backend. Only compilation can be executed.");
+        _logger.error("Cannot find backend for inference. Make sure the device is available.");
     }
 }
 
@@ -196,6 +196,11 @@ void NPUBackends::registerOptions(OptionsDesc& options) const {
     if (_backend != nullptr) {
         _backend->registerOptions(options);
     }
+}
+
+// TODO config should be also specified to backends, to allow use logging in devices and all levels below
+void NPUBackends::setup(const Config& config) {
+    _logger.setLevel(config.get<LOG_LEVEL>());
 }
 
 std::string NPUBackends::getCompilationPlatform(const std::string_view platform, const std::string& deviceId) const {

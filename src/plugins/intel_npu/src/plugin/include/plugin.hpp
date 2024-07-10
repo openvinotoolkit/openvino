@@ -61,6 +61,7 @@ private:
     std::map<std::string, std::string> _config;
     std::shared_ptr<OptionsDesc> _options;
     Config _globalConfig;
+    mutable Logger _logger;
     std::unique_ptr<Metrics> _metrics;
 
     // properties map: {name -> [supported, mutable, eval function]}

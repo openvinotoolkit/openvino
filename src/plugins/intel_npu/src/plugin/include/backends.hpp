@@ -23,7 +23,7 @@ enum class AvailableBackends { LEVEL_ZERO, IMD };
 /** @brief Represent container for all backends and hide all related searching logic */
 class NPUBackends final {
 public:
-    explicit NPUBackends(const std::vector<AvailableBackends>& backendRegistry);
+    explicit NPUBackends(const std::vector<AvailableBackends>& backendRegistry, const Config& config);
 
     std::shared_ptr<IDevice> getDevice(const std::string& specificName = "") const;
     std::shared_ptr<IDevice> getDevice(const ov::AnyMap& paramMap) const;
@@ -34,6 +34,7 @@ public:
     bool isBatchingSupported() const;
     void registerOptions(OptionsDesc& options) const;
     std::string getCompilationPlatform(const std::string_view platform, const std::string& deviceId) const;
+    void setup(const Config& config);
 
 private:
     Logger _logger;

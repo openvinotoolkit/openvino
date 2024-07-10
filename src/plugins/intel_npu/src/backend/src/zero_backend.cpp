@@ -11,7 +11,7 @@
 
 namespace intel_npu {
 
-ZeroEngineBackend::ZeroEngineBackend() : _logger("ZeroEngineBackend", Logger::global().level()) {
+ZeroEngineBackend::ZeroEngineBackend(const Config& config) : _logger("ZeroEngineBackend", Logger::global().level()) {
     _logger.trace("ZeroEngineBackend - initialize started");
 
     _instance = std::make_shared<ZeroInitStructsHolder>();

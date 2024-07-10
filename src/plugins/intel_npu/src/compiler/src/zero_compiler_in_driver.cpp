@@ -503,7 +503,6 @@ static std::unordered_set<std::string> parseQueryResult(std::vector<char>& data)
 // For ext version < 1.3, query is unsupported, return empty result and add debug log here
 template <typename TableExtension>
 template <typename T, std::enable_if_t<NotSupportQuery(T), bool>>
-
 std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::queryImpl(
     const std::shared_ptr<const ov::Model>& /*model*/,
     const Config&) const {
@@ -747,8 +746,7 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std:
         flags = flags | ZE_GRAPH_FLAG_DISABLE_CACHING;
     }
 
-    _logger.debug("compile Using extension version: %s", typeid(TableExtension).name());
-
+    _logger.info("compile Using extension version: %s", typeid(TableExtension).name());
     result = createGraph(format, serializedIR, buildFlags, flags, &graphHandle);
 
     OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
@@ -804,7 +802,7 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std:
                        uint64_t(result));
     }
 
-    _logger.trace("compileIR end");
+    _logger.trace("compile end");
     return NetworkDescription(std::move(blob), std::move(networkMeta));
 }
 
@@ -812,7 +810,6 @@ template <typename TableExtension>
 NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::parse(const std::vector<uint8_t>& network,
                                                                  const Config& config) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "LevelZeroCompilerInDriver::parse", "desc");
-    _logger.trace("parse start");
     ze_graph_handle_t graphHandle;
 
     if (!network.empty()) {
@@ -898,12 +895,12 @@ void LevelZeroCompilerInDriver<TableExtension>::getLayoutOrStateDescriptor(IONod
 
     if (!isStateInputName(legacyName) && !isStateOutputName(legacyName)) {
         if (arg.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) {
-            _logger.debug("getLayoutOrStateDescriptor Found input \"%s\"", legacyName.c_str());
+            _logger.info("getLayoutOrStateDescriptor Found input \"%s\"", legacyName.c_str());
 
             parameters[legacyName].transposedShape = shape;
         }
         if (arg.type == ZE_GRAPH_ARGUMENT_TYPE_OUTPUT) {
-            _logger.debug("getLayoutOrStateDescriptor Found output \"%s\"", legacyName.c_str());
+            _logger.info("getLayoutOrStateDescriptor Found output \"%s\"", legacyName.c_str());
 
             results[legacyName].transposedShape = shape;
         }
@@ -911,7 +908,7 @@ void LevelZeroCompilerInDriver<TableExtension>::getLayoutOrStateDescriptor(IONod
         // The inputs and outputs of the state nodes share the same metadata, thus we'll consider only the the inputs
         // here
         legacyName = legacyName.substr(READVALUE_PREFIX.length());
-        _logger.debug("getLayoutOrStateDescriptor Found state variable \"%s\"", legacyName.c_str());
+        _logger.info("getLayoutOrStateDescriptor Found state variable \"%s\"", legacyName.c_str());
 
         const ov::element::Type_t precision = toOVElementType(arg.devicePrecision);
 
