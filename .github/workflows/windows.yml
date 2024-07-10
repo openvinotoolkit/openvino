@@ -65,6 +65,7 @@ jobs:
       INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
       ARTIFACTS_SHARE: "C:\\mount\\build-artifacts"
+      MANIFEST_PATH: "${{ github.workspace }}\\manifest.yml"
       # TODO: specify version of compiler here
     if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
 
@@ -81,6 +82,18 @@ jobs:
           repository: 'openvinotoolkit/openvino_contrib'
           path: 'openvino_contrib'
           ref: 'master'
+
+      - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
+        id: create_manifest
+        uses: ./openvino/.github/actions/create_manifest
+        with:
+          repos: |
+            ${{ env.OPENVINO_REPO }}
+            ${{ env.OPENVINO_CONTRIB_REPO }}
+          action_path: ${{ env.GITHUB_WORKSPACE }}/openvino/.github/actions/create_manifest
+          target_arch: 'intel64'
+          build_type: 'release'
+          save_to: ${{ env.MANIFEST_PATH }}
 
       #
       # Print system info
@@ -242,19 +255,17 @@ jobs:
           if-no-files-found: 'error'
 
       - name: Store artifacts to a shared drive
+        id: store_artifacts
         if: ${{ always() }}
         uses: ./openvino/.github/actions/store_artifacts
         with:
           artifacts: |
-            ${{ env.BUILD_DIR }}/openvino_package.zip
-            ${{ env.BUILD_DIR }}/openvino_tests.zip
-          repos: |
-            ${{ env.OPENVINO_REPO }}
-            ${{ env.OPENVINO_CONTRIB_REPO }}
+            ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+            ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+            ${{ env.MANIFEST_PATH }}
           storage_dir: 'public_windows_vs2019_release'
           storage_root: ${{ env.ARTIFACTS_SHARE }}
-          target_arch: 'intel64'
-          build_type: 'release'
+          action_path: ${{ env.GITHUB_WORKSPACE }}/openvino/.github/actions/store_artifacts
 
   Samples:
     needs: [ Build, Smart_CI ]

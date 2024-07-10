@@ -12,8 +12,6 @@ import git
 import shutil
 from contextlib import contextmanager
 from pathlib import Path
-from datetime import timezone
-from manifest_manager import Manifest, Repository, Component
 
 
 def parse_args():
@@ -22,12 +20,8 @@ def parse_args():
     parser.add_argument('-b', '--branch_name', help='Name of GitHub branch', required=False)
     parser.add_argument('-s', '--commit_sha', help='Commit hash for which artifacts were generated', required=False)
     parser.add_argument('-a', '--artifacts', type=str, help='Paths to artifacts to store (files/dirs)', required=True)
-    parser.add_argument('-r', '--repos', type=str, help='Paths to repositories used to generate artifacts',
-                        required=True)
     parser.add_argument('--storage_dir', help='Directory name to store artifacts in', required=True)
     parser.add_argument('--storage_root', help='Root path of the storage to place artifacts to', required=True)
-    parser.add_argument('--target_arch', help='Architecture for which artifacts were generated', required=True)
-    parser.add_argument('--build_type', help='Build type: release | debug | release_with_debug', required=True)
     args = parser.parse_args()
     return args
 
@@ -85,73 +79,6 @@ def rotate_dir(directory: Path) -> bool:
     return True
 
 
-def get_repo_data(repo_dir: str | Path) -> dict:
-    repo = git.Repo(str(repo_dir))
-    repo_url = next(repo.remote().urls)
-    repo_name_match = re.search(r'github\.com/[^/]+/([^/]+)', repo_url)
-    repo_name = repo_name_match.group(1) if repo_name_match else None
-
-    trigger_repo_url = f"{os.getenv('GITHUB_SERVER_URL')}/{os.getenv('GITHUB_REPOSITORY')}"
-    is_trigger_repo = repo_url == trigger_repo_url
-
-    branch = os.getenv('GITHUB_REF_NAME') if is_trigger_repo else repo.references[0].name
-    target_brach = os.getenv('BASE_BRANCH') if is_trigger_repo else None
-    revision = os.getenv('PR_HEAD_SHA') or os.getenv('GITHUB_SHA') if is_trigger_repo else repo.head.commit.hexsha
-    target_revision = os.getenv('BASE_SHA') if is_trigger_repo else None
-    # Commit time of a merge commit (in case of PR merged to target)
-    # TODO: Save commit time of a head commit in PR as well?
-    commit_time = repo.head.commit.committed_datetime.astimezone(timezone.utc)
-    merge_target = branch.endswith('/merge')
-    return {
-        'name': repo_name,
-        'url': repo_url,
-        'branch': branch,
-        'target_branch': target_brach,
-        'revision': revision,
-        'target_revision': target_revision,
-        'commit_time': commit_time,
-        'merge_target': merge_target,
-        'trigger': is_trigger_repo,
-    }
-
-
-def parse_ov_version(header_file: str | Path) -> str:
-    header_code = Path(header_file).read_text()
-    major, minor, patch = (re.search(rf"#define OPENVINO_VERSION_{name} (\d+)", header_code).group(1)
-                           for name in ["MAJOR", "MINOR", "PATCH"])
-    return f"{major}.{minor}.{patch}"
-
-
-def generate_manifest(repos: list, product_type: str, event_type: str, build_type: str, target_arch: str) -> Manifest:
-    manifest = Manifest()
-    component_name = 'dldt' # historical, keep for internal compatibility
-    repositories = []
-    ov_version = None
-    trigger_repo = None
-
-    for repo_dir in repos:
-        repo = Repository(**get_repo_data(repo_dir))
-        repositories.append(repo)
-        if repo.name == 'openvino':
-            version_file = Path(repo_dir) / 'src' / 'core' / 'include' / 'openvino' / 'core' / 'version.hpp'
-            ov_version = parse_ov_version(version_file)
-        if repo.trigger:
-            trigger_repo = repo
-
-    # TODO: move manifest generation to a separate action before running build, set CI_BUILD_NUMBER and CI_BUILD_DEV_TAG
-    custom_branch_name = f'-{repo.branch}' if trigger_repo.branch != 'master' else ''
-    run_number_postfix = f'-{os.environ.get("GITHUB_RUN_NUMBER")}' if os.environ.get("GITHUB_RUN_NUMBER") else ''
-    product_version = f"{ov_version}{run_number_postfix}-{trigger_repo.revision[:11]}{custom_branch_name}"
-    wheel_product_version = f'{product_version}.dev{trigger_repo.commit_time.strftime("%Y%m%d")}'
-
-    component = Component(name=component_name, version=product_version, product_type=product_type, target_arch=target_arch,
-                          build_type=build_type, build_event=event_type, repositories=repositories,
-                          custom_params={'wheel_product_version': wheel_product_version})
-
-    manifest.add_component(component)
-    return manifest
-
-
 def main():
     init_logger()
     logger = logging.getLogger(__name__)
@@ -188,19 +115,12 @@ def main():
             logger.error(f'Failed to copy {artifact}: {e}')
             error_found = True
 
-    # TODO: move this and manifest generation before copying artifacts?
     github_server = os.getenv('GITHUB_SERVER_URL')
     if github_server:  # If running from GHA context
         # TODO: write an exact job link, but it's not trivial to get
         workflow_link = f"{github_server}/{os.getenv('GITHUB_REPOSITORY')}/actions/runs/{os.getenv('GITHUB_RUN_ID')}"
         with open(storage / 'workflow_link.txt', 'w') as file:
             file.write(workflow_link)
-
-    # Generate manifest
-    repos = args.repos.split()
-    manifest = generate_manifest(repos, args.storage_dir, event_type, args.build_type, args.target_arch)
-    manifest.save_manifest('manifest.yml') # Locally, to upload to GitHub artifacts
-    manifest.save_manifest(storage / 'manifest.yml') # Remotely
 
     logger.debug(f"Copying finished")
     (storage / 'copying_finished').touch()

@@ -105,6 +105,7 @@ jobs:
       SCCACHE_AZURE_KEY_PREFIX: 'ubuntu20_aarch64_Release'
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/src/frontends/onnx/tests/ci_utils/onnxruntime
       ARTIFACTS_SHARE: "/mount/build-artifacts"
+      MANIFEST_PATH: '/__w/openvino/openvino/manifest.yml'
     if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
@@ -121,6 +122,18 @@ jobs:
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
           submodules: 'true'
           ref: 'master'
+
+      - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
+        id: create_manifest
+        uses: ./openvino/.github/actions/create_manifest
+        with:
+          repos: |
+            ${{ env.OPENVINO_REPO }}
+            ${{ env.OPENVINO_CONTRIB_REPO }}
+          action_path: ${{ env.GITHUB_WORKSPACE }}/openvino/.github/actions/create_manifest
+          target_arch: 'aarch64'
+          build_type: 'release'
+          save_to: ${{ env.MANIFEST_PATH }}
 
       #
       # Print system info
@@ -304,14 +317,10 @@ jobs:
             ${{ env.BUILD_DIR }}/openvino_package.tar.gz
             ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
             ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
-          repos: |
-            ${{ env.OPENVINO_REPO }}
-            ${{ env.OPENVINO_CONTRIB_REPO }}
+            ${{ env.MANIFEST_PATH }}
           storage_dir: 'public_linux_ubuntu_20_04_arm64_release'
           storage_root: ${{ env.ARTIFACTS_SHARE }}
           action_path: ${{ env.GITHUB_WORKSPACE }}/openvino/.github/actions/store_artifacts
-          target_arch: 'aarch64'
-          build_type: 'release'
 
   Debian_Packages:
     name: Debian Packages
