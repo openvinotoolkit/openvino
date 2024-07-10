@@ -174,3 +174,20 @@ def _(variable_id: str,
     var_from_info = Variable(info)
 
     return _read_value(var_from_info, name)
+
+
+@read_value.register
+def _(variable: Variable,
+      init_value: Optional[NodeInput] = None,
+      name: Optional[str] = None) -> Node:
+    """Return a node which produces the Assign operation.
+
+    :param variable:  Variable to be read.
+    :param init_value:   Optional node producing a value to be returned instead of an unassigned variable.
+    :param name:         Optional name for output node.
+    :return: ReadValue node
+    """
+    if init_value is not None:
+        return _read_value(as_node(init_value, name=name), variable, name)
+
+    return _read_value(variable, name)
