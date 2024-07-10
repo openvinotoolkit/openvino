@@ -101,7 +101,7 @@ const std::string& RemoteContextImpl::get_device_name() const {
 }
 
 std::shared_ptr<ov::IRemoteContext> RemoteContextImpl::get_this_shared_ptr() {
-    return std::static_pointer_cast<ov::IRemoteContext>(shared_from_this());
+    return shared_from_this();
 }
 
 }  // namespace intel_npu

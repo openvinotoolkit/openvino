@@ -286,18 +286,15 @@ public:
 
         mutable_argument_desc.reserve(changed_tensors);
 
-        auto set_mutable_desc = [&](int32_t mutable_desc_index,
-                                    uint64_t command_list_id,
-                                    uint32_t arg_index,
-                                    [[maybe_unused]] size_t arg_size,
-                                    const void* arg_value) {
-            mutable_argument_desc.emplace_back(ze_mutable_graph_argument_exp_desc_t{
-                static_cast<ze_structure_type_t>(ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC),
-                mutable_desc_index ? &mutable_argument_desc.at(mutable_desc_index - 1) : nullptr,
-                command_list_id,
-                arg_index,
-                arg_value});
-        };
+        auto set_mutable_desc =
+            [&](int32_t mutable_desc_index, uint64_t command_list_id, uint32_t arg_index, const void* arg_value) {
+                mutable_argument_desc.emplace_back(ze_mutable_graph_argument_exp_desc_t{
+                    ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC,
+                    mutable_desc_index ? &mutable_argument_desc.at(mutable_desc_index - 1) : nullptr,
+                    command_list_id,
+                    arg_index,
+                    arg_value});
+            };
 
         for (size_t i = 0; i < batch_size; i++) {
             int32_t mutable_argument_desc_index = -1;
@@ -306,13 +303,10 @@ public:
                 TensorData& inputTensorData = tensors_data.at(desc.first);
 
                 if (inputTensorData.changed == true) {
-                    auto comand_list_id = _command_lists.at(i)->getCommandListId();
-
                     set_mutable_desc(
                         ++mutable_argument_desc_index,
-                        comand_list_id,
+                        _command_lists.at(i)->getCommandListId(),
                         desc.second.idx,
-                        inputTensorData.size / batch_size,
                         static_cast<unsigned char*>(inputTensorData.mem) + (i * inputTensorData.size) / batch_size);
 
                     inputTensorData.changed = false;
@@ -323,15 +317,10 @@ public:
                 TensorData& outputTensorData = tensors_data.at(desc.first);
 
                 if (outputTensorData.changed == true) {
-                    mutable_argument_desc_index++;
-
-                    auto comand_list_id = _command_lists.at(i)->getCommandListId();
-
                     set_mutable_desc(
-                        mutable_argument_desc_index,
-                        comand_list_id,
+                        ++mutable_argument_desc_index,
+                        _command_lists.at(i)->getCommandListId(),
                         desc.second.idx,
-                        outputTensorData.size / batch_size,
                         static_cast<unsigned char*>(outputTensorData.mem) + (i * outputTensorData.size) / batch_size);
 
                     outputTensorData.changed = false;

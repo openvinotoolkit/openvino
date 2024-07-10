@@ -79,7 +79,7 @@ bool ZeroRemoteTensor::deallocate() noexcept {
 void ZeroRemoteTensor::allocate(const size_t bytes) {
     switch (_mem_type) {
     case RemoteMemoryType::L0_INTERNAL_BUF: {
-        size_t size = bytes + STANDARD_PAGE_SIZE - (bytes % STANDARD_PAGE_SIZE);
+        size_t size = (bytes + STANDARD_PAGE_SIZE - 1) & ~(STANDARD_PAGE_SIZE - 1);
 
         ze_host_mem_alloc_desc_t desc = {};
         if (_tensor_type == RemoteTensorType::INPUT && (_ze_properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED)) {
@@ -99,6 +99,8 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
 
         // set up the request to import the external memory handle
 #ifdef _WIN32
+        // in the case of the Windows platform memory is locked by the D3D12 memory management - using zeMemAllocDevice
+        // to import memory
         ze_external_memory_import_win32_handle_t memory_import = {ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_WIN32,
                                                                   nullptr,
                                                                   ZE_EXTERNAL_MEMORY_TYPE_FLAG_OPAQUE_WIN32,
@@ -113,6 +115,8 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
                                                 _init_structs->getDevice(),
                                                 &_data));
 #else
+        // in the case of Linux platforms memory could be changed after allocation - using zeMemAllocHost for importing
+        // memory
         ze_external_memory_import_fd_t memory_import = {ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_FD,
                                                         nullptr,
                                                         ZE_EXTERNAL_MEMORY_TYPE_FLAG_DMA_BUF,

@@ -64,7 +64,7 @@ private:
     size_t _batchSize = DEFAULT_BATCH_SIZE;
 
     bool _createPipeline = true;
-    bool _tensorIsDifferent = false;
+    bool _updateCommandList = false;
     bool _levelZeroTensorCreatedLocally = true;
 };
 

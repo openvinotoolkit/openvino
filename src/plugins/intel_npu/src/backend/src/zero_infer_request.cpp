@@ -308,7 +308,7 @@ void ZeroInferRequest::create_pipeline() {
 
     for (const std::string& inputName : _metadata.inputNames) {
         if (_copyAllTensors.find(inputName) != _copyAllTensors.end()) {
-            _logger.debug("ZeroInferRequest::create_pipeline - tensor was already allocated");
+            _logger.debug("ZeroInferRequest::create_pipeline - tensor %s was already allocated", inputName.c_str());
             continue;
         }
 
@@ -322,7 +322,6 @@ void ZeroInferRequest::create_pipeline() {
         };
 
         _logger.debug("ZeroInferRequest::create_pipeline - Allocate new tensor");
-        // The I/O buffers already allocated using the Level Zero API are being reused here
         allocate_tensor(inputName, parameterDescriptor, TensorType::InputOrOutput, inputAllocator);
         _tensorsData[inputName] =
             TensorData{_copyAllTensors.at(inputName)->data(), _copyAllTensors.at(inputName)->get_byte_size()};
@@ -330,7 +329,7 @@ void ZeroInferRequest::create_pipeline() {
 
     for (const std::string& outputName : _metadata.outputNames) {
         if (_copyAllTensors.find(outputName) != _copyAllTensors.end()) {
-            _logger.debug("ZeroInferRequest::create_pipeline - tensor was already allocated");
+            _logger.debug("ZeroInferRequest::create_pipeline - tensor %s was already allocated", outputName.c_str());
             continue;
         }
 
@@ -343,7 +342,7 @@ void ZeroInferRequest::create_pipeline() {
     }
 
     _logger.debug("ZeroInferRequest::create_pipeline - constructing pipeline");
-    // Construct pipepline
+    // Construct pipeline
     _pipeline =
         makePipeline(_executorPtr, _config, _profilingPool, _profilingQuery, _npuProfiling, _tensorsData, _batchSize);
     _logger.debug("ZeroInferRequest::create_pipeline - SyncInferRequest completed");
@@ -383,7 +382,15 @@ void ZeroInferRequest::set_tensor_data(std::shared_ptr<ov::ITensor> tensor, cons
             allocator = zeroMemory::HostMemAllocator(_initStructs);
         };
 
-        _copyAllTensors.at(name) = ov::make_tensor(tensor->get_element_type(), tensor->get_shape(), allocator);
+        IONodeDescriptor descriptor;
+        if (isInput) {
+            descriptor = _metadata.parameters.at(name);
+        } else {
+            descriptor = _metadata.results.at(name);
+        }
+
+        allocate_tensor(name, descriptor, TensorType::InputOrOutput, allocator);
+
         setTensorData = true;
         _levelZeroTensorCreatedLocally = true;
     }
@@ -391,7 +398,7 @@ void ZeroInferRequest::set_tensor_data(std::shared_ptr<ov::ITensor> tensor, cons
     if (setTensorData) {
         _tensorsData[name] =
             TensorData{_copyAllTensors.at(name)->data(), _copyAllTensors.at(name)->get_byte_size(), !_createPipeline};
-        _tensorIsDifferent = true;
+        _updateCommandList = true;
     }
 }
 
@@ -409,7 +416,7 @@ void ZeroInferRequest::set_remote_tensor_data(std::shared_ptr<ZeroRemoteTensor> 
 
     _copyAllTensors[name] = tensor;
     _tensorsData[name] = TensorData{data, tensor->get_byte_size(), !_createPipeline};
-    _tensorIsDifferent = true;
+    _updateCommandList = true;
     _levelZeroTensorCreatedLocally = false;
 }
 
@@ -481,15 +488,15 @@ void ZeroInferRequest::infer_async() {
         create_pipeline();
 
         _createPipeline = false;
-        _tensorIsDifferent = false;
+        _updateCommandList = false;
     }
 
     if (_initStructs->getMutableCommandListVersion()) {
-        if (_tensorIsDifferent) {
+        if (_updateCommandList) {
             _logger.debug("ZeroInferRequest::infer_async - update command list");
             _pipeline->updateCommandList(_tensorsData, _batchSize);
 
-            _tensorIsDifferent = false;
+            _updateCommandList = false;
         }
     }
 
