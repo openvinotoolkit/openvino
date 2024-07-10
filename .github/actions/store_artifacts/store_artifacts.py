@@ -130,7 +130,7 @@ def generate_manifest(repos: list, product_type: str, event_type: str, build_typ
     trigger_repo = None
 
     for repo_dir in repos:
-        repo = Repository(get_repo_data(repo_dir))
+        repo = Repository(**get_repo_data(repo_dir))
         repositories.append(repo)
         if repo.name == 'openvino':
             version_file = Path(repo_dir) / 'src' / 'core' / 'include' / 'openvino' / 'core' / 'version.hpp'
