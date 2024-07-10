@@ -286,7 +286,9 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 std::cout << l.get_shape() << "     " << l.get_any_name() << std::endl;
             }
             ov::preprocess::PrePostProcessor ppp(m_compiled_submodels[real_id].model);
-            ppp.input().tensor().set_layout("NHWC");
+            for (size_t i = 0; i < m_compiled_submodels[real_id].model->inputs().size(); ++i) {
+                ppp.input(i).tensor().set_layout(ov::Layout("NHWC"));
+            }
             auto preprocessed_model = ppp.build();
             m_compiled_submodels[real_id].model = preprocessed_model;
             for (auto &l : m_compiled_submodels[real_id].model->inputs()) {
