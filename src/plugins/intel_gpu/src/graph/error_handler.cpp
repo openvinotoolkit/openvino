@@ -8,7 +8,7 @@
 namespace cldnn {
 
 void err_details::cldnn_print_error_message(
-#ifndef 
+#ifndef NDEBUG
                                             const std::string& file, int line,
 #else
                                             const std::string&, int,
