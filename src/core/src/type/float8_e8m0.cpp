@@ -7,6 +7,7 @@
 #include <cmath>
 #include <limits>
 
+#include "openvino/core/type/float_util.hpp"
 #include "openvino/reference/fake_convert.hpp"
 
 namespace ov {
@@ -20,21 +21,14 @@ static_assert(!std::numeric_limits<ov::float8_e8m0>::is_integer, "numeric_limits
 
 namespace {
 
-union f32_t {
-    uint32_t bits;
-    float value;
-};
-
 constexpr uint8_t f32_mantissa_bits{23u};
 constexpr uint32_t f32_exponent_bits_mask{0x7f800000u};
 constexpr uint32_t f32_mantissa_bits_mask{0x007fffffu};
 constexpr uint32_t round_even{0x00400000u};
 
 uint8_t f32_to_f8e8m0_bits(const float value) {
-    f32_t input{};
-    input.value = value;
-
-    const auto input_exponent_bits = static_cast<uint8_t>((input.bits & f32_exponent_bits_mask) >> f32_mantissa_bits);
+    const auto input = util::f32_to_u32_bits(value);
+    const auto input_exponent_bits = static_cast<uint8_t>((input & f32_exponent_bits_mask) >> f32_mantissa_bits);
 
     if (std::signbit(value)) {
         return 0b00000000;
@@ -42,7 +36,7 @@ uint8_t f32_to_f8e8m0_bits(const float value) {
         return input_exponent_bits - static_cast<uint8_t>(std::isinf(value));
     } else {
         // normal values
-        const auto input_mantissa_bits = input.bits & f32_mantissa_bits_mask;
+        const auto input_mantissa_bits = input & f32_mantissa_bits_mask;
         return input_exponent_bits + static_cast<uint8_t>((input_mantissa_bits > round_even) ||    // round to nearest
                                                           ((input_mantissa_bits == round_even) &&  // round to even
                                                            (input_exponent_bits & 0x1)));
@@ -60,9 +54,9 @@ float8_e8m0::operator float() const {
         return std::numeric_limits<float>::quiet_NaN();
     } else if (to_bits() == f8e8m0_2_power_negative_127.to_bits()) {
         return float_2_power_negative_127;
+    } else {
+        return util::u32_bits_to_f32(m_value << f32_mantissa_bits);
     }
-
-    return f32_t{static_cast<uint32_t>(m_value) << f32_mantissa_bits}.value;
 }
 
 uint8_t float8_e8m0::to_bits() const {
