@@ -105,8 +105,8 @@ TEST_P(OVCompileAndInferRequest, PluginWorkloadType) {
         ov::InferRequest req;
         OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
 
-        const auto properties = core->get_property(supported_properties.name()).as<std::vector<PropertyName>>();
-        ASSERT_FALSE(std::any_of(properties.begin(), properties.end(), [](const PropertyName& property) {
+        const auto properties = execNet.get_property(supported_properties.name()).as<std::vector<PropertyName>>();
+        ASSERT_TRUE(std::any_of(properties.begin(), properties.end(), [](const PropertyName& property) {
             return property == workload_type.name();
         }));
 
