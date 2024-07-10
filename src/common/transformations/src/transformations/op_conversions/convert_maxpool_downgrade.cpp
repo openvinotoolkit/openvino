@@ -94,9 +94,6 @@ ov::pass::ConvertMaxPool14ToMaxPool8::ConvertMaxPool14ToMaxPool8() {
         std::shared_ptr<ov::op::v8::MaxPool> max_pool_v8;
         NodeRegistry node_registry;
         if (rounding_type_v14 == ov::op::RoundingType::CEIL_TORCH) {
-            if (max_pool_v14->is_dynamic()) {
-                return false;
-            }
             auto input = max_pool_v14->input_value(0);
             const auto strides = max_pool_v14->get_strides();
             const auto padding_begin = max_pool_v14->get_pads_begin();
