@@ -120,7 +120,7 @@ ov::pass::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
     auto gather_positions = makePattern("i32[?,?,?,?]");
 
     auto prepare_cos_sin_gptneox = [&](std::shared_ptr<Node> const_tab) {
-        auto slice = GenStridedSlice(const_tab, {0}, node_batch_size, {1}, 0);
+        auto slice = makePattern<ov::opset8::Slice>({const_tab, {0}, node_batch_size, {1}, {0}});
         auto strided_slice = GenStridedSlice(const_tab, {0}, node_batch_size, {1}, 0);
         return makePattern<opset6::GatherElements>({strided_slice | slice, gather_positions}, {{"axis", 2}});
     };
