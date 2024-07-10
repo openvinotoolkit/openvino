@@ -426,6 +426,8 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id) {
     auto total_size_q = ov::gen_pattern::Symbol("total_size_q");
     auto total_size_k = ov::gen_pattern::Symbol("total_size_k");
     auto total_size_v = ov::gen_pattern::Symbol("total_size_v");
+    auto batch = ov::gen_pattern::Symbol("batch");
+    auto seq_len = ov::gen_pattern::Symbol("seq_len");
 
     auto qkv_proj = makePattern<opset1::VariadicSplit>({qkv_linear, -1, {total_size_q, total_size_k, total_size_v}});
     qkv_proj->set_output_size(3);
@@ -441,11 +443,11 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id) {
     // rotate half
     auto ListConstruct_452_Concat =
         makePattern<opset1::Concat>({seq_length, {-1}, {head_cnt}, {ndims / 2}, {2}}, {{"axis", 0}});
-    auto const_target_shape_1 = makeConst({0, 0, head_cnt, ndims / 2, 2});
+    auto const_target_shape_1 = makeConst({seq_len, batch, head_cnt, ndims / 2, 2});
 
     auto ListConstruct_379_Concat =
         makePattern<opset1::Concat>({seq_length, {-1}, {1}, {ndims / 2}, {2}}, {{"axis", 0}});
-    auto const_target_shape_2 = makeConst({0, 0, 1, ndims / 2, 2});
+    auto const_target_shape_2 = makeConst({seq_len, batch, 1, ndims / 2, 2});
 
     auto reshape_Reshape_453 = makePattern<opset1::Reshape>(
         {slice_Slice_437 | var_split_1->output(0), ListConstruct_452_Concat | const_target_shape_1});
@@ -480,7 +482,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id) {
     auto ShapeOf_135133 = makePattern<opset1::ShapeOf>({stack_481});
     auto flatten_Slice_497 = GenSlice(ShapeOf_135133, 0, 3, 1, 0);
     auto flatten_Concat_500 = makePattern<opset1::Concat>({flatten_Slice_497, {-1}}, {{"axis", 0}});
-    auto const_target_shape_3 = makeConst({0, 0, head_cnt, ndims});
+    auto const_target_shape_3 = makeConst({seq_len, batch, head_cnt, ndims});
     // [length, batch, head_cnt, half_rotary_dims, 2]
     auto flatten_Reshape_501 =
         makePattern<opset1::Reshape>({stack_481, flatten_Concat_500 | const_target_shape_3}, {{"special_zero", true}});
@@ -566,8 +568,12 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
     auto neg_Multiply = makePattern<opset1::Multiply>({Gather_311651, {-1}}, {{"auto_broadcast", "numpy"}});
 
     auto ScatterUpdate_463814 = makePattern<opset3::ScatterUpdate>({{0, 0}, {1}, Gather_377635 | neg_Multiply, {0}});
-    auto slice_Slice_446 =
-        GenSlice2(rotary_emb_cos, ScatterUpdate_463814 | Gather_377635 | neg_Multiply, {INT_MAX}, {1}, 1, true);  //  tensor_array<f32[1,..4096,1,128]>
+    auto slice_Slice_446 = GenSlice2(rotary_emb_cos,
+                                     ScatterUpdate_463814 | Gather_377635 | neg_Multiply,
+                                     {INT_MAX},
+                                     {1},
+                                     1,
+                                     true);  //  tensor_array<f32[1,..4096,1,128]>
     auto mul_Multiply_552 =
         makePattern<opset1::Multiply>({slice_Slice_543, slice_Slice_446},
                                       {{"auto_broadcast", "numpy"}});  //  tensor_array<f32[?,?,32,128]>
@@ -606,8 +612,12 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
         makePattern<opset1::Squeeze>({ListUnpack_586_Split->output(0), -2});  //  tensor_array<f32[?,?,32,64]>
     auto cat_Concat_593 = makePattern<opset1::Concat>({ListUnpack_586_Squeeze_0, ListUnpack_586_Squeeze},
                                                       {{"axis", -1}});  //  tensor_array<f32[?,?,32,128]>
-    auto slice_Slice_470 =
-        GenSlice2(rotary_emb_sin, ScatterUpdate_463814 | Gather_377635 | neg_Multiply, {INT_MAX}, {1}, 1, true);  //  tensor_array<f32[1,..4096,1,128]>
+    auto slice_Slice_470 = GenSlice2(rotary_emb_sin,
+                                     ScatterUpdate_463814 | Gather_377635 | neg_Multiply,
+                                     {INT_MAX},
+                                     {1},
+                                     1,
+                                     true);  //  tensor_array<f32[1,..4096,1,128]>
     auto mul_Multiply_594 =
         makePattern<opset1::Multiply>({cat_Concat_593, slice_Slice_470},
                                       {{"auto_broadcast", "numpy"}});  //  tensor_array<f32[?,?,32,128]>

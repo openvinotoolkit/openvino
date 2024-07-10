@@ -846,8 +846,7 @@ std::shared_ptr<ov::Model> RoPETestChatGLMSlice::buildROPE_ChatGLM(int batch, in
         makeOP<opset1::Reshape>({slice_Slice_357, ListConstruct_372_Concat}, {{"special_zero", false}});
     auto select_Gather_381 = makeOP<opset8::Gather>({reshape_Reshape_373, 0, -1}, {{"batch_dims", 0}});
     auto slice_Unsqueeze_367 = makeOP<opset1::Unsqueeze>({size_Gather_348, 0});
-    auto slice_Slice_369 =
-        makeOP<opset8::Slice>({__module_transformer_transpose_Transpose, {0}, slice_Unsqueeze_367, {1}});
+    auto slice_Slice_369 = makeOP<opset8::Slice>({__module_transformer_transpose_Transpose, {0}, slice_Unsqueeze_367, {1}, {0}});
     auto size_ShapeOf_374 = makeOP<opset3::ShapeOf>({reshape_Reshape_373}, {{"output_type", "i32"}});
     auto size_Gather_376 = makeOP<opset8::Gather>({size_ShapeOf_374, {3}, 0}, {{"batch_dims", 0}});
     auto ListConstruct_379_Concat =
@@ -872,7 +871,7 @@ std::shared_ptr<ov::Model> RoPETestChatGLMSlice::buildROPE_ChatGLM(int batch, in
     auto Unsqueeze_62717 = makeOP<opset1::Unsqueeze>({add_Add_396, -1});
     auto stack_401 = makeOP<opset1::Concat>({Unsqueeze_62716, Unsqueeze_62717}, {{"axis", -1}});
     auto flatten_ShapeOf_402 = makeOP<opset3::ShapeOf>({stack_401}, {{"output_type", "i32"}});
-    auto flatten_Slice_417 = makeOP<opset8::Slice>({flatten_ShapeOf_402, {0}, {3}, {1}});
+    auto flatten_Slice_417 = makeOP<opset8::Slice>({flatten_ShapeOf_402, {0}, {3}, {1}, {0}});
     auto flatten_Concat_420 = makeOP<opset1::Concat>({flatten_Slice_417, {-1}}, {{"axis", 0}});
     auto flatten_Reshape_421 = makeOP<opset1::Reshape>({stack_401, flatten_Concat_420}, {{"special_zero", true}});
     auto slice_Slice_363 = makeOP<opset8::Slice>({view_Reshape, slice_Unsqueeze_112, {INT_MAX}, {1}, {3}});
