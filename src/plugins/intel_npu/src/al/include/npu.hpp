@@ -37,6 +37,8 @@ public:
     virtual bool isBatchingSupported() const = 0;
     /** @brief Register backend-specific options */
     virtual void registerOptions(OptionsDesc& options) const;
+    /** @brief Update backend and device info */
+    virtual void updateInfo(const Config& config) = 0;
 
 protected:
     virtual ~IEngineBackend() = default;
@@ -74,6 +76,7 @@ public:
         const std::shared_ptr<const ICompiledModel>& compiledModel,
         const std::shared_ptr<IExecutor>& executor,
         const Config& config) = 0;
+    virtual void updateInfo(const Config& config) = 0;
 
 protected:
     virtual ~IDevice() = default;

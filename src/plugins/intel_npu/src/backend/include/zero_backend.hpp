@@ -27,6 +27,15 @@ public:
 
     bool isBatchingSupported() const override;
 
+    void updateInfo(const Config& config) {
+        _logger.setLevel(config.get<LOG_LEVEL>());
+        if (_devices.size() > 0) {
+            for (auto dev : _devices) {
+                dev.second->updateInfo(config);
+            }
+        }
+    }
+
 private:
     std::shared_ptr<ZeroInitStructsHolder> _instance;
 

@@ -43,7 +43,7 @@ std::shared_ptr<void> loadBackendLibrary(const std::string& libpath) {
 #    endif
 }
 
-std::shared_ptr<IEngineBackend> getBackend(std::shared_ptr<void> so, , const Config& config) {
+std::shared_ptr<IEngineBackend> getBackend(std::shared_ptr<void> so, const Config& config) {
     static constexpr auto CreateFuncName = "CreateNPUEngineBackend";
     auto symbol = ov::util::get_symbol(so, CreateFuncName);
 
@@ -201,6 +201,9 @@ void NPUBackends::registerOptions(OptionsDesc& options) const {
 // TODO config should be also specified to backends, to allow use logging in devices and all levels below
 void NPUBackends::setup(const Config& config) {
     _logger.setLevel(config.get<LOG_LEVEL>());
+    if (_backend != nullptr) {
+        _backend->updateInfo(config);
+    }
 }
 
 std::string NPUBackends::getCompilationPlatform(const std::string_view platform, const std::string& deviceId) const {

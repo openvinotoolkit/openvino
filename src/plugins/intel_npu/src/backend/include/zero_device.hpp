@@ -36,6 +36,9 @@ public:
     std::shared_ptr<SyncInferRequest> createInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel,
                                                          const std::shared_ptr<IExecutor>& executor,
                                                          const Config& config) override;
+    void updateInfo(const Config& config) {
+        log.setLevel(config.get<LOG_LEVEL>());
+    }
 
     ZeroDevice& operator=(const ZeroDevice&) = delete;
     ZeroDevice(const ZeroDevice&) = delete;

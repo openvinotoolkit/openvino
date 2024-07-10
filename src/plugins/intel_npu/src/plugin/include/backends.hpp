@@ -17,7 +17,6 @@
 #include "npu_private_properties.hpp"
 
 namespace intel_npu {
-
 enum class AvailableBackends { LEVEL_ZERO, IMD };
 
 /** @brief Represent container for all backends and hide all related searching logic */

@@ -347,6 +347,7 @@ OptionConcept makeOptionModel() {
 class OptionsDesc final {
 public:
     OptionsDesc() : _logger("OptionsDesc", Logger::global().level()) {}
+
     template <class Opt>
     void add();
 
