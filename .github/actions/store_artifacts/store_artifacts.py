@@ -115,18 +115,39 @@ def get_repo_data(repo_dir: str | Path) -> dict:
     }
 
 
-def generate_manifest(version: str, repos: list, product_type: str, event_type: str, build_type: str,
-                      target_arch: str) -> Manifest:
+def parse_ov_version(header_file: str | Path) -> str:
+    header_code = Path(header_file).read_text()
+    major, minor, patch = (re.search(rf"#define OPENVINO_VERSION_{name} (\d+)", header_code).group(1)
+                           for name in ["MAJOR", "MINOR", "PATCH"])
+    return f"{major}.{minor}.{patch}"
+
+
+def generate_manifest(repos: list, product_type: str, event_type: str, build_type: str, target_arch: str) -> Manifest:
     manifest = Manifest()
-    version = version
     component_name = 'dldt' # historical, keep for internal compatibility
     repositories = []
+    ov_version = None
+    trigger_repo = None
+
     for repo_dir in repos:
-        repo_data = get_repo_data(repo_dir)
-        repositories.append(Repository(**repo_data))
-    # TODO: add wheels product version to custom params
-    component = Component(name=component_name, version=version, product_type=product_type, target_arch=target_arch,
-                          build_type=build_type, build_event=event_type, repositories=repositories)
+        repo = Repository(get_repo_data(repo_dir))
+        repositories.append(repo)
+        if repo.name == 'openvino':
+            version_file = Path(repo_dir) / 'src' / 'core' / 'include' / 'openvino' / 'core' / 'version.hpp'
+            ov_version = parse_ov_version(version_file)
+        if repo.trigger:
+            trigger_repo = repo
+
+    # TODO: move manifest generation to a separate action before running build, set CI_BUILD_NUMBER and CI_BUILD_DEV_TAG
+    custom_branch_name = f'-{repo.branch}' if trigger_repo.branch != 'master' else ''
+    run_number_postfix = f'-{os.environ.get("GITHUB_RUN_NUMBER")}' if os.environ.get("GITHUB_RUN_NUMBER") else ''
+    product_version = f"{ov_version}-{run_number_postfix}-{trigger_repo.revision[:11]}{custom_branch_name}"
+    commit_time = dateutil.parser.parse(trigger_repo.commit_time)
+    wheel_product_version = f'{product_version}.dev{commit_time.strftime("%Y%m%d")}'
+
+    component = Component(name=component_name, version=product_version, product_type=product_type, target_arch=target_arch,
+                          build_type=build_type, build_event=event_type, repositories=repositories,
+                          custom_params={'wheel_product_version': wheel_product_version})
 
     manifest.add_component(component)
     return manifest
@@ -177,9 +198,8 @@ def main():
             file.write(workflow_link)
 
     # Generate manifest
-    version = 'TBD' # TODO: generate version
     repos = args.repos.split()
-    manifest = generate_manifest(version, repos, args.storage_dir, event_type, args.build_type, args.target_arch)
+    manifest = generate_manifest(repos, args.storage_dir, event_type, args.build_type, args.target_arch)
     manifest.save_manifest('manifest.yml') # Locally, to upload to GitHub artifacts
     manifest.save_manifest(storage / 'manifest.yml') # Remotely
 
