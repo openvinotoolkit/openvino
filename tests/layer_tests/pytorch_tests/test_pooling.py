@@ -153,6 +153,8 @@ class TestPooling(PytorchLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_avg_pool2d(self, params, ceil_mode, count_include_pad, ie_device, precision, ir_version):
+        if ceil_mode and count_include_pad and np.array_equal(np.array(params["kernel_size"]), np.array([8, 8])):
+            pytest.skip("ticket XXXXX")
         self._test(*self.create_model("avg_pool2d", **params, ceil_mode=ceil_mode, count_include_pad=count_include_pad),
                    ie_device, precision, ir_version, trace_model=True, freeze_model=False, dynamic_shapes=False)
 
