@@ -308,7 +308,10 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     ov::pass::Manager decompression_handling_manager;
     decompression_handling_manager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::InitNodeInfo);
-    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::ConvertGatherToGatherCompressed);
+    const bool useLpt = !defaultPrecisions.empty();
+    if (!useLpt) {
+        CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::ConvertGatherToGatherCompressed);
+    }
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::MarkShapeOfSubgraphs);
     // We need to fuse Transpose to MatMul to have a simpler callback for the next transformation
     CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::TransposeMatMul);
@@ -328,15 +331,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             if (ov::is_type<ov::op::internal::GatherCompressed>(node)) {
                 // It is necessary to avoid precision conversion for constant node(compressed weights)
                 ov::enable_keep_const_precision(node->get_input_node_shared_ptr(0));
-
-                // Heuristic:
-                // 1: Small size weights have little impact on compile_model performance;
-                // 2: There is a high probability that constfolding will not be performed when compile_model;
-                const auto& input_partial_shape = node->get_input_partial_shape(0);
-                const auto& rank = input_partial_shape.rank();
-                if (rank.is_static() && (rank.get_length() == 2)) {
-                    return ov::shape_size<ov::Shape>(input_partial_shape.get_shape()) < 256u * 512u;
-                }
             }
             return false;
         },
@@ -345,7 +339,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
     ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
-    const bool useLpt = !defaultPrecisions.empty();
     if (useLpt)
         CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkDequantizationSubgraph, defaultPrecisions);
 
