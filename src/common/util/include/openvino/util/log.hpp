@@ -94,10 +94,18 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
             ov::util::_write_all_to_stream(OPENVINO_LOG_STREAM(_LOG_TYPE_DEBUG), __VA_ARGS__); \
         } while (0)
 #else
-#    define OPENVINO_ERR(...)
-#    define OPENVINO_WARN(...)
-#    define OPENVINO_INFO(...)
-#    define OPENVINO_DEBUG(...)
+#    define OPENVINO_ERR(...) \
+        do {                  \
+        } while (0)
+#    define OPENVINO_WARN(...) \
+        do {                   \
+        } while (0)
+#    define OPENVINO_INFO(...) \
+        do {                   \
+        } while (0)
+#    define OPENVINO_DEBUG(...) \
+        do {                    \
+        } while (0)
 #endif
 
 }  // namespace util
