@@ -82,7 +82,7 @@ void ov::OpSet::insert(const std::string& name, const NodeTypeInfo& type_info, D
     m_op_types.insert(type_info);
     m_name_type_info_map[name] = type_info;
     m_case_insensitive_type_info_map[to_upper_name(name)] = type_info;
-    m_factory_registry[type_info] = func;
+    m_factory_registry[type_info] = std::move(func);
 }
 
 std::string ov::OpSet::to_upper_name(const std::string& name) {
