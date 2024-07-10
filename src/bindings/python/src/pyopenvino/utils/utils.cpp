@@ -17,6 +17,7 @@
 #include "openvino/core/meta_data.hpp"
 #include "openvino/frontend/decoder.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
+#include "openvino/runtime/properties.hpp"
 
 using Version = ov::pass::Serialize::Version;
 
@@ -218,6 +219,8 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::streams::Num>());
     } else if (any.is<ov::Affinity>()) {
         return py::cast(any.as<ov::Affinity>());
+    } else if (any.is<ov::WorkloadType>()) {
+        return py::cast(any.as<ov::WorkloadType>());
     } else if (any.is<ov::CacheMode>()) {
         return py::cast(any.as<ov::CacheMode>());
     } else if (any.is<ov::device::UUID>()) {
@@ -401,6 +404,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::streams::Num>(py_obj);
     } else if (py::isinstance<ov::Affinity>(py_obj)) {
         return py::cast<ov::Affinity>(py_obj);
+    } else if (py::isinstance<ov::WorkloadType>(py_obj)) {
+        return py::cast<ov::WorkloadType>(py_obj);
     } else if (py::isinstance<ov::Tensor>(py_obj)) {
         return py::cast<ov::Tensor>(py_obj);
     } else if (py::isinstance<ov::Output<ov::Node>>(py_obj)) {

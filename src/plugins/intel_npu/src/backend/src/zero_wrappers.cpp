@@ -6,6 +6,7 @@
 
 #include "intel_npu/al/config/common.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
+#include "zero_types.hpp"
 
 namespace intel_npu {
 
@@ -107,9 +108,11 @@ CommandList::~CommandList() {
 CommandQueue::CommandQueue(const ze_device_handle_t& device_handle,
                            const ze_context_handle_t& context,
                            const ze_command_queue_priority_t& priority,
+                           ze_command_queue_npu_dditable_ext_curr_t* command_queue_npu_dditable_ext,
                            const Config& config,
                            const uint32_t& group_ordinal)
     : _context(context),
+      _command_queue_npu_dditable_ext(command_queue_npu_dditable_ext),
       _log("CommandQueue", config.get<LOG_LEVEL>()) {
     ze_command_queue_desc_t queue_desc =
         {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC, nullptr, group_ordinal, 0, 0, ZE_COMMAND_QUEUE_MODE_DEFAULT, priority};
@@ -124,6 +127,16 @@ void CommandQueue::executeCommandList(CommandList& command_list, Fence& fence) c
     zeroUtils::throwOnFail("zeCommandQueueExecuteCommandLists",
                            zeCommandQueueExecuteCommandLists(_handle, 1, &command_list._handle, fence.handle()));
 }
+
+void CommandQueue::setWorkloadType(ze_command_queue_workload_type_t workloadType) const {
+    if (_command_queue_npu_dditable_ext != nullptr) {
+        zeroUtils::throwOnFail("zeSetWorkloadType",
+                               _command_queue_npu_dditable_ext->pfnSetWorkloadType(_handle, workloadType));
+    } else {
+        OPENVINO_THROW("The WorkloadType property is not supported by the current Driver Version!");
+    }
+}
+
 CommandQueue::~CommandQueue() {
     auto result = zeCommandQueueDestroy(_handle);
     if (ZE_RESULT_SUCCESS != result) {

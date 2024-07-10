@@ -131,6 +131,7 @@ public:
     CommandQueue(const ze_device_handle_t& device_handle,
                  const ze_context_handle_t& context,
                  const ze_command_queue_priority_t& priority,
+                 ze_command_queue_npu_dditable_ext_curr_t* command_queue_npu_dditable_ext,
                  const Config& config,
                  const uint32_t& group_ordinal);
     CommandQueue(const CommandQueue&) = delete;
@@ -140,6 +141,7 @@ public:
 
     void executeCommandList(CommandList& command_list) const;
     void executeCommandList(CommandList& command_list, Fence& fence) const;
+    void setWorkloadType(ze_command_queue_workload_type_t workloadType) const;
     ~CommandQueue();
     inline ze_command_queue_handle_t handle() const {
         return _handle;
@@ -148,6 +150,7 @@ public:
 private:
     ze_command_queue_handle_t _handle = nullptr;
     ze_context_handle_t _context = nullptr;
+    ze_command_queue_npu_dditable_ext_curr_t* _command_queue_npu_dditable_ext = nullptr;
 
     Logger _log;
 };

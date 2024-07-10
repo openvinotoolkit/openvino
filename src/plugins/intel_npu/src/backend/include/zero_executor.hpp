@@ -9,6 +9,7 @@
 
 #include "intel_npu/utils/logger/logger.hpp"
 #include "npu.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "zero_init.hpp"
 #include "zero_wrappers.hpp"
 
@@ -32,6 +33,7 @@ public:
     };
 
     void setArgumentValue(uint32_t argi_, const void* argv_) const;
+    void setWorkloadType(const ov::WorkloadType workloadType) const override;
     inline ze_graph_handle_t graph() const {
         return _graph;
     }
