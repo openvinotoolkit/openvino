@@ -543,6 +543,7 @@ event::ptr primitive_inst::realloc_if_needed() {
                 // To record shape predictor
                 for (size_t j = 0; j < _impl_params->output_layouts.size(); ++j)
                     sp.predict_preallocation_shape(id(), _impl_params->output_layouts[j], true, j);
+                GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("can_be_optimized");
                 return ev;
             } else if (_outputs[0] && variable.get_memory() && get_network().get_engine().is_the_same_buffer(*_outputs[0], *variable.get_memory())) {
                 GPU_DEBUG_TRACE_DETAIL << id() << " : realloc_if_needed: Reset output mem" << std::endl;
@@ -729,14 +730,12 @@ event::ptr primitive_inst::realloc_if_needed() {
                                           output_memory_ptr(i).get(),
                                           true);
             _max_output_layout_count[i] = updated_params.output_layouts[i].get_buffer_size().count();
+            GPU_DEBUG_CODE(std::string memalloc_info = "");
+            GPU_DEBUG_CODE(memalloc_info += (((_outputs.size() > 1) ? ("o" + to_string(i) + ":") : "") +
+                                  (_outputs[i]->from_memory_pool ? "from_pool" : "new_alloc"));)
+            GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(memalloc_info);
         }
     }
-    GPU_DEBUG_CODE(std::string memalloc_info = "");
-    GPU_DEBUG_CODE(for (size_t out_idx = 0; out_idx < _outputs.size(); ++out_idx) {
-        memalloc_info += (((_outputs.size() > 1) ? ("o" + to_string(out_idx) + ":") : "") +
-                          (_outputs[out_idx]->from_memory_pool ? "from_pool" : "new_alloc"));
-    })
-    GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(memalloc_info);
 
     // Set variable memory same as output memory
     if (_node->is_type<kv_cache>()) {
