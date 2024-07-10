@@ -287,6 +287,14 @@ void CompiledModel::initialize_properties() {
               };
               return supportedProperty;
           }}},
+        // NPU Public
+        // =========
+        {ov::intel_npu::compilation_mode_params.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<COMPILATION_MODE_PARAMS>();
+          }}},
         // NPU Private
         // =========
         {ov::intel_npu::tiles.name(),
