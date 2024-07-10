@@ -438,7 +438,9 @@ Output<Node> TranslateSession::get_reverseprop_op(const std::shared_ptr<TorchDec
             return it->second(direct_op_output, value);
         }
 
-    } catch (std::exception& e) {
+    }
+#if ENABLE_OPENVINO_DEBUG
+    catch (std::exception& e) {
         OPENVINO_DEBUG("Exception happened during conversion of backprop op: ",
                        node->get_op_type(),
                        " with schema: ",
@@ -446,6 +448,10 @@ Output<Node> TranslateSession::get_reverseprop_op(const std::shared_ptr<TorchDec
                        ": ",
                        e.what());
     }
+#else
+    catch (std::exception&) {
+    }
+#endif
     // Create PtFrameworkNode representing unconverted backprop operation
     return std::make_shared<PtFrameworkNode>(node, OutputVector{value}, 1, true);
 }
