@@ -1138,33 +1138,6 @@ CONSTANT_WRITE_BUFFER(f4e2m1, double)
 #undef CONSTANT_WRITE_BUFFER
 
 template <class U>
-struct Validate : element::NoAction<void> {
-    using element::NoAction<void>::visit;
-
-    template <element::Type_t ET,
-              class InputIt,
-              typename std::enable_if<!std::is_same<U, ov::fundamental_type_for<ET>>::value>::type* = nullptr>
-    static result_type visit(const InputIt src, const size_t n) {
-        auto first = element::iterator<ET>(src);
-        auto last = first + n;
-        using T = ov::fundamental_type_for<ET>;
-        auto not_valid_value = std::find_if_not(first, last, &in_type_range<U, T>);
-        OPENVINO_ASSERT(not_valid_value == last,
-                        "Cannot cast from ",
-                        ET,
-                        " constant to ",
-                        element::from<U>(),
-                        ". Some values are outside the range. Example: ",
-                        *not_valid_value);
-    }
-
-    template <element::Type_t ET,
-              class InputIt,
-              typename std::enable_if<std::is_same<U, ov::fundamental_type_for<ET>>::value>::type* = nullptr>
-    static result_type visit(const InputIt, const size_t) {}
-};
-
-template <class U>
 struct Convert : element::NotSupported<void> {
     using element::NotSupported<void>::visit;
 
@@ -1214,12 +1187,11 @@ struct Convert<bool> : element::NotSupported<void> {
     }
 };
 
-#define CONSTANT_CAST_VECTOR(DTYPE, ET_REQ_VALIDATION)                                                               \
+#define CONSTANT_CAST_VECTOR(DTYPE)                                                                                  \
     template <>                                                                                                      \
     OPENVINO_API std::vector<DTYPE> Constant::cast_vector(int64_t num_elements) const {                              \
         std::vector<DTYPE> output(get_num_elements_to_cast(num_elements));                                           \
         using namespace ov::element;                                                                                 \
-        IfTypeOf<ET_REQ_VALIDATION>::apply<Validate<DTYPE>>(m_element_type, get_data_ptr(), output.size());          \
         IfTypeOf<SUPPORTED_ET>::apply<Convert<DTYPE>>(m_element_type, get_data_ptr(), output.data(), output.size()); \
         return output;                                                                                               \
     }
@@ -1232,23 +1204,21 @@ OPENVINO_API std::vector<bool> Constant::cast_vector(int64_t num_elements) const
     return output;
 }
 
-CONSTANT_CAST_VECTOR(char, OV_PP_ET_LIST(bf16, f16, f32, f64, i8, i16, i32, i64, u16, u32, u64, f8e8m0, f8e4m3, f8e5m2))
-CONSTANT_CAST_VECTOR(signed char, OV_PP_ET_LIST(bf16, f16, i16, i32, i64, u8, u16, u32, u64, f8e8m0, f8e4m3, f8e5m2))
-CONSTANT_CAST_VECTOR(unsigned char,
-                     OV_PP_ET_LIST(bf16, f16, f32, f64, i8, i16, i32, i64, u16, u32, u64, f8e8m0, f8e4m3, f8e5m2))
-CONSTANT_CAST_VECTOR(short, OV_PP_ET_LIST(bf16, f16, i32, i64, u16, u32, u64, f8e8m0, f8e5m2))
-CONSTANT_CAST_VECTOR(unsigned short,
-                     OV_PP_ET_LIST(bf16, f16, f32, f64, i8, i16, i32, i64, u32, u64, f8e8m0, f8e4m3, f8e5m2))
-CONSTANT_CAST_VECTOR(int, OV_PP_ET_LIST(bf16, f16, i64, u32, u64, f8e8m0))
-CONSTANT_CAST_VECTOR(unsigned int, OV_PP_ET_LIST(bf16, f16, f32, f64, i8, i16, i32, i64, u64, f8e8m0, f8e4m3, f8e5m2))
-CONSTANT_CAST_VECTOR(long, OV_PP_ET_LIST(bf16, f16, u32, u64))
-CONSTANT_CAST_VECTOR(unsigned long, OV_PP_ET_LIST(bf16, f16, f32, f64, i8, i16, i32, i64, f8e8m0, f8e4m3, f8e5m2))
-CONSTANT_CAST_VECTOR(long long, OV_PP_ET_LIST(bf16, f16, u64))
-CONSTANT_CAST_VECTOR(unsigned long long, OV_PP_ET_LIST(bf16, f16, f32, f64, i8, i16, i32, i64, f8e8m0, f8e4m3, f8e5m2))
-CONSTANT_CAST_VECTOR(float16, OV_PP_ET_LIST(bf16, i16, i32, u8, u16, u32, u64))
-CONSTANT_CAST_VECTOR(bfloat16, OV_PP_ET_LIST(f32, f64, i64, u32, u64))
-CONSTANT_CAST_VECTOR(float, OV_PP_ET_LIST(f64, i64, u32, u64))
-CONSTANT_CAST_VECTOR(double, OV_PP_ET_LIST())
+CONSTANT_CAST_VECTOR(char)
+CONSTANT_CAST_VECTOR(signed char)
+CONSTANT_CAST_VECTOR(unsigned char)
+CONSTANT_CAST_VECTOR(short)
+CONSTANT_CAST_VECTOR(unsigned short)
+CONSTANT_CAST_VECTOR(int)
+CONSTANT_CAST_VECTOR(unsigned int)
+CONSTANT_CAST_VECTOR(long)
+CONSTANT_CAST_VECTOR(unsigned long)
+CONSTANT_CAST_VECTOR(long long)
+CONSTANT_CAST_VECTOR(unsigned long long)
+CONSTANT_CAST_VECTOR(float16)
+CONSTANT_CAST_VECTOR(bfloat16)
+CONSTANT_CAST_VECTOR(float)
+CONSTANT_CAST_VECTOR(double)
 
 }  // namespace v0
 }  // namespace op
