@@ -965,6 +965,9 @@ static bool is_node_for_onednn(gemm_node const& node) {
     if (!layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node))
         return false;
 
+    if (node.get_primitive()->indirect_a || node.get_primitive()->indirect_b)
+        return false;
+
     return true;
 }
 
