@@ -30,7 +30,7 @@ will not work with these instructions, make sure to
 
    .. code-block:: python
 
-      optimum-cli export openvino --model "TinyLlama/TinyLlama-1.1B-Chat-v1.0" --weight-format fp16 --trust-remote-code "TinyLlama-1.1B-Chat-v1.0"
+      optimum-cli export openvino --model "TinyLlama/TinyLlama-1.1B-Chat-v1.0" --weight-format int4 --trust-remote-code "TinyLlama-1.1B-Chat-v1.0"
 
 
 2. Perform generation using the new GenAI API:
