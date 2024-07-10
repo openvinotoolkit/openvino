@@ -21,10 +21,10 @@ Below is a list of cases where input/output layout is important:
   * Applying the :doc:`preprocessing <../optimize-preprocessing>` steps, such as subtracting means, dividing by scales, resizing an image, and converting ``RGB`` <-> ``BGR``.
   * Setting/getting a batch for a model.
 
-* Doing the same operations as used during the model conversion phase. For more information, refer to the
+* Doing the same operations as used during the model conversion phase. For more information, refer to the:
 
   * :doc:`Convert to OpenVINO <../../../model-preparation/convert-model-to-ir>`
-  * `OpenVINO Model Conversion Tutorial <notebooks/convert-to-openvino-with-output.html>`
+  * `OpenVINO Model Conversion Tutorial <notebooks/convert-to-openvino-with-output.html>`__
   * :doc:`[LEGACY] Model Optimizer Embedding Preprocessing Computation <../../../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-embedding-preprocessing-computation>` guide.
 
 * Improving the readability of a model input and output.
