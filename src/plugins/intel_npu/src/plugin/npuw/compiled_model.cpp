@@ -282,6 +282,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         }
 
         if (!subgraph._funcall.empty()) {
+            std::cout<< "Before layout change" << std::endl;
             for (auto &l : m_compiled_submodels[real_id].model->inputs()) {
                 std::cout << l.get_shape() << "     " << l.get_any_name() << std::endl;
             }
@@ -293,6 +294,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             }
             auto preprocessed_model = ppp.build();
             m_compiled_submodels[real_id].model = preprocessed_model;
+            std::cout<< "After layout change" << std::endl;
             for (auto &l : m_compiled_submodels[real_id].model->inputs()) {
                 std::cout << l.get_shape() << "     " << l.get_any_name() << std::endl;
             }
