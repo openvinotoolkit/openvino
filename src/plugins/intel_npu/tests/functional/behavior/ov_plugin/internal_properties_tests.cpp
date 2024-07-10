@@ -142,7 +142,6 @@ const std::vector<ov::AnyMap> CorrectPluginMutableProperties = {
     {{ov::intel_npu::dpu_groups.name(), 1}},
     {{ov::intel_npu::dma_engines.name(), 1}},
     {{ov::intel_npu::compilation_mode.name(), "DefaultHW"}},
-    {{ov::intel_npu::compilation_mode_params.name(), "dump-task-stats=false propagate-quant-dequant=0"}},
     {{ov::intel_npu::platform.name(),
       removeDeviceNameOnlyID(
           ov::test::utils::getTestsDeviceNameFromEnvironmentOr(std::string(ov::intel_npu::Platform::AUTO_DETECT)))}},
@@ -160,7 +159,6 @@ const std::vector<ov::AnyMap> IncorrectMutablePropertiesWrongValueTypes = {
     {{ov::intel_npu::profiling_type.name(), 10}},
     {{ov::intel_npu::tiles.name(), "none"}},
     {{ov::intel_npu::dma_engines.name(), false}},
-    {{ov::intel_npu::compilation_mode_params.name(), "not-a-param=true"}},
 };
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,

@@ -295,14 +295,6 @@ static constexpr ov::Property<CompilerType> compiler_type{"NPU_COMPILER_TYPE"};
 static constexpr ov::Property<std::string> compilation_mode{"NPU_COMPILATION_MODE"};
 
 /**
- * @brief [Only for NPU compiler]
- * Type: std::string, default is empty.
- * Sets various parameters supported by the NPU compiler.
- * Available values: low-precision=true/low-precision=false
- */
-static constexpr ov::Property<std::string> compilation_mode_params{"NPU_COMPILATION_MODE_PARAMS"};
-
-/**
  * @brief [Only for NPU Plugin]
  * Type: integer, default is None
  * Number of DPU groups
