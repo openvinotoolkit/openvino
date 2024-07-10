@@ -105,7 +105,7 @@ For more details about OpenVINO model caching, see the
 Supported Features and properties
 #######################################
 
-The NPU device is currently supported by AUTO and MULTI inference modes
+The NPU device is currently supported by AUTO inference modes
 (HETERO execution is partially supported, for certain models).
 
 The NPU support in OpenVINO is still under active development and may

@@ -158,7 +158,8 @@ struct fully_connected : public primitive_base<fully_connected> {
 
         if (decompression_zero_point_scalar.has_value()) {
             ob << true;
-            ob << make_data(&decompression_zero_point_scalar.value(), sizeof(float));
+            float decompression_zero_point_value = decompression_zero_point_scalar.value();
+            ob << decompression_zero_point_value;
         } else {
             ob << false;
         }
@@ -178,7 +179,7 @@ struct fully_connected : public primitive_base<fully_connected> {
         ib >> has_value;
         if (has_value) {
             float decompression_zero_point_value = 0.f;
-            ib >> make_data(&decompression_zero_point_value, sizeof(float));
+            ib >> decompression_zero_point_value;
             decompression_zero_point_scalar = decompression_zero_point_value;
         } else {
             decompression_zero_point_scalar = optional_value<float>();
