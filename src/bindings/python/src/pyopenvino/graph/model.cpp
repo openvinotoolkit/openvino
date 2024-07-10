@@ -128,7 +128,8 @@ static std::unordered_map<std::string, ov::PartialShape> get_variables_shapes(co
     return variables_shape_map;
 }
 
-static int64_t find_sink_position(const ov::SinkVector& sinks, const std::shared_ptr<ov::op::Sink>& sink) {
+template<typename T>
+static int64_t find_sink_position(const ov::SinkVector& sinks, const std::shared_ptr<T>& sink)
     int64_t pos = 0;
     for (const auto& s : sinks) {
         if (s == sink) {
@@ -776,9 +777,9 @@ void regclass_graph_Model(py::module m) {
         "get_sink_index",
         [](ov::Model& self, const ov::Output<ov::Node>& value) -> int64_t {
             int64_t pos = -1;
-            if (ov::is_type<ov::op::v6::Assign>(value.get_node_shared_ptr())) {
-                auto sink = std::dynamic_pointer_cast<ov::op::Sink>(value.get_node_shared_ptr());
-                return find_sink_position(self.get_sinks(), sink);
+            auto node = value.get_node_shared_ptr();
+            if (ov::is_type<ov::op::v6::Assign>(node)) {
+                return find_sink_position(self.get_sinks(), std::dynamic_pointer_cast<ov::op::Sink>(node));
             } else {
                 throw py::type_error("Incorrect argument type. Output sink node is expected as argument.");
             }
@@ -800,9 +801,9 @@ void regclass_graph_Model(py::module m) {
         "get_sink_index",
         [](ov::Model& self, const ov::Output<const ov::Node>& value) -> int64_t {
             int64_t pos = -1;
-            if (ov::is_type<ov::op::v6::Assign>(value.get_node_shared_ptr())) {
-                auto sink = std::dynamic_pointer_cast<const ov::op::Sink>(value.get_node_shared_ptr());
-                return find_sink_position(self.get_sinks(), sink);
+            auto node = value.get_node_shared_ptr();
+            if (ov::is_type<ov::op::v6::Assign>(node)) {;
+                return find_sink_position(self.get_sinks(), std::dynamic_pointer_cast<const ov::op::Sink>(node));
             } else {
                 throw py::type_error("Incorrect argument type. Output sink node is expected as argument.");
             }
