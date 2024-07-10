@@ -38,7 +38,6 @@ void mockPlugin(ov::Core& core, std::shared_ptr<ov::IPlugin>& plugin, std::share
 }
 
 void clearMockPlugin(const std::shared_ptr<void>& m_so) {
-    std::string libraryPath = ov::test::utils::get_mock_engine_path();
     ASSERT_TRUE(m_so);
     ov::test::utils::make_std_function<void()>(m_so, "ClearTargets")();
 }

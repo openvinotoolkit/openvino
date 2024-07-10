@@ -192,6 +192,6 @@ OPENVINO_PLUGIN_API void InjectPlugin(ov::IPlugin* target) {
 }
 
 OPENVINO_PLUGIN_API void ClearTargets() {
-    decltype(targets) empty;
-    std::swap(targets, empty);
+    std::lock_guard<std::mutex> lock(targets_mutex);
+    targets = {};
 }
