@@ -140,7 +140,7 @@ void AutoSchedule::init() {
         }
         m_compile_context[CPU].m_is_enabled = true;
         if (!is_actual_cpu) {
-            auto device = m_compile_context[ACTUALDEVICE].m_device_info.device_name;
+            const auto& device = m_compile_context[ACTUALDEVICE].m_device_info.device_name;
             auto& device_config = m_compile_context[ACTUALDEVICE].m_device_info.config;
             std::string cache_dir = device_config.count(ov::cache_dir.name())
                                         ? device_config[ov::cache_dir.name()].as<std::string>()
@@ -456,32 +456,32 @@ bool AutoSchedule::schedule_to_worker_infer_request(ov::threading::Task pipeline
     std::vector<DeviceInformation> devices;
     // AUTO work mode
     // Devices that fail infer will be removed from the priority list in the callback, need lock here
-    std::unique_lock<std::mutex> lock(m_context->m_fallback_mutex);
-    if (!preferred_device.empty()) {
-        // if the device needed by customer is not ready, need to wait for it
-        wait_actual_compiled_model_ready();
-        devices.push_back(m_compile_context[ACTUALDEVICE].m_device_info);
-        if (!deviceChecker().check_if_device_in_list<DeviceInformation>(preferred_device, devices)) {
-            lock.unlock();
-            OPENVINO_THROW("The preferred device should be the selected device");
-        }
-    } else {
-        // _acceleratorDevice could be the same as _cpuDevice, such as AUTO:CPU
-        if (m_compile_context[FALLBACKDEVICE].m_is_already) {
-            devices.push_back(m_compile_context[FALLBACKDEVICE].m_device_info);
+    {
+        std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
+        if (!preferred_device.empty()) {
+            // if the device needed by customer is not ready, need to wait for it
+            wait_actual_compiled_model_ready();
+            devices.push_back(m_compile_context[ACTUALDEVICE].m_device_info);
+            if (!deviceChecker().check_if_device_in_list<DeviceInformation>(preferred_device, devices)) {
+                OPENVINO_THROW("The preferred device should be the selected device");
+            }
         } else {
-            if (m_compile_context[ACTUALDEVICE].m_is_already) {
-                devices.push_back(m_compile_context[ACTUALDEVICE].m_device_info);
+            // _acceleratorDevice could be the same as _cpuDevice, such as AUTO:CPU
+            if (m_compile_context[FALLBACKDEVICE].m_is_already) {
+                devices.push_back(m_compile_context[FALLBACKDEVICE].m_device_info);
             } else {
-                // replace deviceName with m_worker_name, so schedule can select correct
-                // idleWorkerQueue
-                auto m_device_info = m_compile_context[CPU].m_device_info;
-                m_device_info.device_name = m_compile_context[CPU].m_worker_name;
-                devices.push_back(std::move(m_device_info));
+                if (m_compile_context[ACTUALDEVICE].m_is_already) {
+                    devices.push_back(m_compile_context[ACTUALDEVICE].m_device_info);
+                } else {
+                    // replace deviceName with m_worker_name, so schedule can select correct
+                    // idleWorkerQueue
+                    auto m_device_info = m_compile_context[CPU].m_device_info;
+                    m_device_info.device_name = m_compile_context[CPU].m_worker_name;
+                    devices.push_back(std::move(m_device_info));
+                }
             }
         }
     }
-    lock.unlock();
     for (auto&& device : devices) {
         if (!preferred_device.empty() && (device.device_name != preferred_device)) {
             continue;
