@@ -25,7 +25,7 @@ TEST(attributes, random_uniform_op) {
                                                                        element::Type_t::f32,
                                                                        150,
                                                                        10,
-                                                                       ov::op::PhilloxAlignment::TENSORFLOW);
+                                                                       ov::op::PhiloxAlignment::TENSORFLOW);
     NodeBuilder builder(random_uniform, {out_shape, min_val, max_val});
     auto g_random_uniform = ov::as_type_ptr<ov::op::v8::RandomUniform>(builder.create());
 
