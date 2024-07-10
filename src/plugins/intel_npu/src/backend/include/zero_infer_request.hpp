@@ -7,8 +7,6 @@
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
-#include <mutex>
-
 #include "intel_npu/utils/logger/logger.hpp"
 #include "npu.hpp"
 #include "zero_executor.hpp"
@@ -42,9 +40,8 @@ public:
 private:
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
     std::vector<uint8_t> get_raw_profiling_data() const;
-    void check_and_get_mem_data(std::string name, bool isInput);
-    void get_tensor_data(std::shared_ptr<ov::ITensor> tensor, std::string name, bool isInput);
-    void get_remote_tensor_mem(std::shared_ptr<ZeroRemoteTensor> tensor, std::string name);
+    void set_tensor_data(std::shared_ptr<ov::ITensor> tensor, const std::string& name, bool isInput);
+    void set_remote_tensor_data(std::shared_ptr<ZeroRemoteTensor> tensor, const std::string& name);
     void check_network_precision(const ov::element::Type_t precision) const override;
     void create_pipeline();
 
@@ -68,6 +65,7 @@ private:
 
     bool _createPipeline = true;
     bool _tensorIsDifferent = false;
+    bool _levelZeroTensorCreatedLocally = true;
 };
 
 }  //  namespace intel_npu

@@ -67,7 +67,6 @@ bool ZeroRemoteTensor::deallocate() noexcept {
                 return false;
             }
             _data = nullptr;
-            return true;
         }
 
         return true;
@@ -100,10 +99,6 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
 
         // set up the request to import the external memory handle
 #ifdef _WIN32
-        if (!_init_structs->getMutableCommandListVersion()) {
-            OPENVINO_THROW("Importing a d3d12 memory is not supported with this driver version");
-        }
-
         ze_external_memory_import_win32_handle_t memory_import = {ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_WIN32,
                                                                   nullptr,
                                                                   ZE_EXTERNAL_MEMORY_TYPE_FLAG_OPAQUE_WIN32,

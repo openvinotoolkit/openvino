@@ -13,7 +13,6 @@ namespace {
 template <typename Type>
 std::optional<Type> extract_object(const ov::AnyMap& params, const ov::Property<Type>& p, bool isMandatory = true) {
     auto itrHandle = params.find(p.name());
-    ov::Any res = nullptr;
     if (itrHandle == params.end()) {
         if (isMandatory) {
             OPENVINO_THROW("No parameter ", p.name(), " found in parameters map");
@@ -22,8 +21,7 @@ std::optional<Type> extract_object(const ov::AnyMap& params, const ov::Property<
         return std::nullopt;
     }
 
-    res = itrHandle->second;
-    return res.as<Type>();
+    return ov::Any(itrHandle->second).as<Type>();
 }
 
 }  // namespace
@@ -32,10 +30,9 @@ namespace intel_npu {
 
 RemoteContextImpl::RemoteContextImpl(std::shared_ptr<const NPUBackends> backends, const Config& config)
     : _backends(backends),
-      _config(config) {
-    _device_name = "NPU";
-    _properties = {ov::intel_npu::l0_context(backends->getContext())};
-}
+      _config(config),
+      _properties({ov::intel_npu::l0_context(backends->getContext())}),
+      _device_name("NPU") {}
 
 const ov::AnyMap& RemoteContextImpl::get_property() const {
     return _properties;
@@ -63,7 +60,8 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
         OPENVINO_THROW("Shared object type should be set in parameter map");
     }
 
-    if (ov::intel_npu::MemType::L0_INTERNAL_BUF == *mem_type) {
+    switch (*mem_type) {
+    case ov::intel_npu::MemType::L0_INTERNAL_BUF: {
         memory_type = RemoteMemoryType::L0_INTERNAL_BUF;
         auto object = extract_object(params, ov::intel_npu::tensor_type, false);
         if (object.has_value()) {
@@ -81,13 +79,17 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
                 OPENVINO_THROW("Unknown tensor type");
             }
         }
-    } else if (ov::intel_npu::MemType::SHARED_BUF == *mem_type) {
+        break;
+    }
+    case ov::intel_npu::MemType::SHARED_BUF: {
         memory_type = RemoteMemoryType::SHARED_BUF;
         auto object = extract_object(params, ov::intel_npu::mem_handle);
         if (object.has_value()) {
             mem = *object;
         }
-    } else {
+        break;
+    }
+    default:
         OPENVINO_THROW("Unsupported shared object type ", *mem_type);
     }
 

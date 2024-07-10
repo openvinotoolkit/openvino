@@ -62,25 +62,25 @@ inline std::istream& operator>>(std::istream& is, MemType& share_mem_type) {
 
 /**
  * @brief This key identifies type of internal shared memory
- * in a shared memory blob parameter map.
+ * in a shared memory tensor parameter map.
  */
 static constexpr Property<MemType> mem_type{"MEM_TYPE"};
 
 /**
  * @brief This key identifies memory handle
- * in a shared memory blob parameter map
+ * in a shared memory tensor parameter map
  */
 static constexpr Property<npu_handle_param> mem_handle{"MEM_HANDLE"};
 
 /**
  * @brief This key identifies LevelZero context handle
- * in a shared context or shared memory blob parameter map
+ * in a shared context or shared memory tensor parameter map
  */
 static constexpr Property<npu_handle_param> l0_context{"L0_CONTEXT"};
 
 /**
  * @brief This key identifies type of the tensor
- * in a shared memory blob parameter map.
+ * in a shared memory tensor parameter map.
  */
 static constexpr Property<TensorType> tensor_type{"TENSOR_TYPE"};
 

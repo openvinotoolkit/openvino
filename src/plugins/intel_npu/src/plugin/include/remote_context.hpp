@@ -53,10 +53,4 @@ private:
     std::string _device_name;
 };
 
-inline std::shared_ptr<RemoteContextImpl> get_context_impl(ov::SoPtr<ov::IRemoteContext> ptr) {
-    auto casted = std::dynamic_pointer_cast<RemoteContextImpl>(ptr._ptr);
-    OPENVINO_ASSERT(casted, "Invalid remote context type. Can't cast to ov::intel_npu::RemoteContext type");
-    return casted;
-}
-
 }  // namespace intel_npu

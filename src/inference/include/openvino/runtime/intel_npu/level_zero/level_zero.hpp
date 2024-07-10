@@ -53,7 +53,7 @@ public:
 
     /**
      * @brief Returns the underlying LevelZero memory object handle.
-     * @return underlying voir* memory object handle
+     * @return underlying void* memory object handle
      */
     void* get() {
         return get_params().at(ov::intel_npu::mem_handle.name()).as<void*>();
@@ -132,7 +132,7 @@ public:
      * @param tensor_type Type of the tensor to be shared, input, output or binded
      * @return A remote tensor instance
      */
-    ZeroBufferTensor create_tensor(const element::Type type, const Shape& shape, const TensorType& tensor_type) {
+    ZeroBufferTensor create_tensor(const element::Type type, const Shape& shape, const TensorType tensor_type) {
         AnyMap params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::L0_INTERNAL_BUF},
                          {ov::intel_npu::tensor_type.name(), tensor_type}};
         return create_tensor(type, shape, params).as<ZeroBufferTensor>();

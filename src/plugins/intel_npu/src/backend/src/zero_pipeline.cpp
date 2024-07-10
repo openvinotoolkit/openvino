@@ -306,12 +306,10 @@ public:
                 TensorData& inputTensorData = tensors_data.at(desc.first);
 
                 if (inputTensorData.changed == true) {
-                    mutable_argument_desc_index++;
-
                     auto comand_list_id = _command_lists.at(i)->getCommandListId();
 
                     set_mutable_desc(
-                        mutable_argument_desc_index,
+                        ++mutable_argument_desc_index,
                         comand_list_id,
                         desc.second.idx,
                         inputTensorData.size / batch_size,

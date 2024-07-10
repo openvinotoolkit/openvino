@@ -182,7 +182,7 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensors1) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     ov::InferRequest inference_request;
-    void* first_output = NULL;
+    void* first_output = nullptr;
     ov::intel_npu::level_zero::ZeroBufferTensor remote_output_tensor;
     ov::Tensor second_output;
 

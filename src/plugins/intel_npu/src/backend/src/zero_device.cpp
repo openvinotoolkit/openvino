@@ -191,6 +191,5 @@ ov::SoPtr<ov::IRemoteTensor> ZeroDevice::createRemoteTensor(std::shared_ptr<ov::
                                                             RemoteMemoryType mem_type,
                                                             void* mem) {
     return {std::make_shared<
-                ZeroRemoteTensor>(context, _initStructs, element_type, shape, config, tensor_type, mem_type, mem),
-            nullptr};
+        ZeroRemoteTensor>(context, _initStructs, element_type, shape, config, tensor_type, mem_type, mem)};
 };

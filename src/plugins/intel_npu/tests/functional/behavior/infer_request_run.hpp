@@ -297,6 +297,53 @@ TEST_P(InferRequestRunTests, CheckOutputDataFromMultipleRunsUsingSameL0Tensor) {
     }
 }
 
+TEST_P(InferRequestRunTests, RecreateL0TensorIfNeeded) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    ov::InferRequest inference_request;
+    ov::Tensor first_output;
+    ov::Tensor second_output;
+    ov::Tensor global_input;
+    float* data;
+
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+    global_input = inference_request.get_input_tensor();
+    memset(global_input.data(), 1, global_input.get_byte_size());
+    OV_ASSERT_NO_THROW(inference_request.infer());
+    first_output = inference_request.get_output_tensor(0);
+
+    compiled_model = {};
+    inference_request = {};
+
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+    OV_ASSERT_NO_THROW(inference_request.set_input_tensor(global_input));
+    OV_ASSERT_NO_THROW(inference_request.infer());
+    second_output = inference_request.get_output_tensor(0);
+
+    EXPECT_NE(first_output.data(), second_output.data());
+    EXPECT_EQ(memcmp(first_output.data(), second_output.data(), second_output.get_byte_size()), 0);
+
+    for (int i = 0; i < 10; i++) {
+        {
+            const size_t byte_size = global_input.get_byte_size();
+            data = new float[byte_size / sizeof(float)];
+            memset(data, 1, byte_size);
+            ov::Tensor input_data_tensor{ov::element::f32, global_input.get_shape(), data};
+            OV_ASSERT_NO_THROW(inference_request.set_input_tensor(input_data_tensor));
+            OV_ASSERT_NO_THROW(inference_request.infer());
+        }
+        second_output = inference_request.get_output_tensor(0);
+
+        EXPECT_NE(first_output.data(), second_output.data());
+        EXPECT_EQ(memcmp(first_output.data(), second_output.data(), second_output.get_byte_size()), 0);
+
+        delete[] data;
+    }
+}
+
 using BatchingRunTests = InferRequestRunTests;
 
 TEST_P(BatchingRunTests, CheckBatchingSupportInfer) {

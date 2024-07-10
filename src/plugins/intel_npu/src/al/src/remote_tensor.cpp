@@ -56,8 +56,9 @@ void RemoteTensor::set_shape(ov::Shape new_shape) {
 }
 
 void RemoteTensor::update_strides() {
-    if (_element_type.bitwidth() < 8)
+    if (_element_type.bitwidth() < 8) {
         return;
+    }
 
     auto& shape = get_shape();
     if (_strides.empty() && !shape.empty()) {
