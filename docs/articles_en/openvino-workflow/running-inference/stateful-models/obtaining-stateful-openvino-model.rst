@@ -195,7 +195,7 @@ To apply LowLatency2 Transformation, follow the instruction below:
 
    In such a case, trim non-reshapable layers via
    :doc:`Conversion Parameters <../../model-preparation/conversion-parameters>`:
-   ``--input`` and ``--output``. For an example, check the `OpenVINO Model Conversion Tutorial <notebooks/convert-to-openvino-with-output.html>`.
+   ``--input`` and ``--output``. For an example, check the `OpenVINO Model Conversion Tutorial <notebooks/convert-to-openvino-with-output.html>`__.
 
    As for the parameter and the problematic constant in the picture above, it can be
    trimmed by using the ``--input Reshape_layer_name`` command-line option. The problematic
