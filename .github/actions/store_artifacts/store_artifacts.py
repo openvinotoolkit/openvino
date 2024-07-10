@@ -141,7 +141,7 @@ def generate_manifest(repos: list, product_type: str, event_type: str, build_typ
     # TODO: move manifest generation to a separate action before running build, set CI_BUILD_NUMBER and CI_BUILD_DEV_TAG
     custom_branch_name = f'-{repo.branch}' if trigger_repo.branch != 'master' else ''
     run_number_postfix = f'-{os.environ.get("GITHUB_RUN_NUMBER")}' if os.environ.get("GITHUB_RUN_NUMBER") else ''
-    product_version = f"{ov_version}-{run_number_postfix}-{trigger_repo.revision[:11]}{custom_branch_name}"
+    product_version = f"{ov_version}{run_number_postfix}-{trigger_repo.revision[:11]}{custom_branch_name}"
     wheel_product_version = f'{product_version}.dev{trigger_repo.commit_time.strftime("%Y%m%d")}'
 
     component = Component(name=component_name, version=product_version, product_type=product_type, target_arch=target_arch,
