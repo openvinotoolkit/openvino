@@ -28,7 +28,8 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa,
     const auto& brg1Prc = brgemm_node->get_input_element_type(1);
     BrgemmKernelConfig kernel_config(brg0Prc, brg1Prc,
                                       brgemm_node->get_beta(), brgemm_node->is_amx(),
-                                      brgemm_node->is_with_compensations());
+                                      brgemm_node->is_with_compensations(),
+                                     get_primitive_isa(brg0Prc, brgemm_node->is_amx()));
     m_kernel_executor = kernel_table->register_kernel<BrgemmKernelExecutor>(expr,
                                                                             compiled_kernel_cache,
                                                                             kernel_config);
@@ -87,6 +88,28 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
     }
 }
 
+cpu_isa_t jit_brgemm_emitter::get_primitive_isa(const ov::element::Type& dt_in0, bool is_with_amx) {
+    auto isa = isa_undef;
+#define SUPPORT(X, Y) if (mayiuse(X)) { isa = X; } else { Y }
+#define SUPPORT_ONE(X, MESSAGE) SUPPORT(X, OV_CPU_JIT_EMITTER_THROW(MESSAGE);)
+#define SUPPORT_TWO(X, Y, MESSAGE) SUPPORT(X, SUPPORT_ONE(Y, MESSAGE))
+
+    // Note: AMX might be not used even if it's supported by the hardware, check the BrgemmToBrgemmCPU pass for details
+    if (is_with_amx) {
+        SUPPORT_ONE(avx512_core_amx, "Unsupported hardware configuration: amx is supported only on avx512 platforms")
+    } else if (dt_in0 == ov::element::bf16) {
+        SUPPORT_ONE(avx512_core_bf16, "Unsupported hardware configuration: bf16 is supported only on avx512 platforms")
+    } else if (snippets::utils::one_of(dt_in0, ov::element::u8, ov::element::i8)) {
+        SUPPORT_TWO(avx512_core_vnni, avx2_vnni, "Unsupported hardware configuration: int8 is supported only on vnni platforms")
+    } else {
+        SUPPORT_TWO(avx512_core, cpu::x64::avx2, "Unsupported hardware configuration: brgemm requires at least avx2 isa")
+    }
+    return isa;
+#undef SUPPORT_TWO
+#undef SUPPORT_ONE
+#undef _SUPPORT
+}
+
 void jit_brgemm_emitter::validate_arguments(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
     OV_CPU_JIT_EMITTER_ASSERT(m_memory_offsets.size() == in.size() + 1 && (out.size() == 1),
                               "expects 3 inputs if there are compensations/wsp");
@@ -94,14 +117,10 @@ void jit_brgemm_emitter::validate_arguments(const std::vector<size_t> &in, const
 
 void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     validate_arguments(in, out);
-    if (host_isa_ == cpu::x64::avx512_core) {
-        std::vector<size_t> mem_ptrs_idxs{in[0], in[1], out[0]};
-        if (in.size() > 2)
-            mem_ptrs_idxs.emplace_back(in[2]);
-        emit_brgemm_kernel_call(mem_ptrs_idxs, m_memory_offsets);
-    } else {
-        OV_CPU_JIT_EMITTER_THROW("requires at least avx512_core instruction set");
-    }
+    std::vector<size_t> mem_ptrs_idxs{in[0], in[1], out[0]};
+    if (in.size() > 2)
+        mem_ptrs_idxs.emplace_back(in[2]);
+    emit_brgemm_kernel_call(mem_ptrs_idxs, m_memory_offsets);
 }
 void jit_brgemm_emitter::emit_brgemm_kernel_call(const std::vector<size_t>& mem_ptrs_idxs, const std::vector<size_t>& mem_offsets) const {
     internal_call_preamble();

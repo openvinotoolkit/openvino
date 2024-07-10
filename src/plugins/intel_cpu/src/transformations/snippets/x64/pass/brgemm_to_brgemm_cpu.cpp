@@ -71,6 +71,7 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
         const auto element_type_a = brgemm->get_input_element_type(0);
         const auto brgemmVNNIFactor = 4 / element_type_a.size();
         const bool isAMXSupported = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx);
+        const bool isBF16Supported = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16);
         const bool with_amx = isAMXSupported && element_type_a != ov::element::f32 &&
                               K.is_static() && K.get_length() % brgemmVNNIFactor == 0 &&
                               N.is_static() && N.get_length() % brgemmVNNIFactor == 0;
@@ -106,7 +107,7 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
                                                          brgemm_in0_desc->get_layout(), std::vector<size_t>{}, brgemm_out_desc->get_layout());
                 set_full_port_desc(brgemm_repacking->output(1));
                 set_full_port_desc(brgemm_cpu->input(2));
-            } else if (one_of(element_type_a, ov::element::u8, ov::element::bf16)) {
+            } else if (element_type_a == ov::element::u8 || (element_type_a == ov::element::bf16 && isBF16Supported)) {
                 brgemm_cpu = std::make_shared<BrgemmCPU>(brgemm->input_value(0), brgemm_repacking->output(0), BrgemmCPU::Type::WithDataRepacking,
                                                          offset_a, offset_b, offset_c,
                                                          brgemm_in0_desc->get_layout(), std::vector<size_t>{}, brgemm_out_desc->get_layout());

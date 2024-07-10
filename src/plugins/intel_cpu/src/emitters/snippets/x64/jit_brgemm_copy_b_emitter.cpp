@@ -74,18 +74,15 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h, cpu_isa_t
     const auto use_amx = mayiuse(avx512_core_amx) && brg_src_etype != ov::element::f32 &&
                          (m_K_blk % m_brgemmVNNIFactor == 0) && (m_N_blk % m_brgemmVNNIFactor == 0);
 
-    const auto src_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brg_src_etype));
-    const auto wei_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(m_brg_weight_etype));
-
-    init_brgemm_copy(m_kernel, leading_dimension, m_inner_N_block, m_inner_N_tail, LDB, m_K_blk, use_amx, src_dt, wei_dt);
+    init_brgemm_copy(m_kernel, leading_dimension, m_inner_N_block, m_inner_N_tail, LDB, m_K_blk, use_amx, brg_src_etype, m_brg_weight_etype);
 }
 
 void jit_brgemm_copy_b_emitter::init_brgemm_copy(std::unique_ptr<matmul::jit_brgemm_matmul_copy_b_t>& kernel,
                                                  size_t N, size_t N_blk, size_t N_tail, size_t LDB, size_t K,
-                                                 bool is_with_amx, dnnl_data_type_t src_dt, dnnl_data_type_t wei_dt) const {
+                                                 bool is_with_amx, const ov::element::Type& src_dt, const ov::element::Type& wei_dt) const {
     matmul::brgemm_matmul_conf_t brgCopyKernelConf;
-    brgCopyKernelConf.src_dt = src_dt;
-    brgCopyKernelConf.wei_dt = wei_dt;
+    brgCopyKernelConf.src_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(src_dt));
+    brgCopyKernelConf.wei_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(wei_dt));
     brgCopyKernelConf.wei_n_blk = static_cast<int>(N_blk);
     brgCopyKernelConf.wei_tag = dnnl_abcd;  // What's about other ranks?
     brgCopyKernelConf.copy_B_wei_stride = 0;
@@ -100,13 +97,10 @@ void jit_brgemm_copy_b_emitter::init_brgemm_copy(std::unique_ptr<matmul::jit_brg
     brgCopyKernelConf.tr_b_dt_sz = DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
     brgCopyKernelConf.req_wei_vnni_downconvert = false;
 
-    if (is_with_amx) {
-        brgCopyKernelConf.isa = avx512_core_amx;
-        brgCopyKernelConf.s8s8_compensation_required = false;
-    } else {
-        brgCopyKernelConf.isa = src_dt == dnnl_data_type_t::dnnl_bf16 ? avx512_core_bf16 : avx512_core_vnni;
-        brgCopyKernelConf.s8s8_compensation_required = src_dt == dnnl_data_type_t::dnnl_s8;
-    }
+
+    brgCopyKernelConf.isa = jit_brgemm_emitter::get_primitive_isa(src_dt, is_with_amx);
+    OV_CPU_JIT_EMITTER_ASSERT(isa_has_int8_vnni(brgCopyKernelConf.isa), "BrgemmCopyB emitter requires VNNI support");
+    brgCopyKernelConf.s8s8_compensation_required = src_dt == ov::element::i8 && !is_with_amx;
 
     brgCopyKernelConf.has_zero_point_a = false;
     brgCopyKernelConf.has_zero_point_b = false;
