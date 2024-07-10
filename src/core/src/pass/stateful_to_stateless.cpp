@@ -136,7 +136,7 @@ bool ov::pass::StatefulToStateless::run_on_model(const std::shared_ptr<ov::Model
     for (size_t i = 0; i < sinks.size(); ++i) {
         if (auto assign = std::dynamic_pointer_cast<op::util::AssignBase>(sinks[i])) {
             const auto& var_id = assign->get_variable_id();
-            assigns_by_var_id[var_id] = assign;
+            assigns_by_var_id[var_id] = std::move(assign);
             assign_index_by_var_id[var_id] = i;
         }
     }
