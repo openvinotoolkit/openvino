@@ -1247,8 +1247,19 @@ bool compare_mean_IoU(std::vector<std::pair<bool, float>> iou, float semSegThres
     return stateValue;
 }
 
+// CVS-143420 Allow TEMPLATE plugin to be used instead of CPU to avoid accuracy regressions
+#ifdef _WIN32
+const char TEMPLATE_LIB[] = "openvino_template_plugin.dll";
+#else
+const char TEMPLATE_LIB[] = "libopenvino_template_plugin.so";
+#endif
+
 void setupOVCore(ov::Core& core) {
     auto flagDevice = FLAGS_device;
+
+    if (FLAGS_device == "TEMPLATE") {
+        core.register_plugin(TEMPLATE_LIB, FLAGS_device);
+    }
 
     if (!FLAGS_log_level.empty()) {
         core.set_property(flagDevice, {{ov::log::level.name(), FLAGS_log_level}});
@@ -1674,7 +1685,7 @@ static int runSingleImageTest() {
             setModelBatch(model, FLAGS_override_model_batch_size);
             if (FLAGS_device.find("NPU") != std::string::npos ||
                 // FIXME: SIT on CPU also requires to bound dynamic shapes
-                FLAGS_device.find("CPU") != std::string::npos) {
+                FLAGS_device.find("CPU") != std::string::npos || FLAGS_device.find("TEMPLATE") != std::string::npos) {
                 boundDynamicShape(model);
             }
 
