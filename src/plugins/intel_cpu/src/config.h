@@ -50,7 +50,7 @@ struct Config {
     std::string dumpToDot = {};
     std::string device_id = {};
     float fcSparseWeiDecompressionRate = 1.0f;
-    uint64_t fcDynamicQuantizationGroupSize = 32;
+    uint64_t fcDynamicQuantizationGroupSize = 0;
     ov::element::Type kvCachePrecision = ov::element::f16;
     bool fcDynamicQuantizationGroupSizeSetExplicitly = false;
 #if defined(OPENVINO_ARCH_X86_64)
