@@ -72,7 +72,7 @@ void ConvPoolActivTest::SetUp() {
 
 bool ConvPoolActivTest::primTypeCheck(std::string primType) const {
 #if defined(OPENVINO_ARCH_ARM)
-    return primType == "ref";
+    return primType == makeSelectedTypeStr(std::string("ref_any"), element::f32);
 #elif defined(OPENVINO_ARCH_ARM64)
     return primType == makeSelectedTypeStr(std::string("gemm_acl"), element::f32);
 #else
