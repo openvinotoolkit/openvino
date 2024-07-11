@@ -163,6 +163,14 @@ bool NPUBackends::isBatchingSupported() const {
     return false;
 }
 
+bool NPUBackends::isWorkloadTypeSupported() const {
+    if (_backend != nullptr) {
+        return _backend->isWorkloadTypeSupported();
+    }
+
+    return false;
+}
+
 std::shared_ptr<IDevice> NPUBackends::getDevice(const std::string& specificName) const {
     _logger.debug("Searching for device %s to use started...", specificName.c_str());
     // TODO iterate over all available backends

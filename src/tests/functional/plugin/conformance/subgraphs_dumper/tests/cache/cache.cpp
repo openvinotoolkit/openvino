@@ -53,18 +53,18 @@ protected:
 };
 
 TEST_F(ICacheUnitTest, set_serialization_dir) {
-    ASSERT_NO_THROW(this->set_serialization_dir(test_artifacts_dir));
+    OV_ASSERT_NO_THROW(this->set_serialization_dir(test_artifacts_dir));
     ASSERT_EQ(test_artifacts_dir, this->m_serialization_dir);
 }
 
 TEST_F(ICacheUnitTest, update_cache) {
-    ASSERT_NO_THROW(this->update_cache(test_model, test_model_path));
-    ASSERT_NO_THROW(this->update_cache(test_model, test_model_path, true));
-    ASSERT_NO_THROW(this->update_cache(test_model, test_model_path, false));
+    OV_ASSERT_NO_THROW(this->update_cache(test_model, test_model_path));
+    OV_ASSERT_NO_THROW(this->update_cache(test_model, test_model_path, true));
+    OV_ASSERT_NO_THROW(this->update_cache(test_model, test_model_path, false));
 }
 
 TEST_F(ICacheUnitTest, serialize_cache) {
-    ASSERT_NO_THROW(this->serialize_cache());
+    OV_ASSERT_NO_THROW(this->serialize_cache());
 }
 
 TEST_F(ICacheUnitTest, serialize_model) {
@@ -96,19 +96,19 @@ TEST_F(ICacheUnitTest, serialize_model) {
 
 TEST_F(ICacheUnitTest, is_model_large_to_read) {
     this->mem_size = 0;
-    ASSERT_NO_THROW(this->is_model_large_to_read(test_model, test_model_path));
+    OV_ASSERT_NO_THROW(this->is_model_large_to_read(test_model, test_model_path));
     ASSERT_TRUE(this->is_model_large_to_read(test_model, test_model_path));
     this->mem_size = 1 << 30;
-    ASSERT_NO_THROW(this->is_model_large_to_read(test_model, test_model_path));
+    OV_ASSERT_NO_THROW(this->is_model_large_to_read(test_model, test_model_path));
     ASSERT_FALSE(this->is_model_large_to_read(test_model, test_model_path));
 }
 
 TEST_F(ICacheUnitTest, is_model_large_to_store_const) {
     this->mem_size = 0;
-    ASSERT_NO_THROW(this->is_model_large_to_store_const(test_model));
+    OV_ASSERT_NO_THROW(this->is_model_large_to_store_const(test_model));
     ASSERT_TRUE(this->is_model_large_to_store_const(test_model));
     this->mem_size = 1 << 30;
-    ASSERT_NO_THROW(this->is_model_large_to_store_const(test_model));
+    OV_ASSERT_NO_THROW(this->is_model_large_to_store_const(test_model));
     ASSERT_FALSE(this->is_model_large_to_store_const(test_model));
 }
 

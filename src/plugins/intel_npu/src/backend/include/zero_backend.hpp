@@ -26,6 +26,7 @@ public:
     uint32_t getDriverExtVersion() const override;
 
     bool isBatchingSupported() const override;
+    bool isWorkloadTypeSupported() const override;
 
     void updateInfo(const Config& config) {
         _logger.setLevel(config.get<LOG_LEVEL>());

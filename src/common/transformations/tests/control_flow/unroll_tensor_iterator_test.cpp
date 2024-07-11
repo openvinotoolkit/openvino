@@ -67,7 +67,7 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCell) {
         manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -147,7 +147,7 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCell) {
         manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -230,7 +230,7 @@ TEST(TransformationTests, UnrollTensorIteratorLSTMCell) {
         manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -311,7 +311,7 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCellSingleIteration) {
         manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -385,7 +385,7 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCellSingleIteration) {
         manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -461,7 +461,7 @@ TEST(TransformationTests, UnrollTensorIteratorLSTMCellSingleIterationSingleItera
         manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -546,7 +546,7 @@ TEST(TransformationTests, CheckTensorNamesAfterConvertToTIAndUnrolling) {
     m.register_pass<ov::pass::ConvertGRUSequenceToTensorIterator>();  // inserts Unsqueeze after TI
     m.register_pass<ov::pass::UnrollTensorIterator>();
     m.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
 
     std::vector<std::string> names_after;
     collect_legacy_tensor_names(f, names_after);
@@ -612,7 +612,7 @@ TEST(TransformationTests, CheckTensorNamesAfterUnrolling) {
     m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::pass::UnrollTensorIterator>();
     m.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
 
     std::vector<std::string> names_after;
     collect_legacy_tensor_names(f, names_after);

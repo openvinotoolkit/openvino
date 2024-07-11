@@ -35,6 +35,8 @@ public:
     virtual const std::string getName() const = 0;
     /** @brief Backend has support for concurrency batching */
     virtual bool isBatchingSupported() const = 0;
+    /** @brief Backend has support for workload type */
+    virtual bool isWorkloadTypeSupported() const = 0;
     /** @brief Register backend-specific options */
     virtual void registerOptions(OptionsDesc& options) const;
     /** @brief Update backend and device info */
@@ -49,6 +51,8 @@ protected:
 class IExecutor {
 public:
     virtual ~IExecutor() = default;
+
+    virtual void setWorkloadType(const ov::WorkloadType workloadType) const = 0;
 };
 
 //------------------------------------------------------------------------------
