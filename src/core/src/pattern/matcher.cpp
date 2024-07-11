@@ -140,13 +140,13 @@ bool Matcher::match_permutation(const OutputVector& pattern_args, const OutputVe
 }
 
 bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& graph_node) {
-    OPENVINO_DEBUG << "[MATCHER] Match arguments at " << *graph_node << " for pattern " << *pattern_node;
+    OPENVINO_DEBUG("[MATCHER] Match arguments at ", *graph_node, " for pattern ", *pattern_node);
 
     auto args = graph_node->input_values();
     auto pattern_args = pattern_node->input_values();
 
     if (args.size() != pattern_args.size()) {
-        OPENVINO_DEBUG << "[MATCHER] Aborting at " << *graph_node << " for pattern " << *pattern_node;
+        OPENVINO_DEBUG("[MATCHER] Aborting at ", *graph_node, " for pattern ", *pattern_node);
         return false;
     }
 
@@ -172,7 +172,7 @@ bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& g
         return match_permutation(pattern_args, args);
     }
 
-    OPENVINO_DEBUG << "[MATCHER] Aborting at " << *graph_node << " for pattern " << *pattern_node;
+    OPENVINO_DEBUG("[MATCHER] Aborting at ", *graph_node, " for pattern ", *pattern_node);
     return false;
 }
 

@@ -173,7 +173,7 @@ bool MVNTransformation::transform(TransformationContext &context, ov::pass::patt
 
     updateOutput(context, newMultiply, newMVN);
 
-    OPENVINO_DEBUG << "LPT: done: " << newMVN;
+    OPENVINO_DEBUG("LPT: done: ", newMVN);
     return true;
 }
 

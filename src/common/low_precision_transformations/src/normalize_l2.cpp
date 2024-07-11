@@ -148,7 +148,7 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ov::pa
 
     updateOutput(context, newMultiply, newNormalize);
 
-    OPENVINO_DEBUG << "LPT: done: " << newNormalize;
+    OPENVINO_DEBUG("LPT: done: ", newNormalize);
     return true;
 }
 

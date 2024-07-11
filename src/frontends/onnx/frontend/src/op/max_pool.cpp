@@ -15,7 +15,7 @@ namespace ai_onnx {
 namespace opset_1 {
 ov::OutputVector max_pool(const ov::frontend::onnx::Node& node) {
     if (node.get_outputs_size() > 1) {
-        OPENVINO_WARN << "MaxPool: Indices output is not supported and was ignored";
+        OPENVINO_WARN("MaxPool: Indices output is not supported and was ignored");
     }
     auto max_pool = pooling::PoolingFactory(node).make_max_pool();
     max_pool.emplace_back(std::make_shared<NullNode>());  // Indices (optional)

@@ -27,9 +27,11 @@ TensorExternalData::TensorExternalData(const TensorProto& tensor) {
             m_sha1_digest = entry.value();
         }
     }
+#ifdef ENABLE_OPENVINO_DEBUG
     if (m_sha1_digest.size() > 0) {
-        OPENVINO_WARN << "SHA1 checksum is not supported";
+        OPENVINO_WARN("SHA1 checksum is not supported");
     }
+#endif
 }
 
 Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::string& model_dir,

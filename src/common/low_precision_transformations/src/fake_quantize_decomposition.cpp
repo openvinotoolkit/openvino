@@ -433,7 +433,7 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
         precisionsAttribute.value() = { dataPrecision.precision };
     }
 
-    OPENVINO_DEBUG << "LPT: done: " << newFakeQuantize;
+    OPENVINO_DEBUG("LPT: done: ", newFakeQuantize);
     return true;
 }
 

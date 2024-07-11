@@ -123,7 +123,7 @@ bool SplitTransformation::transform(TransformationContext& context, ov::pass::pa
 
     updateOutputs(context, lastNodes, newSplit);
 
-    OPENVINO_DEBUG << "LPT: done: " << newSplit;
+    OPENVINO_DEBUG("LPT: done: ", newSplit);
     return true;
 }
 

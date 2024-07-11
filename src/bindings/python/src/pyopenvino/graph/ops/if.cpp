@@ -34,8 +34,8 @@ void regclass_graph_op_If(py::module m) {
                 if (MultiSubgraphHelpers::is_constant_or_parameter(execution_condition)) {
                     return std::make_shared<ov::op::v8::If>(execution_condition->output(0));
                 } else {
-                    OPENVINO_WARN << "Please specify execution_condition as Constant or Parameter. Default If() "
-                                     "constructor was applied.";
+                    OPENVINO_WARN("Please specify execution_condition as Constant or Parameter. Default If() "
+                                  "constructor was applied.");
                     return std::make_shared<ov::op::v8::If>();
                 }
             }),

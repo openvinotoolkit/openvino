@@ -279,7 +279,7 @@ bool ov::pass::LowLatency2::run_on_model(const std::shared_ptr<Model>& f) {
                     const auto& input = sub_graph_op->input(merged_in->m_input_index);
                     if (std::dynamic_pointer_cast<ReadValueBase>(input.get_source_output().get_node_shared_ptr()) !=
                         nullptr) {
-                        OPENVINO_DEBUG << msg_low_latency_2_already_applied;
+                        OPENVINO_DEBUG(msg_low_latency_2_already_applied);
                         return false;
                     }
 
@@ -287,7 +287,7 @@ bool ov::pass::LowLatency2::run_on_model(const std::shared_ptr<Model>& f) {
                         sub_graph_op->get_function()->get_parameters().at(merged_in->m_body_parameter_index);
                     for (const auto& in_to : param->output(0).get_target_inputs()) {
                         if (dynamic_cast<ReadValueBase*>(in_to.get_node()) != nullptr) {
-                            OPENVINO_DEBUG << msg_low_latency_already_applied;
+                            OPENVINO_DEBUG(msg_low_latency_already_applied);
                             return false;
                         }
                     }

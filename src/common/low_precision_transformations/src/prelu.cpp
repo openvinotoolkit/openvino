@@ -45,7 +45,7 @@ bool PReluTransformation::transform(TransformationContext& context, ov::pass::pa
     const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(prelu, defaultPrecisions, 0);
     const auto newOperation = moveDequantizationAfter(context, prelu, dequantization, false, false);
 
-    OPENVINO_DEBUG << "LPT: done: " << newOperation;
+    OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;
 }
 

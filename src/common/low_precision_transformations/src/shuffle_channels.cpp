@@ -74,7 +74,7 @@ bool ShuffleChannelsTransformation::transform(TransformationContext& context, ov
 
     const auto newOperation = moveDequantizationAfter(context, shuffleChannels, dequantization);
 
-    OPENVINO_DEBUG << "LPT: done: " << newOperation;
+    OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;
 }
 

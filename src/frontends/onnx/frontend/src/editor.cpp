@@ -415,7 +415,7 @@ PartialShape ONNXModelEditor::get_tensor_shape(const std::string& tensor_name) c
     } else {
         auto shape_infer_applied = onnx_shapes.infer_shapes();
         if (!shape_infer_applied) {
-            OPENVINO_WARN << "Cannot replace existing shapes during get_tensor_shape";
+            OPENVINO_WARN("Cannot replace existing shapes during get_tensor_shape");
             return PartialShape::dynamic();
         }
         auto node_it = std::find_if(std::begin(onnx_graph->value_info()),
@@ -543,8 +543,11 @@ void ONNXModelEditor::set_input_values(
         auto onnx_initializer = find_graph_initializer(*onnx_graph, name);
 
         if (!onnx_initializer && !onnx_input) {
-            OPENVINO_INFO << "There is no input nor initializer named '" << name << "' in original model '"
-                          << m_model_path << "'.";
+            OPENVINO_INFO("There is no input nor initializer named '",
+                          name,
+                          "' in original model '",
+                          m_model_path,
+                          "'.");
         }
 
         if (!onnx_initializer) {
