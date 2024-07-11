@@ -195,7 +195,7 @@ To apply LowLatency2 Transformation, follow the instruction below:
 
    In such a case, trim non-reshapable layers via
    :doc:`Conversion Parameters <../../model-preparation/conversion-parameters>`:
-   ``--input`` and ``--output``. For an example, check the `OpenVINO Model Conversion Tutorial <https://docs.openvino.ai/2024/notebooks/convert-to-openvino-with-output.html>`__.
+   ``--input`` and ``--output``. For example, check the `OpenVINO Model Conversion Tutorial <https://docs.openvino.ai/2024/notebooks/convert-to-openvino-with-output.html>`__.
 
    As for the parameter and the problematic constant in the picture above, it can be
    trimmed by using the ``--input Reshape_layer_name`` command-line option. The problematic
@@ -236,9 +236,9 @@ a sink from `ov::Model` after deleting the node from the graph with the `delete_
    converted to the GRU/RNN/LSTM Sequence operations. *ONNX Loop* layer is converted to the
    OpenVINO Loop operation.
 
-   **TensorFlow:** *BlockLSTM* is converted to a TensorIterator operation. TensorIterator
+   **TensorFlow:** *BlockLSTM* is converted to a TensorIterator operation. The TensorIterator
    body contains LSTM Cell operation. Modifications such as Peepholes and InputForget are
-   not supported. The *While* layer is converted to a TensorIterator. TensorIterator body
+   not supported. The *While* layer is converted to a TensorIterator. The TensorIterator body
    can contain any supported operations. However, dynamic cases where the count of iterations
    cannot be calculated during shape inference are not supported.
 
