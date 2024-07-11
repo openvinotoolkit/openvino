@@ -30,6 +30,25 @@ of the model into a proprietary format. The compiler included in the user mode d
 platform specific optimizations in order to efficiently schedule the execution of network layers and
 memory transactions on various NPU hardware submodules.
 
+To use NPU for inference, pass the device name to the ``ov::Core::compile_model()`` method:
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_npu.py
+         :language: py
+         :fragment: [compile_model_default_npu]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_npu.cpp
+         :language: cpp
+         :fragment: [compile_model_default_npu]
+
+
 Model Caching
 #############################
 
@@ -86,7 +105,7 @@ For more details about OpenVINO model caching, see the
 Supported Features and properties
 #######################################
 
-The NPU device is currently supported by AUTO and MULTI inference modes
+The NPU device is currently supported by AUTO inference modes
 (HETERO execution is partially supported, for certain models).
 
 The NPU support in OpenVINO is still under active development and may

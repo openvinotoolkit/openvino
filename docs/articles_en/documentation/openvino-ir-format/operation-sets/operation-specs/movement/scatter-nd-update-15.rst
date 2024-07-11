@@ -16,7 +16,7 @@ ScatterNDUpdate
 
 **Detailed description**: The operation produces a copy of ``data`` tensor and updates its value using logic from ``reduction`` attribute, using values specified
 by ``updates`` at specific index positions specified by ``indices``. The output shape is the same as the shape of ``data``.
-Input ``indices`` can contain duplicated index values, however, in case when *reduction* is set to ``none``, only last update for given duplicated index is used.
+If multiple indices point to the same output location then the order of updating the values is undefined.
 
 The last dimension of ``indices`` corresponds to indices into elements if ``indices.shape[-1]`` = ``data.shape.rank`` or slices
 if ``indices.shape[-1]`` < ``data.shape.rank``.
@@ -41,8 +41,9 @@ Operator ScatterNDUpdate-15 is an equivalent to following NumPy snippet:
         elif reduction == "min":
             func = min
         out = np.copy(data)
+        # Order of loop iteration is undefined.
         for ndidx in np.ndindex(indices.shape[:-1]):
-            out[indices[ndidx]] = func(out[indices[ndidx]], updates[ndidx])
+            out[tuple(indices[ndidx])] = func(tuple(out[indices[ndidx]]), updates[ndidx])
         return out
 
 Example 1 that shows simple case of update with *reduction* set to ``none``.:
@@ -52,7 +53,7 @@ Example 1 that shows simple case of update with *reduction* set to ``none``.:
     data    = [1, 2, 3, 4, 5, 6, 7, 8]
     indices = [[4], [3], [1], [7], [-2], [-4]]
     updates = [9, 10, 11, 12, 13, 14]
-    output  = [1, 11, 3, 10, 14, 6, 13, 12]
+    output  = [1, 11, 3, 10, 4, 6, 13, 12]
 
 
 Example that shows update of two slices of ``4x4`` shape in ``data``, with *reduction* set to ``none``:
@@ -87,7 +88,7 @@ Example that shows update of two slices of ``4x4`` shape in ``data``, with *redu
 
 *   **1**: ``data`` tensor of arbitrary rank ``r`` >= 1 and of type *T*. **Required.**
 
-*   **2**: ``indices`` tensor with indices of arbitrary rank ``q`` >= 1 and of type *T_IND*. All index values ``i_j`` in index entry ``(i_0, i_1, ...,i_k)`` (where ``k = indices.shape[-1]``) must be within bounds ``[-s_j, s_j - 1]`` where ``s_j = data.shape[j]``. ``k`` must be at most ``r``. If multiple indices point to the same output location then values will be updated in order of their occurrence. Negative value of index means reverse indexing and will be normalized to value ``len(data.shape[j] + index)``. If an index points to non-existing element then exception is raised. **Required.**
+*   **2**: ``indices`` tensor with indices of arbitrary rank ``q`` >= 1 and of type *T_IND*. All index values ``i_j`` in index entry ``(i_0, i_1, ...,i_k)`` (where ``k = indices.shape[-1]``) must be within bounds ``[-s_j, s_j - 1]`` where ``s_j = data.shape[j]``. ``k`` must be at most ``r``. If multiple indices point to the same output location then the order of updating the values is undefined. Negative value of index means reverse indexing and will be normalized to value ``len(data.shape[j] + index)``. If an index points to non-existing element then exception is raised. **Required.**
 
 *   **3**: ``updates`` tensor of rank ``r - indices.shape[-1] + q - 1`` of type *T*. If expected ``updates`` rank is 0D it can be a tensor with single element. **Required.**
 
@@ -121,7 +122,7 @@ Example that shows update of two slices of ``4x4`` shape in ``data``, with *redu
         </input>
         <output>
             <port id="3" precision="FP32">
-                <dim>4</dim>  <!-- values: [50, 40, 20, 4] -->
+                <dim>4</dim>  <!-- values: [50, 20, 20, 4] -->
             </port>
         </output>
     </layer>
