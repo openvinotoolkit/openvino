@@ -1138,7 +1138,7 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
     } else {
         NPUW_ASSERT(false);
     }
-    std::cout << "Shapes of \'to\' vector: " << to->get_shape() << std::endl;
+    std::cout << "Shapes of \'to\' vector: " << to->get_shape() << "and shape of \'from\' vector is:"  << from_shape << std::endl;
 }
 
 template <typename InT>
