@@ -184,7 +184,6 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
 void update_proc_type_table(const std::vector<std::vector<int>> _cpu_mapping_table,
                             const int _numa_nodes,
                             std::vector<std::vector<int>>& _proc_type_table) {
-    std::vector<int> all_table;
     std::map<int, int> numa_node_map;
 
     _proc_type_table.assign((_numa_nodes == 1) ? 1 : _numa_nodes + 1, std::vector<int>({0, 0, 0, 0, -1, -1}));
@@ -202,7 +201,8 @@ void update_proc_type_table(const std::vector<std::vector<int>> _cpu_mapping_tab
     } else {
         numa_node_map.insert(std::pair<int, int>(_proc_type_table[0][PROC_NUMA_NODE_ID], 0));
     }
-    all_table = {0, 0, 0, 0, -1, -1};
+
+    std::vector<int> all_table {0, 0, 0, 0, -1, -1};
     for (size_t i = 0; i < _cpu_mapping_table.size(); i++) {
         if (_cpu_mapping_table[i][CPU_MAP_USED_FLAG] == NOT_USED && _cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] >= 0 &&
             _cpu_mapping_table[i][CPU_MAP_CORE_TYPE] >= ALL_PROC) {
@@ -216,7 +216,7 @@ void update_proc_type_table(const std::vector<std::vector<int>> _cpu_mapping_tab
         }
     }
     if (_numa_nodes > 1) {
-        _proc_type_table[0] = all_table;
+        _proc_type_table[0] = std::move(all_table);
     }
 
     if (_proc_type_table.size() > 1) {

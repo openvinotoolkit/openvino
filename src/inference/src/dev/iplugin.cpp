@@ -127,7 +127,7 @@ std::unordered_set<std::string> ov::get_supported_nodes(
                 fused_model_op_map[name] = op->get_friendly_name();
         }
         transformed_model_op_map[op->get_friendly_name()] = op;
-        if (is_node_supported(op)) {
+        if (is_node_supported(std::move(op))) {
             supported.insert(names.begin(), names.end());
         } else {
             unsupported.insert(names.begin(), names.end());

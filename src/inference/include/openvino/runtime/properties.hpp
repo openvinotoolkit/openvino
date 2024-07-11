@@ -942,7 +942,7 @@ struct Properties : public Property<std::map<std::string, std::map<std::string, 
     inline util::EnableIfAllStringAny<std::pair<std::string, Any>, Properties...> operator()(
         const std::string& device_name,
         Properties&&... configs) const {
-        return {name() + std::string("_") + device_name, AnyMap{std::pair<std::string, Any>{configs}...}};
+        return {name() + std::string("_") + device_name, AnyMap{std::pair<std::string, Any>{std::forward<Properties>(configs)}...}};
     }
 };
 
