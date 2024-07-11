@@ -48,7 +48,7 @@ def get_repo_data(repo_dir: str | Path) -> dict:
     trigger_repo_url = f"{os.getenv('GITHUB_SERVER_URL')}/{os.getenv('GITHUB_REPOSITORY')}"
     is_trigger_repo = repo_url == trigger_repo_url
 
-    branch = os.getenv('GITHUB_REF_NAME') if is_trigger_repo else repo.references[0].name
+    branch = os.getenv('GITHUB_REF') if is_trigger_repo else repo.references[0].name
     target_branch = os.getenv('GITHUB_BASE_REF') if is_trigger_repo else None
     revision = os.getenv('PR_HEAD_SHA') or os.getenv('GITHUB_SHA') if is_trigger_repo else repo.head.commit.hexsha
     target_revision = os.getenv('BASE_SHA') if is_trigger_repo else None
@@ -59,7 +59,7 @@ def get_repo_data(repo_dir: str | Path) -> dict:
     return {
         'name': repo_name,
         'url': repo_url,
-        'branch': branch,
+        'branch': branch.replace('refs/heads/', ''),  # To align with internal manifest
         'target_branch': target_branch,
         'revision': revision,
         'target_revision': target_revision,
@@ -85,8 +85,6 @@ def generate_manifest(repos: list, product_type: str, event_type: str, build_typ
 
     for repo_dir in repos:
         repo = Repository(**get_repo_data(repo_dir))
-        # To align with internal manifest
-        repo.branch = f"pull/{repo.branch}" if event_type == 'pre_commit' else repo.branch
         repositories.append(repo)
         if repo.name == 'openvino':
             version_file = Path(repo_dir) / 'src' / 'core' / 'include' / 'openvino' / 'core' / 'version.hpp'
