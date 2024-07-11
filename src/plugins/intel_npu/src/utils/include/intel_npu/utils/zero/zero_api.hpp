@@ -8,6 +8,10 @@
 
 #include <memory>
 
+#ifndef _WIN32
+#    define LIB_ZE_LOADER_SUFFIX ".1"
+#endif
+
 namespace intel_npu {
 
 // clang-format off

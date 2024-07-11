@@ -13,6 +13,10 @@ ZeroApi::ZeroApi() {
     const std::string baseName = "ze_loader";
     try {
         auto libpath = ov::util::make_plugin_library_name({}, baseName);
+#ifndef _WIN32
+        libpath = libpath + LIB_ZE_LOADER_SUFFIX;
+#endif
+
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
         this->lib = ov::util::load_shared_object(ov::util::string_to_wstring(libpath).c_str());
 #else
