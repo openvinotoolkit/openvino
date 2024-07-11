@@ -75,8 +75,8 @@ ov::SoPtr<ov::IRemoteTensor> IDevice::createRemoteTensor(std::shared_ptr<ov::IRe
                                                          const ov::element::Type&,
                                                          const ov::Shape&,
                                                          const Config&,
-                                                         RemoteTensorType,
-                                                         RemoteMemoryType,
+                                                         ov::intel_npu::TensorType,
+                                                         ov::intel_npu::MemType,
                                                          void*) {
     OPENVINO_THROW("Create Remote Tensor is not supported");
 }

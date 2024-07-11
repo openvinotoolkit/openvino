@@ -8,8 +8,9 @@
 
 #include "intel_npu/al/config/common.hpp"
 #include "openvino/core/type/element_iterator.hpp"
-#include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "zero_utils.hpp"
+
+using namespace ov::intel_npu;
 
 namespace {
 
@@ -24,8 +25,8 @@ ZeroRemoteTensor::ZeroRemoteTensor(std::shared_ptr<ov::IRemoteContext> context,
                                    const ov::element::Type& element_type,
                                    const ov::Shape& shape,
                                    const Config& config,
-                                   RemoteTensorType tensor_type,
-                                   RemoteMemoryType mem_type,
+                                   TensorType tensor_type,
+                                   MemType mem_type,
                                    void* mem)
     : RemoteTensor(context, element_type, shape),
       _config(config),
@@ -59,8 +60,8 @@ ZeroRemoteTensor::~ZeroRemoteTensor() {
 
 bool ZeroRemoteTensor::deallocate() noexcept {
     switch (_mem_type) {
-    case RemoteMemoryType::L0_INTERNAL_BUF:
-    case RemoteMemoryType::SHARED_BUF: {
+    case MemType::L0_INTERNAL_BUF:
+    case MemType::SHARED_BUF: {
         if (_data) {
             auto result = zeMemFree(_init_structs->getContext(), _data);
             if (ZE_RESULT_SUCCESS != result) {
@@ -78,11 +79,11 @@ bool ZeroRemoteTensor::deallocate() noexcept {
 
 void ZeroRemoteTensor::allocate(const size_t bytes) {
     switch (_mem_type) {
-    case RemoteMemoryType::L0_INTERNAL_BUF: {
+    case MemType::L0_INTERNAL_BUF: {
         size_t size = (bytes + STANDARD_PAGE_SIZE - 1) & ~(STANDARD_PAGE_SIZE - 1);
 
         ze_host_mem_alloc_desc_t desc = {};
-        if (_tensor_type == RemoteTensorType::INPUT && (_ze_properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED)) {
+        if (_tensor_type == TensorType::INPUT && (_ze_properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED)) {
             ze_host_mem_alloc_flag_t flag = ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED;
             desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, static_cast<ze_host_mem_alloc_flags_t>(flag)};
         } else {
@@ -92,7 +93,7 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
                                zeMemAllocHost(_init_structs->getContext(), &desc, size, STANDARD_PAGE_SIZE, &_data));
         break;
     }
-    case RemoteMemoryType::SHARED_BUF: {
+    case MemType::SHARED_BUF: {
         if (!_external_memory_support) {
             OPENVINO_THROW("Remote tensor functionality is not supported with this driver version");
         }
@@ -143,27 +144,12 @@ void ZeroRemoteTensor::update_properties() {
     OPENVINO_ASSERT(is_allocated(), "Can't initialize ZeroRemoteTensor parameters as memory was not allocated");
 
     switch (_mem_type) {
-    case RemoteMemoryType::L0_INTERNAL_BUF:
-        _properties = {ov::intel_npu::mem_type(ov::intel_npu::MemType::L0_INTERNAL_BUF),
-                       ov::intel_npu::mem_handle(_data)};
-
-        switch (_tensor_type) {
-        case RemoteTensorType::INPUT:
-            _properties.insert(ov::intel_npu::tensor_type(ov::intel_npu::TensorType::INPUT));
-            break;
-        case RemoteTensorType::OUTPUT:
-            _properties.insert(ov::intel_npu::tensor_type(ov::intel_npu::TensorType::OUTPUT));
-            break;
-        case RemoteTensorType::BINDED:
-            _properties.insert(ov::intel_npu::tensor_type(ov::intel_npu::TensorType::BINDED));
-            break;
-        default:
-            OPENVINO_THROW("Unknown tensor type");
-        }
+    case MemType::L0_INTERNAL_BUF:
+        _properties = {mem_type(_mem_type), mem_handle(_data), tensor_type(_tensor_type)};
 
         break;
-    case RemoteMemoryType::SHARED_BUF:
-        _properties = {ov::intel_npu::mem_type(ov::intel_npu::MemType::SHARED_BUF), ov::intel_npu::mem_handle(_data)};
+    case MemType::SHARED_BUF:
+        _properties = {mem_type(_mem_type), mem_handle(_data)};
 
         break;
     default:

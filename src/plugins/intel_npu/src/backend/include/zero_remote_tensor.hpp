@@ -8,7 +8,7 @@
 #include <memory>
 #include <string>
 
-#include "intel_npu/utils/remote_tensor_type/remote_tensor_type.hpp"
+#include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "remote_tensor.hpp"
 #include "zero_init.hpp"
 
@@ -21,8 +21,8 @@ public:
                      const ov::element::Type& element_type,
                      const ov::Shape& shape,
                      const Config& config,
-                     RemoteTensorType tensor_type = RemoteTensorType::BINDED,
-                     RemoteMemoryType mem_type = RemoteMemoryType::L0_INTERNAL_BUF,
+                     ov::intel_npu::TensorType tensor_type = ov::intel_npu::TensorType::BINDED,
+                     ov::intel_npu::MemType mem_type = ov::intel_npu::MemType::L0_INTERNAL_BUF,
                      void* mem = nullptr);
 
     ~ZeroRemoteTensor() override;
@@ -40,8 +40,8 @@ private:
 
     ze_device_properties_t _ze_properties = {};
 
-    RemoteTensorType _tensor_type;
-    RemoteMemoryType _mem_type;
+    ov::intel_npu::TensorType _tensor_type;
+    ov::intel_npu::MemType _mem_type;
     void* _mem = nullptr;
     void* _data = nullptr;
 

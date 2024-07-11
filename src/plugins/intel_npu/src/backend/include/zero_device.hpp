@@ -9,8 +9,8 @@
 
 #include "intel_npu/al/icompiled_model.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "intel_npu/utils/remote_tensor_type/remote_tensor_type.hpp"
 #include "npu.hpp"
+#include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "zero_init.hpp"
 #include "zero_types.hpp"
 
@@ -38,13 +38,14 @@ public:
                                                          const std::shared_ptr<IExecutor>& executor,
                                                          const Config& config) override;
 
-    ov::SoPtr<ov::IRemoteTensor> createRemoteTensor(std::shared_ptr<ov::IRemoteContext> context,
-                                                    const ov::element::Type& element_type,
-                                                    const ov::Shape& shape,
-                                                    const Config& config,
-                                                    RemoteTensorType tensor_type = RemoteTensorType::BINDED,
-                                                    RemoteMemoryType mem_type = RemoteMemoryType::L0_INTERNAL_BUF,
-                                                    void* mem = nullptr) override;
+    ov::SoPtr<ov::IRemoteTensor> createRemoteTensor(
+        std::shared_ptr<ov::IRemoteContext> context,
+        const ov::element::Type& element_type,
+        const ov::Shape& shape,
+        const Config& config,
+        ov::intel_npu::TensorType tensor_type = ov::intel_npu::TensorType::BINDED,
+        ov::intel_npu::MemType mem_type = ov::intel_npu::MemType::L0_INTERNAL_BUF,
+        void* mem = nullptr) override;
 
     ZeroDevice& operator=(const ZeroDevice&) = delete;
     ZeroDevice(const ZeroDevice&) = delete;
