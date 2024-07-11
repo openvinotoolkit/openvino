@@ -22,6 +22,8 @@ ParamsKey GroupNormalizationKernel_b_fs_yx_fsv16::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
+    k.EnableTensorOffset();
+    k.EnableTensorPitches();
     k.EnableBatching();
     k.EnableDifferentTypes();
     k.EnableDynamicShapesSupport();
@@ -147,6 +149,29 @@ void GroupNormalizationKernel_b_fs_yx_fsv16::GetUpdateDispatchDataFunc(KernelDat
         kd.internalBufferSizes.push_back(prim_params.outputs[0].Batch().v * Align(prim_params.outputs[0].Feature().v, fsv) * 4);
         kd.internalBufferSizes.push_back(prim_params.outputs[0].Batch().v * Align(prim_params.outputs[0].Feature().v, fsv) * 4);
     };
+}
+
+bool GroupNormalizationKernel_b_fs_yx_fsv16::Validate(const Params& params) const {
+    if (!Parent::Validate(params))
+        return false;
+
+    const group_normalization_params& prim_params = static_cast<const group_normalization_params&>(params);
+
+    if (prim_params.has_dynamic_tensors())
+        return true;
+
+    // no support for spatial paddings
+    if (prim_params.inputs[0].X().pad.Total() > 0 || prim_params.inputs[0].Y().pad.Total() > 0 ||
+        prim_params.outputs[0].X().pad.Total() > 0 || prim_params.outputs[0].Y().pad.Total() > 0) {
+        return false;
+    }
+
+    // feature paddings should be multiples of fsv.
+    if (prim_params.inputs[0].Feature().pad.before % fsv != 0 || prim_params.outputs[0].Feature().pad.before % fsv != 0) {
+        return false;
+    }
+
+    return true;
 }
 
 KernelsData GroupNormalizationKernel_b_fs_yx_fsv16::GetKernelsData(const Params &params) const {
