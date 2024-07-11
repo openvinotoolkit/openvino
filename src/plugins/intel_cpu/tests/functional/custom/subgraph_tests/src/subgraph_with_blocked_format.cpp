@@ -53,7 +53,7 @@ protected:
         function = std::make_shared<ov::Model>(mul2, ParameterVector{param});
     }
 
-    void TearDown() override {
+    void check_results() {
         auto runtime_function = compiledModel.get_runtime_model();
         int nodes_found = 0;
         for (const auto& n : runtime_function->get_ordered_ops()) {
@@ -70,7 +70,9 @@ protected:
 };
 
 TEST_F(SubgraphWithBlockedFormat, smoke_CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
+    check_results();
 }
 
 }  // namespace test

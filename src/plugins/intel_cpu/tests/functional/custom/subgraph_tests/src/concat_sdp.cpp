@@ -211,6 +211,7 @@ public:
 };
 
 TEST_P(ConcatSDPTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     auto actualOutputs = run_test(function);
     if (!hasShapeOf) {
         CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
