@@ -546,7 +546,7 @@ def test_sink_model_ctors():
     variable_1 = Variable(var_info)
 
     init_val = ops.constant(np.zeros(Shape([2, 1])), Type.f32)
-    
+
     rv = ops.read_value(init_val, variable_1)
     assign = ops.assign(rv, variable_1)
 
@@ -560,7 +560,7 @@ def test_sink_model_ctors():
     sinks = model.get_sinks()
     assert ["Assign", "Assign"] == [sink.get_type_name() for sink in sinks]
     assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
-    assert op_types == ['Parameter', 'Constant', 'ReadValue', 'Assign', 'Constant', 'ReadValue', 'Add', 'Assign', 'Result']
+    assert op_types == ["Parameter", "Constant", "ReadValue", "Assign", "Constant", "ReadValue", "Add", "Assign", "Result"]
     assert len(model.get_ops()) == 9
     assert model.get_output_size() == 1
     assert model.get_output_op(0).get_type_name() == "Result"
@@ -580,13 +580,24 @@ def test_sink_model_ctor_without_init_subgraph():
     res = ops.result(add, "res")
     model = Model(results=[res], sinks=[node], parameters=[input_data], name="TestModel")
 
+    var_info = VariableInfo()
+    var_info.data_shape = PartialShape([2, 1])
+    var_info.data_type = Type.f32
+    var_info.variable_id = "v1"
+    variable_1 = Variable(var_info)
+    rv = ops.read_value(variable_1)
+    assign = ops.assign(rv, variable_1)
+
+    model.add_variables([variable_1])
+    model.add_sinks([assign])
+
     ordered_ops = model.get_ordered_ops()
     op_types = [op.get_type_name() for op in ordered_ops]
     sinks = model.get_sinks()
-    assert ["Assign"] == [sink.get_type_name() for sink in sinks]
+    assert ["Assign", "Assign"] == [sink.get_type_name() for sink in sinks]
     assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
-    assert op_types == ["Parameter", "ReadValue", "Add", "Assign", "Result"]
-    assert len(model.get_ops()) == 5
+    assert op_types == ["Parameter", "ReadValue", "Assign", "ReadValue", "Add", "Assign", "Result"]
+    assert len(model.get_ops()) == 7
     assert model.get_output_size() == 1
     assert model.get_output_op(0).get_type_name() == "Result"
     assert model.get_output_element_type(0) == input_data.get_element_type()

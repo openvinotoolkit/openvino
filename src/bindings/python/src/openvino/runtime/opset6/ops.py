@@ -14,7 +14,7 @@ from openvino.runtime.op import assign, Constant, Parameter
 from openvino.runtime.op import read_value as _read_value
 from openvino.runtime.op.util import VariableInfo, Variable
 from openvino.runtime.opset_utils import _get_node_factory
-from openvino.runtime.utils.decorators import nameable_op, overload
+from openvino.runtime.utils.decorators import nameable_op, overloading
 from openvino.runtime.utils.types import (
     NodeInput,
     NumericType,
@@ -115,12 +115,12 @@ def mvn(
     return _get_node_factory_opset6().create("MVN", inputs, attributes)
 
 
-@overload(Union[Node, Output], str, Optional[Union[type, np.dtype, Type, str]], Optional[Union[TensorShape, Shape]], Optional[str])
+@overloading(Union[Node, Output], str, Optional[Union[type, np.dtype, Type, str]], Optional[Union[TensorShape, Shape, PartialShape]], Optional[str])
 @nameable_op
 def read_value(init_value: Union[Node, Output],
                variable_id: str,
                variable_type: Optional[Union[type, np.dtype, Type, str]] = None,
-               variable_shape: Optional[Union[TensorShape, Shape]] = None,
+               variable_shape: Optional[Union[TensorShape, Shape, PartialShape]] = None,
                name: Optional[str] = None) -> Node:
     """Return a node which produces the Assign operation.
 
@@ -135,7 +135,6 @@ def read_value(init_value: Union[Node, Output],
     info.variable_id = variable_id
 
     if variable_type is not None:
-        print(variable_type, type(variable_type))
         if not isinstance(variable_type, Type) and not isinstance(variable_type, str):
             info.data_type = get_element_type(variable_type)
         else:
@@ -145,14 +144,14 @@ def read_value(init_value: Union[Node, Output],
         info.data_shape = PartialShape(variable_shape)
 
     var_from_info = Variable(info)
-    print(type(as_node(init_value, name=name)), type(var_from_info), name)
     return _read_value(new_value=as_node(init_value, name=name), variable=var_from_info)
 
 
-@overload(str, Optional[Union[type, np.dtype, Type, str]], Optional[Union[TensorShape, Shape]], Optional[str])
-def read_value(variable_id: str,
+@overloading(str, Optional[Union[type, np.dtype, Type, str]], Optional[Union[TensorShape, Shape, PartialShape]], Optional[str])  # type: ignore
+@nameable_op
+def read_value(variable_id: str,  # noqa: F811
                variable_type: Optional[Union[type, np.dtype, Type, str]] = None,
-               variable_shape: Optional[Union[TensorShape, Shape]] = None,
+               variable_shape: Optional[Union[TensorShape, Shape, PartialShape]] = None,
                name: Optional[str] = None) -> Node:
     """Return a node which produces the Assign operation.
 
@@ -179,29 +178,29 @@ def read_value(variable_id: str,
     return _read_value(var_from_info)
 
 
-@overload(Variable, Optional[str])
-def read_value(variable: Variable,
+@overloading(Variable, Optional[str])    # type: ignore
+@nameable_op
+def read_value(ov_variable: Variable,  # noqa: F811
                name: Optional[str] = None) -> Node:
     """Return a node which produces the Assign operation.
 
-    :param variable:  Variable to be read.
-    :param init_value:   Optional node producing a value to be returned instead of an unassigned variable.
+    :param ov_variable:  Variable to be read.
     :param name:         Optional name for output node.
     :return: ReadValue node
     """
+    return _read_value(ov_variable)
 
-    return _read_value(variable)
 
-
-@overload(Union[Node, Output], Variable, Optional[str])
-def read_value(init_value: Union[Node, Output],
-               variable: Variable,
+@overloading(Union[Node, Output], Variable, Optional[str])  # type: ignore
+@nameable_op
+def read_value(init_value: Union[Node, Output],  # noqa: F811
+               ov_variable: Variable,
                name: Optional[str] = None) -> Node:
     """Return a node which produces the Assign operation.
 
-    :param variable:  Variable to be read.
     :param init_value:   Optional node producing a value to be returned instead of an unassigned variable.
+    :param ov_variable:  Variable to be read.
     :param name:         Optional name for output node.
     :return: ReadValue node
     """
-    return _read_value(as_node(init_value, name=name), variable)
+    return _read_value(as_node(init_value, name=name), ov_variable)

@@ -23,8 +23,7 @@ void regclass_graph_op_ReadValue(py::module m) {
 
     read_value.def(py::init<>());
 
-    read_value.def(py::init([](const py::object& new_value,
-                               const std::shared_ptr<ov::op::util::Variable>& variable) {
+    read_value.def(py::init([](const py::object& new_value, const std::shared_ptr<ov::op::util::Variable>& variable) {
                        if (py::isinstance<ov::Node>(new_value)) {
                            auto node = new_value.cast<std::shared_ptr<ov::Node>>();
                            return std::make_shared<ov::op::v6::ReadValue>(node, variable);
