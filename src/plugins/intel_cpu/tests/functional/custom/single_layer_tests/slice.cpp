@@ -7,6 +7,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "utils/filter_cpu_info.hpp"
 #include "common_test_utils/test_enums.hpp"
 
 using namespace CPUTestUtils;
@@ -351,7 +352,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(testCasesBlocked4DSubset1),
                        ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                        ::testing::ValuesIn(inputPrecisions),
-                       ::testing::ValuesIn(CPUParamsBlocked4D)),
+                       ::testing::ValuesIn(filterCPUSpecificParams(CPUParamsBlocked4D))),
     Slice8LayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_4D_Subset1,
@@ -360,7 +361,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_4D_Subset1,
                                             ::testing::ValuesIn(testCasesBlocked4DSubset1),
                                             ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                                             ::testing::ValuesIn(inputPrecisions),
-                                            ::testing::ValuesIn(CPUParamsBlocked4D)),
+                                            ::testing::ValuesIn(filterCPUSpecificParams(CPUParamsBlocked4D))),
                          Slice8LayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
@@ -370,7 +371,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(testCasesBlocked4DSubset2),
                        ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                        ::testing::ValuesIn(inputPrecisions),
-                       ::testing::ValuesIn(CPUParamsBlocked4D)),
+                       ::testing::ValuesIn(filterCPUSpecificParams(CPUParamsBlocked4D))),
     Slice8LayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_4D_Subset2,
@@ -379,7 +380,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_4D_Subset2,
                                             ::testing::ValuesIn(testCasesBlocked4DSubset2),
                                             ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                                             ::testing::ValuesIn(inputPrecisions),
-                                            ::testing::ValuesIn(CPUParamsBlocked4D)),
+                                            ::testing::ValuesIn(filterCPUSpecificParams(CPUParamsBlocked4D))),
                          Slice8LayerCPUTest::getTestCaseName);
 
 const std::vector<Slice8SpecificParams> testCasesCommon5D = {
@@ -512,7 +513,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(testCasesBlocked5DSubset1),
                        ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                        ::testing::ValuesIn(inputPrecisions),
-                       ::testing::ValuesIn(CPUParamsBlocked5D)),
+                       ::testing::ValuesIn(filterCPUSpecificParams(CPUParamsBlocked5D))),
     Slice8LayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_5D_Subset1,
@@ -521,7 +522,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_5D_Subset1,
                                             ::testing::ValuesIn(testCasesBlocked5DSubset1),
                                             ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                                             ::testing::ValuesIn(inputPrecisions),
-                                            ::testing::ValuesIn(CPUParamsBlocked5D)),
+                                            ::testing::ValuesIn(filterCPUSpecificParams(CPUParamsBlocked5D))),
                          Slice8LayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
@@ -540,7 +541,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Common_Dynamic_5D_Subset2,
                                             ::testing::ValuesIn(testCasesBlocked5DSubset2),
                                             ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                                             ::testing::ValuesIn(inputPrecisions),
-                                            ::testing::ValuesIn(CPUParamsBlocked5D)),
+                                            ::testing::ValuesIn(filterCPUSpecificParams(CPUParamsBlocked5D))),
                          Slice8LayerCPUTest::getTestCaseName);
 
 /* Descriptors check */
@@ -576,7 +577,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Slice8LayerDescriptorCPUTest,
                                             ::testing::ValuesIn(testCasesDescriptors),
                                             ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
                                             ::testing::Values(ElementType::f32),
-                                            ::testing::Values(cpuParams_nChw8c)),
+                                            ::testing::ValuesIn(filterCPUSpecificParams({cpuParams_nChw8c}))),
                          Slice8LayerDescriptorCPUTest::getTestCaseName);
 
 }  // namespace
