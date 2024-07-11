@@ -2,35 +2,26 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Factory functions for all openvino ops."""
-from typing import Callable, Iterable, List, Optional, Set, Union, Dict, Any
-
 import numpy as np
+
+"""Factory functions for all openvino ops."""
+from typing import Optional, Union
+
 from functools import partial, singledispatch
 
-from openvino.runtime import Node, Shape, Type, PartialShape
+from openvino.runtime import Node, Type, PartialShape, Output, Shape
 from openvino.runtime.op import assign, Constant, Parameter
+from openvino.runtime.op import read_value as _read_value
+from openvino.runtime.op.util import VariableInfo, Variable
 from openvino.runtime.opset_utils import _get_node_factory
-from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op
-from openvino.runtime.utils.input_validation import (
-    assert_list_of_ints,
-    check_valid_attributes,
-    is_non_negative_value,
-    is_positive_value,
-)
-from openvino.runtime.utils.node_factory import NodeFactory
+from openvino.runtime.utils.decorators import nameable_op, overloading
 from openvino.runtime.utils.types import (
     NodeInput,
-    NumericData,
     NumericType,
-    ScalarData,
     TensorShape,
     as_node,
     as_nodes,
-    get_dtype,
     get_element_type,
-    get_element_type_str,
-    make_constant_node,
 )
 
 _get_node_factory_opset6 = partial(_get_node_factory, "opset6")
@@ -124,12 +115,12 @@ def mvn(
     return _get_node_factory_opset6().create("MVN", inputs, attributes)
 
 
-@singledispatch
+@overloading(Union[Node, Output], str, Optional[Union[type, np.dtype, Type, str]], Optional[Union[TensorShape, Shape, PartialShape]], Optional[str])
 @nameable_op
-def read_value(init_value: NodeInput,
+def read_value(init_value: Union[Node, Output],
                variable_id: str,
-               variable_type: Optional[Union[NumericType, Type, str]] = None,
-               variable_shape: Optional[TensorShape] = None,
+               variable_type: Optional[Union[type, np.dtype, Type, str]] = None,
+               variable_shape: Optional[Union[TensorShape, Shape, PartialShape]] = None,
                name: Optional[str] = None) -> Node:
     """Return a node which produces the Assign operation.
 
@@ -140,29 +131,28 @@ def read_value(init_value: NodeInput,
     :param name:         Optional name for output node.
     :return: ReadValue node
     """
-    attr_map: Dict[str, Any] = {"variable_id": variable_id}
+    info = VariableInfo()
+    info.variable_id = variable_id
 
     if variable_type is not None:
         if not isinstance(variable_type, Type) and not isinstance(variable_type, str):
-            attr_map["variable_type"] = get_element_type_str(variable_type)
+            info.data_type = get_element_type(variable_type)
         else:
-            attr_map["variable_type"] = variable_type
+            info.data_type = variable_type
 
     if variable_shape is not None:
-        attr_map["variable_shape"] = PartialShape(variable_shape)
+        info.data_shape = PartialShape(variable_shape)
 
-    return _get_node_factory_opset6().create(
-        "ReadValue",
-        [as_node(init_value, name=name)],
-        attr_map,
-    )
+    var_from_info = Variable(info)
+    return _read_value(new_value=as_node(init_value, name=name), variable=var_from_info)
 
 
-@read_value.register
-def _(variable_id: str,
-      variable_type: Optional[Union[NumericType, Type, str]] = None,
-      variable_shape: Optional[TensorShape] = None,
-      name: Optional[str] = None) -> Node:
+@overloading(str, Optional[Union[type, np.dtype, Type, str]], Optional[Union[TensorShape, Shape, PartialShape]], Optional[str])  # type: ignore
+@nameable_op
+def read_value(variable_id: str,  # noqa: F811
+               variable_type: Optional[Union[type, np.dtype, Type, str]] = None,
+               variable_shape: Optional[Union[TensorShape, Shape, PartialShape]] = None,
+               name: Optional[str] = None) -> Node:
     """Return a node which produces the Assign operation.
 
     :param variable_id:  Id of a variable to be read.
@@ -171,19 +161,46 @@ def _(variable_id: str,
     :param name:         Optional name for output node.
     :return: ReadValue node
     """
-    attr_map: Dict[str, Any] = {"variable_id": variable_id}
+    info = VariableInfo()
+    info.variable_id = variable_id
 
     if variable_type is not None:
         if not isinstance(variable_type, Type) and not isinstance(variable_type, str):
-            attr_map["variable_type"] = get_element_type_str(variable_type)
+            info.data_type = get_element_type(variable_type)
         else:
-            attr_map["variable_type"] = variable_type
+            info.data_type = variable_type
 
     if variable_shape is not None:
-        attr_map["variable_shape"] = PartialShape(variable_shape)
+        info.data_shape = PartialShape(variable_shape)
 
-    return _get_node_factory_opset6().create(
-        "ReadValue",
-        [],
-        attr_map,
-    )
+    var_from_info = Variable(info)
+
+    return _read_value(var_from_info)
+
+
+@overloading(Variable, Optional[str])    # type: ignore
+@nameable_op
+def read_value(ov_variable: Variable,  # noqa: F811
+               name: Optional[str] = None) -> Node:
+    """Return a node which produces the Assign operation.
+
+    :param ov_variable:  Variable to be read.
+    :param name:         Optional name for output node.
+    :return: ReadValue node
+    """
+    return _read_value(ov_variable)
+
+
+@overloading(Union[Node, Output], Variable, Optional[str])  # type: ignore
+@nameable_op
+def read_value(init_value: Union[Node, Output],  # noqa: F811
+               ov_variable: Variable,
+               name: Optional[str] = None) -> Node:
+    """Return a node which produces the Assign operation.
+
+    :param init_value:   Optional node producing a value to be returned instead of an unassigned variable.
+    :param ov_variable:  Variable to be read.
+    :param name:         Optional name for output node.
+    :return: ReadValue node
+    """
+    return _read_value(as_node(init_value, name=name), ov_variable)

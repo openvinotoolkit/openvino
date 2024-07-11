@@ -30,7 +30,7 @@ PatternValueMap as_pattern_value_map(const PatternMap& pattern_map);
 template <typename T>
 std::function<bool(std::shared_ptr<Node>)> has_class() {
     auto pred = [](std::shared_ptr<Node> node) -> bool {
-        return ov::is_type<T>(node);
+        return ov::is_type<T>(std::move(node));
     };
 
     return pred;
@@ -38,7 +38,7 @@ std::function<bool(std::shared_ptr<Node>)> has_class() {
 template <typename T>
 std::function<bool(std::shared_ptr<Node>)> class_other_than() {
     auto pred = [](std::shared_ptr<Node> node) -> bool {
-        return !ov::is_type<T>(node);
+        return !ov::is_type<T>(std::move(node));
     };
 
     return pred;
