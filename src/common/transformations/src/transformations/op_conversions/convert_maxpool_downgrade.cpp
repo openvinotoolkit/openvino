@@ -98,23 +98,23 @@ ov::pass::ConvertMaxPool14ToMaxPool8::ConvertMaxPool14ToMaxPool8() {
             const auto strides = max_pool_v14->get_strides();
             const auto padding_begin = max_pool_v14->get_pads_begin();
             const auto padding_begin_node =
-                node_registry.make<Constant>(element::i64, Shape{padding_begin.size()}, padding_begin);
+                node_registry.make<Constant>(element::i32, Shape{padding_begin.size()}, padding_begin);
             const auto padding_end = max_pool_v14->get_pads_end();
             const auto padding_end_node =
-                node_registry.make<Constant>(element::i64, Shape{padding_end.size()}, padding_end);
-            const auto zero = node_registry.make<Constant>(element::i64, Shape{}, 0);
-            const auto one = node_registry.make<Constant>(element::i64, Shape{}, 1);
-            const auto two = node_registry.make<Constant>(element::i64, Shape{}, 2);
+                node_registry.make<Constant>(element::i32, Shape{padding_end.size()}, padding_end);
+            const auto zero = node_registry.make<Constant>(element::i32, Shape{}, 0);
+            const auto one = node_registry.make<Constant>(element::i32, Shape{}, 1);
+            const auto two = node_registry.make<Constant>(element::i32, Shape{}, 2);
 
             const auto pads_size = max_pool_v14->get_pads_begin().size();
-            const auto pads_len = node_registry.make<Constant>(element::i64, Shape{}, pads_size);
+            const auto pads_len = node_registry.make<Constant>(element::i32, Shape{}, pads_size);
             const auto pads_remaining =
-                node_registry.make<Constant>(element::i64, Shape{2}, std::vector<int64_t>{0, 0});
+                node_registry.make<Constant>(element::i32, Shape{2}, std::vector<int64_t>{0, 0});
 
             // gather input spatial dims and prepare for compare as values (in_dim + pad)
-            const auto end = node_registry.make<Constant>(element::i64, Shape{}, pads_size + 2);
-            const auto dim_idxs = node_registry.make<Range>(two, end, one, element::i64);
-            const auto shape = node_registry.make<ShapeOf>(input, element::i64);
+            const auto end = node_registry.make<Constant>(element::i32, Shape{}, pads_size + 2);
+            const auto dim_idxs = node_registry.make<Range>(two, end, one, element::i32);
+            const auto shape = node_registry.make<ShapeOf>(input, element::i32);
             const auto gth_in_dims = node_registry.make<Gather>(shape, dim_idxs, zero);
             const auto in_left_padded = node_registry.make<Add>(gth_in_dims, padding_begin_node);
 
@@ -126,10 +126,10 @@ ov::pass::ConvertMaxPool14ToMaxPool8::ConvertMaxPool14ToMaxPool8() {
                                                                     max_pool_v14->get_pads_end(),
                                                                     max_pool_v14->get_kernel(),
                                                                     ov::op::RoundingType::CEIL);
-            const auto shape_of_mp = node_registry.make<ShapeOf>(mp, element::i64);
+            const auto shape_of_mp = node_registry.make<ShapeOf>(mp, element::i32);
             const auto gth_out_dims = node_registry.make<Gather>(shape_of_mp, dim_idxs, zero);
             const auto out_sub_one = node_registry.make<Subtract>(gth_out_dims, one);
-            const auto stride_node = node_registry.make<Constant>(element::i64, Shape{strides.size()}, strides);
+            const auto stride_node = node_registry.make<Constant>(element::i32, Shape{strides.size()}, strides);
             const auto out_mul_stride = node_registry.make<Multiply>(out_sub_one, stride_node);
 
             // if (in_dim + pad) > ((out_dim - 1) * stride) sliding window in bound use end padding.

@@ -91,20 +91,20 @@ std::shared_ptr<ov::Model> create_ceil_torch_workaround_model(const ov::op::Roun
     const ov::Strides strides{2, 2}, dilations{1, 1};
     ov::Shape pads_begin{1, 1}, pads_end{1, 1}, kernel{2, 2};
 
-    const auto padding_begin_node = Constant::create(ov::element::i64, ov::Shape{pads_begin.size()}, pads_begin);
-    const auto padding_end_node = Constant::create(ov::element::i64, ov::Shape{pads_end.size()}, pads_end);
-    const auto zero = Constant::create(ov::element::i64, ov::Shape{}, {0});
-    const auto one = Constant::create(ov::element::i64, ov::Shape{}, {1});
-    const auto two = Constant::create(ov::element::i64, ov::Shape{}, {2});
+    const auto padding_begin_node = Constant::create(ov::element::i32, ov::Shape{pads_begin.size()}, pads_begin);
+    const auto padding_end_node = Constant::create(ov::element::i32, ov::Shape{pads_end.size()}, pads_end);
+    const auto zero = Constant::create(ov::element::i32, ov::Shape{}, {0});
+    const auto one = Constant::create(ov::element::i32, ov::Shape{}, {1});
+    const auto two = Constant::create(ov::element::i32, ov::Shape{}, {2});
 
     const auto pads_size = pads_begin.size();
-    const auto pads_len = Constant::create(ov::element::i64, ov::Shape{}, {pads_size});
-    const auto pads_remaining = Constant::create(ov::element::i64, ov::Shape{2}, {0, 0});
+    const auto pads_len = Constant::create(ov::element::i32, ov::Shape{}, {pads_size});
+    const auto pads_remaining = Constant::create(ov::element::i32, ov::Shape{2}, {0, 0});
 
     // gather input spatial dims and prepare for compare as values (in_dim + pad)
-    const auto end = Constant::create(ov::element::i64, ov::Shape{}, {pads_size + 2});
-    const auto dim_idxs = std::make_shared<Range>(two, end, one, ov::element::i64);
-    const auto shape = std::make_shared<ShapeOf>(input, ov::element::i64);
+    const auto end = Constant::create(ov::element::i32, ov::Shape{}, {pads_size + 2});
+    const auto dim_idxs = std::make_shared<Range>(two, end, one, ov::element::i32);
+    const auto shape = std::make_shared<ShapeOf>(input, ov::element::i32);
     const auto gth_in_dims = std::make_shared<Gather>(shape, dim_idxs, zero);
     const auto in_left_padded = std::make_shared<Add>(gth_in_dims, padding_begin_node);
 
@@ -116,10 +116,10 @@ std::shared_ptr<ov::Model> create_ceil_torch_workaround_model(const ov::op::Roun
                                                           pads_end,
                                                           kernel,
                                                           ov::op::RoundingType::CEIL);
-    const auto shape_of_mp = std::make_shared<ShapeOf>(mp, ov::element::i64);
+    const auto shape_of_mp = std::make_shared<ShapeOf>(mp, ov::element::i32);
     const auto gth_out_dims = std::make_shared<Gather>(shape_of_mp, dim_idxs, zero);
     const auto out_sub_one = std::make_shared<Subtract>(gth_out_dims, one);
-    const auto stride_node = Constant::create(ov::element::i64, ov::Shape{strides.size()}, strides);
+    const auto stride_node = Constant::create(ov::element::i32, ov::Shape{strides.size()}, strides);
     const auto out_mul_stride = std::make_shared<Multiply>(out_sub_one, stride_node);
 
     // if (in_dim + pad) > ((out_dim - 1) * stride) sliding window in bound use end padding.
