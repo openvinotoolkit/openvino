@@ -18,7 +18,8 @@
     "build": "npm run tsc",
     "prepare": "npm run build",
     "lint": "eslint .",
-    "test": "node --test",
+    "test": "node --test './tests/*.test.js'",
+    "test:e2e": "mocha e2e/electron-app.test.js",
     "tsc": "tsc",
     "postinstall": "npm run install_runtime",
     "download_runtime": "node ./scripts/download_runtime.js",
@@ -30,7 +31,8 @@
     "@typescript-eslint/parser": "^6.7.0",
     "eslint": "^8.49.0",
     "random-bigint": "^0.0.1",
-    "typescript": "^5.0.4"
+    "typescript": "^5.0.4",
+    "mocha": "^10.6.0"
   },
   "engines": {
     "node": ">=20.5.1"
