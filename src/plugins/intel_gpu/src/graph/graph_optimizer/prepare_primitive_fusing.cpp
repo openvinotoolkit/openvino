@@ -990,8 +990,23 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto p1_dt = parents[fused_idx].first->get_output_layout().data_type;
             auto p2_dt = parents[peer_idx].first->get_output_layout().data_type;
 
+            bool is_node_in_fusing_history = false;
+            for (auto fused_prim : parents[fused_idx].first->get_fused_primitives()) {
+                if (is_node_in_fusing_history)
+                    break;
+                auto iter = fusing_history.find(node.id());
+                if (iter != fusing_history.end()) {
+                    for (auto id : iter->second) {
+                        if (id.first == fused_prim.desc->id) {
+                            is_node_in_fusing_history = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
             if (can_fuse_parents[peer_idx] &&
-               ((p1_pnum < p2_pnum && fused_idx > peer_idx && p1_dt == p2_dt) ||
+               ((p1_pnum < p2_pnum && !is_node_in_fusing_history && p1_dt == p2_dt) ||
                 (data_type_traits::is_floating_point(p2_dt) && !data_type_traits::is_floating_point(p1_dt)))) {
                 // Swap in 2 cases:
                 // 1. Both branches have same data type. Select branch with lower processing number
