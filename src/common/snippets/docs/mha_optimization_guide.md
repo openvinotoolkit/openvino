@@ -24,10 +24,10 @@ Please note, that layers, denoted by `/`, can represent both single nodes and se
 
 ### CPU Plugin Callback for MHA Tokenization
 
-The tokenization can be regulated via callback. In CPU plugin, the callback prevents tokenization in certain cases, which can be categorized into two types:
+The tokenization pass can be adjusted via callback. In CPU plugin, the callback disables tokenization in certain cases, which can be categorized into two types:
 
 1. Pattern unsupported by Snippets CPU backend.
-2. Tokenization restrictions for performance reasons: executing MHA as separated operations may be faster in some cases.
+2. Tokenization restrictions for performance reasons: executing MHA operations one-by-one may be faster in some cases.
 
 The CPU plugin callback for TokenizeMHASnippets is placed in [transformation_pipeline.cpp](../../../plugins/intel_cpu/src/transformations/transformation_pipeline.cpp) file (please see the code in `MainSnippets` method).
 
@@ -39,11 +39,13 @@ After tokenization, snippets [common optimizations](../src/pass/common_optimizat
 
 ### ExtractUnsupportedTransposes
 
-[ExtractUnsupportedTransposes](../src/pass/extract_unsupported_transposes.cpp) moves up unsupported Transposes outside the Subgraph. **Please note: the "unsupported" Transpose actually can be executed via Snippets, however CPU plugin implementation usually works faster.**
+[ExtractUnsupportedTransposes](../src/pass/extract_unsupported_transposes.cpp) moves up unsupported Transposes outside the Subgraph. 
+
+**Please note: the "unsupported" Transpose actually can be executed via Snippets, however CPU plugin implementation is expected to work faster in this particular case.**
 
 ### SplitDimensionM
 
-[SplitDimensionM](../src/pass/split_dimension_m.cpp) splits M dimension of MHA on 2 parts (`batch_m` and `new_m`) by inserting Reshape on A input of the first Matmul and output of the second Matmul (the rest Subgraph's inputs are reshaped by Unsqueeze-like reshapes in order not to break subgraph semantic). This allows to increase parallel work amount due to `batch_m`. The splitting is performed based on heuristic algorithm which can be found in `SplitDimensionM::get_splited_dimensions` method.
+[SplitDimensionM](../src/pass/split_dimension_m.cpp) splits M dimension of MHA in 2 parts (`batch_m` and `new_m`) by inserting Reshape on A input of the first Matmul and output of the second Matmul (the rest Subgraph's inputs are reshaped by Unsqueeze-like reshapes in order not to break subgraph semantic). This optimization increases parallel work amount by `batch_m` times thus enabling a more efficient parallel execution in some cases. The splitting is performed based on heuristic algorithm which can be found in `SplitDimensionM::get_splited_dimensions` method.
 
 **Important notes:**
 - Since `SplitDimensionM` depends on parallel concurrency (number of threads which are used in one stream), the transformation result depends not only on the HW platform, but on number of streams used during model inference as well. For instance, this might lead to different result in throughput and latency hint modes.
@@ -67,7 +69,7 @@ The lowered pass [BrgemmBlocking](../../../plugins/intel_cpu/src/transformations
 
 ## MHA Performance Tuning Recommendations
 
-Buiding on the information presented upper, this section focuses on providing recommendations for fine-tuning the performance of specific MHA pattern.
+Based on previously discussed information, we provide the following recommendations for the MHA performance fine-tuning:
 
 1. Check if there are MHA's which were not tokenized because of [CPU plugin callback](#cpu-plugin-callback-for-mha-tokenization).
 2. Check how the graph was changed by [CommonOptimizations](#snippets-common-optimizations). In local experiments, some transformations might be worth to change:
@@ -78,4 +80,4 @@ Buiding on the information presented upper, this section focuses on providing re
     - For the BF16/INT8 blocking loops, 2 options are possible: blocking can be done only for Brgemm node, or for BrgemmCopyB repacking too.
 4. [Blocking order](#blocking-order): blocking order changing might have an effect as well. But please note, that blocking by M dimensions is shared between both Brgemms only if blocking by M is outermost.
 
-By following these recommendations, signifficant performance improvement for the specific MHA can be achieved. Additionally, the results of these experiments can be used as a solid foundation for the subsequent heuristics adjusting.
+Following these recommendations, the performance of some specific MHA patters can be fine-tuned. Additionally, the results of these experiments can be used as a solid foundation for the subsequent heuristics adjustments. 
