@@ -41,7 +41,7 @@ protected:
         function = std::make_shared<ov::Model>(avgpool, ov::ParameterVector{param});
     }
 
-    void TearDown() override {
+    void check_results() {
         auto exec_model = compiledModel.get_runtime_model();
 
         int eltwise_nodes_found = 0;
@@ -63,7 +63,9 @@ protected:
 };
 
 TEST_F(GatherAddAvgpool, smoke_CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
+    check_results();
 }
 
 }  // namespace test

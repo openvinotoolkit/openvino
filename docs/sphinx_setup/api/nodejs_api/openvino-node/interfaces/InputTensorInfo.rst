@@ -19,7 +19,7 @@ Methods
 
 .. rubric:: setElementType
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -37,7 +37,7 @@ Methods
 
 .. rubric:: setLayout
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -55,7 +55,7 @@ Methods
 
 .. rubric:: setShape
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 

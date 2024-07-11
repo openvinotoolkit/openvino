@@ -965,6 +965,9 @@ static bool is_node_for_onednn(gemm_node const& node) {
     if (!layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node))
         return false;
 
+    if (node.get_primitive()->indirect_a || node.get_primitive()->indirect_b)
+        return false;
+
     return true;
 }
 
@@ -1570,6 +1573,8 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
                 }
             }
         }
+    } else if (node.is_type<non_max_suppression_gather>()) {
+        return impl_types::cpu;
     } else if (node.is_type<reorder>()) {
         if (!_optimization_attributes.use_onednn_impls)
             return impl_types::ocl;
