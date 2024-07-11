@@ -18,14 +18,7 @@ using WeakSymbol = std::weak_ptr<ov::Symbol>;
 using WeakSymbolVector = std::vector<WeakSymbol>;
 
 struct WeakSymbolVectorHash {
-    std::size_t operator()(const ov::symbol::WeakSymbolVector& v) const {
-        size_t seed = 0;
-        for (const auto& element : v) {
-            const auto& el_hash = element.expired() ? 0 : std::hash<ov::SymbolPtr>()(element.lock());
-            seed ^= el_hash + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-        }
-        return seed;
-    }
+    std::size_t operator()(const ov::symbol::WeakSymbolVector& v) const;
 };
 
 using MathMap = std::unordered_map<WeakSymbolVector, WeakSymbol, WeakSymbolVectorHash>;
