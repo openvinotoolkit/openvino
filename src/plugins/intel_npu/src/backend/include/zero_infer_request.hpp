@@ -79,7 +79,6 @@ private:
 
     bool _createPipeline = true;
     bool _updateCommandList = false;
-    bool _levelZeroTensorCreatedLocally = true;
 };
 
 }  //  namespace intel_npu

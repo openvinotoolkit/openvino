@@ -350,6 +350,7 @@ void ZeroInferRequest::create_pipeline() {
 
 void ZeroInferRequest::set_tensor_data(std::shared_ptr<ov::ITensor> tensor, const std::string& name, bool isParameter) {
     bool setTensorData = false;
+    bool levelZeroTensorCreatedLocally = true;
 
     ze_memory_allocation_properties_t desc = {};
     desc.stype = ZE_STRUCTURE_TYPE_MEMORY_ALLOCATION_PROPERTIES;
@@ -360,8 +361,9 @@ void ZeroInferRequest::set_tensor_data(std::shared_ptr<ov::ITensor> tensor, cons
             case ZE_MEMORY_TYPE_HOST:
             case ZE_MEMORY_TYPE_DEVICE:
             case ZE_MEMORY_TYPE_SHARED:
+                _logger.debug("ZeroInferRequest::set_tensor_data - tensor was created in the same L0 context");
                 _copyAllTensors[name] = tensor;
-                _levelZeroTensorCreatedLocally = false;
+                levelZeroTensorCreatedLocally = false;
                 setTensorData = true;
                 break;
             case ZE_MEMORY_TYPE_UNKNOWN:
@@ -371,33 +373,37 @@ void ZeroInferRequest::set_tensor_data(std::shared_ptr<ov::ITensor> tensor, cons
         }
     }
 
-    if (!setTensorData && !_levelZeroTensorCreatedLocally) {
+    if (!setTensorData) {
         // make sure that the L0 tensor was allocated locally and is not received from the user when receiving random
         // tensor
-        _logger.debug("ZeroInferRequest::set_tensor_data - create locally L0 tensor");
-        ov::Allocator allocator;
-        if (isParameter && (_properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED)) {
-            allocator = zeroMemory::HostMemAllocator(_initStructs, ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
-        } else {
-            allocator = zeroMemory::HostMemAllocator(_initStructs);
-        };
+        if ((_tensorsData.find(name) != _tensorsData.end()) && !_tensorsData.at(name).levelZeroTensorCreatedLocally) {
+            _logger.debug("ZeroInferRequest::set_tensor_data - create locally L0 tensor");
+            ov::Allocator allocator;
+            if (isParameter && (_properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED)) {
+                allocator = zeroMemory::HostMemAllocator(_initStructs, ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
+            } else {
+                allocator = zeroMemory::HostMemAllocator(_initStructs);
+            };
 
-        IONodeDescriptor descriptor;
-        if (isParameter) {
-            descriptor = _metadata.parameters.at(name);
-        } else {
-            descriptor = _metadata.results.at(name);
+            IONodeDescriptor descriptor;
+            if (isParameter) {
+                descriptor = _metadata.parameters.at(name);
+            } else {
+                descriptor = _metadata.results.at(name);
+            }
+
+            allocate_tensor(name, descriptor, TensorType::InputOrOutput, allocator);
+
+            setTensorData = true;
+            levelZeroTensorCreatedLocally = true;
         }
-
-        allocate_tensor(name, descriptor, TensorType::InputOrOutput, allocator);
-
-        setTensorData = true;
-        _levelZeroTensorCreatedLocally = true;
     }
 
     if (setTensorData) {
-        _tensorsData[name] =
-            TensorData{_copyAllTensors.at(name)->data(), _copyAllTensors.at(name)->get_byte_size(), !_createPipeline};
+        _tensorsData[name] = TensorData{_copyAllTensors.at(name)->data(),
+                                        _copyAllTensors.at(name)->get_byte_size(),
+                                        levelZeroTensorCreatedLocally,
+                                        !_createPipeline};
         _updateCommandList = true;
     }
 }
@@ -415,9 +421,8 @@ void ZeroInferRequest::set_remote_tensor_data(std::shared_ptr<ZeroRemoteTensor> 
     }
 
     _copyAllTensors[name] = tensor;
-    _tensorsData[name] = TensorData{data, tensor->get_byte_size(), !_createPipeline};
+    _tensorsData[name] = TensorData{data, tensor->get_byte_size(), false, !_createPipeline};
     _updateCommandList = true;
-    _levelZeroTensorCreatedLocally = false;
 }
 
 void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
@@ -434,10 +439,10 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
         auto remoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(tensor);
 
         if (remoteTensor == nullptr) {
-            _logger.debug("ZeroInferRequest::check_and_get_mem_data - set new tensor");
+            _logger.debug("ZeroInferRequest::set_tensor - set new tensor");
             set_tensor_data(tensor, port.get_node()->get_friendly_name(), ov::op::util::is_parameter(port.get_node()));
         } else {
-            _logger.debug("ZeroInferRequest::check_and_get_mem_data - set new remote tensor");
+            _logger.debug("ZeroInferRequest::set_tensor - set new remote tensor");
             set_remote_tensor_data(remoteTensor, port.get_node()->get_friendly_name());
         }
     }

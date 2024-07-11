@@ -15,6 +15,7 @@ namespace intel_npu {
 struct TensorData {
     void* mem;
     size_t size;
+    bool levelZeroTensorCreatedLocally = true;
     bool changed = false;
 };
 
