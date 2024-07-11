@@ -1092,6 +1092,26 @@ std::shared_ptr<Node> change_constant_precision<ov::element::Type_t::f32, ov::el
 }
 
 template <>
+std::shared_ptr<Node> change_constant_precision<ov::element::Type_t::bf16, ov::element::Type_t::f16>(
+    std::shared_ptr<ov::op::v0::Constant>& constant) {
+    using src_type = typename element_type_traits<ov::element::Type_t::bf16>::value_type;
+    using dst_type = typename element_type_traits<ov::element::Type_t::f16>::value_type;
+
+    const auto* src_data = constant->get_data_ptr<src_type>();
+    const auto size = shape_size(constant->get_shape());
+
+    auto new_constant = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::f16, constant->get_shape());
+    new_constant->output(0).set_names(constant->output(0).get_names());
+    auto* dst_data = const_cast<dst_type*>(reinterpret_cast<const dst_type*>(new_constant->get_data_ptr()));
+    if (dst_data == nullptr)
+        OPENVINO_THROW("Can't get destination data pointer");
+
+    ov::reference::convert_from_bf16_to_f16_with_clamp(src_data, dst_data, size);
+
+    return new_constant;
+}
+
+template <>
 std::shared_ptr<Node> change_constant_precision<ov::element::Type_t::f16, ov::element::Type_t::f32>(
     std::shared_ptr<ov::op::v0::Constant>& constant) {
     using src_type = typename element_type_traits<ov::element::Type_t::f16>::value_type;
@@ -1326,6 +1346,8 @@ bool fuse_type_to_constant(const std::shared_ptr<ov::Node>& node,
             new_const = change_constant_precision<ov::element::Type_t::f64, ov::element::Type_t::f32>(constant);
         } else if (from == ov::element::bf16 && to == ov::element::f32) {
             new_const = change_constant_precision<ov::element::Type_t::bf16, ov::element::Type_t::f32>(constant);
+        } else if (from == ov::element::bf16 && to == ov::element::f16) {
+            new_const = change_constant_precision<ov::element::Type_t::bf16, ov::element::Type_t::f16>(constant);
         } else if (from == ov::element::f32 && to == ov::element::f16) {
             new_const = change_constant_precision<ov::element::Type_t::f32, ov::element::Type_t::f16>(constant);
         } else if (from == ov::element::f16 && to == ov::element::f32) {
