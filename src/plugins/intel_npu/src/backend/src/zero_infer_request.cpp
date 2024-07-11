@@ -435,12 +435,13 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     _allTensors[port.get_node()->get_friendly_name()] = tensor._ptr;
 
     if (_initStructs->getMutableCommandListVersion()) {
-        auto tensor = _allTensors.at(port.get_node()->get_friendly_name());
-        auto remoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(tensor);
+        auto remoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(tensor._ptr);
 
         if (remoteTensor == nullptr) {
             _logger.debug("ZeroInferRequest::set_tensor - set new tensor");
-            set_tensor_data(tensor, port.get_node()->get_friendly_name(), ov::op::util::is_parameter(port.get_node()));
+            set_tensor_data(tensor._ptr,
+                            port.get_node()->get_friendly_name(),
+                            ov::op::util::is_parameter(port.get_node()));
         } else {
             _logger.debug("ZeroInferRequest::set_tensor - set new remote tensor");
             set_remote_tensor_data(remoteTensor, port.get_node()->get_friendly_name());
