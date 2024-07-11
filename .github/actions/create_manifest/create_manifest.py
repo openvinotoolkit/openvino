@@ -85,6 +85,8 @@ def generate_manifest(repos: list, product_type: str, event_type: str, build_typ
 
     for repo_dir in repos:
         repo = Repository(**get_repo_data(repo_dir))
+        # To align with internal manifest
+        repo.branch = f"pull/{repo.branch}" if event_type == 'pre_commit' else repo.branch
         repositories.append(repo)
         if repo.name == 'openvino':
             version_file = Path(repo_dir) / 'src' / 'core' / 'include' / 'openvino' / 'core' / 'version.hpp'
@@ -98,8 +100,8 @@ def generate_manifest(repos: list, product_type: str, event_type: str, build_typ
     ci_build_dev_tag = f'dev{trigger_repo.commit_time.strftime("%Y%m%d")}'
     wheel_product_version = f'{product_version}.{ci_build_dev_tag}'
 
-    set_github_output('ci_build_number', product_version, 'GITHUB_ENV')
-    set_github_output('ci_build_dev_tag', ci_build_dev_tag, 'GITHUB_ENV')
+    set_github_output('CI_BUILD_NUMBER', product_version, 'GITHUB_ENV')
+    set_github_output('CI_BUILD_DEV_TAG', ci_build_dev_tag, 'GITHUB_ENV')
 
     component = Component(name=component_name, version=product_version, product_type=product_type,
                           target_arch=target_arch, build_type=build_type, build_event=event_type,
