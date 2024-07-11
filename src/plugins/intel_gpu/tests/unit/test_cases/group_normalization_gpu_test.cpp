@@ -150,7 +150,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(4),
         ::testing::Values(0.0025),
         ::testing::ValuesIn(f_blocked_4d_formats),
-        ::testing::Values(padding())));
+        ::testing::ValuesIn({padding(), padding({0, 16, 0, 0})})));
 
 INSTANTIATE_TEST_SUITE_P(
     GroupNormalizationGPUTest_blocked_layouts_support_5d, GroupNormalizationGPUTest,

@@ -162,21 +162,22 @@ KERNEL(group_normalization_b_fs_yx_fsv16)(
     const uint yx = get_global_id(0) / FSV;
     const uint y = yx / OUTPUT_SIZE_X;
     const uint x = yx % OUTPUT_SIZE_X;
-    const uint data_index = OUTPUT_GET_INDEX(b, f, y, x);
+    const uint input_index = INPUT0_GET_INDEX(b, f, y, x);
+    const uint output_index = OUTPUT_GET_INDEX(b, f, y, x);
 
     if (f < OUTPUT_FEATURE_NUM) {
         ACTIVATION_TYPE mean = TO_ACTIVATION_TYPE(internal_mean[bf]);
         ACTIVATION_TYPE variance = TO_ACTIVATION_TYPE(internal_variance[bf]);
-        ACTIVATION_TYPE normalized = (TO_ACTIVATION_TYPE(input[data_index]) - mean) * variance;
+        ACTIVATION_TYPE normalized = (TO_ACTIVATION_TYPE(input[input_index]) - mean) * variance;
         normalized = normalized * TO_ACTIVATION_TYPE(scale[f]) + TO_ACTIVATION_TYPE(bias[f]);
         #if HAS_FUSED_OPS
             FUSED_OPS;
-            output[data_index] = FUSED_OPS_RESULT;
+            output[output_index] = FUSED_OPS_RESULT;
         #else
-            output[data_index] = TO_OUTPUT_TYPE(ACTIVATION(normalized, ACTIVATION_PARAMS));
+            output[output_index] = TO_OUTPUT_TYPE(ACTIVATION(normalized, ACTIVATION_PARAMS));
         #endif
     } else {
-        output[data_index] = OUTPUT_VAL_ZERO;
+        output[output_index] = OUTPUT_VAL_ZERO;
     }
 }
 #endif
