@@ -23,10 +23,22 @@ OutputVector translate_chunk_fx(const NodeContext& context) {
     num_inputs_check(context, 3, 3);
     auto num_chunks = context.const_input<int>(1);
     auto dim = context.get_input(2);
-
     std::shared_ptr<ov::Node> chunk;
-    auto dim_val = context.const_input<int>(2);
+
     auto shape = context.get_input(0).get_partial_shape();
+    if (shape.rank().is_dynamic()) {
+        size_t num_splits = context.get_decoder()->output_list_size();
+        std::vector<int32_t> split_lengths_vec;
+        for (size_t i = 0; i < num_splits - 1; i++) {
+            split_lengths_vec.push_back(num_chunks);
+        }
+        split_lengths_vec.push_back(-1);
+        auto split_lengths =
+            context.mark_node(v0::Constant::create(element::i32, Shape{num_splits}, split_lengths_vec));
+        auto split = context.mark_node(std::make_shared<v1::VariadicSplit>(context.get_input(0), dim, split_lengths));
+        return {context.mark_node(make_list_construct(split->outputs()))};
+    }
+    auto dim_val = context.const_input<int>(2);
     if (dim_val < 0) {
         dim_val = static_cast<int>(shape.rank().get_length()) + dim_val;
     }

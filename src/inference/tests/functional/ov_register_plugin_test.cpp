@@ -3,6 +3,7 @@
 #include <string>
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/iplugin.hpp"
@@ -43,7 +44,7 @@ TEST(RegisterPluginTests, getVersionforRegisteredPluginThrows) {
     mockPlugin(core, base_plugin, m_so);
     std::string mock_plugin_name{"MOCK_REGISTERED_HARDWARE"};
     // Registered plugin with invalid so here
-    ASSERT_NO_THROW(core.register_plugin(
+    OV_ASSERT_NO_THROW(core.register_plugin(
         ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                            std::string("mock_registered_engine") + OV_BUILD_POSTFIX),
         mock_plugin_name));
@@ -53,7 +54,7 @@ TEST(RegisterPluginTests, getVersionforRegisteredPluginThrows) {
 TEST(RegisterPluginTests, getVersionforNoRegisteredPluginNoThrows) {
     ov::Core core;
     std::map<std::string, ov::Version> versions;
-    ASSERT_NO_THROW(versions = core.get_versions("unkown_device"));
+    OV_ASSERT_NO_THROW(versions = core.get_versions("unkown_device"));
     ASSERT_TRUE(versions.empty());
 
     auto plugin = std::make_shared<NiceMock<ov::MockIPlugin>>();
@@ -72,11 +73,11 @@ TEST(RegisterPluginTests, getVersionforNoRegisteredPluginNoThrows) {
 
     std::string mock_plugin_name{"MOCK_HARDWARE"};
 
-    ASSERT_NO_THROW(
+    OV_ASSERT_NO_THROW(
         core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                                                 std::string("mock_engine") + OV_BUILD_POSTFIX),
                              mock_plugin_name));
-    ASSERT_NO_THROW(core.get_versions("MOCK_HARDWARE"));
+    OV_ASSERT_NO_THROW(core.get_versions("MOCK_HARDWARE"));
 }
 
 TEST(RegisterPluginTests, registerNewPluginNoThrows) {
@@ -87,11 +88,11 @@ TEST(RegisterPluginTests, registerNewPluginNoThrows) {
     mockPlugin(core, base_plugin, m_so);
 
     std::string mock_plugin_name{"MOCK_HARDWARE"};
-    ASSERT_NO_THROW(
+    OV_ASSERT_NO_THROW(
         core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                                                 std::string("mock_engine") + OV_BUILD_POSTFIX),
                              mock_plugin_name));
-    ASSERT_NO_THROW(core.get_property(mock_plugin_name, ov::supported_properties));
+    OV_ASSERT_NO_THROW(core.get_property(mock_plugin_name, ov::supported_properties));
 
     core.unload_plugin(mock_plugin_name);
 }
@@ -104,7 +105,7 @@ TEST(RegisterPluginTests, registerExistingPluginThrows) {
     mockPlugin(core, base_plugin, m_so);
 
     std::string mock_plugin_name{"MOCK_HARDWARE"};
-    ASSERT_NO_THROW(
+    OV_ASSERT_NO_THROW(
         core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
                                                                 std::string("mock_engine") + OV_BUILD_POSTFIX),
                              mock_plugin_name));
@@ -128,7 +129,7 @@ inline std::string getPluginFile() {
 
 TEST(RegisterPluginTests, smoke_createMockEngineConfigNoThrows) {
     const std::string filename = getPluginFile();
-    ASSERT_NO_THROW(ov::Core core(filename));
+    OV_ASSERT_NO_THROW(ov::Core core(filename));
     ov::test::utils::removeFile(filename.c_str());
 }
 
@@ -173,11 +174,11 @@ TEST(RegisterPluginTests, accessToUnregisteredPluginThrows) {
     std::vector<std::string> devices = core.get_available_devices();
 
     for (auto&& device : devices) {
-        ASSERT_NO_THROW(core.get_versions(device));
-        ASSERT_NO_THROW(core.unload_plugin(device));
-        ASSERT_NO_THROW(core.set_property(device, ov::AnyMap{}));
-        ASSERT_NO_THROW(core.get_versions(device));
-        ASSERT_NO_THROW(core.unload_plugin(device));
+        OV_ASSERT_NO_THROW(core.get_versions(device));
+        OV_ASSERT_NO_THROW(core.unload_plugin(device));
+        OV_ASSERT_NO_THROW(core.set_property(device, ov::AnyMap{}));
+        OV_ASSERT_NO_THROW(core.get_versions(device));
+        OV_ASSERT_NO_THROW(core.unload_plugin(device));
     }
 }
 
@@ -203,12 +204,12 @@ TEST(RegisterPluginTests, registerPluginsXMLUnicodePath) {
             ov::Core core;
 
             GTEST_COUT << "Core created " << testIndex << std::endl;
-            ASSERT_NO_THROW(core.register_plugins(::ov::util::wstring_to_string(pluginsXmlW)));
+            OV_ASSERT_NO_THROW(core.register_plugins(::ov::util::wstring_to_string(pluginsXmlW)));
             ov::test::utils::removeFile(pluginsXmlW);
-            ASSERT_NO_THROW(core.get_versions("mock"));  // from pluginXML
+            OV_ASSERT_NO_THROW(core.get_versions("mock"));  // from pluginXML
 
             std::vector<std::string> devices = core.get_available_devices();
-            ASSERT_NO_THROW(core.get_versions(devices.at(0)));
+            OV_ASSERT_NO_THROW(core.get_versions(devices.at(0)));
             GTEST_COUT << "Plugin created " << testIndex << std::endl;
 
             GTEST_COUT << "OK" << std::endl;

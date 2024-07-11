@@ -193,9 +193,9 @@ struct padding {
     }
 
     static padding max(padding const& lhs, padding const& rhs, float filling_value = 0.0f) {
-        auto lower = tensor::max(lhs.lower_size(), rhs.lower_size());
-        auto upper = tensor::max(lhs.upper_size(), rhs.upper_size());
-        auto dynamic_pad_dims = tensor::max(lhs.get_dynamic_pad_dims(), rhs.get_dynamic_pad_dims());
+        const auto& lower = tensor::max(lhs.lower_size(), rhs.lower_size());
+        const auto& upper = tensor::max(lhs.upper_size(), rhs.upper_size());
+        const auto& dynamic_pad_dims = tensor::max(lhs.get_dynamic_pad_dims(), rhs.get_dynamic_pad_dims());
         return padding{lower.sizes(), upper.sizes(), filling_value, dynamic_pad_dims};
     }
 

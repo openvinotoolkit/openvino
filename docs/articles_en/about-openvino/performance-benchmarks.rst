@@ -236,4 +236,4 @@ for non-Intel products.
 
    Results may vary. For more information, see
    :doc:`F.A.Q. <./performance-benchmarks/performance-benchmarks-faq>`
-   See :doc:`Legal Information <./additional-resources/legal-information>`.
+   See :doc:`Legal Information <./additional-resources/terms-of-use>`.

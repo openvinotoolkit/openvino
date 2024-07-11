@@ -39,36 +39,36 @@ public:
 TEST_P(InferSchedulePolicyTest, can_run_async_requests_with_different_schedule_policy) {
     ov::CompiledModel compiled_model;
     property.emplace(ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
-    ASSERT_NO_THROW(compiled_model = core.compile_model(model_cannot_batch, "AUTO", property));
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model_cannot_batch, "AUTO", property));
     std::vector<ov::InferRequest> inferReqsQueue;
     int count = niters;
     while (count--) {
         ov::InferRequest req;
-        ASSERT_NO_THROW(req = compiled_model.create_infer_request());
+        OV_ASSERT_NO_THROW(req = compiled_model.create_infer_request());
         inferReqsQueue.push_back(req);
     }
     for (auto& req : inferReqsQueue) {
-        ASSERT_NO_THROW(req.start_async());
+        OV_ASSERT_NO_THROW(req.start_async());
     }
     for (auto& req : inferReqsQueue) {
-        ASSERT_NO_THROW(req.wait());
+        OV_ASSERT_NO_THROW(req.wait());
     }
 }
 
 TEST_P(InferSchedulePolicyTest, can_run_sync_requests_with_different_schedule_policy) {
     ov::CompiledModel compiled_model;
     property.emplace(ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
-    ASSERT_NO_THROW(compiled_model = core.compile_model(model_cannot_batch, "AUTO", property));
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model_cannot_batch, "AUTO", property));
     std::vector<ov::InferRequest> inferReqsQueue;
     int count = niters;
     while (count--) {
         ov::InferRequest req;
-        ASSERT_NO_THROW(req = compiled_model.create_infer_request());
+        OV_ASSERT_NO_THROW(req = compiled_model.create_infer_request());
         inferReqsQueue.push_back(req);
     }
     for (auto& req : inferReqsQueue) {
-        ASSERT_NO_THROW(req.infer());
-        ASSERT_NO_THROW(req.wait());
+        OV_ASSERT_NO_THROW(req.infer());
+        OV_ASSERT_NO_THROW(req.wait());
     }
 }
 

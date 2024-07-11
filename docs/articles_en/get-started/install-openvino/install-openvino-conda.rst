@@ -71,6 +71,48 @@ need to install additional components. Check the description below, as well as t
 :doc:`list of additional configurations <../configurations>`
 to see if your case needs any of them.
 
+Installing specific components of OpenVINO from Conda Forge
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+You do not have to install the entire OpenVINO package. You can install selected
+components by using:
+
+.. code-block:: sh
+
+   conda install conda-forge::<component_name>
+
+``<component_name>`` may be one of the components of OpenVINO listed below:
+
+- ``libopenvino-auto-batch-plugin``
+- ``libopenvino-auto-plugin``
+- ``libopenvino-hetero-plugin``
+- ``libopenvino-intel-cpu-plugin``
+- ``libopenvino-intel-gpu-plugin``
+- ``libopenvino-intel-npu-plugin``
+- ``libopenvino-ir-frontend``
+- ``libopenvino-onnx-frontend``
+- ``libopenvino-paddle-frontend``
+- ``libopenvino-pytorch-frontend``
+- ``libopenvino-tensorflow-frontend``
+- ``libopenvino-tensorflow-lite-frontend``
+- ``libopenvino-dev``
+- ``libopenvino-python``
+- ``libopenvino-arm-cpu-plugin``
+
+
+For example, to install a single component, use:
+
+.. code-block:: sh
+
+   conda install conda-forge::libopenvino-intel-cpu-plugin
+
+For multiple components, use:
+
+.. code-block:: sh
+
+   conda install conda-forge::libopenvino-intel-cpu-plugin conda-forge::libopenvino-arm-cpu-plugin conda-forge::libopenvino-intel-npu-plugin conda-forge::libopenvino-intel-gpu-plugin
+
+
 Compiling with OpenVINO Runtime from Conda-Forge on Linux
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -110,12 +152,18 @@ OpenCL™ Driver is included with the Intel® Graphics Driver package.
 Uninstalling OpenVINO™ Runtime
 ###########################################################
 
-Once OpenVINO Runtime is installed via Conda, you can remove it using the following command,
+Once OpenVINO Runtime is installed via Conda, you can remove it, using the following command,
 with the proper OpenVINO version number:
 
 .. code-block:: sh
 
    conda remove openvino=2024.2.0
+
+If you have installed specific components of OpenVINO, you can remove them, using:
+
+.. code-block:: sh
+
+   conda remove conda-forge::<component_name>
 
 What's Next?
 ############################################################
