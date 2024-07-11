@@ -1947,20 +1947,6 @@ void Reduce::initSupportedPrimitiveDescriptors() {
     input_prec = getOriginalInputPrecisionAtPort(REDUCE_DATA);
     output_prec = getOriginalOutputPrecisionAtPort(0);
 
-    if (!fusedWith.empty()) {
-        // In jit mode we use the output memory as an intermediate accumulator for certain reduce modes.
-        // If the post ops node has a lower precision for such modes, working buffer with original precision is needed,
-        // in order to avoid accuracy loss.
-        auto fused_prec = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
-        if (output_prec == ov::element::f32 && fused_prec != ov::element::f32) {
-            if (algorithm != Algorithm::ReduceAnd && algorithm != Algorithm::ReduceOr &&
-                algorithm != Algorithm::ReduceMin && algorithm != Algorithm::ReduceMax) {
-                fuse_low_precision = true;
-            }
-        }
-        output_prec = fused_prec;
-    }
-
     jit_mode = canApplyJIT(input_prec, output_prec);
 
     auto is_precision_sensitive_reduce = [](const Algorithm &algorithm) {
@@ -1977,6 +1963,20 @@ void Reduce::initSupportedPrimitiveDescriptors() {
         } else if (ov::element::f16 == output_prec) {
             if (!mayiuse(cpu::x64::avx2) || is_precision_sensitive_reduce(algorithm))
                 output_prec = ov::element::f32;
+        }
+
+        if (!fusedWith.empty()) {
+            // In jit mode we use the output memory as an intermediate accumulator for certain reduce modes.
+            // If the post ops node has a lower precision for such modes, working buffer with original precision is needed,
+            // in order to avoid accuracy loss.
+            auto fused_prec = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
+            if (output_prec == ov::element::f32 && fused_prec != ov::element::f32) {
+                if (algorithm != Algorithm::ReduceAnd && algorithm != Algorithm::ReduceOr &&
+                    algorithm != Algorithm::ReduceMin && algorithm != Algorithm::ReduceMax) {
+                    fuse_low_precision = true;
+                }
+            }
+            output_prec = fused_prec;
         }
     }
 
