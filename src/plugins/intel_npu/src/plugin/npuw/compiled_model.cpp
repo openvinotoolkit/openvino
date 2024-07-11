@@ -281,25 +281,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             fill_empty_tensor_names(m_compiled_submodels[real_id].model);
         }
 
-        if (!subgraph._funcall.empty()) {
-            std::cout<< "Before layout change" << std::endl;
-            for (auto &l : m_compiled_submodels[real_id].model->inputs()) {
-                std::cout << l.get_shape() << "     " << l.get_any_name() << std::endl;
-            }
-            ov::preprocess::PrePostProcessor ppp(m_compiled_submodels[real_id].model);
-            for (auto &input : m_compiled_submodels[real_id].model->inputs()) {
-                if (input.get_shape().size() == 4) {
-                    ppp.input(input.get_any_name()).tensor().set_layout(ov::Layout("NHWC"));
-                }
-            }
-            auto preprocessed_model = ppp.build();
-            m_compiled_submodels[real_id].model = preprocessed_model;
-            std::cout<< "After layout change" << std::endl;
-            for (auto &l : m_compiled_submodels[real_id].model->inputs()) {
-                std::cout << l.get_shape() << "     " << l.get_any_name() << std::endl;
-            }
-        }
-
         if (ov::npuw::util::is_set(id, dump_sub_opt)) {
             LOG_INFO("Dumping Subgraph[" << id << "]");
             LOG_BLOCK();
