@@ -915,7 +915,8 @@ ov::pass::EliminateStridedSlice::EliminateStridedSlice() {
             return false;
         }
         // check that that we will take all values
-        if (strided_slice_node->get_input_size() == 4 && !op::util::is_constant_and_all_values_equal_int(strided_slice_node->input_value(3), 1)) {
+        if (strided_slice_node->get_input_size() == 4 &&
+            !op::util::is_constant_and_all_values_equal_int(strided_slice_node->input_value(3), 1)) {
             return false;
         }
 

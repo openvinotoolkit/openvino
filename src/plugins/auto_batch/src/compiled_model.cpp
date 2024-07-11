@@ -80,10 +80,8 @@ CompiledModel::GetWorkerInferRequest() const {
         workerRequestPtr->_thread = std::thread([workerRequestPtr, this] {
             while (1) {
                 std::cv_status status;
-                {
-                    std::unique_lock<std::mutex> lock(workerRequestPtr->_mutex);
-                    status = workerRequestPtr->_cond.wait_for(lock, std::chrono::milliseconds(m_time_out));
-                }
+                std::unique_lock<std::mutex> lock(workerRequestPtr->_mutex);
+                status = workerRequestPtr->_cond.wait_for(lock, std::chrono::milliseconds(m_time_out));
                 if (m_terminate) {
                     break;
                 } else {
