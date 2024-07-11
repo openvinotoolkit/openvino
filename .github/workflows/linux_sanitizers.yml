@@ -286,7 +286,7 @@ jobs:
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-OVCoreUT.xml
 
       - name: OpenVINO Inference Functional Tests
-        if: ${{ 'false' }} # Ticket: 134410
+        if: always()
         run: |
           source ${INSTALL_DIR}/setupvars.sh
 
