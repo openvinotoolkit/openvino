@@ -887,17 +887,16 @@ void Transformations::MainSnippets(void) {
     // ARM has 32 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters, 1 platform register,
     // 3 registers for temporary use, and 2 stack related registers, it has 23 remaining registers.
     size_t data_ptr_gpr_count = 23;
+    bool is_dynamic_mha_token_enabled = false;
 #else
     // X64 has 16 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters,
     // and 2 stack related registers, it has 11 remaining registers.
     size_t data_ptr_gpr_count = 11;
+    bool is_dynamic_mha_token_enabled = true;
 #endif
     // The optimization "SplitDimensionM" depends on target machine (thread count).
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is Config::SnippetsMode::IgnoreCallback
     bool split_m_dimension = !ignoreCallback;
-    // [113198] Add dynamic Subgraph with MHA pattern inside execution support
-    // To enable dynamic MHA in tests, this flag is on when there is Config::SnippetsMode::IgnoreCallback
-    bool is_dynamic_mha_token_enabled = ignoreCallback;
     // [122706] Some 3D MHA Patterns have perf regressions when Transpose op is tokenized
     std::set<size_t> mha_supported_transpose_ranks = { 4 };
     snippets::pass::SnippetsTokenization::Config tokenization_config(concurrency, data_ptr_gpr_count, split_m_dimension,
@@ -941,7 +940,7 @@ void Transformations::MainSnippets(void) {
 #if defined(OPENVINO_ARCH_X86_64)
     auto is_supported_matmul = [this](const std::shared_ptr<const ov::Node>& n) {
         const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(n);
-        if (!matmul || matmul->is_dynamic())
+        if (!matmul)
             return false;
         const auto in_type0 = matmul->get_input_element_type(0);
         const auto in_type1 = matmul->get_input_element_type(1);
@@ -949,6 +948,9 @@ void Transformations::MainSnippets(void) {
             return false;
         if (in_type0 == ov::element::f32 && in_type1 == ov::element::f32 && one_of(inferencePrecision, element::f32, element::undefined))
             return true;
+        // Only FP32 Brgemm is supported
+        if (matmul->is_dynamic())
+            return false;
         // [114487] brgemm kernel in oneDNN requires brgemm_copy_b kernel if MatMul node has transposed_b=True
         // The current solution with ExtractExplicitMatMulTranspose pass is slower for non-f32 cases than using of brgemm_copy_b kernel
         if (matmul->get_transpose_a() || matmul->get_transpose_b())
@@ -971,10 +973,19 @@ void Transformations::MainSnippets(void) {
         }
         return true;
     };
-    auto is_unsupported_parallel_work_amount = [&](const std::shared_ptr<const ov::Node>& n, const ov::Shape& shape) {
-        const size_t parallel_work_amount = std::accumulate(shape.rbegin() + 2, shape.rend(), 1, std::multiplies<size_t>());
+    auto is_unsupported_parallel_work_amount = [&](const std::shared_ptr<const ov::Node>& n, const ov::PartialShape& pshape) {
+        // pshape [B0..BN, M, N] = [B, M, N], B - `parallel work amount`
+        // 1. If B is dynamic, we cannot say about support -> tokenize anyway
+        // 2. If B is static:
+        //    2.1. B is supported `parallel work amount` -> tokenize
+        //    2.2. B is unsupported `parallel work amount` and we should increase this work.
+        //         The decision on tokenization is made by SplitDimensionM pass.
+        //         Note: if one of M, N is dynamic, SplitDimensionM doesn't support dynamic case -> don't tokenize
+        const auto parallel_work_amount = std::accumulate(pshape.rbegin() + 2, pshape.rend(), ov::Dimension(1), std::multiplies<ov::Dimension>());
+        if (parallel_work_amount.is_dynamic())
+            return false;
         const auto is_unsupported_parallel_work_amount =
-            parallel_work_amount < tokenization_config.get_concurrency() &&
+            static_cast<size_t>(parallel_work_amount.get_length()) < tokenization_config.get_concurrency() &&
             !ov::snippets::pass::SplitDimensionM::can_be_optimized(n, tokenization_config.get_concurrency());
         return is_unsupported_parallel_work_amount;
     };
@@ -1072,11 +1083,11 @@ void Transformations::MainSnippets(void) {
             if (!is_supported_matmul(child))
                 return true;
 
-            const auto& shape = child->get_input_shape(0);
-            return is_unsupported_parallel_work_amount(n, shape);
+            const auto& pshape = n->get_output_partial_shape(0);
+            return is_unsupported_parallel_work_amount(n, pshape);
         }, snippets::pass::TokenizeMHASnippets);
         CPU_SET_CALLBACK_X64(snippetsManager, [&](const std::shared_ptr<const ov::Node>& n) -> bool {
-            return !is_supported_matmul(n) || is_unsupported_parallel_work_amount(n, n->get_output_shape(0));
+            return !is_supported_matmul(n) || is_unsupported_parallel_work_amount(n, n->get_output_partial_shape(0));
         }, snippets::pass::ExtractReshapesFromMHA);
     }
 
