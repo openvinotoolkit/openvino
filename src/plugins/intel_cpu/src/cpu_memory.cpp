@@ -227,6 +227,7 @@ bool MemoryMngrWithReuse::resize(size_t size) {
     constexpr int cacheLineSize = 64;
     bool sizeChanged = false;
     if (size > m_memUpperBound) {
+        // std::cout << "Allocating bytes: " << size << "\n";
         void *ptr = dnnl::impl::malloc(size, cacheLineSize);
         if (!ptr) {
             OPENVINO_THROW("Failed to allocate ", size, " bytes of memory");

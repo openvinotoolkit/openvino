@@ -542,25 +542,50 @@ std::vector<memory::format_tag> Node::getAvailableFormatsForDims(const Shape &di
     return {memory::format_tag::any};
 }
 
+struct NewDurationRAII {
+    NewDurationRAII(std::string msg)
+        : m_msg(std::move(msg)) {}
+
+    ~NewDurationRAII() {
+        std::cout << m_msg << "\n";
+        for (const auto& entry : m_dur) {
+            std::cout << entry.first << ": " << entry.second.count() << "\n";
+        }
+    }
+
+    void add(const std::string& str, const std::chrono::duration<long, std::ratio<1, 1000000>>& dur) {
+        m_dur[str]+=dur;
+    }
+
+    std::string m_msg;
+    std::unordered_map<std::string, std::chrono::duration<long, std::ratio<1, 1000000>>> m_dur;
+};
+
 void Node::updateShapes() {
+    // static NewDurationRAII duration("updateShapes statistics: ");
+    // auto start = std::chrono::high_resolution_clock::now();
     OPENVINO_ASSERT(isDynamicNode(),
                     "Node::updateShapes() is called to a static shape node of type: ",
                     getTypeStr(),
                     " with name: ",
                     getName());
-        try {
-            if (needShapeInfer()) {
-                auto result = shapeInfer();
-                if (ShapeInferStatus::success == result.status) {
-                    redefineOutputMemory(result.dims);
-                }
+    try {
+        if (needShapeInfer()) {
+            auto result = shapeInfer();
+            if (ShapeInferStatus::success == result.status) {
+                redefineOutputMemory(result.dims);
             }
-        } catch (const std::exception& exp) {
-            THROW_CPU_NODE_ERR(exp.what());
         }
+    } catch (const std::exception& exp) {
+        THROW_CPU_NODE_ERR(exp.what());
+    }
+    // auto end = std::chrono::high_resolution_clock::now();
+    // duration.add(getName(), std::chrono::duration_cast<std::chrono::microseconds>(end - start));
 }
 
 void Node::updateDynamicParams() {
+    // static NewDurationRAII duration("updateDynamicParams statistics: ");
+    // auto start = std::chrono::high_resolution_clock::now();
     OPENVINO_ASSERT(isDynamicNode(),
                     "Node::updateDynamicParams() is called to a static shape node of type: ",
                     getTypeStr(),
@@ -579,6 +604,8 @@ void Node::updateDynamicParams() {
     } catch (const std::exception& e) {
         THROW_CPU_NODE_ERR(e.what());
     }
+    // auto end = std::chrono::high_resolution_clock::now();
+    // duration.add(getName(), std::chrono::duration_cast<std::chrono::microseconds>(end - start));
 }
 
 void Node::executeStatic(const dnnl::stream strm, int numaId) {
@@ -608,7 +635,21 @@ bool Node::outputShapeDataDependency() const {
     return false;
 }
 
+struct NumCalls {
+    ~NumCalls() {
+        std::cout << "redefineOutputMemory called: " << m_numCalls << "\n";
+    }
+
+    void add() {
+        m_numCalls++;
+    }
+
+    int m_numCalls = 0;
+};
+
 void Node::redefineOutputMemory(const std::vector<VectorDims> &newOutputShapes) {
+    // static NumCalls numCalls;
+    // numCalls.add();
     if (newOutputShapes.size() != outputShapes.size()) {
         OPENVINO_THROW("Number shapes mismatch with real outputs number for node with name: ", getName());
     }

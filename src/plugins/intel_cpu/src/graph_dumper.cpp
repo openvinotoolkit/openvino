@@ -14,6 +14,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <fstream>
 
 namespace ov {
 namespace intel_cpu {
@@ -332,6 +333,41 @@ void summary_perf(const Graph &graph) {
             std::cout << ss.str();
         }
     }
+}
+
+void average_counters(const Graph &graph) {
+    std::ofstream myfile;
+    std::string fileName = std::getenv("AC_FILE") ? std::getenv("AC_FILE") : "bacr.csv";
+    myfile.open(fileName);
+
+    myfile << "layerName;execStatus;layerType;execType;realTime (ms);cpuTime (ms);" << "\n";
+
+    uint64_t total_avg = 0;
+    // input_ids;NOT_RUN;Parameter;unknown_i64;0.000;0.000;
+    auto printAC = [&myfile, &total_avg](NodePtr node){
+        uint64_t avg = node->PerfCounter().avg();
+        const std::string status = avg > 0 ? "EXECUTED" : "NOT_RUN";
+        const auto cpuTime = std::chrono::microseconds(avg).count() / 1000.0;
+        const auto realTime = cpuTime;
+        myfile << node->getName() << ";"
+               << status << ";"
+               << node->getTypeStr() << ";"
+               << node->getPrimitiveDescriptorType() << ";"
+               << realTime << ";"
+               << cpuTime << ";"
+               << "\n";
+
+        total_avg+=avg;
+    };
+
+    for (auto &node : graph.GetNodes()) {
+        printAC(node);
+    }
+
+    const auto total_ms = std::chrono::microseconds(total_avg).count() / 1000.0;
+    myfile << "Total;;;;" << total_ms << ";" << total_ms << ";" << "\n";
+
+    myfile.close();
 }
 
 #endif

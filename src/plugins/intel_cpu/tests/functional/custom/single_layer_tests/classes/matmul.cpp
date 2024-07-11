@@ -302,6 +302,7 @@ const std::vector<ShapeRelatedParams>& IS2D_smoke() {
 
         {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {true, false}},
         {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {false, true}},
+        {static_shapes_to_test_representation({{2, 6}, {6, 4}}), {false, true}},
 
         {
             {

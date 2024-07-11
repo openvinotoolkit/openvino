@@ -34,7 +34,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model> &nGraphFunc, in
     CPU_REGISTER_PASS_COMMON(manager, ConvertMatMulToFC);
     CPU_REGISTER_PASS_X64(manager, MoveFCReshapeToWeights);
     CPU_REGISTER_PASS_X64(manager, ov::pass::Validate);
-    if (subStreamNum >= 1) {
+    if (subStreamNum >= 1 && !std::getenv("DISABLE_SPLIT")) {
         CPU_REGISTER_PASS_COMMON(manager, SplitFC, subStreamNum);
         CPU_REGISTER_PASS_COMMON(manager, ov::pass::Validate);
     }
