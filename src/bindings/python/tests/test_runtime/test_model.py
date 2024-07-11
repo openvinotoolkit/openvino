@@ -363,7 +363,7 @@ def test_reshape_with_variable(device):
     assert compiled_model.input().partial_shape == ref_shape
 
 
-def test_reshape_with_python_types(device):
+def test_reshape_with_python_types():
     model = generate_add_model()
 
     def check_shape(new_shape):
@@ -441,7 +441,7 @@ def test_reshape_with_python_types(device):
     )
 
 
-def test_reshape_with_python_types_for_variable(device):
+def test_reshape_with_python_types_for_variable():
     var_id = "ID1"
     model = make_add_with_variable_model([1, 2, 5], var_id)
 
