@@ -22,7 +22,7 @@ RUN apt-get update && \
         ca-certificates \
         gpg-agent \
         tzdata \
-        # Python
+        # Python (3.8)
         python3-dev \
         python3-venv \
         python3-pip \
