@@ -103,8 +103,12 @@ protected:
             call_args.dst_ptrs[i] = dstMemPtrs[i]->getDataAs<uint8_t>() + m_start_offset_out[i];
 
         if (m_buffer_scratchpad_size > 0) {
-            call_args.buffer_scratchpad_ptr =
+            if (m_buffer_output_inplace == -1) {
+                call_args.buffer_scratchpad_ptr =
                     reinterpret_cast<uint8_t*>(m_buffer_scratchpad.data()) + parallel_get_thread_num() * m_buffer_scratchpad_size;
+            } else {
+                call_args.buffer_scratchpad_ptr = call_args.dst_ptrs[m_buffer_output_inplace];
+            }
         }
     }
 };
@@ -157,9 +161,14 @@ protected:
         call_args.register_loops(loop_args);
         std::copy(buffer_offsets.cbegin(), buffer_offsets.cend(), call_args.buffer_offsets);
 
-        if (m_buffer_scratchpad_size > 0)
-            call_args.buffer_scratchpad_ptr =
-                reinterpret_cast<uint8_t*>(m_buffer_scratchpad.data()) + parallel_get_thread_num() * m_buffer_scratchpad_size;
+        if (m_buffer_scratchpad_size > 0) {
+            if (m_buffer_output_inplace == -1) {
+                call_args.buffer_scratchpad_ptr =
+                    reinterpret_cast<uint8_t*>(m_buffer_scratchpad.data()) + parallel_get_thread_num() * m_buffer_scratchpad_size;
+            } else {
+                call_args.buffer_scratchpad_ptr = call_args.dst_ptrs[m_buffer_output_inplace];
+            }
+        }
     }
 
     inline void init_original_ptrs(const std::vector<MemoryPtr>& srcMemPtrs, const std::vector<MemoryPtr>& dstMemPtrs,
@@ -191,6 +200,9 @@ protected:
                 i_ptr += data_offsets[i + src_ptrs.size()][j] * indexes[j];
             }
             call_args.dst_ptrs[i] = i_ptr;
+        }
+        if (m_buffer_output_inplace != -1) {
+            call_args.buffer_scratchpad_ptr = call_args.dst_ptrs[m_buffer_output_inplace];
         }
     }
 
@@ -855,8 +867,11 @@ void Subgraph::SubgraphExecutor::init_runtime_params(const std::shared_ptr<CPURu
     OPENVINO_ASSERT(snippet_config, "Runtime Config is empty!");
 
     m_buffer_scratchpad_size = snippet_config->buffer_scratchpad_size;
+    m_buffer_output_inplace = snippet_config->buffer_output_inplace;
     OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(m_buffer_scratchpad_size), "Undefined buffer scratchpad size!");
-    m_buffer_scratchpad.resize(m_buffer_scratchpad_size * parallel_get_max_threads(), 0);
+    if (m_buffer_output_inplace == -1) {
+        m_buffer_scratchpad.resize(m_buffer_scratchpad_size * parallel_get_max_threads(), 0);
+    }
 
     init_parallel_domain(snippet_config, m_parallel_exec_domain);
 

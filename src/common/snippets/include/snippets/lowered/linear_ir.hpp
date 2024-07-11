@@ -81,9 +81,11 @@ public:
     const container& get_results() const { return m_result_expressions; }
     const Config& get_config() const { return m_config; }
     size_t get_static_buffer_scratchpad_size() const { return m_static_buffer_scratchpad_size; }
+    size_t get_static_buffer_output_inplace() const { return m_static_buffer_output_inplace; }
 
     void set_loop_depth(size_t loop_depth) { m_config.m_loop_depth = loop_depth; }
     void set_static_buffer_scratchpad_size(size_t size) { m_static_buffer_scratchpad_size = size; }
+    void set_static_buffer_output_inplace(int flag) { m_static_buffer_output_inplace = flag; }
 
     const ExpressionPtr& get_expr_by_node(const std::shared_ptr<Node>& n) const;
 
@@ -288,6 +290,8 @@ private:
 
     // Size of static Buffer Scratchpad (Buffers with defined allocation size)
     size_t m_static_buffer_scratchpad_size = 0;
+    // buffer share which output memory, -1 means no share
+    int m_static_buffer_output_inplace = -1;
 };
 using LinearIRPtr = std::shared_ptr<LinearIR>;
 

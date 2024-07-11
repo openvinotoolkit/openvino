@@ -129,6 +129,7 @@ void RuntimeConfigurator::init_buffer_info(const std::shared_ptr<lowered::Linear
 
     const auto cluster_count = dynamic_buffer_clusters.size() + static_buffer_clusters.size();
     m_config->buffer_scratchpad_size = linear_ir->get_static_buffer_scratchpad_size();
+    m_config->buffer_output_inplace = linear_ir->get_static_buffer_output_inplace();
     m_config->buffer_cluster_offsets.resize(cluster_count, utils::get_dynamic_value<size_t>());
 
     for (const auto& p : static_buffer_clusters) {

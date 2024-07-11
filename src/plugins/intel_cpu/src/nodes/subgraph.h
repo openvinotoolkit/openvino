@@ -141,6 +141,7 @@ protected:
     // Buffer scratchpad
     std::vector<uint8_t> m_buffer_scratchpad = {};
     size_t m_buffer_scratchpad_size = 0;
+    int m_buffer_output_inplace = -1;
 
     const size_t rank6D = 6;
 
