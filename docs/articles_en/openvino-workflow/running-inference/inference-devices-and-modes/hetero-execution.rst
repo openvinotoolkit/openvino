@@ -103,7 +103,7 @@ It does not take into account device peculiarities such as the inability to infe
 Pipeline Parallelism (Preview)
 --------------------------------
 
-Pipeline parallelism is set via ``ov::hint::model_distribution_policy``. This mode is an efficient technique for inferring large models on multiple devices. The model is divided into multiple stages, with each stage assigned to a different device (``dGPU``, ``iGPU``, ``CPU``, etc.). This mode assigns operations across devices proportionally per available memory size of each device and considering the minimal data transfer between devices. Different stages are executed in sequence of model flow.
+Pipeline parallelism is set via ``ov::hint::model_distribution_policy``. This mode is an efficient technique for inferring large models on multiple devices. The model is divided into multiple stages, with each stage assigned to a different device (``dGPU``, ``iGPU``, ``CPU``, etc.) in the sequence of device priority. This mode estimates memory size required by operations (includes weights memory and runtime memory), assigns operations (stage) to each device per the available memory size and considering the minimal data transfer between devices. Different stages are executed in sequence of model flow.
 
 .. note::
 
