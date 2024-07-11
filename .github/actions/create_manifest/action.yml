@@ -4,6 +4,9 @@ inputs:
   repos:
     description: "Multi-line list of repositories to include to manifest"
     required: true
+  product_type:
+    description: "Unique string to reflect product configuration"
+    required: true
   save_to:
     description: "Path to save manifest to"
     required: true
@@ -34,7 +37,7 @@ runs:
       run: >-
         python ${{ inputs.action_path && inputs.action_path || github.action_path }}/create_manifest.py
         --target_arch "${{ inputs.target_arch }}" --build_type "${{ inputs.build_type }}"
-        --save_to "${{ inputs.save_to }}" -r "${{ inputs.repos }}"
+        --save_to "${{ inputs.save_to }}" --product_type "${{ inputs.product_type }}" -r "${{ inputs.repos }}"
       env:
         BASE_SHA: ${{ github.event.pull_request.base.sha }}
         PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}

@@ -16,6 +16,7 @@ def parse_args():
     parser.add_argument('-e', '--event_name', help='Name of GitHub event', required=False)
     parser.add_argument('-r', '--repos', type=str, help='Paths to repositories to lon in manifest',
                         required=True)
+    parser.add_argument('--product_type', help='Unique string to reflect product configuration', required=True)
     parser.add_argument('--target_arch', help='Target architecture', required=True)
     parser.add_argument('--build_type', help='Build type: release | debug | release_with_debug', required=True)
     parser.add_argument('--save_to', help='Path to save manifest to', required=True)
@@ -117,7 +118,7 @@ def main():
     event_type = 'pre_commit' if event_name == 'pull_request' else 'commit'
 
     repos = args.repos.split()
-    manifest = generate_manifest(repos, args.storage_dir, event_type, args.build_type, args.target_arch)
+    manifest = generate_manifest(repos, args.product_type, event_type, args.build_type, args.target_arch)
 
     logger.info(f"Saving manifest to {args.save_to}")
     manifest.save_manifest(args.save_to)

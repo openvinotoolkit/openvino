@@ -106,6 +106,7 @@ jobs:
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/src/frontends/onnx/tests/ci_utils/onnxruntime
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: '/__w/openvino/openvino/manifest.yml'
+      PRODUCT_TYPE: 'public_linux_ubuntu_20_04_arm64_release'
     if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
@@ -131,6 +132,7 @@ jobs:
             ${{ env.OPENVINO_REPO }}
             ${{ env.OPENVINO_CONTRIB_REPO }}
           action_path: ${{ env.GITHUB_WORKSPACE }}/openvino/.github/actions/create_manifest
+          product_type: ${{ env.PRODUCT_TYPE }}
           target_arch: 'aarch64'
           build_type: 'release'
           save_to: ${{ env.MANIFEST_PATH }}
@@ -318,7 +320,7 @@ jobs:
             ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
             ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
             ${{ env.MANIFEST_PATH }}
-          storage_dir: 'public_linux_ubuntu_20_04_arm64_release'
+          storage_dir: ${{ env.PRODUCT_TYPE }}
           storage_root: ${{ env.ARTIFACTS_SHARE }}
           action_path: ${{ env.GITHUB_WORKSPACE }}/openvino/.github/actions/store_artifacts
 
