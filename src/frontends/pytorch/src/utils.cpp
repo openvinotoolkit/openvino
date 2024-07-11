@@ -247,7 +247,7 @@ OutputVector make_framework_node(const NodeContext& context, const std::string& 
         // Usually mutated input index is 0, because it is usually "self" input, so we need to replace this tensor with
         // output we created.
         context.mutate_input(0, outputs.back());
-        OPENVINO_DEBUG << "Created node with mutated 0 input. Schema: " << schema << '\n';
+        OPENVINO_DEBUG("Created node with mutated 0 input. Schema:", schema, "\n");
         // For simplification we do not expect such operations to have extra bodies
         FRONT_END_OP_CONVERSION_CHECK(context.get_decoder()->get_subgraph_size() == 0,
                                       "Mutable operation has subgraphs.");

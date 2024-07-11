@@ -166,7 +166,7 @@ bool PadTransformation::transform(TransformationContext& context, ov::pass::patt
 
     const auto newOperation = moveDequantizationAfter(context, pad, dequantization);
 
-    OPENVINO_DEBUG << "LPT: done: " << newOperation;
+    OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;
 }
 
