@@ -133,7 +133,7 @@ jobs:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
           submodules: 'true'
-          ref: 'master'
+          ref: 'releases/2024/3'
 
       #
       # Print system info
@@ -620,7 +620,7 @@ jobs:
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
-          ref: 'master'
+          ref: 'releases/2024/3'
 
       #
       # Build
