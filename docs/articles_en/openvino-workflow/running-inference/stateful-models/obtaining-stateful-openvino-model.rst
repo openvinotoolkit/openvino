@@ -209,7 +209,7 @@ To apply LowLatency2 Transformation, follow the instruction below:
             :language: cpp
             :fragment: [ov:replace_const]
 
-Stateful Model from the scratch
+Stateful Model from Scratch
 ##################################
 
 The main approach to obtaining stateful OpenVINO IR models is converting from other
