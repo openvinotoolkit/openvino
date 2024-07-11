@@ -128,19 +128,8 @@ static std::unordered_map<std::string, ov::PartialShape> get_variables_shapes(co
     return variables_shape_map;
 }
 
-template<typename T>
-static int64_t find_sink_position(const ov::SinkVector& sinks, const std::shared_ptr<T>& sink)
-    int64_t pos = 0;
-    for (const auto& s : sinks) {
-        if (s == sink) {
-            return pos;
-        }
-        pos++;
-    };
-    return -1;
-}
-
-static int64_t find_sink_position(const ov::SinkVector& sinks, const std::shared_ptr<const ov::op::Sink>& sink) {
+template <typename T>
+static int64_t find_sink_position(const ov::SinkVector& sinks, const std::shared_ptr<T>& sink) {
     int64_t pos = 0;
     for (const auto& s : sinks) {
         if (s == sink) {
@@ -776,14 +765,12 @@ void regclass_graph_Model(py::module m) {
     model.def(
         "get_sink_index",
         [](ov::Model& self, const ov::Output<ov::Node>& value) -> int64_t {
-            int64_t pos = -1;
             auto node = value.get_node_shared_ptr();
             if (ov::is_type<ov::op::v6::Assign>(node)) {
                 return find_sink_position(self.get_sinks(), std::dynamic_pointer_cast<ov::op::Sink>(node));
             } else {
                 throw py::type_error("Incorrect argument type. Output sink node is expected as argument.");
             }
-            return pos;
         },
         py::arg("value"),
         R"(
@@ -800,14 +787,12 @@ void regclass_graph_Model(py::module m) {
     model.def(
         "get_sink_index",
         [](ov::Model& self, const ov::Output<const ov::Node>& value) -> int64_t {
-            int64_t pos = -1;
             auto node = value.get_node_shared_ptr();
-            if (ov::is_type<ov::op::v6::Assign>(node)) {;
+            if (ov::is_type<ov::op::v6::Assign>(node)) {
                 return find_sink_position(self.get_sinks(), std::dynamic_pointer_cast<const ov::op::Sink>(node));
             } else {
                 throw py::type_error("Incorrect argument type. Output sink node is expected as argument.");
             }
-            return pos;
         },
         py::arg("value"),
         R"(
@@ -824,7 +809,6 @@ void regclass_graph_Model(py::module m) {
     model.def(
         "get_sink_index",
         [](ov::Model& self, const py::object& node) -> int64_t {
-            int64_t pos = -1;
             if (py::isinstance<ov::op::v6::Assign>(node)) {
                 auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node.cast<std::shared_ptr<ov::op::v6::Assign>>());
                 return find_sink_position(self.get_sinks(), sink);
@@ -834,7 +818,6 @@ void regclass_graph_Model(py::module m) {
             } else {
                 throw py::type_error("Incorrect argument type. Sink node is expected as argument.");
             }
-            return pos;
         },
         py::arg("sink"),
         R"(
