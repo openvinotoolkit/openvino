@@ -40,8 +40,22 @@ public:
 private:
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
     std::vector<uint8_t> get_raw_profiling_data() const;
-    void set_tensor_data(std::shared_ptr<ov::ITensor> tensor, const std::string& name, bool isInput);
+
+    /**
+     * @brief Check the received tensor and set the Level Zero tensor accordingly
+     * @param tensor Reference to a tensor.
+     * @param name Friendly name of the tensor.
+     * @param isParameter True if tensor is a parameter.
+     */
+    void set_tensor_data(std::shared_ptr<ov::ITensor> tensor, const std::string& name, bool isParameter);
+
+    /**
+     * @brief Check the received remote tensor and copy it to the Level Zero tensor
+     * @param tensor Reference to a tensor.
+     * @param name Friendly name of the tensor.
+     */
     void set_remote_tensor_data(std::shared_ptr<ZeroRemoteTensor> tensor, const std::string& name);
+
     void check_network_precision(const ov::element::Type_t precision) const override;
     void create_pipeline();
 

@@ -348,7 +348,7 @@ void ZeroInferRequest::create_pipeline() {
     _logger.debug("ZeroInferRequest::create_pipeline - SyncInferRequest completed");
 }
 
-void ZeroInferRequest::set_tensor_data(std::shared_ptr<ov::ITensor> tensor, const std::string& name, bool isInput) {
+void ZeroInferRequest::set_tensor_data(std::shared_ptr<ov::ITensor> tensor, const std::string& name, bool isParameter) {
     bool setTensorData = false;
 
     ze_memory_allocation_properties_t desc = {};
@@ -376,14 +376,14 @@ void ZeroInferRequest::set_tensor_data(std::shared_ptr<ov::ITensor> tensor, cons
         // tensor
         _logger.debug("ZeroInferRequest::set_tensor_data - create locally L0 tensor");
         ov::Allocator allocator;
-        if (isInput && (_properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED)) {
+        if (isParameter && (_properties.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED)) {
             allocator = zeroMemory::HostMemAllocator(_initStructs, ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
         } else {
             allocator = zeroMemory::HostMemAllocator(_initStructs);
         };
 
         IONodeDescriptor descriptor;
-        if (isInput) {
+        if (isParameter) {
             descriptor = _metadata.parameters.at(name);
         } else {
             descriptor = _metadata.results.at(name);
