@@ -267,7 +267,7 @@ jobs:
             ${{ env.MANIFEST_PATH }}
           storage_dir: ${{ env.PRODUCT_TYPE }}
           storage_root: ${{ env.ARTIFACTS_SHARE }}
-          action_path: ${{ env.GITHUB_WORKSPACE }}/openvino/.github/actions/store_artifacts
+          action_path: ${{ github.workspace }}/openvino/.github/actions/store_artifacts
 
   Samples:
     needs: [ Build, Smart_CI ]
