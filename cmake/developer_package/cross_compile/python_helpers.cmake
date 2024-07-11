@@ -76,7 +76,7 @@ macro(ov_find_python3 find_package_mode)
         ov_cross_compile_define_debian_arch()
     endif()
 
-    find_package(Python3 ${find_package_mode} COMPONENTS Interpreter ${python3_development_component})
+    find_package(Python ${find_package_mode} COMPONENTS Interpreter ${python3_development_component})
 
     if(CMAKE_CROSSCOMPILING AND LINUX)
         ov_cross_compile_define_debian_arch_reset()
