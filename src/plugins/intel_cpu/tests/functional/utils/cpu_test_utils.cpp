@@ -518,4 +518,23 @@ CPUTestsBase::deduce_expected_precision(const ov::element::Type& opPrecision,
     return deducedType;
 #endif
 }
+
+bool containsNonSupportedFormat(const std::vector<cpu_memory_format_t>& formats, const std::vector<cpu_memory_format_t>& non_supported_f) {
+    for (const auto& format : formats) {
+        if (std::find(non_supported_f.begin(), non_supported_f.end(), format) != non_supported_f.end()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool containsSupportedFormatsOnly(const std::vector<cpu_memory_format_t>& formats, const std::vector<cpu_memory_format_t>& supported_f) {
+    for (const auto& format : formats) {
+        if (std::find(supported_f.begin(), supported_f.end(), format) == supported_f.end()) {
+            return false;
+        }
+    }
+    return true;
+}
+
 }  // namespace CPUTestUtils

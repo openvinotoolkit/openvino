@@ -78,19 +78,10 @@ std::vector<CPUSpecificParams> filterCPUSpecificParams(const std::vector<CPUSpec
                                [](CPUSpecificParams param) {
                                                     const int inMemoryFormatTypeIndex = 0;
                                                     std::vector<CPUTestUtils::cpu_memory_format_t> inFormat = std::get<inMemoryFormatTypeIndex>(param);
-                                                    for (const CPUTestUtils::cpu_memory_format_t& elem : inFormat) {
-                                                        if (std::find(supported_f.begin(), supported_f.end(), elem) == supported_f.end()) {
-                                                            return true;
-                                                        }
-                                                    }
                                                     const int outMemoryFormatIndex = 1;
                                                     std::vector<CPUTestUtils::cpu_memory_format_t> outFormat = std::get<outMemoryFormatIndex>(param);
-                                                    for (const CPUTestUtils::cpu_memory_format_t& elem : outFormat) {
-                                                        if (std::find(supported_f.begin(), supported_f.end(), elem) == supported_f.end()) {
-                                                            return true;
-                                                        }
-                                                    }
-                                                    return false;
+                                                    return !containsSupportedFormatsOnly(inFormat, supported_f) ||
+                                                           !containsSupportedFormatsOnly(outFormat, supported_f);
                                                  }),
                                 filteredParamsVector.end());
     return filteredParamsVector;

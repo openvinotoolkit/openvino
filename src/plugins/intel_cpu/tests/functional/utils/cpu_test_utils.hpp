@@ -185,4 +185,8 @@ void CheckNumberOfNodesWithType(const ov::CompiledModel& compiledModel,
 void CheckNumberOfNodesWithTypes(const ov::CompiledModel& compiledModel,
                                  const std::unordered_set<std::string>& nodeTypes,
                                  size_t expectedCount);
+bool containsNonSupportedFormat(const std::vector<cpu_memory_format_t>& formats,
+                                const std::vector<cpu_memory_format_t>& non_supported_f);
+bool containsSupportedFormatsOnly(const std::vector<cpu_memory_format_t>& formats,
+                                  const std::vector<cpu_memory_format_t>& supported_f);
 }  // namespace CPUTestUtils

@@ -94,19 +94,10 @@ std::vector<CPUSpecificParams> filterCPUSpecificParams(const std::vector<CPUSpec
                                 [](CPUSpecificParams param) {
                                                         const int inMemoryFormatTypeIndex = 0;
                                                         std::vector<cpu_memory_format_t> inFormat = std::get<inMemoryFormatTypeIndex>(param);
-                                                        for (const cpu_memory_format_t& elem : inFormat) {
-                                                            if (std::find(non_supported_f.begin(), non_supported_f.end(), elem) != non_supported_f.end()) {
-                                                                return true;
-                                                            }
-                                                        }
                                                         const int outMemoryFormatIndex = 1;
                                                         std::vector<cpu_memory_format_t> outFormat = std::get<outMemoryFormatIndex>(param);
-                                                        for (const cpu_memory_format_t& elem : outFormat) {
-                                                            if (std::find(non_supported_f.begin(), non_supported_f.end(), elem) != non_supported_f.end()) {
-                                                                return true;
-                                                            }
-                                                        }
-                                                        return false;
+                                                        return containsNonSupportedFormat(inFormat, non_supported_f) ||
+                                                               containsNonSupportedFormat(outFormat, non_supported_f);
                                                     }),
                                     filteredParamsVector.end());
     }
