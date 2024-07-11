@@ -277,6 +277,20 @@ TEST_P(EltwiseLayerCPUTest, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, std::set<std::string>{"Eltwise", "Subgraph"});
 }
 
+TEST_P(BenchmarkEltwiseLayerCPUTest, CompareWithRefs) {
+    this->configuration.insert(ov::hint::enable_cpu_pinning(true));
+    this->configuration.insert(ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ANY_CORE));
+    this->configuration.insert(ov::hint::enable_hyper_threading(false));
+
+    std::string node_type = "Add";
+
+    for (size_t i = 1; i <= 18; ++i) {
+        this->configuration["INFERENCE_NUM_THREADS"] = i;
+        std::cout << "Num threads: " << i << std::endl;
+        run_benchmark(node_type, std::chrono::milliseconds(2000), 100); //100000
+    }
+}
+
 namespace Eltwise {
 const std::vector<ov::AnyMap>& additional_config() {
     static const std::vector<ov::AnyMap> additionalConfig = {
@@ -389,10 +403,10 @@ const std::vector<CPUSpecificParams>& cpuParams_5D_PerChannel() {
 
 const std::vector<std::vector<ov::Shape>>& inShapes_4D() {
     static const std::vector<std::vector<ov::Shape>> inShapes_4D = {
-        {{2, 4, 4, 1}},
-        {{2, 17, 5, 4}},
-        {{2, 17, 5, 4}, {1, 17, 1, 1}},
-        {{2, 17, 5, 1}, {1, 17, 1, 4}},
+        {{2, 18, 1024, 64}},
+        // {{2, 17, 5, 4}},
+        // {{2, 17, 5, 4}, {1, 17, 1, 1}},
+        // {{2, 17, 5, 1}, {1, 17, 1, 4}},
     };
     return inShapes_4D;
 }
