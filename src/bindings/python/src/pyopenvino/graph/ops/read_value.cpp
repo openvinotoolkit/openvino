@@ -5,7 +5,11 @@
 #include "pyopenvino/graph/ops/read_value.hpp"
 
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "pyopenvino/core/common.hpp"
@@ -18,29 +22,27 @@ void regclass_graph_op_ReadValue(py::module m) {
     read_value.doc() = "openvino.runtime.op.read_value wraps ov::op::v6::ReadValue";
 
     read_value.def(py::init<>());
-        read_value.def(py::init([](py::object& new_value,
-                               const std::shared_ptr<ov::op::util::Variable>& variable,
-                               const std::string& name) {
-                                if (py::isinstance<ov::Node>(new_value)) {
-                                    auto node = new_value.cast<std::shared_ptr<ov::Node>>();
-                                    return std::make_shared<ov::op::v6::ReadValue>(node, variable);
-                                } else if (py::isinstance<const ov::Output<ov::Node>>(new_value) || py::isinstance<ov::Output<ov::Node>>(new_value)) {
-                                    auto output = new_value.cast<const ov::Output<ov::Node>>();
-                                    return std::make_shared<ov::op::v6::ReadValue>(output, variable);
-                                } else {
-                                    py::type_error("Wrong type");
-                                }
+
+    read_value.def(py::init([](const py::object& new_value,
+                               const std::shared_ptr<ov::op::util::Variable>& variable) {
+                       if (py::isinstance<ov::Node>(new_value)) {
+                           auto node = new_value.cast<std::shared_ptr<ov::Node>>();
+                           return std::make_shared<ov::op::v6::ReadValue>(node, variable);
+                       } else if (py::isinstance<const ov::Output<ov::Node>>(new_value) ||
+                                  py::isinstance<ov::Output<ov::Node>>(new_value)) {
+                           auto output = new_value.cast<const ov::Output<ov::Node>>();
+                           return std::make_shared<ov::op::v6::ReadValue>(output, variable);
+                       } else {
+                           throw py::type_error("Wrong type");
+                       }
                    }),
                    py::arg("new_value"),
-                   py::arg("variable"),
-                   py::arg("name") = "");
+                   py::arg("variable"));
 
-    read_value.def(py::init([](const std::shared_ptr<ov::op::util::Variable>& variable, const std::string& name) {
+    read_value.def(py::init([](const std::shared_ptr<ov::op::util::Variable>& variable) {
                        return std::make_shared<ov::op::v6::ReadValue>(variable);
                    }),
-                   py::arg("variable"),
-                   py::arg("name") = "");
-
+                   py::arg("variable"));
 
     read_value.def(
         "get_variable_id",

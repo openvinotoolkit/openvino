@@ -21,6 +21,7 @@ from openvino import (
 )
 
 from openvino.runtime.op import Parameter, Constant
+from openvino.runtime.op.util import VariableInfo, Variable
 from openvino.runtime import AxisVector, Coordinate, CoordinateDiff
 from openvino._pyopenvino import DescriptorTensor
 
@@ -535,16 +536,32 @@ def test_multiple_outputs():
     assert list(relu.get_output_shape(0)) == [4, 2]
 
 
-def test_sink_model_ctor():
+def test_sink_model_ctors():
     model = generate_model_with_memory(input_shape=[2, 2], data_type=np.float32)
+
+    var_info = VariableInfo()
+    var_info.data_shape = PartialShape([2, 1])
+    var_info.data_type = Type.f32
+    var_info.variable_id = "v1"
+    variable_1 = Variable(var_info)
+
+    init_val = ops.constant(np.zeros(Shape([2, 1])), Type.f32)
+    
+    rv = ops.read_value(init_val, variable_1)
+    assign = ops.assign(rv, variable_1)
+
+    model.add_variables([variable_1])
+    model.add_sinks([assign])
+
+    model.validate_nodes_and_infer_types()
 
     ordered_ops = model.get_ordered_ops()
     op_types = [op.get_type_name() for op in ordered_ops]
     sinks = model.get_sinks()
-    assert ["Assign"] == [sink.get_type_name() for sink in sinks]
+    assert ["Assign", "Assign"] == [sink.get_type_name() for sink in sinks]
     assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
-    assert op_types == ["Parameter", "Constant", "ReadValue", "Add", "Assign", "Result"]
-    assert len(model.get_ops()) == 6
+    assert op_types == ['Parameter', 'Constant', 'ReadValue', 'Assign', 'Constant', 'ReadValue', 'Add', 'Assign', 'Result']
+    assert len(model.get_ops()) == 9
     assert model.get_output_size() == 1
     assert model.get_output_op(0).get_type_name() == "Result"
     assert model.get_output_element_type(0) == model.get_parameters()[0].get_element_type()

@@ -2,8 +2,10 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import numpy as np
+
 """Factory functions for all openvino ops."""
-from typing import Optional, Union, Dict, Any
+from typing import Optional, Union
 
 from functools import partial, singledispatch
 
@@ -12,17 +14,16 @@ from openvino.runtime.op import assign, Constant, Parameter
 from openvino.runtime.op import read_value as _read_value
 from openvino.runtime.op.util import VariableInfo, Variable
 from openvino.runtime.opset_utils import _get_node_factory
-from openvino.runtime.utils.decorators import nameable_op, multimethod
+from openvino.runtime.utils.decorators import nameable_op, overload
 from openvino.runtime.utils.types import (
     NodeInput,
     NumericType,
     TensorShape,
     as_node,
     as_nodes,
-    get_element_type_str,
+    get_element_type,
 )
 
-overload = multimethod
 _get_node_factory_opset6 = partial(_get_node_factory, "opset6")
 
 # -------------------------------------------- ops ------------------------------------------------
@@ -114,11 +115,11 @@ def mvn(
     return _get_node_factory_opset6().create("MVN", inputs, attributes)
 
 
-@overload(Union[Node, Output], str, Optional[Union[NumericType, Type, str]], Optional[Union[TensorShape, Shape]], Optional[str])
+@overload(Union[Node, Output], str, Optional[Union[type, np.dtype, Type, str]], Optional[Union[TensorShape, Shape]], Optional[str])
 @nameable_op
-def read_value(init_value: NodeInput,
+def read_value(init_value: Union[Node, Output],
                variable_id: str,
-               variable_type: Optional[Union[NumericType, Type, str]] = None,
+               variable_type: Optional[Union[type, np.dtype, Type, str]] = None,
                variable_shape: Optional[Union[TensorShape, Shape]] = None,
                name: Optional[str] = None) -> Node:
     """Return a node which produces the Assign operation.
@@ -134,8 +135,9 @@ def read_value(init_value: NodeInput,
     info.variable_id = variable_id
 
     if variable_type is not None:
+        print(variable_type, type(variable_type))
         if not isinstance(variable_type, Type) and not isinstance(variable_type, str):
-            info.data_type = get_element_type_str(variable_type)
+            info.data_type = get_element_type(variable_type)
         else:
             info.data_type = variable_type
 
@@ -143,15 +145,15 @@ def read_value(init_value: NodeInput,
         info.data_shape = PartialShape(variable_shape)
 
     var_from_info = Variable(info)
-    # check for None name
-    return _read_value(as_node(init_value, name=name), var_from_info, "")
+    print(type(as_node(init_value, name=name)), type(var_from_info), name)
+    return _read_value(new_value=as_node(init_value, name=name), variable=var_from_info)
 
 
-@overload(str, Optional[Union[NumericType, Type, str]], Optional[Union[TensorShape, Shape]], Optional[str])
+@overload(str, Optional[Union[type, np.dtype, Type, str]], Optional[Union[TensorShape, Shape]], Optional[str])
 def read_value(variable_id: str,
-                variable_type: Optional[Union[NumericType, Type, str]] = None,
-                variable_shape: Optional[Union[TensorShape, Shape]] = None,
-                name: Optional[str] = None) -> Node:
+               variable_type: Optional[Union[type, np.dtype, Type, str]] = None,
+               variable_shape: Optional[Union[TensorShape, Shape]] = None,
+               name: Optional[str] = None) -> Node:
     """Return a node which produces the Assign operation.
 
     :param variable_id:  Id of a variable to be read.
@@ -165,7 +167,7 @@ def read_value(variable_id: str,
 
     if variable_type is not None:
         if not isinstance(variable_type, Type) and not isinstance(variable_type, str):
-            info.data_type = get_element_type_str(variable_type)
+            info.data_type = get_element_type(variable_type)
         else:
             info.data_type = variable_type
 
@@ -174,12 +176,12 @@ def read_value(variable_id: str,
 
     var_from_info = Variable(info)
 
-    return _read_value(var_from_info, name)
+    return _read_value(var_from_info)
 
 
 @overload(Variable, Optional[str])
 def read_value(variable: Variable,
-      name: Optional[str] = None) -> Node:
+               name: Optional[str] = None) -> Node:
     """Return a node which produces the Assign operation.
 
     :param variable:  Variable to be read.
@@ -187,14 +189,12 @@ def read_value(variable: Variable,
     :param name:         Optional name for output node.
     :return: ReadValue node
     """
-    # if init_value is not None:
-    #     return _read_value(as_node(init_value, name=name), variable, name)
 
-    return _read_value(variable, name)
+    return _read_value(variable)
 
 
 @overload(Union[Node, Output], Variable, Optional[str])
-def read_value(init_value: NodeInput,
+def read_value(init_value: Union[Node, Output],
                variable: Variable,
                name: Optional[str] = None) -> Node:
     """Return a node which produces the Assign operation.
@@ -204,4 +204,4 @@ def read_value(init_value: NodeInput,
     :param name:         Optional name for output node.
     :return: ReadValue node
     """
-    return _read_value(as_node(init_value, name=name), variable, name)
+    return _read_value(as_node(init_value, name=name), variable)

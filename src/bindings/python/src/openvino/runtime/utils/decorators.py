@@ -79,8 +79,11 @@ class MultiMethod(object):
     # Checks if actual_type is a subclass of any type in the union
     def matches_union(self, union_type, actual_type):
         for type_arg in get_args(union_type):
-            if isinstance(type_arg, type) and issubclass(actual_type, type_arg):
+            if isinstance(type_arg, type): # and issubclass(actual_type, type_arg):
                 return True
+            elif type_arg == List[int]:
+                if isinstance(actual_type, list) and all(isinstance(item, int) for item in actual_type):
+                    return True
         return False
 
     def matches_optional(self, optional_type, actual_type):
@@ -90,11 +93,14 @@ class MultiMethod(object):
     def check_invoked_types_in_overloaded_funcs(self, tuple_to_check, key_structure):
         for actual_type, expected_type in zip(tuple_to_check, key_structure):
             origin = get_origin(expected_type)
+            print("origin:", expected_type)
             if origin is Union:
                 if not self.matches_union(expected_type, actual_type):
+                    print("not uni")
                     return False
             elif origin is Optional:
                 if not self.matches_optional(expected_type, actual_type):
+                    print("not opt")
                     return False
             elif not issubclass(actual_type, expected_type):
                 return False
@@ -102,8 +108,10 @@ class MultiMethod(object):
 
     def __call__(self, *args):
         types = tuple(arg.__class__ for arg in args)
+        print(types)
         key_matched = None
         for key in self.typemap.keys():
+            print("key: ", key)
             if self.check_invoked_types_in_overloaded_funcs(types, key):
                 key_matched = key
                 break
@@ -119,7 +127,7 @@ class MultiMethod(object):
         self.typemap[types] = function
 
 
-def multimethod(*types):
+def overload(*types):
     def register(function):
         name = function.__name__
         mm = registry.get(name)

@@ -24,7 +24,7 @@ from openvino import (
     serialize,
     save_model,
 )
-from openvino.runtime import Output, Node
+from openvino.runtime import Output
 from openvino.runtime.op.util import VariableInfo, Variable
 
 from tests.utils.helpers import (
@@ -722,39 +722,6 @@ def test_model_add_remove_variable():
     assert variable_by_id.info.variable_id == "var_id_667"
     model.remove_variable(variable_1)
     assert len(model.get_variables()) == 1
-
-
-def test_complicated_model():
-    model = generate_model_with_memory(input_shape=Shape([2, 1]), data_type=Type.f32)
-
-    init_val = ops.constant(np.zeros(Shape([2, 1])), Type.f32)
-
-    var_info = VariableInfo()
-    var_info.data_shape = PartialShape([2, 1])
-    var_info.data_type = Type.f32
-    var_info.variable_id = "v1"
-    variable_1 = Variable(var_info)
-
-    rv = ops.read_value(init_val, variable_1)
-    assign = ops.assign(rv, variable_1)
-
-    model.add_variables([variable_1])
-    model.add_sinks([assign])
-
-    var_info = VariableInfo()
-    var_info.data_shape = PartialShape([2, 1])
-    var_info.data_type = Type.f32
-    var_info.variable_id = "v1"
-    variable_1 = Variable(var_info)
-
-    # assert len(model.get_variables()) == 1
-    # #model.add_variables([variable_1])
-    # #assert len(model.get_variables()) == 2
-    # variable_by_id = model.get_variable_by_id("var_id_667")
-    # assert variable_by_id.info.variable_id == "var_id_667"
-    model.validate_nodes_and_infer_types()
-    # model.remove_variable(variable_1)
-    # assert len(model.get_variables()) == 1
 
 
 def test_save_model_with_none():
