@@ -253,6 +253,101 @@ class BenchmarkAppPerformanceMode(Mode):
                 ci=super().getCommitInfo(commit),
                 d=commit.perfRel)
 
+class AccuracyCheckerMode(Mode):
+    def __init__(self, cfg):
+        super().__init__(cfg)
+        self.thresholdPattern = ":\s([0-9]*[.][0-9]*)%.*abs error"
+        self.breakThroughput = 0
+        self.createCash()
+
+    def prepareRun(self, list, cfg):
+        super().prepareRun(list, cfg)
+        sampleCommit = list[0]
+        sampleCommit = sampleCommit.replace('"', "")
+        self.commonLogger.info(
+            "Prepare sample commit - {commit}".format(commit=sampleCommit)
+        )
+        commitLogger = getCommitLogger(cfg, sampleCommit)
+        foundThroughput = 0
+        isCommitCashed, cashedThroughput = self.getCommitIfCashed(sampleCommit)
+        if isCommitCashed:
+            logMsg = "Cashed commit - {commit}".format(commit=sampleCommit)
+            self.commonLogger.info(logMsg)
+            commitLogger.info(logMsg)
+            foundThroughput = cashedThroughput
+        else:
+            handleCommit(sampleCommit, cfg)
+            output = fetchAppOutput(cfg, sampleCommit)
+            commitLogger.info(output)
+            foundThroughput = re.search(
+                self.thresholdPattern, output, flags=re.MULTILINE
+            ).group(1)
+            self.setCommitCash(sampleCommit, float(foundThroughput))
+        self.sampleThroughput = float(foundThroughput)
+        return list
+
+    def checkCfg(self, cfg):
+        super().checkCfg(cfg)
+        if not ("threshold" in cfg["runConfig"]):
+            raise CfgError("Threshold is not configured")
+        else:
+            self.threshold = cfg["runConfig"]["threshold"]
+            self.threshold = float(self.threshold.strip('%'))
+
+
+    def compareCommits(self, lCommit: str, rCommit: str, cfg: map):
+        leftThroughput = self.getPseudoMetric(lCommit, cfg)
+        rightThroughput = self.getPseudoMetric(rCommit, cfg)
+        isLeftGood = leftThroughput >= float(self.threshold)
+        isRightGood = rightThroughput >= float(self.threshold)
+        if not isRightGood:
+            self.breakThroughput = rightThroughput
+        curCommit = rCommit.replace('"', "")
+        commitLogger = getCommitLogger(cfg, curCommit)
+        commitLogger.info("Current accuracy is {}%".format(rightThroughput))
+        commitLogger.info(
+            "Commit is {status}".format(status=("bad" if isRightGood else "good"))
+        )
+        return isLeftGood != isRightGood
+
+    def getPseudoMetric(self, commit, cfg):
+        commit = commit.replace('"', "")
+        curThroughput = 0
+        commitLogger = getCommitLogger(cfg, commit)
+        isCommitCashed, cashedThroughput = self.getCommitIfCashed(commit)
+        pc = Mode.CommitPath.PathCommit(
+            commit,
+            Mode.CommitPath.CommitState.DEFAULT
+        )
+        self.setOutputInfo(pc)
+        self.commitPath.accept(self.traversal, pc)
+        if isCommitCashed:
+            logMsg = "Cashed commit - {commit}".format(commit=commit)
+            self.commonLogger.info(logMsg)
+            commitLogger.info(logMsg)
+            curThroughput = cashedThroughput
+        else:
+            self.commonLogger.info("New commit: {commit}".format(
+                commit=commit)
+            )
+            handleCommit(commit, cfg)
+            output = fetchAppOutput(cfg, commit)
+            commitLogger.info(output)
+            foundThroughput = re.search(
+                self.thresholdPattern, output, flags=re.MULTILINE
+            ).group(1)
+            curThroughput = float(foundThroughput)
+            self.setCommitCash(commit, curThroughput)
+        return curThroughput
+
+    def setOutputInfo(self, pathCommit):
+        pathCommit.breakThroughput = self.breakThroughput
+
+    def getCommitInfo(self, commit):
+        return "{ci}, throughput = {d}".format(
+                ci=super().getCommitInfo(commit),
+                d=commit.breakThroughput)
+
 
 class CompareBlobsMode(Mode):
     def __init__(self, cfg):
