@@ -59,7 +59,7 @@ bool ConvertTransformation::transform(TransformationContext& context, ov::pass::
 
     subtract->set_friendly_name(convert->get_friendly_name());
 
-    OPENVINO_DEBUG << "LPT: done: " << subtract;
+    OPENVINO_DEBUG("LPT: done: ", subtract);
     return true;
 }
 
