@@ -5,7 +5,7 @@ import logging
 import os
 from datetime import timezone
 from pathlib import Path
-from typing import re
+import re
 import git
 
 from manifest_manager import Manifest, Repository, Component
