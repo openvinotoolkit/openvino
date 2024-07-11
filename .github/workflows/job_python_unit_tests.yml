@@ -297,7 +297,7 @@ jobs:
         if: ${{ fromJSON(inputs.affected-components).Python_API.test }}
         run: |
           python3 -m pip uninstall -y numpy
-          python3 -m pip install "numpy>=2.0.0"
+          python3 -m pip install "numpy>=2.0.0,<2.1.0"
           python3 -m pip install -r ${INSTALL_TEST_DIR}/bindings/python/requirements_test.txt
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
