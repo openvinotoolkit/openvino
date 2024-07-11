@@ -8,8 +8,10 @@
 namespace ov {
 namespace op {
 namespace v0 {
+OPENVINO_SUPPRESS_DEPRECATED_START
 template <class TShape>
 std::vector<result_shape_t<TShape>> shape_infer(const LSTMSequence* op, const std::vector<TShape>& input_shapes) {
+    OPENVINO_SUPPRESS_DEPRECATED_END
     constexpr auto num_gates = 4;
     constexpr auto num_state_nodes = 2;
     const auto output_shapes =
