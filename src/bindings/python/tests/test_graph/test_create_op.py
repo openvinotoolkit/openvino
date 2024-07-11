@@ -1239,6 +1239,7 @@ def test_assign():
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [5, 7]
     assert node.get_output_element_type(0) == Type.i32
+    assert node.get_variable_id() == "var_id_667"
     assert assign_attributes["variable_id"] == "var_id_667"
 
 
