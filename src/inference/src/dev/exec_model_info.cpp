@@ -18,8 +18,8 @@ std::shared_ptr<ov::Node> ov::exec_model_info::ExecutionNode::clone_with_new_inp
 
     cloned->set_arguments(inputs);
 
-    for (auto kvp : get_rt_info())
-        cloned->get_rt_info()[kvp.first] = kvp.second;
+    for (const auto& [key, val] : get_rt_info())
+        cloned->get_rt_info()[key] = val;
 
     for (size_t i = 0; i < get_output_size(); ++i)
         cloned->set_output_type(i, get_output_element_type(i), get_output_partial_shape(i));

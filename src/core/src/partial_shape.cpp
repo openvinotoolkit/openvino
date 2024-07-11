@@ -44,7 +44,7 @@ ov::PartialShape::PartialShape(const std::string& value) {
         OPENVINO_ASSERT(!field.empty(), "Cannot get vector of dimensions! \"" + value + "\" is incorrect");
         dims.insert(dims.end(), Dimension(field));
     }
-    m_dimensions = dims;
+    m_dimensions = std::move(dims);
 }
 
 ov::PartialShape::PartialShape(bool rank_is_static, std::vector<Dimension> dimensions)
