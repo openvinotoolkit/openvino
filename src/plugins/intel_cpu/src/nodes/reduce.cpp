@@ -968,6 +968,9 @@ private:
         Ymm ymm_dst = Ymm(vmm_dst.getIdx());
 
         if (convert_f32_to_i32(dst_dt)) {
+            if (!isFloatCompatible(jcp_.src_dt)) {
+                uni_vroundps(vmm_dst, vmm_dst, 3); // rounding to zero
+            }
             uni_vcvtps2dq(vmm_dst, vmm_dst);
         }
 
@@ -1019,6 +1022,9 @@ private:
 
     inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, memory::data_type dst_dt) {
         if (convert_f32_to_i32(dst_dt)) {
+            if (!isFloatCompatible(jcp_.src_dt)) {
+                uni_vroundps(xmm_dst, xmm_dst, 3);
+            }
             uni_vcvtps2dq(xmm_dst, xmm_dst);
         }
 
@@ -1648,6 +1654,9 @@ private:
         Ymm ymm_dst = Ymm(vmm_dst.getIdx());
 
         if (!isFloatCompatible(dst_dt)) {
+            if (!isFloatCompatible(jcp_.src_dt)) {
+                uni_vroundps(vmm_dst, vmm_dst, 3);
+            }
             uni_vcvtps2dq(vmm_dst, vmm_dst);
         }
 
@@ -1699,6 +1708,9 @@ private:
 
     inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, memory::data_type dst_dt) {
         if (!isFloatCompatible(dst_dt)) {
+            if (!isFloatCompatible(jcp_.src_dt)) {
+                uni_vroundps(xmm_dst, xmm_dst, 3);
+            }
             uni_vcvtps2dq(xmm_dst, xmm_dst);
         }
 
@@ -2124,7 +2136,10 @@ void Reduce::prepareParams() {
     if (compile_post_kernel) {
         setPostOps(attr, dst_dims, true);
 
-        ReduceKey key = {jcp, attr.get_post_ops()};
+        auto reduce_post_jcp = jcp;
+        reduce_post_jcp.src_dt = fuse_low_precision ? DnnlExtensionUtils::ElementTypeToDataType(intermediate_prec) : jcp.src_dt;
+        reduce_post_jcp.src_data_size = DnnlExtensionUtils::sizeOfDataType(reduce_post_jcp.src_dt);
+        ReduceKey key = {reduce_post_jcp, attr.get_post_ops()};
         auto cache = context->getParamsCache();
         auto result = cache->getOrCreate(key, builder);
         if (!result.first) {
