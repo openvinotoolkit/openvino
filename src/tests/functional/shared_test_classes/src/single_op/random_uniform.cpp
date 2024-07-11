@@ -13,7 +13,7 @@ std::string RandomUniformLayerTest::getTestCaseName(const testing::TestParamInfo
     ov::Shape input_shape;
     int64_t global_seed;
     int64_t op_seed;
-    ov::op::PhilloxAlignment alignment;
+    ov::op::PhiloxAlignment alignment;
     std::string target_device;
     std::tie(input_shape, random_uniform_params, global_seed, op_seed, alignment, target_device) = obj.param;
 
@@ -34,7 +34,7 @@ void RandomUniformLayerTest::SetUp() {
     ov::Shape input_shape;
     int64_t global_seed;
     int64_t op_seed;
-    ov::op::PhilloxAlignment alignment;
+    ov::op::PhiloxAlignment alignment;
     std::tie(input_shape, random_uniform_params, global_seed, op_seed, alignment, targetDevice) = this->GetParam();
     auto model_type = random_uniform_params.model_type;
 
