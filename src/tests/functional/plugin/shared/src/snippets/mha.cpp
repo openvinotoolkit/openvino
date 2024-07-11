@@ -51,10 +51,7 @@ std::string MHA::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAP
             result << "_" << item.first << "=" << item.second.as<std::string>();
         }
     }
-    // todo: the following lines are needed for correct tests representation in clion ide. remove before merge
-    auto res = result.str();
-    std::replace(res.begin(), res.end(), ',', '.');
-    return res;
+    return result.str();
 }
 
 void MHA::SetUp() {

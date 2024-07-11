@@ -26,9 +26,7 @@ std::string MatMul::getTestCaseName(testing::TestParamInfo<ov::test::snippets::M
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
     result << "targetDevice=" << targetDevice;
-    auto str = result.str();
-    std::replace(str.begin(), str.end(), ',', '.');
-    return str;
+    return result.str();
 }
 
 void MatMul::SetUp() {
