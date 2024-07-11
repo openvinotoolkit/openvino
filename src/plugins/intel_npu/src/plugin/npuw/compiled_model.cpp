@@ -29,6 +29,7 @@
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "transformations/convert_precision.hpp"
 
 namespace {
 void split_properties(const ov::AnyMap& properties,
@@ -126,6 +127,9 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             LOG_VERB(r);
         }
     }
+
+    // FIXME: Find a better place to call this transformation
+    ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(model);
 
     auto partitioning = getPartitioning(model, m_cfg);
     m_total_stat.gflops = partitioning.total_gflops;
