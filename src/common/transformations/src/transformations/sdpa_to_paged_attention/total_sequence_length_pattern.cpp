@@ -65,8 +65,8 @@ ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
             // dimension here so the next comparison would fail
             if (concat->get_output_partial_shape(0).is_static()) {
                 const auto& concat_output_shape = concat->output(0).get_partial_shape();
-                concat_axis_to_compare = ov::util::normalize(concat_axis_to_compare,
-                                                             concat_output_shape.rank().get_length());
+                concat_axis_to_compare =
+                    ov::util::normalize(concat_axis_to_compare, concat_output_shape.rank().get_length());
             }
         }
 
