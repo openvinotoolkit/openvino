@@ -13,6 +13,7 @@
 #include <openvino/core/type/float16.hpp>
 #include "openvino/runtime/make_tensor.hpp"
 #include <sstream>
+#include <numeric>
 
 #include "logging.hpp"
 #include "openvino/op/constant.hpp"
@@ -1150,6 +1151,29 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
     to->copy_to(tmp_itensor._ptr);
     tmp_itensor->copy_to(to._ptr);
     std::cout << "To new shape: " << to->get_shape() << std::endl;
+
+    // Test
+    ov::Shape orig_shape = {1, 3, 5, 5};
+    ov::Tensor orig_tensor(ov::element::f32, orig_shape);
+    std::vector<float> sample_data(orig_tensor.get_size());
+    std::iota(sample_data.begin(), sample_data.end(), 0);
+    std::memcpy(orig_tensor.data(), sample_data.data(), sample_data.size() * sizeof(float));
+    ov::SoPtr<ov::ITensor> orig_itensor = get_tensor_impl(orig_tensor);
+    ov::Shape new_shape = {orig_shape[0], orig_shape[2], orig_shape[3], orig_shape[1]};
+    ov::Tensor tmp_tensor(orig_tensor.get_element_type(), new_shape);
+    ov::SoPtr<ov::ITensor> tmp_itensor = get_tensor_impl(tmp_tensor);
+    orig_itensor->set_shape(new_shape);
+    orig_itensor->copy_to(tmp_itensor._ptr);
+    tmp_itensor->copy_to(orig_itensor._ptr);
+    float* tensor_data = static_cast<float*>(orig_itensor->data(ov::element::f32));
+    size_t total_elements = std::accumulate(orig_shape.begin(), orig_shape.end(), 1, std::multiplies<size_t>());
+    for (size_t i = 0; i < total_elements; ++i) {
+        std::cout << tensor_data[i] << " ";
+        if ((i + 1) % orig_shape.back() == 0) {
+            std::cout << std::endl;
+        }
+    }
+
 }
 
 template <typename InT>
