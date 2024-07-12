@@ -172,12 +172,99 @@ void LayerTestsCommon::Compare(const std::vector<std::pair<ngraph::element::Type
     }
 }
 
+inline void callCompareBool(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
+                        const uint8_t* actualBuffer, size_t size, float threshold, float abs_threshold) {
+    auto expectedBuffer = expected.second.data();
+#define CASE(X)                                                                                                     \
+    case X: {                                                                                                       \
+        auto typedExpectedBuffer = reinterpret_cast<const ov::element_type_traits<X>::value_type*>(expectedBuffer); \
+        for (size_t i = 0; i < size; ++i) {                                                                         \
+            ASSERT_EQ(static_cast<bool>(actualBuffer[i]), static_cast<bool>(typedExpectedBuffer[i])) <<             \
+                    "Comparison of bool values failed at index: " << i << " expected value: " <<                    \
+                    (static_cast<bool>(expectedBuffer[i]) ? "True" : "False") <<                                    \
+                    " and actual value: " <<                                                                        \
+                    (static_cast<bool>(actualBuffer[i]) ? "True" : "False");                                        \
+        }                                                                                                           \
+        break;                                                                                                      \
+    }
+
+    switch (expected.first) {
+        CASE(ngraph::element::Type_t::boolean)
+        CASE(ngraph::element::Type_t::u8)
+        CASE(ngraph::element::Type_t::i8)
+        CASE(ngraph::element::Type_t::u16)
+        CASE(ngraph::element::Type_t::i16)
+        CASE(ngraph::element::Type_t::u32)
+        CASE(ngraph::element::Type_t::i32)
+        CASE(ngraph::element::Type_t::u64)
+        CASE(ngraph::element::Type_t::i64)
+        CASE(ngraph::element::Type_t::bf16)
+        CASE(ngraph::element::Type_t::f16)
+        CASE(ngraph::element::Type_t::f32)
+        CASE(ngraph::element::Type_t::f64)
+        case ngraph::element::Type_t::i4: {
+            auto expectedOut = ngraph::helpers::convertOutputPrecision(
+                    expected.second,
+                    expected.first,
+                    ngraph::element::Type_t::i8,
+                    size);
+            for (size_t i = 0; i < size; ++i) {
+                ASSERT_EQ(static_cast<bool>(actualBuffer[i]), static_cast<bool>(expectedOut[i])) <<
+                    "Comparison of bool values failed at index: " << i << " expected value: " <<
+                    (static_cast<bool>(expectedOut[i]) ? "True" : "False") <<
+                    " and actual value: " <<
+                    (static_cast<bool>(actualBuffer[i]) ? "True" : "False");
+            }
+            break;
+        }
+        case ngraph::element::Type_t::u4: {
+            auto expectedOut = ngraph::helpers::convertOutputPrecision(
+                    expected.second,
+                    expected.first,
+                    ngraph::element::Type_t::u8,
+                    size);
+            for (size_t i = 0; i < size; ++i) {
+                ASSERT_EQ(static_cast<bool>(actualBuffer[i]), static_cast<bool>(expectedOut[i])) <<
+                    "Comparison of bool values failed at index: " << i << " expected value: " <<
+                    (static_cast<bool>(expectedOut[i]) ? "True" : "False") <<
+                    " and actual value: " <<
+                    (static_cast<bool>(actualBuffer[i]) ? "True" : "False");
+            }
+            break;
+        }
+        case ngraph::element::Type_t::dynamic:
+        case ngraph::element::Type_t::undefined: {
+            auto typedExpectedBuffer = reinterpret_cast<const uint8_t*>(expectedBuffer);
+            for (size_t i = 0; i < size; ++i) {
+                ASSERT_EQ(static_cast<bool>(actualBuffer[i]), static_cast<bool>(typedExpectedBuffer[i])) <<
+                    "Comparison of bool values failed at index: " << i << " expected value: " <<
+                    (static_cast<bool>(typedExpectedBuffer[i]) ? "True" : "False") <<
+                    " and actual value: " <<
+                    (static_cast<bool>(actualBuffer[i]) ? "True" : "False");
+            }
+            break;
+        }
+        default:
+            FAIL() << "Comparator for " << expected.first << " precision isn't supported";
+        }
+#undef CASE
+    return;
+}
+
 template <typename T_IE>
 inline void callCompare(const std::pair<ngraph::element::Type, std::vector<std::uint8_t>> &expected,
                         const T_IE* actualBuffer, size_t size, float threshold, float abs_threshold) {
     auto expectedBuffer = expected.second.data();
     switch (expected.first) {
         case ngraph::element::Type_t::boolean:
+            for (size_t i = 0; i < size; ++i) {
+                ASSERT_EQ(static_cast<bool>(actualBuffer[i]), static_cast<bool>(expectedBuffer[i])) <<
+                    "Comparison of bool values failed at index: " << i << " expected value: " <<
+                    (static_cast<bool>(expectedBuffer[i]) ? "True" : "False") <<
+                    " and actual value: " <<
+                    (static_cast<bool>(actualBuffer[i]) ? "True" : "False");
+            }
+            break;
         case ngraph::element::Type_t::u8:
             LayerTestsCommon::Compare<T_IE, uint8_t>(reinterpret_cast<const uint8_t *>(expectedBuffer),
                                                      actualBuffer, size, threshold, abs_threshold);
@@ -277,6 +364,8 @@ void LayerTestsCommon::Compare(const std::pair<ngraph::element::Type, std::vecto
     const auto &size = actual->size();
     switch (precision) {
         case InferenceEngine::Precision::BOOL:
+            callCompareBool(expected, reinterpret_cast<const uint8_t *>(actualBuffer), size, threshold, abs_threshold);
+            break;
         case InferenceEngine::Precision::U8:
             callCompare<uint8_t>(expected, reinterpret_cast<const uint8_t *>(actualBuffer), size, threshold, abs_threshold);
             break;
