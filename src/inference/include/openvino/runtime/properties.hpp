@@ -708,9 +708,9 @@ enum class WorkloadType {
 inline std::ostream& operator<<(std::ostream& os, const WorkloadType& mode) {
     switch (mode) {
     case WorkloadType::DEFAULT:
-        return os << "Default";
+        return os << "DEFAULT";
     case WorkloadType::EFFICIENT:
-        return os << "Efficient";
+        return os << "EFFICIENT";
     default:
         OPENVINO_THROW("Unsupported workload type");
     }
