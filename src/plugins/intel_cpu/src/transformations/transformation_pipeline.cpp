@@ -94,6 +94,7 @@
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
+#include "transformations/transpose_sinking/ts_shape_of.hpp"
 #include "utils/ngraph_transformation.hpp"
 #include "utils/print_model.hpp"
 
@@ -837,6 +838,7 @@ void Transformations::PostLpt() {
             }
         }
     }
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::transpose_sinking::TSShapeOfForward);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, StatefulSDPAFusion);
 
     // Should be before Snippets pipeline because Ngram pattern contains eltwise nodes that can be tokenized by Snippets.
