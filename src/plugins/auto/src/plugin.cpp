@@ -362,8 +362,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::string
     // Remove the performance hint as this is set by plugin logic, not from user
     if (!is_hint_set)
         full_property.erase(ov::hint::performance_mode.name());
-    if (!load_config.is_set_by_user(ov::hint::execution_mode))
-        full_property.erase(ov::hint::execution_mode.name());
     // collect the settings that are applicable to the devices we are loading the model to
     std::unordered_map<std::string, ov::Any> multi_model_config;
     std::vector<DeviceInformation> meta_devices;

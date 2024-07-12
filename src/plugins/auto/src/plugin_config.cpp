@@ -23,7 +23,7 @@ void PluginConfig::set_default() {
         std::make_tuple(ov::intel_auto::device_bind_buffer, false),
         std::make_tuple(ov::intel_auto::schedule_policy, ov::intel_auto::SchedulePolicy::DEVICE_PRIORITY),
         std::make_tuple(ov::hint::performance_mode, ov::hint::PerformanceMode::LATENCY),
-        std::make_tuple(ov::hint::execution_mode, ov::hint::ExecutionMode::PERFORMANCE),
+        std::make_tuple(ov::hint::execution_mode, ov::hint::ExecutionMode::ACCURACY),
         std::make_tuple(ov::hint::num_requests, 0, UnsignedTypeValidator()),
         std::make_tuple(ov::intel_auto::enable_startup_fallback, true),
         std::make_tuple(ov::intel_auto::enable_runtime_fallback, true),
