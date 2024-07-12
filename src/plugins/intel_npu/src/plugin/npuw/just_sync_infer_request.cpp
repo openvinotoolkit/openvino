@@ -332,9 +332,6 @@ void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
         const auto& g_port = m_npuw_model->inputs()[param_idx];
         const auto& g_tnsr = m_port_to_tensor.at(g_port).tensor;
         const auto& s_port = subr->get_inputs()[sub_in_idx];
-        std::cout << "Gport input Tensors: " << g_port.get_shape() << std::endl;
-        std::cout << "G_tnsr Tensors: " << g_tnsr->get_shape() << std::endl;
-        std::cout << "s_port Tensors: " << s_port.get_shape() << std::endl;
         LOG_DEBUG("Processing " << g_port << " -> " << s_port << "...");
         LOG_BLOCK();
         if (do_copy) {
@@ -399,6 +396,7 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
         LOG_DEBUG("Binding parameter[" << i << "]...");
         LOG_BLOCK();
         const auto& iport = func_desc.compiled_model->inputs()[i];
+        std::cout << "Iport Tensors: " << iport.get_shape() << std::endl;
 
         auto link_iter = m_npuw_model->m_submodels_input_to_prev_output.find({idx, i});
         if (link_iter != m_npuw_model->m_submodels_input_to_prev_output.end()) {
