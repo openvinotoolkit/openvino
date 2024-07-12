@@ -229,6 +229,21 @@ const std::vector<std::vector<InputShape>> shapes{
             {ov::Shape{1, 8, 100, 100}, ov::Shape{1, 8, 1, 1}, ov::Shape{2, 8, 10, 10}}}
         },
     },
+    // large head size
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 256},
+            {ov::Shape{1, 8, 7, 256}, ov::Shape{1, 8, 1, 256}, ov::Shape{2, 8, 10, 256}}}
+        },
+        // kv shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 256},
+            {ov::Shape{1, 8, 7, 256}, ov::Shape{1, 8, 1, 256}, ov::Shape{2, 8, 10, 256}}}
+        },
+        // attn shape: [B, 1, -1, L0+L1]
+        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, -1},
+            {ov::Shape{1, 1, 7, 7}, ov::Shape{1, 1, 1, 1}, ov::Shape{2, 1, 10, 10}}}
+        },
+    },
 };
 
 const auto params = testing::Combine(testing::Values(ov::element::f16 /*, ov::element::f32 */),
