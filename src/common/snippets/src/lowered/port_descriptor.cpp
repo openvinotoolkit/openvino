@@ -54,6 +54,11 @@ void PortDescriptor::set_shape(const VectorDims& tensor) {
     *m_tensor_shape = tensor;
 }
 
+void PortDescriptor::set_subtensor_value(size_t idx, VectorDims::value_type value) {
+    OPENVINO_ASSERT(idx < m_subtensor_shape.size(), "Failed to set subtensor value: idx should be less than size");
+    *(m_subtensor_shape.rbegin() + idx) = value;
+}
+
 PortDescriptorPtr PortDescriptor::clone() const {
     auto desc = std::make_shared<PortDescriptor>(*m_tensor_shape, m_subtensor_shape, m_layout);
     desc->set_reg(m_reg);

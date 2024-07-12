@@ -186,7 +186,7 @@ void RuntimeConfigurator::update_loop_info(const std::shared_ptr<lowered::Linear
         current_work_amount -= expanded_loop_info->get_work_amount();
 
         if (expanded_loop_info->is_evaluate_once()) {
-            expanded_loop_info->update_ptr_increments(std::vector<int64_t>(ptr_increments.size(), 0));
+            // Update only `finalization offsets`. `Ptr increments` are always zeroed in this case
             auto updated_finalization_offsets = current_work_amount > 0 ? std::vector<int64_t>(finalization_offsets.size(), 0) : finalization_offsets;
             // work_amount is equal to increment in cases with `evaluate_once`
             for (size_t i = 0; i < updated_finalization_offsets.size(); ++i)

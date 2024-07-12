@@ -96,7 +96,7 @@ std::vector<std::vector<ov::test::InputShape>> input_shapes_dynamic{
         },
         // Only N dimension is dynamic
         {
-            STATIC_SHAPE(2, 2, 65, 550),
+            {PartialShape{},              {{2, 2, 65, 550}}},
             {PartialShape{2, 2, 550, -1}, {{2, 2, 550, 70}, {2, 2, 550, 12}, {2, 2, 550, 70},
                                            {2, 2, 550, 12}, {2, 2, 550, 10}}}
         },

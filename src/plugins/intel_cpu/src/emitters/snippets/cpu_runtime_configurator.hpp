@@ -42,16 +42,18 @@ protected:
     void init_tensor_rank(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) const override;
     /**
      * @brief Calculate Loop parameters of Loop emitters and update these values in CPURuntimeConfig
-     * @param linear_ir LinearIR
+     * @param loop_manager Loop Manager
      */
     void update_loop_args(const ov::snippets::lowered::LoopManagerPtr& loop_manager) const;
     /**
      * @brief Update subtensors of Brgemms
+     * @param loop_manager Loop Manager
      */
     void update_brgemms(const ov::snippets::lowered::LoopManagerPtr& loop_manager) const;
 
     const size_t rank6D = 6;
-    std::vector<ov::snippets::lowered::ExpressionPtr> m_dynamic_brgemms = {};
+    // Brgemm expressions with subtensors with dynamic values
+    std::unordered_set<ov::snippets::lowered::ExpressionPtr> m_dynamic_brgemms = {};
 };
 
 }   // namespace intel_cpu

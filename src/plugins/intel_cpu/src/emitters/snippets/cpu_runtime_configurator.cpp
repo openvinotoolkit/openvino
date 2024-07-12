@@ -51,7 +51,7 @@ void CPURuntimeConfigurator::initialization(const std::shared_ptr<ov::snippets::
                             "Incorrect values in subtensors of BrgemmCPU");
 
             if (snippets::utils::is_dynamic_value(*(++in0_subtensor.crbegin())))
-                m_dynamic_brgemms.push_back(expr);
+                m_dynamic_brgemms.insert(expr);
         }
     }
 }
@@ -91,15 +91,8 @@ void CPURuntimeConfigurator::update_brgemms(const ov::snippets::lowered::LoopMan
         const auto& expanded_loop_info = loop_manager->get_loop_info<snippets::lowered::ExpandedLoopInfo>(loop_ids.front());
         const auto& block_size_m = expanded_loop_info->get_work_amount();
 
-        const auto& in_desc = brgemm_expr->get_input_port_descriptor(0);
-        const auto& out_desc = brgemm_expr->get_output_port_descriptor(0);
-
-        auto in_subtensor = in_desc->get_subtensor();
-        auto out_subtensor = out_desc->get_subtensor();
-        *++in_subtensor.rbegin() = block_size_m;
-        *++out_subtensor.rbegin() = block_size_m;
-        in_desc->set_subtensor(in_subtensor);
-        out_desc->set_subtensor(out_subtensor);
+        brgemm_expr->get_input_port_descriptor(0)->set_subtensor_value(1, block_size_m);
+        brgemm_expr->get_output_port_descriptor(0)->set_subtensor_value(1, block_size_m);
     }
 }
 

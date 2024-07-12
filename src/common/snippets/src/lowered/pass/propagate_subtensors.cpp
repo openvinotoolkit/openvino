@@ -18,11 +18,11 @@ namespace {
 
 // The algorithm uses the following special values in subtensors/shapes:
 // 1. Dynamic value in subtensor/shape : SIZE_MAX
-// 2. Full fimension in subtensor      : SIZE_MAX - 1
+// 2. Full dimension in subtensor      : SIZE_MAX - 1
 // 3. Default value of `new_dim_value` : SIZE_MAX - 2
 // 4. `Forced` special dynamic value   : SIZE_MAX - 3
 //
-// We have to introduce `SPECIAL_DYNAMIC_VALUE` to distinguish `new_dim_value = DYNAMIC`
+// We have to introduce `FORCED_DYNAMIC_VALUE` to distinguish `new_dim_value = DYNAMIC`
 // from the real dynamic values in subtensors and shapes and force this value in subtensors.
 // For example, there is Brgemm with the following info in the tail Loop:
 // Input 0: shape [?, ?], existing subtensor [32, FULL_DIM]
@@ -36,7 +36,7 @@ namespace {
 // 3. Update subtensor on output using shape:
 //    new_subtensor[i] = std::min(planar_shape[i], subtensor[i]); // i = 0: std::min(SIZE_MAX(?), 32)
 //    new subtensor [32, FULL_DIM] - has not been changed! But should be [?, FULL_DIM]
-// Conculsion: we have to distinguish forced dynamic value with existing dynamic values in shape and subtensor
+// Conclusion: we have to distinguish forced dynamic value with existing dynamic values in shape and subtensor
 
 constexpr size_t NEW_DEFAULT_VALUE    = SIZE_MAX - 2;
 constexpr size_t FORCED_DYNAMIC_VALUE = SIZE_MAX - 3;
@@ -61,9 +61,8 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
                 const auto& expr = port.expr_port->get_expr();
                 const auto& desc = port.expr_port->get_descriptor_ptr();
                 auto subtensor = desc->get_subtensor();
-                if (port.dim_idx < subtensor.size()) {
-                    *(subtensor.rbegin() + port.dim_idx) = new_dim_value;
-                    desc->set_subtensor(subtensor);
+                if (port.dim_idx < desc->get_subtensor().size()) {
+                    desc->set_subtensor_value(port.dim_idx, new_dim_value);
                 }
 
                 const auto parent_desc = expr->get_input_port_connector(port.expr_port->get_index())->get_source().get_descriptor_ptr();

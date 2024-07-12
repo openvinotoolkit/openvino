@@ -54,6 +54,9 @@ public:
     void set_reg_type(RegType type) { m_reg.type = type; }
     void set_reg_idx(size_t idx) { m_reg.idx = idx; }
 
+    // Indexing starts from the end (rbegin() + idx)
+    void set_subtensor_value(size_t idx, VectorDims::value_type value);
+
     std::string serialize() const;
     bool empty() const { return m_layout.empty() && m_subtensor_shape.empty();}
     PortDescriptorPtr clone() const;
