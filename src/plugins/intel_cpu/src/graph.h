@@ -34,8 +34,9 @@ public:
 
     enum class Status {
         NotReady = 0,
-        ReadyStatic = 1,
-        ReadyDynamic = 2
+        Initialized = 1,
+        ReadyStatic = 2,
+        ReadyDynamic = 3,
     };
 
     Graph() = default;
@@ -43,23 +44,26 @@ public:
     ~Graph();
 
     bool IsReady() {
-        return (status != Status::NotReady);
+        return one_of(status, Graph::Status::ReadyDynamic, Graph::Status::ReadyStatic);
     }
 
     const Config & getConfig() const {
-        return context->getConfig();
+        return m_context->getConfig();
     }
 
     template<typename NET>
-    void CreateGraph(NET &network, const GraphContext::CPtr ctx);
+    void CreateGraph(NET &model, const GraphContext::CPtr context);
 
     void CreateGraph(const std::vector<NodePtr> &graphNodes,
                      const std::vector<EdgePtr> &graphEdges,
-                     const GraphContext::CPtr ctx,
+                     const GraphContext::CPtr context,
                      std::string name);
 
     void PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& input);
     void PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& output);
+
+    // Returns Output nodes memory descriptors
+    VecMemoryDescs getOutputMemoryDescriptors();
 
     void Infer(SyncInferRequest* request = nullptr);
 
@@ -94,11 +98,11 @@ public:
     }
 
     dnnl::engine getEngine() const {
-        return context->getEngine();
+        return m_context->getEngine();
     }
 
     GraphContext::CPtr getGraphContext() const {
-        return context;
+        return m_context;
     }
 
     void GetPerfData(std::vector<ov::ProfilingInfo> &perfMap) const;
@@ -185,6 +189,21 @@ public:
 
     Status getStatus() const {return status;}
     const std::unordered_map<std::string, node::MemoryStateNode*>& getInternalStateNodes() const;
+
+    /**
+     * Configure Graph using \p model and \p context
+     *
+     * The main stages are:
+     * - graph replication using \ref Replicate
+     * - graph initialization using \ref InitGraph
+     */
+    void Configure(const std::shared_ptr<const ov::Model>& model,
+                   const GraphContext::CPtr context,
+                   const VecMemoryDescs& inputDescriptors = {},
+                   const bool zeroCopyOutputs = false);
+    //
+    void Allocate();
+
     void InitGraph(bool optimize = true);
 
 protected:
@@ -214,7 +233,9 @@ protected:
 
     bool graphHasDynamicInput = false;
 
-    void Replicate(const std::shared_ptr<const ov::Model> &subgraph);
+    void Replicate(const std::shared_ptr<const ov::Model> &subgraph,
+                   const VecMemoryDescs& inputDescriptors = {},
+                   bool zeroCopyOutputs = false);
     void InitNodes();
     void InitDescriptors();
     void ResolveInplaceDirections();
@@ -249,7 +270,7 @@ private:
     std::vector<NodePtr> m_executableGraphNodes;
     std::vector<size_t> m_executableSyncNodesInds;
 
-    GraphContext::CPtr context;
+    GraphContext::CPtr m_context;
 
     void EnforceInferencePrecision();
     void EnforceBF16();
