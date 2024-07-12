@@ -24,6 +24,7 @@ using namespace intel_npu;
 
 namespace {
 
+// something
 const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 
 const char* NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
