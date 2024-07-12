@@ -514,7 +514,30 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
 }
 
 void Subgraph::selectOptimalPrimitiveDescriptor() {
-    selectPreferPrimitiveDescriptor(getImplPriority(), true);
+    selectPreferPrimitiveDescriptorWithShape(getImplPriority(), true);
+    // if (getName() == "PRelu_658") {
+    //     std::cout << "== this->getTypeStr()=" << this->getTypeStr() << ", " << getName() << std::endl;
+    //     auto parent_size = this->getParentEdges().size();
+    //     for (size_t p = 0; p < parent_size; p++) {
+    //         auto parentEdge = getParentEdgeAt(p);
+    //         auto parentPtr = parentEdge->getParent();
+    //         auto parent_spd = parentPtr->getSelectedPrimitiveDescriptor();
+    //         auto parentDesc = parent_spd->getConfig().outConfs[0].getMemDesc();
+    //         if (parentDesc->getShape().isStatic()) {
+    //             std::cout << "  " << p << " " << *parentDesc << std::endl;
+    //         }
+    //     }
+
+    //     if (std::getenv("WITHSHAPE")) {
+    //         std::cout << "== WITHSHAPE\n";
+    //         selectPreferPrimitiveDescriptorWithShape(getImplPriority(), true);
+    //     } else {
+    //         selectPreferPrimitiveDescriptor(getImplPriority(), true);
+    //     }
+    //     std::cout << "  selected:" << *(this->getSelectedPrimitiveDescriptor()) << std::endl;
+    // } else {
+    //     selectPreferPrimitiveDescriptor(getImplPriority(), true);
+    // }
 }
 
 ov::element::Type Subgraph::getRuntimePrecision() const {
