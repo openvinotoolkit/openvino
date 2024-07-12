@@ -1175,7 +1175,6 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
             std::cout << std::endl;
         }
     }
-
 }
 
 template <typename InT>
