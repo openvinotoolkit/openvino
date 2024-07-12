@@ -142,6 +142,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                     consumers.str());
                 }
             } else {
+                OPENVINO_THROW("The model is in the inconsistent state. Found input '", param_name, "', but couldn't cast it to v0::Parameter.");
                 return false;
             }
         }

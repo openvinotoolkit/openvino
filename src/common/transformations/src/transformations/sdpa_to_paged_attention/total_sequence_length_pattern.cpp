@@ -35,13 +35,14 @@ ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
         auto gather = pattern_map.at(seq).get_node_shared_ptr();
         auto gather_idx =
             std::dynamic_pointer_cast<v0::Constant>(pattern_map.at(gather_idx_label).get_node_shared_ptr());
-        auto gather_idx_data = gather_idx->cast_vector<int64_t>();
 
-        if (!concat || !gather || !gather_idx) {
+        if (!concat || !gather || !gather_idx || !gather_idx) {
             return false;
         }
 
-        if (gather_idx_data.size() == 0) {
+        auto gather_idx_data = gather_idx->cast_vector<int64_t>();
+
+        if (gather_idx_data.size() != 1) {
             return false;
         }
 
@@ -58,7 +59,18 @@ ov::pass::TotalSequenceLengthPattern::TotalSequenceLengthPattern(
 
         std::shared_ptr<Node> replacement = max_context_len;
 
-        if (concat->get_axis() == gather_idx_to_compare) {
+        int64_t concat_axis_to_compare = concat->get_axis();
+        if (concat_axis_to_compare < 0) {
+            // If it's dynamic, leave it negative as we cannot take dynamic
+            // dimension here so the next comparison would fail
+            if (concat->get_output_partial_shape(0).is_static()) {
+                const auto& concat_output_shape = concat->output(0).get_partial_shape();
+                concat_axis_to_compare = ov::util::normalize(concat_axis_to_compare,
+                                                             concat_output_shape.rank().get_length());
+            }
+        }
+
+        if (concat_axis_to_compare == gather_idx_to_compare) {
             auto target_type = gather->get_output_element_type(0);
 
             if (replacement->get_output_element_type(0) != target_type) {
