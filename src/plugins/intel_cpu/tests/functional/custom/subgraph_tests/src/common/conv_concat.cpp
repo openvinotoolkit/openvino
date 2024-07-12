@@ -239,16 +239,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution3D, ConvConcatSubgraphTest, param
 namespace GroupConvolutionBackpropDataConcat {
 
 /* ============= GroupConvolutionBackpropData (2D) ============= */
-const std::vector<CPUSpecificParams> CPUParams2D = {
-    planar_2D,
-    block8c_2D,
-    block16c_2D
-};
+std::vector<CPUSpecificParams> getCPUParams2D() {
+    std::vector<CPUSpecificParams> resCPUParams = {planar_2D, block8c_2D};
+    if (ov::with_cpu_x86_avx512f()) {
+        resCPUParams.push_back(block16c_2D);
+    }
+    return resCPUParams;
+}
 
 const auto params2D = ::testing::Combine(
     ::testing::Values(nodeType::groupConvolutionBackpropData),
     ::testing::Values(groupConvParams2D()),
-    ::testing::ValuesIn(filterCPUSpecificParams(CPUParams2D)),
+    ::testing::ValuesIn(filterCPUSpecificParams(getCPUParams2D())),
     ::testing::Values(inputShapes2D()),
     ::testing::Values(axis())
 );
@@ -256,16 +258,18 @@ const auto params2D = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolutionBackpropData2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
 
 /* ============= GroupConvolutionBackpropData (3D) ============= */
-const std::vector<CPUSpecificParams> CPUParams3D = {
-    planar_3D,
-    block8c_3D,
-    block16c_3D
-};
+std::vector<CPUSpecificParams> getCPUParams3D() {
+    std::vector<CPUSpecificParams> resCPUParams = {planar_3D, block8c_3D};
+    if (ov::with_cpu_x86_avx512f()) {
+        resCPUParams.push_back(block16c_3D);
+    }
+    return resCPUParams;
+}
 
 const auto params3D = ::testing::Combine(
     ::testing::Values(nodeType::groupConvolutionBackpropData),
     ::testing::Values(groupConvParams3D()),
-    ::testing::ValuesIn(filterCPUSpecificParams(CPUParams3D)),
+    ::testing::ValuesIn(filterCPUSpecificParams(getCPUParams3D())),
     ::testing::Values(inputShapes3D()),
     ::testing::Values(axis())
 );
