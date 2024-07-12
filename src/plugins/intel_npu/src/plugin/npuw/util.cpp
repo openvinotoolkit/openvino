@@ -1140,17 +1140,17 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
     } else {
         NPUW_ASSERT(false);
     }
-    const auto& to_shape = to->get_shape();
-    size_t dim1 = to_shape[0];
-    size_t dim2 = to_shape[1];
-    size_t dim3 = to_shape[2];
-    ov::Shape new_shape = {dim2, dim3, dim1};
-    ov::Tensor tmp(to->get_element_type(), new_shape);
-    ov::SoPtr<ov::ITensor> tmp_itensor = ov::get_tensor_impl(tmp);
-    to->set_shape(new_shape);
-    to->copy_to(tmp_itensor._ptr);
-    tmp_itensor->copy_to(to._ptr);
-    std::cout << "To new shape: " << to->get_shape() << std::endl;
+    // const auto& to_shape = to->get_shape();
+    // size_t dim1 = to_shape[0];
+    // size_t dim2 = to_shape[1];
+    // size_t dim3 = to_shape[2];
+    // ov::Shape new_shape = {dim2, dim3, dim1};
+    // ov::Tensor tmp(to->get_element_type(), new_shape);
+    // ov::SoPtr<ov::ITensor> tmp_itensor = ov::get_tensor_impl(tmp);
+    // to->set_shape(new_shape);
+    // to->copy_to(tmp_itensor._ptr);
+    // tmp_itensor->copy_to(to._ptr);
+    // std::cout << "To new shape: " << to->get_shape() << std::endl;
 
     // Test
     ov::Shape orig_shape = {1, 3, 5, 5};
