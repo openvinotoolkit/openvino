@@ -50,8 +50,8 @@ additional part demonstrates how to run optimization with
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ to speed up
 pipeline.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+
+**Table of contents:**
 
 - `Prerequisites <#prerequisites>`__
 - `Convert and prepare Face IdentityNet <#convert-and-prepare-face-identitynet>`__
@@ -90,6 +90,7 @@ Table of contents:
 - `Interactive demo <#interactive-demo>`__
 
 .. |applications.png| image:: https://github.com/InstantID/InstantID/blob/main/assets/applications.png?raw=true
+
 
 Prerequisites
 -------------
@@ -497,6 +498,7 @@ Now, let’s see models inference result
 
 Select Inference Device for Face Recognition
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 
 .. code:: ipython3
@@ -1690,6 +1692,7 @@ Create pipeline
 ~~~~~~~~~~~~~~~
 
 
+
 .. code:: ipython3
 
     ov_pipe = OVStableDiffusionXLInstantIDPipeline(
@@ -1706,6 +1709,7 @@ Create pipeline
 
 Run inference
 ~~~~~~~~~~~~~
+
 
 
 .. code:: ipython3
@@ -1849,7 +1853,7 @@ image.
     ov_int8_controlnet_path = MODELS_DIR / 'controlnet_optimized.xml'
 
     num_samples = int(np.ceil(subset_size / num_inference_steps))
-    dataset = datasets.load_dataset("wider_face", split="train", streaming=True).shuffle(seed=42)
+    dataset = datasets.load_dataset("wider_face", split="train", streaming=True, trust_remote_code=True).shuffle(seed=42)
     face_info = []
     for batch in dataset:
         try:

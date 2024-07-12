@@ -12,19 +12,19 @@ namespace kernel_selector {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct rope_params : public base_params {
     rope_params() : base_params(KernelType::ROPE) {}
-    size_t head_cnt;
-    size_t head_size;
-    size_t rotary_ndims;
+    size_t head_cnt = 0;
+    size_t head_size = 0;
+    size_t rotary_ndims = 0;
 
-    size_t slice_start;
-    size_t slice_stop;
-    size_t axis;
-    size_t num_of_inputs;
-    size_t gather_rank;
+    size_t slice_start = 0;
+    size_t slice_stop = 0;
+    size_t axis = 0;
+    size_t num_of_inputs = 0;
+    size_t gather_rank = 0;
 
-    bool is_qwen;
-    bool is_chatglm;
-    bool transposed_input;
+    bool is_qwen = false;
+    bool is_chatglm = false;
+    bool transposed_input = false;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

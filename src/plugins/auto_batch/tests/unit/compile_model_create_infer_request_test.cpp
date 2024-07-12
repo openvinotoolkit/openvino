@@ -85,7 +85,7 @@ public:
             m_compile_model_with_batch = {m_i_compile_model_with_batch, {}};
         }
 
-        ASSERT_NO_THROW(m_auto_batch_compile_model =
+        OV_ASSERT_NO_THROW(m_auto_batch_compile_model =
                             std::make_shared<MockAutoBatchCompileModel>(m_model->clone(),
                                                                         m_auto_batch_plugin,
                                                                         m_config,

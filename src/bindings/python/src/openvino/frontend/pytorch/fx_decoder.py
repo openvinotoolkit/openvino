@@ -30,6 +30,7 @@ class TorchFXPythonDecoder (Decoder):
         self.input_shapes = input_shapes
 
         self._input_signature = []
+        self._example_input = None
 
         if issubclass(type(pt_module), torch.fx.graph_module.GraphModule):
 
@@ -315,6 +316,13 @@ class TorchFXPythonDecoder (Decoder):
 
     def num_of_outputs(self):
         return len(self.outputs())
+
+    def output_list_size(self):
+        max_out_id = -1
+        for user in self.pt_module.users:
+            if "<built-in function getitem>" == str(user.target) and max_out_id < user.args[1]:
+                max_out_id = user.args[1]
+        return max_out_id + 1
 
     def output(self, index):
         return self.outputs()[index]

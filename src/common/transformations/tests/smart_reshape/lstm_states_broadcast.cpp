@@ -44,7 +44,7 @@ TEST_P(LSTMStatesBroadcastTest, BareLSTM) {
 
         model = make_shared<ov::Model>(ov::NodeVector{cell}, ov::ParameterVector{parameter});
     }
-    ASSERT_NO_THROW(model->reshape(ov::PartialShape{p.new_batch_size, p.input_size}));
+    OV_ASSERT_NO_THROW(model->reshape(ov::PartialShape{p.new_batch_size, p.input_size}));
 }
 
 class LSTMStatesBroadcastTestWithTI : public testing::WithParamInterface<LSTMStatesAttributes>,
@@ -94,7 +94,7 @@ TEST_P(LSTMStatesBroadcastTestWithTI, TI_With_LSTM) {
         auto res_ti_2 = make_shared<Result>(tensor_iterator->output(0));
         model = make_shared<ov::Model>(ov::NodeVector{res_ti_1, res_ti_2}, ov::ParameterVector{X});
     }
-    ASSERT_NO_THROW(model->reshape(ov::PartialShape{p.new_batch_size, 1, p.input_size}));
+    OV_ASSERT_NO_THROW(model->reshape(ov::PartialShape{p.new_batch_size, 1, p.input_size}));
 }
 
 static vector<LSTMStatesAttributes> params = {
