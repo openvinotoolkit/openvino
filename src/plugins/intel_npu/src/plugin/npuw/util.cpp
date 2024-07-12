@@ -1149,6 +1149,7 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
     to->copy_to(tmp_itensor._ptr);
     to->set_shape(new_shape);
     tmp_itensor->copy_to(to._ptr);
+    std::cout << "To new shape: " << to->get_shape() << std::endl;
 }
 
 template <typename InT>
