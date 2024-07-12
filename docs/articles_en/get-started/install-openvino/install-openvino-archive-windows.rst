@@ -85,8 +85,7 @@ Step 1: Download and Install OpenVINO Core Components
    .. code-block:: sh
 
       cd <user_home>/Downloads
-      curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.2/windows/w_openvino_toolkit_windows_2024.2.0.15519.5c0f38f83f6_x86_64.zip --output openvino_2024.2.0.zip --output openvino_2024.2.0.zip
-
+      curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.2/windows/w_openvino_toolkit_windows_2024.2.0.15519.5c0f38f83f6_x86_64.zip --output openvino_2024.2.0.zip
 
    .. note::
 
