@@ -2045,11 +2045,11 @@ static int runSingleImageTest() {
                     ov::Layout outputLayout;
 
                     if (std::optional<ov::Layout> outUserLayout =
-                                getRegexSubstitutionIfExist(out.get_any_name(), outUserLayouts);
+                                getRegexSubstitutionIfExist(tensorName, outUserLayouts);
                         outUserLayout.has_value()) {
                         outputLayout = outUserLayout.value();
                     } else if (std::optional<ov::Layout> outModelLayout =
-                                       getRegexSubstitutionIfExist(out.get_any_name(), outModelLayouts);
+                                       getRegexSubstitutionIfExist(tensorName, outModelLayouts);
                                outModelLayout.has_value()) {
                         outputLayout = outModelLayout.value();
                     } else {
