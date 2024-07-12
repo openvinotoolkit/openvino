@@ -291,22 +291,15 @@ std::shared_ptr<ov::Node> get_leaf_node_of_first_parent_shape_infer_seq(const st
     return leaf_node;
 }
 
-size_t get_in_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout) {
-    if (layout.empty())
-        return shape.back();
-    OPENVINO_ASSERT(layout.back() == layout.size() - 1 && layout.size() == shape.size(),
-                              "detected invalid layout values: check that this shape + layout combination is schedulable");
-    const auto idx = static_cast<VectorDims::difference_type>(layout[layout.size() - 2]);
-    return std::accumulate(shape.cbegin() + idx + 1, shape.end(), 1ull, std::multiplies<size_t>());
-}
-size_t get_out_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout) {
-    if (layout.empty())
-        return shape.back();
-    OPENVINO_ASSERT(layout.back() == layout.size() - 1 && layout.size() == shape.size(),
-                              "detected invalid layout values: check that this shape + layout combination is schedulable");
-    const auto idx = layout.size() - 2;
-    const auto dim = std::distance(layout.cbegin(), std::find(layout.cbegin(), layout.cend(), idx));
-    return std::accumulate(shape.cbegin() + dim + 1, shape.cend(), 1ull, std::multiplies<size_t>());
+int64_t get_dim_stride(const lowered::ExpressionPort& expr_port, size_t idx) {
+    size_t dim_idx = 0;
+    const auto& layout = expr_port.get_descriptor_ptr()->get_layout();
+    switch (expr_port.get_type()) {
+        case lowered::ExpressionPort::Input: dim_idx = utils::get_input_dim_idx(layout, idx); break;
+        case lowered::ExpressionPort::Output: dim_idx = utils::get_output_dim_idx(layout, idx); break;
+        default: OPENVINO_THROW("Unsupported expression port type!");
+    }
+    return get_stride(dim_idx, expr_port.get_descriptor_ptr()->get_shape());
 }
 
 } // namespace utils
