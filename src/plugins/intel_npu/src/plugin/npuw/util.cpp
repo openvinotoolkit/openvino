@@ -1146,8 +1146,8 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
     ov::Shape new_shape = {dim2, dim3, dim1};
     ov::Tensor tmp(to->get_element_type(), new_shape);
     ov::SoPtr<ov::ITensor> tmp_itensor = ov::get_tensor_impl(tmp);
-    to->copy_to(tmp_itensor._ptr);
     to->set_shape(new_shape);
+    to->copy_to(tmp_itensor._ptr);
     tmp_itensor->copy_to(to._ptr);
     std::cout << "To new shape: " << to->get_shape() << std::endl;
 }
