@@ -311,9 +311,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     decompression_handling_manager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::InitNodeInfo);
     const bool useLpt = !defaultPrecisions.empty();
-    if (!useLpt) {
-        CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::ConvertGatherToGatherCompressed);
-    }
+    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::ConvertGatherToGatherCompressed);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::MarkShapeOfSubgraphs);
     // We need to fuse Transpose to MatMul to have a simpler callback for the next transformation
     CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::TransposeMatMul);
@@ -333,6 +331,14 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             if (ov::is_type<ov::op::internal::GatherCompressed>(node)) {
                 // It is necessary to avoid precision conversion for constant node(compressed weights)
                 ov::enable_keep_const_precision(node->get_input_node_shared_ptr(0));
+                if (std::getenv("WITH_PR")) {
+                    if (ov::intel_cpu::one_of(node->get_input_node_shared_ptr(0)->get_element_type(),
+                                              ov::element::u8,
+                                              ov::element::i8) &&
+                        useLpt) {
+                        return true;
+                    }
+                }
             }
             return false;
         },
