@@ -83,23 +83,24 @@ std::vector<CPUSpecificParams> filterCPUInfoForDeviceWithFP16(const std::vector<
 }
 
 std::vector<CPUSpecificParams> filterCPUSpecificParams(const std::vector<CPUSpecificParams>& paramsVector) {
+    auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
+        for (auto& format : formats) {
+            if (format == nCw16c)
+                format = nCw8c;
+            if (format == nChw16c)
+                format = nChw8c;
+            if (format == nCdhw16c)
+                format = nCdhw8c;
+        }
+    };
+
     std::vector<CPUSpecificParams> filteredParamsVector = paramsVector;
 
     if (!ov::with_cpu_x86_avx512f()) {
-        static const std::vector<cpu_memory_format_t> non_supported_f = {cpu_memory_format_t::nCw16c,
-                                                                         cpu_memory_format_t::nChw16c,
-                                                                         cpu_memory_format_t::nCdhw16c};
-        filteredParamsVector.erase(std::remove_if(filteredParamsVector.begin(),
-                                filteredParamsVector.end(),
-                                [](CPUSpecificParams param) {
-                                                        const int inMemoryFormatTypeIndex = 0;
-                                                        std::vector<cpu_memory_format_t> inFormat = std::get<inMemoryFormatTypeIndex>(param);
-                                                        const int outMemoryFormatIndex = 1;
-                                                        std::vector<cpu_memory_format_t> outFormat = std::get<outMemoryFormatIndex>(param);
-                                                        return containsNonSupportedFormat(inFormat, non_supported_f) ||
-                                                               containsNonSupportedFormat(outFormat, non_supported_f);
-                                                    }),
-                                    filteredParamsVector.end());
+        for (auto& param : filteredParamsVector) {
+            adjustBlockedFormatByIsa(std::get<0>(param));
+            adjustBlockedFormatByIsa(std::get<1>(param));
+        }
     }
 
     return filteredParamsVector;
