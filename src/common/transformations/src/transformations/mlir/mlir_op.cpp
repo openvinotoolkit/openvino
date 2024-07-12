@@ -71,6 +71,11 @@ void prepareMLIRKernelWithoutWrapper(mlir::OwningOpRef<mlir::ModuleOp>& module) 
 
 #else  // Simplified default lowering to LLVM from LLVM tests
 
+    // Cleanup before bufferization.
+    // Simplifies IR to allow better bufferization.
+    pm.addNestedPass<func::FuncOp>(createCanonicalizerPass());
+    pm.addNestedPass<func::FuncOp>(createCSEPass());
+
     // Remove empty tensors to avoid converting them into temporary buffers.
     pm.addPass(bufferization::createEmptyTensorEliminationPass());
 
