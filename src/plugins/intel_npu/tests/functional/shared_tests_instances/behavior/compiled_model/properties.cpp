@@ -62,6 +62,7 @@ const std::vector<ov::AnyMap> publicCompiledModelConfigs = {
         {{ov::hint::inference_precision.name(), ov::Any(ov::element::f16)}},
         {{ov::loaded_from_cache.name(), ov::Any(false)}},
         {{ov::model_name.name(), ov::Any(expectedModelName)}},
+        {{ov::intel_npu::compilation_mode_params.name(), ov::Any("")}},
         {{ov::optimal_number_of_infer_requests.name(), ov::Any(1u)}},
         {{ov::hint::performance_mode.name(), ov::Any(ov::hint::PerformanceMode::LATENCY)}},
         {{ov::hint::num_requests.name(), ov::Any(1u)}},
