@@ -8,9 +8,8 @@ import pytest
 import numpy as np
 
 import openvino as ov
-import openvino.runtime.opset13 as ops
 
-from tests.utils.helpers import generate_image, get_relu_model, generate_model_with_memory
+from tests.utils.helpers import get_relu_model
 
 
 @pytest.mark.skipif(

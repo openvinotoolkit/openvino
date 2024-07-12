@@ -576,7 +576,7 @@ TEST(constant_folding, constant_unary_binary) {
                 "equal_unsigned_shorts");
 
     pass::Manager pass_manager;
-    ASSERT_NO_THROW(pass_manager.run_passes(func_error));
+    OV_ASSERT_NO_THROW(pass_manager.run_passes(func_error));
 }
 
 template <element::Type_t from, element::Type_t to, typename T, typename U>
