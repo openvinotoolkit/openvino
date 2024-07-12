@@ -679,43 +679,35 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
     }
 
     auto supportedPrecisions = std::vector<PrecisionsRestriction>({
-            PrecisionsRestriction::create<ov::opset1::Convolution>({
-                    {{0}, input0LowPrecisionList},
-                    {{1}, {ov::element::i8}},
-                }),
-            PrecisionsRestriction::create<ov::opset1::ConvolutionBackpropData>({
-                    {{0}, {ov::element::u8, ov::element::i8}},
-                    {{1}, {ov::element::i8}}
-                }),
-            PrecisionsRestriction::create<ov::opset1::GroupConvolution>([input0LowPrecisionList](const std::shared_ptr<ov::Node>& node){
+        PrecisionsRestriction::create<ov::opset1::Convolution>({
+            {{0}, input0LowPrecisionList},
+            {{1}, {ov::element::i8}},
+        }),
+        PrecisionsRestriction::create<ov::opset1::ConvolutionBackpropData>(
+            {{{0}, {ov::element::u8, ov::element::i8}}, {{1}, {ov::element::i8}}}),
+        PrecisionsRestriction::create<ov::opset1::GroupConvolution>(
+            [input0LowPrecisionList](const std::shared_ptr<ov::Node>& node) {
                 const auto& input_partial_shape = node->get_input_partial_shape(0);
                 const auto& rank = input_partial_shape.rank();
                 if (rank.is_static() && (rank.get_length() == 5)) {
-                    return PrecisionsRestriction::PrecisionsByPorts{
-                        {{0}, {ov::element::u8, ov::element::i8}},
-                        {{1}, {ov::element::i8}}};
+                    return PrecisionsRestriction::PrecisionsByPorts{{{0}, {ov::element::u8, ov::element::i8}},
+                                                                    {{1}, {ov::element::i8}}};
                 }
 
                 return PrecisionsRestriction::PrecisionsByPorts{
                     {{0}, input0LowPrecisionList},
                     {{1}, {ov::element::i8}}
                 };
-                }),
-            PrecisionsRestriction::create<ov::opset1::Multiply>({
-                    {{0}, {ov::element::u8}},
-                    {{1}, {ov::element::i8}},
-                }),
-            PrecisionsRestriction::create<ov::opset1::MatMul>({
-                    {{0}, {ov::element::u8, ov::element::i8}},
-                    {{1}, {ov::element::i8}}
-                }),
-            PrecisionsRestriction::create<ov::opset5::LSTMSequence>({
-                    {{0, 1}, {ov::element::u8}}
-                }),
-            PrecisionsRestriction::create<ov::opset6::GRUSequence>({
-                    {{0, 1}, {ov::element::u8}}
-                }),
-        });
+            }),
+        PrecisionsRestriction::create<ov::opset1::Multiply>({
+            {{0}, {ov::element::u8}},
+            {{1}, {ov::element::i8}},
+        }),
+        PrecisionsRestriction::create<ov::opset1::MatMul>(
+            {{{0}, {ov::element::u8, ov::element::i8}}, {{1}, {ov::element::i8}}}),
+        PrecisionsRestriction::create<ov::opset5::LSTMSequence>({{{0, 1}, {ov::element::u8}}}),
+        PrecisionsRestriction::create<ov::opset6::GRUSequence>({{{0, 1}, {ov::element::u8}}}),
+    });
 
     auto quantizationRestrictions = std::vector<QuantizationGranularityRestriction>({
             QuantizationGranularityRestriction::create<ov::opset1::Convolution>({0}),
