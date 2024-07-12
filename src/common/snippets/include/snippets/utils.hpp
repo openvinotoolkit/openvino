@@ -248,42 +248,13 @@ std::shared_ptr<ov::Node> get_leaf_node_of_first_child_shape_infer_seq(const std
 std::shared_ptr<ov::Node> get_leaf_node_of_first_parent_shape_infer_seq(const std::shared_ptr<ov::Node>& start_node);
 
 /**
- * @brief Calculate leading dimension of the shape that should be read according to the layout
- * @param shape original (not reordered) input shape
- * @param layout specifies the order in what dimensions of in the input shape should be read
- * @return stride of the dimension idx = layout[layout.size() - 2] in the original shape
-   Example:
-         Original shape (shape) = [1, 49, 2, 23]
-         Layout (transpose order) = [2, 0, 1, 3]
-
-         dim_idx = layout.size() - 2 = 2
-         // Since layout specifies the order of dimensions in which the shape should be read
-         dim = layout[dim_idx] = 1
-         stride(shape[1]) = shape[2] * shape[3] = 2 * 23
- */
-size_t get_in_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout);
-inline size_t get_in_leading_dim(const lowered::PortDescriptorPtr& pd) {
-    return get_in_leading_dim(pd->get_shape(), pd->get_layout());
-}
-/**
  *
- * @param shape reordered input shape that is stored according to the layout
- * @param layout specifies the order in what the dimensions of the input shape are stored
- * @return
-     Output shape is already transposed, we need to correctly write the data with original shape by the order
-     Example:
-          Original transposed shape (shape) = [49, 2, 7, 39]
-          Layout (transpose order) = [2, 0, 1, 3]
-
-          dim_idx = layout.size() - 2 = 2
-          // Since the shape dimensions are already reordered according to the layout
-          dim = /find dim_idx index in layout/ = 0
-          stride(shape[0]) = shape[1] * shape[2] * shape[3] = 2 * 7 * 39
+ * @param Get stride of input/output dimension
+ * @param expr_port target port that contains shape and layout info
+ * @param idx index of the target dimension starting from the shape's end (default = 1)
  */
-size_t get_out_leading_dim(const VectorDims& shape, const std::vector<size_t>& layout);
-inline size_t get_out_leading_dim(const lowered::PortDescriptorPtr& pd) {
-    return get_out_leading_dim(pd->get_shape(), pd->get_layout());
-}
+
+int64_t get_dim_stride(const lowered::ExpressionPort& expr_port, size_t idx = 1);
 
 } // namespace utils
 } // namespace snippets

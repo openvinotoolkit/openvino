@@ -13,20 +13,19 @@ namespace ov {
 namespace test {
 namespace snippets {
 
+#define STATIC_SHAPES(...) static_shapes_to_test_representation(std::vector<std::vector<ov::Shape>>{__VA_ARGS__})
 namespace {
 
-const std::vector<std::vector<ov::PartialShape>> inputShapes_4D = {
+const auto& inputShapes_4D = STATIC_SHAPES(
     {{1, 128, 12, 64}, {1, 128, 12, 64}, {1, 12, 128, 128}, {1, 128, 12, 64}},
     {{1, 128, 16, 64}, {1, 128, 16, 64}, {1, 16, 1, 1}, {1, 128, 16, 64}},
     {{1, 128, 16, 64}, {1, 128, 16, 64}, {1, 1, 1, 128}, {1, 128, 16, 64}},
     {{2, 68, 6, 92}, {2, 68, 6, 92}, {1, 1, 68, 68}, {2, 68, 6, 92}},
-    {{1, 58, 16, 34}, {1, 58, 16, 34}, {1, 1, 1, 58}, {1, 58, 16, 34}},
-};
+    {{1, 58, 16, 34}, {1, 58, 16, 34}, {1, 1, 1, 58}, {1, 58, 16, 34}});
 
-const std::vector<std::vector<ov::PartialShape>> inputShapes_3D = {
+const auto& inputShapes_3D = STATIC_SHAPES(
     {{128, 12, 64}, {128, 12, 64}, {12, 128, 128}, {128, 12, 64}},
-    {{68, 6, 92}, {68, 6, 92}, {1, 68, 68}, {68, 6, 92}},
-};
+    {{68, 6, 92}, {68, 6, 92}, {1, 68, 68}, {68, 6, 92}});
 
 static inline bool is_bf16_supported() {
     return ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx512_core_amx_bf16();
@@ -62,6 +61,35 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D,
                                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MHA::getTestCaseName);
 
+std::vector<std::vector<ov::test::InputShape>> inputShapes_4D_dynamic{
+        {
+            {PartialShape{-1, -1, -1, -1}, {{1, 128, 3, 64}, {1, 70, 3, 19}, {1, 128, 3, 64}, {1, 68, 6, 87}}},
+            {PartialShape{-1, -1, -1, -1}, {{1, 128, 1, 64}, {2, 49, 1, 19}, {1, 128, 1, 64}, {2, 13, 6, 87}}},
+            {PartialShape{-1, -1, -1, -1}, {{2, 1, 128, 128}, {1, 1, 70, 49}, {2, 1, 128, 128}, {1, 1, 68, 13}}},
+            {PartialShape{-1, -1, -1, -1}, {{1, 128, 3, 64}, {1, 49, 3, 19}, {1, 128, 3, 64}, {2, 13, 6, 87}}},
+        },
+        {
+            {PartialShape{-1, -1, 12, 64}, {{1, 70, 12, 64}, {1, 20, 12, 64}, {1, 70, 12, 64}}},
+            {PartialShape{-1, -1, 12, 64}, {{1, 35, 12, 64}, {2, 10, 12, 64}, {1, 35, 12, 64}}},
+            {PartialShape{-1, 12, -1, -1}, {{2, 12, 70, 35}, {1, 12, 20, 10}, {2, 12, 70, 35}}},
+            {PartialShape{-1, -1, 12, 64}, {{1, 35, 12, 64}, {1, 10, 12, 64}, {1, 35, 12, 64}}},
+        }
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_DynMHA_4D,
+                         MHA,
+                         ::testing::Combine(::testing::ValuesIn(inputShapes_4D_dynamic),
+                                            ::testing::ValuesIn(precision_f32(4)),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::ValuesIn({false}),
+                                            ::testing::Values(MHA::default_thread_count),
+                                            ::testing::Values(1),
+                                            ::testing::Values(1),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values(CPUTestUtils::empty_plugin_config)),
+                         MHA::getTestCaseName);
+
+
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_3D,
                          MHA,
                          ::testing::Combine(::testing::ValuesIn(inputShapes_3D),
@@ -78,10 +106,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_3D,
 INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_MHA_4D_SplitDimensionM,
     MHA,
-    ::testing::Combine(::testing::Values(std::vector<ov::PartialShape>{{1, 128, 2, 64},
-                                                                       {1, 128, 2, 64},
-                                                                       {1, 1, 1, 1},
-                                                                       {1, 128, 2, 64}}),
+    ::testing::Combine(::testing::ValuesIn(STATIC_SHAPES({{1, 128, 2, 64}, {1, 128, 2, 64}, {1, 1, 1, 1}, {1, 128, 2, 64}})),
                        ::testing::ValuesIn(precision_f32(4)),
                        ::testing::Values(ov::element::f32),
                        ::testing::Values(true),
@@ -96,7 +121,7 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_MHA_3D_SplitDimensionM,
     MHA,
     ::testing::Combine(
-        ::testing::Values(std::vector<ov::PartialShape>{{384, 2, 64}, {384, 2, 64}, {1, 384, 384}, {384, 2, 64}}),
+        ::testing::ValuesIn(STATIC_SHAPES({{384, 2, 64}, {384, 2, 64}, {1, 384, 384}, {384, 2, 64}})),
         ::testing::ValuesIn(precision_f32(4)),
         ::testing::Values(ov::element::f32),
         ::testing::Values(true),
@@ -137,7 +162,7 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_MHAMulAdd,
     MHAMulAdd,
     ::testing::Combine(
-        ::testing::Values(std::vector<ov::PartialShape>{{1, 10, 12, 16}, {1, 10, 12, 16}, {1, 10, 12, 16}}),
+        ::testing::ValuesIn(STATIC_SHAPES({{1, 10, 12, 16}, {1, 10, 12, 16}, {1, 10, 12, 16}})),
         ::testing::ValuesIn(precision_f32(3)),
         ::testing::Values(ov::element::f32),
         ::testing::ValuesIn({false}),  // Need to support True for graph builder in tests
@@ -148,13 +173,14 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(CPUTestUtils::empty_plugin_config)),
     MHA::getTestCaseName);
 
-const std::vector<std::vector<ov::PartialShape>> inputShapeSelect = {
+const auto& inputShapeSelect = STATIC_SHAPES(
     // without broadcast
     {{1, 128, 12, 64}, {1, 128, 12, 64}, {1, 12, 128, 128}, {1, 12, 128, 128}, {1, 12, 128, 128}, {1, 128, 12, 64}},
     {{1, 94, 12, 54}, {1, 94, 12, 54}, {1, 12, 94, 94}, {1, 12, 94, 94}, {1, 12, 94, 94}, {1, 94, 12, 54}},
     // with broadcast
     {{1, 128, 12, 64}, {1, 128, 12, 64}, {1, 12, 128, 128}, {1, 12, 1, 1}, {1, 12, 1, 1}, {1, 128, 12, 64}},
-    {{2, 52, 6, 102}, {2, 52, 6, 102}, {1, 6, 52, 52}, {1, 6, 1, 1}, {1, 6, 1, 1}, {2, 52, 6, 102}}};
+    {{2, 52, 6, 102}, {2, 52, 6, 102}, {1, 6, 52, 52}, {1, 6, 1, 1}, {1, 6, 1, 1}, {2, 52, 6, 102}}
+);
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_MHA,
@@ -170,12 +196,12 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(CPUTestUtils::empty_plugin_config)),
     MHA::getTestCaseName);
 
-const std::vector<std::vector<ov::PartialShape>> inputShapesWOTranspose_4D = {
+const auto& inputShapesWOTranspose_4D = STATIC_SHAPES(
     {{1, 12, 197, 64}, {1, 12, 64, 197}, {1, 12, 197, 64}},
-    {{1, 12, 12, 64}, {1, 12, 64, 48}, {1, 12, 48, 64}}};
-const std::vector<std::vector<ov::PartialShape>> inputShapesWOTranspose_3D = {
+    {{1, 12, 12, 64}, {1, 12, 64, 48}, {1, 12, 48, 64}});
+const auto& inputShapesWOTranspose_3D = STATIC_SHAPES(
     {{12, 197, 64}, {12, 64, 197}, {12, 197, 64}},
-    {{12, 128, 100}, {12, 100, 128}, {12, 128, 100}}};
+    {{12, 128, 100}, {12, 100, 128}, {12, 128, 100}});
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_MHAWOTransposeOnInputs_4D,
@@ -218,6 +244,35 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(ov::test::utils::DEVICE_CPU),
                        ::testing::Values(CPUTestUtils::empty_plugin_config)),
     MHA::getTestCaseName);
+
+std::vector<std::vector<ov::test::InputShape>> inputShapesWOTranspose_3D_dynamic{
+        {
+                {PartialShape{-1, -1, -1}, {{12, 19, 85}, {1, 40, 36}}},
+                {PartialShape{-1, -1, -1}, {{1, 85, 19}, {2, 36, 40}}},
+                {PartialShape{-1, -1, -1}, {{12, 19, 85}, {1, 40, 36}}},
+        },
+        {
+                {PartialShape{2, -1, 64}, {{2, 9, 64}, {2, 2, 64}, {2, 9, 64}}},
+                {PartialShape{2, 64, -1}, {{2, 64, 9}, {2, 64, 2}, {2, 64, 9}}},
+                {PartialShape{2, -1, 64}, {{2, 9, 64}, {2, 2, 64}, {2, 9, 64}}},
+        },
+};
+
+
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Snippets_DynMHAWOTranspose_3D,
+        MHAWOTranspose,
+        ::testing::Combine(::testing::ValuesIn(inputShapesWOTranspose_3D_dynamic),
+                           ::testing::ValuesIn(precision_f32(3)),
+                           ::testing::Values(ov::element::f32),
+                           ::testing::ValuesIn({true}),  // Need to support False for graph builder in tests
+                           ::testing::Values(MHA::default_thread_count),
+                           ::testing::Values(1),
+                           ::testing::Values(1),
+                           ::testing::Values(ov::test::utils::DEVICE_CPU),
+                           ::testing::Values(CPUTestUtils::empty_plugin_config)),
+        MHA::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_MHAWOTransposeBF16_4D,
@@ -278,7 +333,7 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_MHAINT8MatMul,
     MHAINT8MatMul,
-    ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<ov::PartialShape>>(inputShapes_4D.begin(),
+    ::testing::Combine(::testing::ValuesIn(std::vector<std::vector<InputShape>>(inputShapes_4D.begin(),
                                                                                       inputShapes_4D.begin() + 2)),
                        ::testing::Values(std::vector<element::Type>{}),
                        ::testing::Values(ov::element::f32),
@@ -294,7 +349,7 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_MHAQuantMatMul0,
     MHAQuantMatMul0,
     ::testing::Combine(
-        ::testing::Values(std::vector<ov::PartialShape>{{1, 128, 768}, {1, 128, 768}, {1, 1, 1, 128}, {1, 128, 768}}),
+        ::testing::ValuesIn(STATIC_SHAPES({{1, 128, 768}, {1, 128, 768}, {1, 1, 1, 128}, {1, 128, 768}})),
         ::testing::Values(std::vector<element::Type>{}),
         ::testing::Values(ov::element::f32),
         ::testing::Values(false),  // The graph doesn't contain Multiply
@@ -321,10 +376,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHAFQAfterMatMul_4D,
 INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_MHAFQ,
     MHAFQ,
-    ::testing::Combine(::testing::Values(std::vector<ov::PartialShape>{{1, 64, 12, 64},
-                                                                       {1, 64, 12, 64},
-                                                                       {1, 1, 1, 64},
-                                                                       {1, 64, 12, 64}}),
+    ::testing::Combine(::testing::ValuesIn(STATIC_SHAPES({{1, 64, 12, 64},
+                                                          {1, 64, 12, 64},
+                                                          {1, 1, 1, 64},
+                                                          {1, 64, 12, 64}})),
                        ::testing::Values(std::vector<element::Type>{}),
                        ::testing::Values(ov::element::f32),
                        ::testing::Values(false),  // The graph doesn't contain Multiply
@@ -335,8 +390,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(CPUTestUtils::empty_plugin_config)),
     MHA::getTestCaseName);
 
-const std::vector<std::vector<ov::PartialShape>> inputShapesTransposedB = {
-    {{1, 12, 12, 64}, {1, 12, 48, 64}, {1, 12, 48, 64}}};
+const auto& inputShapesTransposedB = STATIC_SHAPES({{1, 12, 12, 64}, {1, 12, 48, 64}, {1, 12, 48, 64}});
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_MHATransposedB,
@@ -352,14 +406,39 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(CPUTestUtils::empty_plugin_config)),
     MHA::getTestCaseName);
 
-const std::vector<std::vector<ov::PartialShape>> inputShapesExtractedReshape = {
+std::vector<std::vector<ov::test::InputShape>> inputShapesTransposedB_dynamic{
+        {
+                {PartialShape{-1, 3, -1, 64}, {{1, 3, 12, 64}, {2, 3, 36, 64}}},
+                {PartialShape{-1, 3, -1, 64}, {{1, 3, 14, 64}, {2, 3, 42, 64}}},
+                {PartialShape{-1, 3, -1, -1}, {{1, 3, 14, 36}, {2, 3, 42, 36}}},
+        },
+        {
+                {PartialShape{2, -1, 32, -1}, {{2, 1, 32, 70}, {2, 2, 32, 96}}},
+                {PartialShape{2, -1, 49, -1}, {{2, 3, 49, 70}, {2, 1, 49, 96}}},
+                {PartialShape{2, -1, 49, -1}, {{2, 1, 49, 17}, {2, 2, 49, 81}}},
+        },
+};
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Snippets_DynMHATransposedB,
+        MHATransposedB,
+        ::testing::Combine(::testing::ValuesIn(inputShapesTransposedB_dynamic),
+                           ::testing::Values(std::vector<element::Type>{}),
+                           ::testing::Values(ov::element::f32),
+                           ::testing::ValuesIn({true}),  // Need to support False for graph builder in tests
+                           ::testing::Values(MHA::default_thread_count),
+                           ::testing::Values(2),
+                           ::testing::Values(1),
+                           ::testing::Values(ov::test::utils::DEVICE_CPU),
+                           ::testing::Values(CPUTestUtils::empty_plugin_config)),
+        MHA::getTestCaseName);
+
+const auto& inputShapesExtractedReshape = STATIC_SHAPES(
     {{2, 196, 64}, {2, 64, 196}, {2, 14, 14, 14, 1}, {2, 14, 14, 1, 14}, {2, 196, 64}},
     {{1, 16, 10}, {1, 10, 16}, {1, 4, 4, 4, 1}, {1, 4, 4, 1, 4}, {1, 16, 10}},
     {{1, 16, 10}, {1, 10, 16}, {1, 1, 1, 1, 1}, {1, 4, 4, 4, 4}, {1, 16, 10}},
     {{1, 16, 10}, {1, 10, 16}, {1, 4, 4, 4, 4}, {1, 1, 1, 1, 1}, {1, 16, 10}},
     {{1, 4, 16, 10}, {1, 4, 10, 16}, {1, 4, 256}, {1, 4, 256}, {1, 4, 16, 10}},
-    {{1, 4, 16, 10}, {1, 4, 10, 16}, {1, 1, 256}, {1, 4, 1}, {1, 4, 16, 10}},
-};
+    {{1, 4, 16, 10}, {1, 4, 10, 16}, {1, 1, 256}, {1, 4, 1}, {1, 4, 16, 10}});
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_MHAWithExtractedReshape,
