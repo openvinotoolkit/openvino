@@ -192,6 +192,7 @@ jobs:
 
   CPU_Functional_Tests:
     name: CPU functional tests
+    # this PR does nothing
     # WA: currently, snippet tests are expectedly failing, we need green CI until all testcases will be fixed
     if: ${{ github.event_name == 'workflow_dispatch'}}
     needs: [ Docker, Build, Smart_CI ]
