@@ -112,7 +112,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     for (size_t i = 0; i < m_npuw_model->inputs().size(); i++) {
         const auto& port = m_npuw_model->inputs()[i];
         m_input_tensors.push_back(ov::get_tensor_impl(ov::Tensor(port.get_element_type(), port.get_shape())));
-        std::cout << "Input Tensors: " << m_input_tensors << std::endl;
+        std::cout << "Input Tensors: " << port.get_shape() << std::endl;
         m_port_to_tensor[port] = TensorStorage{m_input_tensors.back(), true};
     }  // for(inputs)
 
