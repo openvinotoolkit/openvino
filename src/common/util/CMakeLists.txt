@@ -42,7 +42,7 @@ if (WIN32)
     target_link_libraries(${TARGET_NAME} PRIVATE Shlwapi)
 endif()
 
-if(LINUX)
+if(LINUX OR APPLE)
     target_link_libraries(${TARGET_NAME} PRIVATE stdc++fs)
 endif()
 target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>)

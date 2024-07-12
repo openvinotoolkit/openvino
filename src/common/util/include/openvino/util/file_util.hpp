@@ -18,6 +18,11 @@
 #            include <filesystem>
 namespace fs = std::filesystem;
 #        endif
+#    elif defined(__clang__)
+#        if __has_include(<__fs/filesystem>)
+#            include <__fs/filesystem>
+namespace fs = std::__fs::filesystem;
+#        endif
 #    else
 #        define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
 #        define _LIBCPP_NO_EXPERIMENTAL_DEPRECATION_WARNING_FILESYSTEM
