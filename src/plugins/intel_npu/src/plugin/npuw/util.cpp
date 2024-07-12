@@ -1162,10 +1162,10 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
     ov::SoPtr<ov::ITensor> orig_itensor = get_tensor_impl(orig_tensor);
     ov::Shape new_shape = {orig_shape[0], orig_shape[2], orig_shape[3], orig_shape[1]};
     ov::Tensor tmp_tensor(orig_tensor.get_element_type(), new_shape);
-    ov::SoPtr<ov::ITensor> tmp_itensor = get_tensor_impl(tmp_tensor);
+    ov::SoPtr<ov::ITensor> tmp_iitensor = get_tensor_impl(tmp_tensor);
     orig_itensor->set_shape(new_shape);
-    orig_itensor->copy_to(tmp_itensor._ptr);
-    tmp_itensor->copy_to(orig_itensor._ptr);
+    orig_itensor->copy_to(tmp_iitensor._ptr);
+    tmp_iitensor->copy_to(orig_itensor._ptr);
     std::cout << "Orig new shape: " << to->get_shape() << std::endl;
     float* tensor_data = static_cast<float*>(orig_itensor->data(ov::element::f32));
     size_t total_elements = std::accumulate(orig_shape.begin(), orig_shape.end(), 1, std::multiplies<size_t>());
