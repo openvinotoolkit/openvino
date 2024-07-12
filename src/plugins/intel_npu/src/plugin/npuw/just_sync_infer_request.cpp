@@ -112,7 +112,6 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     for (size_t i = 0; i < m_npuw_model->inputs().size(); i++) {
         const auto& port = m_npuw_model->inputs()[i];
         m_input_tensors.push_back(ov::get_tensor_impl(ov::Tensor(port.get_element_type(), port.get_shape())));
-        std::cout << "Input Tensors: " << port.get_shape() << std::endl;
         m_port_to_tensor[port] = TensorStorage{m_input_tensors.back(), true};
     }  // for(inputs)
 
@@ -333,6 +332,9 @@ void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
         const auto& g_port = m_npuw_model->inputs()[param_idx];
         const auto& g_tnsr = m_port_to_tensor.at(g_port).tensor;
         const auto& s_port = subr->get_inputs()[sub_in_idx];
+        std::cout << "Gport input Tensors: " << g_port.get_shape() << std::endl;
+        std::cout << "G_tnsr Tensors: " << g_tnsr->get_shape() << std::endl;
+        std::cout << "s_port Tensors: " << s_port.get_shape() << std::endl;
         LOG_DEBUG("Processing " << g_port << " -> " << s_port << "...");
         LOG_BLOCK();
         if (do_copy) {
