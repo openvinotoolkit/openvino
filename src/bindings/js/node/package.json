@@ -18,7 +18,7 @@
     "build": "npm run tsc",
     "prepare": "npm run build",
     "lint": "eslint .",
-    "test": "node --test './tests/*.test.js'",
+    "test": "node --test \"./tests/*.test.js\"",
     "test:e2e": "mocha e2e/electron-app.test.js",
     "tsc": "tsc",
     "postinstall": "npm run install_runtime",
