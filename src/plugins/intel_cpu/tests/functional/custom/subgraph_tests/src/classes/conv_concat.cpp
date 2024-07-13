@@ -3,6 +3,7 @@
 //
 
 #include "conv_concat.hpp"
+#include "utils/convolution_params.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
 #include "common_test_utils/node_builders/convolution_backprop_data.hpp"
 #include "common_test_utils/node_builders/group_convolution.hpp"
@@ -228,7 +229,7 @@ const commonConvParams groupConvParams3D() {
 }
 
 const std::vector<CPUSpecificParams> blockedCPUParams2D() {
-    static const std::vector<CPUSpecificParams> resCPUParams = {planar_2D, block8c_2D};
+    static std::vector<CPUSpecificParams> resCPUParams = {planar_2D, block8c_2D};
     if (ov::with_cpu_x86_avx512f()) {
         resCPUParams.push_back(block16c_2D);
     }
@@ -236,7 +237,7 @@ const std::vector<CPUSpecificParams> blockedCPUParams2D() {
 }
 
 const std::vector<CPUSpecificParams> blockedCPUParams3D() {
-    static const std::vector<CPUSpecificParams> resCPUParams = {planar_3D, block8c_3D};
+    static std::vector<CPUSpecificParams> resCPUParams = {planar_3D, block8c_3D};
     if (ov::with_cpu_x86_avx512f()) {
         resCPUParams.push_back(block16c_3D);
     }
