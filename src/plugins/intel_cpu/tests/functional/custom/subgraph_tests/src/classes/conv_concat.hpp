@@ -45,6 +45,9 @@ protected:
 };
 
 namespace ConvConcat {
+const std::vector<CPUSpecificParams> blockedCPUParams2D();
+const std::vector<CPUSpecificParams> blockedCPUParams3D();
+
 const ov::Shape inputShapes2D();
 const ov::Shape inputShapes3D();
 const int axis();

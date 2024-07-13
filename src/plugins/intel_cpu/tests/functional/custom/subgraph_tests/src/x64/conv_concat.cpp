@@ -230,16 +230,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolution3D, ConvConcatSubgraphTest, param
 } // namespace GroupConvolutionConcat
 
 namespace GroupConvolutionBackpropDataConcat {
-const std::vector<CPUSpecificParams> CPUParams2D = {
-    block8c_2D,
-    block16c_2D
-};
 
 /* ============= GroupConvolutionBackpropData (2D) ============= */
 const auto params2D = ::testing::Combine(
     ::testing::Values(nodeType::groupConvolutionBackpropData),
     ::testing::Values(groupConvParams2D()),
-    ::testing::ValuesIn(filterCPUSpecificParams(CPUParams2D)),
+    ::testing::ValuesIn(filterCPUSpecificParams(blockedCPUParams2D())),
     ::testing::Values(inputShapes2D()),
     ::testing::Values(axis())
 );
@@ -247,14 +243,10 @@ const auto params2D = ::testing::Combine(
 INSTANTIATE_TEST_SUITE_P(smoke_GroupConvolutionBackpropData2D, ConvConcatSubgraphTest, params2D, ConvConcatSubgraphTest::getTestCaseName);
 
 /* ============= GroupConvolutionBackpropData (3D) ============= */
-const std::vector<CPUSpecificParams> CPUParams3D = {
-    block8c_3D,
-    block16c_3D
-};
 const auto params3D = ::testing::Combine(
     ::testing::Values(nodeType::groupConvolutionBackpropData),
     ::testing::Values(groupConvParams3D()),
-    ::testing::ValuesIn(filterCPUSpecificParams(CPUParams3D)),
+    ::testing::ValuesIn(filterCPUSpecificParams(blockedCPUParams3D())),
     ::testing::Values(inputShapes3D()),
     ::testing::Values(axis())
 );
