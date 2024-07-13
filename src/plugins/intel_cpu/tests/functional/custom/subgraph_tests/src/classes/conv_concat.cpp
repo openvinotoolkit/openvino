@@ -228,22 +228,6 @@ const commonConvParams groupConvParams3D() {
     return commonConvParams{kernelSize3D(), strides3D(), padBegin3D(), padEnd3D(), dilation3D(), numOutChannels(), paddingType(), 2};
 }
 
-const std::vector<CPUSpecificParams> blockedCPUParams2D() {
-    static std::vector<CPUSpecificParams> resCPUParams = {planar_2D, block8c_2D};
-    if (ov::with_cpu_x86_avx512f()) {
-        resCPUParams.push_back(block16c_2D);
-    }
-    return resCPUParams;
-}
-
-const std::vector<CPUSpecificParams> blockedCPUParams3D() {
-    static std::vector<CPUSpecificParams> resCPUParams = {planar_3D, block8c_3D};
-    if (ov::with_cpu_x86_avx512f()) {
-        resCPUParams.push_back(block16c_3D);
-    }
-    return resCPUParams;
-}
-
 }  // namespace ConvConcat
 }  // namespace test
 }  // namespace ov

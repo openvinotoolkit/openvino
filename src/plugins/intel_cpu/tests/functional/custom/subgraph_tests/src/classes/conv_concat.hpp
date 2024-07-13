@@ -67,9 +67,6 @@ const commonConvParams convParams2D();
 const commonConvParams convParams3D();
 const commonConvParams groupConvParams2D();
 const commonConvParams groupConvParams3D();
-
-const std::vector<CPUSpecificParams> blockedCPUParams2D();
-const std::vector<CPUSpecificParams> blockedCPUParams3D();
 } // namespace ConvConcat
 
 }  // namespace test
