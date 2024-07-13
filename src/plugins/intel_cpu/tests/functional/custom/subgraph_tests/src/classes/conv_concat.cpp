@@ -3,6 +3,7 @@
 //
 
 #include "conv_concat.hpp"
+#include "utils/convolution_params.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
 #include "common_test_utils/node_builders/convolution_backprop_data.hpp"
 #include "common_test_utils/node_builders/group_convolution.hpp"
