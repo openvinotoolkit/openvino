@@ -2,8 +2,7 @@
 
 This document outlines the coding standards and guidelines of javascript and typescript part of **openvino-node** package. These rules help maintain code quality and consistency throughout the codebase.
 
-Please, make sure that eslint activated in your IDE.
-Rules specified in [.eslint-global.js file](../.eslintrc-global.js). Pay attention that PR wont get approve without following these rules.
+Make sure your IDE has ESLint plugin installed. Its rules are specified in the [.eslint-global.js file](../.eslintrc-global.js). Keep in mind that your PR will not be approved if it does not meet the following requirements.
 
 ## General Rules
 
