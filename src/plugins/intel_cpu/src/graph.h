@@ -35,7 +35,8 @@ public:
     enum class Status {
         NotReady = 0,
         ReadyStatic = 1,
-        ReadyDynamic = 2
+        ReadyDynamic = 2,
+        ReadyDynamicSeq = 3,
     };
 
     Graph() = default;
@@ -228,7 +229,9 @@ protected:
     void ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const;
     void CreatePrimitivesAndExecConstants() const;
     void InferStatic(SyncInferRequest* request);
-    void InferDynamic(SyncInferRequest* request);
+
+    template<typename UpdateStrategy>
+    void InferDynamic(SyncInferRequest* request, UpdateStrategy&& update);
     void ParalleMtNuma(size_t num_nodes,
                        ov::threading::CPUStreamsExecutor::Ptr executor,
                        const std::function<void(size_t, size_t)>& func) const;
