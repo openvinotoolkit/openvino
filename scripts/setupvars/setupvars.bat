@@ -33,7 +33,7 @@ if exist "%INTEL_OPENVINO_DIR%\extras\opencv\setupvars.bat" (
 :opencv_done
 
 :: OpenVINO runtime
-set "OpenVINO_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
+set OpenVINO_DIR="%INTEL_OPENVINO_DIR%\runtime\cmake"
 if exist "%OpenVINO_DIR%\OpenVINOGenAIConfig.cmake" (
    :: If GenAI is installed, export it as well.
    set "OpenVINOGenAI_DIR=%OpenVINO_DIR%"
