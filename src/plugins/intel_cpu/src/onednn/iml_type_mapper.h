@@ -47,6 +47,7 @@ enum impl_desc_type {
     sve256 = 1<<29,
     sve384 = 1<<30,
     sve512 = 1<<31,
+    riscv  = 1<<5,
 
     // real types
     ref_any             = ref  | any,
@@ -112,7 +113,8 @@ enum impl_desc_type {
     jit_sve128        = jit | sve128,
     jit_sve256        = jit | sve256,
     jit_sve384        = jit | sve384,
-    jit_sve512        = jit | sve512
+    jit_sve512        = jit | sve512,
+    jit_riscv         = jit | riscv
 };
 
 std::vector<std::string> extractTypeAndImplName(const std::string& priority);

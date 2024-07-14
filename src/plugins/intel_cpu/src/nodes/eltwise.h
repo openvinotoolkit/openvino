@@ -18,11 +18,15 @@
 #include "kernels/aarch64/jit_uni_eltwise_generic.hpp"
 #endif
 
+#if defined(OPENVINO_ARCH_RISCV64)
+#include "kernels/riscv64/jit_uni_eltwise_generic.hpp"
+#endif
+
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
-#ifndef OPENVINO_ARCH_ARM64
+#if !defined(OPENVINO_ARCH_ARM64) && !defined(OPENVINO_ARCH_RISCV64)
 
 struct jit_eltwise_params {
     size_t inputs_number;

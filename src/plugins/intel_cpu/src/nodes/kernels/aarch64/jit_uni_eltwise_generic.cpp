@@ -83,6 +83,8 @@ void jit_uni_eltwise_generic<isa>::generate() {
                     XReg index_reg(get_aux_gpr(1));
                     ldr(index_reg, ptr(param2, static_cast<int32_t>(j * sizeof(size_t))));
                     madd(pointer, offset_reg, index_reg, pointer);
+
+                    std::cout << "init_ptrs_with_offsets: offset=" << (offsets[j] * j * sizeof(size_t)) << std::endl;
                 }
             }
         };

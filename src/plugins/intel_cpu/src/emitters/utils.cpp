@@ -3,6 +3,7 @@
 //
 
 #include "utils.hpp"
+#include <assert.h>
 
 namespace ov {
 namespace intel_cpu {
@@ -36,6 +37,21 @@ std::string jit_emitter_pretty_name(const std::string &pretty_func) {
     begin++;
 #undef SAFE_SYMBOL_FINDING
     return end > begin ? pretty_func.substr(begin, end - begin) : pretty_func;
+}
+
+ov::element::Type get_input_precision(const std::shared_ptr<ov::Node>& n) {
+    std::vector<ov::element::Type> input_precisions;
+    for (const auto& input : n->inputs()) {
+        input_precisions.push_back(
+            input.get_source_output().get_element_type());
+    }
+
+    assert(std::all_of(
+        input_precisions.begin(),
+        input_precisions.end(),
+        [&input_precisions](const ov::element::Type& precision) {return precision == input_precisions[0]; }));
+
+    return input_precisions[0];
 }
 
 } // namespace intel_cpu
