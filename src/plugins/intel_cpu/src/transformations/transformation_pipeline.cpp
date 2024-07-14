@@ -37,6 +37,7 @@
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
+#include "transformations/op_conversions/convert_avgpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
 #include "transformations/op_conversions/convert_bitwise_to_logical_bool.hpp"
 #include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"
@@ -93,6 +94,7 @@
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
+#include "transformations/transpose_sinking/ts_shape_of.hpp"
 #include "utils/ngraph_transformation.hpp"
 #include "utils/print_model.hpp"
 
@@ -468,9 +470,17 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         manager,
         [](const_node_ptr& node) -> bool {
             const auto maxpool = std::dynamic_pointer_cast<const ov::op::v14::MaxPool>(node);
-            return !maxpool ||  maxpool->get_rounding_type() == ov::op::RoundingType::CEIL_TORCH;
+            return !maxpool || maxpool->get_rounding_type() == ov::op::RoundingType::CEIL_TORCH;
         },
         ov::pass::ConvertMaxPool14ToMaxPool8);
+
+    CPU_SET_CALLBACK_COMMON(
+        manager,
+        [](const_node_ptr& node) -> bool {
+            const auto avgpool = std::dynamic_pointer_cast<const ov::op::v14::AvgPool>(node);
+            return !avgpool || avgpool->get_rounding_type() == ov::op::RoundingType::CEIL_TORCH;
+        },
+        ov::pass::ConvertAvgPool14ToAvgPool1);
 
     CPU_SET_CALLBACK_COMMON(manager,
         [](const_node_ptr &node) -> bool {
@@ -828,6 +838,7 @@ void Transformations::PostLpt() {
             }
         }
     }
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::transpose_sinking::TSShapeOfForward);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, StatefulSDPAFusion);
 
     // Should be before Snippets pipeline because Ngram pattern contains eltwise nodes that can be tokenized by Snippets.
@@ -876,7 +887,8 @@ void Transformations::MainSnippets(void) {
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is Config::SnippetsMode::IgnoreCallback
     bool split_m_dimension = !ignoreCallback;
     // [113198] Add dynamic Subgraph with MHA pattern inside execution support
-    bool is_dynamic_mha_token_enabled = false;
+    // To enable dynamic MHA in tests, this flag is on when there is Config::SnippetsMode::IgnoreCallback
+    bool is_dynamic_mha_token_enabled = ignoreCallback;
     // [122706] Some 3D MHA Patterns have perf regressions when Transpose op is tokenized
     std::set<size_t> mha_supported_transpose_ranks = { 4 };
     snippets::pass::SnippetsTokenization::Config tokenization_config(concurrency, data_ptr_gpr_count, split_m_dimension,

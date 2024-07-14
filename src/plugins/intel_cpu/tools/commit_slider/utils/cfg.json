@@ -3,6 +3,7 @@
         "checkOutput" : "CheckOutputMode",
         "bmPerf" : "BenchmarkAppPerformanceMode",
         "compareBlobs" : "CompareBlobsMode",
+        "ac" : "AccuracyCheckerMode",
         "nop" : "NopMode"
     },
     "traversalMap" : {
