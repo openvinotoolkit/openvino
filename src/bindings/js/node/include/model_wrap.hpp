@@ -109,6 +109,14 @@ public:
      */
     Napi::Value get_output_shape(const Napi::CallbackInfo& info);
 
+    /**
+     * @brief Helper function to access model output elements types.
+     * @param info Contains information about the environment and passed arguements
+     * @return Napi::Value wrapping a TypeWrap object representing the element type of the requested output.
+     */
+
+    Napi::Value get_output_element_type(const Napi::CallbackInfo& info);
+
 private:
     std::shared_ptr<ov::Model> _model;
     ov::Core _core;

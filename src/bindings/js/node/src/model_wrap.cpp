@@ -25,8 +25,9 @@ Napi::Function ModelWrap::get_class(Napi::Env env) {
                         InstanceMethod("setFriendlyName", &ModelWrap::set_friendly_name),
                         InstanceMethod("getFriendlyName", &ModelWrap::get_friendly_name),
                         InstanceMethod("getOutputShape", &ModelWrap::get_output_shape),
+                        InstanceMethod("getOutputElementType", &ModelWrap::get_output_elememt_type),
                         InstanceAccessor<&ModelWrap::get_inputs>("inputs"),
-                        InstanceAccessor<&ModelWrap::get_outputs>("outputs")});
+                        InstanceAccessor<&ModelWrap::get_outputs>("outputs"),});
 }
 
 void ModelWrap::set_model(const std::shared_ptr<ov::Model>& model) {
@@ -166,6 +167,36 @@ Napi::Value ModelWrap::get_output_shape(const Napi::CallbackInfo& info) {
         auto idx = info[0].As<Napi::Number>().Int32Value();
         auto output = _model->output(idx);
         return cpp_to_js<ov::Shape, Napi::Array>(info, output.get_shape());
+    } catch (const std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
+    }
+}
+
+Napi::Value ModelWrap::get_output_element_type(const Napi::CallbackInfo& info) {
+    if(info.length() != 1 || !info[0].isNumber()) {
+        reportError(info.Env(), "Invalid arguement.Expected a single number for output index");
+        return info.Env().Undefined();
+    }
+
+    try {
+        auto idx = info[0].As<Napi::Number>().Int32Value();
+        auto output = _model->output(idx);
+        auto element_type = output.get_element_type();
+        std::string type_name = element_type.get_type_name();
+        std::unordered_map<std::string, std::string> type_map = {
+            {"float", "f32"},
+            {"float16", "f16"},
+            {"int32", "i32"},
+            {"int64", "i64"},
+            {"uint8", "u8"}
+        };
+        auto mapped_type = type_map.find(type_name);
+        if (mapped_type != type_map.end()) {
+            type_name = mapped_type->second;
+        }
+        
+        return Napi::String::New(info.Env(), type_name); 
     } catch (const std::exception& e) {
         reportError(info.Env(), e.what());
         return info.Env().Undefined();
