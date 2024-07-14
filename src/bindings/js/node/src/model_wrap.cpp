@@ -25,7 +25,7 @@ Napi::Function ModelWrap::get_class(Napi::Env env) {
                         InstanceMethod("setFriendlyName", &ModelWrap::set_friendly_name),
                         InstanceMethod("getFriendlyName", &ModelWrap::get_friendly_name),
                         InstanceMethod("getOutputShape", &ModelWrap::get_output_shape),
-                        InstanceMethod("getOutputElementType", &ModelWrap::get_output_elememt_type),
+                        InstanceMethod("getOutputElementType", &ModelWrap::get_output_element_type),
                         InstanceAccessor<&ModelWrap::get_inputs>("inputs"),
                         InstanceAccessor<&ModelWrap::get_outputs>("outputs"),});
 }
@@ -174,7 +174,7 @@ Napi::Value ModelWrap::get_output_shape(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value ModelWrap::get_output_element_type(const Napi::CallbackInfo& info) {
-    if(info.length() != 1 || !info[0].isNumber()) {
+    if(info.Length() != 1 || !info[0].IsNumber()) {
         reportError(info.Env(), "Invalid arguement.Expected a single number for output index");
         return info.Env().Undefined();
     }
