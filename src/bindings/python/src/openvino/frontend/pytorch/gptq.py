@@ -93,8 +93,14 @@ supported_quant_types = ['triton', 'exllama', 'cuda', 'exllamav2', 'cuda-old']
 
 def patch_model(model):
     is_symmetrical = False
-    if getattr(model, 'config', None) and getattr(model.config, 'quantization_config', None) and getattr(model.config.quantization_config, "sym", None):
-        is_symmetrical = model.config.quantization_config.sym
+    config = None
+    if hasattr(model, "config"):
+        config = model.config
+    elif hasattr(model, "model") and hasattr(model.model, "config"):
+        # original model was wrapped
+        config = model.model.config
+    if config is not None and hasattr(config, 'quantization_config') and hasattr(config.quantization_config, 'sym'):
+        is_symmetrical = config.quantization_config.sym
     for name, m in model.named_modules():
         if hasattr(m, '_openvino_patch_orig_forward'):
             # already patched, skipping
@@ -119,8 +125,10 @@ def patch_model(model):
 
             m._openvino_patch_orig_forward = m.forward
             if is_symmetrical:
+                print("Symmetrical patched forward")
                 m.forward = partial(patched_forward_sym, m)
             else:
+                print("Assym forward")
                 m.forward = partial(patched_forward, m)
 
             # Keep original field properties to be used when model is returned back to its original state
