@@ -141,6 +141,16 @@ size_t getFileSize(std::istream& stream) {
     return streamEnd - streamStart;
 }
 
+void update_log_level(const std::map<std::string, std::string>& propertiesMap) {
+    auto it = propertiesMap.find(std::string(LOG_LEVEL::key()));
+    if (it != propertiesMap.end()) {
+        std::istringstream is(it->second);
+        ov::log::Level level;
+        is >> level;
+        Logger::global().setLevel(level);
+    }
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -148,15 +158,8 @@ namespace intel_npu {
 static Config merge_configs(const Config& globalConfig,
                             const std::map<std::string, std::string>& rawConfig,
                             OptionMode mode = OptionMode::Both) {
+    update_log_level(rawConfig);
     Config localConfig = globalConfig;
-    auto it = rawConfig.find(std::string(LOG_LEVEL::key()));
-    
-    if (it != rawConfig.end()) {
-        std::istringstream is(it->second);
-        ov::log::Level level;
-        is >> level;
-        Logger::global().setLevel(level);
-    }
 
     localConfig.update(rawConfig, mode);
     return localConfig;
@@ -545,14 +548,7 @@ Plugin::Plugin()
 
 void Plugin::set_property(const ov::AnyMap& properties) {
     const std::map<std::string, std::string> config = any_copy(properties);
-
-    auto it = config.find(std::string(LOG_LEVEL::key()));
-    if (it != config.end()) {
-        std::istringstream is(it->second);
-        ov::log::Level level;
-        is >> level;
-        Logger::global().setLevel(level);
-    }
+    update_log_level(config);
 
     for (const auto& configEntry : config) {
         if (_properties.find(configEntry.first) == _properties.end()) {
@@ -710,7 +706,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
     const auto loadedFromCache = localConfig.get<LOADED_FROM_CACHE>();
     if (!loadedFromCache) {
-        _logger.warning("The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead!");
+        _logger.warning(
+            "The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead!");
     }
 
     OV_ITT_TASK_NEXT(PLUGIN_IMPORT_MODEL, "parse");
