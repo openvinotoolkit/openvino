@@ -5,7 +5,6 @@
 #pragma once
 
 #include "snippets/lowered/linear_ir.hpp"
-#include <typeinfo>
 #if defined(SNIPPETS_DEBUG_CAPS) && !defined(_WIN32)
 #include <cxxabi.h>
 #endif
@@ -28,10 +27,13 @@ public:
         virtual bool is_completed() const = 0;
 
         /*** Return deep copy of the config */
-        virtual std::unique_ptr<GenericConfig> get_clone_ptr() const = 0;
+        virtual std::shared_ptr<GenericConfig> clone() const = 0;
 
         /*** Compute hash for fast comparison operations or caching support */
         virtual size_t hash() const = 0;
+
+        bool operator==(const GenericConfig& rhs) const { return hash() == rhs.hash(); }
+        bool operator!=(const GenericConfig& rhs) const { return hash() != rhs.hash(); }
 
         virtual ~GenericConfig() = default;
         /** serialize config for debug purposes */
@@ -43,14 +45,14 @@ public:
     * @brief Update current kernel config in accordance with the passed expression. Corresponding kernel is recompiled if necessary.
      * This method should be called to update KernelExecutor based on runtime info (e.g. shapes) available through expression ptr
     */
-    virtual void update_by_expression(const lowered::ExpressionPtr& expr) = 0;
+    virtual void update_by_expression(const ov::snippets::lowered::ExpressionPtr& expr) = 0;
     /**
     * @brief Replace current kernel config with the provided value. Corresponding kernel is recompiled if necessary.
      * This method should be called to restore a saved state of the executor, that was configured using update_by_expression().
     */
-    virtual void update_by_config(const GenericConfig& new_config) = 0;
+    virtual void update_by_config(const std::shared_ptr<const GenericConfig>& new_config) = 0;
 
-    virtual const GenericConfig& get_config() const = 0;
+    virtual std::shared_ptr<const GenericConfig> get_config() const = 0;
     /** serialize for debug purposes */
 #ifdef SNIPPETS_DEBUG_CAPS
     virtual std::string to_string() const = 0;
@@ -65,27 +67,27 @@ private:
 
 template<typename Conf, typename KernelType,
          typename std::enable_if<std::is_base_of<KernelExecutorBase::GenericConfig, Conf>::value, bool>::type = true>
-class KernelExecutor : public KernelExecutorBase {
+class KernelExecutor : public snippets::KernelExecutorBase {
 public:
-    explicit KernelExecutor(Conf c) : KernelExecutorBase(), m_config{std::move(c)} {}
+    explicit KernelExecutor(std::shared_ptr<Conf> c) : KernelExecutorBase(), m_config{std::move(c)} {}
 
     // Note: override when final is redundant, but needed to avoid warnings on some compilers
-    void update_by_expression(const lowered::ExpressionPtr& expr) override final { // NOLINT
+    void update_by_expression(const ov::snippets::lowered::ExpressionPtr& expr) override final { // NOLINT
+        m_config = std::static_pointer_cast<Conf>(m_config->clone());
         update_config(expr, m_config);
-        OPENVINO_ASSERT(m_config.is_completed(), "Failed to update kernel config in update_by_expression");
+        OPENVINO_ASSERT(m_config && m_config->is_completed(), "Failed to update kernel config in update_by_expression");
         update_kernel(m_config, m_kernel);
         OPENVINO_ASSERT(m_kernel, "Failed to compile kernel executor");
     }
-    void update_by_config(const GenericConfig& new_config) override final { // NOLINT
-        if (m_config.hash() == new_config.hash())
+    void update_by_config(const std::shared_ptr<const GenericConfig>& new_config) override final { // NOLINT
+        if (*m_config == *new_config)
             return;
-        const auto& new_ptr = dynamic_cast<const Conf*>(&new_config);
-        OPENVINO_ASSERT(new_config.is_completed() && new_ptr, "Failed to update kernel config in get_config");
-        m_config = *new_ptr;
+        m_config = std::static_pointer_cast<Conf>(std::const_pointer_cast<GenericConfig>(new_config));
+        OPENVINO_ASSERT(m_config && m_config->is_completed(), "Failed to update kernel config in get_config");
         update_kernel(m_config, m_kernel);
         OPENVINO_ASSERT(m_kernel, "Failed to compile kernel executor");
     }
-    const GenericConfig& get_config() const override { return m_config; }
+    std::shared_ptr<const GenericConfig> get_config() const override { return m_config; }
     std::shared_ptr<const KernelType> get_kernel() const { return m_kernel; }
 #ifdef SNIPPETS_DEBUG_CAPS
     std::string to_string() const override {
@@ -97,20 +99,20 @@ public:
                 std::free);
         type_name = demangled_name.get();
 #endif
-        return  "KernelExecutorType: " + std::string(type_name) + " KernelConfig: " + m_config.to_string();
+        return  "KernelExecutorType: " + std::string(type_name) + " KernelConfig: " + m_config->to_string();
     }
 #endif
 
 protected:
     /*** Updates stored kernel config based on runtime info from expression (e.g. new input shapes). */
-    virtual void update_config(const lowered::ExpressionPtr& expr, Conf& config) const = 0;
+    virtual void update_config(const ov::snippets::lowered::ExpressionPtr& expr, std::shared_ptr<Conf>& config) const = 0;
     /*** Updates stored kernel in accordance with the passed config. Recompilation of the kernel is
-     * performed if necessary. */
-    virtual void update_kernel(const Conf& c, std::shared_ptr<KernelType>& kernel) const = 0;
+     * performed only if necessary, otherwise an appropriate kernel is retrieved from cache. */
+    virtual void update_kernel(const std::shared_ptr<const Conf>& c, std::shared_ptr<KernelType>& kernel) const = 0;
 
 private:
     /** Contains all the necessary information to compile a desired kernel*/
-    Conf m_config {};
+    std::shared_ptr<Conf> m_config = nullptr;
     /** Stores pointer to compiled kernel since the last update_kernel() call */
     std::shared_ptr<KernelType> m_kernel = nullptr;
 };
@@ -120,12 +122,13 @@ public:
     /*** Register KernelExecutor in the KernelExecutorTable so it can be later updated in runtime. */
     template<typename T, class ...C,
             typename std::enable_if<std::is_base_of<KernelExecutorBase, T>::value, bool>::type = true>
-    std::shared_ptr<T> register_kernel(const lowered::ExpressionPtr& expr, C... args) {
+    std::shared_ptr<T> register_kernel(const snippets::lowered::ExpressionPtr& expr, C... args) {
+        OPENVINO_ASSERT(!m_table.count(expr), "This expression already has an alterable kernel");
         const auto& instance = std::make_shared<T>(args...);
-        OPENVINO_ASSERT(m_table.insert({expr, instance}).second, "This expression already has an alterable kernel");
+        m_table[expr] = instance;
         return instance;
     }
-   const std::shared_ptr<KernelExecutorBase>& get_kernel_executor(const lowered::ExpressionPtr& expr) const {
+    std::shared_ptr<KernelExecutorBase> get_kernel_executor(const snippets::lowered::ExpressionPtr& expr) const {
         OPENVINO_ASSERT(m_table.count(expr), "This expression doesn't have a registered kernel executor");
         return m_table.at(expr);
     }
@@ -147,13 +150,13 @@ public:
      * be accessible from RuntimeConfigurator. In order to replace these cloned ExpressionPtrs with the original ones,
      * we need to call this method.
     */
-    void replace_key_expression(const lowered::ExpressionPtr& from, const lowered::ExpressionPtr& to);
+    void replace_key_expression(const snippets::lowered::ExpressionPtr& from, const snippets::lowered::ExpressionPtr& to);
 
     virtual ~KernelExecutorTable() = default;
 
 protected:
-    std::unordered_map<lowered::ExpressionPtr, std::shared_ptr<KernelExecutorBase>> m_table{};
-    typedef std::vector<std::pair<lowered::ExpressionPtr, std::shared_ptr<const KernelExecutorBase::GenericConfig>>> ExecTableState;
+    std::unordered_map<snippets::lowered::ExpressionPtr, std::shared_ptr<KernelExecutorBase>> m_table{};
+    typedef std::vector<std::pair<snippets::lowered::ExpressionPtr, std::shared_ptr<const KernelExecutorBase::GenericConfig>>> ExecTableState;
 
     /*** Restore the table state previously obtained by get_state() */
     void reset_state(const ExecTableState& state);
