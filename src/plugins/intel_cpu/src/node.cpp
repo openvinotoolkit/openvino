@@ -373,13 +373,18 @@ void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_
 
                     const bool isCompatible = curDesc->isCompatible(*parentDesc);
                     bool isScalarShape = checkScalarShape(curDesc->getShape().toPartialShape());
-                    if (!isCompatible && !isScalarShape) {
-                        reorderLocalCostScore +=
-                            ov::shape_size<ov::intel_cpu::VectorDims>(curDesc->getShape().getStaticDims());
+                    if (!isCompatible) {
+                        if (isScalarShape) {
+                            reorderLocalCostScore += 1;
+                        } else {
+                            reorderLocalCostScore +=
+                                ov::shape_size<ov::intel_cpu::VectorDims>(curDesc->getShape().getStaticDims());
+                        }
                     }
 
                     DEBUG_LOG(getName(), " pd[", i, "].inConfs[", j, "]"
                               " is ", (isCompatible ? "compatible" : "not compatible"),
+                              " shape is ", (isScalarShape ? "scalar" : "not scalar"),
                               " with parent ", parentPtr->getName(),
                               " outConfs[", inNum, "], reorderLocalCostScore add to ", reorderLocalCostScore);
                 }
