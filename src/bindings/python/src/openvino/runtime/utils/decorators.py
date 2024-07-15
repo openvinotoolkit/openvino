@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from functools import wraps
-from inspect import getfullargspec
+from inspect import signature
 from typing import Any, Callable, Dict, Optional, Union, get_origin, get_args
 
 from openvino.runtime import Node, Output
@@ -24,9 +24,9 @@ def _set_node_friendly_name(node: Node, *, name: Optional[str] = None) -> Node:
 
 def nameable_op(node_factory_function: Callable) -> Callable:
     """Set the name to the openvino operator returned by the wrapped function."""
-
     @wraps(node_factory_function)
     def wrapper(*args: Any, **kwargs: Any) -> Node:
+        print("wrapper")
         node = node_factory_function(*args, **kwargs)
         node = _set_node_friendly_name(node, name=_get_name(**kwargs))
         return node
@@ -102,19 +102,37 @@ class MultiMethod(object):
                 return False
         return True
 
-    def __call__(self, *args) -> Any:  # type: ignore
-        types = tuple(arg.__class__ for arg in args)
+    def __call__(self, *args, **kwargs) -> Any:  # type: ignore
+        arg_types = tuple(arg.__class__ for arg in args)
+        kwarg_types = {key: type(value) for key, value in kwargs.items()}
+        
         key_matched = None
-        for key in self.typemap.keys():
-            if self.check_invoked_types_in_overloaded_funcs(types, key):
-                key_matched = key
-                break
+        if len(kwarg_types) == 0 and len(arg_types) != 0:
+            for key in self.typemap.keys():
+                if self.check_invoked_types_in_overloaded_funcs(arg_types, key):
+                    key_matched = key
+                    break
+        elif len(arg_types) == 0 and len(kwarg_types) != 0:
+            for key, v in self.typemap.items():
+                func_signature = {arg_name: types.annotation for arg_name, types in signature(v).parameters.items()}
+                if kwarg_types.keys() <= func_signature.keys():
+                    key_matched = key
+                    break
+        elif len(arg_types) != 0 and len(kwarg_types) != 0:
+            for key, v in self.typemap.items():
+                func_signature = {arg_name: types.annotation for arg_name, types in signature(v).parameters.items()}
+
+                if self.check_invoked_types_in_overloaded_funcs(arg_types, func_signature.values()):
+                    if kwarg_types.keys() <= func_signature.keys():
+                        key_matched = key
+                        break
+
 
         if key_matched is None:
             raise TypeError("no match")
 
         function = self.typemap.get(key_matched)
-        return function(*args)  # type: ignore
+        return function(*args, **kwargs)  # type: ignore
 
     def register(self, types: tuple, function: Callable) -> None:
         if types in self.typemap:
