@@ -28,6 +28,8 @@ public:
     bool isBatchingSupported() const override;
     bool isWorkloadTypeSupported() const override;
 
+    void* getContext() const override;
+
 private:
     std::shared_ptr<ZeroInitStructsHolder> _instance;
 

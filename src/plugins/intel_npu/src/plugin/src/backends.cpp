@@ -206,6 +206,14 @@ void NPUBackends::registerOptions(OptionsDesc& options) const {
     }
 }
 
+void* NPUBackends::getContext() const {
+    if (_backend != nullptr) {
+        return _backend->getContext();
+    }
+
+    OPENVINO_THROW("No available backend");
+}
+
 // TODO config should be also specified to backends, to allow use logging in devices and all levels below
 void NPUBackends::setup(const Config& config) {
     _logger.setLevel(config.get<LOG_LEVEL>());
