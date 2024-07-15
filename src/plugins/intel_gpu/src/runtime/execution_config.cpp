@@ -4,6 +4,7 @@
 
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 
 #include <thread>
@@ -52,6 +53,7 @@ void ExecutionConfig::set_default() {
         std::make_tuple(ov::intel_gpu::hint::queue_throttle, ov::intel_gpu::hint::ThrottleLevel::MEDIUM),
         std::make_tuple(ov::intel_gpu::hint::queue_priority, ov::hint::Priority::MEDIUM),
         std::make_tuple(ov::intel_gpu::hint::enable_sdpa_optimization, true),
+        std::make_tuple(ov::intel_gpu::hint::enable_large_allocations, false),
         std::make_tuple(ov::intel_gpu::enable_loop_unrolling, true),
         std::make_tuple(ov::intel_gpu::disable_winograd_convolution, false),
         std::make_tuple(ov::internal::exclusive_async_requests, false),

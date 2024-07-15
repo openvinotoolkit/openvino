@@ -132,6 +132,15 @@ static constexpr Property<bool> enable_sdpa_optimization{"GPU_ENABLE_SDPA_OPTIMI
  * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
  */
 static constexpr Property<bool> enable_kernels_reuse{"GPU_ENABLE_KERNELS_REUSE"};
+
+/**
+ * @brief Turning on this key switches addressing mode to allow allocations larger than 4GB
+ * as described here
+ * https://github.com/intel/compute-runtime/blob/master/programmers-guide/ALLOCATIONS_GREATER_THAN_4GB.md#creating-allocations-greater-than-4GB
+ * Note: On some platform performance of primitives with i64 data type may be lower with this option enabled.
+ * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
+ */
+static constexpr Property<bool> enable_large_allocations{"GPU_ENABLE_LARGE_ALLOCATIONS"};
 }  // namespace hint
 
 /**

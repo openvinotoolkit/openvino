@@ -3,6 +3,7 @@
 //
 
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/device.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/utils.hpp"
@@ -10,6 +11,7 @@
 #include "ocl_engine.hpp"
 #include "ocl_stream.hpp"
 #include "ocl_event.hpp"
+#include "openvino/core/except.hpp"
 #include <stdexcept>
 #include <vector>
 
@@ -456,19 +458,23 @@ gpu_usm::gpu_usm(ocl_engine* engine, const layout& layout, allocation_type type)
     , memory(engine, layout, type, nullptr)
     , _buffer(engine->get_usm_helper())
     , _host_buffer(engine->get_usm_helper()) {
+    std::vector<cl_mem_properties_intel> properties;
+    if (engine->get_device_info().vendor_id == INTEL_VENDOR_ID) {
+        properties = {CL_MEM_FLAGS, CL_MEM_ALLOW_UNRESTRICTED_SIZE_INTEL, 0};
+    }
+
     switch (get_allocation_type()) {
     case allocation_type::usm_host:
-        _buffer.allocateHost(_bytes_count);
+        _buffer.allocateHost(_bytes_count, &properties[0]);
         break;
     case allocation_type::usm_shared:
-        _buffer.allocateShared(_bytes_count);
+        _buffer.allocateShared(_bytes_count, &properties[0]);
         break;
     case allocation_type::usm_device:
-        _buffer.allocateDevice(_bytes_count);
+        _buffer.allocateDevice(_bytes_count, &properties[0]);
         break;
     default:
-        CLDNN_ERROR_MESSAGE("gpu_usm allocation type",
-            "Unknown unified shared memory type!");
+        OPENVINO_THROW("[GPU] gpu_usm allocation type: unknown unified shared memory type!");
     }
 
     m_mem_tracker = std::make_shared<MemoryTracker>(engine, _buffer.get(), layout.bytes_count(), type);
