@@ -35,38 +35,38 @@ The tutorial consists of the following steps:
    API <https://github.com/openvinotoolkit/openvino.genai>`__
 -  Run instruction-following pipeline
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Select model for inference <#Select-model-for-inference>`__
+
+-  `Prerequisites <#prerequisites>`__
+-  `Select model for inference <#select-model-for-inference>`__
 -  `Download and convert model to OpenVINO IR via Optimum Intel
-   CLI <#Download-and-convert-model-to-OpenVINO-IR-via-Optimum-Intel-CLI>`__
--  `Compress model weights <#Compress-model-weights>`__
+   CLI <#download-and-convert-model-to-openvino-ir-via-optimum-intel-cli>`__
+-  `Compress model weights <#compress-model-weights>`__
 
    -  `Weights Compression using Optimum Intel
-      CLI <#Weights-Compression-using-Optimum-Intel-CLI>`__
+      CLI <#weights-compression-using-optimum-intel-cli>`__
    -  `Weights Compression using
-      NNCF <#Weights-Compression-using-NNCF>`__
+      NNCF <#weights-compression-using-nncf>`__
 
 -  `Select device for inference and model
-   variant <#Select-device-for-inference-and-model-variant>`__
+   variant <#select-device-for-inference-and-model-variant>`__
 -  `Create an instruction-following inference
-   pipeline <#Create-an-instruction-following-inference-pipeline>`__
+   pipeline <#create-an-instruction-following-inference-pipeline>`__
 
-   -  `Setup imports <#Setup-imports>`__
+   -  `Setup imports <#setup-imports>`__
    -  `Prepare text streamer to get results
-      runtime <#Prepare-text-streamer-to-get-results-runtime>`__
-   -  `Main generation function <#Main-generation-function>`__
-   -  `Helpers for application <#Helpers-for-application>`__
+      runtime <#prepare-text-streamer-to-get-results-runtime>`__
+   -  `Main generation function <#main-generation-function>`__
+   -  `Helpers for application <#helpers-for-application>`__
 
 -  `Run instruction-following
-   pipeline <#Run-instruction-following-pipeline>`__
+   pipeline <#run-instruction-following-pipeline>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -87,7 +87,7 @@ Prerequisites
 Select model for inference
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The tutorial supports different models, you can select one from the
 provided options to compare the quality of open source LLM solutions.
@@ -155,7 +155,7 @@ The available options are:
    website <https://llama.meta.com/llama3>`__ and `model
    card <https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct>`__.
    >\ **Note**: run model with demo, you will need to accept license
-   agreement. >You must be a registered user in 🤗 Hugging Face Hub.
+   agreement. >You must be a registered user in Hugging Face Hub.
    Please visit `HuggingFace model
    card <https://huggingface.co/meta-llama/Llama-2-7b-chat-hf>`__,
    carefully read terms of usage and click accept button. You will need
@@ -167,7 +167,7 @@ The available options are:
 
 .. code:: python
 
-       ## login to huggingfacehub to get access to pretrained model 
+       ## login to huggingfacehub to get access to pretrained model
 
        from huggingface_hub import notebook_login, whoami
 
@@ -181,14 +181,14 @@ The available options are:
 
     from pathlib import Path
     import requests
-    
+
     # Fetch `notebook_utils` module
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file
-    
+
     if not Path("./config.py").exists():
         download_file(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/llm-question-answering/config.py")
     from config import SUPPORTED_LLM_MODELS
@@ -197,14 +197,14 @@ The available options are:
 .. code:: ipython3
 
     model_ids = list(SUPPORTED_LLM_MODELS)
-    
+
     model_id = widgets.Dropdown(
         options=model_ids,
         value=model_ids[1],
         description="Model:",
         disabled=False,
     )
-    
+
     model_id
 
 
@@ -230,7 +230,7 @@ The available options are:
 Download and convert model to OpenVINO IR via Optimum Intel CLI
 ---------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Listed model are available for downloading via the `HuggingFace
 hub <https://huggingface.co/models>`__. We will use optimum-cli
@@ -258,7 +258,7 @@ documentation <https://huggingface.co/docs/optimum/intel/inference#export>`__.
 Compress model weights
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The Weights Compression algorithm is aimed at compressing the weights of
 the models and can be used to optimize the model footprint and
@@ -270,7 +270,7 @@ performance even more but introduces a minor drop in prediction quality.
 Weights Compression using Optimum Intel CLI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Optimum Intel supports weight compression via NNCF out of the box. For
 8-bit compression we pass ``--weight-format int8`` to ``optimum-cli``
@@ -282,7 +282,7 @@ parameters. An example of this approach usage you can find in
 Weights Compression using NNCF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 You also can perform weights compression for OpenVINO models using NNCF
 directly. ``nncf.compress_weights`` function accepts the OpenVINO model
@@ -299,7 +299,7 @@ compression.
 .. code:: ipython3
 
     from IPython.display import display, Markdown
-    
+
     prepare_int4_model = widgets.Checkbox(
         value=True,
         description="Prepare INT4 model",
@@ -315,7 +315,7 @@ compression.
         description="Prepare FP16 model",
         disabled=False,
     )
-    
+
     display(prepare_int4_model)
     display(prepare_int8_model)
     display(prepare_fp16_model)
@@ -345,17 +345,17 @@ compression.
     import logging
     import openvino as ov
     import nncf
-    
+
     nncf.set_log_level(logging.ERROR)
-    
+
     pt_model_id = model_configuration["model_id"]
     fp16_model_dir = Path(model_id.value) / "FP16"
     int8_model_dir = Path(model_id.value) / "INT8_compressed_weights"
     int4_model_dir = Path(model_id.value) / "INT4_compressed_weights"
-    
+
     core = ov.Core()
-    
-    
+
+
     def convert_to_fp16():
         if (fp16_model_dir / "openvino_model.xml").exists():
             return
@@ -364,8 +364,8 @@ compression.
         display(Markdown("**Export command:**"))
         display(Markdown(f"`{export_command}`"))
         ! $export_command
-    
-    
+
+
     def convert_to_int8():
         if (int8_model_dir / "openvino_model.xml").exists():
             return
@@ -375,8 +375,8 @@ compression.
         display(Markdown("**Export command:**"))
         display(Markdown(f"`{export_command}`"))
         ! $export_command
-    
-    
+
+
     def convert_to_int4():
         compression_configs = {
             "mistral-7b": {
@@ -397,7 +397,7 @@ compression.
                 "ratio": 0.8,
             },
         }
-    
+
         model_compression_params = compression_configs.get(model_id.value, compression_configs["default"])
         if (int4_model_dir / "openvino_model.xml").exists():
             return
@@ -410,8 +410,8 @@ compression.
         display(Markdown("**Export command:**"))
         display(Markdown(f"`{export_command}`"))
         ! $export_command
-    
-    
+
+
     if prepare_fp16_model.value:
         convert_to_fp16()
     if prepare_int8_model.value:
@@ -432,7 +432,7 @@ Let’s compare model size for different compression types
     fp16_weights = fp16_model_dir / "openvino_model.bin"
     int8_weights = int8_model_dir / "openvino_model.bin"
     int4_weights = int4_model_dir / "openvino_model.bin"
-    
+
     if fp16_weights.exists():
         print(f"Size of FP16 model is {fp16_weights.stat().st_size / 1024 / 1024:.2f} MB")
     for precision, compressed_weights in zip([8, 4], [int8_weights, int4_weights]):
@@ -454,7 +454,7 @@ Let’s compare model size for different compression types
 Select device for inference and model variant
 ---------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
    **Note**: There may be no speedup for INT4/INT8 compressed models on
    dGPU.
@@ -462,18 +462,18 @@ Select device for inference and model variant
 .. code:: ipython3
 
     core = ov.Core()
-    
+
     support_devices = core.available_devices
     if "NPU" in support_devices:
         support_devices.remove("NPU")
-    
+
     device = widgets.Dropdown(
         options=support_devices + ["AUTO"],
         value="CPU",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -494,14 +494,14 @@ Select device for inference and model variant
         available_models.append("INT8")
     if fp16_model_dir.exists():
         available_models.append("FP16")
-    
+
     model_to_run = widgets.Dropdown(
         options=available_models,
         value=available_models[0],
         description="Model to run:",
         disabled=False,
     )
-    
+
     model_to_run
 
 
@@ -517,7 +517,7 @@ Select device for inference and model variant
 
     from transformers import AutoTokenizer
     from openvino_tokenizers import convert_tokenizer
-    
+
     if model_to_run.value == "INT4":
         model_dir = int4_model_dir
     elif model_to_run.value == "INT8":
@@ -525,7 +525,7 @@ Select device for inference and model variant
     else:
         model_dir = fp16_model_dir
     print(f"Loading model from {model_dir}")
-    
+
     # optionally convert tokenizer if used cached model without it
     if not (model_dir / "openvino_tokenizer.xml").exists() or not (model_dir / "openvino_detokenizer.xml").exists():
         hf_tokenizer = AutoTokenizer.from_pretrained(model_dir, trust_remote_code=True)
@@ -542,7 +542,7 @@ Select device for inference and model variant
 Create an instruction-following inference pipeline
 --------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The ``run_generation`` function accepts user-provided text input,
 tokenizes it, and runs the generation process. Text generation is an
@@ -590,7 +590,7 @@ generation is finished, we will write class-iterator based on
 .. code:: ipython3
 
     from openvino_genai import LLMPipeline
-    
+
     pipe = LLMPipeline(model_dir.as_posix(), device.value)
     print(pipe.generate("The Sun is yellow bacause", temperature=1.2, top_k=4, do_sample=True, max_new_tokens=150))
 
@@ -675,7 +675,7 @@ and then prints them when they are ready.
 Setup imports
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -691,7 +691,7 @@ Setup imports
 Prepare text streamer to get results runtime
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Load the ``detokenizer``, use it to convert token_id to string output
 format. We will collect print-ready text in a queue and give the text
@@ -700,10 +700,10 @@ when it is needed. It will help estimate performance.
 .. code:: ipython3
 
     core = ov.Core()
-    
+
     detokinizer_dir = Path(model_dir, "openvino_detokenizer.xml")
-    
-    
+
+
     class TextIteratorStreamer(StreamerBase):
         def __init__(self, tokenizer):
             super().__init__()
@@ -711,17 +711,17 @@ when it is needed. It will help estimate performance.
             self.compiled_detokenizer = core.compile_model(detokinizer_dir.as_posix())
             self.text_queue = Queue()
             self.stop_signal = None
-    
+
         def __iter__(self):
             return self
-    
+
         def __next__(self):
             value = self.text_queue.get()
             if value == self.stop_signal:
                 raise StopIteration()
             else:
                 return value
-    
+
         def put(self, token_id):
             openvino_output = self.compiled_detokenizer(np.array([[token_id]], dtype=int))
             text = str(openvino_output["string_output"][0])
@@ -729,14 +729,14 @@ when it is needed. It will help estimate performance.
             text = text.lstrip("!")
             text = re.sub("<.*>", "", text)
             self.text_queue.put(text)
-    
+
         def end(self):
             self.text_queue.put(self.stop_signal)
 
 Main generation function
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 As it was discussed above, ``run_generation`` function is the entry
 point for starting generation. It gets provided input instruction as
@@ -754,7 +754,7 @@ parameter and returns model response.
     ):
         """
         Text generation function
-    
+
         Parameters:
           user_text (str): User-provided instruction for a generation.
           top_p (float):  Nucleus sampling. If set to < 1, only the smallest set of most probable tokens with probabilities that add up to top_p or higher are kept for a generation.
@@ -766,7 +766,7 @@ parameter and returns model response.
           model_output (str) - model-generated text
           perf_text (str) - updated perf text filed content
         """
-    
+
         # setup config for decoding stage
         config = pipe.get_generation_config()
         config.temperature = temperature
@@ -775,13 +775,13 @@ parameter and returns model response.
         config.top_p = top_p
         config.do_sample = True
         config.max_new_tokens = max_new_tokens
-    
+
         # Start generation on a separate thread, so that we don't block the UI. The text is pulled from the streamer
         # in the main thread.
         streamer = TextIteratorStreamer(pipe.get_tokenizer())
         t = Thread(target=pipe.generate, args=(user_text, config, streamer))
         t.start()
-    
+
         model_output = ""
         per_token_time = []
         num_tokens = 0
@@ -797,7 +797,7 @@ parameter and returns model response.
 Helpers for application
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For making interactive user interface we will use Gradio library. The
 code bellow provides useful functions used for communication with UI
@@ -813,13 +813,13 @@ elements.
     ):
         """
         Helper function for performance estimation
-    
+
         Parameters:
           current_time (float): This step time in seconds.
           current_perf_text (str): Current content of performance UI field.
           per_token_time (List[float]): history of performance from previous steps.
           num_tokens (int): Total number of generated tokens.
-    
+
         Returns:
           update for performance text field
           update for a total number of tokens
@@ -833,27 +833,27 @@ elements.
                 num_tokens,
             )
         return current_perf_text, num_tokens
-    
-    
+
+
     def reset_textbox(instruction: str, response: str, perf: str):
         """
         Helper function for resetting content of all text fields
-    
+
         Parameters:
           instruction (str): Content of user instruction field.
           response (str): Content of model response field.
           perf (str): Content of performance info filed
-    
+
         Returns:
           empty string for each placeholder
         """
-    
+
         return "", "", ""
 
 Run instruction-following pipeline
 ----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, we are ready to explore model capabilities. This demo provides a
 simple interface that allows communication with a model using text
@@ -887,14 +887,14 @@ generation parameters:
         "Write instructions on how to become a good AI engineer",
         "Write a love letter to my best friend",
     ]
-    
-    
+
+
     with gr.Blocks() as demo:
         gr.Markdown(
             "# Question Answering with " + model_id.value + " and OpenVINO.\n"
             "Provide instruction which describes a task below or select among predefined examples and model writes response that performs requested task."
         )
-    
+
         with gr.Row():
             with gr.Column(scale=4):
                 user_text = gr.Textbox(
@@ -961,7 +961,7 @@ generation parameters:
             demo.launch(height=800)
         except Exception:
             demo.launch(share=True, height=800)
-    
+
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/

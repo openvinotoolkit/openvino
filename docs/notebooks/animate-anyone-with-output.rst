@@ -43,46 +43,47 @@ repo <https://github.com/MooreThreads/Moore-AnimateAnyone>`__ and
           This tutorial requires at least <b>96 GB</b> of RAM for model conversion and <b>40 GB</b> for inference. Changing the values of <code>HEIGHT</code>, <code>WIDTH</code> and <code>VIDEO_LENGTH</code> variables will change the memory consumption but will also affect accuracy.
       </p>
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Prepare base model <#Prepare-base-model>`__
--  `Prepare image encoder <#Prepare-image-encoder>`__
--  `Download weights <#Download-weights>`__
--  `Initialize models <#Initialize-models>`__
--  `Load pretrained weights <#Load-pretrained-weights>`__
--  `Convert model to OpenVINO IR <#Convert-model-to-OpenVINO-IR>`__
 
-   -  `VAE <#VAE>`__
-   -  `Reference UNet <#Reference-UNet>`__
-   -  `Denoising UNet <#Denoising-UNet>`__
-   -  `Pose Guider <#Pose-Guider>`__
-   -  `Image Encoder <#Image-Encoder>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Prepare base model <#prepare-base-model>`__
+-  `Prepare image encoder <#prepare-image-encoder>`__
+-  `Download weights <#download-weights>`__
+-  `Initialize models <#initialize-models>`__
+-  `Load pretrained weights <#load-pretrained-weights>`__
+-  `Convert model to OpenVINO IR <#convert-model-to-openvino-ir>`__
 
--  `Inference <#Inference>`__
--  `Video post-processing <#Video-post-processing>`__
--  `Interactive inference <#Interactive-inference>`__
+   -  `VAE <#vae>`__
+   -  `Reference UNet <#reference-unet>`__
+   -  `Denoising UNet <#denoising-unet>`__
+   -  `Pose Guider <#pose-guider>`__
+   -  `Image Encoder <#image-encoder>`__
 
-.. |image0| image:: ./animate-anyone.gif
+-  `Inference <#inference>`__
+-  `Video post-processing <#video-post-processing>`__
+-  `Interactive inference <#interactive-inference>`__
+
+.. |image0| image:: https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/animate-anyone/animate-anyone.gif
+
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from pathlib import Path
     import requests
-    
-    
+
+
     REPO_PATH = Path("Moore-AnimateAnyone")
     if not REPO_PATH.exists():
         !git clone -q "https://github.com/itrushkin/Moore-AnimateAnyone.git"
     %pip install -q "torch>=2.1" torchvision einops omegaconf "diffusers<=0.24" transformers av accelerate "openvino>=2024.0" "nncf>=2.9.0" "gradio>=4.19" --extra-index-url "https://download.pytorch.org/whl/cpu"
     import sys
-    
+
     sys.path.insert(0, str(REPO_PATH.resolve()))
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
@@ -107,11 +108,11 @@ Note that we clone a fork of original repo with tweaked forward methods.
     DENOISING_UNET_PATH = MODEL_DIR / "denoising_unet.xml"
     POSE_GUIDER_PATH = MODEL_DIR / "pose_guider.xml"
     IMAGE_ENCODER_PATH = MODEL_DIR / "image_encoder.xml"
-    
+
     WIDTH = 448
     HEIGHT = 512
     VIDEO_LENGTH = 24
-    
+
     SHOULD_CONVERT = not all(
         p.exists()
         for p in [
@@ -129,7 +130,7 @@ Note that we clone a fork of original repo with tweaked forward methods.
     from datetime import datetime
     from typing import Optional, Union, List, Callable
     import math
-    
+
     from PIL import Image
     import openvino as ov
     from torchvision import transforms
@@ -144,7 +145,7 @@ Note that we clone a fork of original repo with tweaked forward methods.
     import gradio as gr
     import ipywidgets as widgets
     import numpy as np
-    
+
     from src.pipelines.pipeline_pose2vid_long import Pose2VideoPipeline
     from src.utils.util import get_fps, read_frames
     from src.utils.util import save_videos_grid
@@ -167,13 +168,13 @@ Note that we clone a fork of original repo with tweaked forward methods.
     from pathlib import PurePosixPath
     import gc
     import warnings
-    
+
     from typing import Dict, Any
     from diffusers import AutoencoderKL
     from huggingface_hub import hf_hub_download, snapshot_download
     from transformers import CLIPVisionModelWithProjection
     import nncf
-    
+
     from src.models.unet_2d_condition import UNet2DConditionModel
     from src.models.unet_3d import UNet3DConditionModel
     from src.models.pose_guider import PoseGuider
@@ -187,7 +188,7 @@ Note that we clone a fork of original repo with tweaked forward methods.
 Prepare base model
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -215,7 +216,7 @@ Prepare base model
 Prepare image encoder
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -249,7 +250,7 @@ Prepare image encoder
 Download weights
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -349,7 +350,7 @@ Download weights
 Initialize models
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -364,21 +365,21 @@ Initialize models
     )
     pose_guider = PoseGuider(320, block_out_channels=(16, 32, 96, 256))
     image_enc = CLIPVisionModelWithProjection.from_pretrained(config.image_encoder_path)
-    
-    
+
+
     NUM_CHANNELS_LATENTS = denoising_unet.config.in_channels
 
 
 .. parsed-literal::
 
-    Some weights of the model checkpoint were not used when initializing UNet2DConditionModel: 
+    Some weights of the model checkpoint were not used when initializing UNet2DConditionModel:
      ['conv_norm_out.weight, conv_norm_out.bias, conv_out.weight, conv_out.bias']
 
 
 Load pretrained weights
 -----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -397,7 +398,7 @@ Load pretrained weights
 Convert model to OpenVINO IR
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__ The pose sequence is initially
+The pose sequence is initially
 encoded using Pose Guider and fused with multi-frame noise, followed by
 the Denoising UNet conducting the denoising process for video
 generation. The computational block of the Denoising UNet consists of
@@ -464,7 +465,7 @@ documentation <https://docs.openvino.ai/2023.3/weight_compression.html>`__.
 VAE
 ~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -488,7 +489,7 @@ of the pipeline, it will be better to convert them to separate models.
             def __init__(self, vae):
                 super().__init__()
                 self.vae = vae
-        
+
             def forward(self, x):
                 return self.vae.encode(x).latent_dist.mean
         vae.eval()
@@ -517,17 +518,17 @@ of the pipeline, it will be better to convert them to separate models.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -539,7 +540,7 @@ of the pipeline, it will be better to convert them to separate models.
             def __init__(self, vae):
                 super().__init__()
                 self.vae = vae
-        
+
             def forward(self, z):
                 return self.vae.decode(z).sample
         vae.eval()
@@ -570,24 +571,24 @@ of the pipeline, it will be better to convert them to separate models.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
 Reference UNet
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Pipeline extracts reference attention features from all transformer
 blocks inside Reference UNet model. We call the original forward pass to
@@ -602,10 +603,10 @@ step.
             def __init__(self, reference_unet):
                 super().__init__()
                 self.reference_unet = reference_unet
-            
+
             def forward(self, sample, timestep, encoder_hidden_states):
                 return self.reference_unet(sample, timestep, encoder_hidden_states, return_dict=False)[1]
-                
+
         sample = torch.zeros(2, 4, HEIGHT // 8, WIDTH // 8)
         timestep = torch.tensor(0)
         encoder_hidden_states = torch.zeros(2, 1, 768)
@@ -644,24 +645,24 @@ step.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
 Denoising UNet
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Denoising UNet is the main part of all diffusion pipelines. This model
 consumes the majority of memory, so we need to reduce its size as much
@@ -671,7 +672,7 @@ Here we make all shapes static meaning that the size of the video will
 be constant.
 
 Also, we use the ``ref_features`` input with the same tensor shapes as
-output of `Reference UNet <#Reference-UNet>`__ model on the previous
+output of `Reference UNet <#reference-unet>`__ model on the previous
 step.
 
 .. code:: ipython3
@@ -682,7 +683,7 @@ step.
             def __init__(self, denoising_unet):
                 super().__init__()
                 self.denoising_unet = denoising_unet
-            
+
             def forward(
                 self,
                 sample,
@@ -698,7 +699,7 @@ step.
                     ref_features,
                     pose_cond_fea=pose_cond_fea,
                     return_dict=False)
-    
+
         example_input = {
             "sample": torch.zeros(2, 4, VIDEO_LENGTH, HEIGHT // 8, WIDTH // 8),
             "timestep": torch.tensor(999),
@@ -706,7 +707,7 @@ step.
             "pose_cond_fea": torch.zeros(2, 320, VIDEO_LENGTH, HEIGHT // 8, WIDTH // 8),
             "ref_features": {k: torch.zeros(shape) for k, shape in ref_features_shapes.items()}
         }
-        
+
         denoising_unet.eval()
         with torch.no_grad():
             ov_denoising_unet = ov.convert_model(
@@ -745,24 +746,24 @@ step.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
 Pose Guider
 ~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To ensure pose controllability, a lightweight pose guider is devised to
 efficiently integrate pose control signals into the denoising process.
@@ -799,24 +800,24 @@ efficiently integrate pose control signals into the denoising process.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
 Image Encoder
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Pipeline uses CLIP image encoder to generate encoder hidden states
 required for both reference and denoising UNets.
@@ -859,24 +860,24 @@ required for both reference and denoising UNets.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
 Inference
 ---------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We inherit from the original pipeline modifying the calls to our models
 to match OpenVINO format.
@@ -888,7 +889,7 @@ to match OpenVINO format.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For starting work, please select inference device from dropdown list.
 
@@ -900,7 +901,7 @@ For starting work, please select inference device from dropdown list.
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -932,12 +933,12 @@ For starting work, please select inference device from dropdown list.
             self.denoising_unet = core.compile_model(denoising_unet_path, device)
             self.pose_guider = core.compile_model(pose_guider_path, device)
             self.scheduler = DDIMScheduler(**OmegaConf.to_container(infer_config.noise_scheduler_kwargs))
-    
+
             self.vae_scale_factor = 8
             self.clip_image_processor = CLIPImageProcessor()
             self.ref_image_processor = VaeImageProcessor(do_convert_rgb=True)
             self.cond_image_processor = VaeImageProcessor(do_convert_rgb=True, do_normalize=False)
-    
+
         def decode_latents(self, latents):
             video_length = latents.shape[2]
             latents = 1 / 0.18215 * latents
@@ -952,7 +953,7 @@ For starting work, please select inference device from dropdown list.
             # we always cast to float32 as this does not cause significant overhead and is compatible with bfloa16
             video = video.cpu().float().numpy()
             return video
-    
+
         def __call__(
             self,
             ref_image,
@@ -977,23 +978,23 @@ For starting work, please select inference device from dropdown list.
             **kwargs,
         ):
             do_classifier_free_guidance = guidance_scale > 1.0
-    
+
             # Prepare timesteps
             self.scheduler.set_timesteps(num_inference_steps)
             timesteps = self.scheduler.timesteps
-    
+
             batch_size = 1
-    
+
             # Prepare clip image embeds
             clip_image = self.clip_image_processor.preprocess(ref_image.resize((224, 224)), return_tensors="pt").pixel_values
             clip_image_embeds = self.image_encoder(clip_image)["image_embeds"]
             clip_image_embeds = torch.from_numpy(clip_image_embeds)
             encoder_hidden_states = clip_image_embeds.unsqueeze(1)
             uncond_encoder_hidden_states = torch.zeros_like(encoder_hidden_states)
-    
+
             if do_classifier_free_guidance:
                 encoder_hidden_states = torch.cat([uncond_encoder_hidden_states, encoder_hidden_states], dim=0)
-    
+
             latents = self.prepare_latents(
                 batch_size * num_images_per_prompt,
                 4,
@@ -1004,16 +1005,16 @@ For starting work, please select inference device from dropdown list.
                 torch.device("cpu"),
                 generator,
             )
-    
+
             # Prepare extra step kwargs.
             extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
-    
+
             # Prepare ref image latents
             ref_image_tensor = self.ref_image_processor.preprocess(ref_image, height=height, width=width)  # (bs, c, width, height)
             ref_image_latents = self.vae_encoder(ref_image_tensor)[0]
             ref_image_latents = ref_image_latents * 0.18215  # (b, 4, h, w)
             ref_image_latents = torch.from_numpy(ref_image_latents)
-    
+
             # Prepare a list of pose condition images
             pose_cond_tensor_list = []
             for pose_image in pose_images:
@@ -1023,9 +1024,9 @@ For starting work, please select inference device from dropdown list.
             pose_cond_tensor = torch.cat(pose_cond_tensor_list, dim=2)  # (bs, c, t, h, w)
             pose_fea = self.pose_guider(pose_cond_tensor)[0]
             pose_fea = torch.from_numpy(pose_fea)
-    
+
             context_scheduler = get_context_scheduler(context_schedule)
-    
+
             # denoising loop
             num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
             with self.progress_bar(total=num_inference_steps) as progress_bar:
@@ -1043,7 +1044,7 @@ For starting work, please select inference device from dropdown list.
                         device=latents.device,
                         dtype=latents.dtype,
                     )
-    
+
                     # 1. Forward reference image
                     if i == 0:
                         ref_features = self.reference_unet(
@@ -1054,7 +1055,7 @@ For starting work, please select inference device from dropdown list.
                                 encoder_hidden_states,
                             )
                         ).values()
-    
+
                     context_queue = list(
                         context_scheduler(
                             0,
@@ -1066,7 +1067,7 @@ For starting work, please select inference device from dropdown list.
                         )
                     )
                     num_context_batches = math.ceil(len(context_queue) / context_batch_size)
-    
+
                     context_queue = list(
                         context_scheduler(
                             0,
@@ -1077,19 +1078,19 @@ For starting work, please select inference device from dropdown list.
                             context_overlap,
                         )
                     )
-    
+
                     num_context_batches = math.ceil(len(context_queue) / context_batch_size)
                     global_context = []
                     for i in range(num_context_batches):
                         global_context.append(context_queue[i * context_batch_size : (i + 1) * context_batch_size])
-    
+
                     for context in global_context:
                         # 3.1 expand the latents if we are doing classifier free guidance
                         latent_model_input = torch.cat([latents[:, :, c] for c in context]).repeat(2 if do_classifier_free_guidance else 1, 1, 1, 1, 1)
                         latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
                         b, c, f, h, w = latent_model_input.shape
                         latent_pose_input = torch.cat([pose_fea[:, :, c] for c in context]).repeat(2 if do_classifier_free_guidance else 1, 1, 1, 1, 1)
-    
+
                         pred = self.denoising_unet(
                             (
                                 latent_model_input,
@@ -1099,33 +1100,33 @@ For starting work, please select inference device from dropdown list.
                                 *ref_features,
                             )
                         )[0]
-    
+
                         for j, c in enumerate(context):
                             noise_pred[:, :, c] = noise_pred[:, :, c] + pred
                             counter[:, :, c] = counter[:, :, c] + 1
-    
+
                     # perform guidance
                     if do_classifier_free_guidance:
                         noise_pred_uncond, noise_pred_text = (noise_pred / counter).chunk(2)
                         noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
-    
+
                     latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs).prev_sample
-    
+
                     if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                         progress_bar.update()
                         if callback is not None and i % callback_steps == 0:
                             step_idx = i // getattr(self.scheduler, "order", 1)
                             callback(step_idx, t, latents)
-    
+
             if interpolation_factor > 0:
                 latents = self.interpolate_latents(latents, interpolation_factor, latents.device)
             # Post-processing
             images = self.decode_latents(latents)  # (b, c, f, h, w)
-    
+
             # Convert to tensor
             if output_type == "tensor":
                 images = torch.from_numpy(images)
-    
+
             return images
 
 .. code:: ipython3
@@ -1167,7 +1168,7 @@ For starting work, please select inference device from dropdown list.
 Video post-processing
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1176,7 +1177,7 @@ Video post-processing
     pose_tensor_list = []
     for pose_image_pil in pose_images[:VIDEO_LENGTH]:
         pose_tensor_list.append(pose_transform(pose_image_pil))
-    
+
     ref_image_tensor = pose_transform(ref_image)  # (c, h, w)
     ref_image_tensor = ref_image_tensor.unsqueeze(1).unsqueeze(0)  # (1, c, 1, h, w)
     ref_image_tensor = repeat(ref_image_tensor, "b c f h w -> b c (repeat f) h w", repeat=VIDEO_LENGTH)
@@ -1184,7 +1185,7 @@ Video post-processing
     pose_tensor = pose_tensor.transpose(0, 1)
     pose_tensor = pose_tensor.unsqueeze(0)
     video = torch.cat([ref_image_tensor, pose_tensor, video], dim=0)
-    
+
     save_dir = Path("./output")
     save_dir.mkdir(parents=True, exist_ok=True)
     date_str = datetime.now().strftime("%Y%m%d")
@@ -1200,7 +1201,7 @@ Video post-processing
 .. code:: ipython3
 
     from IPython.display import Video
-    
+
     Video(out_path, embed=True)
 
 
@@ -1218,7 +1219,7 @@ Video post-processing
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1247,7 +1248,7 @@ Interactive inference
         pose_tensor_list = []
         for pose_image_pil in pose_list:
             pose_tensor_list.append(pose_transform(pose_image_pil))
-    
+
         ref_image_tensor = pose_transform(img)  # (c, h, w)
         ref_image_tensor = ref_image_tensor.unsqueeze(1).unsqueeze(0)  # (1, c, 1, h, w)
         ref_image_tensor = repeat(ref_image_tensor, "b c f h w -> b c (repeat f) h w", repeat=VIDEO_LENGTH)
@@ -1255,7 +1256,7 @@ Interactive inference
         pose_tensor = pose_tensor.transpose(0, 1)
         pose_tensor = pose_tensor.unsqueeze(0)
         video = torch.cat([ref_image_tensor, pose_tensor, video], dim=0)
-    
+
         save_dir = Path("./output/gradio")
         save_dir.mkdir(parents=True, exist_ok=True)
         date_str = datetime.now().strftime("%Y%m%d")
@@ -1268,8 +1269,8 @@ Interactive inference
             fps=12,
         )
         return out_path
-    
-    
+
+
     demo = gr.Interface(
         generate,
         [
@@ -1321,12 +1322,12 @@ Interactive inference
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

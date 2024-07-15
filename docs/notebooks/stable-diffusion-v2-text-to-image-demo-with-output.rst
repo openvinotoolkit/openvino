@@ -21,39 +21,39 @@ like to see the full implementation of stable diffusion for text to
 image, please visit
 `stable-diffusion-v2-text-to-image <stable-diffusion-v2-with-output.html>`__.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Step 0: Install and import
-   prerequisites <#Step-0:-Install-and-import-prerequisites>`__
+   prerequisites <#step-0-install-and-import-prerequisites>`__
 -  `Step 1: Stable Diffusion v2 Fundamental
-   components <#Step-1:-Stable-Diffusion-v2-Fundamental-components>`__
+   components <#step-1-stable-diffusion-v2-fundamental-components>`__
 
    -  `Step 1.1: Retrieve components from
-      HuggingFace <#Step-1.1:-Retrieve-components-from-HuggingFace>`__
+      HuggingFace <#step-1-1-retrieve-components-from-huggingface>`__
 
 -  `Step 2: Convert the models to
-   OpenVINO <#Step-2:-Convert-the-models-to-OpenVINO>`__
+   OpenVINO <#step-2-convert-the-models-to-openvino>`__
 -  `Step 3: Text-to-Image Generation Inference
-   Pipeline <#Step-3:-Text-to-Image-Generation-Inference-Pipeline>`__
+   Pipeline <#step-3-text-to-image-generation-inference-pipeline>`__
 
    -  `Step 3.1: Load and Understand Text to Image OpenVINO
-      models <#Step-3.1:-Load-and-Understand-Text-to-Image-OpenVINO-models>`__
+      models <#step-3-1-load-and-understand-text-to-image-openvino-models>`__
    -  `Step 3.2: Select inference
-      device <#Step-3.2:-Select-inference-device>`__
+      device <#step-3-2-select-inference-device>`__
    -  `Step 3.3: Run Text-to-Image
-      generation <#Step-3.3:-Run-Text-to-Image-generation>`__
+      generation <#step-3-3-run-text-to-image-generation>`__
 
 Step 0: Install and import prerequisites
 ----------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To work with Stable Diffusion v2, we will use Hugging Face’s
 `Diffusers <https://github.com/huggingface/diffusers>`__ library.
 
 To experiment with Stable Diffusion models, Diffusers exposes the
-```StableDiffusionPipeline`` <https://huggingface.co/docs/diffusers/using-diffusers/conditional_image_generation>`__
+`StableDiffusionPipeline <https://huggingface.co/docs/diffusers/using-diffusers/conditional_image_generation>`__
 and ``StableDiffusionInpaintPipeline``, similar to the `other Diffusers
 pipelines <https://huggingface.co/docs/diffusers/api/pipelines/overview>`__.
 
@@ -70,7 +70,7 @@ pipelines <https://huggingface.co/docs/diffusers/api/pipelines/overview>`__.
     WARNING: Ignoring invalid distribution -orch (/home/ea/work/ov_venv/lib/python3.8/site-packages)
     WARNING: Ignoring invalid distribution -orch (/home/ea/work/ov_venv/lib/python3.8/site-packages)
     WARNING: Ignoring invalid distribution -orch (/home/ea/work/ov_venv/lib/python3.8/site-packages)
-    
+
     [notice] A new release of pip available: 22.3 -> 23.2.1
     [notice] To update, run: pip install --upgrade pip
     Note: you may need to restart the kernel to use updated packages.
@@ -79,7 +79,7 @@ pipelines <https://huggingface.co/docs/diffusers/api/pipelines/overview>`__.
 Step 1: Stable Diffusion v2 Fundamental components
 --------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Stable Diffusion pipelines for both Text to Image and Inpainting consist
 of three important parts:
@@ -96,7 +96,7 @@ which we’ll explore in this demo!
 Step 1.1: Retrieve components from HuggingFace
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Let’s start by retrieving these components from HuggingFace!
 
@@ -107,9 +107,9 @@ using ``stable-diffusion-2-1``.
 
     # Retrieve the Text to Image Stable Diffusion pipeline components
     from diffusers import StableDiffusionPipeline
-    
+
     pipe = StableDiffusionPipeline.from_pretrained("stabilityai/stable-diffusion-2-1-base").to("cpu")
-    
+
     # for reducing memory consumption get all components from pipeline independently
     text_encoder = pipe.text_encoder
     text_encoder.eval()
@@ -117,9 +117,9 @@ using ``stable-diffusion-2-1``.
     unet.eval()
     vae = pipe.vae
     vae.eval()
-    
+
     conf = pipe.scheduler.config
-    
+
     del pipe
 
 
@@ -140,7 +140,7 @@ using ``stable-diffusion-2-1``.
 Step 2: Convert the models to OpenVINO
 --------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now that we’ve retrieved the three parts for both of these pipelines, we
 now need to:
@@ -164,7 +164,7 @@ pipelines in OpenVINO on our own data!
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     # Define a dir to save text-to-image models
     txt2img_model_dir = Path("sd2.1")
     txt2img_model_dir.mkdir(exist_ok=True)
@@ -177,7 +177,7 @@ pipelines in OpenVINO on our own data!
         convert_vae_decoder,
         convert_vae_encoder,
     )
-    
+
     # Convert the Text-to-Image models from PyTorch -> Onnx -> OpenVINO
     # 1. Convert the Text Encoder
     txt_encoder_ov_path = txt2img_model_dir / "text_encoder.xml"
@@ -195,17 +195,17 @@ pipelines in OpenVINO on our own data!
 Step 3: Text-to-Image Generation Inference Pipeline
 ---------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Step 3.1: Load and Understand Text to Image OpenVINO models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Step 3.2: Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -213,16 +213,16 @@ select device from dropdown list for running inference using OpenVINO
 
     import ipywidgets as widgets
     import openvino as ov
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -275,10 +275,10 @@ As part of the ``OVStableDiffusionPipeline()`` class:
     from diffusers.schedulers import LMSDiscreteScheduler
     from transformers import CLIPTokenizer
     from implementation.ov_stable_diffusion_pipeline import OVStableDiffusionPipeline
-    
+
     scheduler = LMSDiscreteScheduler.from_config(conf)
     tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-large-patch14")
-    
+
     ov_pipe = OVStableDiffusionPipeline(
         tokenizer=tokenizer,
         text_encoder=text_enc,
@@ -298,7 +298,7 @@ As part of the ``OVStableDiffusionPipeline()`` class:
 Step 3.3: Run Text-to-Image generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, let’s define some text prompts for image generation and run our
 inference pipeline.
@@ -326,7 +326,7 @@ explanation of how it works can be found in this
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     text_prompt = widgets.Textarea(
         value="valley in the Alps at sunset, epic vista, beautiful landscape, 4k, 8k",
         description="positive prompt",

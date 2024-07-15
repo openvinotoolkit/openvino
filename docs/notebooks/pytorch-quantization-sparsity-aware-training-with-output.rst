@@ -22,24 +22,24 @@ This tutorial uses the ResNet-50 model with the ImageNet dataset. The
 dataset must be downloaded separately. To see ResNet models, visit
 `PyTorch hub <https://pytorch.org/hub/pytorch_vision_resnet/>`__.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Imports and Settings <#Imports-and-Settings>`__
--  `Pre-train Floating-Point Model <#Pre-train-Floating-Point-Model>`__
 
-   -  `Train Function <#Train-Function>`__
-   -  `Validate Function <#Validate-Function>`__
-   -  `Helpers <#Helpers>`__
-   -  `Get a Pre-trained FP32 Model <#Get-a-Pre-trained-FP32-Model>`__
+-  `Imports and Settings <#imports-and-settings>`__
+-  `Pre-train Floating-Point Model <#pre-train-floating-point-model>`__
+
+   -  `Train Function <#train-function>`__
+   -  `Validate Function <#validate-function>`__
+   -  `Helpers <#helpers>`__
+   -  `Get a Pre-trained FP32 Model <#get-a-pre-trained-fp32-model>`__
 
 -  `Create and Initialize
-   Quantization <#Create-and-Initialize-Quantization>`__
--  `Fine-tune the Compressed Model <#Fine-tune-the-Compressed-Model>`__
+   Quantization <#create-and-initialize-quantization>`__
+-  `Fine-tune the Compressed Model <#fine-tune-the-compressed-model>`__
 -  `Export INT8 Sparse Model to OpenVINO
-   IR <#Export-INT8-Model-to-OpenVINO-IR>`__
+   IR <#export-int8-model-to-openvino-ir>`__
 -  `Benchmark Model Performance by Computing Inference
-   Time <#Benchmark-Model-Performance-by-Computing-Inference-Time>`__
+   Time <#benchmark-model-performance-by-computing-inference-time>`__
 
 .. code:: ipython3
 
@@ -56,7 +56,7 @@ Table of contents:
 Imports and Settings
 --------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 On Windows, add the required C++ directories to the system PATH.
 
@@ -75,9 +75,9 @@ models will be stored.
     import time
     import warnings  # To disable warnings on export model
     from pathlib import Path
-    
+
     import torch
-    
+
     import torch.nn as nn
     import torch.nn.parallel
     import torch.optim
@@ -86,14 +86,14 @@ models will be stored.
     import torchvision.datasets as datasets
     import torchvision.transforms as transforms
     import torchvision.models as models
-    
+
     import openvino as ov
     from torch.jit import TracerWarning
-    
+
     torch.manual_seed(0)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using {device} device")
-    
+
     MODEL_DIR = Path("model")
     OUTPUT_DIR = Path("output")
     # DATA_DIR = Path("...")  # Insert path to folder containing imagenet folder
@@ -110,16 +110,16 @@ models will be stored.
     # Fetch `notebook_utils` module
     import zipfile
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file
-    
+
     DATA_DIR = Path("data")
-    
-    
+
+
     def download_tiny_imagenet_200(
         data_dir: Path,
         url="http://cs231n.stanford.edu/tiny-imagenet-200.zip",
@@ -130,8 +130,8 @@ models will be stored.
         zip_ref = zipfile.ZipFile(archive_path, "r")
         zip_ref.extractall(path=data_dir)
         zip_ref.close()
-    
-    
+
+
     def prepare_tiny_imagenet_200(dataset_dir: Path):
         # Format validation set the same way as train set is formatted.
         val_data_dir = dataset_dir / "val"
@@ -148,21 +148,21 @@ models will be stored.
             from_image_filepath.rename(to_image_filepath)
         val_annotations_file.unlink()
         val_images_dir.rmdir()
-    
-    
+
+
     DATASET_DIR = DATA_DIR / "tiny-imagenet-200"
     if not DATASET_DIR.exists():
         download_tiny_imagenet_200(DATA_DIR)
         prepare_tiny_imagenet_200(DATASET_DIR)
         print(f"Successfully downloaded and prepared dataset at: {DATASET_DIR}")
-    
+
     BASE_MODEL_NAME = "resnet18"
     image_size = 64
-    
+
     OUTPUT_DIR.mkdir(exist_ok=True)
     MODEL_DIR.mkdir(exist_ok=True)
     DATA_DIR.mkdir(exist_ok=True)
-    
+
     # Paths where PyTorch and OpenVINO IR models will be stored.
     fp32_pth_path = Path(MODEL_DIR / (BASE_MODEL_NAME + "_fp32")).with_suffix(".pth")
     fp32_ir_path = fp32_pth_path.with_suffix(".xml")
@@ -183,7 +183,7 @@ models will be stored.
 Train Function
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -197,34 +197,34 @@ Train Function
             [batch_time, losses, top1, top5],
             prefix="Epoch:[{}]".format(epoch),
         )
-    
+
         # Switch to train mode.
         model.train()
-    
+
         end = time.time()
         for i, (images, target) in enumerate(train_loader):
             images = images.to(device)
             target = target.to(device)
-    
+
             # Compute output.
             output = model(images)
             loss = criterion(output, target)
-    
+
             # Measure accuracy and record loss.
             acc1, acc5 = accuracy(output, target, topk=(1, 5))
             losses.update(loss.item(), images.size(0))
             top1.update(acc1[0], images.size(0))
             top5.update(acc5[0], images.size(0))
-    
+
             # Compute gradient and do opt step.
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-    
+
             # Measure elapsed time.
             batch_time.update(time.time() - end)
             end = time.time()
-    
+
             print_frequency = 50
             if i % print_frequency == 0:
                 progress.display(i)
@@ -233,7 +233,7 @@ Train Function
 Validate Function
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -243,96 +243,96 @@ Validate Function
         top1 = AverageMeter("Acc@1", ":2.2f")
         top5 = AverageMeter("Acc@5", ":2.2f")
         progress = ProgressMeter(len(val_loader), [batch_time, losses, top1, top5], prefix="Test: ")
-    
+
         # Switch to evaluate mode.
         model.eval()
-    
+
         with torch.no_grad():
             end = time.time()
             for i, (images, target) in enumerate(val_loader):
                 images = images.to(device)
                 target = target.to(device)
-    
+
                 # Compute output.
                 output = model(images)
                 loss = criterion(output, target)
-    
+
                 # Measure accuracy and record loss.
                 acc1, acc5 = accuracy(output, target, topk=(1, 5))
                 losses.update(loss.item(), images.size(0))
                 top1.update(acc1[0], images.size(0))
                 top5.update(acc5[0], images.size(0))
-    
+
                 # Measure elapsed time.
                 batch_time.update(time.time() - end)
                 end = time.time()
-    
+
                 print_frequency = 10
                 if i % print_frequency == 0:
                     progress.display(i)
-    
+
             print(" * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}".format(top1=top1, top5=top5))
         return top1.avg
 
 Helpers
 ~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     class AverageMeter(object):
         """Computes and stores the average and current value"""
-    
+
         def __init__(self, name, fmt=":f"):
             self.name = name
             self.fmt = fmt
             self.reset()
-    
+
         def reset(self):
             self.val = 0
             self.avg = 0
             self.sum = 0
             self.count = 0
-    
+
         def update(self, val, n=1):
             self.val = val
             self.sum += val * n
             self.count += n
             self.avg = self.sum / self.count
-    
+
         def __str__(self):
             fmtstr = "{name} {val" + self.fmt + "} ({avg" + self.fmt + "})"
             return fmtstr.format(**self.__dict__)
-    
-    
+
+
     class ProgressMeter(object):
         def __init__(self, num_batches, meters, prefix=""):
             self.batch_fmtstr = self._get_batch_fmtstr(num_batches)
             self.meters = meters
             self.prefix = prefix
-    
+
         def display(self, batch):
             entries = [self.prefix + self.batch_fmtstr.format(batch)]
             entries += [str(meter) for meter in self.meters]
             print("\t".join(entries))
-    
+
         def _get_batch_fmtstr(self, num_batches):
             num_digits = len(str(num_batches // 1))
             fmt = "{:" + str(num_digits) + "d}"
             return "[" + fmt + "/" + fmt.format(num_batches) + "]"
-    
-    
+
+
     def accuracy(output, target, topk=(1,)):
         """Computes the accuracy over the k top predictions for the specified values of k"""
         with torch.no_grad():
             maxk = max(topk)
             batch_size = target.size(0)
-    
+
             _, pred = output.topk(maxk, 1, True, True)
             pred = pred.t()
             correct = pred.eq(target.view(1, -1).expand_as(pred))
-    
+
             res = []
             for k in topk:
                 correct_k = correct[:k].reshape(-1).float().sum(0, keepdim=True)
@@ -342,7 +342,7 @@ Helpers
 Get a Pre-trained FP32 Model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 А pre-trained floating-point model is a prerequisite for quantization.
 It can be obtained by tuning from scratch with the code below.
@@ -353,18 +353,18 @@ It can be obtained by tuning from scratch with the code below.
     init_lr = 1e-4
     batch_size = 128
     epochs = 20
-    
+
     # model = models.resnet50(pretrained=True)
     model = models.resnet18(pretrained=True)
     model.fc = nn.Linear(in_features=512, out_features=200, bias=True)
     model.to(device)
-    
-    
+
+
     # Data loading code.
     train_dir = DATASET_DIR / "train"
     val_dir = DATASET_DIR / "val"
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    
+
     train_dataset = datasets.ImageFolder(
         train_dir,
         transforms.Compose(
@@ -387,7 +387,7 @@ It can be obtained by tuning from scratch with the code below.
             ]
         ),
     )
-    
+
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=batch_size,
@@ -396,9 +396,9 @@ It can be obtained by tuning from scratch with the code below.
         pin_memory=True,
         sampler=None,
     )
-    
+
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=1, pin_memory=True)
-    
+
     # Define loss function (criterion) and optimizer.
     criterion = nn.CrossEntropyLoss().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=init_lr)
@@ -418,7 +418,7 @@ benchmark it in comparison with the ``INT8`` model.
 .. code:: ipython3
 
     dummy_input = torch.randn(1, 3, image_size, image_size).to(device)
-    
+
     ov_model = ov.convert_model(model, example_input=dummy_input, input=[1, 3, image_size, image_size])
     ov.save_model(ov_model, fp32_ir_path, compress_to_fp16=False)
     print(f"FP32 model was exported to {fp32_ir_path}.")
@@ -433,7 +433,7 @@ benchmark it in comparison with the ``INT8`` model.
 Create and Initialize Quantization and Sparsity Training
 --------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 NNCF enables compression-aware training by integrating into regular
 training pipelines. The framework is designed so that modifications to
@@ -443,11 +443,11 @@ your original training code are minor.
 
     from nncf import NNCFConfig
     from nncf.torch import create_compressed_model, register_default_init_args
-    
+
     # load
     nncf_config = NNCFConfig.from_json("config.json")
     nncf_config = register_default_init_args(nncf_config, train_loader)
-    
+
     # Creating a compressed model
     compression_ctrl, compressed_model = create_compressed_model(model, nncf_config)
     compression_ctrl.scheduler.epoch_step()
@@ -527,7 +527,7 @@ quantization and sparsity.
 Fine-tune the Compressed Model
 ------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 At this step, a regular fine-tuning process is applied to further
 improve quantized model accuracy. Normally, several epochs of tuning are
@@ -545,11 +545,11 @@ training pipeline are required. Here is a simple example.
     for epoch in range(nr_epochs):
         compression_ctrl.scheduler.epoch_step()
         train(train_loader, compressed_model, compression_ctrl, criterion, optimizer, epoch=epoch)
-    
+
     # Evaluate on validation set after Quantization-Aware Training (QAT case).
     print("Validating")
     acc1_int8_sparse = validate(val_loader, compressed_model, criterion)
-    
+
     print(f"Accuracy of tuned INT8 sparse model: {acc1_int8_sparse:.3f}")
     print(f"Accuracy drop of tuned INT8 sparse model over pre-trained FP32 model: {acc1 - acc1_int8_sparse:.3f}")
 
@@ -734,7 +734,7 @@ training pipeline are required. Here is a simple example.
 Export INT8 Sparse Model to OpenVINO IR
 ---------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -756,7 +756,7 @@ Export INT8 Sparse Model to OpenVINO IR
 Benchmark Model Performance by Computing Inference Time
 -------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark
@@ -778,7 +778,7 @@ throughput (frames per second) values.
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     # Initialize OpenVINO runtime
     core = ov.Core()
     device = widgets.Dropdown(
@@ -787,7 +787,7 @@ throughput (frames per second) values.
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -804,12 +804,12 @@ throughput (frames per second) values.
     def parse_benchmark_output(benchmark_output):
         parsed_output = [line for line in benchmark_output if "FPS" in line]
         print(*parsed_output, sep="\n")
-    
-    
+
+
     print("Benchmark FP32 model (IR)")
     benchmark_output = ! benchmark_app -m $fp32_ir_path -d $device.value -api async -t 15
     parse_benchmark_output(benchmark_output)
-    
+
     print("Benchmark INT8 sparse model (IR)")
     benchmark_output = ! benchmark_app -m $int8_ir_path -d $device.value -api async -t 15
     parse_benchmark_output(benchmark_output)
@@ -820,7 +820,7 @@ throughput (frames per second) values.
     Benchmark FP32 model (IR)
     [ INFO ] Throughput:   2943.43 FPS
     Benchmark INT8 sparse model (IR)
-    
+
 
 
 Show Device Information for reference.

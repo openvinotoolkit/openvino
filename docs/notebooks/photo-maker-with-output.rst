@@ -18,37 +18,37 @@ report <https://arxiv.org/pdf/2312.04461.pdf>`__.
 This notebook explores how to speed up PhotoMaker pipeline using
 OpenVINO.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `PhotoMaker pipeline
-   introduction <#PhotoMaker-pipeline-introduction>`__
--  `Prerequisites <#Prerequisites>`__
+   introduction <#photomaker-pipeline-introduction>`__
+-  `Prerequisites <#prerequisites>`__
 -  `Load original pipeline and prepare models for
-   conversion <#Load-original-pipeline-and-prepare-models-for-conversion>`__
+   conversion <#load-original-pipeline-and-prepare-models-for-conversion>`__
 -  `Convert models to OpenVINO Intermediate representation (IR)
-   format <#Convert-models-to-OpenVINO-Intermediate-representation-(IR)-format>`__
+   format <#convert-models-to-openvino-intermediate-representation-ir-format>`__
 
-   -  `ID Encoder <#ID-Encoder>`__
-   -  `Text Encoder <#Text-Encoder>`__
-   -  `U-Net <#U-Net>`__
-   -  `VAE Decoder <#VAE-Decoder>`__
+   -  `ID Encoder <#id-encoder>`__
+   -  `Text Encoder <#text-encoder>`__
+   -  `U-Net <#u-net>`__
+   -  `VAE Decoder <#vae-decoder>`__
 
--  `Prepare Inference pipeline <#Prepare-Inference-pipeline>`__
+-  `Prepare Inference pipeline <#prepare-inference-pipeline>`__
 
    -  `Select inference device for Stable Diffusion
-      pipeline <#Select-inference-device-for-Stable-Diffusion-pipeline>`__
+      pipeline <#select-inference-device-for-stable-diffusion-pipeline>`__
    -  `Compile models and create their Wrappers for
-      inference <#Compile-models-and-create-their-Wrappers-for-inference>`__
+      inference <#compile-models-and-create-their-wrappers-for-inference>`__
 
 -  `Running Text-to-Image Generation with
-   OpenVINO <#Running-Text-to-Image-Generation-with-OpenVINO>`__
--  `Interactive Demo <#Interactive-Demo>`__
+   OpenVINO <#running-text-to-image-generation-with-openvino>`__
+-  `Interactive Demo <#interactive-demo>`__
 
 PhotoMaker pipeline introduction
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For the proposed PhotoMaker, we first obtain the text embedding and
 image embeddings from ``text encoder(s)`` and ``image(ID) encoder``,
@@ -65,14 +65,14 @@ new ID during inference.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Clone PhotoMaker repository
 
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     if not Path("PhotoMaker").exists():
         !git clone https://github.com/TencentARC/PhotoMaker.git
 
@@ -109,7 +109,7 @@ Prepare PyTorch models
 
     adapter_id = "TencentARC/PhotoMaker"
     base_model_id = "SG161222/RealVisXL_V3.0"
-    
+
     TEXT_ENCODER_OV_PATH = Path("model/text_encoder.xml")
     TEXT_ENCODER_2_OV_PATH = Path("model/text_encoder_2.xml")
     UNET_OV_PATH = Path("model/unet.xml")
@@ -119,7 +119,7 @@ Prepare PyTorch models
 Load original pipeline and prepare models for conversion
 --------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For exporting each PyTorch model, we will download the ``ID encoder``
 weight, ``LoRa`` weight from HuggingFace hub, then using the
@@ -137,14 +137,14 @@ PhotoMaker to generate the original PhotoMaker pipeline.
     from PhotoMaker.photomaker.pipeline import PhotoMakerStableDiffusionXLPipeline
     from diffusers import EulerDiscreteScheduler
     import gc
-    
+
     trigger_word = "img"
-    
-    
+
+
     def load_original_pytorch_pipeline_components(photomaker_path: str, base_model_id: str):
         # Load base model
         pipe = PhotoMakerStableDiffusionXLPipeline.from_pretrained(base_model_id, use_safetensors=True).to("cpu")
-    
+
         # Load PhotoMaker checkpoint
         pipe.load_photomaker_adapter(
             os.path.dirname(photomaker_path),
@@ -169,9 +169,9 @@ PhotoMaker to generate the original PhotoMaker pipeline.
 .. code:: ipython3
 
     from huggingface_hub import hf_hub_download
-    
+
     photomaker_path = hf_hub_download(repo_id=adapter_id, filename="photomaker-v1.bin", repo_type="model")
-    
+
     pipe = load_original_pytorch_pipeline_components(photomaker_path, base_model_id)
 
 
@@ -195,7 +195,7 @@ PhotoMaker to generate the original PhotoMaker pipeline.
 Convert models to OpenVINO Intermediate representation (IR) format
 ------------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Starting from 2023.0 release, OpenVINO supports PyTorch models
 conversion directly. We need to provide a model object, input data for
@@ -243,8 +243,8 @@ documentation <https://docs.openvino.ai/2023.3/weight_compression.html>`__.
 
     import openvino as ov
     import nncf
-    
-    
+
+
     def flattenize_inputs(inputs):
         """
         Helper function for resolve nested input structure (e.g. lists or tuples of tensors)
@@ -258,8 +258,8 @@ documentation <https://docs.openvino.ai/2023.3/weight_compression.html>`__.
             else:
                 flatten_inputs.append(input_data)
         return flatten_inputs
-    
-    
+
+
     dtype_mapping = {
         torch.float32: ov.Type.f32,
         torch.float64: ov.Type.f64,
@@ -267,8 +267,8 @@ documentation <https://docs.openvino.ai/2023.3/weight_compression.html>`__.
         torch.int64: ov.Type.i64,
         torch.bool: ov.Type.boolean,
     }
-    
-    
+
+
     def prepare_input_info(input_dict):
         """
         Helper function for preparing input info (shapes and data types) for conversion based on example inputs
@@ -281,8 +281,8 @@ documentation <https://docs.openvino.ai/2023.3/weight_compression.html>`__.
                 updated_shape[1] = -1
             input_info.append((dtype_mapping[input_data.dtype], updated_shape))
         return input_info
-    
-    
+
+
     def convert(model: torch.nn.Module, xml_path: str, example_input, input_info):
         """
         Helper function for converting PyTorch model to OpenVINO IR
@@ -294,7 +294,7 @@ documentation <https://docs.openvino.ai/2023.3/weight_compression.html>`__.
                 ov_model = ov.convert_model(model, example_input=example_input, input=input_info)
             ov_model = nncf.compress_weights(ov_model)
             ov.save_model(ov_model, xml_path)
-    
+
             del ov_model
             torch._C._jit_clear_class_registry()
             torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
@@ -309,7 +309,7 @@ documentation <https://docs.openvino.ai/2023.3/weight_compression.html>`__.
 ID Encoder
 ~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 PhotoMaker merged image encoder and fuse module to create an ID Encoder.
 It will used to generate image embeddings to update text encoder’s
@@ -319,23 +319,23 @@ output(text embeddings) which will be the input for U-Net model.
 
     id_encoder = pipe.id_encoder
     id_encoder.eval()
-    
-    
+
+
     def create_bool_tensor(*size):
         new_tensor = torch.zeros((size), dtype=torch.bool)
         return new_tensor
-    
-    
+
+
     inputs = {
         "id_pixel_values": torch.randn((1, 1, 3, 224, 224)),
         "prompt_embeds": torch.randn((1, 77, 2048)),
         "class_tokens_mask": create_bool_tensor(1, 77),
     }
-    
+
     input_info = prepare_input_info(inputs)
-    
+
     convert(id_encoder, ID_ENCODER_OV_PATH, inputs, input_info)
-    
+
     del id_encoder
     gc.collect()
 
@@ -375,17 +375,17 @@ output(text embeddings) which will be the input for U-Net model.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -400,7 +400,7 @@ output(text embeddings) which will be the input for U-Net model.
 Text Encoder
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -414,19 +414,19 @@ sequence of latent text embeddings.
     text_encoder.eval()
     text_encoder_2 = pipe.text_encoder_2
     text_encoder_2.eval()
-    
+
     text_encoder.config.output_hidden_states = True
     text_encoder.config.return_dict = False
     text_encoder_2.config.output_hidden_states = True
     text_encoder_2.config.return_dict = False
-    
+
     inputs = {"input_ids": torch.ones((1, 77), dtype=torch.long)}
-    
+
     input_info = prepare_input_info(inputs)
-    
+
     convert(text_encoder, TEXT_ENCODER_OV_PATH, inputs, input_info)
     convert(text_encoder_2, TEXT_ENCODER_2_OV_PATH, inputs, input_info)
-    
+
     del text_encoder
     del text_encoder_2
     gc.collect()
@@ -459,17 +459,17 @@ sequence of latent text embeddings.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -490,17 +490,17 @@ sequence of latent text embeddings.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -515,7 +515,7 @@ sequence of latent text embeddings.
 U-Net
 ~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The process of U-Net model conversion remains the same, like for
 original Stable Diffusion XL model.
@@ -524,13 +524,13 @@ original Stable Diffusion XL model.
 
     unet = pipe.unet
     unet.eval()
-    
-    
+
+
     class UnetWrapper(torch.nn.Module):
         def __init__(self, unet):
             super().__init__()
             self.unet = unet
-    
+
         def forward(
             self,
             sample=None,
@@ -545,8 +545,8 @@ original Stable Diffusion XL model.
                 encoder_hidden_states,
                 added_cond_kwargs={"text_embeds": text_embeds, "time_ids": time_ids},
             )
-    
-    
+
+
     inputs = {
         "sample": torch.rand([2, 4, 128, 128], dtype=torch.float32),
         "timestep": torch.from_numpy(np.array(1, dtype=float)),
@@ -554,12 +554,12 @@ original Stable Diffusion XL model.
         "text_embeds": torch.rand([2, 1280], dtype=torch.float32),
         "time_ids": torch.rand([2, 6], dtype=torch.float32),
     }
-    
+
     input_info = prepare_input_info(inputs)
-    
+
     w_unet = UnetWrapper(unet)
     convert(w_unet, UNET_OV_PATH, inputs, input_info)
-    
+
     del w_unet, unet
     gc.collect()
 
@@ -595,17 +595,17 @@ original Stable Diffusion XL model.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -620,7 +620,7 @@ original Stable Diffusion XL model.
 VAE Decoder
 ~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -634,22 +634,22 @@ VAE decoder.
 
     vae_decoder = pipe.vae
     vae_decoder.eval()
-    
-    
+
+
     class VAEDecoderWrapper(torch.nn.Module):
         def __init__(self, vae_decoder):
             super().__init__()
             self.vae = vae_decoder
-    
+
         def forward(self, latents):
             return self.vae.decode(latents)
-    
-    
+
+
     w_vae_decoder = VAEDecoderWrapper(vae_decoder)
     inputs = torch.zeros((1, 4, 128, 128))
-    
+
     convert(w_vae_decoder, VAE_DECODER_OV_PATH, inputs, input_info=[1, 4, 128, 128])
-    
+
     del w_vae_decoder, vae_decoder
     gc.collect()
 
@@ -671,17 +671,17 @@ VAE decoder.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -696,7 +696,7 @@ VAE decoder.
 Prepare Inference pipeline
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In this example, we will reuse ``PhotoMakerStableDiffusionXLPipeline``
 pipeline to generate the image with OpenVINO, so each model’s object in
@@ -705,21 +705,21 @@ this pipeline should be replaced with new OpenVINO model object.
 Select inference device for Stable Diffusion pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="CPU",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -734,7 +734,7 @@ Select inference device for Stable Diffusion pipeline
 Compile models and create their Wrappers for inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To access original PhotoMaker workflow, we have to create a new wrapper
 for each OpenVINO compiled model. For matching original pipeline, part
@@ -742,7 +742,7 @@ of OpenVINO model wrapper’s attributes should be reused from original
 model objects and inference output must be converted from numpy to
 ``torch.tensor``.
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -755,17 +755,17 @@ model objects and inference output must be converted from numpy to
 .. code:: ipython3
 
     from collections import namedtuple
-    
-    
+
+
     class OVIDEncoderWrapper(PhotoMakerIDEncoder):
         dtype = torch.float32  # accessed in the original workflow
-    
+
         def __init__(self, id_encoder, orig_id_encoder):
             super().__init__()
             self.id_encoder = id_encoder
             self.modules = orig_id_encoder.modules  # accessed in the original workflow
             self.config = orig_id_encoder.config  # accessed in the original workflow
-    
+
         def __call__(
             self,
             *args,
@@ -783,21 +783,21 @@ model objects and inference output must be converted from numpy to
 
     class OVTextEncoderWrapper:
         dtype = torch.float32  # accessed in the original workflow
-    
+
         def __init__(self, text_encoder, orig_text_encoder):
             self.text_encoder = text_encoder
             self.modules = orig_text_encoder.modules  # accessed in the original workflow
             self.config = orig_text_encoder.config  # accessed in the original workflow
-    
+
         def __call__(self, input_ids, **kwargs):
             inputs = {"input_ids": input_ids}
             output = self.text_encoder(inputs)
-    
+
             hidden_states = []
             hidden_states_len = len(output)
             for i in range(1, hidden_states_len):
                 hidden_states.append(torch.from_numpy(output[i]))
-    
+
             BaseModelOutputWithPooling = namedtuple("BaseModelOutputWithPooling", "last_hidden_state hidden_states")
             output = BaseModelOutputWithPooling(torch.from_numpy(output[0]), hidden_states)
             return output
@@ -809,7 +809,7 @@ model objects and inference output must be converted from numpy to
             self.unet = unet
             self.config = unet_orig.config  # accessed in the original workflow
             self.add_embedding = unet_orig.add_embedding  # accessed in the original workflow
-    
+
         def __call__(self, *args, **kwargs):
             latent_model_input, t = args
             inputs = {
@@ -819,24 +819,24 @@ model objects and inference output must be converted from numpy to
                 "text_embeds": kwargs["added_cond_kwargs"]["text_embeds"],
                 "time_ids": kwargs["added_cond_kwargs"]["time_ids"],
             }
-    
+
             output = self.unet(inputs)
-    
+
             return [torch.from_numpy(output[0])]
 
 .. code:: ipython3
 
     class OVVAEDecoderWrapper:
         dtype = torch.float32  # accessed in the original workflow
-    
+
         def __init__(self, vae, vae_orig):
             self.vae = vae
             self.config = vae_orig.config  # accessed in the original workflow
-    
+
         def decode(self, latents, return_dict=False):
             output = self.vae(latents)[0]
             output = torch.from_numpy(output)
-    
+
             return [output]
 
 Replace the PyTorch model objects in original pipeline with OpenVINO
@@ -853,27 +853,27 @@ models
 Running Text-to-Image Generation with OpenVINO
 ----------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from diffusers.utils import load_image
-    
+
     prompt = "sci-fi, closeup portrait photo of a man img in Iron man suit, face"
     negative_prompt = "(asymmetry, worst quality, low quality, illustration, 3d, 2d, painting, cartoons, sketch), open mouth"
     generator = torch.Generator("cpu").manual_seed(42)
-    
+
     input_id_images = []
     original_image = load_image("./PhotoMaker/examples/newton_man/newton_0.jpg")
     input_id_images.append(original_image)
-    
+
     ## Parameter setting
     num_steps = 20
     style_strength_ratio = 20
     start_merge_step = int(float(style_strength_ratio) / 100 * num_steps)
     if start_merge_step > 30:
         start_merge_step = 30
-    
+
     images = pipe(
         prompt=prompt,
         input_id_images=input_id_images,
@@ -894,12 +894,12 @@ Running Text-to-Image Generation with OpenVINO
 .. code:: ipython3
 
     import matplotlib.pyplot as plt
-    
-    
+
+
     def visualize_results(orig_img: Image.Image, output_img: Image.Image):
         """
         Helper function for pose estimationresults visualization
-    
+
         Parameters:
            orig_img (Image.Image): original image
            output_img (Image.Image): processed image with PhotoMaker
@@ -933,8 +933,8 @@ Running Text-to-Image Generation with OpenVINO
         fig.subplots_adjust(wspace=0.01 if is_horizontal else 0.00, hspace=0.01 if is_horizontal else 0.1)
         fig.tight_layout()
         return fig
-    
-    
+
+
     fig = visualize_results(original_image, images[0])
 
 
@@ -945,17 +945,17 @@ Running Text-to-Image Generation with OpenVINO
 Interactive Demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import gradio as gr
-    
-    
+
+
     def generate_from_text(text_promt, input_image, neg_prompt, seed, num_steps, style_strength_ratio):
         """
         Helper function for generating result image from prompt text
-    
+
         Parameters:
            text_promt (String): positive prompt
            input_image (Image.Image): original image
@@ -963,7 +963,7 @@ Interactive Demo
            seed (Int):  seed for random generator state initialization
            num_steps (Int): number of sampling steps
            style_strength_ratio (Int):  the percentage of step when merging the ID embedding to text embedding
-    
+
         Returns:
            result (Image.Image): generation result
         """
@@ -981,10 +981,10 @@ Interactive Demo
             height=1024,
             width=1024,
         ).images[0]
-    
+
         return result
-    
-    
+
+
     with gr.Blocks() as demo:
         with gr.Column():
             with gr.Row():
@@ -1035,8 +1035,8 @@ Interactive Demo
                 ],
                 [positive_input, neg_input],
             )
-    
-    
+
+
     demo.queue().launch()
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
@@ -1046,21 +1046,21 @@ Interactive Demo
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 
 
-.. raw:: html
-
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
 
 
 
-.. parsed-literal::
 
-    
+
+
+
+
+
 
 
 

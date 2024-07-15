@@ -28,18 +28,18 @@ card <https://huggingface.co/briaai/RMBG-1.4>`__.
 In this tutorial we consider how to convert and run this model using
 OpenVINO. #### Table of contents:
 
--  `Prerequisites <#Prerequisites>`__
--  `Load PyTorch model <#Load-PyTorch-model>`__
--  `Run PyTorch model inference <#Run-PyTorch-model-inference>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Load PyTorch model <#load-pytorch-model>`__
+-  `Run PyTorch model inference <#run-pytorch-model-inference>`__
 -  `Convert Model to OpenVINO Intermediate Representation
-   format <#Convert-Model-to-OpenVINO-Intermediate-Representation-format>`__
--  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
--  `Interactive demo <#Interactive-demo>`__
+   format <#convert-model-to-openvino-intermediate-representation-format>`__
+-  `Run OpenVINO model inference <#run-openvino-model-inference>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 install required dependencies
 
@@ -59,11 +59,11 @@ Download model code from HuggingFace hub
 
     from huggingface_hub import hf_hub_download
     from pathlib import Path
-    
+
     repo_id = "briaai/RMBG-1.4"
-    
+
     download_files = ["utilities.py", "example_input.jpg"]
-    
+
     for file_for_downloading in download_files:
         if not Path(file_for_downloading).exists():
             hf_hub_download(repo_id=repo_id, filename=file_for_downloading, local_dir=".")
@@ -84,7 +84,7 @@ Download model code from HuggingFace hub
 Load PyTorch model
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For loading model using PyTorch, we should use
 ``AutoModelForImageSegmentation.from_pretrained`` method. Model weights
@@ -94,7 +94,7 @@ it may take some time.
 .. code:: ipython3
 
     from transformers import AutoModelForImageSegmentation
-    
+
     net = AutoModelForImageSegmentation.from_pretrained("briaai/RMBG-1.4", trust_remote_code=True)
 
 
@@ -107,7 +107,7 @@ it may take some time.
 Run PyTorch model inference
 ---------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 ``preprocess_image`` function is responsible for preparing input data in
 model-specific format. ``postprocess_image`` function is responsible for
@@ -121,12 +121,12 @@ mask can be inserted into original image as alpha-channel.
     from utilities import preprocess_image, postprocess_image
     import numpy as np
     from matplotlib import pyplot as plt
-    
-    
+
+
     def visualize_result(orig_img: Image, mask: Image, result_img: Image):
         """
         Helper for results visualization
-    
+
         parameters:
            orig_img (Image): input image
            mask (Image): background mask
@@ -160,33 +160,33 @@ mask can be inserted into original image as alpha-channel.
         list_axes[1].set_title(titles[1], fontsize=15)
         list_axes[2].imshow(np.array(result_img))
         list_axes[2].set_title(titles[2], fontsize=15)
-    
+
         fig.subplots_adjust(wspace=0.01 if is_horizontal else 0.00, hspace=0.01 if is_horizontal else 0.1)
         fig.tight_layout()
         return fig
-    
-    
+
+
     im_path = "./example_input.jpg"
-    
+
     # prepare input
     model_input_size = [1024, 1024]
     orig_im = np.array(Image.open(im_path))
     orig_im_size = orig_im.shape[0:2]
     image = preprocess_image(orig_im, model_input_size)
-    
+
     # inference
     result = net(image)
-    
+
     # post process
     result_image = postprocess_image(result[0][0], orig_im_size)
-    
+
     # save result
     pil_im = Image.fromarray(result_image)
     no_bg_image = Image.new("RGBA", pil_im.size, (0, 0, 0, 0))
     orig_image = Image.open(im_path)
     no_bg_image.paste(orig_image, mask=pil_im)
     no_bg_image.save("example_image_no_bg.png")
-    
+
     visualize_result(orig_image, pil_im, no_bg_image);
 
 
@@ -197,7 +197,7 @@ mask can be inserted into original image as alpha-channel.
 Convert Model to OpenVINO Intermediate Representation format
 ------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
 Representation (IR). `OpenVINO model conversion
@@ -211,9 +211,9 @@ function or directly loading on device using ``core.complie_model``.
 .. code:: ipython3
 
     import openvino as ov
-    
+
     ov_model_path = Path("rmbg-1.4.xml")
-    
+
     if not ov_model_path.exists():
         ov_model = ov.convert_model(net, example_input=image, input=[1, 3, *model_input_size])
         ov.save_model(ov_model, ov_model_path)
@@ -233,7 +233,7 @@ function or directly loading on device using ``core.complie_model``.
 Run OpenVINO model inference
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 After finishing conversion, we can compile converted model and run it
 using OpenVINO on specified device. For selection inference device,
@@ -242,16 +242,16 @@ please use dropdown list below:
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -270,19 +270,19 @@ original pre- and postprocessing steps, it means that we can reuse them.
 .. code:: ipython3
 
     ov_compiled_model = core.compile_model(ov_model_path, device.value)
-    
+
     result = ov_compiled_model(image)[0]
-    
+
     # post process
     result_image = postprocess_image(torch.from_numpy(result), orig_im_size)
-    
+
     # save result
     pil_im = Image.fromarray(result_image)
     no_bg_image = Image.new("RGBA", pil_im.size, (0, 0, 0, 0))
     orig_image = Image.open(im_path)
     no_bg_image.paste(orig_image, mask=pil_im)
     no_bg_image.save("example_image_no_bg.png")
-    
+
     visualize_result(orig_image, pil_im, no_bg_image);
 
 
@@ -293,43 +293,43 @@ original pre- and postprocessing steps, it means that we can reuse them.
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import gradio as gr
-    
-    
+
+
     title = "# RMBG background removal with OpenVINO"
-    
-    
+
+
     def get_background_mask(model, image):
         return model(image)[0]
-    
-    
+
+
     with gr.Blocks() as demo:
         gr.Markdown(title)
-    
+
         with gr.Row():
             input_image = gr.Image(label="Input Image", type="numpy")
             background_image = gr.Image(label="Background removal Image")
         submit = gr.Button("Submit")
-    
+
         def on_submit(image):
             original_image = image.copy()
-    
+
             h, w = image.shape[:2]
             image = preprocess_image(original_image, model_input_size)
-    
+
             mask = get_background_mask(ov_compiled_model, image)
             result_image = postprocess_image(torch.from_numpy(mask), (h, w))
             pil_im = Image.fromarray(result_image)
             orig_img = Image.fromarray(original_image)
             no_bg_image = Image.new("RGBA", pil_im.size, (0, 0, 0, 0))
             no_bg_image.paste(orig_img, mask=pil_im)
-    
+
             return no_bg_image
-    
+
         submit.click(on_submit, inputs=[input_image], outputs=[background_image])
         examples = gr.Examples(
             examples=["./example_input.jpg"],
@@ -338,8 +338,8 @@ Interactive demo
             fn=on_submit,
             cache_examples=False,
         )
-    
-    
+
+
     if __name__ == "__main__":
         try:
             demo.launch(debug=False)
@@ -353,12 +353,12 @@ Interactive demo
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

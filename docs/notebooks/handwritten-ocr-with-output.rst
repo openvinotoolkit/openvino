@@ -8,41 +8,41 @@ Latin alphabet is available in `notebook
 This model is capable of processing only one line of symbols at a time.
 
 The models used in this notebook are
-```handwritten-japanese-recognition-0001`` <https://docs.openvino.ai/2024/omz_models_model_handwritten_japanese_recognition_0001.html>`__
+`handwritten-japanese-recognition-0001 <https://docs.openvino.ai/2024/omz_models_model_handwritten_japanese_recognition_0001.html>`__
 and
-```handwritten-simplified-chinese-0001`` <https://docs.openvino.ai/2024/omz_models_model_handwritten_simplified_chinese_recognition_0001.html>`__.
+`handwritten-simplified-chinese-0001 <https://docs.openvino.ai/2024/omz_models_model_handwritten_simplified_chinese_recognition_0001.html>`__.
 To decode model outputs as readable text
-```kondate_nakayosi`` <https://github.com/openvinotoolkit/open_model_zoo/blob/master/data/dataset_classes/kondate_nakayosi.txt>`__
+`kondate_nakayosi <https://github.com/openvinotoolkit/open_model_zoo/blob/master/data/dataset_classes/kondate_nakayosi.txt>`__
 and
-```scut_ept`` <https://github.com/openvinotoolkit/open_model_zoo/blob/master/data/dataset_classes/scut_ept.txt>`__
+`scut_ept <https://github.com/openvinotoolkit/open_model_zoo/blob/master/data/dataset_classes/scut_ept.txt>`__
 charlists are used. Both models are available on `Open Model
 Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Imports <#Imports>`__
--  `Settings <#Settings>`__
--  `Select a Language <#Select-a-Language>`__
--  `Download the Model <#Download-the-Model>`__
--  `Load the Model and Execute <#Load-the-Model-and-Execute>`__
--  `Select inference device <#Select-inference-device>`__
+
+-  `Imports <#imports>`__
+-  `Settings <#settings>`__
+-  `Select a Language <#select-a-language>`__
+-  `Download the Model <#download-the-model>`__
+-  `Load the Model and Execute <#load-the-model-and-execute>`__
+-  `Select inference device <#select-inference-device>`__
 -  `Fetch Information About Input and Output
-   Layers <#Fetch-Information-About-Input-and-Output-Layers>`__
--  `Load an Image <#Load-an-Image>`__
--  `Visualize Input Image <#Visualize-Input-Image>`__
--  `Prepare Charlist <#Prepare-Charlist>`__
--  `Run Inference <#Run-Inference>`__
--  `Process the Output Data <#Process-the-Output-Data>`__
--  `Print the Output <#Print-the-Output>`__
+   Layers <#fetch-information-about-input-and-output-layers>`__
+-  `Load an Image <#load-an-image>`__
+-  `Visualize Input Image <#visualize-input-image>`__
+-  `Prepare Charlist <#prepare-charlist>`__
+-  `Run Inference <#run-inference>`__
+-  `Process the Output Data <#process-the-output-data>`__
+-  `Print the Output <#print-the-output>`__
 
 .. code:: ipython3
 
     import platform
-    
+
     # Install openvino-dev package
     %pip install -q "openvino>=2023.1.0" opencv-python tqdm
-    
+
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
@@ -58,32 +58,32 @@ Table of contents:
 Imports
 -------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from collections import namedtuple
     from itertools import groupby
-    
+
     import cv2
     import matplotlib.pyplot as plt
     import numpy as np
     import openvino as ov
-    
+
     # Fetch `notebook_utils` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-    
+
     open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file
 
 Settings
 --------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Set up all constants and folders used in this notebook
 
@@ -93,7 +93,7 @@ Set up all constants and folders used in this notebook
     base_models_dir = "models"
     data_folder = "data"
     charlist_folder = f"{data_folder}/text"
-    
+
     # Precision used by the model.
     precision = "FP16"
 
@@ -117,7 +117,7 @@ To group files, you have to define the collection. In this case, use
 Select a Language
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Depending on your choice you will need to change a line of code in the
 cell below.
@@ -129,15 +129,15 @@ If you want to perform OCR on a text in Japanese, set
 
     # Select the language by using either language="chinese" or language="japanese".
     language = "chinese"
-    
+
     languages = {"chinese": chinese_files, "japanese": japanese_files}
-    
+
     selected_language = languages.get(language)
 
 Download the Model
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 In addition to images and charlists, you need to download the model
 file. In the sections below, there are cells for downloading either the
@@ -177,7 +177,7 @@ model file.
 Load the Model and Execute
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 When all files are downloaded and language is selected, read and compile
 the network to run inference. The path to the model is defined based on
@@ -191,21 +191,21 @@ the selected language.
 Select inference device
 -----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -224,7 +224,7 @@ select device from dropdown list for running inference using OpenVINO
 Fetch Information About Input and Output Layers
 -----------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now that the model is loaded, fetch information about the input and
 output layers (shape).
@@ -237,7 +237,7 @@ output layers (shape).
 Load an Image
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Next, load an image. The model expects a single-channel image as input,
 so the image is read in grayscale.
@@ -254,28 +254,28 @@ keep letters proportional and meet input shape.
         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/" + selected_language.demo_image_name,
         directory=data_folder,
     )
-    
+
     # Text detection models expect an image in grayscale format.
     # IMPORTANT! This model enables reading only one line at time.
-    
+
     # Read the image.
     image = cv2.imread(filename=str(file_name), flags=cv2.IMREAD_GRAYSCALE)
-    
+
     # Fetch the shape.
     image_height, _ = image.shape
-    
+
     # B,C,H,W = batch size, number of channels, height, width.
     _, _, H, W = recognition_input_layer.shape
-    
+
     # Calculate scale ratio between the input shape height and image height to resize the image.
     scale_ratio = H / image_height
-    
+
     # Resize the image to expected input sizes.
     resized_image = cv2.resize(image, None, fx=scale_ratio, fy=scale_ratio, interpolation=cv2.INTER_AREA)
-    
+
     # Pad the image to match input size, without changing aspect ratio.
     resized_image = np.pad(resized_image, ((0, 0), (0, W - resized_image.shape[1])), mode="edge")
-    
+
     # Reshape to network input shape.
     input_image = resized_image[None, None, :, :]
 
@@ -289,7 +289,7 @@ keep letters proportional and meet input shape.
 Visualize Input Image
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 After preprocessing, you can display the image.
 
@@ -307,7 +307,7 @@ After preprocessing, you can display the image.
 Prepare Charlist
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The model is loaded and the image is ready. The only element left is the
 charlist, which is downloaded. You must add a blank symbol at the
@@ -333,17 +333,17 @@ Chinese and Japanese models.
 
     # Get a dictionary to encode the output, based on model documentation.
     used_charlist = selected_language.charlist_name
-    
+
     # With both models, there should be blank symbol added at index 0 of each charlist.
     blank_char = "~"
-    
+
     with used_charlist_file.open(mode="r", encoding="utf-8") as charlist:
         letters = blank_char + "".join(line.strip() for line in charlist)
 
 Run Inference
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, run inference. The ``compiled_model()`` function takes a list with
 input(s) in the same order as model input(s). Then, fetch the output
@@ -357,7 +357,7 @@ from output tensors.
 Process the Output Data
 -----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The output of a model is in the ``W x B x L`` format, where:
 
@@ -378,7 +378,7 @@ Finally, get the symbols from corresponding indexes in the charlist.
 
     # Remove a batch dimension.
     predictions = np.squeeze(predictions)
-    
+
     # Run the `argmax` function to pick the symbols with the highest probability.
     predictions_indexes = np.argmax(predictions, axis=1)
 
@@ -386,20 +386,20 @@ Finally, get the symbols from corresponding indexes in the charlist.
 
     # Use the `groupby` function to remove concurrent letters, as required by CTC greedy decoding.
     output_text_indexes = list(groupby(predictions_indexes))
-    
+
     # Remove grouper objects.
     output_text_indexes, _ = np.transpose(output_text_indexes, (1, 0))
-    
+
     # Remove blank symbols.
     output_text_indexes = output_text_indexes[output_text_indexes != 0]
-    
+
     # Assign letters to indexes from the output array.
     output_text = [letters[letter_index] for letter_index in output_text_indexes]
 
 Print the Output
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, having a list of letters predicted by the model, you can display
 the image with predicted text printed below.
@@ -409,7 +409,7 @@ the image with predicted text printed below.
     plt.figure(figsize=(20, 1))
     plt.axis("off")
     plt.imshow(resized_image, cmap="gray", vmin=0, vmax=255)
-    
+
     print("".join(output_text))
 
 

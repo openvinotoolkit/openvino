@@ -21,26 +21,26 @@ consists of the following steps:
    integration with Hugging Face Optimum.
 -  Compare sparse 8-bit vs. dense 8-bit inference performance.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Imports <#Imports>`__
+
+-  `Prerequisites <#prerequisites>`__
+-  `Imports <#imports>`__
 
    -  `Download, quantize and sparsify the model, using Hugging Face
       Optimum
-      API <#Download,-quantize-and-sparsify-the-model,-using-Hugging-Face-Optimum-API>`__
+      API <#download-quantize-and-sparsify-the-model-using-hugging-face-optimum-api>`__
 
 -  `Benchmark quantized dense inference
-   performance <#Benchmark-quantized-dense-inference-performance>`__
+   performance <#benchmark-quantized-dense-inference-performance>`__
 -  `Benchmark quantized sparse inference
-   performance <#Benchmark-quantized-sparse-inference-performance>`__
--  `When this might be helpful <#When-this-might-be-helpful>`__
+   performance <#benchmark-quantized-sparse-inference-performance>`__
+-  `When this might be helpful <#when-this-might-be-helpful>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -57,13 +57,13 @@ Prerequisites
 Imports
 -------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import shutil
     from pathlib import Path
-    
+
     from optimum.intel.openvino import OVModelForSequenceClassification
     from transformers import AutoTokenizer, pipeline
     from huggingface_hub import hf_hub_download
@@ -83,7 +83,7 @@ Imports
 Download, quantize and sparsify the model, using Hugging Face Optimum API
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The first step is to download a quantized sparse transformers which has
 been translated to OpenVINO IR. Then, it will be put through a
@@ -97,17 +97,17 @@ model card on Hugging Face.
     # The following model has been quantized, sparsified using Optimum-Intel 1.7 which is enabled by OpenVINO and NNCF
     # for reproducibility, refer https://huggingface.co/OpenVINO/bert-base-uncased-sst2-int8-unstructured80
     model_id = "OpenVINO/bert-base-uncased-sst2-int8-unstructured80"
-    
+
     # The following two steps will set up the model and download them to HF Cache folder
     ov_model = OVModelForSequenceClassification.from_pretrained(model_id)
     tokenizer = AutoTokenizer.from_pretrained(model_id)
-    
+
     # Let's take the model for a spin!
     sentiment_classifier = pipeline("text-classification", model=ov_model, tokenizer=tokenizer)
-    
+
     text = "He's a dreadful magician."
     outputs = sentiment_classifier(text)
-    
+
     print(outputs)
 
 
@@ -129,11 +129,11 @@ the IRs into a single folder.
     # create a folder
     quantized_sparse_dir = Path("bert_80pc_sparse_quantized_ir")
     quantized_sparse_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # following return path to specified filename in cache folder (which we've with the
     ov_ir_xml_path = hf_hub_download(repo_id=model_id, filename="openvino_model.xml")
     ov_ir_bin_path = hf_hub_download(repo_id=model_id, filename="openvino_model.bin")
-    
+
     # copy IRs to the folder
     shutil.copy(ov_ir_xml_path, quantized_sparse_dir)
     shutil.copy(ov_ir_bin_path, quantized_sparse_dir)
@@ -150,7 +150,7 @@ the IRs into a single folder.
 Benchmark quantized dense inference performance
 -----------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Benchmark dense inference performance using parallel execution on four
 CPU cores to simulate a small instance in the cloud infrastructure.
@@ -190,12 +190,12 @@ as an example. It is recommended to tune based on your applications.
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.4.0-16028-fe423b97163
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] CPU
     [ INFO ] Build ................................. 2024.4.0-16028-fe423b97163
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -247,9 +247,9 @@ as an example. It is recommended to tune based on your applications.
     [ WARNING ] No input files were given for input 'input_ids'!. This input will be filled with random values!
     [ WARNING ] No input files were given for input 'attention_mask'!. This input will be filled with random values!
     [ WARNING ] No input files were given for input 'token_type_ids'!. This input will be filled with random values!
-    [ INFO ] Fill input 'input_ids' with random values 
-    [ INFO ] Fill input 'attention_mask' with random values 
-    [ INFO ] Fill input 'token_type_ids' with random values 
+    [ INFO ] Fill input 'input_ids' with random values
+    [ INFO ] Fill input 'attention_mask' with random values
+    [ INFO ] Fill input 'token_type_ids' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 27.14 ms
@@ -268,7 +268,7 @@ as an example. It is recommended to tune based on your applications.
 Benchmark quantized sparse inference performance
 ------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To enable sparse weight decompression feature, users can add it to
 runtime config like below. ``CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE``
@@ -309,12 +309,12 @@ for which a layer will be enabled.
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.4.0-16028-fe423b97163
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] CPU
     [ INFO ] Build ................................. 2024.4.0-16028-fe423b97163
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(CPU) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -366,9 +366,9 @@ for which a layer will be enabled.
     [ WARNING ] No input files were given for input 'input_ids'!. This input will be filled with random values!
     [ WARNING ] No input files were given for input 'attention_mask'!. This input will be filled with random values!
     [ WARNING ] No input files were given for input 'token_type_ids'!. This input will be filled with random values!
-    [ INFO ] Fill input 'input_ids' with random values 
-    [ INFO ] Fill input 'attention_mask' with random values 
-    [ INFO ] Fill input 'token_type_ids' with random values 
+    [ INFO ] Fill input 'input_ids' with random values
+    [ INFO ] Fill input 'attention_mask' with random values
+    [ INFO ] Fill input 'token_type_ids' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 4 inference requests, limits: 60000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 28.28 ms
@@ -387,7 +387,7 @@ for which a layer will be enabled.
 When this might be helpful
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 This feature can improve inference performance for models with sparse
 weights in the scenarios when the model is deployed to handle multiple

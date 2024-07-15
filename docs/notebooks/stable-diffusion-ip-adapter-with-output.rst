@@ -19,41 +19,41 @@ speedup generation process we will use
 
 .. |ip-adapter-pipe.png| image:: https://huggingface.co/h94/IP-Adapter/resolve/main/fig1.png
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Prepare Diffusers pipeline <#Prepare-Diffusers-pipeline>`__
--  `Convert PyTorch models <#Convert-PyTorch-models>`__
 
-   -  `Image Encoder <#Image-Encoder>`__
-   -  `U-net <#U-net>`__
-   -  `VAE Encoder and Decoder <#VAE-Encoder-and-Decoder>`__
-   -  `Text Encoder <#Text-Encoder>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Prepare Diffusers pipeline <#prepare-diffusers-pipeline>`__
+-  `Convert PyTorch models <#convert-pytorch-models>`__
+
+   -  `Image Encoder <#image-encoder>`__
+   -  `U-net <#u-net>`__
+   -  `VAE Encoder and Decoder <#vae-encoder-and-decoder>`__
+   -  `Text Encoder <#text-encoder>`__
 
 -  `Prepare OpenVINO inference
-   pipeline <#Prepare-OpenVINO-inference-pipeline>`__
--  `Run model inference <#Run-model-inference>`__
+   pipeline <#prepare-openvino-inference-pipeline>`__
+-  `Run model inference <#run-model-inference>`__
 
-   -  `Select inference device <#Select-inference-device>`__
-   -  `Generation image variation <#Generation-image-variation>`__
+   -  `Select inference device <#select-inference-device>`__
+   -  `Generation image variation <#generation-image-variation>`__
    -  `Generation conditioned by image and
-      text <#Generation-conditioned-by-image-and-text>`__
-   -  `Generation image blending <#Generation-image-blending>`__
+      text <#generation-conditioned-by-image-and-text>`__
+   -  `Generation image blending <#generation-image-blending>`__
 
--  `Interactive demo <#Interactive-demo>`__
+-  `Interactive demo <#interactive-demo>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import platform
-    
+
     %pip install -q "torch>=2.1" transformers accelerate diffusers "openvino>=2023.3.0" "gradio>=4.19" opencv-python "peft==0.6.2" --extra-index-url https://download.pytorch.org/whl/cpu
-    
+
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
@@ -69,13 +69,13 @@ Prerequisites
 Prepare Diffusers pipeline
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 First of all, we should collect all components of our pipeline together.
 To work with Stable Diffusion, we will use HuggingFace
 `Diffusers <https://github.com/huggingface/diffusers>`__ library. To
 experiment with Stable Diffusion models, Diffusers exposes the
-```StableDiffusionPipeline`` <https://huggingface.co/docs/diffusers/using-diffusers/conditional_image_generation>`__
+`StableDiffusionPipeline <https://huggingface.co/docs/diffusers/using-diffusers/conditional_image_generation>`__
 similar to the `other Diffusers
 pipelines <https://huggingface.co/docs/diffusers/api/pipelines/overview>`__.
 Additionally, the pipeline supports load adapters that extend Stable
@@ -110,14 +110,14 @@ Additionally, LCM requires using LCMScheduler for efficient generation.
     from transformers import CLIPVisionModelWithProjection
     from diffusers.utils import load_image
     from diffusers import LCMScheduler
-    
-    
+
+
     stable_diffusion_id = "runwayml/stable-diffusion-v1-5"
     ip_adapter_id = "h94/IP-Adapter"
     ip_adapter_weight_name = "ip-adapter_sd15.bin"
     lcm_lora_id = "latent-consistency/lcm-lora-sdv1-5"
     models_dir = Path("model")
-    
+
     load_original_pipeline = not all(
         [
             (models_dir / model_name).exists()
@@ -130,8 +130,8 @@ Additionally, LCM requires using LCMScheduler for efficient generation.
             ]
         ]
     )
-    
-    
+
+
     def get_pipeline_components(
         stable_diffusion_id,
         ip_adapter_id,
@@ -155,8 +155,8 @@ Additionally, LCM requires using LCMScheduler for efficient generation.
             pipeline.unet,
             pipeline.vae,
         )
-    
-    
+
+
     if load_original_pipeline:
         (
             tokenizer,
@@ -208,7 +208,7 @@ Additionally, LCM requires using LCMScheduler for efficient generation.
 Convert PyTorch models
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Starting from 2023.0 release, OpenVINO supports PyTorch models directly
 via Model Conversion API. ``ov.convert_model`` function accepts instance
@@ -229,11 +229,11 @@ Let us convert each part:
 Image Encoder
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 IP-Adapter relies on an image encoder to generate the image features.
 Usually
-```CLIPVisionModelWithProjection`` <https://huggingface.co/docs/transformers/main/en/model_doc/clip#transformers.CLIPVisionModelWithProjection>`__
+`CLIPVisionModelWithProjection <https://huggingface.co/docs/transformers/main/en/model_doc/clip#transformers.CLIPVisionModelWithProjection>`__
 is used as Image Encoder. For preprocessing input image, Image Encoder
 uses ``CLIPImageProcessor`` named feature extractor in pipeline. The
 image encoder accept resized and normalized image processed by feature
@@ -244,8 +244,8 @@ extractor as input and returns image embeddings.
     import openvino as ov
     import torch
     import gc
-    
-    
+
+
     def cleanup_torchscript_cache():
         """
         Helper for removing cached model representation
@@ -253,10 +253,10 @@ extractor as input and returns image embeddings.
         torch._C._jit_clear_class_registry()
         torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
         torch.jit._state._clear_class_state()
-    
-    
+
+
     IMAGE_ENCODER_PATH = models_dir / "image_encoder.xml"
-    
+
     if not IMAGE_ENCODER_PATH.exists():
         with torch.no_grad():
             ov_model = ov.convert_model(
@@ -268,10 +268,10 @@ extractor as input and returns image embeddings.
         feature_extractor.save_pretrained(models_dir / "feature_extractor")
         del ov_model
         cleanup_torchscript_cache()
-    
+
     del image_encoder
     del feature_extractor
-    
+
     gc.collect();
 
 
@@ -299,7 +299,7 @@ extractor as input and returns image embeddings.
 U-net
 ~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 U-Net model gradually denoises latent image representation guided by
 text encoder hidden state.
@@ -326,8 +326,8 @@ Model predicts the ``sample`` state for the next step.
 .. code:: ipython3
 
     UNET_PATH = models_dir / "unet.xml"
-    
-    
+
+
     if not UNET_PATH.exists():
         inputs = {
             "sample": torch.randn((2, 4, 64, 64)),
@@ -335,7 +335,7 @@ Model predicts the ``sample`` state for the next step.
             "encoder_hidden_states": torch.randn((2, 77, 768)),
             "added_cond_kwargs": {"image_embeds": torch.ones((2, 1024))},
         }
-    
+
         with torch.no_grad():
             ov_model = ov.convert_model(unet, example_input=inputs)
         # dictionary with added_cond_kwargs will be decomposed during conversion
@@ -346,9 +346,9 @@ Model predicts the ``sample`` state for the next step.
         ov.save_model(ov_model, UNET_PATH)
         del ov_model
         cleanup_torchscript_cache()
-    
+
     del unet
-    
+
     gc.collect();
 
 
@@ -376,7 +376,7 @@ Model predicts the ``sample`` state for the next step.
 VAE Encoder and Decoder
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The VAE model has two parts, an encoder and a decoder. The encoder is
 used to convert the image into a low dimensional latent representation,
@@ -403,17 +403,17 @@ image in pipeline, we can discuss it in inference examples.
 
     VAE_DECODER_PATH = models_dir / "vae_decoder.xml"
     VAE_ENCODER_PATH = models_dir / "vae_encoder.xml"
-    
+
     if not VAE_DECODER_PATH.exists():
-    
+
         class VAEDecoderWrapper(torch.nn.Module):
             def __init__(self, vae):
                 super().__init__()
                 self.vae = vae
-    
+
             def forward(self, latents):
                 return self.vae.decode(latents)
-    
+
         vae_decoder = VAEDecoderWrapper(vae)
         with torch.no_grad():
             ov_model = ov.convert_model(vae_decoder, example_input=torch.ones([1, 4, 64, 64]))
@@ -421,17 +421,17 @@ image in pipeline, we can discuss it in inference examples.
         del ov_model
         cleanup_torchscript_cache()
         del vae_decoder
-    
+
     if not VAE_ENCODER_PATH.exists():
-    
+
         class VAEEncoderWrapper(torch.nn.Module):
             def __init__(self, vae):
                 super().__init__()
                 self.vae = vae
-    
+
             def forward(self, image):
                 return self.vae.encode(x=image)["latent_dist"].sample()
-    
+
         vae_encoder = VAEEncoderWrapper(vae)
         vae_encoder.eval()
         image = torch.zeros((1, 3, 512, 512))
@@ -440,7 +440,7 @@ image in pipeline, we can discuss it in inference examples.
         ov.save_model(ov_model, VAE_ENCODER_PATH)
         del ov_model
         cleanup_torchscript_cache()
-    
+
     del vae
     gc.collect();
 
@@ -458,7 +458,7 @@ image in pipeline, we can discuss it in inference examples.
       _check_trace(
     /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/jit/_trace.py:1116: TracerWarning: Output nr 1. of the traced function does not match the corresponding output of the Python function. Detailed error:
     Tensor-likes are not close!
-    
+
     Mismatched elements: 10409 / 16384 (63.5%)
     Greatest absolute difference: 0.0016331672668457031 at index (0, 2, 63, 63) (up to 1e-05 allowed)
     Greatest relative difference: 0.0036048741534714223 at index (0, 3, 63, 59) (up to 1e-05 allowed)
@@ -473,7 +473,7 @@ image in pipeline, we can discuss it in inference examples.
 Text Encoder
 ~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The text-encoder is responsible for transforming the input prompt, for
 example, “a photo of an astronaut riding a horse” into an embedding
@@ -491,7 +491,7 @@ hidden states.
 .. code:: ipython3
 
     TEXT_ENCODER_PATH = models_dir / "text_encoder.xml"
-    
+
     if not TEXT_ENCODER_PATH.exists():
         with torch.no_grad():
             ov_model = ov.convert_model(
@@ -505,7 +505,7 @@ hidden states.
         del ov_model
         cleanup_torchscript_cache()
         tokenizer.save_pretrained(models_dir / "tokenizer")
-    
+
     del text_encoder
     del tokenizer
 
@@ -528,7 +528,7 @@ hidden states.
 Prepare OpenVINO inference pipeline
 -----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 As shown on diagram below, the only difference between original Stable
 Diffusion pipeline and IP-Adapter Stable Diffusion pipeline only in
@@ -557,24 +557,24 @@ encoder (VAE).
     import inspect
     from typing import List, Optional, Union, Dict, Tuple
     import numpy as np
-    
+
     import PIL
     import cv2
     import torch
-    
+
     from transformers import CLIPTokenizer, CLIPImageProcessor
     from diffusers import DiffusionPipeline
     from diffusers.pipelines.stable_diffusion.pipeline_output import (
         StableDiffusionPipelineOutput,
     )
     from diffusers.schedulers import DDIMScheduler, LMSDiscreteScheduler, PNDMScheduler
-    
-    
+
+
     def scale_fit_to_window(dst_width: int, dst_height: int, image_width: int, image_height: int):
         """
         Preprocessing helper function for calculating image size for resize with peserving original aspect ratio
         and fitting image to specific window size
-    
+
         Parameters:
           dst_width (int): destination window width
           dst_height (int): destination window height
@@ -586,8 +586,8 @@ encoder (VAE).
         """
         im_scale = min(dst_height / image_height, dst_width / image_width)
         return int(im_scale * image_width), int(im_scale * image_height)
-    
-    
+
+
     def randn_tensor(
         shape: Union[Tuple, List],
         generator: Optional[Union[List["torch.Generator"], "torch.Generator"]] = None,
@@ -595,32 +595,32 @@ encoder (VAE).
     ):
         """A helper function to create random tensors on the desired `device` with the desired `dtype`. When
         passing a list of generators, you can seed each batch size individually.
-    
+
         """
         batch_size = shape[0]
         rand_device = torch.device("cpu")
-    
+
         # make sure generator list of length 1 is treated like a non-list
         if isinstance(generator, list) and len(generator) == 1:
             generator = generator[0]
-    
+
         if isinstance(generator, list):
             shape = (1,) + shape[1:]
             latents = [torch.randn(shape, generator=generator[i], device=rand_device, dtype=dtype) for i in range(batch_size)]
             latents = torch.cat(latents, dim=0)
         else:
             latents = torch.randn(shape, generator=generator, device=rand_device, dtype=dtype)
-    
+
         return latents
-    
-    
+
+
     def preprocess(image: PIL.Image.Image, height, width):
         """
         Image preprocessing function. Takes image in PIL.Image format, resizes it to keep aspect ration and fits to model input window 512x512,
         then converts it to np.ndarray and adds padding with zeros on right or bottom side of image (depends from aspect ratio), after that
         converts data to float32 data type and change range of values from [0, 255] to [-1, 1], finally, converts data layout from planar NHWC to NCHW.
         The function returns preprocessed input tensor and padding size, which can be used in postprocessing.
-    
+
         Parameters:
           image (PIL.Image.Image): input image
         Returns:
@@ -638,8 +638,8 @@ encoder (VAE).
         image = 2.0 * image - 1.0
         image = image.transpose(0, 3, 1, 2)
         return image, {"padding": pad, "src_width": src_width, "src_height": src_height}
-    
-    
+
+
     class OVStableDiffusionPipeline(DiffusionPipeline):
         def __init__(
             self,
@@ -682,7 +682,7 @@ encoder (VAE).
             self.tokenizer = tokenizer
             self.vae_encoder = vae_encoder
             self.feature_extractor = feature_extractor
-    
+
         def __call__(
             self,
             prompt: Union[str, List[str]],
@@ -750,17 +750,17 @@ encoder (VAE).
             image_embeds, negative_image_embeds = self.encode_image(ip_adapter_image)
             if do_classifier_free_guidance:
                 image_embeds = np.concatenate([negative_image_embeds, image_embeds])
-    
+
             # set timesteps
             accepts_offset = "offset" in set(inspect.signature(self.scheduler.set_timesteps).parameters.keys())
             extra_set_kwargs = {}
             if accepts_offset:
                 extra_set_kwargs["offset"] = 1
-    
+
             self.scheduler.set_timesteps(num_inference_steps, **extra_set_kwargs)
             timesteps, num_inference_steps = self.get_timesteps(num_inference_steps, strength)
             latent_timestep = timesteps[:1]
-    
+
             # get the initial random noise unless the user supplied it
             latents, meta = self.prepare_latents(
                 1,
@@ -772,7 +772,7 @@ encoder (VAE).
                 image=image,
                 latent_timestep=latent_timestep,
             )
-    
+
             # prepare extra kwargs for the scheduler step, since not all schedulers have the same signature
             # eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.
             # eta corresponds to η in DDIM paper: https://arxiv.org/abs/2010.02502
@@ -781,19 +781,19 @@ encoder (VAE).
             extra_step_kwargs = {}
             if accepts_eta:
                 extra_step_kwargs["eta"] = eta
-    
+
             for i, t in enumerate(self.progress_bar(timesteps)):
                 # expand the latents if you are doing classifier free guidance
                 latent_model_input = np.concatenate([latents] * 2) if do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
-    
+
                 # predict the noise residual
                 noise_pred = self.unet([latent_model_input, t, text_embeddings, image_embeds])[0]
                 # perform guidance
                 if do_classifier_free_guidance:
                     noise_pred_uncond, noise_pred_text = noise_pred[0], noise_pred[1]
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
-    
+
                 # compute the previous noisy sample x_t -> x_t-1
                 latents = self.scheduler.step(
                     torch.from_numpy(noise_pred),
@@ -801,13 +801,13 @@ encoder (VAE).
                     torch.from_numpy(latents),
                     **extra_step_kwargs,
                 )["prev_sample"].numpy()
-    
+
             # scale and decode the image latents with vae
             image = self.vae_decoder(latents * (1 / 0.18215))[0]
-    
+
             image = self.postprocess_image(image, meta, output_type)
             return StableDiffusionPipelineOutput(images=image, nsfw_content_detected=False)
-    
+
         def _encode_prompt(
             self,
             prompt: Union[str, List[str]],
@@ -817,7 +817,7 @@ encoder (VAE).
         ):
             """
             Encodes the prompt into text encoder hidden states.
-    
+
             Parameters:
                 prompt (str or list(str)): prompt to be encoded
                 num_images_per_prompt (int): number of images that should be generated per prompt
@@ -827,7 +827,7 @@ encoder (VAE).
                 text_embeddings (np.ndarray): text encoder hidden states
             """
             batch_size = len(prompt) if isinstance(prompt, list) else 1
-    
+
             # tokenize input prompts
             text_inputs = self.tokenizer(
                 prompt,
@@ -837,15 +837,15 @@ encoder (VAE).
                 return_tensors="np",
             )
             text_input_ids = text_inputs.input_ids
-    
+
             text_embeddings = self.text_encoder(text_input_ids)[0]
-    
+
             # duplicate text embeddings for each generation per prompt
             if num_images_per_prompt != 1:
                 bs_embed, seq_len, _ = text_embeddings.shape
                 text_embeddings = np.tile(text_embeddings, (1, num_images_per_prompt, 1))
                 text_embeddings = np.reshape(text_embeddings, (bs_embed * num_images_per_prompt, seq_len, -1))
-    
+
             # get unconditional embeddings for classifier free guidance
             if do_classifier_free_guidance:
                 uncond_tokens: List[str]
@@ -863,21 +863,21 @@ encoder (VAE).
                     truncation=True,
                     return_tensors="np",
                 )
-    
+
                 uncond_embeddings = self.text_encoder(uncond_input.input_ids)[0]
-    
+
                 # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
                 seq_len = uncond_embeddings.shape[1]
                 uncond_embeddings = np.tile(uncond_embeddings, (1, num_images_per_prompt, 1))
                 uncond_embeddings = np.reshape(uncond_embeddings, (batch_size * num_images_per_prompt, seq_len, -1))
-    
+
                 # For classifier-free guidance, we need to do two forward passes.
                 # Here we concatenate the unconditional and text embeddings into a single batch
                 # to avoid doing two forward passes
                 text_embeddings = np.concatenate([uncond_embeddings, text_embeddings])
-    
+
             return text_embeddings
-    
+
         def prepare_latents(
             self,
             batch_size,
@@ -901,10 +901,10 @@ encoder (VAE).
                     f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
                     f" size of {batch_size}. Make sure the batch size matches the length of the generators."
                 )
-    
+
             if latents is None:
                 latents = randn_tensor(shape, generator=generator, dtype=dtype)
-    
+
             if image is None:
                 # scale the initial noise by the standard deviation required by the scheduler
                 latents = latents * self.scheduler.init_noise_sigma
@@ -914,12 +914,12 @@ encoder (VAE).
             image_latents = image_latents * 0.18215
             latents = self.scheduler.add_noise(torch.from_numpy(image_latents), latents, latent_timestep).numpy()
             return latents, meta
-    
+
         def postprocess_image(self, image: np.ndarray, meta: Dict, output_type: str = "pil"):
             """
             Postprocessing for decoded image. Takes generated image decoded by VAE decoder, unpad it to initial image size (if required),
             normalize and convert to [0, 255] pixels range. Optionally, converts it from np.ndarray to PIL.Image format
-    
+
             Parameters:
                 image (np.ndarray):
                     Generated image
@@ -951,23 +951,23 @@ encoder (VAE).
                     orig_height, orig_width = meta["src_height"], meta["src_width"]
                     image = [cv2.resize(img, (orig_width, orig_width)) for img in image]
             return image
-    
+
         def encode_image(self, image, num_images_per_prompt=1):
             if not isinstance(image, torch.Tensor):
                 image = self.feature_extractor(image, return_tensors="pt").pixel_values
-    
+
             image_embeds = self.image_encoder(image)[0]
             if num_images_per_prompt > 1:
                 image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
-    
+
             uncond_image_embeds = np.zeros(image_embeds.shape)
             return image_embeds, uncond_image_embeds
-    
+
         def get_timesteps(self, num_inference_steps: int, strength: float):
             """
             Helper function for getting scheduler timesteps for generation
             In case of image-to-image generation, it updates number of steps according to strength
-    
+
             Parameters:
                num_inference_steps (int):
                   number of inference steps for generation
@@ -977,39 +977,39 @@ encoder (VAE).
             """
             # get the original timestep using init_timestep
             init_timestep = min(int(num_inference_steps * strength), num_inference_steps)
-    
+
             t_start = max(num_inference_steps - init_timestep, 0)
             timesteps = self.scheduler.timesteps[t_start:]
-    
+
             return timesteps, num_inference_steps - t_start
 
 Run model inference
 -------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now let’s configure our pipeline and take a look on generation results.
 
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select inference device from dropdown list.
 
 .. code:: ipython3
 
     core = ov.Core()
-    
+
     import ipywidgets as widgets
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="CPU",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -1024,18 +1024,18 @@ Select inference device from dropdown list.
 .. code:: ipython3
 
     from transformers import AutoTokenizer
-    
+
     ov_config = {"INFERENCE_PRECISION_HINT": "f32"} if device.value != "CPU" else {}
     vae_decoder = core.compile_model(VAE_DECODER_PATH, device.value, ov_config)
     vae_encoder = core.compile_model(VAE_ENCODER_PATH, device.value, ov_config)
     text_encoder = core.compile_model(TEXT_ENCODER_PATH, device.value)
     image_encoder = core.compile_model(IMAGE_ENCODER_PATH, device.value)
     unet = core.compile_model(UNET_PATH, device.value)
-    
+
     scheduler = LCMScheduler.from_pretrained(models_dir / "scheduler")
     tokenizer = AutoTokenizer.from_pretrained(models_dir / "tokenizer")
     feature_extractor = CLIPImageProcessor.from_pretrained(models_dir / "feature_extractor")
-    
+
     ov_pipe = OVStableDiffusionPipeline(
         vae_decoder,
         text_encoder,
@@ -1056,7 +1056,7 @@ Select inference device from dropdown list.
 Generation image variation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 If we stay input text prompt empty and provide only ip-adapter image, we
 can get variation of the same image.
@@ -1064,12 +1064,12 @@ can get variation of the same image.
 .. code:: ipython3
 
     import matplotlib.pyplot as plt
-    
-    
+
+
     def visualize_results(images, titles):
         """
         Helper function for results visualization
-    
+
         Parameters:
            orig_img (PIL.Image.Image): original image
            processed_img (PIL.Image.Image): processed image after editing
@@ -1106,9 +1106,9 @@ can get variation of the same image.
 .. code:: ipython3
 
     generator = torch.Generator(device="cpu").manual_seed(576)
-    
+
     image = load_image("https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/load_neg_embed.png")
-    
+
     result = ov_pipe(
         prompt="",
         ip_adapter_image=image,
@@ -1117,7 +1117,7 @@ can get variation of the same image.
         num_inference_steps=4,
         generator=generator,
     )
-    
+
     fig = visualize_results([image, result.images[0]], ["input image", "result"])
 
 
@@ -1134,7 +1134,7 @@ can get variation of the same image.
 Generation conditioned by image and text
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 IP-Adapter allows you to use both image and text to condition the image
 generation process. Both IP-Adapter image and text prompt serve as
@@ -1144,7 +1144,7 @@ extension for each other, for example we can use a text prompt to add
 .. code:: ipython3
 
     generator = torch.Generator(device="cpu").manual_seed(576)
-    
+
     result = ov_pipe(
         prompt="best quality, high quality, wearing sunglasses",
         ip_adapter_image=image,
@@ -1173,7 +1173,7 @@ extension for each other, for example we can use a text prompt to add
 Generation image blending
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 IP-Adapter also works great with Image-to-Image translation. It helps to
 achieve image blending effect.
@@ -1182,7 +1182,7 @@ achieve image blending effect.
 
     image = load_image("https://huggingface.co/datasets/YiYiXu/testing-images/resolve/main/vermeer.jpg")
     ip_image = load_image("https://huggingface.co/datasets/YiYiXu/testing-images/resolve/main/river.png")
-    
+
     result = ov_pipe(
         prompt="best quality, high quality",
         image=image,
@@ -1212,15 +1212,15 @@ achieve image blending effect.
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, you can try model using own images and text prompts.
 
 .. code:: ipython3
 
     import gradio as gr
-    
-    
+
+
     def generate_from_text(
         positive_prompt,
         negative_prompt,
@@ -1240,8 +1240,8 @@ Now, you can try model using own images and text prompts.
             generator=generator,
         )
         return result.images[0]
-    
-    
+
+
     def generate_from_image(
         img,
         ip_adapter_image,
@@ -1265,8 +1265,8 @@ Now, you can try model using own images and text prompts.
             generator=generator,
         )
         return result.images[0]
-    
-    
+
+
     with gr.Blocks() as demo:
         with gr.Tab("Text-to-Image generation"):
             with gr.Row():
@@ -1368,14 +1368,14 @@ Now, you can try model using own images and text prompts.
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     Thanks for being a Gradio user! If you have questions or feedback, please join our Discord server and chat with us: https://discord.gg/feTf9x3ZSB
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

@@ -19,35 +19,35 @@ This tutorial consists of the following steps:
 -  Compare performance of the original and quantized models.
 -  Compare results on one picture.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prepare the Model <#Prepare-the-Model>`__
--  `Prepare Dataset <#Prepare-Dataset>`__
--  `Perform Quantization <#Perform-Quantization>`__
 
-   -  `Create Dataset for Validation <#Create-Dataset-for-Validation>`__
+-  `Prepare the Model <#prepare-the-model>`__
+-  `Prepare Dataset <#prepare-dataset>`__
+-  `Perform Quantization <#perform-quantization>`__
+
+   -  `Create Dataset for Validation <#create-dataset-for-validation>`__
 
 -  `Run nncf.quantize for Getting an Optimized
-   Model <#Run-nncf.quantize-for-Getting-an-Optimized-Model>`__
--  `Serialize an OpenVINO IR model <#Serialize-an-OpenVINO-IR-model>`__
+   Model <#run-nncf-quantize-for-getting-an-optimized-model>`__
+-  `Serialize an OpenVINO IR model <#serialize-an-openvino-ir-model>`__
 -  `Compare Accuracy of the Original and Quantized
-   Models <#Compare-Accuracy-of-the-Original-and-Quantized-Models>`__
+   Models <#compare-accuracy-of-the-original-and-quantized-models>`__
 
-   -  `Select inference device <#Select-inference-device>`__
+   -  `Select inference device <#select-inference-device>`__
 
 -  `Compare Performance of the Original and Quantized
-   Models <#Compare-Performance-of-the-Original-and-Quantized-Models>`__
+   Models <#compare-performance-of-the-original-and-quantized-models>`__
 -  `Compare results on four
-   pictures <#Compare-results-on-four-pictures>`__
+   pictures <#compare-results-on-four-pictures>`__
 
 .. code:: ipython3
 
     import platform
-    
+
     # Install required packages
     %pip install -q "openvino>=2023.1.0" "nncf>=2.6.0" torch torchvision tqdm --extra-index-url https://download.pytorch.org/whl/cpu
-    
+
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
@@ -63,19 +63,19 @@ Table of contents:
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     # Set the data and model directories
     DATA_DIR = Path("data")
     MODEL_DIR = Path("model")
     model_repo = "pytorch-cifar-models"
-    
+
     DATA_DIR.mkdir(exist_ok=True)
     MODEL_DIR.mkdir(exist_ok=True)
 
 Prepare the Model
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Model preparation stage has the following steps:
 
@@ -87,10 +87,10 @@ Model preparation stage has the following steps:
 .. code:: ipython3
 
     import sys
-    
+
     if not Path(model_repo).exists():
         !git clone https://github.com/chenyaofo/pytorch-cifar-models.git
-    
+
     sys.path.append(model_repo)
 
 
@@ -108,7 +108,7 @@ Model preparation stage has the following steps:
 .. code:: ipython3
 
     from pytorch_cifar_models import cifar10_mobilenetv2_x1_0
-    
+
     model = cifar10_mobilenetv2_x1_0(pretrained=True)
 
 OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
@@ -126,17 +126,17 @@ can be found on this
 .. code:: ipython3
 
     import openvino as ov
-    
+
     model.eval()
-    
+
     ov_model = ov.convert_model(model, input=[1, 3, 32, 32])
-    
+
     ov.save_model(ov_model, MODEL_DIR / "mobilenet_v2.xml")
 
 Prepare Dataset
 ---------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We will use `CIFAR10 <https://www.cs.toronto.edu/~kriz/cifar.html>`__
 dataset from
@@ -149,7 +149,7 @@ Preprocessing for model obtained from training
     import torch
     from torchvision import transforms
     from torchvision.datasets import CIFAR10
-    
+
     transform = transforms.Compose(
         [
             transforms.ToTensor(),
@@ -184,7 +184,7 @@ Preprocessing for model obtained from training
 Perform Quantization
 --------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -200,7 +200,7 @@ MobileNetV2. The optimization process contains the following steps:
 Create Dataset for Validation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 NNCF is compatible with ``torch.utils.data.DataLoader`` interface. For
 performing quantization it should be passed into ``nncf.Dataset`` object
@@ -211,13 +211,13 @@ model during quantization, in our case, to pick input tensor from pair
 .. code:: ipython3
 
     import nncf
-    
-    
+
+
     def transform_fn(data_item):
         image_tensor = data_item[0]
         return image_tensor.numpy()
-    
-    
+
+
     quantization_dataset = nncf.Dataset(val_loader, transform_fn)
 
 
@@ -229,7 +229,7 @@ model during quantization, in our case, to pick input tensor from pair
 Run nncf.quantize for Getting an Optimized Model
 ------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 ``nncf.quantize`` function accepts model and prepared quantization
 dataset for performing basic quantization. Optionally, additional
@@ -258,17 +258,17 @@ about supported parameters can be found on this
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -279,24 +279,24 @@ about supported parameters can be found on this
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
 Serialize an OpenVINO IR model
 ------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Similar to ``ov.convert_model``, quantized model is ``ov.Model`` object
 which ready to be loaded into device and can be serialized on disk using
@@ -309,14 +309,14 @@ which ready to be loaded into device and can be serialized on disk using
 Compare Accuracy of the Original and Quantized Models
 -----------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from tqdm.notebook import tqdm
     import numpy as np
-    
-    
+
+
     def test_accuracy(ov_model, data_loader):
         correct = 0
         total = 0
@@ -330,14 +330,14 @@ Compare Accuracy of the Original and Quantized Models
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -345,7 +345,7 @@ select device from dropdown list for running inference using OpenVINO
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -362,7 +362,7 @@ select device from dropdown list for running inference using OpenVINO
     core = ov.Core()
     compiled_model = core.compile_model(ov_model, device.value)
     optimized_compiled_model = core.compile_model(quant_ov_model, device.value)
-    
+
     orig_accuracy = test_accuracy(compiled_model, val_loader)
     optimized_accuracy = test_accuracy(optimized_compiled_model, val_loader)
 
@@ -394,7 +394,7 @@ select device from dropdown list for running inference using OpenVINO
 Compare Performance of the Original and Quantized Models
 --------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark
@@ -421,12 +421,12 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.2.0-15519-5c0f38f83f6-releases/2024/2
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
     [ INFO ] Build ................................. 2024.2.0-15519-5c0f38f83f6-releases/2024/2
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -479,7 +479,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values 
+    [ INFO ] Fill input 'x' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 3.59 ms
@@ -508,12 +508,12 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.2.0-15519-5c0f38f83f6-releases/2024/2
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
     [ INFO ] Build ................................. 2024.2.0-15519-5c0f38f83f6-releases/2024/2
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -566,7 +566,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values 
+    [ INFO ] Fill input 'x' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 1.88 ms
@@ -585,7 +585,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
 Compare results on four pictures
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -604,7 +604,7 @@ Compare results on four pictures
     ]
     all_pictures = []
     all_labels = []
-    
+
     # Get all pictures and their labels.
     for i, batch in enumerate(val_loader):
         all_pictures.append(batch[0].numpy())
@@ -613,8 +613,8 @@ Compare results on four pictures
 .. code:: ipython3
 
     import matplotlib.pyplot as plt
-    
-    
+
+
     def plot_pictures(indexes: list, all_pictures=all_pictures, all_labels=all_labels):
         """Plot 4 pictures.
         :param indexes: a list of indexes of pictures to be displayed.
@@ -627,19 +627,19 @@ Compare results on four pictures
             assert idx < 10000, "Cannot get such index, there are only 10000"
             pic = np.rollaxis(all_pictures[idx].squeeze(), 0, 3)
             images.append(pic)
-    
+
             labels.append(labels_names[all_labels[idx]])
-    
+
         f, axarr = plt.subplots(1, 4)
         axarr[0].imshow(images[0])
         axarr[0].set_title(labels[0])
-    
+
         axarr[1].imshow(images[1])
         axarr[1].set_title(labels[1])
-    
+
         axarr[2].imshow(images[2])
         axarr[2].set_title(labels[2])
-    
+
         axarr[3].imshow(images[3])
         axarr[3].set_title(labels[3])
 
@@ -662,12 +662,12 @@ Compare results on four pictures
 .. code:: ipython3
 
     indexes_to_infer = [7, 12, 15, 20]  # To plot, specify 4 indexes.
-    
+
     plot_pictures(indexes_to_infer)
-    
+
     results_float = infer_on_pictures(compiled_model, indexes_to_infer)
     results_quanized = infer_on_pictures(optimized_compiled_model, indexes_to_infer)
-    
+
     print(f"Labels for picture from float model : {results_float}.")
     print(f"Labels for picture from quantized model : {results_quanized}.")
 

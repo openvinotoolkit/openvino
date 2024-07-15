@@ -21,47 +21,47 @@ In this notebook we will load the model with Hugging Face Transformers,
 convert it to OpenVINO IR format, optimize it with NNCF and show the
 life demo.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Instantiate model <#Instantiate-model>`__
 
-   -  `Prepare input data <#Prepare-input-data>`__
-   -  `Run PyTorch model inference <#Run-PyTorch-model-inference>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Instantiate model <#instantiate-model>`__
 
--  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
+   -  `Prepare input data <#prepare-input-data>`__
+   -  `Run PyTorch model inference <#run-pytorch-model-inference>`__
 
-   -  `Prepare input data <#Prepare-input-data>`__
+-  `Run OpenVINO model inference <#run-openvino-model-inference>`__
+
+   -  `Prepare input data <#prepare-input-data>`__
    -  `Convert Model to OpenVINO IR
-      format <#Convert-Model-to-OpenVINO-IR-format>`__
-   -  `Select inference device <#Select-inference-device>`__
+      format <#convert-model-to-openvino-ir-format>`__
+   -  `Select inference device <#select-inference-device>`__
    -  `Compile model and run
-      inference <#Compile-model-and-run-inference>`__
+      inference <#compile-model-and-run-inference>`__
 
 -  `Quantize model to INT8 using
-   NNCF <#Quantize-model-to-INT8-using-NNCF>`__
+   NNCF <#quantize-model-to-int8-using-nncf>`__
 
-   -  `Prepare datasets <#Prepare-datasets>`__
+   -  `Prepare datasets <#prepare-datasets>`__
 
-      -  `Dataset with text data <#Dataset-with-text-data>`__
-      -  `Dataset with image data <#Dataset-with-image-data>`__
+      -  `Dataset with text data <#dataset-with-text-data>`__
+      -  `Dataset with image data <#dataset-with-image-data>`__
 
-   -  `Perform quantization <#Perform-quantization>`__
+   -  `Perform quantization <#perform-quantization>`__
 
-      -  `Quantization of text model <#Quantization-of-text-model>`__
-      -  `Quantization of image model <#Quantization-of-image-model>`__
+      -  `Quantization of text model <#quantization-of-text-model>`__
+      -  `Quantization of image model <#quantization-of-image-model>`__
 
-   -  `Compare File Size <#Compare-File-Size>`__
+   -  `Compare File Size <#compare-file-size>`__
    -  `Compare inference time of the FP16 IR and quantized
-      models <#Compare-inference-time-of-the-FP16-IR-and-quantized-models>`__
+      models <#compare-inference-time-of-the-fp16-ir-and-quantized-models>`__
 
--  `Gradio demo <#Gradio-demo>`__
+-  `Gradio demo <#gradio-demo>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -78,7 +78,7 @@ Prerequisites
 Instantiate model
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Let’s load the
 `jinaai/jina-clip-v1 <https://huggingface.co/jinaai/jina-clip-v1>`__
@@ -89,7 +89,7 @@ weights, using ``from_pretrained`` method.
 .. code:: ipython3
 
     from transformers import AutoModel
-    
+
     model = AutoModel.from_pretrained("jinaai/jina-clip-v1", trust_remote_code=True)
 
 
@@ -104,7 +104,7 @@ weights, using ``from_pretrained`` method.
 Prepare input data
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The model can encode meaningful sentences in English as text input.
 Image could be provided to model as local file path, URLs or directly
@@ -114,32 +114,32 @@ passing in the PIL.Image objects.
 
     from PIL import Image
     import requests
-    
+
     # image input data
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-    
+
     open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file
-    
+
     download_file(
         "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/3f779fc1-c1b2-4dec-915a-64dae510a2bb",
         "furseal.png",
         directory="data",
     )
-    
+
     img_furseal = Image.open("./data/furseal.png")
-    
+
     image_path = download_file(
         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg",
         directory="data",
     )
-    
+
     img_coco = Image.open("./data/coco.jpg")
-    
+
     IMAGE_INPUTS = [img_furseal, img_coco]
-    
+
     # text input data
     TEXT_INPUTS = ["Seal", "Cobra", "Rat", "Penguin", "Dog"]
 
@@ -163,8 +163,8 @@ passing in the PIL.Image objects.
     import numpy as np
     from PIL import Image
     from scipy.special import softmax
-    
-    
+
+
     def calc_simularity_softmax(embeddings1, embeddings2, apply_softmax=True):
         simularity = []
         for emb1 in embeddings1:
@@ -173,10 +173,10 @@ passing in the PIL.Image objects.
                 temp_simularity.append(emb1 @ emb2)
             temp_simularity = softmax(temp_simularity) if apply_softmax else temp_simularity
             simularity.append(temp_simularity)
-    
+
         return simularity
-    
-    
+
+
     def visionize_result(image: Image, labels: List[str], probs: np.ndarray, top: int = 5):
         """
         Utility function for visionization classification results
@@ -194,7 +194,7 @@ passing in the PIL.Image objects.
         plt.subplot(8, 8, 1)
         plt.imshow(image)
         plt.axis("off")
-    
+
         plt.subplot(8, 8, 2)
         y = np.arange(top_probs.shape[-1])
         plt.grid()
@@ -211,32 +211,32 @@ and take ``preprocess`` for image data using ``model.get_preprocess()``.
 .. code:: ipython3
 
     tokenizer = model.get_tokenizer()
-    
+
     tokenizer_kwargs = dict()
     tokenizer_kwargs["padding"] = "max_length"
     tokenizer_kwargs["max_length"] = 512
     tokenizer_kwargs["truncation"] = True
-    
+
     text_inputs = tokenizer(
         TEXT_INPUTS,
         return_tensors="pt",
         **tokenizer_kwargs,
     ).to("cpu")
-    
-    
+
+
     processor = model.get_preprocess()
     vision_inputs = processor(images=IMAGE_INPUTS, return_tensors="pt")
 
 Run PyTorch model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     text_embeddings = model.text_model(text_inputs["input_ids"])
     image_embeddings = model.vision_model(vision_inputs["pixel_values"])
-    
+
     res = calc_simularity_softmax(image_embeddings.detach().numpy(), text_embeddings.detach().numpy())
     visionize_result(img_furseal, TEXT_INPUTS, np.array(res[0]))
 
@@ -248,12 +248,12 @@ Run PyTorch model inference
 Run OpenVINO model inference
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Convert Model to OpenVINO IR format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
 Representation (IR). OpenVINO model conversion API should be used for
@@ -267,13 +267,13 @@ loading on device using ``core.complie_model``.
 
     import openvino as ov
     from pathlib import Path
-    
+
     core = ov.Core()
 
 .. code:: ipython3
 
     fp16_text_model_path = Path("jina-clip-text_v1_fp16.xml")
-    
+
     if not fp16_text_model_path.exists():
         ov_text_model = ov.convert_model(model.text_model, example_input=text_inputs["input_ids"])
         ov.save_model(ov_text_model, fp16_text_model_path)
@@ -298,7 +298,7 @@ loading on device using ``core.complie_model``.
 .. code:: ipython3
 
     fp16_vision_model_path = Path("jina-clip-vision_v1_fp16.xml")
-    
+
     if not fp16_vision_model_path.exists():
         ov_vision_model = ov.convert_model(model.vision_model, example_input=vision_inputs["pixel_values"])
         ov.save_model(ov_vision_model, fp16_vision_model_path)
@@ -313,21 +313,21 @@ loading on device using ``core.complie_model``.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For starting work, please select inference device from dropdown list.
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -342,7 +342,7 @@ For starting work, please select inference device from dropdown list.
 Compile model and run inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -353,7 +353,7 @@ Compile model and run inference
 
     text_ov_res = compiled_text_model(text_inputs["input_ids"])
     vis_ov_res = compiled_vision_model(vision_inputs["pixel_values"])
-    
+
     res = calc_simularity_softmax(vis_ov_res[0], text_ov_res[0])
     visionize_result(img_furseal, TEXT_INPUTS, np.array(res[0]))
 
@@ -365,7 +365,7 @@ Compile model and run inference
 Quantize model to INT8 using NNCF
 ---------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Lets speed up the model by applying 8-bit post-training quantization
 from `NNCF <https://github.com/openvinotoolkit/nncf/>`__ (Neural Network
@@ -396,7 +396,7 @@ inference faster. The optimization process contains the following steps:
         description="Quantization",
         disabled=False,
     )
-    
+
     to_quantize
 
 
@@ -415,13 +415,13 @@ inference faster. The optimization process contains the following steps:
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
     )
     open("skip_kernel_extension.py", "w").write(r.text)
-    
+
     %load_ext skip_kernel_extension
 
 Prepare datasets
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The `Conceptual
 Captions <https://ai.google.com/research/ConceptualCaptions/>`__ dataset
@@ -431,12 +431,12 @@ model.
 Dataset with text data
 ^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import torch
     from datasets import load_dataset
     from tqdm.notebook import tqdm
@@ -446,8 +446,8 @@ Dataset with text data
     from PIL import Image
     from requests.packages.urllib3.exceptions import InsecureRequestWarning
     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-    
-    
+
+
     def check_text_data(data):
         """
         Check if the given data is text-based.
@@ -457,8 +457,8 @@ Dataset with text data
         if isinstance(data, list):
             return all(isinstance(x, str) for x in data)
         return False
-    
-    
+
+
     def collate_fn_text(example, text_column="caption"):
         """
         Preprocesses an example by loading and transforming text data.
@@ -468,18 +468,18 @@ Dataset with text data
         """
         assert len(example) == 1
         example = example[0]
-    
+
         if not check_text_data(example[text_column]):
             raise ValueError("Text data is not valid")
-    
+
         text_input = tokenizer(
             example[text_column],
             return_tensors='pt',
             **tokenizer_kwargs)
-    
+
         return text_input
-    
-    
+
+
     def prepare_calibration_data_text(dataloader, init_steps):
         """
         This function prepares calibration data from a dataloader for a specified number of initialization steps.
@@ -500,13 +500,13 @@ Dataset with text data
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import logging
     import nncf
-    
+
     dataset = load_dataset("google-research-datasets/conceptual_captions", trust_remote_code=True)
     train_dataset = dataset["train"].shuffle(seed=42)
-    
+
     dataloader_text = torch.utils.data.DataLoader(train_dataset, collate_fn=collate_fn_text, batch_size=1)
     calibration_data_text = prepare_calibration_data_text(dataloader_text, 50)
 
@@ -526,13 +526,13 @@ Dataset with text data
 Dataset with image data
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
-    
+
+
     def get_pil_from_url(url):
         """
         Downloads and converts an image from a URL to a PIL Image object.
@@ -540,8 +540,8 @@ Dataset with image data
         response = requests.get(url, verify=False, timeout=20)
         image = Image.open(BytesIO(response.content))
         return image.convert("RGB")
-    
-    
+
+
     def collate_fn_vision(example, image_column="image_url"):
         """
         Preprocesses an example by loading and transforming image data.
@@ -551,7 +551,7 @@ Dataset with image data
         """
         assert len(example) == 1
         example = example[0]
-    
+
         url = example[image_column]
         try:
             image = get_pil_from_url(url)
@@ -560,11 +560,11 @@ Dataset with image data
                 return None
         except Exception:
             return None
-    
+
         vision_input = processor(images=[image])
         return vision_input
-    
-    
+
+
     def prepare_calibration_data_vis(dataloader, init_steps):
         """
         This function prepares calibration data from a dataloader for a specified number of initialization steps.
@@ -585,10 +585,10 @@ Dataset with image data
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     dataset = load_dataset("google-research-datasets/conceptual_captions", trust_remote_code=True)
     train_dataset = dataset["train"].shuffle(seed=42)
-    
+
     dataloader_vis = torch.utils.data.DataLoader(train_dataset, collate_fn=collate_fn_vision, batch_size=1)
     calibration_data_vision = prepare_calibration_data_vis(dataloader_vis, 50)
 
@@ -607,7 +607,7 @@ Dataset with image data
 Perform quantization
 ~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Create a quantized model from the pre-trained ``FP16`` model.
 
@@ -617,7 +617,7 @@ Create a quantized model from the pre-trained ``FP16`` model.
 Quantization of text model
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -626,14 +626,14 @@ Quantization of text model
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     if len(calibration_data_text) == 0:
         raise RuntimeError(
             'Calibration dataset is empty. Please check internet connection and try to download images manually.'
         )
-    
+
     ov_model_text = core.read_model(fp16_text_model_path)
-    
+
     calibration_dataset = nncf.Dataset(calibration_data_text)
     quantized_model = nncf.quantize(
         model=ov_model_text,
@@ -649,17 +649,17 @@ Quantization of text model
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -670,24 +670,24 @@ Quantization of text model
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
 Quantization of image model
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -696,14 +696,14 @@ Quantization of image model
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     if len(calibration_data_vision) == 0:
         raise RuntimeError(
             'Calibration dataset is empty. Please check internet connection and try to download images manually.'
         )
-    
+
     ov_model_vision = core.read_model(fp16_vision_model_path)
-    
+
     calibration_dataset = nncf.Dataset(calibration_data_vision)
     quantized_model = nncf.quantize(
         model=ov_model_vision,
@@ -719,17 +719,17 @@ Quantization of image model
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -740,30 +740,30 @@ Quantization of image model
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     compiled_text_model_int8 = core.compile_model(int8_text_model_path, device.value)
     compiled_vision_model_int8 = core.compile_model(int8_vision_model_path, device.value)
-    
+
     text_ov_res_int8 = compiled_text_model_int8(text_inputs["input_ids"])
     vis_ov_res_int8 = compiled_vision_model_int8(vision_inputs["pixel_values"])
-    
+
     res = calc_simularity_softmax(vis_ov_res_int8[0], text_ov_res_int8[0])
     visionize_result(img_furseal, TEXT_INPUTS, np.array(res[0]))
 
@@ -775,21 +775,21 @@ Quantization of image model
 Compare File Size
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     from pathlib import Path
-    
+
     fp16_ir_model_size = Path(fp16_text_model_path).with_suffix(".bin").stat().st_size / 1024 / 1024
     quantized_model_size = Path(int8_text_model_path).with_suffix(".bin").stat().st_size / 1024 / 1024
     print(
         f"Text model:   FP16 model size - {fp16_ir_model_size:.2f} MB; INT8 model size - {quantized_model_size:.2f} MB; Model compression rate: {fp16_ir_model_size / quantized_model_size:.3f}"
     )
-    
-    
+
+
     fp16_ir_model_size = Path(fp16_vision_model_path).with_suffix(".bin").stat().st_size / 1024 / 1024
     quantized_model_size = Path(int8_vision_model_path).with_suffix(".bin").stat().st_size / 1024 / 1024
     print(
@@ -806,7 +806,7 @@ Compare File Size
 Compare inference time of the FP16 IR and quantized models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To measure the inference performance of the ``FP16`` and ``INT8``
 models, we use median inference time on calibration dataset. So we can
@@ -819,10 +819,10 @@ approximately estimate the speed up of the dynamic quantized models.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import time
-    
-    
+
+
     def calculate_inference_time(model_path, calibration_data):
         model = core.compile_model(model_path, device.value)
         inference_time = []
@@ -837,12 +837,12 @@ approximately estimate the speed up of the dynamic quantized models.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     fp16_latency = calculate_inference_time(fp16_text_model_path, calibration_data_text)
     int8_latency = calculate_inference_time(int8_text_model_path, calibration_data_text)
     print(f"Performance speed up for text model: {fp16_latency / int8_latency:.3f}")
-    
-    
+
+
     fp16_latency = calculate_inference_time(fp16_vision_model_path, calibration_data_vision)
     int8_latency = calculate_inference_time(int8_vision_model_path, calibration_data_vision)
     print(f"Performance speed up for vision model: {fp16_latency / int8_latency:.3f}")
@@ -857,7 +857,7 @@ approximately estimate the speed up of the dynamic quantized models.
 Gradio demo
 -----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 You can provide your own image and comma-separated list of labels for
 zero-shot classification.
@@ -869,29 +869,29 @@ example, ``cat,dog,bird``)
 .. code:: ipython3
 
     import gradio as gr
-    
+
     core = ov.Core()
-    
+
     compiled_text_model_int8 = None
     compiled_vision_model_int8 = None
     if Path(int8_text_model_path).exists and Path(int8_vision_model_path).exists:
         compiled_text_model_int8 = core.compile_model(int8_text_model_path, device.value)
         compiled_vision_model_int8 = core.compile_model(int8_vision_model_path, device.value)
-    
+
     compiled_text_model_f16 = core.compile_model(fp16_text_model_path, device.value)
     compiled_vision_model_f16 = core.compile_model(fp16_vision_model_path, device.value)
-    
-    
+
+
     def image_text_sim(text, image, quantized_model):
         compiled_text_model = compiled_text_model_int8 if quantized_model else compiled_text_model_f16
         text = text.split(",")
         text_inputs = tokenizer(text, return_tensors="pt", **tokenizer_kwargs)
         emb1_res = compiled_text_model(text_inputs["input_ids"])
-    
+
         compiled_vision_model = compiled_vision_model_int8 if quantized_model else compiled_vision_model_f16
         vision_input = processor(images=[image])
         emb2_res = compiled_vision_model(vision_input["pixel_values"])
-    
+
         text_description = "Simularity: "
         simularity = calc_simularity_softmax(emb2_res[0], emb1_res[0], False)
         if len(text) == 1:
@@ -900,32 +900,32 @@ example, ``cat,dog,bird``)
             simularity_text = "\n".join([f"{text[i]} {sim:.4f}" for i, sim in enumerate(simularity[0])])
             text_description += f"\n{simularity_text}"
         return text_description
-    
-    
+
+
     def text_text_sim(text1, text2, quantized_model):
         compiled_text_model = compiled_text_model_int8 if quantized_model else compiled_text_model_f16
-    
+
         text_inputs = tokenizer(text1, return_tensors="pt", **tokenizer_kwargs)
         emb1_res = compiled_text_model(text_inputs["input_ids"])
-    
+
         text_inputs = tokenizer(text2, return_tensors="pt", **tokenizer_kwargs)
         emb2_res = compiled_text_model(text_inputs["input_ids"])
-    
+
         return f"Simularity: {calc_simularity_softmax(emb1_res[0], emb2_res[0], False)[0][0]:.4f}"
-    
-    
+
+
     def image_image_sim(image1, image2, quantized_model):
         compiled_vision_model = compiled_vision_model_int8 if quantized_model else compiled_vision_model_f16
-    
+
         vision_input = processor(images=[image1])
         emb1_res = compiled_vision_model(vision_input["pixel_values"])
-    
+
         vision_input = processor(images=[image2])
         emb2_res = compiled_vision_model(vision_input["pixel_values"])
-    
+
         return f"Simularity: {calc_simularity_softmax(emb1_res[0], emb2_res[0], False)[0][0]:.4f}"
-    
-    
+
+
     with gr.Blocks() as demo:
         gr.Markdown("Discover simularity of text or image files using this demo.")
         model_choice_visible = Path(int8_text_model_path).exists and Path(int8_vision_model_path).exists
@@ -960,12 +960,12 @@ example, ``cat,dog,bird``)
                 gr.Examples([img_furseal], image_image_1)
                 gr.Examples([img_coco], image_image_2)
             image_image_output = gr.Textbox(label="Results")
-    
+
         text_image_button.click(image_text_sim, inputs=[text_text_vis, image_text_vis, quantized_model], outputs=text_image_output)
         text_text_button.click(text_text_sim, inputs=[text_text_1, text_text_2, quantized_model], outputs=text_text_output)
         image_image_button.click(image_image_sim, inputs=[image_image_1, image_image_2, quantized_model], outputs=image_image_output)
-    
-    
+
+
     if __name__ == "__main__":
         try:
             demo.queue().launch(debug=False)
@@ -979,12 +979,12 @@ example, ``cat,dog,bird``)
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

@@ -24,25 +24,25 @@ and labels. In this tutorial, we will use the
 `SigLIP <https://huggingface.co/docs/transformers/main/en/model_doc/siglip>`__
 model to perform zero-shot image classification.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Instantiate model <#Instantiate-model>`__
--  `Run PyTorch model inference <#Run-PyTorch-model-inference>`__
+
+-  `Instantiate model <#instantiate-model>`__
+-  `Run PyTorch model inference <#run-pytorch-model-inference>`__
 -  `Convert model to OpenVINO Intermediate Representation (IR)
-   format <#Convert-model-to-OpenVINO-Intermediate-Representation-(IR)-format>`__
--  `Run OpenVINO model <#Run-OpenVINO-model>`__
+   format <#convert-model-to-openvino-intermediate-representation-ir-format>`__
+-  `Run OpenVINO model <#run-openvino-model>`__
 -  `Apply post-training quantization using
-   NNCF <#Apply-post-training-quantization-using-NNCF>`__
+   NNCF <#apply-post-training-quantization-using-nncf>`__
 
-   -  `Prepare dataset <#Prepare-dataset>`__
-   -  `Quantize model <#Quantize-model>`__
-   -  `Run quantized OpenVINO model <#Run-quantized-OpenVINO-model>`__
-   -  `Compare File Size <#Compare-File-Size>`__
+   -  `Prepare dataset <#prepare-dataset>`__
+   -  `Quantize model <#quantize-model>`__
+   -  `Run quantized OpenVINO model <#run-quantized-openvino-model>`__
+   -  `Compare File Size <#compare-file-size>`__
    -  `Compare inference time of the FP16 IR and quantized
-      models <#Compare-inference-time-of-the-FP16-IR-and-quantized-models>`__
+      models <#compare-inference-time-of-the-fp16-ir-and-quantized-models>`__
 
--  `Interactive inference <#Interactive-inference>`__
+-  `Interactive inference <#interactive-inference>`__
 
 .. |Colab| image:: https://colab.research.google.com/assets/colab-badge.svg
    :target: https://colab.research.google.com/github/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/siglip-zero-shot-image-classification/siglip-zero-shot-image-classification.ipynb
@@ -50,7 +50,7 @@ Table of contents:
 Instantiate model
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The SigLIP model was proposed in `Sigmoid Loss for Language Image
 Pre-Training <https://arxiv.org/abs/2303.15343>`__. SigLIP proposes to
@@ -90,9 +90,9 @@ tokenizer and preparing the images.
 .. code:: ipython3
 
     import platform
-    
+
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "gradio>=4.19" "openvino>=2023.3.0" "transformers>=4.37" "torch>=2.1" Pillow sentencepiece protobuf scipy datasets nncf
-    
+
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
@@ -108,7 +108,7 @@ tokenizer and preparing the images.
 .. code:: ipython3
 
     from transformers import AutoProcessor, AutoModel
-    
+
     model = AutoModel.from_pretrained("google/siglip-base-patch16-224")
     processor = AutoProcessor.from_pretrained("google/siglip-base-patch16-224")
 
@@ -128,7 +128,7 @@ tokenizer and preparing the images.
 Run PyTorch model inference
 ---------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To perform classification, define labels and load an image in RGB
 format. To give the model wider text context and improve guidance, we
@@ -147,8 +147,8 @@ similarity score for the final result.
     import matplotlib.pyplot as plt
     import numpy as np
     from PIL import Image
-    
-    
+
+
     def visualize_result(image: Image, labels: List[str], probs: np.ndarray, top: int = 5):
         """
         Utility function for visualization classification results
@@ -166,7 +166,7 @@ similarity score for the final result.
         plt.subplot(8, 8, 1)
         plt.imshow(image)
         plt.axis("off")
-    
+
         plt.subplot(8, 8, 2)
         y = np.arange(top_probs.shape[-1])
         plt.grid()
@@ -175,7 +175,7 @@ similarity score for the final result.
         plt.gca().set_axisbelow(True)
         plt.yticks(y, [labels[index] for index in top_labels])
         plt.xlabel("probability")
-    
+
         print([{labels[x]: round(y, 2)} for x, y in zip(top_labels, top_probs)])
 
 .. code:: ipython3
@@ -184,16 +184,16 @@ similarity score for the final result.
     from pathlib import Path
     import torch
     from PIL import Image
-    
+
     image_path = Path("test_image.jpg")
     r = requests.get(
         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg",
     )
-    
+
     with image_path.open("wb") as f:
         f.write(r.content)
     image = Image.open(image_path)
-    
+
     input_labels = [
         "cat",
         "dog",
@@ -207,15 +207,15 @@ similarity score for the final result.
         "computer",
     ]
     text_descriptions = [f"This is a photo of a {label}" for label in input_labels]
-    
+
     inputs = processor(text=text_descriptions, images=[image], padding="max_length", return_tensors="pt")
-    
+
     with torch.no_grad():
         model.config.torchscript = False
         results = model(**inputs)
-    
+
     logits_per_image = results["logits_per_image"]  # this is the image-text similarity score
-    
+
     probs = logits_per_image.softmax(dim=1).detach().numpy()
     visualize_result(image, input_labels, probs[0])
 
@@ -232,7 +232,7 @@ similarity score for the final result.
 Convert model to OpenVINO Intermediate Representation (IR) format
 -----------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. OpenVINO supports PyTorch via Model conversion
@@ -245,7 +245,7 @@ object ready to load on the device and start making predictions.
 .. code:: ipython3
 
     import openvino as ov
-    
+
     model.config.torchscript = True
     ov_model = ov.convert_model(model, example_input=dict(inputs))
 
@@ -274,7 +274,7 @@ object ready to load on the device and start making predictions.
 Run OpenVINO model
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The steps for making predictions with the OpenVINO SigLIP model are
 similar to the PyTorch model. Let us check the model result using the
@@ -285,16 +285,16 @@ Select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -311,7 +311,7 @@ Run OpenVINO model
 .. code:: ipython3
 
     from scipy.special import softmax
-    
+
     # compile model for loading on device
     compiled_ov_model = core.compile_model(ov_model, device.value)
     # obtain output tensor for getting predictions
@@ -338,7 +338,7 @@ Great! Looks like we got the same result.
 Apply post-training quantization using NNCF
 -------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding the quantization layers into the
@@ -356,7 +356,7 @@ The optimization process contains the following steps:
 Prepare dataset
 ~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The `Conceptual
 Captions <https://ai.google.com/research/ConceptualCaptions/>`__ dataset
@@ -369,10 +369,10 @@ model.
     from io import BytesIO
     from PIL import Image
     from requests.packages.urllib3.exceptions import InsecureRequestWarning
-    
+
     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-    
-    
+
+
     def check_text_data(data):
         """
         Check if the given data is text-based.
@@ -382,8 +382,8 @@ model.
         if isinstance(data, list):
             return all(isinstance(x, str) for x in data)
         return False
-    
-    
+
+
     def get_pil_from_url(url):
         """
         Downloads and converts an image from a URL to a PIL Image object.
@@ -391,8 +391,8 @@ model.
         response = requests.get(url, verify=False, timeout=20)
         image = Image.open(BytesIO(response.content))
         return image.convert("RGB")
-    
-    
+
+
     def collate_fn(example, image_column="image_url", text_column="caption"):
         """
         Preprocesses an example by loading and transforming image and text data.
@@ -403,10 +403,10 @@ model.
         """
         assert len(example) == 1
         example = example[0]
-    
+
         if not check_text_data(example[text_column]):
             raise ValueError("Text data is not valid")
-    
+
         url = example[image_column]
         try:
             image = get_pil_from_url(url)
@@ -415,7 +415,7 @@ model.
                 return None
         except Exception:
             return None
-    
+
         inputs = processor(
             text=example[text_column],
             images=[image],
@@ -431,8 +431,8 @@ model.
     import torch
     from datasets import load_dataset
     from tqdm.notebook import tqdm
-    
-    
+
+
     def prepare_calibration_data(dataloader, init_steps):
         """
         This function prepares calibration data from a dataloader for a specified number of initialization steps.
@@ -454,8 +454,8 @@ model.
                         }
                     )
         return data
-    
-    
+
+
     def prepare_dataset(opt_init_steps=300, max_train_samples=1000):
         """
         Prepares a vision-text dataset for quantization.
@@ -485,7 +485,7 @@ model.
 Quantize model
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Create a quantized model from the pre-trained ``FP16`` model.
 
@@ -496,12 +496,12 @@ Create a quantized model from the pre-trained ``FP16`` model.
 
     import nncf
     import logging
-    
+
     nncf.set_log_level(logging.ERROR)
-    
+
     if len(calibration_data) == 0:
         raise RuntimeError("Calibration dataset is empty. Please check internet connection and try to download images manually.")
-    
+
     calibration_dataset = nncf.Dataset(calibration_data)
     quantized_ov_model = nncf.quantize(
         model=ov_model,
@@ -522,38 +522,17 @@ Create a quantized model from the pre-trained ``FP16`` model.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
 
-.. parsed-literal::
-
-    Output()
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-
-
-
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -564,17 +543,17 @@ Create a quantized model from the pre-trained ``FP16`` model.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -585,17 +564,38 @@ Create a quantized model from the pre-trained ``FP16`` model.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -607,7 +607,7 @@ in the NNCF repository for more information.
 Run quantized OpenVINO model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The steps for making predictions with the quantized OpenVINO SigLIP
 model are similar to the PyTorch model.
@@ -615,8 +615,8 @@ model are similar to the PyTorch model.
 .. code:: ipython3
 
     from scipy.special import softmax
-    
-    
+
+
     input_labels = [
         "cat",
         "dog",
@@ -630,10 +630,10 @@ model are similar to the PyTorch model.
         "computer",
     ]
     text_descriptions = [f"This is a photo of a {label}" for label in input_labels]
-    
+
     inputs = processor(text=text_descriptions, images=[image], return_tensors="pt", padding="max_length")
     compiled_int8_ov_model = ov.compile_model(quantized_ov_model, device.value)
-    
+
     logits_per_image_out = compiled_int8_ov_model.output(0)
     ov_logits_per_image = compiled_int8_ov_model(dict(inputs))[logits_per_image_out]
     probs = softmax(ov_logits_per_image, axis=1)
@@ -652,18 +652,18 @@ model are similar to the PyTorch model.
 Compare File Size
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     fp16_model_path = "siglip-base-patch16-224.xml"
     ov.save_model(ov_model, fp16_model_path)
-    
+
     int8_model_path = "siglip-base-patch16-224_int8.xml"
     ov.save_model(quantized_ov_model, int8_model_path)
-    
+
     fp16_ir_model_size = Path(fp16_model_path).with_suffix(".bin").stat().st_size / 1024 / 1024
     quantized_model_size = Path(int8_model_path).with_suffix(".bin").stat().st_size / 1024 / 1024
     print(f"FP16 IR model size: {fp16_ir_model_size:.2f} MB")
@@ -681,7 +681,7 @@ Compare File Size
 Compare inference time of the FP16 IR and quantized models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To measure the inference performance of the ``FP16`` and ``INT8``
 models, we use median inference time on calibration dataset. So we can
@@ -694,8 +694,8 @@ approximately estimate the speed up of the dynamic quantized models.
 .. code:: ipython3
 
     import time
-    
-    
+
+
     def calculate_inference_time(model_path, calibration_data):
         model = ov.compile_model(model_path, device.value)
         output_layer = model.output(0)
@@ -723,7 +723,7 @@ approximately estimate the speed up of the dynamic quantized models.
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, it is your turn! You can provide your own image and comma-separated
 list of labels for zero-shot classification. Feel free to upload an
@@ -733,8 +733,8 @@ field, using comma as the separator (for example, ``cat,dog,bird``)
 .. code:: ipython3
 
     import gradio as gr
-    
-    
+
+
     def classify(image, text):
         """Classify image using classes listing.
         Args:
@@ -753,10 +753,10 @@ field, using comma as the separator (for example, ``cat,dog,bird``)
         )
         ov_logits_per_image = compiled_int8_ov_model(dict(inputs))[logits_per_image_out]
         probs = softmax(ov_logits_per_image[0])
-    
+
         return {label: float(prob) for label, prob in zip(labels, probs)}
-    
-    
+
+
     demo = gr.Interface(
         classify,
         [
@@ -778,12 +778,12 @@ field, using comma as the separator (for example, ``cat,dog,bird``)
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="1000" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

@@ -23,46 +23,46 @@ IR, load the model in `OpenVINO
 Runtime <https://docs.openvino.ai/2024/openvino-workflow/running-inference.html>`__
 and do inference with a sample image.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Imports <#Imports>`__
--  `Settings <#Settings>`__
+
+-  `Prerequisites <#prerequisites>`__
+-  `Imports <#imports>`__
+-  `Settings <#settings>`__
 -  `Download Model from TensorFlow
-   Hub <#Download-Model-from-TensorFlow-Hub>`__
--  `Convert Model to OpenVINO IR <#Convert-Model-to-OpenVINO-IR>`__
+   Hub <#download-model-from-tensorflow-hub>`__
+-  `Convert Model to OpenVINO IR <#convert-model-to-openvino-ir>`__
 -  `Test Inference on the Converted
-   Model <#Test-Inference-on-the-Converted-Model>`__
--  `Select inference device <#Select-inference-device>`__
+   Model <#test-inference-on-the-converted-model>`__
+-  `Select inference device <#select-inference-device>`__
 
-   -  `Load the Model <#Load-the-Model>`__
-   -  `Get Model Information <#Get-Model-Information>`__
+   -  `Load the Model <#load-the-model>`__
+   -  `Get Model Information <#get-model-information>`__
    -  `Get an Image for Test
-      Inference <#Get-an-Image-for-Test-Inference>`__
-   -  `Perform Inference <#Perform-Inference>`__
+      Inference <#get-an-image-for-test-inference>`__
+   -  `Perform Inference <#perform-inference>`__
    -  `Inference Result
-      Visualization <#Inference-Result-Visualization>`__
+      Visualization <#inference-result-visualization>`__
 
--  `Next Steps <#Next-Steps>`__
+-  `Next Steps <#next-steps>`__
 
-   -  `Async inference pipeline <#Async-inference-pipeline>`__
+   -  `Async inference pipeline <#async-inference-pipeline>`__
    -  `Integration preprocessing to
-      model <#Integration-preprocessing-to-model>`__
+      model <#integration-preprocessing-to-model>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Install required packages:
 
 .. code:: ipython3
 
     import platform
-    
+
     %pip install -q "openvino>=2023.1.0" "numpy>=1.21.0" "opencv-python" "tqdm"
-    
+
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
@@ -94,11 +94,11 @@ The notebook uses utility functions. The cell below will download the
 
     # Fetch the notebook utils script from the openvino_notebooks repo
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-    
+
     open("notebook_utils.py", "w").write(r.text)
 
 
@@ -113,28 +113,28 @@ The notebook uses utility functions. The cell below will download the
 Imports
 -------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     # Standard python modules
     from pathlib import Path
-    
+
     # External modules and dependencies
     import cv2
     import matplotlib.pyplot as plt
     import numpy as np
-    
+
     # OpenVINO import
     import openvino as ov
-    
+
     # Notebook utils module
     from notebook_utils import download_file
 
 Settings
 --------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Define model related variables and create corresponding directories:
 
@@ -143,27 +143,27 @@ Define model related variables and create corresponding directories:
     # Create directories for models files
     model_dir = Path("model")
     model_dir.mkdir(exist_ok=True)
-    
+
     # Create directory for TensorFlow model
     tf_model_dir = model_dir / "tf"
     tf_model_dir.mkdir(exist_ok=True)
-    
+
     # Create directory for OpenVINO IR model
     ir_model_dir = model_dir / "ir"
     ir_model_dir.mkdir(exist_ok=True)
-    
+
     model_name = "faster_rcnn_resnet50_v1_640x640"
-    
+
     openvino_ir_path = ir_model_dir / f"{model_name}.xml"
-    
+
     tf_model_url = "https://www.kaggle.com/models/tensorflow/faster-rcnn-resnet-v1/frameworks/tensorFlow2/variations/faster-rcnn-resnet50-v1-640x640/versions/1?tf-hub-format=compressed"
-    
+
     tf_model_archive_filename = f"{model_name}.tar.gz"
 
 Download Model from TensorFlow Hub
 ----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Download archive with TensorFlow Object Detection model
 (`faster_rcnn_resnet50_v1_640x640 <https://tfhub.dev/tensorflow/faster_rcnn/resnet50_v1_640x640/1>`__)
@@ -193,14 +193,14 @@ Extract TensorFlow Object Detection model from the downloaded archive:
 .. code:: ipython3
 
     import tarfile
-    
+
     with tarfile.open(tf_model_dir / tf_model_archive_filename) as file:
         file.extractall(path=tf_model_dir)
 
 Convert Model to OpenVINO IR
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO Model Conversion API can be used to convert the TensorFlow
 model to OpenVINO IR.
@@ -223,26 +223,26 @@ support <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/conve
 .. code:: ipython3
 
     ov_model = ov.convert_model(tf_model_dir)
-    
+
     # Save converted OpenVINO IR model to the corresponding directory
     ov.save_model(ov_model, openvino_ir_path)
 
 Test Inference on the Converted Model
 -------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select inference device
 -----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -250,7 +250,7 @@ select device from dropdown list for running inference using OpenVINO
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -265,7 +265,7 @@ select device from dropdown list for running inference using OpenVINO
 Load the Model
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -276,7 +276,7 @@ Load the Model
 Get Model Information
 ~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Faster R-CNN with Resnet-50 V1 object detection model has one input - a
 three-channel image of variable size. The input tensor shape is
@@ -317,10 +317,10 @@ for more information about model inputs, outputs and their formats.
     model_inputs = compiled_model.inputs
     model_input = compiled_model.input(0)
     model_outputs = compiled_model.outputs
-    
+
     print("Model inputs count:", len(model_inputs))
     print("Model input:", model_input)
-    
+
     print("Model outputs count:", len(model_outputs))
     print("Model outputs:")
     for output in model_outputs:
@@ -346,14 +346,14 @@ for more information about model inputs, outputs and their formats.
 Get an Image for Test Inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Load and save an image:
 
 .. code:: ipython3
 
     image_path = Path("./data/coco_bike.jpg")
-    
+
     download_file(
         url="https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg",
         filename=image_path.name,
@@ -380,16 +380,16 @@ Read the image, resize and convert it to the input shape of the network:
 
     # Read the image
     image = cv2.imread(filename=str(image_path))
-    
+
     # The network expects images in RGB format
     image = cv2.cvtColor(image, code=cv2.COLOR_BGR2RGB)
-    
+
     # Resize the image to the network input shape
     resized_image = cv2.resize(src=image, dsize=(255, 255))
-    
+
     # Transpose the image to the network input shape
     network_input_image = np.expand_dims(resized_image, 0)
-    
+
     # Show the image
     plt.imshow(image)
 
@@ -409,7 +409,7 @@ Read the image, resize and convert it to the input shape of the network:
 Perform Inference
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -432,19 +432,19 @@ outputs will be used.
         _,
         _,
     ) = model_outputs
-    
+
     image_detection_boxes = inference_result[detection_boxes]
     print("image_detection_boxes:", image_detection_boxes)
-    
+
     image_detection_classes = inference_result[detection_classes]
     print("image_detection_classes:", image_detection_classes)
-    
+
     image_detection_scores = inference_result[detection_scores]
     print("image_detection_scores:", image_detection_scores)
-    
+
     image_num_detections = inference_result[num_detections]
     print("image_detections_num:", image_num_detections)
-    
+
     # Alternatively, inference result data can be extracted by model output name with `.get()` method
     assert (inference_result[detection_boxes] == inference_result.get("detection_boxes")).all(), "extracted inference result data should be equal"
 
@@ -531,7 +531,7 @@ outputs will be used.
 Inference Result Visualization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Define utility functions to visualize the inference results
 
@@ -539,12 +539,12 @@ Define utility functions to visualize the inference results
 
     import random
     from typing import Optional
-    
-    
+
+
     def add_detection_box(box: np.ndarray, image: np.ndarray, label: Optional[str] = None) -> np.ndarray:
         """
         Helper function for adding single bounding box to the image
-    
+
         Parameters
         ----------
         box : np.ndarray
@@ -553,18 +553,18 @@ Define utility functions to visualize the inference results
             The image to which detection box is added
         label : str, optional
             Detection box label string, if not provided will not be added to result image (default is None)
-    
+
         Returns
         -------
         np.ndarray
             NumPy array including both image and detection box
-    
+
         """
         ymin, xmin, ymax, xmax = box
         point1, point2 = (int(xmin), int(ymin)), (int(xmax), int(ymax))
         box_color = [random.randint(0, 255) for _ in range(3)]
         line_thickness = round(0.002 * (image.shape[0] + image.shape[1]) / 2) + 1
-    
+
         cv2.rectangle(
             img=image,
             pt1=point1,
@@ -573,7 +573,7 @@ Define utility functions to visualize the inference results
             thickness=line_thickness,
             lineType=cv2.LINE_AA,
         )
-    
+
         if label:
             font_thickness = max(line_thickness - 1, 1)
             font_face = 0
@@ -615,10 +615,10 @@ Define utility functions to visualize the inference results
 .. code:: ipython3
 
     from typing import Dict
-    
+
     from openvino.runtime.utils.data_helpers import OVDict
-    
-    
+
+
     def visualize_inference_result(
         inference_result: OVDict,
         image: np.ndarray,
@@ -627,7 +627,7 @@ Define utility functions to visualize the inference results
     ):
         """
         Helper function for visualizing inference result on the image
-    
+
         Parameters
         ----------
         inference_result : OVDict
@@ -643,9 +643,9 @@ Define utility functions to visualize the inference results
         detection_classes: np.ndarray = inference_result.get("detection_classes")
         detection_scores: np.ndarray = inference_result.get("detection_scores")
         num_detections: np.ndarray = inference_result.get("num_detections")
-    
+
         detections_limit = int(min(detections_limit, num_detections[0]) if detections_limit is not None else num_detections[0])
-    
+
         # Normalize detection boxes coordinates to original image size
         original_image_height, original_image_width, _ = image.shape
         normalized_detection_boxex = detection_boxes[::] * [
@@ -654,9 +654,9 @@ Define utility functions to visualize the inference results
             original_image_height,
             original_image_width,
         ]
-    
+
         image_with_detection_boxex = np.copy(image)
-    
+
         for i in range(detections_limit):
             detected_class_name = labels_map[int(detection_classes[0, i])]
             score = detection_scores[0, i]
@@ -666,7 +666,7 @@ Define utility functions to visualize the inference results
                 image=image_with_detection_boxex,
                 label=label,
             )
-    
+
         plt.imshow(image_with_detection_boxex)
 
 TensorFlow Object Detection model
@@ -682,7 +682,7 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__:
 .. code:: ipython3
 
     coco_labels_file_path = Path("./data/coco_91cl.txt")
-    
+
     download_file(
         url="https://raw.githubusercontent.com/openvinotoolkit/open_model_zoo/master/data/dataset_classes/coco_91cl.txt",
         filename=coco_labels_file_path.name,
@@ -713,7 +713,7 @@ file:
     with open(coco_labels_file_path, "r") as file:
         coco_labels = file.read().strip().split("\n")
         coco_labels_map = dict(enumerate(coco_labels, 1))
-    
+
     print(coco_labels_map)
 
 
@@ -742,7 +742,7 @@ original test image:
 Next Steps
 ----------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 This section contains suggestions on how to additionally improve the
 performance of your application using OpenVINO.
@@ -750,7 +750,7 @@ performance of your application using OpenVINO.
 Async inference pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__ The key advantage of the Async
+The key advantage of the Async
 API is that when a device is busy with inference, the application can
 perform other tasks in parallel (for example, populating inputs or
 scheduling other requests) rather than wait for the current inference to
@@ -761,7 +761,7 @@ tutorial <async-api-with-output.html>`__.
 Integration preprocessing to model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Preprocessing API enables making preprocessing a part of the model
 reducing application code and dependency on additional image processing

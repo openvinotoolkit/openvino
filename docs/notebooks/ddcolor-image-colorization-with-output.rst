@@ -1,4 +1,4 @@
-Colorize grayscale images using 🎨 DDColor and OpenVINO
+Colorize grayscale images using DDColor and OpenVINO
 ======================================================
 
 Image colorization is the process of adding color to grayscale images.
@@ -28,39 +28,39 @@ using `NNCF <https://github.com/openvinotoolkit/nncf/>`__.
 🪄 Let’s start to explore magic of image colorization! #### Table of
 contents:
 
--  `Prerequisites <#Prerequisites>`__
--  `Load PyTorch model <#Load-PyTorch-model>`__
--  `Run PyTorch model inference <#Run-PyTorch-model-inference>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Load PyTorch model <#load-pytorch-model>`__
+-  `Run PyTorch model inference <#run-pytorch-model-inference>`__
 -  `Convert PyTorch model to OpenVINO Intermediate
-   Representation <#Convert-PyTorch-model-to-OpenVINO-Intermediate-Representation>`__
--  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
+   Representation <#convert-pytorch-model-to-openvino-intermediate-representation>`__
+-  `Run OpenVINO model inference <#run-openvino-model-inference>`__
 -  `Optimize OpenVINO model using
-   NNCF <#Optimize-OpenVINO-model-using-NNCF>`__
+   NNCF <#optimize-openvino-model-using-nncf>`__
 
-   -  `Collect quantization dataset <#Collect-quantization-dataset>`__
-   -  `Perform model quantization <#Perform-model-quantization>`__
+   -  `Collect quantization dataset <#collect-quantization-dataset>`__
+   -  `Perform model quantization <#perform-model-quantization>`__
 
--  `Run INT8 model inference <#Run-INT8-model-inference>`__
+-  `Run INT8 model inference <#run-int8-model-inference>`__
 -  `Compare FP16 and INT8 model
-   size <#Compare-FP16-and-INT8-model-size>`__
+   size <#compare-fp16-and-int8-model-size>`__
 -  `Compare inference time of the FP16 and INT8
-   models <#Compare-inference-time-of-the-FP16-and-INT8-models>`__
--  `Interactive inference <#Interactive-inference>`__
+   models <#compare-inference-time-of-the-fp16-and-int8-models>`__
+-  `Interactive inference <#interactive-inference>`__
 
 .. |image0| image:: https://github.com/piddnad/DDColor/raw/master/assets/network_arch.jpg
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import platform
-    
+
     %pip install -q "nncf>=2.11.0" "torch>=2.1" "torchvision" "timm" "opencv_python" "pillow" "PyYAML" "scipy" "scikit-image" "datasets" "gradio>=4.19"  --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -Uq --pre "openvino" --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
-    
+
     if platform.python_version_tuple()[1] in ["8", "9"]:
         %pip install -q "gradio-imageslider<=0.0.17" "typing-extensions>=4.9.0"
     else:
@@ -80,12 +80,12 @@ Prerequisites
 
     import sys
     from pathlib import Path
-    
+
     repo_dir = Path("DDColor")
-    
+
     if not repo_dir.exists():
         !git clone https://github.com/piddnad/DDColor.git
-    
+
     sys.path.append(str(repo_dir))
 
 
@@ -110,7 +110,7 @@ Prerequisites
 Load PyTorch model
 ------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 There are several models from DDColor’s family provided in `model
 repository <https://github.com/piddnad/DDColor/blob/master/MODEL_ZOO.md>`__.
@@ -121,32 +121,32 @@ models from DDColor family.
 .. code:: ipython3
 
     import torch
-    
+
     model_name = "ddcolor_paper_tiny"
-    
+
     ddcolor_model = DDColorHF.from_pretrained(f"piddnad/{model_name}")
-    
-    
+
+
     colorizer = ImageColorizationPipelineHF(model=ddcolor_model, input_size=512)
-    
+
     ddcolor_model.to("cpu")
     colorizer.device = torch.device("cpu")
 
 Run PyTorch model inference
 ---------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import cv2
     import PIL
-    
+
     IMG_PATH = "DDColor/assets/test_images/Ansel Adams _ Moore Photography.jpeg"
-    
-    
+
+
     img = cv2.imread(IMG_PATH)
-    
+
     PIL.Image.fromarray(img[:, :, ::-1])
 
 
@@ -171,7 +171,7 @@ Run PyTorch model inference
 Convert PyTorch model to OpenVINO Intermediate Representation
 -------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
 Representation (IR). OpenVINO model conversion API should be used for
@@ -185,9 +185,9 @@ loading on device using ``core.complie_model``.
 
     import openvino as ov
     import torch
-    
+
     OV_COLORIZER_PATH = Path("ddcolor.xml")
-    
+
     if not OV_COLORIZER_PATH.exists():
         ov_model = ov.convert_model(ddcolor_model, example_input=torch.ones((1, 3, 512, 512)), input=[1, 3, 512, 512])
         ov.save_model(ov_model, OV_COLORIZER_PATH)
@@ -201,23 +201,23 @@ loading on device using ``core.complie_model``.
 Run OpenVINO model inference
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select one of supported devices for inference using dropdown list.
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -239,36 +239,36 @@ Select one of supported devices for inference using dropdown list.
     import numpy as np
     import torch
     import torch.nn.functional as F
-    
-    
+
+
     def process(img, compiled_model):
         # Preprocess input image
         height, width = img.shape[:2]
-    
+
         # Normalize to [0, 1] range
         img = (img / 255.0).astype(np.float32)
         orig_l = cv2.cvtColor(img, cv2.COLOR_BGR2Lab)[:, :, :1]  # (h, w, 1)
-    
+
         # Resize rgb image -> lab -> get grey -> rgb
         img = cv2.resize(img, (512, 512))
         img_l = cv2.cvtColor(img, cv2.COLOR_BGR2Lab)[:, :, :1]
         img_gray_lab = np.concatenate((img_l, np.zeros_like(img_l), np.zeros_like(img_l)), axis=-1)
         img_gray_rgb = cv2.cvtColor(img_gray_lab, cv2.COLOR_LAB2RGB)
-    
+
         # Transpose HWC -> CHW and add batch dimension
         tensor_gray_rgb = torch.from_numpy(img_gray_rgb.transpose((2, 0, 1))).float().unsqueeze(0)
-    
+
         # Run model inference
         output_ab = compiled_model(tensor_gray_rgb)[0]
-    
+
         # Postprocess result
         # resize ab -> concat original l -> rgb
         output_ab_resize = F.interpolate(torch.from_numpy(output_ab), size=(height, width))[0].float().numpy().transpose(1, 2, 0)
         output_lab = np.concatenate((orig_l, output_ab_resize), axis=-1)
         output_bgr = cv2.cvtColor(output_lab, cv2.COLOR_LAB2BGR)
-    
+
         output_img = (output_bgr * 255.0).round().astype(np.uint8)
-    
+
         return output_img
 
 .. code:: ipython3
@@ -286,7 +286,7 @@ Select one of supported devices for inference using dropdown list.
 Optimize OpenVINO model using NNCF
 ----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -311,7 +311,7 @@ improve model inference speed.
         description="Quantization",
         disabled=False,
     )
-    
+
     to_quantize
 
 
@@ -326,35 +326,35 @@ improve model inference speed.
 .. code:: ipython3
 
     import requests
-    
+
     OV_INT8_COLORIZER_PATH = Path("ddcolor_int8.xml")
     compiled_int8_model = None
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
     )
     open("skip_kernel_extension.py", "w").write(r.text)
-    
+
     %load_ext skip_kernel_extension
 
 Collect quantization dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We use a portion of
-```ummagumm-a/colorization_dataset`` <https://huggingface.co/datasets/ummagumm-a/colorization_dataset>`__
+`ummagumm-a/colorization_dataset <https://huggingface.co/datasets/ummagumm-a/colorization_dataset>`__
 dataset from Hugging Face as calibration data.
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     from datasets import load_dataset
-    
+
     subset_size = 300
     calibration_data = []
-    
+
     if not OV_INT8_COLORIZER_PATH.exists():
         dataset = load_dataset("ummagumm-a/colorization_dataset", split="train", streaming=True).shuffle(seed=42).take(subset_size)
         for idx, batch in enumerate(dataset):
@@ -366,21 +366,21 @@ dataset from Hugging Face as calibration data.
             img_l = cv2.cvtColor(np.stack([img, img, img], axis=2), cv2.COLOR_BGR2Lab)[:, :, :1]
             img_gray_lab = np.concatenate((img_l, np.zeros_like(img_l), np.zeros_like(img_l)), axis=-1)
             img_gray_rgb = cv2.cvtColor(img_gray_lab, cv2.COLOR_LAB2RGB)
-    
+
             image = np.expand_dims(img_gray_rgb.transpose((2, 0, 1)).astype(np.float32), axis=0)
             calibration_data.append(image)
 
 Perform model quantization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import nncf
-    
+
     if not OV_INT8_COLORIZER_PATH.exists():
         ov_model = core.read_model(OV_COLORIZER_PATH)
         quantized_model = nncf.quantize(
@@ -411,17 +411,17 @@ Perform model quantization
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -432,29 +432,29 @@ Perform model quantization
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
 Run INT8 model inference
 ------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from IPython.display import display
-    
+
     if OV_INT8_COLORIZER_PATH.exists():
         compiled_int8_model = core.compile_model(OV_INT8_COLORIZER_PATH, device.value)
         img = cv2.imread("DDColor/assets/test_images/Ansel Adams _ Moore Photography.jpeg")
@@ -469,14 +469,14 @@ Run INT8 model inference
 Compare FP16 and INT8 model size
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     fp16_ir_model_size = OV_COLORIZER_PATH.with_suffix(".bin").stat().st_size / 2**20
-    
+
     print(f"FP16 model size: {fp16_ir_model_size:.2f} MB")
-    
+
     if OV_INT8_COLORIZER_PATH.exists():
         quantized_model_size = OV_INT8_COLORIZER_PATH.with_suffix(".bin").stat().st_size / 2**20
         print(f"INT8 model size: {quantized_model_size:.2f} MB")
@@ -493,7 +493,7 @@ Compare FP16 and INT8 model size
 Compare inference time of the FP16 and INT8 models
 --------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To measure the inference performance of OpenVINO FP16 and INT8 models,
 use `Benchmark
@@ -515,12 +515,12 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.4.0-16028-fe423b97163
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
     [ INFO ] Build ................................. 2024.4.0-16028-fe423b97163
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -575,7 +575,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values 
+    [ INFO ] Fill input 'x' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 537.09 ms
@@ -604,12 +604,12 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.4.0-16028-fe423b97163
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
     [ INFO ] Build ................................. 2024.4.0-16028-fe423b97163
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -664,7 +664,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values 
+    [ INFO ] Fill input 'x' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 283.96 ms
@@ -683,23 +683,23 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
 Interactive inference
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import gradio as gr
     from gradio_imageslider import ImageSlider
     from functools import partial
-    
-    
+
+
     def generate(image, use_int8=True):
         image_in = cv2.imread(image)
         image_out = process(image_in, compiled_model if not use_int8 else compiled_int8_model)
         image_in_pil = PIL.Image.fromarray(cv2.cvtColor(image_in, cv2.COLOR_BGR2RGB))
         image_out_pil = PIL.Image.fromarray(cv2.cvtColor(image_out, cv2.COLOR_BGR2RGB))
         return (image_in_pil, image_out_pil)
-    
-    
+
+
     with gr.Blocks() as demo:
         with gr.Row(equal_height=False):
             image = gr.Image(type="filepath")
@@ -719,8 +719,8 @@ Interactive inference
             ],
             inputs=[image],
         )
-    
-    
+
+
     if __name__ == "__main__":
         try:
             demo.queue().launch(debug=False)
@@ -734,12 +734,12 @@ Interactive inference
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

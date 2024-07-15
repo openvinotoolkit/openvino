@@ -19,55 +19,55 @@ using OpenVINO. An additional part demonstrates how to run quantization
 with `NNCF <https://github.com/openvinotoolkit/nncf/>`__ to speed up the
 model.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `Load and run PyTorch model <#Load-and-run-PyTorch-model>`__
 
-   -  `Prepare input data <#Prepare-input-data>`__
-   -  `Run model inference <#Run-model-inference>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Load and run PyTorch model <#load-and-run-pytorch-model>`__
+
+   -  `Prepare input data <#prepare-input-data>`__
+   -  `Run model inference <#run-model-inference>`__
 
 -  `Convert Model to OpenVINO IR
-   format <#Convert-Model-to-OpenVINO-IR-format>`__
--  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
+   format <#convert-model-to-openvino-ir-format>`__
+-  `Run OpenVINO model inference <#run-openvino-model-inference>`__
 
-   -  `Select inference device <#Select-inference-device>`__
-   -  `Run inference on image <#Run-inference-on-image>`__
-   -  `Run inference on video <#Run-inference-on-video>`__
+   -  `Select inference device <#select-inference-device>`__
+   -  `Run inference on image <#run-inference-on-image>`__
+   -  `Run inference on video <#run-inference-on-video>`__
 
--  `Quantization <#Quantization>`__
+-  `Quantization <#quantization>`__
 
-   -  `Prepare calibration dataset <#Prepare-calibration-dataset>`__
-   -  `Run quantization <#Run-quantization>`__
+   -  `Prepare calibration dataset <#prepare-calibration-dataset>`__
+   -  `Run quantization <#run-quantization>`__
    -  `Compare inference time of the FP16 and INT8
-      models <#Compare-inference-time-of-the-FP16-and-INT8-models>`__
-   -  `Compare model file size <#Compare-UNet-file-size>`__
+      models <#compare-inference-time-of-the-fp16-and-int8-models>`__
+   -  `Compare model file size <#compare-unet-file-size>`__
 
--  `Interactive demo <#Interactive-demo>`__
+-  `Interactive demo <#interactive-demo>`__
 
 .. |image.png| image:: https://depth-anything.github.io/static/images/pipeline.png
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from pathlib import Path
     import platform
-    
+
     repo_dir = Path("Depth-Anything")
-    
+
     if not repo_dir.exists():
         !git clone https://github.com/LiheYoung/Depth-Anything
     %cd Depth-Anything
-    
+
     %pip install -q "openvino>=2023.3.0" "datasets>=2.14.6" "nncf" "tqdm"
     %pip install -q "typing-extensions>=4.9.0" eval-type-backport "gradio>=4.19"
     %pip install -q -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
-    
+
     if platform.python_version_tuple()[1] in ["8", "9"]:
         %pip install -q "gradio-imageslider<=0.0.17" "typing-extensions>=4.9.0"
 
@@ -92,7 +92,7 @@ Prerequisites
 Load and run PyTorch model
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To be able run PyTorch model on CPU, we should disable xformers
 attention optimizations first.
@@ -101,10 +101,10 @@ attention optimizations first.
 
     attention_file_path = Path("./torchhub/facebookresearch_dinov2_main/dinov2/layers/attention.py")
     orig_attention_path = attention_file_path.parent / ("orig_" + attention_file_path.name)
-    
+
     if not orig_attention_path.exists():
         attention_file_path.rename(orig_attention_path)
-    
+
         with orig_attention_path.open("r") as f:
             data = f.read()
             data = data.replace("XFORMERS_AVAILABLE = True", "XFORMERS_AVAILABLE = False")
@@ -124,7 +124,7 @@ DepthAnything family.
 .. code:: ipython3
 
     from depth_anything.dpt import DepthAnything
-    
+
     encoder = "vits"  # can also be 'vitb' or 'vitl'
     model_id = "depth_anything_{:}14".format(encoder)
     depth_anything = DepthAnything.from_pretrained(f"LiheYoung/{model_id}")
@@ -139,26 +139,26 @@ DepthAnything family.
 Prepare input data
 ~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from PIL import Image
-    
+
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-    
+
     open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file
-    
+
     download_file(
         "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/3f779fc1-c1b2-4dec-915a-64dae510a2bb",
         "furseal.png",
     )
-    
+
     Image.open("furseal.png").resize((600, 400))
 
 
@@ -183,10 +183,10 @@ range.
 
     from depth_anything.util.transform import Resize, NormalizeImage, PrepareForNet
     from torchvision.transforms import Compose
-    
+
     import cv2
     import torch
-    
+
     transform = Compose(
         [
             Resize(
@@ -201,8 +201,8 @@ range.
             PrepareForNet(),
         ]
     )
-    
-    
+
+
     image = cv2.cvtColor(cv2.imread("furseal.png"), cv2.COLOR_BGR2RGB) / 255.0
     h, w = image.shape[:-1]
     image = transform({"image": image})["image"]
@@ -211,7 +211,7 @@ range.
 Run model inference
 ~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Preprocessed image passed to model forward and model returns depth map
 in format ``B`` x ``H`` x ``W``, where ``B`` is input batch size, ``H``
@@ -229,17 +229,17 @@ image size and prepare it for visualization.
 
     import torch.nn.functional as F
     import numpy as np
-    
+
     depth = F.interpolate(depth[None], (h, w), mode="bilinear", align_corners=False)[0, 0]
     depth = (depth - depth.min()) / (depth.max() - depth.min()) * 255.0
-    
+
     depth = depth.cpu().detach().numpy().astype(np.uint8)
     depth_color = cv2.applyColorMap(depth, cv2.COLORMAP_INFERNO)
 
 .. code:: ipython3
 
     from matplotlib import pyplot as plt
-    
+
     plt.imshow(depth_color[:, :, ::-1]);
 
 
@@ -250,7 +250,7 @@ image size and prepare it for visualization.
 Convert Model to OpenVINO IR format
 -----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
 Representation (IR). OpenVINO model conversion API should be used for
@@ -263,9 +263,9 @@ loading on device using ``core.complie_model``.
 .. code:: ipython3
 
     import openvino as ov
-    
+
     OV_DEPTH_ANYTHING_PATH = Path(f"{model_id}.xml")
-    
+
     if not OV_DEPTH_ANYTHING_PATH.exists():
         ov_model = ov.convert_model(depth_anything, example_input=image, input=[1, 3, 518, 518])
         ov.save_model(ov_model, OV_DEPTH_ANYTHING_PATH)
@@ -291,30 +291,30 @@ loading on device using ``core.complie_model``.
 Run OpenVINO model inference
 ----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, we are ready to run OpenVINO model
 
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For starting work, please select inference device from dropdown list.
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -333,7 +333,7 @@ For starting work, please select inference device from dropdown list.
 Run inference on image
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -345,12 +345,12 @@ Run inference on image
         depth = model_output[0]
         depth = cv2.resize(depth, (w, h))
         depth = (depth - depth.min()) / (depth.max() - depth.min()) * 255.0
-    
+
         depth = depth.astype(np.uint8)
         depth_color = cv2.applyColorMap(depth, cv2.COLORMAP_INFERNO)
         return depth_color
-    
-    
+
+
     depth_color = get_depth_map(res)
 
 .. code:: ipython3
@@ -365,7 +365,7 @@ Run inference on image
 Run inference on video
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -373,7 +373,7 @@ Run inference on video
         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4",
         "./Coco Walking in Berkeley.mp4",
     )
-    
+
     VIDEO_FILE = "./Coco Walking in Berkeley.mp4"
     # Number of seconds of input video to process. Set `NUM_SECONDS` to 0 to process
     # the full video.
@@ -391,7 +391,7 @@ Run inference on video
     # Try the `THEO` encoding if you have FFMPEG installed.
     # FOURCC = cv2.VideoWriter_fourcc(*"THEO")
     FOURCC = cv2.VideoWriter_fourcc(*"vp09")
-    
+
     # Create Path objects for the input video and the result video.
     output_directory = Path("output")
     output_directory.mkdir(exist_ok=True)
@@ -412,11 +412,11 @@ Run inference on video
         raise ValueError(f"The video at {VIDEO_FILE} cannot be read.")
     input_fps = cap.get(cv2.CAP_PROP_FPS)
     input_video_frame_height, input_video_frame_width = image.shape[:2]
-    
+
     target_fps = input_fps / ADVANCE_FRAMES
     target_frame_height = int(input_video_frame_height * SCALE_OUTPUT)
     target_frame_width = int(input_video_frame_width * SCALE_OUTPUT)
-    
+
     cap.release()
     print(f"The input video has a frame width of {input_video_frame_width}, " f"frame height of {input_video_frame_height} and runs at {input_fps:.2f} fps")
     print(
@@ -437,13 +437,13 @@ Run inference on video
     def normalize_minmax(data):
         """Normalizes the values in `data` between 0 and 1"""
         return (data - data.min()) / (data.max() - data.min())
-    
-    
+
+
     def convert_result_to_image(result, colormap="viridis"):
         """
         Convert network result of floating point numbers to an RGB image with
         integer values from 0-255 by applying a colormap.
-    
+
         `result` is expected to be a single network result in 1,H,W shape
         `colormap` is a matplotlib colormap.
         See https://matplotlib.org/stable/tutorials/colors/colormaps.html
@@ -454,8 +454,8 @@ Run inference on video
         result = result.astype(np.uint8)
         result = cv2.applyColorMap(result, cv2.COLORMAP_INFERNO)[:, :, ::-1]
         return result
-    
-    
+
+
     def to_rgb(image_data) -> np.ndarray:
         """
         Convert image_data from BGR to RGB
@@ -474,17 +474,17 @@ Run inference on video
         clear_output,
         display,
     )
-    
-    
+
+
     def process_video(compiled_model, video_file, result_video_path):
         # Initialize variables.
         input_video_frame_nr = 0
         start_time = time.perf_counter()
         total_inference_duration = 0
-    
+
         # Open the input video
         cap = cv2.VideoCapture(str(video_file))
-    
+
         # Create a result video.
         out_video = cv2.VideoWriter(
             str(result_video_path),
@@ -492,35 +492,35 @@ Run inference on video
             target_fps,
             (target_frame_width * 2, target_frame_height),
         )
-    
+
         num_frames = int(NUM_SECONDS * input_fps)
         total_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT) if num_frames == 0 else num_frames
         progress_bar = ProgressBar(total=total_frames)
         progress_bar.display()
-    
+
         try:
             while cap.isOpened():
                 ret, image = cap.read()
                 if not ret:
                     cap.release()
                     break
-    
+
                 if input_video_frame_nr >= total_frames:
                     break
-    
+
                 h, w = image.shape[:-1]
                 input_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) / 255.0
                 input_image = transform({"image": input_image})["image"]
                 # Reshape the image to network input shape NCHW.
                 input_image = np.expand_dims(input_image, 0)
-    
+
                 # Do inference.
                 inference_start_time = time.perf_counter()
                 result = compiled_model(input_image)[0]
                 inference_stop_time = time.perf_counter()
                 inference_duration = inference_stop_time - inference_start_time
                 total_inference_duration += inference_duration
-    
+
                 if input_video_frame_nr % (10 * ADVANCE_FRAMES) == 0:
                     clear_output(wait=True)
                     progress_bar.display()
@@ -534,7 +534,7 @@ Run inference on video
                             f"({1/inference_duration:.2f} FPS)"
                         )
                     )
-    
+
                 # Transform the network result to a RGB image.
                 result_frame = to_rgb(convert_result_to_image(result))
                 # Resize the image and the result to a target frame shape.
@@ -544,13 +544,13 @@ Run inference on video
                 stacked_frame = np.hstack((image, result_frame))
                 # Save a frame to the video.
                 out_video.write(stacked_frame)
-    
+
                 input_video_frame_nr = input_video_frame_nr + ADVANCE_FRAMES
                 cap.set(1, input_video_frame_nr)
-    
+
                 progress_bar.progress = input_video_frame_nr
                 progress_bar.update()
-    
+
         except KeyboardInterrupt:
             print("Processing interrupted.")
         finally:
@@ -560,7 +560,7 @@ Run inference on video
             cap.release()
             end_time = time.perf_counter()
             duration = end_time - start_time
-    
+
             print(
                 f"Processed {processed_frames} frames in {duration:.2f} seconds. "
                 f"Total FPS (including video processing): {processed_frames/duration:.2f}."
@@ -576,7 +576,7 @@ Run inference on video
 
 .. parsed-literal::
 
-    Processed 60 frames in 13.88 seconds. Total FPS (including video processing): 4.32.Inference FPS: 9.35 
+    Processed 60 frames in 13.88 seconds. Total FPS (including video processing): 4.32.Inference FPS: 9.35
     Video saved to 'output/Coco Walking in Berkeley_depth_anything.mp4'.
 
 
@@ -604,7 +604,7 @@ Run inference on video
 
     Showing video saved at
     /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/output/Coco Walking in Berkeley_depth_anything.mp4
-    If you cannot see the video in your browser, please click on the following link to download the video 
+    If you cannot see the video in your browser, please click on the following link to download the video
 
 
 
@@ -625,7 +625,7 @@ Run inference on video
 Quantization
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -650,7 +650,7 @@ improve model inference speed.
         description="Quantization",
         disabled=False,
     )
-    
+
     to_quantize
 
 
@@ -669,26 +669,26 @@ improve model inference speed.
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/skip_kernel_extension.py",
     )
     open("skip_kernel_extension.py", "w").write(r.text)
-    
+
     OV_DEPTH_ANYTHING_INT8_PATH = Path(f"{model_id}_int8.xml")
-    
+
     %load_ext skip_kernel_extension
 
 Prepare calibration dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We use a portion of
-```Nahrawy/VIDIT-Depth-ControlNet`` <https://huggingface.co/datasets/Nahrawy/VIDIT-Depth-ControlNet>`__
+`Nahrawy/VIDIT-Depth-ControlNet <https://huggingface.co/datasets/Nahrawy/VIDIT-Depth-ControlNet>`__
 dataset from Hugging Face as calibration data.
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import datasets
-    
+
     if not OV_DEPTH_ANYTHING_INT8_PATH.exists():
         subset_size = 300
         calibration_data = []
@@ -710,7 +710,7 @@ dataset from Hugging Face as calibration data.
 Run quantization
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Create a quantized model from the pre-trained converted OpenVINO model.
 > **NOTE**: Quantization is time and memory consuming operation. Running
@@ -719,9 +719,9 @@ quantization code below may take some time.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     import nncf
-    
+
     if not OV_DEPTH_ANYTHING_INT8_PATH.exists():
         model = core.read_model(OV_DEPTH_ANYTHING_PATH)
         quantized_model = nncf.quantize(
@@ -753,17 +753,17 @@ quantization code below may take some time.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -774,17 +774,17 @@ quantization code below may take some time.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -801,17 +801,17 @@ quantization code below may take some time.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -822,17 +822,17 @@ quantization code below may take some time.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -842,11 +842,11 @@ data.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     def visualize_results(orig_img:Image.Image, optimized_img:Image.Image):
         """
         Helper function for results visualization
-    
+
         Parameters:
            orig_img (Image.Image): generated image using FP16 model
            optimized_img (Image.Image): generated image using quantized model
@@ -868,7 +868,7 @@ data.
         list_axes[1].imshow(np.array(optimized_img))
         list_axes[0].set_title(orig_title, fontsize=15)
         list_axes[1].set_title(control_title, fontsize=15)
-    
+
         fig.subplots_adjust(wspace=0.01, hspace=0.01)
         fig.tight_layout()
         return fig
@@ -876,11 +876,11 @@ data.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     image = cv2.cvtColor(cv2.imread('furseal.png'), cv2.COLOR_BGR2RGB) / 255.0
     image = transform({'image': image})['image']
     image = torch.from_numpy(image).unsqueeze(0)
-    
+
     int8_compiled_model = core.compile_model(OV_DEPTH_ANYTHING_INT8_PATH, device.value)
     int8_res = int8_compiled_model(image)[0]
     int8_depth_color = get_depth_map(int8_res)
@@ -888,7 +888,7 @@ data.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     visualize_results(depth_color[:, :, ::-1], int8_depth_color[:, :, ::-1])
 
 
@@ -899,7 +899,7 @@ data.
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     int8_result_video_path = output_directory / f"{Path(VIDEO_FILE).stem}_depth_anything_int8.mp4"
     stacked_frame = process_video(int8_compiled_model, VIDEO_FILE, int8_result_video_path)
     display_video(stacked_frame)
@@ -907,11 +907,11 @@ data.
 
 .. parsed-literal::
 
-    Processed 60 frames in 12.58 seconds. Total FPS (including video processing): 4.77.Inference FPS: 12.83 
+    Processed 60 frames in 12.58 seconds. Total FPS (including video processing): 4.77.Inference FPS: 12.83
     Video saved to 'output/Coco Walking in Berkeley_depth_anything_int8.mp4'.
     Showing video saved at
     /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/depth-anything/Depth-Anything/output/Coco Walking in Berkeley_depth_anything.mp4
-    If you cannot see the video in your browser, please click on the following link to download the video 
+    If you cannot see the video in your browser, please click on the following link to download the video
 
 
 
@@ -932,15 +932,15 @@ data.
 Compare model file size
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     %%skip not $to_quantize.value
-    
+
     fp16_ir_model_size = OV_DEPTH_ANYTHING_PATH.with_suffix(".bin").stat().st_size / 2**20
     quantized_model_size = OV_DEPTH_ANYTHING_INT8_PATH.with_suffix(".bin").stat().st_size / 2**20
-    
+
     print(f"FP16 model size: {fp16_ir_model_size:.2f} MB")
     print(f"INT8 model size: {quantized_model_size:.2f} MB")
     print(f"Model compression rate: {fp16_ir_model_size / quantized_model_size:.3f}")
@@ -956,7 +956,7 @@ Compare model file size
 Compare inference time of the FP16 and INT8 models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To measure the inference performance of OpenVINO FP16 and INT8 models,
 use `Benchmark
@@ -969,19 +969,19 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
 .. code:: ipython3
 
     import re
-    
-    
+
+
     def get_fps(benchmark_output: str):
         parsed_output = [line for line in benchmark_output if "Throughput:" in line]
         fps = re.findall(r"\d+\.\d+", parsed_output[0])[0]
         return fps
-    
-    
+
+
     if OV_DEPTH_ANYTHING_INT8_PATH.exists():
         benchmark_output = !benchmark_app -m $OV_DEPTH_ANYTHING_PATH -d $device.value -api async
         original_fps = get_fps(benchmark_output)
         print(f"FP16 Throughput: {original_fps} FPS")
-    
+
         benchmark_output = !benchmark_app -m $OV_DEPTH_ANYTHING_INT8_PATH -d $device.value -api async
         optimized_fps = get_fps(benchmark_output)
         print(f"INT8 Throughput: {optimized_fps} FPS")
@@ -998,7 +998,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 You can apply model on own images. You can move the slider on the
 resulting image to switch between the original image and the depth map
@@ -1010,13 +1010,13 @@ launch the interactive demo.
 .. code:: ipython3
 
     quantized_model_present = OV_DEPTH_ANYTHING_INT8_PATH.exists()
-    
+
     use_quantized_model = widgets.Checkbox(
         value=True if quantized_model_present else False,
         description="Use quantized model",
         disabled=False,
     )
-    
+
     use_quantized_model
 
 
@@ -1036,7 +1036,7 @@ launch the interactive demo.
     import os
     import tempfile
     from gradio_imageslider import ImageSlider
-    
+
     css = """
     #img-display-container {
         max-height: 100vh;
@@ -1048,53 +1048,53 @@ launch the interactive demo.
         max-height: 80vh;
         }
     """
-    
-    
+
+
     title = "# Depth Anything with OpenVINO"
-    
+
     if use_quantized_model.value:
         compiled_model = core.compile_model(OV_DEPTH_ANYTHING_INT8_PATH, device.value)
-    
-    
+
+
     def predict_depth(model, image):
         return model(image)[0]
-    
-    
+
+
     with gr.Blocks(css=css) as demo:
         gr.Markdown(title)
         gr.Markdown("### Depth Prediction demo")
         gr.Markdown("You can slide the output to compare the depth prediction with input image")
-    
+
         with gr.Row():
             input_image = gr.Image(label="Input Image", type="numpy", elem_id="img-display-input")
             depth_image_slider = ImageSlider(label="Depth Map with Slider View", elem_id="img-display-output", position=0)
         raw_file = gr.File(label="16-bit raw depth (can be considered as disparity)")
         submit = gr.Button("Submit")
-    
+
         def on_submit(image):
             original_image = image.copy()
-    
+
             h, w = image.shape[:2]
-    
+
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) / 255.0
             image = transform({"image": image})["image"]
             image = np.expand_dims(image, 0)
-    
+
             depth = predict_depth(compiled_model, image)
             depth = cv2.resize(depth[0], (w, h), interpolation=cv2.INTER_LINEAR)
-    
+
             raw_depth = Image.fromarray(depth.astype("uint16"))
             tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
             raw_depth.save(tmp.name)
-    
+
             depth = (depth - depth.min()) / (depth.max() - depth.min()) * 255.0
             depth = depth.astype(np.uint8)
             colored_depth = cv2.applyColorMap(depth, cv2.COLORMAP_INFERNO)[:, :, ::-1]
-    
+
             return [(original_image, colored_depth), tmp.name]
-    
+
         submit.click(on_submit, inputs=[input_image], outputs=[depth_image_slider, raw_file])
-    
+
         example_files = os.listdir("assets/examples")
         example_files.sort()
         example_files = [os.path.join("assets/examples", filename) for filename in example_files]
@@ -1105,8 +1105,8 @@ launch the interactive demo.
             fn=on_submit,
             cache_examples=False,
         )
-    
-    
+
+
     if __name__ == "__main__":
         try:
             demo.queue().launch(debug=False)
@@ -1120,12 +1120,12 @@ launch the interactive demo.
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

@@ -38,24 +38,24 @@ estimate performance for Pytorch and OpenVINO models using almost the
 same code. We also demonstrate how to make model stateful, that provides
 opportunity for processing model cache state.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
+
+-  `Prerequisites <#prerequisites>`__
 -  `Convert model to OpenVINO Intermediate Representation (IR) and
    compress model weights to INT4 using
-   NNCF <#Convert-model-to-OpenVINO-Intermediate-Representation-(IR)-and-compress-model-weights-to-INT4-using-NNCF>`__
+   NNCF <#convert-model-to-openvino-intermediate-representation-ir-and-compress-model-weights-to-int4-using-nncf>`__
 -  `Apply stateful transformation for automatic handling model
-   state <#Apply-stateful-transformation-for-automatic-handling-model-state>`__
--  `Select device for inference <#Select-device-for-inference>`__
--  `Estimate model performance <#Estimate-model-performance>`__
--  `Using model with Optimum Intel <#Using-model-with-Optimum-Intel>`__
--  `Interactive chatbot demo <#Interactive-chatbot-demo>`__
+   state <#apply-stateful-transformation-for-automatic-handling-model-state>`__
+-  `Select device for inference <#select-device-for-inference>`__
+-  `Estimate model performance <#estimate-model-performance>`__
+-  `Using model with Optimum Intel <#using-model-with-optimum-intel>`__
+-  `Interactive chatbot demo <#interactive-chatbot-demo>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 For starting work, we should install required packages first
 
@@ -63,13 +63,13 @@ For starting work, we should install required packages first
 
     from pathlib import Path
     import sys
-    
-    
+
+
     genai_llm_bench = Path("openvino.genai/llm_bench/python")
-    
+
     if not genai_llm_bench.exists():
         !git clone  https://github.com/openvinotoolkit/openvino.genai.git
-    
+
     sys.path.append(str(genai_llm_bench))
 
 .. code:: ipython3
@@ -82,7 +82,7 @@ For starting work, we should install required packages first
 Convert model to OpenVINO Intermediate Representation (IR) and compress model weights to INT4 using NNCF
 --------------------------------------------------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 llm_bench provides conversion script for converting LLMS into OpenVINO
 IR format compatible with Optimum-Intel. It also allows to compress
@@ -99,7 +99,7 @@ performance even more but introduces a minor drop in prediction quality.
 Apply stateful transformation for automatic handling model state
 ----------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Stable Zephyr is a decoder-only transformer model and generates text
 token by token in an autoregressive fashion. Since the output side is
@@ -139,9 +139,9 @@ that
 .. code:: ipython3
 
     stateful_model_path = Path("stable-zephyr-3b-stateful/pytorch/dldt/compressed_weights/OV_FP16-4BIT_DEFAULT")
-    
+
     convert_script = genai_llm_bench / "convert.py"
-    
+
     if not (stateful_model_path / "openvino_model.xml").exists():
         !python $convert_script --model_id stabilityai/stable-zephyr-3b --precision FP16 --compress_weights 4BIT_DEFAULT --output stable-zephyr-3b-stateful --force_convert
 
@@ -183,27 +183,27 @@ that
     | 4            | 91% (224 / 226)           | 100% (224 / 224)                  |
     +--------------+---------------------------+-----------------------------------+
     [2KApplying Weight Compression ━━━━━━━━━━━━━━━━━━━ 100% 226/226 • 0:01:29 • 0:00:00;0;104;181m0:00:01181m0:00:05
-    
+
 
 Select device for inference
 ---------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import ipywidgets as widgets
     import openvino as ov
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices,
         value="CPU",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -218,7 +218,7 @@ Select device for inference
 Estimate model performance
 --------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 openvino.genai / llm_bench / python / benchmark.py script allow to
 estimate text generation pipeline inference on specific input prompt
@@ -227,7 +227,7 @@ with given number of maximum generated tokens.
 .. code:: ipython3
 
     benchmark_script = genai_llm_bench / "benchmark.py"
-    
+
     !python $benchmark_script -m $stateful_model_path -ic 512 -p "Tell me story about cats" -d $device.value
 
 
@@ -283,12 +283,12 @@ with given number of maximum generated tokens.
 Compare with model without state
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     stateless_model_path = Path("stable-zephyr-3b-stateless/pytorch/dldt/compressed_weights/OV_FP16-4BIT_DEFAULT")
-    
+
     if not (stateless_model_path / "openvino_model.xml").exists():
         !python $convert_script --model_id stabilityai/stable-zephyr-3b --precision FP16 --compress_weights 4BIT_DEFAULT --output stable-zephyr-3b-stateless --force_convert --disable-stateful
 
@@ -348,7 +348,7 @@ Compare with model without state
     | 4            | 91% (224 / 226)           | 100% (224 / 224)                  |
     +--------------+---------------------------+-----------------------------------+
     [2KApplying Weight Compression ━━━━━━━━━━━━━━━━━━━ 100% 226/226 • 0:01:29 • 0:00:00;0;104;181m0:00:01181m0:00:05
-    
+
 
 .. code:: ipython3
 
@@ -408,7 +408,7 @@ Compare with model without state
 Using model with Optimum Intel
 ------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Running model with Optimum-Intel API required following steps: 1.
 register normalized config for model 2. create instance of
@@ -423,7 +423,7 @@ sequence of generated token ids that should be decoded using a tokenizer
 
     from optimum.intel.openvino import OVModelForCausalLM
     from transformers import AutoConfig
-    
+
     ov_model = OVModelForCausalLM.from_pretrained(
         stateful_model_path,
         config=AutoConfig.from_pretrained(stateful_model_path, trust_remote_code=True),
@@ -433,7 +433,7 @@ sequence of generated token ids that should be decoded using a tokenizer
 Interactive chatbot demo
 ------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 | Now, our model ready to use. Let’s see it in action. We will use
   Gradio interface for interaction with model. Put text message into
@@ -448,14 +448,14 @@ Interactive chatbot demo
 
 ::
 
-   playing: 0.5  
-   sleeping: 0.25  
-   eating: 0.15  
-   driving: 0.05  
-   flying: 0.05  
+   playing: 0.5
+   sleeping: 0.25
+   eating: 0.15
+   driving: 0.05
+   flying: 0.05
 
-   - **Low temperature** (e.g., 0.2): The AI model becomes more focused and deterministic, choosing tokens with the highest probability, such as "playing."  
-   - **Medium temperature** (e.g., 1.0): The AI model maintains a balance between creativity and focus, selecting tokens based on their probabilities without significant bias, such as "playing," "sleeping," or "eating."  
+   - **Low temperature** (e.g., 0.2): The AI model becomes more focused and deterministic, choosing tokens with the highest probability, such as "playing."
+   - **Medium temperature** (e.g., 1.0): The AI model maintains a balance between creativity and focus, selecting tokens based on their probabilities without significant bias, such as "playing," "sleeping," or "eating."
    - **High temperature** (e.g., 2.0): The AI model becomes more adventurous, increasing the chances of selecting less likely tokens, such as "driving" and "flying."
 
 -  ``Top-p``, also known as nucleus sampling, is a parameter used to
@@ -503,16 +503,16 @@ You can modify them in ``Advanced generation options`` section.
         StoppingCriteriaList,
         TextIteratorStreamer,
     )
-    
+
     model_name = "stable-zephyr-3b"
-    
+
     tok = AutoTokenizer.from_pretrained(stateful_model_path)
-    
+
     DEFAULT_SYSTEM_PROMPT = """\
     You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.
     If a question does not make any sense or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.\
     """
-    
+
     model_configuration = {
         "start_message": f"<|system|>\n {DEFAULT_SYSTEM_PROMPT }<|endoftext|>",
         "history_template": "<|user|>\n{user}<|endoftext|><|assistant|>\n{assistant}<|endoftext|>",
@@ -523,7 +523,7 @@ You can modify them in ``Advanced generation options`` section.
     start_message = model_configuration["start_message"]
     stop_tokens = model_configuration.get("stop_tokens")
     tokenizer_kwargs = model_configuration.get("tokenizer_kwargs", {})
-    
+
     examples = [
         ["Hello there! How are you doing?"],
         ["What is OpenVINO?"],
@@ -533,46 +533,46 @@ You can modify them in ``Advanced generation options`` section.
         ["What are some common mistakes to avoid when writing code?"],
         ["Write a 100-word blog post on “Benefits of Artificial Intelligence and OpenVINO“"],
     ]
-    
+
     max_new_tokens = 256
-    
-    
+
+
     class StopOnTokens(StoppingCriteria):
         def __init__(self, token_ids):
             self.token_ids = token_ids
-    
+
         def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
             for stop_id in self.token_ids:
                 if input_ids[0][-1] == stop_id:
                     return True
             return False
-    
-    
+
+
     if stop_tokens is not None:
         if isinstance(stop_tokens[0], str):
             stop_tokens = tok.convert_tokens_to_ids(stop_tokens)
-    
+
         stop_tokens = [StopOnTokens(stop_tokens)]
-    
-    
+
+
     def default_partial_text_processor(partial_text: str, new_text: str):
         """
         helper for updating partially generated answer, used by de
-    
+
         Params:
           partial_text: text buffer for storing previosly generated text
           new_text: text update for the current step
         Returns:
           updated text string
-    
+
         """
         partial_text += new_text
         return partial_text
-    
-    
+
+
     text_processor = model_configuration.get("partial_text_processor", default_partial_text_processor)
-    
-    
+
+
     def convert_history_to_text(history: List[Tuple[str, str]]):
         """
         function for conversion history stored as list pairs of user and assistant messages to string according to model expected conversation template
@@ -596,12 +596,12 @@ You can modify them in ``Advanced generation options`` section.
             ]
         )
         return text
-    
-    
+
+
     def user(message, history):
         """
         callback function for updating user messages in interface on submit button click
-    
+
         Params:
           message: current message
           history: conversation history
@@ -610,12 +610,12 @@ You can modify them in ``Advanced generation options`` section.
         """
         # Append the user's message to the conversation history
         return "", history + [[message, ""]]
-    
-    
+
+
     def bot(history, temperature, top_p, top_k, repetition_penalty, conversation_id):
         """
         callback function for running chatbot on submit button click
-    
+
         Params:
           history: conversation history
           temperature:  parameter for control the level of creativity in AI-generated text.
@@ -624,12 +624,12 @@ You can modify them in ``Advanced generation options`` section.
           top_k: parameter for control the range of tokens considered by the AI model based on their cumulative probability, selecting number of tokens with highest probability.
           repetition_penalty: parameter for penalizing tokens based on how frequently they occur in the text.
           conversation_id: unique conversation identifier.
-    
+
         """
-    
+
         # Construct the input message string for the model by concatenating the current system message and conversation history
         messages = convert_history_to_text(history)
-    
+
         # Tokenize the messages string
         input_ids = tok(messages, return_tensors="pt", **tokenizer_kwargs).input_ids
         if input_ids.shape[1] > 2000:
@@ -649,9 +649,9 @@ You can modify them in ``Advanced generation options`` section.
         )
         if stop_tokens is not None:
             generate_kwargs["stopping_criteria"] = StoppingCriteriaList(stop_tokens)
-    
+
         stream_complete = Event()
-    
+
         def generate_and_signal_complete():
             """
             genration function for single thread
@@ -659,25 +659,25 @@ You can modify them in ``Advanced generation options`` section.
             global start_time
             ov_model.generate(**generate_kwargs)
             stream_complete.set()
-    
+
         t1 = Thread(target=generate_and_signal_complete)
         t1.start()
-    
+
         # Initialize an empty string to store the generated text
         partial_text = ""
         for new_text in streamer:
             partial_text = text_processor(partial_text, new_text)
             history[-1][1] = partial_text
             yield history
-    
-    
+
+
     def get_uuid():
         """
         universal unique identifier for thread
         """
         return str(uuid4())
-    
-    
+
+
     with gr.Blocks(
         theme=gr.themes.Soft(),
         css=".disclaimer {font-variant-caps: all-small-caps;}",
@@ -749,7 +749,7 @@ You can modify them in ``Advanced generation options`` section.
                                 info="Penalize repetition — 1.0 to disable.",
                             )
         gr.Examples(examples, inputs=msg, label="Click on any example and press the 'Submit' button")
-    
+
         submit_event = msg.submit(
             fn=user,
             inputs=[msg, chatbot],
@@ -794,7 +794,7 @@ You can modify them in ``Advanced generation options`` section.
             queue=False,
         )
         clear.click(lambda: None, None, chatbot, queue=False)
-    
+
     demo.queue(max_size=2)
     # if you are launching remotely, specify server_name and server_port
     #  demo.launch(server_name='your server name', server_port='server port in int')

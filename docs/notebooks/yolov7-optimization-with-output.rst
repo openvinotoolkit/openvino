@@ -38,43 +38,43 @@ The tutorial consists of the following steps:
 -  Compare accuracy of the FP32 and quantized models.
 -  Compare performance of the FP32 and quantized models.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Get Pytorch model <#Get-Pytorch-model>`__
--  `Prerequisites <#Prerequisites>`__
--  `Check model inference <#Check-model-inference>`__
--  `Export to ONNX <#Export-to-ONNX>`__
+
+-  `Get Pytorch model <#get-pytorch-model>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Check model inference <#check-model-inference>`__
+-  `Export to ONNX <#export-to-onnx>`__
 -  `Convert ONNX Model to OpenVINO Intermediate Representation
-   (IR) <#Convert-ONNX-Model-to-OpenVINO-Intermediate-Representation-(IR)>`__
--  `Verify model inference <#Verify-model-inference>`__
+   (IR) <#convert-onnx-model-to-openvino-intermediate-representation-ir>`__
+-  `Verify model inference <#verify-model-inference>`__
 
-   -  `Preprocessing <#Preprocessing>`__
-   -  `Postprocessing <#Postprocessing>`__
-   -  `Select inference device <#Select-inference-device>`__
+   -  `Preprocessing <#preprocessing>`__
+   -  `Postprocessing <#postprocessing>`__
+   -  `Select inference device <#select-inference-device>`__
 
--  `Verify model accuracy <#Verify-model-accuracy>`__
+-  `Verify model accuracy <#verify-model-accuracy>`__
 
-   -  `Download dataset <#Download-dataset>`__
-   -  `Create dataloader <#Create-dataloader>`__
-   -  `Define validation function <#Define-validation-function>`__
+   -  `Download dataset <#download-dataset>`__
+   -  `Create dataloader <#create-dataloader>`__
+   -  `Define validation function <#define-validation-function>`__
 
 -  `Optimize model using NNCF Post-training Quantization
-   API <#Optimize-model-using-NNCF-Post-training-Quantization-API>`__
+   API <#optimize-model-using-nncf-post-training-quantization-api>`__
 -  `Validate Quantized model
-   inference <#Validate-Quantized-model-inference>`__
+   inference <#validate-quantized-model-inference>`__
 -  `Validate quantized model
-   accuracy <#Validate-quantized-model-accuracy>`__
+   accuracy <#validate-quantized-model-accuracy>`__
 -  `Compare Performance of the Original and Quantized
-   Models <#Compare-Performance-of-the-Original-and-Quantized-Models>`__
+   Models <#compare-performance-of-the-original-and-quantized-models>`__
 
 Get Pytorch model
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Generally, PyTorch models represent an instance of the
-```torch.nn.Module`` <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
+`torch.nn.Module <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
 class, initialized by a state dictionary with model weights. We will use
 the YOLOv7 tiny model pre-trained on a COCO dataset, which is available
 in this `repo <https://github.com/WongKinYiu/yolov7>`__. Typical steps
@@ -91,14 +91,14 @@ the YOLOv7 model to ONNX, so we do not need to do these steps manually.
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import platform
-    
+
     %pip install -q "openvino>=2023.1.0" "nncf>=2.5.0" "opencv-python" "seaborn" "onnx" "Pillow" "pandas" "scikit-learn" "torch" "torchvision"  "PyYAML>=5.3.1" "tqdm" --extra-index-url https://download.pytorch.org/whl/cpu
-    
+
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
@@ -119,11 +119,11 @@ Prerequisites
 
     # Fetch `notebook_utils` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-    
+
     open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file
 
@@ -131,7 +131,7 @@ Prerequisites
 
     # Clone YOLOv7 repo
     from pathlib import Path
-    
+
     if not Path("yolov7").exists():
         !git clone https://github.com/WongKinYiu/yolov7
     %cd yolov7
@@ -155,7 +155,7 @@ Prerequisites
     MODEL_DIR = Path("model/")
     MODEL_DIR.mkdir(exist_ok=True)
     DATA_DIR.mkdir(exist_ok=True)
-    
+
     download_file(MODEL_LINK, directory=MODEL_DIR, show_progress=True)
 
 
@@ -176,7 +176,7 @@ Prerequisites
 Check model inference
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 ``detect.py`` script run pytorch model inference and save image as
 result,
@@ -190,13 +190,13 @@ result,
 
     Namespace(agnostic_nms=False, augment=False, classes=None, conf_thres=0.25, device='', exist_ok=False, img_size=640, iou_thres=0.45, name='exp', no_trace=False, nosave=False, project='runs/detect', save_conf=False, save_txt=False, source='inference/images/horses.jpg', update=False, view_img=False, weights=['model/yolov7-tiny.pt'])
     YOLOR 🚀 v0.1-128-ga207844 torch 2.3.1+cpu CPU
-    
-    Fusing layers... 
+
+    Fusing layers...
     Model Summary: 200 layers, 6219709 parameters, 229245 gradients, 13.7 GFLOPS
-     Convert model to Traced-model... 
-     traced_script_module saved! 
-     model is traced! 
-    
+     Convert model to Traced-model...
+     traced_script_module saved!
+     model is traced!
+
     5 horses, Done. (77.8ms) Inference, (0.9ms) NMS
      The image with the result is saved in: runs/detect/exp/horses.jpg
     Done. (0.085s)
@@ -205,7 +205,7 @@ result,
 .. code:: ipython3
 
     from PIL import Image
-    
+
     # visualize prediction result
     Image.open("runs/detect/exp/horses.jpg")
 
@@ -219,7 +219,7 @@ result,
 Export to ONNX
 --------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To export an ONNX format of the model, we will use ``export.py`` script.
 Let us check its arguments.
@@ -238,7 +238,7 @@ Let us check its arguments.
                      [--iou-thres IOU_THRES] [--conf-thres CONF_THRES]
                      [--device DEVICE] [--simplify] [--include-nms] [--fp16]
                      [--int8]
-    
+
     optional arguments:
       -h, --help            show this help message and exit
       --weights WEIGHTS     weights path
@@ -297,27 +297,27 @@ an end2end ONNX model, you can check this
     Import onnx_graphsurgeon failure: No module named 'onnx_graphsurgeon'
     Namespace(batch_size=1, conf_thres=0.25, device='cpu', dynamic=False, dynamic_batch=False, end2end=False, fp16=False, grid=True, img_size=[640, 640], include_nms=False, int8=False, iou_thres=0.45, max_wh=None, simplify=False, topk_all=100, weights='model/yolov7-tiny.pt')
     YOLOR 🚀 v0.1-128-ga207844 torch 2.3.1+cpu CPU
-    
-    Fusing layers... 
+
+    Fusing layers...
     Model Summary: 200 layers, 6219709 parameters, 6219709 gradients, 13.7 GFLOPS
-    
+
     Starting TorchScript export with torch 2.3.1+cpu...
     TorchScript export success, saved as model/yolov7-tiny.torchscript.pt
     CoreML export failure: No module named 'coremltools'
-    
+
     Starting TorchScript-Lite export with torch 2.3.1+cpu...
     TorchScript-Lite export success, saved as model/yolov7-tiny.torchscript.ptl
-    
+
     Starting ONNX export with onnx 1.16.1...
     ONNX export success, saved as model/yolov7-tiny.onnx
-    
+
     Export complete (2.69s). Visualize with https://github.com/lutzroeder/netron.
 
 
 Convert ONNX Model to OpenVINO Intermediate Representation (IR)
 ---------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__ While ONNX models are directly
+While ONNX models are directly
 supported by OpenVINO runtime, it can be useful to convert them to IR
 format to take the advantage of OpenVINO model conversion API features.
 The ``ov.convert_model`` python function of `model conversion
@@ -330,7 +330,7 @@ However, it can also be save on device in OpenVINO IR format using
 .. code:: ipython3
 
     import openvino as ov
-    
+
     model = ov.convert_model("model/yolov7-tiny.onnx")
     # serialize model for saving IR
     ov.save_model(model, "model/yolov7-tiny.xml")
@@ -338,7 +338,7 @@ However, it can also be save on device in OpenVINO IR format using
 Verify model inference
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To test model work, we create inference pipeline similar to
 ``detect.py``. The pipeline consists of preprocessing step, inference of
@@ -347,7 +347,7 @@ OpenVINO model, and results post-processing to get bounding boxes.
 Preprocessing
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Model input is a tensor with the ``[1, 3, 640, 640]`` shape in
 ``N, C, H, W`` format, where
@@ -371,13 +371,13 @@ To keep specific shape, preprocessing automatically enables padding.
     from PIL import Image
     from utils.datasets import letterbox
     from utils.plots import plot_one_box
-    
-    
+
+
     def preprocess_image(img0: np.ndarray):
         """
         Preprocess image according to YOLOv7 input requirements.
         Takes image in np.array format, resizes it to specific size using letterbox resize, converts color space from BGR (default in OpenCV) to RGB and changes data layout from HWC to CHW.
-    
+
         Parameters:
           img0 (np.ndarray): image for preprocessing
         Returns:
@@ -386,18 +386,18 @@ To keep specific shape, preprocessing automatically enables padding.
         """
         # resize
         img = letterbox(img0, auto=False)[0]
-    
+
         # Convert
         img = img.transpose(2, 0, 1)
         img = np.ascontiguousarray(img)
         return img, img0
-    
-    
+
+
     def prepare_input_tensor(image: np.ndarray):
         """
         Converts preprocessed image to tensor format according to YOLOv7 input requirements.
         Takes image in np.array format with unit8 data in [0, 255] range and converts it to torch.Tensor object with float data in [0, 1] range
-    
+
         Parameters:
           image (np.ndarray): image for conversion to tensor
         Returns:
@@ -405,12 +405,12 @@ To keep specific shape, preprocessing automatically enables padding.
         """
         input_tensor = image.astype(np.float32)  # uint8 to fp16/32
         input_tensor /= 255.0  # 0 - 255 to 0.0 - 1.0
-    
+
         if input_tensor.ndim == 3:
             input_tensor = np.expand_dims(input_tensor, 0)
         return input_tensor
-    
-    
+
+
     # label names for visualization
     DEFAULT_NAMES = [
         "person",
@@ -494,23 +494,23 @@ To keep specific shape, preprocessing automatically enables padding.
         "hair drier",
         "toothbrush",
     ]
-    
+
     # obtain class names from model checkpoint
     state_dict = torch.load("model/yolov7-tiny.pt", map_location="cpu")
     if hasattr(state_dict["model"], "module"):
         NAMES = getattr(state_dict["model"].module, "names", DEFAULT_NAMES)
     else:
         NAMES = getattr(state_dict["model"], "names", DEFAULT_NAMES)
-    
+
     del state_dict
-    
+
     # colors for visualization
     COLORS = {name: [np.random.randint(0, 255) for _ in range(3)] for i, name in enumerate(NAMES)}
 
 Postprocessing
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Model output contains detection boxes candidates. It is a tensor with
 the ``[1,25200,85]`` shape in the ``B, N, 85`` format, where:
@@ -534,8 +534,8 @@ algorithm and rescale boxes coordinates to original image size.
 
     from typing import List, Tuple, Dict
     from utils.general import scale_coords, non_max_suppression
-    
-    
+
+
     def detect(
         model: ov.Model,
         image_path: Path,
@@ -565,8 +565,8 @@ algorithm and rescale boxes coordinates to original image size.
         predictions = torch.from_numpy(model(input_tensor)[output_blob])
         pred = non_max_suppression(predictions, conf_thres, iou_thres, classes=classes, agnostic=agnostic_nms)
         return pred, orig_img, input_tensor.shape
-    
-    
+
+
     def draw_boxes(
         predictions: np.ndarray,
         input_shape: Tuple[int],
@@ -588,7 +588,7 @@ algorithm and rescale boxes coordinates to original image size.
             return image
         # Rescale boxes from input size to original image size
         predictions[:, :4] = scale_coords(input_shape[2:], predictions[:, :4], image.shape).round()
-    
+
         # Write results
         for *xyxy, conf, cls in reversed(predictions):
             label = f"{names[int(cls)]} {conf:.2f}"
@@ -604,21 +604,21 @@ algorithm and rescale boxes coordinates to original image size.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -652,12 +652,12 @@ select device from dropdown list for running inference using OpenVINO
 Verify model accuracy
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Download dataset
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 YOLOv7 tiny is pre-trained on the COCO dataset, so in order to evaluate
 the model accuracy, we need to download it. According to the
@@ -668,15 +668,15 @@ the original model evaluation scripts.
 .. code:: ipython3
 
     from zipfile import ZipFile
-    
+
     DATA_URL = "http://images.cocodataset.org/zips/val2017.zip"
     LABELS_URL = "https://github.com/ultralytics/yolov5/releases/download/v1.0/coco2017labels-segments.zip"
-    
+
     OUT_DIR = Path(".")
-    
+
     download_file(DATA_URL, directory=OUT_DIR, show_progress=True)
     download_file(LABELS_URL, directory=OUT_DIR, show_progress=True)
-    
+
     if not (OUT_DIR / "coco/labels").exists():
         with ZipFile("coco2017labels-segments.zip", "r") as zip_ref:
             zip_ref.extractall(OUT_DIR)
@@ -699,7 +699,7 @@ the original model evaluation scripts.
 Create dataloader
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -707,12 +707,12 @@ Create dataloader
     import yaml
     from utils.datasets import create_dataloader
     from utils.general import check_dataset, box_iou, xywh2xyxy, colorstr
-    
+
     # read dataset config
     DATA_CONFIG = "data/coco.yaml"
     with open(DATA_CONFIG) as f:
         data = yaml.load(f, Loader=yaml.SafeLoader)
-    
+
     # Dataloader
     TASK = "val"  # path to train/val/test images
     Option = namedtuple("Options", ["single_cls"])  # imitation of commandline provided options for single class evaluation
@@ -728,7 +728,7 @@ Create dataloader
 Define validation function
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We will reuse validation metrics provided in the YOLOv7 repo with a
 modification for this case (removing extra steps). The original model
@@ -740,8 +740,8 @@ evaluation procedure can be found in this
     import numpy as np
     from tqdm.notebook import tqdm
     from utils.metrics import ap_per_class
-    
-    
+
+
     def test(
         data,
         model: ov.Model,
@@ -755,7 +755,7 @@ evaluation procedure can be found in this
     ):
         """
         YOLOv7 accuracy evaluation. Processes validation dataset and compites metrics.
-    
+
         Parameters:
             model (ov.Model): OpenVINO compiled model.
             dataloader (torch.utils.DataLoader): validation dataset.
@@ -774,16 +774,16 @@ evaluation procedure can be found in this
             seen (int): number of evaluated images
             labels (int): number of labels
         """
-    
+
         model_output = model.output(0)
         check_dataset(data)  # check
         nc = 1 if single_cls else int(data["nc"])  # number of classes
         iouv = torch.linspace(0.5, 0.95, 10)  # iou vector for mAP@0.5:0.95
         niou = iouv.numel()
-    
+
         if v5_metric:
             print("Testing with YOLOv5 AP metric...")
-    
+
         seen = 0
         p, r, mp, mr, map50, map = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
         stats, ap, ap_class = [], [], []
@@ -793,13 +793,13 @@ evaluation procedure can be found in this
             img = prepare_input_tensor(img.numpy())
             targets = targets
             height, width = img.shape[2:]
-    
+
             with torch.no_grad():
                 # Run model
                 out = torch.from_numpy(model(ov.Tensor(img))[model_output])  # inference output
                 # Run NMS
                 targets[:, 2:] *= torch.Tensor([width, height, width, height])  # to pixels
-    
+
                 out = non_max_suppression(
                     out,
                     conf_thres=conf_thres,
@@ -813,7 +813,7 @@ evaluation procedure can be found in this
                 nl = len(labels)
                 tcls = labels[:, 0].tolist() if nl else []  # target class
                 seen += 1
-    
+
                 if len(pred) == 0:
                     if nl:
                         stats.append(
@@ -917,7 +917,7 @@ Validation function reports following list of accuracy metrics:
 Optimize model using NNCF Post-training Quantization API
 --------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -943,8 +943,8 @@ transformation function for getting only input tensors.
 .. code:: ipython3
 
     import nncf  # noqa: F811
-    
-    
+
+
     def transform_fn(data_item):
         """
         Quantization transform function. Extracts and preprocess input data from dataloader item for quantization.
@@ -956,8 +956,8 @@ transformation function for getting only input tensors.
         img = data_item[0].numpy()
         input_tensor = prepare_input_tensor(img)
         return input_tensor
-    
-    
+
+
     quantization_dataset = nncf.Dataset(dataloader, transform_fn)
 
 
@@ -979,7 +979,7 @@ asymmetric quantization of activations.
 .. code:: ipython3
 
     quantized_model = nncf.quantize(model, quantization_dataset, preset=nncf.QuantizationPreset.MIXED)
-    
+
     ov.save_model(quantized_model, "model/yolov7-tiny_int8.xml")
 
 
@@ -998,17 +998,17 @@ asymmetric quantization of activations.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1019,17 +1019,17 @@ asymmetric quantization of activations.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1079,7 +1079,7 @@ asymmetric quantization of activations.
 Validate Quantized model inference
 ----------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1111,7 +1111,7 @@ Validate Quantized model inference
 Validate quantized model accuracy
 ---------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -1155,7 +1155,7 @@ significant.
 Compare Performance of the Original and Quantized Models
 --------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Finally, use the OpenVINO `Benchmark
 Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-tool.html>`__
@@ -1196,12 +1196,12 @@ models.
     [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.4.0-16028-fe423b97163
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
     [ INFO ] Build ................................. 2024.4.0-16028-fe423b97163
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -1254,7 +1254,7 @@ models.
     [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'images'!. This input will be filled with random values!
-    [ INFO ] Fill input 'images' with random values 
+    [ INFO ] Fill input 'images' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 46.77 ms
@@ -1284,12 +1284,12 @@ models.
     [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.4.0-16028-fe423b97163
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
     [ INFO ] Build ................................. 2024.4.0-16028-fe423b97163
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -1342,7 +1342,7 @@ models.
     [ INFO ]   PERF_COUNT: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'images'!. This input will be filled with random values!
-    [ INFO ] Fill input 'images' with random values 
+    [ INFO ] Fill input 'images' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 23.71 ms

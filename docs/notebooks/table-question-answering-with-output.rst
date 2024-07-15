@@ -28,26 +28,26 @@ architecture to encode tables as input, initializes from an effective
 joint pre-training of text segments and tables crawled from Wikipedia,
 and is trained end-to-end.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
+
+-  `Prerequisites <#prerequisites>`__
 -  `Use the original model to run an
-   inference <#Use-the-original-model-to-run-an-inference>`__
+   inference <#use-the-original-model-to-run-an-inference>`__
 -  `Convert the original model to OpenVINO Intermediate Representation
    (IR)
-   format <#Convert-the-original-model-to-OpenVINO-Intermediate-Representation-(IR)-format>`__
--  `Run the OpenVINO model <#Run-the-OpenVINO-model>`__
--  `Interactive inference <#Interactive-inference>`__
+   format <#convert-the-original-model-to-openvino-intermediate-representation-ir-format>`__
+-  `Run the OpenVINO model <#run-the-openvino-model>`__
+-  `Interactive inference <#interactive-inference>`__
 
 Prerequisites
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
-    
+
     %pip install -q torch "transformers>=4.31.0" "torch>=2.1" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "openvino>=2023.2.0" "gradio>=4.0.2"
 
@@ -83,7 +83,7 @@ tokenizer.
 
     model = TapasForQuestionAnswering.from_pretrained("google/tapas-large-finetuned-wtq")
     tokenizer = TapasTokenizer.from_pretrained("google/tapas-large-finetuned-wtq")
-    
+
     data = {
         "Actors": ["Brad Pitt", "Leonardo Di Caprio", "George Clooney"],
         "Number of movies": ["87", "53", "69"],
@@ -108,11 +108,11 @@ tokenizer.
         .dataframe tbody tr th:only-of-type {
             vertical-align: middle;
         }
-    
+
         .dataframe tbody tr th {
             vertical-align: top;
         }
-    
+
         .dataframe thead th {
             text-align: right;
         }
@@ -150,7 +150,7 @@ tokenizer.
 Use the original model to run an inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We use `this
 example <https://huggingface.co/tasks/table-question-answering>`__ to
@@ -175,7 +175,7 @@ documentation <https://huggingface.co/docs/transformers/model_doc/tapas>`__.
 Convert the original model to OpenVINO Intermediate Representation (IR) format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The original model is a PyTorch module, that can be converted with
 ``ov.convert_model`` function directly. We also use ``ov.save_model``
@@ -185,22 +185,22 @@ function to serialize the result of conversion.
 
     import openvino as ov
     from pathlib import Path
-    
-    
+
+
     # Define the input shape
     batch_size = 1
     sequence_length = 29
-    
+
     # Modify the input shape of the dummy_input dictionary
     dummy_input = {
         "input_ids": torch.zeros((batch_size, sequence_length), dtype=torch.long),
         "attention_mask": torch.zeros((batch_size, sequence_length), dtype=torch.long),
         "token_type_ids": torch.zeros((batch_size, sequence_length, 7), dtype=torch.long),
     }
-    
-    
+
+
     ov_model_xml_path = Path("models/ov_model.xml")
-    
+
     if not ov_model_xml_path.exists():
         ov_model = ov.convert_model(model, example_input=dummy_input)
         ov.save_model(ov_model, ov_model_xml_path)
@@ -276,23 +276,23 @@ function to serialize the result of conversion.
 Run the OpenVINO model
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Select a device from dropdown list for running inference using OpenVINO.
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -310,21 +310,21 @@ device. To prepare inputs use the original ``tokenizer``.
 .. code:: ipython3
 
     inputs = tokenizer(table=table, queries=question, padding="max_length", return_tensors="pt")
-    
+
     compiled_model = core.compile_model(ov_model_xml_path, device.value)
     result = compiled_model((inputs["input_ids"], inputs["attention_mask"], inputs["token_type_ids"]))
 
 Now we should postprocess results. For this, we can use the appropriate
 part of the code from
-```postprocess`` <https://github.com/huggingface/transformers/blob/fe2877ce21eb75d34d30664757e2727d7eab817e/src/transformers/pipelines/table_question_answering.py#L393>`__
+`postprocess <https://github.com/huggingface/transformers/blob/fe2877ce21eb75d34d30664757e2727d7eab817e/src/transformers/pipelines/table_question_answering.py#L393>`__
 method of ``TableQuestionAnsweringPipeline``.
 
 .. code:: ipython3
 
     logits = result[0]
     logits_aggregation = result[1]
-    
-    
+
+
     predictions = tokenizer.convert_logits_to_predictions(inputs, torch.from_numpy(result[0]))
     answer_coordinates_batch = predictions[0]
     aggregators = {}
@@ -341,9 +341,9 @@ method of ``TableQuestionAnsweringPipeline``.
         }
         if aggregator:
             answer["aggregator"] = aggregator
-    
+
         answers.append(answer)
-    
+
     print(answers[0]["cells"][0])
 
 
@@ -360,23 +360,23 @@ attributes of original model class to be integrated into the pipeline.
 .. code:: ipython3
 
     from transformers import TapasConfig
-    
-    
+
+
     # get config for pretrained model
     config = TapasConfig.from_pretrained("google/tapas-large-finetuned-wtq")
-    
-    
+
+
     class TapasForQuestionAnswering(TapasForQuestionAnswering):  # it is better to keep the class name to avoid warnings
         def __init__(self, ov_model_path):
             super().__init__(config)  # pass config from the pretrained model
             self.tqa_model = core.compile_model(ov_model_path, device.value)
-    
+
         def forward(self, input_ids, *, attention_mask, token_type_ids):
             results = self.tqa_model((input_ids, attention_mask, token_type_ids))
-    
+
             return torch.from_numpy(results[0]), torch.from_numpy(results[1])
-    
-    
+
+
     compiled_model = TapasForQuestionAnswering(ov_model_xml_path)
     tqa = pipeline(task="table-question-answering", model=compiled_model, tokenizer=tokenizer)
     print(tqa(table=table, query=question)["cells"][0])
@@ -396,46 +396,46 @@ attributes of original model class to be integrated into the pipeline.
 Interactive inference
 ~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import requests
-    
+
     import gradio as gr
     import pandas as pd
-    
+
     r = requests.get("https://github.com/openvinotoolkit/openvino_notebooks/files/13215688/eu_city_population_top10.csv")
-    
+
     with open("eu_city_population_top10.csv", "w") as f:
         f.write(r.text)
-    
-    
+
+
     def display_table(csv_file_name):
         table = pd.read_csv(csv_file_name.name, delimiter=",")
         table = table.astype(str)
-    
+
         return table
-    
-    
+
+
     def highlight_answers(x, coordinates):
         highlighted_table = pd.DataFrame("", index=x.index, columns=x.columns)
         for coordinates_i in coordinates:
             highlighted_table.iloc[coordinates_i[0], coordinates_i[1]] = "background-color: lightgreen"
-    
+
         return highlighted_table
-    
-    
+
+
     def infer(query, csv_file_name):
         table = pd.read_csv(csv_file_name.name, delimiter=",")
         table = table.astype(str)
-    
+
         result = tqa(table=table, query=query)
         table = table.style.apply(highlight_answers, axis=None, coordinates=result["coordinates"])
-    
+
         return result["answer"], table
-    
-    
+
+
     with gr.Blocks(title="TAPAS Table Question Answering") as demo:
         with gr.Row():
             with gr.Column():
@@ -445,7 +445,7 @@ Interactive inference
             with gr.Column():
                 answer = gr.Textbox(label="Result")
                 result_csv_file = gr.Dataframe(label="All data")
-    
+
         examples = [
             [
                 "What is the city with the highest population that is not a capital?",
@@ -458,13 +458,13 @@ Interactive inference
             ],
         ]
         gr.Examples(examples, inputs=[search_query, csv_file])
-    
+
         # Callbacks
         csv_file.upload(display_table, inputs=csv_file, outputs=result_csv_file)
         csv_file.select(display_table, inputs=csv_file, outputs=result_csv_file)
         csv_file.change(display_table, inputs=csv_file, outputs=result_csv_file)
         infer_button.click(infer, inputs=[search_query, csv_file], outputs=[answer, result_csv_file])
-    
+
     try:
         demo.queue().launch(debug=False)
     except Exception:
@@ -474,12 +474,12 @@ Interactive inference
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 
 
-.. raw:: html
 
-    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
+
+
 

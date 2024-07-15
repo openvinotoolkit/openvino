@@ -38,28 +38,28 @@ and has the following differences:
 The steps for the quantization with accuracy control are described
 below.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
+
+-  `Prerequisites <#prerequisites>`__
 -  `Get Pytorch model and OpenVINO IR
-   model <#Get-Pytorch-model-and-OpenVINO-IR-model>`__
+   model <#get-pytorch-model-and-openvino-ir-model>`__
 
    -  `Define validator and data
-      loader <#Define-validator-and-data-loader>`__
+      loader <#define-validator-and-data-loader>`__
    -  `Prepare calibration and validation
-      datasets <#Prepare-calibration-and-validation-datasets>`__
-   -  `Prepare validation function <#Prepare-validation-function>`__
+      datasets <#prepare-calibration-and-validation-datasets>`__
+   -  `Prepare validation function <#prepare-validation-function>`__
 
 -  `Run quantization with accuracy
-   control <#Run-quantization-with-accuracy-control>`__
+   control <#run-quantization-with-accuracy-control>`__
 -  `Compare Accuracy and Performance of the Original and Quantized
-   Models <#Compare-Accuracy-and-Performance-of-the-Original-and-Quantized-Models>`__
+   Models <#compare-accuracy-and-performance-of-the-original-and-quantized-models>`__
 
 Prerequisites
 ^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Install necessary packages.
 
@@ -72,10 +72,10 @@ Install necessary packages.
 Get Pytorch model and OpenVINO IR model
 ---------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Generally, PyTorch models represent an instance of the
-```torch.nn.Module`` <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
+`torch.nn.Module <https://pytorch.org/docs/stable/generated/torch.nn.Module.html>`__
 class, initialized by a state dictionary with model weights. We will use
 the YOLOv8 nano model (also known as ``yolov8n``) pre-trained on a COCO
 dataset, which is available in this
@@ -95,7 +95,7 @@ we do not need to do these steps manually.
 
     import os
     from pathlib import Path
-    
+
     from ultralytics import YOLO
     from ultralytics.cfg import get_cfg
     from ultralytics.data.utils import check_det_dataset
@@ -103,11 +103,11 @@ we do not need to do these steps manually.
     from ultralytics.utils import DEFAULT_CFG
     from ultralytics.utils import ops
     from ultralytics.utils.metrics import ConfusionMatrix
-    
+
     ROOT = os.path.abspath("")
-    
+
     MODEL_NAME = "yolov8n-seg"
-    
+
     model = YOLO(f"{ROOT}/{MODEL_NAME}.pt")
     args = get_cfg(cfg=DEFAULT_CFG)
     args.data = "coco128-seg.yaml"
@@ -116,32 +116,32 @@ we do not need to do these steps manually.
 
     # Fetch the notebook utils script from the openvino_notebooks repo
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-    
+
     open("notebook_utils.py", "w").write(r.text)
-    
+
     from notebook_utils import download_file
 
 .. code:: ipython3
 
     from zipfile import ZipFile
-    
+
     from ultralytics.data.utils import DATASETS_DIR
-    
+
     DATA_URL = "https://www.ultralytics.com/assets/coco128-seg.zip"
     CFG_URL = "https://raw.githubusercontent.com/ultralytics/ultralytics/8ebe94d1e928687feaa1fee6d5668987df5e43be/ultralytics/datasets/coco128-seg.yaml"  # last compatible format with ultralytics 8.0.43
-    
+
     OUT_DIR = DATASETS_DIR
-    
+
     DATA_PATH = OUT_DIR / "coco128-seg.zip"
     CFG_PATH = OUT_DIR / "coco128-seg.yaml"
-    
+
     download_file(DATA_URL, DATA_PATH.name, DATA_PATH.parent)
     download_file(CFG_URL, CFG_PATH.name, CFG_PATH.parent)
-    
+
     if not (OUT_DIR / "coco128/labels").exists():
         with ZipFile(DATA_PATH, "r") as zip_ref:
             zip_ref.extractall(OUT_DIR)
@@ -163,18 +163,18 @@ Load model.
 .. code:: ipython3
 
     import openvino as ov
-    
-    
+
+
     model_path = Path(f"{ROOT}/{MODEL_NAME}_openvino_model/{MODEL_NAME}.xml")
     if not model_path.exists():
         model.export(format="openvino", dynamic=True, half=False)
-    
+
     ov_model = ov.Core().read_model(model_path)
 
 Define validator and data loader
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The original model repository uses a ``Validator`` wrapper, which
 represents the accuracy validation pipeline. It creates dataloader and
@@ -189,13 +189,13 @@ validator class instance.
 .. code:: ipython3
 
     from ultralytics.data.converter import coco80_to_coco91_class
-    
-    
+
+
     validator = model.task_map[model.task]["validator"](args=args)
     validator.data = check_det_dataset(args.data)
     validator.stride = 3
     data_loader = validator.get_dataloader(OUT_DIR / "coco128-seg", 1)
-    
+
     validator.is_coco = True
     validator.class_map = coco80_to_coco91_class()
     validator.names = model.model.names
@@ -208,7 +208,7 @@ validator class instance.
 Prepare calibration and validation datasets
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 We can use one dataset as calibration and validation datasets. Name it
 ``quantization_dataset``.
@@ -216,15 +216,15 @@ We can use one dataset as calibration and validation datasets. Name it
 .. code:: ipython3
 
     from typing import Dict
-    
+
     import nncf
-    
-    
+
+
     def transform_fn(data_item: Dict):
         input_tensor = validator.preprocess(data_item)["img"].numpy()
         return input_tensor
-    
-    
+
+
     quantization_dataset = nncf.Dataset(data_loader, transform_fn)
 
 
@@ -236,16 +236,16 @@ We can use one dataset as calibration and validation datasets. Name it
 Prepare validation function
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     from functools import partial
-    
+
     import torch
     from nncf.quantization.advanced_parameters import AdvancedAccuracyRestorerParameters
-    
-    
+
+
     def validation_ac(
         compiled_model: ov.CompiledModel,
         validation_loader: torch.utils.data.DataLoader,
@@ -259,7 +259,7 @@ Prepare validation function
         validator.batch_i = 1
         validator.confusion_matrix = ConfusionMatrix(nc=validator.nc)
         num_outputs = len(compiled_model.outputs)
-    
+
         counter = 0
         for batch_i, batch in enumerate(validation_loader):
             if num_samples is not None and batch_i == num_samples:
@@ -283,16 +283,16 @@ Prepare validation function
             stats_metrics = stats["metrics/mAP50-95(M)"]
         if log:
             print(f"Validate: dataset length = {counter}, metric value = {stats_metrics:.3f}")
-    
+
         return stats_metrics
-    
-    
+
+
     validation_fn = partial(validation_ac, validator=validator, log=False)
 
 Run quantization with accuracy control
 --------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 You should provide the calibration dataset and the validation dataset.
 It can be the same dataset. - parameter ``max_drop`` defines the
@@ -331,17 +331,17 @@ value 25 to speed up the execution.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -358,17 +358,17 @@ value 25 to speed up the execution.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -400,17 +400,17 @@ value 25 to speed up the execution.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -418,10 +418,10 @@ value 25 to speed up the execution.
 
     INFO:nncf:Elapsed Time: 00:01:38
     INFO:nncf:Changing the scope of quantizer nodes was started
-    INFO:nncf:Reverted 1 operations to the floating-point precision: 
+    INFO:nncf:Reverted 1 operations to the floating-point precision:
     	__module.model.4.m.0.cv2.conv/aten::_convolution/Convolution
     INFO:nncf:Accuracy drop with the new quantization scope is 0.023408466397916217 (absolute)
-    INFO:nncf:Reverted 1 operations to the floating-point precision: 
+    INFO:nncf:Reverted 1 operations to the floating-point precision:
     	__module.model.18.m.0.cv2.conv/aten::_convolution/Convolution
     INFO:nncf:Accuracy drop with the new quantization scope is 0.024749654890442174 (absolute)
     INFO:nncf:Re-calculating ranking scores for remaining groups
@@ -434,27 +434,27 @@ value 25 to speed up the execution.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
 .. parsed-literal::
 
     INFO:nncf:Elapsed Time: 00:01:36
-    INFO:nncf:Reverted 1 operations to the floating-point precision: 
+    INFO:nncf:Reverted 1 operations to the floating-point precision:
     	__module.model.22.proto.cv3.conv/aten::_convolution/Convolution
     INFO:nncf:Accuracy drop with the new quantization scope is 0.023229513575966754 (absolute)
-    INFO:nncf:Reverted 2 operations to the floating-point precision: 
+    INFO:nncf:Reverted 2 operations to the floating-point precision:
     	__module.model.22/aten::add/Add_6
     	__module.model.22/aten::sub/Subtract
     INFO:nncf:Accuracy drop with the new quantization scope is 0.02425608378963906 (absolute)
@@ -468,35 +468,35 @@ value 25 to speed up the execution.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
 .. parsed-literal::
 
     INFO:nncf:Elapsed Time: 00:01:35
-    INFO:nncf:Reverted 1 operations to the floating-point precision: 
+    INFO:nncf:Reverted 1 operations to the floating-point precision:
     	__module.model.6.m.0.cv2.conv/aten::_convolution/Convolution
     INFO:nncf:Accuracy drop with the new quantization scope is 0.023297881500256024 (absolute)
-    INFO:nncf:Reverted 2 operations to the floating-point precision: 
+    INFO:nncf:Reverted 2 operations to the floating-point precision:
     	__module.model.12.cv2.conv/aten::_convolution/Convolution
     	__module.model.12.m.0.cv1.conv/aten::_convolution/Convolution
     INFO:nncf:Accuracy drop with the new quantization scope is 0.021779128052922092 (absolute)
-    INFO:nncf:Reverted 2 operations to the floating-point precision: 
+    INFO:nncf:Reverted 2 operations to the floating-point precision:
     	__module.model.7.conv/aten::_convolution/Convolution
     	__module.model.12.cv1.conv/aten::_convolution/Convolution
     INFO:nncf:Accuracy drop with the new quantization scope is 0.01696486517685941 (absolute)
-    INFO:nncf:Reverted 2 operations to the floating-point precision: 
+    INFO:nncf:Reverted 2 operations to the floating-point precision:
     	__module.model.22/aten::add/Add_7
     	__module.model.22/aten::sub/Subtract_1
     INFO:nncf:Algorithm completed: achieved required accuracy drop 0.005923437521415831 (absolute)
@@ -515,7 +515,7 @@ value 25 to speed up the execution.
 Compare Accuracy and Performance of the Original and Quantized Models
 ---------------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now we can compare metrics of the Original non-quantized OpenVINO IR
 model and Quantized OpenVINO IR model to make sure that the ``max_drop``
@@ -524,16 +524,16 @@ is not exceeded.
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -555,11 +555,11 @@ is not exceeded.
         ov_config = {"GPU_DISABLE_WINOGRAD_CONVOLUTION": "YES"}
     quantized_compiled_model = core.compile_model(quantized_model, device.value, ov_config)
     compiled_ov_model = core.compile_model(ov_model, device.value, ov_config)
-    
+
     pt_result = validation_ac(compiled_ov_model, data_loader, validator)
     quantized_result = validation_ac(quantized_compiled_model, data_loader, validator)
-    
-    
+
+
     print(f"[Original OpenVINO]: {pt_result:.4f}")
     print(f"[Quantized OpenVINO]: {quantized_result:.4f}")
 
@@ -577,14 +577,14 @@ And compare performance.
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     # Set model directory
     MODEL_DIR = Path("model")
     MODEL_DIR.mkdir(exist_ok=True)
-    
+
     ir_model_path = MODEL_DIR / "ir_model.xml"
     quantized_model_path = MODEL_DIR / "quantized_model.xml"
-    
+
     # Save models to use them in the commandline banchmark app
     ov.save_model(ov_model, ir_model_path, compress_to_fp16=False)
     ov.save_model(quantized_model, quantized_model_path, compress_to_fp16=False)
@@ -603,12 +603,12 @@ And compare performance.
     [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
     [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -663,7 +663,7 @@ And compare performance.
     [ INFO ]   LOADED_FROM_CACHE: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values 
+    [ INFO ] Fill input 'x' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 46.51 ms
@@ -693,12 +693,12 @@ And compare performance.
     [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
     [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
-    [ INFO ] 
+    [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
     [ INFO ] Build ................................. 2024.0.0-14509-34caeefd078-releases/2024/0
-    [ INFO ] 
-    [ INFO ] 
+    [ INFO ]
+    [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
@@ -753,7 +753,7 @@ And compare performance.
     [ INFO ]   LOADED_FROM_CACHE: False
     [Step 9/11] Creating infer requests and preparing input tensors
     [ WARNING ] No input files were given for input 'x'!. This input will be filled with random values!
-    [ INFO ] Fill input 'x' with random values 
+    [ INFO ] Fill input 'x' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 12 inference requests, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
     [ INFO ] First inference took 35.64 ms

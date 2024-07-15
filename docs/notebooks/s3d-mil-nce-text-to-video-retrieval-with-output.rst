@@ -25,32 +25,32 @@ inference.
 
 The tutorial consists of the following steps:
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
--  `The original inference <#The-original-inference>`__
+
+-  `Prerequisites <#prerequisites>`__
+-  `The original inference <#the-original-inference>`__
 -  `Convert the model to OpenVINO
-   IR <#Convert-the-model-to-OpenVINO-IR>`__
--  `Compiling models <#Compiling-models>`__
--  `Inference <#Inference>`__
+   IR <#convert-the-model-to-openvino-ir>`__
+-  `Compiling models <#compiling-models>`__
+-  `Inference <#inference>`__
 -  `Optimize model using NNCF Post-training Quantization
-   API <#Optimize-model-using-NNCF-Post-training-Quantization-API>`__
+   API <#optimize-model-using-nncf-post-training-quantization-api>`__
 
-   -  `Prepare dataset <#Prepare-dataset>`__
-   -  `Perform model quantization <#Perform-model-quantization>`__
+   -  `Prepare dataset <#prepare-dataset>`__
+   -  `Perform model quantization <#perform-model-quantization>`__
 
--  `Run quantized model inference <#Run-quantized-model-inference>`__
+-  `Run quantized model inference <#run-quantized-model-inference>`__
 
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import platform
-    
+
     %pip install -Uq pip
     %pip install --upgrade --pre openvino-tokenizers openvino --extra-index-url "https://storage.openvinotoolkit.org/simple/wheels/nightly"
     %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
@@ -59,7 +59,7 @@ Prerequisites
     %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version <= '3.8'" # macOS x86
     %pip install -q "tensorflow>=2.5; sys_platform != 'darwin' and python_version > '3.8'"
     %pip install -q "tensorflow>=2.5,<=2.12.0; sys_platform != 'darwin' and python_version <= '3.8'"
-    
+
     %pip install -q tensorflow_hub tf_keras numpy "opencv-python" "nncf>=2.10.0"
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
@@ -91,15 +91,15 @@ Prerequisites
 
     import os
     from pathlib import Path
-    
+
     import tensorflow as tf
     import tensorflow_hub as hub
-    
+
     import numpy as np
     import cv2
     from IPython import display
     import math
-    
+
     os.environ["TFHUB_CACHE_DIR"] = str(Path("./tfhub_modules").resolve())
 
 
@@ -141,14 +141,14 @@ Below we will define auxiliary functions
         # Input_frames must be normalized in [0, 1] and of the shape Batch x T x H x W x 3
         vision_output = model.signatures["video"](tf.constant(tf.cast(input_frames, dtype=tf.float32)))
         text_output = model.signatures["text"](tf.constant(input_words))
-    
+
         return vision_output["video_embedding"], text_output["text_embedding"]
 
 .. code:: ipython3
 
     # @title Define video loading and visualization functions  { display-mode: "form" }
-    
-    
+
+
     # Utilities to open video files using CV2
     def crop_center_square(frame):
         y, x = frame.shape[0:2]
@@ -156,8 +156,8 @@ Below we will define auxiliary functions
         start_x = (x // 2) - (min_dim // 2)
         start_y = (y // 2) - (min_dim // 2)
         return frame[start_y : start_y + min_dim, start_x : start_x + min_dim]
-    
-    
+
+
     def load_video(video_url, max_frames=32, resize=(224, 224)):
         path = tf.keras.utils.get_file(os.path.basename(video_url)[-128:], video_url)
         cap = cv2.VideoCapture(path)
@@ -171,7 +171,7 @@ Below we will define auxiliary functions
                 frame = cv2.resize(frame, resize)
                 frame = frame[:, :, [2, 1, 0]]
                 frames.append(frame)
-    
+
                 if len(frames) == max_frames:
                     break
         finally:
@@ -182,8 +182,8 @@ Below we will define auxiliary functions
             frames = frames.repeat(n_repeat, axis=0)
         frames = frames[:max_frames]
         return frames / 255.0
-    
-    
+
+
     def display_video(urls):
         html = "<table>"
         html += "<tr><th>Video 1</th><th>Video 2</th><th>Video 3</th></tr><tr>"
@@ -193,8 +193,8 @@ Below we will define auxiliary functions
             html += "</td>"
         html += "</tr></table>"
         return display.HTML(html)
-    
-    
+
+
     def display_query_and_results_video(query, urls, scores):
         """Display a text query and the top result videos and scores."""
         sorted_ix = np.argsort(-scores)
@@ -211,22 +211,22 @@ Below we will define auxiliary functions
             html += '<img src="{}" height="224">'.format(url)
             html += "</td>"
         html += "</tr></table>"
-    
+
         return html
 
 .. code:: ipython3
 
     # @title Load example videos and define text queries  { display-mode: "form" }
-    
+
     video_1_url = "https://upload.wikimedia.org/wikipedia/commons/b/b0/YosriAirTerjun.gif"  # @param {type:"string"}
     video_2_url = "https://upload.wikimedia.org/wikipedia/commons/e/e6/Guitar_solo_gif.gif"  # @param {type:"string"}
     video_3_url = "https://upload.wikimedia.org/wikipedia/commons/3/30/2009-08-16-autodrift-by-RalfR-gif-by-wau.gif"  # @param {type:"string"}
-    
+
     video_1 = load_video(video_1_url)
     video_2 = load_video(video_2_url)
     video_3 = load_video(video_3_url)
     all_videos = [video_1, video_2, video_3]
-    
+
     query_1_video = "waterfall"  # @param {type:"string"}
     query_2_video = "playing guitar"  # @param {type:"string"}
     query_3_video = "car drifting"  # @param {type:"string"}
@@ -246,19 +246,19 @@ Below we will define auxiliary functions
 The original inference
 ----------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     # Prepare video inputs.
     videos_np = np.stack(all_videos, axis=0)
-    
+
     # Prepare text input.
     words_np = np.array(all_queries_video)
-    
+
     # Generate the video and text embeddings.
     video_embd, text_embd = generate_embeddings(hub_model, videos_np, words_np)
-    
+
     # Scores between video and text is computed by dot products.
     all_scores = np.dot(text_embd, tf.transpose(video_embd))
 
@@ -283,7 +283,7 @@ The original inference
 Convert the model to OpenVINO IR
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__ OpenVINO supports TensorFlow
+OpenVINO supports TensorFlow
 models via conversion into Intermediate Representation (IR) format. We
 need to provide a model object, input data for model tracing to
 ``ov.convert_model`` function to obtain OpenVINO ``ov.Model`` object
@@ -294,31 +294,31 @@ instance. Model can be saved on disk for next deployment using
 
     import openvino_tokenizers  # NOQA Need to import conversion and operation extensions
     import openvino as ov
-    
+
     model_path = hub.resolve(hub_handle)
     # infer on random data
     images_data = np.random.rand(3, 32, 224, 224, 3).astype(np.float32)
     words_data = np.array(["First sentence", "Second one", "Abracadabra"], dtype=str)
-    
+
     ov_model = ov.convert_model(model_path, input=[("words", [3]), ("images", [3, 32, 224, 224, 3])])
 
 Compiling models
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Only CPU is supported for this model due to strings as input.
 
 .. code:: ipython3
 
     core = ov.Core()
-    
+
     compiled_model = core.compile_model(ov_model, device_name="CPU")
 
 Inference
 ---------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -327,14 +327,14 @@ Inference
         """Generate embeddings from the model from video frames and input words."""
         # Input_frames must be normalized in [0, 1] and of the shape Batch x T x H x W x 3
         output = compiled_model({"words": input_words, "images": tf.cast(input_frames, dtype=tf.float32)})
-    
+
         return output["video_embedding"], output["text_embedding"]
 
 .. code:: ipython3
 
     # Generate the video and text embeddings.
     video_embd, text_embd = generate_embeddings(compiled_model, videos_np, words_np)
-    
+
     # Scores between video and text is computed by dot products.
     all_scores = np.dot(text_embd, tf.transpose(video_embd))
 
@@ -359,7 +359,7 @@ Inference
 Optimize model using NNCF Post-training Quantization API
 --------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ provides a suite of
 advanced algorithms for Neural Networks inference optimization in
@@ -374,7 +374,7 @@ process contains the following steps:
 Prepare dataset
 ~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 This model doesn’t require a big dataset for calibration. We will use
 only example videos for this purpose. NNCF provides ``nncf.Dataset``
@@ -385,7 +385,7 @@ preparing input data in model expected format.
 .. code:: ipython3
 
     import nncf
-    
+
     dataset = nncf.Dataset(((words_np, tf.cast(videos_np, dtype=tf.float32)),))
 
 
@@ -397,7 +397,7 @@ preparing input data in model expected format.
 Perform model quantization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The ``nncf.quantize`` function provides an interface for model
 quantization. It requires an instance of the OpenVINO Model and
@@ -409,10 +409,10 @@ preset, ignored scope etc.) can be provided.
 
     MODEL_DIR = Path("model/")
     MODEL_DIR.mkdir(exist_ok=True)
-    
+
     quantized_model_path = MODEL_DIR / "quantized_model.xml"
-    
-    
+
+
     if not quantized_model_path.exists():
         quantized_model = nncf.quantize(model=ov_model, calibration_dataset=dataset, model_type=nncf.ModelType.TRANSFORMER)
         ov.save_model(quantized_model, quantized_model_path)
@@ -425,17 +425,17 @@ preset, ignored scope etc.) can be provided.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -446,17 +446,17 @@ preset, ignored scope etc.) can be provided.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -472,17 +472,17 @@ preset, ignored scope etc.) can be provided.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -493,24 +493,24 @@ preset, ignored scope etc.) can be provided.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
 Run quantized model inference
 -----------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 There are no changes in model usage after applying quantization. Let’s
 check the model work on the previously used example.
@@ -523,7 +523,7 @@ check the model work on the previously used example.
 
     # Generate the video and text embeddings.
     video_embd, text_embd = generate_embeddings(int8_model, videos_np, words_np)
-    
+
     # Scores between video and text is computed by dot products.
     all_scores = np.dot(text_embd, tf.transpose(video_embd))
 

@@ -23,62 +23,62 @@ This tutorial include following steps:
 -  Comparing results on one picture.
 -  Comparing performance.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Settings <#Settings>`__
--  `Imports <#Imports>`__
 
-   -  `Setup image and device <#Setup-image-and-device>`__
-   -  `Downloading the model <#Downloading-the-model>`__
-   -  `Create core <#Create-core>`__
+-  `Settings <#settings>`__
+-  `Imports <#imports>`__
+
+   -  `Setup image and device <#setup-image-and-device>`__
+   -  `Downloading the model <#downloading-the-model>`__
+   -  `Create core <#create-core>`__
    -  `Check the original parameters of
-      image <#Check-the-original-parameters-of-image>`__
+      image <#check-the-original-parameters-of-image>`__
 
 -  `Setup preprocessing steps with Preprocessing API and perform
-   inference <#Setup-preprocessing-steps-with-Preprocessing-API-and-perform-inference>`__
+   inference <#setup-preprocessing-steps-with-preprocessing-api-and-perform-inference>`__
 
    -  `Convert model to OpenVINO IR with model conversion
-      API <#Convert-model-to-OpenVINO-IR-with-model-conversion-API>`__
-   -  `Create ``PrePostProcessor``
-      Object <#Create-PrePostProcessor-Object>`__
-   -  `Declare User’s Data Format <#Declare-User’s-Data-Format>`__
-   -  `Declaring Model Layout <#Declaring-Model-Layout>`__
-   -  `Preprocessing Steps <#Preprocessing-Steps>`__
+      API <#convert-model-to-openvino-ir-with-model-conversion-api>`__
+   -  `Create PrePostProcessor
+      Object <#create-prepostprocessor-object>`__
+   -  `Declare User’s Data Format <#declare-users-data-format>`__
+   -  `Declaring Model Layout <#declaring-model-layout>`__
+   -  `Preprocessing Steps <#preprocessing-steps>`__
    -  `Integrating Steps into a
-      Model <#Integrating-Steps-into-a-Model>`__
+      Model <#integrating-steps-into-a-model>`__
 
 -  `Load model and perform
-   inference <#Load-model-and-perform-inference>`__
+   inference <#load-model-and-perform-inference>`__
 -  `Fit image manually and perform
-   inference <#Fit-image-manually-and-perform-inference>`__
+   inference <#fit-image-manually-and-perform-inference>`__
 
-   -  `Load the model <#Load-the-model>`__
+   -  `Load the model <#load-the-model>`__
    -  `Load image and fit it to model
-      input <#Load-image-and-fit-it-to-model-input>`__
-   -  `Perform inference <#Perform-inference>`__
+      input <#load-image-and-fit-it-to-model-input>`__
+   -  `Perform inference <#perform-inference>`__
 
--  `Compare results <#Compare-results>`__
+-  `Compare results <#compare-results>`__
 
-   -  `Compare results on one image <#Compare-results-on-one-image>`__
-   -  `Compare performance <#Compare-performance>`__
+   -  `Compare results on one image <#compare-results-on-one-image>`__
+   -  `Compare performance <#compare-performance>`__
 
 Settings
 --------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import platform
-    
+
     # Install openvino package
     %pip install -q "openvino>=2023.1.0" opencv-python tqdm
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
         %pip install -q "matplotlib>=3.4,<3.7"
-    
+
     %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow-macos>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version <= '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
@@ -102,37 +102,37 @@ Settings
 Imports
 -------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import time
     import os
     from pathlib import Path
-    
+
     os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
     os.environ["TF_USE_LEGACY_KERAS"] = "1"
-    
+
     import cv2
     import matplotlib.pyplot as plt
     import numpy as np
     import openvino as ov
     import tensorflow as tf
-    
+
     # Fetch `notebook_utils` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-    
+
     open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file
 
 Setup image and device
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -153,7 +153,7 @@ Setup image and device
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -161,7 +161,7 @@ Setup image and device
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -176,7 +176,7 @@ Setup image and device
 Downloading the model
 ~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 This tutorial uses the
 `InceptionResNetV2 <https://www.tensorflow.org/api_docs/python/tf/keras/applications/inception_resnet_v2>`__.
@@ -195,12 +195,12 @@ and save it to the disk.
 .. code:: ipython3
 
     model_name = "InceptionResNetV2"
-    
+
     model_dir = Path("model")
     model_dir.mkdir(exist_ok=True)
-    
+
     model_path = model_dir / model_name
-    
+
     model = tf.keras.applications.InceptionV3()
     model.save(model_path)
 
@@ -234,7 +234,7 @@ and save it to the disk.
 Create core
 ~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -243,7 +243,7 @@ Create core
 Check the original parameters of image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -266,7 +266,7 @@ Check the original parameters of image
 Setup preprocessing steps with Preprocessing API and perform inference
 ----------------------------------------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Intuitively, preprocessing API consists of the following parts:
 
@@ -294,16 +294,16 @@ Pre-processing support following operations (please, see more details
 Convert model to OpenVINO IR with model conversion API
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The options for preprocessing are not required.
 
 .. code:: ipython3
 
     ir_path = model_dir / "ir_model" / f"{model_name}.xml"
-    
+
     ppp_model = None
-    
+
     if ir_path.exists():
         ppp_model = core.read_model(model=ir_path)
         print(f"Model in OpenVINO format already exists: {ir_path}")
@@ -314,23 +314,23 @@ The options for preprocessing are not required.
 Create ``PrePostProcessor`` Object
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The
-```PrePostProcessor()`` <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1preprocess_1_1_pre_post_processor.html>`__
+`PrePostProcessor() <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1preprocess_1_1_pre_post_processor.html>`__
 class enables specifying the preprocessing and postprocessing steps for
 a model.
 
 .. code:: ipython3
 
     from openvino.preprocess import PrePostProcessor
-    
+
     ppp = PrePostProcessor(ppp_model)
 
 Declare User’s Data Format
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 To address particular input of a model/preprocessor, use the
 ``PrePostProcessor.input(input_name)`` method. If the model has only one
@@ -373,7 +373,7 @@ for mean/scale normalization.
 Declaring Model Layout
 ~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Model input already has information about precision and shape.
 Preprocessing API is not intended to modify this. The only thing that
@@ -384,7 +384,7 @@ may be specified is input data
 
     input_layer_ir = next(iter(ppp_model.inputs))
     print(f"The input shape of the model is {input_layer_ir.shape}")
-    
+
     ppp.input().model().set_layout(ov.Layout("NHWC"))
 
 
@@ -404,7 +404,7 @@ may be specified is input data
 Preprocessing Steps
 ~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now, the sequence of preprocessing steps can be defined. For more
 information about preprocessing steps, see
@@ -417,7 +417,7 @@ Perform the following:
    dynamic size, for example, ``{?, 3, ?, ?}`` resize will not know how
    to resize the picture. Therefore, in this case, target height/ width
    should be specified. For more details, see also the
-   ```PreProcessSteps.resize()`` <https://docs.openvino.ai/2024/api/ie_python_api/_autosummary/openvino.preprocess.PreProcessSteps.html#openvino.preprocess.PreProcessSteps.resize>`__.
+   `PreProcessSteps.resize() <https://docs.openvino.ai/2024/api/ie_python_api/_autosummary/openvino.preprocess.PreProcessSteps.html#openvino.preprocess.PreProcessSteps.resize>`__.
 -  Subtract mean from each channel.
 -  Divide each pixel data to appropriate scale value.
 
@@ -427,7 +427,7 @@ then such conversion will be added explicitly.
 .. code:: ipython3
 
     from openvino.preprocess import ResizeAlgorithm
-    
+
     ppp.input().preprocess().convert_element_type(ov.Type.f32).resize(ResizeAlgorithm.RESIZE_LINEAR).mean([127.5, 127.5, 127.5]).scale([127.5, 127.5, 127.5])
 
 
@@ -442,7 +442,7 @@ then such conversion will be added explicitly.
 Integrating Steps into a Model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Once the preprocessing steps have been finished, the model can be
 finally built. It is possible to display ``PrePostProcessor``
@@ -464,13 +464,13 @@ configuration for debugging purposes.
           resize to model width/height: ([1,?,?,3], [N,H,W,C], f32) -> ([1,299,299,3], [N,H,W,C], f32)
           mean (127.5,127.5,127.5): ([1,299,299,3], [N,H,W,C], f32) -> ([1,299,299,3], [N,H,W,C], f32)
           scale (127.5,127.5,127.5): ([1,299,299,3], [N,H,W,C], f32) -> ([1,299,299,3], [N,H,W,C], f32)
-    
+
 
 
 Load model and perform inference
 --------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -478,24 +478,24 @@ Load model and perform inference
         image = cv2.imread(image_path)
         input_tensor = np.expand_dims(image, 0)
         return input_tensor
-    
-    
+
+
     compiled_model_with_preprocess_api = core.compile_model(model=ppp_model, device_name=device.value)
-    
+
     ppp_output_layer = compiled_model_with_preprocess_api.output(0)
-    
+
     ppp_input_tensor = prepare_image_api_preprocess(image_path)
     results = compiled_model_with_preprocess_api(ppp_input_tensor)[ppp_output_layer][0]
 
 Fit image manually and perform inference
 ----------------------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Load the model
 ~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
@@ -505,28 +505,28 @@ Load the model
 Load image and fit it to model input
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     def manual_image_preprocessing(path_to_image, compiled_model):
         input_layer_ir = next(iter(compiled_model.inputs))
-    
+
         # N, H, W, C = batch size, height, width, number of channels
         N, H, W, C = input_layer_ir.shape
-    
+
         # load  image, image will be resized to model input size and converted to RGB
         img = tf.keras.preprocessing.image.load_img(image_path, target_size=(H, W), color_mode="rgb")
-    
+
         x = tf.keras.preprocessing.image.img_to_array(img)
         x = np.expand_dims(x, axis=0)
-    
+
         # will scale input pixels between -1 and 1
         input_tensor = tf.keras.applications.inception_resnet_v2.preprocess_input(x)
-    
+
         return input_tensor
-    
-    
+
+
     input_tensor = manual_image_preprocessing(image_path, compiled_model)
     print(f"The shape of the image is {input_tensor.shape}")
     print(f"The data type of the image is {input_tensor.dtype}")
@@ -541,40 +541,40 @@ Load image and fit it to model input
 Perform inference
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     output_layer = compiled_model.output(0)
-    
+
     result = compiled_model(input_tensor)[output_layer]
 
 Compare results
 ---------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Compare results on one image
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     def check_results(input_tensor, compiled_model, imagenet_classes):
         output_layer = compiled_model.output(0)
-    
+
         results = compiled_model(input_tensor)[output_layer][0]
-    
+
         top_indices = np.argsort(results)[-5:][::-1]
         top_softmax = results[top_indices]
-    
+
         for index, softmax_probability in zip(top_indices, top_softmax):
             print(f"{imagenet_classes[index]}, {softmax_probability:.5f}")
-    
+
         return top_indices, top_softmax
-    
-    
+
+
     # Convert the inference result to a class name.
     imagenet_filename = download_file(
         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/datasets/imagenet/imagenet_2012.txt",
@@ -582,13 +582,13 @@ Compare results on one image
     )
     imagenet_classes = imagenet_filename.read_text().splitlines()
     imagenet_classes = ["background"] + imagenet_classes
-    
+
     # get result for inference with preprocessing api
     print("Result of inference with Preprocessing API:")
     res = check_results(ppp_input_tensor, compiled_model_with_preprocess_api, imagenet_classes)
-    
+
     print("\n")
-    
+
     # get result for inference with the manual preparing of the image
     print("Result of inference with manual image setup:")
     res = check_results(input_tensor, compiled_model, imagenet_classes)
@@ -608,8 +608,8 @@ Compare results on one image
     n02108915 French bulldog, 0.01915
     n02111129 Leonberg, 0.00825
     n02097047 miniature schnauzer, 0.00294
-    
-    
+
+
     Result of inference with manual image setup:
     n02098413 Lhasa, Lhasa apso, 0.76843
     n02099601 golden retriever, 0.19322
@@ -621,28 +621,28 @@ Compare results on one image
 Compare performance
 ~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     def check_performance(compiled_model, preprocessing_function=None):
         num_images = 1000
-    
+
         start = time.perf_counter()
-    
+
         for _ in range(num_images):
             input_tensor = preprocessing_function(image_path, compiled_model)
             compiled_model(input_tensor)
-    
+
         end = time.perf_counter()
         time_ir = end - start
-    
+
         return time_ir, num_images
-    
-    
+
+
     time_ir, num_images = check_performance(compiled_model, manual_image_preprocessing)
     print(f"IR model in OpenVINO Runtime/CPU with manual image preprocessing: {time_ir/num_images:.4f} " f"seconds per image, FPS: {num_images/time_ir:.2f}")
-    
+
     time_ir, num_images = check_performance(compiled_model_with_preprocess_api, prepare_image_api_preprocess)
     print(f"IR model in OpenVINO Runtime/CPU with preprocessing API: {time_ir/num_images:.4f} " f"seconds per image, FPS: {num_images/time_ir:.2f}")
 

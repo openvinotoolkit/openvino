@@ -28,21 +28,21 @@ minimal steps (from 2 to 4) on any pre-trained LDMs (e.g. Stable
 Diffusion). To read more about LCM please refer to
 https://latent-consistency-models.github.io/
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `Prerequisites <#Prerequisites>`__
+
+-  `Prerequisites <#prerequisites>`__
 -  `Full precision model on the
-   CPU <#Using-full-precision-model-in-CPU-with-LatentConsistencyModelPipeline>`__
+   CPU <#using-full-precision-model-in-cpu-with-latentconsistencymodelpipeline>`__
 -  `Running inference using Optimum Intel
-   ``OVLatentConsistencyModelPipeline`` <#Running-inference-using-Optimum-Intel-OVLatentConsistencyModelPipeline>`__
+   OVLatentConsistencyModelPipeline <#running-inference-using-optimum-intel-ovlatentconsistencymodelpipeline>`__
 
 .. |image0| image:: https://github.com/openvinotoolkit/openvino_notebooks/assets/10940214/1858dae4-72fd-401e-b055-66d503d82446
 
 Prerequisites
 ~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Install required packages
 
@@ -63,13 +63,13 @@ Install required packages
 .. code:: ipython3
 
     import warnings
-    
+
     warnings.filterwarnings("ignore")
 
 Showing Info Available Devices
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The ``available_devices`` property shows the available devices in your
 system. The “FULL_DEVICE_NAME” option to ``ie.get_property()`` shows the
@@ -88,10 +88,10 @@ this
 .. code:: ipython3
 
     import openvino as ov
-    
+
     core = ov.Core()
     devices = core.available_devices
-    
+
     for device in devices:
         device_name = core.get_property(device, "FULL_DEVICE_NAME")
         print(f"{device}: {device_name}")
@@ -105,7 +105,7 @@ this
 Using full precision model in CPU with ``LatentConsistencyModelPipeline``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Standard pipeline for the Latent Consistency Model(LCM) from Diffusers
 library is used here. For more information please refer to
@@ -115,7 +115,7 @@ https://huggingface.co/docs/diffusers/en/api/pipelines/latent_consistency_models
 
     from diffusers import LatentConsistencyModelPipeline
     import gc
-    
+
     pipeline = LatentConsistencyModelPipeline.from_pretrained("SimianLuo/LCM_Dreamshaper_v7")
 
 
@@ -136,7 +136,7 @@ https://huggingface.co/docs/diffusers/en/api/pipelines/latent_consistency_models
 .. code:: ipython3
 
     prompt = "A cute squirrel in the forest, portrait, 8k"
-    
+
     image = pipeline(prompt=prompt, num_inference_steps=4, guidance_scale=8.0, height=512, width=512).images[0]
     image.save("image_standard_pipeline.png")
     image
@@ -165,16 +165,16 @@ Select inference device for text-to-image generation
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="CPU",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -189,7 +189,7 @@ Select inference device for text-to-image generation
 Running inference using Optimum Intel ``OVLatentConsistencyModelPipeline``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Accelerating inference of LCM using Intel Optimum with OpenVINO backend.
 For more information please refer to
@@ -206,13 +206,13 @@ and there is no need to do it manually
 
     from optimum.intel.openvino import OVLatentConsistencyModelPipeline
     from pathlib import Path
-    
+
     if not Path("./openvino_ir").exists():
         ov_pipeline = OVLatentConsistencyModelPipeline.from_pretrained("SimianLuo/LCM_Dreamshaper_v7", height=512, width=512, export=True, compile=False)
         ov_pipeline.save_pretrained("./openvino_ir")
     else:
         ov_pipeline = OVLatentConsistencyModelPipeline.from_pretrained("./openvino_ir", export=False, compile=False)
-    
+
     ov_pipeline.reshape(batch_size=1, height=512, width=512, num_images_per_prompt=1)
 
 
@@ -311,7 +311,7 @@ and there is no need to do it manually
 .. code:: ipython3
 
     prompt = "A cute squirrel in the forest, portrait, 8k"
-    
+
     image_ov = ov_pipeline(prompt=prompt, num_inference_steps=4, guidance_scale=8.0, height=512, width=512).images[0]
     image_ov.save("image_opt.png")
     image_ov

@@ -45,30 +45,30 @@ It consists of the following steps:
 -  Compare original and optimized pipelines from performance and
    accuracy standpoints
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
--  `How does it work? <#How-does-it-work?>`__
--  `Prerequisites <#Prerequisites>`__
--  `Download and Convert Models <#Download-and-Convert-Models>`__
 
-   -  `Select inference device <#Select-inference-device>`__
-   -  `Grammar Checker <#Grammar-Checker>`__
-   -  `Grammar Corrector <#Grammar-Corrector>`__
+-  `How does it work? <#how-does-it-work>`__
+-  `Prerequisites <#prerequisites>`__
+-  `Download and Convert Models <#download-and-convert-models>`__
 
--  `Prepare Demo Pipeline <#Prepare-Demo-Pipeline>`__
--  `Quantization <#Quantization>`__
+   -  `Select inference device <#select-inference-device>`__
+   -  `Grammar Checker <#grammar-checker>`__
+   -  `Grammar Corrector <#grammar-corrector>`__
 
-   -  `Run Quantization <#Run-Quantization>`__
+-  `Prepare Demo Pipeline <#prepare-demo-pipeline>`__
+-  `Quantization <#quantization>`__
+
+   -  `Run Quantization <#run-quantization>`__
    -  `Compare model size, performance and
-      accuracy <#Compare-model-size,-performance-and-accuracy>`__
+      accuracy <#compare-model-size-performance-and-accuracy>`__
 
--  `Interactive demo <#Interactive-demo>`__
+-  `Interactive demo <#interactive-demo>`__
 
 How does it work?
 -----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 A Grammatical Error Correction task can be thought of as a
 sequence-to-sequence task where a model is trained to take a
@@ -120,7 +120,7 @@ Now that we know more about FLAN-T5 and RoBERTa, let us get started. 🚀
 Prerequisites
 -------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 First, we need to install the `Hugging Face
 Optimum <https://huggingface.co/docs/transformers/index>`__ library
@@ -145,7 +145,7 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 Download and Convert Models
 ---------------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Optimum Intel can be used to load optimized models from the `Hugging
 Face Hub <https://huggingface.co/docs/optimum/intel/hf.co/models>`__ and
@@ -201,7 +201,7 @@ Tokenizer class and pipelines API are compatible with Optimum models.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -209,16 +209,16 @@ select device from dropdown list for running inference using OpenVINO
 
     import ipywidgets as widgets
     import openvino as ov
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -233,14 +233,14 @@ select device from dropdown list for running inference using OpenVINO
 Grammar Checker
 ~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     grammar_checker_model_id = "textattack/roberta-base-CoLA"
     grammar_checker_dir = Path("roberta-base-cola")
     grammar_checker_tokenizer = AutoTokenizer.from_pretrained(grammar_checker_model_id)
-    
+
     if grammar_checker_dir.exists():
         grammar_checker_model = OVModelForSequenceClassification.from_pretrained(grammar_checker_dir, device=device.value)
     else:
@@ -295,7 +295,7 @@ Great! Looks like the model can detect errors in the sample.
 Grammar Corrector
 ~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 The steps for loading the Grammar Corrector model are very similar,
 except for the model class that is used. Because FLAN-T5 is a
@@ -308,7 +308,7 @@ to run it.
     grammar_corrector_model_id = "pszemraj/flan-t5-large-grammar-synthesis"
     grammar_corrector_dir = Path("flan-t5-large-grammar-synthesis")
     grammar_corrector_tokenizer = AutoTokenizer.from_pretrained(grammar_corrector_model_id)
-    
+
     if grammar_corrector_dir.exists():
         grammar_corrector_model = OVModelForSeq2SeqLM.from_pretrained(grammar_corrector_dir, device=device.value)
     else:
@@ -373,7 +373,7 @@ Nice! The result looks pretty good!
 Prepare Demo Pipeline
 ---------------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Now let us put everything together and create the pipeline for grammar
 correction. The pipeline accepts input text, verifies its correctness,
@@ -390,40 +390,40 @@ several steps:
     import re
     import transformers
     from tqdm.notebook import tqdm
-    
-    
+
+
     def split_text(text: str) -> list:
         """
         Split a string of text into a list of sentence batches.
-    
+
         Parameters:
         text (str): The text to be split into sentence batches.
-    
+
         Returns:
         list: A list of sentence batches. Each sentence batch is a list of sentences.
         """
         # Split the text into sentences using regex
         sentences = re.split(r"(?<=[^A-Z].[.?]) +(?=[A-Z])", text)
-    
+
         # Initialize a list to store the sentence batches
         sentence_batches = []
-    
+
         # Initialize a temporary list to store the current batch of sentences
         temp_batch = []
-    
+
         # Iterate through the sentences
         for sentence in sentences:
             # Add the sentence to the temporary batch
             temp_batch.append(sentence)
-    
+
             # If the length of the temporary batch is between 2 and 3 sentences, or if it is the last batch, add it to the list of sentence batches
             if len(temp_batch) >= 2 and len(temp_batch) <= 3 or sentence == sentences[-1]:
                 sentence_batches.append(temp_batch)
                 temp_batch = []
-    
+
         return sentence_batches
-    
-    
+
+
     def correct_text(
         text: str,
         checker: transformers.pipelines.Pipeline,
@@ -432,30 +432,30 @@ several steps:
     ) -> str:
         """
         Correct the grammar in a string of text using a text-classification and text-generation pipeline.
-    
+
         Parameters:
         text (str): The inpur text to be corrected.
         checker (transformers.pipelines.Pipeline): The text-classification pipeline to use for checking the grammar quality of the text.
         corrector (transformers.pipelines.Pipeline): The text-generation pipeline to use for correcting the text.
         separator (str, optional): The separator to use when joining the corrected text into a single string. Default is a space character.
-    
+
         Returns:
         str: The corrected text.
         """
         # Split the text into sentence batches
         sentence_batches = split_text(text)
-    
+
         # Initialize a list to store the corrected text
         corrected_text = []
-    
+
         # Iterate through the sentence batches
         for batch in tqdm(sentence_batches, total=len(sentence_batches), desc="correcting text.."):
             # Join the sentences in the batch into a single string
             raw_text = " ".join(batch)
-    
+
             # Check the grammar quality of the text using the text-classification pipeline
             results = checker(raw_text)
-    
+
             # Only correct the text if the results of the text-classification are not LABEL_1 or are LABEL_1 with a score below 0.9
             if results[0]["label"] != "LABEL_1" or (results[0]["label"] == "LABEL_1" and results[0]["score"] < 0.9):
                 # Correct the text using the text-generation pipeline
@@ -463,10 +463,10 @@ several steps:
                 corrected_text.append(corrected_batch[0]["generated_text"])
             else:
                 corrected_text.append(raw_text)
-    
+
         # Join the corrected text into a single string
         corrected_text = separator.join(corrected_text)
-    
+
         return corrected_text
 
 Let us see it in action.
@@ -479,7 +479,7 @@ Let us see it in action.
         " this point, He introduces herself as his native English speaker and goes on to say that if"
         " you contine to work on social scnce"
     )
-    
+
     corrected_text = correct_text(default_text, grammar_checker_pipe, grammar_corrector_pipe)
 
 
@@ -498,14 +498,14 @@ Let us see it in action.
 .. parsed-literal::
 
     input text:     Most of the course is about semantic or  content of language but there are also interesting topics to be learned from the servicefeatures except statistics in characters in documents.At this point, He introduces herself as his native English speaker and goes on to say that if you contine to work on social scnce
-    
+
     generated text: Most of the course is about the semantic content of language but there are also interesting topics to be learned from the service features except statistics in characters in documents. At this point, she introduces herself as a native English speaker and goes on to say that if you continue to work on social science, you will continue to be successful.
 
 
 Quantization
 ------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -537,7 +537,7 @@ improve model inference speed.
         description="Quantization",
         disabled=False,
     )
-    
+
     to_quantize
 
 
@@ -552,7 +552,7 @@ improve model inference speed.
 Run Quantization
 ~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 Below we retrieve the quantized model. Please see ``utils.py`` for
 source code. Quantization is relatively time-consuming and will take
@@ -561,7 +561,7 @@ some time to complete.
 .. code:: ipython3
 
     from utils import get_quantized_pipeline, CALIBRATION_DATASET_SIZE
-    
+
     grammar_corrector_pipe_fp32 = grammar_corrector_pipe
     grammar_corrector_pipe_int8 = None
     if to_quantize.value:
@@ -614,17 +614,17 @@ some time to complete.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -635,17 +635,17 @@ some time to complete.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -662,17 +662,17 @@ some time to complete.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -704,21 +704,21 @@ model and original FP32 model should be almost the same.
 .. parsed-literal::
 
     Input text:                   Most of the course is about semantic or  content of language but there are also interesting topics to be learned from the servicefeatures except statistics in characters in documents.At this point, He introduces herself as his native English speaker and goes on to say that if you contine to work on social scnce
-    
+
     Generated text by INT8 model: Most of the course is about semantics or content of language but there are also interesting topics to be learned from the service features except statistics in characters in documents. At this point, she introduces himself as a native English speaker and goes on to say that if you continue to work on social science, you will continue to do so.
 
 
 Compare model size, performance and accuracy
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 First, we compare file size of ``FP32`` and ``INT8`` models.
 
 .. code:: ipython3
 
     from utils import calculate_compression_rate
-    
+
     if to_quantize.value:
         model_size_fp32, model_size_int8 = calculate_compression_rate(
             grammar_corrector_dir / "openvino_decoder_with_past_model.xml",
@@ -736,7 +736,7 @@ First, we compare file size of ``FP32`` and ``INT8`` models.
 Second, we compare two grammar correction pipelines from performance and
 accuracy stand points.
 
-Test split of \ `jfleg <https://huggingface.co/datasets/jfleg>`__\ 
+Test split of \ `jfleg <https://huggingface.co/datasets/jfleg>`__\
 dataset is used for testing. One dataset sample consists of a text with
 errors as input and several corrected versions as labels. When measuring
 accuracy we use mean ``(1 - WER)`` against corrected text versions,
@@ -745,9 +745,9 @@ where WER is Word Error Rate metric.
 .. code:: ipython3
 
     from utils import calculate_inference_time_and_accuracy
-    
+
     TEST_SUBSET_SIZE = 50
-    
+
     if to_quantize.value:
         inference_time_fp32, accuracy_fp32 = calculate_inference_time_and_accuracy(grammar_corrector_pipe_fp32, TEST_SUBSET_SIZE)
         print(f"Evaluation results of FP32 grammar correction pipeline. Accuracy: {accuracy_fp32:.2f}%. Time: {inference_time_fp32:.2f} sec.")
@@ -786,24 +786,24 @@ where WER is Word Error Rate metric.
 Interactive demo
 ----------------
 
-`back to top ⬆️ <#Table-of-contents:>`__
+
 
 .. code:: ipython3
 
     import gradio as gr
     import time
-    
-    
+
+
     def correct(text, quantized, progress=gr.Progress(track_tqdm=True)):
         grammar_corrector = grammar_corrector_pipe_int8 if quantized else grammar_corrector_pipe
-    
+
         start_time = time.perf_counter()
         corrected_text = correct_text(text, grammar_checker_pipe, grammar_corrector)
         end_time = time.perf_counter()
-    
+
         return corrected_text, f"{end_time - start_time:.2f}"
-    
-    
+
+
     def create_demo_block(quantized: bool, show_model_type: bool):
         model_type = (" optimized" if quantized else " original") if show_model_type else ""
         with gr.Row():
@@ -823,16 +823,16 @@ Interactive demo
                 inputs=[input_text, gr.Number(quantized, visible=False)],
                 outputs=[output_text, correction_time],
             )
-    
-    
+
+
     with gr.Blocks() as demo:
         gr.Markdown("# Interactive demo")
         quantization_is_present = grammar_corrector_pipe_int8 is not None
         create_demo_block(quantized=False, show_model_type=quantization_is_present)
         if quantization_is_present:
             create_demo_block(quantized=True, show_model_type=True)
-    
-    
+
+
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
