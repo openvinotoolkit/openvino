@@ -219,8 +219,8 @@ bool ov::is_config_applicable(const std::string& user_device_name, const std::st
         auto user_value =
             parsed_user_device_name._config.count(key) ? parsed_user_device_name._config.at(key).as<std::string>() : "";
         const auto& subprop_value = parsed_subprop_device_name._config.count(key)
-                                 ? parsed_subprop_device_name._config.at(key).as<std::string>()
-                                 : "";
+                                        ? parsed_subprop_device_name._config.at(key).as<std::string>()
+                                        : "";
 
         if (!user_value.empty() && subprop_value.empty()) {
             // property without additional limitation can be applied

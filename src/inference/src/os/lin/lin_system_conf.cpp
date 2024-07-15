@@ -188,7 +188,11 @@ CPU::CPU() {
         } else {
             _processors = valid_cpu_mapping_table.size();
             _cpu_mapping_table.swap(valid_cpu_mapping_table);
-            update_valid_processor_linux(std::move(phy_core_list), _numa_nodes, _cores, _proc_type_table, _cpu_mapping_table);
+            update_valid_processor_linux(std::move(phy_core_list),
+                                         _numa_nodes,
+                                         _cores,
+                                         _proc_type_table,
+                                         _cpu_mapping_table);
             return 0;
         }
     };
