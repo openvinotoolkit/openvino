@@ -182,7 +182,7 @@ OpenVINO Intermediate Representation (IR) with ``FP16`` precision.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/notebooks/style-transfer-webcam/model/mosaic-9.onnx')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/style-transfer-webcam/model/mosaic-9.onnx')
 
 
 

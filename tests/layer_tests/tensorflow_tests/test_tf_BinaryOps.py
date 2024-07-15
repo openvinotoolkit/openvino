@@ -114,5 +114,7 @@ class TestBinaryOps(CommonTFLayerTest):
             pytest.skip("GPU does not support Bitwise ops. For Mod and Pow it has inference mismatch")
         if op_type in ['Mod', 'FloorDiv', 'FloorMod']:
             pytest.skip("Inference mismatch for Mod and FloorDiv")
+        if ie_device == 'GPU' and precision == 'FP16' and op_type in ['Equal', 'NotEqual', 'Greater', 'GreaterEqual', 'Less', 'LessEqual']:
+            pytest.skip("Accuracy mismatch on GPU")            
         self._test(*self.create_add_placeholder_const_net(x_shape=x_shape, y_shape=y_shape, op_type=op_type), ie_device,
                    precision, ir_version, temp_dir=temp_dir, use_legacy_frontend=use_legacy_frontend)

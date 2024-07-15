@@ -56,9 +56,10 @@ bool ShapePredictor::can_preallocate(size_t desired_buffer_size) {
     return device_mem_usage + desired_buffer_size < _engine->get_device_info().max_global_mem_size * memory_threshold;
 }
 
-std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std::string& id,
+std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std::string& orig_id,
                                                                        const cldnn::layout& layout,
                                                                        bool can_reuse_buffer,
+                                                                       const size_t out_idx,
                                                                        int32_t custom_next_iters_prealloc_count) {
     size_t next_iters_prealloc_count = custom_next_iters_prealloc_count > 0
                                            ? static_cast<size_t>(custom_next_iters_prealloc_count)
@@ -66,7 +67,12 @@ std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std
     const auto& current_shape = layout.get_shape();
     auto dt_bitwidth = ov::element::Type(layout.data_type).bitwidth();
 
-    add_shape(id, current_shape);
+    auto id_record = orig_id;
+    if (out_idx > 0) {
+        id_record += ("_out" + to_string(out_idx));
+    }
+
+    add_shape(id_record, current_shape);
 
     // Save shape information and exit without pre-allocation suggestion if current
     // buffer can be reused
@@ -74,7 +80,7 @@ std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std
         return {false, {}};
 
     // Check if there is enough data for prediction
-    const auto& shapes = _shapes_info[id];
+    const auto& shapes = _shapes_info[id_record];
     const auto shapes_num = shapes.size();
 
     // Number of shapes used for iterations mode predictions
