@@ -21,15 +21,15 @@
 
 ov::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
     MATCHER_SCOPE(MulFakeQuantizeFusion);
-    auto input_pattern = std::move(pass::pattern::any_input());
-    auto const_pattern = std::move(ov::pass::pattern::wrap_type<ov::op::v0::Constant>());
-    auto mul_pattern = std::move(ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input_pattern, const_pattern},
-                                                                                    pattern::consumers_count(1)));
-    auto fq_pattern = std::move(ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>({mul_pattern,
-                                                                                        pass::pattern::any_input(),
-                                                                                        pass::pattern::any_input(),
-                                                                                        pass::pattern::any_input(),
-                                                                                        pass::pattern::any_input()}));
+    auto input_pattern = pass::pattern::any_input();
+    auto const_pattern = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
+    auto mul_pattern =
+        ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({input_pattern, const_pattern}, pattern::consumers_count(1));
+    auto fq_pattern = ov::pass::pattern::wrap_type<ov::op::v0::FakeQuantize>({mul_pattern,
+                                                                              pass::pattern::any_input(),
+                                                                              pass::pattern::any_input(),
+                                                                              pass::pattern::any_input(),
+                                                                              pass::pattern::any_input()});
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_value_map = m.get_pattern_value_map();
         const auto& input = pattern_value_map.at(input_pattern);
