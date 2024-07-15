@@ -764,8 +764,6 @@ Quantize ImageBind model for text modality
 Quantize ImageBind model for audio modality
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
-
 .. code:: ipython3
 
     if not int8_model_paths[ModalityType.AUDIO].exists():

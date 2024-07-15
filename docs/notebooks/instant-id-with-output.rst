@@ -89,8 +89,9 @@ pipeline.
 
 - `Interactive demo <#interactive-demo>`__
 
-.. |applications.png| image:: https://github.com/InstantID/InstantID/blob/main/assets/applications.png?raw=true
 
+
+.. |applications.png| image:: https://github.com/InstantID/InstantID/blob/main/assets/applications.png?raw=true
 
 Prerequisites
 -------------

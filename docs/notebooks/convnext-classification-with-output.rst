@@ -215,6 +215,12 @@ interface. However, it can also be saved on disk using
     else:
         print(f"IR model {ov_model_xml_path} already exists.")
 
+
+.. parsed-literal::
+
+    ['x']
+
+
 When the ``openvino.save_model`` function is used, an OpenVINO model is
 serialized in the file system as two files with ``.xml`` and ``.bin``
 extensions. This pair of files is called OpenVINO Intermediate

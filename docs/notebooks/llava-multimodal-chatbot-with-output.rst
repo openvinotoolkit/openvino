@@ -505,7 +505,7 @@ Convert model to OpenVINO format and save it on disk.
 
 Let’s consider each step more deeply.
 
-Instantiate PyTorch model
+Instantiate PyTorch model 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
@@ -516,7 +516,7 @@ from `HuggingFace hub <https://huggingface.co/models>`__ during first
 run. It may takes some time and requires at least 13 Gb free space on
 disk.
 
-Compress Model weights to 4 and 8 bits using NNCF
+Compress Model weights to 4 and 8 bits using NNCF 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
@@ -559,7 +559,7 @@ documentation <https://docs.openvino.ai/2024/openvino-workflow/model-optimizatio
 
    **Note**: There is no speedup for INT4 compressed models on dGPU.
 
-Convert model to OpenVINO IR format
+Convert model to OpenVINO IR format 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
@@ -829,6 +829,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
             self.main_input_name = "input_ids"
             self.device = torch.device("cpu")
             self.num_pkv = 2
+            self._supports_cache_class = False
 
         def can_generate(self):
             """Returns True to validate the check that the model using `GenerationMixin.generate()` can indeed generate."""

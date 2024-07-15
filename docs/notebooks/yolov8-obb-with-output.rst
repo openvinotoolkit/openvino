@@ -169,10 +169,9 @@ instance.
     val: New cache created: /home/ea/work/openvino_notebooks/notebooks/fast-segment-anything/datasets/dota8/labels/train.cache
 
 
+.. parsed-literal::
 
-
-
-Run inference
+   Run inference
 ~~~~~~~~~~~~~
 
 

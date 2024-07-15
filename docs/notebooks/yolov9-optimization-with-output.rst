@@ -19,7 +19,10 @@ The tutorial consists of the following steps:
 -  Run model inference with OpenVINO
 -  Prepare and run optimization pipeline
 -  Compare performance of the FP32 and quantized models.
--  Run optimized model inference on video #### Table of contents:
+-  Run optimized model inference on video
+
+
+**Table of contents:**
 
 -  `Prerequisites <#prerequisites>`__
 -  `Get PyTorch model <#get-pytorch-model>`__
@@ -87,10 +90,12 @@ Prerequisites
 
     Cloning into 'yolov9'...
     remote: Enumerating objects: 781, done.[K
-    remote: Total 781 (delta 0), reused 0 (delta 0), pack-reused 781[K
-    Receiving objects: 100% (781/781), 3.27 MiB | 16.92 MiB/s, done.
-    Resolving deltas: 100% (330/330), done.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9
+    remote: Counting objects: 100% (407/407), done.[K
+    remote: Compressing objects: 100% (168/168), done.[K
+    remote: Total 781 (delta 280), reused 279 (delta 227), pack-reused 374[K
+    Receiving objects: 100% (781/781), 3.30 MiB | 7.49 MiB/s, done.
+    Resolving deltas: 100% (325/325), done.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9
 
 
 Get PyTorch model
@@ -128,7 +133,7 @@ applicable for other models from YOLO V9 family.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9/model/gelan-c.pt')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9/model/gelan-c.pt')
 
 
 
@@ -185,8 +190,13 @@ using ``ov.save_model``.
 
     Fusing layers...
     Model summary: 387 layers, 25288768 parameters, 0 gradients, 102.1 GFLOPs
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9/models/yolo.py:108: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/yolov9-optimization/yolov9/models/yolo.py:108: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       elif self.dynamic or self.shape != shape:
+
+
+.. parsed-literal::
+
+    ['x']
 
 
 Verify model inference
@@ -573,10 +583,10 @@ asymmetric quantization of activations.
 
 .. parsed-literal::
 
-    2024-07-02 03:52:09.485390: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-07-02 03:52:09.519990: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-07-13 04:25:19.627535: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-07-13 04:25:19.663330: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-07-02 03:52:10.108825: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-07-13 04:25:20.258143: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -619,6 +629,100 @@ asymmetric quantization of activations.
 
 
 
+
+
+.. parsed-literal::
+
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
 
 
 Run quantized model inference
@@ -680,18 +784,18 @@ models.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.3.0-15837-76a668b0662
+    [ INFO ] Build ................................. 2024.4.0-16028-fe423b97163
     [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.3.0-15837-76a668b0662
+    [ INFO ] Build ................................. 2024.4.0-16028-fe423b97163
     [ INFO ]
     [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 25.63 ms
+    [ INFO ] Read model took 26.21 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: x) : f32 / [...] / [?,3,?,?]
@@ -703,7 +807,7 @@ models.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'images': [1,3,640,640]
-    [ INFO ] Reshape model took 7.89 ms
+    [ INFO ] Reshape model took 7.85 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     images (node: x) : u8 / [N,C,H,W] / [1,3,640,640]
@@ -713,7 +817,7 @@ models.
     [ INFO ]     xi.3 (node: __module.model.22/aten::cat/Concat_1) : f32 / [...] / [1,144,40,40]
     [ INFO ]     xi (node: __module.model.22/aten::cat/Concat) : f32 / [...] / [1,144,20,20]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 507.38 ms
+    [ INFO ] Compile model took 490.27 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -750,17 +854,17 @@ models.
     [ INFO ] Fill input 'images' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 185.08 ms
+    [ INFO ] First inference took 186.95 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
     [ INFO ] Count:            228 iterations
-    [ INFO ] Duration:         15726.00 ms
+    [ INFO ] Duration:         15678.96 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        412.72 ms
-    [ INFO ]    Average:       410.65 ms
-    [ INFO ]    Min:           305.83 ms
-    [ INFO ]    Max:           431.66 ms
-    [ INFO ] Throughput:   14.50 FPS
+    [ INFO ]    Median:        413.56 ms
+    [ INFO ]    Average:       411.44 ms
+    [ INFO ]    Min:           338.36 ms
+    [ INFO ]    Max:           431.50 ms
+    [ INFO ] Throughput:   14.54 FPS
 
 
 .. code:: ipython3
@@ -774,18 +878,18 @@ models.
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.3.0-15837-76a668b0662
+    [ INFO ] Build ................................. 2024.4.0-16028-fe423b97163
     [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.3.0-15837-76a668b0662
+    [ INFO ] Build ................................. 2024.4.0-16028-fe423b97163
     [ INFO ]
     [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 40.32 ms
+    [ INFO ] Read model took 40.98 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: x) : f32 / [...] / [1,3,640,640]
@@ -797,7 +901,7 @@ models.
     [Step 5/11] Resizing model to match image sizes and given batch
     [ INFO ] Model batch size: 1
     [ INFO ] Reshaping model: 'images': [1,3,640,640]
-    [ INFO ] Reshape model took 0.04 ms
+    [ INFO ] Reshape model took 0.05 ms
     [Step 6/11] Configuring input of the model
     [ INFO ] Model inputs:
     [ INFO ]     images (node: x) : u8 / [N,C,H,W] / [1,3,640,640]
@@ -807,7 +911,7 @@ models.
     [ INFO ]     xi.3 (node: __module.model.22/aten::cat/Concat_1) : f32 / [...] / [1,144,40,40]
     [ INFO ]     xi (node: __module.model.22/aten::cat/Concat) : f32 / [...] / [1,144,20,20]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1102.75 ms
+    [ INFO ] Compile model took 964.26 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -844,17 +948,17 @@ models.
     [ INFO ] Fill input 'images' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 73.96 ms
+    [ INFO ] First inference took 77.25 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
     [ INFO ] Count:            750 iterations
-    [ INFO ] Duration:         15151.23 ms
+    [ INFO ] Duration:         15181.84 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        121.36 ms
-    [ INFO ]    Average:       120.92 ms
-    [ INFO ]    Min:           69.51 ms
-    [ INFO ]    Max:           134.06 ms
-    [ INFO ] Throughput:   49.50 FPS
+    [ INFO ]    Median:        121.39 ms
+    [ INFO ]    Average:       121.02 ms
+    [ INFO ]    Min:           93.56 ms
+    [ INFO ]    Max:           133.28 ms
+    [ INFO ] Throughput:   49.40 FPS
 
 
 Run Live Object Detection
