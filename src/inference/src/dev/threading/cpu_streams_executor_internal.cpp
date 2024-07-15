@@ -202,7 +202,7 @@ void update_proc_type_table(const std::vector<std::vector<int>> _cpu_mapping_tab
         numa_node_map.insert(std::pair<int, int>(_proc_type_table[0][PROC_NUMA_NODE_ID], 0));
     }
 
-    std::vector<int> all_table {0, 0, 0, 0, -1, -1};
+    std::vector<int> all_table{0, 0, 0, 0, -1, -1};
     for (size_t i = 0; i < _cpu_mapping_table.size(); i++) {
         if (_cpu_mapping_table[i][CPU_MAP_USED_FLAG] == NOT_USED && _cpu_mapping_table[i][CPU_MAP_NUMA_NODE_ID] >= 0 &&
             _cpu_mapping_table[i][CPU_MAP_CORE_TYPE] >= ALL_PROC) {
