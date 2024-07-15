@@ -5,6 +5,7 @@
 #include "brgemm.hpp"
 
 #include <cpu/x64/amx_tile_configure.hpp>
+#include <cpu/x64/brgemm/capi/brgemm_api.hpp>
 #include "common/utils.hpp"
 #include "dnnl_extension_utils.h"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
@@ -86,7 +87,8 @@ BrgemmKernelExecutor::BrgemmKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kern
 
 std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelExecutor::compile_kernel(const std::shared_ptr<const BrgemmKernelConfig>& config) const {
     OV_CPU_JIT_EMITTER_ASSERT(config, "Invalid config provided for BrgemmKernelDesc::compile_kernel");
-    cpu::x64::brgemm_t desc;
+    dnnl_brgemm _brgemm;
+    auto &desc = _brgemm.brgemm_desc_;
     auto status = brgemm_desc_init(&desc, config->get_isa(), cpu::x64::brgemm_strd,
                                    config->get_dt_in0(), config->get_dt_in1(),
                                    false, false, cpu::x64::brgemm_row_major, 1.f,
