@@ -18,6 +18,9 @@
 #include "openvino/util/log.hpp"
 #include "perf_counters.hpp"
 
+#include <iostream>
+#include <fstream>
+
 using namespace std;
 
 #ifdef ENABLE_PROFILING_ITT
@@ -89,6 +92,52 @@ private:
     bool m_active = false;
     std::chrono::nanoseconds m_last_time = std::chrono::high_resolution_clock::duration::zero();
 };
+
+struct TransformationInfo {
+    size_t time;
+    bool status;
+
+    TransformationInfo(size_t time, bool status) : time(time), status(status) {}
+};
+
+std::unordered_map<std::string, std::vector<TransformationInfo>> transformation_info;
+
+void add_transformation_info(const std::string& name, size_t time, bool status) {
+    auto it = transformation_info.find(name);
+    if (it == transformation_info.end()) {
+        it = transformation_info.emplace(name, std::vector<TransformationInfo>()).first;
+    }
+    it->second.emplace_back(time, status);
+}
+
+template <typename T>
+void output_transformation_info(T& output, size_t manager_time) {
+    for (const auto& pair : transformation_info) {
+        for (const auto& item : pair.second) {
+            output << pair.first << '\t' << item.time << " ms " << '\t' << item.status << std::endl;
+        }
+    }
+
+    output << "passes done in " << manager_time << "ms" << std::endl;
+}
+
+std::ofstream get_profile_output_file() {
+    const std::string path = ov::util::getenv_string("OV_PROFILE_PASS_FILE_PATH");
+    if (path.empty()) {
+        return {};
+    }
+
+    return std::ofstream(path, std::ios::out | std::ios::app);
+}
+
+void save_transformation_info(size_t manager_time) {
+    static auto file = get_profile_output_file();
+    if (file) {
+        return output_transformation_info(file, manager_time);
+    }
+    return output_transformation_info(std::cout, manager_time);
+}
+
 }  // namespace
 
 bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
@@ -163,14 +212,13 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
         index++;
         pass_timer.stop();
         if (profile_enabled) {
-            cout << setw(7) << pass_timer.get_milliseconds() << "ms" << (pass_applied ? " + " : "   ")
-                 << pass->get_name() << "\n";
+            add_transformation_info(pass->get_name(), pass_timer.get_milliseconds(), pass_applied);
         }
         function_changed = function_changed || pass_applied;
         needs_validate = pass_applied;
     }
     if (profile_enabled) {
-        cout << "passes done in " << overall_timer.get_milliseconds() << "ms\n";
+        save_transformation_info(overall_timer.get_milliseconds());
     }
 
     return function_changed;
