@@ -240,6 +240,10 @@ protected:
     friend std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph);
 
 private:
+    void EnforceInferencePrecision();
+    void EnforceBF16();
+    void insertReorder(EdgePtr& edge, bool isOptimized, std::unordered_set<std::string>& uniqueLayerNames);
+
     // TODO: change std::map to std::unordered_map
     std::map<std::size_t, NodePtr> inputNodesMap;
     std::map<std::size_t, NodePtr> outputNodesMap;
@@ -253,10 +257,6 @@ private:
     std::vector<size_t> m_executableSyncNodesInds;
 
     GraphContext::CPtr context;
-
-    void EnforceInferencePrecision();
-    void EnforceBF16();
-    void insertReorder(EdgePtr& edge, bool isOptimized, std::unordered_set<std::string>& uniqueLayerNames);
 };
 
 using GraphPtr = std::shared_ptr<Graph>;

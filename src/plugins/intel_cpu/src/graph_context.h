@@ -17,60 +17,16 @@ namespace node {
 class MemoryStatesRegister;
 } // namespace node
 
-class GraphContext {
+class GraphGlobalContext {
 public:
-    typedef std::shared_ptr<GraphContext> Ptr;
-    typedef std::shared_ptr<const GraphContext> CPtr;
+    using Ptr  = std::shared_ptr<GraphGlobalContext>;
+    using CPtr = std::shared_ptr<const GraphGlobalContext>;
 
-    GraphContext(const Config& config,
-                 WeightsSharing::Ptr w_cache,
-                 bool isGraphQuantized,
-                 ov::threading::IStreamsExecutor::Ptr streamExecutor = nullptr);
+    GraphGlobalContext(const Config& config,
+                       WeightsSharing::Ptr w_cache,
+                       bool isGraphQuantized,
+                       ov::threading::IStreamsExecutor::Ptr streamExecutor = nullptr);
 
-    const Config& getConfig() const {
-        return config;
-    }
-
-    WeightsSharing::Ptr getWeightsCache() const {
-        return weightsCache;
-    }
-
-
-    MultiCachePtr getParamsCache() const {
-        return rtParamsCache;
-    }
-
-    DnnlScratchPadPtr getScratchPad(int subStreamID = 0) const {
-        if (subStreamID < 0)
-            subStreamID = 0;
-        if (subStreamID >= numNumaNodes - 1)
-            subStreamID = numNumaNodes - 1;
-        return rtScratchPads[subStreamID];
-    }
-
-    const std::vector<DnnlScratchPadPtr>& getScratchPads() const {
-        return rtScratchPads;
-    }
-
-    static const dnnl::engine& getEngine();
-
-    bool isGraphQuantized() const {
-        return isGraphQuantizedFlag;
-    }
-
-    ov::threading::CPUStreamsExecutor::Ptr getCPUStreamExecutor() const {
-        return cpuStreamExecutor;
-    }
-
-    int getNumNumaNodes() const {
-        return numNumaNodes;
-    }
-
-    const std::shared_ptr<node::MemoryStatesRegister>& getMemoryStatesRegister() const {
-        return memoryStatesRegister;
-    }
-
-private:
     Config config;  // network-level config
 
     WeightsSharing::Ptr weightsCache;         // per NUMA node caches for sharing weights data
@@ -89,6 +45,83 @@ private:
     int numNumaNodes = 1;
 
     std::shared_ptr<node::MemoryStatesRegister> memoryStatesRegister;
+};
+
+// context which is specific to the current graph
+struct GraphLocalContext {
+    int level;
+};
+
+class GraphContext {
+public:
+    typedef std::shared_ptr<GraphContext> Ptr;
+    typedef std::shared_ptr<const GraphContext> CPtr;
+
+    GraphContext(const Config& config,
+                 WeightsSharing::Ptr w_cache,
+                 bool isGraphQuantized,
+                 ov::threading::IStreamsExecutor::Ptr streamExecutor = nullptr,
+                 int level = -1);
+
+    GraphContext(GraphGlobalContext::CPtr global, GraphLocalContext local)
+        : global(global),
+          local(local) {}
+
+    static const dnnl::engine& getEngine();
+
+    const Config& getConfig() const {
+        return global->config;
+    }
+
+    WeightsSharing::Ptr getWeightsCache() const {
+        return global->weightsCache;
+    }
+
+
+    MultiCachePtr getParamsCache() const {
+        return global->rtParamsCache;
+    }
+
+    DnnlScratchPadPtr getScratchPad(int subStreamID = 0) const {
+        if (subStreamID < 0)
+            subStreamID = 0;
+        if (subStreamID >= global->numNumaNodes - 1)
+            subStreamID = global->numNumaNodes - 1;
+        return global->rtScratchPads[subStreamID];
+    }
+
+    const std::vector<DnnlScratchPadPtr>& getScratchPads() const {
+        return global->rtScratchPads;
+    }
+
+    bool isGraphQuantized() const {
+        return global->isGraphQuantizedFlag;
+    }
+
+    ov::threading::CPUStreamsExecutor::Ptr getCPUStreamExecutor() const {
+        return global->cpuStreamExecutor;
+    }
+
+    int getNumNumaNodes() const {
+        return global->numNumaNodes;
+    }
+
+    const std::shared_ptr<node::MemoryStatesRegister>& getMemoryStatesRegister() const {
+        return global->memoryStatesRegister;
+    }
+
+    int level() const {
+        return local.level;
+    }
+
+    // go one level deeper into the context
+    GraphContext::Ptr down() const {
+        return std::make_shared<GraphContext>(global, GraphLocalContext{local.level + 1});
+    }
+
+private:
+    GraphGlobalContext::CPtr global;
+    GraphLocalContext local;
 };
 
 }  // namespace intel_cpu
