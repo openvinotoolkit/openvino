@@ -18,21 +18,21 @@ from a Single Image <https://arxiv.org/abs/2403.02151>`__.
 
    Teaser Video
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-
--  `Prerequisites <#prerequisites>`__
--  `Get the original model <#get-the-original-model>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Get the original model <#Get-the-original-model>`__
 -  `Convert the model to OpenVINO
-   IR <#convert-the-model-to-openvino-ir>`__
+   IR <#Convert-the-model-to-OpenVINO-IR>`__
 -  `Compiling models and prepare
-   pipeline <#compiling-models-and-prepare-pipeline>`__
--  `Interactive inference <#interactive-inference>`__
+   pipeline <#Compiling-models-and-prepare-pipeline>`__
+-  `Interactive inference <#Interactive-inference>`__
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -70,7 +70,7 @@ Prerequisites
     remote: Counting objects: 100% (113/113), done.[K
     remote: Compressing objects: 100% (111/111), done.[K
     remote: Total 117 (delta 36), reused 0 (delta 0), pack-reused 4 (from 1)[K
-    Receiving objects: 100% (117/117), 569.16 KiB | 2.03 MiB/s, done.
+    Receiving objects: 100% (117/117), 569.16 KiB | 2.61 MiB/s, done.
     Resolving deltas: 100% (36/36), done.
 
 
@@ -215,7 +215,7 @@ Get the original model
 Convert the model to OpenVINO IR
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Define the conversion function for PyTorch modules. We use
 ``ov.convert_model`` function to obtain OpenVINO Intermediate
@@ -278,7 +278,12 @@ models one by one.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/vit/modeling_vit.py:167: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    ['pixel_values']
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/vit/modeling_vit.py:167: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if num_channels != self.num_channels:
 
 
@@ -317,6 +322,12 @@ models one by one.
         example_input,
     )
 
+
+.. parsed-literal::
+
+    ['hidden_states']
+
+
 .. code:: ipython3
 
     VIT_POOLER_OV_PATH = Path("models/vit_pooler_ir.xml")
@@ -326,10 +337,22 @@ models one by one.
         torch.rand([1, 1025, 768], dtype=torch.float32),
     )
 
+
+.. parsed-literal::
+
+    ['hidden_states']
+
+
 .. code:: ipython3
 
     TOKENIZER_OV_PATH = Path("models/tokenizer_ir.xml")
     convert(model.tokenizer, TOKENIZER_OV_PATH, torch.tensor(1))
+
+
+.. parsed-literal::
+
+    ['batch_size']
+
 
 .. code:: ipython3
 
@@ -341,6 +364,12 @@ models one by one.
     BACKBONE_OV_PATH = Path("models/backbone_ir.xml")
     convert(model.backbone, BACKBONE_OV_PATH, example_input)
 
+
+.. parsed-literal::
+
+    ['hidden_states', 'encoder_hidden_states']
+
+
 .. code:: ipython3
 
     POST_PROCESSOR_OV_PATH = Path("models/post_processor_ir.xml")
@@ -350,10 +379,16 @@ models one by one.
         torch.rand([1, 3, 1024, 32, 32], dtype=torch.float32),
     )
 
+
+.. parsed-literal::
+
+    ['triplanes']
+
+
 Compiling models and prepare pipeline
 -------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Select device from dropdown list for running inference using OpenVINO.
 
@@ -505,7 +540,7 @@ Replace all models in the original model by wrappers instances:
 Interactive inference
 ---------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -620,7 +655,7 @@ Interactive inference
 
 
 
+.. raw:: html
 
-
-
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="680" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

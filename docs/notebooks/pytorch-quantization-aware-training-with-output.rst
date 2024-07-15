@@ -34,24 +34,24 @@ hub <https://pytorch.org/hub/pytorch_vision_resnet/>`__.
    tools, including C++. For Linux you can install gcc with your
    distribution’s package manager.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
+-  `Imports and Settings <#Imports-and-Settings>`__
+-  `Pre-train Floating-Point Model <#Pre-train-Floating-Point-Model>`__
 
--  `Imports and Settings <#imports-and-settings>`__
--  `Pre-train Floating-Point Model <#pre-train-floating-point-model>`__
-
-   -  `Train Function <#train-function>`__
-   -  `Validate Function <#validate-function>`__
-   -  `Helpers <#helpers>`__
-   -  `Get a Pre-trained FP32 Model <#get-a-pre-trained-fp32-model>`__
+   -  `Train Function <#Train-Function>`__
+   -  `Validate Function <#Validate-Function>`__
+   -  `Helpers <#Helpers>`__
+   -  `Get a Pre-trained FP32 Model <#Get-a-Pre-trained-FP32-Model>`__
 
 -  `Create and Initialize
-   Quantization <#create-and-initialize-quantization>`__
--  `Fine-tune the Compressed Model <#fine-tune-the-compressed-model>`__
+   Quantization <#Create-and-Initialize-Quantization>`__
+-  `Fine-tune the Compressed Model <#Fine-tune-the-Compressed-Model>`__
 -  `Export INT8 Model to OpenVINO
-   IR <#export-int8-model-to-openvino-ir>`__
+   IR <#Export-INT8-Model-to-OpenVINO-IR>`__
 -  `Benchmark Model Performance by Computing Inference
-   Time <#benchmark-model-performance-by-computing-inference-time>`__
+   Time <#Benchmark-Model-Performance-by-Computing-Inference-Time>`__
 
 .. code:: ipython3
 
@@ -68,7 +68,7 @@ hub <https://pytorch.org/hub/pytorch_vision_resnet/>`__.
 Imports and Settings
 --------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 On Windows, add the required C++ directories to the system PATH.
 
@@ -153,7 +153,7 @@ models will be stored.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/notebooks/pytorch-quantization-aware-training/model/resnet18_fp32.pth')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/pytorch-quantization-aware-training/model/resnet18_fp32.pth')
 
 
 
@@ -216,7 +216,7 @@ Download Tiny ImageNet dataset
 Pre-train Floating-Point Model
 ------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Using NNCF for model compression assumes that a pre-trained model and a
 training pipeline are already in use.
@@ -231,7 +231,7 @@ for quantization-aware training.
 Train Function
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -280,7 +280,7 @@ Train Function
 Validate Function
 ~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -324,7 +324,7 @@ Validate Function
 Helpers
 ~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -389,7 +389,7 @@ Helpers
 Get a Pre-trained FP32 Model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 А pre-trained floating-point model is a prerequisite for quantization.
 It can be obtained by tuning from scratch with the code below. However,
@@ -458,9 +458,9 @@ section at the top of this notebook.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
       warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=None`.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=None`.
       warnings.warn(msg)
 
 
@@ -515,13 +515,14 @@ benchmark it in comparison with the ``INT8`` model.
 
 .. parsed-literal::
 
+    ['x']
     FP32 model was exported to model/resnet18_fp32.xml.
 
 
 Create and Initialize Quantization
 ----------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 NNCF enables compression-aware training by integrating into regular
 training pipelines. The framework is designed so that modifications to
@@ -570,10 +571,10 @@ about supported parameters can be found on this
 
 .. parsed-literal::
 
-    2024-07-02 01:34:23.981872: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-07-02 01:34:24.017289: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-07-13 01:48:22.717129: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-07-13 01:48:22.753125: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-07-02 01:34:24.543627: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-07-13 01:48:23.281403: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -583,17 +584,17 @@ about supported parameters can be found on this
 
 
 
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
+.. raw:: html
 
-
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
 
 
 
@@ -610,17 +611,17 @@ about supported parameters can be found on this
 
 
 
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
+.. raw:: html
 
-
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
 
 
 
@@ -637,14 +638,14 @@ demonstrated here.
 
 .. parsed-literal::
 
-    Test: [ 0/79]	Time 0.231 (0.231)	Loss 1.005 (1.005)	Acc@1 78.91 (78.91)	Acc@5 88.28 (88.28)
-    Test: [10/79]	Time 0.166 (0.174)	Loss 1.992 (1.625)	Acc@1 44.53 (60.37)	Acc@5 79.69 (83.66)
-    Test: [20/79]	Time 0.169 (0.171)	Loss 1.814 (1.705)	Acc@1 60.94 (58.04)	Acc@5 80.47 (82.66)
-    Test: [30/79]	Time 0.169 (0.169)	Loss 2.287 (1.795)	Acc@1 50.78 (56.48)	Acc@5 68.75 (80.97)
-    Test: [40/79]	Time 0.165 (0.168)	Loss 1.615 (1.832)	Acc@1 60.94 (55.43)	Acc@5 82.81 (80.43)
-    Test: [50/79]	Time 0.170 (0.168)	Loss 1.952 (1.833)	Acc@1 57.03 (55.51)	Acc@5 75.00 (80.16)
-    Test: [60/79]	Time 0.163 (0.168)	Loss 1.794 (1.856)	Acc@1 57.03 (55.16)	Acc@5 84.38 (79.84)
-    Test: [70/79]	Time 0.164 (0.167)	Loss 2.371 (1.889)	Acc@1 46.88 (54.68)	Acc@5 74.22 (79.14)
+    Test: [ 0/79]	Time 0.223 (0.223)	Loss 1.005 (1.005)	Acc@1 78.91 (78.91)	Acc@5 88.28 (88.28)
+    Test: [10/79]	Time 0.172 (0.176)	Loss 1.992 (1.625)	Acc@1 44.53 (60.37)	Acc@5 79.69 (83.66)
+    Test: [20/79]	Time 0.179 (0.173)	Loss 1.814 (1.705)	Acc@1 60.94 (58.04)	Acc@5 80.47 (82.66)
+    Test: [30/79]	Time 0.168 (0.173)	Loss 2.287 (1.795)	Acc@1 50.78 (56.48)	Acc@5 68.75 (80.97)
+    Test: [40/79]	Time 0.171 (0.173)	Loss 1.615 (1.832)	Acc@1 60.94 (55.43)	Acc@5 82.81 (80.43)
+    Test: [50/79]	Time 0.172 (0.173)	Loss 1.952 (1.833)	Acc@1 57.03 (55.51)	Acc@5 75.00 (80.16)
+    Test: [60/79]	Time 0.171 (0.173)	Loss 1.794 (1.856)	Acc@1 57.03 (55.16)	Acc@5 84.38 (79.84)
+    Test: [70/79]	Time 0.171 (0.173)	Loss 2.371 (1.889)	Acc@1 46.88 (54.68)	Acc@5 74.22 (79.14)
      * Acc@1 55.040 Acc@5 79.730
     Accuracy of initialized INT8 model: 55.040
 
@@ -652,7 +653,7 @@ demonstrated here.
 Fine-tune the Compressed Model
 ------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 At this step, a regular fine-tuning process is applied to further
 improve quantized model accuracy. Normally, several epochs of tuning are
@@ -677,30 +678,30 @@ training pipeline are required. Here is a simple example.
 
 .. parsed-literal::
 
-    Epoch:[0][  0/782]	Time 0.488 (0.488)	Loss 1.029 (1.029)	Acc@1 75.00 (75.00)	Acc@5 90.62 (90.62)
-    Epoch:[0][ 50/782]	Time 0.366 (0.377)	Loss 0.672 (0.823)	Acc@1 87.50 (79.81)	Acc@5 94.53 (93.84)
-    Epoch:[0][100/782]	Time 0.388 (0.374)	Loss 0.661 (0.799)	Acc@1 85.94 (80.31)	Acc@5 98.44 (94.41)
-    Epoch:[0][150/782]	Time 0.379 (0.375)	Loss 0.632 (0.797)	Acc@1 85.94 (80.50)	Acc@5 94.53 (94.24)
-    Epoch:[0][200/782]	Time 0.376 (0.375)	Loss 0.742 (0.790)	Acc@1 81.25 (80.69)	Acc@5 94.53 (94.31)
-    Epoch:[0][250/782]	Time 0.375 (0.376)	Loss 0.815 (0.785)	Acc@1 81.25 (80.80)	Acc@5 93.75 (94.34)
-    Epoch:[0][300/782]	Time 0.387 (0.376)	Loss 0.878 (0.781)	Acc@1 76.56 (80.87)	Acc@5 92.19 (94.37)
-    Epoch:[0][350/782]	Time 0.377 (0.376)	Loss 0.746 (0.774)	Acc@1 82.03 (81.03)	Acc@5 93.75 (94.44)
-    Epoch:[0][400/782]	Time 0.372 (0.376)	Loss 0.766 (0.772)	Acc@1 79.69 (81.12)	Acc@5 96.88 (94.42)
-    Epoch:[0][450/782]	Time 0.370 (0.375)	Loss 0.865 (0.768)	Acc@1 77.34 (81.28)	Acc@5 93.75 (94.48)
-    Epoch:[0][500/782]	Time 0.374 (0.376)	Loss 0.526 (0.765)	Acc@1 89.06 (81.33)	Acc@5 97.66 (94.53)
-    Epoch:[0][550/782]	Time 0.382 (0.376)	Loss 0.826 (0.762)	Acc@1 79.69 (81.39)	Acc@5 92.19 (94.55)
-    Epoch:[0][600/782]	Time 0.367 (0.375)	Loss 0.644 (0.761)	Acc@1 85.94 (81.45)	Acc@5 95.31 (94.55)
-    Epoch:[0][650/782]	Time 0.374 (0.375)	Loss 0.585 (0.757)	Acc@1 81.25 (81.57)	Acc@5 98.44 (94.59)
-    Epoch:[0][700/782]	Time 0.374 (0.375)	Loss 0.578 (0.755)	Acc@1 86.72 (81.65)	Acc@5 96.88 (94.60)
-    Epoch:[0][750/782]	Time 0.366 (0.375)	Loss 0.783 (0.753)	Acc@1 79.69 (81.69)	Acc@5 95.31 (94.63)
-    Test: [ 0/79]	Time 0.149 (0.149)	Loss 1.063 (1.063)	Acc@1 74.22 (74.22)	Acc@5 87.50 (87.50)
-    Test: [10/79]	Time 0.148 (0.149)	Loss 1.785 (1.514)	Acc@1 50.78 (63.21)	Acc@5 81.25 (84.38)
-    Test: [20/79]	Time 0.150 (0.149)	Loss 1.582 (1.588)	Acc@1 64.84 (61.09)	Acc@5 82.03 (84.04)
-    Test: [30/79]	Time 0.146 (0.149)	Loss 2.103 (1.691)	Acc@1 55.47 (59.30)	Acc@5 71.09 (82.41)
-    Test: [40/79]	Time 0.151 (0.149)	Loss 1.597 (1.745)	Acc@1 64.06 (57.89)	Acc@5 83.59 (81.48)
-    Test: [50/79]	Time 0.149 (0.150)	Loss 1.895 (1.751)	Acc@1 53.91 (57.74)	Acc@5 77.34 (81.20)
-    Test: [60/79]	Time 0.150 (0.150)	Loss 1.566 (1.783)	Acc@1 65.62 (57.18)	Acc@5 84.38 (80.75)
-    Test: [70/79]	Time 0.147 (0.149)	Loss 2.457 (1.811)	Acc@1 45.31 (56.65)	Acc@5 73.44 (80.27)
+    Epoch:[0][  0/782]	Time 0.433 (0.433)	Loss 1.029 (1.029)	Acc@1 75.00 (75.00)	Acc@5 90.62 (90.62)
+    Epoch:[0][ 50/782]	Time 0.380 (0.380)	Loss 0.672 (0.823)	Acc@1 87.50 (79.81)	Acc@5 94.53 (93.84)
+    Epoch:[0][100/782]	Time 0.376 (0.379)	Loss 0.661 (0.799)	Acc@1 85.94 (80.31)	Acc@5 98.44 (94.41)
+    Epoch:[0][150/782]	Time 0.368 (0.377)	Loss 0.632 (0.797)	Acc@1 85.94 (80.50)	Acc@5 94.53 (94.24)
+    Epoch:[0][200/782]	Time 0.380 (0.377)	Loss 0.742 (0.790)	Acc@1 81.25 (80.69)	Acc@5 94.53 (94.31)
+    Epoch:[0][250/782]	Time 0.380 (0.377)	Loss 0.815 (0.785)	Acc@1 81.25 (80.80)	Acc@5 93.75 (94.34)
+    Epoch:[0][300/782]	Time 0.365 (0.376)	Loss 0.878 (0.781)	Acc@1 76.56 (80.87)	Acc@5 92.19 (94.37)
+    Epoch:[0][350/782]	Time 0.372 (0.376)	Loss 0.746 (0.774)	Acc@1 82.03 (81.03)	Acc@5 93.75 (94.44)
+    Epoch:[0][400/782]	Time 0.378 (0.376)	Loss 0.766 (0.772)	Acc@1 79.69 (81.12)	Acc@5 96.88 (94.42)
+    Epoch:[0][450/782]	Time 0.379 (0.376)	Loss 0.865 (0.768)	Acc@1 77.34 (81.28)	Acc@5 93.75 (94.48)
+    Epoch:[0][500/782]	Time 0.372 (0.376)	Loss 0.526 (0.765)	Acc@1 89.06 (81.33)	Acc@5 97.66 (94.53)
+    Epoch:[0][550/782]	Time 0.369 (0.376)	Loss 0.826 (0.762)	Acc@1 79.69 (81.39)	Acc@5 92.19 (94.55)
+    Epoch:[0][600/782]	Time 0.367 (0.376)	Loss 0.644 (0.761)	Acc@1 85.94 (81.45)	Acc@5 95.31 (94.55)
+    Epoch:[0][650/782]	Time 0.371 (0.376)	Loss 0.585 (0.757)	Acc@1 81.25 (81.57)	Acc@5 98.44 (94.59)
+    Epoch:[0][700/782]	Time 0.370 (0.376)	Loss 0.578 (0.755)	Acc@1 86.72 (81.65)	Acc@5 96.88 (94.60)
+    Epoch:[0][750/782]	Time 0.381 (0.376)	Loss 0.783 (0.753)	Acc@1 79.69 (81.69)	Acc@5 95.31 (94.63)
+    Test: [ 0/79]	Time 0.150 (0.150)	Loss 1.063 (1.063)	Acc@1 74.22 (74.22)	Acc@5 87.50 (87.50)
+    Test: [10/79]	Time 0.150 (0.149)	Loss 1.785 (1.514)	Acc@1 50.78 (63.21)	Acc@5 81.25 (84.38)
+    Test: [20/79]	Time 0.150 (0.150)	Loss 1.582 (1.588)	Acc@1 64.84 (61.09)	Acc@5 82.03 (84.04)
+    Test: [30/79]	Time 0.148 (0.150)	Loss 2.103 (1.691)	Acc@1 55.47 (59.30)	Acc@5 71.09 (82.41)
+    Test: [40/79]	Time 0.149 (0.150)	Loss 1.597 (1.745)	Acc@1 64.06 (57.89)	Acc@5 83.59 (81.48)
+    Test: [50/79]	Time 0.148 (0.150)	Loss 1.895 (1.751)	Acc@1 53.91 (57.74)	Acc@5 77.34 (81.20)
+    Test: [60/79]	Time 0.151 (0.150)	Loss 1.566 (1.783)	Acc@1 65.62 (57.18)	Acc@5 84.38 (80.75)
+    Test: [70/79]	Time 0.151 (0.150)	Loss 2.457 (1.811)	Acc@1 45.31 (56.65)	Acc@5 73.44 (80.27)
      * Acc@1 57.080 Acc@5 80.940
     Accuracy of tuned INT8 model: 57.080
     Accuracy drop of tuned INT8 model over pre-trained FP32 model: -1.560
@@ -709,7 +710,7 @@ training pipeline are required. Here is a simple example.
 Export INT8 Model to OpenVINO IR
 --------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -725,13 +726,14 @@ Export INT8 Model to OpenVINO IR
 .. parsed-literal::
 
     WARNING:tensorflow:Please fix your imports. Module tensorflow.python.training.tracking.base has been moved to tensorflow.python.trackable.base. The old module will be deleted in version 2.11.
+    ['x']
     INT8 model exported to model/resnet18_int8.xml.
 
 
 Benchmark Model Performance by Computing Inference Time
 -------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Finally, measure the inference performance of the ``FP32`` and ``INT8``
 models, using `Benchmark
@@ -793,9 +795,9 @@ throughput (frames per second) values.
 .. parsed-literal::
 
     Benchmark FP32 model (IR)
-    [ INFO ] Throughput:   2934.02 FPS
+    [ INFO ] Throughput:   2933.90 FPS
     Benchmark INT8 model (IR)
-    [ INFO ] Throughput:   11792.08 FPS
+    [ INFO ] Throughput:   11862.93 FPS
 
 
 Show Device Information for reference.

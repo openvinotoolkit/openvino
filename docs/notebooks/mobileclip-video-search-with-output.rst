@@ -24,36 +24,37 @@ In this tutorial, we consider how to use MobileCLIP to implement a
 visual content search engine for finding relevant frames in video. ####
 Table of contents:
 
--  `Prerequisites <#prerequisites>`__
--  `Select model <#select-model>`__
--  `Run model inference <#run-model-inference>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Select model <#Select-model>`__
+-  `Run model inference <#Run-model-inference>`__
 
-   -  `Prepare image gallery <#prepare-image-gallery>`__
-   -  `Prepare model <#prepare-model>`__
-   -  `Perform search <#perform-search>`__
+   -  `Prepare image gallery <#Prepare-image-gallery>`__
+   -  `Prepare model <#Prepare-model>`__
+   -  `Perform search <#Perform-search>`__
 
 -  `Convert Model to OpenVINO Intermediate Representation
-   format <#convert-model-to-openvino-intermediate-representation-format>`__
--  `Run OpenVINO model inference <#run-openvino-model-inference>`__
+   format <#Convert-Model-to-OpenVINO-Intermediate-Representation-format>`__
+-  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
 
    -  `Select device for image
-      encoder <#select-device-for-image-encoder>`__
+      encoder <#Select-device-for-image-encoder>`__
    -  `Select device for text
-      encoder <#select-device-for-text-encoder>`__
-   -  `Perform search <#perform-search>`__
+      encoder <#Select-device-for-text-encoder>`__
+   -  `Perform search <#Perform-search>`__
 
--  `Interactive Demo <#interactive-demo>`__
+-  `Interactive Demo <#Interactive-Demo>`__
 
 Prerequisites
 -------------
 
+`back to top ⬆️ <#Table-of-contents:>`__ ## Prerequisites
 
 .. code:: ipython3
 
     from pathlib import Path
-
+    
     repo_dir = Path("./ml-mobileclip")
-
+    
     if not repo_dir.exists():
         !git clone https://github.com/apple/ml-mobileclip.git
 
@@ -65,15 +66,15 @@ Prerequisites
     remote: Counting objects: 100% (68/68), done.[K
     remote: Compressing objects: 100% (51/51), done.[K
     remote: Total 68 (delta 19), reused 65 (delta 16), pack-reused 0[K
-    Unpacking objects: 100% (68/68), 447.59 KiB | 3.52 MiB/s, done.
+    Unpacking objects: 100% (68/68), 447.59 KiB | 4.03 MiB/s, done.
 
 
 .. code:: ipython3
 
     %pip install -q "./ml-mobileclip" --no-deps
-
+    
     %pip install -q "clip-benchmark>=1.4.0" "datasets>=2.8.0" "open-clip-torch>=2.20.0" "timm>=0.9.5" "torch>=1.13.1" "torchvision>=0.14.1" --extra-index-url https://download.pytorch.org/whl/cpu
-
+    
     %pip install -q "openvino>=2024.0.0" "gradio>=4.19" "matplotlib" "Pillow"  "altair" "pandas" "opencv-python" "tqdm"
 
 
@@ -90,7 +91,7 @@ Prerequisites
 Select model
 ------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For starting work, we should select model that will be used in our
 demonstration. By default, we will use the MobileCLIP model, but for
@@ -131,9 +132,9 @@ comparison purposes, you can select different models among:
 .. code:: ipython3
 
     import ipywidgets as widgets
-
+    
     model_dir = Path("checkpoints")
-
+    
     supported_models = {
         "MobileCLIP": {
             "mobileclip_s0": {
@@ -202,8 +203,8 @@ comparison purposes, you can select different models among:
             },
         },
     }
-
-
+    
+    
     model_type = widgets.Dropdown(options=supported_models.keys(), default="MobileCLIP", description="Model type:")
     model_type
 
@@ -219,13 +220,13 @@ comparison purposes, you can select different models among:
 .. code:: ipython3
 
     available_models = supported_models[model_type.value]
-
+    
     model_checkpoint = widgets.Dropdown(
         options=available_models.keys(),
         default=list(available_models),
         description="Model:",
     )
-
+    
     model_checkpoint
 
 
@@ -240,21 +241,21 @@ comparison purposes, you can select different models among:
 .. code:: ipython3
 
     import requests
-
+    
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-
+    
     open("notebook_utils.py", "w").write(r.text)
-
+    
     from notebook_utils import download_file
-
+    
     model_config = available_models[model_checkpoint.value]
 
 Run model inference
 -------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, let’s see model in action. We will try to find image, where some
 specific object is represented using embeddings. Embeddings are a
@@ -275,7 +276,7 @@ represent are.
 Prepare image gallery
 ~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -283,8 +284,8 @@ Prepare image gallery
     import matplotlib.pyplot as plt
     import numpy as np
     from PIL import Image
-
-
+    
+    
     def visualize_result(images: List, query: str = "", selected: List[int] = None):
         """
         Utility function for visualization classification results
@@ -312,8 +313,8 @@ Prepare image gallery
                 mask = np.ones_like(np.array(images[idx]))
                 a.imshow(mask, "jet", interpolation="none", alpha=0.75)
         return fig
-
-
+    
+    
     images_urls = [
         "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/282ce53e-912d-41aa-ab48-2a001c022d74",
         "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/9bb40168-82b5-4b11-ada6-d8df104c736c",
@@ -323,17 +324,17 @@ Prepare image gallery
     image_names = ["red_panda.png", "cat.png", "raccoon.png", "dog.png"]
     sample_path = Path("data")
     sample_path.mkdir(parents=True, exist_ok=True)
-
+    
     images = []
     for image_name, image_url in zip(image_names, images_urls):
         image_path = sample_path / image_name
         if not image_path.exists():
             download_file(image_url, filename=image_name, directory=sample_path)
         images.append(Image.open(image_path).convert("RGB").resize((640, 420)))
-
+    
     input_labels = ["cat"]
     text_descriptions = [f"This is a photo of a {label}" for label in input_labels]
-
+    
     visualize_result(images, "image gallery");
 
 
@@ -368,7 +369,7 @@ Prepare image gallery
 Prepare model
 ~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The code bellow download model weights, create model class instance and
 preprocessing utilities
@@ -380,7 +381,7 @@ preprocessing utilities
     from PIL import Image
     import mobileclip
     import open_clip
-
+    
     # instantiate model
     model_name = model_config["model_name"]
     pretrained = model_config["pretrained"]
@@ -404,14 +405,14 @@ preprocessing utilities
 Perform search
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
     image_tensor = torch.stack([preprocess(image) for image in images])
     text = tokenizer(text_descriptions)
-
-
+    
+    
     with torch.no_grad():
         # calculate image embeddings
         image_encoding_start = time.perf_counter()
@@ -423,22 +424,22 @@ Perform search
         text_features = model.encode_text(text)
         text_encoding_end = time.perf_counter()
         print(f"Text encoding took {text_encoding_end - text_encoding_start:.3} ms")
-
+    
         # normalize embeddings
         image_features /= image_features.norm(dim=-1, keepdim=True)
         text_features /= text_features.norm(dim=-1, keepdim=True)
-
+    
         # calcualte similarity score
         image_probs = (100.0 * text_features @ image_features.T).softmax(dim=-1)
         selected_image = [torch.argmax(image_probs).item()]
-
+    
     visualize_result(images, input_labels[0], selected_image);
 
 
 .. parsed-literal::
 
-    Image encoding took 0.115 ms
-    Text encoding took 0.011 ms
+    Image encoding took 0.123 ms
+    Text encoding took 0.0159 ms
 
 
 
@@ -448,7 +449,7 @@ Perform search
 Convert Model to OpenVINO Intermediate Representation format
 ------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 For best results with OpenVINO, it is recommended to convert the model
 to OpenVINO IR format. OpenVINO supports PyTorch via Model conversion
@@ -465,8 +466,8 @@ be used separately. Let’s convert each part to OpenVINO.
 
     import types
     import torch.nn.functional as F
-
-
+    
+    
     def se_block_forward(self, inputs):
         """Apply forward pass."""
         b, c, h, w = inputs.size()
@@ -482,12 +483,12 @@ be used separately. Let’s convert each part to OpenVINO.
 
     import openvino as ov
     import gc
-
+    
     ov_models_dir = Path("ov_models")
     ov_models_dir.mkdir(exist_ok=True)
-
+    
     image_encoder_path = ov_models_dir / f"{model_checkpoint.value}_im_encoder.xml"
-
+    
     if not image_encoder_path.exists():
         if "mobileclip_s" in model_name:
             model.image_encoder.model.conv_exp.se.forward = types.MethodType(se_block_forward, model.image_encoder.model.conv_exp.se)
@@ -500,49 +501,59 @@ be used separately. Let’s convert each part to OpenVINO.
         ov.save_model(ov_image_encoder, image_encoder_path)
         del ov_image_encoder
         gc.collect()
-
+    
     text_encoder_path = ov_models_dir / f"{model_checkpoint.value}_text_encoder.xml"
-
+    
     if not text_encoder_path.exists():
         model.forward = model.encode_text
         ov_text_encoder = ov.convert_model(model, example_input=text, input=[-1, text.shape[1]])
         ov.save_model(ov_text_encoder, text_encoder_path)
         del ov_text_encoder
         gc.collect()
-
+    
     del model
     gc.collect();
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/mobileclip/modules/common/transformer.py:125: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    ['image']
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/mobileclip/modules/common/transformer.py:125: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if seq_len != self.num_embeddings:
+
+
+.. parsed-literal::
+
+    ['text']
 
 
 Run OpenVINO model inference
 ----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Select device for image encoder
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
     core = ov.Core()
-
+    
     import ipywidgets as widgets
-
+    
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-
+    
     device
 
 
@@ -562,7 +573,7 @@ Select device for image encoder
 Select device for text encoder
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -585,7 +596,7 @@ Select device for text encoder
 Perform search
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -599,17 +610,17 @@ Perform search
     print(f"Text encoding took {text_encoding_end - text_encoding_start:.3} ms")
     image_features /= image_features.norm(dim=-1, keepdim=True)
     text_features /= text_features.norm(dim=-1, keepdim=True)
-
+    
     image_probs = (100.0 * text_features @ image_features.T).softmax(dim=-1)
     selected_image = [torch.argmax(image_probs).item()]
-
+    
     visualize_result(images, input_labels[0], selected_image);
 
 
 .. parsed-literal::
 
-    Image encoding took 0.0303 ms
-    Text encoding took 0.00599 ms
+    Image encoding took 0.0321 ms
+    Text encoding took 0.00763 ms
 
 
 
@@ -619,7 +630,7 @@ Perform search
 Interactive Demo
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 In this part, you can try different supported by tutorial models in
 searching frames in the video by text query or image. Upload video and
@@ -645,14 +656,14 @@ models can require different optimal threshold for search.
         ToTensor,
     )
     from open_clip.transform import image_transform
-
-
+    
+    
     current_device = device.value
     current_model = image_encoder_path.name.split("_im_encoder")[0]
-
+    
     available_converted_models = [model_file.name.split("_im_encoder")[0] for model_file in ov_models_dir.glob("*_im_encoder.xml")]
     available_devices = list(core.available_devices) + ["AUTO"]
-
+    
     download_file(
         "https://github.com/intel-iot-devkit/sample-videos/raw/master/car-detection.mp4",
         directory=sample_path,
@@ -662,8 +673,8 @@ models can require different optimal threshold for search.
         directory=sample_path,
         filename="coco.mp4",
     )
-
-
+    
+    
     def get_preprocess_and_tokenizer(model_name):
         if "mobileclip" in model_name:
             resolution = supported_models["MobileCLIP"][model_name]["image_size"]
@@ -684,10 +695,10 @@ models can require different optimal threshold for search.
             resize_size = model_configs[model_name]["image_size"]
             preprocess = image_transform((resize_size, resize_size), is_train=False, resize_mode="longest")
             tokenizer = open_clip.get_tokenizer(model_configs[model_name]["model_name"])
-
+    
         return preprocess, tokenizer
-
-
+    
+    
     def run(
         path: str,
         text_search: str,
@@ -706,7 +717,7 @@ models can require different optimal threshold for search.
         global tokenizer
         global ov_compiled_image_encoder
         global ov_compiled_text_encoder
-
+    
         if current_model != model_name or device != current_device:
             ov_compiled_image_encoder = core.compile_model(ov_models_dir / f"{model_name}_im_encoder.xml", device)
             ov_compiled_text_encoder = core.compile_model(ov_models_dir / f"{model_name}_text_encoder.xml", device)
@@ -716,7 +727,7 @@ models can require different optimal threshold for search.
         # Load video
         dataset = LoadVideo(path, transforms=preprocess, vid_stride=stride)
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0)
-
+    
         # Get image query features
         if image_search:
             image = preprocess(image_search).unsqueeze(0)
@@ -736,11 +747,11 @@ models can require different optimal threshold for search.
         for image, orig, frame, timestamp in dataloader:
             with torch.no_grad():
                 image_features = torch.from_numpy(ov_compiled_image_encoder(image)[0])
-
+    
             image_features /= image_features.norm(dim=-1, keepdim=True)
             probs = query_features.cpu().numpy() @ image_features.cpu().numpy().T
             probs = probs[0]
-
+    
             # Save frame similarity values
             df = pd.DataFrame(
                 {
@@ -750,15 +761,15 @@ models can require different optimal threshold for search.
                 }
             )
             res = pd.concat([res, df])
-
+    
             # Check if frame is over threshold
             for i, p in enumerate(probs):
                 if p > thresh:
                     matches.append(to_pil_image(orig[i]))
                     matches_probs.append(p)
-
+    
             print(f"Frames: {frame.tolist()} - Probs: {probs}")
-
+    
         # Create plot of similarity values
         lines = (
             alt.Chart(res)
@@ -769,16 +780,16 @@ models can require different optimal threshold for search.
             )
         ).properties(width=600)
         rule = alt.Chart().mark_rule(strokeDash=[6, 3], size=2).encode(y=alt.datum(thresh))
-
+    
         selected_frames = np.argsort(-1 * np.array(matches_probs))[:20]
         matched_sorted_frames = [matches[idx] for idx in selected_frames]
-
+    
         return (
             lines + rule,
             matched_sorted_frames,
         )  # Only return up to 20 images to not crash the UI
-
-
+    
+    
     class LoadVideo(Dataset):
         def __init__(self, path, transforms, vid_stride=1):
             self.transforms = transforms
@@ -786,31 +797,31 @@ models can require different optimal threshold for search.
             self.cur_frame = 0
             self.cap = cv2.VideoCapture(path)
             self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT) / self.vid_stride)
-
+    
         def __getitem__(self, _):
             # Read video
             # Skip over frames
             for _ in range(self.vid_stride):
                 self.cap.grab()
                 self.cur_frame += 1
-
+    
             # Read frame
             _, img = self.cap.retrieve()
             timestamp = self.cap.get(cv2.CAP_PROP_POS_MSEC)
-
+    
             # Convert to PIL
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             img = Image.fromarray(np.uint8(img))
-
+    
             # Apply transforms
             img_t = self.transforms(img)
-
+    
             return img_t, to_tensor(img), self.cur_frame, timestamp
-
+    
         def __len__(self):
             return self.total_frames
-
-
+    
+    
     desc_text = """
     Search the content's of a video with a text description.
     __Note__: Long videos (over a few minutes) may cause UI performance issues.
@@ -839,7 +850,7 @@ models can require different optimal threshold for search.
         examples=[[sample_path / "car-detection.mp4", "white car"]],
         allow_flagging="never",
     )
-
+    
     desc_image = """
     Search the content's of a video with an image query.
     __Note__: Long videos (over a few minutes) may cause UI performance issues.
@@ -873,8 +884,8 @@ models can require different optimal threshold for search.
         tab_names=["Text Query Search", "Image Query Search"],
         title="CLIP Video Content Search",
     )
-
-
+    
+    
     try:
         demo.launch(debug=False)
     except Exception:
@@ -899,12 +910,12 @@ models can require different optimal threshold for search.
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-
+    
     To create a public link, set `share=True` in `launch()`.
 
 
 
+.. raw:: html
 
-
-
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 

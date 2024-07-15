@@ -14,27 +14,27 @@ designed to streamline tokenizer conversion for seamless integration
 into your projects. It supports Python and C++ environments and is
 compatible with all major platforms: Linux, Windows, and MacOS.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-
--  `Tokenization Basics <#tokenization-basics>`__
--  `Acquiring OpenVINO Tokenizers <#acquiring-openvino-tokenizers>`__
+-  `Tokenization Basics <#Tokenization-Basics>`__
+-  `Acquiring OpenVINO Tokenizers <#Acquiring-OpenVINO-Tokenizers>`__
 
    -  `Convert Tokenizer from HuggingFace Hub with CLI
-      Tool <#convert-tokenizer-from_huggingface-hub-with-cli-tool>`__
+      Tool <#Convert-Tokenizer-from_HuggingFace-Hub-with-CLI-Tool>`__
    -  `Convert Tokenizer from HuggingFace Hub with Python
-      API <#convert-tokenizer-from-huggingface-hub-with-python-api>`__
+      API <#Convert-Tokenizer-from-HuggingFace-Hub-with-Python-API>`__
 
 -  `Text Generation Pipeline with OpenVINO
-   Tokenizers <#text-generation-pipeline-with-openvino-tokenizers>`__
--  `Merge Tokenizer into a Model <#merge-tokenizer-into-a-model>`__
--  `Conclusion <#conclusion>`__
--  `Links <#links>`__
+   Tokenizers <#Text-Generation-Pipeline-with-OpenVINO-Tokenizers>`__
+-  `Merge Tokenizer into a Model <#Merge-Tokenizer-into-a-Model>`__
+-  `Conclusion <#Conclusion>`__
+-  `Links <#Links>`__
 
 Tokenization Basics
 -------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 One does not simply put text into a neural network, only numbers. The
 process of transforming text into a sequence of numbers is called
@@ -86,7 +86,7 @@ required.
 Acquiring OpenVINO Tokenizers
 -----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO Tokenizers Python library allows you to convert HuggingFace
 tokenizers into OpenVINO models. To install all required dependencies
@@ -103,19 +103,19 @@ use ``pip install openvino-tokenizers[transformers]``.
 
     Note: you may need to restart the kernel to use updated packages.
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    openvino-dev 2024.2.0 requires openvino==2024.2.0, but you have openvino 2024.3.0.dev20240627 which is incompatible.
-    openvino-genai 2024.2.0.0 requires openvino_tokenizers~=2024.2.0.0, but you have openvino-tokenizers 2024.3.0.0.dev20240627 which is incompatible.
+    openvino-dev 2024.2.0 requires openvino==2024.2.0, but you have openvino 2024.4.0.dev20240712 which is incompatible.
+    openvino-genai 2024.3.0.0.dev20240712 requires openvino_tokenizers~=2024.3.0.0.dev, but you have openvino-tokenizers 2024.4.0.0.dev20240712 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
     Looking in indexes: https://pypi.org/simple, https://download.pytorch.org/whl/cpu
-    Requirement already satisfied: torch>=2.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (2.3.1+cpu)
-    Requirement already satisfied: filelock in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (3.15.4)
-    Requirement already satisfied: typing-extensions>=4.8.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (4.12.2)
-    Requirement already satisfied: sympy in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (1.12.1)
-    Requirement already satisfied: networkx in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (3.1)
-    Requirement already satisfied: jinja2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (3.1.4)
-    Requirement already satisfied: fsspec in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (2024.5.0)
-    Requirement already satisfied: MarkupSafe>=2.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from jinja2->torch>=2.1) (2.1.5)
-    Requirement already satisfied: mpmath<1.4.0,>=1.1.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from sympy->torch>=2.1) (1.3.0)
+    Requirement already satisfied: torch>=2.1 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (2.3.1+cpu)
+    Requirement already satisfied: filelock in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (3.15.4)
+    Requirement already satisfied: typing-extensions>=4.8.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (4.12.2)
+    Requirement already satisfied: sympy in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (1.13.0)
+    Requirement already satisfied: networkx in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (3.1)
+    Requirement already satisfied: jinja2 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (3.1.4)
+    Requirement already satisfied: fsspec in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from torch>=2.1) (2024.5.0)
+    Requirement already satisfied: MarkupSafe>=2.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from jinja2->torch>=2.1) (2.1.5)
+    Requirement already satisfied: mpmath<1.4,>=1.1.0 in /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages (from sympy->torch>=2.1) (1.3.0)
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -130,7 +130,7 @@ use ``pip install openvino-tokenizers[transformers]``.
 Convert Tokenizer from HuggingFace Hub with CLI Tool
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The first way is to use the CLI utility, bundled with OpenVINO
 Tokenizers. Use ``--with-detokenizer`` flag to add the detokenizer model
@@ -164,7 +164,7 @@ other OpenVINO model.
 Convert Tokenizer from HuggingFace Hub with Python API
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The other method is to pass HuggingFace ``hf_tokenizer`` object to
 ``convert_tokenizer`` function:
@@ -265,10 +265,10 @@ one:
 
 .. parsed-literal::
 
-    2024-07-02 01:03:15.895945: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-07-02 01:03:15.931306: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-07-13 01:17:56.121802: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-07-13 01:17:56.157863: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-07-02 01:03:16.500703: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-07-13 01:17:56.747281: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 .. parsed-literal::
@@ -279,7 +279,7 @@ one:
 Text Generation Pipeline with OpenVINO Tokenizers
 -------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Let’s build a text generation pipeline with OpenVINO Tokenizers and
 minimal dependencies. To obtain an OpenVINO model we will use the
@@ -418,7 +418,7 @@ distinct and separate state..
 Merge Tokenizer into a Model
 ----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Packages like ``tensorflow-text`` offer the convenience of integrating
 text processing directly into the model, streamlining both distribution
@@ -467,9 +467,6 @@ models and tokenizers simplifies memory management.
 
 .. parsed-literal::
 
-    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.3.1+cpu which is incompatible.
-    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.18.1+cpu which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -483,13 +480,14 @@ models and tokenizers simplifies memory management.
 
 .. parsed-literal::
 
-    2024-07-02 01:03:42.804844: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+    2024-07-13 01:18:19.229824: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
       torch.utils._pytree._register_pytree_node(
     Framework not specified. Using pt to export the model.
     Using framework PyTorch: 2.3.1+cpu
     Overriding 1 configuration item(s)
     	- use_cache -> False
+    ['input_ids', 'attention_mask', 'token_type_ids']
     Detokenizer is not supported, convert tokenizer only.
 
 
@@ -536,7 +534,7 @@ models and tokenizers simplifies memory management.
 Conclusion
 ----------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The OpenVINO Tokenizers integrate text processing operations into the
 OpenVINO ecosystem. Enabling the conversion of HuggingFace tokenizers
@@ -548,7 +546,7 @@ helps to streamline model usage and deployment.
 Links
 -----
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 -  `Installation instructions for different
    environments <https://github.com/openvinotoolkit/openvino_tokenizers?tab=readme-ov-file#installation>`__

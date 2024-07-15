@@ -37,48 +37,48 @@ with OpenVINO to optimize their inference performance.
 
    RAG
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-
--  `Prerequisites <#prerequisites>`__
--  `Select model for inference <#select-model-for-inference>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Select model for inference <#Select-model-for-inference>`__
 -  `login to huggingfacehub to get access to pretrained
    model <#login-to-huggingfacehub-to-get-access-to-pretrained-model>`__
 -  `Convert model and compress model
    weights <#convert-model-and-compress-model-weights>`__
 
    -  `LLM conversion and Weights Compression using
-      Optimum-CLI <#llm-conversion-and-weights-compression-using-optimum-cli>`__
+      Optimum-CLI <#LLM-conversion-and-Weights-Compression-using-Optimum-CLI>`__
 
-      -  `Weight compression with AWQ <#weight-compression-with-awq>`__
+      -  `Weight compression with AWQ <#Weight-compression-with-AWQ>`__
 
    -  `Convert embedding model using
-      Optimum-CLI <#convert-embedding-model-using-optimum-cli>`__
+      Optimum-CLI <#Convert-embedding-model-using-Optimum-CLI>`__
    -  `Convert rerank model using
-      Optimum-CLI <#convert-rerank-model-using-optimum-cli>`__
+      Optimum-CLI <#Convert-rerank-model-using-Optimum-CLI>`__
 
 -  `Select device for inference and model
-   variant <#select-device-for-inference-and-model-variant>`__
+   variant <#Select-device-for-inference-and-model-variant>`__
 
    -  `Select device for embedding model
-      inference <#select-device-for-embedding-model-inference>`__
+      inference <#Select-device-for-embedding-model-inference>`__
    -  `Select device for rerank model
-      inference <#select-device-for-rerank-model-inference>`__
+      inference <#Select-device-for-rerank-model-inference>`__
    -  `Select device for LLM model
-      inference <#select-device-for-llm-model-inference>`__
+      inference <#Select-device-for-LLM-model-inference>`__
 
--  `Load model <#load-model>`__
+-  `Load model <#Load-model>`__
 
-   -  `Load embedding model <#load-embedding-model>`__
-   -  `Load rerank model <#load-rerank-model>`__
-   -  `Load LLM model <#load-llm-model>`__
+   -  `Load embedding model <#Load-embedding-model>`__
+   -  `Load rerank model <#Load-rerank-model>`__
+   -  `Load LLM model <#Load-LLM-model>`__
 
--  `Run QA over Document <#run-qa-over-document>`__
+-  `Run QA over Document <#Run-QA-over-Document>`__
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Install required dependencies
 
@@ -102,8 +102,13 @@ Install required dependencies
 
 .. parsed-literal::
 
-    WARNING: Skipping openvino-dev as it is not installed.
     Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+    Note: you may need to restart the kernel to use updated packages.
+    WARNING: typer 0.12.3 does not provide the extra 'all'
+    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    llama-index-postprocessor-openvino-rerank 0.1.3 requires huggingface-hub<0.21.0,>=0.20.3, but you have huggingface-hub 0.23.4 which is incompatible.
+    llama-index-llms-langchain 0.1.4 requires langchain<0.2.0,>=0.1.3, but you have langchain 0.2.6 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -165,7 +170,7 @@ Install required dependencies
 Select model for inference
 --------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The tutorial supports different models, you can select one from the
 provided options to compare the quality of open source LLM solutions.
@@ -179,6 +184,7 @@ The available embedding model options are:
 -  `bge-small-zh-v1.5 <https://huggingface.co/BAAI/bge-small-zh-v1.5>`__
 -  `bge-large-en-v1.5 <https://huggingface.co/BAAI/bge-large-en-v1.5>`__
 -  `bge-large-zh-v1.5 <https://huggingface.co/BAAI/bge-large-zh-v1.5>`__
+-  `bge-m3 <https://huggingface.co/BAAI/bge-m3>`__
 
 BGE embedding is a general Embedding Model. The model is pre-trained
 using RetroMAE and trained on large-scale pair data using contrastive
@@ -186,6 +192,7 @@ learning.
 
 The available rerank model options are:
 
+-  `bge-reranker-v2-m3 <https://huggingface.co/BAAI/bge-reranker-v2-m3>`__
 -  `bge-reranker-large <https://huggingface.co/BAAI/bge-reranker-large>`__
 -  `bge-reranker-base <https://huggingface.co/BAAI/bge-reranker-base>`__
 
@@ -212,7 +219,7 @@ You can also find available LLM model options in
 Convert model and compress model weights
 ----------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The Weights Compression algorithm is aimed at compressing the weights of
 the models and can be used to optimize the model footprint and
@@ -268,7 +275,7 @@ quality.
 
 .. parsed-literal::
 
-    Dropdown(description='Model:', index=4, options=('qwen1.5-7b-chat', 'qwen-7b-chat', 'chatglm3-6b', 'baichuan2-…
+    Dropdown(description='Model:', index=12, options=('tiny-llama-1b-chat', 'gemma-2b-it', 'red-pajama-3b-chat', '…
 
 
 
@@ -280,11 +287,11 @@ quality.
 
 .. parsed-literal::
 
-    Selected LLM model qwen1.5-1.8b-chat
+    Selected LLM model neural-chat-7b-v3-1
 
 
-`Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
-the interface between the 
+🤗 `Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
+the interface between the 🤗
 `Transformers <https://huggingface.co/docs/transformers/index>`__ and
 `Diffusers <https://huggingface.co/docs/diffusers/index>`__ libraries
 and OpenVINO to accelerate end-to-end pipelines on Intel architectures.
@@ -311,7 +318,7 @@ remote code, ``--trust-remote-code`` flag additionally should be passed.
 LLM conversion and Weights Compression using Optimum-CLI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 You can also apply fp16, 8-bit or 4-bit weight compression on the
 Linear, Convolutional and Embedding layers when exporting your model
@@ -384,7 +391,7 @@ sacrifice of the model size and inference latency.
 Weight compression with AWQ
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `Activation-aware Weight
 Quantization <https://arxiv.org/abs/2306.00978>`__ (AWQ) is an algorithm
@@ -413,6 +420,13 @@ with INT4 precision.
         disabled=not prepare_int4_model.value,
     )
     display(enable_awq)
+
+
+
+.. parsed-literal::
+
+    Checkbox(value=False, description='Enable AWQ')
+
 
 .. code:: ipython3
 
@@ -560,13 +574,13 @@ Let’s compare model size for different compression types
 
 .. parsed-literal::
 
-    Size of model with INT4 compressed weights is 1343.75 MB
+    Size of model with INT4 compressed weights is 5069.90 MB
 
 
 Convert embedding model using Optimum-CLI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Since some embedding models can only support limited languages, we can
 filter them out according the LLM you selected.
@@ -589,7 +603,7 @@ filter them out according the LLM you selected.
 
 .. parsed-literal::
 
-    Dropdown(description='Embedding Model:', options=('bge-small-zh-v1.5', 'bge-large-zh-v1.5'), value='bge-small-…
+    Dropdown(description='Embedding Model:', options=('bge-small-en-v1.5', 'bge-large-en-v1.5'), value='bge-small-…
 
 
 
@@ -601,7 +615,7 @@ filter them out according the LLM you selected.
 
 .. parsed-literal::
 
-    Selected bge-small-zh-v1.5 model
+    Selected bge-small-en-v1.5 model
 
 
 OpenVINO embedding model and tokenizer can be exported by
@@ -618,7 +632,7 @@ OpenVINO embedding model and tokenizer can be exported by
 Convert rerank model using Optimum-CLI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -668,7 +682,7 @@ task with ``optimum-cli``.
 Select device for inference and model variant
 ---------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
    **Note**: There may be no speedup for INT4/INT8 compressed models on
    dGPU.
@@ -676,7 +690,7 @@ Select device for inference and model variant
 Select device for embedding model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -698,7 +712,7 @@ Select device for embedding model inference
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'GPU', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
 
 
 
@@ -735,7 +749,7 @@ model to NPU device.
 Select device for rerank model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -753,7 +767,7 @@ Select device for rerank model inference
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'GPU', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
 
 
 
@@ -770,7 +784,7 @@ Select device for rerank model inference
 Select device for LLM model inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -788,7 +802,7 @@ Select device for LLM model inference
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'GPU', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', options=('CPU', 'AUTO'), value='CPU')
 
 
 
@@ -805,17 +819,17 @@ Select device for LLM model inference
 Load models
 -----------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Load embedding model
 ~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now a Hugging Face embedding model can be supported by OpenVINO through
-`OpenVINOEmbeddings <https://python.langchain.com/docs/integrations/text_embedding/openvino>`__
+```OpenVINOEmbeddings`` <https://python.langchain.com/docs/integrations/text_embedding/openvino>`__
 and
-`OpenVINOBgeEmbeddings <https://python.langchain.com/docs/integrations/text_embedding/openvino#bge-with-openvino>`__\ classes
+```OpenVINOBgeEmbeddings`` <https://python.langchain.com/docs/integrations/text_embedding/openvino#bge-with-openvino>`__\ classes
 of LangChain.
 
 .. code:: ipython3
@@ -847,19 +861,6 @@ of LangChain.
 
 .. parsed-literal::
 
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
-
-
-.. parsed-literal::
-
-    2024-05-24 00:13:06.057342: I tensorflow/core/util/port.cc:111] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-05-24 00:13:06.061389: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
-    2024-05-24 00:13:06.108453: E tensorflow/compiler/xla/stream_executor/cuda/cuda_dnn.cc:9342] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
-    2024-05-24 00:13:06.108490: E tensorflow/compiler/xla/stream_executor/cuda/cuda_fft.cc:609] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
-    2024-05-24 00:13:06.108542: E tensorflow/compiler/xla/stream_executor/cuda/cuda_blas.cc:1518] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
-    2024-05-24 00:13:06.120406: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
-    To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-05-24 00:13:06.938926: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     Compiling the model to CPU ...
 
 
@@ -874,10 +875,10 @@ of LangChain.
 Load rerank model
 ~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now a Hugging Face embedding model can be supported by OpenVINO through
-`OpenVINOReranker <https://python.langchain.com/docs/integrations/document_transformers/openvino_rerank>`__
+```OpenVINOReranker`` <https://python.langchain.com/docs/integrations/document_transformers/openvino_rerank>`__
 class of LangChain.
 
    **Note**: Rerank can be skipped in RAG.
@@ -905,7 +906,7 @@ class of LangChain.
 Load LLM model
 ~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO models can be run locally through the ``HuggingFacePipeline``
 class. To deploy a model with OpenVINO, you can specify the
@@ -1010,7 +1011,7 @@ inference framework.
 Run QA over Document
 --------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now, when model created, we can setup Chatbot interface using
 `Gradio <https://www.gradio.app/>`__.
@@ -1140,13 +1141,13 @@ The most common full sequence from raw data to answer looks like:
     examples = chinese_examples if (model_language.value == "Chinese") else english_examples
 
 We can build a RAG pipeline of LangChain through
-`create_retrieval_chain <https://python.langchain.com/docs/modules/chains/>`__,
+```create_retrieval_chain`` <https://python.langchain.com/docs/modules/chains/>`__,
 which will help to create a chain to connect RAG components including:
 
--  `Vector stores <https://python.langchain.com/docs/modules/data_connection/vectorstores/>`__\ ，
--  `Retrievers <https://python.langchain.com/docs/modules/data_connection/retrievers/>`__
--  `LLM <https://python.langchain.com/docs/integrations/llms/>`__
--  `Embedding <https://python.langchain.com/docs/integrations/text_embedding/>`__
+-  ```Vector stores`` <https://python.langchain.com/docs/modules/data_connection/vectorstores/>`__\ ，
+-  ```Retrievers`` <https://python.langchain.com/docs/modules/data_connection/retrievers/>`__
+-  ```LLM`` <https://python.langchain.com/docs/integrations/llms/>`__
+-  ```Embedding`` <https://python.langchain.com/docs/integrations/text_embedding/>`__
 
 .. code:: ipython3
 
@@ -1218,43 +1219,53 @@ which will help to create a chain to connect RAG components including:
     text_processor = llm_model_configuration.get("partial_text_processor", default_partial_text_processor)
     
     
-    def create_vectordb(docs, spliter_name, chunk_size, chunk_overlap, vector_search_top_k, vector_search_top_n, run_rerank, search_method, score_threshold):
+    def create_vectordb(
+        docs, spliter_name, chunk_size, chunk_overlap, vector_search_top_k, vector_rerank_top_n, run_rerank, search_method, score_threshold, progress=gr.Progress()
+    ):
         """
         Initialize a vector database
     
         Params:
           doc: orignal documents provided by user
+          spliter_name: spliter method
           chunk_size:  size of a single sentence chunk
           chunk_overlap: overlap size between 2 chunks
           vector_search_top_k: Vector search top k
+          vector_rerank_top_n: Search rerank top n
+          run_rerank: whether run reranker
+          search_method: top k search method
+          score_threshold: score threshold when selecting 'similarity_score_threshold' method
     
         """
+        global db
+        global retriever
+        global combine_docs_chain
+        global rag_chain
+    
+        if vector_rerank_top_n > vector_search_top_k:
+            gr.Warning("Search top k must >= Rerank top n")
+    
         documents = []
         for doc in docs:
-            documents.extend(load_single_document(doc.name))
+            if type(doc) is not str:
+                doc = doc.name
+            documents.extend(load_single_document(doc))
     
         text_splitter = TEXT_SPLITERS[spliter_name](chunk_size=chunk_size, chunk_overlap=chunk_overlap)
     
         texts = text_splitter.split_documents(documents)
-    
-        global db
         db = FAISS.from_documents(texts, embedding)
-    
-        global retriever
         if search_method == "similarity_score_threshold":
             search_kwargs = {"k": vector_search_top_k, "score_threshold": score_threshold}
         else:
             search_kwargs = {"k": vector_search_top_k}
         retriever = db.as_retriever(search_kwargs=search_kwargs, search_type=search_method)
         if run_rerank:
-            reranker.top_n = vector_search_top_n
+            reranker.top_n = vector_rerank_top_n
             retriever = ContextualCompressionRetriever(base_compressor=reranker, base_retriever=retriever)
         prompt = PromptTemplate.from_template(rag_prompt_template)
-    
-        global combine_docs_chain
         combine_docs_chain = create_stuff_documents_chain(llm, prompt)
     
-        global rag_chain
         rag_chain = create_retrieval_chain(retriever, combine_docs_chain)
     
         return "Vector database is Ready"
@@ -1265,16 +1276,20 @@ which will help to create a chain to connect RAG components including:
         Update retriever
     
         Params:
-          vector_search_top_k: size of searching results
-          vector_rerank_top_n:  size of rerank results
-          run_rerank: whether run rerank step
-          search_method: search method used by vector store
+          vector_search_top_k: Vector search top k
+          vector_rerank_top_n: Search rerank top n
+          run_rerank: whether run reranker
+          search_method: top k search method
+          score_threshold: score threshold when selecting 'similarity_score_threshold' method
     
         """
-        global retriever
         global db
-        global rag_chain
+        global retriever
         global combine_docs_chain
+        global rag_chain
+    
+        if vector_rerank_top_n > vector_search_top_k:
+            gr.Warning("Search top k must >= Rerank top n")
     
         if search_method == "similarity_score_threshold":
             search_kwargs = {"k": vector_search_top_k, "score_threshold": score_threshold}
@@ -1285,6 +1300,8 @@ which will help to create a chain to connect RAG components including:
             retriever = ContextualCompressionRetriever(base_compressor=reranker, base_retriever=retriever)
             reranker.top_n = vector_rerank_top_n
         rag_chain = create_retrieval_chain(retriever, combine_docs_chain)
+    
+        return "Vector database is Ready"
     
     
     def user(message, history):
@@ -1353,6 +1370,36 @@ which will help to create a chain to connect RAG components including:
         llm.pipeline.model.request.cancel()
     
     
+    def clear_files():
+        return "Vector Store is Not ready"
+    
+    
+    # initialize the vector store with example document
+    create_vectordb(
+        [text_example_path],
+        "RecursiveCharacter",
+        chunk_size=400,
+        chunk_overlap=50,
+        vector_search_top_k=10,
+        vector_rerank_top_n=2,
+        run_rerank=True,
+        search_method="similarity_score_threshold",
+        score_threshold=0.5,
+    )
+
+
+
+
+.. parsed-literal::
+
+    'Vector database is Ready'
+
+
+
+Next we can create a Gradio UI and run demo.
+
+.. code:: ipython3
+
     with gr.Blocks(
         theme=gr.themes.Soft(),
         css=".disclaimer {font-variant-caps: all-small-caps;}",
@@ -1380,7 +1427,7 @@ which will help to create a chain to connect RAG components including:
                         ".txt",
                     ],
                 )
-                load_docs = gr.Button("Step 2: Build Vector Store")
+                load_docs = gr.Button("Step 2: Build Vector Store", variant="primary")
                 db_argument = gr.Accordion("Vector Store Configuration", open=False)
                 with db_argument:
                     spliter = gr.Dropdown(
@@ -1413,7 +1460,7 @@ which will help to create a chain to connect RAG components including:
     
                 langchain_status = gr.Textbox(
                     label="Vector Store Status",
-                    value="Vector Store is Not ready",
+                    value="Vector Store is Ready",
                     interactive=False,
                 )
                 do_rag = gr.Checkbox(
@@ -1473,7 +1520,7 @@ which will help to create a chain to connect RAG components including:
                                 )
             with gr.Column(scale=4):
                 chatbot = gr.Chatbot(
-                    height=600,
+                    height=800,
                     label="Step 3: Input Query",
                 )
                 with gr.Row():
@@ -1487,7 +1534,7 @@ which will help to create a chain to connect RAG components including:
                             )
                     with gr.Column():
                         with gr.Row():
-                            submit = gr.Button("Submit")
+                            submit = gr.Button("Submit", variant="primary")
                             stop = gr.Button("Stop")
                             clear = gr.Button("Clear")
                 gr.Examples(examples, inputs=msg, label="Click on any example and press the 'Submit' button")
@@ -1541,9 +1588,10 @@ which will help to create a chain to connect RAG components including:
                                 value=10,
                                 step=1,
                                 label="Search top k",
-                                info="Number of searching results, must >= Rerank top n",
+                                info="Search top k must >= Rerank top n",
                                 interactive=True,
                             )
+        docs.clear(clear_files, outputs=[langchain_status], queue=False)
         load_docs.click(
             create_vectordb,
             inputs=[docs, spliter, chunk_size, chunk_overlap, vector_search_top_k, vector_rerank_top_n, do_rerank, search_method, score_threshold],
@@ -1573,22 +1621,27 @@ which will help to create a chain to connect RAG components including:
         vector_search_top_k.release(
             update_retriever,
             [vector_search_top_k, vector_rerank_top_n, do_rerank, search_method, score_threshold],
+            outputs=[langchain_status],
         )
         vector_rerank_top_n.release(
             update_retriever,
-            [vector_search_top_k, vector_rerank_top_n, do_rerank, search_method, score_threshold],
+            inputs=[vector_search_top_k, vector_rerank_top_n, do_rerank, search_method, score_threshold],
+            outputs=[langchain_status],
         )
         do_rerank.change(
             update_retriever,
-            [vector_search_top_k, vector_rerank_top_n, do_rerank, search_method, score_threshold],
+            inputs=[vector_search_top_k, vector_rerank_top_n, do_rerank, search_method, score_threshold],
+            outputs=[langchain_status],
         )
         search_method.change(
             update_retriever,
-            [vector_search_top_k, vector_rerank_top_n, do_rerank, search_method, score_threshold],
+            inputs=[vector_search_top_k, vector_rerank_top_n, do_rerank, search_method, score_threshold],
+            outputs=[langchain_status],
         )
         score_threshold.change(
             update_retriever,
-            [vector_search_top_k, vector_rerank_top_n, do_rerank, search_method, score_threshold],
+            inputs=[vector_search_top_k, vector_rerank_top_n, do_rerank, search_method, score_threshold],
+            outputs=[langchain_status],
         )
     
     

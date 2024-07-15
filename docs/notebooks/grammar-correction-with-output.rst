@@ -45,30 +45,30 @@ It consists of the following steps:
 -  Compare original and optimized pipelines from performance and
    accuracy standpoints
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
+-  `How does it work? <#How-does-it-work?>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Download and Convert Models <#Download-and-Convert-Models>`__
 
--  `How does it work? <#how-does-it-work>`__
--  `Prerequisites <#prerequisites>`__
--  `Download and Convert Models <#download-and-convert-models>`__
+   -  `Select inference device <#Select-inference-device>`__
+   -  `Grammar Checker <#Grammar-Checker>`__
+   -  `Grammar Corrector <#Grammar-Corrector>`__
 
-   -  `Select inference device <#select-inference-device>`__
-   -  `Grammar Checker <#grammar-checker>`__
-   -  `Grammar Corrector <#grammar-corrector>`__
+-  `Prepare Demo Pipeline <#Prepare-Demo-Pipeline>`__
+-  `Quantization <#Quantization>`__
 
--  `Prepare Demo Pipeline <#prepare-demo-pipeline>`__
--  `Quantization <#quantization>`__
-
-   -  `Run Quantization <#run-quantization>`__
+   -  `Run Quantization <#Run-Quantization>`__
    -  `Compare model size, performance and
-      accuracy <#compare-model-size-performance-and-accuracy>`__
+      accuracy <#Compare-model-size,-performance-and-accuracy>`__
 
--  `Interactive demo <#interactive-demo>`__
+-  `Interactive demo <#Interactive-demo>`__
 
 How does it work?
 -----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 A Grammatical Error Correction task can be thought of as a
 sequence-to-sequence task where a model is trained to take a
@@ -120,7 +120,7 @@ Now that we know more about FLAN-T5 and RoBERTa, let us get started. 🚀
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 First, we need to install the `Hugging Face
 Optimum <https://huggingface.co/docs/transformers/index>`__ library
@@ -145,7 +145,7 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 Download and Convert Models
 ---------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Optimum Intel can be used to load optimized models from the `Hugging
 Face Hub <https://huggingface.co/docs/optimum/intel/hf.co/models>`__ and
@@ -201,7 +201,7 @@ Tokenizer class and pipelines API are compatible with Optimum models.
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -233,7 +233,7 @@ select device from dropdown list for running inference using OpenVINO
 Grammar Checker
 ~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -295,7 +295,7 @@ Great! Looks like the model can detect errors in the sample.
 Grammar Corrector
 ~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 The steps for loading the Grammar Corrector model are very similar,
 except for the model class that is used. Because FLAN-T5 is a
@@ -373,7 +373,7 @@ Nice! The result looks pretty good!
 Prepare Demo Pipeline
 ---------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Now let us put everything together and create the pipeline for grammar
 correction. The pipeline accepts input text, verifies its correctness,
@@ -505,7 +505,7 @@ Let us see it in action.
 Quantization
 ------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -552,7 +552,7 @@ improve model inference speed.
 Run Quantization
 ~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Below we retrieve the quantized model. Please see ``utils.py`` for
 source code. Quantization is relatively time-consuming and will take
@@ -614,17 +614,17 @@ some time to complete.
 
 
 
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
+.. raw:: html
 
-
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
 
 
 
@@ -635,17 +635,17 @@ some time to complete.
 
 
 
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
+.. raw:: html
 
-
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
 
 
 
@@ -662,17 +662,17 @@ some time to complete.
 
 
 
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
+.. raw:: html
 
-
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
 
 
 
@@ -711,7 +711,7 @@ model and original FP32 model should be almost the same.
 Compare model size, performance and accuracy
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 First, we compare file size of ``FP32`` and ``INT8`` models.
 
@@ -786,7 +786,7 @@ where WER is Word Error Rate metric.
 Interactive demo
 ----------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 

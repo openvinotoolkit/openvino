@@ -14,34 +14,34 @@ IR model.
 Source of the
 `model <https://www.paddlepaddle.org.cn/hubdetail?name=mobilenet_v3_large_imagenet_ssld&en_category=ImageClassification>`__.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
+-  `Preparation <#Preparation>`__
 
--  `Preparation <#preparation>`__
-
-   -  `Imports <#imports>`__
-   -  `Settings <#settings>`__
+   -  `Imports <#Imports>`__
+   -  `Settings <#Settings>`__
 
 -  `Show Inference on PaddlePaddle
-   Model <#show-inference-on-paddlepaddle-model>`__
+   Model <#Show-Inference-on-PaddlePaddle-Model>`__
 -  `Convert the Model to OpenVINO IR
-   Format <#convert-the-model-to-openvino-ir-format>`__
--  `Select inference device <#select-inference-device>`__
+   Format <#Convert-the-Model-to-OpenVINO-IR-Format>`__
+-  `Select inference device <#Select-inference-device>`__
 -  `Show Inference on OpenVINO
-   Model <#show-inference-on-openvino-model>`__
--  `Timing and Comparison <#timing-and-comparison>`__
--  `Select inference device <#select-inference-device>`__
--  `References <#references>`__
+   Model <#Show-Inference-on-OpenVINO-Model>`__
+-  `Timing and Comparison <#Timing-and-Comparison>`__
+-  `Select inference device <#Select-inference-device>`__
+-  `References <#References>`__
 
 Preparation
 -----------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Imports
 ~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -78,11 +78,11 @@ Imports
 
 .. parsed-literal::
 
-    --2024-07-02 01:07:43--  http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
+    --2024-07-13 01:22:03--  http://nz2.archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb
     Resolving proxy-dmz.intel.com (proxy-dmz.intel.com)... 10.241.208.166
     Connecting to proxy-dmz.intel.com (proxy-dmz.intel.com)|10.241.208.166|:911... connected.
     Proxy request sent, awaiting response... 404 Not Found
-    2024-07-02 01:07:43 ERROR 404: Not Found.
+    2024-07-13 01:22:03 ERROR 404: Not Found.
     
     dpkg: error: cannot access archive 'libssl1.1_1.1.1f-1ubuntu2.19_amd64.deb': No such file or directory
 
@@ -113,14 +113,14 @@ Imports
 
 .. parsed-literal::
 
-    2024-07-02 01:07:45 INFO: Loading faiss with AVX512 support.
-    2024-07-02 01:07:45 INFO: Successfully loaded faiss with AVX512 support.
+    2024-07-13 01:22:05 INFO: Loading faiss with AVX512 support.
+    2024-07-13 01:22:05 INFO: Successfully loaded faiss with AVX512 support.
 
 
 Settings
 ~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Set ``IMAGE_FILENAME`` to the filename of an image to use. Set
 ``MODEL_NAME`` to the PaddlePaddle model to download from PaddleHub.
@@ -179,7 +179,7 @@ PaddleHub. This may take a while.
 Show Inference on PaddlePaddle Model
 ------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 In the next cell, we load the model, load and display an image, do
 inference on that image, and then show the top three prediction results.
@@ -198,7 +198,7 @@ inference on that image, and then show the top three prediction results.
 
 .. parsed-literal::
 
-    [2024/07/02 01:08:12] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
+    [2024/07/13 01:22:31] ppcls WARNING: The current running environment does not support the use of GPU. CPU has been used instead.
     Labrador retriever, 0.75138
     German short-haired pointer, 0.02373
     Great Dane, 0.01848
@@ -264,7 +264,7 @@ clipping values.
 
 .. parsed-literal::
 
-    2024-07-02 01:08:13 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
+    2024-07-13 01:22:31 WARNING: Clipping input data to the valid range for imshow with RGB data ([0..1] for floats or [0..255] for integers).
 
 
 .. parsed-literal::
@@ -276,7 +276,7 @@ clipping values.
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f33f85b7610>
+    <matplotlib.image.AxesImage at 0x7fa888475730>
 
 
 
@@ -303,7 +303,7 @@ OpenVINO model.
 Convert the Model to OpenVINO IR Format
 ---------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Call the OpenVINO Model Conversion API to convert the PaddlePaddle model
 to OpenVINO IR, with FP32 precision. ``ov.convert_model`` function
@@ -326,7 +326,7 @@ for more information about the Model Conversion API.
 Select inference device
 -----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -356,7 +356,7 @@ select device from dropdown list for running inference using OpenVINO
 Show Inference on OpenVINO Model
 --------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Load the IR model, get model information, load the image, do inference,
 convert the inference to a meaningful result, and show the output. See
@@ -405,7 +405,7 @@ Notebook <openvino-api-with-output.html>`__ for more information.
 Timing and Comparison
 ---------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Measure the time it takes to do inference on fifty images and compare
 the result. The timing information gives an indication of performance.
@@ -455,7 +455,7 @@ Note that many optimizations are possible to improve the performance.
 
 .. parsed-literal::
 
-    PaddlePaddle model on CPU: 0.0072 seconds per image, FPS: 139.22
+    PaddlePaddle model on CPU: 0.0076 seconds per image, FPS: 131.17
     
     PaddlePaddle result:
     Labrador retriever, 0.75138
@@ -472,7 +472,7 @@ Note that many optimizations are possible to improve the performance.
 Select inference device
 -----------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 select device from dropdown list for running inference using OpenVINO
 
@@ -516,7 +516,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    OpenVINO IR model in OpenVINO Runtime (AUTO): 0.0028 seconds per image, FPS: 361.41
+    OpenVINO IR model in OpenVINO Runtime (AUTO): 0.0029 seconds per image, FPS: 348.21
     
     OpenVINO result:
     Labrador retriever, 0.74909
@@ -533,7 +533,7 @@ select device from dropdown list for running inference using OpenVINO
 References
 ----------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 -  `PaddleClas <https://github.com/PaddlePaddle/PaddleClas>`__
 -  `OpenVINO PaddlePaddle

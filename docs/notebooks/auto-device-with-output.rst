@@ -30,49 +30,49 @@ first inference.
 
    auto
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-
--  `Import modules and create Core <#import-modules-and-create-core>`__
+-  `Import modules and create Core <#Import-modules-and-create-Core>`__
 -  `Convert the model to OpenVINO IR
-   format <#convert-the-model-to-openvino-ir-format>`__
--  `(1) Simplify selection logic <#simplify-selection-logic>`__
+   format <#Convert-the-model-to-OpenVINO-IR-format>`__
+-  `(1) Simplify selection logic <#(1)-Simplify-selection-logic>`__
 
    -  `Default behavior of Core::compile_model API without
-      device_name <#default-behavior-of-corecompile_model-api-without-device_name>`__
+      device_name <#Default-behavior-of-Core::compile_model-API-without-device_name>`__
    -  `Explicitly pass AUTO as device_name to Core::compile_model
-      API <#explicitly-pass-auto-as-device_name-to-corecompile_model-api>`__
+      API <#Explicitly-pass-AUTO-as-device_name-to-Core::compile_model-API>`__
 
 -  `(2) Improve the first inference
-   latency <#2-improve-the-first-inference-latency>`__
+   latency <#(2)-Improve-the-first-inference-latency>`__
 
-   -  `Load an Image <#load-an-image>`__
+   -  `Load an Image <#Load-an-Image>`__
    -  `Load the model to GPU device and perform
-      inference <#load-the-model-to-gpu-device-and-perform-inference>`__
+      inference <#Load-the-model-to-GPU-device-and-perform-inference>`__
    -  `Load the model using AUTO device and do
-      inference <#load-the-model-using-auto-device-and-do-inference>`__
+      inference <#Load-the-model-using-AUTO-device-and-do-inference>`__
 
 -  `(3) Achieve different performance for different
-   targets <#3-achieve-different-performance-for-different-targets>`__
+   targets <#(3)-Achieve-different-performance-for-different-targets>`__
 
-   -  `Class and callback definition <#class-and-callback-definition>`__
+   -  `Class and callback definition <#Class-and-callback-definition>`__
    -  `Inference with THROUGHPUT
-      hint <#inference-with-throughput-hint>`__
-   -  `Inference with LATENCY hint <#inference-with-latency-hint>`__
-   -  `Difference in FPS and latency <#difference-in-fps-and-latency>`__
+      hint <#Inference-with-THROUGHPUT-hint>`__
+   -  `Inference with LATENCY hint <#Inference-with-LATENCY-hint>`__
+   -  `Difference in FPS and latency <#Difference-in-FPS-and-latency>`__
 
 Import modules and create Core
 ------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
     import platform
-
+    
     # Install required packages
     %pip install -q "openvino>=2023.1.0" Pillow torch torchvision tqdm --extra-index-url https://download.pytorch.org/whl/cpu
-
+    
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
@@ -89,13 +89,13 @@ Import modules and create Core
 
     import time
     import sys
-
+    
     import openvino as ov
-
+    
     from IPython.display import Markdown, display
-
+    
     core = ov.Core()
-
+    
     if not any("GPU" in device for device in core.available_devices):
         display(
             Markdown(
@@ -114,7 +114,7 @@ Import modules and create Core
 Convert the model to OpenVINO IR format
 ---------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 This tutorial uses
 `resnet50 <https://pytorch.org/vision/main/models/generated/torchvision.models.resnet50.html#resnet50>`__
@@ -139,11 +139,11 @@ For more information about model conversion API, see this
 
     import torchvision
     from pathlib import Path
-
+    
     base_model_dir = Path("./model")
     base_model_dir.mkdir(exist_ok=True)
     model_path = base_model_dir / "resnet50.xml"
-
+    
     if not model_path.exists():
         pt_model = torchvision.models.resnet50(weights="DEFAULT")
         ov_model = ov.convert_model(pt_model, input=[[1, 3, 224, 224]])
@@ -162,12 +162,12 @@ For more information about model conversion API, see this
 (1) Simplify selection logic
 ----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Default behavior of Core::compile_model API without device_name
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 By default, ``compile_model`` API will select **AUTO** as
 ``device_name`` if no device is specified.
@@ -176,26 +176,26 @@ By default, ``compile_model`` API will select **AUTO** as
 
     # Set LOG_LEVEL to LOG_INFO.
     core.set_property("AUTO", {"LOG_LEVEL": "LOG_INFO"})
-
+    
     # Load the model onto the target device.
     compiled_model = core.compile_model(ov_model)
-
+    
     if isinstance(compiled_model, ov.CompiledModel):
         print("Successfully compiled model without a device_name.")
 
 
 .. parsed-literal::
 
-    [23:25:26.9165]I[plugin.cpp:421][AUTO] device:CPU, config:LOG_LEVEL=LOG_INFO
-    [23:25:26.9166]I[plugin.cpp:421][AUTO] device:CPU, config:PERFORMANCE_HINT=LATENCY
-    [23:25:26.9166]I[plugin.cpp:421][AUTO] device:CPU, config:PERFORMANCE_HINT_NUM_REQUESTS=0
-    [23:25:26.9166]I[plugin.cpp:421][AUTO] device:CPU, config:PERF_COUNT=NO
-    [23:25:26.9166]I[plugin.cpp:426][AUTO] device:CPU, priority:0
-    [23:25:26.9166]I[schedule.cpp:17][AUTO] scheduler starting
-    [23:25:26.9166]I[auto_schedule.cpp:134][AUTO] select device:CPU
-    [23:25:27.0671]I[auto_schedule.cpp:336][AUTO] Device: [CPU]: Compile model took 150.493079 ms
-    [23:25:27.0674]I[auto_schedule.cpp:112][AUTO] device:CPU compiling model finished
-    [23:25:27.0675]I[plugin.cpp:454][AUTO] underlying hardware does not support hardware context
+    [23:26:37.1843]I[plugin.cpp:421][AUTO] device:CPU, config:LOG_LEVEL=LOG_INFO
+    [23:26:37.1844]I[plugin.cpp:421][AUTO] device:CPU, config:PERFORMANCE_HINT=LATENCY
+    [23:26:37.1844]I[plugin.cpp:421][AUTO] device:CPU, config:PERFORMANCE_HINT_NUM_REQUESTS=0
+    [23:26:37.1844]I[plugin.cpp:421][AUTO] device:CPU, config:PERF_COUNT=NO
+    [23:26:37.1844]I[plugin.cpp:426][AUTO] device:CPU, priority:0
+    [23:26:37.1844]I[schedule.cpp:17][AUTO] scheduler starting
+    [23:26:37.1844]I[auto_schedule.cpp:134][AUTO] select device:CPU
+    [23:26:37.3288]I[auto_schedule.cpp:336][AUTO] Device: [CPU]: Compile model took 144.341797 ms
+    [23:26:37.3290]I[auto_schedule.cpp:112][AUTO] device:CPU compiling model finished
+    [23:26:37.3291]I[plugin.cpp:454][AUTO] underlying hardware does not support hardware context
     Successfully compiled model without a device_name.
 
 
@@ -209,13 +209,13 @@ By default, ``compile_model`` API will select **AUTO** as
 .. parsed-literal::
 
     Deleted compiled_model
-    [23:25:27.0786]I[schedule.cpp:308][AUTO] scheduler ending
+    [23:26:37.3399]I[schedule.cpp:308][AUTO] scheduler ending
 
 
 Explicitly pass AUTO as device_name to Core::compile_model API
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 It is optional, but passing AUTO explicitly as ``device_name`` may
 improve readability of your code.
@@ -224,9 +224,9 @@ improve readability of your code.
 
     # Set LOG_LEVEL to LOG_NONE.
     core.set_property("AUTO", {"LOG_LEVEL": "LOG_NONE"})
-
+    
     compiled_model = core.compile_model(model=ov_model, device_name="AUTO")
-
+    
     if isinstance(compiled_model, ov.CompiledModel):
         print("Successfully compiled model using AUTO.")
 
@@ -251,7 +251,7 @@ improve readability of your code.
 (2) Improve the first inference latency
 ---------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 One of the benefits of using AUTO device selection is reducing FIL
 (first inference latency). FIL is the model compilation time combined
@@ -267,7 +267,7 @@ device until GPU is ready.
 Load an Image
 ~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 torchvision library provides model specific input transformation
 function, we will reuse it for preparing input data.
@@ -276,25 +276,25 @@ function, we will reuse it for preparing input data.
 
     # Fetch `notebook_utils` module
     import requests
-
+    
     r = requests.get(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py")
     open("notebook_utils.py", "w").write(r.text)
-
+    
     from notebook_utils import download_file
 
 .. code:: ipython3
 
     from PIL import Image
-
+    
     # Download the image from the openvino_notebooks storage
     image_filename = download_file(
         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg",
         directory="data",
     )
-
+    
     image = Image.open(str(image_filename))
     input_transform = torchvision.models.ResNet50_Weights.DEFAULT.transforms()
-
+    
     input_tensor = input_transform(image)
     input_tensor = input_tensor.unsqueeze(0).numpy()
     image
@@ -315,7 +315,7 @@ function, we will reuse it for preparing input data.
 Load the model to GPU device and perform inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -325,10 +325,10 @@ Load the model to GPU device and perform inference
         # Start time.
         gpu_load_start_time = time.perf_counter()
         compiled_model = core.compile_model(model=ov_model, device_name="GPU")  # load to GPU
-
+    
         # Execute the first inference.
         results = compiled_model(input_tensor)[0]
-
+    
         # Measure time to the first inference.
         gpu_fil_end_time = time.perf_counter()
         gpu_fil_span = gpu_fil_end_time - gpu_load_start_time
@@ -344,7 +344,7 @@ Load the model to GPU device and perform inference
 Load the model using AUTO device and do inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 When GPU is the best available device, the first few inferences will be
 executed on CPU until GPU is ready.
@@ -354,11 +354,11 @@ executed on CPU until GPU is ready.
     # Start time.
     auto_load_start_time = time.perf_counter()
     compiled_model = core.compile_model(model=ov_model)  # The device_name is AUTO by default.
-
+    
     # Execute the first inference.
     results = compiled_model(input_tensor)[0]
-
-
+    
+    
     # Measure time to the first inference.
     auto_fil_end_time = time.perf_counter()
     auto_fil_span = auto_fil_end_time - auto_load_start_time
@@ -367,7 +367,7 @@ executed on CPU until GPU is ready.
 
 .. parsed-literal::
 
-    Time to load model using AUTO device and get first inference: 0.16 seconds.
+    Time to load model using AUTO device and get first inference: 0.17 seconds.
 
 
 .. code:: ipython3
@@ -378,7 +378,7 @@ executed on CPU until GPU is ready.
 (3) Achieve different performance for different targets
 -------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 It is an advantage to define **performance hints** when using Automatic
 Device Selection. By specifying a **THROUGHPUT** or **LATENCY** hint,
@@ -398,7 +398,7 @@ article.
 Class and callback definition
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -411,7 +411,7 @@ Class and callback definition
         :member: latency_list: Record the latency of each inference execution over @interval seconds duration.
         :member: interval: The metrics will be updated every @interval seconds
         """
-
+    
         def __init__(self, interval):
             """
             Create and initilize one instance of class PerformanceMetrics.
@@ -421,11 +421,11 @@ Class and callback definition
             """
             self.fps = 0
             self.latency = 0
-
+    
             self.start_time = time.perf_counter()
             self.latency_list = []
             self.interval = interval
-
+    
         def update(self, infer_request: ov.InferRequest) -> bool:
             """
             Update the metrics if current ongoing @interval seconds duration is expired. Record the latency only if it is not expired.
@@ -447,8 +447,8 @@ Class and callback definition
                 return True
             else:
                 return False
-
-
+    
+    
     class InferContext:
         """
         Inference context. Record and update peforamnce metrics via @metrics, set @feed_inference to False once @remaining_update_num <=0
@@ -456,7 +456,7 @@ Class and callback definition
         :member: remaining_update_num: the remaining times for peforamnce metrics updating.
         :member: feed_inference: if feed inference request is required or not.
         """
-
+    
         def __init__(self, update_interval, num):
             """
             Create and initilize one instance of class InferContext.
@@ -468,7 +468,7 @@ Class and callback definition
             self.metrics = PerformanceMetrics(update_interval)
             self.remaining_update_num = num
             self.feed_inference = True
-
+    
         def update(self, infer_request: ov.InferRequest):
             """
             Update the context. Set @feed_inference to False if the number of remaining performance metric updates (@remaining_update_num) reaches 0
@@ -477,13 +477,13 @@ Class and callback definition
             """
             if self.remaining_update_num <= 0:
                 self.feed_inference = False
-
+    
             if self.metrics.update(infer_request):
                 self.remaining_update_num = self.remaining_update_num - 1
                 if self.remaining_update_num <= 0:
                     self.feed_inference = False
-
-
+    
+    
     def completion_callback(infer_request: ov.InferRequest, context) -> None:
         """
         callback for the inference request, pass the @infer_request to @context for updating
@@ -492,8 +492,8 @@ Class and callback definition
         :returns: None
         """
         context.update(infer_request)
-
-
+    
+    
     # Performance metrics update interval (seconds) and number of times.
     metrics_update_interval = 10
     metrics_update_num = 6
@@ -501,7 +501,7 @@ Class and callback definition
 Inference with THROUGHPUT hint
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Loop for inference and update the FPS/Latency every
 @metrics_update_interval seconds.
@@ -509,29 +509,29 @@ Loop for inference and update the FPS/Latency every
 .. code:: ipython3
 
     THROUGHPUT_hint_context = InferContext(metrics_update_interval, metrics_update_num)
-
+    
     print("Compiling Model for AUTO device with THROUGHPUT hint")
     sys.stdout.flush()
-
+    
     compiled_model = core.compile_model(model=ov_model, config={"PERFORMANCE_HINT": "THROUGHPUT"})
-
+    
     infer_queue = ov.AsyncInferQueue(compiled_model, 0)  # Setting to 0 will query optimal number by default.
     infer_queue.set_callback(completion_callback)
-
+    
     print(f"Start inference, {metrics_update_num: .0f} groups of FPS/latency will be measured over {metrics_update_interval: .0f}s intervals")
     sys.stdout.flush()
-
+    
     while THROUGHPUT_hint_context.feed_inference:
         infer_queue.start_async(input_tensor, THROUGHPUT_hint_context)
-
+    
     infer_queue.wait_all()
-
+    
     # Take the FPS and latency of the latest period.
     THROUGHPUT_hint_fps = THROUGHPUT_hint_context.metrics.fps
     THROUGHPUT_hint_latency = THROUGHPUT_hint_context.metrics.latency
-
+    
     print("Done")
-
+    
     del compiled_model
 
 
@@ -539,19 +539,19 @@ Loop for inference and update the FPS/Latency every
 
     Compiling Model for AUTO device with THROUGHPUT hint
     Start inference,  6 groups of FPS/latency will be measured over  10s intervals
-    throughput:  178.13fps, latency:  31.99ms, time interval: 10.00s
-    throughput:  180.15fps, latency:  32.47ms, time interval: 10.00s
-    throughput:  179.79fps, latency:  32.55ms, time interval: 10.01s
-    throughput:  178.57fps, latency:  32.85ms, time interval: 10.01s
-    throughput:  179.62fps, latency:  32.61ms, time interval: 10.00s
-    throughput:  179.43fps, latency:  32.69ms, time interval: 10.00s
+    throughput:  179.02fps, latency:  31.75ms, time interval: 10.02s
+    throughput:  179.80fps, latency:  32.59ms, time interval: 10.00s
+    throughput:  179.17fps, latency:  32.63ms, time interval: 10.01s
+    throughput:  179.81fps, latency:  32.58ms, time interval: 10.01s
+    throughput:  178.74fps, latency:  32.75ms, time interval: 10.00s
+    throughput:  179.33fps, latency:  32.57ms, time interval: 10.02s
     Done
 
 
 Inference with LATENCY hint
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Loop for inference and update the FPS/Latency for each
 @metrics_update_interval seconds
@@ -559,30 +559,30 @@ Loop for inference and update the FPS/Latency for each
 .. code:: ipython3
 
     LATENCY_hint_context = InferContext(metrics_update_interval, metrics_update_num)
-
+    
     print("Compiling Model for AUTO Device with LATENCY hint")
     sys.stdout.flush()
-
+    
     compiled_model = core.compile_model(model=ov_model, config={"PERFORMANCE_HINT": "LATENCY"})
-
+    
     # Setting to 0 will query optimal number by default.
     infer_queue = ov.AsyncInferQueue(compiled_model, 0)
     infer_queue.set_callback(completion_callback)
-
+    
     print(f"Start inference, {metrics_update_num: .0f} groups fps/latency will be out with {metrics_update_interval: .0f}s interval")
     sys.stdout.flush()
-
+    
     while LATENCY_hint_context.feed_inference:
         infer_queue.start_async(input_tensor, LATENCY_hint_context)
-
+    
     infer_queue.wait_all()
-
+    
     # Take the FPS and latency of the latest period.
     LATENCY_hint_fps = LATENCY_hint_context.metrics.fps
     LATENCY_hint_latency = LATENCY_hint_context.metrics.latency
-
+    
     print("Done")
-
+    
     del compiled_model
 
 
@@ -590,33 +590,33 @@ Loop for inference and update the FPS/Latency for each
 
     Compiling Model for AUTO Device with LATENCY hint
     Start inference,  6 groups fps/latency will be out with  10s interval
-    throughput:  138.97fps, latency:  6.66ms, time interval: 10.00s
-    throughput:  142.02fps, latency:  6.67ms, time interval: 10.01s
-    throughput:  141.78fps, latency:  6.62ms, time interval: 10.00s
-    throughput:  141.76fps, latency:  6.63ms, time interval: 10.00s
-    throughput:  141.93fps, latency:  6.66ms, time interval: 10.01s
-    throughput:  142.25fps, latency:  6.64ms, time interval: 10.00s
+    throughput:  137.56fps, latency:  6.70ms, time interval: 10.00s
+    throughput:  140.27fps, latency:  6.69ms, time interval: 10.00s
+    throughput:  140.43fps, latency:  6.68ms, time interval: 10.00s
+    throughput:  140.33fps, latency:  6.69ms, time interval: 10.01s
+    throughput:  140.45fps, latency:  6.68ms, time interval: 10.00s
+    throughput:  140.42fps, latency:  6.68ms, time interval: 10.01s
     Done
 
 
 Difference in FPS and latency
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
     import matplotlib.pyplot as plt
-
+    
     TPUT = 0
     LAT = 1
     labels = ["THROUGHPUT hint", "LATENCY hint"]
-
+    
     fig1, ax1 = plt.subplots(1, 1)
     fig1.patch.set_visible(False)
     ax1.axis("tight")
     ax1.axis("off")
-
+    
     cell_text = []
     cell_text.append(
         [
@@ -625,7 +625,7 @@ Difference in FPS and latency
         ]
     )
     cell_text.append(["%.2f%s" % (LATENCY_hint_fps, " FPS"), "%.2f%s" % (LATENCY_hint_latency, " ms")])
-
+    
     table = ax1.table(
         cellText=cell_text,
         colLabels=["FPS (Higher is better)", "Latency (Lower is better)"],
@@ -640,7 +640,7 @@ Difference in FPS and latency
     table.auto_set_column_width(0)
     table.auto_set_column_width(1)
     table.scale(1, 3)
-
+    
     fig1.tight_layout()
     plt.show()
 
@@ -654,28 +654,28 @@ Difference in FPS and latency
     # Output the difference.
     width = 0.4
     fontsize = 14
-
+    
     plt.rc("font", size=fontsize)
     fig, ax = plt.subplots(1, 2, figsize=(10, 8))
-
+    
     rects1 = ax[0].bar([0], THROUGHPUT_hint_fps, width, label=labels[TPUT], color="#557f2d")
     rects2 = ax[0].bar([width], LATENCY_hint_fps, width, label=labels[LAT])
     ax[0].set_ylabel("frames per second")
     ax[0].set_xticks([width / 2])
     ax[0].set_xticklabels(["FPS"])
     ax[0].set_xlabel("Higher is better")
-
+    
     rects1 = ax[1].bar([0], THROUGHPUT_hint_latency, width, label=labels[TPUT], color="#557f2d")
     rects2 = ax[1].bar([width], LATENCY_hint_latency, width, label=labels[LAT])
     ax[1].set_ylabel("milliseconds")
     ax[1].set_xticks([width / 2])
     ax[1].set_xticklabels(["Latency (ms)"])
     ax[1].set_xlabel("Lower is better")
-
+    
     fig.suptitle("Performance Hints")
     fig.legend(labels, fontsize=fontsize)
     fig.tight_layout()
-
+    
     plt.show()
 
 

@@ -13,25 +13,25 @@ achieves excellent performance on a wide variety of tasks, even when
 using very few labeled examples from the target dataset. This tutorial
 uses OpenVINO backend for performing model quantization in NNCF.
 
-**Table of contents:**
+Table of contents:
+^^^^^^^^^^^^^^^^^^
 
-
--  `Prepare Dataset <#prepare-dataset>`__
--  `Plotting data samples <#plotting-data-samples>`__
--  `Model Fine-tuning <#model-fine-tuning>`__
+-  `Prepare Dataset <#Prepare-Dataset>`__
+-  `Plotting data samples <#Plotting-data-samples>`__
+-  `Model Fine-tuning <#Model-Fine-tuning>`__
 -  `Perform model optimization (IR)
-   step <#perform-model-optimization-ir-step>`__
+   step <#Perform-model-optimization-(IR)-step>`__
 -  `Compute accuracy of the TF
-   model <#compute-accuracy-of-the-tf-model>`__
+   model <#Compute-accuracy-of-the-TF-model>`__
 -  `Compute accuracy of the OpenVINO
-   model <#compute-accuracy-of-the-openvino-model>`__
+   model <#Compute-accuracy-of-the-OpenVINO-model>`__
 -  `Quantize OpenVINO model using
-   NNCF <#quantize-openvino-model-using-nncf>`__
+   NNCF <#Quantize-OpenVINO-model-using-NNCF>`__
 -  `Compute accuracy of the quantized
-   model <#compute-accuracy-of-the-quantized-model>`__
--  `Compare FP32 and INT8 accuracy <#compare-fp32-and-int8-accuracy>`__
+   model <#Compute-accuracy-of-the-quantized-model>`__
+-  `Compare FP32 and INT8 accuracy <#Compare-FP32-and-INT8-accuracy>`__
 -  `Compare inference results on one
-   picture <#compare-inference-results-on-one-picture>`__
+   picture <#Compare-inference-results-on-one-picture>`__
 
 .. code:: ipython3
 
@@ -121,7 +121,7 @@ uses OpenVINO backend for performing model quantization in NNCF.
 Prepare Dataset
 ~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -137,8 +137,8 @@ Prepare Dataset
 
 .. parsed-literal::
 
-    2024-07-01 23:28:13.057215: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2024-07-01 23:28:13.057429: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
+    2024-07-12 23:29:23.376213: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
+    2024-07-12 23:29:23.376437: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
 
 
 .. code:: ipython3
@@ -192,7 +192,7 @@ Prepare Dataset
 Plotting data samples
 ~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -245,7 +245,7 @@ Plotting data samples
 Model Fine-tuning
 ~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -274,7 +274,7 @@ Model Fine-tuning
 
 .. parsed-literal::
 
-    101/101 [==============================] - 964s 9s/step - loss: 0.5942 - accuracy: 0.8622 - val_loss: 0.0841 - val_accuracy: 0.9720
+    101/101 [==============================] - 968s 9s/step - loss: 0.5046 - accuracy: 0.8758 - val_loss: 0.0804 - val_accuracy: 0.9660
 
 
 .. parsed-literal::
@@ -285,7 +285,7 @@ Model Fine-tuning
 Perform model optimization (IR) step
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -306,7 +306,7 @@ Perform model optimization (IR) step
 Compute accuracy of the TF model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -337,7 +337,7 @@ Compute accuracy of the TF model
 Compute accuracy of the OpenVINO model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Select device for inference:
 
@@ -388,7 +388,7 @@ Select device for inference:
 Quantize OpenVINO model using NNCF
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Model Quantization using NNCF
 
@@ -423,17 +423,17 @@ Model Quantization using NNCF
 
 
 
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
+.. raw:: html
 
-
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
 
 
 
@@ -444,24 +444,24 @@ Model Quantization using NNCF
 
 
 
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
+.. raw:: html
 
-
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
 
 
 
 Compute accuracy of the quantized model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -489,7 +489,7 @@ Compute accuracy of the quantized model
 Compare FP32 and INT8 accuracy
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -502,16 +502,16 @@ Compare FP32 and INT8 accuracy
 
 .. parsed-literal::
 
-    Accuracy of the tensorflow model (fp32):  97.20%
-    Accuracy of the OpenVINO optimized model (fp32):  97.20%
+    Accuracy of the tensorflow model (fp32):  96.60%
+    Accuracy of the OpenVINO optimized model (fp32):  96.60%
     Accuracy of the OpenVINO quantized model (int8):  96.20%
-    Accuracy drop between OV FP32 and INT8 model: 1.0% 
+    Accuracy drop between OV FP32 and INT8 model: 0.4% 
 
 
 Compare inference results on one picture
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 

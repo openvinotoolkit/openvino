@@ -1,4 +1,4 @@
-Colorize grayscale images using DDColor and OpenVINO
+Colorize grayscale images using 🎨 DDColor and OpenVINO
 ======================================================
 
 Image colorization is the process of adding color to grayscale images.
@@ -28,31 +28,31 @@ using `NNCF <https://github.com/openvinotoolkit/nncf/>`__.
 🪄 Let’s start to explore magic of image colorization! #### Table of
 contents:
 
--  `Prerequisites <#prerequisites>`__
--  `Load PyTorch model <#load-pytorch-model>`__
--  `Run PyTorch model inference <#run-pytorch-model-inference>`__
+-  `Prerequisites <#Prerequisites>`__
+-  `Load PyTorch model <#Load-PyTorch-model>`__
+-  `Run PyTorch model inference <#Run-PyTorch-model-inference>`__
 -  `Convert PyTorch model to OpenVINO Intermediate
-   Representation <#convert-pytorch-model-to-openvino-intermediate-representation>`__
--  `Run OpenVINO model inference <#run-openvino-model-inference>`__
+   Representation <#Convert-PyTorch-model-to-OpenVINO-Intermediate-Representation>`__
+-  `Run OpenVINO model inference <#Run-OpenVINO-model-inference>`__
 -  `Optimize OpenVINO model using
-   NNCF <#optimize-openvino-model-using-nncf>`__
+   NNCF <#Optimize-OpenVINO-model-using-NNCF>`__
 
-   -  `Collect quantization dataset <#collect-quantization-dataset>`__
-   -  `Perform model quantization <#perform-model-quantization>`__
+   -  `Collect quantization dataset <#Collect-quantization-dataset>`__
+   -  `Perform model quantization <#Perform-model-quantization>`__
 
--  `Run INT8 model inference <#run-int8-model-inference>`__
+-  `Run INT8 model inference <#Run-INT8-model-inference>`__
 -  `Compare FP16 and INT8 model
-   size <#compare-fp16-and-int8-model-size>`__
+   size <#Compare-FP16-and-INT8-model-size>`__
 -  `Compare inference time of the FP16 and INT8
-   models <#compare-inference-time-of-the-fp16-and-int8-models>`__
--  `Interactive inference <#interactive-inference>`__
+   models <#Compare-inference-time-of-the-FP16-and-INT8-models>`__
+-  `Interactive inference <#Interactive-inference>`__
 
 .. |image0| image:: https://github.com/piddnad/DDColor/raw/master/assets/network_arch.jpg
 
 Prerequisites
 -------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -71,7 +71,7 @@ Prerequisites
 
     Note: you may need to restart the kernel to use updated packages.
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    openvino-dev 2024.2.0 requires openvino==2024.2.0, but you have openvino 2024.3.0.dev20240627 which is incompatible.
+    openvino-dev 2024.2.0 requires openvino==2024.2.0, but you have openvino 2024.4.0.dev20240712 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
     Note: you may need to restart the kernel to use updated packages.
 
@@ -96,7 +96,7 @@ Prerequisites
     remote: Counting objects: 100% (76/76), done.[K
     remote: Compressing objects: 100% (39/39), done.[K
     remote: Total 230 (delta 54), reused 40 (delta 36), pack-reused 154[K
-    Receiving objects: 100% (230/230), 13.34 MiB | 21.61 MiB/s, done.
+    Receiving objects: 100% (230/230), 13.34 MiB | 20.76 MiB/s, done.
     Resolving deltas: 100% (75/75), done.
 
 
@@ -110,7 +110,7 @@ Prerequisites
 Load PyTorch model
 ------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 There are several models from DDColor’s family provided in `model
 repository <https://github.com/piddnad/DDColor/blob/master/MODEL_ZOO.md>`__.
@@ -135,7 +135,7 @@ models from DDColor family.
 Run PyTorch model inference
 ---------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -171,7 +171,7 @@ Run PyTorch model inference
 Convert PyTorch model to OpenVINO Intermediate Representation
 -------------------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
 Representation (IR). OpenVINO model conversion API should be used for
@@ -192,10 +192,16 @@ loading on device using ``core.complie_model``.
         ov_model = ov.convert_model(ddcolor_model, example_input=torch.ones((1, 3, 512, 512)), input=[1, 3, 512, 512])
         ov.save_model(ov_model, OV_COLORIZER_PATH)
 
+
+.. parsed-literal::
+
+    ['x']
+
+
 Run OpenVINO model inference
 ----------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 Select one of supported devices for inference using dropdown list.
 
@@ -280,7 +286,7 @@ Select one of supported devices for inference using dropdown list.
 Optimize OpenVINO model using NNCF
 ----------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ enables
 post-training quantization by adding quantization layers into model
@@ -334,10 +340,10 @@ improve model inference speed.
 Collect quantization dataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 We use a portion of
-`ummagumm-a/colorization_dataset <https://huggingface.co/datasets/ummagumm-a/colorization_dataset>`__
+```ummagumm-a/colorization_dataset`` <https://huggingface.co/datasets/ummagumm-a/colorization_dataset>`__
 dataset from Hugging Face as calibration data.
 
 .. code:: ipython3
@@ -367,7 +373,7 @@ dataset from Hugging Face as calibration data.
 Perform model quantization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -392,10 +398,10 @@ Perform model quantization
 
 .. parsed-literal::
 
-    2024-07-01 23:50:30.822181: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-07-01 23:50:30.862201: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-07-12 23:51:48.961005: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-07-12 23:51:49.001135: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-07-01 23:50:31.313473: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-07-12 23:51:49.398556: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -405,17 +411,17 @@ Perform model quantization
 
 
 
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
+.. raw:: html
 
-
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
 
 
 
@@ -426,24 +432,24 @@ Perform model quantization
 
 
 
+.. raw:: html
+
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
+.. raw:: html
 
-
-
-
-
-
-
+    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
+    </pre>
 
 
 
 Run INT8 model inference
 ------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -463,7 +469,7 @@ Run INT8 model inference
 Compare FP16 and INT8 model size
 --------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -487,7 +493,7 @@ Compare FP16 and INT8 model size
 Compare inference time of the FP16 and INT8 models
 --------------------------------------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 To measure the inference performance of OpenVINO FP16 and INT8 models,
 use `Benchmark
@@ -508,18 +514,18 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.3.0-15837-76a668b0662
+    [ INFO ] Build ................................. 2024.4.0-16028-fe423b97163
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.3.0-15837-76a668b0662
+    [ INFO ] Build ................................. 2024.4.0-16028-fe423b97163
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 41.64 ms
+    [ INFO ] Read model took 41.74 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [1,3,512,512]
@@ -535,7 +541,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: __module.refine_net.0.0/aten::_convolution/Add) : f32 / [...] / [1,2,512,512]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 1431.82 ms
+    [ INFO ] Compile model took 1302.32 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -572,17 +578,17 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Fill input 'x' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 540.84 ms
+    [ INFO ] First inference took 537.09 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
     [ INFO ] Count:            72 iterations
-    [ INFO ] Duration:         16700.79 ms
+    [ INFO ] Duration:         16531.03 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        1387.86 ms
-    [ INFO ]    Average:       1390.31 ms
-    [ INFO ]    Min:           1341.22 ms
-    [ INFO ]    Max:           1461.83 ms
-    [ INFO ] Throughput:   4.31 FPS
+    [ INFO ]    Median:        1375.35 ms
+    [ INFO ]    Average:       1368.70 ms
+    [ INFO ]    Min:           1259.43 ms
+    [ INFO ]    Max:           1453.51 ms
+    [ INFO ] Throughput:   4.36 FPS
 
 
 .. code:: ipython3
@@ -597,18 +603,18 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Parsing input parameters
     [Step 2/11] Loading OpenVINO Runtime
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.3.0-15837-76a668b0662
+    [ INFO ] Build ................................. 2024.4.0-16028-fe423b97163
     [ INFO ] 
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.3.0-15837-76a668b0662
+    [ INFO ] Build ................................. 2024.4.0-16028-fe423b97163
     [ INFO ] 
     [ INFO ] 
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 66.82 ms
+    [ INFO ] Read model took 68.54 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     x (node: x) : f32 / [...] / [1,3,512,512]
@@ -624,7 +630,7 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Model outputs:
     [ INFO ]     ***NO_NAME*** (node: __module.refine_net.0.0/aten::_convolution/Add) : f32 / [...] / [1,2,512,512]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 2613.37 ms
+    [ INFO ] Compile model took 2180.66 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: Model0
@@ -661,23 +667,23 @@ Tool <https://docs.openvino.ai/2024/learn-openvino/openvino-samples/benchmark-to
     [ INFO ] Fill input 'x' with random values 
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 15000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 280.85 ms
+    [ INFO ] First inference took 283.96 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
     [ INFO ] Count:            156 iterations
-    [ INFO ] Duration:         15707.80 ms
+    [ INFO ] Duration:         15915.24 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        596.53 ms
-    [ INFO ]    Average:       597.25 ms
-    [ INFO ]    Min:           463.75 ms
-    [ INFO ]    Max:           675.97 ms
-    [ INFO ] Throughput:   9.93 FPS
+    [ INFO ]    Median:        608.17 ms
+    [ INFO ]    Average:       609.92 ms
+    [ INFO ]    Min:           550.02 ms
+    [ INFO ]    Max:           718.37 ms
+    [ INFO ] Throughput:   9.80 FPS
 
 
 Interactive inference
 ---------------------
 
-
+`back to top ⬆️ <#Table-of-contents:>`__
 
 .. code:: ipython3
 
@@ -733,7 +739,7 @@ Interactive inference
 
 
 
+.. raw:: html
 
-
-
+    <div><iframe src="http://127.0.0.1:7860/" width="100%" height="500" allow="autoplay; camera; microphone; clipboard-read; clipboard-write;" frameborder="0" allowfullscreen></iframe></div>
 
