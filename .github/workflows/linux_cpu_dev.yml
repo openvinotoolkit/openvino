@@ -193,7 +193,7 @@ jobs:
   CPU_Functional_Tests:
     name: CPU functional tests
     # WA: currently, snippet tests are expectedly failing, we need green CI until all testcases will be fixed
-    if: ${{ github.event_name == 'workflow_dispatch'}} || ${{ contains(fromJson('["GHA-ENABLE", "SNIPPETS-ENABLE"]'), github.event.pull_request.title) }}
+    if: ${{ github.event_name == 'workflow_dispatch'}} || ${{ contains('SNIPPETS-ENABLE', github.event.pull_request.title) }}
     needs: [ Docker, Build, Smart_CI ]
     timeout-minutes: 30
     runs-on: aks-linux-8-cores-32gb
