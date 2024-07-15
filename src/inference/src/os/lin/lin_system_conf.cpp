@@ -108,7 +108,7 @@ CPU::CPU() {
             }
             std::string cache_info;
             std::getline(cache_file, cache_info);
-            node_info_table.push_back(cache_info);
+            node_info_table.emplace_back(std::move(cache_info));
             node_index++;
         }
     };
@@ -520,7 +520,7 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
     if ((node_info_table.size() == 0) || (node_info_table.size() == (unsigned)_sockets)) {
         if (_sockets > 1) {
             _proc_type_table.push_back(_proc_type_table[0]);
-            _proc_type_table[0] = std::move(line_value_0);
+            _proc_type_table[0] = line_value_0;
 
             for (int m = 1; m <= _sockets; m++) {
                 for (int n = 0; n < PROC_NUMA_NODE_ID; n++) {
