@@ -44,11 +44,11 @@ public:
      * @param tensor a tensor to check
      */
     static void type_check(const Tensor& tensor) {
-        RemoteTensor::type_check(tensor,
-                                 {{std::string(ov::intel_npu::mem_handle.name()), {}},
-                                  {std::string(ov::intel_npu::mem_type.name()),
-                                   {ov::Any(ov::intel_npu::MemType::L0_INTERNAL_BUF).as<std::string>(),
-                                    ov::Any(ov::intel_npu::MemType::SHARED_BUF).as<std::string>()}}});
+        RemoteTensor::type_check(
+            tensor,
+            {{std::string(mem_handle.name()), {}},
+             {std::string(mem_type.name()),
+              {ov::Any(MemType::L0_INTERNAL_BUF).as<std::string>(), ov::Any(MemType::SHARED_BUF).as<std::string>()}}});
     }
 
     /**
@@ -56,7 +56,7 @@ public:
      * @return underlying void* memory object handle
      */
     void* get() {
-        return get_params().at(ov::intel_npu::mem_handle.name()).as<void*>();
+        return get_params().at(mem_handle.name()).as<void*>();
     }
 };
 
@@ -96,7 +96,7 @@ public:
      * @return `void*`
      */
     void* get() {
-        return get_params().at(ov::intel_npu::l0_context.name()).as<void*>();
+        return get_params().at(l0_context.name()).as<void*>();
     }
 
     /**
@@ -107,8 +107,7 @@ public:
      * @return A remote tensor instance
      */
     ZeroBufferTensor create_tensor(const element::Type type, const Shape& shape, void* buffer) {
-        AnyMap params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::SHARED_BUF},
-                         {ov::intel_npu::mem_handle.name(), buffer}};
+        AnyMap params = {{mem_type.name(), MemType::SHARED_BUF}, {mem_handle.name(), buffer}};
         return create_tensor(type, shape, params).as<ZeroBufferTensor>();
     }
 
@@ -120,8 +119,8 @@ public:
      * @return A remote tensor instance
      */
     ZeroBufferTensor create_tensor(const element::Type type, const Shape& shape, int fd) {
-        AnyMap params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::SHARED_BUF},
-                         {ov::intel_npu::mem_handle.name(), reinterpret_cast<void*>(static_cast<intptr_t>(fd))}};
+        AnyMap params = {{mem_type.name(), MemType::SHARED_BUF},
+                         {mem_handle.name(), reinterpret_cast<void*>(static_cast<intptr_t>(fd))}};
         return create_tensor(type, shape, params).as<ZeroBufferTensor>();
     }
 
@@ -132,9 +131,10 @@ public:
      * @param tensor_type Type of the tensor to be shared, input, output or binded
      * @return A remote tensor instance
      */
-    ZeroBufferTensor create_tensor(const element::Type type, const Shape& shape, const TensorType tensor_type) {
-        AnyMap params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::L0_INTERNAL_BUF},
-                         {ov::intel_npu::tensor_type.name(), tensor_type}};
+    ZeroBufferTensor create_l0_host_tensor(const element::Type type,
+                                           const Shape& shape,
+                                           const TensorType tensor_type = TensorType::BINDED) {
+        AnyMap params = {{mem_type.name(), MemType::L0_INTERNAL_BUF}, {ov::intel_npu::tensor_type.name(), tensor_type}};
         return create_tensor(type, shape, params).as<ZeroBufferTensor>();
     }
 };

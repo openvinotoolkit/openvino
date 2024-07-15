@@ -83,7 +83,7 @@ TEST_P(RemoteRunTests, CheckRemoteTensorInternalBuf) {
     auto zero_context = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
 
     auto remote_tensor =
-        zero_context.create_tensor(ov::element::f32, tensor.get_shape(), ov::intel_npu::TensorType::INPUT);
+        zero_context.create_l0_host_tensor(ov::element::f32, tensor.get_shape(), ov::intel_npu::TensorType::INPUT);
     tensor = {};
 
     ov::Tensor check_remote_tensor;
@@ -105,7 +105,8 @@ TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufChangingTensors) {
     // set input remote tensor
     auto tensor = inference_request.get_input_tensor();
     auto context = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
-    auto remote_tensor = context.create_tensor(ov::element::f32, tensor.get_shape(), ov::intel_npu::TensorType::INPUT);
+    auto remote_tensor =
+        context.create_l0_host_tensor(ov::element::f32, tensor.get_shape(), ov::intel_npu::TensorType::INPUT);
 
     ov::Tensor check_remote_tensor;
     ASSERT_NO_THROW(check_remote_tensor = remote_tensor);
@@ -127,7 +128,7 @@ TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufChangingTensors) {
 
     // set output remote tensor
     auto remote_output_tensor = inference_request.get_output_tensor();
-    auto output_remote_tensor = context.create_tensor(ov::element::f32, remote_output_tensor.get_shape());
+    auto output_remote_tensor = context.create_l0_host_tensor(ov::element::f32, remote_output_tensor.get_shape());
     remote_output_tensor = {};
 
     OV_ASSERT_NO_THROW(inference_request.set_output_tensor(output_remote_tensor));
@@ -149,7 +150,7 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRuns) {
         auto tensor = inference_request.get_input_tensor();
 
         auto remote_tensor =
-            context.create_tensor(ov::element::f32, tensor.get_shape(), ov::intel_npu::TensorType::INPUT);
+            context.create_l0_host_tensor(ov::element::f32, tensor.get_shape(), ov::intel_npu::TensorType::INPUT);
         memset(remote_tensor.get(), 1, tensor.get_byte_size());
         OV_ASSERT_NO_THROW(inference_request.set_input_tensor(remote_tensor));
         OV_ASSERT_NO_THROW(inference_request.infer());
@@ -200,9 +201,9 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensors1) {
         output_tensor = {};
 
         auto remote_input_tensor =
-            context.create_tensor(ov::element::f32, input_shape, ov::intel_npu::TensorType::INPUT);
-        remote_output_tensor =
-            context.create_tensor(ov::element::f32, output_shape).as<ov::intel_npu::level_zero::ZeroBufferTensor>();
+            context.create_l0_host_tensor(ov::element::f32, input_shape, ov::intel_npu::TensorType::INPUT);
+        remote_output_tensor = context.create_l0_host_tensor(ov::element::f32, output_shape)
+                                   .as<ov::intel_npu::level_zero::ZeroBufferTensor>();
 
         memset(remote_input_tensor.get(), 99, byte_size);
         OV_ASSERT_NO_THROW(inference_request.set_input_tensor(remote_input_tensor));
@@ -249,7 +250,8 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensors2) {
     input_tensor = {};
     output_tensor = {};
 
-    auto remote_input_tensor = context.create_tensor(ov::element::f32, input_shape, ov::intel_npu::TensorType::INPUT);
+    auto remote_input_tensor =
+        context.create_l0_host_tensor(ov::element::f32, input_shape, ov::intel_npu::TensorType::INPUT);
     auto remote_output_tensor1 =
         context.create_tensor(ov::element::f32, output_shape).as<ov::intel_npu::level_zero::ZeroBufferTensor>();
 
@@ -301,9 +303,10 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensors3) {
     input_tensor = {};
     output_tensor = {};
 
-    auto remote_input_tensor = context.create_tensor(ov::element::f32, input_shape, ov::intel_npu::TensorType::INPUT);
+    auto remote_input_tensor =
+        context.create_l0_host_tensor(ov::element::f32, input_shape, ov::intel_npu::TensorType::INPUT);
     auto remote_output_tensor =
-        context.create_tensor(ov::element::f32, output_shape).as<ov::intel_npu::level_zero::ZeroBufferTensor>();
+        context.create_l0_host_tensor(ov::element::f32, output_shape).as<ov::intel_npu::level_zero::ZeroBufferTensor>();
 
     memset(remote_input_tensor.get(), 99, byte_size);
     OV_ASSERT_NO_THROW(inference_request.set_input_tensor(remote_input_tensor));
