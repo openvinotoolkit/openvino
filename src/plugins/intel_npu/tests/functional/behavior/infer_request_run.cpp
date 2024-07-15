@@ -20,6 +20,7 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                          InferRequestRunTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> batchingConfigs = {
+    {ov::log::level(ov::log::Level::WARNING), ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::PLUGIN)},
     {ov::log::level(ov::log::Level::WARNING), ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::COMPILER)},
     {ov::log::level(ov::log::Level::WARNING), ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::AUTO)}};
 
