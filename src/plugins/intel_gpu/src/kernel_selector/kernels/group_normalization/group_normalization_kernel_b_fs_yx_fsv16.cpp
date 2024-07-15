@@ -36,22 +36,22 @@ GroupNormalizationKernelBase::MultiDispatchData GroupNormalizationKernel_b_fs_yx
     if (!params.has_dynamic_tensors()) {
         const auto& input = params.inputs[0];
 
-        dispatchData.stage_1.gws[0] = input.X().v * input.Y().v * fsv;
+        dispatchData.stage_1.gws[0] = input.X().v * input.Y().v;
         dispatchData.stage_1.gws[1] = CeilDiv(input.Feature().v, fsv) * input.Batch().v;
         dispatchData.stage_1.gws[2] = 1;
 
-        dispatchData.stage_1.lws[0] = simd;
+        dispatchData.stage_1.lws[0] = input.X().v * input.Y().v;
         dispatchData.stage_1.lws[1] = 1;
         dispatchData.stage_1.lws[2] = 1;
 
-        while ((dispatchData.stage_1.lws[0] * 2) <= params.engineInfo.maxWorkGroupSize &&
-              (dispatchData.stage_1.lws[0] * 2) <= dispatchData.stage_1.gws[0]) {
-            if (dispatchData.stage_1.gws[0] % (dispatchData.stage_1.lws[0] * 2) == 0) {
-                dispatchData.stage_1.lws[0] *= 2;
-            } else {
-                break;
+        size_t divisor = 2;
+        while (dispatchData.stage_1.lws[0] > (params.engineInfo.maxWorkGroupSize / fsv)) {
+            if (dispatchData.stage_1.gws[0] % divisor == 0) {
+                dispatchData.stage_1.lws[0] = dispatchData.stage_1.gws[0] / divisor;
             }
+            divisor += 1;
         }
+        dispatchData.stage_1.lws[0] *= fsv;
         dispatchData.stage_1.gws[0] = dispatchData.stage_1.lws[0];
 
         dispatchData.stage_2.gws[0] = input.Feature().v;
@@ -61,6 +61,14 @@ GroupNormalizationKernelBase::MultiDispatchData GroupNormalizationKernel_b_fs_yx
         dispatchData.stage_2.lws[0] = input.Feature().v / params.num_groups;
         dispatchData.stage_2.lws[1] = 1;
         dispatchData.stage_2.lws[2] = 1;
+
+        divisor = 2;
+        while (dispatchData.stage_2.lws[0] > params.engineInfo.maxWorkGroupSize) {
+            if ((input.Feature().v / params.num_groups) % divisor == 0) {
+                dispatchData.stage_2.lws[0] = (input.Feature().v / params.num_groups) / divisor;
+            }
+            divisor += 1;
+        }
 
         dispatchData.stage_final.gws[0] = input.X().v * input.Y().v * fsv;
         dispatchData.stage_final.gws[1] = CeilDiv(input.Feature().v, fsv) * input.Batch().v;

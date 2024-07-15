@@ -84,11 +84,22 @@ KERNEL(calc_mean_per_group)(
     __global ACCUMULATOR_TYPE* internal_mean
 ) {
     const uint data_idx = get_global_id(0) + get_global_id(1) * get_global_size(0);
-    const uint group_size = get_local_size(0);
+    const uint num_workers = get_local_size(0);
+    const uint group_size = get_global_size(0) / NUM_GROUPS;
+    const uint items_num = group_size / num_workers;
 
-    ACCUMULATOR_TYPE mean = work_group_reduce_add(internal_mean[data_idx]);
-    mean /= TO_ACCUMULATOR_TYPE(group_size);
-    internal_mean[data_idx] = mean;
+    if ((data_idx % group_size) < num_workers) {
+        ACCUMULATOR_TYPE my_sum = ACCUMULATOR_VAL_ZERO;
+        for (uint i = 0; i < items_num; ++i) {
+            my_sum += internal_mean[data_idx + num_workers * i];
+        }
+
+        ACCUMULATOR_TYPE mean = work_group_reduce_add(my_sum);
+        mean /= TO_ACCUMULATOR_TYPE(group_size);
+        for (uint i = 0; i < items_num; ++i) {
+            internal_mean[data_idx + num_workers * i] = mean;
+        }
+    }
 }
 #elif GROUP_NORM_KERNEL_FEATURE_VAR
 KERNEL(calc_var_per_feature)(
@@ -179,12 +190,23 @@ KERNEL(calc_var_per_group)(
     __global ACCUMULATOR_TYPE* internal_variance
 ) {
     const uint data_idx = get_global_id(0) + get_global_id(1) * get_global_size(0);
-    const uint group_size = get_local_size(0);
+    const uint num_workers = get_local_size(0);
+    const uint group_size = get_global_size(0) / NUM_GROUPS;
+    const uint items_num = group_size / num_workers;
 
-    ACCUMULATOR_TYPE variance = work_group_reduce_add(internal_variance[data_idx]);
-    variance /= TO_ACCUMULATOR_TYPE(group_size);
-    variance = native_powr(variance + TO_ACCUMULATOR_TYPE(EPSILON), -0.5f);
-    internal_variance[data_idx] = variance;
+    if ((data_idx % group_size) < num_workers) {
+        ACCUMULATOR_TYPE my_variance = ACCUMULATOR_VAL_ZERO;
+        for (uint i = 0; i < items_num; ++i) {
+            my_variance += internal_variance[data_idx + num_workers * i];
+        }
+
+        ACCUMULATOR_TYPE variance = work_group_reduce_add(my_variance);
+        variance /= TO_ACCUMULATOR_TYPE(group_size);
+        variance = native_powr(variance + TO_ACCUMULATOR_TYPE(EPSILON), -0.5f);
+        for (uint i = 0; i < items_num; ++i) {
+            internal_variance[data_idx + num_workers * i] = variance;
+        }
+    }
 }
 #elif GROUP_NORM_KERNEL_FINAL
 KERNEL(group_normalization_b_fs_yx_fsv16)(

@@ -69,6 +69,14 @@ GroupNormalizationKernelBase::MultiDispatchData GroupNormalizationKernelBfyx::Se
         dispatchData.stage_2.lws[1] = 1;
         dispatchData.stage_2.lws[2] = 1;
 
+        size_t divisor = 2;
+        while (dispatchData.stage_2.lws[0] > params.engineInfo.maxWorkGroupSize) {
+            if ((input.Feature().v / params.num_groups) % divisor == 0) {
+                dispatchData.stage_2.lws[0] = (input.Feature().v / params.num_groups) / divisor;
+            }
+            divisor += 1;
+        }
+
         dispatchData.stage_final.gws[0] = input.X().v * input.Y().v;
         dispatchData.stage_final.gws[1] = input.Feature().v * input.Batch().v;
         dispatchData.stage_final.gws[2] = 1;
