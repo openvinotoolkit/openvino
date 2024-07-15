@@ -225,6 +225,10 @@ bool PadTransformation::canBeTransformed(const TransformationContext& context, s
                 }
             }
 
+            if ((beginNonZeroIdx == -1) && (endNonZeroIdx == -1)) {
+                return true;
+            }
+
             if ((beginNonZeroIdx != endNonZeroIdx) && (beginNonZeroIdx != -1) && (endNonZeroIdx != -1)) {
                 return false;
             }
