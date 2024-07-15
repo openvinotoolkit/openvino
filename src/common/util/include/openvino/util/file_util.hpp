@@ -12,7 +12,7 @@
 
 #include "openvino/util/util.hpp"
 
-#if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__)
+#if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__) && !defined(__APPLE__)
 #    if (__cplusplus >= 201703L) || (defined(_MSVC_LANG) && (_MSVC_LANG >= 201703L) && (_MSC_VER >= 1913))
 #        if __has_include(<filesystem>)
 #            include <filesystem>
