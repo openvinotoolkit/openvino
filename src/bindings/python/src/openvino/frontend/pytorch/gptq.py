@@ -125,10 +125,8 @@ def patch_model(model):
 
             m._openvino_patch_orig_forward = m.forward
             if is_symmetrical:
-                print("Symmetrical patched forward")
                 m.forward = partial(patched_forward_sym, m)
             else:
-                print("Assym forward")
                 m.forward = partial(patched_forward, m)
 
             # Keep original field properties to be used when model is returned back to its original state
