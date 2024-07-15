@@ -102,6 +102,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
 
 std::vector<ov::SoPtr<ov::ITensor>> SyncInferRequest::get_tensors(const ov::Output<const ov::Node>& /*port*/) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::Plugin, "get_tensors");
+
     // Using batches of tensors is currently not supported by the NPU plugin. In this scenario, the OpenVINO API demands
     // returning an empty vector.
     return {};
@@ -150,19 +151,23 @@ void SyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
 void SyncInferRequest::check_tensors() const {
     const auto& inputs = _compiledModel->inputs();
     for (size_t i = 0; i < inputs.size(); i++) {
-        check_tensor(inputs[i], _allTensors.at(inputs[i].get_node()->get_friendly_name()));
+        if (_allTensors.find(inputs[i].get_node()->get_friendly_name()) != _allTensors.end()) {
+            check_tensor(inputs[i], _allTensors.at(inputs[i].get_node()->get_friendly_name()));
+        }
     }
 
     const auto& outputs = _compiledModel->outputs();
     for (size_t i = 0; i < outputs.size(); i++) {
-        check_tensor(outputs[i], _allTensors.at(outputs[i].get_node()->get_friendly_name()));
+        if (_allTensors.find(outputs[i].get_node()->get_friendly_name()) != _allTensors.end()) {
+            check_tensor(outputs[i], _allTensors.at(outputs[i].get_node()->get_friendly_name()));
+        }
     }
 }
 
 void SyncInferRequest::allocate_tensor(std::string tensorName,
                                        const IONodeDescriptor& descriptor,
                                        TensorType tensorType,
-                                       const ov::Allocator& allocator) {
+                                       const ov::Allocator& allocator) const {
     std::shared_ptr<ov::ITensor> tensor;
 
     check_network_precision(descriptor.precision);
@@ -191,7 +196,9 @@ void SyncInferRequest::allocate_tensor(std::string tensorName,
         _allTensors[ASSIGN_PREFIX + tensorName] = _copyAllTensors[READVALUE_PREFIX + tensorName];
     } else {
         _copyAllTensors[tensorName] = std::move(tensor);
-        _allTensors[tensorName] = _copyAllTensors[tensorName];
+        if (_allTensors.find(tensorName) == _allTensors.end()) {
+            _allTensors[tensorName] = _copyAllTensors[tensorName];
+        }
     }
 }
 }  // namespace intel_npu
