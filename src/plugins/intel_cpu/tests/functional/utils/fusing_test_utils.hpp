@@ -320,12 +320,12 @@ const auto notFusingFakeQuantizePerChannelOrPerTensor = fusingSpecificParams{std
                 std::mt19937 gen(rd());
                 std::uniform_int_distribution<> distrib(0, shapeSize - 1);
                 int axis = distrib(gen);
-                const int max_rand_count = 100;
-                int rand_count = 1;
+                const int maxRandomCount = 100;
+                int randomCount = 1;
                 while (axis == channelAxis || shape[axis].is_dynamic()) {
                     axis = distrib(gen);
-                    rand_count++;
-                    if (rand_count > max_rand_count) {
+                    randomCount++;
+                    if (randomCount > maxRandomCount) {
                         OPENVINO_THROW("the output shape is not suit for test");
                     }
                 }

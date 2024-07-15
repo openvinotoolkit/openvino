@@ -1121,8 +1121,8 @@ TEST_P(FCNotFuseFQCPUTest, CompareWithRefs) {
     CheckPluginRelatedResults(compiledModel, cpuNodeType);
 }
 
-const std::vector<ShapeRelatedParams>& notFuse_smoke() {
-    static const std::vector<ShapeRelatedParams> NOFused_smoke = {
+const std::vector<ShapeRelatedParams>& notFuseSmoke() {
+    static const std::vector<ShapeRelatedParams> params = {
         {static_shapes_to_test_representation({{59, 1}, {1, 120}}), {false, true}},
         {static_shapes_to_test_representation({{59, 1}, {1, 120}}), {true, true}},
 
@@ -1132,11 +1132,11 @@ const std::vector<ShapeRelatedParams>& notFuse_smoke() {
         {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {true, false}},
         {static_shapes_to_test_representation({{71, 128}, {128, 20}}), {false, true}},
     };
-    return NOFused_smoke;
+    return params;
 }
 
 
-const auto notFuseTestParams_smoke = ::testing::Combine(::testing::Combine(::testing::ValuesIn(notFuse_smoke()),
+const auto notFuseTestParamsSmoke = ::testing::Combine(::testing::Combine(::testing::ValuesIn(notFuseSmoke()),
                                                                 ::testing::Values(ElementType::f32),
                                                                 ::testing::Values(ElementType::undefined),
                                                                 ::testing::Values(ElementType::undefined),
@@ -1147,7 +1147,7 @@ const auto notFuseTestParams_smoke = ::testing::Combine(::testing::Combine(::tes
                                              ::testing::Values(notFusingFakeQuantizePerChannelOrPerTensor),
                                              ::testing::ValuesIn(filterCPUInfo({CPUSpecificParams{{}, {}, {"gemm_mlas"}, "gemm_mlas"}})));
 
-INSTANTIATE_TEST_SUITE_P(smoke_FC, FCNotFuseFQCPUTest, notFuseTestParams_smoke, FCNotFuseFQCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_FC, FCNotFuseFQCPUTest, notFuseTestParamsSmoke, FCNotFuseFQCPUTest::getTestCaseName);
 
 }  // namespace
 }  // namespace MatMul
