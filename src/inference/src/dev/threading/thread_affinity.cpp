@@ -109,7 +109,6 @@ bool pin_current_thread_to_socket(int socket) {
     }
     return res;
 }
-
 #elif defined(_WIN32)
 std::tuple<CpuSet, int> get_process_mask() {
     DWORD_PTR pro_mask, sys_mask;
