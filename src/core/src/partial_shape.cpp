@@ -37,14 +37,12 @@ ov::PartialShape::PartialShape(const std::string& value) {
         return;
     }
     m_rank_is_static = true;
-    Dimensions dims;
     std::stringstream ss(val);
     std::string field;
     while (getline(ss, field, ',')) {
         OPENVINO_ASSERT(!field.empty(), "Cannot get vector of dimensions! \"" + value + "\" is incorrect");
-        dims.insert(dims.end(), Dimension(field));
+        m_dimensions.emplace_back(field);
     }
-    m_dimensions = std::move(dims);
 }
 
 ov::PartialShape::PartialShape(bool rank_is_static, std::vector<Dimension> dimensions)
