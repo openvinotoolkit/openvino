@@ -48,34 +48,48 @@ repository <https://github.com/InstantID/InstantID>`__
 In this tutorial, we consider how to use InstantID with OpenVINO. An
 additional part demonstrates how to run optimization with
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ to speed up
-pipeline. #### Table of contents: - `Prerequisites <#prerequisites>`__ -
-`Convert and prepare Face
-IdentityNet <#convert-and-prepare-face-identitynet>`__ - `Select
-Inference Device for Face
-Recognition <#select-inference-device-for-face-recognition>`__ -
-`Perform Face Identity extraction <#perform-face-identity-extraction>`__
-- `Prepare InstantID pipeline <#prepare-instantid-pipeline>`__ -
-`Convert InstantID pipeline components to OpenVINO Intermediate
-Representation
-format <#convert-instantid-pipeline-components-to-openvino-intermediate-representation-format>`__
-- `ControlNet <#controlnet>`__ - `Unet <#unet>`__ - `VAE
-Decoder <#vae-decoder>`__ - `Text Encoders <#text-encoders>`__ - `Image
-Projection Model <#image-projection-model>`__ - `Prepare OpenVINO
-InstantID Pipeline <#prepare-openvino-instantid-pipeline>`__ - `Run
-OpenVINO pipeline inference <#run-openvino-pipeline-inference>`__ -
-`Select inference device for
-InstantID <#select-inference-device-for-instantid>`__ - `Create
-pipeline <#create-pipeline>`__ - `Run inference <#run-inference>`__ -
-`Quantization <#quantization>`__ - `Prepare calibration
-datasets <#prepare-calibration-datasets>`__ - `Run
-quantization <#run-quantization>`__ - `Run ControlNet
-Quantization <#run-controlnet-quantization>`__ - `Run UNet Hybrid
-Quantization <#run-unet-hybrid-quantization>`__ - `Run Weights
-Compression <#run-weights-compression>`__ - `Compare model file
-sizes <#compare-model-file-sizes>`__ - `Compare inference time of the
-FP16 and INT8
-pipelines <#compare-inference-time-of-the-fp16-and-int8-pipelines>`__ -
-`Interactive demo <#interactive-demo>`__
+pipeline.
+
+
+**Table of contents:**
+
+- `Prerequisites <#prerequisites>`__
+- `Convert and prepare Face IdentityNet <#convert-and-prepare-face-identitynet>`__
+
+  - `Select Inference Device for Face Recognition <#select-inference-device-for-face-recognition>`__
+  - `Perform Face Identity extraction <#perform-face-identity-extraction>`__
+
+- `Prepare InstantID pipeline <#prepare-instantid-pipeline>`__
+- `Convert InstantID pipeline components to OpenVINO Intermediate Representation format <#convert-instantid-pipeline-components-to-openvino-intermediate-representation-format>`__
+
+  - `ControlNet <#controlnet>`__
+  - `Unet <#unet>`__
+  - `VAE Decoder <#vae-decoder>`__
+  - `Text Encoders <#text-encoders>`__
+  - `Image Projection Model <#image-projection-model>`__
+
+- `Prepare OpenVINO InstantID Pipeline <#prepare-openvino-instantid-pipeline>`__
+- `Run OpenVINO pipeline inference <#run-openvino-pipeline-inference>`__
+
+  - `Select inference device for InstantID <#select-inference-device-for-instantid>`__
+  - `Create pipeline <#create-pipeline>`__
+  - `Run inference <#run-inference>`__
+
+- `Quantization <#quantization>`__
+
+  - `Prepare calibration datasets <#prepare-calibration-datasets>`__
+  - `Run quantization <#run-quantization>`__
+
+    - `Run ControlNet Quantization <#run-controlnet-quantization>`__
+    - `Run UNet Hybrid Quantization <#run-unet-hybrid-quantization>`__
+    - `Run Weights Compression <#run-weights-compression>`__
+
+  - `Compare model file sizes <#compare-model-file-sizes>`__
+  - `Compare inference time of the FP16 and INT8 pipelines <#compare-inference-time-of-the-fp16-and-int8-pipelines>`__
+
+- `Interactive demo <#interactive-demo>`__
+
+
 
 .. |applications.png| image:: https://github.com/InstantID/InstantID/blob/main/assets/applications.png?raw=true
 

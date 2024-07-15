@@ -48,10 +48,10 @@ various videos, from simple animations to complex scenes. It is still
 under development, but it has the potential to revolutionize the way we
 create and consume video content.
 
-Both versions of the ZeroScope model are available on Hugging Face: -
-`ZeroScope_v2
-576w <https://huggingface.co/cerspense/zeroscope_v2_576w>`__ -
-`ZeroScope_v2 XL <https://huggingface.co/cerspense/zeroscope_v2_XL>`__
+Both versions of the ZeroScope model are available on Hugging Face:
+
+- `ZeroScope_v2 576w <https://huggingface.co/cerspense/zeroscope_v2_576w>`__
+- `ZeroScope_v2 XL <https://huggingface.co/cerspense/zeroscope_v2_XL>`__
 
 We will use the first one.
 

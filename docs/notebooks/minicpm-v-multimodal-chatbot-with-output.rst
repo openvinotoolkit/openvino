@@ -917,7 +917,7 @@ the image representations. We will combine them together into one model.
     /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/timm/layers/pos_embed.py:33: TracerWarning: Converting a tensor to a Python float might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       hw = int(math.sqrt(num_pos_tokens - num_prefix_tokens))
     /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/functional.py:512: UserWarning: torch.meshgrid: in an upcoming release, it will be required to pass the indexing argument. (Triggered internally at ../aten/src/ATen/native/TensorShape.cpp:3587.)
-      return _VF.meshgrid(tensors, **kwargs)  # type: ignore[attr-defined]
+      return _VF.meshgrid(tensors, \*\*kwargs)  # type: ignore[attr-defined]
 
 
 .. parsed-literal::

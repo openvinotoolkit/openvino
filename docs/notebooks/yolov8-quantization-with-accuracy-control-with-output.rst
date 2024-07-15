@@ -300,12 +300,14 @@ accuracy drop threshold. The quantization process stops when the
 degradation of accuracy metric on the validation dataset is less than
 the ``max_drop``. The default value is 0.01. NNCF will stop the
 quantization and report an error if the ``max_drop`` value can’t be
-reached. - ``drop_type`` defines how the accuracy drop will be
-calculated: ABSOLUTE (used by default) or RELATIVE. -
-``ranking_subset_size`` - size of a subset that is used to rank layers
-by their contribution to the accuracy drop. Default value is 300, and
-the more samples it has the better ranking, potentially. Here we use the
-value 25 to speed up the execution.
+reached.
+
+- ``drop_type`` defines how the accuracy drop will be
+  calculated: ABSOLUTE (used by default) or RELATIVE.
+- ``ranking_subset_size`` - size of a subset that is used to rank layers
+  by their contribution to the accuracy drop. Default value is 300, and
+  the more samples it has the better ranking, potentially. Here we use the
+  value 25 to speed up the execution.
 
    **NOTE**: Execution can take tens of minutes and requires up to 15 GB
    of free memory

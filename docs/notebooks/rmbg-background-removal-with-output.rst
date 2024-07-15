@@ -26,7 +26,9 @@ More details about model can be found in `model
 card <https://huggingface.co/briaai/RMBG-1.4>`__.
 
 In this tutorial we consider how to convert and run this model using
-OpenVINO. #### Table of contents:
+OpenVINO.
+
+**Table of contents:**
 
 -  `Prerequisites <#prerequisites>`__
 -  `Load PyTorch model <#load-pytorch-model>`__

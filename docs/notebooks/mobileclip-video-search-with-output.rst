@@ -47,7 +47,6 @@ Table of contents:
 Prerequisites
 -------------
 
-## Prerequisites
 
 .. code:: ipython3
 

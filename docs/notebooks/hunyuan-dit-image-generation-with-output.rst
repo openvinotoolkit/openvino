@@ -34,7 +34,9 @@ page <https://dit.hunyuan.tencent.com/>`__ and
 In this tutorial we consider how to convert and run Hunyuan-DIT model
 using OpenVINO. Additionally, we will use
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ for optimizing model
-in low precision. #### Table of contents:
+in low precision.
+
+**Table of contents:**
 
 -  `Prerequisites <#prerequisites>`__
 -  `Download PyTorch model <#download-pytorch-model>`__
@@ -58,7 +60,6 @@ in low precision. #### Table of contents:
 Prerequisites
 -------------
 
-## Prerequisites
 
 .. code:: ipython3
 

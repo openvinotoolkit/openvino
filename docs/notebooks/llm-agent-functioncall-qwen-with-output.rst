@@ -398,13 +398,14 @@ For example, to register your own image generation tool:
    unique identifier for the tool.
 -  Implement the ``call(...)`` function.
 
-In this notebook, we will create 3 tools as examples: -
-**image_generation**: AI painting (image generation) service, input text
-description, and return the image URL drawn based on text information. -
-**get_current_weather**: Get the current weather in a given city name. -
-**wikipedia**: A wrapper around Wikipedia. Useful for when you need to
-answer general questions about people, places, companies, facts,
-historical events, or other subjects.
+In this notebook, we will create 3 tools as examples:
+
+- **image_generation**: AI painting (image generation) service, input text
+  description, and return the image URL drawn based on text information.
+- **get_current_weather**: Get the current weather in a given city name.
+- **wikipedia**: A wrapper around Wikipedia. Useful for when you need to
+  answer general questions about people, places, companies, facts,
+  historical events, or other subjects.
 
 .. code:: ipython3
 

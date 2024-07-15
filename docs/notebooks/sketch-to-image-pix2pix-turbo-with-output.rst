@@ -19,7 +19,10 @@ with recent works such as ControlNet for Sketch2Photo and Edge2Image for
 
 In this tutorial you will learn how to turn sketches to images using
 `Pix2Pix-Turbo <https://github.com/GaParmar/img2img-turbo>`__ and
-OpenVINO. #### Table of contents:
+OpenVINO.
+
+
+**Table of contents:**
 
 -  `Prerequisites <#prerequisites>`__
 -  `Load PyTorch model <#load-pytorch-model>`__

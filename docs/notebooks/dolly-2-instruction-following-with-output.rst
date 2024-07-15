@@ -139,7 +139,7 @@ Convert model using Optimum-CLI tool
 
 
 `Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
-the interface between the 
+the interface between the
 `Transformers <https://huggingface.co/docs/transformers/index>`__ and
 `Diffusers <https://huggingface.co/docs/diffusers/index>`__ libraries
 and OpenVINO to accelerate end-to-end pipelines on Intel architectures.
@@ -193,12 +193,13 @@ to make it
 `symmetric <https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md#symmetric-quantization>`__
 you can add ``--sym``.
 
-For INT4 quantization you can also specify the following arguments : -
-The ``--group-size`` parameter will define the group size to use for
-quantization, -1 it will results in per-column quantization. - The
-``--ratio`` parameter controls the ratio between 4-bit and 8-bit
-quantization. If set to 0.9, it means that 90% of the layers will be
-quantized to int4 while 10% will be quantized to int8.
+For INT4 quantization you can also specify the following arguments :
+
+- The ``--group-size`` parameter will define the group size to use for
+  quantization, -1 it will results in per-column quantization.
+- The ``--ratio`` parameter controls the ratio between 4-bit and 8-bit
+  quantization. If set to 0.9, it means that 90% of the layers will be
+  quantized to int4 while 10% will be quantized to int8.
 
 Smaller group_size and ratio values usually improve accuracy at the
 sacrifice of the model size and inference latency.

@@ -704,7 +704,6 @@ consists of 5-second-long recordings organized into 50 semantic classes.
 Apply quantization
 ~~~~~~~~~~~~~~~~~~
 
-### Apply quantization
 
 .. code:: ipython3
 
@@ -764,9 +763,6 @@ Quantize ImageBind model for text modality
 
 Quantize ImageBind model for audio modality
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-#### Quantize ImageBind model
-for audio modality
 
 .. code:: ipython3
 

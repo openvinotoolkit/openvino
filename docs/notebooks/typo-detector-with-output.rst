@@ -19,8 +19,11 @@ Transformers <https://huggingface.co/docs/transformers/index>`__ library
 in the OpenVINO environment to perform the above task.
 
 The model detects typos in a given text with a high accuracy,
-performances of which are listed below, - Precision score of 0.9923 -
-Recall score of 0.9859 - f1-score of 0.9891
+performances of which are listed below,
+
+- Precision score of 0.9923
+- Recall score of 0.9859
+- f1-score of 0.9891
 
 `Source for above
 metrics <https://huggingface.co/m3hrdadfi/typo-detector-distilbert-en>`__

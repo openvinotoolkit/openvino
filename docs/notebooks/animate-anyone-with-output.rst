@@ -410,10 +410,16 @@ semantic features are extracted through the CLIP image encoder for
 Cross-Attention. Temporal-Attention operates in the temporal dimension.
 Finally, the VAE decoder decodes the result into a video clip.
 
-|image0|
+|image01|
 
-The pipeline contains 6 PyTorch modules: - VAE encoder - VAE decoder -
-Image encoder - Reference UNet - Denoising UNet - Pose Guider
+The pipeline contains 6 PyTorch modules:
+
+- VAE encoder
+- VAE decoder
+- Image encoder
+- Reference UNet
+- Denoising UNet
+- Pose Guider
 
 For reducing memory consumption, weights compression optimization can be
 applied using `NNCF <https://github.com/openvinotoolkit/nncf>`__. Weight
@@ -444,7 +450,7 @@ compression parameters.
 More details about weights compression can be found in `OpenVINO
 documentation <https://docs.openvino.ai/2023.3/weight_compression.html>`__.
 
-.. |image0| image:: https://humanaigc.github.io/animate-anyone/static/images/f2_img.png
+.. |image01| image:: https://humanaigc.github.io/animate-anyone/static/images/f2_img.png
 
 .. code:: ipython3
 

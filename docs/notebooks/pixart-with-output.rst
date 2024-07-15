@@ -169,13 +169,13 @@ PixArt-α consists of pure transformer blocks for latent diffusion: It
 can directly generate 1024px images from text prompts within a single
 sampling process.
 
-|image0|.
+|image01|.
 
 During inference it uses text encoder ``T5EncoderModel``, transformer
 ``Transformer2DModel`` and VAE decoder ``AutoencoderKL``. Let’s convert
 the models from the pipeline one by one.
 
-.. |image0| image:: https://huggingface.co/PixArt-alpha/PixArt-XL-2-1024-MS/resolve/main/asset/images/model.png
+.. |image01| image:: https://huggingface.co/PixArt-alpha/PixArt-XL-2-1024-MS/resolve/main/asset/images/model.png
 
 .. code:: ipython3
 

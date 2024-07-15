@@ -137,8 +137,10 @@ Dataset Preprocessing
 
 
 
-Download and prepare Imagenette 160px dataset. - Number of classes: 10 -
-Download size: 94.18 MiB
+Download and prepare Imagenette 160px dataset.
+
+- Number of classes: 10
+- Download size: 94.18 MiB
 
 ::
 

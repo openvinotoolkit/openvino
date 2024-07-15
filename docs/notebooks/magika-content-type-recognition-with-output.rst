@@ -40,7 +40,8 @@ blog
 post <https://opensource.googleblog.com/2024/02/magika-ai-powered-fast-and-efficient-file-type-identification.html>`__.
 
 In this tutorial we consider how to bring OpenVINO power into Magika.
-#### Table of contents:
+
+**Table of contents:**
 
 -  `Prerequisites <#prerequisites>`__
 -  `Define model loading class <#define-model-loading-class>`__
@@ -55,8 +56,6 @@ In this tutorial we consider how to bring OpenVINO power into Magika.
 
 Prerequisites
 -------------
-
-## Prerequisites
 
 .. code:: ipython3
 

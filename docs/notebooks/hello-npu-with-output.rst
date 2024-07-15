@@ -908,13 +908,14 @@ its properties, and even tailor the model performance through the
 different performance hints.
 
 Discover the power of Neural Processing Unit (NPU) with OpenVINO through
-these interactive Jupyter notebooks: ##### Introduction -
-`hello-world <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/hello-world>`__:
-Start your OpenVINO journey by performing inference on an OpenVINO IR
-model. -
-`hello-segmentation <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/hello-segmentation>`__:
-Dive into inference with a segmentation model and explore image
-segmentation capabilities.
+these interactive Jupyter notebooks:
+
+- `hello-world <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/hello-world>`__:
+  Start your OpenVINO journey by performing inference on an OpenVINO IR
+  model.
+- `hello-segmentation <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/hello-segmentation>`__:
+  Dive into inference with a segmentation model and explore image
+  segmentation capabilities.
 
 Model Optimization and Conversion
 '''''''''''''''''''''''''''''''''

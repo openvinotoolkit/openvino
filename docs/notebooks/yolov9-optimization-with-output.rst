@@ -19,7 +19,10 @@ The tutorial consists of the following steps:
 -  Run model inference with OpenVINO
 -  Prepare and run optimization pipeline
 -  Compare performance of the FP32 and quantized models.
--  Run optimized model inference on video #### Table of contents:
+-  Run optimized model inference on video
+
+
+**Table of contents:**
 
 -  `Prerequisites <#prerequisites>`__
 -  `Get PyTorch model <#get-pytorch-model>`__
@@ -45,7 +48,6 @@ The tutorial consists of the following steps:
 Prerequisites
 -------------
 
-## Prerequisites
 
 .. code:: ipython3
 

@@ -317,8 +317,6 @@ Great! Looks like we got the same result.
 Quantize model to INT8 using NNCF
 ---------------------------------
 
-## Quantize model to INT8 using
-NNCF
 
 The goal of this part of tutorial is to demonstrate how to speed up the
 model by applying 8-bit post-training quantization from
@@ -742,7 +740,6 @@ up of the dynamic quantized models.
 Interactive demo
 ----------------
 
-## Interactive demo
 
 Now, it is your turn! You can provide your own image and comma-separated
 list of labels for zero-shot classification.

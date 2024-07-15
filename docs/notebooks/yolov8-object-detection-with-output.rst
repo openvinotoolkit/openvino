@@ -10,13 +10,18 @@ This tutorial demonstrates step-by-step instructions on how to run and
 optimize PyTorch YOLOv8 with OpenVINO. We consider the steps required
 for object detection scenario.
 
-The tutorial consists of the following steps: - Prepare the PyTorch
-model. - Download and prepare a dataset. - Validate the original model.
-- Convert the PyTorch model to OpenVINO IR. - Validate the converted
-model. - Prepare and run optimization pipeline. - Compare performance of
-the FP32 and quantized models. - Compare accuracy of the FP32 and
-quantized models. - Other optimization possibilities with OpenVINO api -
-Live demo
+The tutorial consists of the following steps:
+
+- Prepare the PyTorch model.
+- Download and prepare a dataset.
+- Validate the original model.
+- Convert the PyTorch model to OpenVINO IR.
+- Validate the converted model.
+- Prepare and run optimization pipeline.
+- Compare performance of the FP32 and quantized models.
+- Compare accuracy of the FP32 and quantized models.
+- Other optimization possibilities with OpenVINO api
+- Live demo
 
 **Table of contents:**
 
