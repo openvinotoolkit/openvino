@@ -175,7 +175,7 @@ Napi::Value ModelWrap::get_output_shape(const Napi::CallbackInfo& info) {
 
 Napi::Value ModelWrap::get_output_element_type(const Napi::CallbackInfo& info) {
     if(info.Length() != 1 || !info[0].IsNumber()) {
-        reportError(info.Env(), "Invalid arguement.Expected a single number for output index");
+        reportError(info.Env(), "Invalid argument. Expected a single number for output index.");
         return info.Env().Undefined();
     }
 
