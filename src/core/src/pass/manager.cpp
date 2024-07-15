@@ -5,6 +5,7 @@
 #include "openvino/pass/manager.hpp"
 
 #include <algorithm>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <memory>
@@ -17,9 +18,6 @@
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/log.hpp"
 #include "perf_counters.hpp"
-
-#include <iostream>
-#include <fstream>
 
 using namespace std;
 
