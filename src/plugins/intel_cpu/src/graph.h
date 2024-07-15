@@ -253,6 +253,7 @@ private:
     std::vector<size_t> m_executableSyncNodesInds;
 
     GraphContext::CPtr context;
+    dnnl::stream m_stream;
 
     void EnforceInferencePrecision();
     void EnforceBF16();

@@ -71,6 +71,7 @@ void Graph::CreateGraph(NET &net, const GraphContext::CPtr ctx) {
         ForgetGraphData();
 
     context = ctx;
+    m_stream = dnnl::stream(getEngine());
 
     Replicate(net);
 
@@ -87,6 +88,7 @@ void Graph::CreateGraph(const std::vector<NodePtr>& graphNodes,
         ForgetGraphData();
 
     context = ctx;
+    m_stream = dnnl::stream(getEngine());
 
     this->_name = std::move(name);
     this->reuse_io_tensors = false;
@@ -440,8 +442,6 @@ void Graph::InitOptimalPrimitiveDescriptors() {
 
 void Graph::CreatePrimitivesAndExecConstants() const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::CreatePrimitivesAndExecConstants");
-    dnnl::stream stream(getEngine());
-
     using shared_memory_ptr = WeightsSharing::SharedMemory::Ptr;
 
     auto acquireSharedOutputs = [this](const NodePtr & node) {
@@ -481,13 +481,13 @@ void Graph::CreatePrimitivesAndExecConstants() const {
             auto sharedOutputs = acquireSharedOutputs(node);
 
             if (std::get<0>(sharedOutputs) || std::get<1>(sharedOutputs)) {
-                ExecuteNode(node, stream);
+                ExecuteNode(node, m_stream);
 
                 for (auto & output : std::get<2>(sharedOutputs))
                     output->valid(true);
             }
         } else {
-            ExecuteNode(node, stream);
+            ExecuteNode(node, m_stream);
         }
     }
 }
@@ -1124,15 +1124,13 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
 }
 
 void Graph::InferStatic(SyncInferRequest* request) {
-    dnnl::stream stream(getEngine());
-
     for (const auto& node : m_executableGraphNodes) {
         VERBOSE(node, getConfig().debugCaps.verbose);
         PERF(node, getConfig().collectPerfCounters);
 
         if (request)
             request->throw_if_canceled();
-        ExecuteNode(node, stream);
+        ExecuteNode(node, m_stream);
     }
 }
 
@@ -1339,8 +1337,6 @@ public:
 
 template<typename UpdateStrategy>
 void Graph::InferDynamic(SyncInferRequest* request, UpdateStrategy&& update) {
-    dnnl::stream stream(getEngine());
-
     size_t inferCounter = 0;
     for (auto stopIndx : m_executableSyncNodesInds) {
         update(stopIndx);
@@ -1353,7 +1349,7 @@ void Graph::InferDynamic(SyncInferRequest* request, UpdateStrategy&& update) {
             if (request)
                 request->throw_if_canceled();
             try {
-                ExecuteNode(node, stream);
+                ExecuteNode(node, m_stream);
             } catch (const std::exception& exp) {
                 OPENVINO_THROW(node, exp.what());
             }
