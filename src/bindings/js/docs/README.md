@@ -75,6 +75,10 @@
 
 [OpenVINO™ Node.js Bindings Examples of Usage](../../../../samples/js/node/README.md)
 
+## Contribution
+
+If you want to contribute to the project, refer to the [code style rules](./CODESTYLE.md) and [contribution guide](../../../../CONTRIBUTING.md) first.
+
 ## See Also
 
 * [OpenVINO™ README](../../../../README.md)
