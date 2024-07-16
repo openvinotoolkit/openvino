@@ -28,7 +28,7 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       OPENVINO_JS_DIR: ${{ github.workspace }}/openvino/src/bindings/js
       OPENVINO_JS_LIBS_DIR: ${{ github.workspace }}/openvino/src/bindings/js/node/bin
-      NODE_VERSION: 20
+      NODE_VERSION: 21
     steps:
       - name: Fetch OpenVINO JS sources
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7

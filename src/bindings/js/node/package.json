@@ -35,7 +35,7 @@
     "mocha": "^10.6.0"
   },
   "engines": {
-    "node": ">=20.5.1"
+    "node": ">=21.0.0"
   },
   "dependencies": {
     "gunzip-maybe": "^1.4.2",
