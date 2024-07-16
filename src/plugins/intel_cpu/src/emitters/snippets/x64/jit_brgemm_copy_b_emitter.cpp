@@ -29,6 +29,7 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h, cpu_isa_t
     const auto brgemm_repack = ov::as_type_ptr<ov::intel_cpu::BrgemmCopyB>(expr->get_node());
     if (!brgemm_repack)
         OV_CPU_JIT_EMITTER_THROW("expects BrgemmCopyB node");
+    OV_CPU_JIT_EMITTER_ASSERT(is_superset(host_isa_, cpu::x64::avx2), "host_isa must be at least avx2");
 
     m_with_comp = brgemm_repack->is_with_compensations();
     m_in_offset = brgemm_repack->get_offset_in();
@@ -118,7 +119,6 @@ void jit_brgemm_copy_b_emitter::validate_arguments(const std::vector<size_t> &in
 
 void jit_brgemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     validate_arguments(in, out);
-    OV_CPU_JIT_EMITTER_ASSERT(host_isa_ == cpu::x64::avx512_core, "requires at least avx512_core instruction set");
 
     Xbyak::Reg64 src(static_cast<int>(in[0]));
     Xbyak::Reg64 dst(static_cast<int>(out[0]));
