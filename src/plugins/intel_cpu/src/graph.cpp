@@ -1476,17 +1476,8 @@ void Graph::Infer(SyncInferRequest* request) {
 void Graph::SortTopologically() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::SortTopologically");
 
+    // Set execIndex of all nodes to default invaild value
     for (auto &node : graphNodes) {
-        // Sort in / out Parent edges by port index
-        // Make first N (N == port_num) edge indexes match with port index
-       std::sort(node->parentEdges.begin(), node->parentEdges.end(), [](const EdgeWeakPtr& lhs, const EdgeWeakPtr& rhs) {
-           auto lhs_ptr = lhs.lock();
-           auto rhs_ptr = rhs.lock();
-           OPENVINO_ASSERT(lhs_ptr && rhs_ptr);
-           return lhs_ptr->getOutputNum() < rhs_ptr->getOutputNum();
-        });
-
-        // Set execIndex of all nodes to default invaild value
         node->execIndex = -1;
     }
 
