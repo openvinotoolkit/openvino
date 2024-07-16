@@ -37,7 +37,7 @@ bool AllocateBuffers::run(lowered::LinearIR& linear_ir, lowered::LinearIR::const
         pipeline.register_pass<SetBufferRegGroup>();
         pipeline.register_pass<DefineBufferClusters>();
         pipeline.register_pass<SolveBufferMemory>(buffer_scratchpad_size);
-        // pipeline.register_pass<IdentifyBufferOutputInplace>(buffer_output_inplace);
+        pipeline.register_pass<IdentifyBufferOutputInplace>(buffer_output_inplace);
         pipeline.register_pass<NormalizeBufferRegisterGroups>();
     } else {
         pipeline.register_pass<InitBuffersDefault>(buffer_scratchpad_size);

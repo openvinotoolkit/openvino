@@ -43,8 +43,8 @@ bool IdentifyBufferOutputInplace::run(LinearIR& linear_ir) {
     // outputs after all buffers can potentially share memory with Buffers. extract them
     // the output index in cpu plugin and in LIR. the same order? plugin based on topological sort, LIR also based and reorder could happen?
     const auto& result_exprs = linear_ir.get_results();
-    std::vector<std::pair<ExpressionPtr, size_t>> result_no_buf_after;
-    size_t idx = 0;
+    std::vector<std::pair<ExpressionPtr, int>> results_no_buf_after;
+    int idx = 0;
     for (auto result = result_exprs.begin(); result != result_exprs.end(); result++) {
         // result iterator in lir
         const auto& result_it = linear_ir.find(*result);
@@ -52,7 +52,7 @@ bool IdentifyBufferOutputInplace::run(LinearIR& linear_ir) {
             return !!ov::as_type_ptr<op::Buffer>(expr->get_node());
         });
         if (buf_it == linear_ir.end()) {
-            result_no_buf_after.push_back(std::make_pair(*result_it, idx));
+            results_no_buf_after.push_back(std::make_pair(*result_it, idx));
         }
         idx++;
     }
@@ -60,7 +60,7 @@ bool IdentifyBufferOutputInplace::run(LinearIR& linear_ir) {
     // check that we proportionally load/store memory from/to buffer and output memory
     const auto& buf_port_desc = (*buf_outside_loop)->get_input_port_descriptor(0);
     const auto& buffer_prec_size = (*buf_outside_loop)->get_node()->get_input_element_type(0).size();
-    for (const auto& result : result_no_buf_after) {
+    for (const auto& result : results_no_buf_after) {
         const auto& result_expr = result.first;
         const auto& result_port_desc = result_expr->get_input_port_descriptor(0);
         const auto& result_prec_size = result_expr->get_node()->get_input_element_type(0).size();

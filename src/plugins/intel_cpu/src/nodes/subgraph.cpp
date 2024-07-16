@@ -82,6 +82,7 @@ public:
             init_call_args(call_args, inMemPtrs, outMemPtrs);
         };
         auto caller = [&](jit_snippets_call_args& call_args, const size_t* indexes) {
+            update_ptrs(call_args, outMemPtrs, indexes);
             callable(&call_args, indexes);
         };
 
@@ -109,6 +110,24 @@ protected:
             } else {
                 call_args.buffer_scratchpad_ptr = call_args.dst_ptrs[m_buffer_output_inplace];
             }
+        }
+    }
+
+    inline void update_ptrs(jit_snippets_call_args& call_args, const std::vector<MemoryPtr>& outMemPtrs, const size_t* indexes) const {
+        if (m_buffer_output_inplace != -1) {
+            auto data_size = outMemPtrs[m_buffer_output_inplace]->getDescWithType<BlockedMemoryDesc>()->getPrecision().size();
+            auto dst_ptr = call_args.dst_ptrs[m_buffer_output_inplace];
+            size_t buffer_offset = 0;
+            size_t domain_rank = 0;
+            if (m_parallel_exec_domain.size() == rank6D) {
+                domain_rank = 5;
+            } else {
+                domain_rank = m_parallel_exec_domain.size() - 1;
+            }
+            for (size_t i = 0; i < domain_rank; i++) {
+                buffer_offset += indexes[i] * m_master_shape_stride[i];
+            }
+            call_args.buffer_scratchpad_ptr = reinterpret_cast<uint8_t*>(dst_ptr) + buffer_offset * data_size;
         }
     }
 };
@@ -143,7 +162,7 @@ public:
             init_call_args(call_args);
         };
         auto caller = [&](jit_snippets_call_args& call_args, const size_t* indexes) {
-            update_ptrs(call_args, src_ptrs, dst_ptrs, indexes);
+            update_ptrs(call_args, src_ptrs, dst_ptrs, indexes, outMemPtrs);
             callable(&call_args);
         };
 
@@ -186,7 +205,7 @@ protected:
     }
 
     inline void update_ptrs(jit_snippets_call_args& call_args, const std::vector<const uint8_t*>& src_ptrs,
-                            const std::vector<uint8_t*>& dst_ptrs, const size_t* indexes) const {
+                            const std::vector<uint8_t*>& dst_ptrs, const size_t* indexes, const std::vector<MemoryPtr>& outMemPtrs) const {
         for (size_t i = 0; i < src_ptrs.size(); i++) {
             auto i_ptr = src_ptrs[i];
             for (size_t j = 0; j < data_offsets[i].size() - 1; j++) {
@@ -203,6 +222,19 @@ protected:
         }
         if (m_buffer_output_inplace != -1) {
             call_args.buffer_scratchpad_ptr = call_args.dst_ptrs[m_buffer_output_inplace];
+            auto data_size = outMemPtrs[m_buffer_output_inplace]->getDescWithType<BlockedMemoryDesc>()->getPrecision().size();
+            auto dst_ptr = call_args.dst_ptrs[m_buffer_output_inplace];
+            size_t buffer_offset = 0;
+            size_t domain_rank = 0;
+            if (m_parallel_exec_domain.size() == rank6D) {
+                domain_rank = 5;
+            } else {
+                domain_rank = m_parallel_exec_domain.size() - 1;
+            }
+            for (size_t i = 0; i < domain_rank; i++) {
+                buffer_offset += indexes[i] * m_master_shape_stride[i];
+            }
+            call_args.buffer_scratchpad_ptr = reinterpret_cast<uint8_t*>(dst_ptr) + buffer_offset * data_size;
         }
     }
 
@@ -871,6 +903,22 @@ void Subgraph::SubgraphExecutor::init_runtime_params(const std::shared_ptr<CPURu
     OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(m_buffer_scratchpad_size), "Undefined buffer scratchpad size!");
     if (m_buffer_output_inplace == -1) {
         m_buffer_scratchpad.resize(m_buffer_scratchpad_size * parallel_get_max_threads(), 0);
+    } else {
+        // for (size_t i = 0; i < snippet_config->master_shape.size(); i++) {
+        //     std::cout << "master_shape:" << snippet_config->master_shape[i] << std::endl;
+        // }
+        auto master_shape = getNormalizedDimsBySize(snippet_config->master_shape, snippet_config->tensor_rank);
+        // for (size_t i = 0; i < master_shape.size(); i++) {
+        //     std::cout << "master_shape_norm:" << master_shape[i] << std::endl;
+        // }
+        m_master_shape_stride.resize(master_shape.size(), 1);
+        for (int i = m_master_shape_stride.size() - 2; i >= 0; --i) {
+            m_master_shape_stride[i] = m_master_shape_stride[i + 1] * master_shape[i + 1];
+            // std::cout << "m_master_shape_stride:" << m_master_shape_stride[i] << std::endl;
+        }
+        // for (size_t i = 0; i < m_master_shape_stride.size(); i++) {
+        //     std::cout << "m_master_shape_stride:" << m_master_shape_stride[i] << std::endl;
+        // }
     }
 
     init_parallel_domain(snippet_config, m_parallel_exec_domain);
