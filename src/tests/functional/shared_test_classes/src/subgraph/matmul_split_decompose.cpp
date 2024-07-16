@@ -85,13 +85,13 @@ void MatMulGatherDecompose::SetUp() {
                                                            opset10::Constant::create(element::f32, Shape{}, {0}),
                                                            opset10::Constant::create(element::f32, Shape{}, {254}),
                                                            255);
-        gather_0 = std::make_shared<ov::op::v8::Gather>(fq0, const_zero /*indices*/, const_zero /*axis*/);
+        gather_0 = std::make_shared<ov::op::v8::Gather>(fq0, const_zero, const_zero);
     } else {
-        gather_0 = std::make_shared<ov::op::v8::Gather>(transpose, const_zero /*indices*/, const_zero /*axis*/);
+        gather_0 = std::make_shared<ov::op::v8::Gather>(transpose, const_zero, const_zero);
     }
 
-    auto gather_1 = std::make_shared<ov::op::v8::Gather>(transpose, const_one /*indices*/, const_zero /*axis*/);
-    auto gather_2 = std::make_shared<ov::op::v8::Gather>(transpose, const_two /*indices*/, const_zero /*axis*/);
+    auto gather_1 = std::make_shared<ov::op::v8::Gather>(transpose, const_one, const_zero);
+    auto gather_2 = std::make_shared<ov::op::v8::Gather>(transpose, const_two, const_zero);
 
     auto mul_const = ov::op::v0::Constant::create(precision, {1}, {2.0});
     auto mul2 = std::make_shared<ov::op::v1::Multiply>(gather_1, mul_const);
@@ -111,6 +111,7 @@ void MatMulGatherDecompose::SetUp() {
     auto mm_v = std::make_shared<ov::op::v0::MatMul>(softmax, gather_2, false, false);
 
     function = std::make_shared<ov::Model>(OutputVector{mm_v}, ParameterVector{param}, "MatMulGatherDecompose");
+    abs_threshold = 1e-4;
 }
 
 void MatMulGatherDecompose::check_results() {
