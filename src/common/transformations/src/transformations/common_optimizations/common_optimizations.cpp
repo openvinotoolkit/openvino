@@ -34,7 +34,6 @@
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp"
 #include "transformations/common_optimizations/matmul_multiply_fusion.hpp"
-#include "transformations/common_optimizations/matmul_split_decomposition.hpp"
 #include "transformations/common_optimizations/moc_transformations.hpp"
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"

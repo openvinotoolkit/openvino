@@ -8,9 +8,6 @@
 #include <limits>
 #include <memory>
 #include <openvino/core/rt_info.hpp>
-#include <openvino/opsets/opset13.hpp>
-#include <openvino/opsets/opset6.hpp>
-#include <openvino/opsets/opset8.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>
@@ -31,6 +28,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/utils/utils.hpp"
+#include <openvino/opsets/opset1.hpp>
 
 using namespace ov::op;
 using namespace ov;
@@ -41,13 +39,16 @@ void pass::MatmulGatherDecomposition::split_weights(const Output<Node>& weights,
                                                     Output<Node>* bias,
                                                     OutputVector& new_bias,
                                                     const bool& transpos_b) {
-    const auto& weights_shape = weights.get_partial_shape();
-    int64_t weights_rank = static_cast<int64_t>(weights_shape.rank().get_length());
+    // weights is static
+    int64_t weights_rank = static_cast<int64_t>(weights.get_partial_shape().size());
+    if (weights_rank != 2) {
+        return;
+    }
 
     if (bias) {
         const auto& bias_shape = bias->get_partial_shape();
         int64_t bias_rank = static_cast<int64_t>(bias_shape.rank().get_length());
-        if (weights_rank != 2 || (bias_rank != 3 && bias_rank != 1)) {
+        if (bias_rank != 3 && bias_rank != 1) {
             return;
         }
     }
@@ -79,50 +80,40 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
 
     auto reshape_productor_pattern = std::make_shared<pattern::op::Or>(OutputVector{matmul_pattern, add_pattern});
 
-    auto reshape_pattern = wrap_type<opset1::Reshape>({reshape_productor_pattern, any_input()});
-    auto transpose_pattern = wrap_type<opset6::Transpose>({reshape_pattern, any_input()});
-    auto reshape2_pattern = wrap_type<opset1::Reshape>({reshape_pattern, any_input()});
+    // Heuristics: Rank == 5, Baichun also match this pattern, but it only has rank 4, and have performance regression,
+    // so filter it out.
+    auto reshape_pattern =
+        wrap_type<opset1::Reshape>({reshape_productor_pattern, any_input()}, ov::pass::pattern::rank_equals(5));
+
+    // Heuristics: there should be only 3 gathers to split
+    auto transpose_pattern =
+        wrap_type<opset1::Transpose>({reshape_pattern, any_input()}, ov::pass::pattern::consumers_count(3));
+    auto reshape2_pattern =
+        wrap_type<opset1::Reshape>({reshape_pattern, any_input()}, ov::pass::pattern::consumers_count(3));
 
     auto reshape_or_transpose_pattern =
         std::make_shared<pattern::op::Or>(OutputVector{reshape2_pattern, transpose_pattern});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
+        const auto root_node = m.get_match_root();
 
-        // Heuristics: there should be only 3 gathers to split
-        auto root_node = m.get_match_root();
-        bool have_transpose = as_type<opset1::Transpose>(root_node.get()) != nullptr;
-        auto children = root_node->get_output_target_inputs(0);
-        if (children.size() != 3u) {
+        const auto matmul = pattern_map.at(matmul_pattern).get_node_shared_ptr();
+        const auto weights = matmul->input_value(1);
+        if (!weights.get_partial_shape().is_static()) {
             return false;
         }
+        const std::shared_ptr<ov::Node> add =
+            pattern_map.count(add_pattern) ? pattern_map.at(add_pattern).get_node_shared_ptr() : nullptr;
 
-        auto matmul = pattern_map.at(matmul_pattern).get_node_shared_ptr();
-        auto weights = matmul->input_value(1);
-        std::shared_ptr<ov::Node> add = nullptr;
-        bool have_bias = false;
-        for (auto& consumer : matmul->get_output_target_inputs(0)) {
-            if (ov::is_type<opset1::Add>(consumer.get_node()->shared_from_this())) {
-                add = pattern_map.at(add_pattern).get_node_shared_ptr();
-                have_bias = true;
-                break;
-            }
-        }
         const bool& transpose_b = as_type_ptr<opset1::MatMul>(matmul)->get_transpose_b();
         const auto& reshape = pattern_map.at(reshape_pattern);
-        auto concat = reshape.get_node_shared_ptr()->input_value(1);
-
-        auto reshape_output_shape_rank = reshape.get_node_shared_ptr()->get_output_partial_shape(0).rank().get_length();
-        if (reshape_output_shape_rank != 5) {
-            // Baichun also match this pattern, but it only has rank 4, and have performance regression, so filter it
-            // out.
-            return false;
-        }
+        const auto reshape_input1 = reshape.get_node_shared_ptr()->input_value(1);
 
         NodeVector gathers, fake_quantizes;
         gathers.resize(3);
         fake_quantizes.resize(3);
-        for (auto& child : children) {
+        for (const auto& child : root_node->get_output_target_inputs(0)) {
             std::shared_ptr<ov::Node> fq = nullptr;
             auto gather = child.get_node()->shared_from_this();
             if (ov::is_type<opset1::FakeQuantize>(gather)) {
@@ -130,7 +121,7 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
                 gather = gather->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
             }
             if (ov::is_type<ov::op::util::GatherBase>(gather)) {
-                const auto axis_node = as_type_ptr<opset6::Constant>(gather->input_value(2).get_node_shared_ptr());
+                const auto axis_node = as_type_ptr<opset1::Constant>(gather->get_input_node_shared_ptr(2));
                 if (axis_node) {
                     const auto& axis_val = axis_node->cast_vector<int32_t>();
                     if (axis_val.size() != 1u || axis_val[0] != 0) {
@@ -140,7 +131,7 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
                     return false;
                 }
 
-                const auto indices_node = as_type_ptr<opset6::Constant>(gather->input_value(1).get_node_shared_ptr());
+                const auto indices_node = as_type_ptr<opset1::Constant>(gather->get_input_node_shared_ptr(1));
                 if (indices_node) {
                     const auto& indices_val = indices_node->cast_vector<int32_t>();
                     if (indices_val.size() != 1u) {
@@ -167,36 +158,38 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
 
         Output<Node> bias;
         OutputVector new_weights, new_bias;
-        if (have_bias) {
+        if (add) {
             bias = pattern_map.at(bias_pattern);
         }
-        split_weights(weights, new_weights, have_bias ? &bias : nullptr, new_bias, transpose_b);
-        if (new_weights.size() != 3u || (have_bias && new_bias.size() != 3u)) {
+        split_weights(weights, new_weights, (add != nullptr) ? &bias : nullptr, new_bias, transpose_b);
+        if (new_weights.size() != 3u || ((add != nullptr) && new_bias.size() != 3u)) {
             return false;
         }
 
-        auto const_indices = register_new_node(v0::Constant::create(element::i32, Shape{4}, {0, 1, 3, 4}));
-        auto const_axis = register_new_node(v0::Constant::create(element::i32, Shape{}, {0}));
-        auto new_shape = register_new_node<v1::Gather>(concat, const_indices, const_axis);
+        // Heuristics: Split at axis 2, new Gahter should remove it.
+        const auto const_indices = register_new_node(v0::Constant::create(element::i32, Shape{4}, {0, 1, 3, 4}));
+        const auto const_axis = register_new_node(v0::Constant::create(element::i32, Shape{}, {0}));
+        const auto new_shape = register_new_node<v8::Gather>(reshape_input1, const_indices, const_axis);
         const auto& input = pattern_map.at(input_pattern);
         for (size_t i = 0; i < 3u; i++) {
-            auto new_mm = register_new_node<v0::MatMul>(input, new_weights[i], false, transpose_b);
+            const auto new_mm = register_new_node<v0::MatMul>(input, new_weights[i], false, transpose_b);
             std::shared_ptr<ov::Node> reshape_productor = new_mm;
-            if (have_bias) {
+            if (add) {
                 reshape_productor = register_new_node<v1::Add>(new_mm, new_bias[i]);
             }
-            auto new_reshape = register_new_node<v1::Reshape>(reshape_productor, new_shape, true);
+            const auto new_reshape = register_new_node<v1::Reshape>(reshape_productor, new_shape, true);
             ov::NodeVector from_nodes = {gathers[i], weights.get_node_shared_ptr(), matmul};
-            if (have_bias) {
+            if (add) {
                 from_nodes.emplace_back(add);
                 from_nodes.emplace_back(pattern_map.at(bias_pattern).get_node_shared_ptr());
             }
-            if (have_transpose)
+            if (as_type<opset1::Transpose>(root_node.get()))
                 from_nodes.emplace_back(root_node);
 
             copy_runtime_info(from_nodes, get_new_nodes());
-            auto transpose_order = register_new_node(v0::Constant::create(element::i32, Shape{4}, {0, 2, 1, 3}));
-            auto new_transpose = register_new_node<v1::Transpose>(new_reshape, transpose_order);
+            // Original transpose order[2,0,3,1,4], new order should be[0,2,1,3] after first axis is removed.
+            const auto transpose_order = register_new_node(v0::Constant::create(element::i32, Shape{4}, {0, 2, 1, 3}));
+            const auto new_transpose = register_new_node<v1::Transpose>(new_reshape, transpose_order);
             new_transpose->set_friendly_name(gathers[i]->get_friendly_name());
 
             if (fake_quantizes[i]) {

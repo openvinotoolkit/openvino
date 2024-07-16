@@ -4,30 +4,16 @@
 
 #include "shared_test_classes/subgraph/matmul_split_decompose.hpp"
 
+#include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "transformations/common_optimizations/matmul_split_decomposition.hpp"
-#include "common_test_utils/data_utils.hpp"
 
 namespace ov {
 namespace test {
-
-inline void CheckNumberOfNodesWithType(std::shared_ptr<const ov::Model> function,
-                                       const std::unordered_set<std::string>& nodeTypes,
-                                       size_t expectedCount) {
-    ASSERT_NE(nullptr, function);
-    int num_ops = 0;
-    for (const auto& node : function->get_ordered_ops()) {
-        const auto& rt_info = node->get_rt_info();
-        const auto layer_type = rt_info.find("layerType")->second.as<std::string>();
-        if (nodeTypes.count(layer_type)) {
-            num_ops++;
-        }
-    }
-    ASSERT_EQ(num_ops, expectedCount);
-}
 
 std::string MatMulGatherDecompose::getTestCaseName(const testing::TestParamInfo<MatMulGatherDecomposeParams>& obj) {
     MatMulGatherDecomposeShapeParams shape_params;
@@ -63,17 +49,14 @@ void MatMulGatherDecompose::SetUp() {
     const auto& reshape_shape = shape_params.reshape_shape;
 
     auto param = std::make_shared<ov::op::v0::Parameter>(precision, input_shape);
-
-    std::vector<float> weights_vals(shape_size(weights_shape), 2.0f);
-    weights_vals = ov::test::utils::generate_float_numbers(shape_size(weights_shape), -0.1f, 0.1f);
-    auto weights = ov::op::v0::Constant::create(precision, weights_shape, weights_vals);
+    auto weights =
+        ov::test::utils::make_constant(precision, weights_shape, ov::test::utils::InputGenerateData(-1, 1, 1000));
     auto matmul = std::make_shared<ov::op::v0::MatMul>(param, weights, false, shape_params.trans_b);
 
     auto reshape_productor = std::shared_ptr<ov::Node>(matmul);
     if (have_bias) {
-        std::vector<float> bias_vals = {0.0};
-        bias_vals = ov::test::utils::generate_float_numbers(shape_size(bias_shape), -0.1f, 0.1f);
-        auto bias = ov::op::v0::Constant::create(precision, bias_shape, bias_vals);
+        auto bias =
+            ov::test::utils::make_constant(precision, bias_shape, ov::test::utils::InputGenerateData(-1, 1, 1000));
         auto add = std::make_shared<ov::op::v1::Add>(matmul, bias);
         reshape_productor = std::shared_ptr<ov::Node>(add);
     }
@@ -102,13 +85,13 @@ void MatMulGatherDecompose::SetUp() {
                                                            opset10::Constant::create(element::f32, Shape{}, {0}),
                                                            opset10::Constant::create(element::f32, Shape{}, {254}),
                                                            255);
-        gather_0 = std::make_shared<ov::op::v1::Gather>(fq0, const_zero /*indices*/, const_zero /*axis*/);
+        gather_0 = std::make_shared<ov::op::v8::Gather>(fq0, const_zero /*indices*/, const_zero /*axis*/);
     } else {
-        gather_0 = std::make_shared<ov::op::v1::Gather>(transpose, const_zero /*indices*/, const_zero /*axis*/);
+        gather_0 = std::make_shared<ov::op::v8::Gather>(transpose, const_zero /*indices*/, const_zero /*axis*/);
     }
 
-    auto gather_1 = std::make_shared<ov::op::v1::Gather>(transpose, const_one /*indices*/, const_zero /*axis*/);
-    auto gather_2 = std::make_shared<ov::op::v1::Gather>(transpose, const_two /*indices*/, const_zero /*axis*/);
+    auto gather_1 = std::make_shared<ov::op::v8::Gather>(transpose, const_one /*indices*/, const_zero /*axis*/);
+    auto gather_2 = std::make_shared<ov::op::v8::Gather>(transpose, const_two /*indices*/, const_zero /*axis*/);
 
     auto mul_const = ov::op::v0::Constant::create(precision, {1}, {2.0});
     auto mul2 = std::make_shared<ov::op::v1::Multiply>(gather_1, mul_const);
@@ -128,11 +111,10 @@ void MatMulGatherDecompose::SetUp() {
     auto mm_v = std::make_shared<ov::op::v0::MatMul>(softmax, gather_2, false, false);
 
     function = std::make_shared<ov::Model>(OutputVector{mm_v}, ParameterVector{param}, "MatMulGatherDecompose");
-    abs_threshold = 1e-2f;
 }
 
 void MatMulGatherDecompose::check_results() {
-    CheckNumberOfNodesWithType(compiledModel.get_runtime_model(), {"FullyConnected"}, 3);
+    CheckNumberOfNodesWithType(compiledModel, {"FullyConnected"}, 3);
 }
 
 }  // namespace test

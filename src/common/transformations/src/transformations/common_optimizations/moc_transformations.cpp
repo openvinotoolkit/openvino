@@ -44,7 +44,6 @@
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
 #include "transformations/common_optimizations/matmul_const_transposes_extraction.hpp"
 #include "transformations/common_optimizations/matmul_multiply_fusion.hpp"
-#include "transformations/common_optimizations/matmul_split_decomposition.hpp"
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
@@ -250,7 +249,6 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, ConvToBinaryConv)
 
     auto decomp = manager.register_pass<ov::pass::GraphRewrite>();
-    ADD_MATCHER(decomp, MatmulGatherDecomposition)
     ADD_MATCHER(decomp, BatchNormDecomposition)
     ADD_MATCHER(decomp, ConvertDivideWithConstant)
     ADD_MATCHER(decomp, ConvertSubtractWithConstant)

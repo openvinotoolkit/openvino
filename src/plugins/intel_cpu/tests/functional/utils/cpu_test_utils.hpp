@@ -180,10 +180,4 @@ const ov::AnyMap cpu_f32_plugin_config = {{ov::hint::inference_precision(ov::ele
 
 // utility functions
 std::vector<CPUSpecificParams> filterCPUSpecificParams(const std::vector<CPUSpecificParams>& paramsVector);
-void CheckNumberOfNodesWithType(const ov::CompiledModel& compiledModel,
-                                const std::string& nodeType,
-                                size_t expectedCount);
-void CheckNumberOfNodesWithTypes(const ov::CompiledModel& compiledModel,
-                                 const std::unordered_set<std::string>& nodeTypes,
-                                 size_t expectedCount);
 }  // namespace CPUTestUtils
