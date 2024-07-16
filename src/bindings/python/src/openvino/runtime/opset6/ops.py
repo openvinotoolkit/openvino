@@ -115,7 +115,8 @@ def mvn(
     return _get_node_factory_opset6().create("MVN", inputs, attributes)
 
 
-@overloading(Union[Node, Output, int, float, np.ndarray], str, Optional[Union[type, np.dtype, Type, str]], Optional[Union[TensorShape, Shape, PartialShape]], Optional[str])
+@overloading(Union[Node, Output, int, float, np.ndarray], str, Optional[Union[type, np.dtype, Type, str]],
+             Optional[Union[TensorShape, Shape, PartialShape]], Optional[str])
 @nameable_op
 def read_value(init_value: Union[Node, Output, int, float, np.ndarray],
                variable_id: str,
