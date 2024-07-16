@@ -81,17 +81,24 @@ GroupNormalizationKernelBase::MultiDispatchData GroupNormalizationKernelBfyx::Se
         dispatchData.stage_final.gws[1] = input.Feature().v * input.Batch().v;
         dispatchData.stage_final.gws[2] = 1;
 
-        dispatchData.stage_final.lws[0] = 1;
-        dispatchData.stage_final.lws[1] = 1;
+        dispatchData.stage_final.lws[0] = input.X().v * input.Y().v;
+        dispatchData.stage_final.lws[1] = input.Feature().v * input.Batch().v;
         dispatchData.stage_final.lws[2] = 1;
 
-        while ((dispatchData.stage_final.lws[0] * 2) <= params.engineInfo.maxWorkGroupSize &&
-              (dispatchData.stage_final.lws[0] * 2) <= dispatchData.stage_final.gws[0]) {
-            if (dispatchData.stage_final.gws[0] % (dispatchData.stage_final.lws[0] * 2) == 0) {
-                dispatchData.stage_final.lws[0] *= 2;
-            } else {
-                break;
+        divisor = 2;
+        while (dispatchData.stage_final.lws[0] > params.engineInfo.maxWorkGroupSize) {
+            if (dispatchData.stage_final.gws[0] % divisor == 0) {
+                dispatchData.stage_final.lws[0] = dispatchData.stage_final.gws[0] / divisor;
             }
+            divisor += 1;
+        }
+
+        divisor = 2;
+        while ((dispatchData.stage_final.lws[0] * dispatchData.stage_final.lws[1]) > params.engineInfo.maxWorkGroupSize) {
+            if (dispatchData.stage_final.gws[1] % divisor == 0) {
+                dispatchData.stage_final.lws[1] = dispatchData.stage_final.gws[1] / divisor;
+            }
+            divisor += 1;
         }
     }
 
