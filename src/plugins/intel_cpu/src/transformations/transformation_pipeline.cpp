@@ -94,6 +94,7 @@
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
+#include "transformations/transpose_sinking/ts_shape_of.hpp"
 #include "utils/ngraph_transformation.hpp"
 #include "utils/print_model.hpp"
 
@@ -837,6 +838,7 @@ void Transformations::PostLpt() {
             }
         }
     }
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::transpose_sinking::TSShapeOfForward);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, StatefulSDPAFusion);
 
     // Should be before Snippets pipeline because Ngram pattern contains eltwise nodes that can be tokenized by Snippets.
@@ -885,7 +887,8 @@ void Transformations::MainSnippets(void) {
     // To avoid uncontrolled behavior in tests, we disabled the optimization when there is Config::SnippetsMode::IgnoreCallback
     bool split_m_dimension = !ignoreCallback;
     // [113198] Add dynamic Subgraph with MHA pattern inside execution support
-    bool is_dynamic_mha_token_enabled = false;
+    // To enable dynamic MHA in tests, this flag is on when there is Config::SnippetsMode::IgnoreCallback
+    bool is_dynamic_mha_token_enabled = ignoreCallback;
     // [122706] Some 3D MHA Patterns have perf regressions when Transpose op is tokenized
     std::set<size_t> mha_supported_transpose_ranks = { 4 };
     snippets::pass::SnippetsTokenization::Config tokenization_config(concurrency, data_ptr_gpr_count, split_m_dimension,

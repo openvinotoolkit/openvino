@@ -28,6 +28,7 @@ public:
     bool isBatchingSupported() const override;
     bool isWorkloadTypeSupported() const override;
 
+    void* getContext() const override;
     void updateInfo(const Config& config) {
         _logger.setLevel(config.get<LOG_LEVEL>());
         if (_devices.size() > 0) {

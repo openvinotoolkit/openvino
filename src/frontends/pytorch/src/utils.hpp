@@ -305,6 +305,9 @@ public:
     virtual size_t get_named_input(const std::string& name) const override {
         FRONT_END_NOT_IMPLEMENTED(get_named_input);
     }
+    virtual std::unordered_map<std::string, ov::Any> get_rt_info() const override {
+        FRONT_END_NOT_IMPLEMENTED(get_rt_info);
+    }
 
 private:
     const std::string m_schema = "NONE";

@@ -64,4 +64,8 @@ const std::vector<std::string> ZeroEngineBackend::getDeviceNames() const {
     return devicesNames;
 }
 
+void* ZeroEngineBackend::getContext() const {
+    return _instance->getContext();
+}
+
 }  // namespace intel_npu

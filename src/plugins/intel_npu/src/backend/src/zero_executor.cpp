@@ -154,6 +154,14 @@ void ZeroExecutor::setArgumentValue(uint32_t argi_, const void* argv_) const {
     zeroUtils::throwOnFail("zeGraphSetArgumentValue", _graph_ddi_table_ext->pfnSetArgumentValue(_graph, argi_, argv_));
 }
 
+void ZeroExecutor::mutexLock() const {
+    _mutex.lock();
+}
+
+void ZeroExecutor::mutexUnlock() const {
+    _mutex.unlock();
+}
+
 ZeroExecutor::~ZeroExecutor() {
     auto result = _graph_ddi_table_ext->pfnDestroy(_graph);
     if (ZE_RESULT_SUCCESS != result) {

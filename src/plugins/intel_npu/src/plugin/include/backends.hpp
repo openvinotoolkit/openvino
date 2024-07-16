@@ -33,6 +33,7 @@ public:
     bool isBatchingSupported() const;
     bool isWorkloadTypeSupported() const;
     void registerOptions(OptionsDesc& options) const;
+    void* getContext() const;
     std::string getCompilationPlatform(const std::string_view platform, const std::string& deviceId) const;
     void setup(const Config& config);
 

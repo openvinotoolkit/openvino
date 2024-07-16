@@ -225,7 +225,7 @@ TEST(network_test, scratchpad_test) {
     topology topology;
     topology.add(input_layout("input", in_layout));
     topology.add(data("weights", weights));
-    topology.add(fully_connected("fc_prim", input_info("input"), "weights", "", padding()));
+    topology.add(fully_connected("fc_prim", input_info("input"), "weights", ""));
 
     auto impl_desc_onednn = ov::intel_gpu::ImplementationDesc{format::bfyx, "", impl_types::onednn};
     auto impl_forcing_map = ov::intel_gpu::ImplForcingMap{{"fc_prim", impl_desc_onednn}};
