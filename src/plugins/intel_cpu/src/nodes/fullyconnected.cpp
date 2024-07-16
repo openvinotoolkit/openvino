@@ -366,8 +366,11 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
         {ARG_DST, dstDescs[0]},
     };
 
-    if (enable_tensor_parallel && cached_scale && cached_zeropoint) {
+    if (enable_tensor_parallel && cached_scale) {
         attrs.decompressionMultiplyPtr = cached_scale;
+    }
+
+    if (enable_tensor_parallel && cached_zeropoint) {
         attrs.decompressionSubtractPtr = cached_zeropoint;
     }
 
