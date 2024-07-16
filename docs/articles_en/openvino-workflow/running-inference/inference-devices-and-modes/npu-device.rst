@@ -163,11 +163,14 @@ offer a limited set of supported OpenVINO features.
    The default mode for the NPU device is LATENCY.
 
 **ov::intel_npu::compilation_mode_params**
-   ov::intel_npu::compilation_mode_params is an NPU-specific property that allows to 
-   control model compilation for NPU.  
-   .. note::
-      The functionality is in experimental stage currently, can be a subject for 
-      deprecation and may be replaced with generic OV API in future OV releases.  
+
+``ov::intel_npu::compilation_mode_params`` is an NPU-specific property that allows to
+control model compilation for NPU.
+
+.. note::
+
+   The functionality is in experimental stage currently, can be a subject for
+   deprecation and may be replaced with generic OV API in future OV releases.
 
    Following configuration options are supported: 
 
