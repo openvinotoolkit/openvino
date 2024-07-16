@@ -134,7 +134,6 @@ def extract_input_info_from_example(args, inputs):
                                                                    0] == "self" else args.input_model._input_signature
     if input_names and not is_dict_input:
         example_inputs = dict(zip(input_names, example_inputs))
-    print(input_names)
     example_inputs = flatten_inputs(example_inputs, input_names)
     input_arg = []
     for example in example_inputs:
