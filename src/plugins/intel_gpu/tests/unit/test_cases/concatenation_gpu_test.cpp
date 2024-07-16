@@ -58,8 +58,7 @@ TEST(concat_gpu, mixed_input_types) {
             concatenation("concat",
                           { input_info("input0"), input_info("input1"), input_info("input2"), input_info("input3"), input_info("input4") },
                           1,
-                          data_types::f32,
-                          padding{ { 0,0,0,0 }, 0 })
+                          data_types::f32)
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -109,8 +108,7 @@ void start_concat_test_dynamic(impl_types impl_type) {
             concatenation("concat",
                           { input_info("input0"), input_info("input1"), input_info("input2"), input_info("input3") },
                           1,
-                          data_types::f32,
-                          padding{ { 0,0,0,0 }, 0 })
+                          data_types::f32)
     );
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -227,8 +225,7 @@ TEST(concat_gpu, dynamic_6d_f) {
             concatenation("concat",
                           { input_info("input0"), input_info("input1"), input_info("input2"), input_info("input3") },
                           1,
-                          data_types::f32,
-                          padding{ { 0,0,0,0 }, 0 })
+                          data_types::f32)
     );
 
     ExecutionConfig config{ov::intel_gpu::allow_new_shape_infer(true)};
@@ -347,8 +344,7 @@ TEST(concat_gpu, mixed_input_types_5d) {
             concatenation("concat",
                           { input_info("input0"), input_info("input1"), input_info("input2"), input_info("input3") },
                           1,
-                          data_types::f32,
-                          padding{ { 0,0,0,0 }, 0 })
+                          data_types::f32)
     );
 
     network network(engine, topology, get_test_default_config(engine));
@@ -427,8 +423,7 @@ TEST(concat_gpu, pooling_dynamic_input_no_exception) {
                       concatenation("concat",
                                     { input_info("pool0"), input_info("pool1") },
                                     1,
-                                    data_types::f32,
-                                    padding{{0, 0, 0, 0}, 0}),
+                                    data_types::f32),
                       reorder("reorder", input_info("concat"), reorder_layout));
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -481,8 +476,7 @@ TEST(concat_gpu, i8_optimization_with_pool) {
                       concatenation("concat",
                                     { input_info("pool0"), input_info("pool1") },
                                     1,
-                                    data_types::i8,
-                                    padding{{0, 0, 0, 0}, 0}),
+                                    data_types::i8),
                       reorder("reorder", input_info("concat"), reorder_layout));
     ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -581,8 +575,7 @@ TEST(concat_gpu, i8_optimization_with_conv) {
                       concatenation("concat",
                                     { input_info("input0"), input_info("input1"), input_info("input2") },
                                     1,
-                                    data_types::i8,
-                                    padding{{0, 0, 0, 0}, 0}),
+                                    data_types::i8),
                       data("weights", weights),
                       convolution("conv", input_info("concat"), "weights", "", 1, { 2, 1 }, {1, 1}, {0, 0}, {0, 0}, false),
                       reorder("output", input_info("conv"), reorder_layout));
@@ -682,8 +675,7 @@ TEST(concat_gpu, i8_optimization_with_pool_conv) {
                       concatenation("concat",
                                     { input_info("pool0"), input_info("pool1") },
                                     1,
-                                    data_types::i8,
-                                    padding{{0, 0, 0, 0}, 0}),
+                                    data_types::i8),
                       data("weights", weights),
                       convolution("conv", input_info("concat"), "weights", "", 1, {1, 1}, {1, 1}, {0, 1}, {0, 1}, false),
                       reorder("output", input_info("conv"), reorder_layout) );
@@ -752,8 +744,7 @@ TEST(concat_gpu, no_exception_in_input_order_opt_b_fs_yx_fsv16_with_conv_port2) 
                       concatenation("concat",
                                     { input_info("concat_input0"), input_info("concat_input1"), input_info("concat_input2"), input_info("concat_input3")  },
                                     1,
-                                    data_types::f32,
-                                    padding{{0, 0, 0, 0}, 0}),
+                                    data_types::f32),
                       pooling("pooling", input_info("concat"), pooling_mode::max, { 2, 2 }, { 1, 1 }),
                       data("weights0", weights0),
                       convolution("conv0", input_info("pooling"), "weights0", "", 1, { 1, 1 }, {1, 1}, {0, 0}, {0, 0}, false),
@@ -1430,8 +1421,7 @@ TEST(concat_gpu_onednn, basic_input_types) {
             concatenation("concat",
                           { input_info("input0"), input_info("input1"), input_info("input2"), input_info("input3"), input_info("input4") },
                           1,
-                          data_types::f32,
-                          padding{ { 0,0,0,0 }, 0 })
+                          data_types::f32)
     );
 
     ov::intel_gpu::ImplementationDesc impl = { format::bfyx, std::string(""), impl_types::onednn };
