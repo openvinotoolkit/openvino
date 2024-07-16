@@ -66,7 +66,7 @@ TEST(ONNXConversionExtensionTest, custom_op_with_custom_domain) {
         });
 
     std::shared_ptr<ov::Model> model;
-    ASSERT_NO_THROW(model = onnx::tests::convert_model("missing_op_domain.onnx", ext));
+    OV_ASSERT_NO_THROW(model = onnx::tests::convert_model("missing_op_domain.onnx", ext));
 
     for (const auto& op : model->get_ops()) {
         if (const auto& add = std::dynamic_pointer_cast<ov::op::v1::Add>(op)) {

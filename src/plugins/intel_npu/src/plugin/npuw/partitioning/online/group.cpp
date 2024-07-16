@@ -25,7 +25,7 @@ Group::Group(const std::shared_ptr<ov::Node>& node,
              ade::NodeHandle nh,
              const std::shared_ptr<ade::Graph>& g,
              const std::weak_ptr<Snapshot>& snapshot)
-    : m_nh(nh),
+    : m_nh(std::move(nh)),
       m_id(gid),
       m_graph(g),
       m_snapshot(snapshot) {

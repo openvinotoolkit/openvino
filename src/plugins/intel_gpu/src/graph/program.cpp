@@ -594,7 +594,7 @@ void program::pre_optimize_graph(bool is_internal) {
 
     // Check fusing primitives based on preferred format or layout optimization
     if (optimize_data) {
-        apply_opt_pass<fuse_primitives_with_layout>();
+        apply_opt_pass<fuse_primitives_with_layout>(lo);
     }
 
     // add optimization attributes for onednn primitives
@@ -1578,6 +1578,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::broadcast::type_id() &&
             prim.type() != cldnn::ctc_loss::type_id() &&
             prim.type() != cldnn::non_max_suppression::type_id() &&
+            prim.type() != cldnn::non_max_suppression_gather::type_id() &&
             prim.type() != cldnn::roi_align::type_id() &&
             prim.type() != cldnn::matrix_nms::type_id() &&
             prim.type() != cldnn::adaptive_pooling::type_id() &&
@@ -1630,6 +1631,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::quantize::type_id() &&
             prim.type() != cldnn::ctc_loss::type_id() &&
             prim.type() != cldnn::non_max_suppression::type_id() &&
+            prim.type() != cldnn::non_max_suppression_gather::type_id() &&
             prim.type() != cldnn::roi_align::type_id() &&
             prim.type() != cldnn::matrix_nms::type_id() &&
             prim.type() != cldnn::adaptive_pooling::type_id() &&
