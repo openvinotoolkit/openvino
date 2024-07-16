@@ -108,14 +108,9 @@ protected:
     void check_node(std::shared_ptr<const ov::Model> function, const std::string& nodeName) {
         ASSERT_NE(nullptr, function);
         for (const auto &node : function->get_ops()) {
-            const auto & rtInfo = node->get_rt_info();
-            auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
-                auto it = rtInfo.find(paramName);
-                OPENVINO_ASSERT(rtInfo.end() != it);
-                return it->second.as<std::string>();
-            };
+            const auto& rtInfo = node->get_rt_info();
             if (node->get_friendly_name() == nodeName) {
-                auto primType = getExecValue(ov::exec_model_info::IMPL_TYPE);
+                auto primType = getRuntimeValue(rtInfo, ov::exec_model_info::IMPL_TYPE);
                 ASSERT_TRUE(primTypeCheck(primType)) << "primType is unexpected: " << primType << " Expected: " << selectedType;
                 ASSERT_EQ(node->get_output_element_type(0), outType);
                 ASSERT_EQ(node->get_input_element_type(0), inType);

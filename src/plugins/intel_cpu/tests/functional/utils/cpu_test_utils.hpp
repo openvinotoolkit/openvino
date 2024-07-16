@@ -186,4 +186,11 @@ void CheckNumberOfNodesWithType(const ov::CompiledModel& compiledModel,
 void CheckNumberOfNodesWithTypes(const ov::CompiledModel& compiledModel,
                                  const std::unordered_set<std::string>& nodeTypes,
                                  size_t expectedCount);
+
+void CheckNodePrecisionsWithType(const ov::CompiledModel& compiledModel,
+                                 const std::string& nodeType,
+                                 const ov::element::TypeVector& inPrecisions,
+                                 const ov::element::TypeVector& outPrecisions);
+
+std::string getRuntimeValue(const ov::Node::RTMap& rtInfo, const std::string& paramName);
 }  // namespace CPUTestUtils

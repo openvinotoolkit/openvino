@@ -31,13 +31,8 @@ void FuseTransposeAndReorderTest::check_transpose_count(size_t expectedTranspose
     ASSERT_NE(nullptr, runtime_model);
     size_t actual_transpose_count = 0;
     for (const auto &node : runtime_model->get_ops()) {
-        const auto & rtInfo = node->get_rt_info();
-        auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
-            auto it = rtInfo.find(paramName);
-            OPENVINO_ASSERT(rtInfo.end() != it);
-            return it->second.as<std::string>();
-        };
-        if (getExecValue(ov::exec_model_info::LAYER_TYPE) == "Transpose") {
+        const auto& rtInfo = node->get_rt_info();
+        if (getRuntimeValue(rtInfo, ov::exec_model_info::LAYER_TYPE) == "Transpose") {
             actual_transpose_count++;
         }
     }

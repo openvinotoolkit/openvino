@@ -77,13 +77,7 @@ void ConvolutionLayerCPUTest::checkBiasFusing(ov::CompiledModel& execNet) const 
     bool foundConv = false;
     for (const auto& node : execGraph->get_ops()) {
         const auto& rtInfo = node->get_rt_info();
-        auto getExecValue = [&rtInfo](const std::string& paramName) -> std::string {
-            auto it = rtInfo.find(paramName);
-            OPENVINO_ASSERT(rtInfo.end() != it);
-            return it->second.as<std::string>();
-        };
-
-        if (getExecValue(ov::exec_model_info::LAYER_TYPE) == "Convolution") {
+        if (getRuntimeValue(rtInfo, ov::exec_model_info::LAYER_TYPE) == "Convolution") {
             foundConv = true;
             ASSERT_EQ(3, node->inputs().size());
             break;
