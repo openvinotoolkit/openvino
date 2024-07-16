@@ -36,8 +36,8 @@ void SubgraphTracker::add_node (NodePtr node, bool belongs) {
     }
 
     if(belongs) {
-        // Below we refuse to merge subgraphs if all of them cannot merge to a single subgraph, this is rough because
-        // there are cases when part of the input subgraphs can consume the node and others will come as inputs -- TODO.
+        // Below we refuse to merge subgraphs if _all_ of them cannot merge to a single subgraph, this is rough because
+        // there are cases when a _part_ of the input subgraphs can be merged together and consume the new node and other (conflicting) subgraphs will come as inputs -- TODO.
         // TODO: leave only those input subgraphs that are not conflicting with other subgraphs nor with any dependencies
         if(input_subgraphs.empty() || intersected(input_subgraphs, input_dependencies)) {   // no input subgraphs || cannot merge all due to cycles
             try_terminate_subgraphs(input_subgraphs, node);

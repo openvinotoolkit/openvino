@@ -241,10 +241,10 @@ using namespace ::mlir;
 
 MLIREvaluate::MLIREvaluate(OwningOpRef<mlir::ModuleOp> _module) : module(std::move(_module)) {
     if (true) {
-        std::cout << "[ DEBUG ] Source MLIR:\n";
+        std::cerr << "[ DEBUG ] Source MLIR:\n";
         std::cerr << "-----------------------------------------\n";
         module->dump();
-        std::cout << "-----------------------------------------\n";
+        std::cerr << "-----------------------------------------\n";
     }
 
     prepareMLIRKernelWithoutWrapper(module);
@@ -282,10 +282,11 @@ bool MLIREvaluate::invoke_packed(std::vector<void*>& args) {
     return true;
 }
 
-MLIROp::MLIROp(const ov::OutputVector& args, std::shared_ptr<MLIREvaluate> engine, const OVOutputTypes& output_types)
+MLIROp::MLIROp(const ov::OutputVector& args, std::shared_ptr<MLIREvaluate> engine, const OVOutputTypes& output_types, const DimensionsMap& dimensions_map)
     : Op(args),
         engine(engine),
-        output_types(output_types) {
+        output_types(output_types),
+        dimensions_map(dimensions_map) {
     constructor_validate_and_infer_types();
 }
 
@@ -297,17 +298,29 @@ void MLIROp::validate_and_infer_types() {
 }
 
 NodePtr MLIROp::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    return std::make_shared<MLIROp>(new_args, engine, output_types);
+    return std::make_shared<MLIROp>(new_args, engine, output_types, dimensions_map);
 }
 
 bool MLIROp::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
-    outputs[0].set_shape(inputs[0].get_shape());
-
     std::vector<MemRef> memref_args;
     for (size_t i = 0; i < inputs.size(); ++i) {
         memref_args.push_back(MemRef(inputs[i]));
     }
     for (size_t i = 0; i < outputs.size(); ++i) {
+        Shape target;
+        PartialShape expected = get_output_partial_shape(i);
+        for(size_t j = 0; j < expected.size(); ++j) {
+            auto dim = expected[j];
+            if(dim.is_dynamic()) {
+                int input_index, dim_index;
+                std::tie(input_index, dim_index) = dimensions_map[i][j];
+                target.push_back(inputs[input_index].get_shape()[dim_index]);
+            } else {
+                target.push_back(dim.get_length());
+            }
+        }
+        //std::cerr << "[ DEBUG ] Set outputs[" << i << "].shape(" << target << ")\n";
+        outputs[i].set_shape(target);
         memref_args.push_back(MemRef(outputs[i]));
     }
     std::vector<void*> args;
@@ -316,7 +329,7 @@ bool MLIROp::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs)
         x.append_to_packed_args(args);
     });
 
-    std::cerr << "[ INFO ] Running kernel in MLIROp::evaluate\n";
+    //std::cerr << "[ INFO ] Running kernel in MLIROp::evaluate\n";
     return engine->invoke_packed(args);
 }
 

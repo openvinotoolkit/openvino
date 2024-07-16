@@ -66,6 +66,8 @@
 #include "mlir_op.hpp"
 #include "convert_common.hpp"
 #include "subgraph_tracker.hpp"
+#include "conversion_context.hpp"
+#include "op/matmul.hpp"
 
 
 namespace {
@@ -99,53 +101,6 @@ SmallVector<mlir::Type> get_types_for_values(mlir::MLIRContext* context, const o
     return types;
 }
 
-class ConversionContext {
-public:
-    using Convertor = std::function<void(ConversionContext&, NodePtr)>;
-    using NodeOutputMap = std::map<ov::Output<ov::Node>, mlir::Value>;
-
-    static const std::map<ov::DiscreteTypeInfo, Convertor> convertors;
-    mlir::MLIRContext* context;
-    mlir::OpBuilder* block_builder;
-    NodeOutputMap nodeOutputMap;
-
-    ConversionContext(mlir::MLIRContext* context, mlir::OpBuilder* block_builder)
-        : context(context),
-          block_builder(block_builder) {}
-
-    SmallVector<mlir::Value> getInputs(NodePtr node) {
-        SmallVector<mlir::Value> out;
-        out.reserve(node->get_input_size());
-        for (const auto& input : node->inputs()) {
-            out.push_back(nodeOutputMap.at(input.get_source_output()));
-        }
-        return out;
-    }
-
-    void addOutputs(NodePtr node, mlir::Operation* op) {
-        const auto results = op->getOpResults();
-
-        OPENVINO_ASSERT(
-            results.size() == node->get_output_size(),
-            "Mismatch between original Node '{0}' number of outputs '{1}' and created number of outputs '{2}'",
-            node->get_friendly_name(),
-            node->get_output_size(),
-            results.size());
-
-        for (const auto& res : results) {
-            nodeOutputMap.emplace(node->output(res.getResultNumber()), res);
-        }
-    }
-
-    mlir::OpBuilder& builder() {
-        return *block_builder;
-    }
-
-    void convert(NodePtr node) {
-        convertors.at(node->get_type_info())(*this, node);
-    }
-};
-
 template <typename TargetOp>
 struct ConvertBinary {
     void operator()(ConversionContext& context, NodePtr node) {
@@ -170,12 +125,6 @@ struct ConvertBinary {
     }
 };
 
-const std::map<ov::DiscreteTypeInfo, ConversionContext::Convertor> ConversionContext::convertors = {
-    {ov::op::v1::Add::get_type_info_static(), Convertor(ConvertBinary<linalg::AddOp>())},
-    {ov::op::v1::Subtract::get_type_info_static(), Convertor(ConvertBinary<linalg::SubOp>())},
-    {ov::op::v1::Multiply::get_type_info_static(), Convertor(ConvertBinary<linalg::MulOp>())},
-    {ov::op::v1::Divide::get_type_info_static(), Convertor(ConvertBinary<linalg::DivOp>())},
-};
 
 mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
                                                  const ov::OutputVector& inputs,
@@ -236,53 +185,54 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
 }
 
 
-// This pass find marked with a special flag group of nodes and collapse each group to a single MLIR function
+// This pass converts a group of nodes into a single MLIROp
 NodePtr ngraph_to_mlir_op(MLIRContext* context, SubgraphPtr subgraph) {
+    mlir::OwningOpRef<mlir::ModuleOp> module = ngraph_to_mlir(context, subgraph->inputs, subgraph->nodes, subgraph->outputs);
 
-    mlir::OwningOpRef<mlir::ModuleOp> module;
+    const auto& inputs = subgraph->inputs;
+    using Index = DimensionsMap::value_type::value_type;
+    std::map<SymbolPtr, Index> input_map;
+    for (size_t i = 0; i < inputs.size(); ++i) {
+        auto input = inputs[i];
+        auto shape = input.get_partial_shape();
+        for (size_t j = 0; j < shape.size(); ++j) {
+            auto dim = shape[j];
+            if(shape[j].is_dynamic()) {
+                auto symbol = ov::symbol::ancestor_of(dim.get_symbol());
+                if(0 == input_map.count(symbol)) {
+                    input_map[symbol] = Index(i, j);
+                } else {
+                    std::cerr << "[ DEBUG ] Lost equality constraint for dimensions in output " << input << "\n"
+                              << "          If the constraint is violated in runtime it will result in the undefined behaviour.\n";
+                }
+            }
+        }
+    }
 
-    module = ngraph_to_mlir(context, subgraph->inputs, subgraph->nodes, subgraph->outputs);
-
+    std::tuple<size_t, size_t> empty(-1, -1);
+    const auto& outputs = subgraph->outputs;
     OVOutputTypes output_types;
-    for (size_t i = 0; i < subgraph->outputs.size(); ++i) {
+    DimensionsMap output_map;
+    output_map.reserve(outputs.size());
+    for (size_t i = 0; i < outputs.size(); ++i) {
+        auto output = outputs[i];
+        auto shape = output.get_partial_shape();
         output_types.push_back(
-            std::make_tuple(subgraph->outputs[i].get_element_type(), subgraph->outputs[i].get_partial_shape()));
+            std::make_tuple(output.get_element_type(), shape));
+        DimensionsMap::value_type dm;
+        dm.reserve(shape.size());
+        for (size_t j = 0; j < shape.size(); ++j) {
+            auto dim = shape[j];
+            dm.push_back(dim.is_dynamic() ? input_map.at(ov::symbol::ancestor_of(dim.get_symbol())) : empty);
+        }
+        output_map.emplace_back(dm);
     }
     return std::make_shared<MLIROp>(
         subgraph->inputs,
         std::make_shared<MLIREvaluate>(std::move(module)),
-        output_types
+        output_types,
+        output_map
     );
-};
-
-
-const std::string& subgraph_mark() {
-    static const std::string mark = "__subgraph_mlir_mark";
-    return mark;
-}
-
-void set_subgraph_mark(NodePtr node) {
-    node->get_rt_info()[subgraph_mark()];
-}
-
-bool get_subgraph_mark(NodePtr node) {
-    return node->get_rt_info().count(subgraph_mark());
-}
-
-class MarkPattern : public ov::pass::MatcherPass {
-public:
-    OPENVINO_RTTI("MarkPattern", "0");
-    MarkPattern(NodePtr pattern) {
-        auto callback = [](ov::pass::pattern::Matcher& m) {
-            // TODO: support multi-node patterns marking
-            auto node = m.get_match_root();
-            set_subgraph_mark(node);
-            return true;
-        };
-
-        auto m = std::make_shared<ov::pass::pattern::Matcher>(pattern, "MarkPattern");
-        register_matcher(m, callback);
-    }
 };
 
 
@@ -361,10 +311,11 @@ void injectMLIR(std::shared_ptr<ov::Model> model, MLIRContext* context) {
     using namespace ov::op;
     manager.set_per_pass_validation(false);
     manager.register_pass<ov::pass::SymbolicPropagation>();
-    manager.register_pass<MarkPattern>(elementwise_f32_binary_no_broadcast<v1::Add>());
-    manager.register_pass<MarkPattern>(elementwise_f32_binary_no_broadcast<v1::Subtract>());
-    manager.register_pass<MarkPattern>(elementwise_f32_binary_no_broadcast<v1::Multiply>());
-    manager.register_pass<MarkPattern>(elementwise_f32_binary_no_broadcast<v1::Divide>());
+    manager.register_pass<MarkPattern>(elementwise_f32_binary_no_broadcast<v1::Add>(), ConvertBinary<linalg::AddOp>());
+    manager.register_pass<MarkPattern>(elementwise_f32_binary_no_broadcast<v1::Subtract>(), ConvertBinary<linalg::SubOp>());
+    manager.register_pass<MarkPattern>(elementwise_f32_binary_no_broadcast<v1::Multiply>(), ConvertBinary<linalg::MulOp>());
+    manager.register_pass<MarkPattern>(elementwise_f32_binary_no_broadcast<v1::Divide>(), ConvertBinary<linalg::DivOp>());
+    manager.register_pass<MatMulPattern>();
     manager.register_pass<Partitioner>(context);
     manager.run_passes(model);
     model->validate_nodes_and_infer_types();

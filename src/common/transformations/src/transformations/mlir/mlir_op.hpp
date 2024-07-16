@@ -34,15 +34,20 @@ public:
 };
 
 
+// Maps [output index][dimension index] -> [input index][dimension index] to infer shapes for entire subgraph
+using DimensionsMap = std::vector<std::vector<std::tuple<size_t, size_t>>>;
+
+
 class OPENVINO_API MLIROp : public ov::op::Op {
     std::shared_ptr<MLIREvaluate> engine;
     OVOutputTypes output_types;
+    DimensionsMap dimensions_map;
 
 public:
 
     OPENVINO_OP("MLIROp");
 
-    MLIROp(const ov::OutputVector& args, std::shared_ptr<MLIREvaluate> engine, const OVOutputTypes& output_types);
+    MLIROp(const ov::OutputVector& args, std::shared_ptr<MLIREvaluate> engine, const OVOutputTypes& output_types, const DimensionsMap& dimensions_map);
     void validate_and_infer_types() override;
     NodePtr clone_with_new_inputs(const ov::OutputVector& new_args) const override;
     bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override;
