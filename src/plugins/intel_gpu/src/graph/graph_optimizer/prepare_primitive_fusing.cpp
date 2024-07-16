@@ -990,15 +990,16 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto p1_dt = parents[fused_idx].first->get_output_layout().data_type;
             auto p2_dt = parents[peer_idx].first->get_output_layout().data_type;
 
-            bool is_node_in_fusing_history = false;
-            for (auto fused_prim : parents[fused_idx].first->get_fused_primitives()) {
-                if (is_node_in_fusing_history)
+            bool is_target_in_fusing_history = false;
+            for (auto& fused_prim : parents[fused_idx].first->get_fused_primitives()) {
+                if (is_target_in_fusing_history)
                     break;
                 auto iter = fusing_history.find(node.id());
                 if (iter != fusing_history.end()) {
                     for (auto id : iter->second) {
-                        if (id.first == fused_prim.desc->id) {
-                            is_node_in_fusing_history = true;
+                        if (id.first == fused_prim.desc->id &&
+                            id.first != parents[fused_idx].first->get_fused_primitives().back().desc->id) {
+                            is_target_in_fusing_history = true;
                             break;
                         }
                     }
@@ -1006,12 +1007,32 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             }
 
             if (can_fuse_parents[peer_idx] &&
-               ((p1_pnum < p2_pnum && !is_node_in_fusing_history && p1_dt == p2_dt) ||
+               ((p1_pnum < p2_pnum && p1_dt == p2_dt && !is_target_in_fusing_history) ||
                 (data_type_traits::is_floating_point(p2_dt) && !data_type_traits::is_floating_point(p1_dt)))) {
                 // Swap in 2 cases:
                 // 1. Both branches have same data type. Select branch with lower processing number
                 // 2. Peer node has fp32 output type, but fused node - int8. In that case we have to fuse to the branch
                 // with fp32 out type to avoid fp32 blobs in the quantized graph.
+                //
+                // Notice :
+                //     - When selecting a branch with a lower processing number,
+                //       it should be checked whether or not the target to which current node is supposed to fuse exists in fusing_history.
+                //     - See below example :
+                //           - Where p1_pnum < p2_pnum, if TARGET_1 is in fusing_history as a target for fusing current node,
+                //             then swapping shouldn't occur.
+                //     - So, "is_target_in_fusing_history" should be included in checking where to fuse.
+                //
+                //               convolution      convolution
+                //                    |                |
+                //    (activation) TARGET_1         TARGET_2 (activation)
+                //                (p1_pnum:5)      (p2_pnum:10)
+                //                /         \       /
+                //         eltwise           CURRENT
+                //               \              |
+                //              eltwise         |
+                //                 |            |
+                //              eltwise ---- eltwise
+                //
                 std::swap(fused_idx, peer_idx);
             }
 

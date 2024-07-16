@@ -786,5 +786,9 @@ TEST(prepare_primitive_fusing, fuse_by_priotizing_to_parent_in_fusing_history) {
     layout_optimizer lo(true);
     program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*program, lo);
 
-    ASSERT_TRUE(program->get_node("conv2").get_fused_primitives().empty());
+    ASSERT_FALSE(has_node(*program, "actv1"));
+    ASSERT_FALSE(has_node(*program, "eltw3"));
+    ASSERT_FALSE(has_node(*program, "eltw4"));
+    ASSERT_FALSE(has_node(*program, "eltw5"));
+    ASSERT_FALSE(has_node(*program, "eltw6"));
 }
