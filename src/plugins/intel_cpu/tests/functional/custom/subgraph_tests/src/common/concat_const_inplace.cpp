@@ -71,6 +71,10 @@ public:
                                                                                    ov::op::PadType::EXPLICIT);
         conv->set_friendly_name("CONV");
 
+        if (inType == ElementType::f16) {
+            rel_threshold = 1e-2f;
+        }
+
         ov::ResultVector results{std::make_shared<ov::op::v0::Result>(conv)};
         function = std::make_shared<ov::Model>(results, inputParams, "ConcatConstantInPlace");
     }

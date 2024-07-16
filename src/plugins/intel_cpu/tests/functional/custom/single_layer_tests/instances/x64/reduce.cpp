@@ -5,6 +5,7 @@
 #include "custom/single_layer_tests/classes/reduce.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
+#include "utils/filter_cpu_info.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 

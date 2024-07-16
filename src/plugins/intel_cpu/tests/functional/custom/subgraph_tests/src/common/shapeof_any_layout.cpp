@@ -5,6 +5,7 @@
 #include "common_test_utils/node_builders/activation.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "utils/filter_cpu_info.hpp"
 
 using namespace CPUTestUtils;
 
@@ -131,7 +132,7 @@ std::vector<CPUSpecificParams> getCpuInfoForDimsCount(const size_t dimsCount = 3
         resCPUParams.push_back(CPUSpecificParams{{acb}, {acb}, {}, {}});
     }
 
-    return resCPUParams;
+    return filterCPUSpecificParams(resCPUParams);
 }
 
 const std::vector<ElementType> netPrecisions = {

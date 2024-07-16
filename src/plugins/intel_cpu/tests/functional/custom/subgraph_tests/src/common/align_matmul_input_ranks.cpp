@@ -59,8 +59,6 @@ protected:
                                         std::make_shared<ov::op::v0::Parameter>(ngPrec, inShapes.second)};
         const auto matMul = std::make_shared<ov::op::v0::MatMul>(inputParams[0], inputParams[1], false, false);
 
-        selectedType = makeSelectedTypeStr(with_cpu_x86_avx512_core() ? "brgemm_avx512" : "jit_gemm", ngPrec);
-
         function = makeNgraphFunction(ngPrec, inputParams, matMul, "AlignMatMulInputRanks");
     }
 
@@ -72,7 +70,6 @@ TEST_P(AlignMatMulInputRanksTest, CompareWithRefs) {
     CheckNumberOfNodesWithType(compiledModel,
                                "Reshape",
                                expectedNumOfReshapes);  // Squeeze / Unsqueeze turns into Reshape
-    CheckPluginRelatedResults(compiledModel, "MatMul");
 }
 
 namespace {

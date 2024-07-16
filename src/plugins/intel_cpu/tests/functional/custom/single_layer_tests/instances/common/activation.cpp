@@ -4,6 +4,7 @@
 
 #include "custom/single_layer_tests/classes/activation.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "utils/filter_cpu_info.hpp"
 
 using namespace CPUTestUtils;
 
