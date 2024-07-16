@@ -142,9 +142,9 @@ Prerequisites
     Cloning into 'yolov7'...
     remote: Enumerating objects: 1197, done.[K
     remote: Total 1197 (delta 0), reused 0 (delta 0), pack-reused 1197[K
-    Receiving objects: 100% (1197/1197), 74.23 MiB | 28.87 MiB/s, done.
-    Resolving deltas: 100% (519/519), done.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/notebooks/yolov7-optimization/yolov7
+    Receiving objects: 100% (1197/1197), 74.23 MiB | 23.61 MiB/s, done.
+    Resolving deltas: 100% (520/520), done.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/yolov7-optimization/yolov7
 
 
 .. code:: ipython3
@@ -169,7 +169,7 @@ Prerequisites
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/notebooks/yolov7-optimization/yolov7/model/yolov7-tiny.pt')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/yolov7-optimization/yolov7/model/yolov7-tiny.pt')
 
 
 
@@ -197,9 +197,9 @@ result,
      traced_script_module saved!
      model is traced!
 
-    5 horses, Done. (74.1ms) Inference, (0.9ms) NMS
+    5 horses, Done. (77.8ms) Inference, (0.9ms) NMS
      The image with the result is saved in: runs/detect/exp/horses.jpg
-    Done. (0.081s)
+    Done. (0.085s)
 
 
 .. code:: ipython3
@@ -311,7 +311,7 @@ an end2end ONNX model, you can check this
     Starting ONNX export with onnx 1.16.1...
     ONNX export success, saved as model/yolov7-tiny.onnx
 
-    Export complete (2.59s). Visualize with https://github.com/lutzroeder/netron.
+    Export complete (2.69s). Visualize with https://github.com/lutzroeder/netron.
 
 
 Convert ONNX Model to OpenVINO Intermediate Representation (IR)
@@ -722,7 +722,7 @@ Create dataloader
 
 .. parsed-literal::
 
-    val: Scanning 'coco/val2017' images and labels... 4952 found, 48 missing, 0 empty, 0 corrupted: 100%|██████████| 5000/5000 [00:01<00:00, 2506.92it/s]
+    val: Scanning 'coco/val2017' images and labels... 4952 found, 48 missing, 0 empty, 0 corrupted: 100%|██████████| 5000/5000 [00:02<00:00, 2410.16it/s]
 
 
 Define validation function
@@ -985,10 +985,10 @@ asymmetric quantization of activations.
 
 .. parsed-literal::
 
-    2024-07-02 03:44:42.740146: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-07-02 03:44:42.772348: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-07-13 04:17:49.896323: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-07-13 04:17:49.928585: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-07-02 03:44:43.355364: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-07-13 04:17:50.540879: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -1031,6 +1031,49 @@ asymmetric quantization of activations.
 
 
 
+
+
+.. parsed-literal::
+
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
+    WARNING:openvino.runtime.opset13.ops:Converting value of float32 to float16. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.
 
 
 Validate Quantized model inference
@@ -1152,18 +1195,18 @@ models.
     [Step 2/11] Loading OpenVINO Runtime
     [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.3.0-15837-76a668b0662
+    [ INFO ] Build ................................. 2024.4.0-16028-fe423b97163
     [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.3.0-15837-76a668b0662
+    [ INFO ] Build ................................. 2024.4.0-16028-fe423b97163
     [ INFO ]
     [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 12.95 ms
+    [ INFO ] Read model took 13.26 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,3,640,640]
@@ -1177,7 +1220,7 @@ models.
     [ INFO ] Model outputs:
     [ INFO ]     output (node: output) : f32 / [...] / [1,25200,85]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 265.12 ms
+    [ INFO ] Compile model took 254.06 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: main_graph
@@ -1214,17 +1257,17 @@ models.
     [ INFO ] Fill input 'images' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 44.77 ms
+    [ INFO ] First inference took 46.77 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            11700 iterations
-    [ INFO ] Duration:         120095.00 ms
+    [ INFO ] Count:            11694 iterations
+    [ INFO ] Duration:         120060.72 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        61.32 ms
-    [ INFO ]    Average:       61.44 ms
-    [ INFO ]    Min:           35.90 ms
-    [ INFO ]    Max:           81.91 ms
-    [ INFO ] Throughput:   97.42 FPS
+    [ INFO ]    Median:        61.36 ms
+    [ INFO ]    Average:       61.45 ms
+    [ INFO ]    Min:           34.72 ms
+    [ INFO ]    Max:           81.34 ms
+    [ INFO ] Throughput:   97.40 FPS
 
 
 .. code:: ipython3
@@ -1240,18 +1283,18 @@ models.
     [Step 2/11] Loading OpenVINO Runtime
     [ WARNING ] Default duration 120 seconds is used for unknown device AUTO
     [ INFO ] OpenVINO:
-    [ INFO ] Build ................................. 2024.3.0-15837-76a668b0662
+    [ INFO ] Build ................................. 2024.4.0-16028-fe423b97163
     [ INFO ]
     [ INFO ] Device info:
     [ INFO ] AUTO
-    [ INFO ] Build ................................. 2024.3.0-15837-76a668b0662
+    [ INFO ] Build ................................. 2024.4.0-16028-fe423b97163
     [ INFO ]
     [ INFO ]
     [Step 3/11] Setting device configuration
     [ WARNING ] Performance hint was not explicitly specified in command line. Device(AUTO) performance hint will be set to PerformanceMode.THROUGHPUT.
     [Step 4/11] Reading model files
     [ INFO ] Loading model files
-    [ INFO ] Read model took 18.92 ms
+    [ INFO ] Read model took 19.00 ms
     [ INFO ] Original model I/O parameters:
     [ INFO ] Model inputs:
     [ INFO ]     images (node: images) : f32 / [...] / [1,3,640,640]
@@ -1265,7 +1308,7 @@ models.
     [ INFO ] Model outputs:
     [ INFO ]     output (node: output) : f32 / [...] / [1,25200,85]
     [Step 7/11] Loading the model to the device
-    [ INFO ] Compile model took 488.21 ms
+    [ INFO ] Compile model took 402.55 ms
     [Step 8/11] Querying optimal runtime parameters
     [ INFO ] Model:
     [ INFO ]   NETWORK_NAME: main_graph
@@ -1302,15 +1345,15 @@ models.
     [ INFO ] Fill input 'images' with random values
     [Step 10/11] Measuring performance (Start inference asynchronously, 6 inference requests, limits: 120000 ms duration)
     [ INFO ] Benchmarking in inference only mode (inputs filling are not included in measurement loop).
-    [ INFO ] First inference took 23.94 ms
+    [ INFO ] First inference took 23.71 ms
     [Step 11/11] Dumping statistics report
     [ INFO ] Execution Devices:['CPU']
-    [ INFO ] Count:            34572 iterations
-    [ INFO ] Duration:         120027.52 ms
+    [ INFO ] Count:            34356 iterations
+    [ INFO ] Duration:         120021.29 ms
     [ INFO ] Latency:
-    [ INFO ]    Median:        20.63 ms
-    [ INFO ]    Average:       20.72 ms
-    [ INFO ]    Min:           14.83 ms
-    [ INFO ]    Max:           39.17 ms
-    [ INFO ] Throughput:   288.03 FPS
+    [ INFO ]    Median:        20.77 ms
+    [ INFO ]    Average:       20.84 ms
+    [ INFO ]    Min:           14.81 ms
+    [ INFO ]    Max:           41.35 ms
+    [ INFO ] Throughput:   286.25 FPS
 

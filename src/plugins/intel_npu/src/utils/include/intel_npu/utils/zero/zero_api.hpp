@@ -8,6 +8,10 @@
 
 #include <memory>
 
+#ifndef _WIN32
+#    define LIB_ZE_LOADER_SUFFIX ".1"
+#endif
+
 namespace intel_npu {
 
 // clang-format off
@@ -22,6 +26,8 @@ namespace intel_npu {
     symbol_statement(zeCommandListCreate)                     \
     symbol_statement(zeCommandListDestroy)                    \
     symbol_statement(zeCommandListReset)                      \
+    symbol_statement(zeCommandListGetNextCommandIdExp)        \
+    symbol_statement(zeCommandListUpdateMutableCommandsExp)   \
     symbol_statement(zeCommandQueueCreate)                    \
     symbol_statement(zeCommandQueueDestroy)                   \
     symbol_statement(zeCommandQueueExecuteCommandLists)       \
@@ -31,6 +37,7 @@ namespace intel_npu {
     symbol_statement(zeDeviceGetCommandQueueGroupProperties)  \
     symbol_statement(zeDeviceGetProperties)                   \
     symbol_statement(zeDevicePciGetPropertiesExt)             \
+    symbol_statement(zeDeviceGetExternalMemoryProperties)     \
     symbol_statement(zeDriverGet)                             \
     symbol_statement(zeDriverGetApiVersion)                   \
     symbol_statement(zeDriverGetExtensionFunctionAddress)     \
@@ -49,7 +56,8 @@ namespace intel_npu {
     symbol_statement(zeInit)                                  \
     symbol_statement(zeMemAllocDevice)                        \
     symbol_statement(zeMemAllocHost)                          \
-    symbol_statement(zeMemFree)
+    symbol_statement(zeMemFree)                               \
+    symbol_statement(zeMemGetAllocProperties)
 // clang-format on
 
 class ZeroApi {

@@ -49,7 +49,7 @@ std::vector<Avoid> getAvoids(const std::shared_ptr<ov::Model>& model, ::intel_np
         return {};
     }
 
-    std::string s = avoids_opt;
+    std::string s = std::move(avoids_opt);
 
     size_t pos = 0;
     size_t start = 0;
@@ -247,6 +247,7 @@ public:
             Group::GPtr group = graph->meta(nh).get<Group::GPtr>();
             LOG_DEBUG("Group " << group->getId() << ", size " << group->size());
         }
+
         LOG_INFO("Done");
     }
 
@@ -272,7 +273,7 @@ public:
             repeated.insert({reptag_and_matches.first, block});
             LOG_INFO("Got " << block.matches.at(0).size() << " repeated blocks of size " << block.matches.size());
         }
-        ens.repeated = repeated;
+        ens.repeated = std::move(repeated);
 
         std::string dump_plan_path = m_cfg.get<::intel_npu::NPUW_ONLINE_DUMP_PLAN>();
         if (!dump_plan_path.empty()) {

@@ -318,8 +318,6 @@ Quantize model to INT8 using NNCF
 ---------------------------------
 
 
-
-
 The goal of this part of tutorial is to demonstrate how to speed up the
 model by applying 8-bit post-training quantization from
 `NNCF <https://github.com/openvinotoolkit/nncf/>`__ (Neural Network
