@@ -52,14 +52,11 @@ public:
 
 private:
     void rm_tensor_output_names() {
-        const auto& names = get_tensor().get_names();
-        std::unordered_set<std::string> input_names_only;
-        std::set_difference(names.begin(),
-                            names.end(),
-                            m_output_names.begin(),
-                            m_output_names.end(),
-                            std::inserter(input_names_only, input_names_only.end()));
-        get_tensor().set_names(input_names_only);
+        auto names = get_tensor().get_names();
+        for (const auto& output_name : m_output_names){
+            names.erase(output_name);
+        }
+        get_tensor().set_names(names);
     }
 
     std::unordered_set<std::string> m_output_names;
