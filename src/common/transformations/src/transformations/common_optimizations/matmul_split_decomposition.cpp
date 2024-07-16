@@ -28,7 +28,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/utils/utils.hpp"
-#include <openvino/opsets/opset1.hpp>
 
 using namespace ov::op;
 using namespace ov;
