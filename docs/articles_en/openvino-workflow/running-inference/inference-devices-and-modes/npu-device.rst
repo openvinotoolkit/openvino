@@ -126,9 +126,12 @@ offer a limited set of supported OpenVINO features.
          ov::hint::model_priority
          ov::hint::num_requests
          ov::hint::performance_mode
+         ov::hint::execution_mode
          ov::cache_dir
          ov::compilation_num_threads
          ov::enable_profiling
+         ov::workload_type
+         ov::intel_npu::compilation_mode_params
 
    .. tab-item:: Read-only properties
 
@@ -140,10 +143,14 @@ offer a limited set of supported OpenVINO features.
          ov::range_for_async_infer_requests
          ov::range_for_streams
          ov::num_streams
+         ov::execution_devices
          ov::device::architecture
          ov::device::capabilities
          ov::device::full_name
          ov::device::uuid
+         ov::device::pci_info
+         ov::device::gops
+         ov::device::type
          ov::intel_npu::device_alloc_mem_size
          ov::intel_npu::device_total_mem_size
          ov::intel_npu::driver_version
@@ -155,6 +162,53 @@ offer a limited set of supported OpenVINO features.
    based on the performance mode is **4 for THROUGHPUT** and **1 for LATENCY**.
    The default mode for the NPU device is LATENCY.
 
+**ov::intel_npu::compilation_mode_params**
+   ov::intel_npu::compilation_mode_params is an NPU-specific property that allows to 
+   control model compilation for NPU.  
+   .. note::
+      The functionality is in experimental stage currently, can be a subject for 
+      deprecation and may be replaced with generic OV API in future OV releases.  
+
+   Following configuration options are supported: 
+
+   **optimization-level **
+   Defines a preset of optimization passes to be applied during compilation. 
+   .. list-table::
+      :widths: 10 200
+      :header-rows: 1
+
+      * - **Value**
+        - **Description**
+      * - 0
+        - Reduced subset of optimization passes. Smaller compile time.
+      * - 1
+        - **Default.** Balanced performance/compile time.
+      * - 2
+        - Prioritize performance over compile time that may be an issue. 
+
+   **performance-hint-override**
+   An extension for LATENCY mode being specified using ov::hint::performance_mode
+   Has no effect for other ov::hint::PerformanceMode hints.
+
+   .. list-table::
+      :widths: 10 200
+      :header-rows: 1
+
+      * - **Value**
+        - **Description**
+      * - efficiency
+        - **Default.** Balanced performance and power consumption.
+      * - latency
+        - Prioritize performance over power efficiency. 
+   
+   .. tab-set::
+
+      .. tab-item:: Usage example
+
+         .. code-block::
+            map<str, str> config = {ov::intel_npu::compilation_mode_params.name(), ov::Any("optimization-level=1 performance-hint-override=latency")}; 
+
+            compile_model(model, config); 
 
 Limitations
 #############################
