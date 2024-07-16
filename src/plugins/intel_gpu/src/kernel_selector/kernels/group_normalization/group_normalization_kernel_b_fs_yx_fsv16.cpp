@@ -105,8 +105,8 @@ JitConstants GroupNormalizationKernel_b_fs_yx_fsv16::GetJitConstants(const group
     auto jit = GroupNormalizationKernelBase::GetJitConstants(params);
 
     jit.AddConstants({
-        MakeJitConstant("SIMD", 16),
-        MakeJitConstant("FSV", 16),
+        MakeJitConstant("SIMD", simd),
+        MakeJitConstant("FSV", fsv),
     });
 
     if (params.has_dynamic_tensors()) {
