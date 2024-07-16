@@ -191,29 +191,31 @@ Defines a preset of optimization passes to be applied during compilation.
    * - 2
      - Prioritize performance over compile time that may be an issue.
 
-   **performance-hint-override**
-   An extension for LATENCY mode being specified using ov::hint::performance_mode
-   Has no effect for other ov::hint::PerformanceMode hints.
+**performance-hint-override**
 
-   .. list-table::
-      :widths: 10 200
-      :header-rows: 1
+An extension for LATENCY mode being specified using ``ov::hint::performance_mode``
+Has no effect for other ``ov::hint::PerformanceMode`` hints.
 
-      * - **Value**
-        - **Description**
-      * - efficiency
-        - **Default.** Balanced performance and power consumption.
-      * - latency
-        - Prioritize performance over power efficiency. 
-   
-   .. tab-set::
+.. list-table::
+   :widths: 10 200
+   :header-rows: 1
 
-      .. tab-item:: Usage example
+   * - **Value**
+     - **Description**
+   * - efficiency
+     - **Default.** Balanced performance and power consumption.
+   * - latency
+     - Prioritize performance over power efficiency.
 
-         .. code-block::
-            map<str, str> config = {ov::intel_npu::compilation_mode_params.name(), ov::Any("optimization-level=1 performance-hint-override=latency")}; 
+.. tab-set::
 
-            compile_model(model, config); 
+   .. tab-item:: Usage example
+
+      .. code-block::
+
+         map<str, str> config = {ov::intel_npu::compilation_mode_params.name(), ov::Any("optimization-level=1 performance-hint-override=latency")};
+
+         compile_model(model, config);
 
 Limitations
 #############################
