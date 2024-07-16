@@ -783,7 +783,7 @@ event::ptr primitive_inst::realloc_if_needed() {
                 GPU_DEBUG_TRACE_DETAIL << id() << ": Update variable " << variable.get_name()
                                        << "'s layout with allocated kv cache output: " << present_layout.to_short_string()
                                        << " (is_set  = " << variable.is_set() << ") " << std::endl;
-                variable.set_layout(present_layout);
+                variable.set_memory(_outputs[0], present_layout);
             }
         } else {
             GPU_DEBUG_TRACE_DETAIL << id() << ": Update variable " << variable.get_name()
