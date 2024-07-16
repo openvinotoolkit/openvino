@@ -649,6 +649,8 @@ def test_float_to_f8e4m3_convert(ov_type, numpy_dtype, opset):
     ],
 )
 def test_float_to_f8e8m0_convert(ov_type, numpy_dtype, opset):
+    pytest.skip("CVS-145281 BUG: nan to inf repro. [random - depends on the device]")
+
     data = np.array([4.75, 4.5, 5.25, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
                      0.6, 0.7, 0.8, 0.9, 1, -0.0, 1.1, 1.2, 1.3,
                      1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 448, 512, np.nan], dtype=numpy_dtype)
