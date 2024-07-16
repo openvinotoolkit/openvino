@@ -316,7 +316,7 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensors3) {
     EXPECT_EQ(memcmp(first_output.data(), second_output, first_output.get_byte_size()), 0);
 }
 
-TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensorsHostTensor) {
+TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensorsHostTensor1) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
@@ -330,8 +330,30 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensorsHostTensor) {
     auto tensor = inference_request.get_input_tensor();
     memset(tensor.data(), 99, tensor.get_byte_size());
     OV_ASSERT_NO_THROW(inference_request.infer());
-    first_output = inference_request.get_output_tensor(0);
+    first_output = inference_request.get_output_tensor();
 
+    auto l0_host_input_tensor = context.create_host_tensor(ov::element::f32, tensor.get_shape());
+    auto l0_host_output_tensor = context.create_host_tensor(ov::element::f32, first_output.get_shape());
+
+    memset(l0_host_input_tensor.data(), 99, tensor.get_byte_size());
+    OV_ASSERT_NO_THROW(inference_request.set_input_tensor(l0_host_input_tensor));
+    OV_ASSERT_NO_THROW(inference_request.set_output_tensor(l0_host_output_tensor));
+    OV_ASSERT_NO_THROW(inference_request.infer());
+
+    EXPECT_NE(first_output.data(), l0_host_output_tensor.data());
+    EXPECT_EQ(memcmp(first_output.data(), l0_host_output_tensor.data(), first_output.get_byte_size()), 0);
+}
+
+TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensorsHostTensor2) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    ov::InferRequest inference_request;
+
+    auto context = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
+
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
     auto input_tensor = inference_request.get_input_tensor();
     auto output_tensor = inference_request.get_output_tensor();
     const auto byte_size = input_tensor.get_byte_size();
@@ -339,6 +361,15 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensorsHostTensor) {
     auto output_shape = output_tensor.get_shape();
     input_tensor = {};
     output_tensor = {};
+
+    auto remote_input_tensor =
+        context.create_l0_host_tensor(ov::element::f32, input_shape, ov::intel_npu::TensorType::INPUT);
+    auto remote_output_tensor =
+        context.create_l0_host_tensor(ov::element::f32, output_shape, ov::intel_npu::TensorType::INPUT);
+    memset(remote_input_tensor.get(), 1, byte_size);
+    OV_ASSERT_NO_THROW(inference_request.set_input_tensor(remote_input_tensor));
+    OV_ASSERT_NO_THROW(inference_request.set_output_tensor(remote_output_tensor));
+    OV_ASSERT_NO_THROW(inference_request.infer());
 
     auto l0_host_input_tensor = context.create_host_tensor(ov::element::f32, input_shape);
     auto l0_host_output_tensor = context.create_host_tensor(ov::element::f32, output_shape);
@@ -348,8 +379,9 @@ TEST_P(RemoteRunTests, CheckOutputDataFromTwoRunsInOutRemoteTensorsHostTensor) {
     OV_ASSERT_NO_THROW(inference_request.set_output_tensor(l0_host_output_tensor));
     OV_ASSERT_NO_THROW(inference_request.infer());
 
-    EXPECT_NE(first_output.data(), l0_host_output_tensor.data());
-    EXPECT_EQ(memcmp(first_output.data(), l0_host_output_tensor.data(), first_output.get_byte_size()), 0);
+    EXPECT_NE(remote_output_tensor.get(), l0_host_output_tensor.data());
+    EXPECT_NE(memcmp(remote_output_tensor.get(), l0_host_output_tensor.data(), remote_output_tensor.get_byte_size()),
+              0);
 }
 
 }  // namespace behavior
