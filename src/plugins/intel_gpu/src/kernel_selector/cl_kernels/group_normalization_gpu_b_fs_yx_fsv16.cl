@@ -14,11 +14,7 @@ KERNEL(calc_mean_per_feature)(
 ) {
     const uint data_set_idx = get_global_id(1);     // batch * feature split
     const uint in_data_set_idx = get_global_id(0);
-    #if IS_DYNAMIC
-        const uint workers_per_dataset = get_local_size(0) / FSV;    // 16 datasets are handled by one local workgroup
-    #else
-        const uint workers_per_dataset = WORKERS_PER_DATASET;
-    #endif
+    const uint workers_per_dataset = LWS0 / FSV;    // 16 datasets are handled by one local workgroup
     const uint data_set_size = INPUT0_SIZE_X * INPUT0_SIZE_Y;
     const uint items_num = data_set_size / workers_per_dataset;
     const uint leftovers = data_set_size - (items_num * workers_per_dataset);
@@ -42,7 +38,7 @@ KERNEL(calc_mean_per_feature)(
     }
 
     mean_per_feature[in_data_set_idx] = mean;
-    const uint num_local_workers = get_local_size(0);
+    const uint num_local_workers = LWS0;
     const uint worker_block_idx = in_data_set_idx / 16;
     uint reduce_add_level = 1;
     while ((SLM_SIZE / SIMD) > reduce_add_level) {
@@ -63,9 +59,9 @@ KERNEL(calc_mean_per_feature)(
 KERNEL(calc_mean_per_group)(
     __global ACCUMULATOR_TYPE* internal_mean
 ) {
-    const uint data_idx = get_global_id(0) + get_global_id(1) * get_global_size(0);
-    const uint num_workers = get_local_size(0);
-    const uint group_size = get_global_size(0) / NUM_GROUPS;
+    const uint data_idx = get_global_id(0) + get_global_id(1) * GWS0;
+    const uint num_workers = LWS0;
+    const uint group_size = GWS0 / NUM_GROUPS;
     const uint items_num = group_size / num_workers;
 
     if ((data_idx % group_size) < num_workers) {
@@ -86,16 +82,12 @@ REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(calc_var_per_feature)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
-    __global ACCUMULATOR_TYPE* internal_mean,
+    const __global ACCUMULATOR_TYPE* internal_mean,
     __global ACCUMULATOR_TYPE* internal_variance
 ) {
     const uint data_set_idx = get_global_id(1);     // batch * feature split
     const uint in_data_set_idx = get_global_id(0);
-    #if IS_DYNAMIC
-        const uint workers_per_dataset = get_local_size(0) / FSV;    // 16 datasets are handled by one local workgroup
-    #else
-        const uint workers_per_dataset = WORKERS_PER_DATASET;
-    #endif
+    const uint workers_per_dataset = LWS0 / FSV;    // 16 datasets are handled by one local workgroup
     const uint data_set_size = INPUT0_SIZE_X * INPUT0_SIZE_Y;
     const uint items_num = data_set_size / workers_per_dataset;
     const uint leftovers = data_set_size - (items_num * workers_per_dataset);
@@ -126,11 +118,12 @@ KERNEL(calc_var_per_feature)(
     }
 
     var_per_feature[in_data_set_idx] = variance;
+    const uint num_local_workers = LWS0;
     const uint worker_block_idx = in_data_set_idx / 16;
     uint reduce_add_level = 1;
     while ((SLM_SIZE / SIMD) > reduce_add_level) {
         barrier(CLK_LOCAL_MEM_FENCE);
-        if (worker_block_idx % (reduce_add_level * 2) == 0) {
+        if (worker_block_idx % (reduce_add_level * 2) == 0 && (in_data_set_idx + SIMD * reduce_add_level) < num_local_workers) {
             var_per_feature[in_data_set_idx] += var_per_feature[in_data_set_idx + SIMD * reduce_add_level];
         }
         reduce_add_level *= 2;
@@ -145,9 +138,9 @@ KERNEL(calc_var_per_feature)(
 KERNEL(calc_var_per_group)(
     __global ACCUMULATOR_TYPE* internal_variance
 ) {
-    const uint data_idx = get_global_id(0) + get_global_id(1) * get_global_size(0);
-    const uint num_workers = get_local_size(0);
-    const uint group_size = get_global_size(0) / NUM_GROUPS;
+    const uint data_idx = get_global_id(0) + get_global_id(1) * GWS0;
+    const uint num_workers = LWS0;
+    const uint group_size = GWS0 / NUM_GROUPS;
     const uint items_num = group_size / num_workers;
 
     if ((data_idx % group_size) < num_workers) {
@@ -175,8 +168,8 @@ KERNEL(group_normalization_b_fs_yx_fsv16)(
 #if HAS_FUSED_OPS_DECLS
     FUSED_OPS_DECLS,
 #endif
-    __global ACCUMULATOR_TYPE* internal_mean,
-    __global ACCUMULATOR_TYPE* internal_variance
+    const __global ACCUMULATOR_TYPE* internal_mean,
+    const __global ACCUMULATOR_TYPE* internal_variance
 ) {
     const uint bf = get_global_id(1) * FSV + get_sub_group_local_id();
     const uint b = bf / OUTPUT_FEATURE_NUM;

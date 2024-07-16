@@ -102,11 +102,14 @@ JitConstants GroupNormalizationKernel_b_fs_yx_fsv16::GetJitConstants(const group
 
     if (params.has_dynamic_tensors()) {
         jit.AddConstants({
+            MakeJitConstant("GWS0", "get_global_size(0)"),
+            MakeJitConstant("LWS0", "get_local_size(0)"),
             MakeJitConstant("SLM_SIZE", params.engineInfo.maxWorkGroupSize),
         });
     } else {
         jit.AddConstants({
-            MakeJitConstant("WORKERS_PER_DATASET", dispatchData.lws[0] / fsv),
+            MakeJitConstant("GWS0", dispatchData.gws[0]),
+            MakeJitConstant("LWS0", dispatchData.lws[0]),
             MakeJitConstant("SLM_SIZE", dispatchData.lws[0]),
         });
     }
