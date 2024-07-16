@@ -172,22 +172,24 @@ control model compilation for NPU.
    The functionality is in experimental stage currently, can be a subject for
    deprecation and may be replaced with generic OV API in future OV releases.
 
-   Following configuration options are supported: 
+Following configuration options are supported:
 
-   **optimization-level **
-   Defines a preset of optimization passes to be applied during compilation. 
-   .. list-table::
-      :widths: 10 200
-      :header-rows: 1
+**optimization-level**
 
-      * - **Value**
-        - **Description**
-      * - 0
-        - Reduced subset of optimization passes. Smaller compile time.
-      * - 1
-        - **Default.** Balanced performance/compile time.
-      * - 2
-        - Prioritize performance over compile time that may be an issue. 
+Defines a preset of optimization passes to be applied during compilation.
+
+.. list-table::
+   :widths: 10 200
+   :header-rows: 1
+
+   * - **Value**
+     - **Description**
+   * - 0
+     - Reduced subset of optimization passes. Smaller compile time.
+   * - 1
+     - **Default.** Balanced performance/compile time.
+   * - 2
+     - Prioritize performance over compile time that may be an issue.
 
    **performance-hint-override**
    An extension for LATENCY mode being specified using ov::hint::performance_mode
