@@ -358,3 +358,7 @@ class TorchFXPythonDecoder (Decoder):
 
     def may_produce_alias(self, in_index: int, out_index: int) -> bool:
         return False
+
+    def get_rt_info(self):
+        rt_info = {}
+        return rt_info

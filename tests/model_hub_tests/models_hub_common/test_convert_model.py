@@ -17,6 +17,7 @@ rng = np.random.default_rng(seed=56190)
 
 class TestConvertModel:
     infer_timeout = 600
+    ov_config = {}
 
     def load_model(self, model_name, model_link):
         raise "load_model is not implemented"
@@ -57,7 +58,7 @@ class TestConvertModel:
 
     def infer_ov_model(self, ov_model, inputs, ie_device):
         core = Core()
-        compiled = core.compile_model(ov_model, ie_device)
+        compiled = core.compile_model(ov_model, ie_device, self.ov_config)
         ov_outputs = compiled(inputs)
         return ov_outputs
 
