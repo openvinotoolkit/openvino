@@ -207,7 +207,7 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
             LOG_DEBUG("Matched: " << matched_paramB << " - parameter to remove...");
 
             // Record mapping from the Scale coeff paramter to the Real weight parameter
-            m_params_to.get().scales[matched_paramB] = matched_paramA;
+            m_params_to.get().scales[matched_paramB] = std::move(matched_paramA);
 
             // Disconnect Multiply and Convert from their outputs
             auto matched_mulply = node_to_output.at(mulply).get_node_shared_ptr();
@@ -220,8 +220,8 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
                 }
             };
             LOG_DEBUG("Dropping the connections...");
-            drop_outputs(matched_mulply);
-            drop_outputs(matched_convrt);
+            drop_outputs(std::move(matched_mulply));
+            drop_outputs(std::move(matched_convrt));
 
             LOG_DEBUG("Reconnecting the root...");
             reconnect_root_to_convert(m);
@@ -352,8 +352,8 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
             // it can be probably eliminated as well)
 
             // Record mapping from the Scale coeff paramter to the Real weight parameter
-            m_params_to.get().zerops[matched_paramA] = matched_valueB;
-            m_params_to.get().scales[matched_paramC] = matched_paramA;
+            m_params_to.get().zerops[matched_paramA] = std::move(matched_valueB);
+            m_params_to.get().scales[matched_paramC] = std::move(matched_paramA);
 
             // Disconnect Multiply and Convert from their outputs
             auto matched_mulply = node_to_output.at(mulply).get_node_shared_ptr();
@@ -366,8 +366,8 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
                 }
             };
             LOG_DEBUG("Dropping the connections...");
-            drop_outputs(matched_mulply);
-            drop_outputs(matched_convrt);
+            drop_outputs(std::move(matched_mulply));
+            drop_outputs(std::move(matched_convrt));
 
             LOG_DEBUG("Reconnecting the root...");
             reconnect_root(m);
@@ -451,7 +451,6 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dco
     auto scalar = opp::wrap_type<ov::op::v0::Constant>();
     auto reshpe = opp::wrap_type<ov::op::v1::Reshape>({mulply, scalar});
 
-    // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
         auto matched_nodeA = node_to_output.at(paramA).get_node_shared_ptr();
@@ -485,8 +484,8 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dco
                 // Reshape will be reconnected to Convert directly
 
                 // Record mapping from the Scale coeff parameter to the Real weight parameter
-                pref.get().zerops[matched_paramA] = matched_valueB;
-                pref.get().scales[matched_paramC] = matched_paramA;
+                pref.get().zerops[matched_paramA] = std::move(matched_valueB);
+                pref.get().scales[matched_paramC] = std::move(matched_paramA);
 
                 // Disconnect Multiply and Convert from their outputs
                 auto matched_mulply = node_to_output.at(mulply).get_node_shared_ptr();
@@ -499,7 +498,7 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dco
                     }
                 };
                 LOG_DEBUG("Dropping the connections...");
-                drop_outputs(matched_mulply);
+                drop_outputs(std::move(matched_mulply));
                 drop_outputs(matched_convrt);
 
                 LOG_DEBUG("Reconnecting the Root...");
@@ -510,7 +509,7 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dco
         }
         return false;  // root node hasn't changed
     };
-    register_matcher(std::make_shared<opp::Matcher>(reshpe, "TagDCOFFReshape2"), callback);
+    register_matcher(std::make_shared<opp::Matcher>(reshpe, "TagDCOFFReshape2"), std::move(callback));
 }
 
 //------------------------------------------------------------------------------
@@ -573,7 +572,7 @@ CWAI1::CWAI1(CWAI1::Results scales) {
         return true;
     };  // matcher_callback
 
-    register_matcher(std::make_shared<opp::Matcher>(mulply, "TagCWAI1"), matcher_callback);
+    register_matcher(std::make_shared<opp::Matcher>(mulply, "TagCWAI1"), std::move(matcher_callback));
 }
 
 // FIXME: Think how it can be unified with the above. THIS is the GPTQ verision
@@ -626,7 +625,7 @@ CWAI2::CWAI2(CWAI2::Results scales) {
         return true;
     };  // matcher_callback
 
-    register_matcher(std::make_shared<opp::Matcher>(mulply, "TagCWAI2"), matcher_callback);
+    register_matcher(std::make_shared<opp::Matcher>(mulply, "TagCWAI2"), std::move(matcher_callback));
 }
 
 // As seen in LLaMa-v2-7b:

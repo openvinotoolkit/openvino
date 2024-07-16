@@ -182,4 +182,26 @@ struct ENABLE_CPU_PINNING final : OptionBase<ENABLE_CPU_PINNING, bool> {
         return OptionMode::RunTime;
     }
 };
+
+//
+// WORKLOAD_TYPE
+//
+
+struct WORKLOAD_TYPE final : OptionBase<WORKLOAD_TYPE, ov::WorkloadType> {
+    static std::string_view key() {
+        return ov::workload_type.name();
+    }
+
+    static ov::WorkloadType defaultValue() {
+        return ov::WorkloadType::DEFAULT;
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "ov::WorkloadType";
+    }
+
+    static ov::WorkloadType parse(std::string_view val);
+
+    static std::string toString(const ov::WorkloadType& val);
+};
 }  // namespace intel_npu

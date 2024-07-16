@@ -82,6 +82,10 @@ public:
     // TODO: use canonical name output_size
     virtual size_t num_of_outputs() const = 0;
 
+    // If the node output is a list of getitem nodes, returns the size of the list
+    // If the node output is not a list of getitem nodes, returns 0
+    virtual size_t output_list_size() const = 0;
+
     // Return a vector of output IDs
     virtual const std::vector<size_t>& outputs() const = 0;
 

@@ -78,7 +78,7 @@ Create Pytorch Models pipeline
 ``StableDiffusionInstructPix2PixPipeline`` is an end-to-end inference
 pipeline that you can use to edit images from text instructions with
 just a few lines of code provided as part
-`diffusers <https://huggingface.co/docs/diffusers/index>`__ library.
+ `diffusers <https://huggingface.co/docs/diffusers/index>`__ library.
 
 First, we load the pre-trained weights of all components of the model.
 
