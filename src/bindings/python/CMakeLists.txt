@@ -383,6 +383,10 @@ if(ENABLE_TESTS)
             DESTINATION tests/bindings/python
             COMPONENT tests
             EXCLUDE_FROM_ALL)
+    install(FILES requirements_test.txt
+            DESTINATION tests/bindings/python
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
     install(FILES src/openvino/preprocess/torchvision/requirements.txt
             DESTINATION tests/python/preprocess/torchvision
             COMPONENT tests
