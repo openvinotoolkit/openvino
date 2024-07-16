@@ -80,14 +80,9 @@ bool data_types_are_supported(const ov::Node* node);
 using PrecisionMap = std::map<ov::element::Type_t, ov::element::Type>;
 
 std::vector<cldnn::optional_data_type> get_output_data_types(const ov::Node* op, PrecisionMap precision_map = {});
-std::vector<cldnn::padding> get_output_paddings(const ov::Node* op);
 
 inline std::vector<cldnn::optional_data_type> get_output_data_types(const std::shared_ptr<ov::Node>& op, PrecisionMap precision_map = {}) {
     return get_output_data_types(op.get(), precision_map);
-}
-
-inline std::vector<cldnn::padding> get_output_paddings(const std::shared_ptr<ov::Node>& op) {
-    return get_output_paddings(op.get());
 }
 
 inline ov::Shape get_tensor_shape(const ov::PartialShape& pshape) {

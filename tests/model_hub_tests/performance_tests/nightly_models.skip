@@ -262,3 +262,9 @@ tiny_video_net/tvn3,https://www.kaggle.com/models/google/tiny-video-net/framewor
 supcon/resnet_v1_200/imagenet/classification,https://www.kaggle.com/models/google/resnet-v1/frameworks/tensorFlow1/variations/200-imagenet-classification/versions/1
 llr-pretrain-adv/latents,https://www.kaggle.com/models/deepmind/llr-pretrain-adv/frameworks/tensorFlow1/variations/latents/versions/1
 tiny_video_net/mobile_1,https://www.kaggle.com/models/google/tiny-video-net/frameworks/tensorFlow1/variations/mobile-1/versions/1
+bert_uncased_L-12_H-768_A-12,https://www.kaggle.com/models/google/bert/frameworks/tensorFlow1/variations/uncased-l-12-h-768-a-12/versions/1
+albert_lite_base,https://www.kaggle.com/models/tensorflow/albert/frameworks/tensorFlow2/variations/lite-base/versions/1
+mask_rcnn/inception_resnet_v2_1024x1024,https://www.kaggle.com/models/tensorflow/mask-rcnn-inception-resnet-v2/frameworks/tensorFlow2/variations/1024x1024/versions/1
+ganeval-cifar10-convnet,https://www.kaggle.com/models/deepmind/ganeval-cifar10-convnet/frameworks/tensorFlow1/variations/ganeval-cifar10-convnet/versions/1
+efficientdet/d4,https://www.kaggle.com/models/tensorflow/efficientdet/frameworks/tensorFlow2/variations/d4/versions/1
+
