@@ -87,6 +87,13 @@ else()
 endif()
 ov_option(ENABLE_MLAS_FOR_CPU "Enable MLAS for OpenVINO CPU Plugin" ${ENABLE_MLAS_FOR_CPU_DEFAULT})
 
+if(RISCV64_THEAD)
+    set(ENABLE_SHL_FOR_CPU_DEFAULT ON)
+else()
+    set(ENABLE_SHL_FOR_CPU_DEFAULT OFF)
+endif()
+ov_dependent_option(ENABLE_SHL_FOR_CPU "Enable SHL for OpenVINO CPU Plugin" ${ENABLE_SHL_FOR_CPU_DEFAULT} "RISCV64" OFF)
+
 add_subdirectory(thirdparty)
 
 if(WIN32)
@@ -127,9 +134,14 @@ endif()
 if(NOT X86_64)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/x64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/x64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/x64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/x64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/x64/*)
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/x64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/x64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/x64/*)
+endif()
+
+if (AARCH64)
+    # this directory is reused on RISCV64
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/x64/*)
 endif()
 
 if(NOT (AARCH64 OR ARM))
@@ -137,6 +149,11 @@ if(NOT (AARCH64 OR ARM))
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/aarch64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/aarch64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/aarch64/*)
+endif()
+
+if(NOT AARCH64)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/aarch64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/aarch64/*)
 endif()
 
 if (NOT ENABLE_MLAS_FOR_CPU)
@@ -185,7 +202,15 @@ if (ENABLE_SNIPPETS_LIBXSMM_TPP)
     target_link_libraries(${TARGET_NAME} PRIVATE xsmm)
     target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:xsmm,INCLUDE_DIRECTORIES>)
 endif ()
+if(ENABLE_SHL_FOR_CPU)
+    target_link_libraries(${TARGET_NAME} PRIVATE shl)
+endif()
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
+
+# Temporal solution to use template reference implementations in cases where optimizied implementation
+# is not (yet) needed.
+target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:openvino::reference,INTERFACE_INCLUDE_DIRECTORIES>)
+
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk
 cross_compiled_file(${TARGET_NAME}
@@ -211,6 +236,13 @@ cross_compiled_file(${TARGET_NAME}
 )
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
+                    src/nodes/kernels/scaled_attn/executor_pa.cpp
+        API         src/nodes/kernels/scaled_attn/executor_pa.hpp
+        NAME        make_pa_executor
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
                     src/nodes/kernels/scaled_attn/attn_memcpy.cpp
         API         src/nodes/kernels/scaled_attn/attn_memcpy.hpp
         NAME        attn_memcpy paged_attn_memcpy attn_memcpy2d_kernel
@@ -223,6 +255,15 @@ cross_compiled_file(${TARGET_NAME}
         NAME        attn_quantkv paged_attn_quantkv attn_quant_u8 attn_dequant_u8
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
+
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F ANY
+                    src/nodes/kernels/x64/mlp_utils.cpp
+        API         src/nodes/kernels/x64/mlp_utils.hpp
+        NAME        llm_mlp_transpose_epi32_16x16
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
+
 # system dependencies must go last
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::pugixml)
 ov_set_threading_interface_for(${TARGET_NAME})
@@ -249,6 +290,7 @@ if(BUILD_SHARED_LIBS)
             $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::shape_inference,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::snippets,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:openvino::reference,INTERFACE_INCLUDE_DIRECTORIES>
         PUBLIC
             ${CMAKE_CURRENT_SOURCE_DIR}/src
             $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>)
@@ -260,6 +302,10 @@ if(BUILD_SHARED_LIBS)
 
     if(ENABLE_MLAS_FOR_CPU)
         target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:mlas,INCLUDE_DIRECTORIES>)
+    endif()
+
+    if(ENABLE_SHL_FOR_CPU)
+        target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:shl,INTERFACE_INCLUDE_DIRECTORIES>)
     endif()
 
     ov_set_threading_interface_for(${TARGET_NAME}_obj)

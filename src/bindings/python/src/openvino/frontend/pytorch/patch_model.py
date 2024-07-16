@@ -5,6 +5,7 @@
 # mypy: ignore-errors
 
 import torch
+from openvino.frontend.pytorch import ModuleExtension
 
 
 class no_jit_trace:
@@ -29,6 +30,7 @@ def patch_model(model, module_extensions, orig_forward_name):
 
         if extension:
             # The Trampoline class is instantiated for every module replacement, so we can use class members individually for each module.
+
             class Trampoline(torch.autograd.Function):
                 target_extension = extension
                 original_module = m
@@ -79,3 +81,38 @@ def unpatch_model(model, orig_forward_name):
                 print('[ WARNING ] Exception raised during model unpatching. Depending on the exact issue it may lead to broken original model.')
                 print('Original exception details:')
                 print(error)
+
+
+def __make_16bit_traceable(model: torch.nn.Module):
+    """
+    Prepare a 16-bit PyTorch model for tracing with OpenVINO.
+     - Replace known list of modules with ModuleExtension.
+     - Convert other modules with weights to FP32.
+    """
+    extensions = {
+        torch.nn.Linear: ModuleExtension(
+            torch.nn.Linear, "ov_ext::linear",
+            evaluate=lambda module, *args, **kwargs: torch.full(
+                list(args[0].shape[:-1]) + [module.out_features], 0.5, dtype=torch.float32),
+            convert=lambda module, target_op, *args, **kwargs: target_op(args[0], module.weight, module.bias)),
+        torch.nn.Embedding: ModuleExtension(
+            torch.nn.Embedding, "ov_ext::embedding",
+            evaluate=lambda module, *args, **kwargs: torch.full(
+                list(args[0].shape) + [module.embedding_dim], 0.5, dtype=torch.float32),
+            convert=lambda module, target_op, *args, **kwargs: target_op(module.weight, args[0], module.padding_idx, module.scale_grad_by_freq, module.sparse)),
+    }
+    try:
+        from transformers.pytorch_utils import Conv1D
+        extensions[Conv1D] = ModuleExtension(
+            Conv1D, "ov_ext::conv1d",
+            evaluate=lambda module, *args, **kwargs: torch.full(
+                list(args[0].shape[:-1]) + [module.nf], 0.5, dtype=torch.float32),
+            convert=lambda module, target_op, *args, **kwargs: target_op(args[0], module.weight, module.bias))
+    except:
+        pass
+    patch_model(model, extensions,
+                "_openvino_module_extension_patch_orig_forward")
+    for _, module in model.named_modules():
+        if module.__class__ not in extensions and (any([p.dtype in [torch.float16, torch.bfloat16] for p in module.parameters(False)])
+                                                   or any([b.dtype in [torch.float16, torch.bfloat16] for b in module.buffers(False)])):
+            module.float()

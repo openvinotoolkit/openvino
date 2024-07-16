@@ -92,6 +92,10 @@ bool with_cpu_x86_avx512_core_amx_bf16() {
     return get_cpu_info().has(Xbyak::util::Cpu::tAMX_BF16);
 }
 
+bool with_cpu_x86_avx512_core_amx_fp16() {
+    return get_cpu_info().has(Xbyak::util::Cpu::tAMX_FP16);
+}
+
 bool with_cpu_x86_avx512_core_amx() {
     return with_cpu_x86_avx512_core_amx_int8() || with_cpu_x86_avx512_core_amx_bf16();
 }
@@ -129,6 +133,9 @@ bool with_cpu_x86_avx512_core_amx_int8() {
     return false;
 }
 bool with_cpu_x86_avx512_core_amx_bf16() {
+    return false;
+}
+bool with_cpu_x86_avx512_core_amx_fp16() {
     return false;
 }
 bool with_cpu_x86_avx512_core_amx() {
@@ -412,15 +419,16 @@ void reserve_available_cpus(const std::vector<std::vector<int>> streams_info_tab
                                                cpu._proc_type_table,
                                                stream_processors,
                                                cpu_status);
-
-    OPENVINO_DEBUG << "[ threading ] stream_processors:";
+#    ifdef ENABLE_OPENVINO_DEBUG
+    OPENVINO_DEBUG("[ threading ] stream_processors:");
     for (size_t i = 0; i < stream_processors.size(); i++) {
-        OPENVINO_DEBUG << "{";
+        OPENVINO_DEBUG("{");
         for (size_t j = 0; j < stream_processors[i].size(); j++) {
-            OPENVINO_DEBUG << stream_processors[i][j] << ",";
+            OPENVINO_DEBUG(stream_processors[i][j], ",");
         }
-        OPENVINO_DEBUG << "},";
+        OPENVINO_DEBUG("},");
     }
+#    endif
 }
 
 void set_cpu_used(const std::vector<int>& cpu_ids, const int used) {

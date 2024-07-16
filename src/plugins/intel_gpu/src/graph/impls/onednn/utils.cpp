@@ -94,6 +94,12 @@ dnnl::memory::dims flatten_tensor(cldnn::tensor t) {
     return {static_cast<int64_t>(t.count())};
 }
 
+dnnl::memory::dims get_strides(dnnl::memory::dims dims) {
+    dnnl::memory::dims strides(dims.size(), dnnl::memory::dim(1));
+    std::partial_sum(dims.rbegin(), dims.rend() - 1, strides.rbegin() + 1, std::multiplies<dnnl::memory::dim>());
+    return strides;
+}
+
 dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
     switch (dt) {
         case cldnn::data_types::f32: return dnnl::memory::data_type::f32;
@@ -138,10 +144,14 @@ std::vector<std::pair<cldnn::format, dnnl::memory::format_tag>> format_map = {
         { cldnn::format::g_os_is_zyx_isv16_osv16,  dnnl::memory::format_tag::gIOdhw16i16o },
 
         { cldnn::format::bfyx,  dnnl::memory::format_tag::nchw },
+        { cldnn::format::bfxy,  dnnl::memory::format_tag::abdc },
         { cldnn::format::byxf,  dnnl::memory::format_tag::nhwc },
         { cldnn::format::byfx,  dnnl::memory::format_tag::acbd },
         { cldnn::format::bxfy,  dnnl::memory::format_tag::adbc },
         { cldnn::format::fyxb,  dnnl::memory::format_tag::bcda },
+        { cldnn::format::xbfy,  dnnl::memory::format_tag::dabc },
+        { cldnn::format::fybx,  dnnl::memory::format_tag::bcad },
+        { cldnn::format::ybfx,  dnnl::memory::format_tag::cabd },
         { cldnn::format::fbyx,  dnnl::memory::format_tag::bacd },
         { cldnn::format::bfzyx, dnnl::memory::format_tag::ncdhw },
         { cldnn::format::bzyxf, dnnl::memory::format_tag::ndhwc },
@@ -194,13 +204,13 @@ dnnl::memory::format_tag convert_data_format(cldnn::format fmt) {
 }
 
 void combine_bf_with_first_spatial_dim(cldnn::layout& l) {
-    auto pshape = l.get_shape();
+    auto pshape = l.get_partial_shape();
     ov::Shape new_shape{1, 1};
     for (size_t i = 0; i < pshape.size(); ++i) {
         if (i < 2) {
-            new_shape[0] *= pshape[i];
+            new_shape[0] *= pshape[i].get_length();
         } else {
-            new_shape[1] *= pshape[i];
+            new_shape[1] *= pshape[i].get_length();
         }
     }
     l.set_partial_shape(new_shape);

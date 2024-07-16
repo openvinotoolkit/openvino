@@ -35,7 +35,8 @@ public:
     enum class Status {
         NotReady = 0,
         ReadyStatic = 1,
-        ReadyDynamic = 2
+        ReadyDynamic = 2,
+        ReadyDynamicSeq = 3,
     };
 
     Graph() = default;
@@ -184,10 +185,7 @@ public:
     }
 
     Status getStatus() const {return status;}
-    const std::unordered_map<std::string, std::shared_ptr<node::MemoryStateNode>>&
-    getInternalStateNodes() const {
-        return internalStateNodes;
-    }
+    const std::unordered_map<std::string, node::MemoryStateNode*>& getInternalStateNodes() const;
     void InitGraph(bool optimize = true);
 
 protected:
@@ -198,7 +196,7 @@ protected:
         outputNodesMap.clear();
         graphNodes.clear();
         graphEdges.clear();
-        syncNodesInds.clear();
+        m_executableSyncNodesInds.clear();
     }
     Status status { Status::NotReady };
 
@@ -226,14 +224,14 @@ protected:
     void ResolveComplexInplaceConflicts();
     bool ProcessDynNodes();
     void GroupParallelNodes();
-    void Allocate();
-    void AllocateWithReuse();
-    void ExtractExecutableNodes();
-    void SearchInternalStateNodes();
+    void Allocate(const std::vector<size_t>& syncNodesInds);
+    void AllocateWithReuse(const std::vector<size_t>& syncNodesInds);
     void ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const;
     void CreatePrimitivesAndExecConstants() const;
     void InferStatic(SyncInferRequest* request);
-    void InferDynamic(SyncInferRequest* request);
+
+    template<typename UpdateStrategy>
+    void InferDynamic(SyncInferRequest* request, UpdateStrategy&& update);
     void ParalleMtNuma(size_t num_nodes,
                        ov::threading::CPUStreamsExecutor::Ptr executor,
                        const std::function<void(size_t, size_t)>& func) const;
@@ -247,16 +245,15 @@ private:
     std::map<std::size_t, NodePtr> outputNodesMap;
 
     std::unordered_map<std::size_t, ProxyMemoryMngrPtr> outputNodesMemMngrMap;
-    std::unordered_map<std::string, std::shared_ptr<node::MemoryStateNode>> internalStateNodes;
 
     // these node pointers (from graphNodes) are to avoid regular checking for
     // constantness of nodes in Infer methods and calls of
     // non-executable (optimized out) nodes, such as Input, Reshape, etc.
-    std::vector<NodePtr> executableGraphNodes;
-
-    std::unordered_map<Node*, size_t> syncNodesInds;
+    std::vector<NodePtr> m_executableGraphNodes;
+    std::vector<size_t> m_executableSyncNodesInds;
 
     GraphContext::CPtr context;
+    dnnl::stream m_stream;
 
     void EnforceInferencePrecision();
     void EnforceBF16();

@@ -53,6 +53,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke.*BehaviorTests.*DynamicInputToDynamicOutput.*)",
             // TODO: Issue: 89555
             R"(.*CoreThreadingTestsWithIter.*)",
+            // TODO: Issue: 145926
+            R"(.*CoreThreadingTest.smoke_QueryModel.*)",
             // Assign-3/ReadValue-3 does not have evaluate() methods; ref implementation does not save the value across the inferences.
             R"(smoke_MemoryTestV3.*)",
             // Issue: 90539
@@ -156,12 +158,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_MVN_4D/Mvn6LayerTest.Inference/.*TS=\{\(1.3.8.9\)\}.*_ModelType=f16.*Ax=\((2.3|1.2.3)\).*)",
             R"(.*smoke_MVN_3D/Mvn6LayerTest.Inference/IS=\(\[\]\)_TS=\{\(1.32.17\)\}_ModelType=f16_AxType=(i64|i32)_Ax=\((1.2|2)\).*)",
             R"(.*smoke_MVN_2D/Mvn6LayerTest.Inference.*TS=\{\(2.55\)\}_ModelType=f32_.*)",
-
-
             R"(.*smoke_Decomposition_6D/Mvn6LayerTest.Inference.*ModelType=(f16|f32).*Ax=\(0.1.2\).*)",
             R"(.*smoke_Decomposition_6D/Mvn6LayerTest.Inference.*ModelType=(f16|f32).*Ax=\(0.1.5\).*)",
-
-
             R"(.*smoke_Decomposition_4D/Mvn6LayerTest.Inference.*ModelType=f16.*Ax=\(1\).*)",
             R"(.*smoke_CTCLoss_Set2/CTCLossLayerTest.Inference/.*_LL=\(6.5.6\)_A=\(2.1.5.3.2.6\)\(3.3.3.3.3.3\)\(6.5.6.5.6.5\)_.*_BI=7_.*_CMR=1_U=1_PF=f16.*)",
             R"(.*smoke_RMSNormDecomposition_basic/RMSNormDecomposition.Inference/.*precision=f32.*)",
@@ -205,7 +203,11 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_RDFT_5d_last_axis/RDFTLayerTest.Inference/IS=\(10.4.8.2.5\)_modelType=f32_Axes=\(0.1.2.3.4\)_SignalSize=\(\).*)",
             // Issue: 136862
             R"(.*smoke_ConditionGPUTest_static/StaticConditionLayerGPUTest.CompareWithRefs/IS=\(3.6\)_netPRC=i8_ifCond=PARAM_targetDevice=GPU_.*)",
+            // Issue: 142900
+            R"(.*smoke_TestsROIAlign_.*ROIAlignV9LayerTest.*)",
+
 #if defined(_WIN32)
+            // by calc abs_threshold with expected value
             R"(.*smoke_RemoteTensor/OVRemoteTensorBatched_Test.NV12toBGR_buffer/(num_batch_4|num_batch_2).*)",
             R"(.*smoke_Check/ConstantResultSubgraphTest.Inference/SubgraphType=SINGLE_COMPONENT_IS=\[1,3,10,10\]_IT=i16_Device=GPU.*)",
 #endif

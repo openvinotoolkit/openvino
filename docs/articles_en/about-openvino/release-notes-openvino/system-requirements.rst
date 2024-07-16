@@ -1,5 +1,3 @@
-.. {#system_requirements}
-
 System Requirements
 ===================
 
@@ -21,6 +19,8 @@ CPU
 
    .. tab-item:: Supported Hardware
 
+      * Intel® Xeon® 6 processor (preview)
+      * Intel Atom® Processor X Series
       * Intel Atom® processor with Intel® SSE4.2 support
       * Intel® Pentium® processor N4200/5, N3350/5, N3450/5 with Intel® HD Graphics
       * 6th - 14th generation Intel® Core™ processors
@@ -30,16 +30,17 @@ CPU
 
    .. tab-item:: Supported Operating Systems
 
+      * Ubuntu 24.04 long-term support (LTS), 64-bit (Kernel 6.8+)
       * Ubuntu 22.04 long-term support (LTS), 64-bit (Kernel 5.15+)
       * Ubuntu 20.04 long-term support (LTS), 64-bit (Kernel 5.15+)
       * Ubuntu 18.04 long-term support (LTS) with limitations, 64-bit (Kernel 5.4+)
-      * Windows 10
-      * Windows 11
+      * Windows 10, 64-bit
+      * Windows 11, 64-bit
       * macOS 12.6 and above, 64-bit and ARM64
       * CentOS 7
       * Red Hat Enterprise Linux 8, 64-bit
       * openSUSE Tumbleweed, 64-bit and ARM64
-      * Ubuntu 18 ARM64
+      * Ubuntu 20.04 ARM64
 
 GPU
 ##########
@@ -59,6 +60,7 @@ GPU
 
    .. tab-item::  Supported Operating Systems
 
+      * Ubuntu 24.04 long-term support (LTS), 64-bit
       * Ubuntu 22.04 long-term support (LTS), 64-bit
       * Ubuntu 20.04 long-term support (LTS), 64-bit
       * Windows 10, 64-bit
@@ -75,7 +77,7 @@ GPU
         for information about your processor.
       * While this release of OpenVINO supports Ubuntu 20.04, the driver stack
         for Intel discrete graphic cards does not fully support Ubuntu 20.04.
-        We recommend using Ubuntu 22.04 when executing on discrete graphics.
+        We recommend using Ubuntu 22.04 and later when executing on discrete graphics.
       * The following minimum (i.e., used for old hardware) OpenCL™ driver's versions
         were used during OpenVINO internal validation: 22.43 for Ubuntu 22.04, 21.48
         for Ubuntu 20.04 and 21.49 for Red Hat Enterprise Linux 8 (some hardware may require
@@ -88,6 +90,7 @@ Intel® Neural Processing Unit
 
    .. tab-item:: Operating Systems for NPU
 
+      * Ubuntu 24.04 long-term support (LTS), 64-bit
       * Ubuntu 22.04 long-term support (LTS), 64-bit
       * Windows 11, 64-bit (22H2, 23H2)
 
@@ -106,6 +109,7 @@ Operating systems and developer environment
 
    .. tab-item:: Linux OS
 
+      * Ubuntu 24.04 with Linux kernel 6.8+
       * Ubuntu 22.04 with Linux kernel 5.15+
       * Ubuntu 20.04 with Linux kernel 5.15+
       * Red Hat Enterprise Linux 8 with Linux kernel 5.4
@@ -120,11 +124,9 @@ Operating systems and developer environment
         * `GNU Compiler Collection (GCC) <https://www.gnu.org/software/gcc/>`__ 7.5 and above
         * `CMake <https://cmake.org/download/>`__ 3.13 or higher
 
-      Higher versions of kernel might be required for 10th Gen Intel® Core™ Processors, 11th Gen
-      Intel® Core™ Processors, 11th Gen Intel® Core™ Processors S-Series Processors, 12th Gen
-      Intel® Core™ Processors, 13th Gen Intel® Core™ Processors, 14th Gen
-      Intel® Core™ Processors, Intel® Core™ Ultra Processors, 4th Gen Intel® Xeon® Scalable Processors
-      or 5th Gen Intel® Xeon® Scalable Processors to support CPU, GPU, GNA or hybrid-cores CPU capabilities.
+      Higher versions of kernel might be required for 10th Gen Intel® Core™ Processors and above,
+      Intel® Core™ Ultra Processors, 4th Gen Intel® Xeon® Scalable Processors and above
+      to support CPU, GPU, NPU or hybrid-cores CPU capabilities.
 
    .. tab-item:: Windows 10 and 11
 
@@ -148,9 +150,9 @@ Operating systems and developer environment
 
    .. tab-item:: DL frameworks versions:
 
-      * TensorFlow 1.15, 2.13.1
+      * TensorFlow 1.15.5, 2.16.1
       * ONNX 1.15
-      * PaddlePaddle 2.5
+      * PaddlePaddle 2.6
 
       This package can be installed on other versions of DL Frameworks
       but only the versions specified here are fully validated.
@@ -158,12 +160,7 @@ Operating systems and developer environment
 
 .. note::
 
-   OpenVINO Python binaries and binaries on Windows, CentOS 7, and macOS (x86) are built
-   with oneTBB libraries, and others on Ubuntu and RedHat systems are built with
-   legacy TBB which is released by OS distribution. OpenVINO can be built from source
-   with either oneTBB or legacy TBB on all the systems listed here. System
-   compatibility and performance are improved on Hybrid CPUs
-   such as 12th Gen Intel Core and above.
+   OpenVINO Python binaries are built with and redistribute oneTBB libraries.
 
 
 
@@ -201,7 +198,7 @@ OpenCL and the OpenCL logo are trademarks of Apple Inc. used by permission by Kh
 
 Other names and brands may be claimed as the property of others.
 
-Copyright © 2023, Intel Corporation. All rights reserved.
+Copyright © 2024, Intel Corporation. All rights reserved.
 
 For more complete information about compiler optimizations, see our Optimization Notice.
 

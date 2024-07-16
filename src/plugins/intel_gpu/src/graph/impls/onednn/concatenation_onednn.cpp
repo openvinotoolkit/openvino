@@ -71,6 +71,7 @@ public:
 #ifdef ONEDNN_PRIMITIVE_SERIALIZATION
         if (_prim.get(true) == nullptr) {
             ob << false;
+            primitive_impl::save(ob);
             return;
         } else {
             ob << true;
@@ -93,8 +94,10 @@ public:
         bool has_prim;
         ib >> has_prim;
 
-        if (!has_prim)
+        if (!has_prim) {
+            primitive_impl::load(ib);
             return;
+        }
 
         parent::load(ib);
 
@@ -120,7 +123,7 @@ public:
         if (impl_params.can_be_optimized())
             return make_unique<concatenation_onednn>(engine, config);
         auto prim = impl_params.typed_desc<concatenation>();
-        auto attr = arg.get_onednn_primitive_attributes();
+        auto attr = impl_params.attrs_onednn;
         auto prim_desc = get_concatenation_primitive_descriptor(impl_params, impl_params.prog->get_engine(), *attr, prim->axis);
 
         return cldnn::make_unique<concatenation_onednn>(engine, config, attr, *prim_desc);

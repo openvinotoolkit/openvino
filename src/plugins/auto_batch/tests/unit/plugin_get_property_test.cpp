@@ -41,6 +41,7 @@ public:
         ON_CALL(*m_plugin, get_property).WillByDefault([this](const std::string& name, const ov::AnyMap& arguments) {
             return m_plugin->Plugin::get_property(name, arguments);
         });
+        ON_CALL(*m_plugin, get_property(StrEq("PERF_COUNT"), _)).WillByDefault(Return(true));
     }
 };
 
@@ -50,7 +51,7 @@ TEST_P(GetPropertyTest, GetPropertyTestCase) {
         ASSERT_ANY_THROW(m_plugin->get_property(m_property_name, options));
     } else {
         ov::Any value;
-        ASSERT_NO_THROW(value = m_plugin->get_property(m_property_name, options));
+        OV_ASSERT_NO_THROW(value = m_plugin->get_property(m_property_name, options));
         if (m_property_name == ov::device::full_name.name()) {
             EXPECT_EQ(value.as<std::string>(), "BATCH");
             return;
@@ -63,6 +64,7 @@ const std::vector<get_property_params> get_property_params_test = {
     get_property_params{ov::device::priorities.name(), true},
     get_property_params{ov::cache_dir.name(), true},
     get_property_params{ov::hint::performance_mode.name(), true},
+    get_property_params{ov::enable_profiling.name(), false},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests,

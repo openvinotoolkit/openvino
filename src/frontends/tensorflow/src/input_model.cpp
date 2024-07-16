@@ -208,7 +208,7 @@ void InputModel::InputModelTFImpl::load_places() {
                 // so we need to check if Any object is initialized first
                 pshape = shape_any.as<ov::PartialShape>();
             } else {
-                OPENVINO_DEBUG << "TensorFlow Frontend: Placeholder " << op_name << " does not have 'shape' attribute";
+                OPENVINO_DEBUG("TensorFlow Frontend: Placeholder ", op_name, " does not have 'shape' attribute");
             }
             auto output_shapes_any = node_decoder->get_attribute("_output_shapes");
             if (pshape.rank().is_static() && pshape.rank().get_length() == 0 &&
@@ -219,8 +219,9 @@ void InputModel::InputModelTFImpl::load_places() {
                 auto output_shapes = output_shapes_any.as<std::vector<ov::PartialShape>>();
                 if (output_shapes.size() == 1 && output_shapes[0].rank().is_static()) {
                     pshape = output_shapes[0];
-                    OPENVINO_DEBUG << "TensorFlow Frontend: Placeholder " << op_name
-                                   << " has shape from '_output_shapes' attribute.";
+                    OPENVINO_DEBUG("TensorFlow Frontend: Placeholder ",
+                                   op_name,
+                                   " has shape from '_output_shapes' attribute.");
                 }
             }
             auto dtype_any = node_decoder->get_attribute("dtype");
@@ -376,11 +377,12 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologicall
         ops_to_do.push(output_operation_place);
     }
 
-    // walk through all NextIteration nodes and put their producers into ops_to_do
-    // this is needed to avoid missed nodes in the body graph of TF1 While operation
     for (const auto& op_place : m_op_places) {
         auto op_decoder = op_place->get_decoder();
+        auto op_name = op_decoder->get_op_name();
         if (op_decoder->get_op_type() == "NextIteration") {
+            // walk through all NextIteration nodes and put their producers into ops_to_do
+            // this is needed to avoid missed nodes in the body graph of TF1 While operation
             std::string producer_name;
             std::string producer_output_port_name;
             size_t producer_output_port_idx;
@@ -390,6 +392,15 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::topologicall
                                     "NextIteration is not found among operation places " +
                                         producer_name);
             ops_to_do.push(m_op_places_map.at(producer_name));
+        } else if (op_decoder->get_op_type() == "LookupTableImport" ||
+                   op_decoder->get_op_type() == "LookupTableImportV2") {
+            // all LookupTableImport nodes must be preserved in a graph for conversion because
+            // they can be terminating nodes and contain input values for HashTable initialization
+            FRONT_END_GENERAL_CHECK(m_op_places_map.count(op_name),
+                                    "[TensorFlow Frontend] internal error or inconsistent model: LookupTableImport "
+                                    "operation is not found among operation places " +
+                                        op_name);
+            ops_to_do.push(m_op_places_map.at(op_name));
         }
     }
 
@@ -812,6 +823,10 @@ std::vector<ov::frontend::Place::Ptr> InputModel::get_outputs() const {
 
 ov::frontend::Place::Ptr InputModel::get_place_by_tensor_name(const std::string& tensorName) const {
     return _impl->get_place_by_tensor_name(tensorName);
+}
+
+ov::frontend::Place::Ptr InputModel::get_place_by_input_index(size_t input_idx) const {
+    FRONT_END_NOT_IMPLEMENTED(get_place_by_input_index);
 }
 
 void InputModel::override_all_outputs(const std::vector<ov::frontend::Place::Ptr>& outputs) {

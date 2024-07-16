@@ -94,14 +94,14 @@ Extensions can be loaded from a code with the  ``ov::Core::add_extension`` metho
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_extensions.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.py
          :language: python
          :fragment: [add_extension]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_extensions.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.cpp
          :language: cpp
          :fragment: [add_extension]
 
@@ -113,14 +113,14 @@ The ``Identity`` is a custom operation class defined in :doc:`Custom Operation G
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_extensions.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.py
          :language: python
          :fragment: [add_frontend_extension]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_extensions.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.cpp
          :language: cpp
          :fragment: [add_frontend_extension]
 
@@ -146,13 +146,13 @@ This macro should have a vector of all OpenVINO Extensions as an argument.
 
 Based on that, the declaration of an extension class might look like the following:
 
-.. doxygensnippet:: ./src/core/template_extension/new/ov_extension.cpp
+.. doxygensnippet:: src/core/template_extension/ov_extension.cpp
    :language: cpp
    :fragment: [ov_extension:entry_point]
 
 2. Configure the build of your extension library, using the following CMake script:
 
-.. doxygensnippet:: ./src/core/template_extension/new/CMakeLists.txt
+.. doxygensnippet:: src/core/template_extension/CMakeLists.txt
    :language: cpp
    :fragment: [cmake:extension]
 
@@ -176,14 +176,14 @@ This CMake script finds OpenVINO, using the ``find_package`` CMake command.
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_extensions.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.py
          :language: python
          :fragment: [add_extension_lib]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_extensions.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.cpp
          :language: cpp
          :fragment: [add_extension_lib]
 

@@ -41,7 +41,10 @@ if(POLICY CMP0149)
     cmake_policy(SET CMP0149 NEW)
 endif()
 
-project(OpenVINO DESCRIPTION "OpenVINO toolkit")
+project(OpenVINO
+        DESCRIPTION "OpenVINO toolkit"
+        HOMEPAGE_URL "https://docs.openvino.ai/2024/home.html"
+        LANGUAGES C CXX)
 
 find_package(OpenVINODeveloperScripts REQUIRED
              PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
@@ -71,7 +74,7 @@ if(OV_GENERATOR_MULTI_CONFIG)
     string(REPLACE ";" " " config_types "${CMAKE_CONFIGURATION_TYPES}")
     message (STATUS "CMAKE_CONFIGURATION_TYPES ............. " ${config_types})
     unset(config_types)
-    if(CMAKE_GENERATOR MATCHES "^Ninja Multi-Config$")
+    if(CMAKE_GENERATOR STREQUAL "Ninja Multi-Config")
         message (STATUS "CMAKE_DEFAULT_BUILD_TYPE .............. " ${CMAKE_DEFAULT_BUILD_TYPE})
     endif()
 else()

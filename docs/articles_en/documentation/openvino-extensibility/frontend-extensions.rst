@@ -57,27 +57,25 @@ class that works well if all the following conditions are satisfied:
 The following example maps ONNX operation with the type of `Identity <https://github.com/onnx/onnx/blob/main/docs/Operators.md#Identity>`__
 to OpenVINO template extension ``Identity`` class.
 
-.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.cpp
    :language: cpp
    :fragment: [frontend_extension_Identity_header]
 
-.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.cpp
    :language: cpp
    :fragment: [frontend_extension_Identity]
 
 The mapping doesn’t involve any attributes, as operation Identity doesn’t have them.
 
 Extension objects, like just constructed ``extension`` can be used to add to the
-OpenVINO runtime just before the loading a model that contains custom operations:
+OpenVINO runtime just before loading a model that contains custom operations:
 
-.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.cpp
    :language: cpp
    :fragment: [frontend_extension_read_model]
 
-Or extensions can be constructed in a separately compiled shared library.
-Separately compiled library can be used in Model Optimizer or ``benchmark_app``.
-Read about how to build and load such a library in the chapter of “Create library with extensions” in
-:doc:`Introduction to OpenVINO Extension <../openvino-extensibility>`.
+However, extensions can also be constructed in a separately compiled shared library, that is suitable for loading models with custom operations in a Python application or tools like ``benchmark_app``.
+For details on how to build and load such library, check the following :ref:`guide <create_a_library_with_extensions>`.
 
 If operation have multiple inputs and/or outputs they will be mapped in order.
 The type of elements in input/output tensors should match expected types in the surrounding operations.
@@ -99,14 +97,14 @@ In this case, you can directly say that 'MyRelu' -> ``Relu`` mapping should be u
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_extensions.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.py
          :language: python
          :fragment: [py_frontend_extension_MyRelu]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_extensions.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.cpp
          :language: cpp
          :fragment: [frontend_extension_MyRelu]
 
@@ -136,14 +134,14 @@ based on ``visit_attributes`` method that should be defined for any OpenVINO ope
 
 Imagine you have CustomOperation class implementation that has two attributes with names: ``attr1`` and ``attr2``.
 
-.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.cpp
    :language: cpp
    :fragment: [frontend_extension_CustomOperation]
 
 And original model in framework representation also has operation with name ``CustomOperation`` with the same
 ``attr1`` and ``attr2`` attributes. Then with the following code:
 
-.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.cpp
    :language: cpp
    :fragment: [frontend_extension_CustomOperation_as_is]
 
@@ -152,7 +150,7 @@ Both ``attr1`` and ``attr2`` are copied from framework representation to OpenVIN
 If for some reason names of attributes are different but values still can be copied “as-is” you can pass attribute
 names mapping in ``OpExtension`` constructor:
 
-.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.cpp
    :language: cpp
    :fragment: [frontend_extension_CustomOperation_rename]
 
@@ -162,7 +160,7 @@ If copying of an attribute is not what you need, ``OpExtension`` also can set at
 For the same ``CustomOperation``, imagine you want to set ``attr2`` to value 5 instead of copying from ``fw_attr2``,
 to achieve that do the following:
 
-.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.cpp
    :language: cpp
    :fragment: [frontend_extension_CustomOperation_rename_set]
 
@@ -196,14 +194,14 @@ outputs map to OpenVINO ``CustomOperation`` first and second output respectively
 
 Given that, such custom operation can be registered by the following:
 
-.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.cpp
    :language: cpp
    :fragment: [frontend_extension_CustomOperation_as_is_paddle]
 
 
 Second example shows how to map the operation with named inputs and outputs, but when names of attributes are different:
 
-.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.cpp
    :language: cpp
    :fragment: [frontend_extension_CustomOperation_rename_paddle]
 
@@ -211,7 +209,7 @@ Second example shows how to map the operation with named inputs and outputs, but
 and the last one shows how to map the operation with named inputs and outputs, but when (in order to correctly map framework
 operation to OpenVINO operation) one of the attributes has to be set to predefined value:
 
-.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.cpp
    :language: cpp
    :fragment: [frontend_extension_CustomOperation_rename_set_paddle]
 
@@ -234,7 +232,7 @@ with two attributes ``alpha`` and ``beta``:
 
 Below is a snippet of ``CustomElu`` class showing how to define its attributes:
 
-.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.cpp
    :language: cpp
    :fragment: [frontend_extension_framework_map_CustomElu]
 
@@ -243,7 +241,7 @@ Let's see an example of how you can map ``CustomElu`` to PyTorch `aten::elu <htt
 ``aten::elu`` has ``alpha`` attribute second on the input list, but it doesn't have ``beta``.
 So in order to map it to ``CustomElu`` you can use the following:
 
-.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.cpp
    :language: cpp
    :fragment: [frontend_extension_framework_map_CustomElu_mapping]
 
@@ -261,11 +259,11 @@ Let's consider the following example. Imagine you have an ONNX model with ``Cust
 a TensorFlow model with ``CustomOpV3`` operation (this operation has ``axis`` attribute) and a PaddlePaddle model with ``CustomOp`` (with ``mode`` attribute)
 that has input named "X" and output named "Out" and all of them can be implemented with a single OpenVINO operation ``CustomOp`` like follows:
 
-.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.cpp
    :language: cpp
    :fragment: [frontend_extension_framework_map_macro_headers]
 
-.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.cpp
    :language: cpp
    :fragment: [frontend_extension_framework_map_macro_CustomOp]
 
@@ -303,7 +301,7 @@ This mapping also specifies the input name "X" and output name "Out".
 
 The last step is to register this custom operation by following:
 
-.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.cpp
    :language: cpp
    :fragment: [frontend_extension_framework_map_macro_add_extension]
 
@@ -348,14 +346,14 @@ from ONNX according to the formula: ``ThresholdedRelu(x, alpha) -> Multiply(x, C
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_extensions.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.py
          :language: python
          :fragment: [py_frontend_extension_ThresholdedReLU_header]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_extensions.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.cpp
          :language: cpp
          :fragment: [frontend_extension_ThresholdedReLU_header]
 
@@ -364,14 +362,14 @@ from ONNX according to the formula: ``ThresholdedRelu(x, alpha) -> Multiply(x, C
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_extensions.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.py
          :language: python
          :fragment: [py_frontend_extension_ThresholdedReLU]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_extensions.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.cpp
          :language: cpp
          :fragment: [frontend_extension_ThresholdedReLU]
 
@@ -381,7 +379,7 @@ The next example shows how to use ``ConversionExtension`` to convert PyTorch
 to demonstrate how to use ``get_values_from_const_input`` function to fetch an attribute value from input:
 
 
-.. doxygensnippet:: docs/snippets/ov_extensions.py
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.py
    :language: python
    :fragment: [py_frontend_extension_aten_hardtanh]
 
@@ -402,7 +400,7 @@ For PaddlePaddle operations, it is generally necessary to provide names for all 
 Usually those names can be found in source code of the individual operation in PaddlePaddle code.
 The following example shows such conversion for the ``top_k_v2`` operation.
 
-.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.cpp
    :language: cpp
    :fragment: [frontend_extension_paddle_TopK]
 
@@ -412,7 +410,7 @@ For a description of TensorFlow operations, including the names of their outputs
 `tf.raw_ops <https://www.tensorflow.org/api_docs/python/tf/raw_ops/>`__ documentation page.
 The next example shows such conversion for the ``TopKV2`` operation.
 
-.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+.. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.cpp
    :language: cpp
    :fragment: [frontend_extension_tf_TopK]
 

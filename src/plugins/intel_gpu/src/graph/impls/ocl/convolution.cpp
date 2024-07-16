@@ -135,9 +135,17 @@ public:
         std::tie(dilation_x, dilation_y, dilation_z) = ov::intel_gpu::get_xyz<ov::Strides, uint32_t>(dilation, 1);
         conv_params.dilation = {dilation_x, dilation_y, dilation_z};
 
+        // gpu plugin avg_pool has forced f32 output data type when input is u8/i8.
+        // So quantize(u8)->avg_pool(u8)->conv(f32) is changes to quantize(u8)->avg_pool(f32)->conv(f32)
+        // Add condition to check this case and set proper quantization mode
         if ((impl_param.input_layouts[0].data_type == data_types::u8 ||
-             impl_param.input_layouts[0].data_type == data_types::i8) &&
-             impl_param.input_layouts[1].data_type == data_types::i8) {
+             impl_param.input_layouts[0].data_type == data_types::i8 ||
+             (impl_param.input_layouts[0].data_type == data_types::f32 &&
+              (!primitive->weights_zero_points.empty() ||
+               !primitive->activations_zero_points.empty() ||
+               !primitive->compensation.empty())))
+            && (impl_param.input_layouts[1].data_type == data_types::i8 ||
+                impl_param.input_layouts[1].data_type == data_types::u8)) {
             if (!primitive->weights_zero_points.empty() && !primitive->activations_zero_points.empty()) {
                 conv_params.quantization = kernel_selector::QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS;
             } else if (!primitive->weights_zero_points.empty()) {
@@ -253,8 +261,13 @@ public:
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-       auto kernel_params = get_kernel_params(impl_param, true);
-       (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
+        // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
+        if (_kernel_data.params == nullptr) {
+            _kernel_data.params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true));
+        }
+
+        update_shapes(*_kernel_data.params, impl_param);
+        (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
     }
 };
 
@@ -348,7 +361,8 @@ attach_convolution_impl::attach_convolution_impl() {
     };
     auto dyn_formats = {
         format::bfyx,
-        format::bfzyx
+        format::bfzyx,
+        format::b_fs_yx_fsv16
     };
 
     implementation_map<convolution>::add(impl_types::ocl,

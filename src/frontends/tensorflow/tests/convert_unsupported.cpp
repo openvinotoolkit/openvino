@@ -97,18 +97,18 @@ TEST(FrontEndConvertModelTest, test_unsupported_op) {
     FrontEndManager fem;
     FrontEnd::Ptr frontEnd;
     InputModel::Ptr inputModel;
-    ASSERT_NO_THROW(frontEnd = fem.load_by_framework(TF_FE));
+    OV_ASSERT_NO_THROW(frontEnd = fem.load_by_framework(TF_FE));
     ASSERT_NE(frontEnd, nullptr);
     auto model_filename = FrontEndTestUtils::make_model_path(std::string(TEST_TENSORFLOW_MODELS_DIRNAME) +
                                                              std::string("relu_unsupported/relu_unsupported.pb"));
-    ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
+    OV_ASSERT_NO_THROW(inputModel = frontEnd->load(model_filename));
     ASSERT_NE(inputModel, nullptr);
     shared_ptr<ov::Model> model;
     ASSERT_THROW(model = frontEnd->convert(inputModel), OpConversionFailure);
     ASSERT_EQ(model, nullptr);
-    ASSERT_NO_THROW(model = frontEnd->decode(inputModel));
+    OV_ASSERT_NO_THROW(model = frontEnd->decode(inputModel));
     ASSERT_THROW(frontEnd->convert(model), OpConversionFailure);
-    ASSERT_NO_THROW(model = frontEnd->convert_partially(inputModel));
+    OV_ASSERT_NO_THROW(model = frontEnd->convert_partially(inputModel));
     ASSERT_THROW(frontEnd->convert(model), OpConversionFailure);
 
     for (auto& node : model->get_ordered_ops()) {
@@ -116,7 +116,7 @@ TEST(FrontEndConvertModelTest, test_unsupported_op) {
             model->replace_node(node, make_shared<v0::Relu>(node->input(0).get_source_output()));
         }
     }
-    ASSERT_NO_THROW(frontEnd->convert(model));
+    OV_ASSERT_NO_THROW(frontEnd->convert(model));
 }
 
 TEST_F(FrontEndConversionWithReferenceTestsF, ModelWithDynamicType) {
@@ -196,7 +196,7 @@ TEST(FrontEndConvertModelTest, test_unsupported_resource_gather_translator) {
         std::string no_ref_message = "[TensorFlow Frontend] Internal error: No translator found for";
         ASSERT_TRUE(error_message.find(ref_message) != std::string::npos);
         ASSERT_TRUE(error_message.find(no_ref_message) == std::string::npos);
-        std::string ref_message2 = "Refer to OpenVINO Tokenizers documentation";
+        std::string ref_message2 = "Install OpenVINO Tokenizers, refer to the documentation";
         ASSERT_TRUE(error_message.find(ref_message2) == std::string::npos);
         ASSERT_EQ(model, nullptr);
     } catch (...) {
@@ -234,7 +234,7 @@ TEST(FrontEndConvertModelTest, conversion_with_tokenizer_operation) {
         FAIL() << "TensorFlow 1 model with StringLower operation is not supported without openvino-tokenizers.";
     } catch (const OpConversionFailure& error) {
         std::string error_message = error.what();
-        std::string ref_message = "Refer to OpenVINO Tokenizers documentation";
+        std::string ref_message = "Install OpenVINO Tokenizers, refer to the documentation";
         ASSERT_TRUE(error_message.find(ref_message) != std::string::npos);
         ASSERT_EQ(model, nullptr);
     } catch (...) {

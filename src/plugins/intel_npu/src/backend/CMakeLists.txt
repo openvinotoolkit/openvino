@@ -41,8 +41,16 @@ if(TARGET ze_loader)
             ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${NPU_PLUGIN_COMPONENT}
             LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${NPU_PLUGIN_COMPONENT})
 
+        install(TARGETS utils EXPORT OpenVINOTargets
+            RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR} COMPONENT ${NPU_PLUGIN_COMPONENT}
+            ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${NPU_PLUGIN_COMPONENT}
+            LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR} COMPONENT ${NPU_PLUGIN_COMPONENT})
+
         # export to local tree to build against static build tree
         export(TARGETS ze_loader NAMESPACE openvino::
+            APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
+
+        export(TARGETS utils NAMESPACE openvino::
             APPEND FILE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
     endif()
 
@@ -50,3 +58,4 @@ if(TARGET ze_loader)
     install(TARGETS ze_loader
         LIBRARY DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)
 endif()
+

@@ -12,7 +12,6 @@ Inference Devices and Modes
    inference-devices-and-modes/gpu-device
    inference-devices-and-modes/npu-device
    inference-devices-and-modes/auto-device-selection
-   inference-devices-and-modes/multi-device
    inference-devices-and-modes/hetero-execution
    inference-devices-and-modes/automatic-batching
    inference-devices-and-modes/query-device-properties
@@ -32,11 +31,11 @@ different conditions:
 |    Assume certain level of automation in selecting devices for inference. They may potentially
      increase your deployed solution's performance and portability. The automated modes are:
 |    :doc:`Automatic Device Selection (AUTO) <inference-devices-and-modes/auto-device-selection>`
-|    :doc:`Multi-Device Execution (MULTI) <inference-devices-and-modes/multi-device>`
 |    :doc:`Heterogeneous Execution (HETERO) <inference-devices-and-modes/hetero-execution>`
 |    :doc:`Automatic Batching Execution (Auto-batching) <inference-devices-and-modes/automatic-batching>`
+|    :doc:`[DEPRECATED] Multi-Device Execution (MULTI) <../../documentation/legacy-features/multi-device>`
 
-
+To learn how to change the device configuration, read the :doc:`Query device properties article <inference-devices-and-modes/query-device-properties>`.
 
 Enumerating Available Devices
 #######################################
@@ -67,7 +66,7 @@ multi-device mode:
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/MULTI2.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/MULTI2.cpp
          :language: cpp
          :fragment: [part2]
 
@@ -79,8 +78,14 @@ Accordingly, the code that loops over all available devices of the "GPU" type on
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/MULTI3.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/MULTI3.cpp
          :language: cpp
          :fragment: [part3]
 
+Additional Resources
+####################
 
+* `OpenVINO™ Runtime API Tutorial <./../../notebooks/openvino-api-with-output.html>`__
+* `AUTO Device Tutorial <./../../notebooks/auto-device-with-output.html>`__
+* `GPU Device Tutorial <./../../notebooks/gpu-device-with-output.html>`__
+* `NPU Device Tutorial <./../../notebooks/hello-npu-with-output.html>`__

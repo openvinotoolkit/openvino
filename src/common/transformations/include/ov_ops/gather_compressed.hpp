@@ -23,17 +23,13 @@ public:
                      const ov::Output<Node>& axis,
                      const int64_t batch_dims,
                      const ov::Output<Node>& decompression_scale,
-                     const ov::Output<Node>& decompression_zero_point,
-                     const ov::element::Type output_type = ov::element::undefined);
+                     const ov::Output<Node>& decompression_zero_point);
 
     GatherCompressed(const ov::Output<Node>& data,
                      const ov::Output<Node>& indices,
                      const ov::Output<Node>& axis,
                      const int64_t batch_dims,
-                     const ov::Output<Node>& decompression_scale,
-                     const ov::element::Type output_type = ov::element::undefined);
-
-    bool visit_attributes(ov::AttributeVisitor& visitor) override;
+                     const ov::Output<Node>& decompression_scale);
 
     void validate_and_infer_types() override;
 
@@ -42,13 +38,6 @@ public:
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override {
         return false;
     }
-
-    ov::element::Type get_output_type() const {
-        return m_output_type;
-    }
-
-protected:
-    ov::element::Type m_output_type;
 };
 
 }  // namespace internal

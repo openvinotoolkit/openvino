@@ -60,7 +60,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
 
     ov::Core ie;
     std::vector<ov::PropertyName> supportedProperties;
-    ASSERT_NO_THROW(supportedProperties = ie.get_property("CPU", ov::supported_properties));
+    OV_ASSERT_NO_THROW(supportedProperties = ie.get_property("CPU", ov::supported_properties));
     // the order of supported properties does not matter, sort to simplify the comparison
     std::sort(expectedSupportedProperties.begin(), expectedSupportedProperties.end());
     std::sort(supportedProperties.begin(), supportedProperties.end());
@@ -72,10 +72,10 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginGetPropertiesDoesNotThrow) {
     ov::Core ie;
     std::vector<ov::PropertyName> properties;
 
-    ASSERT_NO_THROW(properties = ie.get_property("CPU", ov::supported_properties));
+    OV_ASSERT_NO_THROW(properties = ie.get_property("CPU", ov::supported_properties));
 
     for (const auto& property : properties) {
-        ASSERT_NO_THROW((void)ie.get_property("CPU", property));
+        OV_ASSERT_NO_THROW((void)ie.get_property("CPU", property));
     }
 }
 
@@ -83,7 +83,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetROPropertiesThrow) {
     ov::Core ie;
     std::vector<ov::PropertyName> properties;
 
-    ASSERT_NO_THROW(properties = ie.get_property("CPU", ov::supported_properties));
+    OV_ASSERT_NO_THROW(properties = ie.get_property("CPU", ov::supported_properties));
 
     for (const auto& property : properties) {
         if (property.is_mutable())
@@ -98,14 +98,14 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigInferenceNumThreads) {
     int32_t value = 0;
     int32_t num_threads = 1;
 
-    ASSERT_NO_THROW(ie.set_property("CPU", ov::inference_num_threads(num_threads)));
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::inference_num_threads));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::inference_num_threads(num_threads)));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::inference_num_threads));
     ASSERT_EQ(num_threads, value);
 
     num_threads = 4;
 
-    ASSERT_NO_THROW(ie.set_property("CPU", ov::inference_num_threads(num_threads)));
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::inference_num_threads));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::inference_num_threads(num_threads)));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::inference_num_threads));
     ASSERT_EQ(num_threads, value);
 }
 
@@ -114,14 +114,14 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigModelDistributionPolicy) {
     std::set<ov::hint::ModelDistributionPolicy> value = {};
     std::set<ov::hint::ModelDistributionPolicy> model_policy = {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL};
 
-    ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::model_distribution_policy(model_policy)));
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::model_distribution_policy));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::model_distribution_policy(model_policy)));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::model_distribution_policy));
     ASSERT_EQ(model_policy, value);
 
     model_policy = {};
 
-    ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::model_distribution_policy(model_policy)));
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::model_distribution_policy));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::model_distribution_policy(model_policy)));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::model_distribution_policy));
     ASSERT_EQ(model_policy, value);
 }
 
@@ -131,8 +131,8 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigStreamsNum) {
     int32_t num_streams = 1;
 
     auto setGetProperty = [&ie](int32_t& getProperty, int32_t setProperty){
-        ASSERT_NO_THROW(ie.set_property("CPU", ov::num_streams(setProperty)));
-        ASSERT_NO_THROW(getProperty = ie.get_property("CPU", ov::num_streams));
+        OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::num_streams(setProperty)));
+        OV_ASSERT_NO_THROW(getProperty = ie.get_property("CPU", ov::num_streams));
     };
 
     setGetProperty(value, num_streams);
@@ -162,18 +162,19 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinity) {
 #    else
     auto defaultBindThreadParameter = ov::Affinity::CORE;
 #    endif
+#endif
     auto coreTypes = ov::get_available_cores_types();
     if (coreTypes.size() > 1) {
         defaultBindThreadParameter = ov::Affinity::HYBRID_AWARE;
     }
-#endif
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::affinity));
+
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::affinity));
     ASSERT_EQ(defaultBindThreadParameter, value);
 
     const ov::Affinity affinity =
         defaultBindThreadParameter == ov::Affinity::HYBRID_AWARE ? ov::Affinity::NUMA : ov::Affinity::HYBRID_AWARE;
-    ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::affinity));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::affinity));
 #if defined(__APPLE__)
     ASSERT_EQ(ov::Affinity::NUMA, value);
 #else
@@ -186,8 +187,8 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinityCore) {
     ov::Affinity affinity = ov::Affinity::CORE;
     bool value = false;
 
-    ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::enable_cpu_pinning));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::enable_cpu_pinning));
 #if defined(__APPLE__)
     ASSERT_EQ(false, value);
 #else
@@ -195,8 +196,8 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinityCore) {
 #endif
 
     affinity = ov::Affinity::HYBRID_AWARE;
-    ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::enable_cpu_pinning));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::enable_cpu_pinning));
 #if defined(__APPLE__)
     ASSERT_EQ(false, value);
 #else
@@ -204,8 +205,8 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigAffinityCore) {
 #endif
 
     affinity = ov::Affinity::NUMA;
-    ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::enable_cpu_pinning));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::affinity(affinity)));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::enable_cpu_pinning));
     ASSERT_EQ(false, value);
 }
 
@@ -219,18 +220,18 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigHintInferencePrecision) {
     ov::Core ie;
     auto value = ov::element::f32;
 
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::inference_precision));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::inference_precision));
     ASSERT_EQ(expected_precision_for_performance_mode, value);
 
     const auto forcedPrecision = ov::element::f32;
 
-    ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(forcedPrecision)));
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::inference_precision));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(forcedPrecision)));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::inference_precision));
     ASSERT_EQ(value, forcedPrecision);
 
     const auto forced_precision_deprecated = ov::element::f32;
-    ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(forced_precision_deprecated)));
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::inference_precision));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(forced_precision_deprecated)));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::hint::inference_precision));
     ASSERT_EQ(value, forced_precision_deprecated);
 }
 
@@ -239,13 +240,13 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigEnableProfiling) {
     auto value = false;
     const bool enableProfilingDefault = false;
 
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::enable_profiling));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::enable_profiling));
     ASSERT_EQ(enableProfilingDefault, value);
 
     const bool enableProfiling = true;
 
-    ASSERT_NO_THROW(ie.set_property("CPU", ov::enable_profiling(enableProfiling)));
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::enable_profiling));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::enable_profiling(enableProfiling)));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::enable_profiling));
     ASSERT_EQ(enableProfiling, value);
 }
 
@@ -256,7 +257,7 @@ const std::map<ov::hint::ExecutionMode, ExpectedModeAndType> expectedTypeByMode 
     {ov::hint::ExecutionMode::PERFORMANCE, {ov::hint::ExecutionMode::PERFORMANCE,
                                             expected_precision_for_performance_mode}},
     {ov::hint::ExecutionMode::ACCURACY,    {ov::hint::ExecutionMode::ACCURACY,
-                                            ov::element::f32}},
+                                            ov::element::undefined}},
 };
 
 TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigExecutionModeExpectCorrespondingInferencePrecision) {
@@ -267,9 +268,9 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigExecutionModeExpectCorrespondi
     auto inference_precision_value = ov::element::undefined;
 
     // check default values
-    ASSERT_NO_THROW(inference_precision_value = ie.get_property("CPU", ov::hint::inference_precision));
+    OV_ASSERT_NO_THROW(inference_precision_value = ie.get_property("CPU", ov::hint::inference_precision));
     ASSERT_EQ(inference_precision_value, inference_precision_default);
-    ASSERT_NO_THROW(execution_mode_value = ie.get_property("CPU", ov::hint::execution_mode));
+    OV_ASSERT_NO_THROW(execution_mode_value = ie.get_property("CPU", ov::hint::execution_mode));
     ASSERT_EQ(execution_mode_value, execution_mode_default);
 
     for (const auto& m : expectedTypeByMode) {
@@ -277,11 +278,11 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigExecutionModeExpectCorrespondi
         const auto execution_mode_expected = m.second.first;
         const auto inference_precision_expected = m.second.second;
 
-        ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::execution_mode(execution_mode)));
-        ASSERT_NO_THROW(execution_mode_value = ie.get_property("CPU", ov::hint::execution_mode));
+        OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::execution_mode(execution_mode)));
+        OV_ASSERT_NO_THROW(execution_mode_value = ie.get_property("CPU", ov::hint::execution_mode));
         ASSERT_EQ(execution_mode_value, execution_mode_expected);
 
-        ASSERT_NO_THROW(inference_precision_value = ie.get_property("CPU", ov::hint::inference_precision));
+        OV_ASSERT_NO_THROW(inference_precision_value = ie.get_property("CPU", ov::hint::inference_precision));
         ASSERT_EQ(inference_precision_value, inference_precision_expected);
     }
 }
@@ -293,13 +294,13 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigExecutionModeAndInferencePreci
 
     auto expect_execution_mode = [&](const ov::hint::ExecutionMode expected_value) {
         auto execution_mode_value = ov::hint::ExecutionMode::ACCURACY;
-        ASSERT_NO_THROW(execution_mode_value = ie.get_property("CPU", ov::hint::execution_mode));
+        OV_ASSERT_NO_THROW(execution_mode_value = ie.get_property("CPU", ov::hint::execution_mode));
         ASSERT_EQ(execution_mode_value, expected_value);
     };
 
     auto expect_inference_precision = [&](const ov::element::Type expected_value) {
         auto inference_precision_value = ov::element::undefined;;
-        ASSERT_NO_THROW(inference_precision_value = ie.get_property("CPU", ov::hint::inference_precision));
+        OV_ASSERT_NO_THROW(inference_precision_value = ie.get_property("CPU", ov::hint::inference_precision));
         ASSERT_EQ(inference_precision_value, expected_value);
     };
 
@@ -307,13 +308,13 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigExecutionModeAndInferencePreci
     expect_execution_mode(execution_mode_default);
     expect_inference_precision(inference_precision_default);
     // verify that conflicting property values work as expect
-    ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE)));
-    ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(ov::element::f32)));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE)));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(ov::element::f32)));
     expect_execution_mode(ov::hint::ExecutionMode::PERFORMANCE); // inference_preicision does not affect execution_mode property itself
     expect_inference_precision(ov::element::f32); // inference_preicision has more priority than performance mode
 
-    ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::execution_mode(ov::hint::ExecutionMode::ACCURACY)));
-    ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(bf16_if_can_be_emulated)));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::execution_mode(ov::hint::ExecutionMode::ACCURACY)));
+    OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::inference_precision(bf16_if_can_be_emulated)));
     expect_execution_mode(ov::hint::ExecutionMode::ACCURACY);
     expect_inference_precision(bf16_if_can_be_emulated);
 }
@@ -322,7 +323,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigLogLevel) {
     ov::Core ie;
     //check default value
     ov::Any value;
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::log::level));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::log::level));
     ASSERT_EQ(value.as<ov::log::Level>(), ov::log::Level::NO);
 
     //check set and get
@@ -335,8 +336,8 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginSetConfigLogLevel) {
         ov::log::Level::TRACE};
 
     for (unsigned int i = 0; i < logLevels.size(); i++) {
-        ASSERT_NO_THROW(ie.set_property("CPU", ov::log::level(logLevels[i])));
-        ASSERT_NO_THROW(value = ie.get_property("CPU", ov::log::level));
+        OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::log::level(logLevels[i])));
+        OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::log::level));
         ASSERT_EQ(value.as<ov::log::Level>(), logLevels[i]);
     }
 
@@ -353,7 +354,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginCheckCPUExecutionDevice) {
     ov::Core ie;
     ov::Any value;
 
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::execution_devices));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::execution_devices));
     ASSERT_EQ(value.as<std::string>(), "CPU");
 }
 
@@ -361,7 +362,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginCheckCPUDeviceType) {
     ov::Core ie;
     ov::Any value;
 
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::device::type));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::device::type));
     ASSERT_EQ(value.as<ov::device::Type>(), ov::device::Type::INTEGRATED);
 }
 
@@ -369,7 +370,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginCheckCPUDeviceArchitecture) {
     ov::Core ie;
     ov::Any value;
 
-    ASSERT_NO_THROW(value = ie.get_property("CPU", ov::device::architecture));
+    OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::device::architecture));
 
 #if defined(OPENVINO_ARCH_X86_64)
     ASSERT_EQ(value.as<std::string>(), "intel64");

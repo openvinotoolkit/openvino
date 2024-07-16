@@ -30,6 +30,7 @@ class TorchFXPythonDecoder (Decoder):
         self.input_shapes = input_shapes
 
         self._input_signature = []
+        self._example_input = None
 
         if issubclass(type(pt_module), torch.fx.graph_module.GraphModule):
 
@@ -56,6 +57,15 @@ class TorchFXPythonDecoder (Decoder):
                     uargs = self.unpack_containers(self._nodes[i].args)
                     self._outputs = [(arg[0], self._nodes.index(arg[1]))
                                      for arg in uargs if arg[1] is not None]
+            for idx, shape in enumerate(found_shapes):
+                if shape is not None:
+                    new_shape=[]
+                    for dim in range(0, len(shape)):
+                        if (type(shape[dim]).__name__ == "SymInt"):
+                            new_shape.append(-1)
+                        else:
+                            new_shape.append(shape[dim])
+                    found_shapes[idx] = torch.Size(new_shape)
 
             if not input_shapes or len(input_shapes) == 0:
                 self.input_shapes = found_shapes
@@ -306,6 +316,13 @@ class TorchFXPythonDecoder (Decoder):
 
     def num_of_outputs(self):
         return len(self.outputs())
+
+    def output_list_size(self):
+        max_out_id = -1
+        for user in self.pt_module.users:
+            if "<built-in function getitem>" == str(user.target) and max_out_id < user.args[1]:
+                max_out_id = user.args[1]
+        return max_out_id + 1
 
     def output(self, index):
         return self.outputs()[index]

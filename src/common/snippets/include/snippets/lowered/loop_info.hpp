@@ -23,8 +23,9 @@ public:
     enum {UNDEFINED_DIM_IDX = std::numeric_limits<size_t>::max()};
 
     LoopInfo() = default;
-    LoopInfo(size_t work_amount, size_t increment, const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits);
-    LoopInfo(size_t work_amount, size_t increment, const std::vector<ExpressionPort>& entries, const std::vector<ExpressionPort>& exits);
+    LoopInfo(size_t work_amount, size_t increment, const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits, bool is_wa_const = false);
+    LoopInfo(size_t work_amount, size_t increment, const std::vector<ExpressionPort>& entries, const std::vector<ExpressionPort>& exits,
+             bool is_wa_const = false);
     virtual ~LoopInfo() = default;
 
     /**
@@ -33,6 +34,12 @@ public:
      * @return the copy
      */
     virtual std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map) const = 0;
+
+    /**
+     * @brief Check if some parameters of Loop are dynamic (undefined)
+     * @return True if some parameters of Loop are unknown, False if all parameters are static
+     */
+    virtual bool is_dynamic() const;
 
     /**
      * @brief Returns count of input ports
@@ -76,6 +83,11 @@ public:
      * @return m_output_ports
      */
     const std::vector<LoopPort>& get_output_ports() const;
+    /**
+     * @brief Returns True if `work_amount` cannot be rewritten/updated by passes.
+     * @return m_is_work_amount_const
+     */
+    bool is_work_amount_const() const;
 
     /**
      * @brief Set m_work_amount value
@@ -92,6 +104,11 @@ public:
      * @param dim_idx - index
      */
     void set_dim_idx(size_t dim_idx);
+    /**
+     * @brief Sets `value` to `m_is_work_amount_const`
+     * @param value - value of the attribute
+     */
+    void set_work_amount_const(bool value);
 
     /**
      * @brief Replace the current LoopPort `actual_port` with new `target_ports`
@@ -139,6 +156,16 @@ public:
     const char* get_type_name() const {
         return get_type_info().name;
     }
+    /**
+     * @brief Return true if expression port is a loop port
+     * @param expr_port - expression port to check
+     */
+    bool is_loop_port(const ExpressionPort& expr_port);
+    /**
+     * @brief Return loop port of an expression port
+     * @param expr_port - expression port.
+     */
+    const LoopPort& get_loop_port(const ExpressionPort& expr_port);
 
 protected:
     /**
@@ -164,6 +191,10 @@ protected:
     // Note: Scalars aren't input expressions but can be before first input expr in Linear IR
     std::vector<LoopPort> m_input_ports = {};
     std::vector<LoopPort> m_output_ports = {};
+
+    // TODO [143394] : All static values in compilation stage should be `is_const=True` (not only `work_amount`)
+    // If True, no one pass can rewrite the value of `m_work_amount`
+    bool m_is_work_amount_const = false;
 };
 using LoopInfoPtr = std::shared_ptr<LoopInfo>;
 
@@ -184,6 +215,8 @@ public:
         int64_t ptr_increment = 0;
         int64_t finalization_offset = 0;
         int64_t data_size = 0;
+
+        bool is_dynamic() const;
     };
     // The structure describes full information about port
     // - TODO [140365] : UnifiedLoopInfo should have the map of LoopPorts and LoopDesc as class field
@@ -197,13 +230,13 @@ public:
     UnifiedLoopInfo(size_t work_amount, size_t increment,
                     const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits,
                     const std::vector<LoopPortDesc>& in_descs, const std::vector<LoopPortDesc>& out_descs,
-                    const SpecificIterationHandlers& handlers = SpecificIterationHandlers());
+                    const SpecificIterationHandlers& handlers = SpecificIterationHandlers(), bool is_wa_const = false);
     UnifiedLoopInfo(size_t work_amount, size_t increment,
                     const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits,
-                    const SpecificIterationHandlers& handlers = SpecificIterationHandlers());
+                    const SpecificIterationHandlers& handlers = SpecificIterationHandlers(), bool is_wa_const = false);
     UnifiedLoopInfo(size_t work_amount, size_t increment,
                     const std::vector<ExpressionPort>& entries, const std::vector<ExpressionPort>& exits,
-                    const SpecificIterationHandlers& handlers = SpecificIterationHandlers());
+                    const SpecificIterationHandlers& handlers = SpecificIterationHandlers(), bool is_wa_const = false);
 
     /**
      * @brief Clone LoopInfo with new expressions
@@ -211,6 +244,12 @@ public:
      * @return the copy
      */
     std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map) const override;
+
+    /**
+     * @brief Check if some parameters of Loop are dynamic (undefined)
+     * @return True if some parameters of Loop are unknown, False if all parameters are static
+     */
+    bool is_dynamic() const override;
 
     /**
      * @brief Returns handlers of loop specific iterations
@@ -296,6 +335,15 @@ public:
     void replace_with_new_ports(const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports) override;
 
     /**
+     * @brief Remove remove_ports and add add_ports to the current LoopPort.
+     *        This function removes ports directly and adds ports at the end of current LoopPort, caller is responsible to
+     *        sort the LoopPort after LoopPort being updated according to execution order of the expressions.
+     *        Note: all port in remove_ports and add_ports should have the same type.
+     * @param remove_ports need to be removed
+     * @param add_ports need to be added
+     */
+    void update_loop_ports(const std::vector<ExpressionPort>& remove_ports, const std::vector<ExpressionPort>& add_ports);
+    /**
      * @brief Iterates through all LoopPortDesc and call `caller` for each of them
      * @param caller - function that called for each LoopPortDesc
      */
@@ -345,6 +393,23 @@ private:
      *         - Consistency of ports and descriptors
      */
     void validate() const;
+    /**
+     * @brief Remove the current LoopPort that contains ExpressionPort.
+     *        Note: If there is no LoopPort with ExpressionPort `ports`, does nothing.
+     *        This function removes ports directly, caller is responsible to sort the LoopPort after updated
+     *        according to execution order of the expressions.
+     *        Note: all port in ports should have the same type.
+     * @param ports need to be removed
+     */
+    void remove_loop_ports(const std::vector<ExpressionPort>& ports);
+    /**
+     * @brief Add ports to the current LoopPort.
+     *        This function adds ports in end of current LoopPort vector, caller is responsible to
+     *        sort the LoopPort after updated according to execution order of the expressions.
+     *        Note: all port in ports should have the same type.
+     * @param ports need to be added
+     */
+    void add_loop_ports(const std::vector<ExpressionPort>& ports);
 
     SpecificIterationHandlers m_handlers = {};
     std::vector<LoopPortDesc> m_input_port_descs = {};
@@ -365,13 +430,19 @@ public:
     ExpandedLoopInfo(size_t work_amount, size_t increment,
                      const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits,
                      std::vector<int64_t> ptr_increments, std::vector<int64_t> final_offsets, std::vector<int64_t> data_sizes,
-                     SpecificLoopIterType type, std::shared_ptr<UnifiedLoopInfo> unified_loop_info);
+                     SpecificLoopIterType type, std::shared_ptr<UnifiedLoopInfo> unified_loop_info, bool is_wa_const = false);
     /**
      * @brief Clone LoopInfo with new expressions
      * @param expr_map map of new and old expressions
      * @return the copy
      */
     std::shared_ptr<LoopInfo> clone_with_new_expr(const ExpressionMap& expr_map) const override;
+
+    /**
+     * @brief Check if some parameters of Loop are dynamic (undefined)
+     * @return True if some parameters of Loop are unknown, False if all parameters are static
+     */
+    bool is_dynamic() const override;
 
     /**
      * @brief Returns original unified LoopInfo from which this LoopInfo was created
@@ -403,6 +474,19 @@ public:
      * @return const ref of `m_data_sizes`
      */
     const std::vector<int64_t>& get_data_sizes() const;
+
+    /**
+     * @brief Update `m_ptr_increments` using copy values from `new_values`.
+     *        The count of new values must be equal to the count of current increments.
+     * @param new_values vector of new pointer increments
+     */
+    void update_ptr_increments(const std::vector<int64_t>& new_values);
+    /**
+     * @brief Update `m_finalization_offsets` using copy values from `new_values`.
+     *        The count of new values must be equal to the count of current offsets.
+     * @param new_values vector of new finalization offsets
+     */
+    void update_finalization_offsets(const std::vector<int64_t>& new_values);
 
     /**
      * @brief Replace the current LoopPort `actual_port` with new `target_ports`

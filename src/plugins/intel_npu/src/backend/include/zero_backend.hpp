@@ -7,6 +7,7 @@
 #include <map>
 #include <memory>
 
+#include "intel_npu/utils/logger/logger.hpp"
 #include "npu.hpp"
 #include "zero_init.hpp"
 
@@ -25,11 +26,15 @@ public:
     uint32_t getDriverExtVersion() const override;
 
     bool isBatchingSupported() const override;
+    bool isWorkloadTypeSupported() const override;
+
+    void* getContext() const override;
 
 private:
     std::shared_ptr<ZeroInitStructsHolder> _instance;
 
     std::map<std::string, std::shared_ptr<IDevice>> _devices{};
+    Logger _logger;
 };
 
 }  // namespace intel_npu

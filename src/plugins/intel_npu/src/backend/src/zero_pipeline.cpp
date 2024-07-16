@@ -10,6 +10,8 @@
 #include "intel_npu/al/itt.hpp"
 #include "intel_npu/al/prefix.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/zero/zero_api.hpp"
+#include "zero_types.hpp"
 
 namespace intel_npu {
 
@@ -23,7 +25,7 @@ public:
                      ze_graph_profiling_query_handle_t profiling_handle,
                      const std::array<std::shared_ptr<CommandQueue>, stage::COUNT>& command_queues,
                      const uint32_t& group_ordinal,
-                     std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& tensors)
+                     std::unordered_map<std::string, TensorData>& tensors_data)
         : _config(config),
           _command_queues{command_queues},
           _command_list{{{device_handle, context, graph_ddi_table_ext, _config, group_ordinal},
@@ -35,7 +37,9 @@ public:
           _event_pool(device_handle, context, stage::COUNT, _config),
           _event{{{_event_pool.handle(), stage::UPLOAD, _config},
                   {_event_pool.handle(), stage::EXECUTE, _config},
-                  {_event_pool.handle(), stage::READBACK, _config}}} {
+                  {_event_pool.handle(), stage::READBACK, _config}}},
+          _logger("DiscretePipeline", _config.get<LOG_LEVEL>()) {
+        _logger.debug("DiscretePipeline - initialize started");
         const ZeroExecutor* executor = static_cast<const ZeroExecutor*>(executorPtr.get());
         static const std::size_t alignment = STANDARD_PAGE_SIZE;
 
@@ -45,9 +49,11 @@ public:
         }
         _deviceInputs.allocate(device_handle, context);
 
+        _logger.debug("DiscretePipeline - appending memory copy and set argument value for input");
+
         for (const auto& desc : executor->inputs_desc_map()) {
-            const std::shared_ptr<ov::ITensor>& inputTensor = tensors.at(desc.first);
-            const void* tensorBuffer = reinterpret_cast<const void*>(inputTensor->data());
+            const TensorData& inputTensorData = tensors_data.at(desc.first);
+            const void* tensorBuffer = reinterpret_cast<const void*>(inputTensorData.mem);
 
             const std::size_t argSize = zeroUtils::getSizeIOBytes(desc.second.info);
             std::size_t size = argSize + alignment - (argSize % alignment);
@@ -57,6 +63,8 @@ public:
             executor->setArgumentValue(desc.second.idx, _deviceInputs.getDevicePtr(desc.first));
         }
 
+        _logger.debug("DiscretePipeline - append signal event");
+
         _command_list[stage::UPLOAD].appendBarrier();
         _event[stage::UPLOAD].AppendSignalEvent(_command_list[stage::UPLOAD]);
 
@@ -65,9 +73,10 @@ public:
         }
         _deviceOutputs.allocate(device_handle, context);
 
+        _logger.debug("DiscretePipeline - appending memory copy and set argument value for output");
         for (const auto& desc : executor->outputs_desc_map()) {
-            const std::shared_ptr<ov::ITensor>& outputTensor = tensors.at(desc.first);
-            void* tensorBuffer = reinterpret_cast<void*>(outputTensor->data());
+            const TensorData& outputTensorData = tensors_data.at(desc.first);
+            void* tensorBuffer = reinterpret_cast<void*>(outputTensorData.mem);
 
             const std::size_t argSize = zeroUtils::getSizeIOBytes(desc.second.info);
             std::size_t size = argSize + alignment - (argSize % alignment);
@@ -80,14 +89,15 @@ public:
         }
 
         _event[stage::UPLOAD].AppendWaitOnEvent(_command_list[stage::EXECUTE]);
-
+        _logger.debug("DiscretePipeline - appendGraphExecute");
         _command_list[stage::EXECUTE].appendGraphExecute(executor->graph(), profiling_handle);
-
+        _logger.debug("DiscretePipeline - appendEventReset");
         _event[stage::UPLOAD].AppendEventReset(_command_list[stage::READBACK]);
 
         for (auto& commandList : _command_list) {
             commandList.close();
         }
+        _logger.debug("DiscretePipeline - initialize completed");
     };
 
     DiscretePipeline(const DiscretePipeline&) = delete;
@@ -95,6 +105,7 @@ public:
     virtual ~DiscretePipeline() = default;
 
     void push(size_t) override {
+        _logger.debug("DiscretePipeline - push() started");
         OV_ITT_TASK_CHAIN(ZERO_INFER_REQUEST_DP_PUSH,
                           itt::domains::LevelZeroBackend,
                           "DiscretePipeline::push",
@@ -105,9 +116,11 @@ public:
         OV_ITT_TASK_NEXT(ZERO_INFER_REQUEST_DP_PUSH, "EXECUTE");
         // Submit the command list for execute
         _command_queues[stage::EXECUTE]->executeCommandList(_command_list[stage::EXECUTE], _fence[stage::EXECUTE]);
+        _logger.debug("DiscretePipeline - push() completed");
     };
 
     void pull(size_t) override {
+        _logger.debug("DiscretePipeline - pull() started");
         OV_ITT_TASK_CHAIN(ZERO_INFER_REQUEST_DP_PULL,
                           itt::domains::LevelZeroBackend,
                           "DiscretePipeline::pull",
@@ -120,6 +133,7 @@ public:
         // Wait for output copy to finish execution for _fence from the host, to make sure that data
         // is available in the hostMem buffer of the output
         _fence[stage::READBACK].hostSynchronize();
+        _logger.debug("DiscretePipeline - pull() completed");
     };
 
     void reset(size_t) const override {
@@ -129,6 +143,8 @@ public:
         }
     };
 
+    void updateCommandList(std::unordered_map<std::string, TensorData>&, size_t) override{};
+
 private:
     const Config _config;
     const std::array<std::shared_ptr<CommandQueue>, stage::COUNT>& _command_queues;
@@ -136,6 +152,7 @@ private:
     std::array<Fence, stage::COUNT> _fence;
     EventPool _event_pool;
     std::array<Event, stage::COUNT> _event;
+    Logger _logger;
 };
 
 struct IntegratedPipeline final : public Pipeline {
@@ -149,42 +166,47 @@ public:
                        std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
                        CommandQueue& command_queue,
                        const uint32_t& group_ordinal,
-                       std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& tensors,
+                       std::unordered_map<std::string, TensorData>& tensors_data,
                        const size_t batch_size)
         : _config(config),
+          _executor(static_cast<const ZeroExecutor*>(executorPtr.get())),
           _command_queue{command_queue},
           _event_pool{device_handle, context, batch_size ? static_cast<uint32_t>(batch_size) : 1, _config},
-          _npu_profiling(npu_profiling) {
-        const ZeroExecutor* executor = static_cast<const ZeroExecutor*>(executorPtr.get());
-
+          _npu_profiling(std::move(npu_profiling)),
+          _logger("IntegratedPipeline", _config.get<LOG_LEVEL>()) {
         OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend,
                            "Zero_infer_request::IntegratedPipeline::IntegratedPipeline");
+        _logger.debug("IntegratedPipeline - initialize started");
 
         _command_lists.reserve(batch_size);
         _events.reserve(batch_size);
         _fences.reserve(batch_size);
+        _logger.debug("IntegratedPipeline - emplace_back _event_pool and _command_queue");
         for (size_t i = 0; i < batch_size; i++) {
-            _command_lists.emplace_back(
-                std::make_unique<CommandList>(device_handle, context, graph_ddi_table_ext, _config, group_ordinal));
+            _command_lists.emplace_back(std::make_unique<CommandList>(
+                device_handle,
+                context,
+                graph_ddi_table_ext,
+                _config,
+                group_ordinal,
+                _executor->getInitStructs()->getMutableCommandListVersion() ? true : false));
             _events.emplace_back(std::make_unique<Event>(_event_pool.handle(), static_cast<uint32_t>(i), _config));
             _fences.emplace_back(std::make_unique<Fence>(_command_queue, _config));
         }
 
         for (size_t i = 0; i < batch_size; i++) {
-            for (const auto& desc : executor->inputs_desc_map()) {
-                const std::shared_ptr<ov::ITensor>& inputTensor = tensors.at(desc.first);
-                size_t inputTensorByteSize = inputTensor->get_byte_size();
-                executor->setArgumentValue(
+            for (const auto& desc : _executor->inputs_desc_map()) {
+                const TensorData& inputTensorData = tensors_data.at(desc.first);
+                _executor->setArgumentValue(
                     desc.second.idx,
-                    static_cast<unsigned char*>(inputTensor->data()) + (i * inputTensorByteSize) / batch_size);
+                    static_cast<unsigned char*>(inputTensorData.mem) + (i * inputTensorData.size) / batch_size);
             }
 
-            for (const auto& desc : executor->outputs_desc_map()) {
-                const std::shared_ptr<ov::ITensor>& outputTensor = tensors.at(desc.first);
-                size_t outputTensorByteSize = outputTensor->get_byte_size();
-                executor->setArgumentValue(
+            for (const auto& desc : _executor->outputs_desc_map()) {
+                const TensorData& outputTensorData = tensors_data.at(desc.first);
+                _executor->setArgumentValue(
                     desc.second.idx,
-                    static_cast<unsigned char*>(outputTensor->data()) + (i * outputTensorByteSize) / batch_size);
+                    static_cast<unsigned char*>(outputTensorData.mem) + (i * outputTensorData.size) / batch_size);
             }
 
             /// append timestamp command if feature was activated
@@ -194,7 +216,7 @@ public:
                     reinterpret_cast<uint64_t*>(_npu_profiling->npu_ts_infer_start));
             }
 
-            _command_lists.at(i)->appendGraphExecute(executor->graph(), profiling_handle);
+            _command_lists.at(i)->appendGraphExecute(_executor->graph(), profiling_handle);
 
             /// append timestamp command if feature was activated
             if (_npu_profiling != nullptr) {
@@ -209,6 +231,7 @@ public:
             }
             _command_lists.at(i)->close();
         }
+        _logger.debug("IntegratedPipeline - initialize completed");
     }
 
     IntegratedPipeline(const IntegratedPipeline&) = delete;
@@ -216,15 +239,18 @@ public:
     virtual ~IntegratedPipeline() = default;
 
     void push(size_t batch_index) override {
+        _logger.debug("IntegratedPipeline - push() started");
         OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_PUSH, itt::domains::LevelZeroBackend, "IntegratedPipeline", "push");
         if (sync_output_with_fences_) {
             _command_queue.executeCommandList(*_command_lists.at(batch_index), *_fences.at(batch_index));
         } else {
             _command_queue.executeCommandList(*_command_lists.at(batch_index));
         }
+        _logger.debug("IntegratedPipeline - push() completed");
     };
 
     void pull(size_t batch_index) override {
+        _logger.debug("IntegratedPipeline - pull() started");
         OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_PULL, itt::domains::LevelZeroBackend, "IntegratedPipeline", "pull");
         if (sync_output_with_fences_) {
             _fences.at(batch_index)->hostSynchronize();
@@ -235,18 +261,80 @@ public:
         if (_npu_profiling != nullptr) {
             _npu_profiling->sampleNpuTimestamps();
         }
+        _logger.debug("IntegratedPipeline - pull() completed");
     };
 
     void reset(size_t batch_index) const override {
+        _logger.debug("IntegratedPipeline - rest() started");
         if (sync_output_with_fences_) {
             _fences.at(batch_index)->reset();
         } else {
             _events.at(batch_index)->reset();
         }
+        _logger.debug("IntegratedPipeline - rest() completed");
+    };
+
+    void updateCommandList(std::unordered_map<std::string, TensorData>& tensors_data, size_t batch_size) override {
+        std::vector<ze_mutable_graph_argument_exp_desc_t> mutable_argument_desc;
+        int32_t changed_tensors = 0;
+
+        for (const auto& desc : tensors_data) {
+            if (desc.second.changed == true) {
+                changed_tensors++;
+            }
+        }
+
+        mutable_argument_desc.reserve(changed_tensors);
+
+        auto set_mutable_desc =
+            [&](int32_t mutable_desc_index, uint64_t command_list_id, uint32_t arg_index, const void* arg_value) {
+                mutable_argument_desc.emplace_back(ze_mutable_graph_argument_exp_desc_t{
+                    ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC,
+                    mutable_desc_index ? &mutable_argument_desc.at(mutable_desc_index - 1) : nullptr,
+                    command_list_id,
+                    arg_index,
+                    arg_value});
+            };
+
+        for (size_t i = 0; i < batch_size; i++) {
+            int32_t mutable_argument_desc_index = -1;
+
+            for (const auto& desc : _executor->inputs_desc_map()) {
+                TensorData& inputTensorData = tensors_data.at(desc.first);
+
+                if (inputTensorData.changed == true) {
+                    set_mutable_desc(
+                        ++mutable_argument_desc_index,
+                        _command_lists.at(i)->getCommandListId(),
+                        desc.second.idx,
+                        static_cast<unsigned char*>(inputTensorData.mem) + (i * inputTensorData.size) / batch_size);
+
+                    inputTensorData.changed = false;
+                }
+            }
+
+            for (const auto& desc : _executor->outputs_desc_map()) {
+                TensorData& outputTensorData = tensors_data.at(desc.first);
+
+                if (outputTensorData.changed == true) {
+                    set_mutable_desc(
+                        ++mutable_argument_desc_index,
+                        _command_lists.at(i)->getCommandListId(),
+                        desc.second.idx,
+                        static_cast<unsigned char*>(outputTensorData.mem) + (i * outputTensorData.size) / batch_size);
+
+                    outputTensorData.changed = false;
+                }
+            }
+
+            _command_lists.at(i)->updateMutableCommandList(&mutable_argument_desc.at(mutable_argument_desc_index));
+            _command_lists.at(i)->close();
+        }
     };
 
 private:
     const Config _config;
+    const ZeroExecutor* _executor;
     CommandQueue& _command_queue;
     std::vector<std::unique_ptr<CommandList>> _command_lists;
     std::vector<std::unique_ptr<Fence>> _fences;
@@ -254,6 +342,7 @@ private:
     std::vector<std::unique_ptr<Event>> _events;
     bool sync_output_with_fences_ = true;
     std::shared_ptr<zeroProfiling::NpuInferProfiling> _npu_profiling;
+    Logger _logger;
 };
 
 std::unique_ptr<Pipeline> makePipeline(const std::shared_ptr<const IExecutor>& executorPtr,
@@ -261,7 +350,7 @@ std::unique_ptr<Pipeline> makePipeline(const std::shared_ptr<const IExecutor>& e
                                        zeroProfiling::ProfilingPool& profiling_pool,
                                        zeroProfiling::ProfilingQuery& profiling_query,
                                        std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
-                                       std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& tensors,
+                                       std::unordered_map<std::string, TensorData>& tensors_data,
                                        const size_t batch_size) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Infer_request::makePipeline");
     if (profiling_pool.create())
@@ -289,7 +378,7 @@ std::unique_ptr<Pipeline> makePipeline(const std::shared_ptr<const IExecutor>& e
                                                     npu_profiling,
                                                     *command_queues[stage::EXECUTE],
                                                     group_ordinal,
-                                                    tensors,
+                                                    tensors_data,
                                                     batch_size);
     }
 
@@ -301,7 +390,7 @@ std::unique_ptr<Pipeline> makePipeline(const std::shared_ptr<const IExecutor>& e
                                               profiling_query.getHandle(),
                                               command_queues,
                                               group_ordinal,
-                                              tensors);
+                                              tensors_data);
 }
 
 }  // namespace intel_npu

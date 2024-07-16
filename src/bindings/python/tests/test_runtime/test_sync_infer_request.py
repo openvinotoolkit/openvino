@@ -25,7 +25,7 @@ from openvino import (
 from openvino.runtime import ProfilingInfo
 from openvino.preprocess import PrePostProcessor
 
-from tests.utils.helpers import generate_image, get_relu_model, generate_model_with_memory
+from tests.utils.helpers import generate_image, get_relu_model
 
 
 def create_simple_request_and_inputs(device):
@@ -392,62 +392,6 @@ def test_get_compiled_model(device):
     assert np.allclose(ref[0], test[0])
 
 
-@pytest.mark.parametrize("data_type",
-                         [np.float32,
-                          np.int32,
-                          np.float16])
-@pytest.mark.parametrize("mode", ["set_init_memory_state", "reset_memory_state", "normal", "reset_via_infer_request"])
-@pytest.mark.parametrize("input_shape", [[10], [10, 10], [10, 10, 10], [2, 10, 10, 10]])
-@pytest.mark.skipif(
-    os.environ.get("TEST_DEVICE", "CPU") not in ["CPU", "GPU"],
-    reason=f"Can't run test on device {os.environ.get('TEST_DEVICE', 'CPU')}, "
-    "Memory layers fully supported only on CPU and GPU",
-)
-def test_query_state_write_buffer(device, input_shape, data_type, mode):
-    core = Core()
-
-    from openvino import Tensor
-    from openvino.runtime.utils.types import get_dtype
-
-    model = generate_model_with_memory(input_shape, data_type)
-    model.validate_nodes_and_infer_types()
-    compiled_model = core.compile_model(model=model, device_name=device)
-    request = compiled_model.create_infer_request()
-    mem_states = request.query_state()
-    mem_state = mem_states[0]
-
-    assert mem_state.name == "var_id_667"
-    assert get_dtype(mem_state.state.element_type) == data_type
-
-    for i in range(1, 10):
-        if mode == "set_init_memory_state":
-            # create initial value
-            const_init = 5
-            init_array = np.full(input_shape, const_init, dtype=get_dtype(mem_state.state.element_type))
-            tensor = Tensor(init_array)
-            mem_state.state = tensor
-
-            res = request.infer({0: np.full(input_shape, 1, dtype=data_type)})
-            expected_res = np.full(input_shape, 1 + const_init, dtype=data_type)
-        elif mode == "reset_memory_state":
-            # reset initial state of ReadValue to zero
-            mem_state.reset()
-            res = request.infer({0: np.full(input_shape, 1, dtype=data_type)})
-            # always ones
-            expected_res = np.full(input_shape, 1, dtype=data_type)
-        elif mode == "reset_via_infer_request":
-            # reset initial state of ReadValue to zero
-            request.reset_state()
-            res = request.infer({0: np.full(input_shape, 1, dtype=data_type)})
-            # always ones
-            expected_res = np.full(input_shape, 1, dtype=data_type)
-        else:
-            res = request.infer({0: np.full(input_shape, 1, dtype=data_type)})
-            expected_res = np.full(input_shape, i, dtype=data_type)
-
-        assert np.allclose(res[list(res)[0]], expected_res, atol=1e-6), f"Expected values: {expected_res} \n Actual values: {res} \n"
-
-
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_get_results(device, share_inputs):
     core = Core()
@@ -686,7 +630,7 @@ def test_convert_infer_request(device):
     res = request.infer(inputs)
     with pytest.raises(TypeError) as e:
         deepcopy(res)
-    assert "cannot deepcopy 'openvino.runtime.ConstOutput' object." in str(e)
+    assert "Cannot deepcopy 'openvino.runtime.ConstOutput' object." in str(e)
 
 
 @pytest.mark.parametrize("share_inputs", [True, False])

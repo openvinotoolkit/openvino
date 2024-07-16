@@ -10,6 +10,8 @@
 #include "node/include/helper.hpp"
 #include "node/include/model_wrap.hpp"
 #include "node/include/read_model_args.hpp"
+#include "node/include/type_validation.hpp"
+#include "openvino/util/common_util.hpp"
 
 void validate_set_property_args(const Napi::CallbackInfo& info) {
     const size_t args_length = info.Length();
@@ -49,6 +51,7 @@ Napi::Function CoreWrap::get_class(Napi::Env env) {
                         InstanceMethod("compileModelSync", &CoreWrap::compile_model_sync_dispatch),
                         InstanceMethod("compileModel", &CoreWrap::compile_model_async),
                         InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices),
+                        InstanceMethod("importModel", &CoreWrap::import_model_async),
                         InstanceMethod("importModelSync", &CoreWrap::import_model),
                         InstanceMethod("getAvailableDevices", &CoreWrap::get_available_devices),
                         InstanceMethod("getVersions", &CoreWrap::get_versions),
@@ -58,14 +61,38 @@ Napi::Function CoreWrap::get_class(Napi::Env env) {
 }
 
 Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
-    try {
-        ReadModelArgs* args;
-        args = new ReadModelArgs(info);
-        auto model = args->model_str.empty() ? _core.read_model(args->model_path, args->bin_path)
-                                             : _core.read_model(args->model_str, args->weight_tensor);
-        delete args;
+    std::vector<std::string> allowed_signatures;
 
-        return ModelWrap::wrap(info.Env(), model);
+    try {
+        std::shared_ptr<ov::Model> model;
+
+        if (ov::js::validate<Napi::String, Napi::String>(info, allowed_signatures)) {
+            model = _core.read_model(info[0].ToString(), info[1].ToString());
+        } else if (ov::js::validate<Napi::Buffer<uint8_t>, Napi::Buffer<uint8_t>>(info, allowed_signatures)) {
+            std::string model_str = buffer_to_string(info[0]);
+
+            Napi::Buffer<uint8_t> weights = info[1].As<Napi::Buffer<uint8_t>>();
+            const uint8_t* bin = reinterpret_cast<const uint8_t*>(weights.Data());
+
+            size_t bin_size = weights.Length();
+            ov::Tensor weight_tensor = ov::Tensor(ov::element::Type_t::u8, {bin_size});
+            std::memcpy(weight_tensor.data(), bin, bin_size);
+
+            model = _core.read_model(model_str, weight_tensor);
+        } else if (ov::js::validate<Napi::Buffer<uint8_t>>(info, allowed_signatures)) {
+            std::string model_str = buffer_to_string(info[0]);
+            ov::Tensor weight_tensor = ov::Tensor(ov::element::Type_t::u8, {0});
+
+            model = _core.read_model(model_str, weight_tensor);
+        } else if (ov::js::validate<Napi::String>(info, allowed_signatures)) {
+            model = _core.read_model(info[0].ToString());
+        } else if (ov::js::validate<Napi::String, TensorWrap>(info, allowed_signatures)) {
+            model = _core.read_model(info[0].ToString(), cast_to_tensor(info, 1));
+        } else {
+            OPENVINO_THROW("'readModelSync'", ov::js::get_parameters_error_msg(info, allowed_signatures));
+        }
+
+        return cpp_to_js(info.Env(), model);
     } catch (std::runtime_error& err) {
         reportError(info.Env(), err.what());
 
@@ -76,7 +103,7 @@ Napi::Value CoreWrap::read_model_sync(const Napi::CallbackInfo& info) {
 Napi::Value CoreWrap::read_model_async(const Napi::CallbackInfo& info) {
     try {
         ReadModelArgs* args = new ReadModelArgs(info);
-        ReaderWorker* _readerWorker = new ReaderWorker(info.Env(), args);
+        ReaderWorker* _readerWorker = new ReaderWorker(info.Env(), _core, args);
         _readerWorker->Queue();
 
         return _readerWorker->GetPromise();
@@ -126,26 +153,27 @@ Napi::Value CoreWrap::compile_model_sync(const Napi::CallbackInfo& info,
 }
 
 Napi::Value CoreWrap::compile_model_sync_dispatch(const Napi::CallbackInfo& info) {
+    std::vector<std::string> allowed_signatures;
+
     try {
-        if (info.Length() == 2 && info[0].IsString() && info[1].IsString()) {
+        if (ov::js::validate<Napi::String, Napi::String>(info, allowed_signatures)) {
             return compile_model_sync(info, info[0].ToString(), info[1].ToString());
-        } else if (info.Length() == 2 && info[0].IsObject() && info[1].IsString()) {
+        } else if (ov::js::validate<ModelWrap, Napi::String>(info, allowed_signatures)) {
             return compile_model_sync(info, info[0].ToObject(), info[1].ToString());
-        } else if (info.Length() == 3 && info[0].IsString() && info[1].IsString()) {
-            const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2, {napi_object});
+        } else if (ov::js::validate<Napi::String, Napi::String, Napi::Object>(info, allowed_signatures)) {
+            const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2);
+
             return compile_model_sync(info, info[0].ToString(), info[1].ToString(), config);
-        } else if (info.Length() == 3 && info[0].IsObject() && info[1].IsString()) {
-            const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2, {napi_object});
+        } else if (ov::js::validate<ModelWrap, Napi::String, Napi::Object>(info, allowed_signatures)) {
+            const auto& config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2);
+
             return compile_model_sync(info, info[0].ToObject(), info[1].ToString(), config);
-        } else if (info.Length() < 2 || info.Length() > 3) {
-            reportError(info.Env(), "Invalid number of arguments -> " + std::to_string(info.Length()));
-            return info.Env().Undefined();
-        } else {
-            reportError(info.Env(), "Error while compiling model.");
-            return info.Env().Undefined();
         }
+        OPENVINO_THROW("'compileModelSync'", ov::js::get_parameters_error_msg(info, allowed_signatures));
+
     } catch (std::exception& e) {
         reportError(info.Env(), e.what());
+
         return info.Env().Undefined();
     }
 }
@@ -204,7 +232,7 @@ Napi::Value CoreWrap::compile_model_async(const Napi::CallbackInfo& info) {
 
         if (info.Length() == 3) {
             try {
-                context_data->_config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2, {napi_object});
+                context_data->_config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2);
             } catch (std::exception& e) {
                 reportError(env, e.what());
             }
@@ -228,7 +256,7 @@ Napi::Value CoreWrap::compile_model_async(const Napi::CallbackInfo& info) {
 
         if (info.Length() == 3) {
             try {
-                context_data->_config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2, {napi_object});
+                context_data->_config = js_to_cpp<std::map<std::string, ov::Any>>(info, 2);
             } catch (std::exception& e) {
                 reportError(env, e.what());
             }
@@ -318,6 +346,66 @@ Napi::Value CoreWrap::import_model(const Napi::CallbackInfo& info) {
         }
         }
         return CompiledModelWrap::wrap(info.Env(), compiled);
+
+    } catch (std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
+    }
+}
+
+void ImportModelFinalizer(Napi::Env env, void* finalizeData, ImportModelContext* context) {
+    context->nativeThread.join();
+    delete context;
+};
+
+void importModelThread(ImportModelContext* context, std::mutex& mutex) {
+    // Imports model without blocking the main thread.
+    {
+        const std::lock_guard<std::mutex> lock(mutex);
+        context->_compiled_model = context->_core.import_model(context->_stream, context->_device, context->_config);
+    }
+
+    // Callback to return to JS the results of core.import_model()
+    auto callback = [](Napi::Env env, Napi::Function, ImportModelContext* context) {
+        context->deferred.Resolve(cpp_to_js(env, context->_compiled_model));
+    };
+
+    // Addon's main thread will safely invoke the JS callback function on the behalf of the additional thread.
+    context->tsfn.BlockingCall(context, callback);
+    context->tsfn.Release();
+}
+
+Napi::Value CoreWrap::import_model_async(const Napi::CallbackInfo& info) {
+    const auto& env = info.Env();
+    std::vector<std::string> allowed_signatures;
+
+    try {
+        if (ov::js::validate<Napi::Buffer<uint8_t>, Napi::String>(info, allowed_signatures) ||
+            ov::js::validate<Napi::Buffer<uint8_t>, Napi::String, Napi::Object>(info, allowed_signatures)) {
+            // Prepare validated data that will be transferred to the new thread.
+            auto context_data = new ImportModelContext(env, _core);
+
+            const auto& model_data = info[0].As<Napi::Buffer<uint8_t>>();
+            const auto model_stream = std::string(reinterpret_cast<char*>(model_data.Data()), model_data.Length());
+            context_data->_stream << model_stream;
+            context_data->_device = info[1].ToString();
+            context_data->_config = info.Length() == 3 ? to_anyMap(env, info[2]) : ov::AnyMap();
+
+            context_data->tsfn = Napi::ThreadSafeFunction::New(env,
+                                                               Napi::Function(),
+                                                               "TSFN",
+                                                               0,
+                                                               1,
+                                                               context_data,
+                                                               ImportModelFinalizer,
+                                                               (void*)nullptr);
+
+            context_data->nativeThread = std::thread(importModelThread, context_data, std::ref(_mutex));
+            // Returns a Promise to JS. Method import_model() is performed on additional thread.
+            return context_data->deferred.Promise();
+        } else {
+            OPENVINO_THROW("'importModel'", ov::js::get_parameters_error_msg(info, allowed_signatures));
+        }
 
     } catch (std::exception& e) {
         reportError(info.Env(), e.what());

@@ -59,6 +59,7 @@ enum class KernelType {
     DEPTH_TO_SPACE,
     BATCH_TO_SPACE,
     SHAPE_OF,
+    SDPA,
     SHUFFLE_CHANNELS,
     SLICE,
     STRIDED_SLICE,
@@ -76,6 +77,7 @@ enum class KernelType {
     EXTRACT_IMAGE_PATCHES,
     LOOP,
     NON_MAX_SUPPRESSION,
+    NON_MAX_SUPPRESSION_GATHER,
     DETECTION_OUTPUT,
     EXPERIMENTAL_DETECTRON_DETECTION_OUTPUT,
     EXPERIMENTAL_DETECTRON_GENERATE_PROPOSALS_SINGLE_IMAGE,
@@ -96,6 +98,7 @@ enum class KernelType {
     UNIQUE_GATHER,
     RMS,
     SWIGLU,
+    ROPE
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -114,6 +117,7 @@ enum class Datatype {
     INT64,
     F16,
     F32,
+    BF16,
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -127,7 +131,8 @@ enum class WeightsType {
     UINT8,
     UINT4,
     INT4,
-    INT32
+    INT32,
+    BF16
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

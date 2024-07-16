@@ -188,6 +188,27 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         can_apply_fake_alignment &= orig_output_layout.data_padding.lower_size().sizes()[1] == 0 &&
                                     orig_output_layout.data_padding.upper_size().sizes()[1] == 0;
 
+    for (auto& fused_desc : orig_impl_param.fused_desc) {
+        if (fused_desc.has_outer_dep()) {
+            auto fused_op_input_layout = orig_impl_param.input_layouts[fused_desc.outer_dep_start_idx];
+            // Check fused desc's input is still dynamic, then do not fake alignment
+            if (fused_op_input_layout.is_dynamic()) {
+                can_apply_fake_alignment = false;
+                break;
+            }
+            // Check fused desc's input has full tensor, then do not fake alignment
+            if (orig_output_layout.get_shape() == fused_op_input_layout.get_shape()) {
+                can_apply_fake_alignment = false;
+                break;
+            }
+        }
+    }
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->disable_fake_alignment) {
+        can_apply_fake_alignment = false;
+    }
+
     if (orig_input_layout.format == format::bfyx && orig_output_layout.format == format::bfyx && can_apply_fake_alignment) {
         auto updated_param = orig_impl_param;
 

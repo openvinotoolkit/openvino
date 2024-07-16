@@ -33,7 +33,11 @@ std::vector<layout> kv_cache_inst::calc_output_layouts(kv_cache_node const& /*no
     op.set_concat_axis(desc->concat_axis);
     op.set_gather_axis(desc->gather_axis);
 
-    std::vector<ShapeType> input_shapes = {impl_param.get_input_layout(0).get<ShapeType>(), impl_param.get_input_layout(1).get<ShapeType>()};
+    std::vector<ShapeType> input_shapes = {impl_param.get_input_layout(0).get<ShapeType>(),
+                                           impl_param.get_input_layout(1).get<ShapeType>()};
+    if (desc->num_outputs > 1)
+        input_shapes.push_back(impl_param.get_input_layout(2).get<ShapeType>());
+
     std::vector<ShapeType> output_shapes = shape_infer(&op, input_shapes);
 
     const std::map<size_t, size_t> ports_map = {{0, 0}, {1, 2}};
@@ -66,6 +70,15 @@ std::string kv_cache_inst::to_string(const kv_cache_node& node) {
 }
 
 int32_t kv_cache_inst::get_prealloc_iter_num() {
+    // - When a kv_cache_inst runs out of the pre-allocated memory and requires additional memory,
+    //   it allocate a new memory. And then it copies data in the original memory to the new memory.
+    //   Since the original memory is still assigned to the ReadValue, even after the copying is finished,
+    //   we will have 2x memories for the kv cache. And the original memory will be released when the ReadValue is
+    //   called, i.e., at the next iteration.
+    // - If this alloc/copy happens at the same time for all the kv cache memory, there will be a memory peak at that
+    //   iteration.
+    // - Therfore, to avoid this situation where the allocation and copying occurs simutaneously for all the kv_cache_insts,
+    //   we assigned different prealloc-size for each kv cache so that we could prevent a memory peak
     return 128 + kv_cache_id % 64;
 }
 
