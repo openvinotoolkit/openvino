@@ -104,12 +104,12 @@ ov::matcher_pass_callback CvtReduceBase::convert_reduce_to_reshape() {
             return false;
 
         auto input = reduce->input_value(0);
-        const auto input_shape = input.get_shape();
-        const auto reduce_shape = reduce->output(0).get_shape();
+        const auto& input_shape = input.get_shape();
+        const auto& reduce_shape = reduce->output(0).get_shape();
 
         // convert redundant reduce to reshape if the input shape is supported by reshape
         if (is_redundant(input_shape, reduce_shape) && input_shape.size() < 6) {
-            const auto reshape_shape = reduce->output(0).get_shape();
+            const auto& reshape_shape = reduce->output(0).get_shape();
             auto reshape = std::make_shared<ov::op::v1::Reshape>(
                 input,
                 ov::op::v0::Constant::create(ov::element::i64, ov::Shape{reshape_shape.size()}, reshape_shape),

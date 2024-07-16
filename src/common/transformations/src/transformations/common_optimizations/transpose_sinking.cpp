@@ -89,7 +89,7 @@ ov::pass::TransposeEltwise::TransposeEltwise() {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto eltwise = pattern_to_output.at(eltwise_p).get_node_shared_ptr();
         auto eltwise_const_input = pattern_to_output.at(eltwise_const_input_p);
-        auto eltwise_data_input = pattern_to_output.at(eltwise_data_input_p);
+        const auto& eltwise_data_input = pattern_to_output.at(eltwise_data_input_p);
         auto transpose = pattern_to_output.at(transpose_p).get_node_shared_ptr();
 
         const auto& order_size = transpose->get_input_shape(1).at(0);

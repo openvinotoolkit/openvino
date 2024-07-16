@@ -192,14 +192,14 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
             return false;
         }
 
-        const auto olPShape = fqFromWeights->get_input_partial_shape(3);
-        const auto ohPShape = fqFromWeights->get_input_partial_shape(4);
+        const auto& olPShape = fqFromWeights->get_input_partial_shape(3);
+        const auto& ohPShape = fqFromWeights->get_input_partial_shape(4);
         if (olPShape.is_dynamic() || ohPShape.is_dynamic() || olPShape != ohPShape) {
             return false;
         }
 
 
-        const auto fqOutPShape = fqFromWeights->get_output_partial_shape(0);
+        const auto& fqOutPShape = fqFromWeights->get_output_partial_shape(0);
         if (fqOutPShape.rank().is_dynamic()) {
             return false;
         }
@@ -351,7 +351,7 @@ std::tuple<bool, std::shared_ptr<Node>, std::shared_ptr<Node>> WeightableLayerTr
 
     const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fq);
     const auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttribute>(fq);
-    const auto precisions = precisionsAttribute.empty() ?
+    const auto& precisions = precisionsAttribute.empty() ?
         defaultPrecisions :
         precisionsAttribute.as<PrecisionsAttribute>().value();
 
@@ -425,7 +425,7 @@ DataPrecision WeightableLayerTransformation::getDataPrecisionOnWeights(
     }
 
     const auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttribute>(fq);
-    const auto precisions = precisionsAttribute.empty() ?
+    const auto& precisions = precisionsAttribute.empty() ?
         defaultPrecisions :
         precisionsAttribute.as<PrecisionsAttribute>().value();
 
@@ -438,7 +438,7 @@ bool WeightableLayerTransformation::isAsymmetricOnWeights(
     const auto n = const_cast<ov::Node*>(node.get())->shared_from_this();
 
     const auto reshapeFromWeights = ov::as_type_ptr<ov::opset1::Reshape>(n->get_input_node_shared_ptr(1));
-    const auto dequantization = reshapeFromWeights == nullptr ?
+    const auto& dequantization = reshapeFromWeights == nullptr ?
         NetworkHelper::getDequantization(n, defaultPrecisions, 1ul) :
         NetworkHelper::getDequantization(reshapeFromWeights, defaultPrecisions);
 

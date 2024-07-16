@@ -146,10 +146,10 @@ ov::pass::DepthToSpaceFusion::DepthToSpaceFusion() {
             return false;
         }
 
-        auto p_shape_input = reshape_before->get_input_partial_shape(0);
-        auto p_shape_reshape_before = reshape_before->get_output_partial_shape(0);
-        auto p_shape_permute = permute->get_output_partial_shape(0);
-        auto p_shape_reshape_after = reshape_after->get_output_partial_shape(0);
+        const auto& p_shape_input = reshape_before->get_input_partial_shape(0);
+        const auto& p_shape_reshape_before = reshape_before->get_output_partial_shape(0);
+        const auto& p_shape_permute = permute->get_output_partial_shape(0);
+        const auto& p_shape_reshape_after = reshape_after->get_output_partial_shape(0);
 
         const auto input_rank = p_shape_input.rank();
         if (input_rank.is_dynamic() || p_shape_input.rank().get_length() < 3) {

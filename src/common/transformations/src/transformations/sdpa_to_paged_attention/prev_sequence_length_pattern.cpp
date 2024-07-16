@@ -49,7 +49,7 @@ ov::pass::PrevSequenceLengthPattern::PrevSequenceLengthPattern(std::shared_ptr<o
         if (replacement->get_output_element_type(0) != target_type) {
             replacement = std::make_shared<v0::Convert>(replacement, target_type);
         }
-        auto required_shape = gather->get_output_partial_shape(0);
+        const auto& required_shape = gather->get_output_partial_shape(0);
         if (replacement->get_output_partial_shape(0) != required_shape && required_shape.rank().is_static()) {
             replacement = op::util::reshapeTo(replacement, Shape(required_shape.rank().get_length(), 1));
         }

@@ -104,8 +104,8 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
             return false;
         auto zero_point = pattern_map[zero_point_pattern];
         auto scale = pattern_map[scale_pattern];
-        auto convert1 = pattern_map[convert1_pattern];
-        auto convert2 = pattern_map[convert2_pattern];
+        const auto& convert1 = pattern_map[convert1_pattern];
+        const auto& convert2 = pattern_map[convert2_pattern];
         auto mul = pattern_map[mul_pattern].get_node_shared_ptr();
 
         // convert1 and convert2 should have only one input
@@ -158,13 +158,13 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
                                                    scale);
 
         // check if new_out_low/high shapes are broadcastable to FQ's input
-        auto data_shape = data.get_partial_shape();
+        const auto& data_shape = data.get_partial_shape();
         if (data_shape.rank().is_dynamic())
             return false;
-        auto out_low_shape = new_out_low->get_output_partial_shape(0);
+        const auto& out_low_shape = new_out_low->get_output_partial_shape(0);
         if (out_low_shape.rank().is_dynamic() || out_low_shape.rank().get_length() > data_shape.rank().get_length())
             return false;
-        auto out_high_shape = new_out_high->get_output_partial_shape(0);
+        const auto& out_high_shape = new_out_high->get_output_partial_shape(0);
         if (out_high_shape.rank().is_dynamic() || out_high_shape.rank().get_length() > data_shape.rank().get_length())
             return false;
 

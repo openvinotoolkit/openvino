@@ -52,7 +52,7 @@ ov::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
-        const auto data_input = pattern_to_output.at(input);
+        const auto& data_input = pattern_to_output.at(input);
         const auto exp_input =
             std::dynamic_pointer_cast<ov::op::v0::Constant>(pattern_to_output.at(exp).get_node_shared_ptr());
         const auto axes_input =

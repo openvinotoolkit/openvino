@@ -204,7 +204,7 @@ void optimize_value_usage(ov::Output<ov::Node>& output, STS_map& symbol_shape_so
     auto symbol = value_symbols[0];
     if (symbol == nullptr)
         return;
-    auto pshape = output.get_partial_shape();
+    const auto& pshape = output.get_partial_shape();
     if (pshape.is_dynamic() || ov::shape_size(pshape.to_shape()) != 1)
         return;
 
@@ -342,7 +342,7 @@ void save_shape_sources(const std::shared_ptr<ov::Node>& op, STS_map& symbol_sha
         for (const auto& input : concat->input_values()) {
             if (input.get_partial_shape().rank().is_dynamic())
                 continue;
-            const auto dimension = input.get_partial_shape()[axis];
+            const auto& dimension = input.get_partial_shape()[axis];
             if (dimension.is_static())
                 continue;
             auto symbol = dimension.get_symbol();

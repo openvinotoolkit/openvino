@@ -24,7 +24,7 @@ ov::pass::ConvertConvertPromoteTypes::ConvertConvertPromoteTypes() {
             return false;
         }
         const element::Type& dest_type = convert_promote_types->get_output_element_type(0);
-        const auto friendly_name = convert_promote_types->get_friendly_name();
+        const auto& friendly_name = convert_promote_types->get_friendly_name();
         NodeRegistry node_registry;
         const auto out0 = node_registry.make<ov::op::v0::Convert>(convert_promote_types->input_value(0), dest_type);
         const auto out1 = node_registry.make<ov::op::v0::Convert>(convert_promote_types->input_value(1), dest_type);

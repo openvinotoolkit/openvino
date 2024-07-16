@@ -55,10 +55,10 @@ ov::pass::ConvertAvgPool14ToAvgPool1::ConvertAvgPool14ToAvgPool1() {
             const auto zero_i64 = node_registry.make<Constant>(element::i64, Shape{}, 0);
             const auto shape = node_registry.make<ShapeOf>(input, element::i64);
             const auto rank = node_registry.make<ShapeOf>(shape, element::i64);
-            const auto pads_begin_v14 = avg_pool_v14->get_pads_begin();
+            const auto& pads_begin_v14 = avg_pool_v14->get_pads_begin();
             const auto pads_begin_node =
                 node_registry.make<Constant>(element::i64, Shape{pads_begin_v14.size()}, pads_begin_v14);
-            const auto pads_end_v14 = avg_pool_v14->get_pads_end();
+            const auto& pads_end_v14 = avg_pool_v14->get_pads_end();
             const auto pads_end_node =
                 node_registry.make<Constant>(element::i64, Shape{pads_end_v14.size()}, pads_end_v14);
             const auto pads_len = node_registry.make<Constant>(element::i64, Shape{}, pads_begin_v14.size());

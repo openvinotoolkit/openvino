@@ -36,7 +36,7 @@ void ov::batch_util::mark_batch(const std::shared_ptr<ov::op::v0::Parameter>& pa
     auto& shape = parameter->get_partial_shape();
     if (map.count(parameter)) {  // we already marked this parameter as having a batch
         std::unordered_set<std::shared_ptr<Symbol>> intersection_in_all_three_sources_of_batch;
-        auto mapped_batches = map[parameter];
+        const auto& mapped_batches = map[parameter];
         for (auto& dim : shape) {
             const auto& dim_symbol = dim.get_symbol();
             if (batches.count(dim_symbol) && mapped_batches.count(dim_symbol)) {
@@ -281,7 +281,7 @@ std::map<std::shared_ptr<ov::op::v0::Parameter>, ov::PartialShape> collect_origi
     const auto& parameters = m->get_parameters();
     std::map<std::shared_ptr<ov::op::v0::Parameter>, ov::PartialShape> parameter_to_shape;
     for (const auto& parameter : parameters) {
-        auto shape = parameter->get_partial_shape();
+        const auto& shape = parameter->get_partial_shape();
         if (shape.rank().is_dynamic())
             return {};
         parameter_to_shape[parameter] = shape;

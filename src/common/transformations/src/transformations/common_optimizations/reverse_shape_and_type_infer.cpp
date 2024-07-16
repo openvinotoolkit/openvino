@@ -26,7 +26,7 @@
 bool ov::pass::ReverseShapeAndTypeInfer::inherit_output_shape(const std::shared_ptr<ov::Node>& node,
                                                               const std::vector<size_t>& input_idxs) {
     auto is_changed = false;
-    auto output_shape = node->get_output_partial_shape(0);
+    const auto& output_shape = node->get_output_partial_shape(0);
 
     for (auto idx : input_idxs) {
         if (idx < node->get_input_size() && node->get_input_partial_shape(idx).compatible(output_shape)) {
@@ -40,7 +40,7 @@ bool ov::pass::ReverseShapeAndTypeInfer::inherit_output_shape(const std::shared_
 bool ov::pass::ReverseShapeAndTypeInfer::inherit_output_rank(const std::shared_ptr<ov::Node>& node,
                                                              const std::vector<size_t>& input_idxs) {
     auto is_changed = false;
-    auto output_shape = node->get_output_partial_shape(0);
+    const auto& output_shape = node->get_output_partial_shape(0);
 
     for (auto idx : input_idxs) {
         if (idx < node->get_input_size() && node->get_input_partial_shape(idx).rank().is_dynamic()) {

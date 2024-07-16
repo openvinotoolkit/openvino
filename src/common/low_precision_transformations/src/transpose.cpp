@@ -48,7 +48,7 @@ void transposeDequantizationConstant(std::shared_ptr<Node>& transpose, const std
         const std::shared_ptr<ov::opset1::Constant>& dequantizationConstant,
         const PartialShape& transposeOutputPShape,
         const std::shared_ptr<Node>& transposeConstant) -> std::shared_ptr<Node> {
-            const auto constantShape = dequantizationConstant->get_shape();
+            const auto& constantShape = dequantizationConstant->get_shape();
             if (shape_size(constantShape) == 1ul) {
                 return NetworkHelper::toScalar(dequantizationConstant);
             }
@@ -136,7 +136,7 @@ bool TransposeTransformation::canBeTransformed(const TransformationContext& cont
     }
 
     auto checkShape = [](const std::shared_ptr<ov::opset1::Constant>& dequantizationConstant, const PartialShape& transposeOutputShape) -> bool {
-        const auto dequantizationShape = dequantizationConstant->get_shape();
+        const auto& dequantizationShape = dequantizationConstant->get_shape();
         const auto rank = transposeOutputShape.rank();
         if (rank.is_dynamic()) {
             return false;

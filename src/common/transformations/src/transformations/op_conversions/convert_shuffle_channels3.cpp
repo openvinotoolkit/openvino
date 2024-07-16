@@ -95,7 +95,7 @@ ov::pass::ConvertShuffleChannels3::ConvertShuffleChannels3() {
             std::make_shared<ov::op::v1::Reshape>(transpose->output(0), original_shape->output(0), false);
 
         ::NodeVector new_ops = {original_shape, split_input_dimensions, transpose, reshape, reshape_back, new_shape};
-        for (auto output : new_dimensions)
+        for (const auto& output : new_dimensions)
             new_ops.insert(new_ops.begin(), output.get_node_shared_ptr());
         reshape_back->set_friendly_name(shuffle_channels->get_friendly_name());
         ::copy_runtime_info(shuffle_channels, new_ops);

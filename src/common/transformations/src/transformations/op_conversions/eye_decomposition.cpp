@@ -137,10 +137,10 @@ EyeDecomposition::EyeDecomposition() {
         NodeRegistry copy_reg;
         const auto& pattern_to_output = m.get_pattern_value_map();
 
-        const auto dtype = m_eye->get_out_type();
-        const auto width = pattern_to_output.at(p_width);
-        const auto height = pattern_to_output.at(p_height);
-        const auto k = pattern_to_output.at(p_k);
+        const auto& dtype = m_eye->get_out_type();
+        const auto& width = pattern_to_output.at(p_width);
+        const auto& height = pattern_to_output.at(p_height);
+        const auto& k = pattern_to_output.at(p_k);
 
         auto eye = make_eye_model(copy_reg, height, width, k, dtype);
 

@@ -37,8 +37,8 @@ void op::internal::GenerateProposalsIEInternal::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(internal_GenerateProposalsIEInternal_validate_and_infer_types);
     Base::validate_and_infer_types();
 
-    const auto im_info_shape = get_input_partial_shape(0);
-    const auto num_batches = im_info_shape[0];
+    const auto& im_info_shape = get_input_partial_shape(0);
+    const auto& num_batches = im_info_shape[0];
     NODE_VALIDATION_CHECK(this, num_batches.is_static(), "Number of batches must be static");
 
     const Dimension post_nms_count{get_attrs().post_nms_count};

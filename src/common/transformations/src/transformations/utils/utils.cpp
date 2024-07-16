@@ -170,7 +170,7 @@ std::shared_ptr<ov::Node> activation(const std::string& activation_name, const o
 }
 
 bool is_seq_len_provided(const std::shared_ptr<Node>& X, const std::shared_ptr<Node>& seq_len_input) {
-    auto max_seq_dim = X->get_output_partial_shape(0)[1];
+    const auto& max_seq_dim = X->get_output_partial_shape(0)[1];
     if (max_seq_dim.is_dynamic()) {
         // if values in seq_len input are equal to max_seq_len dim in X input
         // then we don't need to insert Select operations
@@ -238,8 +238,8 @@ std::shared_ptr<Node> clone_try_fold(const std::shared_ptr<Node>& node, const Ou
 
 std::vector<Input<Node>> get_node_target_inputs(const std::shared_ptr<Node>& node) {
     std::vector<Input<Node>> result;
-    for (auto output : node->outputs()) {
-        for (auto input : output.get_target_inputs()) {
+    for (const auto& output : node->outputs()) {
+        for (auto& input : output.get_target_inputs()) {
             result.push_back(input);
         }
     }

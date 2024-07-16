@@ -286,7 +286,7 @@ pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
         bool gather_folded = false;
 
         auto update_expected_gather_location = [&](const Output<Node>& concat_input) {
-            const auto concat_input_shape = concat_input.get_shape();
+            const auto& concat_input_shape = concat_input.get_shape();
             OPENVINO_ASSERT(concat_input_shape.size() == 1,
                             "concat input rank is not valid for matched Concat with 1D output");
             gather_dims_expected_location += concat_input_shape[0];

@@ -57,7 +57,7 @@ bool ConvolutionTransformation::isQuantizedStatic(const std::shared_ptr<const No
 }
 
 size_t ConvolutionTransformation::getInputChannels(const std::shared_ptr<ov::Node> conv) const {
-    const auto channels = conv->get_input_partial_shape(1)[1];
+    const auto& channels = conv->get_input_partial_shape(1)[1];
     OPENVINO_ASSERT(channels.is_static());
     return channels.get_length();
 }
@@ -287,7 +287,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ov::pa
             } else {
                 subtractFromWeights = ov::as_type_ptr<ov::opset1::Subtract>(optimizedSubtract);
 
-                const auto weightsPShape = subtractFromWeights->get_input_partial_shape(0);
+                const auto& weightsPShape = subtractFromWeights->get_input_partial_shape(0);
                 OPENVINO_ASSERT(weightsPShape.is_static());
 
                 const size_t weightsRankValue = weightsPShape.rank().get_length();

@@ -83,7 +83,7 @@ void reshapeDequantizationConstant(const std::shared_ptr<ov::opset1::Reshape>& r
             }
         }
 
-        const auto reshapeOutputPShape = reshape->get_output_partial_shape(0);
+        const auto& reshapeOutputPShape = reshape->get_output_partial_shape(0);
         const auto reshapeOutputRank = reshapeOutputPShape.rank();
         assert(reshapeOutputRank.is_static());
         assert(reshapeOutputRank.get_length() >= 2);

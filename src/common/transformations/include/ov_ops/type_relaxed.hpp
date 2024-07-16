@@ -213,12 +213,12 @@ bool TypeRelaxed<BaseOp>::evaluate(ov::TensorVector& outputs, const ov::TensorVe
 
     ov::TensorVector original_outputs(BaseOp::get_output_size());
     for (size_t i = 0; i < BaseOp::get_output_size(); ++i) {
-        const auto expected_output_type = get_overridden_output_type(i);
+        const auto& expected_output_type = get_overridden_output_type(i);
         if (expected_output_type == element::undefined || expected_output_type == m_original_output_data_types[i]) {
             original_outputs[i] = outputs[i];
         } else {
-            auto partial_shape = BaseOp::get_output_partial_shape(i);
-            auto shape = partial_shape.is_dynamic() ? ov::Shape{0} : partial_shape.to_shape();
+            const auto& partial_shape = BaseOp::get_output_partial_shape(i);
+            const auto& shape = partial_shape.is_dynamic() ? ov::Shape{0} : partial_shape.to_shape();
             original_outputs[i] = ov::Tensor(m_original_output_data_types[i], shape);
         }
     }
@@ -228,7 +228,7 @@ bool TypeRelaxed<BaseOp>::evaluate(ov::TensorVector& outputs, const ov::TensorVe
     }
 
     for (size_t i = 0; i < BaseOp::get_output_size(); ++i) {
-        const auto expected_output_type = get_overridden_output_type(i);
+        const auto& expected_output_type = get_overridden_output_type(i);
 
         if (expected_output_type != element::undefined &&
             original_outputs[i].get_element_type() != expected_output_type) {

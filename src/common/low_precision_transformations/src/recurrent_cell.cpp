@@ -105,7 +105,7 @@ bool RecurrentCellTransformation::transform(TransformationContext& context, ov::
                 auto fq_node = as_type_ptr<ov::opset1::FakeQuantize>(lstm_parent);
                 const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fq_node);
                 const auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttribute>(lstm_parent);
-                const auto precisions = precisionsAttribute.empty()
+                const auto& precisions = precisionsAttribute.empty()
                                             ? defaultPrecisions
                                             : precisionsAttribute.as<PrecisionsAttribute>().value();
                 const DataPrecision dataPrecision = getDataPrecision(lstm_parent, quantizationDetails, precisions);

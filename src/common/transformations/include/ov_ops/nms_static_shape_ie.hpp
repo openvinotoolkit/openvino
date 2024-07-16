@@ -65,13 +65,13 @@ private:
 
 template <typename BaseNmsOp>
 void NmsStaticShapeIE<BaseNmsOp>::validate_and_infer_types() {
-    const auto boxes_ps = this->get_input_partial_shape(0);
-    const auto scores_ps = this->get_input_partial_shape(1);
+    const auto& boxes_ps = this->get_input_partial_shape(0);
+    const auto& scores_ps = this->get_input_partial_shape(1);
 
     auto first_dim_shape = Dimension::dynamic();
 
     if (boxes_ps.rank().is_static() && scores_ps.rank().is_static()) {
-        const auto num_boxes_boxes = boxes_ps[1];
+        const auto& num_boxes_boxes = boxes_ps[1];
         if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static()) {
             const auto num_boxes = num_boxes_boxes.get_length();
             auto num_classes = scores_ps[1].get_length();

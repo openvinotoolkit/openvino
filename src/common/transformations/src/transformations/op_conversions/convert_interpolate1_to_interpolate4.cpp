@@ -27,7 +27,7 @@ ov::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolate4()
             return false;
         }
 
-        auto attrsV0 = interpolationV0->get_attrs();
+        const auto& attrsV0 = interpolationV0->get_attrs();
         std::vector<size_t> axes{attrsV0.axes.begin(), attrsV0.axes.end()};
         const auto& out_dims = std::make_shared<ov::op::v0::Convert>(interpolationV0->input_value(1), element::f32);
         const auto& in_dims = std::make_shared<ov::op::v0::Convert>(

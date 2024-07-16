@@ -104,7 +104,7 @@ ov::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
         if (std::all_of(axes_vector.begin(), axes_vector.end(), [&input_shape](const int64_t& axis) {
                 return input_shape[axis] == 1;
             })) {
-            const auto reshape_shape = reduce->output(0).get_shape();
+            const auto& reshape_shape = reduce->output(0).get_shape();
             auto reshape = std::make_shared<ov::op::v1::Reshape>(
                 input,
                 ov::op::v0::Constant::create(ov::element::i64, ov::Shape{reshape_shape.size()}, reshape_shape),

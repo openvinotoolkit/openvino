@@ -707,7 +707,7 @@ ov::pass::EinsumDecomposition::EinsumDecomposition() {
             return false;
         }
 
-        auto equation = einsum_node->get_equation();
+        const auto& equation = einsum_node->get_equation();
         std::vector<std::string> input_subscripts;
         std::string output_subscript;
         ov::op::v7::Einsum::parse_equation(equation, input_subscripts, output_subscript);

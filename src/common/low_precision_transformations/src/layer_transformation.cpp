@@ -427,7 +427,7 @@ bool LayerTransformation::updateOutput(
     std::shared_ptr<ov::Node> lastNode,
     std::shared_ptr<ov::Node> originalNode) const {
     bool was_updated = false;
-    for (auto output : lastNode->outputs()) {
+    for (const auto& output : lastNode->outputs()) {
         for (auto input : output.get_target_inputs()) {
             if (ov::is_type<ov::opset1::Result>(input.get_node())) {
                 const std::string originalName = originalNode->get_friendly_name();

@@ -23,7 +23,7 @@ using namespace ov::symbol::util;
 
 namespace {
 bool concat_predicate(ov::Output<ov::Node> output) {
-    auto output_pshape = output.get_partial_shape();
+    const auto& output_pshape = output.get_partial_shape();
     if (output_pshape.rank().is_dynamic() || output_pshape.size() <= 2)
         return false;
     const auto& concat = ov::as_type_ptr<ov::op::v0::Concat>(output.get_node_shared_ptr());
@@ -60,10 +60,10 @@ bool batches_are_equal(const ov::PartialShape& lhs, const ov::PartialShape& rhs,
 }
 
 bool batches_are_equal(const std::shared_ptr<ov::Node>& op_0, const std::shared_ptr<ov::Node>& op_1) {
-    auto input_0 = op_0->get_input_partial_shape(0);
-    auto input_1 = op_1->get_input_partial_shape(0);
-    auto output_0 = op_0->get_output_partial_shape(0);
-    auto output_1 = op_1->get_output_partial_shape(0);
+    const auto& input_0 = op_0->get_input_partial_shape(0);
+    const auto& input_1 = op_1->get_input_partial_shape(0);
+    const auto& output_0 = op_0->get_output_partial_shape(0);
+    const auto& output_1 = op_1->get_output_partial_shape(0);
     return batches_are_equal(input_0, input_1, true) && batches_are_equal(output_0, output_1);
 }
 
@@ -234,9 +234,9 @@ ov::pass::DeReshapeMatMul::DeReshapeMatMul() {
         [](ov::Output<Node> out) -> bool {
             if (!pattern::consumers_count(1)(out))
                 return false;
-            auto input_0_pshape = out.get_node_shared_ptr()->get_input_partial_shape(0);
-            auto input_1_pshape = out.get_node_shared_ptr()->get_input_partial_shape(1);
-            auto output_pshape = out.get_partial_shape();
+            const auto& input_0_pshape = out.get_node_shared_ptr()->get_input_partial_shape(0);
+            const auto& input_1_pshape = out.get_node_shared_ptr()->get_input_partial_shape(1);
+            const auto& output_pshape = out.get_partial_shape();
             ov::TensorSymbol output_symbols, input_0_symbols, input_1_symbols;
             if (get_symbols(input_0_pshape, input_0_symbols) && get_symbols(input_1_pshape, input_1_symbols) &&
                 get_symbols(output_pshape, output_symbols)) {

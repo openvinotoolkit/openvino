@@ -173,7 +173,7 @@ bool ov::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const std::
     if (ov::is_type<opset1::Interpolate>(node)) {
         std::shared_ptr<opset1::Interpolate> interpolate1 = ov::as_type_ptr<opset1::Interpolate>(node);
         if (interpolate1) {
-            const auto attrs = interpolate1->get_attrs();
+            const auto& attrs = interpolate1->get_attrs();
             return attrs.mode == "nearest";
         }
 

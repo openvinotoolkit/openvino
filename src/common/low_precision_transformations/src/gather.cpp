@@ -181,7 +181,7 @@ bool GatherTransformation::canBeTransformed(const TransformationContext& context
             const auto indicesConstant = ov::as_type_ptr<opset1::Constant>(operation->get_input_node_shared_ptr(1));
             if (indicesConstant == nullptr)
                 return false;
-            const auto indicesShape = indicesConstant->get_shape();
+            const auto& indicesShape = indicesConstant->get_shape();
             if (indicesShape.size() != 0 && indicesShape.size() != 1) {
                 return false;
             }

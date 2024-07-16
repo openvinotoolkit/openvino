@@ -28,9 +28,9 @@ ov::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
-        auto data = pattern_map[data_pattern];
-        auto relu = pattern_map[relu_pattern];
-        auto input_low = pattern_map[input_low_pattern];
+        const auto& data = pattern_map[data_pattern];
+        const auto& relu = pattern_map[relu_pattern];
+        const auto& input_low = pattern_map[input_low_pattern];
         auto input_low_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(input_low.get_node_shared_ptr());
         if (!input_low_const)
             return false;

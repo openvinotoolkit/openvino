@@ -58,7 +58,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
                 // the corresponding Split output to the corresponding copy of the body.
                 // If the number of iterations is 1, then the Split is not needed.
 
-                auto in_data = sub_graph_op->input_values()[input_desc->m_input_index];
+                const auto& in_data = sub_graph_op->input_values()[input_desc->m_input_index];
                 const auto const_axis = ov::op::v0::Constant::create(element::i64, Shape{}, {input_desc->m_axis});
 
                 if (num_iter > 1) {
@@ -83,7 +83,7 @@ bool ov::pass::UnrollTensorIterator::run_on_model(const std::shared_ptr<ov::Mode
             } else if (const auto& merged_desc =
                            std::dynamic_pointer_cast<ov::op::v0::TensorIterator::MergedInputDescription>(desc)) {
                 // Connect the input to the corresponding copy of the body.
-                auto in_data = sub_graph_op->input_values()[merged_desc->m_input_index];
+                const auto& in_data = sub_graph_op->input_values()[merged_desc->m_input_index];
                 const auto& param = body_functions[0]->get_parameters()[merged_desc->m_body_parameter_index];
                 for (auto& output : param->outputs()) {
                     output.replace(in_data);

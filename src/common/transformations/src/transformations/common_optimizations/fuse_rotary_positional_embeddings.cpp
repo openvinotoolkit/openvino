@@ -660,8 +660,7 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
         if (pattern_map.count(reshape_special)) {
             // check reshape_special shape correctness
             auto reshape_special_node = pattern_map.at(reshape_special).get_node_shared_ptr();
-            auto data_shape = reshape_special_node->get_input_partial_shape(0);
-            auto reshape_shape = pattern_map.at(const_shape);
+            const auto& reshape_shape = pattern_map.at(const_shape);
             auto node = ov::as_type_ptr<opset1::Constant>(reshape_shape.get_node_shared_ptr());
             const auto& target = node->cast_vector<int32_t>();
             // ensure target_shape have correct rank

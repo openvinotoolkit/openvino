@@ -100,11 +100,14 @@ public:
             auto b_mask_row = b_mask.get();
 
             const auto matmul_op = std::dynamic_pointer_cast<opset10::MatMul>(m_matmul.get_node_shared_ptr());
+            if (!matmul_op) {
+                return false;
+            }
             const auto transpose_a = matmul_op->get_transpose_a();
             const auto transpose_b = matmul_op->get_transpose_b();
 
-            const auto shape_a = m_a.get_shape();
-            const auto shape_b = m_b.get_shape();
+            const auto& shape_a = m_a.get_shape();
+            const auto& shape_b = m_b.get_shape();
 
             const auto a_inner_dim = (transpose_a) ? shape_a.size() - 2 : shape_a.size() - 1;
             const auto a_outer_dim = (transpose_a) ? shape_a.size() - 1 : shape_a.size() - 2;
@@ -389,7 +392,7 @@ public:
 
             // Checking that matched Reshape meets this conditions (add 1-d dim on 1 position of shape constant)
             auto inp_shape = m_input.get_shape();
-            auto out_shape = m_output.get_shape();
+            const auto out_shape = m_output.get_shape();
             inp_shape.insert(inp_shape.begin() + 1, 1);
             if (inp_shape != out_shape || out_shape.size() != 5) {
                 return false;
@@ -431,7 +434,6 @@ public:
             // [G, 1, 1, X, Y, Z] by [-1, 1, 1, X, Y, Z].
 
             const auto m_shape_consumers = m_shape.get_target_inputs();
-            const auto output_shape = constant->get_shape();
             const auto axis = opset10::Constant::create(element::i8, {}, {0});
             auto dims_to_keep_vec = std::vector<size_t>{2, 3, 4};
 
@@ -914,7 +916,7 @@ public:
 
         ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
-            const auto m_weights = pattern_map.at(weights);
+            const auto& m_weights = pattern_map.at(weights);
             const auto& m_input = pattern_map.at(inputs);
             const auto& m_output = pattern_map.at(pooling_by_reduce);
 
@@ -1124,7 +1126,7 @@ public:
 
         ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
-            const auto m_weights = pattern_map.at(weights);
+            const auto& m_weights = pattern_map.at(weights);
             const auto& m_input = pattern_map.at(inputs);
             const auto& m_output = pattern_map.at(reshape);
 
@@ -1153,8 +1155,8 @@ public:
                 auto output_mask = std::make_shared<ov::Mask>(m_output.get_partial_shape().rank().get_length());
                 auto weights_mask = std::make_shared<ov::Mask>(m_output.get_partial_shape().rank().get_length(), true);
 
-                const auto input_shape = m_input.get_shape();
-                const auto output_shape = m_output.get_node()->output(0).get_shape();
+                const auto& input_shape = m_input.get_shape();
+                const auto& output_shape = m_output.get_node()->output(0).get_shape();
 
                 // Check dimensions equality from the begining and allow
                 // to propagate masks only for dimensions which equal from the begining

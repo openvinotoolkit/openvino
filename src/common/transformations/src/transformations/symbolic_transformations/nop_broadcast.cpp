@@ -45,8 +45,8 @@ ov::pass::NopBroadcast::NopBroadcast() {
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& vm = m.get_pattern_value_map();
-        auto data = vm.at(data_label);
-        auto shape = vm.at(shape_label);
+        const auto& data = vm.at(data_label);
+        const auto& shape = vm.at(shape_label);
 
         ov::TensorSymbol data_symbols, shape_symbols;
         if (!get_symbols(data.get_partial_shape(), data_symbols) || !get_symbols(shape, shape_symbols) ||

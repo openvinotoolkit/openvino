@@ -549,7 +549,7 @@ public:
 
         auto callback = [=](pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
-            auto input = pattern_map.at(input_p);
+            const auto& input = pattern_map.at(input_p);
             auto ric = ric_attr::get(input).propagate();
 
             auto order_node =
@@ -637,7 +637,7 @@ public:
         auto callback = [=](pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             auto output = pattern_map.at(pattern_root);
-            auto input = pattern_map.at(input_p);
+            const auto& input = pattern_map.at(input_p);
             output.replace(input);
             return true;
         };
@@ -658,7 +658,7 @@ public:
         auto callback = [=](pattern::Matcher& m) {
             const auto& pattern_map = m.get_pattern_value_map();
             auto output = pattern_map.at(pattern_root);
-            auto input = pattern_map.at(input_p);
+            const auto& input = pattern_map.at(input_p);
             output.replace(input);
             return true;
         };
