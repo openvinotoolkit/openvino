@@ -634,10 +634,10 @@ ov::Tensor loadBinary(const ov::element::Type& modelPrecision, const ov::Shape& 
                       const std::string& filePath, const ov::element::Type& dataPrecision) {
     std::ifstream binaryFile(filePath, std::ios_base::binary | std::ios_base::ate);
     OPENVINO_ASSERT(binaryFile, "Failed to open input binary file: ", filePath);
-    const auto fileBytes = binaryFile.tellg();
+    const auto fileSize = binaryFile.tellg();
     binaryFile.seekg(0, std::ios_base::beg);
     OPENVINO_ASSERT(binaryFile.good(), "While reading a file an error is encountered");
-
+    const size_t fileBytes = static_cast<size_t>(fileSize);
     ov::Tensor requestedTensor(modelPrecision, shape);
     const size_t reqTensorBytes = static_cast<size_t>(requestedTensor.get_byte_size());
 
