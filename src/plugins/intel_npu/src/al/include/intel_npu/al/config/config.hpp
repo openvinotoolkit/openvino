@@ -346,8 +346,6 @@ OptionConcept makeOptionModel() {
 
 class OptionsDesc final {
 public:
-    OptionsDesc() : _logger("OptionsDesc", Logger::global().level()) {}
-
     template <class Opt>
     void add();
 
@@ -359,7 +357,6 @@ public:
 private:
     std::unordered_map<std::string, details::OptionConcept> _impl;
     std::unordered_map<std::string, std::string> _deprecated;
-    Logger _logger;
 };
 
 template <class Opt>
@@ -405,7 +402,6 @@ public:
 private:
     std::shared_ptr<const OptionsDesc> _desc;
     ImplMap _impl;
-    Logger _logger;
 };
 
 template <class Opt>
@@ -417,12 +413,14 @@ template <class Opt>
 typename Opt::ValueType Config::get() const {
     using ValueType = typename Opt::ValueType;
 
-    _logger.trace("Get value for the option '%s'", Opt::key().data());
+    auto log = Logger::global().clone("Config");
+    log.trace("Get value for the option '%s'", Opt::key().data());
+
     const auto it = _impl.find(Opt::key().data());
 
     if (it == _impl.end()) {
         const std::optional<ValueType> optional = Opt::defaultValue();
-        _logger.trace("The option '%s' was not set by user, try default value", Opt::key().data());
+        log.trace("The option '%s' was not set by user, try default value", Opt::key().data());
 
         OPENVINO_ASSERT(optional.has_value(),
                         "Option '",
