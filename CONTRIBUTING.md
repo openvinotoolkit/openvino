@@ -1,11 +1,11 @@
 # Contributing to OpenVINO
 
-OpenVINO™ always thrives to improve, and user contributions are one of the opportunities
-that are crucial for this process. Read on to find out how you can participate.
+OpenVINO™ is always looking for opportunities to improve and your contributions
+play a big role in this process. There are several ways you can make the product better.
+Keep in mind that even if your input is not immediately prioritized, it may be used
+at a later time or undertaken by the community, regardless of the official roadmap.
 
-## Forms of contribution
-
-### Provide feedback
+## Provide feedback
 
    * **Report bugs / issues**
      If you notice unexpected behavior in OpenVINO or its components, you can
@@ -17,16 +17,16 @@ that are crucial for this process. Read on to find out how you can participate.
      [GitHub Discussion](https://github.com/openvinotoolkit/openvino/discussions).
      If your idea is already well defined, you can also create a
      [Feature Request Issue](https://github.com/openvinotoolkit/openvino/issues/new?assignees=octocat&labels=enhancement%2Cfeature&projects=&template=feature_request.yml&title=%5BFeature+Request%5D%3A+)
-     In any case, you need to provide a detailed description, including use cases, benefits,
+     Remember to provide a detailed description, including use cases, benefits,
      and potential challenges.
 
-### Contribute code changes
+## Contribute code changes
 
-First, check if the changes you want to make have not already been implemented.
-Build OpenVINO from the latest master branch to confirm that your changes still apply.
-If somebody else is already working on the same issue, you can still contribute by coordinating
-with them. Avoid addressing issues specific to older non-LTS releases, like 2022.2.
-For more information, refer to the
+Before you start a contribution, check if the change has not been implemented already.
+If it happens to be in progress, align with the developer to work cooperatively.
+Remember to build OpenVINO, using the latest master branch and verify that your
+changes are still applicable. Do not address issues that only affect older non-LTS
+releases, like 2022.2. For more information, refer to the
 [Release Policy](https://docs.openvino.ai/nightly/about-openvino/release-notes-openvino/release-policy.html).
 
    * **Fix bugs**
@@ -45,15 +45,15 @@ For more information, refer to the
 
    * **Develop a new device plugin**
 
-     Since the market of computing devices is constantly evolving, OpenVINO is always open
-     to extending its support for new hardware. If you want to run inference on a device that
-     is currently not supported, you can see how to develop a new plugin for it in the
+     OpenVINO is always open to extending its support for new hardware. If you want to
+     run inference on a device that is currently not supported, you can see how to
+     develop a new plugin for it in the
      [Plugin Developer Guide](https://docs.openvino.ai/nightly/documentation/openvino-extensibility/openvino-plugin-library.html).
 
-### Improve documentation
+## Improve documentation
 
-The easiest way to help with documentation is to review it and provide feedback on the
-existing articles. Whether you notice a mistake, see the possibility of improving the text,
+You are welcome to review and provide feedback on the existing articles.
+Whether you notice a mistake, see the possibility of improving the text,
 or think more information should be added, you can reach out to any of the
 [documentation maintainers](https://github.com/orgs/openvinotoolkit/teams/openvino-docs-maintainers)
 to discuss the potential changes. You can also edit the articles directly on GitHub or open
@@ -69,12 +69,12 @@ a **Pull Request**, following the [guidelines](./CONTRIBUTING_DOCS.md).
      which is recommended for reading the articles.
 
    * **Check OpenVINO developer documentation**
-     
+
      The intended audience for the developer documentation is developers. This documentation includes detailed information on the architecture of OpenVINO. It helps understand the process of building the toolkit, so you can modify and implement it as per the requirement.
 
      The documentation is contained entirely in the [docs/dev](./docs/dev) folder.
 
-### Promote and support OpenVINO
+## Promote and support OpenVINO
 
    * **Popularize OpenVINO**
 
