@@ -41,9 +41,8 @@ struct normalize : public primitive_base<normalize> {
               const input_info& input,
               const primitive_id& scale_input,
               const bool across_spatial = true,
-              const float epsilon = 1e-10f,
-              const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}),
+              const float epsilon = 1e-10f)
+        : primitive_base(id, {input}),
           scale_input(scale_input),
           across_spatial(across_spatial),
           epsilon(epsilon) {}

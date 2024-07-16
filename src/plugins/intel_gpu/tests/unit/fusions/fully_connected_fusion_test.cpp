@@ -203,7 +203,7 @@ TEST_P(fc_fp32_activation, basic) {
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
-        fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p), get_input_weights_rank(p)),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", get_output_dim_size(p), get_input_weights_rank(p)),
         activation("activation", input_info("fc_prim"), activation_func::abs),
         reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
     );
@@ -229,7 +229,7 @@ TEST_P(fc_fp32_activation_dynamic, basic) {
         input_layout("input", dynamic_input_layout),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
-        fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p), get_input_weights_rank(p)),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", get_output_dim_size(p), get_input_weights_rank(p)),
         activation("activation", input_info("fc_prim"), activation_func::abs),
         reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
     );
@@ -256,7 +256,7 @@ TEST_P(fc_fp32_bias, basic) {
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
-        fully_connected("fc_prim", input_info("input"), "weights", "", padding(), get_output_dim_size(p), get_input_weights_rank(p)),
+        fully_connected("fc_prim", input_info("input"), "weights", "", get_output_dim_size(p), get_input_weights_rank(p)),
         eltwise("bias_add", { input_info("fc_prim"), input_info("bias") }, eltwise_mode::sum),
         reorder("reorder_bfyx", input_info("bias_add"), p.default_format, data_types::f32)
     );
@@ -283,7 +283,7 @@ TEST_P(fc_fp32_bias_dynamic, basic) {
         input_layout("input", dynamic_input_layout),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
-        fully_connected("fc_prim", input_info("input"), "weights", "", padding(), get_output_dim_size(p), get_input_weights_rank(p)),
+        fully_connected("fc_prim", input_info("input"), "weights", "", get_output_dim_size(p), get_input_weights_rank(p)),
         eltwise("bias_add", { input_info("fc_prim"), input_info("bias") }, eltwise_mode::sum),
         reorder("reorder_bfyx", input_info("bias_add"), p.default_format, data_types::f32)
     );
@@ -313,7 +313,7 @@ TEST_P(fc_compressed_int8_bias_dynamic, basic) {
 
     auto dcomp_zp_name = supports_immad ? "dcomp_zp" : "";
 
-    auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", dcomp_zp_name, data_types::f16, padding(), get_output_dim_size(p), get_input_weights_rank(p));
+    auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", dcomp_zp_name, data_types::f16, get_output_dim_size(p), get_input_weights_rank(p));
 
     fc_prim.decompression_zero_point_scalar = 8.0f;
 
@@ -349,7 +349,7 @@ TEST_P(fc_int8_eltwise_dynamic_residual, basic) {
         data("weight", get_mem(get_weights_layout(p))),
         reorder("reorder", input_info("input"), p.default_format, data_types::i8),
         eltwise("mul", { input_info("reorder"), input_info("input") }, eltwise_mode::div),
-        fully_connected("fc", input_info("mul"), "weight", "", data_types::i8, padding(), get_output_dim_size(p), get_input_weights_rank(p)),
+        fully_connected("fc", input_info("mul"), "weight", "", data_types::i8, get_output_dim_size(p), get_input_weights_rank(p)),
         eltwise("add", { input_info("fc"), input_info("reorder") }, eltwise_mode::sum),
         reorder("reorder_bfyx", input_info("add"), p.default_format, data_types::f32)
     );
@@ -371,7 +371,7 @@ TEST_P(fc_int8_eltwise, basic) {
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
         data("eltwise_data", get_mem(get_per_channel_layout(p), 1, 9)),
-        fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p), get_input_weights_rank(p)),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", get_output_dim_size(p), get_input_weights_rank(p)),
         eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::sum),
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
@@ -400,7 +400,7 @@ TEST_P(fc_int8_quantize_u8, basic) {
         data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), 0)),
         data("out_hi", get_mem(get_single_element_layout(p), 255)),
-        fully_connected("fc_prim", input_info("input"), "weights", "bias", data_types::f32, padding(), get_output_dim_size(p), get_input_weights_rank(p)),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", data_types::f32, get_output_dim_size(p), get_input_weights_rank(p)),
         quantize("quantize", input_info("fc_prim"), input_info("in_lo"), input_info("in_hi"),
                  input_info("out_lo"), input_info("out_hi"), 256, data_types::u8),
         reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
@@ -434,7 +434,7 @@ TEST_P(fc_int8_eltwise_quantize_i8, basic) {
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
         data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f / get_weights_layout(p).count() / 255)),
-        fully_connected("fc_prim", input_info("input"), "weights", "bias", data_types::f32, padding(), get_output_dim_size(p), get_input_weights_rank(p)),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", data_types::f32, get_output_dim_size(p), get_input_weights_rank(p)),
         eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::prod),
         quantize("quantize", input_info("eltwise"), input_info("in_lo"), input_info("in_hi"),
                  input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
@@ -469,7 +469,7 @@ TEST_P(fc_int8_eltwise_activation_quantize_i8, basic) {
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p), 127)),
         data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f / get_weights_layout(p).count() / 255)),
-        fully_connected("fc_prim", input_info("input"), "weights", "bias", data_types::f32, padding(), get_output_dim_size(p), get_input_weights_rank(p)),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", data_types::f32, get_output_dim_size(p), get_input_weights_rank(p)),
         eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::prod),
         activation("activation_eltwise", input_info("eltwise"), activation_func::exp),
         quantize("quantize", input_info("activation_eltwise"), input_info("in_lo"), input_info("in_hi"),
@@ -509,7 +509,7 @@ public:
             data("weights", get_mem(get_weights_layout(p))),
             data("bias", get_mem(get_bias_layout(p))),
             data("shift_data", get_mem(shift_layout, 1)),
-            fully_connected("fc_prim", input_info("input"), "weights", "bias", cldnn::data_types::f32, padding(), get_output_dim_size(p), get_input_weights_rank(p)),
+            fully_connected("fc_prim", input_info("input"), "weights", "bias", cldnn::data_types::f32, get_output_dim_size(p), get_input_weights_rank(p)),
             eltwise("shift", { input_info("fc_prim"), input_info("shift_data") }, eltwise_mode::sum, cldnn::data_types::f32),
             crop("crop", input_info("shift"), get_output_layout(p).get_tensor(), { 0, 0, 0, 0 }),
             reorder("reorder_bfyx", input_info("crop"), p.default_format, data_types::f32)
@@ -545,7 +545,7 @@ public:
             data("weights", get_mem(get_weights_layout(p))),
             data("bias", get_mem(get_bias_layout(p))),
             data("eltwise_data", get_mem(get_per_channel_layout(p), 1, 9)),
-            fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p)),
+            fully_connected("fc_prim", input_info("input"), "weights", "bias", get_output_dim_size(p)),
             eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::sum),
             reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
         );
@@ -585,7 +585,7 @@ TEST_P(fc_fp16_eltwise_add_dynamic, basic) {
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
         data("eltwise_data", get_mem(get_per_channel_layout(p), 1, 9)),
-        fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p)),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", get_output_dim_size(p)),
         eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::sum),
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
@@ -610,7 +610,7 @@ TEST_P(fc_compressed_int8_bias_dynamic_onednn, basic) {
     auto supports_immad = engine.get_device_info().supports_immad;
     auto dcomp_zp_name = supports_immad ? "dcomp_zp" : "";
 
-    auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", dcomp_zp_name, data_types::f16, padding(), get_output_dim_size(p), get_input_weights_rank(p));
+    auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", dcomp_zp_name, data_types::f16, get_output_dim_size(p), get_input_weights_rank(p));
     fc_prim.decompression_zero_point_scalar = 8.0f;
 
     // onednn FC supports scalar ZP for int4 compressed weight.
@@ -646,7 +646,7 @@ public:
             data("weights", get_mem(get_weights_layout(p))),
             data("bias", get_mem(get_bias_layout(p))),
             data("eltwise_data", get_mem(get_per_channel_layout(p), 1, 9)),
-            fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p)),
+            fully_connected("fc_prim", input_info("input"), "weights", "bias", get_output_dim_size(p)),
             eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::sub),
             reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
         );
@@ -681,7 +681,7 @@ public:
             data("weights", get_mem(get_weights_layout(p))),
             data("bias", get_mem(get_bias_layout(p))),
             data("eltwise_data", get_mem(get_per_channel_layout(p), 1, 9)),
-            fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p)),
+            fully_connected("fc_prim", input_info("input"), "weights", "bias", get_output_dim_size(p)),
             eltwise("eltwise", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::prod),
             reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
         );
@@ -716,7 +716,7 @@ public:
             data("weights", get_mem(get_weights_layout(p))),
             data("bias", get_mem(get_bias_layout(p))),
             data("eltwise_data", get_mem(get_output_layout(p))),
-            fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p)),
+            fully_connected("fc_prim", input_info("input"), "weights", "bias", get_output_dim_size(p)),
             eltwise("sum", { input_info("fc_prim"), input_info("eltwise_data") }, eltwise_mode::sum),
             reorder("reorder_bfyx", input_info("sum"), p.default_format, data_types::f32)
         );
@@ -750,7 +750,7 @@ TEST_P(fc_fp32_activation_prelu, basic) {
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
         data("data", get_mem(get_bias_layout(p))),
-        fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p), get_input_weights_rank(p)),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", get_output_dim_size(p), get_input_weights_rank(p)),
         activation("activation", input_info("fc_prim"), "data", activation_func::relu_negative_slope),
         reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
     );
@@ -770,7 +770,7 @@ TEST_P(fc_fp32_activation_relu, basic) {
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
         data("bias", get_mem(get_bias_layout(p))),
-        fully_connected("fc_prim", input_info("input"), "weights", "bias", padding(), get_output_dim_size(p), get_input_weights_rank(p)),
+        fully_connected("fc_prim", input_info("input"), "weights", "bias", get_output_dim_size(p), get_input_weights_rank(p)),
         activation("activation", input_info("fc_prim"), activation_func::relu_negative_slope),
         reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
     );

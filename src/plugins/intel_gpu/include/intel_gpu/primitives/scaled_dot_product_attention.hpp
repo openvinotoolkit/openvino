@@ -23,9 +23,8 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
                                  const std::vector<int64_t>& input_q_transpose_order = {},
                                  const std::vector<int64_t>& input_k_transpose_order = {},
                                  const std::vector<int64_t>& input_v_transpose_order = {},
-                                 const std::vector<int64_t>& output_transpose_order = {},
-                                 const padding& output_padding = padding())
-        : primitive_base(id, inputs, {output_padding})
+                                 const std::vector<int64_t>& output_transpose_order = {})
+        : primitive_base(id, inputs)
         , is_causal(is_causal)
         , indirect_axis(indirect_axis)
         , input_q_transpose_order(input_q_transpose_order)

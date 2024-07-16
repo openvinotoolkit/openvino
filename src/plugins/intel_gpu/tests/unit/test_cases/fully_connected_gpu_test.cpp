@@ -1033,7 +1033,7 @@ TEST(fully_connected_gpu, bf_tiled_with_pad) {
         tile("tile", input_info("input"), std::vector<int64_t>{1, 2, 1, 1}),
         eltwise("eltw", { input_info("tile"), input_info("eltw_input") }, eltwise_mode::sum),
         crop("crop", input_info("eltw"), tensor{batch_num, feature_num, input_x, input_y}, tensor{0, feature_num, 0, 0}),
-        fully_connected("fc_prim", input_info("crop"), "weights", "", padding(), 3, 3)
+        fully_connected("fc_prim", input_info("crop"), "weights", "", 3, 3)
     );
 
     // Set data optimization to allow weights reordering to optimal format
@@ -1168,7 +1168,7 @@ TEST(fully_connected_gpu, fully_connected_gpu_fb_io_block_fp16) {
     topology topology(
         input_layout("input", input_mem->get_layout()),
         data("weights", weights_mem),
-        fully_connected("fc_prim", input_info("input"), "weights", "", padding())
+        fully_connected("fc_prim", input_info("input"), "weights", "")
     );
 
     // Set data optimization to allow weights reordering to optimal format
@@ -1228,7 +1228,7 @@ public:
             data("bias", bias_mem),
             data("scale", scale_mem),
             data("zp", zp_mem),
-            fully_connected("fc_prim", input_info("input"), "weights", "bias", "scale", "zp", data_types::f32, padding(), 3, 2)
+            fully_connected("fc_prim", input_info("input"), "weights", "bias", "scale", "zp", data_types::f32, 3, 2)
         );
 
         auto config = get_test_default_config(engine);
@@ -1288,7 +1288,7 @@ public:
         auto in_layout = is_dynamic ? layout{ dyn_input_ps, data_types::f16, format::bfyx }
                                     : layout{ input_ps, data_types::f16, format::bfyx };
 
-        auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, padding(), is_3d ? 3 : 2, 2);
+        auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, is_3d ? 3 : 2, 2);
         fc_prim.decompression_zero_point_scalar = 0;
 
         // Implemented dynamic quantize kernel
@@ -1394,7 +1394,7 @@ public:
 
         auto dcomp_zp_name = supports_immad ? "dcomp_zp" : "";
 
-        auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", dcomp_zp_name, data_types::f16, padding(), 2, 2);
+        auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", dcomp_zp_name, data_types::f16, 2, 2);
 
         fc_prim.decompression_zero_point_scalar = 8;
 
@@ -1492,8 +1492,8 @@ public:
 
         auto dcomp_zp_name = supports_immad ? "dcomp_zp" : "";
 
-        auto fc_prim1 = fully_connected("fc_prim1", input_info("input"), "weights1", "", "scale", dcomp_zp_name, data_types::f16, padding(), 2, 2);
-        auto fc_prim2 = fully_connected("fc_prim2", input_info("input"), "weights2", "", "scale", dcomp_zp_name, data_types::f16, padding(), 2, 2);
+        auto fc_prim1 = fully_connected("fc_prim1", input_info("input"), "weights1", "", "scale", dcomp_zp_name, data_types::f16, 2, 2);
+        auto fc_prim2 = fully_connected("fc_prim2", input_info("input"), "weights2", "", "scale", dcomp_zp_name, data_types::f16, 2, 2);
 
         fc_prim1.decompression_zero_point_scalar = 8;
         fc_prim2.decompression_zero_point_scalar = 8;
@@ -1608,7 +1608,7 @@ public:
             data("bias", bias_mem),
             data("scale", scale_mem),
             data("zp", zp_mem),
-            fully_connected("fc_prim", input_info("input"), "weights", "bias", "scale", "zp", data_types::f16, padding(), 3, 2)
+            fully_connected("fc_prim", input_info("input"), "weights", "bias", "scale", "zp", data_types::f16, 3, 2)
         );
 
         auto config = get_test_default_config(engine);
@@ -1680,8 +1680,7 @@ public:
                                         "weights", bias_id,
                                         "scale", zp_id,
                                         data_types::f16,
-                                        padding(),
-                                        in_shape.size(), 2);
+                                                                                in_shape.size(), 2);
 
         auto get_ref_results = [&]() {
             auto config = get_test_default_config(engine);
@@ -1769,7 +1768,7 @@ public:
             data("weights", weights_mem),
             data("bias", bias_mem),
             data("scale", scale_mem),
-            fully_connected("fc_prim", input_info("input"), "weights", "bias", "scale", "", data_types::f32, padding(), 3, 2)
+            fully_connected("fc_prim", input_info("input"), "weights", "bias", "scale", "", data_types::f32, 3, 2)
         );
 
         auto config = get_test_default_config(engine);
@@ -1820,7 +1819,7 @@ public:
             input_layout("input", input_mem->get_layout()),
             data("weights", weights_mem),
             data("scale", scale_mem),
-            fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, padding(), 2, 2)
+            fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, 2, 2)
         );
 
         auto config = get_test_default_config(engine);
@@ -1976,7 +1975,7 @@ public:
         cldnn::topology topology{
             input_layout("input", input_dyn_layout),
             data("weights", weights_data),
-            fully_connected("fc", input_info("input"), "weights", "", cldnn::padding(), input_dyn_layout.get_rank())
+            fully_connected("fc", input_info("input"), "weights", "", input_dyn_layout.get_rank())
         };
 
         ExecutionConfig config = get_test_default_config(engine);
@@ -2030,7 +2029,7 @@ public:
         cldnn::topology topology{
             input_layout("input", input_dyn_layout),
             data("weights", weights_data),
-            fully_connected("fc", input_info("input"), "weights", "", cldnn::padding(), input_dyn_layout.get_rank()),
+            fully_connected("fc", input_info("input"), "weights", "", input_dyn_layout.get_rank()),
         };
 
         ExecutionConfig config = get_test_default_config(engine);
@@ -2843,7 +2842,7 @@ public:
         auto last_dim = std::find_if(input_sizes.rbegin(), input_sizes.rend(),
                                      [](tensor::value_type x) { return x != 1l; });
         size_t input_rank = std::distance(input_sizes.begin(), last_dim.base());
-        auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "bias", cldnn::padding(), input_rank);
+        auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "bias", input_rank);
         fc_prim.output_data_types = {static_cast<ov::element::Type_t>(ov::element::from<OutputT>())};
         topo.add(fc_prim);
 
@@ -3203,7 +3202,7 @@ TEST(fully_connected_3d_onednn_gpu, no_biases_int8) {
     auto input = input_layout("input", input_prim->get_layout());
     auto w_data = data("weights", weights_prim);
     auto ri = reorder("reorder_to_int", input_info("input"), { data_types::i8, format::bfyx, { input_b, input_f, 1, input_y } });
-    auto fc = fully_connected("fc_prim", input_info("reorder_to_int"), "weights", "", padding(), 3);
+    auto fc = fully_connected("fc_prim", input_info("reorder_to_int"), "weights", "", 3);
     auto rf = reorder("reorder_to_float", input_info("fc_prim"), { data_types::f32, format::bfyx, { output_b, output_f, 1, 1 } });
     topology topology;
     topology.add(input);
@@ -3476,7 +3475,7 @@ struct dynamic_fully_connected_gpu : ::testing::TestWithParam<fully_connected_dy
         };
 
         if (fc_3d)
-            topology.add(fully_connected("fc", input_info("input"), "weights", "bias", output_dt, padding(), 3));
+            topology.add(fully_connected("fc", input_info("input"), "weights", "bias", output_dt, 3));
         else
             topology.add(fully_connected("fc", input_info("input"), "weights", "bias", output_dt));
 
@@ -3746,7 +3745,7 @@ public:
         auto last_dim = std::find_if(input_sizes.rbegin(), input_sizes.rend(),
                                      [](tensor::value_type x) { return x != 1l; });
         size_t input_rank = std::distance(input_sizes.begin(), last_dim.base());
-        auto fc_prim = fully_connected("output", input_info("input"), "weights", "bias", cldnn::padding(), input_rank);
+        auto fc_prim = fully_connected("output", input_info("input"), "weights", "bias", input_rank);
         fc_prim.output_data_types = { static_cast<ov::element::Type_t>(ov::element::from<WeightsT>()) };
         topo.add(fc_prim);
 

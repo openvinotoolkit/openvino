@@ -23,9 +23,8 @@ struct shuffle_channels : public primitive_base<shuffle_channels> {
     shuffle_channels(const primitive_id& id,
                      const input_info& input,
                      const int32_t group,
-                     const int32_t axis = 1,
-                     const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}), group(group), axis(axis) {}
+                     const int32_t axis = 1)
+        : primitive_base(id, {input}), group(group), axis(axis) {}
 
     /// @brief The number of groups to split the channel dimension. This number must evenly divide the channel dimension size.
     int32_t group;

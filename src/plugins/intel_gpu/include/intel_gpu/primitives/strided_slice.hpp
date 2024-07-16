@@ -38,9 +38,8 @@ struct strided_slice : public primitive_base<strided_slice> {
                   const std::vector<int64_t>& new_axis_mask,
                   const std::vector<int64_t>& shrink_axis_mask,
                   const std::vector<int64_t>& ellipsis_mask,
-                  const ov::Shape out_size,
-                  const padding& output_padding = padding())
-        : primitive_base(id, {input, begin_id, end_id, strides_id}, {output_padding}),
+                  const ov::Shape out_size)
+        : primitive_base(id, {input, begin_id, end_id, strides_id}),
           begin({}),
           end({}),
           strides({}),
@@ -73,9 +72,8 @@ struct strided_slice : public primitive_base<strided_slice> {
                   const std::vector<int64_t>& new_axis_mask,
                   const std::vector<int64_t>& shrink_axis_mask,
                   const std::vector<int64_t>& ellipsis_mask,
-                  const ov::Shape out_size,
-                  const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}),
+                  const ov::Shape out_size)
+        : primitive_base(id, {input}),
           begin(begin),
           end(end),
           strides(strides),
@@ -108,9 +106,8 @@ struct strided_slice : public primitive_base<strided_slice> {
                   const std::vector<int64_t>& new_axis_mask,
                   const std::vector<int64_t>& shrink_axis_mask,
                   const std::vector<int64_t>& ellipsis_mask,
-                  const ov::Shape out_size,
-                  const padding& output_padding = padding())
-        : primitive_base(id, inputs, {output_padding}),
+                  const ov::Shape out_size)
+        : primitive_base(id, inputs),
           begin(begin),
           end(end),
           strides(strides),

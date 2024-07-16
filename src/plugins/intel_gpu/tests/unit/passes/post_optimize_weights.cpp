@@ -51,7 +51,7 @@ TEST(post_optimize_weights, fuse_reorder_to_weights_reorder_test_dynamic) {
         input_layout("input", in_layout),
         input_layout("weights", weights->get_layout()),
         reorder("reorder_dt", input_info("weights"), format::bfyx, data_types::f16),
-        fully_connected("fc", input_info("input"), { "reorder_dt" }, "", data_types::f16, {}, 3)
+        fully_connected("fc", input_info("input"), { "reorder_dt" }, "", data_types::f16, 3)
     );
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -134,7 +134,7 @@ TEST(post_optimize_weights, weights_reorder_constant_folding_test_dynamic) {
     topology topology(
         input_layout("input", in_layout),
         data("weights", weights),
-        fully_connected("fc", input_info("input"), { "weights" }, "", data_types::f16, {}, 3)
+        fully_connected("fc", input_info("input"), { "weights" }, "", data_types::f16, 3)
     );
 
     ExecutionConfig config = get_test_default_config(engine);

@@ -35,9 +35,8 @@ struct deconvolution : public primitive_base<deconvolution> {
                   const std::vector<primitive_id>& bias,
                   ov::Strides stride = {1, 1},
                   ov::CoordinateDiff pad = {0, 0},
-                  ov::Strides dilations = {1, 1},
-                  const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}),
+                  ov::Strides dilations = {1, 1})
+        : primitive_base(id, {input}),
           pad(pad),
           stride(stride),
           dilations(dilations),
@@ -68,9 +67,8 @@ struct deconvolution : public primitive_base<deconvolution> {
                   uint32_t groups,
                   ov::Strides stride = {1, 1},
                   ov::CoordinateDiff pad = {0, 0},
-                  ov::Strides dilations = {1, 1},
-                  const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}),
+                  ov::Strides dilations = {1, 1})
+        : primitive_base(id, {input}),
           pad(pad),
           stride(stride),
           dilations(dilations),
@@ -98,9 +96,8 @@ struct deconvolution : public primitive_base<deconvolution> {
                   const std::vector<primitive_id>& weights,
                   ov::Strides stride = {1, 1},
                   ov::CoordinateDiff pad = {0, 0},
-                  ov::Strides dilations = {1, 1},
-                  const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}),
+                  ov::Strides dilations = {1, 1})
+        : primitive_base(id, {input}),
           pad(pad),
           stride(stride),
           dilations(dilations),
@@ -130,9 +127,8 @@ struct deconvolution : public primitive_base<deconvolution> {
                   uint32_t groups,
                   ov::Strides stride = {1, 1},
                   ov::CoordinateDiff pad = {0, 0},
-                  ov::Strides dilations = {1, 1},
-                  const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}),
+                  ov::Strides dilations = {1, 1})
+        : primitive_base(id, {input}),
           pad(pad),
           stride(stride),
           dilations(dilations),
@@ -164,9 +160,8 @@ struct deconvolution : public primitive_base<deconvolution> {
                   ov::Strides stride,
                   ov::CoordinateDiff pad,
                   ov::Strides dilations,
-                  tensor output_size,
-                  const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}),
+                  tensor output_size)
+        : primitive_base(id, {input}),
           pad(pad),
           stride(stride),
           dilations(dilations),
@@ -202,9 +197,8 @@ struct deconvolution : public primitive_base<deconvolution> {
                   ov::CoordinateDiff pad,
                   ov::Strides dilations,
                   tensor output_size,
-                  bool grouped_weights_shape,
-                  const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}),
+                  bool grouped_weights_shape)
+        : primitive_base(id, {input}),
           pad(pad),
           stride(stride),
           dilations(dilations),
@@ -242,9 +236,8 @@ struct deconvolution : public primitive_base<deconvolution> {
                   ov::CoordinateDiff pads_begin,
                   ov::CoordinateDiff pads_end,
                   ov::CoordinateDiff out_padding,
-                  bool grouped_weights_shape,
-                  const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}),
+                  bool grouped_weights_shape)
+        : primitive_base(id, {input}),
           pad(pad),
           stride(stride),
           dilations(dilations),
@@ -274,9 +267,8 @@ struct deconvolution : public primitive_base<deconvolution> {
                   ov::Strides stride,
                   ov::CoordinateDiff pad,
                   ov::Strides dilations,
-                  tensor output_size,
-                  const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}),
+                  tensor output_size)
+        : primitive_base(id, {input}),
           pad(pad),
           stride(stride),
           dilations(dilations),
@@ -308,8 +300,7 @@ struct deconvolution : public primitive_base<deconvolution> {
                                                  tensor output_size,
                                                  ov::Strides stride = {1, 1},
                                                  ov::CoordinateDiff pad = {0, 0},
-                                                 ov::Strides dilations = {1, 1},
-                                                 const padding& output_padding = padding()) {
+                                                 ov::Strides dilations = {1, 1}) {
         return deconvolution(id,
                              input,
                              weights,
@@ -317,8 +308,7 @@ struct deconvolution : public primitive_base<deconvolution> {
                              stride,
                              pad,
                              dilations,
-                             output_size,
-                             output_padding);
+                             output_size);
     }
 
     /// @brief Constructs deconvolution primitive (w/o bias; computes input paddings to match output size).
@@ -337,16 +327,14 @@ struct deconvolution : public primitive_base<deconvolution> {
                                                  tensor output_size,
                                                  ov::Strides stride = {1, 1},
                                                  ov::CoordinateDiff pad = {0, 0},
-                                                 ov::Strides dilations = {1, 1},
-                                                 const padding& output_padding = padding())     {
+                                                 ov::Strides dilations = {1, 1})     {
         return deconvolution(id,
                              input,
                              weights,
                              stride,
                              pad,
                              dilations,
-                             output_size,
-                             output_padding);
+                             output_size);
     }
 
     /// @brief Defines logical pad value added to input tensor.

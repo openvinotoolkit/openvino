@@ -148,7 +148,9 @@ public:
         topology tpl;
         tpl.add(input_layout("in1", input1->get_layout()));
         tpl.add(input_layout("in2", input2->get_layout()));
-        tpl.add(concatenation("conc", { input_info("in1"), input_info("in2") }, 2, padding({ 0, 0, 1, 1 }, 0.0f)));
+        auto concat = concatenation("conc", { input_info("in1"), input_info("in2") }, 2);
+        concat.output_paddings = { padding({ 0, 0, 1, 1 }, 0.0f) };
+        tpl.add(concat);
 
         cldnn::network::ptr net = get_network(engine, tpl, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         net->set_input_data("in1", input1);
@@ -203,7 +205,9 @@ public:
         topology tpl;
         tpl.add(input_layout("in1", input1->get_layout()));
         tpl.add(input_layout("in2", input2->get_layout()));
-        tpl.add(concatenation("conc", { input_info("in1"), input_info("in2") }, 3, padding({ 0, 0, 2, 0 }, { 0, 0, 0, 0 })));
+        auto concat = concatenation("conc", { input_info("in1"), input_info("in2") }, 3);
+        concat.output_paddings = {padding({ 0, 0, 2, 0 }, { 0, 0, 0, 0 }) };
+        tpl.add(concat);
 
         cldnn::network::ptr net = get_network(engine, tpl, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         net->set_input_data("in1", input1);

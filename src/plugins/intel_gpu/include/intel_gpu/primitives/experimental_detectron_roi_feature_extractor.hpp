@@ -26,9 +26,8 @@ struct experimental_detectron_roi_feature_extractor : public primitive_base<expe
                                                  int output_dim,
                                                  const std::vector<int64_t>& pyramid_scales,
                                                  int sampling_ratio,
-                                                 bool aligned,
-                                                 const padding& output_padding = padding()) :
-            primitive_base(id, inputs, {output_padding}),
+                                                 bool aligned) :
+            primitive_base(id, inputs),
             output_dim(output_dim),
             pooled_height(output_dim),
             pooled_width(output_dim),

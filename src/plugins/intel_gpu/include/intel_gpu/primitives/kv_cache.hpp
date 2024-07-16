@@ -21,9 +21,8 @@ struct kv_cache : public primitive_base<kv_cache> {
              const ov::op::util::VariableInfo& variable_info,
              const int64_t concat_axis,
              const int64_t gather_axis,
-             const bool indirect,
-             const padding& output_padding = padding())
-        : primitive_base(id, inputs, {output_padding})
+             const bool indirect)
+        : primitive_base(id, inputs)
         , variable_info(variable_info)
         , concat_axis(concat_axis)
         , gather_axis(gather_axis)

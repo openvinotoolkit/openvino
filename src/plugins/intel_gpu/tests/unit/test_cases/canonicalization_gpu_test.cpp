@@ -158,7 +158,7 @@ TEST(canonicalization, fully_connected) {
         topology topology;
         topology.add(input_layout("input", input0_layout));
         topology.add(data("weights", weights_prim));
-        topology.add(fully_connected("fully_connected", input_info("input"), "weights", "", {}, input_rank, weights_rank));
+        topology.add(fully_connected("fully_connected", input_info("input"), "weights", "", input_rank, weights_rank));
 
         canonicalization_test(topology, "fully_connected", std::get<1>(shapes), std::get<2>(shapes));
     }

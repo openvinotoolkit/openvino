@@ -103,8 +103,7 @@ TEST_P(concat_onednn_activation, along_f) {
         concatenation("concat",
                       { input_info("input0"), input_info("input1") },
                       1,
-                      data_types::f16,
-                      padding{ { 0, 0, 0, 0 }, 0 }),
+                      data_types::f16),
         activation("act", input_info("concat"), activation_func::relu),
         reorder("reorder_bfyx", input_info("act"), cldnn::format::bfyx, p.default_type)
     );
@@ -125,8 +124,7 @@ TEST_P(concat_onednn_eltwise, along_f) {
         concatenation("concat",
                       { input_info("input0"), input_info("input1") },
                       1,
-                      data_types::f16,
-                      padding{ { 0, 0, 0, 0 }, 0 }),
+                      data_types::f16),
         eltwise("scale", { input_info("concat"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
         reorder("reorder_bfyx", input_info("scale"), cldnn::format::bfyx, p.default_type)
     );

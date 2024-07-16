@@ -50,9 +50,8 @@ struct space_to_batch : public primitive_base<space_to_batch> {
                    const tensor& block_shape,
                    const tensor& pads_begin,
                    const tensor& pads_end,
-                   const tensor& out_size,
-                   const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}),
+                   const tensor& out_size)
+        : primitive_base(id, {input}),
           block_shape(block_shape),
           pads_begin(pads_begin),
           pads_end(pads_end),
@@ -61,9 +60,8 @@ struct space_to_batch : public primitive_base<space_to_batch> {
 
     space_to_batch(const primitive_id& id,
                    const std::vector<input_info>& inputs,
-                   const tensor& out_size,
-                   const padding& output_padding = padding())
-        : primitive_base(id, inputs, {output_padding}),
+                   const tensor& out_size)
+        : primitive_base(id, inputs),
           block_shape(tensor()),
           pads_begin(tensor()),
           pads_end(tensor()),
