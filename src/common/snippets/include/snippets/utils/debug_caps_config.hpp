@@ -56,7 +56,7 @@ public:
             return {PropertySetterPtr(new StringPropertySetter("dir", dir, "path to dumped LIRs")),
                     format.getPropertySetter(),
                     PropertySetterPtr(new MultipleStringPropertySetter("passes", passes,
-                    "indicate dump LIRs around the passes. Support mutiple passes with comma separated and case insensitive. 'all' means dump all passes"))};
+                    "indicate dump LIRs around the passes. Support multiple passes with comma separated and case insensitive. 'all' means dump all passes"))};
         }
     } dumpLIR;
 
