@@ -945,11 +945,11 @@ void Partitioner::propagateConvertsOut(const std::string& func_name) {
         if (!ov::is_type<ov::op::v0::Convert>(node_ptr)) {  // 1
             return false;
         }
-        auto this_layer_name = node_ptr->get_friendly_name();
+        const auto& this_layer_name = node_ptr->get_friendly_name();
         if (bank.end() != std::find_if(bank.begin(), bank.end(), BankContains{this_layer_name})) {  // 2
             return false;
         }
-        auto in_layer_name = node_ptr->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name();
+        const auto& in_layer_name = node_ptr->input(0).get_source_output().get_node_shared_ptr()->get_friendly_name();
         if (bank.end() == std::find_if(bank.begin(), bank.end(), BankContains{in_layer_name})) {  // 3
             return false;
         }

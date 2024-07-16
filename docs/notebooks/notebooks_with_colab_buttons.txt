@@ -9,6 +9,7 @@ depth-anything
 depth-anything-v2
 detectron2-to-openvino
 distilbert-sequence-classification
+explainable-ai-1-basic
 fast-segment-anything
 grounded-segment-anything
 handwritten-ocr
@@ -55,8 +56,6 @@ tflite-to-openvino
 tiny-sd-image-generation
 vision-background-removal
 vision-monodepth
-vision-paddlegan-anime
-vision-paddlegan-superresolution
 whisper-subtitles-generation
 yolov8-instance-segmentation
 yolov8-keypoint-detection
