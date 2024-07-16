@@ -53,7 +53,7 @@ public:
 private:
     void rm_tensor_output_names() {
         auto names = get_tensor().get_names();
-        for (const auto& output_name : m_output_names){
+        for (const auto& output_name : m_output_names) {
             names.erase(output_name);
         }
         get_tensor().set_names(names);
