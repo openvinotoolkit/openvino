@@ -936,10 +936,6 @@ static bool is_node_for_onednn(fully_connected_node const& node) {
                 (decompression_zp_dt != ov::element::Type_t::u8 && decompression_zp_dt != ov::element::Type_t::i8)) {
                 return false;
             }
-
-            auto input_dt = node.get_input_layout(0).data_type;
-            if (input_dt == data_types::f32)
-                return false;
         }
     }
 
@@ -963,6 +959,9 @@ static bool is_node_for_onednn(fully_connected_node const& node) {
 
 static bool is_node_for_onednn(gemm_node const& node) {
     if (!layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node))
+        return false;
+
+    if (node.get_primitive()->indirect_a || node.get_primitive()->indirect_b)
         return false;
 
     return true;

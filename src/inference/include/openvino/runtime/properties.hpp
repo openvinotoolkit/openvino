@@ -10,7 +10,9 @@
  */
 #pragma once
 
+#include <algorithm>
 #include <array>
+#include <cctype>
 #include <iomanip>
 #include <istream>
 #include <map>
@@ -691,6 +693,52 @@ static constexpr Property<std::string> cache_dir{"CACHE_DIR"};
 static constexpr Property<bool, PropertyMutability::RO> loaded_from_cache{"LOADED_FROM_CACHE"};
 
 /**
+ * @brief Enum to define possible workload types
+ *
+ * Workload type represents the execution priority for an inference.
+ *
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+enum class WorkloadType {
+    DEFAULT = 0,    // Default execution priority
+    EFFICIENT = 1,  // Lower execution priority
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const WorkloadType& mode) {
+    switch (mode) {
+    case WorkloadType::DEFAULT:
+        return os << "DEFAULT";
+    case WorkloadType::EFFICIENT:
+        return os << "EFFICIENT";
+    default:
+        OPENVINO_THROW("Unsupported workload type");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, WorkloadType& mode) {
+    std::string str;
+    is >> str;
+    std::transform(str.begin(), str.end(), str.begin(), tolower);
+    if (str == "default") {
+        mode = WorkloadType::DEFAULT;
+    } else if (str == "efficient") {
+        mode = WorkloadType::EFFICIENT;
+    } else {
+        OPENVINO_THROW("Unsupported workload type: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Read-write property to select in which mode the workload will be executed
+ * This is only supported by NPU.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<WorkloadType, PropertyMutability::RW> workload_type{"WORKLOAD_TYPE"};
+
+/**
  * @brief Enum to define possible cache mode
  * @ingroup ov_runtime_cpp_prop_api
  */
@@ -810,7 +858,6 @@ static constexpr Property<bool, PropertyMutability::RW> enable_mmap{"ENABLE_MMAP
  * @brief Namespace with device properties
  */
 namespace device {
-
 /**
  * @brief the property for setting of required device to execute on
  * values: device id starts from "0" - first device, "1" - second device, etc
@@ -1042,8 +1089,8 @@ inline std::istream& operator>>(std::istream& is, Type& device_type) {
 static constexpr Property<Type, PropertyMutability::RO> type{"DEVICE_TYPE"};
 
 /**
- * @brief Read-only property which defines Giga OPS per second count (GFLOPS or GIOPS) for a set of precisions supported
- * by specified device
+ * @brief Read-only property which defines Giga OPS per second count (GFLOPS or GIOPS) for a set of precisions
+ * supported by specified device
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::map<element::Type, float>, PropertyMutability::RO> gops{"DEVICE_GOPS"};
