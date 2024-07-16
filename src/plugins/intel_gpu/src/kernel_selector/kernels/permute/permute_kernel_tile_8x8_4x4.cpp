@@ -107,7 +107,7 @@ static inline std::string GetTiledOutputOrder(const permute_params& params) {
         std::string out_z_str = "";
         const auto& output = params.outputs[0];
         if (params.has_dynamic_outputs()) {
-            DimensionAccessHelper dims(output);
+            DimensionAccessHelperJit dims(output);
             out_y_str = dims.y();
             out_z_str = dims.z();
         } else {

@@ -8,7 +8,7 @@ Interface OutputInfo
    }
 
 * **Defined in:**
-  `addon.ts:150 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L150>`__
+  `addon.ts:548 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L548>`__
 
 
 Methods
@@ -17,7 +17,7 @@ Methods
 
 .. rubric:: tensor
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -26,5 +26,5 @@ Methods
    * **Returns** :doc:`OutputTensorInfo <OutputTensorInfo>`
 
    * **Defined in:**
-     `addon.ts:151 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L151>`__
+     `addon.ts:549 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L549>`__
 

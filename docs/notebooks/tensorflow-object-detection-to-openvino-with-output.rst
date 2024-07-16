@@ -23,8 +23,8 @@ IR, load the model in `OpenVINO
 Runtime <https://docs.openvino.ai/2024/openvino-workflow/running-inference.html>`__
 and do inference with a sample image.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Imports <#imports>`__
@@ -60,9 +60,9 @@ Install required packages:
 .. code:: ipython3
 
     import platform
-    
+
     %pip install -q "openvino>=2023.1.0" "numpy>=1.21.0" "opencv-python" "tqdm"
-    
+
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
@@ -77,81 +77,13 @@ Install required packages:
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -162,11 +94,11 @@ The notebook uses utility functions. The cell below will download the
 
     # Fetch the notebook utils script from the openvino_notebooks repo
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-    
+
     open("notebook_utils.py", "w").write(r.text)
 
 
@@ -174,7 +106,7 @@ The notebook uses utility functions. The cell below will download the
 
 .. parsed-literal::
 
-    21503
+    23215
 
 
 
@@ -187,15 +119,15 @@ Imports
 
     # Standard python modules
     from pathlib import Path
-    
+
     # External modules and dependencies
     import cv2
     import matplotlib.pyplot as plt
     import numpy as np
-    
+
     # OpenVINO import
     import openvino as ov
-    
+
     # Notebook utils module
     from notebook_utils import download_file
 
@@ -211,21 +143,21 @@ Define model related variables and create corresponding directories:
     # Create directories for models files
     model_dir = Path("model")
     model_dir.mkdir(exist_ok=True)
-    
+
     # Create directory for TensorFlow model
     tf_model_dir = model_dir / "tf"
     tf_model_dir.mkdir(exist_ok=True)
-    
+
     # Create directory for OpenVINO IR model
     ir_model_dir = model_dir / "ir"
     ir_model_dir.mkdir(exist_ok=True)
-    
+
     model_name = "faster_rcnn_resnet50_v1_640x640"
-    
+
     openvino_ir_path = ir_model_dir / f"{model_name}.xml"
-    
+
     tf_model_url = "https://www.kaggle.com/models/tensorflow/faster-rcnn-resnet-v1/frameworks/tensorFlow2/variations/faster-rcnn-resnet50-v1-640x640/versions/1?tf-hub-format=compressed"
-    
+
     tf_model_archive_filename = f"{model_name}.tar.gz"
 
 Download Model from TensorFlow Hub
@@ -252,7 +184,7 @@ from TensorFlow Hub:
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/model/tf/faster_rcnn_resnet50_v1_640x640.tar.gz')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/model/tf/faster_rcnn_resnet50_v1_640x640.tar.gz')
 
 
 
@@ -261,7 +193,7 @@ Extract TensorFlow Object Detection model from the downloaded archive:
 .. code:: ipython3
 
     import tarfile
-    
+
     with tarfile.open(tf_model_dir / tf_model_archive_filename) as file:
         file.extractall(path=tf_model_dir)
 
@@ -291,7 +223,7 @@ support <https://docs.openvino.ai/2024/openvino-workflow/model-preparation/conve
 .. code:: ipython3
 
     ov_model = ov.convert_model(tf_model_dir)
-    
+
     # Save converted OpenVINO IR model to the corresponding directory
     ov.save_model(ov_model, openvino_ir_path)
 
@@ -310,7 +242,7 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -318,7 +250,7 @@ select device from dropdown list for running inference using OpenVINO
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -385,10 +317,10 @@ for more information about model inputs, outputs and their formats.
     model_inputs = compiled_model.inputs
     model_input = compiled_model.input(0)
     model_outputs = compiled_model.outputs
-    
+
     print("Model inputs count:", len(model_inputs))
     print("Model input:", model_input)
-    
+
     print("Model outputs count:", len(model_outputs))
     print("Model outputs:")
     for output in model_outputs:
@@ -421,7 +353,7 @@ Load and save an image:
 .. code:: ipython3
 
     image_path = Path("./data/coco_bike.jpg")
-    
+
     download_file(
         url="https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco_bike.jpg",
         filename=image_path.name,
@@ -438,7 +370,7 @@ Load and save an image:
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/data/coco_bike.jpg')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/data/coco_bike.jpg')
 
 
 
@@ -448,16 +380,16 @@ Read the image, resize and convert it to the input shape of the network:
 
     # Read the image
     image = cv2.imread(filename=str(image_path))
-    
+
     # The network expects images in RGB format
     image = cv2.cvtColor(image, code=cv2.COLOR_BGR2RGB)
-    
+
     # Resize the image to the network input shape
     resized_image = cv2.resize(src=image, dsize=(255, 255))
-    
+
     # Transpose the image to the network input shape
     network_input_image = np.expand_dims(resized_image, 0)
-    
+
     # Show the image
     plt.imshow(image)
 
@@ -466,7 +398,7 @@ Read the image, resize and convert it to the input shape of the network:
 
 .. parsed-literal::
 
-    <matplotlib.image.AxesImage at 0x7f3ab6a2ee80>
+    <matplotlib.image.AxesImage at 0x7f9fdceb46d0>
 
 
 
@@ -500,99 +432,99 @@ outputs will be used.
         _,
         _,
     ) = model_outputs
-    
+
     image_detection_boxes = inference_result[detection_boxes]
     print("image_detection_boxes:", image_detection_boxes)
-    
+
     image_detection_classes = inference_result[detection_classes]
     print("image_detection_classes:", image_detection_classes)
-    
+
     image_detection_scores = inference_result[detection_scores]
     print("image_detection_scores:", image_detection_scores)
-    
+
     image_num_detections = inference_result[num_detections]
     print("image_detections_num:", image_num_detections)
-    
+
     # Alternatively, inference result data can be extracted by model output name with `.get()` method
     assert (inference_result[detection_boxes] == inference_result.get("detection_boxes")).all(), "extracted inference result data should be equal"
 
 
 .. parsed-literal::
 
-    image_detection_boxes: [[[0.16454576 0.54601336 0.8953865  0.85500604]
-      [0.67189544 0.01240013 0.9843237  0.5308593 ]
-      [0.4918859  0.0117609  0.98050654 0.8866383 ]
+    image_detection_boxes: [[[0.16447833 0.5460326  0.89537144 0.8550827 ]
+      [0.6717681  0.01238852 0.9843284  0.53113335]
+      [0.49202633 0.01172762 0.98052186 0.8866133 ]
       ...
-      [0.43604603 0.59332204 0.4692565  0.6341099 ]
-      [0.46022677 0.59246916 0.48732638 0.61871874]
-      [0.47092935 0.4351712  0.5583364  0.5072162 ]]]
+      [0.46021447 0.5924625  0.48734403 0.6187243 ]
+      [0.4360505  0.5933398  0.4692526  0.6341007 ]
+      [0.68998176 0.4135669  0.9760198  0.8143897 ]]]
     image_detection_classes: [[18.  2.  2.  3.  2.  8.  2.  2.  3.  2.  4.  4.  2.  4. 16.  1.  1.  2.
       27.  8. 62.  2.  2.  4.  4.  2. 18. 41.  4.  4.  2. 18.  2.  2.  4.  2.
       27.  2. 27.  2.  1.  2. 16.  1. 16.  2.  2.  2.  2. 16.  2.  2.  4.  2.
-       1. 33.  4. 15.  3.  2.  2.  1.  2.  1.  4.  2.  3. 11.  4. 35.  4.  1.
-      40.  2. 62.  2.  4.  4. 36.  1. 36. 36. 31. 77.  2.  1. 51.  1. 34.  3.
-       2.  3. 90.  2.  1.  2.  1.  2.  1.  1.  2.  4. 18.  2.  3.  2. 31.  1.
-       1.  2.  2. 33. 41. 41. 31.  3.  1. 36.  3. 15. 27. 27.  4.  4.  2. 37.
-       3. 15.  1. 35. 27.  4. 36.  4. 88.  3.  2. 15.  2.  4.  2.  1.  3.  4.
-      27.  4.  3. 16. 44.  1.  1. 23.  4.  1.  4.  3.  4. 15. 62. 36. 77.  3.
-       1. 28. 27. 35.  2. 36. 75. 28. 27.  8.  3. 36.  4. 44.  2. 35.  4.  1.
-       3.  1.  1. 35. 87.  1.  1.  1. 15. 84.  1.  1.  1.  3.  1. 35.  1.  1.
-       1. 62. 15.  1. 15. 44.  1. 41.  1. 62.  4.  4.  3. 43. 16. 35. 15.  2.
-       4. 34. 14.  3. 62. 33.  4. 41.  2. 35. 18.  3. 15.  1. 27.  4. 87.  2.
-      19. 21.  1.  1. 27.  1.  3.  3.  2. 15. 38.  1.  1. 15. 27.  4.  4.  3.
-      84. 38.  1. 15.  3. 20. 62. 58. 41. 20.  2.  4. 88. 62. 15. 31.  1. 31.
-      14. 19.  4.  1.  2.  8. 18. 15.  4.  2.  2.  2. 31. 84. 15.  3. 28.  2.
-      27. 18. 15.  1. 31. 28.  1. 41.  8.  1.  3. 20.]]
-    image_detection_scores: [[0.981008   0.9406672  0.9318087  0.8773675  0.8406423  0.59000057
-      0.5544938  0.5395715  0.4939019  0.48142588 0.4627259  0.4407012
-      0.4011658  0.34708387 0.31795812 0.27489564 0.24746375 0.23632699
-      0.23248124 0.2240141  0.21871349 0.20231551 0.19377194 0.14768386
-      0.14555368 0.14337902 0.12709695 0.12582937 0.11867426 0.11002194
-      0.10564959 0.0922567  0.08963199 0.0888719  0.08704563 0.08072611
-      0.08002175 0.07911427 0.06661151 0.06338179 0.06100735 0.06005858
-      0.05798701 0.05364129 0.05204971 0.05011016 0.04850911 0.04709023
-      0.04469217 0.04128499 0.04075789 0.03989535 0.03523415 0.03272349
-      0.03108067 0.02970151 0.02872295 0.02845928 0.02585636 0.02348836
-      0.02330403 0.02148154 0.0213374  0.02086144 0.02035653 0.01959788
-      0.01931941 0.01926653 0.01872193 0.01856227 0.01853303 0.01838784
-      0.0181897  0.01780703 0.017271   0.01663653 0.01586576 0.01579067
-      0.01573383 0.01528259 0.01502851 0.01451424 0.01439989 0.0142894
-      0.01419323 0.01380469 0.01360497 0.01299106 0.01249145 0.01198861
-      0.01148866 0.01145843 0.0114446  0.01139614 0.0111394  0.01108592
-      0.01089339 0.01082359 0.01051234 0.01027329 0.01006839 0.0097945
-      0.0097324  0.00960594 0.00957183 0.00953107 0.00949827 0.00942658
-      0.00942553 0.0093122  0.00907309 0.00887799 0.0088445  0.00881257
-      0.00864545 0.00854312 0.00849879 0.00849659 0.00846911 0.00820138
-      0.00816589 0.00791355 0.00790155 0.00769932 0.00768909 0.00766407
-      0.00766063 0.00764461 0.00745569 0.00721991 0.00706666 0.00700593
-      0.00678841 0.00648049 0.00646962 0.00638172 0.00635816 0.00625101
-      0.0062297  0.00599664 0.00591933 0.00585052 0.0057801  0.00576511
-      0.00572357 0.00560453 0.00558353 0.00556504 0.00553866 0.00548296
-      0.00547356 0.00543473 0.00543379 0.00540833 0.00537916 0.00535765
-      0.00523385 0.00518937 0.00505316 0.00505005 0.00492084 0.00482558
-      0.00471782 0.00470318 0.00464702 0.00461124 0.00458301 0.00457273
-      0.00455803 0.00454314 0.00454089 0.00441312 0.00437611 0.0042632
-      0.00420743 0.00415999 0.00409998 0.00409558 0.00407969 0.00405196
-      0.00404087 0.00399854 0.0039951  0.00393439 0.00390283 0.00387302
-      0.0038489  0.00382759 0.0038003  0.00379529 0.00376794 0.00374193
-      0.00371189 0.0036963  0.00366447 0.00358808 0.00351783 0.0035044
-      0.00344527 0.00343266 0.00342917 0.00338231 0.00332238 0.00330844
-      0.00329753 0.00327268 0.00315135 0.00310979 0.0030898  0.00308362
-      0.00305496 0.00304868 0.00304045 0.0030366  0.00302583 0.00301238
-      0.00298852 0.00291268 0.00290265 0.00289242 0.00287723 0.00286562
-      0.00282571 0.00282504 0.00275257 0.00274531 0.00272039 0.00268618
-      0.00261918 0.00260795 0.00256593 0.00254094 0.00252855 0.00250768
-      0.00249794 0.00249551 0.00248254 0.0024791  0.00246619 0.00241695
-      0.00240167 0.00236033 0.00235902 0.00234437 0.00234337 0.00233791
-      0.00233533 0.00230773 0.00230558 0.00229113 0.00228889 0.0022631
-      0.00225215 0.00224185 0.00222553 0.00219966 0.00219676 0.00217864
-      0.00217775 0.00215921 0.00215411 0.00214996 0.00212955 0.00211928
-      0.0021005  0.00205065 0.0020487  0.00203887 0.00203538 0.00203026
-      0.00201357 0.00199935 0.00199386 0.00197949 0.00197287 0.00195501
-      0.00194847 0.00192128 0.0018995  0.00187285 0.00185189 0.0018299
-      0.00179158 0.00177908 0.00176327 0.00176319 0.00175033 0.00173788
-      0.00172983 0.00172819 0.00168272 0.0016768  0.00167542 0.00167398
-      0.0016395  0.00163637 0.00163319 0.00162886 0.00162823 0.00162028]]
+       1. 33.  4. 15.  3.  2.  2.  1.  2.  1.  4.  2. 11.  3.  4. 35.  4.  1.
+      40.  2. 62.  2.  4.  4. 36.  1. 36. 36. 77. 31.  2.  1. 51.  1. 34.  3.
+      90.  3.  2.  2.  1.  2.  2.  1.  1.  1.  2. 18.  4.  3.  2.  2. 31.  1.
+       2.  1.  2. 41. 33. 41. 31.  3.  3.  1. 36. 15. 27.  4. 27.  2.  4. 15.
+       3. 37.  1. 27.  4. 35. 36. 88.  4.  2.  3. 15.  2.  4.  2.  1.  3. 27.
+       4.  3.  4. 16. 23. 44.  1.  1.  4.  1.  4.  3. 15.  4. 62. 36. 77.  3.
+      28.  1. 27. 35.  2. 36. 28. 27. 75.  8.  3. 36.  4. 44.  2.  4. 35.  1.
+       3.  1.  1. 35. 87.  1.  1.  1. 15.  1. 84.  1.  3.  1.  1. 35.  1.  2.
+       1.  1. 15. 62.  1. 15. 44.  1. 41.  1. 62.  4. 35.  4. 43.  3. 16. 15.
+       2.  4. 34. 14.  3. 62. 33. 41.  4.  2. 35. 18.  3. 15.  1. 27.  4. 21.
+      19. 87.  1.  1. 27.  1.  3.  2.  3. 15. 38.  1. 27.  1. 15. 84.  4.  4.
+       3. 38.  1. 15. 20.  3. 62. 41. 20. 58.  2. 88.  4. 62.  1. 15. 14. 31.
+      19.  4. 31.  1.  2.  8. 18. 15.  4.  2.  2.  2. 31. 84. 15.  3. 18.  2.
+      27. 28. 15. 31. 28.  1.  1.  8. 20.  3.  1. 41.]]
+    image_detection_scores: [[0.98100936 0.94071937 0.932054   0.87772274 0.84029174 0.5898775
+      0.5533583  0.5398071  0.49383202 0.47797197 0.46248457 0.44053423
+      0.40156218 0.34709066 0.31749818 0.27442315 0.2470981  0.23665425
+      0.23217289 0.22382483 0.21970394 0.20213611 0.19405638 0.14689012
+      0.14507611 0.14343795 0.12780005 0.12564348 0.11809891 0.10874528
+      0.10462028 0.09282681 0.09071824 0.08906853 0.08674242 0.08082759
+      0.08010086 0.079368   0.06617683 0.0628278  0.06066268 0.0602232
+      0.0580567  0.053602   0.05180356 0.04988255 0.048532   0.04689693
+      0.04476341 0.04134317 0.0408088  0.03969054 0.03504278 0.03275277
+      0.03109965 0.02965053 0.02862901 0.02858275 0.0257968  0.02342912
+      0.02333545 0.02142582 0.02137399 0.02088613 0.02024864 0.01939381
+      0.0193674  0.01934038 0.01863845 0.01847859 0.01844665 0.01834509
+      0.01803045 0.01781685 0.0173003  0.01667061 0.01585764 0.01565674
+      0.01565629 0.01524817 0.01516375 0.01505281 0.01435965 0.01434395
+      0.01415888 0.01369895 0.01359102 0.0129866  0.01253129 0.0120007
+      0.01156755 0.01149271 0.01135032 0.01133145 0.01113621 0.01108707
+      0.01100362 0.01090855 0.01044954 0.01028427 0.01001238 0.00976972
+      0.00976233 0.00964447 0.00960519 0.00954092 0.0094881  0.00940329
+      0.00935068 0.00933121 0.00906878 0.00887597 0.0088425  0.00881775
+      0.00860451 0.00854638 0.0084926  0.00848049 0.00845459 0.00824691
+      0.00814731 0.00789408 0.00785361 0.00773962 0.00770773 0.00766053
+      0.00765653 0.00765338 0.00744546 0.00704072 0.00697901 0.00689811
+      0.00689055 0.00659724 0.00649199 0.0063755  0.00635564 0.00623979
+      0.00622121 0.00599785 0.0058857  0.00585696 0.00579975 0.0057361
+      0.00572549 0.0056205  0.00558006 0.00556708 0.00549531 0.00547659
+      0.00547634 0.00546918 0.00541863 0.00540305 0.00535539 0.00534114
+      0.00524252 0.00522422 0.00505857 0.0050541  0.00490434 0.00482884
+      0.00479049 0.00470287 0.00461144 0.0046054  0.00460464 0.00457361
+      0.00455593 0.00455155 0.00454144 0.0044696  0.00437295 0.00425156
+      0.00421544 0.00415256 0.0041001  0.00407984 0.0040696  0.00404598
+      0.00403254 0.00399533 0.00396139 0.00393393 0.00391581 0.00389289
+      0.00383419 0.00383254 0.00381891 0.00376752 0.0037526  0.00373114
+      0.0037009  0.00367086 0.0036602  0.00359289 0.00351931 0.00350436
+      0.00348357 0.00345003 0.00343477 0.00343364 0.00336449 0.00332134
+      0.00331493 0.00329596 0.0032774  0.00312507 0.00311955 0.00307898
+      0.00307835 0.00307419 0.00306389 0.0030464  0.00302192 0.003013
+      0.00299757 0.00297221 0.00292418 0.00289839 0.00289729 0.00289356
+      0.00287951 0.00281861 0.00280929 0.00275672 0.0027263  0.00269611
+      0.00267223 0.00263109 0.00260242 0.00256464 0.0025561  0.00251843
+      0.00250994 0.00250275 0.00248212 0.002474   0.0024659  0.00242074
+      0.00239178 0.00237558 0.0023748  0.00235467 0.00234726 0.00234068
+      0.00232315 0.00232086 0.00231538 0.00230753 0.00229496 0.00229319
+      0.00226935 0.00223911 0.00221997 0.00220866 0.00219945 0.00219268
+      0.00218071 0.00216285 0.00215859 0.00215483 0.0021313  0.00211466
+      0.00210661 0.00204844 0.00204042 0.00204004 0.00202383 0.00202068
+      0.00199253 0.00198849 0.00198765 0.00198162 0.00197627 0.00195188
+      0.00193299 0.00191865 0.00190285 0.00188111 0.00185229 0.00182701
+      0.00178874 0.00177356 0.00176628 0.00176079 0.0017537  0.00174401
+      0.00171574 0.00169506 0.00168347 0.00168053 0.00167159 0.00167045
+      0.00163559 0.00163302 0.00163038 0.00162886 0.00162866 0.00162236]]
     image_detections_num: [300.]
 
 
@@ -607,12 +539,12 @@ Define utility functions to visualize the inference results
 
     import random
     from typing import Optional
-    
-    
+
+
     def add_detection_box(box: np.ndarray, image: np.ndarray, label: Optional[str] = None) -> np.ndarray:
         """
         Helper function for adding single bounding box to the image
-    
+
         Parameters
         ----------
         box : np.ndarray
@@ -621,18 +553,18 @@ Define utility functions to visualize the inference results
             The image to which detection box is added
         label : str, optional
             Detection box label string, if not provided will not be added to result image (default is None)
-    
+
         Returns
         -------
         np.ndarray
             NumPy array including both image and detection box
-    
+
         """
         ymin, xmin, ymax, xmax = box
         point1, point2 = (int(xmin), int(ymin)), (int(xmax), int(ymax))
         box_color = [random.randint(0, 255) for _ in range(3)]
         line_thickness = round(0.002 * (image.shape[0] + image.shape[1]) / 2) + 1
-    
+
         cv2.rectangle(
             img=image,
             pt1=point1,
@@ -641,7 +573,7 @@ Define utility functions to visualize the inference results
             thickness=line_thickness,
             lineType=cv2.LINE_AA,
         )
-    
+
         if label:
             font_thickness = max(line_thickness - 1, 1)
             font_face = 0
@@ -683,10 +615,10 @@ Define utility functions to visualize the inference results
 .. code:: ipython3
 
     from typing import Dict
-    
+
     from openvino.runtime.utils.data_helpers import OVDict
-    
-    
+
+
     def visualize_inference_result(
         inference_result: OVDict,
         image: np.ndarray,
@@ -695,7 +627,7 @@ Define utility functions to visualize the inference results
     ):
         """
         Helper function for visualizing inference result on the image
-    
+
         Parameters
         ----------
         inference_result : OVDict
@@ -711,9 +643,9 @@ Define utility functions to visualize the inference results
         detection_classes: np.ndarray = inference_result.get("detection_classes")
         detection_scores: np.ndarray = inference_result.get("detection_scores")
         num_detections: np.ndarray = inference_result.get("num_detections")
-    
+
         detections_limit = int(min(detections_limit, num_detections[0]) if detections_limit is not None else num_detections[0])
-    
+
         # Normalize detection boxes coordinates to original image size
         original_image_height, original_image_width, _ = image.shape
         normalized_detection_boxex = detection_boxes[::] * [
@@ -722,9 +654,9 @@ Define utility functions to visualize the inference results
             original_image_height,
             original_image_width,
         ]
-    
+
         image_with_detection_boxex = np.copy(image)
-    
+
         for i in range(detections_limit):
             detected_class_name = labels_map[int(detection_classes[0, i])]
             score = detection_scores[0, i]
@@ -734,7 +666,7 @@ Define utility functions to visualize the inference results
                 image=image_with_detection_boxex,
                 label=label,
             )
-    
+
         plt.imshow(image_with_detection_boxex)
 
 TensorFlow Object Detection model
@@ -750,7 +682,7 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__:
 .. code:: ipython3
 
     coco_labels_file_path = Path("./data/coco_91cl.txt")
-    
+
     download_file(
         url="https://raw.githubusercontent.com/openvinotoolkit/open_model_zoo/master/data/dataset_classes/coco_91cl.txt",
         filename=coco_labels_file_path.name,
@@ -768,7 +700,7 @@ Zoo <https://github.com/openvinotoolkit/open_model_zoo/>`__:
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/data/coco_91cl.txt')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/tensorflow-object-detection-to-openvino/data/coco_91cl.txt')
 
 
 
@@ -781,7 +713,7 @@ file:
     with open(coco_labels_file_path, "r") as file:
         coco_labels = file.read().strip().split("\n")
         coco_labels_map = dict(enumerate(coco_labels, 1))
-    
+
     print(coco_labels_map)
 
 
@@ -818,7 +750,7 @@ performance of your application using OpenVINO.
 Async inference pipeline
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
- The key advantage of the Async
+The key advantage of the Async
 API is that when a device is busy with inference, the application can
 perform other tasks in parallel (for example, populating inputs or
 scheduling other requests) rather than wait for the current inference to

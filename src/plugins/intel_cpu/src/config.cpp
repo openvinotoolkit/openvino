@@ -236,6 +236,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == ov::hint::dynamic_quantization_group_size.name()) {
             try {
+                fcDynamicQuantizationGroupSizeSetExplicitly = true;
                 fcDynamicQuantizationGroupSize = val.as<uint64_t>();
             } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value for property key ",
@@ -289,8 +290,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                     if (hasHardwareSupport(ov::element::f16)) {
                         inferencePrecision = ov::element::f16;
                     }
-                } else if (prec == ov::element::f32) {
-                    inferencePrecision = ov::element::f32;
+                } else if (one_of(prec, element::f32, element::undefined)) {
+                    inferencePrecision = prec;
                 } else {
                     OPENVINO_THROW("invalid value");
                 }
@@ -299,7 +300,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<std::string>(),
                                " for property key ",
                                ov::hint::inference_precision.name(),
-                               ". Supported values: bf16, f16, f32");
+                               ". Supported values: bf16, f16, f32, undefined");
             }
         } else if (ov::intel_cpu::cpu_runtime_cache_capacity.name() == key) {
             int val_i = -1;
@@ -387,7 +388,13 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             if (mayiuse(avx512_core_bf16))
                 inferencePrecision = ov::element::bf16;
         } else {
-            inferencePrecision = ov::element::f32;
+            inferencePrecision = ov::element::undefined;
+        }
+    }
+    // disable dynamic quantization and kv quantization for best accuracy
+    if (executionMode == ov::hint::ExecutionMode::ACCURACY) {
+        if (!fcDynamicQuantizationGroupSizeSetExplicitly) {
+            fcDynamicQuantizationGroupSize = 0;
         }
     }
 

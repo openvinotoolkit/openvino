@@ -81,20 +81,15 @@ void OVPropertiesTestsWithCompileModelProps::SetUp() {
     std::tie(temp_device, properties) = this->GetParam();
 
     std::string::size_type pos = temp_device.find(":", 0);
-    std::string hw_device;
-    if (pos == std::string::npos) {
-        target_device = temp_device;
-        hw_device = temp_device;
-    } else {
+    if (pos != std::string::npos) {
         target_device = temp_device.substr(0, pos);
-        hw_device = temp_device.substr(++pos, std::string::npos);
-    }
-
-    if (target_device == std::string(ov::test::utils::DEVICE_MULTI) ||
-        target_device == std::string(ov::test::utils::DEVICE_AUTO) ||
-        target_device == std::string(ov::test::utils::DEVICE_HETERO) ||
-        target_device == std::string(ov::test::utils::DEVICE_BATCH)) {
-        compileModelProperties = {ov::device::priorities(hw_device)};
+        for (auto& it : compileModelProperties) {
+            OPENVINO_ASSERT(it.first == ov::device::priorities.name(),
+                            "there is already ov::device::priorities() in compileModelProperties");
+        }
+        compileModelProperties.insert(ov::device::priorities(temp_device.substr(++pos, std::string::npos)));
+    } else {
+        target_device = temp_device;
     }
 
     model = ov::test::utils::make_split_concat();
@@ -817,7 +812,7 @@ TEST_P(OVGetMetricPropsOptionalTest, GetMetricAndPrintNoThrow_RANGE_FOR_ASYNC_IN
     ov::Core ie = ov::test::utils::create_core();
     unsigned int start{0}, end{0}, step{0};
 
-    ASSERT_NO_THROW(std::tie(start, end, step) = ie.get_property(target_device, ov::range_for_async_infer_requests));
+    OV_ASSERT_NO_THROW(std::tie(start, end, step) = ie.get_property(target_device, ov::range_for_async_infer_requests));
 
     std::cout << "Range for async infer requests: " << std::endl
     << start << std::endl
@@ -834,7 +829,7 @@ TEST_P(OVGetMetricPropsOptionalTest, GetMetricAndPrintNoThrow_RANGE_FOR_STREAMS)
     ov::Core ie = ov::test::utils::create_core();
     unsigned int start = 0, end = 0;
 
-    ASSERT_NO_THROW(std::tie(start, end) = ie.get_property(target_device, ov::range_for_streams));
+    OV_ASSERT_NO_THROW(std::tie(start, end) = ie.get_property(target_device, ov::range_for_streams));
 
     std::cout << "Range for streams: " << std::endl
     << start << std::endl

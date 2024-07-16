@@ -2,7 +2,6 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import os
 import pytest
 from copy import copy, deepcopy
 
@@ -157,4 +156,4 @@ def test_deepcopy():
     output_node = node.outputs()[0]
     with pytest.raises(TypeError) as e:
         deepcopy(output_node)
-    assert "cannot deepcopy 'openvino.runtime.Output' object." in str(e)
+    assert "Cannot deepcopy 'openvino.runtime.Output' object." in str(e)

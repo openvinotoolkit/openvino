@@ -34,8 +34,7 @@ of ``ov::available_devices``, the string name of ``AVAILABLE_DEVICES`` and the t
 
 
 Refer to the :doc:`Hello Query Device C++ Sample <../../../learn-openvino/openvino-samples/hello-query-device>`
-sources and the :doc:`Multi-Device execution <multi-device>` documentation for examples of
-using the setting and getting properties in user applications.
+sources for an example of using the setting and getting properties in user applications.
 
 
 Get a Set of Available Devices
@@ -50,14 +49,14 @@ devices enabled by OpenVINO plugins and returns information, using the ``ov::Cor
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_properties_api.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_properties_api.py
          :language: py
          :fragment: [get_available_devices]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_properties_api.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_properties_api.cpp
          :language: cpp
          :fragment: [get_available_devices]
 
@@ -109,14 +108,14 @@ The code below demonstrates how to query ``HETERO`` device priority of devices w
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_properties_api.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_properties_api.py
          :language: py
          :fragment: [hetero_priorities]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_properties_api.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_properties_api.cpp
          :language: cpp
          :fragment: [hetero_priorities]
 
@@ -134,14 +133,14 @@ supported properties (``ov::supported_properties``), and others, use the ``ov::C
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_properties_api.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_properties_api.py
          :language: py
          :fragment: [cpu_device_name]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_properties_api.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_properties_api.cpp
          :language: cpp
          :fragment: [cpu_device_name]
 
@@ -172,14 +171,14 @@ accept a selection of properties as last arguments. Each of the properties shoul
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_properties_api.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_properties_api.py
          :language: py
          :fragment: [compile_model_with_property]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_properties_api.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_properties_api.cpp
          :language: cpp
          :fragment: [compile_model_with_property]
 
@@ -200,14 +199,14 @@ However, setting properties on a specific ``ov::Core::compile_model`` call appli
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_properties_api.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_properties_api.py
          :language: py
          :fragment: [core_set_property_then_compile]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_properties_api.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_properties_api.cpp
          :language: cpp
          :fragment: [core_set_property_then_compile]
 
@@ -227,14 +226,14 @@ compiled model level property such as ``ov::optimal_number_of_infer_requests``:
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_properties_api.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_properties_api.py
          :language: py
          :fragment: [optimal_number_of_infer_requests]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_properties_api.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_properties_api.cpp
          :language: cpp
          :fragment: [optimal_number_of_infer_requests]
 
@@ -247,39 +246,16 @@ Or the number of threads that would be used for inference on ``CPU`` device:
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: docs/snippets/ov_properties_api.py
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_properties_api.py
          :language: py
          :fragment: [inference_num_threads]
 
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: docs/snippets/ov_properties_api.cpp
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_properties_api.cpp
          :language: cpp
          :fragment: [inference_num_threads]
-
-
-Setting Properties for Compiled Model
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-The only mode that supports this method is `Multi-Device execution <./multi-device>`__:
-
-
-.. tab-set::
-
-   .. tab-item:: Python
-      :sync: py
-
-      .. doxygensnippet:: docs/snippets/ov_properties_api.py
-         :language: py
-         :fragment: [multi_device]
-
-   .. tab-item:: C++
-      :sync: cpp
-
-      .. doxygensnippet:: docs/snippets/ov_properties_api.cpp
-         :language: cpp
-         :fragment: [multi_device]
 
 
 

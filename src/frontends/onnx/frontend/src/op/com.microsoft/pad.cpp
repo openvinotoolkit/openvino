@@ -2,17 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/com.microsoft/pad.hpp"
+#include "openvino/op/pad.hpp"
 
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/pad.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "utils/reshape.hpp"
 #include "utils/split.hpp"
-
 namespace {
 ov::op::PadMode get_pad_mode(std::string mode) {
     ov::op::PadMode pad_mode;
@@ -36,9 +35,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace custom {
-namespace set_1 {
+namespace com_microsoft {
+namespace opset_1 {
 ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ov_inputs();
     const auto& data = inputs[0];
@@ -80,9 +78,11 @@ ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
 
     return {std::make_shared<v12::Pad>(data, padding_begin, padding_end, values, pad_mode)};
 }
-}  // namespace set_1
-}  // namespace custom
-}  // namespace op
+
+ONNX_OP("Pad", OPSET_SINCE(1), com_microsoft::opset_1::pad, MICROSOFT_DOMAIN);
+
+}  // namespace opset_1
+}  // namespace com_microsoft
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

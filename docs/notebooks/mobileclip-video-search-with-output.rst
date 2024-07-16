@@ -47,14 +47,13 @@ Table of contents:
 Prerequisites
 -------------
 
- ## Prerequisites
 
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     repo_dir = Path("./ml-mobileclip")
-    
+
     if not repo_dir.exists():
         !git clone https://github.com/apple/ml-mobileclip.git
 
@@ -62,182 +61,29 @@ Prerequisites
 .. parsed-literal::
 
     Cloning into 'ml-mobileclip'...
-
-
-.. parsed-literal::
-
-    remote: Enumerating objects: 45, done.[K
-    remote: Counting objects:   2% (1/45)[K
-remote: Counting objects:   4% (2/45)[K
-remote: Counting objects:   6% (3/45)[K
-remote: Counting objects:   8% (4/45)[K
-remote: Counting objects:  11% (5/45)[K
-remote: Counting objects:  13% (6/45)[K
-remote: Counting objects:  15% (7/45)[K
-remote: Counting objects:  17% (8/45)[K
-remote: Counting objects:  20% (9/45)[K
-remote: Counting objects:  22% (10/45)[K
-remote: Counting objects:  24% (11/45)[K
-remote: Counting objects:  26% (12/45)[K
-remote: Counting objects:  28% (13/45)[K
-remote: Counting objects:  31% (14/45)[K
-remote: Counting objects:  33% (15/45)[K
-remote: Counting objects:  35% (16/45)[K
-remote: Counting objects:  37% (17/45)[K
-remote: Counting objects:  40% (18/45)[K
-remote: Counting objects:  42% (19/45)[K
-remote: Counting objects:  44% (20/45)[K
-remote: Counting objects:  46% (21/45)[K
-remote: Counting objects:  48% (22/45)[K
-remote: Counting objects:  51% (23/45)[K
-remote: Counting objects:  53% (24/45)[K
-remote: Counting objects:  55% (25/45)[K
-remote: Counting objects:  57% (26/45)[K
-remote: Counting objects:  60% (27/45)[K
-remote: Counting objects:  62% (28/45)[K
-remote: Counting objects:  64% (29/45)[K
-remote: Counting objects:  66% (30/45)[K
-remote: Counting objects:  68% (31/45)[K
-remote: Counting objects:  71% (32/45)[K
-remote: Counting objects:  73% (33/45)[K
-remote: Counting objects:  75% (34/45)[K
-remote: Counting objects:  77% (35/45)[K
-remote: Counting objects:  80% (36/45)[K
-remote: Counting objects:  82% (37/45)[K
-remote: Counting objects:  84% (38/45)[K
-remote: Counting objects:  86% (39/45)[K
-remote: Counting objects:  88% (40/45)[K
-remote: Counting objects:  91% (41/45)[K
-remote: Counting objects:  93% (42/45)[K
-remote: Counting objects:  95% (43/45)[K
-remote: Counting objects:  97% (44/45)[K
-remote: Counting objects: 100% (45/45)[K
-remote: Counting objects: 100% (45/45), done.[K
-    remote: Compressing objects:   2% (1/36)[K
-remote: Compressing objects:   5% (2/36)[K
-remote: Compressing objects:   8% (3/36)[K
-remote: Compressing objects:  11% (4/36)[K
-remote: Compressing objects:  13% (5/36)[K
-remote: Compressing objects:  16% (6/36)[K
-remote: Compressing objects:  19% (7/36)[K
-remote: Compressing objects:  22% (8/36)[K
-remote: Compressing objects:  25% (9/36)[K
-remote: Compressing objects:  27% (10/36)[K
-remote: Compressing objects:  30% (11/36)[K
-remote: Compressing objects:  33% (12/36)[K
-remote: Compressing objects:  36% (13/36)[K
-remote: Compressing objects:  38% (14/36)[K
-remote: Compressing objects:  41% (15/36)[K
-remote: Compressing objects:  44% (16/36)[K
-remote: Compressing objects:  47% (17/36)[K
-remote: Compressing objects:  50% (18/36)[K
-remote: Compressing objects:  52% (19/36)[K
-remote: Compressing objects:  55% (20/36)[K
-remote: Compressing objects:  58% (21/36)[K
-remote: Compressing objects:  61% (22/36)[K
-remote: Compressing objects:  63% (23/36)[K
-remote: Compressing objects:  66% (24/36)[K
-remote: Compressing objects:  69% (25/36)[K
-remote: Compressing objects:  72% (26/36)[K
-remote: Compressing objects:  75% (27/36)[K
-remote: Compressing objects:  77% (28/36)[K
-remote: Compressing objects:  80% (29/36)[K
-remote: Compressing objects:  83% (30/36)[K
-remote: Compressing objects:  86% (31/36)[K
-remote: Compressing objects:  88% (32/36)[K
-remote: Compressing objects:  91% (33/36)[K
-remote: Compressing objects:  94% (34/36)[K
-remote: Compressing objects:  97% (35/36)[K
-remote: Compressing objects: 100% (36/36)[K
-remote: Compressing objects: 100% (36/36), done.[K
-    Unpacking objects:   2% (1/45)
-Unpacking objects:   4% (2/45)
-Unpacking objects:   6% (3/45)
-Unpacking objects:   8% (4/45)
-Unpacking objects:  11% (5/45)
-Unpacking objects:  13% (6/45)
-
-.. parsed-literal::
-
-    Unpacking objects:  15% (7/45)
-Unpacking objects:  17% (8/45)
-Unpacking objects:  20% (9/45)
-Unpacking objects:  22% (10/45)
-Unpacking objects:  24% (11/45)
-Unpacking objects:  26% (12/45)
-
-.. parsed-literal::
-
-    remote: Total 45 (delta 9), reused 44 (delta 8), pack-reused 0[K
-    Unpacking objects:  28% (13/45)
-Unpacking objects:  31% (14/45)
-Unpacking objects:  33% (15/45)
-Unpacking objects:  35% (16/45)
-Unpacking objects:  37% (17/45)
-Unpacking objects:  40% (18/45)
-Unpacking objects:  42% (19/45)
-Unpacking objects:  44% (20/45)
-Unpacking objects:  46% (21/45)
-Unpacking objects:  48% (22/45)
-Unpacking objects:  51% (23/45)
-Unpacking objects:  53% (24/45)
-Unpacking objects:  55% (25/45)
-Unpacking objects:  57% (26/45)
-Unpacking objects:  60% (27/45)
-Unpacking objects:  62% (28/45)
-Unpacking objects:  64% (29/45)
-Unpacking objects:  66% (30/45)
-Unpacking objects:  68% (31/45)
-Unpacking objects:  71% (32/45)
-Unpacking objects:  73% (33/45)
-Unpacking objects:  75% (34/45)
-Unpacking objects:  77% (35/45)
-Unpacking objects:  80% (36/45)
-Unpacking objects:  82% (37/45)
-Unpacking objects:  84% (38/45)
-Unpacking objects:  86% (39/45)
-Unpacking objects:  88% (40/45)
-Unpacking objects:  91% (41/45)
-Unpacking objects:  93% (42/45)
-Unpacking objects:  95% (43/45)
-Unpacking objects:  97% (44/45)
-Unpacking objects: 100% (45/45)
-Unpacking objects: 100% (45/45), 428.50 KiB | 3.04 MiB/s, done.
+    remote: Enumerating objects: 68, done.[K
+    remote: Counting objects: 100% (68/68), done.[K
+    remote: Compressing objects: 100% (51/51), done.[K
+    remote: Total 68 (delta 19), reused 65 (delta 16), pack-reused 0[K
+    Unpacking objects: 100% (68/68), 447.59 KiB | 4.03 MiB/s, done.
 
 
 .. code:: ipython3
 
     %pip install -q "./ml-mobileclip" --no-deps
-    
+
     %pip install -q "clip-benchmark>=1.4.0" "datasets>=2.8.0" "open-clip-torch>=2.20.0" "timm>=0.9.5" "torch>=1.13.1" "torchvision>=0.14.1" --extra-index-url https://download.pytorch.org/whl/cpu
-    
+
     %pip install -q "openvino>=2024.0.0" "gradio>=4.19" "matplotlib" "Pillow"  "altair" "pandas" "opencv-python" "tqdm"
 
 
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.2.2+cpu which is incompatible.
-    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.17.2+cpu which is incompatible.
-    
-
-.. parsed-literal::
-
+    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.3.1+cpu which is incompatible.
+    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.18.1+cpu which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
-    WARNING: typer 0.12.3 does not provide the extra 'all'
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -285,9 +131,9 @@ comparison purposes, you can select different models among:
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     model_dir = Path("checkpoints")
-    
+
     supported_models = {
         "MobileCLIP": {
             "mobileclip_s0": {
@@ -356,8 +202,8 @@ comparison purposes, you can select different models among:
             },
         },
     }
-    
-    
+
+
     model_type = widgets.Dropdown(options=supported_models.keys(), default="MobileCLIP", description="Model type:")
     model_type
 
@@ -373,13 +219,13 @@ comparison purposes, you can select different models among:
 .. code:: ipython3
 
     available_models = supported_models[model_type.value]
-    
+
     model_checkpoint = widgets.Dropdown(
         options=available_models.keys(),
         default=list(available_models),
         description="Model:",
     )
-    
+
     model_checkpoint
 
 
@@ -394,15 +240,15 @@ comparison purposes, you can select different models among:
 .. code:: ipython3
 
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-    
+
     open("notebook_utils.py", "w").write(r.text)
-    
+
     from notebook_utils import download_file
-    
+
     model_config = available_models[model_checkpoint.value]
 
 Run model inference
@@ -437,8 +283,8 @@ Prepare image gallery
     import matplotlib.pyplot as plt
     import numpy as np
     from PIL import Image
-    
-    
+
+
     def visualize_result(images: List, query: str = "", selected: List[int] = None):
         """
         Utility function for visualization classification results
@@ -466,8 +312,8 @@ Prepare image gallery
                 mask = np.ones_like(np.array(images[idx]))
                 a.imshow(mask, "jet", interpolation="none", alpha=0.75)
         return fig
-    
-    
+
+
     images_urls = [
         "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/282ce53e-912d-41aa-ab48-2a001c022d74",
         "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/9bb40168-82b5-4b11-ada6-d8df104c736c",
@@ -477,17 +323,17 @@ Prepare image gallery
     image_names = ["red_panda.png", "cat.png", "raccoon.png", "dog.png"]
     sample_path = Path("data")
     sample_path.mkdir(parents=True, exist_ok=True)
-    
+
     images = []
     for image_name, image_url in zip(image_names, images_urls):
         image_path = sample_path / image_name
         if not image_path.exists():
             download_file(image_url, filename=image_name, directory=sample_path)
         images.append(Image.open(image_path).convert("RGB").resize((640, 420)))
-    
+
     input_labels = ["cat"]
     text_descriptions = [f"This is a photo of a {label}" for label in input_labels]
-    
+
     visualize_result(images, "image gallery");
 
 
@@ -534,7 +380,7 @@ preprocessing utilities
     from PIL import Image
     import mobileclip
     import open_clip
-    
+
     # instantiate model
     model_name = model_config["model_name"]
     pretrained = model_config["pretrained"]
@@ -564,8 +410,8 @@ Perform search
 
     image_tensor = torch.stack([preprocess(image) for image in images])
     text = tokenizer(text_descriptions)
-    
-    
+
+
     with torch.no_grad():
         # calculate image embeddings
         image_encoding_start = time.perf_counter()
@@ -577,22 +423,22 @@ Perform search
         text_features = model.encode_text(text)
         text_encoding_end = time.perf_counter()
         print(f"Text encoding took {text_encoding_end - text_encoding_start:.3} ms")
-    
+
         # normalize embeddings
         image_features /= image_features.norm(dim=-1, keepdim=True)
         text_features /= text_features.norm(dim=-1, keepdim=True)
-    
+
         # calcualte similarity score
         image_probs = (100.0 * text_features @ image_features.T).softmax(dim=-1)
         selected_image = [torch.argmax(image_probs).item()]
-    
+
     visualize_result(images, input_labels[0], selected_image);
 
 
 .. parsed-literal::
 
-    Image encoding took 0.109 ms
-    Text encoding took 0.0108 ms
+    Image encoding took 0.123 ms
+    Text encoding took 0.0159 ms
 
 
 
@@ -619,8 +465,8 @@ be used separately. Let’s convert each part to OpenVINO.
 
     import types
     import torch.nn.functional as F
-    
-    
+
+
     def se_block_forward(self, inputs):
         """Apply forward pass."""
         b, c, h, w = inputs.size()
@@ -636,12 +482,12 @@ be used separately. Let’s convert each part to OpenVINO.
 
     import openvino as ov
     import gc
-    
+
     ov_models_dir = Path("ov_models")
     ov_models_dir.mkdir(exist_ok=True)
-    
+
     image_encoder_path = ov_models_dir / f"{model_checkpoint.value}_im_encoder.xml"
-    
+
     if not image_encoder_path.exists():
         if "mobileclip_s" in model_name:
             model.image_encoder.model.conv_exp.se.forward = types.MethodType(se_block_forward, model.image_encoder.model.conv_exp.se)
@@ -654,24 +500,34 @@ be used separately. Let’s convert each part to OpenVINO.
         ov.save_model(ov_image_encoder, image_encoder_path)
         del ov_image_encoder
         gc.collect()
-    
+
     text_encoder_path = ov_models_dir / f"{model_checkpoint.value}_text_encoder.xml"
-    
+
     if not text_encoder_path.exists():
         model.forward = model.encode_text
         ov_text_encoder = ov.convert_model(model, example_input=text, input=[-1, text.shape[1]])
         ov.save_model(ov_text_encoder, text_encoder_path)
         del ov_text_encoder
         gc.collect()
-    
+
     del model
     gc.collect();
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/mobileclip/modules/common/transformer.py:125: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    ['image']
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/mobileclip/modules/common/transformer.py:125: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if seq_len != self.num_embeddings:
+
+
+.. parsed-literal::
+
+    ['text']
 
 
 Run OpenVINO model inference
@@ -687,16 +543,16 @@ Select device for image encoder
 .. code:: ipython3
 
     core = ov.Core()
-    
+
     import ipywidgets as widgets
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -753,17 +609,17 @@ Perform search
     print(f"Text encoding took {text_encoding_end - text_encoding_start:.3} ms")
     image_features /= image_features.norm(dim=-1, keepdim=True)
     text_features /= text_features.norm(dim=-1, keepdim=True)
-    
+
     image_probs = (100.0 * text_features @ image_features.T).softmax(dim=-1)
     selected_image = [torch.argmax(image_probs).item()]
-    
+
     visualize_result(images, input_labels[0], selected_image);
 
 
 .. parsed-literal::
 
-    Image encoding took 0.0309 ms
-    Text encoding took 0.00586 ms
+    Image encoding took 0.0321 ms
+    Text encoding took 0.00763 ms
 
 
 
@@ -776,7 +632,10 @@ Interactive Demo
 
 
 In this part, you can try different supported by tutorial models in
-searching frames in the video by text query or image. Upload v
+searching frames in the video by text query or image. Upload video and
+provide text query or reference image for search and model will find the
+most relevant frames according to provided query. Please note, different
+models can require different optimal threshold for search.
 
 .. code:: ipython3
 
@@ -796,14 +655,14 @@ searching frames in the video by text query or image. Upload v
         ToTensor,
     )
     from open_clip.transform import image_transform
-    
-    
+
+
     current_device = device.value
     current_model = image_encoder_path.name.split("_im_encoder")[0]
-    
+
     available_converted_models = [model_file.name.split("_im_encoder")[0] for model_file in ov_models_dir.glob("*_im_encoder.xml")]
     available_devices = list(core.available_devices) + ["AUTO"]
-    
+
     download_file(
         "https://github.com/intel-iot-devkit/sample-videos/raw/master/car-detection.mp4",
         directory=sample_path,
@@ -813,8 +672,8 @@ searching frames in the video by text query or image. Upload v
         directory=sample_path,
         filename="coco.mp4",
     )
-    
-    
+
+
     def get_preprocess_and_tokenizer(model_name):
         if "mobileclip" in model_name:
             resolution = supported_models["MobileCLIP"][model_name]["image_size"]
@@ -835,10 +694,10 @@ searching frames in the video by text query or image. Upload v
             resize_size = model_configs[model_name]["image_size"]
             preprocess = image_transform((resize_size, resize_size), is_train=False, resize_mode="longest")
             tokenizer = open_clip.get_tokenizer(model_configs[model_name]["model_name"])
-    
+
         return preprocess, tokenizer
-    
-    
+
+
     def run(
         path: str,
         text_search: str,
@@ -857,7 +716,7 @@ searching frames in the video by text query or image. Upload v
         global tokenizer
         global ov_compiled_image_encoder
         global ov_compiled_text_encoder
-    
+
         if current_model != model_name or device != current_device:
             ov_compiled_image_encoder = core.compile_model(ov_models_dir / f"{model_name}_im_encoder.xml", device)
             ov_compiled_text_encoder = core.compile_model(ov_models_dir / f"{model_name}_text_encoder.xml", device)
@@ -867,7 +726,7 @@ searching frames in the video by text query or image. Upload v
         # Load video
         dataset = LoadVideo(path, transforms=preprocess, vid_stride=stride)
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0)
-    
+
         # Get image query features
         if image_search:
             image = preprocess(image_search).unsqueeze(0)
@@ -887,11 +746,11 @@ searching frames in the video by text query or image. Upload v
         for image, orig, frame, timestamp in dataloader:
             with torch.no_grad():
                 image_features = torch.from_numpy(ov_compiled_image_encoder(image)[0])
-    
+
             image_features /= image_features.norm(dim=-1, keepdim=True)
             probs = query_features.cpu().numpy() @ image_features.cpu().numpy().T
             probs = probs[0]
-    
+
             # Save frame similarity values
             df = pd.DataFrame(
                 {
@@ -901,15 +760,15 @@ searching frames in the video by text query or image. Upload v
                 }
             )
             res = pd.concat([res, df])
-    
+
             # Check if frame is over threshold
             for i, p in enumerate(probs):
                 if p > thresh:
                     matches.append(to_pil_image(orig[i]))
                     matches_probs.append(p)
-    
+
             print(f"Frames: {frame.tolist()} - Probs: {probs}")
-    
+
         # Create plot of similarity values
         lines = (
             alt.Chart(res)
@@ -920,16 +779,16 @@ searching frames in the video by text query or image. Upload v
             )
         ).properties(width=600)
         rule = alt.Chart().mark_rule(strokeDash=[6, 3], size=2).encode(y=alt.datum(thresh))
-    
+
         selected_frames = np.argsort(-1 * np.array(matches_probs))[:20]
         matched_sorted_frames = [matches[idx] for idx in selected_frames]
-    
+
         return (
             lines + rule,
             matched_sorted_frames,
         )  # Only return up to 20 images to not crash the UI
-    
-    
+
+
     class LoadVideo(Dataset):
         def __init__(self, path, transforms, vid_stride=1):
             self.transforms = transforms
@@ -937,31 +796,31 @@ searching frames in the video by text query or image. Upload v
             self.cur_frame = 0
             self.cap = cv2.VideoCapture(path)
             self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT) / self.vid_stride)
-    
+
         def __getitem__(self, _):
             # Read video
             # Skip over frames
             for _ in range(self.vid_stride):
                 self.cap.grab()
                 self.cur_frame += 1
-    
+
             # Read frame
             _, img = self.cap.retrieve()
             timestamp = self.cap.get(cv2.CAP_PROP_POS_MSEC)
-    
+
             # Convert to PIL
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             img = Image.fromarray(np.uint8(img))
-    
+
             # Apply transforms
             img_t = self.transforms(img)
-    
+
             return img_t, to_tensor(img), self.cur_frame, timestamp
-    
+
         def __len__(self):
             return self.total_frames
-    
-    
+
+
     desc_text = """
     Search the content's of a video with a text description.
     __Note__: Long videos (over a few minutes) may cause UI performance issues.
@@ -990,7 +849,7 @@ searching frames in the video by text query or image. Upload v
         examples=[[sample_path / "car-detection.mp4", "white car"]],
         allow_flagging="never",
     )
-    
+
     desc_image = """
     Search the content's of a video with an image query.
     __Note__: Long videos (over a few minutes) may cause UI performance issues.
@@ -1024,8 +883,8 @@ searching frames in the video by text query or image. Upload v
         tab_names=["Text Query Search", "Image Query Search"],
         title="CLIP Video Content Search",
     )
-    
-    
+
+
     try:
         demo.launch(debug=False)
     except Exception:
@@ -1050,7 +909,7 @@ searching frames in the video by text query or image. Upload v
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 

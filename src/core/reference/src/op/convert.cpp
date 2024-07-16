@@ -56,6 +56,42 @@ void jit_convert_vec<float, float16>(jit::Generator& gen, const Xbyak::RegExp& s
 }
 
 template <>
+void jit_convert_vec<bfloat16, float16>(jit::Generator& gen, const Xbyak::RegExp& src, const Xbyak::RegExp& dst) {
+    const auto f32vec = gen.ymm4;
+    const auto f16vec = gen.xmm3;
+
+    gen.vpmovzxwd(f32vec, gen.yword[src]);  // load bf16 into tmp
+    gen.vpslld(f32vec, f32vec, 16);         // convert bf16->f32 by bit shift
+    gen.vcvtps2ph(f16vec, f32vec, 0);       // convert f32 -> f16
+    gen.vmovdqu(gen.xword[dst], f16vec);    // move result to destination
+}
+
+template <>
+void jit_convert_vec<bfloat16, float16, true>(jit::Generator& gen, const Xbyak::RegExp& src, const Xbyak::RegExp& dst) {
+    const auto f32vec = gen.ymm4;
+    const auto f16vec = gen.xmm3;
+
+    auto upper_bound = gen.ymm5;
+    auto lower_bound = gen.ymm6;
+
+    gen.vpmovzxwd(f32vec, gen.yword[src]);    // load bf16 into tmp
+    gen.vpslld(f32vec, f32vec, 16);           // convert bf16->f32 by bit shift
+    gen.vminps(f32vec, f32vec, upper_bound);  // clamp f16 max
+    gen.vmaxps(f32vec, f32vec, lower_bound);  // clamp f16 lowest
+    gen.vcvtps2ph(f16vec, f32vec, 0);         // convert f32 -> f16
+    gen.vmovdqu(gen.xword[dst], f16vec);      // move result to destination
+}
+
+template <>
+void jit_convert_vec<bfloat16, float>(jit::Generator& gen, const Xbyak::RegExp& src, const Xbyak::RegExp& dst) {
+    const auto f32vec = gen.ymm4;
+
+    gen.vpmovzxwd(f32vec, gen.yword[src]);  // load bf16 into tmp
+    gen.vpslld(f32vec, f32vec, 16);         // convert bf16->f32 by bit shift
+    gen.vmovdqu(gen.yword[dst], f32vec);    // move result to destination
+}
+
+template <>
 void jit_convert_vec_prepare<float, float16, true>(jit::Generator& gen) {
     auto upper_bound = gen.ymm5;
     auto lower_bound = gen.ymm6;
@@ -70,6 +106,11 @@ void jit_convert_vec_prepare<float, float16, true>(jit::Generator& gen) {
     gen.vmovdqu(upper_bound, gen.yword[addr]);
     gen.mov(addr, (size_t)lower_bounds);
     gen.vmovdqu(lower_bound, gen.yword[addr]);
+}
+
+template <>
+void jit_convert_vec_prepare<bfloat16, float16, true>(jit::Generator& gen) {
+    jit_convert_vec_prepare<float, float16, true>(gen);
 }
 
 template <>
@@ -481,6 +522,19 @@ void convert<float, float16>(const float* arg, float16* out, size_t count) {
 }
 
 template <>
+void convert<int32_t, float16>(const int32_t* arg, float16* out, size_t count) {
+    for (size_t i = 0; i < count; ++i) {
+        if (arg[i] > std::numeric_limits<ov::float16>::max()) {
+            out[i] = std::numeric_limits<ov::float16>::max();
+        } else if (arg[i] < std::numeric_limits<ov::float16>::lowest()) {
+            out[i] = std::numeric_limits<ov::float16>::lowest();
+        } else {
+            out[i] = static_cast<ov::float16>(arg[i]);
+        }
+    }
+}
+
+template <>
 void convert<float, int8_t>(const float* arg, int8_t* out, size_t count) {
     convert_impl(arg, out, count);
 }
@@ -490,11 +544,38 @@ void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count) {
     convert_impl(arg, out, count);
 }
 
+template <>
+void convert<bfloat16, float16>(const bfloat16* arg, float16* out, size_t count) {
+    convert_impl(arg, out, count);
+}
+
+template <>
+void convert<bfloat16, float>(const bfloat16* arg, float* out, size_t count) {
+    convert_impl(arg, out, count);
+}
+
 #endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
 void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t count) {
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     convert_impl<float, float16, true>(arg, out, count);
+#else
+    // FIXME CVS-125496: duplicate and stub for ARM, provide optimized solution
+    for (size_t i = 0; i < count; ++i) {
+        if (arg[i] > std::numeric_limits<ov::float16>::max()) {
+            out[i] = std::numeric_limits<ov::float16>::max();
+        } else if (arg[i] < std::numeric_limits<ov::float16>::lowest()) {
+            out[i] = std::numeric_limits<ov::float16>::lowest();
+        } else {
+            out[i] = static_cast<ov::float16>(arg[i]);
+        }
+    }
+#endif  // defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+}
+
+void convert_from_bf16_to_f16_with_clamp(const bfloat16* arg, float16* out, size_t count) {
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+    convert_impl<bfloat16, float16, true>(arg, out, count);
 #else
     // FIXME CVS-125496: duplicate and stub for ARM, provide optimized solution
     for (size_t i = 0; i < count; ++i) {

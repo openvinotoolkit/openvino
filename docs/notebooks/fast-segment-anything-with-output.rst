@@ -28,8 +28,8 @@ the prompt.
 
    pipeline
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 
@@ -66,7 +66,7 @@ Install requirements
 
 .. code:: ipython3
 
-    %pip install -q "ultralytics==8.1.42" onnx tqdm --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "ultralytics==8.2.24" onnx tqdm --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "openvino-dev>=2024.0.0"
     %pip install -q "nncf>=2.9.0"
     %pip install -q "gradio>=4.13"
@@ -75,25 +75,8 @@ Install requirements
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
-    WARNING: typer 0.12.3 does not provide the extra 'all'
-
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -157,97 +140,12 @@ model and generate a segmentation map.
 
 .. parsed-literal::
 
-    Downloading https://github.com/ultralytics/assets/releases/download/v8.1.0/FastSAM-x.pt to 'FastSAM-x.pt'...
+    Downloading https://github.com/ultralytics/assets/releases/download/v8.2.0/FastSAM-x.pt to 'FastSAM-x.pt'...
 
 
 .. parsed-literal::
 
-
-  0%|          | 0.00/138M [00:00<?, ?B/s]
-
-.. parsed-literal::
-
-
-  0%|          | 296k/138M [00:00<00:47, 3.02MB/s]
-
-.. parsed-literal::
-
-
-  2%|▏         | 2.45M/138M [00:00<00:10, 14.1MB/s]
-
-.. parsed-literal::
-
-
-  5%|▍         | 6.62M/138M [00:00<00:05, 27.3MB/s]
-
-.. parsed-literal::
-
-
- 13%|█▎        | 17.4M/138M [00:00<00:02, 60.8MB/s]
-
-.. parsed-literal::
-
-
- 21%|██        | 28.6M/138M [00:00<00:01, 80.9MB/s]
-
-.. parsed-literal::
-
-
- 29%|██▉       | 39.8M/138M [00:00<00:01, 93.1MB/s]
-
-.. parsed-literal::
-
-
- 37%|███▋      | 50.9M/138M [00:00<00:00, 101MB/s]
-
-.. parsed-literal::
-
-
- 45%|████▍     | 62.0M/138M [00:00<00:00, 106MB/s]
-
-.. parsed-literal::
-
-
- 53%|█████▎    | 73.2M/138M [00:00<00:00, 109MB/s]
-
-.. parsed-literal::
-
-
- 61%|██████    | 83.6M/138M [00:01<00:00, 109MB/s]
-
-.. parsed-literal::
-
-
- 68%|██████▊   | 94.1M/138M [00:01<00:00, 108MB/s]
-
-.. parsed-literal::
-
-
- 76%|███████▌  | 105M/138M [00:01<00:00, 109MB/s]
-
-.. parsed-literal::
-
-
- 83%|████████▎ | 115M/138M [00:01<00:00, 107MB/s]
-
-.. parsed-literal::
-
-
- 91%|█████████ | 125M/138M [00:01<00:00, 96.6MB/s]
-
-.. parsed-literal::
-
-
- 97%|█████████▋| 135M/138M [00:01<00:00, 97.2MB/s]
-
-.. parsed-literal::
-
-
-    100%|██████████| 138M/138M [00:01<00:00, 90.6MB/s]
-
-
-
-
+    100%|██████████| 138M/138M [00:03<00:00, 44.4MB/s]
 
 
 
@@ -256,19 +154,11 @@ model and generate a segmentation map.
     coco_bike.jpg:   0%|          | 0.00/182k [00:00<?, ?B/s]
 
 
-
-
-
-
-
 .. parsed-literal::
 
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 768x1024 37 objects, 624.0ms
 
-
-.. parsed-literal::
-
-    Speed: 3.1ms preprocess, 624.0ms inference, 27.7ms postprocess per image at shape (1, 3, 768, 1024)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 768x1024 37 objects, 706.9ms
+    Speed: 3.9ms preprocess, 706.9ms inference, 592.3ms postprocess per image at shape (1, 3, 768, 1024)
 
 
 The model returns segmentation maps for all the objects on the image.
@@ -306,31 +196,15 @@ tracing. The FastSAM model itself is based on YOLOv8 model.
 
 .. parsed-literal::
 
-    Ultralytics YOLOv8.1.42 🚀 Python-3.8.10 torch-2.2.2+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
+    Ultralytics YOLOv8.2.24 🚀 Python-3.8.10 torch-2.3.1+cpu CPU (Intel Core(TM) i9-10920X 3.50GHz)
 
+    PyTorch: starting from 'FastSAM-x.pt' with input shape (1, 3, 1024, 1024) BCHW and output shape(s) ((1, 37, 21504), (1, 32, 256, 256)) (138.3 MB)
 
-.. parsed-literal::
+    OpenVINO: starting export with openvino 2024.2.0-15519-5c0f38f83f6-releases/2024/2...
+    OpenVINO: export success ✅ 6.2s, saved as 'FastSAM-x_openvino_model/' (276.1 MB)
 
-
-    PyTorch: starting from 'FastSAM-x.pt' with input shape (1, 3, 1024, 1024) BCHW and output shape(s) ((1, 37, 21504), (1, 32, 256, 256)) (138.2 MB)
-
-
-.. parsed-literal::
-
-
-    OpenVINO: starting export with openvino 2024.0.0-14509-34caeefd078-releases/2024/0...
-
-
-.. parsed-literal::
-
-    OpenVINO: export success ✅ 6.1s, saved as 'FastSAM-x_openvino_model/' (276.1 MB)
-
-
-.. parsed-literal::
-
-
-    Export complete (9.0s)
-    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/notebooks/fast-segment-anything
+    Export complete (9.2s)
+    Results saved to /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/fast-segment-anything
     Predict:         yolo predict task=segment model=FastSAM-x_openvino_model imgsz=1024
     Validate:        yolo val task=segment model=FastSAM-x_openvino_model imgsz=1024 data=ultralytics/datasets/sa.yaml
     Visualize:       https://netron.app
@@ -436,19 +310,11 @@ pipeline.
     ov_results = model(image_uri, device=device.value, retina_masks=True, imgsz=1024, conf=0.6, iou=0.9)
 
 
-
-
-
-
-
 .. parsed-literal::
 
-    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 1024x1024 42 objects, 504.2ms
 
-
-.. parsed-literal::
-
-    Speed: 6.5ms preprocess, 504.2ms inference, 31.9ms postprocess per image at shape (1, 3, 1024, 1024)
+    image 1/1 /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/fast-segment-anything/coco_bike.jpg: 1024x1024 42 objects, 508.7ms
+    Speed: 7.4ms preprocess, 508.7ms inference, 32.1ms postprocess per image at shape (1, 3, 1024, 1024)
 
 
 One can observe the converted model outputs in the next cell, they is
@@ -649,6 +515,11 @@ repo <../yolov8-optimization/>`__.
 
 .. parsed-literal::
 
+    <string>:7: TqdmExperimentalWarning: Using `tqdm.autonotebook.tqdm` in notebook mode. Use `tqdm.tqdm` instead to force console mode (e.g. in jupyter console)
+
+
+.. parsed-literal::
+
     INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
 
 
@@ -667,48 +538,16 @@ repo <../yolov8-optimization/>`__.
 .. parsed-literal::
 
     INFO:nncf:3 ignored nodes were found by name in the NNCFGraph
-
-
-.. parsed-literal::
-
     INFO:nncf:8 ignored nodes were found by types in the NNCFGraph
+    INFO:nncf:Not adding activation input quantizer for operation: 271 __module.model.22/aten::sigmoid/Sigmoid
+    INFO:nncf:Not adding activation input quantizer for operation: 312 __module.model.22.dfl.conv/aten::_convolution/Convolution
+    INFO:nncf:Not adding activation input quantizer for operation: 349 __module.model.22/aten::sub/Subtract
+    INFO:nncf:Not adding activation input quantizer for operation: 350 __module.model.22/aten::add/Add
+    INFO:nncf:Not adding activation input quantizer for operation: 362 __module.model.22/aten::add/Add_1
+    374 __module.model.22/aten::div/Divide
 
-
-.. parsed-literal::
-
-    INFO:nncf:Not adding activation input quantizer for operation: 275 __module.model.22/aten::sigmoid/Sigmoid
-
-
-.. parsed-literal::
-
-    INFO:nncf:Not adding activation input quantizer for operation: 325 __module.model.22.dfl.conv/aten::_convolution/Convolution
-
-
-.. parsed-literal::
-
-    INFO:nncf:Not adding activation input quantizer for operation: 351 __module.model.22/aten::sub/Subtract
-
-
-.. parsed-literal::
-
-    INFO:nncf:Not adding activation input quantizer for operation: 352 __module.model.22/aten::add/Add
-
-
-.. parsed-literal::
-
-    INFO:nncf:Not adding activation input quantizer for operation: 365 __module.model.22/aten::add/Add_1
-    378 __module.model.22/aten::div/Divide
-
-
-
-.. parsed-literal::
-
-    INFO:nncf:Not adding activation input quantizer for operation: 366 __module.model.22/aten::sub/Subtract_1
-
-
-.. parsed-literal::
-
-    INFO:nncf:Not adding activation input quantizer for operation: 388 __module.model.22/aten::mul/Multiply
+    INFO:nncf:Not adding activation input quantizer for operation: 363 __module.model.22/aten::sub/Subtract_1
+    INFO:nncf:Not adding activation input quantizer for operation: 386 __module.model.22/aten::mul/Multiply
 
 
 
@@ -718,24 +557,18 @@ repo <../yolov8-optimization/>`__.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
-.. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/nncf/experimental/tensor/tensor.py:84: RuntimeWarning: invalid value encountered in multiply
-      return Tensor(self.data * unwrap_tensor_data(other))
+
+
+
+
 
 
 
@@ -745,17 +578,17 @@ repo <../yolov8-optimization/>`__.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -795,8 +628,8 @@ calibration dataset to measure the performance.
 
 .. parsed-literal::
 
-    Segmented in 68 seconds.
-    Resulting in 1.88 fps
+    Segmented in 69 seconds.
+    Resulting in 1.86 fps
 
 
 .. code:: ipython3
@@ -823,9 +656,9 @@ calibration dataset to measure the performance.
 
 .. parsed-literal::
 
-    Segmented in 23 seconds
-    Resulting in 5.57 fps
-    That is 2.96 times faster!
+    Segmented in 22 seconds
+    Resulting in 5.82 fps
+    That is 3.14 times faster!
 
 
 Try out the converted pipeline

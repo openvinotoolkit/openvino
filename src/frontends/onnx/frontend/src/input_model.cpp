@@ -64,6 +64,10 @@ ov::frontend::Place::Ptr InputModel::get_place_by_tensor_name(const std::string&
     return nullptr;
 }
 
+ov::frontend::Place::Ptr InputModel::get_place_by_input_index(size_t input_idx) const {
+    FRONT_END_NOT_IMPLEMENTED(get_place_by_input_index);
+}
+
 ov::frontend::Place::Ptr InputModel::get_place_by_operation_name(const std::string& operation_name) const {
     if (m_editor->is_correct_and_unambiguous_node(operation_name)) {
         const auto node_index = m_editor->get_node_index(EditorNode{operation_name});
@@ -274,8 +278,9 @@ void InputModel::override_all_outputs(const std::vector<ov::frontend::Place::Ptr
     for (const auto& output : outputs) {
         bool is_correct = is_correct_place(output);
         if (!is_correct)
-            OPENVINO_WARN << "Name  " << output->get_names().at(0)
-                          << " of output node is not a correct node name. Ignoring this parameter.";
+            OPENVINO_WARN("Name  ",
+                          output->get_names().at(0),
+                          " of output node is not a correct node name. Ignoring this parameter.");
         else
             expected_valid_outputs.push_back(output);
     }
@@ -307,8 +312,9 @@ void InputModel::override_all_inputs(const std::vector<ov::frontend::Place::Ptr>
     for (const auto& input : inputs) {
         bool is_correct = is_correct_place(input);
         if (!is_correct)
-            OPENVINO_WARN << "Name  " << input->get_names().at(0)
-                          << " of input node is not a correct node. Ignoring this parameter.";
+            OPENVINO_WARN("Name  ",
+                          input->get_names().at(0),
+                          " of input node is not a correct node. Ignoring this parameter.");
         else
             expected_valid_inputs.push_back(input);
     }

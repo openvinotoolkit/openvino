@@ -73,14 +73,17 @@ void NodeContext::mutate_input(size_t index, Output<Node> ov_output) const {
         auto reverseprop_node = m_translate_session->get_reverseprop_op(node, node_converted_output, back_node_input);
         if (m_tensor_map->count(in_tensor)) {
             // Tensor is not found in the scope of this body, need to get it from internal context and mark mutated
-            OPENVINO_DEBUG << "Couldn't find in the current body the initial aliased tensor: " << in_tensor
-                           << " for operation: " << node->get_op_type() << " creating new body input.";
+            OPENVINO_DEBUG("Couldn't find in the current body the initial aliased tensor: ",
+                           in_tensor,
+                           " for operation: ",
+                           node->get_op_type(),
+                           " creating new body input.");
             get_tensor_from_model_or_create_input(in_tensor);
         }
         m_translate_session->encode_tensor_name(reverseprop_node, in_tensor);
         (*m_tensor_map)[in_tensor] = reverseprop_node;
         m_mutated_tensors->insert(in_tensor);
-        OPENVINO_DEBUG << "Propagated back data from tensor: " << back_input_id << " to tensor: " << in_tensor << ".\n";
+        OPENVINO_DEBUG("Propagated back data from tensor:", back_input_id, " to tensor: ", in_tensor, "\n");
         back_input_id = in_tensor;
         back_node_input = reverseprop_node;
     }
@@ -88,7 +91,7 @@ void NodeContext::mutate_input(size_t index, Output<Node> ov_output) const {
 
 void NodeContext::add_tensor_to_context(size_t index, Output<Node> ov_output) const {
     if (m_tensor_map->count(index)) {
-        OPENVINO_DEBUG << "[ WARNING ] Current context has tensor " << index << ". Assuming mutated output.\n";
+        OPENVINO_DEBUG("[ WARNING ] Current context has tensor ", index, ". Assuming mutated output.\n");
     }
     m_translate_session->encode_tensor_name(ov_output, index);
     (*m_tensor_map)[index] = ov_output;
@@ -103,7 +106,7 @@ Output<Node> NodeContext::get_tensor_from_model_or_create_input(size_t index) co
         m_translate_session->encode_tensor_name(parameter->output(0), index);
         (*m_tensor_map)[index] = parameter;
         m_external_parameters->push_back(parameter);
-        OPENVINO_DEBUG << "Nested case, created: " << parameter << '\n';
+        OPENVINO_DEBUG("Nested case, created: ", parameter, "\n");
         return parameter;
     }
 }
@@ -139,12 +142,29 @@ std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) const {
         auto parameter = model->get_parameters()[i];
         if (parameter->output(0).get_target_inputs().empty()) {
             // There is no consumers: safe to remove
-            OPENVINO_DEBUG << "Removing parameter " << parameter
-                           << " in converted Pytorch model, because it is never used\n";
+            OPENVINO_DEBUG("Removing parameter ", parameter, " in converted Pytorch model, because it is never used\n");
             model->remove_parameter(parameter);
         }
     }
     return model;
+}
+
+OutputVector NodeContext::inputs() const {
+    OutputVector res;
+    for (size_t i = 0; i < m_decoder_inputs.size(); i++) {
+        auto input = m_decoder_inputs.at(i);
+        if (input == 0) {
+            // Case when input can be inlined (possible only for fx decoder)
+            if (m_decoder->is_input_inlined(i)) {
+                auto inlined_input = m_decoder->inlined_input(i);
+                FRONT_END_GENERAL_CHECK(inlined_input.size() == 1, "Incorrect inlined input with index:", i);
+                res.push_back(inlined_input[0]);
+            }
+        }
+        FRONT_END_GENERAL_CHECK(m_tensor_map->count(input), "No tensor corresponding input: ", input, " exist.");
+        res.push_back(m_tensor_map->at(input));
+    }
+    return res;
 }
 
 bool NodeContext::input_is_none(size_t index) const {

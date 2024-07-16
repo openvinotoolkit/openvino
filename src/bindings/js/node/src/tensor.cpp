@@ -13,30 +13,21 @@ TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<Tensor
     if (info.Length() == 0) {
         return;
     }
-
-    if (info.Length() == 1 || info.Length() > 3) {
-        reportError(info.Env(), "Invalid number of arguments for Tensor constructor.");
-        return;
-    }
-
     try {
-        const auto type = js_to_cpp<ov::element::Type_t>(info, 0, {napi_string});
+        OPENVINO_ASSERT(info.Length() <= 3, "Invalid number of arguments for Tensor constructor.");
+        if (info.Length() == 1 && info[0].IsArray()) {
+            this->_tensor = cast_to_tensor(info[0].As<Napi::Array>());
+        } else {
+            const auto type = js_to_cpp<ov::element::Type_t>(info, 0);
+            const auto& shape = js_to_cpp<ov::Shape>(info, 1);
 
-        OPENVINO_ASSERT(type != ov::element::string, "String tensors are not supported in JS API.");
-
-        const auto shape_vec = js_to_cpp<std::vector<size_t>>(info, 1, {napi_int32_array, napi_uint32_array, js_array});
-        const auto& shape = ov::Shape(shape_vec);
-
-        if (info.Length() == 2) {
-            this->_tensor = ov::Tensor(type, shape);
-        } else if (info.Length() == 3) {
-            if (!info[2].IsTypedArray()) {
-                reportError(info.Env(), "Third argument of a tensor must be of type TypedArray.");
-                return;
+            if (info.Length() == 2) {
+                this->_tensor = ov::Tensor(type, shape);
+            } else if (info.Length() == 3 && info[2].IsTypedArray()) {
+                this->_tensor = cast_to_tensor(info[2].As<Napi::TypedArray>(), shape, type);
+            } else {
+                OPENVINO_THROW("Third argument of a tensor must be TypedArray.");
             }
-
-            const auto data = info[2].As<Napi::TypedArray>();
-            this->_tensor = cast_to_tensor(data, shape, type);
         }
     } catch (std::invalid_argument& e) {
         reportError(info.Env(), std::string("Invalid tensor argument. ") + e.what());
@@ -76,8 +67,6 @@ Napi::Object TensorWrap::wrap(Napi::Env env, ov::Tensor tensor) {
 
 Napi::Value TensorWrap::get_data(const Napi::CallbackInfo& info) {
     auto type = _tensor.get_element_type();
-
-    OPENVINO_ASSERT(type != ov::element::string, "String tensors are not supported in JS API.");
 
     switch (type) {
     case ov::element::Type_t::i8: {
@@ -130,6 +119,14 @@ Napi::Value TensorWrap::get_data(const Napi::CallbackInfo& info) {
         std::memcpy(arr.Data(), _tensor.data(), _tensor.get_byte_size());
         return arr;
     }
+    case ov::element::string: {
+        auto str_data = Napi::Array::New(info.Env(), _tensor.get_size());
+        const auto data = _tensor.data<std::string>();
+        for (uint32_t i = 0; i < _tensor.get_size(); ++i) {
+            str_data[i] = Napi::String::New(info.Env(), data[i]);
+        }
+        return str_data;
+    }
     default: {
         reportError(info.Env(), "Failed to return tensor data.");
         return info.Env().Null();
@@ -139,16 +136,19 @@ Napi::Value TensorWrap::get_data(const Napi::CallbackInfo& info) {
 
 void TensorWrap::set_data(const Napi::CallbackInfo& info, const Napi::Value& value) {
     try {
-        if (!value.IsTypedArray()) {
-            OPENVINO_THROW("Passed argument must be a TypedArray.");
-        }
-        const auto buf = value.As<Napi::TypedArray>();
+        if (value.IsTypedArray()) {
+            const auto buf = value.As<Napi::TypedArray>();
 
-        if (_tensor.get_byte_size() != buf.ByteLength()) {
-            OPENVINO_THROW("Passed array must have the same size as the Tensor!");
+            if (_tensor.get_byte_size() != buf.ByteLength()) {
+                OPENVINO_THROW("Passed array must have the same size as the Tensor!");
+            }
+            const auto napi_type = buf.TypedArrayType();
+            std::memcpy(_tensor.data(get_ov_type(napi_type)), buf.ArrayBuffer().Data(), _tensor.get_byte_size());
+        } else if (value.IsArray()) {
+            fill_tensor_from_strings(_tensor, value.As<Napi::Array>());
+        } else {
+            OPENVINO_THROW("Passed argument must be TypedArray, or Array if the tensor type is string.");
         }
-        const auto napi_type = buf.TypedArrayType();
-        std::memcpy(_tensor.data(get_ov_type(napi_type)), buf.ArrayBuffer().Data(), _tensor.get_byte_size());
     } catch (std::exception& e) {
         reportError(info.Env(), e.what());
     }

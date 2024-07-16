@@ -47,31 +47,32 @@ static void init_linear_ir(const std::vector<ov::PartialShape>& in_shapes, Linea
     const auto outer_wa = std::max(*(in_shape0.rbegin() + 1), *(in_shape1.rbegin() + 1));
     const auto outer_inc = blocked_wa;
     loop_manager->mark_loop(expr_it, std::next(expr_it), inner_wa, inner_inc, 0, loop_input_ports, loop_output_ports);
-    loop_manager->mark_loop(expr_it, std::next(expr_it), blocked_wa, blocked_inc, 1, loop_input_ports, loop_output_ports);
+    loop_manager->mark_loop(expr_it, std::next(expr_it), blocked_wa, blocked_inc, 1, loop_input_ports, loop_output_ports, true, true);
     const auto loop_id = loop_manager->mark_loop(expr_it, std::next(expr_it), outer_wa, outer_inc, 1, loop_input_ports, loop_output_ports);
     const auto& outer_loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id);
     const auto outer_tail_size = outer_wa % outer_inc;
     if (outer_tail_size != 0) {
-        outer_loop_info->register_pass_to_handler<SpecificLoopIterType::LAST_ITER, pass::TransformInnerSplitLoop>(outer_tail_size);
+        outer_loop_info->register_pass_to_handler<ov::snippets::lowered::SpecificLoopIterType::LAST_ITER, ov::snippets::lowered::pass::TransformInnerSplitLoop>(
+           outer_tail_size);
     }
 }
 
-static void apply_transformations(LinearIR& linear_ir, const std::shared_ptr<pass::PassConfig>& config) {
-    const auto is_loop_decomp_disabled = config->is_disabled<pass::InsertSpecificIterations>();
+static void apply_transformations(LinearIR& linear_ir, const std::shared_ptr<ov::snippets::lowered::pass::PassConfig>& config) {
+    const auto is_loop_decomp_disabled = config->is_disabled<ov::snippets::lowered::pass::InsertSpecificIterations>();
     if (is_loop_decomp_disabled) {
-        config->disable<pass::ValidateExpandedLoops>();
+        config->disable<ov::snippets::lowered::pass::ValidateExpandedLoops>();
     }
 
-    pass::PassPipeline pipeline(config);
-    pipeline.register_pass<pass::InsertLoadStore>(vector_size);
-    pipeline.register_pass<pass::ValidateUnifiedLoops>();
-    pipeline.register_pass<pass::InitLoops>();
-    pipeline.register_pass<pass::InsertLoops>();
-    pipeline.register_pass<pass::InsertSpecificIterations>();
-    pipeline.register_pass<pass::NormalizeLoopIDs>(!is_loop_decomp_disabled);
-    pipeline.register_pass<pass::ValidateExpandedLoops>();
-    pipeline.register_pass<pass::CleanupLoopOffsets>();
-    pipeline.register_pass<pass::OptimizeLoopSingleEvaluation>();
+    ov::snippets::lowered::pass::PassPipeline pipeline(config);
+    pipeline.register_pass<ov::snippets::lowered::pass::InsertLoadStore>(vector_size);
+    pipeline.register_pass<ov::snippets::lowered::pass::ValidateUnifiedLoops>();
+    pipeline.register_pass<ov::snippets::lowered::pass::InitLoops>();
+    pipeline.register_pass<ov::snippets::lowered::pass::InsertLoops>();
+    pipeline.register_pass<ov::snippets::lowered::pass::InsertSpecificIterations>();
+    pipeline.register_pass<ov::snippets::lowered::pass::NormalizeLoopIDs>(!is_loop_decomp_disabled);
+    pipeline.register_pass<ov::snippets::lowered::pass::ValidateExpandedLoops>();
+    pipeline.register_pass<ov::snippets::lowered::pass::CleanupLoopOffsets>();
+    pipeline.register_pass<ov::snippets::lowered::pass::OptimizeLoopSingleEvaluation>();
     pipeline.run(linear_ir);
 }
 
@@ -79,8 +80,7 @@ static void validate(const LinearIR& linear_ir, const ref_map& reference) {
     size_t loop_num = 0;
     for (const auto& expr : linear_ir) {
         const auto& node = expr->get_node();
-        ASSERT_TRUE(!ov::is_type<ov::snippets::op::LoopBeginDynamic>(node) && !ov::is_type<ov::snippets::op::LoopEndDynamic>(node));
-        const auto loop_end = ov::as_type_ptr<ov::snippets::op::LoopEndStatic>(node);
+        const auto loop_end = ov::as_type_ptr<ov::snippets::op::LoopEnd>(node);
         if (!loop_end)
             continue;
         ASSERT_GT(reference.count(loop_num), 0);
@@ -97,10 +97,10 @@ TEST(Snippets_TailProcessingTransformation, BlockedWOTail_OriginalPtrShifts) {
     ov::Shape inputShape1 = {1, 2, 16, 20};
     init_linear_ir({inputShape0, inputShape1}, linear_ir, 4);
 
-    auto config = std::make_shared<pass::PassConfig>();
-    config->disable<pass::CleanupLoopOffsets>();
-    config->disable<pass::InsertSpecificIterations>();
-    config->disable<pass::OptimizeLoopSingleEvaluation>();
+    auto config = std::make_shared<ov::snippets::lowered::pass::PassConfig>();
+    config->disable<ov::snippets::lowered::pass::CleanupLoopOffsets>();
+    config->disable<ov::snippets::lowered::pass::InsertSpecificIterations>();
+    config->disable<ov::snippets::lowered::pass::OptimizeLoopSingleEvaluation>();
     apply_transformations(linear_ir, config);
 
     // [Inserted Loop number, [ptr_increments, final_offsets]
@@ -118,9 +118,9 @@ TEST(Snippets_TailProcessingTransformation, BlockedWOTail_CleanUpPtrShifts) {
     ov::Shape inputShape1 = {1, 2, 16, 20};
     init_linear_ir({inputShape0, inputShape1}, linear_ir, 4);
 
-    auto config = std::make_shared<pass::PassConfig>();
-    config->disable<pass::InsertSpecificIterations>();
-    config->disable<pass::OptimizeLoopSingleEvaluation>();
+    auto config = std::make_shared<ov::snippets::lowered::pass::PassConfig>();
+    config->disable<ov::snippets::lowered::pass::InsertSpecificIterations>();
+    config->disable<ov::snippets::lowered::pass::OptimizeLoopSingleEvaluation>();
     apply_transformations(linear_ir, config);
 
     // [Inserted Loop number, [ptr_increments, final_offsets]
@@ -138,8 +138,8 @@ TEST(Snippets_TailProcessingTransformation, BlockedTail_OriginalPtrShifts) {
     ov::Shape inputShape1 = {1, 2, 18, 20};
     init_linear_ir({inputShape0, inputShape1}, linear_ir, 4);
 
-    auto config = std::make_shared<pass::PassConfig>();
-    config->disable<pass::CleanupLoopOffsets>();
+    auto config = std::make_shared<ov::snippets::lowered::pass::PassConfig>();
+    config->disable<ov::snippets::lowered::pass::CleanupLoopOffsets>();
     apply_transformations(linear_ir, config);
 
     // [Inserted Loop number, [ptr_increments, final_offsets]
@@ -163,7 +163,7 @@ TEST(Snippets_TailProcessingTransformation, BlockedTail_CleanUpPtrShifts) {
     ov::Shape inputShape1 = {1, 2, 18, 20};
     init_linear_ir({inputShape0, inputShape1}, linear_ir, 4);
 
-    apply_transformations(linear_ir, std::make_shared<pass::PassConfig>());
+    apply_transformations(linear_ir, std::make_shared<ov::snippets::lowered::pass::PassConfig>());
 
     // [Inserted Loop number, [ptr_increments, final_offsets]
     std::map<size_t, std::pair<std::vector<int64_t>, std::vector<int64_t>>> reference;

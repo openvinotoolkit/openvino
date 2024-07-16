@@ -14,8 +14,8 @@ Additionally, you can also upload a video file.
    server, the webcam will not work. However, you can still do inference
    on a video.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Preparation <#preparation>`__
 
@@ -54,38 +54,28 @@ Install requirements
     %pip install -q "openvino-dev>=2024.0.0"
     %pip install -q tensorflow
     %pip install -q opencv-python requests tqdm
-    
+
     # Fetch `notebook_utils` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-    
+
     open("notebook_utils.py", "w").write(r.text)
 
 
 .. parsed-literal::
 
+    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    openvino-tokenizers 2024.3.0.0.dev20240711 requires openvino~=2024.3.0.0.dev, but you have openvino 2024.2.0 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
     magika 0.5.1 requires numpy<2.0,>=1.24; python_version >= "3.8" and python_version < "3.9", but you have numpy 1.23.5 which is incompatible.
-    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.2.2+cpu which is incompatible.
-    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.17.2+cpu which is incompatible.
-    optimum-intel 1.17.0.dev0+aca2b6c requires transformers<4.40.0,>=4.36.0, but you have transformers 4.33.3 which is incompatible.
-    
-
-.. parsed-literal::
-
+    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.3.1+cpu which is incompatible.
+    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.18.1+cpu which is incompatible.
+    openvino-tokenizers 2024.3.0.0.dev20240711 requires openvino~=2024.3.0.0.dev, but you have openvino 2024.2.0 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -93,7 +83,7 @@ Install requirements
 
 .. parsed-literal::
 
-    21503
+    23215
 
 
 
@@ -108,14 +98,14 @@ Imports
     import tarfile
     import time
     from pathlib import Path
-    
+
     import cv2
     import numpy as np
     from IPython import display
     import openvino as ov
     from openvino.tools.mo.front import tf as ov_tf_front
     from openvino.tools import mo
-    
+
     import notebook_utils as utils
 
 The Model
@@ -143,18 +133,18 @@ Representation (OpenVINO IR).
 
     # A directory where the model will be downloaded.
     base_model_dir = Path("model")
-    
+
     # The name of the model from Open Model Zoo
     model_name = "ssdlite_mobilenet_v2"
-    
+
     archive_name = Path(f"{model_name}_coco_2018_05_09.tar.gz")
     model_url = f"https://storage.openvinotoolkit.org/repositories/open_model_zoo/public/2022.1/{model_name}/{archive_name}"
-    
+
     # Download the archive
     downloaded_model_path = base_model_dir / archive_name
     if not downloaded_model_path.exists():
         utils.download_file(model_url, downloaded_model_path.name, downloaded_model_path.parent)
-    
+
     # Unpack the model
     tf_model_path = base_model_dir / archive_name.with_suffix("").stem / "frozen_inference_graph.pb"
     if not tf_model_path.exists():
@@ -184,7 +174,7 @@ converted, this step is skipped.
     precision = "FP16"
     # The output path for the conversion.
     converted_model_path = Path("model") / f"{model_name}_{precision.lower()}.xml"
-    
+
     # Convert it to IR if not previously converted
     trans_config_path = Path(ov_tf_front.__file__).parent / "ssd_v2_support.json"
     if not converted_model_path.exists():
@@ -197,6 +187,13 @@ converted, this step is skipped.
         )
         ov.save_model(ov_model, converted_model_path)
         del ov_model
+
+
+.. parsed-literal::
+
+    [ INFO ] MO command line tool is considered as the legacy conversion API as of OpenVINO 2023.2 release.
+    In 2025.0 MO command line tool and openvino.tools.mo.convert_model() will be removed. Please use OpenVINO Model Converter (OVC) or openvino.convert_model(). OVC represents a lightweight alternative of MO and provides simplified model conversion API.
+    Find more information about transition from MO to OVC at https://docs.openvino.ai/2023.2/openvino_docs_OV_Converter_UG_prepare_model_convert_model_MO_OVC_transition.html
 
 
 .. parsed-literal::
@@ -221,16 +218,16 @@ best performance. For that purpose, just use ``AUTO``.
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -249,11 +246,11 @@ best performance. For that purpose, just use ``AUTO``.
     # Compile the model for CPU (you can choose manually CPU, GPU etc.)
     # or let the engine choose the best available device (AUTO).
     compiled_model = core.compile_model(model=model, device_name=device.value)
-    
+
     # Get the input and output nodes.
     input_layer = compiled_model.input(0)
     output_layer = compiled_model.output(0)
-    
+
     # Get the input size.
     height, width = list(input_layer.shape)[1:3]
 
@@ -389,14 +386,14 @@ threshold (0.5). Finally, draw boxes and labels inside them.
         "toothbrush",
         "hair brush",
     ]
-    
+
     # Colors for the classes above (Rainbow Color Map).
     colors = cv2.applyColorMap(
         src=np.arange(0, 255, 255 / len(classes), dtype=np.float32).astype(np.uint8),
         colormap=cv2.COLORMAP_RAINBOW,
     ).squeeze()
-    
-    
+
+
     def process_results(frame, results, thresh=0.6):
         # The size of the original frame.
         h, w = frame.shape[:2]
@@ -410,20 +407,20 @@ threshold (0.5). Finally, draw boxes and labels inside them.
             boxes.append(tuple(map(int, (xmin * w, ymin * h, (xmax - xmin) * w, (ymax - ymin) * h))))
             labels.append(int(label))
             scores.append(float(score))
-    
+
         # Apply non-maximum suppression to get rid of many overlapping entities.
         # See https://paperswithcode.com/method/non-maximum-suppression
         # This algorithm returns indices of objects to keep.
         indices = cv2.dnn.NMSBoxes(bboxes=boxes, scores=scores, score_threshold=thresh, nms_threshold=0.6)
-    
+
         # If there are no boxes.
         if len(indices) == 0:
             return []
-    
+
         # Filter detected objects.
         return [(labels[idx], scores[idx], boxes[idx]) for idx in indices.flatten()]
-    
-    
+
+
     def draw_boxes(frame, boxes):
         for label, score, box in boxes:
             # Choose color for the label.
@@ -432,7 +429,7 @@ threshold (0.5). Finally, draw boxes and labels inside them.
             x2 = box[0] + box[2]
             y2 = box[1] + box[3]
             cv2.rectangle(img=frame, pt1=box[:2], pt2=(x2, y2), color=color, thickness=3)
-    
+
             # Draw a label name inside the box.
             cv2.putText(
                 img=frame,
@@ -444,7 +441,7 @@ threshold (0.5). Finally, draw boxes and labels inside them.
                 thickness=1,
                 lineType=cv2.LINE_AA,
             )
-    
+
         return frame
 
 Main Processing Function
@@ -468,7 +465,7 @@ file.
             if use_popup:
                 title = "Press ESC to Exit"
                 cv2.namedWindow(winname=title, flags=cv2.WINDOW_GUI_NORMAL | cv2.WINDOW_AUTOSIZE)
-    
+
             processing_times = collections.deque()
             while True:
                 # Grab the frame.
@@ -486,29 +483,29 @@ file.
                         fy=scale,
                         interpolation=cv2.INTER_AREA,
                     )
-    
+
                 # Resize the image and change dims to fit neural network input.
                 input_img = cv2.resize(src=frame, dsize=(width, height), interpolation=cv2.INTER_AREA)
                 # Create a batch of images (size = 1).
                 input_img = input_img[np.newaxis, ...]
-    
+
                 # Measure processing time.
-    
+
                 start_time = time.time()
                 # Get the results.
                 results = compiled_model([input_img])[output_layer]
                 stop_time = time.time()
                 # Get poses from network results.
                 boxes = process_results(frame=frame, results=results)
-    
+
                 # Draw boxes on a frame.
                 frame = draw_boxes(frame=frame, boxes=boxes)
-    
+
                 processing_times.append(stop_time - start_time)
                 # Use processing times from last 200 frames.
                 if len(processing_times) > 200:
                     processing_times.popleft()
-    
+
                 _, f_width = frame.shape[:2]
                 # Mean processing time [ms].
                 processing_time = np.mean(processing_times) * 1000
@@ -523,7 +520,7 @@ file.
                     thickness=1,
                     lineType=cv2.LINE_AA,
                 )
-    
+
                 # Use this workaround if there is flickering.
                 if use_popup:
                     cv2.imshow(winname=title, mat=frame)
@@ -585,12 +582,12 @@ Run the object detection:
 .. code:: ipython3
 
     USE_WEBCAM = False
-    
+
     video_file = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4"
     cam_id = 0
-    
+
     source = cam_id if USE_WEBCAM else video_file
-    
+
     run_object_detection(source=source, flip=isinstance(source, int), use_popup=False)
 
 

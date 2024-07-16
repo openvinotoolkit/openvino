@@ -74,7 +74,7 @@ void unroll_single_iteration(const std::shared_ptr<ov::op::util::SubGraphOp>& su
     }
     outer_f->add_sinks(sub_graph_op->get_function()->get_sinks());
     ov::copy_runtime_info(sub_graph_op, sub_graph_op->get_function()->get_ops());
-    ov::copy_runtime_info(sub_graph_op, new_ops);
+    ov::copy_runtime_info(sub_graph_op, std::move(new_ops));
 }
 
 ov::Output<ov::Node> create_init_subgraph(const ov::Output<ov::Node>& in_node, ov::pass::NodeRegistry& to) {
@@ -128,7 +128,7 @@ std::vector<std::shared_ptr<ov::opset9::Assign>> replace_with_memory(const std::
 }
 
 bool need_unroll(const std::shared_ptr<ov::Node>& op) {
-    const auto p_shape = op->get_input_partial_shape(0);
+    const auto& p_shape = op->get_input_partial_shape(0);
     if (p_shape.rank().is_dynamic() || p_shape[1].is_dynamic() || p_shape[1].get_length() != 1) {
         return false;
     }
@@ -158,6 +158,7 @@ std::vector<std::shared_ptr<ov::opset9::Assign>> process_sequence(const std::sha
     std::shared_ptr<ov::Node> cell;
     std::vector<std::shared_ptr<ov::opset9::Assign>> new_assigns;
     bool unroll = false;
+    OPENVINO_SUPPRESS_DEPRECATED_START
     if (auto lstm_seq_v0 = std::dynamic_pointer_cast<ov::opset1::LSTMSequence>(op)) {
         unroll = need_unroll(op);
         new_assigns = replace_with_memory(op, {1, 2}, m_use_const_initializer, to);
@@ -175,6 +176,7 @@ std::vector<std::shared_ptr<ov::opset9::Assign>> process_sequence(const std::sha
                                      lstm_seq_v0->get_activations_beta(),
                                      lstm_seq_v0->get_clip_threshold());
         }
+        OPENVINO_SUPPRESS_DEPRECATED_END
     } else if (auto lstm_seq_v5 = std::dynamic_pointer_cast<LSTMSequence>(op)) {
         unroll = need_unroll(op);
         new_assigns = replace_with_memory(op, {1, 2}, m_use_const_initializer, to);
@@ -277,7 +279,7 @@ bool ov::pass::LowLatency2::run_on_model(const std::shared_ptr<Model>& f) {
                     const auto& input = sub_graph_op->input(merged_in->m_input_index);
                     if (std::dynamic_pointer_cast<ReadValueBase>(input.get_source_output().get_node_shared_ptr()) !=
                         nullptr) {
-                        OPENVINO_DEBUG << msg_low_latency_2_already_applied;
+                        OPENVINO_DEBUG(msg_low_latency_2_already_applied);
                         return false;
                     }
 
@@ -285,7 +287,7 @@ bool ov::pass::LowLatency2::run_on_model(const std::shared_ptr<Model>& f) {
                         sub_graph_op->get_function()->get_parameters().at(merged_in->m_body_parameter_index);
                     for (const auto& in_to : param->output(0).get_target_inputs()) {
                         if (dynamic_cast<ReadValueBase*>(in_to.get_node()) != nullptr) {
-                            OPENVINO_DEBUG << msg_low_latency_already_applied;
+                            OPENVINO_DEBUG(msg_low_latency_already_applied);
                             return false;
                         }
                     }

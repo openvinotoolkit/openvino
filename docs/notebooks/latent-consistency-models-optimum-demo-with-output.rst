@@ -28,8 +28,8 @@ minimal steps (from 2 to 4) on any pre-trained LDMs (e.g. Stable
 Diffusion). To read more about LCM please refer to
 https://latent-consistency-models.github.io/
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Full precision model on the
@@ -56,22 +56,14 @@ Install required packages
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 
 .. code:: ipython3
 
     import warnings
-    
+
     warnings.filterwarnings("ignore")
 
 Showing Info Available Devices
@@ -96,10 +88,10 @@ this
 .. code:: ipython3
 
     import openvino as ov
-    
+
     core = ov.Core()
     devices = core.available_devices
-    
+
     for device in devices:
         device_name = core.get_property(device, "FULL_DEVICE_NAME")
         print(f"{device}: {device_name}")
@@ -123,20 +115,16 @@ https://huggingface.co/docs/diffusers/en/api/pipelines/latent_consistency_models
 
     from diffusers import LatentConsistencyModelPipeline
     import gc
-    
+
     pipeline = LatentConsistencyModelPipeline.from_pretrained("SimianLuo/LCM_Dreamshaper_v7")
 
 
 .. parsed-literal::
 
-    2024-04-18 00:04:08.916564: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-04-18 00:04:08.953118: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-07-13 01:00:03.964344: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-07-13 01:00:04.000289: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-
-
-.. parsed-literal::
-
-    2024-04-18 00:04:09.550802: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-07-13 01:00:04.671482: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 
@@ -148,8 +136,8 @@ https://huggingface.co/docs/diffusers/en/api/pipelines/latent_consistency_models
 .. code:: ipython3
 
     prompt = "A cute squirrel in the forest, portrait, 8k"
-    
-    image = pipeline(prompt=prompt, num_inference_steps=4, guidance_scale=8.0).images[0]
+
+    image = pipeline(prompt=prompt, num_inference_steps=4, guidance_scale=8.0, height=512, width=512).images[0]
     image.save("image_standard_pipeline.png")
     image
 
@@ -177,16 +165,16 @@ Select inference device for text-to-image generation
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="CPU",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -217,25 +205,21 @@ and there is no need to do it manually
 .. code:: ipython3
 
     from optimum.intel.openvino import OVLatentConsistencyModelPipeline
-    
-    ov_pipeline = OVLatentConsistencyModelPipeline.from_pretrained("SimianLuo/LCM_Dreamshaper_v7", export=True, compile=False)
-    ov_pipeline.reshape(batch_size=1, height=768, width=768, num_images_per_prompt=1)
-    ov_pipeline.save_pretrained("./openvino_ir")
+    from pathlib import Path
 
+    if not Path("./openvino_ir").exists():
+        ov_pipeline = OVLatentConsistencyModelPipeline.from_pretrained("SimianLuo/LCM_Dreamshaper_v7", height=512, width=512, export=True, compile=False)
+        ov_pipeline.save_pretrained("./openvino_ir")
+    else:
+        ov_pipeline = OVLatentConsistencyModelPipeline.from_pretrained("./openvino_ir", export=False, compile=False)
 
-.. parsed-literal::
-
-    INFO:nncf:NNCF initialized successfully. Supported frameworks detected: torch, tensorflow, onnx, openvino
+    ov_pipeline.reshape(batch_size=1, height=512, width=512, num_images_per_prompt=1)
 
 
 .. parsed-literal::
 
     Framework not specified. Using pt to export the model.
-
-
-.. parsed-literal::
-
-    Keyword arguments {'subfolder': '', 'trust_remote_code': False} are not expected by StableDiffusionPipeline and will be ignored.
+    Keyword arguments {'subfolder': '', 'token': None, 'trust_remote_code': False} are not expected by StableDiffusionPipeline and will be ignored.
 
 
 
@@ -246,7 +230,7 @@ and there is no need to do it manually
 
 .. parsed-literal::
 
-    Using framework PyTorch: 2.2.2+cpu
+    Using framework PyTorch: 2.3.1+cpu
 
 
 .. parsed-literal::
@@ -257,21 +241,57 @@ and there is no need to do it manually
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
+    Using framework PyTorch: 2.3.1+cpu
+    Using framework PyTorch: 2.3.1+cpu
+    Using framework PyTorch: 2.3.1+cpu
+
+
 
 
 .. parsed-literal::
 
-    Using framework PyTorch: 2.2.2+cpu
+    OVLatentConsistencyModelPipeline {
+      "_class_name": "OVLatentConsistencyModelPipeline",
+      "_diffusers_version": "0.24.0",
+      "feature_extractor": [
+        "transformers",
+        "CLIPImageProcessor"
+      ],
+      "requires_safety_checker": true,
+      "safety_checker": [
+        "stable_diffusion",
+        "StableDiffusionSafetyChecker"
+      ],
+      "scheduler": [
+        "diffusers",
+        "LCMScheduler"
+      ],
+      "text_encoder": [
+        "optimum",
+        "OVModelTextEncoder"
+      ],
+      "text_encoder_2": [
+        null,
+        null
+      ],
+      "tokenizer": [
+        "transformers",
+        "CLIPTokenizer"
+      ],
+      "unet": [
+        "optimum",
+        "OVModelUnet"
+      ],
+      "vae_decoder": [
+        "optimum",
+        "OVModelVaeDecoder"
+      ],
+      "vae_encoder": [
+        "optimum",
+        "OVModelVaeEncoder"
+      ]
+    }
 
-
-.. parsed-literal::
-
-    Using framework PyTorch: 2.2.2+cpu
-
-
-.. parsed-literal::
-
-    Using framework PyTorch: 2.2.2+cpu
 
 
 .. code:: ipython3
@@ -283,28 +303,16 @@ and there is no need to do it manually
 .. parsed-literal::
 
     Compiling the vae_decoder to CPU ...
-
-
-.. parsed-literal::
-
     Compiling the unet to CPU ...
-
-
-.. parsed-literal::
-
-    Compiling the vae_encoder to CPU ...
-
-
-.. parsed-literal::
-
     Compiling the text_encoder to CPU ...
+    Compiling the vae_encoder to CPU ...
 
 
 .. code:: ipython3
 
     prompt = "A cute squirrel in the forest, portrait, 8k"
-    
-    image_ov = ov_pipeline(prompt=prompt, num_inference_steps=4, guidance_scale=8.0).images[0]
+
+    image_ov = ov_pipeline(prompt=prompt, num_inference_steps=4, guidance_scale=8.0, height=512, width=512).images[0]
     image_ov.save("image_opt.png")
     image_ov
 

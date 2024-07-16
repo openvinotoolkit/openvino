@@ -65,12 +65,13 @@ bool FuseLoops::can_be_fused(const UnifiedLoopInfoPtr& loop_upper, const Unified
         (work_amount_upper == work_amount_lower) && increment_upper == increment_lower;
     const bool bcastable_upper = work_amount_upper == 1 && increment_upper == 1;
     const bool bcastable_lower = work_amount_lower == 1 && increment_lower == 1;
+    const auto is_const_wa_equal = loop_upper->is_work_amount_const() == loop_lower->is_work_amount_const();
     // WA: we can't fuse 2 loops if one of them has first iteration handler but second hasn't,
     // because in this case Main/Tail body handlers of the loop wo first iter handler must be reset with new parameters
     // (e.g. tail size). This logic is not implemented for now, so fusion for such loops is skipped.
     const bool first_iter_handlers_match = loop_upper->get_handlers().get_passes<SpecificLoopIterType::FIRST_ITER>().empty() ==
                                            loop_lower->get_handlers().get_passes<SpecificLoopIterType::FIRST_ITER>().empty();
-    return first_iter_handlers_match && (is_dynamic_case || equal_parameters || bcastable_upper || bcastable_lower);
+    return first_iter_handlers_match && is_const_wa_equal && (is_dynamic_case || equal_parameters || bcastable_upper || bcastable_lower);
 }
 
 void FuseLoops::move(LinearIR& linear_ir, const LoopManagerPtr& loop_manager, size_t loop_id,
@@ -213,17 +214,18 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
             // If we have fused on outputs we should verify possible fusions on inputs again because of new input ports
             bool need_fusion_checks = true;
             while (need_fusion_checks) {
-                const auto current_loop_info = loop_manager->get_loop_info(current_loop_id);
+                auto current_loop_info = loop_manager->get_loop_info(current_loop_id);
                 LinearIR::constExprIt current_loop_begin_pos, current_loop_end_pos;
                 std::tie(current_loop_begin_pos, current_loop_end_pos) = loop_manager->get_loop_bounds(linear_ir, current_loop_id);
 
                 // Loop_0 (Upper)                 |
                 //   |               =>           |
                 // Loop_1 (Current)     Loop_0 + Loop_1 => new `Loop_1`
-                const auto& input_ports = current_loop_info->get_input_ports();
+                // Make a copy of `input_ports` (not ref), since current_loop_info might be changed and ref will be invalid
+                const auto input_ports = current_loop_info->get_input_ports();
                 bool was_fusion_up = false;
-                for (size_t in_port = 0; in_port < input_ports.size() && !was_fusion_up; ++in_port) {
-                    const auto input_port = input_ports[in_port];
+                for (size_t in_port = 0; !was_fusion_up && in_port < input_ports.size(); ++in_port) {
+                    const auto& input_port = input_ports[in_port];
                     const auto parent_expr_output = *input_port.expr_port->get_connected_ports().begin();
                     const auto& parent_expr = parent_expr_output.get_expr();
                     const auto parent = parent_expr->get_node();
@@ -254,6 +256,7 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                                                 current_loop_begin_pos, current_loop_end_pos)) {
                         was_fusion_up = true;
                         prev_fused_loops.insert(current_loop_id);
+                        current_loop_info = loop_manager->get_loop_info(current_loop_id);
                     }
                 }
 
@@ -264,10 +267,10 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                 // Loop_0 (Current)    Loop_0 + Loop_1 => new `Loop_0`
                 //   |               =>           |
                 // Loop_1 (Lower)                 |
-                const auto& output_ports = current_loop_info->get_output_ports();
                 bool was_fusion_down = false;
-                for (size_t out_port = 0; out_port < output_ports.size() && !was_fusion_down; ++out_port) {
-                    const auto output_port = output_ports[out_port];
+                const auto& output_ports = current_loop_info->get_output_ports();
+                for (size_t out_port = 0; !was_fusion_down && out_port < output_ports.size(); ++out_port) {
+                    const auto& output_port = output_ports[out_port];
                     const auto consumer_exprs_inputs = output_port.expr_port->get_connected_ports();
                     for (const auto& consumer_expr_input : consumer_exprs_inputs) {
                         const auto& consumer_expr = consumer_expr_input.get_expr();
@@ -300,6 +303,7 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                                                     current_loop_begin_pos, current_loop_end_pos)) {
                             was_fusion_down = true;
                             prev_fused_loops.insert(current_loop_id);
+                            current_loop_info = loop_manager->get_loop_info(current_loop_id);
                             // Need to check for possible fusion again because of new input expressions for Loop
                             break;
                         }

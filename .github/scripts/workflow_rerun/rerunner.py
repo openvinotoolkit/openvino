@@ -1,13 +1,18 @@
+# Copyright (C) 2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 import sys
 import tempfile
 from pathlib import Path
 
+import requests
 from github import Github, Auth
 from workflow_rerun.argument_parser import get_arguments
 from workflow_rerun.constants import GITHUB_TOKEN, LOGGER
 from workflow_rerun.log_analyzer import LogAnalyzer
 from workflow_rerun.log_collector import collect_logs_for_run
+
 
 if __name__ == '__main__':
 
@@ -50,7 +55,12 @@ if __name__ == '__main__':
             LOGGER.info(f'RUNNING IN DRY RUN MODE, NOT RETRIGGERING, EXITING')
             sys.exit(0)
 
-        status = run.rerun()
+        # PyGitHub does not expose the "/repos/{owner}/{repo}/actions/runs/RUN_ID/rerun-failed-jobs" endpoint
+        # so we have to use requests
+        response = requests.post(url=f'https://api.github.com/repos/{repository_name}/actions/runs/{run_id}/rerun-failed-jobs',
+                                 headers={'Authorization': f'Bearer {GITHUB_TOKEN}'})
+        status = response.status_code == 201
+        
         if status:
             LOGGER.info(f'RUN RETRIGGERED SUCCESSFULLY: {run.html_url}')
         else:

@@ -75,7 +75,8 @@ public:
                 const ze_context_handle_t& context,
                 ze_graph_dditable_ext_curr_t* graph_ddi_table_ext,
                 const Config& config,
-                const uint32_t& group_ordinal);
+                const uint32_t& group_ordinal,
+                bool mtci_is_supported = false);
     CommandList(const CommandList&) = delete;
     CommandList(CommandList&&) = delete;
     CommandList& operator=(const CommandList&) = delete;
@@ -86,6 +87,7 @@ public:
     void appendGraphInitialize(const ze_graph_handle_t& graph_handle) const;
     void appendGraphExecute(const ze_graph_handle_t& graph_handle,
                             const ze_graph_profiling_query_handle_t& profiling_query_handle) const;
+    void updateMutableCommandList(const void* pNext = nullptr) const;
     void appendNpuTimestamp(uint64_t* timestamp_buff) const;
     void appendBarrier() const;
     void close() const;
@@ -94,11 +96,15 @@ public:
     inline ze_command_list_handle_t handle() const {
         return _handle;
     }
+    uint64_t getCommandListId() const {
+        return _command_id;
+    }
 
 private:
     ze_command_list_handle_t _handle = nullptr;
     const ze_context_handle_t _context = nullptr;
     ze_graph_dditable_ext_curr_t* _graph_ddi_table_ext = nullptr;
+    uint64_t _command_id = 0;
 
     Logger _log;
 };
@@ -131,6 +137,7 @@ public:
     CommandQueue(const ze_device_handle_t& device_handle,
                  const ze_context_handle_t& context,
                  const ze_command_queue_priority_t& priority,
+                 ze_command_queue_npu_dditable_ext_curr_t* command_queue_npu_dditable_ext,
                  const Config& config,
                  const uint32_t& group_ordinal);
     CommandQueue(const CommandQueue&) = delete;
@@ -140,6 +147,7 @@ public:
 
     void executeCommandList(CommandList& command_list) const;
     void executeCommandList(CommandList& command_list, Fence& fence) const;
+    void setWorkloadType(ze_command_queue_workload_type_t workloadType) const;
     ~CommandQueue();
     inline ze_command_queue_handle_t handle() const {
         return _handle;
@@ -148,6 +156,7 @@ public:
 private:
     ze_command_queue_handle_t _handle = nullptr;
     ze_context_handle_t _context = nullptr;
+    ze_command_queue_npu_dditable_ext_curr_t* _command_queue_npu_dditable_ext = nullptr;
 
     Logger _log;
 };

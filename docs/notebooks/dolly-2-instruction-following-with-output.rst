@@ -81,18 +81,21 @@ dataset can be found in `Databricks blog
 post <https://www.databricks.com/blog/2023/04/12/dolly-first-open-commercially-viable-instruction-tuned-llm>`__
 and `repo <https://github.com/databrickslabs/dolly>`__
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
+-  `Convert model using Optimum-CLI
+   tool <#convert-model-using-optimum-cli-tool>`__
+-  `Compress model weights <#compress-model-weights>`__
 
-   -  `Select inference device <#select-inference-device>`__
+   -  `Weights Compression using
+      Optimum-CLI <#weights-compression-using-optimum-cli>`__
 
--  `Download and Convert Model <#download-and-convert-model>`__
-
-   -  `NNCF model weights
-      compression <#nncf-model-weights-compression>`__
-
+-  `Select model variant and inference
+   device <#select-model-variant-and-inference-device>`__
+-  `Instantiate Model using Optimum
+   Intel <#instantiate-model-using-optimum-intel>`__
 -  `Create an instruction-following inference
    pipeline <#create-an-instruction-following-inference-pipeline>`__
 
@@ -121,11 +124,207 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
 
 .. code:: ipython3
 
-    %pip install -q "diffusers>=0.16.1" "transformers>=4.33.0" "torch>=2.1" "openvino>=2023.2.0" "nncf>=2.6.0" onnx "gradio>=4.19" --extra-index-url https://download.pytorch.org/whl/cpu
-    %pip install -q --upgrade "git+https://github.com/huggingface/optimum-intel.git"
+    import os
 
-Select inference device
-~~~~~~~~~~~~~~~~~~~~~~~
+    os.environ["GIT_CLONE_PROTECTION_ACTIVE"] = "false"
+
+    %pip uninstall -q -y optimum optimum-intel
+    %pip install --pre -Uq openvino openvino-tokenizers[transformers] --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+    %pip install -q "diffusers>=0.16.1" "transformers>=4.33.0" "torch>=2.1" "nncf>=2.10.0" onnx "gradio>=4.19" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "git+https://github.com/huggingface/optimum-intel.git"
+
+Convert model using Optimum-CLI tool
+------------------------------------
+
+
+
+`Optimum Intel <https://huggingface.co/docs/optimum/intel/index>`__ is
+the interface between the
+`Transformers <https://huggingface.co/docs/transformers/index>`__ and
+`Diffusers <https://huggingface.co/docs/diffusers/index>`__ libraries
+and OpenVINO to accelerate end-to-end pipelines on Intel architectures.
+It provides ease-to-use cli interface for exporting models to `OpenVINO
+Intermediate Representation
+(IR) <https://docs.openvino.ai/2024/documentation/openvino-ir-format.html>`__
+format.
+
+The command bellow demonstrates basic command for model export with
+``optimum-cli``
+
+.. code:: bash
+
+   optimum-cli export openvino --model <model_id_or_path> --task <task> <out_dir>
+
+where ``--model`` argument is model id from HuggingFace Hub or local
+directory with model (saved using ``.save_pretrained`` method),
+``--task`` is one of `supported
+task <https://huggingface.co/docs/optimum/exporters/task_manager>`__
+that exported model should solve. For LLMs it will be
+``text-generation-with-past``. If model initialization requires to use
+remote code, ``--trust-remote-code`` flag additionally should be passed.
+
+Compress model weights
+----------------------
+
+
+
+The `Weights
+Compression <https://docs.openvino.ai/2024/openvino-workflow/model-optimization-guide/weight-compression.html>`__
+algorithm is aimed at compressing the weights of the models and can be
+used to optimize the model footprint and performance of large models
+where the size of weights is relatively larger than the size of
+activations, for example, Large Language Models (LLM). Compared to INT8
+compression, INT4 compression improves performance even more, but
+introduces a minor drop in prediction quality.
+
+Weights Compression using Optimum-CLI
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+You can also apply fp16, 8-bit or 4-bit weight compression on the
+Linear, Convolutional and Embedding layers when exporting your model
+with the CLI by setting ``--weight-format`` to respectively fp16, int8
+or int4. This type of optimization allows to reduce the memory footprint
+and inference latency. By default the quantization scheme for int8/int4
+will be
+`asymmetric <https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md#asymmetric-quantization>`__,
+to make it
+`symmetric <https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md#symmetric-quantization>`__
+you can add ``--sym``.
+
+For INT4 quantization you can also specify the following arguments :
+
+- The ``--group-size`` parameter will define the group size to use for
+  quantization, -1 it will results in per-column quantization.
+- The ``--ratio`` parameter controls the ratio between 4-bit and 8-bit
+  quantization. If set to 0.9, it means that 90% of the layers will be
+  quantized to int4 while 10% will be quantized to int8.
+
+Smaller group_size and ratio values usually improve accuracy at the
+sacrifice of the model size and inference latency.
+
+   **Note**: There may be no speedup for INT4/INT8 compressed models on
+   dGPU.
+
+.. code:: ipython3
+
+    from IPython.display import Markdown, display
+    import ipywidgets as widgets
+
+    prepare_int4_model = widgets.Checkbox(
+        value=True,
+        description="Prepare INT4 model",
+        disabled=False,
+    )
+    prepare_int8_model = widgets.Checkbox(
+        value=False,
+        description="Prepare INT8 model",
+        disabled=False,
+    )
+    prepare_fp16_model = widgets.Checkbox(
+        value=False,
+        description="Prepare FP16 model",
+        disabled=False,
+    )
+
+    display(prepare_int4_model)
+    display(prepare_int8_model)
+    display(prepare_fp16_model)
+
+
+
+.. parsed-literal::
+
+    Checkbox(value=True, description='Prepare INT4 model')
+
+
+
+.. parsed-literal::
+
+    Checkbox(value=False, description='Prepare INT8 model')
+
+
+
+.. parsed-literal::
+
+    Checkbox(value=False, description='Prepare FP16 model')
+
+
+.. code:: ipython3
+
+    from pathlib import Path
+
+    model_id = "databricks/dolly-v2-3b"
+    model_path = Path("dolly-v2-3b")
+
+    fp16_model_dir = model_path / "FP16"
+    int8_model_dir = model_path / "INT8_compressed_weights"
+    int4_model_dir = model_path / "INT4_compressed_weights"
+
+
+    def convert_to_fp16():
+        if (fp16_model_dir / "openvino_model.xml").exists():
+            return
+        fp16_model_dir.mkdir(parents=True, exist_ok=True)
+        export_command_base = "optimum-cli export openvino --model {} --task text-generation-with-past --weight-format fp16".format(model_id)
+        export_command = export_command_base + " " + str(fp16_model_dir)
+        display(Markdown("**Export command:**"))
+        display(Markdown(f"`{export_command}`"))
+        ! $export_command
+
+
+    def convert_to_int8():
+        if (int8_model_dir / "openvino_model.xml").exists():
+            return
+        int8_model_dir.mkdir(parents=True, exist_ok=True)
+        export_command_base = "optimum-cli export openvino --model {} --task text-generation-with-past --weight-format int8".format(model_id)
+        export_command = export_command_base + " " + str(int8_model_dir)
+        display(Markdown("**Export command:**"))
+        display(Markdown(f"`{export_command}`"))
+        ! $export_command
+
+
+    def convert_to_int4():
+        if (int4_model_dir / "openvino_model.xml").exists():
+            return
+        int4_model_dir.mkdir(parents=True, exist_ok=True)
+        export_command_base = "optimum-cli export openvino --model {} --task text-generation-with-past --weight-format int4".format(model_id)
+        export_command = export_command_base + " " + str(int4_model_dir)
+        display(Markdown("**Export command:**"))
+        display(Markdown(f"`{export_command}`"))
+        ! $export_command
+
+
+    if prepare_fp16_model.value:
+        convert_to_fp16()
+    if prepare_int8_model.value:
+        convert_to_int8()
+    if prepare_int4_model.value:
+        convert_to_int4()
+
+.. code:: ipython3
+
+    fp16_weights = fp16_model_dir / "openvino_model.bin"
+    int8_weights = int8_model_dir / "openvino_model.bin"
+    int4_weights = int4_model_dir / "openvino_model.bin"
+
+    if fp16_weights.exists():
+        print(f"Size of FP16 model is {fp16_weights.stat().st_size / 1024 / 1024:.2f} MB")
+    for precision, compressed_weights in zip([8, 4], [int8_weights, int4_weights]):
+        if compressed_weights.exists():
+            print(f"Size of model with INT{precision} compressed weights is {compressed_weights.stat().st_size / 1024 / 1024:.2f} MB")
+        if compressed_weights.exists() and fp16_weights.exists():
+            print(f"Compression rate for INT{precision} model: {fp16_weights.stat().st_size / compressed_weights.stat().st_size:.3f}")
+
+
+.. parsed-literal::
+
+    Size of model with INT4 compressed weights is 2154.54 MB
+
+
+Select model variant and inference device
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 
@@ -133,18 +332,46 @@ select device from dropdown list for running inference using OpenVINO
 
 .. code:: ipython3
 
+    available_models = []
+    if int4_model_dir.exists():
+        available_models.append("INT4")
+    if int8_model_dir.exists():
+        available_models.append("INT8")
+    if fp16_model_dir.exists():
+        available_models.append("FP16")
+
+    model_to_run = widgets.Dropdown(
+        options=available_models,
+        value=available_models[0],
+        description="Model to run:",
+        disabled=False,
+    )
+
+    model_to_run
+
+
+
+
+.. parsed-literal::
+
+    Dropdown(description='Model to run:', options=('INT4',), value='INT4')
+
+
+
+.. code:: ipython3
+
     import ipywidgets as widgets
     import openvino as ov
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="CPU",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -152,12 +379,12 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    Dropdown(description='Device:', options=('CPU', 'GPU', 'AUTO'), value='CPU')
+    Dropdown(description='Device:', options=('CPU', 'GPU.0', 'GPU.1', 'AUTO'), value='CPU')
 
 
 
-Download and Convert Model
---------------------------
+Instantiate Model using Optimum Intel
+-------------------------------------
 
 
 
@@ -179,42 +406,40 @@ Below is an example of the Dolly model
 
    model_id = "databricks/dolly-v2-3b"
    -model = AutoModelForCausalLM.from_pretrained(model_id)
-   +model = OVModelForCausalLM.from_pretrained(model_id, from_transformers=True)
+   +model = OVModelForCausalLM.from_pretrained(model_id, export=True)
 
 Model class initialization starts with calling ``from_pretrained``
 method. When downloading and converting Transformers model, the
-parameter ``export=True`` should be added. For models where size more We
-can save the converted model for the next usage with the
-``save_pretrained`` method. Tokenizer class and pipelines API are
-compatible with Optimum models.
+parameter ``export=True`` should be added (as we already converted model
+before, we do not need to provide this parameter). We can save the
+converted model for the next usage with the ``save_pretrained`` method.
+Tokenizer class and pipelines API are compatible with Optimum models.
+
+You can find more details about OpenVINO LLM inference using HuggingFace
+Optimum API in `LLM inference
+guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide.html>`__.
 
 .. code:: ipython3
 
     from pathlib import Path
     from transformers import AutoTokenizer
     from optimum.intel.openvino import OVModelForCausalLM
-    
-    model_id = "databricks/dolly-v2-3b"
-    model_path = Path("dolly-v2-3b")
-    
-    tokenizer = AutoTokenizer.from_pretrained(model_id)
-    
-    current_device = device.value
-    
-    ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
-    
-    if model_path.exists():
-        ov_model = OVModelForCausalLM.from_pretrained(model_path, device=current_device, ov_config=ov_config)
+
+    if model_to_run.value == "INT4":
+        model_dir = int4_model_dir
+    elif model_to_run.value == "INT8":
+        model_dir = int8_model_dir
     else:
-        ov_model = OVModelForCausalLM.from_pretrained(
-            model_id,
-            device=current_device,
-            export=True,
-            ov_config=ov_config,
-            load_in_8bit=False,
-        )
-        ov_model.half()
-        ov_model.save_pretrained(model_path)
+        model_dir = fp16_model_dir
+    print(f"Loading model from {model_dir}")
+
+    tokenizer = AutoTokenizer.from_pretrained(model_dir)
+
+    current_device = device.value
+
+    ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": ""}
+
+    ov_model = OVModelForCausalLM.from_pretrained(model_dir, device=current_device, ov_config=ov_config)
 
 
 .. parsed-literal::
@@ -225,87 +450,35 @@ compatible with Optimum models.
 .. parsed-literal::
 
     No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
-    2023-11-17 13:10:43.359093: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2023-11-17 13:10:43.398436: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-05-01 10:43:29.010748: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-05-01 10:43:29.012724: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-05-01 10:43:29.047558: I tensorflow/tsl/cuda/cudart_stub.cc:28] Could not find cuda drivers on your machine, GPU will not be used.
+    2024-05-01 10:43:29.048434: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2023-11-17 13:10:44.026743: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    Compiling the model to CPU ...
-
-
-NNCF model weights compression
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
-
-NNCF `Weights Compression
-algorithm <https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/CompressWeights.md>`__
-compresses weights of a model to ``INT8``. This is an alternative to
-`Quantization
-algorithm <https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/post_training/Quantization.md>`__
-that compresses both weights and activations. Weight compression is
-effective in optimizing footprint and performance of large models where
-the size of weights is significantly larger than the size of
-activations, for example, in Large Language Models (LLMs) such as Dolly
-2.0. Additionally, Weight Compression usually leads to almost no
-accuracy drop.
-
-.. code:: ipython3
-
-    to_compress = widgets.Checkbox(
-        value=True,
-        description="INT8 Compression",
-        disabled=False,
-    )
-    print("Click on checkbox for enabling / disabling weights compression")
-    to_compress
+    2024-05-01 10:43:29.742257: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/bitsandbytes/cextension.py:34: UserWarning: The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
+      warn("The installed version of bitsandbytes was compiled without GPU support. "
 
 
 .. parsed-literal::
 
-    Click on checkbox for enabling / disabling weights compression
-
-
-
-
-.. parsed-literal::
-
-    Checkbox(value=True, description='INT8 Compression')
-
-
-
-.. code:: ipython3
-
-    import gc
-    from optimum.intel import OVQuantizer, OVConfig, OVWeightQuantizationConfig
-    
-    compressed_model_path = Path(f"{model_path}_compressed")
-    
-    
-    def calculate_compression_rate(model_path_ov, model_path_ov_compressed):
-        model_size_original = model_path_ov.with_suffix(".bin").stat().st_size / 2**20
-        model_size_compressed = model_path_ov_compressed.with_suffix(".bin").stat().st_size / 2**20
-        print(f"* Original IR model size: {model_size_original:.2f} MB")
-        print(f"* Compressed IR model size: {model_size_compressed:.2f} MB")
-        print(f"* Model compression rate: {model_size_original / model_size_compressed:.3f}")
-    
-    
-    if to_compress.value:
-        if not compressed_model_path.exists():
-            quantizer = OVQuantizer.from_pretrained(ov_model)
-            ov_config = OVConfig(quantization_config=OVWeightQuantizationConfig(bits=8))
-            quantizer.quantize(save_directory=compressed_model_path, ov_config=ov_config)
-            del quantizer
-            gc.collect()
-    
-        calculate_compression_rate(model_path / "openvino_model.xml", compressed_model_path / "openvino_model.xml")
-        ov_model = OVModelForCausalLM.from_pretrained(compressed_model_path, device=current_device, ov_config=ov_config)
+    /home/ea/work/my_optimum_intel/optimum_env/lib/python3.8/site-packages/bitsandbytes/libbitsandbytes_cpu.so: undefined symbol: cadam32bit_grad_fp32
 
 
 .. parsed-literal::
 
-    * Original IR model size: 5297.21 MB
-    * Compressed IR model size: 2657.89 MB
-    * Model compression rate: 1.993
+    WARNING[XFORMERS]: xFormers can't load C++/CUDA extensions. xFormers was built for:
+        PyTorch 2.0.1+cu118 with CUDA 1108 (you have 2.1.2+cpu)
+        Python  3.8.18 (you have 3.8.10)
+      Please reinstall xformers (see https://github.com/facebookresearch/xformers#installing-xformers)
+      Memory-efficient attention, SwiGLU, sparse and more won't be available.
+      Set XFORMERS_MORE_DETAILS=1 for more details
+    Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+
+
+.. parsed-literal::
+
+    Loading model from dolly-v2-3b/INT4_compressed_weights
 
 
 .. parsed-literal::
@@ -448,14 +621,14 @@ into model with providing additional context.
     RESPONSE_KEY = "### Response:"
     END_KEY = "### End"
     INTRO_BLURB = "Below is an instruction that describes a task. Write a response that appropriately completes the request."
-    
+
     # This is the prompt that is used for generating responses using an already trained model.  It ends with the response
     # key, where the job of the model is to provide the completion that follows it (i.e. the response itself).
     PROMPT_FOR_GENERATION_FORMAT = """{intro}
-    
+
     {instruction_key}
     {instruction}
-    
+
     {response_key}
     """.format(
         intro=INTRO_BLURB,
@@ -477,17 +650,17 @@ the code below find its id for using it as generation stop-criteria.
     def get_special_token_id(tokenizer: AutoTokenizer, key: str) -> int:
         """
         Gets the token ID for a given string that has been added to the tokenizer as a special token.
-    
+
         When training, we configure the tokenizer so that the sequences like "### Instruction:" and "### End" are
         treated specially and converted to a single, new token.  This retrieves the token ID each of these keys map to.
-    
+
         Args:
             tokenizer (PreTrainedTokenizer): the tokenizer
             key (str): the key to convert to a single token
-    
+
         Raises:
             RuntimeError: if more than one ID was generated
-    
+
         Returns:
             int: the token ID for the given key
         """
@@ -495,13 +668,13 @@ the code below find its id for using it as generation stop-criteria.
         if len(token_ids) > 1:
             raise ValueError(f"Expected only a single token for '{key}' but found {token_ids}")
         return token_ids[0]
-    
-    
+
+
     tokenizer_response_key = next(
         (token for token in tokenizer.additional_special_tokens if token.startswith(RESPONSE_KEY)),
         None,
     )
-    
+
     end_key_token_id = None
     if tokenizer_response_key:
         try:
@@ -531,7 +704,7 @@ parameter and returns model response.
     ):
         """
         Text generation function
-    
+
         Parameters:
           user_text (str): User-provided instruction for a generation.
           top_p (float):  Nucleus sampling. If set to < 1, only the smallest set of most probable tokens with probabilities that add up to top_p or higher are kept for a generation.
@@ -543,13 +716,13 @@ parameter and returns model response.
           model_output (str) - model-generated text
           perf_text (str) - updated perf text filed content
         """
-    
+
         # Prepare input prompt according to model expected template
         prompt_text = PROMPT_FOR_GENERATION_FORMAT.format(instruction=user_text)
-    
+
         # Tokenize the user text.
         model_inputs = tokenizer(prompt_text, return_tensors="pt")
-    
+
         # Start generation on a separate thread, so that we don't block the UI. The text is pulled from the streamer
         # in the main thread. Adds timeout to the streamer to handle exceptions in the generation thread.
         streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
@@ -565,7 +738,7 @@ parameter and returns model response.
         )
         t = Thread(target=ov_model.generate, kwargs=generate_kwargs)
         t.start()
-    
+
         # Pull the generated text from the streamer, and update the model output.
         model_output = ""
         per_token_time = []
@@ -599,14 +772,14 @@ elements.
     ):
         """
         Helper function for performance estimation
-    
+
         Parameters:
           current_time (float): This step time in seconds.
           current_perf_text (str): Current content of performance UI field.
           new_gen_text (str): New generated text.
           per_token_time (List[float]): history of performance from previous steps.
           num_tokens (int): Total number of generated tokens.
-    
+
         Returns:
           update for performance text field
           update for a total number of tokens
@@ -621,27 +794,27 @@ elements.
                 num_tokens,
             )
         return current_perf_text, num_tokens
-    
-    
+
+
     def reset_textbox(instruction: str, response: str, perf: str):
         """
         Helper function for resetting content of all text fields
-    
+
         Parameters:
           instruction (str): Content of user instruction field.
           response (str): Content of model response field.
           perf (str): Content of performance info filed
-    
+
         Returns:
           empty string for each placeholder
         """
         return "", "", ""
-    
-    
+
+
     def select_device(device_str: str, current_text: str = "", progress: gr.Progress = gr.Progress()):
         """
         Helper function for uploading model on the device.
-    
+
         Parameters:
           device_str (str): Device name.
           current_text (str): Current content of user instruction field (used only for backup purposes, temporally replacing it on the progress bar during model loading).
@@ -652,7 +825,7 @@ elements.
         if device_str != ov_model._device:
             ov_model.request = None
             ov_model._device = device_str
-    
+
             for i in progress.tqdm(range(1), desc=f"Model loading on {device_str}"):
                 ov_model.compile()
         return current_text
@@ -683,7 +856,7 @@ generation parameters:
 .. code:: ipython3
 
     available_devices = ov.Core().available_devices + ["AUTO"]
-    
+
     examples = [
         "Give me recipe for pizza with pineapple",
         "Write me a tweet about new OpenVINO release",
@@ -696,13 +869,13 @@ generation parameters:
         "Write instructions on how to become a good AI engineer",
         "Write a love letter to my best friend",
     ]
-    
+
     with gr.Blocks() as demo:
         gr.Markdown(
             "# Instruction following using Databricks Dolly 2.0 and OpenVINO.\n"
             "Provide insturction which describes a task below or select among predefined examples and model writes response that performs requested task."
         )
-    
+
         with gr.Row():
             with gr.Column(scale=4):
                 user_text = gr.Textbox(
@@ -749,7 +922,7 @@ generation parameters:
                     interactive=True,
                     label="Temperature",
                 )
-    
+
         user_text.submit(
             run_generation,
             [user_text, top_p, temperature, top_k, max_new_tokens, performance],
@@ -767,13 +940,13 @@ generation parameters:
             [user_text, model_output, performance],
         )
         device.change(select_device, [device, user_text], [user_text])
-    
+
     if __name__ == "__main__":
         try:
             demo.queue().launch(debug=False, height=800)
         except Exception:
             demo.queue().launch(debug=False, share=True, height=800)
-    
+
     # If you are launching remotely, specify server_name and server_port
     # EXAMPLE: `demo.launch(server_name='your server name', server_port='server port in int')`
     # To learn more please refer to the Gradio docs: https://gradio.app/docs/

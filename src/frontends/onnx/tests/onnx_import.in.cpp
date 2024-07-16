@@ -1182,6 +1182,23 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_mean) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_mean_18) {
+    auto model = convert_model("reduce_mean_18.onnx");
+
+    // input data shape (1, 1, 4, 4)
+    std::vector<std::vector<uint8_t>> inputs{
+        ov::test::NDArray<uint8_t, 4>({{{{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16}}}})
+            .get_vector()};
+
+    // output data shape (1,)
+    auto expected_output = ov::test::NDArray<uint8_t, 1>({7, 8, 9, 10}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_min) {
     auto model = convert_model("reduce_min.onnx");
 
@@ -1243,6 +1260,38 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_dynamic_rank_input) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_square) {
     auto model = convert_model("reduce_sum_square.onnx");
+
+    // input data shape (1, 1, 4, 4)
+    Inputs inputs{
+        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+
+    // output data shape (1,)
+    auto expected_output = ov::test::NDArray<float, 4>({{{{16}}}}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_square_13) {
+    auto model = convert_model("reduce_sum_square_13.onnx");
+
+    // input data shape (1, 1, 4, 4)
+    Inputs inputs{
+        ov::test::NDArray<float, 4>({{{{1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 1}}}}).get_vector()};
+
+    // output data shape (1,)
+    auto expected_output = ov::test::NDArray<float, 4>({{{{16}}}}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_square_18) {
+    auto model = convert_model("reduce_sum_square_18.onnx");
 
     // input data shape (1, 1, 4, 4)
     Inputs inputs{
@@ -4900,7 +4949,13 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_random_uniform) {
     const auto model = convert_model("random_uniform.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_expected_output<float>(Shape{2, 2}, {43.45518f, 48.67585f, 42.227386f, 40.86294f});
+
+    if (std::string("${BACKEND_NAME}") == std::string("IE_GPU")) {
+        test_case.add_expected_output<float>(Shape{2, 2}, {40.96875f, 43.4375f, 49.4375f, 45.46875f});
+    } else {
+        test_case.add_expected_output<float>(Shape{2, 2}, {43.70129f, 45.26042f, 43.48503f, 46.43743f});
+    }
+
     test_case.run();
 }
 
@@ -4909,7 +4964,13 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_random_uniform_like) {
 
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<float>(Shape{2, 2}, {41, 42, 43, 44});
-    test_case.add_expected_output<float>(Shape{2, 2}, {43.45518f, 48.67585f, 42.227386f, 40.86294f});
+
+    if (std::string("${BACKEND_NAME}") == std::string("IE_GPU")) {
+        test_case.add_expected_output<float>(Shape{2, 2}, {40.96875f, 43.4375f, 49.4375f, 45.46875f});
+    } else {
+        test_case.add_expected_output<float>(Shape{2, 2}, {43.70129f, 45.26042f, 43.48503f, 46.43743f});
+    }
+
     test_case.run();
 }
 
@@ -4917,7 +4978,13 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_random_normal) {
     const auto model = convert_model("random_normal.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
-    test_case.add_expected_output<float>(Shape{2, 2}, {83.052017f, 55.496368f, 119.31188f, -3.6946249f});
+
+    if (std::string("${BACKEND_NAME}") == std::string("IE_GPU")) {
+        test_case.add_expected_output<float>(Shape{2, 2}, {77.351875f, 74.047821f, -5.996780f, 13.922290f});
+    } else {
+        test_case.add_expected_output<float>(Shape{2, 2}, {30.357481f, 72.41268f, 12.999034f, 70.04985f});
+    }
+
     test_case.run();
 }
 
@@ -4926,7 +4993,13 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_random_normal_like) {
 
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<float>(Shape{2, 2}, {0, 0, 0, 0});
-    test_case.add_expected_output<float>(Shape{2, 2}, {83.052017f, 55.496368f, 119.31188f, -3.6946249f});
+
+    if (std::string("${BACKEND_NAME}") == std::string("IE_GPU")) {
+        test_case.add_expected_output<float>(Shape{2, 2}, {77.351875f, 74.047821f, -5.996780f, 13.922290f});
+    } else {
+        test_case.add_expected_output<float>(Shape{2, 2}, {30.357481f, 72.41268f, 12.999034f, 70.04985f});
+    }
+
     test_case.run();
 }
 
@@ -6617,8 +6690,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mish_activation) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mmdeploy_roi_align_rotated) {
-    if (std::string("${BACKEND_NAME}") != std::string("INTERPRETER")) {
-        return;  //< Skip this test for non-INTERPRETER backends, since op is not yet implemented on those backends.
+    float eps = 0.0001f;
+
+    if (std::string("${BACKEND_NAME}") == std::string("IE_GPU")) {
+        eps = 0.01f;
     }
 
     auto model = convert_model("mmdeploy_roi_align_rotated.onnx");
@@ -6634,7 +6709,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_mmdeploy_roi_align_rotated) {
         Shape{1, 1, 5, 2},
         {5.1271f, 1.2473f, 6.1773f, 2.9598f, 7.2275f, 3.2300f, 8.2777f, 3.7458f, 9.3279f, 4.4060f});
 
-    test_case.run_with_tolerance_as_fp(0.0001f);
+    test_case.run_with_tolerance_as_fp(eps);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_min_18) {
@@ -6682,5 +6757,89 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_min_20_boolean) {
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_string_input) {
+    const auto model = convert_model("string_input.onnx");
+    auto test_case = test::TestCase(model);
+    test_case.add_input<std::string>({"strinpt1", "strinpt2"});
+    test_case.add_expected_output<int64_t>({2});
+    test_case.add_expected_output<std::string>({"strinpt1", "strinpt2"});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_string_constant) {
+    const auto model = convert_model("string_constant.onnx");
+    auto test_case = test::TestCase(model);
+    test_case.add_expected_output<int64_t>({2});
+    test_case.add_expected_output<std::string>({"string1", "string2"});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_multinomial_7) {
+    auto model = convert_model("multinomial.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    auto expected_shape = Shape{3, 5};
+    EXPECT_EQ(model->get_output_shape(0), expected_shape);
+
+    std::vector<float> input_values = {0.1f, 0.2f, 0.7f, 0.2f, 0.4f, 0.4f, 1.0f, 0.0f, 0.0f};
+    test_case.add_input<float>(ov::Shape{3, 3}, input_values);
+
+    // Values are collected for seed 1.23
+    if (std::string("${BACKEND_NAME}") == std::string("INTERPRETER")) {
+        test_case.add_expected_output<int32_t>(Shape{3, 5}, {0, 2, 0, 1, 1, 2, 1, 2, 1, 2, 0, 1, 0, 0, 0});
+    } else if (std::string("${BACKEND_NAME}") == std::string("IE_CPU")) {
+        test_case.add_expected_output<int32_t>(Shape{3, 5}, {2, 2, 2, 2, 0, 2, 2, 2, 0, 0, 0, 1, 0, 1, 0});
+    } else if (std::string("${BACKEND_NAME}") == std::string("IE_GPU")) {
+        test_case.add_expected_output<int32_t>(Shape{3, 5}, {1, 0, 0, 1, 1, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0});
+    } else {
+        GTEST_FAIL();
+    }
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_float8e5m2_input) {
+    const auto model = convert_model("float8e5m2_input.onnx");
+    auto test_case = test::TestCase(model);
+    test_case.add_input<ov::float8_e5m2>({1.0f, 0.0f, -1.0f, NAN, -INFINITY, INFINITY});
+    test_case.add_expected_output<int64_t>({6});
+    test_case.add_expected_output<ov::float8_e5m2>({1.0f, 0.0f, -1.0f, NAN, -INFINITY, INFINITY});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_float8e5m2_constant) {
+    const auto model = convert_model("float8e5m2_constant.onnx");
+    auto test_case = test::TestCase(model);
+    test_case.add_expected_output<int64_t>({6});
+    test_case.add_expected_output<ov::float8_e5m2>({-1.0f, 0.0f, 1.0f, NAN, INFINITY, -INFINITY});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_float8e4m3fn_input) {
+    const auto model = convert_model("float8e4m3fn_input.onnx");
+    auto test_case = test::TestCase(model);
+    test_case.add_input<ov::float8_e4m3>({1.0f, 0.0f, -1.0f, NAN, -256.f, 256.f});
+    test_case.add_expected_output<int64_t>({6});
+    // Float8e4m3(fn) doesn't have infinity/-infinity values
+    test_case.add_expected_output<ov::float8_e4m3>({1.0f, 0.0f, -1.0f, NAN, -256.f, 256.f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_float8e4m3fn_constant) {
+    const auto model = convert_model("float8e4m3fn_constant.onnx");
+    auto test_case = test::TestCase(model);
+    test_case.add_expected_output<int64_t>({6});
+    // Float8e4m3(fn) doesn't have infinity/-infinity values
+    test_case.add_expected_output<ov::float8_e4m3>({-1.0f, 0.0f, 1.0f, NAN, 256.f, -256.f});
+
     test_case.run();
 }

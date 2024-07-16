@@ -15,8 +15,8 @@ using OpenVINO™. We will use ``Faster R-CNN FPN x1`` model and
 `COCO <https://cocodataset.org/#home>`__ dataset as examples for object
 detection and instance segmentation respectively.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 
@@ -52,7 +52,7 @@ Install required packages for running model
 
 .. code:: ipython3
 
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu torch torchvision
+    %pip install -q "torch" "torchvision" "opencv-python" "wheel" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/facebookresearch/detectron2.git" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "openvino>=2023.1.0"
 
@@ -60,15 +60,7 @@ Install required packages for running model
 .. parsed-literal::
 
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -93,12 +85,12 @@ reading model config.
 .. code:: ipython3
 
     import detectron2.model_zoo as detectron_zoo
-    
-    
+
+
     def get_model_and_config(model_name: str):
         """
         Helper function for downloading PyTorch model and its configuration from Detectron2 Model Zoo
-    
+
         Parameters:
           model_name (str): model_id from Detectron2 Model Zoo
         Returns:
@@ -131,13 +123,13 @@ simplify model’s structure making it more export-friendly.
     import openvino as ov
     import warnings
     from typing import List, Dict
-    
-    
+
+
     def convert_detectron2_model(model: torch.nn.Module, sample_input: List[Dict[str, torch.Tensor]]):
         """
         Function for converting Detectron2 models, creates TracingAdapter for making model tracing-friendly,
         prepares inputs and converts model to OpenVINO Model
-    
+
         Parameters:
           model (torch.nn.Module): Model object for conversion
           sample_input (List[Dict[str, torch.Tensor]]): sample input for tracing
@@ -146,18 +138,18 @@ simplify model’s structure making it more export-friendly.
         """
         # prepare input for tracing adapter
         tracing_input = [{"image": sample_input[0]["image"]}]
-    
+
         # override model forward and disable postprocessing if required
         if isinstance(model, GeneralizedRCNN):
-    
+
             def inference(model, inputs):
                 # use do_postprocess=False so it returns ROI mask
                 inst = model.inference(inputs, do_postprocess=False)[0]
                 return [{"instances": inst}]
-    
+
         else:
             inference = None  # assume that we just call the model directly
-    
+
         # create traceable model
         traceable_model = TracingAdapter(model, tracing_input, inference)
         warnings.filterwarnings("ignore")
@@ -179,23 +171,23 @@ steps based on model specific transformations defined in model config.
     import requests
     from pathlib import Path
     from PIL import Image
-    
+
     MODEL_DIR = Path("model")
     DATA_DIR = Path("data")
-    
+
     MODEL_DIR.mkdir(exist_ok=True)
     DATA_DIR.mkdir(exist_ok=True)
-    
+
     input_image_url = "https://farm9.staticflickr.com/8040/8017130856_1b46b5f5fc_z.jpg"
-    
+
     image_file = DATA_DIR / "example_image.jpg"
-    
+
     if not image_file.exists():
         image = Image.open(requests.get(input_image_url, stream=True).raw)
         image.save(image_file)
     else:
         image = Image.open(image_file)
-    
+
     image
 
 
@@ -210,8 +202,8 @@ steps based on model specific transformations defined in model config.
     import detectron2.data.transforms as T
     from detectron2.data import detection_utils
     import torch
-    
-    
+
+
     def get_sample_inputs(image_path, cfg):
         # get a sample data
         original_image = detection_utils.read_image(image_path, format=cfg.INPUT.FORMAT)
@@ -220,9 +212,9 @@ steps based on model specific transformations defined in model config.
         height, width = original_image.shape[:2]
         image = aug.get_transform(original_image).apply_image(original_image)
         image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1))
-    
+
         inputs = {"image": image, "height": height, "width": width}
-    
+
         # Sample ready
         sample_inputs = [inputs]
         return sample_inputs
@@ -267,6 +259,12 @@ directory.
     else:
         ov_model = model_xml_path
 
+
+.. parsed-literal::
+
+    ['args']
+
+
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -277,16 +275,16 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -338,12 +336,12 @@ provide helpers for wrapping output in original Detectron2 format.
     from detectron2.utils.visualizer import ColorMode, Visualizer
     from detectron2.data import MetadataCatalog
     import numpy as np
-    
-    
+
+
     def postprocess_detection_result(outputs: Dict, orig_height: int, orig_width: int, conf_threshold: float = 0.0):
         """
         Helper function for postprocessing prediction results
-    
+
         Parameters:
           outputs (Dict): OpenVINO model output dictionary
           orig_height (int): original image height before preprocessing
@@ -371,12 +369,12 @@ provide helpers for wrapping output in original Detectron2 format.
             out_dict["pred_masks"] = torch.from_numpy(masks)
         instances = Instances(model_input_size, **out_dict)
         return detector_postprocess(instances, orig_height, orig_width)
-    
-    
+
+
     def draw_instance_prediction(img: np.ndarray, results: Instances, cfg: "Config"):
         """
         Helper function for visualization prediction results
-    
+
         Parameters:
           img (np.ndarray): original image for drawing predictions
           results (instances): model predictions
@@ -431,12 +429,18 @@ Convert Instance Segmentation Model to OpenVINO Intermediate Representation
 .. code:: ipython3
 
     model_xml_path = MODEL_DIR / (model_name.split("/")[-1] + ".xml")
-    
+
     if not model_xml_path.exists():
         ov_model = convert_detectron2_model(model, sample_input)
         ov.save_model(ov_model, MODEL_DIR / (model_name.split("/")[-1] + ".xml"))
     else:
         ov_model = model_xml_path
+
+
+.. parsed-literal::
+
+    ['args']
+
 
 Select inference device
 ~~~~~~~~~~~~~~~~~~~~~~~

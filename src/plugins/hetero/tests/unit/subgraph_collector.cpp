@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/graph_comparator.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "op/device_subgraph.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/op/ops.hpp"
@@ -490,7 +491,7 @@ TEST_F(SubgraphCollectorTest, submodel_with_different_affinity_parameter) {
         {"res", "MOCK.0"},
     };
     auto supported_ops = supported_ops_with_affinity;
-    ASSERT_NO_THROW(ov::hetero::mask_model_subgraphs_by_ops(m_model, supported_ops, false, "TEST"));
+    OV_ASSERT_NO_THROW(ov::hetero::mask_model_subgraphs_by_ops(m_model, supported_ops, false, "TEST"));
 }
 
 TEST_F(SubgraphCollectorTest, submodel_with_constant_subgraphs) {
@@ -562,4 +563,54 @@ TEST_F(SubgraphCollectorTest, submodel_with_constant_subgraphs) {
             ASSERT_EQ(subgraph._affinity, "MOCK.1");
         }
     }
+}
+
+TEST_F(SubgraphCollectorTest, merge_independent_submodel) {
+    auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 2, 2});
+    param1->set_friendly_name("input1");
+    auto param2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 2, 2});
+    param2->set_friendly_name("input2");
+    auto const_value1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, {1});
+    const_value1->set_friendly_name("const_val1");
+    auto add1 = std::make_shared<ov::op::v1::Add>(param1, const_value1);
+    add1->set_friendly_name("add1");
+    auto const_value2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, {1});
+    const_value2->set_friendly_name("const_val1");
+    auto add2 = std::make_shared<ov::op::v1::Add>(add1, const_value2);
+    add2->set_friendly_name("add2");
+    auto result = std::make_shared<ov::op::v0::Result>(add2);
+    result->set_friendly_name("res");
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param1, param2});
+
+    const std::map<std::string, std::string> supported_ops = {
+        {"input1", "MOCK.0"},
+        {"input2", "MOCK.0"},
+        {"const_val1", "MOCK.0"},
+        {"add1", "MOCK.0"},
+        {"const_val2", "MOCK.1"},
+        {"add2", "MOCK.1"},
+        {"res", "MOCK.1"},
+    };
+    SubgraphCollector::AffinitiesMap affinities;
+    const auto ordered_ops = model->get_ordered_ops();
+    for (const auto& node : ordered_ops) {
+        const auto name = node->get_friendly_name();
+        OPENVINO_ASSERT(supported_ops.count(name));
+        affinities[node] = supported_ops.at(name);
+    }
+    // Collect subgraphs
+    SubgraphCollector subgraph_collector(model, affinities);
+    ov::hetero::SubgraphsVector actual_subgraphs;
+    ov::hetero::SubgraphsMappingInfo actual_mapping_info;
+    std::tie(actual_subgraphs, actual_mapping_info) = subgraph_collector.run();
+
+    ASSERT_EQ(3, actual_subgraphs.size());
+    std::vector<std::shared_ptr<ov::Model>> actual_submodels;
+    for (auto& actual_subgraph : actual_subgraphs) {
+        actual_submodels.push_back(std::make_shared<ov::Model>(actual_subgraph._results, actual_subgraph._parameters));
+    }
+    // Merge submodels into one model back
+    OV_ASSERT_NO_THROW(
+        ov::hetero::merge_submodels(actual_submodels, actual_mapping_info._submodels_input_to_prev_output));
+    ASSERT_EQ(1, actual_submodels.size());
 }

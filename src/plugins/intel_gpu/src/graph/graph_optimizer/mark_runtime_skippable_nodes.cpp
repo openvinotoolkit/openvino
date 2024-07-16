@@ -4,6 +4,7 @@
 
 #include "pass_manager.h"
 #include "gather_inst.h"
+#include "non_max_suppression_inst.h"
 #include "permute_inst.h"
 #include "strided_slice_inst.h"
 #include "kv_cache_inst.h"
@@ -35,7 +36,7 @@ void mark_runtime_skippable_nodes::run(program& p) {
             if (impl_params->get_input_layout(0).get_partial_shape()[axis] == -1
                 || impl_params->get_input_layout(1).get_partial_shape()[0] == -1
                 || impl_params->get_input_layout(0).get_partial_shape()[axis] == impl_params->get_input_layout(1).get_partial_shape()[0]) {
-                // May be skipepd
+                // May be skipped
                 node.can_be_optimized(true);
                 // Set runtime skippable only when the node is set as can_be_optimized finally.
                 node.set_runtime_skippable(true);
@@ -43,10 +44,14 @@ void mark_runtime_skippable_nodes::run(program& p) {
             }
         });
         program_helpers::do_for_types<permute>(*node, [](permute_node& node){
+            // if node is already optimized at compilation time, do not handle at runtime
+            if (node.can_be_optimized())
+                return;
             auto impl_params = node.get_kernel_impl_params();
             if (node.is_output() ||
                 node.has_fused_primitives() ||
-                (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type))
+                (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type) ||
+                impl_params->get_input_layout(0).has_dynamic_pad())
                 return;
 
             // TODO: For now, all permutes with dynamic shape are applied.
@@ -136,6 +141,30 @@ void mark_runtime_skippable_nodes::run(program& p) {
                         output_pdim++;
                     }
                 }
+
+                node.can_be_optimized(true);
+                // Set runtime skippable only when the node is set as can_be_optimized finally.
+                node.set_runtime_skippable(true);
+                GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node.id() << " can_be_optimized" << std::endl;
+            }
+        });
+        program_helpers::do_for_types<reorder>(*node, [](reorder_node& node){
+            auto impl_params = node.get_kernel_impl_params();
+
+            if ((node.is_output() && node.get_dependency(0).is_input())
+                || node.has_fused_primitives()
+                || (impl_params->get_input_layout(0).format != impl_params->get_output_layout().format)
+                || (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type)
+                || (impl_params->get_input_layout(0).data_padding != impl_params->get_output_layout().data_padding))
+                return;
+
+            if (node.is_dynamic()) {
+                if (!node.is_output() && node.get_users().size() != 1)
+                    return;
+
+                // If the user is concatenation with 1 user and the concat is optimized, priority should be given to in place concat optimization at runtime
+                if (node.have_user_with_type<concatenation>() && node.get_users().front()->can_be_optimized())
+                    return;
 
                 node.can_be_optimized(true);
                 // Set runtime skippable only when the node is set as can_be_optimized finally.

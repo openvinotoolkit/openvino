@@ -14,6 +14,7 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/file_util.hpp"
+#include "openvino/util/pp.hpp"
 
 #ifdef WIN32
 #include <sdkddkver.h>
@@ -36,8 +37,31 @@
 #include <malloc.h>
 #endif
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifndef NOMINMAX
+# define NOMINMAX
+#endif
+#include "gpu/intel/microkernels/fuser.hpp"
+#endif
+
 namespace {
 std::mutex cacheAccessMutex;
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+cl::Program fuse_microkernels(const cl::Context& context, const cl::Device& device, cl::Program& program, const std::string& code) {
+    using namespace dnnl::impl::gpu::intel;
+    std::vector<std::vector<uint8_t>> binaries = program.getInfo<CL_PROGRAM_BINARIES>();
+    OPENVINO_ASSERT(binaries.size() == 1);
+    std::vector<uint8_t> binary = binaries[0];
+    micro::fuseMicrokernels(binary, code.c_str());
+
+    cl::Program::Binaries fused_binary = { binary };
+    cl::Program fused_program(context, {device}, fused_binary);
+    fused_program.build({device});
+
+    return fused_program;
+}
+#endif  // ENABLE_ONEDNN_FOR_GPU
 
 std::string reorder_options(const std::string& org_options) {
     std::stringstream ss(org_options);
@@ -127,20 +151,52 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                 const auto& batch_id = 0;
                 // increase bucket id if and only if new bucket comes
                 bucket_id = static_cast<int32_t>(program_buckets.size() - 1);
-                current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_header_str));
+                current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_headers));
             }
+
+            // This is a temporary walk-around to avoid severe performance drop.
+            // It will be removed after OpenCL compiler is updated.
+            auto need_separate_batch = [&](std::string& unique_kernel_name) -> bool {
+                const std::vector<std::string> special_kernels = {"gemm_tiled_opt"};
+
+                // check if the current kernel name is in special_kernels
+                for (auto& special_kernel : special_kernels) {
+                    if (entry_point.find(special_kernel) != std::string::npos)
+                        return true;
+                }
+
+                // check if the current_batch has one of special_kernels
+                if (current_bucket.back().kernels_counter == 1) {
+                    auto& kernel_in_current_batch = current_bucket.back().entry_point_to_id.begin()->first;
+                    for (auto& special_kernel : special_kernels) {
+                        if (kernel_in_current_batch.find(special_kernel) != std::string::npos)
+                            return true;
+                    }
+                }
+                return false;
+            };
 
             // Create new kernels batch when the limit is reached
             // and current kernel's entry_point is duplicated in this kernels batch
             if (current_bucket.back().kernels_counter >= get_max_kernels_per_batch()
-                || current_bucket.back().entry_point_to_id.find(entry_point) != current_bucket.back().entry_point_to_id.end()) {
+                || current_bucket.back().entry_point_to_id.find(entry_point) != current_bucket.back().entry_point_to_id.end()
+                || need_separate_batch(entry_point)) {
                 const auto& batch_id = static_cast<int32_t>(current_bucket.size());
-                current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_header_str));
+                current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_headers));
             }
 
             auto& current_batch = current_bucket.back();
             current_batch.dump_custom_program = dump_custom_program;
             current_batch.entry_point_to_id.emplace(entry_point, std::make_pair(code.params, kernel_part_idx));
+
+            current_batch.has_microkernels |= kernel_string->has_microkernels;
+
+            // TODO: Technically, microkernels doesn't require specific headers, but we don't want to include
+            // some headers to all batches as it may lead to compilation error on some driver versions.
+            // Need to generalize work with headers to include only necessary parts
+            if (current_batch.has_microkernels) {
+                current_batch.source.insert(current_batch.source.begin(), current_batch.micro_headers.begin(), current_batch.micro_headers.end());
+            }
 
             current_batch.source.push_back(std::move(full_code));
             current_batch.kernels_counter++;
@@ -171,12 +227,12 @@ kernels_cache::kernels_cache(engine& engine,
                              const ExecutionConfig& config,
                              uint32_t prog_id,
                              std::shared_ptr<ov::threading::ITaskExecutor> task_executor,
-                             const std::vector<std::string>& batch_header_str)
+                             const std::map<std::string, std::string>& batch_headers)
     : _engine(engine)
     , _task_executor(task_executor)
     , _config(config)
     , _prog_id(prog_id)
-    , batch_header_str(std::move(batch_header_str)) { }
+    , batch_headers(std::move(batch_headers)) { }
 
 static std::vector<unsigned char> getProgramBinaries(cl::Program program) {
     // Get the size of the program binary in bytes.
@@ -264,6 +320,17 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
                 dump_file << "*/\n";
             }
 
+            if (batch.has_microkernels) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+                OPENVINO_ASSERT(batch.kernels_counter == 1);
+                // Do we need full source code here (with batch headers)?
+                program = fuse_microkernels(cl_build_engine.get_cl_context(), cl_build_engine.get_cl_device(), program, batch.source.back());
+#else  // ENABLE_ONEDNN_FOR_GPU
+                OPENVINO_THROW("[GPU] Can't compile kernel w/ microkernels as onednn is not available");
+#endif  // ENABLE_ONEDNN_FOR_GPU
+            }
+
+
             program.createKernels(&kernels);
 
             if (is_cache_enabled()) {
@@ -324,6 +391,7 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
         GPU_DEBUG_INFO << "-------- End of OpenCL build error" << std::endl;
         std::stringstream err_ss(err_log);
         std::string line;
+        std::stringstream err;
         int cnt = 0;
 
         while (std::getline(err_ss, line, '\n')) {
@@ -331,14 +399,14 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
                 cnt = 5;
             cnt--;
             if (cnt > 0)
-                std::cout << line << std::endl;
+                err << line << std::endl;
             else if (cnt == 0)
-                std::cout << "...." << std::endl;
+                err << "...." << std::endl;
         }
 
         throw std::runtime_error("Program build failed(" + std::to_string(batch.bucket_id) + + "_part_"
                                  + std::to_string(batch.batch_id)
-                                 + "): You may enable OCL source dump to see the error log.\n");
+                                 + "):\n" + err.str());
     }
 }
 
@@ -453,7 +521,7 @@ void kernels_cache::build_all() {
         std::lock_guard<std::mutex> lock(_mutex);
         _kernels_code.clear();
         _pending_compilation = false;
-#if defined(__unix__) && !defined(__ANDROID__)
+#if defined(OPENVINO_GNU_LIBC) && !defined(__ANDROID__)
     //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
     //  (It is at least 500 MB when we perform parallel compilation)
     //  It is observed that freeing the memory manually with malloc_trim saves significant amount of the memory.
@@ -616,7 +684,7 @@ kernels_cache::compiled_kernels kernels_cache::compile(const kernel_impl_params&
     OPENVINO_ASSERT(output_kernels.size() == 1, "Only the kernels of the single primitive should be compiled.");
 
     t_kernels_code.clear();
-#if defined(__unix__) && !defined(__ANDROID__)
+#if defined(OPENVINO_GNU_LIBC) && !defined(__ANDROID__)
     //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
     //  (It is at least 500 MB when we perform parallel compilation)
     //  It is observed that freeing the memory manually with malloc_trim saves significant amount of the memory.

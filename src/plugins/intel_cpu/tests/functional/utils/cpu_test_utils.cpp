@@ -8,6 +8,7 @@
 #include "cpu_test_utils.hpp"
 
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 #include "utils/general_utils.h"
 #include "utils/rt_info/memory_formats_attribute.hpp"
@@ -109,7 +110,8 @@ std::string CPUTestsBase::fmts2str(const std::vector<cpu_memory_format_t>& fmts,
 ov::PrimitivesPriority CPUTestsBase::impls2primProiority(const std::vector<std::string>& priority) {
     std::string str;
     for (auto& impl : priority) {
-        ((str += "cpu:") += impl) += ",";
+        if (!impl.empty())
+            ((str += "cpu:") += impl) += ",";
     }
     if (!str.empty()) {
         str.pop_back();
@@ -328,7 +330,6 @@ CPUTestsBase::CPUInfo CPUTestsBase::makeCPUInfo(const std::vector<cpu_memory_for
     if (!priority.empty()) {
         cpuInfo.emplace(ov::PrimitivesPriority::get_type_info_static(), impls2primProiority(priority));
     }
-
     cpuInfo.insert({"enforceBF16evenForGraphTail", true});
 
     return cpuInfo;
@@ -470,5 +471,75 @@ void CheckNumberOfNodesWithType(const ov::CompiledModel& compiledModel,
                                 const std::string& nodeType,
                                 size_t expectedCount) {
     CheckNumberOfNodesWithTypes(compiledModel, {nodeType}, expectedCount);
+}
+
+
+// deduce the actual precision of the operation given the ngraph level operation precision and the plugin config
+ov::element::Type
+CPUTestsBase::deduce_expected_precision(const ov::element::Type& opPrecision,
+                                        const ov::AnyMap& configuration) {
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    return opPrecision;
+#endif
+#if defined(OPENVINO_ARCH_RISCV64)
+    return opPrecision;
+#endif
+#if defined(OPENVINO_ARCH_X86_64)
+    // if is not float
+    if (!opPrecision.is_real()) {
+        return opPrecision;
+    }
+    ov::element::Type inferencePrecision = ov::element::f32;
+    bool inferencePrecisionSetExplicitly = false;
+    const std::string precisionKey = ov::hint::inference_precision.name();
+    const auto& it = configuration.find(precisionKey);
+    if (it != configuration.end()) {
+        auto inferencePrecisionConfig = it->second.as<ov::element::Type>();
+        inferencePrecisionSetExplicitly = true;
+        // TODO also need to check (dnnl::impl::cpu::x64::avx2_vnni_2)
+        if ((inferencePrecisionConfig == ov::element::bf16 && ov::with_cpu_x86_avx512_core())
+                || (inferencePrecisionConfig == ov::element::f16 && ov::with_cpu_x86_avx512_core_fp16())
+                || (inferencePrecisionConfig == ov::element::f32)
+                || (inferencePrecisionConfig == ov::element::undefined)) {
+            inferencePrecision = inferencePrecisionConfig;
+        }
+    }
+    if (!inferencePrecisionSetExplicitly) {
+        const std::string executionModeKey = ov::hint::execution_mode.name();
+        const auto& configIt = configuration.find(executionModeKey);
+        if (configIt != configuration.end() && configIt->second.as<ov::hint::ExecutionMode>() == ov::hint::ExecutionMode::PERFORMANCE) {
+            inferencePrecision = ov::element::f32;
+            if (ov::with_cpu_x86_bfloat16()) {
+                inferencePrecision = ov::element::bf16;
+            }
+        } else {
+            inferencePrecision = ov::element::undefined;
+        }
+    }
+
+    ov::element::Type deducedType = opPrecision;
+    // enforceInferPrecision stage
+    if (inferencePrecision == ov::element::bf16) {
+        deducedType = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
+    }
+
+    // ngraph transform pipeline stage
+    if (inferencePrecision == ov::element::f16) {
+        if (deducedType == ov::element::f32) {
+            deducedType = ov::element::f16;
+        }
+    }
+    if (deducedType == ov::element::bf16) {
+        deducedType = ov::with_cpu_x86_avx512_core() ? ov::element::bf16 : ov::element::f32;
+    } else if (deducedType == ov::element::f16) {
+        if (inferencePrecision != ov::element::f16 && inferencePrecision != ov::element::undefined) {
+            deducedType = ov::element::f32;
+        }
+    } else {
+        deducedType = ov::element::f32;
+    }
+
+    return deducedType;
+#endif
 }
 }  // namespace CPUTestUtils

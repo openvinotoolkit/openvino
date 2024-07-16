@@ -11,6 +11,7 @@
 #include "intel_gpu/primitives/crop.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/resample.hpp"
+#include "intel_gpu/primitives/permute.hpp"
 #include <intel_gpu/primitives/data.hpp>
 
 #include "reorder_inst.h"
@@ -910,6 +911,11 @@ TEST(reorder_gpu, basic_convert_int8) {
     std::initializer_list<float> input_f = { 1.0f, -2.5f, 3.1f, -4.0f, 5.03f, -6.99f, 7.0f, -8.0f, 9.0f };
     std::list<float> final_results = { 1.0f, -2.0f, 3.0f, -4.0f, 5.0f, -6.0f, 7.0f, -8.0f, 9.0f };
 
+    if (engine.get_device_info().supports_immad) {
+        // Use onednn when reordering byxf format.
+        final_results = { 1.0f, -2.0f, 3.0f, -4.0f, 5.0f, -7.0f, 7.0f, -8.0f, 9.0f };
+    }
+
     // Allocate memory for input image.
     auto input_memory = engine.allocate_memory(in_layout);
     set_values(input_memory, input_f);
@@ -953,6 +959,11 @@ TEST(reorder_gpu, basic_convert_uint8) {
     layout byte_layout = { ov::element::from<uint8_t>(), format::bfyx,{ 1, 1, 3, 3 } };
     std::initializer_list<float> input_f = { 1.0f, -2.5f, 3.1f, -4.0f, 5.03f, -6.99f, 7.0f, -8.0f, 9.0f };
     std::list<float> final_results = { 1.0f, 254.0f, 3.0f, 252.0f, 5.0f, 250.0f, 7.0f, 248.0f, 9.0f };
+
+    if (engine.get_device_info().supports_immad) {
+        // Use onednn when reordering byxf format.
+        final_results = { 1.0f, 0.0f, 3.0f, 0.0f, 5.0f, 0.0f, 7.0f, 0.0f, 9.0f };
+    }
 
     // Allocate memory for input image.
     auto input_memory = engine.allocate_memory(in_layout);
@@ -3332,4 +3343,74 @@ TEST_P(testing_removal_reorder, only_remove_reorder_shallow_depth_input_cached) 
     execute(p, true);
 
     ASSERT_EQ(check_optimized_out(p, "reorder_conv"), false);
+}
+
+TEST(reorder_gpu_fp32, test_needs_completion_events) {
+    // input1  input2
+    //    |      |
+    //    |      |
+    //    \     /
+    //      mul
+    //       |
+    //  permute(skippable)
+    //       |
+    //  reorder1(skippable)
+    //       |
+    //  reorder2(not skippable)
+    //
+
+    auto& engine = get_test_engine();
+
+    auto input_dynamic_layout = layout{ ov::PartialShape::dynamic(4), data_types::f32, format::bfyx };
+    auto input_static_layout = layout{ { 2, 1, 2, 8 }, data_types::f32, format::bfyx };
+
+    auto input1 = engine.allocate_memory(input_static_layout);
+    auto input2 = engine.allocate_memory(input_static_layout);
+
+    std::vector<float> expected_results = {
+        0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f,
+        24.f, 24.f, 24.f, 24.f, 24.f, 24.f, 24.f, 24.f,
+        16.f, 17.f, 18.f, 19.f, 20.f, 21.f, 22.f, 23.f,
+        42.f, 42.f, 42.f, 42.f, 42.f, 42.f, 42.f, 42.f
+    };
+
+    set_values(input1, expected_results);
+
+    set_values(input2, {
+        1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f,
+        1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f,
+        1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f,
+        1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f
+    });
+
+    topology topology;
+    topology.add(input_layout("input1", input_dynamic_layout));
+    topology.add(input_layout("input2", input_dynamic_layout));
+    topology.add(eltwise("mul", { input_info("input1"), input_info("input2")}, eltwise_mode::prod));
+    topology.add(permute("permute", input_info("mul"), { 0, 1, 2, 3 }));
+    topology.add(reorder("reorder1", input_info("permute"), format::bfyx, data_types::f32));
+    topology.add(reorder("reorder2", input_info("reorder1"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    auto force_impl = ov::intel_gpu::ImplementationDesc{ format::bfyx, "", impl_types::cpu };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {primitive_id("reorder2"), force_impl} }));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto inst = network.get_primitive("reorder2");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("reorder2").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < expected_results.size(); ++i) {
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
+    }
 }

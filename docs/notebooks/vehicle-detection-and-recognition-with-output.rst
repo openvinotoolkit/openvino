@@ -17,8 +17,8 @@ As a result, you can get:
 
    result
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Imports <#imports>`__
 -  `Download Models <#download-models>`__
@@ -50,9 +50,9 @@ Import the required modules.
 .. code:: ipython3
 
     import platform
-    
+
     %pip install -q "openvino>=2023.1.0" opencv-python tqdm
-    
+
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
@@ -61,21 +61,7 @@ Import the required modules.
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-    
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -84,21 +70,21 @@ Import the required modules.
     import os
     from pathlib import Path
     from typing import Tuple
-    
+
     import cv2
     import numpy as np
     import matplotlib.pyplot as plt
     import openvino as ov
-    
+
     # Fetch `notebook_utils` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-    
+
     open("notebook_utils.py", "w").write(r.text)
-    
+
     import notebook_utils as utils
 
 Download Models
@@ -130,15 +116,15 @@ model is already downloaded, this step is skipped.
     recognition_model_name = "vehicle-attributes-recognition-barrier-0039"
     # Selected precision (FP32, FP16, FP16-INT8)
     precision = "FP32"
-    
+
     base_model_url = "https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1"
-    
+
     # Check if the model exists.
     detection_model_url = f"{base_model_url}/{detection_model_name}/{precision}/{detection_model_name}.xml"
     recognition_model_url = f"{base_model_url}/{recognition_model_name}/{precision}/{recognition_model_name}.xml"
     detection_model_path = (base_model_dir / detection_model_name).with_suffix(".xml")
     recognition_model_path = (base_model_dir / recognition_model_name).with_suffix(".xml")
-    
+
     # Download the detection model.
     if not detection_model_path.exists():
         utils.download_file(detection_model_url, detection_model_name + ".xml", base_model_dir)
@@ -195,16 +181,16 @@ specified device.
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -220,13 +206,13 @@ specified device.
 
     # Initialize OpenVINO Runtime runtime.
     core = ov.Core()
-    
-    
+
+
     def model_init(model_path: str) -> Tuple:
         """
         Read the network and weights from file, load the
         model on the CPU and get input and output names of nodes
-    
+
         :param: model: model architecture path *.xml
         :retuns:
                 input_key: Input node network
@@ -234,7 +220,7 @@ specified device.
                 exec_net: Encoder model network
                 net: Model network
         """
-    
+
         # Read the network and corresponding weights from a file.
         model = core.read_model(model=model_path)
         compiled_model = core.compile_model(model=model, device_name=device.value)
@@ -258,7 +244,7 @@ Use ``input_keys.shape`` to get data shapes.
     input_key_de, output_keys_de, compiled_model_de = model_init(detection_model_path)
     # Recognition model initialization.
     input_key_re, output_keys_re, compiled_model_re = model_init(recognition_model_path)
-    
+
     # Get input size - Detection.
     height_de, width_de = list(input_key_de.shape)[2:]
     # Get input size - Recognition.
@@ -277,7 +263,7 @@ The ``plt_show()`` function is used to show image.
         """
         Use matplot to show image inline
         raw_image: input image
-    
+
         :param: raw_image:image array
         """
         plt.figure(figsize=(10, 6))
@@ -308,7 +294,7 @@ channel with ``expand_dims`` function.
         timeout=30,
     )
     assert Path(image_file).exists()
-    
+
     # Read the image.
     image_de = cv2.imread("data/cars.jpg")
     # Resize it to [3, 256, 256].
@@ -370,7 +356,7 @@ the image and filter out low-confidence results.
     def crop_images(bgr_image, resized_image, boxes, threshold=0.6) -> np.ndarray:
         """
         Use bounding boxes from detection model to find the absolute car position
-    
+
         :param: bgr_image: raw image
         :param: resized_image: resized image
         :param: boxes: detection model returns rectangle position
@@ -383,7 +369,7 @@ the image and filter out low-confidence results.
             resized_image.shape[:2],
         )
         ratio_x, ratio_y = real_x / resized_x, real_y / resized_y
-    
+
         # Find the boxes ratio
         boxes = boxes[:, 2:]
         # Store the vehicle's position
@@ -400,9 +386,9 @@ the image and filter out low-confidence results.
                     (int(max(corner_position * ratio_y * resized_y, 10)) if idx % 2 else int(corner_position * ratio_x * resized_x))
                     for idx, corner_position in enumerate(box[1:])
                 ]
-    
+
                 car_position.append([x_min, y_min, x_max, y_max])
-    
+
         return car_position
 
 .. code:: ipython3
@@ -459,11 +445,11 @@ determine the maximum probability as the result.
         # An attribute of a vehicle.
         colors = ["White", "Gray", "Yellow", "Red", "Green", "Blue", "Black"]
         types = ["Car", "Bus", "Truck", "Van"]
-    
+
         # Resize the image to input size.
         resized_image_re = cv2.resize(raw_image, input_size)
         input_image_re = np.expand_dims(resized_image_re.transpose(2, 0, 1), 0)
-    
+
         # Run inference.
         # Predict result.
         predict_colors = compiled_model_re([input_image_re])[compiled_model_re.output(1)]
@@ -471,7 +457,7 @@ determine the maximum probability as the result.
         predict_colors = np.squeeze(predict_colors, (2, 3))
         predict_types = compiled_model_re([input_image_re])[compiled_model_re.output(0)]
         predict_types = np.squeeze(predict_types, (2, 3))
-    
+
         attr_color, attr_type = (
             colors[np.argmax(predict_colors)],
             types[np.argmax(predict_types)],
@@ -501,7 +487,7 @@ image with a vehicle and recognize the attributes of a vehicle.
     def convert_result_to_image(compiled_model_re, bgr_image, resized_image, boxes, threshold=0.6):
         """
         Use Detection model boxes to draw rectangles and plot the result
-    
+
         :param: compiled_model_re: recognition net
         :param: input_key_re: recognition input key
         :param: bgr_image: raw image
@@ -512,24 +498,24 @@ image with a vehicle and recognize the attributes of a vehicle.
         """
         # Define colors for boxes and descriptions.
         colors = {"red": (255, 0, 0), "green": (0, 255, 0)}
-    
+
         # Convert the base image from BGR to RGB format.
         rgb_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2RGB)
-    
+
         # Find positions of cars.
         car_position = crop_images(image_de, resized_image, boxes)
-    
+
         for x_min, y_min, x_max, y_max in car_position:
             # Run vehicle recognition inference.
             attr_color, attr_type = vehicle_recognition(compiled_model_re, (72, 72), image_de[y_min:y_max, x_min:x_max])
-    
+
             # Close the window with a vehicle.
             plt.close()
-    
+
             # Draw a bounding box based on position.
             # Parameters in the `rectangle` function are: image, start_point, end_point, color, thickness.
             rgb_image = cv2.rectangle(rgb_image, (x_min, y_min), (x_max, y_max), colors["red"], 2)
-    
+
             # Print the attributes of a vehicle.
             # Parameters in the `putText` function are: img, text, org, fontFace, fontScale, color, thickness, lineType.
             rgb_image = cv2.putText(
@@ -542,7 +528,7 @@ image with a vehicle and recognize the attributes of a vehicle.
                 10,
                 cv2.LINE_AA,
             )
-    
+
         return rgb_image
 
 .. code:: ipython3

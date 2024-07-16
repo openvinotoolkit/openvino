@@ -2,22 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/mmdeploy_roi_align_rotated.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/roi_align_rotated.hpp"
 #include "openvino/op/slice.hpp"
-
 using namespace ov::op;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector mmdeploy_roi_align_rotated(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ov_inputs();
 
@@ -56,7 +54,7 @@ ov::OutputVector mmdeploy_roi_align_rotated(const ov::frontend::onnx::Node& node
     const auto spatial_scale = node.get_attribute_value<float>("spatial_scale", 1.0f);
     const auto clockwise = static_cast<bool>(node.get_attribute_value<int64_t>("clockwise", 0));
 
-    return {std::make_shared<v14::ROIAlignRotated>(data,
+    return {std::make_shared<v15::ROIAlignRotated>(data,
                                                    rois,
                                                    rois_batch_idx,
                                                    static_cast<int>(pooled_h),
@@ -65,8 +63,9 @@ ov::OutputVector mmdeploy_roi_align_rotated(const ov::frontend::onnx::Node& node
                                                    spatial_scale,
                                                    clockwise)};
 }
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("MMCVRoIAlignRotated", OPSET_SINCE(1), ai_onnx::opset_1::mmdeploy_roi_align_rotated, MMDEPLOY_DOMAIN);
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

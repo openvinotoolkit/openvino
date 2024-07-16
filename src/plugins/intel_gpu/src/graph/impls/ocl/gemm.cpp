@@ -138,7 +138,8 @@ protected:
             return false;
 
         const auto& params = *inst.get_impl_params();
-        if (params.input_layouts[get_beam_table_id(desc)].get_partial_shape()[0].get_length() == 1)
+        const auto indirect_axis = desc->indirect_axis;
+        if (params.input_layouts[get_beam_table_id(desc)].get_partial_shape()[indirect_axis].get_length() == 1)
             return false;
 
         const auto& deps = inst.dependencies();
@@ -226,6 +227,7 @@ public:
 
         params.indirect_input0 = primitive->indirect_a && indirect;
         params.indirect_input1 = primitive->indirect_b && indirect;
+        params.indirect_axis = primitive->indirect_axis;
         if (indirect && (primitive->indirect_a || primitive->indirect_b)) {
             OPENVINO_ASSERT(impl_param.input_layouts.size() >= 3, "[GPU] Actual inputs count: ", impl_param.input_layouts.size());
             params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[get_beam_table_id(primitive)]));
@@ -301,12 +303,19 @@ public:
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param, true, false);
-        (_kernels_data[default_gemm].update_dispatch_data_func)(kernel_params, _kernels_data[default_gemm]);
+        // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
+        if (_kernels_data[default_gemm].params == nullptr) {
+            _kernels_data[default_gemm].params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true, false));
+        }
+        update_shapes(*_kernels_data[default_gemm].params, impl_param);
+        (_kernels_data[default_gemm].update_dispatch_data_func)(*_kernels_data[default_gemm].params, _kernels_data[default_gemm]);
 
         if (_kernels_data.size() == 2) {
-            auto kernel_params = get_kernel_params(impl_param, true, true);
-            (_kernels_data[indirect_gemm].update_dispatch_data_func)(kernel_params, _kernels_data[indirect_gemm]);
+            if (_kernels_data[indirect_gemm].params == nullptr) {
+                _kernels_data[indirect_gemm].params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true, true));
+            }
+            update_shapes(*_kernels_data[indirect_gemm].params, impl_param);
+            (_kernels_data[indirect_gemm].update_dispatch_data_func)(*_kernels_data[indirect_gemm].params, _kernels_data[indirect_gemm]);
         }
     }
 };

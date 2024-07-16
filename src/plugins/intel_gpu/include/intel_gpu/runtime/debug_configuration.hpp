@@ -48,7 +48,7 @@ enum class LogLevel : int8_t {
 #else
 #define SEPARATE '/'
 #endif
-#define __FILENAME__ (strrchr(__FILE__, SEPARATE) ? strrchr(__FILE__, SEPARATE) + 1 : __FILE__)
+#define GPU_FILENAME (strrchr(__FILE__, SEPARATE) ? strrchr(__FILE__, SEPARATE) + 1 : __FILE__)
 #define GPU_DEBUG_IF(cond) if (cond)
 #define GPU_DEBUG_CODE(...) __VA_ARGS__
 #define GPU_DEBUG_DEFINE_MEM_LOGGER(stage) \
@@ -62,9 +62,9 @@ enum class LogLevel : int8_t {
 #define GPU_DEBUG_LOG_RAW_INT(min_verbose_level) if (cldnn::debug_configuration::get_instance()->verbose >= min_verbose_level) \
     ((cldnn::debug_configuration::get_instance()->verbose_color == 0) ? GPU_DEBUG_LOG_PREFIX : GPU_DEBUG_LOG_COLOR_PREFIX)
 #define GPU_DEBUG_LOG_RAW(min_verbose_level) GPU_DEBUG_LOG_RAW_INT(static_cast<std::underlying_type<ov::intel_gpu::LogLevel>::type>(min_verbose_level))
-#define GPU_DEBUG_LOG_PREFIX    std::cout << cldnn::debug_configuration::prefix << __FILENAME__ << ":" <<__LINE__ << ":" << __func__ << ": "
+#define GPU_DEBUG_LOG_PREFIX    std::cout << cldnn::debug_configuration::prefix << GPU_FILENAME << ":" <<__LINE__ << ":" << __func__ << ": "
 #define GPU_DEBUG_LOG_COLOR_PREFIX  std::cout << DARK_GRAY << cldnn::debug_configuration::prefix << \
-    BLUE << __FILENAME__ << ":" << PURPLE <<  __LINE__ << ":" << CYAN << __func__ << ": " << RESET
+    BLUE << GPU_FILENAME << ":" << PURPLE <<  __LINE__ << ":" << CYAN << __func__ << ": " << RESET
 #define DARK_GRAY   "\033[1;30m"
 #define BLUE        "\033[1;34m"
 #define PURPLE      "\033[1;35m"
@@ -105,9 +105,11 @@ public:
     int print_input_data_shapes;                                // Print the input data_shape for benchmark_app.
     int disable_usm;                                            // Disable usm usage
     int disable_onednn;                                         // Disable onednn for discrete GPU (no effect for integrated GPU)
+    int disable_onednn_permute_fusion;                          // Disable permute fusion for onednn ops
     int disable_onednn_opt_post_ops;                            // Disable onednn optimize post operators
     std::string dump_profiling_data;                            // Enables dump of extended performance profiling to specified dir
     int dump_profiling_data_per_iter;                           // Enables dump of extended performance profiling to specified dir for each iteration
+    int host_time_profiling;                                    // Enables measurement of scheduling time spend on the host
     std::string dump_graphs;                                    // Dump optimized graph
     std::string dump_sources;                                   // Dump opencl sources
     std::string dump_layers_path;                               // Enable dumping intermediate buffers and set the dest path
@@ -119,13 +121,16 @@ public:
     int dump_layers_limit_batch;                                // Limit the size of batch to dump
     int dump_layers_raw;                                        // Dump raw data.
     int dump_layers_binary;                                     // Dump binary data.
-    int dump_runtime_memory_pool;                               // Dump memory pool status at each iteration
+    int dump_memory_pool;                               // Dump memory pool status at each iteration
+    std::set<int64_t> dump_memory_pool_iters;           // List of iteration's memory pool status
+    std::string dump_memory_pool_path;                  // Enable dumping memory pool status to csv file and set the dest path
     int base_batch_for_memory_estimation;                       // Base batch size to be used in memory estimation
     std::vector<std::string> after_proc;                        // Start inference after the listed processes
     int serialize_compile;                                      // Serialize creating primitives and compiling kernels
     std::vector<std::string> forced_impl_types;                 // Force implementation type either ocl or onednn
     int max_kernels_per_batch;                                  // Maximum number of kernels in a batch during compiling kernels
     int impls_cache_capacity;                                   // The maximum number of entries in the kernel impl cache
+    int enable_sdpa;                                            // Allows to control SDPA decomposition
     int disable_async_compilation;                              // Disable async compilation
     int disable_winograd_conv;                                  // Disable Winograd conv
     int disable_dynamic_impl;                                   // Disable dynamic implementation
@@ -134,6 +139,9 @@ public:
     int disable_build_time_weight_reorder_for_dynamic_nodes;    // Disable build time weight reordering for dynamic nodes
     int disable_runtime_skip_reorder;                           // Disable runtime skip reorder
     int disable_primitive_fusing;                               // Disable primitive fusing
+    int disable_fake_alignment;                                 // Disable fake alignment
+    int enable_dynamic_quantize;                                // Enable Dynamic quantization for fully connected primitive
+    int disable_horizontal_fc_fusion;                           // Disable fc horizontal fusion
     std::set<int64_t> dump_iteration;                           // Dump n-th execution of network.
     std::vector<std::string> load_layers_raw_dump;              // List of layers to load dumped raw binary and filenames
     static const debug_configuration *get_instance();

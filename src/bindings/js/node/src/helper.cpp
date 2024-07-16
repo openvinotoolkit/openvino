@@ -3,6 +3,7 @@
 
 #include "node/include/helper.hpp"
 
+#include "node/include/compiled_model.hpp"
 #include "node/include/tensor.hpp"
 #include "node/include/type_validation.hpp"
 
@@ -36,48 +37,19 @@ napi_types napiType(const Napi::Value& val) {
         return val.Type();
 }
 
-bool acceptableType(const Napi::Value& val, const std::vector<napi_types>& acceptable) {
-    return std::any_of(acceptable.begin(), acceptable.end(), [val](napi_types t) {
-        return napiType(val) == t;
-    });
-}
-
 template <>
-int32_t js_to_cpp<int32_t>(const Napi::CallbackInfo& info,
-                           const size_t idx,
-                           const std::vector<napi_types>& acceptable_types) {
+std::string js_to_cpp<std::string>(const Napi::CallbackInfo& info, const size_t idx) {
     const auto elem = info[idx];
-    if (!acceptableType(elem, acceptable_types))
-        OPENVINO_THROW(std::string("Cannot convert argument" + std::to_string(idx)));
-    if (!elem.IsNumber()) {
-        OPENVINO_THROW(std::string("Passed argument must be a number."));
-    }
-    return elem.ToNumber().Int32Value();
-}
-
-template <>
-std::string js_to_cpp<std::string>(const Napi::CallbackInfo& info,
-                                   const size_t idx,
-                                   const std::vector<napi_types>& acceptable_types) {
-    const auto elem = info[idx];
-    if (!acceptableType(elem, acceptable_types))
-        OPENVINO_THROW(std::string("Cannot convert argument") + std::to_string(idx));
     if (!elem.IsString()) {
-        OPENVINO_THROW(std::string("Passed argument must be a string."));
+        OPENVINO_THROW("Passed argument must be a string.");
     }
     return elem.ToString();
 }
 
 template <>
-std::vector<size_t> js_to_cpp<std::vector<size_t>>(const Napi::CallbackInfo& info,
-                                                   const size_t idx,
-                                                   const std::vector<napi_types>& acceptable_types) {
+std::vector<size_t> js_to_cpp<std::vector<size_t>>(const Napi::CallbackInfo& info, const size_t idx) {
     const auto elem = info[idx];
-    if (!acceptableType(elem, acceptable_types))
-        OPENVINO_THROW(std::string("Cannot convert argument.") + std::to_string(idx));
-    if (!elem.IsArray() && !elem.IsTypedArray()) {
-        OPENVINO_THROW(std::string("Passed argument must be of type Array or TypedArray."));
-    } else if (elem.IsArray()) {
+    if (elem.IsArray()) {
         auto array = elem.As<Napi::Array>();
         size_t arrayLength = array.Length();
 
@@ -93,11 +65,11 @@ std::vector<size_t> js_to_cpp<std::vector<size_t>>(const Napi::CallbackInfo& inf
         }
         return nativeArray;
 
-    } else {
+    } else if (elem.IsTypedArray()) {
         Napi::TypedArray buf;
         napi_typedarray_type type = elem.As<Napi::TypedArray>().TypedArrayType();
         if ((type != napi_int32_array) && (type != napi_uint32_array)) {
-            OPENVINO_THROW(std::string("Passed argument must be a Int32Array."));
+            OPENVINO_THROW("Passed argument must be an Int32Array or a Uint32Array.");
         } else if (type == napi_uint32_array)
             buf = elem.As<Napi::Uint32Array>();
         else {
@@ -106,14 +78,14 @@ std::vector<size_t> js_to_cpp<std::vector<size_t>>(const Napi::CallbackInfo& inf
         auto data_ptr = static_cast<int*>(buf.ArrayBuffer().Data());
         std::vector<size_t> vector(data_ptr, data_ptr + buf.ElementLength());
         return vector;
+    } else {
+        OPENVINO_THROW("Passed argument must be of type Array or TypedArray.");
     }
 }
 
 template <>
-std::unordered_set<std::string> js_to_cpp<std::unordered_set<std::string>>(
-    const Napi::CallbackInfo& info,
-    const size_t idx,
-    const std::vector<napi_types>& acceptable_types) {
+std::unordered_set<std::string> js_to_cpp<std::unordered_set<std::string>>(const Napi::CallbackInfo& info,
+                                                                           const size_t idx) {
     const auto elem = info[idx];
     if (!elem.IsArray()) {
         OPENVINO_THROW(std::string("Passed argument must be of type Array."));
@@ -136,45 +108,35 @@ std::unordered_set<std::string> js_to_cpp<std::unordered_set<std::string>>(
 }
 
 template <>
-ov::element::Type_t js_to_cpp<ov::element::Type_t>(const Napi::CallbackInfo& info,
-                                                   const size_t idx,
-                                                   const std::vector<napi_types>& acceptable_types) {
+ov::element::Type_t js_to_cpp<ov::element::Type_t>(const Napi::CallbackInfo& info, const size_t idx) {
     const auto elem = info[idx];
-    if (!acceptableType(elem, acceptable_types))
-        OPENVINO_THROW(std::string("Cannot convert Napi::Value to ov::element::Type_t"));
+    OPENVINO_ASSERT(elem.IsString(), "Passed argument must be of type String.");
+
     const std::string type = elem.ToString();
     const auto& types = get_supported_types();
     if (std::find(types.begin(), types.end(), type) == types.end())
-        OPENVINO_THROW(std::string("Cannot create ov::element::Type"));
+        OPENVINO_THROW("Cannot create ov::element::Type");
 
     return static_cast<ov::element::Type_t>(ov::element::Type(type));
 }
 
 template <>
-ov::Layout js_to_cpp<ov::Layout>(const Napi::CallbackInfo& info,
-                                 const size_t idx,
-                                 const std::vector<napi_types>& acceptable_types) {
-    auto layout = js_to_cpp<std::string>(info, idx, acceptable_types);
+ov::Layout js_to_cpp<ov::Layout>(const Napi::CallbackInfo& info, const size_t idx) {
+    const auto& layout = js_to_cpp<std::string>(info, idx);
     return ov::Layout(layout);
 }
 
 template <>
-ov::Shape js_to_cpp<ov::Shape>(const Napi::CallbackInfo& info,
-                               const size_t idx,
-                               const std::vector<napi_types>& acceptable_types) {
-    auto shape = js_to_cpp<std::vector<size_t>>(info, idx, acceptable_types);
+ov::Shape js_to_cpp<ov::Shape>(const Napi::CallbackInfo& info, const size_t idx) {
+    const auto& shape = js_to_cpp<std::vector<size_t>>(info, idx);
     return ov::Shape(shape);
 }
 
 template <>
-ov::preprocess::ResizeAlgorithm js_to_cpp<ov::preprocess::ResizeAlgorithm>(
-    const Napi::CallbackInfo& info,
-    const size_t idx,
-    const std::vector<napi_types>& acceptable_types) {
+ov::preprocess::ResizeAlgorithm js_to_cpp<ov::preprocess::ResizeAlgorithm>(const Napi::CallbackInfo& info,
+                                                                           const size_t idx) {
     const auto& elem = info[idx];
-
-    if (!acceptableType(elem, acceptable_types))
-        OPENVINO_THROW(std::string("Cannot convert Napi::Value to resizeAlgorithm"));
+    OPENVINO_ASSERT(elem.IsString(), "Cannot convert Napi::Value to resizeAlgorithm");
 
     const std::string& algorithm = elem.ToString();
     if (algorithm == "RESIZE_CUBIC") {
@@ -184,40 +146,53 @@ ov::preprocess::ResizeAlgorithm js_to_cpp<ov::preprocess::ResizeAlgorithm>(
     } else if (algorithm == "RESIZE_LINEAR") {
         return ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR;
     } else {
-        OPENVINO_THROW(std::string("Not supported resizeAlgorithm."));
+        OPENVINO_THROW("Not supported resizeAlgorithm.");
     }
 }
 
 template <>
-ov::Any js_to_cpp<ov::Any>(const Napi::Value& value, const std::vector<napi_types>& acceptable_types) {
-    if (!acceptableType(value, acceptable_types)) {
-        OPENVINO_THROW(std::string("Cannot convert Napi::Value to ov::Any"));
-    }
+ov::Any js_to_cpp<ov::Any>(const Napi::Env& env, const Napi::Value& value) {
     if (value.IsString()) {
-        return value.ToString().Utf8Value();
+        return ov::Any(value.ToString().Utf8Value());
+    } else if (value.IsBigInt()) {
+        Napi::BigInt big_value = value.As<Napi::BigInt>();
+        bool is_lossless;
+        int64_t big_num = big_value.Int64Value(&is_lossless);
+
+        if (!is_lossless) {
+            OPENVINO_THROW("Result of BigInt conversion to int64_t results in a loss of precision");
+        }
+
+        return ov::Any(big_num);
     } else if (value.IsNumber()) {
-        return value.ToNumber().Int32Value();
+        Napi::Number num = value.ToNumber();
+
+        if (is_napi_value_int(env, value)) {
+            return ov::Any(num.Int32Value());
+        } else {
+            return ov::Any(num.DoubleValue());
+        }
+    } else if (value.IsBoolean()) {
+        return ov::Any(value.ToBoolean());
     } else {
-        OPENVINO_THROW(std::string("The conversion is not supported yet."));
+        OPENVINO_THROW("Cannot convert to ov::Any");
     }
 }
 
 template <>
-std::map<std::string, ov::Any> js_to_cpp<std::map<std::string, ov::Any>>(
-    const Napi::CallbackInfo& info,
-    const size_t idx,
-    const std::vector<napi_types>& acceptable_types) {
+std::map<std::string, ov::Any> js_to_cpp<std::map<std::string, ov::Any>>(const Napi::CallbackInfo& info,
+                                                                         const size_t idx) {
     const auto elem = info[idx];
-    if (!acceptableType(elem, acceptable_types)) {
-        OPENVINO_THROW(std::string("Cannot convert Napi::Value to std::map<std::string, ov::Any>"));
-    }
+    OPENVINO_ASSERT(elem.IsObject(),
+                    static_cast<std::string>("Argument #" + std::to_string(idx) + " must be an Object."));
+
     std::map<std::string, ov::Any> properties_to_cpp;
     const auto& config = elem.ToObject();
     const auto& keys = config.GetPropertyNames();
 
     for (uint32_t i = 0; i < keys.Length(); ++i) {
         const std::string& option = static_cast<Napi::Value>(keys[i]).ToString();
-        properties_to_cpp[option] = js_to_cpp<ov::Any>(config.Get(option), {napi_string});
+        properties_to_cpp[option] = js_to_cpp<ov::Any>(info.Env(), config.Get(option));
     }
 
     return properties_to_cpp;
@@ -277,9 +252,31 @@ Napi::Array cpp_to_js<ov::Dimension, Napi::Array>(const Napi::CallbackInfo& info
     return interval;
 }
 
+Napi::Object cpp_to_js(const Napi::Env& env, std::shared_ptr<ov::Model> model) {
+    const auto& prototype = env.GetInstanceData<AddonData>()->model;
+    if (!prototype) {
+        OPENVINO_THROW("Invalid pointer to Model prototype.");
+    }
+    const auto& model_js = prototype.New({});
+    const auto mw = Napi::ObjectWrap<ModelWrap>::Unwrap(model_js);
+    mw->set_model(model);
+    return model_js;
+}
+
 template <>
 Napi::Boolean cpp_to_js<bool, Napi::Boolean>(const Napi::CallbackInfo& info, const bool value) {
     return Napi::Boolean::New(info.Env(), value);
+}
+
+Napi::Object cpp_to_js(const Napi::Env& env, const ov::CompiledModel& compiled_model) {
+    const auto& prototype = env.GetInstanceData<AddonData>()->compiled_model;
+    if (!prototype) {
+        OPENVINO_THROW("Invalid pointer to CompiledModel prototype.");
+    }
+    auto obj = prototype.New({});
+    const auto cm = Napi::ObjectWrap<CompiledModelWrap>::Unwrap(obj);
+    cm->set_compiled_model(compiled_model);
+    return obj;
 }
 
 ov::TensorVector parse_input_data(const Napi::Value& input) {
@@ -320,7 +317,7 @@ ov::Tensor cast_to_tensor(const Napi::Value& value) {
 }
 
 ov::Tensor cast_to_tensor(const Napi::CallbackInfo& info, int index) {
-    if (!is_tensor(info.Env(), info[index])) {
+    if (!ov::js::validate_value<TensorWrap>(info.Env(), info[index])) {
         OPENVINO_THROW(std::string("Argument #" + std::to_string(index) + " must be a Tensor."));
     }
     const auto tensor_wrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[index].ToObject());
@@ -340,6 +337,23 @@ ov::Tensor cast_to_tensor(const Napi::TypedArray& typed_array,
     if (tensor.get_byte_size() != array_buffer.ByteLength()) {
         OPENVINO_THROW("Memory allocated using shape and element::type mismatch passed data's size");
     }
+    return tensor;
+}
+
+void fill_tensor_from_strings(ov::Tensor& tensor, const Napi::Array& arr) {
+    if (tensor.get_size() != static_cast<size_t>(arr.Length())) {
+        OPENVINO_THROW("Passed array must have the same size (number of elements) as the Tensor!");
+    }
+    const auto data = tensor.data<std::string>();
+    for (uint32_t i = 0; i < tensor.get_size(); ++i) {
+        OPENVINO_ASSERT(arr[i].IsString(), "The array passed to create string tensor must contain only strings.");
+        data[i] = arr[i].ToString().Utf8Value();
+    }
+}
+
+ov::Tensor cast_to_tensor(const Napi::Array& array) {
+    auto tensor = ov::Tensor(ov::element::string, ov::Shape{array.Length()});
+    fill_tensor_from_strings(tensor, array);
     return tensor;
 }
 
@@ -525,34 +539,6 @@ Napi::Value any_to_js(const Napi::CallbackInfo& info, ov::Any value) {
     return info.Env().Undefined();
 }
 
-ov::Any js_to_any(const Napi::Env& env, const Napi::Value& value) {
-    if (value.IsString()) {
-        return ov::Any(value.ToString().Utf8Value());
-    } else if (value.IsBigInt()) {
-        Napi::BigInt big_value = value.As<Napi::BigInt>();
-        bool is_lossless;
-        int64_t big_num = big_value.Int64Value(&is_lossless);
-
-        if (!is_lossless) {
-            OPENVINO_THROW("Result of BigInt conversion to int64_t results in a loss of precision");
-        }
-
-        return ov::Any(big_num);
-    } else if (value.IsNumber()) {
-        Napi::Number num = value.ToNumber();
-
-        if (is_napi_value_int(env, value)) {
-            return ov::Any(num.Int32Value());
-        } else {
-            return ov::Any(num.DoubleValue());
-        }
-    } else if (value.IsBoolean()) {
-        return ov::Any(value.ToBoolean());
-    } else {
-        OPENVINO_THROW("Cannot convert to ov::Any");
-    }
-}
-
 bool is_napi_value_int(const Napi::Env& env, const Napi::Value& num) {
     return env.Global().Get("Number").ToObject().Get("isInteger").As<Napi::Function>().Call({num}).ToBoolean().Value();
 }
@@ -568,10 +554,16 @@ ov::AnyMap to_anyMap(const Napi::Env& env, const Napi::Value& val) {
     for (uint32_t i = 0; i < keys.Length(); ++i) {
         const auto& property_name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
 
-        ov::Any any_value = js_to_any(env, parameters.Get(property_name));
+        const auto& any_value = js_to_cpp<ov::Any>(env, parameters.Get(property_name));
 
         properties.insert(std::make_pair(property_name, any_value));
     }
 
     return properties;
+}
+
+std::string buffer_to_string(const Napi::Value& value) {
+    Napi::Buffer<uint8_t> model_data = value.As<Napi::Buffer<uint8_t>>();
+
+    return std::string(reinterpret_cast<char*>(model_data.Data()), model_data.Length());
 }

@@ -17,10 +17,14 @@ class typed_primitive_inst<scatter_elements_update> : public typed_primitive_ins
     using parent::parent;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(scatter_elements_update_node const& /*node*/, const kernel_impl_params& impl_param) {
+        return forward_input0_shape<ShapeType>(impl_param);
+    }
+
     static layout calc_output_layout(scatter_elements_update_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(scatter_elements_update_node const& node);
 
-public:
     typed_primitive_inst(network& network, scatter_elements_update_node const& desc);
     void update_output_memory() override;
 

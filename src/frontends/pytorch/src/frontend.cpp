@@ -11,6 +11,7 @@
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/util/log.hpp"
+#include "place.hpp"
 #include "pt_framework_node.hpp"
 #include "transformations/common_optimizations/push_constant_to_subgraph.hpp"
 #include "transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp"
@@ -43,6 +44,7 @@
 #include "transforms/rfftn_complex_replacer.hpp"
 #include "transforms/softmax_reshape_elimination.hpp"
 #include "transforms/string_equality_replacer.hpp"
+#include "transforms/torchfx_gptq_pattern_replacer.hpp"
 #include "transforms/tuple_unpack_replacer.hpp"
 #include "transforms/u4_block_repack.hpp"
 #include "translate_session.hpp"
@@ -112,15 +114,37 @@ std::string pack_detailed_failure_report(const std::map<std::string, std::string
         error_msg << '\n' << failed_ops_short.str();
     return error_msg.str();
 }
+
+void update_parameter_info(std::shared_ptr<ov::op::v0::Parameter>& param,
+                           const Place::Ptr& place,
+                           const std::shared_ptr<Model> ov_model) {
+    const auto& pt_place = std::dynamic_pointer_cast<pytorch::Place>(place);
+    FRONT_END_GENERAL_CHECK(pt_place, "Wrong place type.");
+    if (pt_place->get_element_type().is_static())
+        param->set_element_type(pt_place->get_element_type());
+    auto pshape = param->get_partial_shape();
+    FRONT_END_GENERAL_CHECK(PartialShape::merge_into(pshape, pt_place->get_partial_shape()),
+                            "Incompatible shape was requested for input #",
+                            ov_model->get_parameter_index(param),
+                            ", ",
+                            param,
+                            "\nOriginal shape: ",
+                            pshape,
+                            " update shape: ",
+                            pt_place->get_partial_shape());
+    param->set_partial_shape(pshape);
+}
 }  // namespace
 
 FrontEnd::FrontEnd() {}
 
 std::shared_ptr<Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& model) const {
-    FRONT_END_GENERAL_CHECK(std::dynamic_pointer_cast<pytorch::InputModel>(model), "Invalid input model");
+    auto pt_model = std::dynamic_pointer_cast<pytorch::InputModel>(model);
+    FRONT_END_GENERAL_CHECK(pt_model, "Invalid input model");
     std::map<std::string, CreatorFunction> supported_ops = get_supported_ops(model);
     std::shared_ptr<Model> converted_model;
     {
+        pt_model->flush_places();
         TranslateSession translate_session(model, supported_ops, m_telemetry);
         converted_model = translate_session.get_converted_model();
     }
@@ -140,6 +164,50 @@ std::shared_ptr<Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& mo
     }
     bool is_conversion_successful = unconverted_ops.size() == 0 && norm_err.empty();
     FRONT_END_OP_CONVERSION_CHECK(is_conversion_successful, pack_detailed_failure_report(unconverted_ops, norm_err));
+
+    if (pt_model->m_requested_places.size() != 0) {
+        // Fake tensors mean that types were set to non-existent before conversion inputs.
+        // Here we resolve this. If input doesn't exist after conversion exception is raised.
+        auto parameters = converted_model->get_parameters();
+        std::set<std::string> input_names;
+        for (const auto& param : parameters)
+            for (const auto& name : param->get_output_tensor(0).get_names())
+                input_names.insert(name);
+        const auto& inputs = pt_model->get_inputs();
+        for (size_t i = 0; i < inputs.size(); i++) {
+            auto place = inputs[i];
+            if (place->get_names().size() != 0 && input_names.find(place->get_names().at(0)) != input_names.end()) {
+                auto input = converted_model->input(place->get_names().at(0));
+                auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(input.get_node_shared_ptr());
+                FRONT_END_GENERAL_CHECK(param, "Input is not a Parameter.");
+                update_parameter_info(param, place, converted_model);
+            } else {
+                FRONT_END_OP_CONVERSION_CHECK(i < parameters.size(),
+                                              "Type/shape was set to non-existent input. Converted model:\n",
+                                              converted_model);
+                update_parameter_info(parameters[i], inputs[i], converted_model);
+            }
+        }
+        for (const auto& fplace : pt_model->m_requested_places) {
+            const auto& pt_place = std::dynamic_pointer_cast<pytorch::Place>(fplace);
+            FRONT_END_GENERAL_CHECK(pt_place, "Wrong place type.");
+            if (fplace->get_names().size() == 0) {
+                // Fake place was set by input index
+                auto idx = pt_place->get_input_index();
+                FRONT_END_GENERAL_CHECK(idx < parameters.size(),
+                                        "Type/shape was set to non-existent input. Converted model:\n",
+                                        converted_model);
+                update_parameter_info(parameters[idx], fplace, converted_model);
+            } else {
+                auto input = converted_model->input(fplace->get_names().at(0));
+                auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(input.get_node_shared_ptr());
+                FRONT_END_GENERAL_CHECK(param, "Input is not a Parameter.");
+                update_parameter_info(param, fplace, converted_model);
+            }
+        }
+        converted_model->validate_nodes_and_infer_types();
+    }
+
     return converted_model;
 }
 
@@ -148,10 +216,12 @@ void FrontEnd::convert(const std::shared_ptr<Model>& partiallyConverted) const {
 }
 
 std::shared_ptr<Model> FrontEnd::convert_partially(const ov::frontend::InputModel::Ptr& model) const {
-    FRONT_END_GENERAL_CHECK(std::dynamic_pointer_cast<pytorch::InputModel>(model), "Invalid input model");
+    auto pt_model = std::dynamic_pointer_cast<pytorch::InputModel>(model);
+    FRONT_END_GENERAL_CHECK(pt_model, "Invalid input model");
     std::map<std::string, CreatorFunction> supported_ops = get_supported_ops(model);
     std::shared_ptr<Model> partial_model;
     {
+        pt_model->flush_places();
         TranslateSession translate_session(model, supported_ops, m_telemetry);
         partial_model = translate_session.get_converted_model();
     }
@@ -171,6 +241,12 @@ std::shared_ptr<Model> FrontEnd::decode(const InputModel::Ptr& model) const {
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     ov::pass::Manager manager;
+
+    // GPTQ transformations need to be executed before other passes
+    // Once the GPTQ patterns are modified by other transformations,
+    // they cannot be captured anymore
+    manager.register_pass<ov::frontend::pytorch::pass::GPTQDecompressionReplacer>();
+    manager.register_pass<ov::frontend::pytorch::pass::GPTQMultPatternReplacer>();
 
     // the following 2 transformations are needed for keypoint detectron2 models to work.
     // AtenIndexToSelect will be called twice
@@ -228,11 +304,11 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         auto self = model->get_parameters()[0];
         if (self->output(0).get_target_inputs().empty()) {
             // There is no consumers: safe to remove
-            OPENVINO_DEBUG << "[ WARNING ] Removing parameter[0] in converted Pytorch model, because it is never used "
-                              "and treated as `self`\n";
+            OPENVINO_DEBUG("[ WARNING ] Removing parameter[0] in converted Pytorch model, because it is never used "
+                           "and treated as `self`\n");
             model->remove_parameter(self);
         } else {
-            OPENVINO_DEBUG << "[ WARNING ] Couldn't remove parameter[0] in converted PyTorch model\n";
+            OPENVINO_DEBUG("[ WARNING ] Couldn't remove parameter[0] in converted PyTorch model\n");
         }
     }
 }

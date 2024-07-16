@@ -1,5 +1,3 @@
-.. {#openvino_docs_OV_UG_supported_plugins_NPU}
-
 NPU Device
 ==========
 
@@ -22,14 +20,34 @@ NPU Plugin is now available through all relevant OpenVINO distribution channels.
 
 NPU Plugin needs an NPU Driver to be installed on the system for both compiling and executing a model.
 Follow the instructions below to install the latest NPU drivers:
-* Windows driver: https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html
-* Linux driver: https://github.com/intel/linux-npu-driver/releases
+
+* `Windows driver <https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html>`__
+* `Linux driver <https://github.com/intel/linux-npu-driver/releases>`__
 
 
 The plugin uses the graph extension API exposed by the driver to convert the OpenVINO specific representation
 of the model into a proprietary format. The compiler included in the user mode driver (UMD) performs
 platform specific optimizations in order to efficiently schedule the execution of network layers and
 memory transactions on various NPU hardware submodules.
+
+To use NPU for inference, pass the device name to the ``ov::Core::compile_model()`` method:
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_npu.py
+         :language: py
+         :fragment: [compile_model_default_npu]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_npu.cpp
+         :language: cpp
+         :fragment: [compile_model_default_npu]
+
 
 Model Caching
 #############################
@@ -87,7 +105,7 @@ For more details about OpenVINO model caching, see the
 Supported Features and properties
 #######################################
 
-The NPU device is currently supported by AUTO and MULTI inference modes
+The NPU device is currently supported by AUTO inference modes
 (HETERO execution is partially supported, for certain models).
 
 The NPU support in OpenVINO is still under active development and may
@@ -153,7 +171,8 @@ guaranteed.
 Additional Resources
 #############################
 
-* `Vision colorization Notebook <notebooks/vision-image-colorization-with-output.html>`__
+* `Working with NPUs in OpenVINO™ Notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/hello-npu/hello-npu.ipynb>`__
+* `Vision colorization Notebook <./../../../notebooks/vision-image-colorization-with-output.html>`__
 * `Classification Benchmark C++ Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/classification_benchmark_demo/cpp>`__
 * `3D Human Pose Estimation Python Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/3d_segmentation_demo/python>`__
 * `Object Detection C++ Demo <https://github.com/openvinotoolkit/open_model_zoo/tree/master/demos/object_detection_demo/cpp>`__

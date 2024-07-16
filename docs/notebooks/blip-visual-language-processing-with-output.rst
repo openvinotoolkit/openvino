@@ -30,8 +30,8 @@ The tutorial consists of the following parts:
 5. Compare original and optimized models
 6. Launch interactive demo
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Background <#background>`__
 
@@ -270,7 +270,7 @@ text and vision modalities and postprocessing of generation results.
 
     import platform
 
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch>=2.1.0" torchvision "transformers>=4.26.0" "gradio>=4.19" "openvino>=2023.3.0" "datasets>==2.14.6" "nncf>=2.8.1" "tqdm"
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch>=2.1.0" torchvision "transformers>=4.26.0" "gradio>=4.19" "openvino>=2023.3.0" "datasets>=2.14.6" "nncf>=2.8.1" "tqdm"
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
@@ -323,6 +323,10 @@ text and vision modalities and postprocessing of generation results.
 
 .. code:: ipython3
 
+    from pathlib import Path
+
+    if not Path("./utils.py").exists():
+        download_file(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/blip-visual-language-processing/utils.py")
     from utils import visualize_results
 
     fig = visualize_results(raw_image, answer, question)
@@ -380,7 +384,6 @@ shape, containing RGB image pixel values normalized in the [0,1] range.
 
     # if openvino model does not exist, convert it to IR
     if not VISION_MODEL_OV.exists():
-
         # export pytorch model to ov.Model
         with torch.no_grad():
             ov_vision_model = ov.convert_model(vision_model, example_input=inputs["pixel_values"])
@@ -642,6 +645,8 @@ initial token for decoder work.
 
 .. code:: ipython3
 
+    if not Path("./blip_model.py").exists():
+        download_file(url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/notebooks/blip-visual-language-processing/blip_model.py")
     from blip_model import OVBlipModel
 
     ov_model = OVBlipModel(model.config, model.decoder_start_token_id, ov_vision_model, ov_text_encoder, text_decoder)
@@ -826,7 +831,7 @@ understanding of vision, language and commonsense knowledge to answer.
         Prepares a vision-text dataset for quantization.
         """
         split = f"train[:{opt_init_steps}]" if not streaming else "train"
-        dataset = load_dataset("HuggingFaceM4/VQAv2", split=split, streaming=streaming)
+        dataset = load_dataset("HuggingFaceM4/VQAv2", split=split, streaming=streaming, trust_remote_code=True)
         dataset = dataset.shuffle(seed=42)
         if streaming:
             dataset = dataset.take(opt_init_steps)
@@ -873,17 +878,17 @@ Quantize vision model
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -894,17 +899,17 @@ Quantize vision model
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -921,17 +926,17 @@ Quantize vision model
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -942,17 +947,17 @@ Quantize vision model
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -983,17 +988,17 @@ Quantize text encoder
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1004,17 +1009,17 @@ Quantize text encoder
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1031,17 +1036,17 @@ Quantize text encoder
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1052,17 +1057,17 @@ Quantize text encoder
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -1108,17 +1113,17 @@ The optimization process contains the following steps:
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 

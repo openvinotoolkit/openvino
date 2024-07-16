@@ -56,7 +56,7 @@ std::string init_info_jit_memory_emitter(const jit_memory_emitter *emitter) {
     ss << " src_precision:" << emitter->src_prc
        << " dst_precision:" << emitter->dst_prc
        << " load/store_element_number:" << emitter->count
-       << " byte_offset:" << emitter->byte_offset;
+       << " byte_offset:" << emitter->compiled_byte_offset;
     return ss.str();
 }
 
@@ -76,14 +76,6 @@ static std::string init_info_jit_load_broadcast_emitter(const jit_load_broadcast
     return ss.str();
 }
 
-static std::string init_info_jit_load_convert_emitter(const jit_load_convert_emitter *emitter) {
-    std::stringstream ss;
-    std::string memory_emitter_info = init_info_jit_memory_emitter(emitter);
-    ss << "Emitter_type_name:jit_load_convert_emitter"
-       << memory_emitter_info;
-    return ss.str();
-}
-
 static std::string init_info_jit_store_memory_emitter(const jit_store_memory_emitter *emitter) {
     std::stringstream ss;
     std::string memory_emitter_info = init_info_jit_memory_emitter(emitter);
@@ -92,23 +84,12 @@ static std::string init_info_jit_store_memory_emitter(const jit_store_memory_emi
     return ss.str();
 }
 
-static std::string init_info_jit_store_convert_emitter(const jit_store_convert_emitter *emitter) {
-    std::stringstream ss;
-    std::string memory_emitter_info = init_info_jit_memory_emitter(emitter);
-    ss << "Emitter_type_name:jit_store_convert_emitter"
-       << memory_emitter_info;
-    return ss.str();
-}
-
 std::string init_info_jit_brgemm_emitter(const jit_brgemm_emitter *emitter) {
     std::stringstream ss;
     ss << "Emitter_type_name:jit_brgemm_emitter"
-       <<  emitter->m_kernel_executor->config_to_string()
-       << " m_load_offset_a:" << emitter->m_load_offset_a
-       << " m_load_offset_b:" << emitter->m_load_offset_b
-       << " m_load_offset_scratch:" << emitter->m_load_offset_scratch
-       << " m_store_offset_c:" << emitter->m_store_offset_c
-       << " m_with_scratch:" << emitter->m_with_scratch;
+       <<  emitter->m_kernel_executor->to_string()
+       << " m_memory_offset:" << vector_to_string(emitter->m_memory_offsets)
+       << " m_buffer_ids:" << vector_to_string(emitter->m_buffer_ids);
 
     return ss.str();
 }
@@ -133,28 +114,24 @@ std::string init_info_jit_brgemm_copy_b_emitter(const jit_brgemm_copy_b_emitter 
 std::string init_info_jit_kernel_static_emitter(const jit_kernel_static_emitter* emitter) {
     std::stringstream ss;
     ss << "Emitter_type_name:jit_kernel_static_emitter"
-       << " jcp.parallel_executor_ndims:" << emitter->jcp.parallel_executor_ndims
+       << " jcp.exec_domain:" << vector_to_string(emitter->jcp.exec_domain)
        << " gp_regs_pool:"<< vector_to_string(emitter->gp_regs_pool)
        << " master_shape:" << vector_to_string(emitter->master_shape)
        << " num_inputs:" << emitter->num_inputs
        << " num_outputs:" << emitter->num_outputs
        << " num_unique_buffers:" << emitter->num_unique_buffers
-       << " io_data_sizes:" << vector_to_string(emitter->io_data_sizes)
        << " data_ptr_regs_idx:" << vector_to_string(emitter->data_ptr_regs_idx)
        << " vec_regs_pool:" << vector_to_string(emitter->vec_regs_pool)
        << " reg_indexes_idx:" << emitter->reg_indexes_idx
        << " reg_runtime_params_idx:" << emitter->reg_runtime_params_idx;
-    for (size_t i = 0; i < emitter->io_data_layouts.size(); ++i)
-        ss << " io_data_layouts for " << i << " is:" << vector_to_string(emitter->io_data_layouts[i]);
-    for (size_t i = 0; i < emitter->io_shapes.size(); ++i)
-        ss << " io_shapes for " << i << " is: "<< vector_to_string(emitter->io_shapes[i]);
+    for (size_t i = 0; i < emitter->data_offsets.size(); ++i)
+        ss << " data_offsets for " << i << " is:" << vector_to_string(emitter->data_offsets[i]);
     return ss.str();
 }
 
 std::string init_info_jit_kernel_dynamic_emitter(const jit_kernel_dynamic_emitter* emitter) {
     std::stringstream ss;
     ss << "Emitter_type_name:jit_kernel_dynamic_emitter"
-       << " jcp.parallel_executor_ndims:" << emitter->jcp.parallel_executor_ndims
        << " gp_regs_pool:"<< vector_to_string(emitter->gp_regs_pool)
        << " num_inputs:" << emitter->num_inputs
        << " num_outputs:" << emitter->num_outputs
@@ -194,12 +171,8 @@ void jit_emitter_info_t::init(const jit_emitter *emitter) {
         str_ = init_info_jit_load_memory_emitter(e_type);
     } else if (auto e_type = dynamic_cast<const jit_load_broadcast_emitter*>(emitter)) {
         str_ = init_info_jit_load_broadcast_emitter(e_type);
-    }  else if (auto e_type = dynamic_cast<const jit_load_convert_emitter*>(emitter)) {
-        str_ = init_info_jit_load_convert_emitter(e_type);
     } else if (auto e_type = dynamic_cast<const jit_store_memory_emitter*>(emitter)) {
         str_ = init_info_jit_store_memory_emitter(e_type);
-    } else if (auto e_type = dynamic_cast<const jit_store_convert_emitter*>(emitter)) {
-        str_ = init_info_jit_store_convert_emitter(e_type);
     } else if (auto e_type = dynamic_cast<const jit_brgemm_emitter*>(emitter)) {
         str_ = init_info_jit_brgemm_emitter(e_type);
     } else if (auto e_type = dynamic_cast<const jit_brgemm_copy_b_emitter*>(emitter)) {

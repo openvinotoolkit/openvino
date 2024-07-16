@@ -257,11 +257,16 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
     if ((eltwise_type == utils::EltwiseTypes::ADD) ||
        (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
        (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
-       (eltwise_type == utils::EltwiseTypes::DIVIDE)) {
+       (eltwise_type == utils::EltwiseTypes::DIVIDE) ||
+       (eltwise_type == utils::EltwiseTypes::MOD)) {
         return "jit";
     }
 #endif
-    return "acl";
+    if (eltwise_type == utils::EltwiseTypes::MOD) {
+        return "ref";
+    } else {
+        return "acl";
+    }
 #else
     return CPUTestsBase::getPrimitiveType();
 #endif
@@ -304,6 +309,16 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInp() {
         utils::EltwiseTypes::FLOOR_MOD,               // TODO: Fix CVS-111875
 #endif
         utils::EltwiseTypes::SQUARED_DIFF,
+        utils::EltwiseTypes::MOD,
+    };
+    return eltwiseOpTypesBinInp;
+}
+
+const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInpSnippets() {
+    static const std::vector<utils::EltwiseTypes> eltwiseOpTypesBinInp = {
+        utils::EltwiseTypes::ADD,
+        utils::EltwiseTypes::MULTIPLY,
+        utils::EltwiseTypes::MOD,
     };
     return eltwiseOpTypesBinInp;
 }
@@ -336,10 +351,38 @@ const std::vector<CPUSpecificParams>& cpuParams_4D() {
     return cpuParams_4D;
 }
 
+const std::vector<CPUSpecificParams>& cpuParams_4D_Planar() {
+    static const std::vector<CPUSpecificParams> cpuParams_4D = {
+        CPUSpecificParams({nchw, nchw}, {nchw}, {}, {})
+    };
+    return cpuParams_4D;
+}
+
+const std::vector<CPUSpecificParams>& cpuParams_4D_PerChannel() {
+    static const std::vector<CPUSpecificParams> cpuParams_4D = {
+        CPUSpecificParams({nhwc, nhwc}, {nhwc}, {}, {}),
+    };
+    return cpuParams_4D;
+}
+
 const std::vector<CPUSpecificParams>& cpuParams_5D() {
     static const std::vector<CPUSpecificParams> cpuParams_5D = {
         CPUSpecificParams({ndhwc, ndhwc}, {ndhwc}, {}, {}),
         CPUSpecificParams({ncdhw, ncdhw}, {ncdhw}, {}, {})
+    };
+    return cpuParams_5D;
+}
+
+const std::vector<CPUSpecificParams>& cpuParams_5D_Planar() {
+    static const std::vector<CPUSpecificParams> cpuParams_5D = {
+        CPUSpecificParams({ncdhw, ncdhw}, {ncdhw}, {}, {})
+    };
+    return cpuParams_5D;
+}
+
+const std::vector<CPUSpecificParams>& cpuParams_5D_PerChannel() {
+    static const std::vector<CPUSpecificParams> cpuParams_5D = {
+        CPUSpecificParams({ndhwc, ndhwc}, {ndhwc}, {}, {}),
     };
     return cpuParams_5D;
 }

@@ -81,6 +81,8 @@ macro(ov_cpack_settings)
         2023.3.0 2023.3.1 2023.3.2 2023.3.3 2023.3.4 2023.3.5
         2024.0.0
         2024.1.0
+        2024.2.0
+        2024.3.0
         )
 
     ov_check_conflicts_versions(conflicting_versions)
@@ -205,6 +207,15 @@ macro(ov_cpack_settings)
         set(CPACK_RPM_IR_POST_UNINSTALL_SCRIPT_FILE "${def_triggers}")
         _ov_add_package(frontend_packages ir)
         set(ir_copyright "generic")
+    endif()
+
+    if(ENABLE_OV_JAX_FRONTEND)
+        set(CPACK_COMPONENT_JAX_DESCRIPTION "OpenVINO JAX Frontend")
+        set(CPACK_RPM_JAX_PACKAGE_NAME "libopenvino-jax-frontend-${cpack_name_ver}")
+        set(CPACK_RPM_JAX_POST_INSTALL_SCRIPT_FILE "${def_triggers}")
+        set(CPACK_RPM_JAX_POST_UNINSTALL_SCRIPT_FILE "${def_triggers}")
+        _ov_add_package(frontend_packages jax)
+        set(jax_copyright "generic")
     endif()
 
     if(ENABLE_OV_ONNX_FRONTEND)

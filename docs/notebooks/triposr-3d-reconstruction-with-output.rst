@@ -13,10 +13,13 @@ HuggingFace <https://huggingface.co/spaces/stabilityai/TripoSR>`__.
 Also, you can read the paper `TripoSR: Fast 3D Object Reconstruction
 from a Single Image <https://arxiv.org/abs/2403.02151>`__.
 
+.. figure:: https://raw.githubusercontent.com/VAST-AI-Research/TripoSR/main/figures/teaser800.gif
+   :alt: Teaser Video
 
+   Teaser Video
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Get the original model <#get-the-original-model>`__
@@ -33,43 +36,19 @@ Prerequisites
 
 .. code:: ipython3
 
-    %pip install -q wheel setuptools pip --upgrade
-    %pip install -q "gradio>=4.19" torch rembg trimesh einops omegaconf "transformers>=4.35.0" "openvino>=2024.0.0" --extra-index-url https://download.pytorch.org/whl/cpu
+    %pip install -q "gradio>=4.19" "torch==2.2.2" rembg trimesh einops "omegaconf>=2.3.0" "transformers>=4.35.0" "openvino>=2024.0.0" --extra-index-url https://download.pytorch.org/whl/cpu
     %pip install -q "git+https://github.com/tatsy/torchmcubes.git"
 
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-
-
-.. parsed-literal::
-
+    ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    descript-audiotools 0.7.2 requires protobuf<3.20,>=3.9.2, but you have protobuf 3.20.3 which is incompatible.
+    mobileclip 0.1.0 requires torch==1.13.1, but you have torch 2.2.2+cpu which is incompatible.
+    mobileclip 0.1.0 requires torchvision==0.14.1, but you have torchvision 0.18.1+cpu which is incompatible.
+    torchaudio 2.3.1+cpu requires torch==2.3.1, but you have torch 2.2.2+cpu which is incompatible.
+    torchvision 0.18.1+cpu requires torch==2.3.1, but you have torch 2.2.2+cpu which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
-    WARNING: typer 0.12.3 does not provide the extra 'all'
-
-
-.. parsed-literal::
-
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-
-
-.. parsed-literal::
-
-    Note: you may need to restart the kernel to use updated packages.
-
-
-.. parsed-literal::
-
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
-
-
-.. parsed-literal::
-
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -87,327 +66,12 @@ Prerequisites
 .. parsed-literal::
 
     Cloning into 'TripoSR'...
-
-
-.. parsed-literal::
-
     remote: Enumerating objects: 117, done.[K
-    remote: Counting objects:   0% (1/117)[K
-remote: Counting objects:   1% (2/117)[K
-remote: Counting objects:   2% (3/117)[K
-remote: Counting objects:   3% (4/117)[K
-remote: Counting objects:   4% (5/117)[K
-remote: Counting objects:   5% (6/117)[K
-remote: Counting objects:   6% (8/117)[K
-remote: Counting objects:   7% (9/117)[K
-remote: Counting objects:   8% (10/117)[K
-remote: Counting objects:   9% (11/117)[K
-remote: Counting objects:  10% (12/117)[K
-remote: Counting objects:  11% (13/117)[K
-remote: Counting objects:  12% (15/117)[K
-remote: Counting objects:  13% (16/117)[K
-remote: Counting objects:  14% (17/117)[K
-remote: Counting objects:  15% (18/117)[K
-remote: Counting objects:  16% (19/117)[K
-remote: Counting objects:  17% (20/117)[K
-remote: Counting objects:  18% (22/117)[K
-remote: Counting objects:  19% (23/117)[K
-remote: Counting objects:  20% (24/117)[K
-remote: Counting objects:  21% (25/117)[K
-remote: Counting objects:  22% (26/117)[K
-remote: Counting objects:  23% (27/117)[K
-remote: Counting objects:  24% (29/117)[K
-remote: Counting objects:  25% (30/117)[K
-remote: Counting objects:  26% (31/117)[K
-remote: Counting objects:  27% (32/117)[K
-remote: Counting objects:  28% (33/117)[K
-remote: Counting objects:  29% (34/117)[K
-remote: Counting objects:  30% (36/117)[K
-remote: Counting objects:  31% (37/117)[K
-remote: Counting objects:  32% (38/117)[K
-remote: Counting objects:  33% (39/117)[K
-remote: Counting objects:  34% (40/117)[K
-remote: Counting objects:  35% (41/117)[K
-remote: Counting objects:  36% (43/117)[K
-remote: Counting objects:  37% (44/117)[K
-remote: Counting objects:  38% (45/117)[K
-remote: Counting objects:  39% (46/117)[K
-remote: Counting objects:  40% (47/117)[K
-remote: Counting objects:  41% (48/117)[K
-remote: Counting objects:  42% (50/117)[K
-remote: Counting objects:  43% (51/117)[K
-remote: Counting objects:  44% (52/117)[K
-remote: Counting objects:  45% (53/117)[K
-remote: Counting objects:  46% (54/117)[K
-remote: Counting objects:  47% (55/117)[K
-remote: Counting objects:  48% (57/117)[K
-remote: Counting objects:  49% (58/117)[K
-remote: Counting objects:  50% (59/117)[K
-remote: Counting objects:  51% (60/117)[K
-remote: Counting objects:  52% (61/117)[K
-remote: Counting objects:  53% (63/117)[K
-remote: Counting objects:  54% (64/117)[K
-remote: Counting objects:  55% (65/117)[K
-remote: Counting objects:  56% (66/117)[K
-remote: Counting objects:  57% (67/117)[K
-remote: Counting objects:  58% (68/117)[K
-remote: Counting objects:  59% (70/117)[K
-remote: Counting objects:  60% (71/117)[K
-remote: Counting objects:  61% (72/117)[K
-remote: Counting objects:  62% (73/117)[K
-remote: Counting objects:  63% (74/117)[K
-remote: Counting objects:  64% (75/117)[K
-remote: Counting objects:  65% (77/117)[K
-remote: Counting objects:  66% (78/117)[K
-remote: Counting objects:  67% (79/117)[K
-remote: Counting objects:  68% (80/117)[K
-remote: Counting objects:  69% (81/117)[K
-remote: Counting objects:  70% (82/117)[K
-remote: Counting objects:  71% (84/117)[K
-remote: Counting objects:  72% (85/117)[K
-remote: Counting objects:  73% (86/117)[K
-remote: Counting objects:  74% (87/117)[K
-remote: Counting objects:  75% (88/117)[K
-remote: Counting objects:  76% (89/117)[K
-remote: Counting objects:  77% (91/117)[K
-remote: Counting objects:  78% (92/117)[K
-remote: Counting objects:  79% (93/117)[K
-remote: Counting objects:  80% (94/117)[K
-remote: Counting objects:  81% (95/117)[K
-remote: Counting objects:  82% (96/117)[K
-remote: Counting objects:  83% (98/117)[K
-remote: Counting objects:  84% (99/117)[K
-remote: Counting objects:  85% (100/117)[K
-remote: Counting objects:  86% (101/117)[K
-remote: Counting objects:  87% (102/117)[K
-remote: Counting objects:  88% (103/117)[K
-remote: Counting objects:  89% (105/117)[K
-remote: Counting objects:  90% (106/117)[K
-remote: Counting objects:  91% (107/117)[K
-remote: Counting objects:  92% (108/117)[K
-remote: Counting objects:  93% (109/117)[K
-remote: Counting objects:  94% (110/117)[K
-remote: Counting objects:  95% (112/117)[K
-remote: Counting objects:  96% (113/117)[K
-remote: Counting objects:  97% (114/117)[K
-remote: Counting objects:  98% (115/117)[K
-remote: Counting objects:  99% (116/117)[K
-remote: Counting objects: 100% (117/117)[K
-remote: Counting objects: 100% (117/117), done.[K
-    remote: Compressing objects:   1% (1/77)[K
-remote: Compressing objects:   2% (2/77)[K
-remote: Compressing objects:   3% (3/77)[K
-remote: Compressing objects:   5% (4/77)[K
-remote: Compressing objects:   6% (5/77)[K
-remote: Compressing objects:   7% (6/77)[K
-remote: Compressing objects:   9% (7/77)[K
-remote: Compressing objects:  10% (8/77)[K
-remote: Compressing objects:  11% (9/77)[K
-remote: Compressing objects:  12% (10/77)[K
-remote: Compressing objects:  14% (11/77)[K
-remote: Compressing objects:  15% (12/77)[K
-remote: Compressing objects:  16% (13/77)[K
-remote: Compressing objects:  18% (14/77)[K
-remote: Compressing objects:  19% (15/77)[K
-remote: Compressing objects:  20% (16/77)[K
-remote: Compressing objects:  22% (17/77)[K
-remote: Compressing objects:  23% (18/77)[K
-remote: Compressing objects:  24% (19/77)[K
-remote: Compressing objects:  25% (20/77)[K
-remote: Compressing objects:  27% (21/77)[K
-remote: Compressing objects:  28% (22/77)[K
-remote: Compressing objects:  29% (23/77)[K
-remote: Compressing objects:  31% (24/77)[K
-remote: Compressing objects:  32% (25/77)[K
-remote: Compressing objects:  33% (26/77)[K
-remote: Compressing objects:  35% (27/77)[K
-remote: Compressing objects:  36% (28/77)[K
-remote: Compressing objects:  37% (29/77)[K
-remote: Compressing objects:  38% (30/77)[K
-remote: Compressing objects:  40% (31/77)[K
-remote: Compressing objects:  41% (32/77)[K
-remote: Compressing objects:  42% (33/77)[K
-remote: Compressing objects:  44% (34/77)[K
-remote: Compressing objects:  45% (35/77)[K
-remote: Compressing objects:  46% (36/77)[K
-remote: Compressing objects:  48% (37/77)[K
-remote: Compressing objects:  49% (38/77)[K
-remote: Compressing objects:  50% (39/77)[K
-remote: Compressing objects:  51% (40/77)[K
-remote: Compressing objects:  53% (41/77)[K
-remote: Compressing objects:  54% (42/77)[K
-remote: Compressing objects:  55% (43/77)[K
-remote: Compressing objects:  57% (44/77)[K
-remote: Compressing objects:  58% (45/77)[K
-remote: Compressing objects:  59% (46/77)[K
-remote: Compressing objects:  61% (47/77)[K
-remote: Compressing objects:  62% (48/77)[K
-remote: Compressing objects:  63% (49/77)[K
-remote: Compressing objects:  64% (50/77)[K
-remote: Compressing objects:  66% (51/77)[K
-remote: Compressing objects:  67% (52/77)[K
-remote: Compressing objects:  68% (53/77)[K
-remote: Compressing objects:  70% (54/77)[K
-remote: Compressing objects:  71% (55/77)[K
-remote: Compressing objects:  72% (56/77)[K
-remote: Compressing objects:  74% (57/77)[K
-remote: Compressing objects:  75% (58/77)[K
-remote: Compressing objects:  76% (59/77)[K
-remote: Compressing objects:  77% (60/77)[K
-remote: Compressing objects:  79% (61/77)[K
-remote: Compressing objects:  80% (62/77)[K
-remote: Compressing objects:  81% (63/77)[K
-remote: Compressing objects:  83% (64/77)[K
-remote: Compressing objects:  84% (65/77)[K
-remote: Compressing objects:  85% (66/77)[K
-remote: Compressing objects:  87% (67/77)[K
-remote: Compressing objects:  88% (68/77)[K
-remote: Compressing objects:  89% (69/77)[K
-remote: Compressing objects:  90% (70/77)[K
-remote: Compressing objects:  92% (71/77)[K
-remote: Compressing objects:  93% (72/77)[K
-remote: Compressing objects:  94% (73/77)[K
-remote: Compressing objects:  96% (74/77)[K
-remote: Compressing objects:  97% (75/77)[K
-remote: Compressing objects:  98% (76/77)[K
-remote: Compressing objects: 100% (77/77)[K
-remote: Compressing objects: 100% (77/77), done.[K
-
-
-.. parsed-literal::
-
-    Receiving objects:   0% (1/117)
-Receiving objects:   1% (2/117)
-Receiving objects:   2% (3/117)
-Receiving objects:   3% (4/117)
-Receiving objects:   4% (5/117)
-Receiving objects:   5% (6/117)
-Receiving objects:   6% (8/117)
-Receiving objects:   7% (9/117)
-Receiving objects:   8% (10/117)
-Receiving objects:   9% (11/117)
-Receiving objects:  10% (12/117)
-Receiving objects:  11% (13/117)
-Receiving objects:  12% (15/117)
-Receiving objects:  13% (16/117)
-Receiving objects:  14% (17/117)
-Receiving objects:  15% (18/117)
-Receiving objects:  16% (19/117)
-Receiving objects:  17% (20/117)
-Receiving objects:  18% (22/117)
-Receiving objects:  19% (23/117)
-Receiving objects:  20% (24/117)
-Receiving objects:  21% (25/117)
-Receiving objects:  22% (26/117)
-Receiving objects:  23% (27/117)
-Receiving objects:  24% (29/117)
-Receiving objects:  25% (30/117)
-Receiving objects:  26% (31/117)
-Receiving objects:  27% (32/117)
-Receiving objects:  28% (33/117)
-Receiving objects:  29% (34/117)
-Receiving objects:  30% (36/117)
-Receiving objects:  31% (37/117)
-Receiving objects:  32% (38/117)
-Receiving objects:  33% (39/117)
-Receiving objects:  34% (40/117)
-Receiving objects:  35% (41/117)
-Receiving objects:  36% (43/117)
-Receiving objects:  37% (44/117)
-Receiving objects:  38% (45/117)
-Receiving objects:  39% (46/117)
-Receiving objects:  40% (47/117)
-Receiving objects:  41% (48/117)
-Receiving objects:  42% (50/117)
-Receiving objects:  43% (51/117)
-Receiving objects:  44% (52/117)
-Receiving objects:  45% (53/117)
-Receiving objects:  46% (54/117)
-
-.. parsed-literal::
-
-    Receiving objects:  47% (55/117)
-Receiving objects:  48% (57/117)
-Receiving objects:  49% (58/117)
-
-.. parsed-literal::
-
-    Receiving objects:  50% (59/117)
-
-.. parsed-literal::
-
-    Receiving objects:  51% (60/117)
-Receiving objects:  52% (61/117)
-
-.. parsed-literal::
-
-    Receiving objects:  53% (63/117)
-Receiving objects:  54% (64/117)
-Receiving objects:  55% (65/117)
-Receiving objects:  56% (66/117)
-remote: Total 117 (delta 38), reused 117 (delta 38), pack-reused 0[K
-    Receiving objects:  57% (67/117)
-Receiving objects:  58% (68/117)
-Receiving objects:  59% (70/117)
-Receiving objects:  60% (71/117)
-Receiving objects:  61% (72/117)
-Receiving objects:  62% (73/117)
-Receiving objects:  63% (74/117)
-Receiving objects:  64% (75/117)
-Receiving objects:  65% (77/117)
-Receiving objects:  66% (78/117)
-Receiving objects:  67% (79/117)
-Receiving objects:  68% (80/117)
-Receiving objects:  69% (81/117)
-Receiving objects:  70% (82/117)
-Receiving objects:  71% (84/117)
-Receiving objects:  72% (85/117)
-Receiving objects:  73% (86/117)
-Receiving objects:  74% (87/117)
-Receiving objects:  75% (88/117)
-Receiving objects:  76% (89/117)
-Receiving objects:  77% (91/117)
-Receiving objects:  78% (92/117)
-Receiving objects:  79% (93/117)
-Receiving objects:  80% (94/117)
-Receiving objects:  81% (95/117)
-Receiving objects:  82% (96/117)
-Receiving objects:  83% (98/117)
-Receiving objects:  84% (99/117)
-Receiving objects:  85% (100/117)
-Receiving objects:  86% (101/117)
-Receiving objects:  87% (102/117)
-Receiving objects:  88% (103/117)
-Receiving objects:  89% (105/117)
-Receiving objects:  90% (106/117)
-Receiving objects:  91% (107/117)
-Receiving objects:  92% (108/117)
-Receiving objects:  93% (109/117)
-Receiving objects:  94% (110/117)
-Receiving objects:  95% (112/117)
-Receiving objects:  96% (113/117)
-Receiving objects:  97% (114/117)
-Receiving objects:  98% (115/117)
-Receiving objects:  99% (116/117)
-Receiving objects: 100% (117/117)
-Receiving objects: 100% (117/117), 568.99 KiB | 2.54 MiB/s, done.
-    Resolving deltas:   0% (0/38)
-Resolving deltas:   5% (2/38)
-Resolving deltas:  15% (6/38)
-Resolving deltas:  18% (7/38)
-Resolving deltas:  23% (9/38)
-Resolving deltas:  26% (10/38)
-Resolving deltas:  31% (12/38)
-Resolving deltas:  42% (16/38)
-Resolving deltas:  44% (17/38)
-Resolving deltas:  47% (18/38)
-Resolving deltas:  50% (19/38)
-Resolving deltas:  57% (22/38)
-Resolving deltas:  68% (26/38)
-Resolving deltas:  73% (28/38)
-Resolving deltas:  92% (35/38)
-Resolving deltas: 100% (38/38)
-Resolving deltas: 100% (38/38), done.
+    remote: Counting objects: 100% (113/113), done.[K
+    remote: Compressing objects: 100% (111/111), done.[K
+    remote: Total 117 (delta 36), reused 0 (delta 0), pack-reused 4 (from 1)[K
+    Receiving objects: 100% (117/117), 569.16 KiB | 2.61 MiB/s, done.
+    Resolving deltas: 100% (36/36), done.
 
 
 Get the original model
@@ -614,7 +278,12 @@ models one by one.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-661/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/vit/modeling_vit.py:170: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    ['pixel_values']
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/vit/modeling_vit.py:167: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if num_channels != self.num_channels:
 
 
@@ -653,6 +322,12 @@ models one by one.
         example_input,
     )
 
+
+.. parsed-literal::
+
+    ['hidden_states']
+
+
 .. code:: ipython3
 
     VIT_POOLER_OV_PATH = Path("models/vit_pooler_ir.xml")
@@ -662,10 +337,22 @@ models one by one.
         torch.rand([1, 1025, 768], dtype=torch.float32),
     )
 
+
+.. parsed-literal::
+
+    ['hidden_states']
+
+
 .. code:: ipython3
 
     TOKENIZER_OV_PATH = Path("models/tokenizer_ir.xml")
     convert(model.tokenizer, TOKENIZER_OV_PATH, torch.tensor(1))
+
+
+.. parsed-literal::
+
+    ['batch_size']
+
 
 .. code:: ipython3
 
@@ -677,6 +364,12 @@ models one by one.
     BACKBONE_OV_PATH = Path("models/backbone_ir.xml")
     convert(model.backbone, BACKBONE_OV_PATH, example_input)
 
+
+.. parsed-literal::
+
+    ['hidden_states', 'encoder_hidden_states']
+
+
 .. code:: ipython3
 
     POST_PROCESSOR_OV_PATH = Path("models/post_processor_ir.xml")
@@ -685,6 +378,12 @@ models one by one.
         POST_PROCESSOR_OV_PATH,
         torch.rand([1, 3, 1024, 32, 32], dtype=torch.float32),
     )
+
+
+.. parsed-literal::
+
+    ['triplanes']
+
 
 Compiling models and prepare pipeline
 -------------------------------------

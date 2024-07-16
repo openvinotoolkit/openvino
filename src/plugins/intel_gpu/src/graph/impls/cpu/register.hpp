@@ -22,6 +22,7 @@
 #include "intel_gpu/primitives/broadcast.hpp"
 #include "intel_gpu/primitives/tile.hpp"
 #include "intel_gpu/primitives/select.hpp"
+#include "intel_gpu/primitives/reduce.hpp"
 
 namespace cldnn {
 namespace cpu {
@@ -39,6 +40,7 @@ REGISTER_CPU(assign);
 REGISTER_CPU(proposal);
 REGISTER_CPU(read_value);
 REGISTER_CPU(non_max_suppression);
+REGISTER_CPU(non_max_suppression_gather);
 REGISTER_CPU(detection_output);
 REGISTER_CPU(shape_of);
 REGISTER_CPU(concatenation);
@@ -53,6 +55,7 @@ REGISTER_CPU(reorder);
 REGISTER_CPU(broadcast);
 REGISTER_CPU(tile);
 REGISTER_CPU(select);
+REGISTER_CPU(reduce);
 
 #undef REGISTER_CPU
 

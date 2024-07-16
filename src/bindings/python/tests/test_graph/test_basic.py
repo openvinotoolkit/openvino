@@ -21,6 +21,7 @@ from openvino import (
 )
 
 from openvino.runtime.op import Parameter, Constant
+from openvino.runtime.op.util import VariableInfo, Variable
 from openvino.runtime import AxisVector, Coordinate, CoordinateDiff
 from openvino._pyopenvino import DescriptorTensor
 
@@ -348,15 +349,12 @@ def test_result():
 
 def test_node_friendly_name():
     dummy_node = ops.parameter(shape=[1], name="dummy_name")
-
     assert (dummy_node.friendly_name == "dummy_name")
 
     dummy_node.set_friendly_name("changed_name")
-
     assert (dummy_node.get_friendly_name() == "changed_name")
 
     dummy_node.friendly_name = "new_name"
-
     assert (dummy_node.get_friendly_name() == "new_name")
 
 
@@ -393,30 +391,20 @@ def test_node_output():
     assert [output0.get_index(), output1.get_index(), output2.get_index()] == [0, 1, 2]
 
 
-def test_node_input_size():
-    node = ops.add([1], [2])
-    assert node.get_input_size() == 2
-
-
 def test_node_input_values():
     shapes = [Shape([3]), Shape([3])]
-    data1 = np.array([1, 2, 3])
-    data2 = np.array([3, 2, 1])
+    data1 = np.array([1, 2, 3], dtype=np.int64)
+    data2 = np.array([3, 2, 1], dtype=np.int64)
 
     node = ops.add(data1, data2)
 
     assert node.get_input_size() == 2
+    assert node.get_input_element_type(0) == Type.i64
+    assert node.get_input_partial_shape(0) == PartialShape([3])
+    assert node.get_input_shape(1) == Shape([3])
 
-    assert np.equal(
-        [input_node.get_shape() for input_node in node.input_values()],
-        shapes,
-    ).all()
-
-    assert np.equal(
-        [node.input_value(i).get_shape() for i in range(node.get_input_size())],
-        shapes,
-    ).all()
-
+    assert np.equal([input_node.get_shape() for input_node in node.input_values()], shapes,).all()
+    assert np.equal([node.input_value(i).get_shape() for i in range(node.get_input_size())], shapes,).all()
     assert np.allclose(
         [input_node.get_node().get_vector() for input_node in node.input_values()],
         [data1, data2],
@@ -548,16 +536,32 @@ def test_multiple_outputs():
     assert list(relu.get_output_shape(0)) == [4, 2]
 
 
-def test_sink_model_ctor():
+def test_sink_model_ctors():
     model = generate_model_with_memory(input_shape=[2, 2], data_type=np.float32)
+
+    var_info = VariableInfo()
+    var_info.data_shape = PartialShape([2, 1])
+    var_info.data_type = Type.f32
+    var_info.variable_id = "v1"
+    variable_1 = Variable(var_info)
+
+    init_val = ops.constant(np.zeros(Shape([2, 1])), Type.f32)
+
+    rv = ops.read_value(init_val, variable_1)
+    assign = ops.assign(rv, variable_1)
+
+    model.add_variables([variable_1])
+    model.add_sinks([assign])
+
+    model.validate_nodes_and_infer_types()
 
     ordered_ops = model.get_ordered_ops()
     op_types = [op.get_type_name() for op in ordered_ops]
     sinks = model.get_sinks()
-    assert ["Assign"] == [sink.get_type_name() for sink in sinks]
+    assert ["Assign", "Assign"] == [sink.get_type_name() for sink in sinks]
     assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
-    assert op_types == ["Parameter", "Constant", "ReadValue", "Add", "Assign", "Result"]
-    assert len(model.get_ops()) == 6
+    assert op_types == ["Parameter", "Constant", "ReadValue", "Assign", "Constant", "ReadValue", "Add", "Assign", "Result"]
+    assert len(model.get_ops()) == 9
     assert model.get_output_size() == 1
     assert model.get_output_op(0).get_type_name() == "Result"
     assert model.get_output_element_type(0) == model.get_parameters()[0].get_element_type()
@@ -576,13 +580,24 @@ def test_sink_model_ctor_without_init_subgraph():
     res = ops.result(add, "res")
     model = Model(results=[res], sinks=[node], parameters=[input_data], name="TestModel")
 
+    var_info = VariableInfo()
+    var_info.data_shape = PartialShape([2, 1])
+    var_info.data_type = Type.f32
+    var_info.variable_id = "v1"
+    variable_1 = Variable(var_info)
+    rv = ops.read_value(variable_1)
+    assign = ops.assign(rv, variable_1)
+
+    model.add_variables([variable_1])
+    model.add_sinks([assign])
+
     ordered_ops = model.get_ordered_ops()
     op_types = [op.get_type_name() for op in ordered_ops]
     sinks = model.get_sinks()
-    assert ["Assign"] == [sink.get_type_name() for sink in sinks]
+    assert ["Assign", "Assign"] == [sink.get_type_name() for sink in sinks]
     assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
-    assert op_types == ["Parameter", "ReadValue", "Add", "Assign", "Result"]
-    assert len(model.get_ops()) == 5
+    assert op_types == ["Parameter", "ReadValue", "Assign", "ReadValue", "Add", "Assign", "Result"]
+    assert len(model.get_ops()) == 7
     assert model.get_output_size() == 1
     assert model.get_output_op(0).get_type_name() == "Result"
     assert model.get_output_element_type(0) == input_data.get_element_type()

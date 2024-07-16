@@ -4,6 +4,7 @@
 
 #include "openvino/op/paged_attention.hpp"
 
+#include "itt.hpp"
 #include "openvino/op/op.hpp"
 
 namespace ov {
@@ -14,134 +15,138 @@ PagedAttentionExtension::PagedAttentionExtension(const ov::OutputVector& args) :
 }
 
 void PagedAttentionExtension::validate_and_infer_types() {
-    auto value_cache_shape = get_input_partial_shape(4);
-    // m_num_kv_heads = value_cache_shape[1];
-    // m_head_size = value_cache_shape[2];
-    // m_block_size = value_cache_shape[3];
-    NODE_VALIDATION_CHECK(this, value_cache_shape.size() == 4, "Value cache shape must be 4 dims");
+    OV_OP_SCOPE(PagedAttentionExtension_validate_and_infer_types);
 
-    // key_cache: shape [num_blocks, num_kv_heads, head_size/x, block_size, x]
-    auto key_cache_shape = get_input_partial_shape(3);
     NODE_VALIDATION_CHECK(this,
-                          value_cache_shape.size() == 4,
-                          // value_cache_shape[0] == key_cache_shape[0] && // num_blocks
-                          // key_cache_shape[1] == m_num_kv_heads &&
-                          // key_cache_shape[2] * key_cache_shape[4] == m_head_size &&
-                          // m_block_size == key_cache_shape[3], // block_size,
-                          "Key cache shape must be 4 dims");
+                          get_input_size() == 13,
+                          "PagedAttensionExtension expects 13 inputs, but it has ",
+                          get_input_size());
 
-    // query: shape [batch_size, seq_len, num_heads * head_size]
-    auto query_type = get_input_element_type(0);
-    auto query_shape = get_input_partial_shape(0);
+    NODE_VALIDATION_CHECK(
+        this,
+        get_input_partial_shape(0).rank().is_dynamic() || get_input_partial_shape(0).rank().get_length() == 2,
+        "Rank of `query` input should be 2, but it is ",
+        get_input_partial_shape(0).rank().get_length(),
+        ".");
+    NODE_VALIDATION_CHECK(
+        this,
+        get_input_partial_shape(1).rank().is_dynamic() || get_input_partial_shape(1).rank().get_length() == 2,
+        "Rank of `key` input should be 2, but it is ",
+        get_input_partial_shape(1).rank().get_length(),
+        ".");
+    NODE_VALIDATION_CHECK(
+        this,
+        get_input_partial_shape(2).rank().is_dynamic() || get_input_partial_shape(2).rank().get_length() == 2,
+        "Rank of `value` input should be 2, but it is ",
+        get_input_partial_shape(2).rank().get_length(),
+        ".");
+
+    NODE_VALIDATION_CHECK(
+        this,
+        get_input_partial_shape(3).rank().is_dynamic() || get_input_partial_shape(3).rank().get_length() >= 2,
+        "Rank of `key_cache` input should be at least 2, but it is ",
+        get_input_partial_shape(3).rank().get_length(),
+        ".");
+    NODE_VALIDATION_CHECK(
+        this,
+        get_input_partial_shape(4).rank().is_dynamic() || get_input_partial_shape(4).rank().get_length() >= 2,
+        "Rank of `value_cache` input should be at least 2, but it is ",
+        get_input_partial_shape(4).rank().get_length(),
+        ".");
+
+    NODE_VALIDATION_CHECK(
+        this,
+        get_input_partial_shape(5).rank().is_dynamic() || get_input_partial_shape(5).rank().get_length() == 1,
+        "Rank of `past_lens` input should be 1, but it is ",
+        get_input_partial_shape(5).rank().get_length(),
+        ".");
     NODE_VALIDATION_CHECK(this,
-                          // query_type.is_real() &&
-                          query_shape.size() == 3,
-                          // query_shape[2] == m_num_heads * m_head_size,
-                          "Query type must be real, shape must be like [batch_size, seq_len, num_heads * head_size]. ",
-                          "Got element type ",
-                          query_type,
-                          ", shape ",
-                          query_shape);
-
-    // key: shape [batch_size, seq_len, num_kv_heads * head_size]
-    auto key_type = get_input_element_type(1);
-    auto key_shape = get_input_partial_shape(1);
-    NODE_VALIDATION_CHECK(this,
-                          // query_type == key_type &&
-                          key_shape.size() == 3,
-                          "Key type must be the same as query, shape must be the same as query. "
-                          "Got element type ",
-                          key_type,
-                          ", shape ",
-                          key_shape);
-
-    // value: shape [batch_size, seq_len, num_kv_heads * head_size]
-    // auto value_type = get_input_element_type(2);
-    auto value_shape = get_input_partial_shape(2);
-
-    // is_prompt: boolean scalar
-    NODE_VALIDATION_CHECK(this,
-                          // get_input_element_type(5) == ov::element::boolean &&
-                          get_input_shape(5) == ov::Shape({}),
-                          "is_prompt validation failed. ",
-                          "Got element type ",
+                          get_input_element_type(5).is_dynamic() || get_input_element_type(5) == element::i32,
+                          "Element type of `past_lens` input should be i32, but it is ",
                           get_input_element_type(5),
-                          ", shape ",
-                          get_input_shape(5));
-
-    // slot_mapping: shape [batch_size, max_context_len]
-    auto slot_mapping_shape = get_input_partial_shape(6);
+                          ".");
+    NODE_VALIDATION_CHECK(
+        this,
+        get_input_partial_shape(6).rank().is_dynamic() || get_input_partial_shape(6).rank().get_length() == 1,
+        "Rank of `subsequence_begins` input should be 1, but it is ",
+        get_input_partial_shape(6).rank().get_length(),
+        ".");
     NODE_VALIDATION_CHECK(this,
-                          // get_input_element_type(6) == ov::element::i64 &&
-                          slot_mapping_shape.size() == 2,
-                          "slot_mapping validation failed. ",
-                          "Got element type ",
+                          get_input_element_type(6).is_dynamic() || get_input_element_type(6) == element::i32,
+                          "Element type of `subsequence_begins` input should be i32, but it is ",
                           get_input_element_type(6),
-                          ", shape ",
-                          slot_mapping_shape);
+                          ".");
 
-    // max_context_len: integer scalar
+    NODE_VALIDATION_CHECK(
+        this,
+        get_input_partial_shape(7).rank().is_dynamic() || get_input_partial_shape(7).rank().get_length() == 1,
+        "Rank of `block_indices` input should be 1, but it is ",
+        get_input_partial_shape(7).rank().get_length(),
+        ".");
     NODE_VALIDATION_CHECK(this,
-                          // get_input_element_type(7) == ov::element::i32 &&
-                          get_input_shape(7) == ov::Shape({}),
-                          "max_context_len validation failed. ",
-                          "Got element type ",
+                          get_input_element_type(7).is_dynamic() || get_input_element_type(7) == element::i32,
+                          "Element type of `block_indices` input should be i32, but it is ",
                           get_input_element_type(7),
-                          ", shape ",
-                          get_input_shape(7));
-
-    // context_lens: shape [batch_size]
-    auto context_lens_shape = get_input_partial_shape(8);
+                          ".");
+    NODE_VALIDATION_CHECK(
+        this,
+        get_input_partial_shape(8).rank().is_dynamic() || get_input_partial_shape(8).rank().get_length() == 1,
+        "Rank of `block_indices_begins` input should be 1, but it is ",
+        get_input_partial_shape(8).rank().get_length(),
+        ".");
     NODE_VALIDATION_CHECK(this,
-                          // get_input_element_type(8) == ov::element::i32 &&
-                          context_lens_shape.size() == 1,
-                          "context_lens validation failed. ",
-                          "Got element type ",
+                          get_input_element_type(8).is_dynamic() || get_input_element_type(8) == element::i32,
+                          "Element type of `block_indices_begins` input should be i32, but it is ",
                           get_input_element_type(8),
-                          ", shape ",
-                          context_lens_shape);
+                          ".");
 
-    // block_tables: shape [batch_size, max_block_per_request]
+    NODE_VALIDATION_CHECK(
+        this,
+        get_input_partial_shape(9).rank().is_dynamic() || get_input_partial_shape(9).rank().get_length() == 0,
+        "Input `scale` should be a scalar but it has rank ",
+        get_input_partial_shape(9).rank().get_length(),
+        ".");
     NODE_VALIDATION_CHECK(this,
-                          // get_input_element_type(9) == ov::element::i32 &&
-                          get_input_partial_shape(9).size() == 2,
-                          "block_tables validation failed. ",
-                          "Got element type ",
+                          get_input_element_type(9).is_dynamic() || get_input_element_type(9).is_real(),
+                          "Element type of `scale` input should be a floating type, but it is ",
                           get_input_element_type(9),
-                          ", shape ",
-                          get_input_partial_shape(9));
-
-    // scale: float scalar
+                          ".");
+    NODE_VALIDATION_CHECK(
+        this,
+        get_input_partial_shape(10).rank().is_dynamic() || get_input_partial_shape(10).rank().get_length() == 0,
+        "Input `sliding_window` should be a scalar but it has rank ",
+        get_input_partial_shape(10).rank().get_length(),
+        ".");
     NODE_VALIDATION_CHECK(this,
-                          // get_input_element_type(10) == ov::element::f32 &&
-                          get_input_shape(10) == ov::Shape({}),
-                          "block_tables validation failed. ",
-                          "Got element type ",
+                          get_input_element_type(10).is_dynamic() || get_input_element_type(10) == element::i32,
+                          "Element type of `sliding_window` input should be i32, but it is ",
                           get_input_element_type(10),
-                          ", shape ",
-                          get_input_shape(10));
+                          ".");
 
-    // alibi_slopes: 1D float tensor
+    NODE_VALIDATION_CHECK(
+        this,
+        get_input_partial_shape(11).rank().is_dynamic() || get_input_partial_shape(11).rank().get_length() == 1,
+        "Rank of `alibi_slopes` input should be 1, but it is ",
+        get_input_partial_shape(11).rank().get_length(),
+        ".");
     NODE_VALIDATION_CHECK(this,
-                          // get_input_element_type(11) == ov::element::f32 &&
-                          get_input_partial_shape(11).rank().get_length() == 1,
-                          "alibi_slopes should be a 1D float tensor. ",
-                          "Got element type ",
+                          get_input_element_type(11).is_dynamic() || get_input_element_type(11).is_real(),
+                          "Element type of `alibi_slopes` input should be a floating type, but it is ",
                           get_input_element_type(11),
-                          ", shape ",
-                          get_input_partial_shape(11));
-
-    // sliding_window: int scalar
+                          ".");
+    NODE_VALIDATION_CHECK(
+        this,
+        get_input_partial_shape(12).rank().is_dynamic() || get_input_partial_shape(12).rank().get_length() == 0,
+        "Input `max_context_len` should be a scalar but it has rank ",
+        get_input_partial_shape(12).rank().get_length(),
+        ".");
     NODE_VALIDATION_CHECK(this,
-                          // get_input_element_type(12) == ov::element::i32 &&
-                          get_input_partial_shape(12).rank().get_length() == 0,
-                          "sliding_window argument should be an i32 scalar. ",
-                          "Got element type ",
+                          get_input_element_type(12).is_dynamic() || get_input_element_type(12) == element::i32,
+                          "Element type of `max_context_len` input should be i32, but it is ",
                           get_input_element_type(12),
-                          ", shape ",
-                          get_input_partial_shape(12));
+                          ".");
 
-    set_output_type(0, query_type, query_shape);
+    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
 std::shared_ptr<ov::Node> PagedAttentionExtension::clone_with_new_inputs(const ov::OutputVector& new_args) const {

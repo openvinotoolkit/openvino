@@ -12,20 +12,29 @@ namespace intel_npu {
 const std::shared_ptr<IDevice> IEngineBackend::getDevice() const {
     OPENVINO_THROW("Default getDevice() not implemented");
 }
+
 const std::shared_ptr<IDevice> IEngineBackend::getDevice(const std::string&) const {
     OPENVINO_THROW("Specific device search not implemented");
 }
+
 const std::shared_ptr<IDevice> IEngineBackend::getDevice(const ov::AnyMap&) const {
     OPENVINO_THROW("Get device based on params not implemented");
 }
+
 const std::vector<std::string> IEngineBackend::getDeviceNames() const {
     OPENVINO_THROW("Get all device names not implemented");
 }
+
 uint32_t IEngineBackend::getDriverVersion() const {
     OPENVINO_THROW("Get NPU driver version is not supported with this backend");
 }
+
 uint32_t IEngineBackend::getDriverExtVersion() const {
     OPENVINO_THROW("Get NPU driver extension version is not supported with this backend");
+}
+
+void* IEngineBackend::getContext() const {
+    OPENVINO_THROW("Get NPU context is not supported with this backend");
 }
 
 void IEngineBackend::registerOptions(OptionsDesc&) const {}
@@ -52,6 +61,24 @@ uint64_t IDevice::getTotalMemSize() const {
 
 ov::device::PCIInfo IDevice::getPciInfo() const {
     OPENVINO_THROW("Get PCIInfo is not supported");
+}
+
+ov::device::Type IDevice::getDeviceType() const {
+    OPENVINO_THROW("Get DEVICE_TYPE is not supported");
+}
+
+std::map<ov::element::Type, float> IDevice::getGops() const {
+    OPENVINO_THROW("Get DEVICE_GOPS is not supported");
+}
+
+ov::SoPtr<ov::IRemoteTensor> IDevice::createRemoteTensor(std::shared_ptr<ov::IRemoteContext>,
+                                                         const ov::element::Type&,
+                                                         const ov::Shape&,
+                                                         const Config&,
+                                                         ov::intel_npu::TensorType,
+                                                         ov::intel_npu::MemType,
+                                                         void*) {
+    OPENVINO_THROW("Create Remote Tensor is not supported");
 }
 
 }  // namespace intel_npu

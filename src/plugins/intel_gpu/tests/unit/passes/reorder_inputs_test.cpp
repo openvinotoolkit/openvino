@@ -19,6 +19,7 @@
 #include "batch_to_space_inst.h"
 #include "permute_inst.h"
 #include "concatenation_inst.h"
+#include "fully_connected_inst.h"
 #include "pass_manager.h"
 #include "to_string_utils.h"
 
@@ -96,7 +97,7 @@ TEST(reorder_inputs, mixed_ranks_irdft) {
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     program::ptr prog = nullptr;
-    ASSERT_NO_THROW(prog = program::build_program(engine, topology, config));
+    OV_ASSERT_NO_THROW(prog = program::build_program(engine, topology, config));
     ASSERT_NE(prog, nullptr);
 
     auto prog_impl = prog.get();
@@ -397,6 +398,58 @@ TEST(reorder_inputs, no_need_of_reorder_to_change_input_rank_for_rdft) {
 
     auto& dft_node = program->get_node("rdft");
     ASSERT_EQ(size_t(4), format::dimension(dft_node.get_input_layouts()[0].format));
+}
+
+TEST(reorder_inputs, add_reorder_between_single_output_type_node_and_multiple_users) {
+    // Topology:
+    //
+    //         Add (single output)               Add
+    //          |                                 |
+    //  0->0 -------- 0->0    ------------>    Reorder
+    //       |      |                           |   |
+    //      FC      FC                         FC   FC
+    //
+    // Description :
+    //     : Test the case where a node which doens't have muptiple output but have multiple users,
+    //     : and port number to each user is same all.
+    //     : In this case reorder should be inserted to each FC
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    auto in_layout1 = layout{ ov::PartialShape{1, 4096, 256}, data_types::i32, format::bfyx };
+    auto weights = engine.allocate_memory({ data_types::i32, format::bfyx, {128, 256, 1, 1} });
+
+    topology topology(
+        input_layout("input1", in_layout1),
+        input_layout("input2", in_layout1),
+        data("weights1", weights),
+        data("weights2", weights),
+        eltwise("add", input_info("input1"), input_info("input2"), eltwise_mode::sum),
+        fully_connected("fc1", input_info("add"), "weights1"),
+        fully_connected("fc2", input_info("add"), "weights2")
+    );
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    auto program = program::build_program(engine, topology, config, false, true);
+    layout_optimizer lo(true);
+    reorder_factory rf;
+    program_wrapper::apply_opt_pass<reorder_inputs>(*program, lo, rf);
+
+    ASSERT_NE(program, nullptr);
+
+    auto& add = program->get_node("add");
+    for (auto& user : add.get_users()) {
+        ASSERT_TRUE(user->is_type<reorder>());
+    }
+
+    auto& fc1 = program->get_node("fc1");
+    auto& fc2 = program->get_node("fc2");
+
+    ASSERT_TRUE(fc1.get_dependency(0).is_type<reorder>());
+    ASSERT_TRUE(fc2.get_dependency(0).is_type<reorder>());
 }
 
 // TODO Not yet implemented

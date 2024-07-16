@@ -26,7 +26,7 @@ void TokenizeMHASnippetsTests::run() {
     ASSERT_TRUE(model);
     manager.register_pass<ov::snippets::pass::ExtractReshapesFromMHA>();
     manager.register_pass<ov::snippets::pass::EnumerateNodes>();
-    manager.register_pass<ov::snippets::pass::TokenizeMHASnippets>();
+    manager.register_pass<ov::snippets::pass::TokenizeMHASnippets>(config);
     manager.register_pass<ov::snippets::pass::CommonOptimizations>(config);
     disable_rt_info_check();
 }
@@ -34,6 +34,46 @@ void TokenizeMHASnippetsTests::run() {
 TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D) {
     const auto &f = MHAFunction(std::vector<PartialShape>{{1, 128, 12, 64}, {1, 128, 12, 64}, {1, 12, 128, 128}, {1, 128, 12, 64}},
                                 std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}));
+    model = f.getOriginal();
+    model_ref = f.getReference();
+    run();
+}
+
+TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D_Dynamic) {
+    const auto &f = MHAFunction(std::vector<PartialShape>{{-1, -1, -1, -1}, {-1, -1, -1, -1}, {-1, -1, -1, -1}, {-1, -1, -1, -1}},
+                                std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}), true, false);
+    model = f.getOriginal();
+    model_ref = f.getReference();
+    run();
+}
+
+TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D_Partially_Dynamic) {
+    const auto &f = MHAFunction(std::vector<PartialShape>{{1, 128, 12, 64}, {1, 128, 12, 64}, {1, 1, -1, 1}, {1, 128, 12, 64}},
+                                std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}), true, false);
+    model = f.getOriginal();
+    model_ref = f.getReference();
+    run();
+}
+
+TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D_Partially_Dynamic_Disabled_Dynamic) {
+    const auto &f = MHAFunction(std::vector<PartialShape>{{1, 128, 12, 64}, {1, 128, 12, 64}, {1, 1, -1, 1}, {1, 128, 12, 64}},
+                                std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}), true, false);
+    model = f.getOriginal();
+    config = ov::snippets::pass::SnippetsTokenization::Config{1, std::numeric_limits<size_t>::max(), true, true, false, { 3, 4 }};
+    run();
+}
+
+TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D_Dynamic_M) {
+    const auto &f = MHAFunction(std::vector<PartialShape>{{1, -1, 12, 64}, {1, 128, 12, 64}, {1, 12, -1, 128}, {1, 128, 12, 64}},
+                                std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}), true, false);
+    model = f.getOriginal();
+    model_ref = f.getReference();
+    run();
+}
+
+TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D_Dynamic_K) {
+    const auto &f = MHAFunction(std::vector<PartialShape>{{1, 128, 12, -1}, {1, 128, 12, -1}, {1, 12, 128, 128}, {1, 128, 12, 64}},
+                                std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}), true, false);
     model = f.getOriginal();
     model_ref = f.getReference();
     run();
@@ -47,10 +87,27 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_3D) {
     run();
 }
 
-TEST_F(SKIP_TokenizeMHASnippetsTests /* CVS-114607 */, smoke_Snippets_MHA_with_MatMul0_Transpose) {
-    GTEST_SKIP();
+TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_3D_Dynamic) {
+    const auto &f = MHAFunction(std::vector<PartialShape>{{-1, -1, -1}, {-1, -1, -1}, {-1, -1, -1}, {-1, -1, -1}},
+                                std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}), true, false);
+    model = f.getOriginal();
+    model_ref = f.getReference();
+    run();
+}
+
+TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_with_MatMul0_Transpose) {
     const auto &f = MHAMatMul0TransposeFunction(std::vector<PartialShape>{{1, 128, 12, 64}, {1, 128, 12, 64}, {1, 12, 128, 128}, {1, 128, 12, 64}},
                                                 std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}));
+    model = f.getOriginal();
+    model_ref = f.getReference();
+    run();
+}
+
+TEST_F(SKIP_TokenizeMHASnippetsTests /* CVS-142098 */, smoke_Snippets_MHA_with_MatMul0_Transpose_Dynamic) {
+    GTEST_SKIP();
+    const auto &f = MHAMatMul0TransposeFunction(std::vector<PartialShape>{{-1, -1, -1, -1}, {-1, -1, -1, -1}, {-1, -1, -1, -1}, {-1, -1, -1, -1}},
+                                                std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}),
+                                                false);
     model = f.getOriginal();
     model_ref = f.getReference();
     run();
@@ -71,8 +128,25 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_Transpose_extraction) {
     run();
 }
 
+TEST_F(SKIP_TokenizeMHASnippetsTests /* CVS-142098 */, smoke_Snippets_MHA_Dynamic_Transpose_extraction) {
+    GTEST_SKIP();
+    const auto& f = MHATransposedInputFunction(std::vector<PartialShape>{{-1, -1, -1, -1}, {-1, -1, -1, -1}, {-1, -1, -1, -1}}, true);
+    model = f.getOriginal();
+    model_ref = f.getReference();
+    run();
+}
+
 TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_Transpose_extraction_and_unsupported_existing_transpose) {
     const auto& f = MHATransposedInputFunction(std::vector<PartialShape>{{1, 128, 12, 64}, {1, 12, 64, 128}, {1, 128, 12, 64}}, true,
+                                               std::vector<int64_t>{0, 3, 1, 2});
+    model = f.getOriginal();
+    model_ref = f.getReference();
+    run();
+}
+
+TEST_F(SKIP_TokenizeMHASnippetsTests /* CVS-142098 */, smoke_Snippets_MHA_Dynamic_Transpose_extraction_and_unsupported_existing_transpose) {
+    GTEST_SKIP();
+    const auto& f = MHATransposedInputFunction(std::vector<PartialShape>{{-1, -1, -1, -1}, {-1, -1, -1, -1}, {-1, -1, -1, -1}}, true,
                                                std::vector<int64_t>{0, 3, 1, 2});
     model = f.getOriginal();
     model_ref = f.getReference();
@@ -87,6 +161,14 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_Transpose_fusion) {
     run();
 }
 
+TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_Dynamic_Transpose_fusion) {
+    const auto& f = MHATransposedInputFunction(std::vector<PartialShape>{{-1, -1, -1, -1}, {-1, -1, -1, -1}, {-1, -1, -1, -1}}, false,
+                                               std::vector<int64_t>{0, 2, 1, 3});
+    model = f.getOriginal();
+    model_ref = f.getReference();
+    run();
+}
+
 TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA3D_SplitM) {
     const auto& f = MHASplitMFunction(std::vector<PartialShape>{{128, 12, 64}, {128, 12, 64}, {12, 128, 128}, {128, 12, 64}},
                                       std::vector<ov::element::Type>({ov::element::f32, ov::element::f32, ov::element::f32, ov::element::f32}),
@@ -94,7 +176,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA3D_SplitM) {
                                       false);
     model = f.getOriginal();
     model_ref = f.getReference();
-    config.concurrency = 24;
+    config.set_concurrency(24);
     run();
 }
 
@@ -105,7 +187,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA3D_SplitM_withMul) {
                                       true);
     model = f.getOriginal();
     model_ref = f.getReference();
-    config.concurrency = 16;
+    config.set_concurrency(16);
     run();
 }
 
@@ -116,7 +198,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA4D_SplitM) {
                                       false);
     model = f.getOriginal();
     model_ref = f.getReference();
-    config.concurrency = 60;
+    config.set_concurrency(60);
     run();
 }
 
@@ -127,7 +209,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA4D_SplitM_withMul) {
                                       true);
     model = f.getOriginal();
     model_ref = f.getReference();
-    config.concurrency = 60;
+    config.set_concurrency(60);
     run();
 }
 
@@ -137,7 +219,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHAWOTranspose_SplitM) {
                                                  std::vector<Shape>{{10, 3, 3072, 128}, {10, 1, 128, 9216}, {10, 1, 9216, 128}, {10, 9216, 128}});
     model = f.getOriginal();
     model_ref = f.getReference();
-    config.concurrency = 18;
+    config.set_concurrency(18);
     run();
 }
 
@@ -147,7 +229,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_SplitM_AlmostAllThreads) {
                                                  std::vector<Shape>{{5, 10, 3, 32}, {5, 1, 32, 30}, {5, 1, 30, 32}, {5, 30, 32}});
     model = f.getOriginal();
     model_ref = f.getReference();
-    config.concurrency = 32;
+    config.set_concurrency(32);
     run();
 }
 
@@ -157,7 +239,7 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHASelect_SplitM) {
                                                                {8, 1, 64, 512}, {8, 512, 512}});
     model = f.getOriginal();
     model_ref = f.getReference();
-    config.concurrency = 16;
+    config.set_concurrency(16);
     run();
 }
 

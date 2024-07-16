@@ -16,7 +16,7 @@ GET STARTED
    Install OpenVINO <get-started/install-openvino>
    Additional Hardware Setup <get-started/configurations>
    Troubleshooting <get-started/troubleshooting-install-config>
-   System Requirements <about-openvino/system-requirements>
+   System Requirements <./about-openvino/release-notes-openvino/system-requirements>
 
 
 .. raw:: html
@@ -58,8 +58,6 @@ See the :doc:`installation overview page <get-started/install-openvino>` for opt
 #################
 
 OpenVINO provides a wide array of examples and documentation showing how to work with models, run inference, and deploy applications. Step through the sections below to learn the basics of OpenVINO and explore its advanced optimization features. For further details, visit :doc:`OpenVINO documentation <documentation>`.
-
-OpenVINO users of all experience levels can try `Intel® DevCloud <https://www.intel.com/content/www/us/en/developer/tools/devcloud/edge/overview.html>`__ , a free web-based service for developing, testing, and running OpenVINO applications on an online cluster of the latest Intel® hardware.
 
 .. _openvino-basics:
 
@@ -115,8 +113,7 @@ Automated Device Configuration
 
 OpenVINO’s hardware device configuration options enable you to write an application once and deploy it anywhere with optimal performance.
 
-* Increase application portability with :doc:`Automatic Device Selection (AUTO) <openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection>`
-* Perform parallel inference across processors with :doc:`Multi-Device Execution (MULTI) <openvino-workflow/running-inference/inference-devices-and-modes/multi-device>`
+* Increase application portability and perform parallel inference across processors with :doc:`Automatic Device Selection (AUTO) <openvino-workflow/running-inference/inference-devices-and-modes/auto-device-selection>`
 * Efficiently split inference between hardware cores with :doc:`Heterogeneous Execution (HETERO) <openvino-workflow/running-inference/inference-devices-and-modes/hetero-execution>`
 
 Flexible Model and Pipeline Configuration

@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstddef>
 
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
@@ -64,9 +65,15 @@ void convert<float16, float>(const float16* arg, float* out, size_t count);
 template <>
 void convert<float, float16>(const float* arg, float16* out, size_t count);
 template <>
+void convert<int32_t, float16>(const int32_t* arg, float16* out, size_t count);
+template <>
 void convert<float, int8_t>(const float* arg, int8_t* out, size_t count);
 template <>
 void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count);
+template <>
+void convert<bfloat16, float16>(const bfloat16* arg, float16* out, size_t count);
+template <>
+void convert<bfloat16, float>(const bfloat16* arg, float* out, size_t count);
 
 #endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
@@ -75,5 +82,8 @@ size_t count_out_of_f16_range(const float* arg, size_t count);
 
 // Convert values from f32 to f16 with clamping to f16 min/max when value is out of normal finite numbers range
 void convert_from_f32_to_f16_with_clamp(const float* arg, float16* out, size_t count);
+
+// Convert values from bf16 to f16 with clamping to f16 min/max when value is out of normal finite numbers range
+void convert_from_bf16_to_f16_with_clamp(const bfloat16* arg, float16* out, size_t count);
 }  // namespace reference
 }  // namespace ov

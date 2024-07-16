@@ -48,30 +48,22 @@ Install OpenVINO™ Runtime on Linux From ZYPPER Repository
 Install OpenVINO Runtime
 ########################
 
-Step 1: Set Up the Repository
+Step 1: Update the repository
 +++++++++++++++++++++++++++++
 
 
-1. Create a ZYPPER repository file with the command below:
+1. Update the official factory repository to obtain the latest release:
 
    .. code-block:: sh
 
-      sudo zypper addrepo https://download.opensuse.org/repositories/science/openSUSE_Tumbleweed/science.repo
       sudo zypper refresh
 
-2. Verify that the new repository is set up properly.
+
+2. To list available OpenVINO packages, use the following command:
 
    .. code-block:: sh
 
-      zypper lr |grep -i science
-
-   You will see the available list of packages.
-
-To list available OpenVINO packages, use the following command:
-
-.. code-block:: sh
-
-   zypper se openvino
+      zypper se openvino
 
 Step 2: Install OpenVINO Runtime Using the ZYPPER Package Manager
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -151,7 +143,7 @@ To uninstall OpenVINO Runtime via ZYPPER, run the following command based on you
 
       .. code-block:: sh
 
-         sudo zypper remove *openvino-2024.0.0*
+         sudo zypper remove *openvino-2024.2.0*
 
 
 
@@ -178,6 +170,12 @@ You can also try the following things:
 * Learn more about :doc:`OpenVINO Workflow <../../../openvino-workflow>`.
 * To prepare your models for working with OpenVINO, see :doc:`Model Preparation <../../../openvino-workflow/model-preparation>`.
 * See pre-trained deep learning models in our :doc:`Open Model Zoo <../../../documentation/legacy-features/model-zoo>`.
+
+  .. important::
+
+     Due to the deprecation of Open Model Zoo, models in the OpenVINO IR format are now
+     published on `Hugging Face <https://huggingface.co/OpenVINO>`__.
+
 * Learn more about :doc:`Inference with OpenVINO Runtime <../../../openvino-workflow/running-inference>`.
 * See sample applications in :doc:`OpenVINO toolkit Samples Overview <../../../learn-openvino/openvino-samples>`.
 * Take a glance at the OpenVINO `product home page <https://software.intel.com/en-us/openvino-toolkit>`__ .

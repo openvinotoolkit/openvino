@@ -51,9 +51,7 @@ additional part demonstrates how to run optimization with
 pipeline.
 
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
-
+**Table of contents:**
 
 - `Prerequisites <#prerequisites>`__
 - `Convert and prepare Face IdentityNet <#convert-and-prepare-face-identitynet>`__
@@ -65,9 +63,9 @@ Table of contents:
 - `Convert InstantID pipeline components to OpenVINO Intermediate Representation format <#convert-instantid-pipeline-components-to-openvino-intermediate-representation-format>`__
 
   - `ControlNet <#controlnet>`__
-  - `unet <#unet>`__
+  - `Unet <#unet>`__
   - `VAE Decoder <#vae-decoder>`__
-  - `text encoders <#text-encoders>`__
+  - `Text Encoders <#text-encoders>`__
   - `Image Projection Model <#image-projection-model>`__
 
 - `Prepare OpenVINO InstantID Pipeline <#prepare-openvino-instantid-pipeline>`__
@@ -75,7 +73,7 @@ Table of contents:
 
   - `Select inference device for InstantID <#select-inference-device-for-instantid>`__
   - `Create pipeline <#create-pipeline>`__
-  - `run inference <#run-inference>`__
+  - `Run inference <#run-inference>`__
 
 - `Quantization <#quantization>`__
 
@@ -90,6 +88,8 @@ Table of contents:
   - `Compare inference time of the FP16 and INT8 pipelines <#compare-inference-time-of-the-fp16-and-int8-pipelines>`__
 
 - `Interactive demo <#interactive-demo>`__
+
+
 
 .. |applications.png| image:: https://github.com/InstantID/InstantID/blob/main/assets/applications.png?raw=true
 
@@ -500,8 +500,7 @@ Now, let’s see models inference result
 Select Inference Device for Face Recognition
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
- ### Select Inference Device for
-Face Recognition
+
 
 .. code:: ipython3
 
@@ -645,7 +644,7 @@ LoRA <https://huggingface.co/latent-consistency/lcm-lora-sdxl>`__ to
 speedup the generation process. Previously, we already considered how to
 convert and run SDXL model for Text-to-Image and Image-to-Image
 generation using Optimum-Intel library (please check out this notebook
-for `details <stable-diffusion-xl-with-output.html>`__ ), now
+for `details <stable-diffusion-xl-with-output.html>`__), now
 we will use it in combination with ControlNet and convert it using
 OpenVINO Model Conversion API.
 
@@ -1693,7 +1692,7 @@ Select inference device for InstantID
 Create pipeline
 ~~~~~~~~~~~~~~~
 
- ### Create pipeline
+
 
 .. code:: ipython3
 
@@ -1712,7 +1711,7 @@ Create pipeline
 Run inference
 ~~~~~~~~~~~~~
 
- ### Run inference
+
 
 .. code:: ipython3
 
@@ -1774,8 +1773,8 @@ improve model inference speed.
 
 .. code:: ipython3
 
-    to_quantize = widgets.Checkbox(value=True, description="Quantization")
-
+    skip_for_device = "GPU" in device.value
+    to_quantize = widgets.Checkbox(value=not skip_for_device, description="Quantization", disabled=skip_for_device)
     to_quantize
 
 
@@ -1855,7 +1854,7 @@ image.
     ov_int8_controlnet_path = MODELS_DIR / 'controlnet_optimized.xml'
 
     num_samples = int(np.ceil(subset_size / num_inference_steps))
-    dataset = datasets.load_dataset("wider_face", split="train", streaming=True).shuffle(seed=42)
+    dataset = datasets.load_dataset("wider_face", split="train", streaming=True, trust_remote_code=True).shuffle(seed=42)
     face_info = []
     for batch in dataset:
         try:

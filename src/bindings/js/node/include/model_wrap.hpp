@@ -23,13 +23,6 @@ public:
     static Napi::Function get_class(Napi::Env env);
 
     void set_model(const std::shared_ptr<ov::Model>& model);
-    /**
-     * @brief Creates JavaScript Model object and wraps inside of it ov::Model object.
-     * @param env The environment in which to construct a JavaScript object.
-     * @param model a pointer to ov::Model to wrap.
-     * @return Javascript Model as Napi::Object. (Not ModelWrap object)
-     */
-    static Napi::Object wrap(Napi::Env env, std::shared_ptr<ov::Model> model);
 
     /** @return Napi::String containing a model name. */
     Napi::Value get_name(const Napi::CallbackInfo& info);
@@ -85,6 +78,14 @@ public:
     Napi::Value is_dynamic(const Napi::CallbackInfo& info);
 
     /**
+     * @brief Returns the number of outputs for this model
+     * @param info Contains information about the environment and passed arguments
+     * This method does not accept any arguments. If arguments are provided it throws Napi::Error
+     * @return number indicating the quantity of outputs for the model
+     */
+    Napi::Value get_output_size(const Napi::CallbackInfo& info);
+
+    /**
      * @brief Sets a friendly name for a model.
      * @param info Contains information about the environment and passed arguments
      * this method accepts only one argument of type String,
@@ -100,6 +101,13 @@ public:
      * @return Napi::String containing friendly name
      */
     Napi::Value get_friendly_name(const Napi::CallbackInfo& info);
+
+    /**
+     * @brief Helper function to access model outputs shape.
+     * @param info Contains information about the environment and passed arguments
+     * @return Napi::Array containing a shape of requested output.
+     */
+    Napi::Value get_output_shape(const Napi::CallbackInfo& info);
 
 private:
     std::shared_ptr<ov::Model> _model;

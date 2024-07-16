@@ -66,7 +66,6 @@ public:
     void SetUp() override {
         ElementType inType;
         std::vector<InputShape> inputShapes;
-        bool hasShapeOf;
         std::tie(inType, inputShapes, hasShapeOf) = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 1e-2f;
@@ -93,16 +92,21 @@ public:
             ov::op::util::VariableInfo{inputDynamicShapes[1], inType, "pastv"});
         auto pastv = std::make_shared<ov::op::v6::ReadValue>(inputParams[3], var_v);
         pastv->set_friendly_name("pastv_r");
-        std::shared_ptr<Node> pastk_shapeof, pastv_shapeof;
-        if (hasShapeOf) {
-            pastk_shapeof = std::make_shared<ov::op::v0::ShapeOf>(pastk);
-            pastv_shapeof = std::make_shared<ov::op::v0::ShapeOf>(pastv);
-        }
         auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ElementType::i32, ov::PartialShape{-1});
         beam_idx->set_friendly_name("beam_idx");
         inputParams.push_back(beam_idx);
-        auto gatherK = std::make_shared<ov::op::v8::Gather>(pastk, beam_idx, op::v0::Constant::create(ElementType::i32, {1}, {0}));
-        auto gatherV = std::make_shared<ov::op::v8::Gather>(pastv, beam_idx, op::v0::Constant::create(ElementType::i32, {1}, {0}));
+        auto gatherK = std::make_shared<ov::op::v8::Gather>(pastk, beam_idx, op::v0::Constant::create(ElementType::i32, {}, {0}));
+        auto gatherV = std::make_shared<ov::op::v8::Gather>(pastv, beam_idx, op::v0::Constant::create(ElementType::i32, {}, {0}));
+        std::shared_ptr<Node> shapeof_k, shapeof_v;
+        // test special case:
+        // ReadValue->Gather->Concat->SDPA...
+        //              |
+        //            ShapeOf...
+        // The transformation 'SimplifyGatherShapeOf' will move ShapeOf to be the child of ReadValue
+        if (hasShapeOf) {
+            shapeof_k = std::make_shared<ov::op::v0::ShapeOf>(gatherK);
+            shapeof_v = std::make_shared<ov::op::v0::ShapeOf>(gatherV);
+        }
         auto concatK = std::make_shared<ov::op::v0::Concat>(OutputVector{gatherK, inputParams[1]}, 2);
         auto concatV = std::make_shared<ov::op::v0::Concat>(OutputVector{gatherV, inputParams[2]}, 2);
         auto sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(inputParams[0], concatK, concatV, false);
@@ -115,8 +119,8 @@ public:
 
         ResultVector results{std::make_shared<ov::op::v0::Result>(add)};
         if (hasShapeOf) {
-            results.push_back(std::make_shared<ov::op::v0::Result>(pastk_shapeof));
-            results.push_back(std::make_shared<ov::op::v0::Result>(pastv_shapeof));
+            results.push_back(std::make_shared<ov::op::v0::Result>(shapeof_k));
+            results.push_back(std::make_shared<ov::op::v0::Result>(shapeof_v));
         }
         SinkVector sinks{pastk_assign, pastv_assign};
         function = std::make_shared<ov::Model>(results, sinks, inputParams, "ConcatSDP");
@@ -202,14 +206,27 @@ public:
 
         return outputs;
     }
+
+    bool hasShapeOf;
 };
 
 TEST_P(ConcatSDPTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     auto actualOutputs = run_test(function);
-    CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
-    CheckNumberOfNodesWithType(compiledModel, "Concatenation", 0);
-    CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
-    CheckNumberOfNodesWithType(compiledModel, "Gather", 0);
+    if (!hasShapeOf) {
+        CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
+        CheckNumberOfNodesWithType(compiledModel, "Concatenation", 0);
+        CheckNumberOfNodesWithType(compiledModel, "Reorder", 0);
+        CheckNumberOfNodesWithType(compiledModel, "Gather", 0);
+    } else {
+        // SimplifyGatherShapeOf will generate subgraph which contains Gather/Concat/Reorder, so could not check the number to confirm it's expected.
+        // W/ or w/o fusion the SDPA name is the same, but if fused the output number should be 3(data+pastk+pastv)
+        for (const auto& node : compiledModel.get_runtime_model()->get_ops()) {
+            if (node->get_rt_info().find(ov::exec_model_info::LAYER_TYPE)->second.as<std::string>() == "ScaledDotProductAttention") {
+                ASSERT_EQ(3, node->get_output_size()) << "ScaledDotProductAttention should be fused";
+            }
+        }
+    }
     auto expectedOutputs = run_test(functionRefs);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 0);
     for (size_t i = 0; i < actualOutputs.size(); i++) {
