@@ -24,9 +24,9 @@ def _set_node_friendly_name(node: Node, *, name: Optional[str] = None) -> Node:
 
 def nameable_op(node_factory_function: Callable) -> Callable:
     """Set the name to the openvino operator returned by the wrapped function."""
+
     @wraps(node_factory_function)
     def wrapper(*args: Any, **kwargs: Any) -> Node:
-        print("wrapper")
         node = node_factory_function(*args, **kwargs)
         node = _set_node_friendly_name(node, name=_get_name(**kwargs))
         return node
@@ -105,7 +105,7 @@ class MultiMethod(object):
     def __call__(self, *args, **kwargs) -> Any:  # type: ignore
         arg_types = tuple(arg.__class__ for arg in args)
         kwarg_types = {key: type(value) for key, value in kwargs.items()}
-        
+
         key_matched = None
         if len(kwarg_types) == 0 and len(arg_types) != 0:
             for key in self.typemap.keys():
@@ -113,20 +113,18 @@ class MultiMethod(object):
                     key_matched = key
                     break
         elif len(arg_types) == 0 and len(kwarg_types) != 0:
-            for key, v in self.typemap.items():
-                func_signature = {arg_name: types.annotation for arg_name, types in signature(v).parameters.items()}
+            for key, func in self.typemap.items():
+                func_signature = {arg_name: types.annotation for arg_name, types in signature(func).parameters.items()}
                 if kwarg_types.keys() <= func_signature.keys():
                     key_matched = key
                     break
         elif len(arg_types) != 0 and len(kwarg_types) != 0:
-            for key, v in self.typemap.items():
-                func_signature = {arg_name: types.annotation for arg_name, types in signature(v).parameters.items()}
-
-                if self.check_invoked_types_in_overloaded_funcs(arg_types, func_signature.values()):
+            for key, func in self.typemap.items():
+                func_signature = {arg_name: types.annotation for arg_name, types in signature(func).parameters.items()}
+                if self.check_invoked_types_in_overloaded_funcs(arg_types, tuple(func_signature.values())):
                     if kwarg_types.keys() <= func_signature.keys():
                         key_matched = key
                         break
-
 
         if key_matched is None:
             raise TypeError("no match")
