@@ -664,9 +664,44 @@ event::ptr primitive_inst::realloc_if_needed() {
         updated_layouts[0] = layout(current_buf_shape, updated_layouts[0].data_type, updated_layouts[0].format);
     }
 
+    int32_t tmp_prealloc_count = get_prealloc_iter_num();
+    GPU_DEBUG_IF(debug_config->mem_preallocation_params.is_initialized) {
+        // If debug config is set, repsect the config most
+        tmp_prealloc_count = -1;
+    }
+
+    // Calculate prealloc
+    std::vector<std::pair<bool, ov::Shape>> prealloc_infos;
+    for (size_t i = 0; i < updated_layouts.size(); ++i) {
+        if (_node->is_type<kv_cache>() && i == 0 && !get_network().get_variable(_node->as<kv_cache>().get_primitive()->variable_info.variable_id).is_set()) {
+            const auto& desc = _node->as<kv_cache>().get_primitive();
+            const auto sequence_axis =
+                desc->concat_axis >= 0 ? desc->concat_axis : updated_layouts[i].get_shape().size() + desc->concat_axis;
+            auto prealloc_info = sp.predict_preallocation_shape(id(), updated_layouts[i], false, i, tmp_prealloc_count, sequence_axis);
+            prealloc_infos.push_back(prealloc_info);
+        } else {
+            auto prealloc_info = sp.predict_preallocation_shape(id(), updated_layouts[i], false, i, tmp_prealloc_count);
+            prealloc_infos.push_back(prealloc_info);
+        }
+        if (prealloc_infos[i].first && !sp.can_preallocate(ov::shape_size(prealloc_infos[i].second) * (dt_sizes_in_B[i])))
+            prealloc_infos[i].first = false;
+    }
+
     // If we allocated too large memory, reclaim the memory.
     for (size_t i = 0; i < updated_layouts.size(); ++i) {
-        if (updated_layouts[i].get_buffer_size().count() * 10 < _max_output_layout_count[i]) {
+        bool reclaim = 0;
+        size_t required_buffer_size = 0;
+        if (_node->is_type<kv_cache>() && i == 0 && prealloc_infos[0].first) {
+            // consider preallocated size
+            const auto& prealloc_shape = prealloc_infos[0].second;
+            required_buffer_size = std::accumulate(prealloc_shape.begin(), prealloc_shape.end(), size_t(1), std::multiplies<size_t>());
+        } else {
+            required_buffer_size = (updated_layouts[i].get_buffer_size().count());
+        }
+        if (required_buffer_size * 10 < _max_output_layout_count[i]) {
+            reclaim = true;
+        }
+        if (reclaim) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": Updated output[" << i << "] size " << updated_layouts[i].get_buffer_size().count()
                                    << " is much smaller than current memory size! " << _max_output_layout_count[i]
                                    << "Reset memory of output " << i << std::endl;
@@ -681,17 +716,11 @@ event::ptr primitive_inst::realloc_if_needed() {
         return ev;
     }
 
-    int32_t tmp_prealloc_count = get_prealloc_iter_num();
-    GPU_DEBUG_IF(debug_config->mem_preallocation_params.is_initialized) {
-        // If debug config is set, repsect the config most
-        tmp_prealloc_count = -1;
-    }
 
     for (size_t i = 0; i < actual_layouts.size(); ++i) {
         bool can_reuse_buffer = (_outputs[i] && updated_layouts[i].get_buffer_size().count() <= _max_output_layout_count[i]);
-        std::pair<bool, ov::Shape> prealloc_info =
-            sp.predict_preallocation_shape(id(), updated_layouts[i], can_reuse_buffer, i, tmp_prealloc_count);
-        if (prealloc_info.first && sp.can_preallocate(ov::shape_size(prealloc_info.second) * (dt_sizes_in_B[i]))) {
+        auto prealloc_info = prealloc_infos[i];
+        if (prealloc_info.first) {
             auto new_layout = updated_layouts[i];
             new_layout.set_partial_shape(prealloc_info.second);
             updated_params.output_layouts[i] = new_layout;
@@ -720,8 +749,6 @@ event::ptr primitive_inst::realloc_if_needed() {
                                                           sequence_axis_legacy,
                                                           "present_layout");
                 kv_cache_inst::update_pad(present_layout, max_pad, sequence_axis_legacy);
-                GPU_DEBUG_TRACE_DETAIL << id() << " : Instead of reinterpret memory, update output_layout[" << i
-                                       << "] with max_pad = " << max_pad << " as follows:" << std::endl;
                 GPU_DEBUG_TRACE_DETAIL << _impl_params->output_layouts[i].to_string() << std::endl;
                 set_shape_change();
             } else {
