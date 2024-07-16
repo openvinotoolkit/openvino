@@ -863,6 +863,9 @@ ov::pass::EliminateSlice::EliminateSlice() {
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         auto slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(m.get_match_root());
+        if (!slice) {
+            return false;
+        }
 
         int64_t max_int = slice->input_value(2).get_element_type() == element::i32
                               ? std::numeric_limits<int32_t>::max()
@@ -891,11 +894,10 @@ ov::pass::EliminateStridedSlice::EliminateStridedSlice() {
     auto pattern = pattern::wrap_type<ov::op::v1::StridedSlice>({input, begin_const, end_const, optional_stride_const});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
-        auto node = m.get_match_root();
-        if (node == nullptr) {
+        auto strided_slice_node = std::dynamic_pointer_cast<ov::op::v1::StridedSlice>(m.get_match_root());
+        if (!strided_slice_node) {
             return false;
         }
-        auto strided_slice_node = std::dynamic_pointer_cast<ov::op::v1::StridedSlice>(node);
         // check that all values of the mask is equal 0
         auto check_mask = [](const std::vector<int64_t>& mask_to_check) {
             auto it = std::find_if(mask_to_check.begin(), mask_to_check.end(), [](const int64_t& value) {
@@ -913,7 +915,8 @@ ov::pass::EliminateStridedSlice::EliminateStridedSlice() {
             return false;
         }
         // check that that we will take all values
-        if (node->get_input_size() == 4 && !op::util::is_constant_and_all_values_equal_int(node->input_value(3), 1)) {
+        if (strided_slice_node->get_input_size() == 4 &&
+            !op::util::is_constant_and_all_values_equal_int(strided_slice_node->input_value(3), 1)) {
             return false;
         }
 
