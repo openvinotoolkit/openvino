@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from functools import wraps
-from inspect import getfullargspec
+from inspect import signature
 from typing import Any, Callable, Dict, Optional, Union, get_origin, get_args
 
 from openvino.runtime import Node, Output
@@ -102,19 +102,39 @@ class MultiMethod(object):
                 return False
         return True
 
-    def __call__(self, *args) -> Any:  # type: ignore
-        types = tuple(arg.__class__ for arg in args)
+    def __call__(self, *args, **kwargs) -> Any:  # type: ignore
+        arg_types = tuple(arg.__class__ for arg in args)
+        kwarg_types = {key: type(value) for key, value in kwargs.items()}
+
         key_matched = None
-        for key in self.typemap.keys():
-            if self.check_invoked_types_in_overloaded_funcs(types, key):
-                key_matched = key
-                break
+        if len(kwarg_types) == 0 and len(arg_types) != 0:
+            for key in self.typemap.keys():
+                # compare types of called function with overloads
+                if self.check_invoked_types_in_overloaded_funcs(arg_types, key):
+                    key_matched = key
+                    break
+        elif len(arg_types) == 0 and len(kwarg_types) != 0:
+            for key, func in self.typemap.items():
+                func_signature = {arg_name: types.annotation for arg_name, types in signature(func).parameters.items()}
+                # if kwargs of called function are subset of overloaded function, we use this overload
+                if kwarg_types.keys() <= func_signature.keys():
+                    key_matched = key
+                    break
+        elif len(arg_types) != 0 and len(kwarg_types) != 0:
+            for key, func in self.typemap.items():
+                func_signature = {arg_name: types.annotation for arg_name, types in signature(func).parameters.items()}
+                # compare types of called function with overloads
+                if self.check_invoked_types_in_overloaded_funcs(arg_types, tuple(func_signature.values())):
+                    # if kwargs of called function are subset of overloaded function, we use this overload
+                    if kwarg_types.keys() <= func_signature.keys():
+                        key_matched = key
+                        break
 
         if key_matched is None:
-            raise TypeError("no match")
+            raise TypeError(f"The necessary overload for {self.name} was not found")
 
         function = self.typemap.get(key_matched)
-        return function(*args)  # type: ignore
+        return function(*args, **kwargs)  # type: ignore
 
     def register(self, types: tuple, function: Callable) -> None:
         if types in self.typemap:
