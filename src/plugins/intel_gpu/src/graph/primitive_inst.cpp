@@ -702,10 +702,31 @@ event::ptr primitive_inst::realloc_if_needed() {
         }
 
         if (can_reuse_buffer) {
-            GPU_DEBUG_TRACE_DETAIL << id() << ": reuse previously allocated output buffer - "
+            GPU_DEBUG_TRACE_DETAIL << id() << ": reuse previously allocated output buffer[" << i << "] - "
                                    << actual_layouts[i].get_buffer_size().count() << "/" << _max_output_layout_count[i]
                                    << std::endl;
-            _outputs[i] = _network.get_engine().reinterpret_buffer(*_outputs[i], actual_layouts[i]);
+            if (_node->is_type<kv_cache>() && (i == 0)) {
+                // kv_cache has already assigned memory.
+                // No need to reinterpret output memory but need to update padding
+                const auto& desc = _node->as<kv_cache>().get_primitive();
+                auto& present_layout = _impl_params->output_layouts[i];
+                const auto present_layout_rank = present_layout.get_partial_shape().size();
+                const auto sequence_axis =
+                    desc->concat_axis >= 0 ? desc->concat_axis : present_layout_rank + desc->concat_axis;
+
+                const auto sequence_axis_legacy = kv_cache_inst::get_sequence_axis_legacy(sequence_axis, present_layout_rank);
+                auto max_pad = kv_cache_inst::get_max_pad(present_layout,
+                                                          _max_output_layout_count[i],
+                                                          sequence_axis_legacy,
+                                                          "present_layout");
+                kv_cache_inst::update_pad(present_layout, max_pad, sequence_axis_legacy);
+                GPU_DEBUG_TRACE_DETAIL << id() << " : Instead of reinterpret memory, update output_layout[" << i
+                                       << "] with max_pad = " << max_pad << " as follows:" << std::endl;
+                GPU_DEBUG_TRACE_DETAIL << _impl_params->output_layouts[i].to_string() << std::endl;
+                set_shape_change();
+            } else {
+                _outputs[i] = _network.get_engine().reinterpret_buffer(*_outputs[i], actual_layouts[i]);
+            }
             // TODO: check need_reset_output_memory per output
             if (need_reset_output_memory() && !can_be_optimized()) {
                 GPU_DEBUG_TRACE_DETAIL << id() << " : Need reset output memory considering user" << std::endl;
@@ -740,7 +761,7 @@ event::ptr primitive_inst::realloc_if_needed() {
 
     // Set variable memory same as output memory
     if (_node->is_type<kv_cache>()) {
-        auto desc = _node->as<kv_cache>().get_primitive();
+        const auto& desc = _node->as<kv_cache>().get_primitive();
         auto& variable = get_network().get_variable(desc->variable_info.variable_id);
         auto present_layout = _impl_params->output_layouts[0];
         auto present_layout_rank = present_layout.get_partial_shape().size();
@@ -760,7 +781,7 @@ event::ptr primitive_inst::realloc_if_needed() {
         if (present_layout.data_padding.get_dynamic_pad_dims().sizes()[sequence_axis_legacy] == 1) {
             // Apply padding of variable to make it be optimized in the next iteration
             auto max_pad = kv_cache_inst::get_max_pad(present_layout,
-                                                      updated_params.output_layouts[0].get_buffer_size().count(),
+                                                      _max_output_layout_count[0],
                                                       sequence_axis_legacy,
                                                       "present_layout");
             if (max_pad > 0) {
@@ -1036,8 +1057,10 @@ void primitive_inst::update_paddings() {
     auto reset_pad = [](kernel_impl_params& params, const program_node* node) {
         params.output_layouts[0].data_padding = node->get_output_layout(0).data_padding;
     };
-    if (_node->is_type<read_value>()) {
-        auto& variable = get_network().get_variable(_node->as<read_value>().get_primitive()->variable_id);
+    if (_node->is_type<read_value>() || _node->is_type<kv_cache>()) {
+        auto variable_id = _node->is_type<read_value>() ? (_node->as<read_value>().get_primitive()->variable_id)
+                                                        : (_node->as<kv_cache>().get_primitive()->variable_info.variable_id);
+        auto& variable = get_network().get_variable(variable_id);
         // Reset paddings for read_value and users with dynamic pad when variable is reset
         // to avoid wrong pad used for some nodes due to pad propagation logic (which uses previous iter pad values)
         if (!variable.is_set()) {
@@ -1054,6 +1077,7 @@ void primitive_inst::update_paddings() {
         }
         return;
     }
+
     if (_node->is_type<gather>() && _impl_params->output_layouts[0].data_padding.get_dynamic_pad_dims() != tensor(0)) {
         if (can_be_optimized())
             _impl_params->output_layouts[0] = _impl_params->input_layouts[0];
@@ -1141,7 +1165,7 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
     if (_impl_params->get_input_layout(0).count() == 0) {
         return;
     }
-    auto desc = _node->as<kv_cache>().get_primitive();
+    const auto& desc = _node->as<kv_cache>().get_primitive();
     auto& past_layout = _impl_params->input_layouts[0];
     auto& present_layout = _impl_params->output_layouts[0];
     const auto& sequence_axis = desc->concat_axis;
