@@ -1524,6 +1524,16 @@ void Graph::SortTopologically() {
         return sorted;
     };
 
+    // Insert nodes in outputNodesMap in front of graphNodes to make sure it always
+    // start tranverse from outputs
+    graphNodes.erase(std::remove_if(graphNodes.begin(), graphNodes.end(), [](const NodePtr node){
+        return node->getTypeStr().compare("Result") == 0;
+    }), graphNodes.end());
+
+    for (auto&& kvp : outputNodesMap) {
+        graphNodes.insert(graphNodes.begin(), kvp.second);
+    }
+
     graphNodes = sort(graphNodes);
 
     // Sort in / out child edges by port index
