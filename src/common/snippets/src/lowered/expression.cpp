@@ -5,7 +5,7 @@
 #include "snippets/lowered/expression.hpp"
 
 #include "snippets/itt.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/type.hpp"

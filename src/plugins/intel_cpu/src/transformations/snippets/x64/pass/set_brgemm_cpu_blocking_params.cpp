@@ -6,7 +6,7 @@
 
 #include "set_brgemm_cpu_blocking_params.hpp"
 
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 

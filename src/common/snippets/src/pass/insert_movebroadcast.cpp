@@ -6,7 +6,7 @@
 
 #include "snippets/pass/insert_movebroadcast.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/op/util/op_types.hpp"

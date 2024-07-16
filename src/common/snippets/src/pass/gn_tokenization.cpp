@@ -7,7 +7,7 @@
 
 #include "snippets/itt.hpp"
 #include "snippets/op/subgraph.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"

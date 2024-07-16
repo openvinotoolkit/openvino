@@ -6,7 +6,7 @@
 
 #include "set_brgemm_copy_b_buffers_shape.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 

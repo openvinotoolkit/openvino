@@ -7,7 +7,7 @@
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 // This header is needed to avoid MSVC warning "C2039: 'inserter': is not a member of 'std'"
 #include <iterator>

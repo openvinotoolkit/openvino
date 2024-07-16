@@ -4,7 +4,7 @@
 
 #include "snippets/op/loop.hpp"
 
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov {
 namespace snippets {

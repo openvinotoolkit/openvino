@@ -3,7 +3,7 @@
 //
 #include "snippets/shape_inference/shape_infer_instances.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "openvino/op/select.hpp"
 namespace ov {
 namespace snippets {

@@ -8,7 +8,7 @@
 #include "snippets/lowered/pass/insert_specific_iterations.hpp"
 #include "snippets/lowered/pass/compute_buffer_allocation_size.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov {
 namespace snippets {

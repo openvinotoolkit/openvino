@@ -6,7 +6,7 @@
 
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/op/loop.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {

@@ -6,7 +6,7 @@
 
 #include "jit_brgemm_emitter.hpp"
 
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "snippets/lowered/expression.hpp"
 
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"

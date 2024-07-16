@@ -4,7 +4,7 @@
 
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 
 

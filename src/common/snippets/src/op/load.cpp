@@ -5,7 +5,7 @@
 #include "snippets/itt.hpp"
 
 #include "snippets/op/load.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 
 namespace ov {

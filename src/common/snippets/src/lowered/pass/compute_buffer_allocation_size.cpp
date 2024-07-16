@@ -5,7 +5,7 @@
 #include "snippets/lowered/pass/compute_buffer_allocation_size.hpp"
 
 #include "snippets/op/buffer.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "snippets/itt.hpp"
 
 

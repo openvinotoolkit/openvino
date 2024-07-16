@@ -6,7 +6,7 @@
 
 #include "snippets/itt.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 
 #include "openvino/core/rt_info.hpp"

@@ -4,7 +4,7 @@
 
 #include "brgemm.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "utils/general_utils.h"
 

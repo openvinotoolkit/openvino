@@ -8,7 +8,7 @@
 #include "snippets/op/memory_access.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/op/buffer.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {

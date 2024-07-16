@@ -11,7 +11,7 @@
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/type.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "snippets/op/subgraph.hpp"
 
 namespace ov {

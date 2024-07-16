@@ -6,7 +6,7 @@
 
 #include "snippets/lowered/pass/set_buffer_reg_group.hpp"
 #include "snippets/pass/tokenization.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {

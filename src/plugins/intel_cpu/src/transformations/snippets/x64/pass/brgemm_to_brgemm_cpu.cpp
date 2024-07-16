@@ -6,7 +6,7 @@
 
 #include "brgemm_to_brgemm_cpu.hpp"
 
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "snippets/op/buffer.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"

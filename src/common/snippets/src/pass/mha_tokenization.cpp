@@ -11,7 +11,7 @@
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
