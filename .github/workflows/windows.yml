@@ -361,18 +361,27 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Configure OpenVINO JS
+      - name: Configure OpenVINO JS API
         working-directory: ${{ env.OPENVINO_JS_DIR }}/node
         run: npm i
 
-      - name: Test OpenVINO JS
+      - name: Test OpenVINO JS API
         working-directory: ${{ env.OPENVINO_JS_DIR }}/node
         run: npm test
 
-      - name: Test OpenVINO JS (cmd)
+      - name: Test OpenVINO JS API (cmd)
         shell: cmd
         working-directory: ${{ env.OPENVINO_JS_DIR }}/node
         run: call npm test
+
+      - name: E2E of openvino-node package
+        working-directory: ${{ env.OPENVINO_JS_DIR }}/node
+        run: npm run e2e
+
+      - name: E2E of openvino-node package (cmd)
+        shell: cmd
+        working-directory: ${{ env.OPENVINO_JS_DIR }}/node
+        run: call npm run e2e
 
       - name: Create package dir
         working-directory: ${{ env.OPENVINO_JS_DIR }}

@@ -29,6 +29,7 @@ jobs:
       OPENVINO_JS_DIR: ${{ github.workspace }}/openvino/src/bindings/js
       OPENVINO_JS_LIBS_DIR: ${{ github.workspace }}/openvino/src/bindings/js/node/bin
       NODE_VERSION: 21
+      DISPLAY: ':99'
     steps:
       - name: Fetch OpenVINO JS sources
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
@@ -61,3 +62,14 @@ jobs:
       - name: Test OpenVINO JS API
         working-directory: ${{ env.OPENVINO_JS_DIR }}/node
         run: npm run test
+
+      - name: Install and run Xvfb
+        if: runner.os == 'Linux'
+        run: |
+          apt-get update && apt-get install -y xvfb
+          Xvfb "$DISPLAY" &
+
+      - name: E2E of openvino-node package
+        working-directory: ${{ env.OPENVINO_JS_DIR }}/node
+        run: |
+          npm run e2e
