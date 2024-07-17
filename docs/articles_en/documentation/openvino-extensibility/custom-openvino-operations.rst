@@ -16,13 +16,43 @@ Operation Class
 
 To add your custom operation, create a new class that extends ``ov::Op``, which is in turn derived from ``ov::Node``, the base class for all graph operations in OpenVINO™. To add ``ov::Op``, include the next file:
 
-.. doxygensnippet:: src/core/template_extension/identity.hpp
-   :language: cpp
-   :fragment: [op:common_include]
+.. tab-set::
+   
+   .. tab-item:: C++
+      :sync: cpp
+      .. doxygensnippet:: src/core/template_extension/identity.hpp
+         :language: cpp
+         :fragment: [op:common_include]
+   
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_custom_op.py
+         :language: python
+         :fragment: [op:common_include]
 
 Follow the steps below to add a custom operation:
 
-1. Add the ``OPENVINO_OP`` macro which defines a ``NodeTypeInfo`` object that identifies the type of the operation to the graph users and helps with dynamic type resolution. The type info of an operation currently consists of a string operation identifier and a string for operation version.
+1. Define the operation type information:
+
+   a. For the C++ API, add the ``OPENVINO_OP`` macro which defines a ``NodeTypeInfo`` object that identifies the type of the operation to the graph users and helps with dynamic type resolution. The type info of an operation currently consists of a string operation identifier and a string for operation version.
+
+   b. For the Python API, define the ``class_type_info`` attribute in your custom operation class. This attribute should be an instance of ``DiscreteTypeInfo``, which includes the operation name and the domain or extension. The operation name is a string identifier for the operation, and the domain or extension is a string that specifies the operation version or namespace. This information is used to uniquely identify the operation type within the OpenVINO framework.
+
+.. tab-set::
+   
+   .. tab-item:: C++
+      :sync: cpp
+      .. doxygensnippet:: src/core/template_extension/identity.hpp
+         :language: cpp
+         :fragment: [op:header]
+   
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_custom_op.py
+         :language: python
+         :fragment: [op:header]
 
 2. Implement default constructor and constructors that optionally take the operation inputs and attributes as parameters.
 
@@ -45,43 +75,100 @@ OpenVINO™ operation contains two constructors:
 * Default constructor, which enables you to create an operation without attributes
 * Constructor that creates and validates an operation with specified inputs and attributes
 
-.. doxygensnippet:: src/core/template_extension/identity.cpp
-   :language: cpp
-   :fragment: [op:ctor]
+.. tab-set::
+   
+   .. tab-item:: C++
+      :sync: cpp
+      .. doxygensnippet:: src/core/template_extension/identity.cpp
+         :language: cpp
+         :fragment: [op:ctor]
+   
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_custom_op.py
+         :language: python
+         :fragment: [op:ctor]
 
 ``validate_and_infer_types()``
 ++++++++++++++++++++++++++++++
 
 ``ov::Node::validate_and_infer_types`` method validates operation attributes and calculates output shapes using attributes of the operation.
 
-.. doxygensnippet:: src/core/template_extension/identity.cpp
-   :language: cpp
-   :fragment: [op:validate]
+.. tab-set::
+   
+   .. tab-item:: C++
+      :sync: cpp
+      .. doxygensnippet:: src/core/template_extension/identity.cpp
+         :language: cpp
+         :fragment: [op:validate]
+   
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_custom_op.py
+         :language: python
+         :fragment: [op:validate]
 
 ``clone_with_new_inputs()``
 +++++++++++++++++++++++++++
 
 ``ov::Node::clone_with_new_inputs`` method creates a copy of the operation with new inputs.
 
-.. doxygensnippet:: src/core/template_extension/identity.cpp
-   :language: cpp
-   :fragment: [op:copy]
+.. tab-set::
+   
+   .. tab-item:: C++
+      :sync: cpp
+      .. doxygensnippet:: src/core/template_extension/identity.cpp
+         :language: cpp
+         :fragment: [op:copy]
+   
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_custom_op.py
+         :language: python
+         :fragment: [op:copy]
 
 ``visit_attributes()``
 ++++++++++++++++++++++
 
 ``ov::Node::visit_attributes`` method enables you to visit all operation attributes.
 
-.. doxygensnippet:: src/core/template_extension/identity.cpp
-   :language: cpp
-   :fragment: [op:visit_attributes]
+.. tab-set::
+   
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: src/core/template_extension/identity.cpp
+         :language: cpp
+         :fragment: [op:visit_attributes]
+   
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_custom_op.py
+         :language: python
+         :fragment: [op:visit_attributes]
 
 ``evaluate() and has_evaluate()``
 +++++++++++++++++++++++++++++++++
 
 ``ov::Node::evaluate`` method enables you to apply constant folding to an operation.
 
-.. doxygensnippet:: src/core/template_extension/identity.cpp
-   :language: cpp
-   :fragment: [op:evaluate]
+.. tab-set::
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: src/core/template_extension/identity.cpp
+         :language: cpp
+         :fragment: [op:evaluate]
+   
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_custom_op.py
+         :language: python
+         :fragment: [op:evaluate]
 
