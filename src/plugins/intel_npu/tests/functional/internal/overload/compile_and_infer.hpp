@@ -33,7 +33,7 @@ inline std::shared_ptr<ov::Model> getConstantGraph(element::Type type) {
     return std::make_shared<Model>(results, params);
 }
 
-inline bool isWorkloadTypeSupported() {
+inline bool isCommandQueueExtSupported() {
     return std::make_shared<::intel_npu::ZeroInitStructsHolder>()->getCommandQueueDdiTable() != nullptr;
 }
 
@@ -100,7 +100,7 @@ TEST_P(OVCompileAndInferRequest, PluginWorkloadType) {
             return property == workload_type.name();
         });
 
-    if (isWorkloadTypeSupported()) {
+    if (isCommandQueueExtSupported()) {
         ASSERT_TRUE(workloadTypeSupported);
         ov::InferRequest req;
         OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
@@ -137,7 +137,7 @@ TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadType) {
             return property == workload_type.name();
         });
 
-    if (isWorkloadTypeSupported()) {
+    if (isCommandQueueExtSupported()) {
         ASSERT_TRUE(workloadTypeSupported);
         OV_ASSERT_NO_THROW(execNet.set_property(modelConfiguration));
         ov::InferRequest req;
@@ -165,7 +165,7 @@ TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadTypeDelayedExecutor) {
     modelConfiguration[workload_type.name()] = WorkloadType::DEFAULT;
     OV_ASSERT_NO_THROW(execNet.set_property(modelConfiguration));
 
-    if (isWorkloadTypeSupported()) {
+    if (isCommandQueueExtSupported()) {
         ov::InferRequest req;
         OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
         bool is_called = false;

@@ -307,7 +307,7 @@ Plugin::Plugin()
               return _metrics->GetAvailableDevicesNames();
           }}},
         {ov::workload_type.name(),
-         {_backends->isWorkloadTypeSupported(),
+         {_backends->isCommandQueueExtSupported(),
           ov::PropertyMutability::RW,
           [](const Config& config) {
               return config.get<WORKLOAD_TYPE>();

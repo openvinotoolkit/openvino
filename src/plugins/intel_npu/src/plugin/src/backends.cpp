@@ -163,9 +163,9 @@ bool NPUBackends::isBatchingSupported() const {
     return false;
 }
 
-bool NPUBackends::isWorkloadTypeSupported() const {
+bool NPUBackends::isCommandQueueExtSupported() const {
     if (_backend != nullptr) {
-        return _backend->isWorkloadTypeSupported();
+        return _backend->isCommandQueueExtSupported();
     }
 
     return false;

@@ -36,7 +36,7 @@ public:
     /** @brief Backend has support for concurrency batching */
     virtual bool isBatchingSupported() const = 0;
     /** @brief Backend has support for workload type */
-    virtual bool isWorkloadTypeSupported() const = 0;
+    virtual bool isCommandQueueExtSupported() const = 0;
     /** @brief Register backend-specific options */
     virtual void registerOptions(OptionsDesc& options) const;
 
