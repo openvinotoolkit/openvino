@@ -3,10 +3,9 @@
 //
 
 #include "gemm_inst.h"
+#include "intel_gpu/runtime/utils.hpp"
 #include "primitive_onednn_base.h"
 #include "impls/registry/implementation_map.hpp"
-
-#include "kernel_selector_common.h"
 
 #include <oneapi/dnnl/dnnl.hpp>
 
@@ -425,6 +424,28 @@ public:
 
         _prim = dnnl::primitive(_pd, prim_cache);
 #endif
+    }
+
+    static bool validate(const gemm_node& node) {
+        auto in0_dt = node.get_input_layout(0).data_type;
+        auto in1_dt = node.get_input_layout(1).data_type;
+        auto out_dt = node.get_output_layout(0).data_type;
+
+        if (one_of(in0_dt, {data_types::f32, data_types::i64}) || one_of(in1_dt, {data_types::f32, data_types::i64}))
+            return false;
+
+        bool f16f16_case = everyone_is(data_types::f16, in0_dt, in1_dt) && one_of(out_dt, {data_types::f16, data_types::f32, data_types::i8});
+        bool u8s8_case = one_of(in0_dt, {data_types::i8, data_types::u8}) &&
+                         one_of(in1_dt, {data_types::i8, data_types::u8}) &&
+                         one_of(out_dt, {data_types::f16, data_types::f32, data_types::i32, data_types::i8, data_types::u8});
+
+        if (!f16f16_case && !u8s8_case)
+            return false;
+
+        if (node.get_primitive()->indirect_a || node.get_primitive()->indirect_b)
+            return false;
+
+        return true;
     }
 
     static std::unique_ptr<primitive_impl> create(const gemm_node& arg, const kernel_impl_params& impl_params) {

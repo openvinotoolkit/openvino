@@ -6,8 +6,6 @@
 #include "primitive_onednn_base.h"
 #include "impls/registry/implementation_map.hpp"
 
-#include "impls/ocl/kernel_selector_helper.h"
-
 #include <oneapi/dnnl/dnnl.hpp>
 
 #include <algorithm>
@@ -336,6 +334,51 @@ public:
 #endif
     }
 
+    static bool validate(const fully_connected_node& node) {
+        auto in0_dt = node.get_input_layout(0).data_type;
+        auto wei_dt = node.weights().get_output_layout().data_type;
+        auto out_dt = node.get_output_layout(0).data_type;
+
+        if (one_of(data_types::i64, {in0_dt, wei_dt}))
+            return false;
+
+        bool f16f16_case = everyone_is(data_types::f16, in0_dt, wei_dt) && one_of(out_dt, {data_types::f16, data_types::f32, data_types::i8});
+        bool f32f32_case = everyone_is(data_types::f32, in0_dt, wei_dt);
+        bool u8s8_case = one_of(in0_dt, {data_types::i8, data_types::u8}) &&
+                         one_of(wei_dt, {data_types::i8, data_types::u8}) &&
+                         one_of(out_dt, {data_types::f16, data_types::f32, data_types::i32, data_types::i8, data_types::u8});
+
+        if (!f16f16_case && !f32f32_case && !u8s8_case)
+            return false;
+
+        auto fc_prim = node.get_primitive();
+
+        if (fc_prim->compressed_weights) {
+            if (!fc_prim->decompression_zero_point.empty()) {
+                auto decompression_zp_idx = fc_prim->bias.empty() ? 3 : 4;
+                auto decompression_zp_dt = node.get_input_layout(decompression_zp_idx).data_type;
+                if ((wei_dt != ov::element::Type_t::u4 && wei_dt != ov::element::Type_t::u8) ||
+                    (decompression_zp_dt != ov::element::Type_t::u8 && decompression_zp_dt != ov::element::Type_t::i8)) {
+                    return false;
+                }
+            }
+        }
+
+        const auto& output_layout = node.get_output_layout();
+        const auto& ps = output_layout.get_partial_shape();
+        size_t non_spatial_count = 2 + (fc_prim->input_size == 3 ? 1 : 0);
+        size_t rank = ps.size();
+
+        // OneDnn doesn't support spatial dimensions for output
+        for (auto i = non_spatial_count; i < rank; i++) {
+            if (ps[i].is_dynamic() || ps[i] != 1) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     static std::unique_ptr<primitive_impl> create(const fully_connected_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
@@ -424,7 +467,7 @@ attach_fully_connected_onednn::attach_fully_connected_onednn() {
     std::vector<format::type> fmt = {
         format::bfyx,
     };
-    implementation_map<fully_connected>::add(impl_types::onednn, fully_connected_onednn::create, dt, fmt);
+    implementation_map<fully_connected>::add(impl_types::onednn, fully_connected_onednn::create, fully_connected_onednn::validate, dt, fmt);
 }
 
 }  // namespace detail

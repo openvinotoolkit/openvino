@@ -3,16 +3,11 @@
 //
 
 #include "concatenation_inst.h"
-#include "eltwise_inst.h"
-#include "quantize_inst.h"
 #include "primitive_onednn_base.h"
 #include "impls/registry/implementation_map.hpp"
 
-#include "kernel_selector_common.h"
-
 #include <oneapi/dnnl/dnnl.hpp>
 
-#include <algorithm>
 #include <memory>
 namespace cldnn {
 namespace onednn {
@@ -115,6 +110,23 @@ public:
 
         _prim = dnnl::concat(_pd, prim_cache);
 #endif
+    }
+
+    static bool validate(const concatenation_node& node) {
+        if (one_of(node.get_output_layout().data_type, {data_types::i32, data_types::f32}))
+            return false;
+
+        for (auto& dep : node.get_dependencies()) {
+            if (dep.first->is_in_data_flow() && dep.first->get_preferred_impl_type() == impl_types::onednn) {
+                return false;
+            }
+        }
+
+        if (format::is_blocked(node.get_output_layout().format)) {
+            return false;
+        }
+
+        return true;
     }
 
     static std::unique_ptr<primitive_impl> create(const concatenation_node& arg, const kernel_impl_params& impl_params) {
