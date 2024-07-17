@@ -5,6 +5,7 @@
 #include "openvino/pass/manager.hpp"
 
 #include <algorithm>
+#include <cerrno>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -112,11 +113,11 @@ template <typename T>
 void output_transformation_info(T& output, size_t manager_time) {
     for (const auto& pair : transformation_info) {
         for (const auto& item : pair.second) {
-            output << pair.first << '\t' << item.time << " ms " << '\t' << item.status << std::endl;
+            output << pair.first << '\t' << item.time << " ms " << '\t' << (item.status ? "+" : "-") << std::endl;
         }
     }
 
-    output << "passes done in " << manager_time << "ms" << std::endl;
+    output << "passes done in " << manager_time << " ms" << std::endl;
 }
 
 std::ofstream get_profile_output_file() {
@@ -125,12 +126,19 @@ std::ofstream get_profile_output_file() {
         return {};
     }
 
-    return std::ofstream(path, std::ios::out | std::ios::app);
+    std::ofstream file(path, std::ios::out | std::ios::app);
+
+    if (!file.is_open()) {
+        std::cerr << "Error opening file: " << std::strerror(errno) << std::endl;
+        return {};
+    }
+
+    return file;
 }
 
 void save_transformation_info(size_t manager_time) {
-    static auto file = get_profile_output_file();
-    if (file) {
+    auto file = get_profile_output_file();
+    if (file.is_open()) {
         return output_transformation_info(file, manager_time);
     }
     return output_transformation_info(std::cout, manager_time);
@@ -141,7 +149,7 @@ void save_transformation_info(size_t manager_time) {
 bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "pass::Manager::run_passes");
 
-    static bool profile_enabled = ov::util::getenv_bool("OV_PROFILE_PASS_ENABLE");
+    const bool profile_enabled = ov::util::getenv_bool("OV_PROFILE_PASS_ENABLE");
 
     size_t index = 0;
     stopwatch pass_timer;
