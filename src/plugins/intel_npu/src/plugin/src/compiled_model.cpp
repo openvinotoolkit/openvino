@@ -130,6 +130,11 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 void CompiledModel::export_model(std::ostream& stream) const {
     const auto& blob = _networkPtr->compiledNetwork;
     stream.write(reinterpret_cast<const char*>(blob.data()), blob.size());
+    if(!stream){
+        _logger.error("Write blob to stream failed. Blob is broken!");
+    } else {
+        _logger.info("Write blob to stream successfully.");
+    }
 
     std::stringstream str;
     str << "Blob size: " << blob.size() << ", hash: " << std::hex << hash(blob);

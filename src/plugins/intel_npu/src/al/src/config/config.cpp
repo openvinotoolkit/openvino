@@ -200,7 +200,6 @@ void Config::parseEnvVars() {
     _desc->walk([&](const details::OptionConcept& opt) {
         if (!opt.envVar().empty()) {
             if (const auto envVar = std::getenv(opt.envVar().data())) {
-
                 log.trace("Update option '%s' to value '%s' parsed from environment variable '%s'",
                           opt.key().data(),
                           envVar,

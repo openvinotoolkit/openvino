@@ -29,7 +29,7 @@ public:
     bool isWorkloadTypeSupported() const override;
 
     void* getContext() const override;
-    void updateInfo(const Config& config) {
+    void updateInfo(const Config& config) override {
         _logger.setLevel(config.get<LOG_LEVEL>());
         if (_devices.size() > 0) {
             for (auto& dev : _devices) {
