@@ -822,7 +822,7 @@ TEST(prepare_buffer_fusing, in_place_crop_dynamic_split_lengths) {
         data("bias", bias_mem),
         data("scale", scale_mem),
         data("zp", zp_mem),
-        fully_connected("fc", input_info("input"), "weights", "bias", "scale", "zp", data_types::f32, padding(), 3, 2),
+        fully_connected("fc", input_info("input"), "weights", "bias", "scale", "zp", data_types::f32, 3, 2),
         shape_of("shapeof", input_info("input_shapeof"), cldnn::data_types::i64),
         crop("crop1", { input_info("fc"), input_info("axis"), input_info("shapeof") }, cldnn::tensor(1), cldnn::tensor(0), op_mode, 0, axis),
         reorder("output1", input_info("crop1"), format::bfyx, data_types::f32),
