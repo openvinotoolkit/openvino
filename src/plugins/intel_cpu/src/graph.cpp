@@ -1516,8 +1516,11 @@ void Graph::SortTopologically() {
 
     // Insert nodes in outputNodesMap in front of graphNodes to make sure it always
     // start tranverse from outputs
-    graphNodes.erase(std::remove_if(graphNodes.begin(), graphNodes.end(), [](const NodePtr node){
-        return node->getTypeStr().compare("Result") == 0;
+    graphNodes.erase(std::remove_if(graphNodes.begin(), graphNodes.end(), [&](const NodePtr node){
+        auto it = std::find_if(outputNodesMap.begin(), outputNodesMap.end(), [&](const std::pair<std::size_t, NodePtr>& kvp) {
+            return kvp.second == node;
+        });
+        return it != outputNodesMap.end();
     }), graphNodes.end());
 
     for (auto&& kvp : outputNodesMap) {
