@@ -121,6 +121,8 @@ CommandQueue::CommandQueue(const ze_device_handle_t& device_handle,
             bool turbo = config.get<TURBO>();
             ze_command_queue_desc_npu_ext_t turbo_cfg = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT, nullptr, turbo};
             queue_desc.pNext = &turbo_cfg;
+        } else {
+            _log.error("Turbo is not supported by the current driver");
         }
     }
     zeroUtils::throwOnFail("zeCommandQueueCreate",
