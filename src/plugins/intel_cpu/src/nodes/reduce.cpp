@@ -966,11 +966,10 @@ private:
     inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, memory::data_type dst_dt) {
         Xmm xmm_dst = Xmm(vmm_dst.getIdx());
         Ymm ymm_dst = Ymm(vmm_dst.getIdx());
-
+        if (!isFloatCompatible(jcp_.src_dt) && !support_intermediate_int) {
+            uni_vroundps(vmm_dst, vmm_dst, 3); // rounding to zero
+        }
         if (convert_f32_to_i32(dst_dt)) {
-            if (!isFloatCompatible(jcp_.src_dt)) {
-                uni_vroundps(vmm_dst, vmm_dst, 3); // rounding to zero
-            }
             uni_vcvtps2dq(vmm_dst, vmm_dst);
         }
 
@@ -1021,10 +1020,10 @@ private:
     }
 
     inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, memory::data_type dst_dt) {
+        if (!isFloatCompatible(jcp_.src_dt) && !support_intermediate_int) {
+            uni_vroundps(xmm_dst, xmm_dst, 3);
+        }
         if (convert_f32_to_i32(dst_dt)) {
-            if (!isFloatCompatible(jcp_.src_dt)) {
-                uni_vroundps(xmm_dst, xmm_dst, 3);
-            }
             uni_vcvtps2dq(xmm_dst, xmm_dst);
         }
 
@@ -1523,6 +1522,10 @@ private:
         int depthwise_inj_idx = 0;
         int quantization_inj_idx = 0;
         int post_ops_data_offset = 0;
+        if (!isFloatCompatible(jcp_.src_dt)) {
+            uni_vroundps(vmm_dst, vmm_dst, 3); // rounding to zero
+        }
+
         for (int i = 0; i < p.len(); i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
@@ -1652,11 +1655,11 @@ private:
     inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, memory::data_type dst_dt) {
         Xmm xmm_dst = Xmm(vmm_dst.getIdx());
         Ymm ymm_dst = Ymm(vmm_dst.getIdx());
-
+        // If there is post ops fusing, necessary rounding has ready been done, no need to do it again.
+        if (!post_ops_fusing && !isFloatCompatible(jcp_.src_dt)) {
+            uni_vroundps(vmm_dst, vmm_dst, 3);
+        }
         if (!isFloatCompatible(dst_dt)) {
-            if (!isFloatCompatible(jcp_.src_dt)) {
-                uni_vroundps(vmm_dst, vmm_dst, 3);
-            }
             uni_vcvtps2dq(vmm_dst, vmm_dst);
         }
 
@@ -1707,10 +1710,10 @@ private:
     }
 
     inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, memory::data_type dst_dt) {
+        if (!post_ops_fusing && !isFloatCompatible(jcp_.src_dt)) {
+            uni_vroundps(xmm_dst, xmm_dst, 3);
+        }
         if (!isFloatCompatible(dst_dt)) {
-            if (!isFloatCompatible(jcp_.src_dt)) {
-                uni_vroundps(xmm_dst, xmm_dst, 3);
-            }
             uni_vcvtps2dq(xmm_dst, xmm_dst);
         }
 
