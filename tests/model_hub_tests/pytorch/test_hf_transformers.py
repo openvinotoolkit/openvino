@@ -120,6 +120,7 @@ class TestTransformersModel(TestTorchConvertModel):
         if is_gptq:
             self.cuda_available, self.gptq_postinit = patch_gptq()
             model_kwargs["torch_dtype"] = torch.float32
+            self.ov_config = {"DYNAMIC_QUANTIZATION_GROUP_SIZE": "0"}
         if "bart" in mi.tags:
             model_kwargs["attn_implementation"] = "eager"
         try:

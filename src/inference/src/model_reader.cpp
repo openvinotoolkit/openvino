@@ -118,10 +118,6 @@ std::shared_ptr<ov::Model> read_model(const std::string& modelPath,
     std::string model_path = modelPath;
 #endif
 
-#if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__) && !defined(__APPLE__)
-    OPENVINO_ASSERT(!fs::is_symlink(model_path), "Cannot read model\"" + modelPath + "\". The path is a symlink!");
-#endif
-
     // Try to load with FrontEndManager
     ov::frontend::FrontEndManager manager;
     ov::frontend::FrontEnd::Ptr FE;
