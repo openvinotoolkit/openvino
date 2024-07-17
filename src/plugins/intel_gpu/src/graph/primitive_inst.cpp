@@ -670,30 +670,18 @@ event::ptr primitive_inst::realloc_if_needed() {
         tmp_prealloc_count = -1;
     }
 
-    // Calculate prealloc
-    std::vector<std::pair<bool, ov::Shape>> prealloc_infos;
-    for (size_t i = 0; i < updated_layouts.size(); ++i) {
-        if (_node->is_type<kv_cache>() && i == 0 && !get_network().get_variable(_node->as<kv_cache>().get_primitive()->variable_info.variable_id).is_set()) {
-            const auto& desc = _node->as<kv_cache>().get_primitive();
-            const auto sequence_axis =
-                desc->concat_axis >= 0 ? desc->concat_axis : updated_layouts[i].get_shape().size() + desc->concat_axis;
-            auto prealloc_info = sp.predict_preallocation_shape(id(), updated_layouts[i], false, i, tmp_prealloc_count, sequence_axis);
-            prealloc_infos.push_back(prealloc_info);
-        } else {
-            auto prealloc_info = sp.predict_preallocation_shape(id(), updated_layouts[i], false, i, tmp_prealloc_count);
-            prealloc_infos.push_back(prealloc_info);
-        }
-        if (prealloc_infos[i].first && !sp.can_preallocate(ov::shape_size(prealloc_infos[i].second) * (dt_sizes_in_B[i])))
-            prealloc_infos[i].first = false;
-    }
-
     // If we allocated too large memory, reclaim the memory.
     for (size_t i = 0; i < updated_layouts.size(); ++i) {
         bool reclaim = 0;
         size_t required_buffer_size = 0;
-        if (_node->is_type<kv_cache>() && i == 0 && prealloc_infos[0].first) {
-            // consider preallocated size
-            const auto& prealloc_shape = prealloc_infos[0].second;
+        if (_node->is_type<kv_cache>() && i == 0) {
+            // Relax reclaiming condition for kv cache
+            const auto& desc = _node->as<kv_cache>().get_primitive();
+            auto prealloc_shape = updated_layouts[i].get_shape();
+            const auto shape_rank = prealloc_shape.size();
+            auto seq_axis =
+                desc->concat_axis >= 0 ? desc->concat_axis : shape_rank + desc->concat_axis;
+            prealloc_shape[seq_axis] += tmp_prealloc_count;
             required_buffer_size = std::accumulate(prealloc_shape.begin(), prealloc_shape.end(), size_t(1), std::multiplies<size_t>());
         } else {
             required_buffer_size = (updated_layouts[i].get_buffer_size().count());
@@ -716,16 +704,23 @@ event::ptr primitive_inst::realloc_if_needed() {
         return ev;
     }
 
-
     for (size_t i = 0; i < actual_layouts.size(); ++i) {
         bool can_reuse_buffer = (_outputs[i] && updated_layouts[i].get_buffer_size().count() <= _max_output_layout_count[i]);
-        auto prealloc_info = prealloc_infos[i];
-        if (prealloc_info.first) {
+        std::pair<bool, ov::Shape> prealloc_info;
+        if (_node->is_type<kv_cache>() && i == 0) {
+            const auto& desc = _node->as<kv_cache>().get_primitive();
+            auto shape_rank = updated_layouts[i].get_shape().size();
+            auto seq_axis =
+                desc->concat_axis >= 0 ? desc->concat_axis : shape_rank + desc->concat_axis;
+            prealloc_info = sp.predict_preallocation_shape(id(), updated_layouts[i], can_reuse_buffer, i, tmp_prealloc_count, seq_axis);
+        } else {
+            prealloc_info = sp.predict_preallocation_shape(id(), updated_layouts[i], can_reuse_buffer, i, tmp_prealloc_count);
+        }
+        if (prealloc_info.first && sp.can_preallocate(ov::shape_size(prealloc_info.second) * (dt_sizes_in_B[i]))) {
             auto new_layout = updated_layouts[i];
             new_layout.set_partial_shape(prealloc_info.second);
             updated_params.output_layouts[i] = new_layout;
         }
-
         if (updated_params.output_layouts[i].get_buffer_size().count() < updated_layouts[i].get_buffer_size().count()) {
             updated_params.output_layouts[i] = updated_layouts[i];
         }
