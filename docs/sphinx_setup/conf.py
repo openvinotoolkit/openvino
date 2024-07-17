@@ -39,6 +39,11 @@ try:
 except ImportError:
     autodoc_mock_imports = ["openvino"]
 
+try:
+    import openvino_genai
+except ImportError:
+    autodoc_mock_imports = ["openvino_genai"]
+
 breathe_projects = {
     "openvino": "../xml/"
 }
