@@ -73,7 +73,7 @@ void TransformationTestsF::TearDown() {
     manager.run_passes(model);
 
     if (!m_disable_rt_info_check) {
-        ASSERT_NO_THROW(check_rt_info(model));
+        OV_ASSERT_NO_THROW(check_rt_info(model));
     }
 
     if (acc_enabled) {

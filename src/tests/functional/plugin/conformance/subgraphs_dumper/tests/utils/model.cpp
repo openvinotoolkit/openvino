@@ -72,7 +72,7 @@ TEST_F(ModelUtilsTest, align_input_info) {
     auto in_info_1 = ov::util::get_input_info_by_model(test_model_1.get());
     ASSERT_NE(in_info_0, in_info_1);
     std::unordered_map<std::string, std::string> a;
-    ASSERT_NO_THROW(ov::util::align_input_info(test_model_0.get(), test_model_1.get(),
+    OV_ASSERT_NO_THROW(ov::util::align_input_info(test_model_0.get(), test_model_1.get(),
                                                in_info_0, in_info_1, a));
     auto in_info_ref = ov::util::align_input_info(test_model_0.get(), test_model_1.get(),
                                                   in_info_0, in_info_1, a);
@@ -94,7 +94,7 @@ TEST_F(ModelUtilsTest, align_input_info_for_subgraphs) {
         matched_ops.insert({params_0[param_id]->get_friendly_name(),
                             params_1[param_id]->get_friendly_name()});
     }
-    // ASSERT_NO_THROW(ov::util::align_input_info(test_model_0, test_model_1,
+    // OV_ASSERT_NO_THROW(ov::util::align_input_info(test_model_0, test_model_1,
     //                                            in_info_0, in_info_1,
     //                                            matched_ops));
     auto ref = ov::util::align_input_info(test_model_0, test_model_1,

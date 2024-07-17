@@ -8,7 +8,7 @@
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/pass/iter_handler.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "snippets/itt.hpp"
 
 namespace ov {
