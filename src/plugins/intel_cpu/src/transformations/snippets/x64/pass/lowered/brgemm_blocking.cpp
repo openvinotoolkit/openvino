@@ -10,7 +10,7 @@
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/tpp/x64/op/brgemm.hpp"
 
@@ -134,6 +134,9 @@ bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linea
                 // Compensations are computed by N dimension
                 *compensations_subtensor.rbegin() = block_size_n;
                 *++compensations_subtensor.rbegin() = 1;
+
+                OPENVINO_ASSERT(brgemm_expr->get_input_count() == 3, "Brgemm must have 3 inputs in case of compensations.");
+                brgemm_expr->get_input_port_descriptor(2)->set_subtensor(compensations_subtensor);
                 copy_b_expr->get_output_port_descriptor(1)->set_subtensor(compensations_subtensor);
             }
         }

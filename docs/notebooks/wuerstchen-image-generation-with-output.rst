@@ -24,8 +24,8 @@ top-performing models, allowing also cheaper and faster inference.
 We will use PyTorch version of Würstchen `model from HuggingFace
 Hub <https://huggingface.co/warp-ai/wuerstchen>`__.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Load the original model <#load-the-original-model>`__
@@ -211,10 +211,10 @@ parameter to generate a less memory-demanding model.
 
 Text encoder model has 2 inputs:
 
-- ``input_ids``: vector of tokenized
-input sentence. Default tokenizer vector length is 77.
+- ``input_ids``: vector of tokenized input sentence. Default tokenizer
+  vector length is 77.
 - ``attention_mask``: vector of same length as ``input_ids`` describing
-the attention mask.
+  the attention mask.
 
 .. code:: ipython3
 
@@ -598,7 +598,7 @@ Prepare calibration datasets
 
 
 We use a portion of
-`conceptual_captions <https://huggingface.co/datasets/conceptual_captions>`__
+`conceptual_captions <https://huggingface.co/datasets/google-research-datasets/conceptual_captions>`__
 dataset from Hugging Face as calibration data. To collect intermediate
 model inputs for calibration we should customize ``CompiledModel``.
 
@@ -633,7 +633,7 @@ model inputs for calibration we should customize ``CompiledModel``.
         pipeline.prior_pipe.prior.prior = CompiledModelDecorator(original_prior)
         pipeline.decoder_pipe.decoder.decoder = CompiledModelDecorator(original_decoder)
 
-        dataset = datasets.load_dataset("conceptual_captions", split="train").shuffle(seed=42)
+        dataset = datasets.load_dataset("google-research-datasets/conceptual_captions", split="train", trust_remote_code=True).shuffle(seed=42)
         pbar = tqdm(total=subset_size)
         diff = 0
         for batch in dataset:

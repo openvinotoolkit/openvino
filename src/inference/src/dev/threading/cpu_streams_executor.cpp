@@ -114,7 +114,12 @@ struct CPUStreamsExecutor::Impl {
             }
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
             if (_impl->_config.get_name().find("StreamsExecutor") == std::string::npos) {
-                set_cpu_used(_cpu_ids, NOT_USED);
+                try {
+                    set_cpu_used(_cpu_ids, NOT_USED);
+                } catch (const ov::Exception&) {
+                    // Destructor should not throw - catch needed for static analysis.
+                    // CPU::CPU() won't throw here as cpu_info() is called from Stream constructor.
+                }
             }
             if (nullptr != _observer) {
                 _observer->observe(false);
@@ -290,6 +295,12 @@ struct CPUStreamsExecutor::Impl {
             std::lock_guard<std::mutex> guard(_stream_map_mutex);
             for (auto& item : _stream_map) {
                 if (item.first->get_id() == id) {
+                    // check if the ThreadTracker of this stream is already in t_stream_count_map
+                    // if not, then create ThreadTracker for it
+                    auto iter = t_stream_count_map.find((void*)this);
+                    if (iter == t_stream_count_map.end()) {
+                        t_stream_count_map[(void*)this] = item.first->fetch();
+                    }
                     return item.second;
                 }
             }
@@ -343,7 +354,7 @@ struct CPUStreamsExecutor::Impl {
                         std::min<std::size_t>(streams_num, numaNodes.size()),
                         std::back_inserter(_usedNumaNodes));
         } else {
-            _usedNumaNodes = numaNodes;
+            _usedNumaNodes = std::move(numaNodes);
         }
         if (sub_streams_num > 0) {
             _subTaskThread.assign(sub_streams_num, std::make_shared<SubQueue>());
@@ -489,6 +500,10 @@ struct CPUStreamsExecutor::Impl {
 int CPUStreamsExecutor::get_stream_id() {
     auto stream = _impl->_streams.local();
     return stream->_streamId;
+}
+
+int CPUStreamsExecutor::get_streams_num() {
+    return _impl->_config.get_streams();
 }
 
 int CPUStreamsExecutor::get_numa_node_id() {

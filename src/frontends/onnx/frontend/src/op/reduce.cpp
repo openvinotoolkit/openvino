@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/reduce.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
-#include "identity.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -30,7 +28,13 @@ using ov::Shape;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
+namespace ai_onnx {
+
+// Link with an existing translator
+namespace opset_1 {
+extern ov::OutputVector identity(const ov::frontend::onnx::Node& node);
+}  // namespace opset_1
+
 namespace {
 std::shared_ptr<ov::Node> get_dynamic_all_axes_range(const Node& node) {
     const auto input = node.get_ov_inputs().at(0);
@@ -133,7 +137,7 @@ std::shared_ptr<ov::Node> make_ov_reduction_op(const Node& node,
     if (reduction_axes != nullptr) {
         return std::make_shared<OpType>(ov_input, reduction_axes, static_cast<bool>(keepdims));
     } else {
-        return set_1::identity(node).at(0).get_node_shared_ptr();
+        return ai_onnx::opset_1::identity(node).at(0).get_node_shared_ptr();
     }
 }
 
@@ -146,7 +150,7 @@ std::shared_ptr<ov::Node> onnx_reduce_sum_square(const ov::frontend::onnx::Node&
 }
 }  // namespace
 
-namespace set_1 {
+namespace opset_1 {
 ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node) {
     const ov::Output<ov::Node> sum_node =
         make_ov_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), supported_types_v2);
@@ -190,7 +194,23 @@ ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
 ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
     return {onnx_reduce_sum_square(node, supported_types_v1)};
 }
-}  // namespace set_1
+
+static bool register_multiple_translators(void) {
+    ONNX_OP_M("ReduceLogSum", OPSET_RANGE(1, 12), ai_onnx::opset_1::reduce_log_sum);
+    ONNX_OP_M("ReduceLogSumExp", OPSET_RANGE(1, 12), ai_onnx::opset_1::reduce_log_sum_exp);
+    ONNX_OP_M("ReduceL1", OPSET_RANGE(1, 12), ai_onnx::opset_1::reduce_l1);
+    ONNX_OP_M("ReduceL2", OPSET_RANGE(1, 12), ai_onnx::opset_1::reduce_l2);
+    ONNX_OP_M("ReduceMax", OPSET_RANGE(1, 12), ai_onnx::opset_1::reduce_max);
+    ONNX_OP_M("ReduceMean", OPSET_RANGE(1, 12), ai_onnx::opset_1::reduce_mean);
+    ONNX_OP_M("ReduceMin", {1, 12}, ai_onnx::opset_1::reduce_min);
+    ONNX_OP_M("ReduceProd", OPSET_RANGE(1, 12), ai_onnx::opset_1::reduce_prod);
+    ONNX_OP_M("ReduceSum", OPSET_RANGE(1, 12), ai_onnx::opset_1::reduce_sum);
+    ONNX_OP_M("ReduceSumSquare", OPSET_RANGE(1, 12), ai_onnx::opset_1::reduce_sum_square);
+    return true;
+}
+
+static bool registered = register_multiple_translators();
+}  // namespace opset_1
 
 /*
     Opset 11 is skipped because there are no significant difference between opset1 and opset 11.
@@ -201,7 +221,7 @@ ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
        Same time Reduce* operations in OpenVINO has same requirement from first version
 */
 
-namespace set_13 {
+namespace opset_13 {
 ov::OutputVector reduce_sum(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceSum>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
 }
@@ -214,6 +234,10 @@ ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceMax>(node, node.get_ov_inputs().at(0), supported_types_v3)};
 }
 
+ov::OutputVector reduce_mean(const ov::frontend::onnx::Node& node) {
+    return {make_ov_reduction_op<v1::ReduceMean>(node, node.get_ov_inputs().at(0), supported_types_v2)};
+}
+
 ov::OutputVector reduce_min(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceMin>(node, node.get_ov_inputs().at(0), supported_types_v3)};
 }
@@ -221,14 +245,31 @@ ov::OutputVector reduce_min(const ov::frontend::onnx::Node& node) {
 ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
     return {onnx_reduce_sum_square(node, supported_types_v2)};
 }
-}  // namespace set_13
 
-namespace set_18 {
+static bool register_multiple_translators(void) {
+    ONNX_OP_M("ReduceL2", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_l2);
+    ONNX_OP_M("ReduceMax", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_max);
+    ONNX_OP_M("ReduceMean", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_mean);
+    ONNX_OP_M("ReduceMin", {13, 17}, ai_onnx::opset_13::reduce_min);
+    ONNX_OP_M("ReduceSum", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_sum);
+    ONNX_OP_M("ReduceSumSquare", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_sum_square);
+    return true;
+}
+
+static bool registered = register_multiple_translators();
+}  // namespace opset_13
+
+namespace opset_18 {
 ov::OutputVector reduce_l2(const Node& node) {
     return {make_ov_reduction_op<v4::ReduceL2>(node, node.get_ov_inputs().at(0), supported_types_v2, false)};
 }
+
 ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceMax>(node, node.get_ov_inputs().at(0), supported_types_v3, false)};
+}
+
+ov::OutputVector reduce_mean(const ov::frontend::onnx::Node& node) {
+    return {make_ov_reduction_op<v1::ReduceMean>(node, node.get_ov_inputs().at(0), supported_types_v3, false)};
 }
 
 ov::OutputVector reduce_min(const ov::frontend::onnx::Node& node) {
@@ -244,9 +285,21 @@ ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node) {
 ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
     return {onnx_reduce_sum_square(node, supported_types_v2, false)};
 }
-}  // namespace set_18
 
-namespace set_20 {
+static bool register_multiple_translators(void) {
+    ONNX_OP_M("ReduceLogSum", OPSET_SINCE(18), ai_onnx::opset_18::reduce_log_sum);
+    ONNX_OP_M("ReduceL2", OPSET_SINCE(18), ai_onnx::opset_18::reduce_l2);
+    ONNX_OP_M("ReduceMax", OPSET_RANGE(18, 19), ai_onnx::opset_18::reduce_max);
+    ONNX_OP_M("ReduceMean", OPSET_SINCE(18), ai_onnx::opset_18::reduce_mean);
+    ONNX_OP_M("ReduceMin", {18, 19}, ai_onnx::opset_18::reduce_min);
+    ONNX_OP_M("ReduceSumSquare", OPSET_SINCE(18), ai_onnx::opset_18::reduce_sum_square);
+    return true;
+}
+
+static bool registered = register_multiple_translators();
+}  // namespace opset_18
+
+namespace opset_20 {
 ov::OutputVector reduce_max(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ov_inputs().at(0);
     if (data.get_element_type() != element::boolean) {
@@ -276,8 +329,16 @@ ov::OutputVector reduce_min(const ov::frontend::onnx::Node& node) {
             element::boolean)};
     }
 }
-}  // namespace set_20
-}  // namespace op
+
+static bool register_multiple_translators(void) {
+    ONNX_OP_M("ReduceMax", OPSET_SINCE(20), ai_onnx::opset_20::reduce_max);
+    ONNX_OP_M("ReduceMin", OPSET_SINCE(20), ai_onnx::opset_20::reduce_min);
+    return true;
+}
+
+static bool registered = register_multiple_translators();
+}  // namespace opset_20
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

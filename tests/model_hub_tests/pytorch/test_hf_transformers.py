@@ -120,6 +120,7 @@ class TestTransformersModel(TestTorchConvertModel):
         if is_gptq:
             self.cuda_available, self.gptq_postinit = patch_gptq()
             model_kwargs["torch_dtype"] = torch.float32
+            self.ov_config = {"DYNAMIC_QUANTIZATION_GROUP_SIZE": "0"}
         if "bart" in mi.tags:
             model_kwargs["attn_implementation"] = "eager"
         try:
@@ -450,7 +451,7 @@ class TestTransformersModel(TestTorchConvertModel):
                                            ("google/tapas-large-finetuned-wtq", "tapas"),
                                            ("gpt2", "gpt2"),
                                            ("openai/clip-vit-large-patch14", "clip"),
-                                           ("OpenVINO/opt-125m-gptq", "opt"),
+                                           ("katuni4ka/opt-125m-gptq", "opt"),
                                            ])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, type, ie_device):

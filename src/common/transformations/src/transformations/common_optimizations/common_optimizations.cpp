@@ -92,6 +92,7 @@
 #include "transformations/op_conversions/convert_roi_align_v3_to_v9.hpp"
 #include "transformations/op_conversions/convert_roi_align_v9_to_v3.hpp"
 #include "transformations/op_conversions/convert_scatter_elements_update12_downgrade.hpp"
+#include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 #include "transformations/op_conversions/convert_softmax_downgrade.hpp"
 #include "transformations/op_conversions/convert_softmax_upgrade.hpp"
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
@@ -125,7 +126,9 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
 
     using namespace ov::pass;
     REGISTER_PASS(manager, DisableDecompressionConvertConstantFolding)
-
+    // MOCTransformations contain StridedSliceOptimization transformation,
+    // so we must call SliceToStridedSlice before MOCTransformations call
+    REGISTER_PASS(manager, SliceToStridedSlice, true)
     // Disable low_precision_enabled as all plugins handle low-precision sub-graph manually
     // before CommonOptimization pipeline execution
     REGISTER_PASS(manager, MOCTransformations, true, false)
@@ -210,9 +213,9 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     REGISTER_PASS(manager, ConvertDeformableConv8To1)
     REGISTER_PASS(manager, ConvertSoftMax8ToSoftMax1)
     REGISTER_DISABLED_PASS(manager, ConvertSoftMax1ToSoftMax8)
+    REGISTER_PASS(manager, ConvertMaxPool14ToMaxPool8)
     REGISTER_PASS(manager, ConvertMaxPool8ToMaxPool1)
     REGISTER_DISABLED_PASS(manager, ConvertMaxPool1ToMaxPool8)
-    REGISTER_PASS(manager, ConvertMaxPool14ToMaxPool8)
     REGISTER_PASS(manager, ConvertPriorBox8To0)
     REGISTER_DISABLED_PASS(manager, ConvertDetectionOutput1ToDetectionOutput8)
     REGISTER_PASS(manager, ConvertDetectionOutput8ToDetectionOutput1)
@@ -248,7 +251,6 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     // because we cannot insert any MaxPools since they may prevent
     // other optimizations
     REGISTER_PASS(manager, StridesOptimization)
-    REGISTER_PASS(manager, SymbolicOptimizations)
     REGISTER_PASS(manager, Validate)
     manager.run_passes(f);
 

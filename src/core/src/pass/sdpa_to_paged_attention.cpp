@@ -7,6 +7,7 @@
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
@@ -29,6 +30,11 @@ static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> nod
 
 bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(SDPAToPagedAttention);
+
+    OPENVINO_ASSERT(ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention>(model),
+                    "No ScaledDotProductAttention operation observed in the graph, cannot perform"
+                    "the SDPAToPagedAttention transformation.");
+
     auto max_context_len = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "max_context_len");
     ParameterVector model_remaining_params = {
         setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "past_lens"),
@@ -63,7 +69,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     };
 
     ParameterVector kv_parameters;
-    std::vector<std::shared_ptr<Node>> assignes_to_remove;  // not really used
     ParameterVector parameters_to_remove;
     ResultVector results_to_remove;  // # used, but cannot really track all Results in stateless model
 
@@ -91,7 +96,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   model_remaining_params,
                                                   sliding_window,
                                                   parameters_to_remove,
-                                                  assignes_to_remove,
                                                   layer_index,
                                                   max_context_len->output(0));
     manager.register_pass<PrevSequenceLengthPattern>(prev_max_seq_len, batch_dim);
@@ -135,7 +139,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     model->add_parameters(kv_parameters);
     model->add_parameters(model_remaining_params);
-    model->add_parameters({max_context_len});
+    model->add_parameters({std::move(max_context_len)});
     model->validate_nodes_and_infer_types();
     return true;
 }

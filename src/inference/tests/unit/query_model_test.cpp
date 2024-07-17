@@ -743,3 +743,41 @@ const std::vector<ConfigParams> testConfigs2 = {
 INSTANTIATE_TEST_SUITE_P(GetSupportedNodesTest, GetSupportedNodesCommonTest, ::testing::ValuesIn(testConfigs));
 INSTANTIATE_TEST_SUITE_P(GetSupportedNodesTest, GetSupportedNodesOneConstOp, ::testing::ValuesIn(testConfigs1));
 INSTANTIATE_TEST_SUITE_P(GetSupportedNodesTest, GetSupportedNodesStopSplit, ::testing::ValuesIn(testConfigs2));
+
+TEST_F(GetSupportedNodesTest, FilterShapeOf) {
+    {
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1});
+        param->set_friendly_name("input");
+        auto weights = ov::op::v0::Constant::create(ov::element::Type_t::f32, {1, 1}, {1});
+        weights->set_friendly_name("weights");
+        auto shapeOf = std::make_shared<ov::op::v0::ShapeOf>(weights);
+        shapeOf->set_friendly_name("shapeof");
+        auto const1 = ov::op::v0::Constant::create(ov::element::Type_t::i32, {1}, {1});
+        const1->set_friendly_name("const1");
+        auto const2 = ov::op::v0::Constant::create(ov::element::Type_t::i64, {}, {0});
+        const2->set_friendly_name("const2");
+        auto gather = std::make_shared<ov::op::v8::Gather>(shapeOf, const1, const2);
+        gather->set_friendly_name("gather");
+        auto const3 = ov::op::v0::Constant::create(ov::element::Type_t::i64, {1}, {1});
+        const3->set_friendly_name("const3");
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{const3, gather}, 0);
+        concat->set_friendly_name("concat");
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(param, concat, false);
+        reshape->set_friendly_name("reshape");
+        auto result = std::make_shared<ov::op::v0::Result>(reshape);
+        result->set_friendly_name("result");
+
+        m_function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+    }
+    Run(
+        [&](std::shared_ptr<ov::Model>& model) {
+            ov::pass::Manager m;
+            m.register_pass<ov::pass::InitNodeInfo>();
+            m.run_passes(model);
+        },
+        [&](const std::shared_ptr<ov::Node>& op) {
+            return true;
+        },
+        {"weights"},
+        0.5f);
+}

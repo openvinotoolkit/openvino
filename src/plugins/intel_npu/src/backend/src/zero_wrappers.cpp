@@ -5,6 +5,8 @@
 #include "zero_wrappers.hpp"
 
 #include "intel_npu/al/config/common.hpp"
+#include "intel_npu/utils/zero/zero_api.hpp"
+#include "zero_types.hpp"
 
 namespace intel_npu {
 
@@ -61,12 +63,22 @@ CommandList::CommandList(const ze_device_handle_t& device_handle,
                          const ze_context_handle_t& context,
                          ze_graph_dditable_ext_curr_t* graph_ddi_table_ext,
                          const Config& config,
-                         const uint32_t& group_ordinal)
+                         const uint32_t& group_ordinal,
+                         bool mtci_is_supported)
     : _context(context),
       _graph_ddi_table_ext(graph_ddi_table_ext),
       _log("CommandList", config.get<LOG_LEVEL>()) {
-    ze_command_list_desc_t desc = {ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC, nullptr, group_ordinal, 0};
+    ze_mutable_command_list_exp_desc_t mutable_desc = {ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_LIST_EXP_DESC, nullptr, 0};
+    ze_command_list_desc_t desc = {ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC, &mutable_desc, group_ordinal, 0};
     zeroUtils::throwOnFail("zeCommandListCreate", zeCommandListCreate(_context, device_handle, &desc, &_handle));
+
+    if (mtci_is_supported) {
+        ze_mutable_command_id_exp_desc_t mutableCmdIdDesc = {ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_ID_EXP_DESC,
+                                                             nullptr,
+                                                             ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT};
+        zeroUtils::throwOnFail("zeCommandListGetNextCommandIdExp",
+                               zeCommandListGetNextCommandIdExp(_handle, &mutableCmdIdDesc, &_command_id));
+    }
 }
 void CommandList::reset() const {
     zeroUtils::throwOnFail("zeCommandListReset", zeCommandListReset(_handle));
@@ -102,13 +114,24 @@ CommandList::~CommandList() {
         _log.error("zeCommandListDestroy failed %#X", uint64_t(result));
     }
 }
+void CommandList::updateMutableCommandList(const void* pNext) const {
+    ze_mutable_commands_exp_desc_t mutable_commands_exp_desc_t = {
+        static_cast<ze_structure_type_t>(ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT),
+        pNext,
+        0};
+
+    zeroUtils::throwOnFail("zeCommandListUpdateMutableCommandsExp",
+                           zeCommandListUpdateMutableCommandsExp(_handle, &mutable_commands_exp_desc_t));
+}
 
 CommandQueue::CommandQueue(const ze_device_handle_t& device_handle,
                            const ze_context_handle_t& context,
                            const ze_command_queue_priority_t& priority,
+                           ze_command_queue_npu_dditable_ext_curr_t* command_queue_npu_dditable_ext,
                            const Config& config,
                            const uint32_t& group_ordinal)
     : _context(context),
+      _command_queue_npu_dditable_ext(command_queue_npu_dditable_ext),
       _log("CommandQueue", config.get<LOG_LEVEL>()) {
     ze_command_queue_desc_t queue_desc =
         {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC, nullptr, group_ordinal, 0, 0, ZE_COMMAND_QUEUE_MODE_DEFAULT, priority};
@@ -123,6 +146,16 @@ void CommandQueue::executeCommandList(CommandList& command_list, Fence& fence) c
     zeroUtils::throwOnFail("zeCommandQueueExecuteCommandLists",
                            zeCommandQueueExecuteCommandLists(_handle, 1, &command_list._handle, fence.handle()));
 }
+
+void CommandQueue::setWorkloadType(ze_command_queue_workload_type_t workloadType) const {
+    if (_command_queue_npu_dditable_ext != nullptr) {
+        zeroUtils::throwOnFail("zeSetWorkloadType",
+                               _command_queue_npu_dditable_ext->pfnSetWorkloadType(_handle, workloadType));
+    } else {
+        OPENVINO_THROW("The WorkloadType property is not supported by the current Driver Version!");
+    }
+}
+
 CommandQueue::~CommandQueue() {
     auto result = zeCommandQueueDestroy(_handle);
     if (ZE_RESULT_SUCCESS != result) {

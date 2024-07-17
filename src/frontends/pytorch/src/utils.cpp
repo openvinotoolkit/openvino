@@ -213,8 +213,9 @@ namespace {
 std::shared_ptr<PtFrameworkNode> create_fw_node_with_exception(const NodeContext& context,
                                                                const ov::OutputVector& inputs,
                                                                size_t num_outputs,
-                                                               const std::string& exception_message) {
-    auto fw_node = std::make_shared<PtFrameworkNode>(context.get_decoder(), inputs, num_outputs);
+                                                               const std::string& exception_message,
+                                                               bool skip_subgraphs = false) {
+    auto fw_node = std::make_shared<PtFrameworkNode>(context.get_decoder(), inputs, num_outputs, false, skip_subgraphs);
     context.mark_node(fw_node);
     auto attrs = fw_node->get_attrs();
     std::string message(exception_message);
@@ -229,7 +230,8 @@ std::shared_ptr<PtFrameworkNode> create_fw_node_with_exception(const NodeContext
 }  // namespace
 
 OutputVector make_framework_node_ignore_bodies(const NodeContext& context, const std::string& exception) {
-    auto fw_node = create_fw_node_with_exception(context, context.inputs(), context.get_output_size() + 1, exception);
+    auto fw_node =
+        create_fw_node_with_exception(context, context.inputs(), context.get_output_size() + 1, exception, true);
     return fw_node->outputs();
 }
 
@@ -245,7 +247,7 @@ OutputVector make_framework_node(const NodeContext& context, const std::string& 
         // Usually mutated input index is 0, because it is usually "self" input, so we need to replace this tensor with
         // output we created.
         context.mutate_input(0, outputs.back());
-        OPENVINO_DEBUG << "Created node with mutated 0 input. Schema: " << schema << '\n';
+        OPENVINO_DEBUG("Created node with mutated 0 input. Schema:", schema, "\n");
         // For simplification we do not expect such operations to have extra bodies
         FRONT_END_OP_CONVERSION_CHECK(context.get_decoder()->get_subgraph_size() == 0,
                                       "Mutable operation has subgraphs.");
@@ -551,6 +553,30 @@ Output<Node> masked_fill(ov::pass::NodeRegistry& rg,
     auto _value = rg.make<opset10::ConvertLike>(value, data);
     auto bool_mask = rg.make<opset10::Convert>(mask, element::boolean);
     return rg.make<opset10::Select>(bool_mask, _value, data);
+}
+
+Output<Node> concat_list_from_inputs(const NodeContext& context, size_t begin, size_t end) {
+    OutputVector list_elems;
+    for (size_t i = begin; i < end; i++) {
+        if (context.get_input_type(i).as<type::List>().element_type.is<type::PyScalar>()) {
+            auto const_val = context.const_input<int64_t>(i);
+            std::vector<int64_t> dim_vec;
+            dim_vec.push_back(const_val);
+            auto dim_const = ov::op::v0::Constant::create(element::i64, Shape{1}, dim_vec);
+            list_elems.push_back(dim_const);
+        } else {
+            auto input_dim = context.get_input(static_cast<int>(i));
+            if (input_dim.get_partial_shape().rank() == 0) {
+                auto zero = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
+                auto unsqueezed_dim = context.mark_node(std::make_shared<ov::op::v0::Unsqueeze>(input_dim, zero));
+                list_elems.push_back(unsqueezed_dim);
+            } else {
+                list_elems.push_back(input_dim);
+            }
+        }
+    }
+    auto concat = std::make_shared<ov::op::v0::Concat>(list_elems, 0);
+    return concat;
 }
 
 }  // namespace pytorch

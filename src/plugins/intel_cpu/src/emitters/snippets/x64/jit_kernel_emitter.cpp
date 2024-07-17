@@ -3,8 +3,9 @@
 //
 
 #include "jit_kernel_emitter.hpp"
-#include "snippets/utils.hpp"
 
+#include "snippets/utils/utils.hpp"
+#include "utils.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;
@@ -13,18 +14,6 @@ using namespace dnnl::impl::cpu::x64;
 namespace ov {
 namespace intel_cpu {
 
-inline static std::vector<Reg64> transform_idxs_to_regs(const std::vector<size_t>& idxs) {
-    std::vector<Reg64> regs(idxs.size());
-    std::transform(idxs.begin(), idxs.end(), regs.begin(), [](size_t idx){return Reg64(static_cast<int>(idx));});
-    return regs;
-}
-
-inline static std::vector<size_t> transform_snippets_regs_to_idxs(const std::vector<snippets::Reg>& regs) {
-    std::vector<size_t> idxs(regs.size());
-    std::transform(regs.cbegin(), regs.cend(), idxs.begin(), [](const snippets::Reg& reg) { return reg.idx; });
-    return idxs;
-}
-
 jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_emitter(h, isa), reg_runtime_params_idx(abi_param1.getIdx()) {
     const auto kernel = ov::as_type_ptr<snippets::op::Kernel>(expr->get_node());
@@ -32,34 +21,26 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h, cpu_isa_t isa, const ov
     OV_CPU_JIT_EMITTER_ASSERT(!kernel->region->empty(), "invoked with empty body");
     body = kernel->region;
     jcp = *reinterpret_cast<const jit_snippets_compile_args*>(kernel->compile_params);
-    num_inputs = 0;
-    num_outputs = 0;
-    const auto& io_exprs = body->get_IO_ops();
-    for (const auto& expr : io_exprs) {
-        switch (expr->get_type()) {
-            case snippets::lowered::IOExpression::io_type::INPUT: {
-                num_inputs++;
-                break;
-            }
-            case snippets::lowered::IOExpression::io_type::OUTPUT: {
-                num_outputs++;
-                break;
-            } default : {
-                OV_CPU_JIT_EMITTER_THROW("detected unsupported io_type");
-            }
-        }
-        mem_access_exprs.push_back(expr);
-    }
+    const auto& parameters = body->get_parameters();
+    const auto& results = body->get_results();
+    num_inputs = parameters.size();
+    num_outputs = results.size();
+    for (const auto& param : parameters)
+        mem_access_exprs.push_back(param);
+    for (const auto& result : results)
+        mem_access_exprs.push_back(result);
+
     std::set<size_t> unique_buffers;
     for (const auto& expr : *body) {
         if (const auto buffer = ov::as_type_ptr<snippets::op::Buffer>(expr->get_node())) {
-            const auto buffer_id = buffer->get_id();
-            if (unique_buffers.count(buffer_id) == 0) {
+            const auto buffer_reg_group = buffer->get_reg_group();
+            if (unique_buffers.count(buffer_reg_group) == 0) {
                 mem_access_exprs.push_back(expr);
-                unique_buffers.insert(buffer_id);
+                unique_buffers.insert(buffer_reg_group);
             }
         } else {
-            if (std::find(io_exprs.cbegin(), io_exprs.cend(), expr) == io_exprs.cend())
+            if (std::find(parameters.cbegin(), parameters.cend(), expr) == parameters.cend() &&
+                std::find(results.cbegin(), results.cend(), expr) == results.cend())
                 general_exprs.emplace_back(expr);
         }
     }
@@ -123,13 +104,13 @@ void jit_kernel_emitter::init_body_regs(const std::set<size_t>& kernel_regs,
 void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     h->preamble();
 
-    auto data_ptr_regs = transform_idxs_to_regs(data_ptr_regs_idx);
+    auto data_ptr_regs = utils::transform_idxs_to_regs(data_ptr_regs_idx);
 
     init_data_pointers(data_ptr_regs);
     for (const auto& expression : *body) {
         const auto reg_info = expression->get_reg_info();
-        auto in_regs = transform_snippets_regs_to_idxs(reg_info.first);
-        auto out_regs = transform_snippets_regs_to_idxs(reg_info.second);
+        auto in_regs = utils::transform_snippets_regs_to_idxs(reg_info.first);
+        auto out_regs = utils::transform_snippets_regs_to_idxs(reg_info.second);
         const auto& emitter = expression->get_emitter();
         emitter->emit_code(in_regs, out_regs, vec_regs_pool, gp_regs_pool);
     }

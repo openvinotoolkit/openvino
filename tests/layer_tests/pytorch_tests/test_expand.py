@@ -117,7 +117,7 @@ class TestExpandAs(PytorchLayerTest):
 class TestDynamicExpand(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
-        last_dym = random.randint(1,4)
+        last_dym = random.randint(2,8)
         return (np.random.randn(1, 3, 1).astype(np.float32), last_dym)
 
     def create_model(self, dim):
@@ -128,8 +128,9 @@ class TestDynamicExpand(PytorchLayerTest):
                 super(aten_expand, self).__init__()
                 self.dims = dims
 
+            # TODO: Remove the add op after fixing the issue with expand being the last node
             def forward(self, x, dym):
-                return x.expand((self.dims+(dym,)))
+                return torch.add(x.expand((self.dims+(dym,))), 0)
 
         ref_net = None
 

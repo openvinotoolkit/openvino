@@ -135,6 +135,7 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
         this->preamble();
 
         planar_layout = jcp_.layout == ReduceLayoutType::reduce_ncsp || jcp_.layout == ReduceLayoutType::reduce_nspc;
+        support_intermediate_int = jcp_.reduce_mode == Algorithm::ReduceProd;
 
         mov(reg_src, ptr[reg_params + GET_OFF(src)]);
         mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
@@ -176,6 +177,7 @@ private:
             Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = cpu_isa_traits<isa>::vlen;
     bool planar_layout = false;
+    bool support_intermediate_int = false;
 
     Xbyak::Address table_val(int index) { return ptr[reg_table + index * vlen]; }
 
@@ -190,6 +192,7 @@ private:
     Xbyak::Reg64 reg_params = abi_param1;
 
     Xbyak::Reg8 reg_tmp_8 = r15b;
+    Xbyak::Reg16 reg_tmp_16 = r15w;
     Xbyak::Reg32 reg_tmp_32 = r15d;
     Xbyak::Reg64 reg_tmp_64 = r15;
 
@@ -336,8 +339,13 @@ private:
             // init dst, dst loading is embedded in horiz_reduce_store
             switch (jcp_.reduce_mode) {
                 case Algorithm::ReduceAnd:
-                case Algorithm::ReduceProd:
                     uni_vmovups(vmm_dst, table_val(0));
+                    break;
+                case Algorithm::ReduceProd:
+                    if (isFloatCompatible(jcp_.src_dt))
+                        uni_vmovups(vmm_dst, table_val(0));
+                    else
+                        uni_vmovups(vmm_dst, table_val(6));
                     break;
                 case Algorithm::ReduceL1:
                     uni_vmovups(vmm_aux, table_val(1));
@@ -576,7 +584,9 @@ private:
                         vgatherdps(vmm_src | k_mask, ptr[reg_src + offset + vmm_idx]);
                     } else {
                         vpgatherdd(vmm_src | k_mask, ptr[reg_src + offset + vmm_idx]);
-                        uni_vcvtdq2ps(vmm_src, vmm_src);
+                        if (!support_intermediate_int) {
+                            uni_vcvtdq2ps(vmm_src, vmm_src);
+                        }
                     }
                 } else if (isa == cpu::x64::avx2) {
                     uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
@@ -584,7 +594,9 @@ private:
                         vgatherdps(vmm_src, ptr[reg_src + offset + vmm_idx], vmm_mask);
                     } else {
                         vpgatherdd(vmm_src, ptr[reg_src + offset + vmm_idx], vmm_mask);
-                        uni_vcvtdq2ps(vmm_src, vmm_src);
+                        if (!support_intermediate_int) {
+                            uni_vcvtdq2ps(vmm_src, vmm_src);
+                        }
                     }
                 } else {
                     pack_gathered_vector(vmm_src, vmm_idx, offset, jcp_.src_dt);
@@ -652,7 +664,7 @@ private:
                 assert(!"unknown src_dt");
         }
 
-        if (!isFloatCompatible(src_dt))
+        if (convert_i32_to_f32(src_dt))
             uni_vcvtdq2ps(vmm_val, vmm_val);
         add(rsp, vlen);
     }
@@ -817,7 +829,11 @@ private:
                 uni_vorps(vmm_dst, vmm_dst, vmm_src);
                 break;
             case Algorithm::ReduceProd:
-                uni_vmulps(vmm_dst, vmm_dst, vmm_src);
+                if (isFloatCompatible(jcp_.src_dt)) {
+                    uni_vmulps(vmm_dst, vmm_dst, vmm_src);
+                } else {
+                    uni_vpmulld(vmm_dst, vmm_dst, vmm_src);
+                }
                 break;
             default:
                 assert(!"unsupported reduce mode");
@@ -858,7 +874,11 @@ private:
                 uni_vorps(xmm_dst, xmm_dst, xmm_src);
                 break;
             case Algorithm::ReduceProd:
-                uni_vmulps(xmm_dst, xmm_dst, xmm_src);
+                if (isFloatCompatible(jcp_.src_dt)) {
+                    uni_vmulps(xmm_dst, xmm_dst, xmm_src);
+                } else {
+                    uni_vpmulld(xmm_dst, xmm_dst, xmm_src);
+                }
                 break;
             default:
                 assert(!"unsupported reduce mode");
@@ -909,7 +929,7 @@ private:
                 assert(!"unknown src_dt");
         }
 
-        if (!isFloatCompatible(src_dt))
+        if (convert_i32_to_f32(src_dt))
             uni_vcvtdq2ps(vmm_src, vmm_src);
     }
 
@@ -938,7 +958,7 @@ private:
                 assert(!"unknown src_dt");
         }
 
-        if (!isFloatCompatible(src_dt)) {
+        if (convert_i32_to_f32(src_dt)) {
             uni_vcvtdq2ps(xmm_src, xmm_src);
         }
     }
@@ -947,7 +967,7 @@ private:
         Xmm xmm_dst = Xmm(vmm_dst.getIdx());
         Ymm ymm_dst = Ymm(vmm_dst.getIdx());
 
-        if (!isFloatCompatible(dst_dt)) {
+        if (convert_f32_to_i32(dst_dt)) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
         }
 
@@ -998,7 +1018,7 @@ private:
     }
 
     inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, memory::data_type dst_dt) {
-        if (!isFloatCompatible(dst_dt)) {
+        if (convert_f32_to_i32(dst_dt)) {
             uni_vcvtps2dq(xmm_dst, xmm_dst);
         }
 
@@ -1012,7 +1032,9 @@ private:
                 uni_vpextrw(op, xmm_dst, 0x0);
                 break;
             case memory::data_type::f16:
-                vcvtps2ph(op, xmm_dst, 0x4);
+                vcvtps2ph(xmm_dst, xmm_dst, 0x4);
+                movq(reg_tmp_64, xmm_dst);
+                mov(op, reg_tmp_16);
                 break;
             case memory::data_type::s8:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
@@ -1089,11 +1111,22 @@ private:
                 uni_vorps(xmm, xmm, op);
                 break;
             case Algorithm::ReduceProd:
-                uni_vmulps(xmm, xmm, op);
+                if (isFloatCompatible(jcp_.src_dt))
+                    uni_vmulps(xmm, xmm, op);
+                else
+                    uni_vpmulld(xmm, xmm, op);
                 break;
             default:
                 assert(!"unsupported reduce mode");
         }
+    }
+
+    inline bool convert_i32_to_f32(memory::data_type src_dt) {
+        return !isFloatCompatible(src_dt) && !support_intermediate_int;
+    }
+
+    inline bool convert_f32_to_i32(memory::data_type dst_dt) {
+        return !isFloatCompatible(dst_dt) && !support_intermediate_int;
     }
 
     void prepare_aux_table() {
@@ -1112,6 +1145,7 @@ private:
         broadcast_int(aux_vals.float_max);
         broadcast_int(aux_vals.int32_min);
         broadcast_int(aux_vals.int32_max);
+        broadcast_int(aux_vals.int32_one);
     }
 
     const struct aux_vals_type {
@@ -1121,6 +1155,7 @@ private:
         int float_max = 0x7f7fffff; // float maximum
         int int32_min = 0xcf000000; // -2^31 presented in float
         int int32_max = 0x4effffff; // 2^31-1 presented in float
+        int int32_one = 0x00000001; // integer 1
     } aux_vals;
 };
 
@@ -1241,6 +1276,7 @@ private:
     Xbyak::Reg64 reg_params = abi_param1;
 
     Xbyak::Reg8 reg_tmp_8 = r14b;
+    Xbyak::Reg16 reg_tmp_16 = r14w;
     Xbyak::Reg32 reg_tmp_32 = r14d;
     Xbyak::Reg64 reg_tmp_64 = r14;
 
@@ -1676,7 +1712,9 @@ private:
                 uni_vpextrw(op, xmm_dst, 0x0);
                 break;
             case memory::data_type::f16:
-                vcvtps2ph(op, xmm_dst, 0x4);
+                vcvtps2ph(xmm_dst, xmm_dst, 0x4);
+                movq(reg_tmp_64, xmm_dst);
+                mov(op, reg_tmp_16);
                 break;
             case memory::data_type::s8:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
@@ -1986,8 +2024,7 @@ void Reduce::initSupportedPrimitiveDescriptors() {
             if (axis < 0)
                 axis += static_cast<int>(getInputShapeAtPort(REDUCE_DATA).getRank());
         }
-        // TODO: Per-channel layout is disabled due to accuracy issue in ACL Reduce Executor
-        // pushDesc(LayoutType::nspc, LayoutType::nspc, input_prec, output_prec, undef, true);
+        pushDesc(LayoutType::nspc, LayoutType::nspc, input_prec, output_prec, impl_desc_type::undef, true);
         pushDesc(LayoutType::ncsp, LayoutType::ncsp, input_prec, output_prec, impl_desc_type::undef, true);
         canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
         if (canUseAclExecutor)

@@ -137,6 +137,7 @@ endif()
 ov_option(ENABLE_OV_PADDLE_FRONTEND "Enable PaddlePaddle FrontEnd" ON)
 ov_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
 ov_option(ENABLE_OV_PYTORCH_FRONTEND "Enable PyTorch FrontEnd" ON)
+ov_option(ENABLE_OV_JAX_FRONTEND "Enable JAX FrontEnd" ON)
 ov_option(ENABLE_OV_IR_FRONTEND "Enable IR FrontEnd" ON)
 ov_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON)
 ov_option(ENABLE_OV_TF_LITE_FRONTEND "Enable TensorFlow Lite FrontEnd" ON)
@@ -162,7 +163,15 @@ else()
     set(ENABLE_SYSTEM_FLATBUFFERS_DEFAULT ON)
 endif()
 
-ov_dependent_option (ENABLE_SYSTEM_TBB  "Enables use of system TBB" OFF "THREADING MATCHES TBB" OFF)
+# use system TBB only for Debian / RPM packages
+if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW|CONAN|VCPKG)$")
+    set(ENABLE_SYSTEM_TBB_DEFAULT ${ENABLE_SYSTEM_LIBS_DEFAULT})
+else()
+    set(ENABLE_SYSTEM_TBB_DEFAULT OFF)
+endif()
+
+ov_dependent_option (ENABLE_SYSTEM_TBB  "Enables use of system TBB" ${ENABLE_SYSTEM_TBB_DEFAULT}
+    "THREADING MATCHES TBB" OFF)
 ov_option (ENABLE_SYSTEM_PUGIXML "Enables use of system PugiXML" OFF)
 # the option is on by default, because we use only flatc compiler and don't use any libraries
 ov_dependent_option(ENABLE_SYSTEM_FLATBUFFERS "Enables use of system flatbuffers" ${ENABLE_SYSTEM_FLATBUFFERS_DEFAULT}
@@ -183,6 +192,8 @@ ov_dependent_option (ENABLE_PYTHON_PACKAGING "Enables packaging of Python API in
 ov_dependent_option(ENABLE_JS "Enables JS API building" ON "NOT ANDROID;NOT EMSCRIPTEN" OFF)
 
 ov_option(ENABLE_OPENVINO_DEBUG "Enable output for OPENVINO_DEBUG statements" OFF)
+
+ov_dependent_option (ENABLE_API_VALIDATOR "Enables API Validator usage" ON "WIN32" OFF)
 
 if(NOT BUILD_SHARED_LIBS AND ENABLE_OV_TF_FRONTEND)
     set(FORCE_FRONTENDS_USE_PROTOBUF ON)

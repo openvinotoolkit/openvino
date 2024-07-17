@@ -5,7 +5,8 @@
 #include "snippets/lowered/loop_manager.hpp"
 
 #include "snippets/lowered/expression.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/op/loop.hpp"
+#include "snippets/utils/utils.hpp"
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/type.hpp"
@@ -122,15 +123,8 @@ std::pair<LinearIR::constExprIt, LinearIR::constExprIt> LoopManager::get_loop_bo
 }
 
 LoopPort LoopManager::get_loop_port_by_expr_port(const ExpressionPort& expr_port, const size_t loop_id) {
-    auto get_loop_port = [&](const std::vector<LoopPort>& ports) {
-        auto it = std::find_if(ports.cbegin(), ports.cend(), [&](const LoopPort& p) { return *p.expr_port == expr_port; });
-        if (it == ports.cend())
-            OPENVINO_THROW("Expression has not been found among loop ports. Loop id: " + std::to_string(loop_id));
-        return *it;
-    };
     const auto& loop_info = get_loop_info(loop_id);
-    return expr_port.get_type() == ExpressionPort::Input ? get_loop_port(loop_info->get_input_ports())
-                                                         : get_loop_port(loop_info->get_output_ports());
+    return loop_info->get_loop_port(expr_port);
 }
 
 void LoopManager::get_io_loop_ports(LinearIR::constExprIt loop_begin_pos,
@@ -180,7 +174,8 @@ void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
         OPENVINO_ASSERT(index < size, "Incorrect index for broadcasting");
         const auto lhs_value = index < lhs_size ? *(lhs.crbegin() + index) : 1;
         const auto rhs_value = index < rhs_size ? *(rhs.crbegin() + index) : 1;
-        utils::broadcast_merge_dim(*(lhs.rbegin() + index), lhs_value, rhs_value);
+        OPENVINO_ASSERT(utils::broadcast_merge_dim(*(lhs.rbegin() + index), lhs_value, rhs_value),
+                        "Failed to broadcast work amount in marking loop");
     };
 
     auto is_outside_loop = [&FULL_DIM](const std::vector<size_t>& subtensor) {
@@ -270,7 +265,7 @@ void LoopManager::fuse_loops(LinearIR::constExprIt loop_begin_target, LinearIR::
     auto input_ports_upper = loop_info_upper->get_input_ports();
     auto output_ports_upper = loop_info_upper->get_output_ports();
     auto input_ports_lower = loop_info_lower->get_input_ports();
-    auto output_ports_lower = loop_info_lower->get_output_ports();
+    const auto& output_ports_lower = loop_info_lower->get_output_ports();
     fuse_loop_ports(output_ports_upper, input_ports_lower, loop_id_upper);
 
     const auto& from = fuse_into_upper ? loop_id_lower : loop_id_upper;
@@ -281,13 +276,14 @@ void LoopManager::fuse_loops(LinearIR::constExprIt loop_begin_target, LinearIR::
     const auto work_amount = std::max(loop_info_upper->get_work_amount(), loop_info_lower->get_work_amount());
     const auto increment = std::max(loop_info_upper->get_increment(), loop_info_lower->get_increment());
     const auto handlers = SpecificIterationHandlers::merge_handlers(loop_info_upper->get_handlers(), loop_info_lower->get_handlers());
+    const auto is_work_amount_const = loop_info_upper->is_work_amount_const() || loop_info_lower->is_work_amount_const();
 
-    auto new_entries = input_ports_upper;
+    auto new_entries = std::move(input_ports_upper);
     new_entries.insert(new_entries.end(), input_ports_lower.begin(), input_ports_lower.end());
-    auto new_exits = output_ports_upper;
+    auto new_exits = std::move(output_ports_upper);
     new_exits.insert(new_exits.end(), output_ports_lower.begin(), output_ports_lower.end());
 
-    m_map[to] = std::make_shared<UnifiedLoopInfo>(work_amount, increment, new_entries, new_exits, handlers);
+    m_map[to] = std::make_shared<UnifiedLoopInfo>(work_amount, increment, new_entries, new_exits, handlers, is_work_amount_const);
 
     for (auto it = loop_begin_target; it != loop_end_target; ++it) {
         const auto& expr = *it;
@@ -394,7 +390,7 @@ void LoopManager::expression_replacement(LinearIR::constExprIt new_expr_begin, L
     }
 }
 
-void LoopManager::sort_loop_ports(LinearIR::constExprIt& loop_begin_pos, LinearIR::constExprIt& loop_end_pos, size_t loop_id) {
+void LoopManager::sort_loop_ports(const LinearIR::constExprIt& loop_begin_pos, const LinearIR::constExprIt& loop_end_pos, size_t loop_id) {
     // [113536] Update this logic please, when expression numeration will be implemented
     const auto& loop_info = get_loop_info<UnifiedLoopInfo>(loop_id);
     const auto& loop_entries = loop_info->get_input_ports();

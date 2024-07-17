@@ -49,8 +49,8 @@ used to convert the models to OpenVINO™ IR format. Additionally, we
 demonstrate how to improve pipeline latency with the quantization UNet
 model using `NNCF <https://github.com/openvinotoolkit/nncf>`__.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Prepare PyTorch model <#prepare-pytorch-model>`__
@@ -245,7 +245,7 @@ For saving time, we will not cover image-to-image generation in this
 notebook. As we already mentioned, Segmind-Vega is compatible with
 Stable Diffusion XL pipeline, the steps required to run Stable Diffusion
 XL inference for image-to-image task were discussed in this
-`notebook <stable-dffision-xl-with-output.html>`__.
+`notebook <stable-dffision-xl.ipynb>`__.
 
 Select inference device for text-to-image generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -438,7 +438,7 @@ model inputs for calibration we should customize ``CompiledModel``.
         original_unet = pipe.unet.request
         pipe.unet.request = CompiledModelDecorator(original_unet)
 
-        dataset = datasets.load_dataset("conceptual_captions", split="train").shuffle(seed=42)
+        dataset = datasets.load_dataset("google-research-datasets/conceptual_captions", split="train", trust_remote_code=True).shuffle(seed=42)
         disable_progress_bar(pipe)
 
         # Run inference for data collection
@@ -598,7 +598,7 @@ pipelines, we use median inference time on the calibration subset.
     import time
 
     validation_size = 7
-    calibration_dataset = datasets.load_dataset("conceptual_captions", split="train")
+    calibration_dataset = datasets.load_dataset("google-research-datasets/conceptual_captions", split="train", trust_remote_code=True)
     validation_data = []
     for idx, batch in enumerate(calibration_dataset):
         if idx >= validation_size:

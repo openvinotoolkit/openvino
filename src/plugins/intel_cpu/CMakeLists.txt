@@ -87,6 +87,13 @@ else()
 endif()
 ov_option(ENABLE_MLAS_FOR_CPU "Enable MLAS for OpenVINO CPU Plugin" ${ENABLE_MLAS_FOR_CPU_DEFAULT})
 
+if(RISCV64_THEAD)
+    set(ENABLE_SHL_FOR_CPU_DEFAULT ON)
+else()
+    set(ENABLE_SHL_FOR_CPU_DEFAULT OFF)
+endif()
+ov_dependent_option(ENABLE_SHL_FOR_CPU "Enable SHL for OpenVINO CPU Plugin" ${ENABLE_SHL_FOR_CPU_DEFAULT} "RISCV64" OFF)
+
 add_subdirectory(thirdparty)
 
 if(WIN32)
@@ -121,7 +128,8 @@ file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
                           ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
 if(NOT OV_CPU_WITH_ACL)
-    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/acl/*)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/acl/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/acl/*)
 endif()
 
 if(NOT X86_64)
@@ -195,6 +203,9 @@ if (ENABLE_SNIPPETS_LIBXSMM_TPP)
     target_link_libraries(${TARGET_NAME} PRIVATE xsmm)
     target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:xsmm,INCLUDE_DIRECTORIES>)
 endif ()
+if(ENABLE_SHL_FOR_CPU)
+    target_link_libraries(${TARGET_NAME} PRIVATE shl)
+endif()
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 
 # Temporal solution to use template reference implementations in cases where optimizied implementation
@@ -245,6 +256,15 @@ cross_compiled_file(${TARGET_NAME}
         NAME        attn_quantkv paged_attn_quantkv attn_quant_u8 attn_dequant_u8
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
+
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F ANY
+                    src/nodes/kernels/x64/mlp_utils.cpp
+        API         src/nodes/kernels/x64/mlp_utils.hpp
+        NAME        llm_mlp_transpose_epi32_16x16
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
+
 # system dependencies must go last
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::pugixml)
 ov_set_threading_interface_for(${TARGET_NAME})
@@ -283,6 +303,10 @@ if(BUILD_SHARED_LIBS)
 
     if(ENABLE_MLAS_FOR_CPU)
         target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:mlas,INCLUDE_DIRECTORIES>)
+    endif()
+
+    if(ENABLE_SHL_FOR_CPU)
+        target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:shl,INTERFACE_INCLUDE_DIRECTORIES>)
     endif()
 
     ov_set_threading_interface_for(${TARGET_NAME}_obj)

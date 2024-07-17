@@ -28,8 +28,8 @@ Additionally, you can also upload a video file.
    server, the webcam will not work but you can run inference, using a
    video file.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Preparation <#preparation>`__
 
@@ -64,22 +64,20 @@ Install requirements
 
     %pip install -q "openvino>=2023.1.0"
     %pip install -q opencv-python requests tqdm
-    
+
     # Fetch `notebook_utils` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-    
+
     open("notebook_utils.py", "w").write(r.text)
 
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -87,7 +85,7 @@ Install requirements
 
 .. parsed-literal::
 
-    21503
+    23215
 
 
 
@@ -100,14 +98,14 @@ Imports
 
     import collections
     import time
-    
+
     import cv2
     import numpy as np
     from pathlib import Path
     import ipywidgets as widgets
     from IPython.display import display, clear_output, Image
     import openvino as ov
-    
+
     import notebook_utils as utils
 
 Select one of the styles below: Mosaic, Rain Princess, Candy, Udnie, and
@@ -123,17 +121,17 @@ Pointilism to do the style transfer.
         disabled=False,
         style={"description_width": "initial"},  # Adjust the width as needed
     )
-    
-    
+
+
     # Function to handle changes in dropdown and print the selected style
     def print_style(change):
         if change["type"] == "change" and change["name"] == "value":
             print(f"Selected style {change['new']}")
-    
-    
+
+
     # Observe changes in the dropdown value
     style_dropdown.observe(print_style, names="value")
-    
+
     # Display the dropdown
     display(style_dropdown)
 
@@ -166,10 +164,10 @@ OpenVINO Intermediate Representation (IR) with ``FP16`` precision.
     # Directory to download the model from ONNX model zoo
     base_model_dir = "model"
     base_url = "https://github.com/onnx/models/raw/69d69010b7ed6ba9438c392943d2715026792d40/archive/vision/style_transfer/fast_neural_style/model"
-    
+
     # Selected ONNX model will be downloaded in the path
     model_path = Path(f"{style_dropdown.value.lower()}-9.onnx")
-    
+
     style_url = f"{base_url}/{model_path}"
     utils.download_file(style_url, directory=base_model_dir)
 
@@ -184,7 +182,7 @@ OpenVINO Intermediate Representation (IR) with ``FP16`` precision.
 
 .. parsed-literal::
 
-    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-674/.workspace/scm/ov-notebook/notebooks/style-transfer-webcam/model/mosaic-9.onnx')
+    PosixPath('/opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/style-transfer-webcam/model/mosaic-9.onnx')
 
 
 
@@ -207,7 +205,7 @@ this step.
 .. code:: ipython3
 
     # Construct the command for model conversion API.
-    
+
     ov_model = ov.convert_model(f"model/{style_dropdown.value.lower()}-9.onnx")
     ov.save_model(ov_model, f"model/{style_dropdown.value.lower()}-9.xml")
 
@@ -246,25 +244,25 @@ results.
 
     # Initialize OpenVINO Runtime.
     core = ov.Core()
-    
+
     # Read the network and corresponding weights from ONNX Model.
     # model = ie_core.read_model(model=onnx_path)
-    
+
     # Read the network and corresponding weights from IR Model.
     model = core.read_model(model=ir_path)
 
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
-    
+
+
     # Compile the model for CPU (or change to GPU, etc. for other devices)
     # or let OpenVINO select the best available device with AUTO.
     device
@@ -281,7 +279,7 @@ results.
 .. code:: ipython3
 
     compiled_model = core.compile_model(model=model, device_name=device.value)
-    
+
     # Get the input and output nodes.
     input_layer = compiled_model.input(0)
     output_layer = compiled_model.output(0)
@@ -295,7 +293,7 @@ respectively. For *fast-neural-style-mosaic-onnx*, there is 1 input and
     print(input_layer.any_name, output_layer.any_name)
     print(input_layer.shape)
     print(output_layer.shape)
-    
+
     # Get the input size.
     N, C, H, W = list(input_layer.shape)
 
@@ -310,7 +308,7 @@ respectively. For *fast-neural-style-mosaic-onnx*, there is 1 input and
 Preprocess the image
 ~~~~~~~~~~~~~~~~~~~~
 
- Preprocess the input image
+Preprocess the input image
 before running the model. Prepare the dimensions and channel order for
 the image to match the original image with the input tensor
 
@@ -323,7 +321,7 @@ the image to match the original image with the input tensor
     def preprocess_images(frame, H, W):
         """
         Preprocess input image to align with network size
-    
+
         Parameters:
             :param frame:  input frame
             :param H:  height of the frame to style transfer model
@@ -353,7 +351,7 @@ shape .
     def convert_result_to_image(frame, stylized_image) -> np.ndarray:
         """
         Postprocess stylized image for visualization
-    
+
         Parameters:
             :param frame:  input frame
             :param stylized_image:  stylized image with specific style applied
@@ -398,7 +396,7 @@ either using a webcam or a video file.
             if use_popup:
                 title = "Press ESC to Exit"
                 cv2.namedWindow(winname=title, flags=cv2.WINDOW_GUI_NORMAL | cv2.WINDOW_AUTOSIZE)
-    
+
             processing_times = collections.deque()
             while True:
                 # Grab the frame.
@@ -417,24 +415,24 @@ either using a webcam or a video file.
                         interpolation=cv2.INTER_AREA,
                     )
                 # Preprocess the input image.
-    
+
                 image = preprocess_images(frame, H, W)
-    
+
                 # Measure processing time for the input image.
                 start_time = time.time()
                 # Perform the inference step.
                 stylized_image = compiled_model([image])[output_layer]
                 stop_time = time.time()
-    
+
                 # Postprocessing for stylized image.
                 result_image = convert_result_to_image(frame, stylized_image)
-    
+
                 processing_times.append(stop_time - start_time)
                 # Use processing times from last 200 frames.
                 if len(processing_times) > 200:
                     processing_times.popleft()
                 processing_time_det = np.mean(processing_times) * 1000
-    
+
                 # Visualize the results.
                 f_height, f_width = frame.shape[:2]
                 fps = 1000 / processing_time_det
@@ -448,7 +446,7 @@ either using a webcam or a video file.
                     thickness=1,
                     lineType=cv2.LINE_AA,
                 )
-    
+
                 # Use this workaround if there is flickering.
                 if use_popup:
                     cv2.imshow(title, result_image)
@@ -501,12 +499,12 @@ OpenCV <https://docs.opencv.org/4.5.1/dd/d43/tutorial_py_video_display.html>`__
 .. code:: ipython3
 
     USE_WEBCAM = False
-    
+
     cam_id = 0
     video_file = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/video/Coco%20Walking%20in%20Berkeley.mp4"
-    
+
     source = cam_id if USE_WEBCAM else video_file
-    
+
     run_style_transfer(source=source, flip=isinstance(source, int), use_popup=False)
 
 

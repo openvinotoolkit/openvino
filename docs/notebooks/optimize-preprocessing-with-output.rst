@@ -23,8 +23,8 @@ This tutorial include following steps:
 -  Comparing results on one picture.
 -  Comparing performance.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Settings <#settings>`__
 -  `Imports <#imports>`__
@@ -71,14 +71,14 @@ Settings
 .. code:: ipython3
 
     import platform
-    
+
     # Install openvino package
     %pip install -q "openvino>=2023.1.0" opencv-python tqdm
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
         %pip install -q "matplotlib>=3.4,<3.7"
-    
+
     %pip install -q "tensorflow-macos>=2.5; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version > '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow-macos>=2.5,<=2.12.0; sys_platform == 'darwin' and platform_machine == 'arm64' and python_version <= '3.8'" # macOS M1 and M2
     %pip install -q "tensorflow>=2.5; sys_platform == 'darwin' and platform_machine != 'arm64' and python_version > '3.8'" # macOS x86
@@ -109,23 +109,23 @@ Imports
     import time
     import os
     from pathlib import Path
-    
+
     os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
     os.environ["TF_USE_LEGACY_KERAS"] = "1"
-    
+
     import cv2
     import matplotlib.pyplot as plt
     import numpy as np
     import openvino as ov
     import tensorflow as tf
-    
+
     # Fetch `notebook_utils` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-    
+
     open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file
 
@@ -153,7 +153,7 @@ Setup image and device
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
@@ -161,7 +161,7 @@ Setup image and device
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -195,20 +195,20 @@ and save it to the disk.
 .. code:: ipython3
 
     model_name = "InceptionResNetV2"
-    
+
     model_dir = Path("model")
     model_dir.mkdir(exist_ok=True)
-    
+
     model_path = model_dir / model_name
-    
+
     model = tf.keras.applications.InceptionV3()
     model.save(model_path)
 
 
 .. parsed-literal::
 
-    2024-05-07 00:42:55.865083: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
-    2024-05-07 00:42:55.865267: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
+    2024-07-13 01:20:31.789841: E tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:266] failed call to cuInit: CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE: forward compatibility was attempted on non supported HW
+    2024-07-13 01:20:31.790029: E tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:312] kernel version 470.182.3 does not match DSO version 470.223.2 -- cannot find working devices in this configuration
 
 
 .. parsed-literal::
@@ -301,9 +301,9 @@ The options for preprocessing are not required.
 .. code:: ipython3
 
     ir_path = model_dir / "ir_model" / f"{model_name}.xml"
-    
+
     ppp_model = None
-    
+
     if ir_path.exists():
         ppp_model = core.read_model(model=ir_path)
         print(f"Model in OpenVINO format already exists: {ir_path}")
@@ -324,7 +324,7 @@ a model.
 .. code:: ipython3
 
     from openvino.preprocess import PrePostProcessor
-    
+
     ppp = PrePostProcessor(ppp_model)
 
 Declare User’s Data Format
@@ -366,7 +366,7 @@ for mean/scale normalization.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7f96d4115270>
+    <openvino._pyopenvino.preprocess.InputTensorInfo at 0x7f19306c9630>
 
 
 
@@ -384,7 +384,7 @@ may be specified is input data
 
     input_layer_ir = next(iter(ppp_model.inputs))
     print(f"The input shape of the model is {input_layer_ir.shape}")
-    
+
     ppp.input().model().set_layout(ov.Layout("NHWC"))
 
 
@@ -397,7 +397,7 @@ may be specified is input data
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7f96d4115f70>
+    <openvino._pyopenvino.preprocess.InputModelInfo at 0x7f1ac05d62f0>
 
 
 
@@ -427,7 +427,7 @@ then such conversion will be added explicitly.
 .. code:: ipython3
 
     from openvino.preprocess import ResizeAlgorithm
-    
+
     ppp.input().preprocess().convert_element_type(ov.Type.f32).resize(ResizeAlgorithm.RESIZE_LINEAR).mean([127.5, 127.5, 127.5]).scale([127.5, 127.5, 127.5])
 
 
@@ -435,7 +435,7 @@ then such conversion will be added explicitly.
 
 .. parsed-literal::
 
-    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7f96944cd4f0>
+    <openvino._pyopenvino.preprocess.PreProcessSteps at 0x7f19306c3eb0>
 
 
 
@@ -464,7 +464,7 @@ configuration for debugging purposes.
           resize to model width/height: ([1,?,?,3], [N,H,W,C], f32) -> ([1,299,299,3], [N,H,W,C], f32)
           mean (127.5,127.5,127.5): ([1,299,299,3], [N,H,W,C], f32) -> ([1,299,299,3], [N,H,W,C], f32)
           scale (127.5,127.5,127.5): ([1,299,299,3], [N,H,W,C], f32) -> ([1,299,299,3], [N,H,W,C], f32)
-    
+
 
 
 Load model and perform inference
@@ -478,12 +478,12 @@ Load model and perform inference
         image = cv2.imread(image_path)
         input_tensor = np.expand_dims(image, 0)
         return input_tensor
-    
-    
+
+
     compiled_model_with_preprocess_api = core.compile_model(model=ppp_model, device_name=device.value)
-    
+
     ppp_output_layer = compiled_model_with_preprocess_api.output(0)
-    
+
     ppp_input_tensor = prepare_image_api_preprocess(image_path)
     results = compiled_model_with_preprocess_api(ppp_input_tensor)[ppp_output_layer][0]
 
@@ -511,22 +511,22 @@ Load image and fit it to model input
 
     def manual_image_preprocessing(path_to_image, compiled_model):
         input_layer_ir = next(iter(compiled_model.inputs))
-    
+
         # N, H, W, C = batch size, height, width, number of channels
         N, H, W, C = input_layer_ir.shape
-    
+
         # load  image, image will be resized to model input size and converted to RGB
         img = tf.keras.preprocessing.image.load_img(image_path, target_size=(H, W), color_mode="rgb")
-    
+
         x = tf.keras.preprocessing.image.img_to_array(img)
         x = np.expand_dims(x, axis=0)
-    
+
         # will scale input pixels between -1 and 1
         input_tensor = tf.keras.applications.inception_resnet_v2.preprocess_input(x)
-    
+
         return input_tensor
-    
-    
+
+
     input_tensor = manual_image_preprocessing(image_path, compiled_model)
     print(f"The shape of the image is {input_tensor.shape}")
     print(f"The data type of the image is {input_tensor.dtype}")
@@ -546,7 +546,7 @@ Perform inference
 .. code:: ipython3
 
     output_layer = compiled_model.output(0)
-    
+
     result = compiled_model(input_tensor)[output_layer]
 
 Compare results
@@ -563,18 +563,18 @@ Compare results on one image
 
     def check_results(input_tensor, compiled_model, imagenet_classes):
         output_layer = compiled_model.output(0)
-    
+
         results = compiled_model(input_tensor)[output_layer][0]
-    
+
         top_indices = np.argsort(results)[-5:][::-1]
         top_softmax = results[top_indices]
-    
+
         for index, softmax_probability in zip(top_indices, top_softmax):
             print(f"{imagenet_classes[index]}, {softmax_probability:.5f}")
-    
+
         return top_indices, top_softmax
-    
-    
+
+
     # Convert the inference result to a class name.
     imagenet_filename = download_file(
         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/datasets/imagenet/imagenet_2012.txt",
@@ -582,13 +582,13 @@ Compare results on one image
     )
     imagenet_classes = imagenet_filename.read_text().splitlines()
     imagenet_classes = ["background"] + imagenet_classes
-    
+
     # get result for inference with preprocessing api
     print("Result of inference with Preprocessing API:")
     res = check_results(ppp_input_tensor, compiled_model_with_preprocess_api, imagenet_classes)
-    
+
     print("\n")
-    
+
     # get result for inference with the manual preparing of the image
     print("Result of inference with manual image setup:")
     res = check_results(input_tensor, compiled_model, imagenet_classes)
@@ -608,8 +608,8 @@ Compare results on one image
     n02108915 French bulldog, 0.01915
     n02111129 Leonberg, 0.00825
     n02097047 miniature schnauzer, 0.00294
-    
-    
+
+
     Result of inference with manual image setup:
     n02098413 Lhasa, Lhasa apso, 0.76843
     n02099601 golden retriever, 0.19322
@@ -627,28 +627,28 @@ Compare performance
 
     def check_performance(compiled_model, preprocessing_function=None):
         num_images = 1000
-    
+
         start = time.perf_counter()
-    
+
         for _ in range(num_images):
             input_tensor = preprocessing_function(image_path, compiled_model)
             compiled_model(input_tensor)
-    
+
         end = time.perf_counter()
         time_ir = end - start
-    
+
         return time_ir, num_images
-    
-    
+
+
     time_ir, num_images = check_performance(compiled_model, manual_image_preprocessing)
     print(f"IR model in OpenVINO Runtime/CPU with manual image preprocessing: {time_ir/num_images:.4f} " f"seconds per image, FPS: {num_images/time_ir:.2f}")
-    
+
     time_ir, num_images = check_performance(compiled_model_with_preprocess_api, prepare_image_api_preprocess)
     print(f"IR model in OpenVINO Runtime/CPU with preprocessing API: {time_ir/num_images:.4f} " f"seconds per image, FPS: {num_images/time_ir:.2f}")
 
 
 .. parsed-literal::
 
-    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0153 seconds per image, FPS: 65.50
-    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0185 seconds per image, FPS: 53.99
+    IR model in OpenVINO Runtime/CPU with manual image preprocessing: 0.0153 seconds per image, FPS: 65.49
+    IR model in OpenVINO Runtime/CPU with preprocessing API: 0.0138 seconds per image, FPS: 72.21
 

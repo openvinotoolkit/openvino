@@ -7,7 +7,7 @@
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 // This header is needed to avoid MSVC warning "C2039: 'inserter': is not a member of 'std'"
 #include <iterator>
@@ -48,71 +48,61 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
 
     set_reg_types(linear_ir);
     const auto& exprs = linear_ir.get_ops();
-    const auto& io_exprs = linear_ir.get_IO_ops();
+    const auto& params = linear_ir.get_parameters();
+    const auto& results = linear_ir.get_results();
     Reg num_expressions = exprs.size();
-    Reg num_parameters = 0;
-    Reg num_results = 0;
-    for (const auto& expr : io_exprs) {
-        switch (expr->get_type()) {
-            case snippets::lowered::IOExpression::io_type::INPUT: {
-                num_parameters++;
-                break;
-            }
-            case snippets::lowered::IOExpression::io_type::OUTPUT: {
-                num_results++;
-                break;
-            } default : {
-                OPENVINO_THROW("Kernel detected unsupported io_type");
-            }
+    Reg num_parameters = params.size();
+    Reg num_results = results.size();
+
+    size_t io_index = 0;
+    // Define a set of immune tensors that will be ignored by auto reg allocation => their reg allocation is done manually
+    std::map<tensor, Reg> manually_assigned_gprs, manually_assigned_vecs;
+    for (const auto& param : params) {
+        manually_assigned_gprs[param->get_output_port_connector(0)] = io_index;
+        // TODO [96434]: Support shape infer ops in arbitrary place in pipeline, not just after inputs
+        // shape infer ops sequence after input
+        const auto& shape_infer_consumers = utils::get_first_child_shape_infer_expr_seq(param);
+        for (const auto& child_shape_infer_expr : shape_infer_consumers) {
+            manually_assigned_gprs[child_shape_infer_expr->get_output_port_connector(0)] = io_index;
         }
+        io_index++;
+    }
+    for (const auto& result : results) {
+        manually_assigned_gprs[result->get_input_port_connector(0)] = io_index;
+        // shape infer ops sequence before result
+        const auto& shape_infer_sources = utils::get_first_parent_shape_infer_expr_seq(result);
+        for (const auto& parent_shape_infer_expr : shape_infer_sources) {
+            manually_assigned_gprs[parent_shape_infer_expr->get_input_port_connector(0)] = io_index;
+        }
+        io_index++;
     }
 
     size_t counter_vec = 0;
     size_t counter_gpr = 0;
     std::map<tensor, Reg> regs_vec, regs_gpr;
-    // Define a set of immune tensors that will be ignored by auto reg allocation => their reg allocation is done manually
-    std::map<tensor, Reg> manually_assigned_gprs, manually_assigned_vecs;
     const auto IS_MANUALLY_ALLOCATED_REG = SIZE_MAX;
     auto accumulator_reg = 0lu;
     for (const auto& expr : exprs) {
         auto op = expr->get_node();
-        if (const auto io_expr = std::dynamic_pointer_cast<IOExpression>(expr)) {
-            if (io_expr->get_type() == IOExpression::io_type::INPUT) {
-                const auto& out_connector = expr->get_output_port_connector(0);
-                manually_assigned_gprs[out_connector] = io_expr->get_index();
-                // TODO [96434]: Support shape infer ops in arbitrary place in pipeline, not just after inputs
-                // shape infer ops sequence after input
-                const auto& shape_infer_consumers = utils::get_first_child_shape_infer_expr_seq(io_expr);
-                for (const auto& child_shape_infer_expr : shape_infer_consumers) {
-                    manually_assigned_gprs[child_shape_infer_expr->get_output_port_connector(0)] = io_expr->get_index();
-                }
-            } else if (io_expr->get_type() == IOExpression::io_type::OUTPUT) {
-                manually_assigned_gprs[expr->get_input_port_connector(0)] = num_parameters + io_expr->get_index();
-                // shape infer ops sequence before result
-                const auto& shape_infer_sources = utils::get_first_parent_shape_infer_expr_seq(io_expr);
-                for (const auto& parent_shape_infer_expr : shape_infer_sources) {
-                    manually_assigned_gprs[parent_shape_infer_expr->get_input_port_connector(0)] = num_parameters + io_expr->get_index();
-                }
-            } else {
-                OPENVINO_THROW("Unsupported io_type detected");
-            }
-        } else if (const auto& buffer = ov::as_type_ptr<op::Buffer>(op)) {
-            const auto buffer_id = buffer->get_id();
+        if (const auto& buffer = ov::as_type_ptr<op::Buffer>(op)) {
+            const auto reg_group = buffer->get_reg_group();
             // All buffers have one common data pointer
             if (ov::is_type<op::IntermediateMemoryBuffer>(buffer)) {
-                manually_assigned_gprs[expr->get_input_port_connector(0)] =
-                        static_cast<Reg>(num_results + num_parameters + buffer_id);
-                // shape infer ops in the middle of subgraph. IntermediateMemoryBuffer is inserted before reshape as new loop should start.
-                // child shape info ops share the same memory as IntermediateMemoryBuffer.
-                const auto& shape_infer_consumers = utils::get_first_child_shape_infer_expr_seq(expr);
-                for (const auto& child_shape_infer_expr : shape_infer_consumers) {
-                    manually_assigned_gprs[child_shape_infer_expr->get_input_port_connector(0)] =
-                        manually_assigned_gprs[child_shape_infer_expr->get_output_port_connector(0)] =
-                        static_cast<Reg>(num_results + num_parameters + buffer_id);
+                const auto assigned_reg = num_results + num_parameters + reg_group;
+                for (const auto& input : expr->get_input_port_connectors()) {
+                    manually_assigned_gprs[input] = static_cast<Reg>(assigned_reg);
+                    // shape infer ops in the middle of subgraph. IntermediateMemoryBuffer is inserted before reshape as new loop should start.
+                    // child shape info ops share the same memory as IntermediateMemoryBuffer.
+                    const auto& shape_infer_consumers = utils::get_first_child_shape_infer_expr_seq(expr);
+                    for (const auto& child_shape_infer_expr : shape_infer_consumers) {
+                        manually_assigned_gprs[child_shape_infer_expr->get_input_port_connector(0)] =
+                            manually_assigned_gprs[child_shape_infer_expr->get_output_port_connector(0)] =
+                                static_cast<Reg>(assigned_reg);
+                    }
                 }
             }
             manually_assigned_gprs[expr->get_output_port_connector(0)] =
-                    static_cast<Reg>(num_results + num_parameters + buffer_id);
+                    static_cast<Reg>(num_results + num_parameters + reg_group);
         } else if (ov::is_type<op::HorizonMax>(op) || ov::is_type<op::HorizonSum>(op)) {
             // Only in ReduceDecomposition Reduce ops use HorizonMax/HorizonSum and VectorBuffer.
             // We should manually set the one vector register for VectorBuffer and Max/Sum output to simulate a accumulator
