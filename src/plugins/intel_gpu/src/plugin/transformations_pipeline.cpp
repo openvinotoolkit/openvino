@@ -842,9 +842,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         const size_t zp_pad_size = device_info.supports_immad ? 16 : 32;
         manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size);
-        // tp related
-        if (config.get_context_for_tp().size() > 1)
-            manager.register_pass<ov::intel_gpu::TensorParallelFusion>(config.get_context_for_tp().size());
         manager.register_pass<ov::pass::RoPEFusion>();
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
@@ -857,6 +854,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::intel_gpu::PrintModelStatistics>();
         }
 
+        manager.run_passes(func);
+    }
+    {
+        ov::pass::Manager manager;
+        // tp related
+        if (config.get_context_for_tp().size() > 1)
+            manager.register_pass<ov::intel_gpu::TensorParallelFusion>(config.get_context_for_tp().size());
         manager.run_passes(func);
     }
 }

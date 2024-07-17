@@ -16,7 +16,7 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/swish.hpp"
-#include "openvino/op/add.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -51,19 +51,25 @@ TensorParallelFusion::TensorParallelFusion(size_t world_size) {
         } else {
             m_fc = pattern_map.at(fully_connected_compressed_with_zp).get_node_shared_ptr();
         }
+        if (m_fc->get_users().size() == 1) {
+            for (auto& iter : m_fc->get_users()) {
+                if (ov::is_type<ov::op::v1::Multiply>(iter))
+                    return false;
+            }
+        }
         std::shared_ptr<ov::op::v4::Swish> activation;
-        std::shared_ptr<ov::op::v1::Add> eltwise_node;
-        bool elwise_flag = false;
+        std::shared_ptr<ov::op::v1::Multiply> eltwise_node;
+        //bool elwise_flag = false;
         for (auto& iter : m_fc->get_users()) {
             if (ov::is_type<ov::op::v4::Swish>(iter)) {
                 activation = std::dynamic_pointer_cast<ov::op::v4::Swish>(iter);
-            } else if (ov::is_type<ov::op::v1::Add>(iter)) {
-                eltwise_node = std::dynamic_pointer_cast<ov::op::v1::Add>(iter);
-                for (size_t idx = 0; idx < eltwise_node->inputs().size(); idx++) {
-                    auto input_node = eltwise_node->get_input_node_shared_ptr(idx);
-                    if (ov::is_type<ov::op::v0::Constant>(input_node) || ov::is_type<ov::op::v0::Convert>(input_node))
-                        elwise_flag = false; // to debug accuracy issue of eltwise fusing
+                if (activation->get_users().size() == 1) {
+                    for (auto& iter2 : activation->get_users())
+                        if (ov::is_type<ov::op::v1::Multiply>(iter2))
+                            eltwise_node = std::dynamic_pointer_cast<ov::op::v1::Multiply>(iter2);
                 }
+                // have accuracy issue... to be debugged further
+                //activation = nullptr;
             }
         }
         const auto& m_data = pattern_map.at(data).get_node_shared_ptr();
@@ -71,7 +77,7 @@ TensorParallelFusion::TensorParallelFusion(size_t world_size) {
         const auto& m_bias = pattern_map.at(bias).get_node_shared_ptr();
         {
             std::map<int, std::shared_ptr<ov::Node>> org_users;
-            auto node_to_operate = activation ? activation : elwise_flag ? eltwise_node : m_fc;
+            auto node_to_operate = eltwise_node ? eltwise_node : activation ? activation : m_fc;
             for (auto u : node_to_operate->get_users()) {
                 for (size_t idx = 0; idx < u->inputs().size(); ++idx) {
                     if (u->get_input_node_shared_ptr(idx) == node_to_operate) {

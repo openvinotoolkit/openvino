@@ -34,6 +34,7 @@
 #include "assign_inst.h"
 #include "read_value_inst.h"
 #include "reshape_inst.h"
+#include "sync_tensor_inst.h"
 #include "kv_cache_inst.h"
 #include "program_helpers.h"
 #include "to_string_utils.h"
@@ -443,6 +444,7 @@ network::~network() {
         if (host_exec_times.size() >= 2) {
             double first = static_cast<double>(host_exec_times[0]);
             double avg = static_cast<double>(std::accumulate(host_exec_times.begin() + 1, host_exec_times.end(), (size_t)0, std::plus<size_t>()));
+            GPU_DEBUG_COUT << "Network[" << net_id << "] total host time: " << (first + avg) / 1000.0 << "ms" << std::endl;
             avg /= (host_exec_times.size() - 1);
             std::string resolution = " us";
             if (avg > 1000.0) {
@@ -453,6 +455,19 @@ network::~network() {
             GPU_DEBUG_COUT << "Network[" << net_id << "] First infer host time: " << first << resolution << std::endl;
             GPU_DEBUG_COUT << "Network[" << net_id << "] Infer avg host time: " << avg << resolution << std::endl;
         }
+        uint64_t total_sync_time = 0;
+        uint64_t total_copy_time = 0;
+        for (auto& iter : _exec_order) {
+            if (iter->get_node().is_type<sync_tensor>()) {
+                auto sync_inst = std::dynamic_pointer_cast<sync_tensor_inst>(iter);
+                total_sync_time += static_cast<double>
+                    (std::accumulate(sync_inst->host_sync_times.begin(), sync_inst->host_sync_times.end(), (size_t)0, std::plus<size_t>()));
+                total_copy_time += static_cast<double>
+                    (std::accumulate(sync_inst->host_copy_times.begin(), sync_inst->host_copy_times.end(), (size_t)0, std::plus<size_t>()));
+            }
+        }
+        GPU_DEBUG_COUT << "Network[" << net_id << "] sync total wait time: " << total_sync_time / 1000.0 << "ms" << std::endl;
+        GPU_DEBUG_COUT << "Network[" << net_id << "] sync total copy time: " << total_copy_time / 1000.0 << "ms" << std::endl;
     }
 
     if (_program != nullptr)
