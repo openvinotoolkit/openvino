@@ -131,7 +131,7 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         } else {
             unsupported.insert(names.begin(), names.end());
         }
-        transformed_model_op_map[op->get_friendly_name()] = std::move(op);
+        transformed_model_op_map[op->get_friendly_name()] = op;
     }
 
     // If operation was fused into several operations where one is supported
