@@ -55,7 +55,6 @@ TEST_P(skip_scatter_update_at_runtime_test, runtime_skip) {
     auto update2_zero_layout    = layout{ov::PartialShape{0,16}, data_types::f16, format::bfyx};
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     cldnn::network::ptr network = nullptr;

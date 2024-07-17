@@ -1628,7 +1628,6 @@ public:
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input0", input0_mem);
         network->set_input_data("input1", input1_mem);

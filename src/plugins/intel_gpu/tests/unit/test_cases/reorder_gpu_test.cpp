@@ -1551,7 +1551,6 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_fsv16) {
         reorder("output_reorder", input_info("relu"), format::bfyx, data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
 
     auto fsv16_reorder_inst = network.get_primitive("reorder");

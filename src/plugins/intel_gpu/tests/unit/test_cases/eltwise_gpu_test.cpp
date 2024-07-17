@@ -1682,7 +1682,6 @@ TEST(eltwise_gpu_f32, dynamic_padding) {
         0.5f,   2.5f });
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     // config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input1", input1);

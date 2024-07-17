@@ -117,7 +117,6 @@ kernel_selector::dim_tensor<T> convert_dim_vector(const tensor& t) {
             static_cast<T>(sizes[5])};
 }
 
-
 inline kernel_selector::DimTensor<uint32_t> convert_vec_to_dim_tensor(const std::vector<int32_t>& p, size_t out_rank, int32_t default_value) {
     auto sizes = p;
     auto format = cldnn::format::get_default_format(out_rank);

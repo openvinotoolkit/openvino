@@ -58,7 +58,6 @@ TEST(update_shape_test, ocl_impl_in_shapeof_subgraph) {
                       gather_nonzero("gather_nonzero", input_info("broadcast1"), input_info("count_nonzero")),
                       broadcast("broadcast2", input_info("gather_nonzero"), input_info("shape_of"), {}, ov::op::BroadcastType::BIDIRECTIONAL));
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     network network(engine, topology, config);
     network.set_input_data("input", input_mem);

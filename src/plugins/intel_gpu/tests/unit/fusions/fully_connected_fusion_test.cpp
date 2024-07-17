@@ -629,7 +629,6 @@ TEST_P(fc_fp16_eltwise_prod_unfused_dynamic, basic) {
     );
 
     bool is_dynamic = true;
-    cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
     tolerance = 0.5f;
     execute(p, false, is_dynamic);
 }
@@ -705,7 +704,6 @@ TEST_P(fc_compressed_int8_bias_prod_unfused_dynamic_onednn, basic) {
     );
 
     bool is_dynamic = true;
-    cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(is_dynamic));
     cfg_not_fused.set_property(ov::hint::dynamic_quantization_group_size(0));
     tolerance = 1.0f;
     execute(p, false, is_dynamic);
