@@ -512,6 +512,10 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
     std::ostringstream workloadtypestr;
     workloadtypestr << ov::workload_type.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
     content = std::regex_replace(content, std::regex(workloadtypestr.str()), "");
+    // Remove turbo property as it is not used by compiler
+    std::ostringstream turbostring;
+    turbostring << ov::intel_npu::turbo.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
+    content = std::regex_replace(content, std::regex(turbostring.str()), "");
 
     // FINAL step to convert prefixes of remaining params, to ensure backwards compatibility
     // From 5.0.0, driver compiler start to use NPU_ prefix, the old version uses VPU_ prefix
