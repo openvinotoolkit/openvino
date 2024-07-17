@@ -116,6 +116,13 @@ CommandQueue::CommandQueue(const ze_device_handle_t& device_handle,
       _log("CommandQueue", config.get<LOG_LEVEL>()) {
     ze_command_queue_desc_t queue_desc =
         {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC, nullptr, group_ordinal, 0, 0, ZE_COMMAND_QUEUE_MODE_DEFAULT, priority};
+    if (config.has<TURBO>()) {
+        if (_command_queue_npu_dditable_ext != nullptr) {
+            bool turbo = config.get<TURBO>();
+            ze_command_queue_desc_npu_ext_t turbo_cfg = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT, nullptr, turbo};
+            queue_desc.pNext = &turbo_cfg;
+        }
+    }
     zeroUtils::throwOnFail("zeCommandQueueCreate",
                            zeCommandQueueCreate(_context, device_handle, &queue_desc, &_handle));
 }

@@ -448,6 +448,12 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.get<COMPILATION_MODE_PARAMS>();
           }}},
+        {ov::intel_npu::turbo.name(),
+         {true,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<TURBO>();
+          }}},
         // NPU Private
         // =========
         {ov::intel_npu::dma_engines.name(),
