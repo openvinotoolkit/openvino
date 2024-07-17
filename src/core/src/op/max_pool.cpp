@@ -15,7 +15,7 @@ namespace op {
 namespace pooling {
 static int64_t get_normalized_axis(const ov::op::util::MaxPoolBase* op, const int64_t axis) {
     const auto rank = op->get_input_partial_shape(0).rank();
-    return rank.is_static() ? ov::util::try_normalize_axis(*op, axis, rank) : axis;
+    return rank.is_static() ? ov::util::try_normalize_axis(axis, rank, *op) : axis;
 }
 }  // namespace pooling
 static bool has_evaluate_util(const ov::element::Type& element_type) {

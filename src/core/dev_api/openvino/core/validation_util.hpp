@@ -140,10 +140,10 @@ OPENVINO_API bool is_axis_valid(const int64_t axis, const int64_t rank);
 /// Throws if rank is dynamic or, axis outside rank range [-rank, rank). The error message has detailed
 /// information about node.
 ///
-/// \param node  Node use for detailed error message.
 /// \param axis  Axis value to be checked.
 /// \param rank  Rank used for axis validation.
-OPENVINO_API void validate_axis(const Node& node, int64_t axis, const Rank& rank);
+/// \param node  Node use for detailed error message.
+OPENVINO_API void validate_axis(const int64_t axis, const Rank& rank, const Node& node);
 
 /// \brief Normalize axis against the rank.
 /// \note  No input validation.
@@ -167,21 +167,21 @@ OPENVINO_API size_t try_normalize_axis(const int64_t axis, const Rank& rank);
 /// Throws if rank is dynamic or, axis outside rank range [-rank, rank). The error message has detailed
 /// information about node.
 ///
-/// \param node  Node use for detailed error message.
 /// \param axis  Axis value to be normalized.
 /// \param rank  Rank used for axis normalization.
+/// \param node  Node use for detailed error message.
 /// \return      Normalized axis value.
-OPENVINO_API size_t try_normalize_axis(const Node& node, const int64_t axis, const Rank& rank);
+OPENVINO_API size_t try_normalize_axis(const int64_t axis, const Rank& rank, const Node& node);
 
 /// \brief Validate axes if are in withing rank
 ///
 /// Throws if rank is dynamic or any axis outside rank range [-rank, rank). The error message has detailed
 /// information about node.
 ///
-/// \param node  Node use for detailed error message.
 /// \param axes  Axes value to be checked.
 /// \param rank  Rank used for axes validation.
-OPENVINO_API void validate_axes(const Node& node, const std::vector<int64_t>& axes, const Rank& rank);
+/// \param node  Node use for detailed error message.
+OPENVINO_API void validate_axes(const std::vector<int64_t>& axes, const Rank& rank, const Node& node);
 
 /// \brief Normalize axes vector against the rank.
 /// \note  No input validation.
@@ -195,33 +195,33 @@ OPENVINO_API void normalize_axes(std::vector<int64_t>& axes, const int64_t rank)
 /// Throws if rank is dynamic or any axis outside rank range [-rank, rank). The error message has detailed
 /// information about node.
 ///
-/// \param node  Node use for detailed error message.
 /// \param axes  Axes which will be normalized (in-place).
 /// \param rank  Rank used for axes normalization.
+/// \param node  Node use for detailed error message.
 /// \return
-OPENVINO_API void try_normalize_axes(const Node& node, std::vector<int64_t>& axes, const Rank& rank);
+OPENVINO_API void try_normalize_axes(std::vector<int64_t>& axes, const Rank& rank, const Node& node);
 
 /// \brief Get the normalized axes as ov::AxisVector from tensor data.
 ///
 /// Throws if rank is dynamic or any axis outside rank range [-rank, rank). The error message has detailed
 /// information about node.
 ///
-/// \param node    Node use for detailed error message.
 /// \param tensor  Tensor with axes for normalization.
 /// \param rank    Rank value to normalize axes.
+/// \param node    Node use for detailed error message.
 /// \return        Normalized AxisVector.
-OPENVINO_API AxisVector try_get_normalized_axis_vector(const Node& node, const Tensor& tensor, const Rank& rank);
+OPENVINO_API AxisVector try_get_normalized_axis_vector(const Tensor& tensor, const Rank& rank, const Node& node);
 
 /// \brief Get the normalized axes as ov::AxisSet from raw tensor data.
 ///
 /// Throws if rank is dynamic or any axis outside rank range [-rank, rank). The error message has detailed
 /// information about node.
 ///
-/// \param node    Node use for detailed error message.
 /// \param tensor  Tensor with axes for normalization.
 /// \param rank    Rank value to normalize axes.
+/// \param node    Node use for detailed error message.
 /// \return        Normalized AxisSet.
-OPENVINO_API AxisSet try_get_normalized_axis_set(const Node& node, const Tensor& tensor, const Rank& rank);
+OPENVINO_API AxisSet try_get_normalized_axis_set(const Tensor& tensor, const Rank& rank, const Node& node);
 
 }  // namespace util
 }  // namespace ov

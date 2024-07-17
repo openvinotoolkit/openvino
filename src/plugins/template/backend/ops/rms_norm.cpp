@@ -19,7 +19,7 @@ bool evaluate(const std::shared_ptr<ov::op::internal::RMSNorm>& node,
               ov::TensorVector& outputs,
               const ov::TensorVector& inputs) {
     using ET = typename ov::element_type_traits<T>::value_type;
-    const auto normalized_axes = ov::util::try_get_normalized_axis_set(*node, inputs[1], inputs[0].get_shape().size());
+    const auto normalized_axes = ov::util::try_get_normalized_axis_set(inputs[1], inputs[0].get_shape().size(), *node);
 
     outputs[0].set_shape(inputs[0].get_shape());
 

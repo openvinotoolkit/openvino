@@ -137,9 +137,9 @@ ov::pass::PullUnsqueezeThroughReduce::PullUnsqueezeThroughReduce() {
         }
 
         auto unsqueeze_axes_val = unsqueeze_axes_input->cast_vector<int64_t>();
-        ov::util::try_normalize_axes(*unsqueeze_node,
-                                     unsqueeze_axes_val,
-                                     unsqueeze_node->get_output_partial_shape(0).rank());
+        ov::util::try_normalize_axes(unsqueeze_axes_val,
+                                     unsqueeze_node->get_output_partial_shape(0).rank(),
+                                     *unsqueeze_node);
         const auto reduce_axes_val = reduce_node->get_reduction_axes().to_vector();
 
         if (have_same_axes(unsqueeze_axes_val, reduce_axes_val)) {

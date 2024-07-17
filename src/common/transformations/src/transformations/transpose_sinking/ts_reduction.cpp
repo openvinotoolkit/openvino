@@ -53,7 +53,7 @@ TSReductionForward::TSReductionForward() {
 
         auto rank = main_node->get_input_partial_shape(0).rank();
         auto non_negative_axes =
-            util::try_get_normalized_axis_vector(*main_node, reduction_axes->get_tensor_view(), rank);
+            util::try_get_normalized_axis_vector(reduction_axes->get_tensor_view(), rank, *main_node);
 
         auto transpose_order_values = transpose_order->cast_vector<size_t>();
         std::vector<size_t> new_values;
@@ -117,7 +117,7 @@ TSReductionBackward::TSReductionBackward() {
 
         const auto rank = main_node->get_input_partial_shape(0).rank();
         const auto non_negative_axes =
-            util::try_get_normalized_axis_vector(*main_node, reduction_axes->get_tensor_view(), rank);
+            util::try_get_normalized_axis_vector(reduction_axes->get_tensor_view(), rank, *main_node);
 
         auto transpose_order_values = transpose_order->cast_vector<size_t>();
         if (!keep_dims) {

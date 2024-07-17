@@ -101,7 +101,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ov::pass::p
 
     bool DqWithDifferentPrecision = someDqInLowPrecision && someDqInFpPrecision;
     const auto axis =
-        ov::util::try_normalize_axis(*concat, concat->get_axis(), concat->get_output_partial_shape(0).rank());
+        ov::util::try_normalize_axis(concat->get_axis(), concat->get_output_partial_shape(0).rank(), *concat);
 
     OutputVector dataNodes;
     NodeVector convertNodes;
@@ -216,7 +216,7 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
         return false;
     }
 
-    const size_t normalizedAxis = ov::util::try_normalize_axis(*concat, axis, outRank);
+    const size_t normalizedAxis = ov::util::try_normalize_axis(axis, outRank, *concat);
     if (outPShape[normalizedAxis].is_dynamic()) {
         return false;
     }

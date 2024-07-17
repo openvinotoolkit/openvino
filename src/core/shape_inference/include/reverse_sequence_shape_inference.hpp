@@ -32,7 +32,7 @@ std::vector<TRShape> shape_infer(const ReverseSequence* op, const std::vector<TS
     auto output_shapes = std::vector<TRShape>{data_pshape};
     auto& output_pshape = output_shapes[0];
     if (data_rank.is_static() && seq_lengths_rank.is_static()) {
-        const auto normalized_batch_axis = ov::util::try_normalize_axis(*op, op->get_origin_batch_axis(), data_rank);
+        const auto normalized_batch_axis = ov::util::try_normalize_axis(op->get_origin_batch_axis(), data_rank, *op);
         NODE_VALIDATION_CHECK(op,
                               DimType::merge(output_pshape[normalized_batch_axis],
                                              data_pshape[normalized_batch_axis],

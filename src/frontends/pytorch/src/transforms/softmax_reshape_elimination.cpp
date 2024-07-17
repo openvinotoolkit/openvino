@@ -39,7 +39,7 @@ SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
             const auto softmax_rank = softmax->get_input_partial_shape(0).rank();
             int64_t axis = 0;
             if (const auto softmax_v8 = ov::as_type_ptr<const ov::op::v8::Softmax>(softmax)) {
-                axis = ov::util::try_normalize_axis(*softmax, softmax_v8->get_axis(), softmax_rank);
+                axis = ov::util::try_normalize_axis(softmax_v8->get_axis(), softmax_rank, *softmax_v8);
             } else if (const auto softmax_v1 = ov::as_type_ptr<const ov::op::v1::Softmax>(softmax)) {
                 axis = softmax_v1->get_axis();
             } else {

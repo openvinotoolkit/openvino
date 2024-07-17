@@ -144,7 +144,7 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
         const auto rank = n->get_input_partial_shape(0).rank();
         if (const auto softmax_v8 = ov::as_type_ptr<const ov::op::v8::Softmax>(n)) {
             if (rank.is_static()) {
-                axis = ov::util::try_normalize_axis(*n, softmax_v8->get_axis(), rank);
+                axis = ov::util::try_normalize_axis(softmax_v8->get_axis(), rank, *n);
             }
         } else if (const auto softmax_v1 = ov::as_type_ptr<const ov::op::v1::Softmax>(n)) {
             axis = softmax_v1->get_axis();

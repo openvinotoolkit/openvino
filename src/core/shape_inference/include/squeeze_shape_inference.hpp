@@ -50,7 +50,7 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
         if (arg_rank.is_static() && axes_shape.is_static()) {
             if (auto axes = get_input_const_data_as<TRShape, int64_t>(op, 1, ta)) {
                 // The values of `axes` input are known
-                ov::util::try_normalize_axes(*op, *axes, arg_rank);
+                ov::util::try_normalize_axes(*axes, arg_rank, *op);
                 unique_axes.reset(new std::set<int64_t>(axes->cbegin(), axes->cend()));
             } else if (arg_rank.get_length() > 0 && shape_size(axes_shape.to_shape()) == 1) {
                 // The `axes` input is a single element tensor which is unique by definition, deducing output rank

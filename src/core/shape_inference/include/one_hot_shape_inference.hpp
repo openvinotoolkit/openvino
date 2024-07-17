@@ -31,7 +31,7 @@ void inline resolve_axis(OneHot* op) {
     }
     const auto& indices_shape = op->get_input_partial_shape(0);
     if (indices_shape.rank().is_static()) {
-        op->m_axis = ov::util::try_normalize_axis(*op, op->m_axis, indices_shape.rank() + 1);
+        op->m_axis = ov::util::try_normalize_axis(op->m_axis, indices_shape.rank() + 1, *op);
     }
 }
 
@@ -62,7 +62,7 @@ std::vector<TRShape> shape_infer(const OneHot* op,
     auto& result_shape = output_shapes[0];
     if (indices_shape.rank().is_static()) {
         result_shape = indices_shape;
-        const auto axis = ov::util::try_normalize_axis(*op, op->get_axis(), indices_shape.rank() + 1);
+        const auto axis = ov::util::try_normalize_axis(op->get_axis(), indices_shape.rank() + 1, *op);
 
         auto depth_as_shape =
             get_input_const_data_as_shape<TRShape>(op, 1, ta, util::GetNotNegative<typename DimType::value_type>(op));

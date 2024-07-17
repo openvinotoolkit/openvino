@@ -41,7 +41,7 @@ bool ReduceMean::evaluate(TensorVector& outputs, const TensorVector& inputs) con
     OPENVINO_ASSERT(outputs.size() == 1);
     OPENVINO_ASSERT(inputs.size() == 2);
 
-    const auto reduction_axes = ov::util::try_get_normalized_axis_set(*this, inputs[1], inputs[0].get_shape().size());
+    const auto reduction_axes = ov::util::try_get_normalized_axis_set(inputs[1], inputs[0].get_shape().size(), *this);
     outputs[0].set_shape(ov::util::reduce(inputs[0].get_shape(), reduction_axes, get_keep_dims()));
 
     using namespace ov::element;

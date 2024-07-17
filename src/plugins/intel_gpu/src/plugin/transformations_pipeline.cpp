@@ -545,7 +545,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     if (auto axes_node = dynamic_cast<ov::op::v0::Constant*>(mvn->get_input_node_ptr(1))) {
                         auto mvn_axes = axes_node->cast_vector<int64_t>();
                         auto out_rank = mvn->get_output_partial_shape(0).size();
-                        ov::util::try_normalize_axes(*mvn.get(), mvn_axes, out_rank);
+                        ov::util::try_normalize_axes(mvn_axes, out_rank, *mvn);
 
                         std::sort(mvn_axes.begin(), mvn_axes.end());
 

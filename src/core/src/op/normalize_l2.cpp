@@ -59,7 +59,7 @@ ov::AxisSet ov::op::v0::NormalizeL2::get_reduction_axes() const {
     if (auto const_op = ov::util::get_constant_from_source(input_value(1))) {
         const auto input_data_rank = get_input_partial_shape(0).rank();
         return input_data_rank.is_static()
-                   ? ov::util::try_get_normalized_axis_set(*this, const_op->get_tensor_view(), input_data_rank)
+                   ? ov::util::try_get_normalized_axis_set(const_op->get_tensor_view(), input_data_rank, *this)
                    : AxisSet{const_op->cast_vector<size_t>()};
     } else {
         return {};

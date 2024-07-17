@@ -49,9 +49,9 @@ bool ShuffleChannelsTransformation::transform(TransformationContext& context, ov
             return NetworkHelper::toScalar(normalizedConst);
         } else {
             const size_t normalizedAxis =
-                ov::util::try_normalize_axis(*shuffleChannels,
-                                             shuffleChannels->get_axis(),
-                                             shuffleChannels->get_input_partial_shape(0).rank());
+                ov::util::try_normalize_axis(shuffleChannels->get_axis(),
+                                             shuffleChannels->get_input_partial_shape(0).rank(),
+                                             *shuffleChannels);
 
             if (constShape[normalizedAxis] == 1ul) {
                 return normalizedConst;

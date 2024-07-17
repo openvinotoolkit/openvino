@@ -28,7 +28,7 @@ const ov::AxisSet ov::op::util::ReductionBase::get_reduction_axes() const {
     if (const auto& const_op = ov::util::get_constant_from_source(input_value(1))) {
         const auto data_rank = get_input_partial_shape(0).rank();
         return data_rank.is_static()
-                   ? ov::util::try_get_normalized_axis_set(*this, const_op->get_tensor_view(), data_rank)
+                   ? ov::util::try_get_normalized_axis_set(const_op->get_tensor_view(), data_rank, *this)
                    : AxisSet{const_op->cast_vector<size_t>()};
     } else {
         return {};

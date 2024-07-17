@@ -322,7 +322,7 @@ bool is_axis_valid(int64_t axis, int64_t rank) {
     return (axis == 0) || (-rank <= axis && axis < rank);
 }
 
-void validate_axis(const Node& node, int64_t axis, const Rank& rank) {
+void validate_axis(const int64_t axis, const Rank& rank, const Node& node) {
     const auto r = rank.get_length();
     NODE_VALIDATION_CHECK(&node, is_axis_valid(axis, r), node.description(), normalize_axis_error_msg(axis, r));
 }
@@ -337,14 +337,14 @@ size_t try_normalize_axis(const int64_t axis, const Rank& rank) {
     return normalize_axis(axis, r);
 }
 
-size_t try_normalize_axis(const Node& node, const int64_t axis, const Rank& rank) {
-    validate_axis(node, axis, rank);
+size_t try_normalize_axis(const int64_t axis, const Rank& rank, const Node& node) {
+    validate_axis(axis, rank, node);
     return normalize_axis(axis, rank.get_length());
 }
 
-void validate_axes(const Node& node, const std::vector<int64_t>& axes, const Rank& rank) {
+void validate_axes(const std::vector<int64_t>& axes, const Rank& rank, const Node& node) {
     for (const auto& axis : axes) {
-        validate_axis(node, axis, rank);
+        validate_axis(axis, rank, node);
     }
 }
 
@@ -354,19 +354,19 @@ void normalize_axes(std::vector<int64_t>& axes, const int64_t rank) {
     }
 }
 
-void try_normalize_axes(const Node& node, std::vector<int64_t>& axes, const Rank& rank) {
-    validate_axes(node, axes, rank);
+void try_normalize_axes(std::vector<int64_t>& axes, const Rank& rank, const Node& node) {
+    validate_axes(axes, rank, node);
     normalize_axes(axes, rank.get_length());
 }
 
-AxisVector try_get_normalized_axis_vector(const Node& node, const Tensor& tensor, const Rank& rank) {
+AxisVector try_get_normalized_axis_vector(const Tensor& tensor, const Rank& rank, const Node& node) {
     auto axes_values = ov::get_tensor_data_as<int64_t>(tensor);
-    try_normalize_axes(node, axes_values, rank);
+    try_normalize_axes(axes_values, rank, node);
     return {axes_values.begin(), axes_values.end()};
 }
 
-AxisSet try_get_normalized_axis_set(const Node& node, const Tensor& tensor, const Rank& rank) {
-    return {try_get_normalized_axis_vector(node, tensor, rank)};
+AxisSet try_get_normalized_axis_set(const Tensor& tensor, const Rank& rank, const Node& node) {
+    return {try_get_normalized_axis_vector(tensor, rank, node)};
 }
 
 }  // namespace util

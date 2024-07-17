@@ -33,7 +33,7 @@ std::vector<TRShape> shape_infer(const GatherElements* op, const std::vector<T>&
     auto& output_shape = output_shapes[0];
 
     NODE_VALIDATION_CHECK(op, data_rank.get_length() >= 1, "data rank must be >= 1.");
-    const auto axis = ov::util::try_normalize_axis(*op, op->get_axis(), data_rank);
+    const auto axis = ov::util::try_normalize_axis(op->get_axis(), data_rank, *op);
 
     if (indices_rank.is_dynamic()) {
         // output has the same rank of data

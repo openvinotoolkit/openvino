@@ -99,7 +99,7 @@ bool Reverse::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
             }
         }
     } else if (validate_axes_indices_et(axes.get_element_type())) {
-        reversed_axes = ov::util::try_get_normalized_axis_set(*this, axes, data_shape.size());
+        reversed_axes = ov::util::try_get_normalized_axis_set(axes, data_shape.size(), *this);
     } else {
         return false;
     }

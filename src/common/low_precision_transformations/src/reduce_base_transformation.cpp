@@ -51,7 +51,7 @@ bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& con
     if (inputRank.is_dynamic()) {
         return false;
     }
-    const auto axes = util::try_get_normalized_axis_vector(*reduce, axesConstant->get_tensor_view(), inputRank);
+    const auto axes = util::try_get_normalized_axis_vector(axesConstant->get_tensor_view(), inputRank, *reduce);
 
     const auto deqByReducedConst = [&](const std::shared_ptr<Node>& eltwise) {
         const auto constShape = eltwise->get_shape();

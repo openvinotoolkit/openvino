@@ -44,7 +44,7 @@ std::vector<TRShape> shape_infer(const util::GatherBase* op,
         axis_is_set = true;
 
         if (data_rank.is_static()) {
-            axis = ov::util::try_normalize_axis(*op, axis, data_rank);
+            axis = ov::util::try_normalize_axis(axis, data_rank, *op);
         }
         // batch_dims, axis both can be positive by default or after normalization if data_rank &
         // indices_rank are static.

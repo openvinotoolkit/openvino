@@ -49,7 +49,7 @@ std::vector<TRShape> shape_infer(const VariadicSplit* op,
                                   axis_values->size(),
                                   " axes");
             // Adjust split axis in case of negatives
-            const auto axis = ov::util::try_normalize_axis(*op, (*axis_values)[0], data_shape.rank());
+            const auto axis = ov::util::try_normalize_axis((*axis_values)[0], data_shape.rank(), *op);
 
             if (auto split_lengths = get_input_const_data_as<TRShape, int64_t>(op, 2, ta)) {
                 // Adjust split lengths in case of negatives

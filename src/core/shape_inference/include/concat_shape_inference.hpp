@@ -28,14 +28,14 @@ std::vector<TRShape> shape_infer(const Concat* op, const std::vector<T>& input_s
         output_shape = PartialShape::dynamic();
     } else {
         output_shape = input_shapes.front();
-        concat_axis = ov::util::try_normalize_axis(*op, op->get_axis(), output_shape.rank());
+        concat_axis = ov::util::try_normalize_axis(op->get_axis(), output_shape.rank(), *op);
         output_shape[concat_axis] = empty_dim;
     }
 
     for (auto& input : input_shapes) {
         const auto& input_rank = input.rank();
         if (input_rank.is_static()) {
-            concat_axis = ov::util::try_normalize_axis(*op, op->get_axis(), input_rank);
+            concat_axis = ov::util::try_normalize_axis(op->get_axis(), input_rank, *op);
             auto in_copy = TRShape(input);
             concat_dim += in_copy[concat_axis];
             in_copy[concat_axis] = empty_dim;

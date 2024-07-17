@@ -64,7 +64,7 @@ ov::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
         if (tensor_rank.is_dynamic())
             return false;
 
-        const auto axes = util::try_get_normalized_axis_vector(*squeeze, const_axes->get_tensor_view(), tensor_rank);
+        const auto axes = util::try_get_normalized_axis_vector(const_axes->get_tensor_view(), tensor_rank, *squeeze);
 
         auto tensor_length = tensor_rank.get_length();
         begin_vec.resize(tensor_length, 0);
@@ -161,7 +161,7 @@ ov::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
 
         // TODO:1
         auto axes = const_axes->cast_vector<int64_t>();
-        ov::util::try_normalize_axes(*squeeze, axes, squeeze->get_input_partial_shape(0).rank());
+        ov::util::try_normalize_axes(axes, squeeze->get_input_partial_shape(0).rank(), *squeeze);
 
         std::sort(axes.begin(), axes.end());
         for (const auto& axis : axes) {

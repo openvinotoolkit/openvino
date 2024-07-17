@@ -74,7 +74,7 @@ void validate_axes(const ov::op::util::FFTBase* op,
     // according to the RDFT operation specification, axes should be integers from -r to (r - 1)
     // inclusively, where r = rank(data). A negative axis 'a' is interpreted as an axis 'r + a'.
     const int64_t axis_correction = (fft_kind == FFTKind::RealInput) ? input_rank : (input_rank - 1);
-    ov::util::try_normalize_axes(*op, axes, axis_correction);
+    ov::util::try_normalize_axes(axes, axis_correction, *op);
     NODE_VALIDATION_CHECK(op, ov::util::are_unique(axes), "Each axis must be unique.");
 }
 

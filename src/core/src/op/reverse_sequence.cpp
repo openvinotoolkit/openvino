@@ -44,7 +44,7 @@ void op::v0::ReverseSequence::validate_and_infer_types() {
     const auto data_rank = get_input_partial_shape(0).rank();
 
     if (data_rank.is_static()) {
-        m_normalized_seq_axis = ov::util::try_normalize_axis(*this, m_seq_axis, data_rank);
+        m_normalized_seq_axis = ov::util::try_normalize_axis(m_seq_axis, data_rank, *this);
     } else {
         NODE_VALIDATION_CHECK(this,
                               m_seq_axis >= 0,
@@ -65,11 +65,11 @@ void op::v0::ReverseSequence::set_batch_axis(int64_t batch_axis) {
 
 size_t op::v0::ReverseSequence::get_batch_axis() const {
     const auto& data_rank = get_input_partial_shape(0).rank();
-    return ov::util::try_normalize_axis(*this, m_batch_axis, data_rank);
+    return ov::util::try_normalize_axis(m_batch_axis, data_rank, *this);
 }
 
 void op::v0::ReverseSequence::set_sequence_axis(int64_t sequence_axis) {
     m_seq_axis = sequence_axis;
-    m_normalized_seq_axis = ov::util::try_normalize_axis(*this, m_seq_axis, get_input_partial_shape(0).rank());
+    m_normalized_seq_axis = ov::util::try_normalize_axis(m_seq_axis, get_input_partial_shape(0).rank(), *this);
 }
 }  // namespace ov

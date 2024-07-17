@@ -59,7 +59,7 @@ std::vector<TRShape> reduce_shape_infer(const util::ReductionBase* op,
     auto axes_val = ov::op::get_input_const_data_as<TRShape, int64_t>(op, 1, tensor_accessor);
 
     if (data_rank.is_static() && axes_val) {
-        ov::util::try_normalize_axes(*op, *axes_val, data_rank);
+        ov::util::try_normalize_axes(*axes_val, data_rank, *op);
 
         output_shapes.push_back(util::reduce_shape(data_shape, *axes_val, keep_dims));
     } else {

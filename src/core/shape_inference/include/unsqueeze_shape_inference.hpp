@@ -40,7 +40,7 @@ std::vector<TRShape> shape_infer(const Unsqueeze* op,
         const auto expanded_rank = arg_shape.rank().get_length() + unique_axes.size();
 
         // Normalize then remove repeated axes after normalization.
-        ov::util::try_normalize_axes(*op, unique_axes, expanded_rank);
+        ov::util::try_normalize_axes(unique_axes, expanded_rank, *op);
         AxisSet axes;
         for (const auto& axis : unique_axes) {
             axes.insert(axis);
