@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/string_tensor_unpack.hpp"
+
 #include <gtest/gtest.h>
 
-#include "openvino/op/string_tensor_unpack.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 
@@ -30,19 +31,15 @@ TEST_P(TypePropStringTensorUnpackTestSuite, TypePropStringTensorUnpackTestSuite)
     EXPECT_EQ(op->get_output_partial_shape(2), PartialShape{Dimension::dynamic()});
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    TypePropStringTensorUnpackTestSuite,
-    TypePropStringTensorUnpackTestSuite,
-    ::testing::Values(
-        PartialShape{3},
-        PartialShape{3, 9},
-        PartialShape{3, 9, 1},
-        PartialShape::dynamic(),
-        PartialShape{{4, 5}, {5, 6}},
-        PartialShape{{4, 5}, 5},
-        PartialShape{3, Dimension::dynamic()}
-    )
-);
+INSTANTIATE_TEST_SUITE_P(TypePropStringTensorUnpackTestSuite,
+                         TypePropStringTensorUnpackTestSuite,
+                         ::testing::Values(PartialShape{3},
+                                           PartialShape{3, 9},
+                                           PartialShape{3, 9, 1},
+                                           PartialShape::dynamic(),
+                                           PartialShape{{4, 5}, {5, 6}},
+                                           PartialShape{{4, 5}, 5},
+                                           PartialShape{3, Dimension::dynamic()}));
 
 TEST(type_prop, StringTensorUnpack_incorrect_data_type) {
     const auto data = std::make_shared<Parameter>(element::u8, PartialShape{3, 6});

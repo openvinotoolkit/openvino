@@ -3,6 +3,7 @@
 //
 
 #include "openvino/op/string_tensor_unpack.hpp"
+
 #include "unary_ops.hpp"
 
 TEST(attributes, string_tensor_unpack_op) {

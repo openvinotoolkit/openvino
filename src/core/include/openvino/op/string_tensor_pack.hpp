@@ -21,9 +21,7 @@ public:
     /// \param begins Indices of each string's beginnings
     /// \param ends Indices of each string's endings
     /// \param symbols Concatenated input strings encoded in utf-8 bytes
-    StringTensorPack(const Output<Node>& begins,
-                     const Output<Node>& ends,
-                     const Output<Node>& symbols);
+    StringTensorPack(const Output<Node>& begins, const Output<Node>& ends, const Output<Node>& symbols);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;

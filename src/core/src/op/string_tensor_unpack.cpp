@@ -4,17 +4,16 @@
 
 #include "openvino/op/string_tensor_unpack.hpp"
 
-#include "string_tensor_unpack_shape_inference.hpp"
 #include "itt.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/op.hpp"
+#include "string_tensor_unpack_shape_inference.hpp"
 
 namespace ov {
 namespace op {
 namespace v15 {
 
-StringTensorUnpack::StringTensorUnpack(const Output<Node>& data)
-    : Op({data}) {
+StringTensorUnpack::StringTensorUnpack(const Output<Node>& data) : Op({data}) {
     constructor_validate_and_infer_types();
 }
 
@@ -27,11 +26,10 @@ void StringTensorUnpack::validate_and_infer_types() {
     OV_OP_SCOPE(v15_StringTensorUnpack_validate_and_infer_types);
 
     const auto& data_element_type = get_input_element_type(0);
-    NODE_VALIDATION_CHECK(
-        this,
-        data_element_type == ov::element::string,
-        "StringTensorUnpack expects a tensor with string elements. Got: ",
-        data_element_type);
+    NODE_VALIDATION_CHECK(this,
+                          data_element_type == ov::element::string,
+                          "StringTensorUnpack expects a tensor with string elements. Got: ",
+                          data_element_type);
 
     const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
     set_output_type(0, ov::element::i32, output_shapes[0]);

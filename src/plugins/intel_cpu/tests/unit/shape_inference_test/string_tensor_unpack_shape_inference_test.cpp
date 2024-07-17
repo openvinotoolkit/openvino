@@ -33,8 +33,7 @@ TEST_F(StringTensorUnpackStaticShapeInferenceTest, data_from_tensor_accessor) {
     const auto data = std::make_shared<Parameter>(element::string, ov::PartialShape::dynamic());
     const auto op = make_op(data);
     std::string data_val[] = {"Intel", "OpenVINO"};
-    auto string_values = std::vector<std::string>{"First sentence", "Second sentence sentence", "Third"};
-    auto const_inputs = std::unordered_map<size_t, Tensor>{{1, {element::string, Shape{2}, string_values.data()}}};
+    auto const_inputs = std::unordered_map<size_t, Tensor>{{0, {element::string, Shape{2}, data_val}}};
 
     const auto input_shapes = ShapeVector{Shape{2}};
     auto shape_infer = make_shape_inference(op);
