@@ -111,7 +111,6 @@ public:
 
     /**
      * @brief Helper function to access model output elements types.
-  
      * @return Napi::Value wrapping a TypeWrap object representing the element type of the requested output.
      */
 

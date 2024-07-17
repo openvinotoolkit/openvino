@@ -17,17 +17,19 @@ ModelWrap::ModelWrap(const Napi::CallbackInfo& info)
 Napi::Function ModelWrap::get_class(Napi::Env env) {
     return DefineClass(env,
                        "ModelWrap",
-                       {InstanceMethod("getName", &ModelWrap::get_name),
-                        InstanceMethod("output", &ModelWrap::get_output),
-                        InstanceMethod("input", &ModelWrap::get_input),
-                        InstanceMethod("isDynamic", &ModelWrap::is_dynamic),
-                        InstanceMethod("getOutputSize", &ModelWrap::get_output_size),
-                        InstanceMethod("setFriendlyName", &ModelWrap::set_friendly_name),
-                        InstanceMethod("getFriendlyName", &ModelWrap::get_friendly_name),
-                        InstanceMethod("getOutputShape", &ModelWrap::get_output_shape),
-                        InstanceMethod("getOutputElementType", &ModelWrap::get_output_element_type),
-                        InstanceAccessor<&ModelWrap::get_inputs>("inputs"),
-                        InstanceAccessor<&ModelWrap::get_outputs>("outputs"),});
+                       {
+                           InstanceMethod("getName", &ModelWrap::get_name),
+                           InstanceMethod("output", &ModelWrap::get_output),
+                           InstanceMethod("input", &ModelWrap::get_input),
+                           InstanceMethod("isDynamic", &ModelWrap::is_dynamic),
+                           InstanceMethod("getOutputSize", &ModelWrap::get_output_size),
+                           InstanceMethod("setFriendlyName", &ModelWrap::set_friendly_name),
+                           InstanceMethod("getFriendlyName", &ModelWrap::get_friendly_name),
+                           InstanceMethod("getOutputShape", &ModelWrap::get_output_shape),
+                           InstanceMethod("getOutputElementType", &ModelWrap::get_output_element_type),
+                           InstanceAccessor<&ModelWrap::get_inputs>("inputs"),
+                           InstanceAccessor<&ModelWrap::get_outputs>("outputs"),
+                       });
 }
 
 void ModelWrap::set_model(const std::shared_ptr<ov::Model>& model) {
@@ -174,32 +176,19 @@ Napi::Value ModelWrap::get_output_shape(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value ModelWrap::get_output_element_type(const Napi::CallbackInfo& info) {
-    `if (ov::js::validate<Napi::Number>(info, allowed_signatures)) {}
- else OPENVINO_THROW('method_name', ov::js::get_parameters_error_msg(info, allowed_signatures))
-        reportError(info.Env(), "Invalid argument. Expected a single number for output index.");
-        return info.Env().Undefined();
-    }
+    static const std::vector<os::js::Signature> allowed_signatures = {{1, {os::js::ValueType::Number}}};
 
-    try {
-        auto idx = info[0].As<Napi::Number>().Int32Value();
-        auto output = _model->output(idx);
-        auto element_type = output.get_element_type();
-        std::string type_name = element_type.get_type_name();
-        std::unordered_map<std::string, std::string> type_map = {
-            {"float", "f32"},
-            {"float16", "f16"},
-            {"int32", "i32"},
-            {"int64", "i64"},
-            {"uint8", "u8"}
-        };
-        auto mapped_type = type_map.find(type_name);
-        if (mapped_type != type_map.end()) {
-            type_name = mapped_type->second;
+    if (ov::js::validate<Napi::Number>(info, allowed_signatures)) {
+        try {
+            auto idx = info[0].As<Napi::Number>().Int32Value();
+            auto output = _model->output(idx);
+            auto element_type = output.get_element_type();
+            return cpp_to_js<os::element::Type_t, Napi::String>(info, element_type);
+        } catch (const std::exception& e) {
+            reportError(info.Env(), e.what());
+            return info.Env().Undefined();
         }
-        
-        return Napi::String::New(info.Env(), type_name); 
-    } catch (const std::exception& e) {
-        reportError(info.Env(), e.what());
-        return info.Env().Undefined();
+    } else {
+        OPENVINO_THROW("get_output_element_type", os::js::get_parameters_error_msg(info, allowed_signatures));
     }
 }
