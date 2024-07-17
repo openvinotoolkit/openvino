@@ -6,8 +6,6 @@
 #include "primitive_onednn_base.h"
 #include "impls/registry/implementation_map.hpp"
 
-#include "kernel_selector_common.h"
-
 #include <oneapi/dnnl/dnnl.hpp>
 
 #include <algorithm>
@@ -150,6 +148,25 @@ public:
 #endif
     }
 
+    static bool validate(const pooling_node& node) {
+        if (!is_supported_format(node.get_preferred_input_fmt(0)))
+            return false;
+
+        auto in_dt = node.get_input_layout(0).data_type;
+        auto out_dt = node.get_output_layout(false).data_type;
+
+        bool fp_case = data_type_traits::is_floating_point(in_dt) && in_dt == out_dt;
+        bool u8s8_case = one_of(in_dt, {data_types::i8, data_types::u8}) && one_of(out_dt, {data_types::i8, data_types::u8});
+
+        if (!fp_case && !u8s8_case)
+            return false;
+
+        if (!is_supported_post_ops(node))
+            return false;
+
+        return true;
+    }
+
     static std::unique_ptr<primitive_impl> create(const pooling_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
@@ -185,7 +202,7 @@ attach_pooling_onednn::attach_pooling_onednn() {
         format::bs_fs_zyx_bsv32_fsv32,
     };
 
-    implementation_map<pooling>::add(impl_types::onednn, pooling_onednn::create, dt, fmt);
+    implementation_map<pooling>::add(impl_types::onednn, pooling_onednn::create, pooling_onednn::validate, dt, fmt);
 }
 
 }  // namespace detail

@@ -3,13 +3,9 @@
 //
 
 #include "deconvolution_inst.h"
-#include "eltwise_inst.h"
 #include "impls/onednn/utils.hpp"
-#include "quantize_inst.h"
 #include "primitive_onednn_base.h"
 #include "impls/registry/implementation_map.hpp"
-
-#include "impls/ocl/kernel_selector_helper.h"
 
 #include <oneapi/dnnl/dnnl.hpp>
 
@@ -146,6 +142,40 @@ public:
 #endif
     }
 
+    static bool validate(const deconvolution_node& node) {
+        if (!is_supported_format(node.get_preferred_input_fmt(0)))
+            return false;
+
+        const auto& input_layout = node.get_input_layout(0);
+        auto in_dt = input_layout.data_type;
+        auto wei_dt = node.weights().get_output_layout().data_type;
+        auto out_dt = node.get_output_layout(false).data_type;
+
+        const auto& prim = node.get_primitive();
+
+        if (prim->groups != 1)
+            return false;
+
+        auto spatial_dims_num = input_layout.get_spatial_rank();
+
+        if (spatial_dims_num > 3)
+            return false;
+
+        bool f16_deconv = everyone_is(data_types::f16, in_dt, wei_dt) && one_of(out_dt, {data_types::f16, data_types::u8, data_types::i8});
+        bool f32_deconv = everyone_is(data_types::f32, in_dt, wei_dt) && one_of(out_dt, {data_types::u8, data_types::i8});
+        bool u8s8_deconv = one_of(in_dt, {data_types::i8, data_types::u8}) &&
+                           wei_dt == data_types::i8 &&
+                           one_of(out_dt, {data_types::i32, data_types::f16, data_types::f32, data_types::u8, data_types::i8});
+
+        if (!f16_deconv && !f32_deconv && !u8s8_deconv)
+            return false;
+
+        if (!is_supported_post_ops(node))
+            return false;
+
+        return true;
+    }
+
     static std::unique_ptr<primitive_impl> create(const deconvolution_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
@@ -180,7 +210,7 @@ attach_deconvolution_onednn::attach_deconvolution_onednn() {
         format::bs_fs_yx_bsv8_fsv2,
         format::bs_fs_yx_bsv4_fsv2,
     };
-    implementation_map<deconvolution>::add(impl_types::onednn, deconvolution_onednn::create, dt, fmt);
+    implementation_map<deconvolution>::add(impl_types::onednn, deconvolution_onednn::create, deconvolution_onednn::validate, dt, fmt);
 }
 
 }  // namespace detail

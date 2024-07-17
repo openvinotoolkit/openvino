@@ -47,7 +47,8 @@ public:
     using key_builder = implementation_key;
     using key_type = typename key_builder::type;
     using factory_type = std::function<std::unique_ptr<primitive_impl>(const typed_program_node<primitive_kind>&, const kernel_impl_params&)>;
-    using list_type = singleton_list<std::tuple<impl_types, shape_types, std::set<key_type>, factory_type>>;
+    using validator_type = std::function<bool(const typed_program_node<primitive_kind>&)>;
+    using list_type = singleton_list<std::tuple<impl_types, shape_types, std::set<key_type>, factory_type, validator_type>>;
 
     static factory_type get(const kernel_impl_params& impl_params, impl_types preferred_impl_type, shape_types target_shape_type) {
         auto input_layout = !impl_params.input_layouts.empty() ? impl_params.input_layouts[0] : layout{ov::PartialShape{}, data_types::f32, format::any};
@@ -100,13 +101,28 @@ public:
         return false;
     }
 
-    static std::set<impl_types> query_available_impls(data_types in_dt, shape_types target_shape_type) {
+    static bool is_impl_supported(const typed_program_node<primitive_kind>& node, impl_types impl_type) {
+        const auto& impls = list_type::instance();
+        auto desc = std::find_if(impls.begin(), impls.end(), [&impl_type](const typename list_type::value_type& v) {
+            return std::get<0>(v) == impl_type;
+        });
+        if (desc == impls.end())
+            return false;
+
+        return std::get<4>(*desc)(node);
+    }
+
+    static std::set<impl_types> query_available_impls(data_types in_dt, shape_types target_shape_type, const typed_program_node<primitive_kind>& node) {
         std::set<impl_types> res;
         for (auto& kv : list_type::instance()) {
             impl_types impl_type = std::get<0>(kv);
+            validator_type validator = std::get<4>(kv);
             shape_types supported_shape_type = std::get<1>(kv);
             if ((target_shape_type & supported_shape_type) != target_shape_type)
                 continue;
+            if (!validator(node))
+                continue;
+
             std::set<key_type>& keys_set = std::get<2>(kv);
             for (const auto& key : keys_set) {
                 if (std::get<0>(key) == in_dt) {
@@ -138,7 +154,28 @@ public:
 
     static void add(impl_types impl_type, shape_types shape_type, factory_type factory, std::set<key_type> keys) {
         OPENVINO_ASSERT(impl_type != impl_types::any, "[GPU] Can't register impl with type any");
-        list_type::instance().push_back({impl_type, shape_type, keys, std::move(factory)});
+        validator_type v = [](const typed_program_node<primitive_kind>&){ return true; };
+        list_type::instance().push_back({impl_type, shape_type, keys, std::move(factory), v});
+    }
+
+    static void add(impl_types impl_type, shape_types shape_type, factory_type factory, validator_type validator,
+                    const std::vector<data_types>& types, const std::vector<format::type>& formats) {
+        add(impl_type, shape_type, std::move(factory), validator, combine(types, formats));
+    }
+
+    static void add(impl_types impl_type, factory_type factory, validator_type validator, std::set<key_type> keys) {
+        OPENVINO_ASSERT(impl_type != impl_types::any, "[GPU] Can't register impl with type any");
+        add(impl_type, shape_types::static_shape, std::move(factory), validator, keys);
+    }
+
+    static void add(impl_types impl_type, factory_type factory, validator_type validator,
+                    const std::vector<data_types>& types, const std::vector<format::type>& formats) {
+        add(impl_type, std::move(factory), validator, combine(types, formats));
+    }
+
+    static void add(impl_types impl_type, shape_types shape_type, factory_type factory, validator_type validator, std::set<key_type> keys) {
+        OPENVINO_ASSERT(impl_type != impl_types::any, "[GPU] Can't register impl with type any");
+        list_type::instance().push_back({impl_type, shape_type, keys, std::move(factory), validator});
     }
 
     static std::set<key_type> combine(const std::vector<data_types>& types, const std::vector<format::type>& formats) {

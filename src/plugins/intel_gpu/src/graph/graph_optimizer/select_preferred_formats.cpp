@@ -36,7 +36,7 @@ void select_preferred_formats::run(program& p) {
 
     engine.create_onednn_engine(p.get_config());
     for (auto n : p.get_processing_order()) {
-        if (n->is_input() || !layout_optimizer::is_node_suitable_for_onednn(*n)) {
+        if (n->is_input() || !n->can_use(impl_types::onednn)) {
             continue;
         }
 
@@ -50,14 +50,6 @@ void select_preferred_formats::run(program& p) {
         // Onednn primitive descriptor creation may fail, for example, due to asymmetric weight.
         try {
             if (n->is_type<convolution>()) {
-                if (n->as<convolution>().weights_zero_points_term()) {
-                    if (n->as<convolution>().weights_zero_points().get_output_layout().count() != 1 ||
-                        n->as<convolution>().get_groups() > 1) {
-                        // onednn convolution doesn't support per_oc and grouped as weights zero points.
-                        continue;
-                    }
-                }
-
                 auto prim_desc = onednn::get_convolution_primitive_descriptor(*n->get_kernel_impl_params(),
                                                                               dnnl::primitive_attr(),
                                                                               dnnl::memory::format_tag::any);
