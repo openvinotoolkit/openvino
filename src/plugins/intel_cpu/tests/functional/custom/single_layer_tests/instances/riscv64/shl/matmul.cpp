@@ -12,7 +12,6 @@ namespace ov {
 namespace test {
 namespace MatMul {
 namespace {
-#ifdef OV_CPU_WITH_SHL
 std::vector<CPUSpecificParams> filterSpecificParams_SHL() {
     // replace with shl primitive type
     std::vector<CPUSpecificParams> specificParams;
@@ -95,7 +94,6 @@ const auto testParams2D_SHL_smoke = ::testing::Combine(::testing::Combine(::test
                                              ::testing::Values(emptyFusingSpec),
                                              ::testing::ValuesIn(filterSpecificParams_SHL()));
 INSTANTIATE_TEST_SUITE_P(smoke_FC_2D_SHL, MatMulLayerCPUTest, testParams2D_SHL_smoke, MatMulLayerCPUTest::getTestCaseName);
-#endif
 }  // namespace
 }  // namespace MatMul
 }  // namespace test

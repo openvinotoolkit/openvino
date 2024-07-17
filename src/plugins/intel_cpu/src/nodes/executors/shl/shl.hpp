@@ -73,15 +73,9 @@ struct ShlSession : public ShlStructure<csinn_session*> {
     ShlSession() {
         csinn_session* session = csinn_alloc_session();
         OPENVINO_ASSERT(session != nullptr, "Failed to create csinn_session");
+        // CPU Plugin supports only per layer execution in SHL
+        session->base_run_mode = CSINN_RM_LAYER;
         reset(session);
-    }
-
-    ShlSession(csinn_rmode_enum base_run_mode) : ShlSession() {
-        setBaseRunMode(base_run_mode);
-    }
-
-    void setBaseRunMode(csinn_rmode_enum base_run_mode) {
-        get()->base_run_mode = base_run_mode;
     }
 };
 
@@ -111,30 +105,9 @@ struct ShlTensor : public ShlStructure<csinn_tensor*> {
     }
 
     ShlTensor(const ShlSession& session, const VectorDims& shape, csinn_dtype_enum data_type, csinn_layout_enum layout, void* data = nullptr)
-        : ShlTensor(session) {
+        : ShlTensor(session, data_type, layout) {
         setShape(shape);
-        setPrecision(data_type);
-        setLayout(layout);
         setData(data);
-    }
-
-    void setLayout(csinn_layout_enum layout) {
-        get()->layout = layout;
-    }
-
-    void setPrecision(csinn_dtype_enum data_type) {
-        get()->dtype = data_type;
-    }
-
-    void setShape(const VectorDims& shape) {
-        get()->dim_count = shape.size();
-        OPENVINO_ASSERT(get()->dim_count < MAX_DIM, "Shl supports shapes with rank less or equal to 8");
-        for (int i = 0; i < get()->dim_count; ++i)
-            get()->dim[i] = static_cast<int32_t>(shape[i]);
-    }
-
-    void setData(void* data) {
-        get()->data = data;
     }
 
     csinn_layout_enum getLayout() const {
@@ -157,6 +130,10 @@ struct ShlTensor : public ShlStructure<csinn_tensor*> {
         return get()->data;
     }
 
+    void setData(void* data) {
+        get()->data = data;
+    }
+
 #ifdef CPU_DEBUG_CAPS
     void print() const {
         std::cout << "Shape: " << ov::Shape(getShape()) << " "
@@ -165,6 +142,22 @@ struct ShlTensor : public ShlStructure<csinn_tensor*> {
                   << "Ptr: " << getData() << std::endl;
     }
 #endif
+
+private:
+    void setLayout(csinn_layout_enum layout) {
+        get()->layout = layout;
+    }
+
+    void setPrecision(csinn_dtype_enum data_type) {
+        get()->dtype = data_type;
+    }
+
+    void setShape(const VectorDims& shape) {
+        get()->dim_count = shape.size();
+        OPENVINO_ASSERT(get()->dim_count < MAX_DIM, "Shl supports shapes with rank less or equal to 8");
+        for (int i = 0; i < get()->dim_count; ++i)
+            get()->dim[i] = static_cast<int32_t>(shape[i]);
+    }
 };
 
 template <>
@@ -180,18 +173,11 @@ struct ShlFCParams : public ShlStructure<csinn_fc_params*> {
         reset(params);
     }
 
-    ShlFCParams(const ShlSession& session) {
+    ShlFCParams(const ShlSession& session, csinn_api_enum api) {
         csinn_fc_params* params = static_cast<csinn_fc_params*>(csinn_alloc_params(sizeof(csinn_fc_params), session.get()));
         OPENVINO_ASSERT(params != nullptr, "Failed to create csinn_fc_params");
+        params->base.api = api;
         reset(params);
-    }
-
-    ShlFCParams(const ShlSession& session, csinn_api_enum api) : ShlFCParams(session) {
-        setAPI(api);
-    }
-
-    void setAPI(csinn_api_enum api) {
-        get()->base.api = api;
     }
 };
 

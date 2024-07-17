@@ -59,7 +59,7 @@ ShlFCExecutor::ShlFCExecutor(const FCAttrs& attrs,
     const auto& dstDesc = memory.at(ARG_DST)->getDescPtr();
 
     // Allocate Shl session
-    sess = ShlSession(CSINN_RM_LAYER);
+    sess = ShlSession();
 
     // Allocate Shl tensors
     src = ShlTensor(sess, precisionToShlDataType(srcDesc->getPrecision()), getShlDataLayoutByMemoryDesc(srcDesc));
@@ -72,8 +72,6 @@ ShlFCExecutor::ShlFCExecutor(const FCAttrs& attrs,
         bias = ShlTensor(sess, memory.at(ARG_BIAS)->getDescPtr()->getShape().getStaticDims(),
                         precisionToShlDataType(biasDesc->getPrecision()),
                         getShlDataLayoutByMemoryDesc(biasDesc), memory.at(ARG_BIAS)->getData());
-    } else {
-        bias = ShlTensor(sess);
     }
 
     // Init FC params
@@ -84,9 +82,14 @@ ShlFCExecutor::ShlFCExecutor(const FCAttrs& attrs,
 }
 
 bool ShlFCExecutor::update(const MemoryArgs& memory) {
-    src.setShape(memory.at(ARG_SRC)->getDescPtr()->getShape().getStaticDims());
-    wei.setShape(memory.at(ARG_WEI)->getDescPtr()->getShape().getStaticDims());
-    dst.setShape(memory.at(ARG_DST)->getDescPtr()->getShape().getStaticDims());
+    auto update_shape = [&](ShlTensor& tensor, const VectorDims& shape) {
+        tensor = ShlTensor(sess, shape, tensor.getPrecision(), tensor.getLayout());
+    };
+
+    update_shape(src, memory.at(ARG_SRC)->getDescPtr()->getShape().getStaticDims());
+    update_shape(wei, memory.at(ARG_WEI)->getDescPtr()->getShape().getStaticDims());
+    update_shape(dst, memory.at(ARG_DST)->getDescPtr()->getShape().getStaticDims());
+
     return true;
 }
 

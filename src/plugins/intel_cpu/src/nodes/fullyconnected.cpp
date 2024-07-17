@@ -91,6 +91,9 @@ void FullyConnected::executeDynamicImpl(dnnl::stream strm) {
 }
 
 bool FullyConnected::canFuse(const NodePtr& node) const {
+#if defined(OV_CPU_WITH_SHL)
+    return false;
+#endif
     return canFuseSimpleOperation(node);
 }
 
