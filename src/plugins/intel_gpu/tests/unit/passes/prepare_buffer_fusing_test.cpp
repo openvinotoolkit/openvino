@@ -861,6 +861,7 @@ TEST(prepare_buffer_fusing, in_place_crop_dynamic_split_lengths) {
     for (size_t i = 0; i < out3.size(); i++)
         ASSERT_EQ(output_ptr_3[i], out3[i]);
 }
+
 // Testing for implicit crop along batch axis and outer padding optimzing.
 // Outer padding opt includes opt out of reshape and reorder which has padded input only in batch axis
 // This optimzing also includes offset(outer axis padded input) handling of oneDNN primitive.
