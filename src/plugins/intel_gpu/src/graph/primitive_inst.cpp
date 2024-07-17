@@ -680,7 +680,7 @@ event::ptr primitive_inst::realloc_if_needed() {
             auto prealloc_shape = updated_layouts[i].get_shape();
             const auto shape_rank = prealloc_shape.size();
             auto seq_axis =
-                desc->concat_axis >= 0 ? desc->concat_axis : shape_rank + desc->concat_axis;
+                static_cast<int32_t>(desc->concat_axis >= 0 ? desc->concat_axis : shape_rank + desc->concat_axis);
             prealloc_shape[seq_axis] += tmp_prealloc_count;
             required_buffer_size = std::accumulate(prealloc_shape.begin(), prealloc_shape.end(), size_t(1), std::multiplies<size_t>());
         } else {
@@ -711,8 +711,8 @@ event::ptr primitive_inst::realloc_if_needed() {
             const auto& desc = _node->as<kv_cache>().get_primitive();
             auto shape_rank = updated_layouts[i].get_shape().size();
             auto seq_axis =
-                desc->concat_axis >= 0 ? desc->concat_axis : shape_rank + desc->concat_axis;
-            prealloc_info = sp.predict_preallocation_shape(id(), updated_layouts[i], can_reuse_buffer, i, tmp_prealloc_count, seq_axis);
+                static_cast<int32_t>(desc->concat_axis >= 0 ? desc->concat_axis : shape_rank + desc->concat_axis);
+            prealloc_info = sp.predict_preallocation_shape(id(), updated_layouts[i], false, i, tmp_prealloc_count, seq_axis);
         } else {
             prealloc_info = sp.predict_preallocation_shape(id(), updated_layouts[i], can_reuse_buffer, i, tmp_prealloc_count);
         }
