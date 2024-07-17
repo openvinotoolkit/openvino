@@ -185,7 +185,7 @@ Note how we reuse our real ``encoded_input``, passing it to the
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4565: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4565: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
 
 
@@ -318,11 +318,11 @@ documentation <https://huggingface.co/docs/optimum/intel/inference>`__.
     To disable this warning, you can either:
     	- Avoid using `tokenizers` before the fork if possible
     	- Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
-    2024-07-02 00:37:41.589687: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-07-02 00:37:41.625311: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-07-13 00:35:27.817822: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-07-13 00:35:27.853673: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-07-02 00:37:42.027035: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+    2024-07-13 00:35:28.470157: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
       torch.utils._pytree._register_pytree_node(
 
 
@@ -429,7 +429,7 @@ Full list of supported arguments available via ``--help``
 
 .. parsed-literal::
 
-    2024-07-02 00:37:54.170558: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-07-13 00:35:41.047556: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
     usage: optimum-cli export openvino [-h] -m MODEL [--task TASK]
                                        [--framework {pt,tf}] [--trust-remote-code]
                                        [--weight-format {fp32,fp16,int8,int4,int4_sym_g128,int4_asym_g128,int4_sym_g64,int4_asym_g64}]
@@ -461,21 +461,20 @@ Full list of supported arguments available via ``--help``
       --task TASK           The task to export the model for. If not specified,
                             the task will be auto-inferred based on the model.
                             Available tasks depend on the model, but are among:
-                            ['audio-frame-classification', 'multiple-choice',
-                            'mask-generation', 'conversational', 'image-
-                            segmentation', 'feature-extraction', 'audio-xvector',
-                            'token-classification', 'object-detection', 'sentence-
-                            similarity', 'audio-classification', 'image-
-                            classification', 'text-to-audio', 'text2text-
-                            generation', 'semantic-segmentation', 'question-
-                            answering', 'stable-diffusion', 'image-to-text',
-                            'depth-estimation', 'automatic-speech-recognition',
-                            'zero-shot-image-classification', 'image-to-image',
-                            'stable-diffusion-xl', 'zero-shot-object-detection',
-                            'text-classification', 'fill-mask', 'text-generation',
-                            'masked-im']. For decoder models, use `xxx-with-past`
-                            to export the model using past key values in the
-                            decoder.
+                            ['text-generation', 'text-to-audio', 'conversational',
+                            'fill-mask', 'audio-classification', 'token-
+                            classification', 'zero-shot-object-detection', 'text-
+                            classification', 'stable-diffusion-xl', 'question-
+                            answering', 'feature-extraction', 'text2text-
+                            generation', 'sentence-similarity', 'image-
+                            segmentation', 'automatic-speech-recognition', 'depth-
+                            estimation', 'image-to-image', 'image-classification',
+                            'stable-diffusion', 'audio-frame-classification',
+                            'semantic-segmentation', 'mask-generation', 'multiple-
+                            choice', 'audio-xvector', 'image-to-text', 'object-
+                            detection', 'zero-shot-image-classification', 'masked-
+                            im']. For decoder models, use `xxx-with-past` to
+                            export the model using past key values in the decoder.
       --framework {pt,tf}   The framework to use for the export. If not provided,
                             will attempt to use the local checkpoint's original
                             framework or what is available in the environment.
@@ -504,7 +503,7 @@ Full list of supported arguments available via ``--help``
                             quantized to int4 while 20% will be quantized to int8.
                             This helps to achieve better accuracy at the sacrifice
                             of the model size and inference latency. Default value
-                            is 0.8.
+                            is 1.0.
       --sym                 Whether to apply symmetric quantization
       --group-size GROUP_SIZE
                             The group size to use for quantization. Recommended
@@ -579,8 +578,8 @@ compression:
 
 .. parsed-literal::
 
-    2024-07-02 00:37:58.949844: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
+    2024-07-13 00:35:45.994137: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/utils/outputs.py:63: UserWarning: torch.utils._pytree._register_pytree_node is deprecated. Please use torch.utils._pytree.register_pytree_node instead.
       torch.utils._pytree._register_pytree_node(
     `--fp16` option is deprecated and will be removed in a future version. Use `--weight-format` instead.
     Framework not specified. Using pt to export the model.

@@ -11,14 +11,15 @@
 #include "device_helpers.hpp"
 #include "intel_npu/al/config/common.hpp"
 #include "intel_npu/al/config/compiler.hpp"
-#include "intel_npu/al/config/runtime.hpp"
 #include "intel_npu/al/config/npuw.hpp"
+#include "intel_npu/al/config/runtime.hpp"
 #include "intel_npu/al/itt.hpp"
+#include "npuw/compiled_model.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
-
-#include "npuw/compiled_model.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "remote_context.hpp"
 
 using namespace intel_npu;
 
@@ -296,6 +297,12 @@ Plugin::Plugin()
           [&](const Config&) {
               return _metrics->GetAvailableDevicesNames();
           }}},
+        {ov::workload_type.name(),
+         {_backends->isWorkloadTypeSupported(),
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<WORKLOAD_TYPE>();
+          }}},
         {ov::device::capabilities.name(),
          {true,
           ov::PropertyMutability::RO,
@@ -426,6 +433,12 @@ Plugin::Plugin()
           [&](const Config& config) {
               return _metrics->GetDriverVersion();
           }}},
+        {ov::intel_npu::compilation_mode_params.name(),
+         {true,
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<COMPILATION_MODE_PARAMS>();
+          }}},
         // NPU Private
         // =========
         {ov::intel_npu::dma_engines.name(),
@@ -463,12 +476,6 @@ Plugin::Plugin()
           ov::PropertyMutability::RW,
           [](const Config& config) {
               return config.get<COMPILATION_MODE>();
-          }}},
-        {ov::intel_npu::compilation_mode_params.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<COMPILATION_MODE_PARAMS>();
           }}},
         {ov::intel_npu::compiler_type.name(),
          {false,
@@ -518,13 +525,9 @@ Plugin::Plugin()
           [](const Config& config) {
               return config.getString<BACKEND_COMPILATION_PARAMS>();
           }}},
-        {ov::intel_npu::batch_mode.name(),
-         {false,
-          ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.getString<BATCH_MODE>();
-          }}}
-    };
+        {ov::intel_npu::batch_mode.name(), {false, ov::PropertyMutability::RW, [](const Config& config) {
+                                                return config.getString<BATCH_MODE>();
+                                            }}}};
 
     for (auto& property : _properties) {
         if (std::get<0>(property.second)) {
@@ -579,6 +582,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // activate the NPUW path
     auto useNpuwKey = ov::intel_npu::use_npuw.name();
     if (properties.count(useNpuwKey) && properties.at(useNpuwKey).as<bool>()) {
+        // CACHE_DIR isn't supported with NPU_USE_NPUW
+        if (properties.count(ov::cache_dir.name()) || !_globalConfig.get<CACHE_DIR>().empty()) {
+            OPENVINO_THROW("Option 'CACHE_DIR' is not supported with NPU_USE_NPUW");
+        }
         return std::make_shared<ov::npuw::CompiledModel>(model->clone(), shared_from_this(), properties);
     }
 
@@ -660,18 +667,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     return compiledModel;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& /*model*/,
-                                                          const ov::AnyMap& /*properties*/,
-                                                          const ov::SoPtr<ov::IRemoteContext>& /*context*/) const {
-    OPENVINO_THROW_NOT_IMPLEMENTED("The remote context feature is not supported by the NPU plugin");
+std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                          const ov::AnyMap& properties,
+                                                          const ov::SoPtr<ov::IRemoteContext>& context) const {
+    auto casted = std::dynamic_pointer_cast<RemoteContextImpl>(context._ptr);
+    OPENVINO_ASSERT(casted, "Invalid remote context type. Can't cast to ov::intel_npu::RemoteContext type");
+
+    return compile_model(model, properties);
 }
 
-ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& /*remote_properties*/) const {
-    OPENVINO_THROW_NOT_IMPLEMENTED("The remote context feature is not supported by the NPU plugin");
+ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
+    return get_default_context(remote_properties);
 }
 
-ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& /*remote_properties*/) const {
-    OPENVINO_THROW_NOT_IMPLEMENTED("The remote context feature is not supported by the NPU plugin");
+ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) const {
+    return std::make_shared<RemoteContextImpl>(_backends, _globalConfig);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {

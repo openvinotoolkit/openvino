@@ -11,6 +11,14 @@
 #include "zero_wrappers.hpp"
 
 namespace intel_npu {
+
+struct TensorData {
+    void* mem;
+    size_t size;
+    bool levelZeroTensorCreatedLocally = true;
+    bool changed = false;
+};
+
 struct Pipeline {
 public:
     Pipeline() = default;
@@ -24,6 +32,10 @@ public:
     virtual void pull(size_t batch_index) = 0;
     virtual void reset(size_t batch_index) const = 0;
 
+    virtual void updateCommandList(const std::vector<TensorData>& inputTensorsData,
+                                   const std::vector<TensorData>& outputTensorsData,
+                                   size_t batch_size) = 0;
+
 protected:
     zeroMemory::MemoryManagementUnit _deviceInputs;
     zeroMemory::MemoryManagementUnit _deviceOutputs;
@@ -34,7 +46,7 @@ std::unique_ptr<Pipeline> makePipeline(const std::shared_ptr<const IExecutor>& e
                                        zeroProfiling::ProfilingPool& profiling_pool,
                                        zeroProfiling::ProfilingQuery& profiling_query,
                                        std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
-                                       const std::vector<std::shared_ptr<ov::ITensor>>& inputTensors,
-                                       const std::vector<std::shared_ptr<ov::ITensor>>& outputTensors,
+                                       const std::vector<TensorData>& inputTensorsData,
+                                       const std::vector<TensorData>& outputTensorsData,
                                        const size_t batch_size);
 }  // namespace intel_npu

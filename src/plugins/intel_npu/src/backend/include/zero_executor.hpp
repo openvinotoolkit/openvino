@@ -7,8 +7,11 @@
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
+#include <mutex>
+
 #include "intel_npu/utils/logger/logger.hpp"
 #include "npu.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "zero_init.hpp"
 #include "zero_wrappers.hpp"
 
@@ -32,6 +35,9 @@ public:
     };
 
     void setArgumentValue(uint32_t argi_, const void* argv_) const;
+    void setWorkloadType(const ov::WorkloadType workloadType) const override;
+    void mutexLock() const;
+    void mutexUnlock() const;
     inline ze_graph_handle_t graph() const {
         return _graph;
     }
@@ -72,6 +78,8 @@ private:
     std::vector<ArgumentDescriptor> _output_descriptors;
 
     std::array<std::shared_ptr<CommandQueue>, stage::COUNT> _command_queues;
+
+    mutable std::mutex _mutex;
 };
 
 }  // namespace intel_npu

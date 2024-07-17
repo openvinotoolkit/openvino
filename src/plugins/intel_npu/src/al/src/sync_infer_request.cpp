@@ -139,6 +139,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
 
 std::vector<ov::SoPtr<ov::ITensor>> SyncInferRequest::get_tensors(const ov::Output<const ov::Node>& /*port*/) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::Plugin, "get_tensors");
+
     // Using batches of tensors is currently not supported by the NPU plugin. In this scenario, the OpenVINO API demands
     // returning an empty vector.
     return {};
@@ -187,19 +188,24 @@ void SyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
 void SyncInferRequest::check_tensors() const {
     const auto& inputs = _compiledModel->inputs();
     for (size_t i = 0; i < inputs.size(); i++) {
-        check_tensor(inputs[i], _userInputTensors.at(i));
+        if (_userInputTensors.at(i)) {
+            check_tensor(inputs[i], _userInputTensors.at(i));
+        }
     }
 
     const auto& outputs = _compiledModel->outputs();
     for (size_t i = 0; i < outputs.size(); i++) {
-        check_tensor(outputs[i], _userOutputTensors.at(i));
+        if (_userOutputTensors.at(i)) {
+            check_tensor(outputs[i], _userOutputTensors.at(i));
+        }
     }
 }
 
-void SyncInferRequest::allocate_tensor(const IODescriptor& descriptor,
-                                       const bool isInput,
-                                       const ov::Allocator& allocator,
-                                       const std::optional<std::size_t> batchSize) {
+std::shared_ptr<ov::ITensor> SyncInferRequest::allocate_tensor(const IODescriptor& descriptor,
+                                                               const size_t index,
+                                                               const bool isInput,
+                                                               const ov::Allocator& allocator,
+                                                               const std::optional<std::size_t> batchSize) const {
     check_network_precision(descriptor.precision);
 
     std::shared_ptr<ov::ITensor> tensor;
@@ -224,13 +230,17 @@ void SyncInferRequest::allocate_tensor(const IODescriptor& descriptor,
     }
 
     if (isInput) {
-        _userInputTensors.push_back(tensor);
+        if (_userInputTensors.at(index) == nullptr) {
+            _userInputTensors.at(index) = tensor;
+        }
 
         if (descriptor.isStateInput) {
             _variableStates.push_back(std::make_shared<VariableState>(descriptor.nameFromCompiler, tensor));
         }
-    } else {
-        _userOutputTensors.push_back(tensor);
+    } else if (_userOutputTensors.at(index) == nullptr) {
+        _userOutputTensors.at(index) = tensor;
     }
+
+    return tensor;
 }
 }  // namespace intel_npu

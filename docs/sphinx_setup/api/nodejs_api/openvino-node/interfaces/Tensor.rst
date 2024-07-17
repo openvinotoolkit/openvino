@@ -26,7 +26,7 @@ Properties
 
 .. rubric:: data
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -53,7 +53,7 @@ Methods
 
 .. rubric:: getData
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -71,7 +71,7 @@ Methods
 
 .. rubric:: getElementType
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -87,7 +87,7 @@ Methods
 
 .. rubric:: getShape
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -103,7 +103,7 @@ Methods
 
 .. rubric:: getSize
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 

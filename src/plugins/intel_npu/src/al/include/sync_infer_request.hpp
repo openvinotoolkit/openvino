@@ -30,7 +30,7 @@ public:
      * @param port Port of the tensor to get.
      * @return Tensor for the port @p port.
      */
-    ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
+    virtual ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
 
     /**
      * @brief Sets an input/output tensor to infer.
@@ -38,7 +38,7 @@ public:
      * @param tensor Reference to a tensor. The element_type and shape of a tensor must match
      * the model's input/output element_type and size.
      */
-    void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
+    virtual void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
 
     /**
      * @brief Currently there is no support implemented for batches of tensors, thus this call is a simple redirection
@@ -136,24 +136,27 @@ protected:
      * otherwise.
      * @param precision The precision value to be checked.
      */
-    virtual void check_network_precision(const ov::element::Type_t precision) = 0;
+    virtual void check_network_precision(const ov::element::Type_t precision) const = 0;
 
     /**
      * @brief Allocates a tensor on host and stores the reference inside multiple attributes.
      * @param descriptor Tensor's metadata
+     * @param index The index which the allocated tensor shall use.
      * @param isInput Determines the containers in which the newly allocated tensors will be stored.
      * @param allocator If provided, the tensor uses the custom allocator instead of using the default one.
      * @param batchSize If provided, the value of the shape on the 0th axis is overriden with this value.
+     * @return Pointer towards the allocated tensor
      */
-    void allocate_tensor(const IODescriptor& descriptor,
-                         const bool isInput,
-                         const ov::Allocator& allocator = {},
-                         const std::optional<std::size_t> batchSize = std::nullopt);
+    std::shared_ptr<ov::ITensor> allocate_tensor(const IODescriptor& descriptor,
+                                                 const size_t index,
+                                                 const bool isInput,
+                                                 const ov::Allocator& allocator = {},
+                                                 const std::optional<std::size_t> batchSize = std::nullopt) const;
 
-    std::vector<std::shared_ptr<ov::ITensor>> _userInputTensors;
-    std::vector<std::shared_ptr<ov::ITensor>> _userOutputTensors;
+    mutable std::vector<std::shared_ptr<ov::ITensor>> _userInputTensors;
+    mutable std::vector<std::shared_ptr<ov::ITensor>> _userOutputTensors;
 
-    std::vector<ov::SoPtr<ov::IVariableState>> _variableStates;
+    mutable std::vector<ov::SoPtr<ov::IVariableState>> _variableStates;
 
     // This is intel_npu::ICompiledModel pointer, but need to use OV base class because
     // ov::IInferRequest::get_compiled_model returns a refernce to shared_ptr!

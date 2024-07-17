@@ -14,6 +14,8 @@
 #include "intel_npu/al/config/common.hpp"
 #include "intel_npu/al/itt.hpp"
 #include "intel_npu/al/prefix.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "ze_command_queue_npu_ext.h"
 #include "zero_device.hpp"
 #include "zero_utils.hpp"
 
@@ -32,16 +34,19 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
       _command_queues{{std::make_shared<CommandQueue>(_initStructs->getDevice(),
                                                       _initStructs->getContext(),
                                                       zeroUtils::toZeQueuePriority(_config.get<MODEL_PRIORITY>()),
+                                                      _initStructs->getCommandQueueDdiTable(),
                                                       _config,
                                                       group_ordinal),
                        std::make_shared<CommandQueue>(_initStructs->getDevice(),
                                                       _initStructs->getContext(),
                                                       zeroUtils::toZeQueuePriority(_config.get<MODEL_PRIORITY>()),
+                                                      _initStructs->getCommandQueueDdiTable(),
                                                       _config,
                                                       group_ordinal),
                        std::make_shared<CommandQueue>(_initStructs->getDevice(),
                                                       _initStructs->getContext(),
                                                       zeroUtils::toZeQueuePriority(_config.get<MODEL_PRIORITY>()),
+                                                      _initStructs->getCommandQueueDdiTable(),
                                                       _config,
                                                       group_ordinal)}} {
     _logger.debug("ZeroExecutor::ZeroExecutor - create graph_command_list");
@@ -55,6 +60,7 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
     CommandQueue graph_command_queue(_initStructs->getDevice(),
                                      _initStructs->getContext(),
                                      ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                     _initStructs->getCommandQueueDdiTable(),
                                      _config,
                                      _group_ordinal);
     _logger.debug("ZeroExecutor::ZeroExecutor - create fence");
@@ -108,10 +114,40 @@ ZeroExecutor::ZeroExecutor(const std::shared_ptr<const ZeroInitStructsHolder>& i
     _logger.debug("ZeroExecutor::ZeroExecutor - performing hostSynchronize");
     fence.hostSynchronize();
     _logger.debug("ZeroExecutor::ZeroExecutor - hostSynchronize completed");
+
+    if (config.has<WORKLOAD_TYPE>()) {
+        setWorkloadType(config.get<WORKLOAD_TYPE>());
+    }
+}
+
+void ZeroExecutor::setWorkloadType(const ov::WorkloadType workloadType) const {
+    ze_command_queue_workload_type_t zeWorkloadType;
+    switch (workloadType) {
+    case ov::WorkloadType::DEFAULT:
+        zeWorkloadType = ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_DEFAULT;
+        break;
+    case ov::WorkloadType::EFFICIENT:
+        zeWorkloadType = ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_BACKGROUND;
+        break;
+    default:
+        OPENVINO_THROW("Unknown value for WorkloadType!");
+    }
+
+    for (auto& queue : _command_queues) {
+        queue->setWorkloadType(zeWorkloadType);
+    }
 }
 
 void ZeroExecutor::setArgumentValue(uint32_t argi_, const void* argv_) const {
     zeroUtils::throwOnFail("zeGraphSetArgumentValue", _graph_ddi_table_ext->pfnSetArgumentValue(_graph, argi_, argv_));
+}
+
+void ZeroExecutor::mutexLock() const {
+    _mutex.lock();
+}
+
+void ZeroExecutor::mutexUnlock() const {
+    _mutex.unlock();
 }
 
 ZeroExecutor::~ZeroExecutor() {
