@@ -21,7 +21,7 @@
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/remarks.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {

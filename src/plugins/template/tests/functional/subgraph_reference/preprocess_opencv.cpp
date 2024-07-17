@@ -36,34 +36,11 @@ public:
 /// between pixels is expected
 class PreprocessOpenCVReferenceTest_8U : public PreprocessOpenCVReferenceTest {
 public:
-    void Validate() override {
+    PreprocessOpenCVReferenceTest_8U() {
         threshold = 1.f;
         abs_threshold = 1.f;
-        // No pixels with deviation of more than 1 color step
-        CommonReferenceTest::Validate();
-        // Less than 2% of deviations with 1 color step. 2% is experimental value
-        // For very precise (acceptable) float calculations - 1.4% deviation with G-API/OpenCV is observed
-        ValidateColors(refOutData[0].data<uint8_t>(), actualOutData[0].data<uint8_t>(), refOutData[0].get_size(), 0.02);
-    }
-
-private:
-    void ValidateColors(const uint8_t* expected,
-                        const uint8_t* actual,
-                        size_t size,
-                        float dev_threshold,
-                        float abs_threshold = 0.01f) {
-        size_t mismatches = 0;
-        for (size_t i = 0; i < size; i++) {
-            if (std::abs(static_cast<float>(expected[i]) - static_cast<float>(actual[i])) > abs_threshold) {
-                mismatches++;
-            }
-        }
-        ASSERT_LT(static_cast<float>(mismatches) / size, dev_threshold)
-            << mismatches << " out of " << size << " color mismatches found which exceeds allowed threshold "
-            << dev_threshold;
     }
 };
-
 }  // namespace
 
 static std::shared_ptr<Model> create_simple_function(element::Type type, const PartialShape& shape) {
@@ -325,14 +302,14 @@ TEST_F(PreprocessOpenCVReferenceTest, resize_u8_simple_linear) {
     // Calculate reference expected values from OpenCV
     cv::Mat cvPic = cv::Mat(2, 2, CV_8UC1, input_img.data());
     cv::Mat cvPicResized;
-    cv::resize(cvPic, cvPicResized, cv::Size(1, 1), cv::INTER_NEAREST);
+    cv::resize(cvPic, cvPicResized, cv::Size(1, 1), 0., 0., cv::INTER_NEAREST);
     refOutData.emplace_back(param->get_element_type(), func_shape, cvPicResized.data);
     // Exec now
     Exec();
 }
 
 // [CVS-132878]
-TEST_F(PreprocessOpenCVReferenceTest_8U, DISABLED_resize_u8_large_picture_linear) {
+TEST_F(PreprocessOpenCVReferenceTest_8U, resize_u8_large_picture_linear) {
     const size_t input_height = 50;
     const size_t input_width = 50;
     const size_t func_height = 37;
@@ -362,7 +339,7 @@ TEST_F(PreprocessOpenCVReferenceTest_8U, DISABLED_resize_u8_large_picture_linear
     // Calculate reference expected values from OpenCV
     cv::Mat cvPic = cv::Mat(input_height, input_width, CV_8UC1, input_img.data());
     cv::Mat cvPicResized;
-    cv::resize(cvPic, cvPicResized, cv::Size(func_width, func_height), cv::INTER_LINEAR_EXACT);
+    cv::resize(cvPic, cvPicResized, cv::Size(func_width, func_height), 0., 0., cv::INTER_LINEAR_EXACT);
     refOutData.emplace_back(param->get_element_type(), func_shape, cvPicResized.data);
     // Exec now
     Exec();
@@ -399,14 +376,13 @@ TEST_F(PreprocessOpenCVReferenceTest, resize_f32_large_picture_linear) {
     // Calculate reference expected values from OpenCV
     cv::Mat cvPic = cv::Mat(input_height, input_width, CV_32FC1, input_img.data());
     cv::Mat cvPicResized;
-    cv::resize(cvPic, cvPicResized, cv::Size(func_width, func_height), cv::INTER_LINEAR_EXACT);
+    cv::resize(cvPic, cvPicResized, cv::Size(func_width, func_height), 0., 0., cv::INTER_LINEAR_EXACT);
     refOutData.emplace_back(param->get_element_type(), func_shape, cvPicResized.data);
     // Exec now
     Exec();
 }
 
-// [CVS-132878]
-TEST_F(PreprocessOpenCVReferenceTest, DISABLED_resize_f32_large_picture_cubic_small) {
+TEST_F(PreprocessOpenCVReferenceTest, resize_f32_large_picture_cubic_small) {
     const size_t input_height = 4;
     const size_t input_width = 4;
     const size_t func_height = 3;
@@ -427,7 +403,7 @@ TEST_F(PreprocessOpenCVReferenceTest, DISABLED_resize_f32_large_picture_cubic_sm
     // Calculate reference expected values from OpenCV
     cv::Mat cvPic = cv::Mat(input_height, input_width, CV_32FC1, input_img.data());
     cv::Mat cvPicResized;
-    cv::resize(cvPic, cvPicResized, cv::Size(func_width, func_height), cv::INTER_CUBIC);
+    cv::resize(cvPic, cvPicResized, cv::Size(func_width, func_height), 0., 0., cv::INTER_CUBIC);
     refOutData.emplace_back(element_type, func_shape, cvPicResized.data);
     // Exec now
     Exec();

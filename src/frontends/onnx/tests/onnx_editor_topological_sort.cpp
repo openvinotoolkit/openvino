@@ -19,26 +19,26 @@ static std::string s_manifest = onnx_backend_manifest("${MANIFEST}");
 OPENVINO_TEST(onnx_editor, topological_sort_two_nodes_swap) {
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/topological_sort/two_nodes_swap.onnx", &front_end);
-    ASSERT_NO_THROW(front_end->convert(input_model));
+    OV_ASSERT_NO_THROW(front_end->convert(input_model));
 }
 
 OPENVINO_TEST(onnx_editor, topological_sort_completely_unsorted) {
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/topological_sort/completely_unsorted.onnx", &front_end);
-    ASSERT_NO_THROW(front_end->convert(input_model));
+    OV_ASSERT_NO_THROW(front_end->convert(input_model));
 }
 
 OPENVINO_TEST(onnx_editor, topological_sort_completely_unsorted_2) {
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/topological_sort/completely_unsorted_2.onnx", &front_end);
-    ASSERT_NO_THROW(front_end->convert(input_model));
+    OV_ASSERT_NO_THROW(front_end->convert(input_model));
 }
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 OPENVINO_TEST(onnx_editor, topological_sort_completely_unsorted_2_wstring) {
     FrontEnd::Ptr front_end;
     auto input_model = load_model(L"model_editor/topological_sort/completely_unsorted_2.onnx", &front_end);
-    ASSERT_NO_THROW(front_end->convert(input_model));
+    OV_ASSERT_NO_THROW(front_end->convert(input_model));
 }
 #endif
 
@@ -47,7 +47,7 @@ OPENVINO_TEST(onnx_editor, topological_sort_constant_node_in_the_graph) {
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/topological_sort/completely_unsorted_2.onnx", &front_end);
 
-    ASSERT_NO_THROW(front_end->convert(input_model));
+    OV_ASSERT_NO_THROW(front_end->convert(input_model));
 }
 
 OPENVINO_TEST(onnx_editor, topological_sort_multioutput_node) {
@@ -55,7 +55,7 @@ OPENVINO_TEST(onnx_editor, topological_sort_multioutput_node) {
     FrontEnd::Ptr front_end;
     auto input_model = load_model("model_editor/topological_sort/completely_unsorted_2.onnx", &front_end);
 
-    ASSERT_NO_THROW(front_end->convert(input_model));
+    OV_ASSERT_NO_THROW(front_end->convert(input_model));
 }
 
 /*

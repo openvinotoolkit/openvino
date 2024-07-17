@@ -93,7 +93,7 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequence) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertTensorIteratorToLSTMSequence>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -188,7 +188,7 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequenceDynamicReshapeCase)
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertTensorIteratorToLSTMSequence>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -278,7 +278,7 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequenceDynamicSqueezeCase)
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertTensorIteratorToLSTMSequence>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -364,7 +364,7 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequence) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertTensorIteratorToRNNSequence>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -444,7 +444,7 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequenceDynamicReshapeCase) 
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertTensorIteratorToRNNSequence>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -525,7 +525,7 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequenceDynamicSqueezeCase) 
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertTensorIteratorToRNNSequence>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -605,7 +605,7 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequence) {
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertTensorIteratorToGRUSequence>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -685,7 +685,7 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequenceDynamicReshapeCase) 
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertTensorIteratorToGRUSequence>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -766,7 +766,7 @@ TEST(TransformationTests, ConvertTensorIteratorToGRUSequenceDynamicSqueezeCase) 
         m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::ConvertTensorIteratorToGRUSequence>();
         m.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {

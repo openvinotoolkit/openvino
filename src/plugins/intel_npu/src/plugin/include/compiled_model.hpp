@@ -83,7 +83,7 @@ private:
 
     std::shared_ptr<const NetworkDescription> _networkPtr;
     const std::shared_ptr<const ov::Model> _model;
-    const Config _config;
+    Config _config;
     Logger _logger;
     const std::shared_ptr<IDevice> _device;
     mutable std::shared_ptr<IExecutor> _executorPtr;
