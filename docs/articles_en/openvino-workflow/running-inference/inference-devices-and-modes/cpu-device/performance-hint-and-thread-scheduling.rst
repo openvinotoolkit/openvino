@@ -7,8 +7,8 @@ Performance Hints and Thread Scheduling
                  on performance hints automatically.
 
 To simplify the configuration of hardware devices, it is recommended to use the
-:doc:` ov::hint::PerformanceMode::LATENCY and ov::hint::PerformanceMode::THROUGHPUT <../../../../optimize-inference/high-level-performance-hints>`
-high-level performance hints. Both performance hints ensure optimal portability
+ov::hint::PerformanceMode::LATENCY and ov::hint::PerformanceMode::THROUGHPUT
+:doc:`high-level performance hints <../../optimize-inference/high-level-performance-hints>`. Both performance hints ensure optimal portability
 and scalability of applications across various platforms and models.
 
 - ``ov::inference_num_threads`` limits the number of logical processors used for CPU inference.
@@ -44,7 +44,8 @@ the model precision and the ratio of P-cores and E-cores.
     P-cores is short for Performance-cores and E-cores stands for Efficient-cores. These
     types of cores are available starting with the 12th Gen Intel® Core™ processors.
 
-.. _Core Type Table of Latency Hint:
+.. _core_type_latency:
+
 +----------------------------+---------------------+---------------------+
 |                            | INT8 Model          | FP32 Model          |
 +============================+=====================+=====================+
@@ -69,7 +70,7 @@ Then the default settings for low-level performance properties on Windows and Li
 +--------------------------------------+------------------------------------------------------------------------+--------------------------------------------------------------------+
 | ``ov::inference_num_threads``        | is equal to the number of P-cores or P-cores+E-cores on one socket     | is equal to the number of P-cores or P-cores+E-cores on one socket |
 +--------------------------------------+------------------------------------------------------------------------+--------------------------------------------------------------------+
-| ``ov::hint::scheduling_core_type``   | `Core Type Table of Latency Hint`_                                     | `Core Type Table of Latency Hint`_                                 |
+| ``ov::hint::scheduling_core_type``   | :ref:`Core Type Table of Latency Hint <core_type_latency>`             | :ref:`Core Type Table of Latency Hint <core_type_latency>`         |
 +--------------------------------------+------------------------------------------------------------------------+--------------------------------------------------------------------+
 | ``ov::hint::enable_hyper_threading`` | No                                                                     | No                                                                 |
 +--------------------------------------+------------------------------------------------------------------------+--------------------------------------------------------------------+

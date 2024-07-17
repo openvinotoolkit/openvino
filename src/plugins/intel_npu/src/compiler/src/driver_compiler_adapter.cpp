@@ -6,8 +6,9 @@
 
 #include "graph_transformations.hpp"
 #include "intel_npu/al/config/common.hpp"
+#include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
-#include "ze_intel_vpu_uuid.h"
+#include "ze_intel_npu_uuid.h"
 #include "zero_compiler_in_driver.hpp"
 
 namespace intel_npu {
@@ -47,7 +48,7 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter() : _logger("LevelZeroCompile
                        uint64_t(result));
     }
 
-    const ze_driver_uuid_t uuid = ze_intel_vpu_driver_uuid;
+    const ze_driver_uuid_t uuid = ze_intel_npu_driver_uuid;
     ze_driver_properties_t props = {};
     props.stype = ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES;
     // Get our target driver
@@ -181,45 +182,27 @@ bool LevelZeroCompilerAdapter::isCompatibleWithDriverVersion(const Config& confi
 }
 
 uint32_t LevelZeroCompilerAdapter::getSupportedOpsetVersion() const {
-    return apiAdapter->getSupportedOpset();
+    return apiAdapter->getSupportedOpsetVersion();
 }
 
 NetworkDescription LevelZeroCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
                                                      const Config& config) const {
     _logger.setLevel(config.get<LOG_LEVEL>());
-    _logger.debug("compileIR");
-    uint32_t supportedOpset = apiAdapter->getSupportedOpset();
-
-    auto IR = serializeToIR(model, supportedOpset);
-
-    return apiAdapter->compileIR(model, IR, config);
+    _logger.debug("compile");
+    return apiAdapter->compile(model, config);
 }
 
 ov::SupportedOpsMap LevelZeroCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
                                                     const Config& config) const {
     _logger.setLevel(config.get<LOG_LEVEL>());
-    _logger.debug("queryResult");
-    ov::SupportedOpsMap result;
-    const std::string deviceName = "NPU";
-
-    auto IR = serializeToIR(model);
-    try {
-        const auto supportedLayers = apiAdapter->getQueryResult(IR, config);
-        for (auto&& layerName : supportedLayers) {
-            result.emplace(layerName, deviceName);
-        }
-        _logger.info("For given model, there are %d supported layers", supportedLayers.size());
-    } catch (std::exception& e) {
-        OPENVINO_THROW("Fail in calling querynetwork : ", e.what());
-    }
-
-    return result;
+    _logger.debug("query");
+    return apiAdapter->query(model, config);
 }
 
-NetworkMetadata LevelZeroCompilerAdapter::parse(const std::vector<uint8_t>& blob, const Config& config) const {
+NetworkMetadata LevelZeroCompilerAdapter::parse(const std::vector<uint8_t>& network, const Config& config) const {
     _logger.setLevel(config.get<LOG_LEVEL>());
-    _logger.debug("parseBlob");
-    return apiAdapter->parseBlob(blob, config);
+    _logger.debug("parse");
+    return apiAdapter->parse(network, config);
 }
 
 std::vector<ov::ProfilingInfo> LevelZeroCompilerAdapter::process_profiling_output(const std::vector<uint8_t>&,

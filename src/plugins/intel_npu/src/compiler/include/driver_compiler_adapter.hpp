@@ -6,7 +6,6 @@
 
 #include <ze_graph_ext.h>
 
-#include "iexternal_compiler.hpp"
 #include "intel_npu/al/icompiler.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 
@@ -40,7 +39,7 @@ private:
     /**
      * @brief Separate externals calls to separate class
      */
-    std::shared_ptr<IExternalCompiler> apiAdapter;
+    std::shared_ptr<ICompiler> apiAdapter;
     ze_driver_handle_t _driverHandle = nullptr;
     mutable Logger _logger;
 };

@@ -7,7 +7,7 @@
 #include "snippets/itt.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov {
 namespace snippets {
@@ -53,11 +53,13 @@ bool ValidateUnifiedLoops::run(LinearIR& linear_ir) {
             // if the loop has different dimension indexes, it don't have to meet the split loop related requirements
             if (dim_idx == LoopInfo::UNDEFINED_DIM_IDX)
                 continue;
-            if (std::find(dim_indexes.cbegin(), dim_indexes.cend(), dim_idx) != dim_indexes.cend()) {
-                OPENVINO_ASSERT(*dim_indexes.rbegin() == dim_idx,
-                                "Incorrect Loop ID configuration: the Loops with splitted dimension should be successively nested");
-                OPENVINO_ASSERT(loop_manager->get_loop_info(loop_ids[i - 1])->get_increment() == loop_manager->get_loop_info(id)->get_work_amount(),
-                                "Incorrect Loop ID configuration: the Loops with splitted dimension should be successively nested");
+            if (i > 0) {
+                if (std::find(dim_indexes.cbegin(), dim_indexes.cend(), dim_idx) != dim_indexes.cend()) {
+                        OPENVINO_ASSERT(*dim_indexes.rbegin() == dim_idx,
+                                        "Incorrect Loop ID configuration: the Loops with splitted dimension should be successively nested");
+                        OPENVINO_ASSERT(loop_manager->get_loop_info(loop_ids[i - 1])->get_increment() == loop_manager->get_loop_info(id)->get_work_amount(),
+                                        "Incorrect Loop ID configuration: the Loops with splitted dimension should be successively nested");
+                }
             }
             dim_indexes.push_back(dim_idx);
         }

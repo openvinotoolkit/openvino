@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/trilu.hpp"
-
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -18,14 +17,13 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
-
 using namespace ov::op;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 
 ov::OutputVector trilu(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ov_inputs();
@@ -58,7 +56,7 @@ ov::OutputVector trilu(const ov::frontend::onnx::Node& node) {
     const auto one = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
 
     // The approach here is to create a mask, that later can be used in Select operator
-    // to choose appropiate values from the input
+    // to choose appropriate values from the input
     //
     // For example N = 4, M = 5, k = -1, upper = false
     // horizontal_range = [[0, 1, 2, 3, 4]]
@@ -112,8 +110,9 @@ ov::OutputVector trilu(const ov::frontend::onnx::Node& node) {
         std::make_shared<v1::Select>(mask, input, v0::Constant::create(input.get_element_type(), ov::Shape{}, {0}))};
 }
 
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("Trilu", OPSET_SINCE(1), ai_onnx::opset_1::trilu);
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

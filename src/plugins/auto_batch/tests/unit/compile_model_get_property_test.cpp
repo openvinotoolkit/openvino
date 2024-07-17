@@ -87,7 +87,7 @@ public:
         ON_CALL(*m_core, get_property(_, StrEq("GPU_DEVICE_TOTAL_MEM_SIZE"), _)).WillByDefault(Return("10240"));
 
         const ov::AnyMap configs = {{ov::auto_batch_timeout(static_cast<uint32_t>(200))}, {ov::device::priorities("CPU(16)")}};
-        ASSERT_NO_THROW(auto_batch_compile_model = m_plugin->compile_model(m_model, configs));
+        OV_ASSERT_NO_THROW(auto_batch_compile_model = m_plugin->compile_model(m_model, configs));
 
         std::string network_name = m_model.get()->get_name();
         std::vector<ov::PropertyName> supported_props = {ov::optimal_batch_size, ov::cache_dir};
@@ -116,7 +116,7 @@ TEST_P(CompileModelGetPropertyTest, CompileModelGetPropertyTestCase) {
     if (m_throw_exception)
         ASSERT_ANY_THROW(auto_batch_compile_model->get_property(m_properity_name));
     else
-        ASSERT_NO_THROW(auto_batch_compile_model->get_property(m_properity_name));
+        OV_ASSERT_NO_THROW(auto_batch_compile_model->get_property(m_properity_name));
 }
 
 const std::vector<get_property_param> compile_model_get_property_param_test = {

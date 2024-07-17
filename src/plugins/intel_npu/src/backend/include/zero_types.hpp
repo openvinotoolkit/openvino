@@ -8,6 +8,7 @@
 #include <ze_graph_ext.h>
 
 #include "intel_npu/al/config/runtime.hpp"
+#include "ze_command_queue_npu_ext.h"
 
 /**
  * @brief Last version of Table of Graph Extension functions used within plugin
@@ -133,3 +134,4 @@ public:
 };
 
 using ze_graph_dditable_ext_curr_t = ze_graph_dditable_ext_decorator;
+using ze_command_queue_npu_dditable_ext_curr_t = ze_command_queue_npu_dditable_ext_1_0_t;
