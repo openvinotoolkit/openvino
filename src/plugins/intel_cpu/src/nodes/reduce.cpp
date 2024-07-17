@@ -966,7 +966,9 @@ private:
     inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, memory::data_type dst_dt) {
         Xmm xmm_dst = Xmm(vmm_dst.getIdx());
         Ymm ymm_dst = Ymm(vmm_dst.getIdx());
-
+        if (!isFloatCompatible(jcp_.src_dt) && !support_intermediate_int) {
+            uni_vroundps(vmm_dst, vmm_dst, 3); // rounding to zero
+        }
         if (convert_f32_to_i32(dst_dt)) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
         }
@@ -1018,6 +1020,9 @@ private:
     }
 
     inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, memory::data_type dst_dt) {
+        if (!isFloatCompatible(jcp_.src_dt) && !support_intermediate_int) {
+            uni_vroundps(xmm_dst, xmm_dst, 3);
+        }
         if (convert_f32_to_i32(dst_dt)) {
             uni_vcvtps2dq(xmm_dst, xmm_dst);
         }
@@ -1517,6 +1522,10 @@ private:
         int depthwise_inj_idx = 0;
         int quantization_inj_idx = 0;
         int post_ops_data_offset = 0;
+        if (!isFloatCompatible(jcp_.src_dt)) {
+            uni_vroundps(vmm_dst, vmm_dst, 3); // rounding to zero
+        }
+
         for (int i = 0; i < p.len(); i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
@@ -1646,7 +1655,10 @@ private:
     inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, memory::data_type dst_dt) {
         Xmm xmm_dst = Xmm(vmm_dst.getIdx());
         Ymm ymm_dst = Ymm(vmm_dst.getIdx());
-
+        // If there is post ops fusing, necessary rounding has ready been done, no need to do it again.
+        if (!post_ops_fusing && !isFloatCompatible(jcp_.src_dt)) {
+            uni_vroundps(vmm_dst, vmm_dst, 3);
+        }
         if (!isFloatCompatible(dst_dt)) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
         }
@@ -1698,6 +1710,9 @@ private:
     }
 
     inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, memory::data_type dst_dt) {
+        if (!post_ops_fusing && !isFloatCompatible(jcp_.src_dt)) {
+            uni_vroundps(xmm_dst, xmm_dst, 3);
+        }
         if (!isFloatCompatible(dst_dt)) {
             uni_vcvtps2dq(xmm_dst, xmm_dst);
         }
@@ -1935,20 +1950,6 @@ void Reduce::initSupportedPrimitiveDescriptors() {
     input_prec = getOriginalInputPrecisionAtPort(REDUCE_DATA);
     output_prec = getOriginalOutputPrecisionAtPort(0);
 
-    if (!fusedWith.empty()) {
-        // In jit mode we use the output memory as an intermediate accumulator for certain reduce modes.
-        // If the post ops node has a lower precision for such modes, working buffer with original precision is needed,
-        // in order to avoid accuracy loss.
-        auto fused_prec = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
-        if (output_prec == ov::element::f32 && fused_prec != ov::element::f32) {
-            if (algorithm != Algorithm::ReduceAnd && algorithm != Algorithm::ReduceOr &&
-                algorithm != Algorithm::ReduceMin && algorithm != Algorithm::ReduceMax) {
-                fuse_low_precision = true;
-            }
-        }
-        output_prec = fused_prec;
-    }
-
     jit_mode = canApplyJIT(input_prec, output_prec);
 
     auto is_precision_sensitive_reduce = [](const Algorithm &algorithm) {
@@ -1965,6 +1966,20 @@ void Reduce::initSupportedPrimitiveDescriptors() {
         } else if (ov::element::f16 == output_prec) {
             if (!mayiuse(cpu::x64::avx2) || is_precision_sensitive_reduce(algorithm))
                 output_prec = ov::element::f32;
+        }
+
+        if (!fusedWith.empty()) {
+            // In jit mode we use the output memory as an intermediate accumulator for certain reduce modes.
+            // If the post ops node has a lower precision for such modes, working buffer with original precision is needed,
+            // in order to avoid accuracy loss.
+            auto fused_prec = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
+            if (output_prec == ov::element::f32 && fused_prec != ov::element::f32) {
+                if (algorithm != Algorithm::ReduceAnd && algorithm != Algorithm::ReduceOr &&
+                    algorithm != Algorithm::ReduceMin && algorithm != Algorithm::ReduceMax) {
+                    fuse_low_precision = true;
+                }
+            }
+            output_prec = fused_prec;
         }
     }
 
@@ -2124,7 +2139,10 @@ void Reduce::prepareParams() {
     if (compile_post_kernel) {
         setPostOps(attr, dst_dims, true);
 
-        ReduceKey key = {jcp, attr.get_post_ops()};
+        auto reduce_post_jcp = jcp;
+        reduce_post_jcp.src_dt = fuse_low_precision ? DnnlExtensionUtils::ElementTypeToDataType(intermediate_prec) : jcp.src_dt;
+        reduce_post_jcp.src_data_size = DnnlExtensionUtils::sizeOfDataType(reduce_post_jcp.src_dt);
+        ReduceKey key = {reduce_post_jcp, attr.get_post_ops()};
         auto cache = context->getParamsCache();
         auto result = cache->getOrCreate(key, builder);
         if (!result.first) {
