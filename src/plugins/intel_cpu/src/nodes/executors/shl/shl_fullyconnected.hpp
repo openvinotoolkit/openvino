@@ -35,6 +35,8 @@ private:
     ShlTensor bias = {};
     ShlSession sess = {};
     ShlFCParams params = {};
+
+    bool with_bias = false;
 };
 using ShlFCExecutorPtr = std::shared_ptr<ShlFCExecutor>;
 

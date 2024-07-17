@@ -98,16 +98,16 @@ struct ShlTensor : public ShlStructure<csinn_tensor*> {
         reset(tensor);
     }
 
-    ShlTensor(const ShlSession& session, csinn_dtype_enum data_type, csinn_layout_enum layout)
+    ShlTensor(const ShlSession& session, csinn_dtype_enum data_type, csinn_layout_enum layout, const VectorDims& shape = {}, void* data = nullptr)
         : ShlTensor(session) {
         setPrecision(data_type);
         setLayout(layout);
-    }
-
-    ShlTensor(const ShlSession& session, const VectorDims& shape, csinn_dtype_enum data_type, csinn_layout_enum layout, void* data = nullptr)
-        : ShlTensor(session, data_type, layout) {
         setShape(shape);
         setData(data);
+    }
+
+    ShlTensor(const ShlTensor& another) : ShlTensor() {
+        csinn_tensor_copy(get(), another.get());
     }
 
     csinn_layout_enum getLayout() const {
@@ -132,6 +132,12 @@ struct ShlTensor : public ShlStructure<csinn_tensor*> {
 
     void setData(void* data) {
         get()->data = data;
+    }
+
+    ShlTensor cloneWithNewShape(const VectorDims& shape) const {
+        ShlTensor cloned(*this);
+        cloned.setShape(shape);
+        return cloned;
     }
 
 #ifdef CPU_DEBUG_CAPS

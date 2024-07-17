@@ -63,15 +63,17 @@ ShlFCExecutor::ShlFCExecutor(const FCAttrs& attrs,
 
     // Allocate Shl tensors
     src = ShlTensor(sess, precisionToShlDataType(srcDesc->getPrecision()), getShlDataLayoutByMemoryDesc(srcDesc));
-    wei = ShlTensor(sess, precisionToShlDataType(weiDesc->getPrecision()), getShlDataLayoutByMemoryDesc(weiDesc, true));
+    wei = ShlTensor(sess, precisionToShlDataType(weiDesc->getPrecision()), getShlDataLayoutByMemoryDesc(weiDesc, true),
+                          weiDesc->getShape().getStaticDims());
     dst = ShlTensor(sess, precisionToShlDataType(dstDesc->getPrecision()), getShlDataLayoutByMemoryDesc(dstDesc));
-    bias = ShlTensor(sess);
 
     if (attrs.withBias) {
         const auto& biasDesc = memory.at(ARG_BIAS)->getDescPtr();
-        bias = ShlTensor(sess, memory.at(ARG_BIAS)->getDescPtr()->getShape().getStaticDims(),
-                        precisionToShlDataType(biasDesc->getPrecision()),
-                        getShlDataLayoutByMemoryDesc(biasDesc), memory.at(ARG_BIAS)->getData());
+        bias = ShlTensor(sess, precisionToShlDataType(biasDesc->getPrecision()), getShlDataLayoutByMemoryDesc(biasDesc),
+                               biasDesc->getShape().getStaticDims());
+        with_bias = true;
+    } else {
+        bias = ShlTensor(sess);
     }
 
     // Init FC params
@@ -82,13 +84,9 @@ ShlFCExecutor::ShlFCExecutor(const FCAttrs& attrs,
 }
 
 bool ShlFCExecutor::update(const MemoryArgs& memory) {
-    auto update_shape = [&](ShlTensor& tensor, const VectorDims& shape) {
-        tensor = ShlTensor(sess, shape, tensor.getPrecision(), tensor.getLayout());
-    };
-
-    update_shape(src, memory.at(ARG_SRC)->getDescPtr()->getShape().getStaticDims());
-    update_shape(wei, memory.at(ARG_WEI)->getDescPtr()->getShape().getStaticDims());
-    update_shape(dst, memory.at(ARG_DST)->getDescPtr()->getShape().getStaticDims());
+    // Weights and Bias have static shapes - no need to update them here
+    src = src.cloneWithNewShape(memory.at(ARG_SRC)->getDescPtr()->getShape().getStaticDims());
+    dst = dst.cloneWithNewShape(memory.at(ARG_DST)->getDescPtr()->getShape().getStaticDims());
 
     return true;
 }
@@ -97,6 +95,9 @@ void ShlFCExecutor::execute(const MemoryArgs& memory) {
     src.setData(memory.at(ARG_SRC)->getData());
     wei.setData(memory.at(ARG_WEI)->getData());
     dst.setData(memory.at(ARG_DST)->getData());
+    if (with_bias) {
+        bias.setData(memory.at(ARG_BIAS)->getData());
+    }
 
     OPENVINO_ASSERT(csinn_fullyconnected(src.get(), dst.get(), wei.get(), bias.get(), params.get()) == CSINN_TRUE,
                     "ShlFCExecutor: failed to execute");
