@@ -32,8 +32,8 @@ public:
     virtual void pull(size_t batch_index) = 0;
     virtual void reset(size_t batch_index) const = 0;
 
-    virtual void updateCommandList(const std::vector<TensorData>& inputTensorsData,
-                                   const std::vector<TensorData>& outputTensorsData,
+    virtual void updateCommandList(std::vector<std::optional<TensorData>>& inputTensorsData,
+                                   std::vector<std::optional<TensorData>>& outputTensorsData,
                                    size_t batch_size) = 0;
 
 protected:
@@ -46,7 +46,7 @@ std::unique_ptr<Pipeline> makePipeline(const std::shared_ptr<const IExecutor>& e
                                        zeroProfiling::ProfilingPool& profiling_pool,
                                        zeroProfiling::ProfilingQuery& profiling_query,
                                        std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
-                                       const std::vector<TensorData>& inputTensorsData,
-                                       const std::vector<TensorData>& outputTensorsData,
+                                       const std::vector<std::optional<TensorData>>& inputTensorsData,
+                                       const std::vector<std::optional<TensorData>>& outputTensorsData,
                                        const size_t batch_size);
 }  // namespace intel_npu

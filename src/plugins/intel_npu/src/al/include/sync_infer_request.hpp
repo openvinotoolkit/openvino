@@ -153,16 +153,16 @@ protected:
                                                  const ov::Allocator& allocator = {},
                                                  const std::optional<std::size_t> batchSize = std::nullopt) const;
 
-    mutable std::vector<std::shared_ptr<ov::ITensor>> _userInputTensors;
-    mutable std::vector<std::shared_ptr<ov::ITensor>> _userOutputTensors;
-
-    mutable std::vector<ov::SoPtr<ov::IVariableState>> _variableStates;
-
     // This is intel_npu::ICompiledModel pointer, but need to use OV base class because
     // ov::IInferRequest::get_compiled_model returns a refernce to shared_ptr!
     std::shared_ptr<const ov::ICompiledModel> _compiledModel;
 
     NetworkMetadata _metadata;
+
+    mutable std::vector<std::shared_ptr<ov::ITensor>> _userInputTensors;
+    mutable std::vector<std::shared_ptr<ov::ITensor>> _userOutputTensors;
+
+    mutable std::vector<ov::SoPtr<ov::IVariableState>> _variableStates;
 
     /**
      * @see ov::ISyncInferRequest

@@ -25,8 +25,8 @@ public:
                      ze_graph_profiling_query_handle_t profiling_handle,
                      const std::array<std::shared_ptr<CommandQueue>, stage::COUNT>& command_queues,
                      const uint32_t& group_ordinal,
-                     const std::vector<TensorData>& inputTensorsData,
-                     const std::vector<TensorData>& outputTensorsData)
+                     const std::vector<std::optional<TensorData>>& inputTensorsData,
+                     const std::vector<std::optional<TensorData>>& outputTensorsData)
         : _config(config),
           _command_queues{command_queues},
           _command_list{{{device_handle, context, graph_ddi_table_ext, _config, group_ordinal},
@@ -54,7 +54,7 @@ public:
 
         size_t inputIndex = 0;
         for (const auto& desc : executor->get_input_descriptors()) {
-            const void* tensorBuffer = reinterpret_cast<const void*>(inputTensorsData.at(inputIndex).mem);
+            const void* tensorBuffer = reinterpret_cast<const void*>(inputTensorsData.at(inputIndex)->mem);
 
             const std::size_t argSize = zeroUtils::getSizeIOBytes(desc.info);
             std::size_t size = argSize + alignment - (argSize % alignment);
@@ -79,7 +79,7 @@ public:
 
         size_t outputIndex = 0;
         for (const auto& desc : executor->get_output_descriptors()) {
-            void* tensorBuffer = reinterpret_cast<void*>(outputTensorsData.at(outputIndex).mem);
+            void* tensorBuffer = reinterpret_cast<void*>(outputTensorsData.at(outputIndex)->mem);
 
             const std::size_t argSize = zeroUtils::getSizeIOBytes(desc.info);
             std::size_t size = argSize + alignment - (argSize % alignment);
@@ -147,7 +147,9 @@ public:
         }
     };
 
-    void updateCommandList(const std::vector<TensorData>&, const std::vector<TensorData>&, size_t) override{};
+    void updateCommandList(std::vector<std::optional<TensorData>>&,
+                           std::vector<std::optional<TensorData>>&,
+                           size_t) override{};
 
 private:
     const Config _config;
@@ -170,8 +172,8 @@ public:
                        std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
                        CommandQueue& command_queue,
                        const uint32_t& group_ordinal,
-                       const std::vector<TensorData>& inputTensorsData,
-                       const std::vector<TensorData>& outputTensorsData,
+                       const std::vector<std::optional<TensorData>>& inputTensorsData,
+                       const std::vector<std::optional<TensorData>>& outputTensorsData,
                        const size_t batch_size)
         : _config(config),
           _executor(static_cast<const ZeroExecutor*>(executorPtr.get())),
@@ -202,19 +204,17 @@ public:
         for (size_t i = 0; i < batch_size; i++) {
             size_t ioIndex = 0;
             for (const auto& desc : _executor->get_input_descriptors()) {
-                const TensorData& inputTensorData = inputTensorsData.at(ioIndex);
-                _executor->setArgumentValue(
-                    desc.idx,
-                    static_cast<unsigned char*>(inputTensorData.mem) + (i * inputTensorData.size) / batch_size);
+                _executor->setArgumentValue(desc.idx,
+                                            static_cast<unsigned char*>(inputTensorsData.at(ioIndex)->mem) +
+                                                (i * inputTensorsData.at(ioIndex)->size) / batch_size);
                 ++ioIndex;
             }
 
             ioIndex = 0;
             for (const auto& desc : _executor->get_output_descriptors()) {
-                const TensorData& outputTensorData = outputTensorsData.at(ioIndex);
-                _executor->setArgumentValue(
-                    desc.idx,
-                    static_cast<unsigned char*>(outputTensorData.mem) + (i * outputTensorData.size) / batch_size);
+                _executor->setArgumentValue(desc.idx,
+                                            static_cast<unsigned char*>(outputTensorsData.at(ioIndex)->mem) +
+                                                (i * outputTensorsData.at(ioIndex)->size) / batch_size);
                 ++ioIndex;
             }
 
@@ -283,19 +283,19 @@ public:
         _logger.debug("IntegratedPipeline - rest() completed");
     };
 
-    void updateCommandList(const std::vector<TensorData>& inputTensorsData,
-                           const std::vector<TensorData>& outputTensorsData,
+    void updateCommandList(std::vector<std::optional<TensorData>>& inputTensorsData,
+                           std::vector<std::optional<TensorData>>& outputTensorsData,
                            size_t batch_size) override {
         std::vector<ze_mutable_graph_argument_exp_desc_t> mutable_argument_desc;
         int32_t changed_tensors = 0;
 
         for (const auto& desc : inputTensorsData) {
-            if (desc.changed) {
+            if (desc->changed) {
                 changed_tensors++;
             }
         }
         for (const auto& desc : outputTensorsData) {
-            if (desc.changed) {
+            if (desc->changed) {
                 changed_tensors++;
             }
         }
@@ -316,8 +316,8 @@ public:
             int32_t mutable_argument_desc_index = -1;
 
             size_t ioIndex = 0;
-            for (const auto& desc : _executor->inputs_desc_map()) {
-                TensorData& inputTensorData = inputTensorsData.at(ioIndex);
+            for (const auto& desc : _executor->get_input_descriptors()) {
+                TensorData& inputTensorData = *inputTensorsData.at(ioIndex);
 
                 if (inputTensorData.changed == true) {
                     set_mutable_desc(
@@ -332,8 +332,8 @@ public:
             }
 
             ioIndex = 0;
-            for (const auto& desc : _executor->outputs_desc_map()) {
-                TensorData& outputTensorData = outputTensorsData.at(ioIndex);
+            for (const auto& desc : _executor->get_output_descriptors()) {
+                TensorData& outputTensorData = *outputTensorsData.at(ioIndex);
 
                 if (outputTensorData.changed == true) {
                     set_mutable_desc(
@@ -370,8 +370,8 @@ std::unique_ptr<Pipeline> makePipeline(const std::shared_ptr<const IExecutor>& e
                                        zeroProfiling::ProfilingPool& profiling_pool,
                                        zeroProfiling::ProfilingQuery& profiling_query,
                                        std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
-                                       const std::vector<TensorData>& inputTensorsData,
-                                       const std::vector<TensorData>& outputTensorsData,
+                                       const std::vector<std::optional<TensorData>>& inputTensorsData,
+                                       const std::vector<std::optional<TensorData>>& outputTensorsData,
                                        const size_t batch_size) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Infer_request::makePipeline");
     if (profiling_pool.create())

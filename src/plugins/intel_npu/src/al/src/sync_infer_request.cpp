@@ -21,7 +21,9 @@ namespace intel_npu {
 
 SyncInferRequest::SyncInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel)
     : _compiledModel(compiledModel),
-      _metadata(compiledModel->get_network_metadata()) {
+      _metadata(compiledModel->get_network_metadata()),
+      _userInputTensors(_metadata.inputs.size(), nullptr),
+      _userOutputTensors(_metadata.outputs.size(), nullptr) {
     OPENVINO_ASSERT(_compiledModel);
 
     if (get_outputs().empty()) {

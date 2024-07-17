@@ -90,8 +90,8 @@ private:
     mutable std::vector<std::shared_ptr<ov::ITensor>> _levelZeroInputTensors;
     mutable std::vector<std::shared_ptr<ov::ITensor>> _levelZeroOutputTensors;
 
-    mutable std::vector<TensorData> _inputTensorsData;
-    mutable std::vector<TensorData> _outputTensorsData;
+    mutable std::vector<std::optional<TensorData>> _inputTensorsData;
+    mutable std::vector<std::optional<TensorData>> _outputTensorsData;
 
     ze_device_properties_t _properties = {};
 
