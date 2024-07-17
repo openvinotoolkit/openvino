@@ -440,9 +440,6 @@ TEST(TransformationTests, ConvertMatMulToFullyConnectedExceptionTest_sibling_mat
         auto input1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{64, 32});
         auto input_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{64, 32}, {-1});
 
-        // auto convert = std::make_shared<ov::opset1::Convert>(input_const, ov::element::f32);
-        // ov::mark_as_decompression(convert);
-
         auto matmul1 = std::make_shared<ov::opset1::MatMul>(input1, input_const, mat1_transpose_a, mat1_transpose_b);
         auto matmul2 = std::make_shared<ov::opset1::MatMul>(input_const, input_const, mat2_transpose_a, mat2_transpose_b);
 
