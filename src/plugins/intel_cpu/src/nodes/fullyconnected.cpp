@@ -108,8 +108,14 @@ ExecutorPtr FullyConnected::createExecutor() {
         VectorDims new_dims = dims;
         new_dims[dim] = splited_dim_vec[w_rank];
         memory_desc = dst_desc->cloneWithNewDims(new_dims, true);
-        memory[ARG_DST] =
-            std::static_pointer_cast<Memory>(sub_memory->get_shared_memory(context->getEngine(), memory_desc, w_rank));
+        if (cur_dst_vec[w_rank] == nullptr) {
+            cur_dst_vec[w_rank] = std::make_shared<Memory>(context->getEngine(), memory_desc, nullptr);
+        } else {
+            cur_dst_vec[w_rank]->redefineDesc(memory_desc);
+        }
+        memory[ARG_DST] = cur_dst_vec[w_rank];
+        // memory[ARG_DST] =
+        //     std::static_pointer_cast<Memory>(sub_memory->get_shared_memory(context->getEngine(), memory_desc, w_rank));
     }
     const auto& executor = factory->make(memory);
     getSelectedPrimitiveDescriptor()->setImplementationType(executor->implType());
@@ -137,8 +143,8 @@ void FullyConnected::execute(dnnl::stream strm) {
                 break;
             }
         }
-        memory[ARG_DST] = std::static_pointer_cast<Memory>(
-            sub_memory->get_pingpang_memory(context->getEngine(), memory_desc, id, w_rank));
+        // memory[ARG_DST] = std::static_pointer_cast<Memory>(
+        //     sub_memory->get_pingpang_memory(context->getEngine(), memory_desc, id, w_rank));
     }
 
     {
