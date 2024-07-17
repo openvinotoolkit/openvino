@@ -223,7 +223,7 @@ void program::init_program() {
     if (_task_executor == nullptr)
         _task_executor = program::make_task_executor(_config);
     _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
-                                                                      kernel_selector::KernelBase::get_db().get_batch_header_str()));
+                                                                      kernel_selector::KernelBase::get_db().get_batch_headers()));
 
     if (!_compilation_context)
         _compilation_context = program::make_compilation_context(_config);
@@ -517,7 +517,10 @@ void program::init_graph() {
     apply_opt_pass<graph_initializations>();
 
     apply_opt_pass<mark_nodes>();
-
+    for (auto& node : processing_order) {
+        if (!node->is_type<data>())
+            node->get_output_layouts();
+    }
     // Perform initial shape_of subgraphs markup
     apply_opt_pass<mark_shape_of_subgraphs>();
 }
@@ -533,10 +536,6 @@ void program::pre_optimize_graph(bool is_internal) {
     processing_order.calculate_BFS_processing_order();  // this method makes sense only for OOOQ (out of order execution queue)
 
     bool output_size_handling_enabled = analyze_output_size_handling_need();
-    for (auto& node : processing_order) {
-        if (!node->is_type<data>())
-            node->get_output_layouts();
-    }
 
     bool optimize_data = _config.get_property(ov::intel_gpu::optimize_data);
     if (optimize_data) {
@@ -594,7 +593,7 @@ void program::pre_optimize_graph(bool is_internal) {
 
     // Check fusing primitives based on preferred format or layout optimization
     if (optimize_data) {
-        apply_opt_pass<fuse_primitives_with_layout>();
+        apply_opt_pass<fuse_primitives_with_layout>(lo);
     }
 
     // add optimization attributes for onednn primitives
@@ -1497,6 +1496,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::broadcast::type_id() &&
             prim.type() != cldnn::ctc_loss::type_id() &&
             prim.type() != cldnn::non_max_suppression::type_id() &&
+            prim.type() != cldnn::non_max_suppression_gather::type_id() &&
             prim.type() != cldnn::roi_align::type_id() &&
             prim.type() != cldnn::matrix_nms::type_id() &&
             prim.type() != cldnn::adaptive_pooling::type_id() &&
@@ -1549,6 +1549,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::quantize::type_id() &&
             prim.type() != cldnn::ctc_loss::type_id() &&
             prim.type() != cldnn::non_max_suppression::type_id() &&
+            prim.type() != cldnn::non_max_suppression_gather::type_id() &&
             prim.type() != cldnn::roi_align::type_id() &&
             prim.type() != cldnn::matrix_nms::type_id() &&
             prim.type() != cldnn::adaptive_pooling::type_id() &&

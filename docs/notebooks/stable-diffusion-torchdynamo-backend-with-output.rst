@@ -30,8 +30,8 @@ Notebook contains the following steps:
 2. Add OpenVINO optimization using OpenVINO TorchDynamo backend.
 3. Run Stable Diffusion pipeline with OpenVINO.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Stable Diffusion with Diffusers
@@ -57,9 +57,7 @@ Prerequisites
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -76,12 +74,10 @@ Prerequisites
 
 .. parsed-literal::
 
-    2024-06-20 02:39:04.276174: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-06-20 02:39:04.310456: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-07-13 04:01:03.234781: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-07-13 04:01:03.269549: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-06-20 02:39:04.830578: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/transformers/transformer_2d.py:34: FutureWarning: `Transformer2DModelOutput` is deprecated and will be removed in version 1.0.0. Importing `Transformer2DModelOutput` from `diffusers.models.transformer_2d` is deprecated and this will be removed in a future version. Please use `from diffusers.models.modeling_outputs import Transformer2DModelOutput`, instead.
-      deprecate("Transformer2DModelOutput", "1.0.0", deprecation_message)
+    2024-07-13 04:01:03.796151: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Stable Diffusion with Diffusers library
@@ -130,18 +126,14 @@ lets you enable `OpenVINO <https://docs.openvino.ai/2024/home.html>`__
 support for PyTorch models with minimal changes to the original PyTorch
 script. It speeds up PyTorch code by JIT-compiling it into optimized
 kernels. By default, Torch code runs in eager-mode, but with the use of
-torch.compile it goes through the following steps:
-
-1. Graph acquisition - the model is rewritten as blocks of subgraphs that are either:
-
-   - compiled by TorchDynamo and “flattened”,
-   - falling back to the eager-mode, due to unsupported Python constructs (like control-flow
-     code).
-
-2. Graph lowering - all PyTorch operations are decomposed into  their constituent kernels
-   specific to the chosen backend.
-3. Graph compilation - the kernels call their corresponding low-level
-   device-specific operations.
+torch.compile it goes through the following steps: 1. Graph acquisition
+- the model is rewritten as blocks of subgraphs that are either: -
+compiled by TorchDynamo and “flattened”, - falling back to the
+eager-mode, due to unsupported Python constructs (like control-flow
+code). 2. Graph lowering - all PyTorch operations are decomposed into
+their constituent kernels specific to the chosen backend. 3. Graph
+compilation - the kernels call their corresponding low-level
+device-specific operations.
 
 Select device for inference and enable or disable saving the optimized
 model files to a hard drive, after the first application run. This makes

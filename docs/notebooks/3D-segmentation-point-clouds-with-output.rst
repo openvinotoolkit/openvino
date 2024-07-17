@@ -22,8 +22,8 @@ segmentation, to scene semantic parsing. It is highly efficient and
 effective, showing strong performance on par or even better than state
 of the art.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Imports <#imports>`__
 -  `Prepare the Model <#prepare-the-model>`__
@@ -36,9 +36,9 @@ Table of contents:
 .. code:: ipython3
 
     import platform
-    
+
     %pip install -q "openvino>=2023.1.0" "tqdm"
-    
+
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
@@ -63,15 +63,15 @@ Imports
     import numpy as np
     import matplotlib.pyplot as plt
     import openvino as ov
-    
+
     # Fetch `notebook_utils` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
     open("notebook_utils.py", "w").write(r.text)
-    
+
     from notebook_utils import download_file
 
 Prepare the Model
@@ -110,9 +110,9 @@ API, see this
 .. code:: ipython3
 
     ir_model_xml = onnx_model_path.with_suffix(".xml")
-    
+
     core = ov.Core()
-    
+
     if not ir_model_xml.exists():
         # Convert model to OpenVINO Model
         model = ov.convert_model(onnx_model_path)
@@ -132,37 +132,37 @@ Data Processing Module
     def load_data(point_file: Union[str, Path]):
         """
         Load the point cloud data and convert it to ndarray
-    
+
         Parameters:
             point_file: string, path of .pts data
         Returns:
            point_set: point clound represented in np.array format
         """
-    
+
         point_set = np.loadtxt(point_file).astype(np.float32)
-    
+
         # normailization
         point_set = point_set - np.expand_dims(np.mean(point_set, axis=0), 0)  # center
         dist = np.max(np.sqrt(np.sum(point_set**2, axis=1)), 0)
         point_set = point_set / dist  # scale
-    
+
         return point_set
-    
-    
+
+
     def visualize(point_set: np.ndarray):
         """
         Create a 3D view for data visualization
-    
+
         Parameters:
             point_set: np.ndarray, the coordinate data in X Y Z format
         """
-    
+
         fig = plt.figure(dpi=192, figsize=(4, 4))
         ax = fig.add_subplot(111, projection="3d")
         X = point_set[:, 0]
         Y = point_set[:, 2]
         Z = point_set[:, 1]
-    
+
         # Scale the view of each axis to adapt to the coordinate data distribution
         max_range = np.array([X.max() - X.min(), Y.max() - Y.min(), Z.max() - Z.min()]).max() * 0.5
         mid_x = (X.max() + X.min()) * 0.5
@@ -171,12 +171,12 @@ Data Processing Module
         ax.set_xlim(mid_x - max_range, mid_x + max_range)
         ax.set_ylim(mid_y - max_range, mid_y + max_range)
         ax.set_zlim(mid_z - max_range, mid_z + max_range)
-    
+
         plt.tick_params(labelsize=5)
         ax.set_xlabel("X", fontsize=10)
         ax.set_ylabel("Y", fontsize=10)
         ax.set_zlabel("Z", fontsize=10)
-    
+
         return ax
 
 Visualize the original 3D data
@@ -196,7 +196,7 @@ chair for example.
         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/pts/chair.pts",
         directory="data",
     )
-    
+
     points = load_data(str(point_data))
     X = points[:, 0]
     Y = points[:, 2]
@@ -216,7 +216,7 @@ chair for example.
 
 .. parsed-literal::
 
-    /tmp/ipykernel_1006815/2434168836.py:12: UserWarning: No data for colormapping provided via 'c'. Parameters 'cmap' will be ignored
+    /tmp/ipykernel_113341/2434168836.py:12: UserWarning: No data for colormapping provided via 'c'. Parameters 'cmap' will be ignored
       ax.scatter3D(X, Y, Z, s=5, cmap="jet", marker="o", label="chair")
 
 
@@ -239,11 +239,11 @@ each input point.
 
     # Parts of a chair
     classes = ["back", "seat", "leg", "arm"]
-    
+
     # Preprocess the input data
     point = points.transpose(1, 0)
     point = np.expand_dims(point, axis=0)
-    
+
     # Print info about model input and output shape
     print(f"input shape: {model.input(0).partial_shape}")
     print(f"output shape: {model.output(0).partial_shape}")
@@ -265,14 +265,14 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -290,7 +290,7 @@ select device from dropdown list for running inference using OpenVINO
     compiled_model = core.compile_model(model=model, device_name=device.value)
     output_layer = compiled_model.output(0)
     result = compiled_model([point])[output_layer]
-    
+
     # Find the label map for all points of chair with highest confidence
     pred = np.argmax(result[0], axis=1)
     ax = visualize(point)
@@ -306,10 +306,10 @@ select device from dropdown list for running inference using OpenVINO
         XCur = np.array(XCur)
         YCur = np.array(YCur)
         ZCur = np.array(ZCur)
-    
+
         # add current point of the part
         ax.scatter(XCur, YCur, ZCur, s=5, cmap="jet", marker="o", label=classes[i])
-    
+
     ax.set_title("3D Segmentation Visualization")
     plt.legend(loc="upper right", fontsize=8)
     plt.show()
@@ -317,7 +317,7 @@ select device from dropdown list for running inference using OpenVINO
 
 .. parsed-literal::
 
-    /tmp/ipykernel_1006815/2804603389.py:23: UserWarning: No data for colormapping provided via 'c'. Parameters 'cmap' will be ignored
+    /tmp/ipykernel_113341/2804603389.py:23: UserWarning: No data for colormapping provided via 'c'. Parameters 'cmap' will be ignored
       ax.scatter(XCur, YCur, ZCur, s=5, cmap="jet", marker="o", label=classes[i])
 
 

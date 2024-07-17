@@ -89,7 +89,7 @@ TEST(TransformationTests, UnrollIfCondIsTrue) {
         manager.register_pass<ov::pass::UnrollIf>();
         manager.run_passes(f);
 
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     { f_ref = get_then_body(); }
@@ -120,7 +120,7 @@ TEST(TransformationTests, UnrollIfCondIsFalse) {
         manager.register_pass<ov::pass::UnrollIf>();
         manager.run_passes(f);
 
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     { f_ref = get_else_body(); }
@@ -171,7 +171,7 @@ TEST(TransformationTests, UnrollIfWithSplitInput) {
         manager.register_pass<ov::pass::UnrollIf>();
         manager.run_passes(f);
 
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -214,7 +214,7 @@ TEST(TransformationTests, UnrollNestedIfThenBody) {
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::UnrollIf>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     { f_ref = get_then_body(); }
@@ -253,7 +253,7 @@ TEST(TransformationTests, UnrollIfCondIsTrueMultiOutput) {
         manager.register_pass<ov::pass::UnrollIf>();
         manager.run_passes(f);
 
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -337,7 +337,7 @@ TEST(TransformationTests, UnrollIfInsideIf) {
         manager.register_pass<ov::pass::ConstantFolding>();
         manager.register_pass<ov::pass::UnrollIf>();
         manager.run_passes(f);
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {

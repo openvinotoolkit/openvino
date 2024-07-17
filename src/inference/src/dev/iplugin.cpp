@@ -391,7 +391,7 @@ std::unordered_set<std::string> ov::get_supported_nodes(
                 }
             }
             // For example, A op need to be removed from supported:
-            //              A (fused on B, to be marked as unsupported)
+            //              A (removed nodes, to be marked as unsupported)
             //              |
             //              B (unsupported)
             //
@@ -400,8 +400,33 @@ std::unordered_set<std::string> ov::get_supported_nodes(
                 update_supported = false;
                 for (auto& op : model->get_ordered_ops()) {
                     const auto& name = op->get_friendly_name();
-                    if (fused_model_op_map.find(name) != fused_model_op_map.end() && supported.count(name)) {
-                        if (!supported.count(fused_model_op_map[name]) &&
+                    if (removed_nodes.count(name) && supported.count(name)) {
+                        if (has_all_consumers_unsupported(supported, op)) {
+                            supported.erase(name);
+                            removed_nodes.erase(name);
+                            update_supported = true;
+                        }
+                    }
+                }
+            }
+            // For example, A op need to be removed from supported:
+            //              A (fused on B, to be marked as unsupported)
+            //              |
+            //              B (unsupported)
+            //
+            //            A ShapeOf (to be marked as unsupported)
+            //              |
+            //              B (unsupported)
+            //
+            update_supported = true;
+            while (update_supported) {
+                update_supported = false;
+                for (auto& op : model->get_ordered_ops()) {
+                    const auto& name = op->get_friendly_name();
+                    bool is_shapeof = ov::is_type<op::util::ShapeOfBase>(op);
+                    if (((fused_model_op_map.find(name) != fused_model_op_map.end()) || is_shapeof) &&
+                        supported.count(name)) {
+                        if ((!supported.count(fused_model_op_map[name]) || is_shapeof) &&
                             has_all_consumers_unsupported(supported, op)) {
                             supported.erase(name);
                             update_supported = true;

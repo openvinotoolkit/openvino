@@ -238,7 +238,7 @@ bool AddTransformation::transform(TransformationContext& context, ov::pass::patt
         NetworkHelper::foldDequantization(node, fullPathIndex, defaultPrecisions);
     }
 
-    OPENVINO_DEBUG << "LPT: done: " << newAddOrSubtract;
+    OPENVINO_DEBUG("LPT: done: ", newAddOrSubtract);
     return true;
 }
 

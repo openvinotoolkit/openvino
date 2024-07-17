@@ -6,8 +6,10 @@ clip-language-saliency-map
 convert-to-openvino
 cross-lingual-books-alignment
 depth-anything
+depth-anything-v2
 detectron2-to-openvino
 distilbert-sequence-classification
+explainable-ai-1-basic
 fast-segment-anything
 grounded-segment-anything
 handwritten-ocr
@@ -41,7 +43,6 @@ softvc-voice-conversion
 sparsity-optimization
 speculative-sampling
 speech-recognition-quantization-wav2vec2
-speech-to-text
 style-transfer
 surya-line-level-text-detection
 table-question-answering
@@ -55,8 +56,6 @@ tflite-to-openvino
 tiny-sd-image-generation
 vision-background-removal
 vision-monodepth
-vision-paddlegan-anime
-vision-paddlegan-superresolution
 whisper-subtitles-generation
 yolov8-instance-segmentation
 yolov8-keypoint-detection
