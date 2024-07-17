@@ -453,9 +453,9 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dco
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
-        auto matched_nodeA = node_to_output.at(paramA).get_node_shared_ptr();
-        auto matched_nodeB = node_to_output.at(constB).get_node_shared_ptr();
-        auto matched_nodeC = node_to_output.at(paramC).get_node_shared_ptr();
+        auto matched_nodeA = node_to_output.at(std::move(paramA)).get_node_shared_ptr();
+        auto matched_nodeB = node_to_output.at(std::move(constB)).get_node_shared_ptr();
+        auto matched_nodeC = node_to_output.at(std::move(paramC)).get_node_shared_ptr();
 
         NPUW_ASSERT(ov::op::util::is_parameter(matched_nodeA));
         NPUW_ASSERT(ov::op::util::is_constant(matched_nodeB));
@@ -488,8 +488,8 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dco
                 pref.get().scales[matched_paramC] = std::move(matched_paramA);
 
                 // Disconnect Multiply and Convert from their outputs
-                auto matched_mulply = node_to_output.at(mulply).get_node_shared_ptr();
-                auto matched_convrt = node_to_output.at(cvtA).get_node_shared_ptr();
+                auto matched_mulply = node_to_output.at(std::move(mulply)).get_node_shared_ptr();
+                auto matched_convrt = node_to_output.at(std::move(cvtA)).get_node_shared_ptr();
                 auto drop_outputs = [](std::shared_ptr<ov::Node> node) {
                     for (auto&& node_outputs : node->outputs()) {
                         for (auto&& node_reader_port : node_outputs.get_target_inputs()) {
@@ -549,9 +549,9 @@ CWAI1::CWAI1(CWAI1::Results scales) {
 
     auto matcher_callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
-        auto matched_nodeA = node_to_output.at(constA).get_node_shared_ptr();
-        auto matched_nodeB = node_to_output.at(constB).get_node_shared_ptr();
-        auto matched_nodeC = node_to_output.at(constC).get_node_shared_ptr();
+        auto matched_nodeA = node_to_output.at(std::move(constA)).get_node_shared_ptr();
+        auto matched_nodeB = node_to_output.at(std::move(constB)).get_node_shared_ptr();
+        auto matched_nodeC = node_to_output.at(std::move(constC)).get_node_shared_ptr();
 
         NPUW_ASSERT(ov::op::util::is_constant(matched_nodeA));
         NPUW_ASSERT(ov::op::util::is_constant(matched_nodeB));
@@ -603,9 +603,9 @@ CWAI2::CWAI2(CWAI2::Results scales) {
 
     auto matcher_callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
-        auto matched_nodeA = node_to_output.at(constA).get_node_shared_ptr();
-        auto matched_nodeB = node_to_output.at(constB).get_node_shared_ptr();
-        auto matched_nodeC = node_to_output.at(constC).get_node_shared_ptr();
+        auto matched_nodeA = node_to_output.at(std::move(constA)).get_node_shared_ptr();
+        auto matched_nodeB = node_to_output.at(std::move(constB)).get_node_shared_ptr();
+        auto matched_nodeC = node_to_output.at(std::move(constC)).get_node_shared_ptr();
 
         NPUW_ASSERT(ov::op::util::is_constant(matched_nodeA));
         NPUW_ASSERT(ov::op::util::is_constant(matched_nodeB));
@@ -652,8 +652,8 @@ CWAI3::CWAI3(CWAI3::Results scales) {
 
     auto matcher_callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
-        auto matched_nodeA = node_to_output.at(constA).get_node_shared_ptr();
-        auto matched_nodeC = node_to_output.at(constC).get_node_shared_ptr();
+        auto matched_nodeA = node_to_output.at(std::move(constA)).get_node_shared_ptr();
+        auto matched_nodeC = node_to_output.at(std::move(constC)).get_node_shared_ptr();
 
         NPUW_ASSERT(ov::op::util::is_constant(matched_nodeA));
         NPUW_ASSERT(ov::op::util::is_constant(matched_nodeC));

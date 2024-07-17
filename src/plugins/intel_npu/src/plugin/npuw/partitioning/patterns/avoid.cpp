@@ -50,9 +50,9 @@ RMSNormPattern::RMSNormPattern(const std::shared_ptr<ov::npuw::online::Snapshot>
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
-        auto matched_power = node_to_output.at(power).get_node_shared_ptr();
-        auto matched_reduce = node_to_output.at(reduce).get_node_shared_ptr();
-        auto matched_add = node_to_output.at(add).get_node_shared_ptr();
+        auto matched_power = node_to_output.at(std::move(power)).get_node_shared_ptr();
+        auto matched_reduce = node_to_output.at(std::move(reduce)).get_node_shared_ptr();
+        auto matched_add = node_to_output.at(std::move(add)).get_node_shared_ptr();
         auto matched_sqrt = node_to_output.at(sqrt).get_node_shared_ptr();
 
         node_to_gptr->at(matched_power)->avoid(avoid_device);

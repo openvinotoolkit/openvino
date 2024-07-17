@@ -66,7 +66,7 @@ void Snapshot::buildGraph() {
 
         auto nh = m_graph->create();
         auto group = std::make_shared<Group>(ov_node, gid, nh, m_graph, shared_from_this());
-        m_graph->meta(nh).set(group);
+        m_graph->meta(std::move(nh)).set(group);
         m_node_to_gr->emplace(std::make_pair(ov_node, group));
         ++gid;
     }
@@ -135,7 +135,7 @@ void Snapshot::collectLHF() {
             if (producers.size() == 1) {
                 auto prod = producers.at(0);
                 if (m_graph->contains(prod) && prod->dstNodes().size() == 1) {
-                    Group::GPtr prod_group = m_graph->meta(prod).get<Group::GPtr>();
+                    Group::GPtr prod_group = m_graph->meta(std::move(prod)).get<Group::GPtr>();
                     if (group->isFrozen() || prod_group->isFrozen()) {
                         continue;
                     }
@@ -234,7 +234,7 @@ void Snapshot::fuseInputs() {
             if (!m_graph->contains(prod_nh)) {  // should be there, but check just in case
                 continue;
             }
-            Group::GPtr group_prod = m_graph->meta(prod_nh).get<Group::GPtr>();
+            Group::GPtr group_prod = m_graph->meta(std::move(prod_nh)).get<Group::GPtr>();
             if (group_prod->isFrozen()) {
                 continue;
             }
@@ -246,7 +246,7 @@ void Snapshot::fuseInputs() {
                 if (!m_graph->contains(prod_nh_other)) {  // should be there, but check just in case
                     continue;
                 }
-                Group::GPtr group_prod_other = m_graph->meta(prod_nh_other).get<Group::GPtr>();
+                Group::GPtr group_prod_other = m_graph->meta(std::move(prod_nh_other)).get<Group::GPtr>();
                 if (group_prod_other->isFrozen()) {
                     continue;
                 }
