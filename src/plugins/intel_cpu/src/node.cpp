@@ -895,7 +895,7 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
     MemoryPtr ptr;
     const auto& format = dstWeightDesc->serializeFormat();
 
-    OPENVINO_ASSERT(privateWeightCache, "privateWeightCache is nullptr");
+    assert(privateWeightCache);
 
     auto itr = privateWeightCache->find(format);
     if (privateWeightCache->end() != itr) {
