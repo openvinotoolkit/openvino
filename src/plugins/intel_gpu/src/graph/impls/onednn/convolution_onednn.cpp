@@ -3,13 +3,11 @@
 //
 
 #include "convolution_inst.h"
-#include "eltwise_inst.h"
 #include "intel_gpu/runtime/format.hpp"
-#include "quantize_inst.h"
+#include "intel_gpu/runtime/layout.hpp"
+#include "intel_gpu/runtime/utils.hpp"
 #include "primitive_onednn_base.h"
 #include "impls/registry/implementation_map.hpp"
-
-#include "impls/ocl/kernel_selector_helper.h"
 
 #include "utils.hpp"
 
@@ -244,6 +242,33 @@ public:
 #endif
     }
 
+
+    static bool validate(const convolution_node& node) {
+        if (!is_supported_format(node.get_preferred_input_fmt(0)))
+            return false;
+
+        auto in_dt = node.get_input_layout(0).data_type;
+        auto wei_dt = node.weights().get_output_layout().data_type;
+        auto out_dt = node.get_output_layout(false).data_type;
+
+        bool f16_conv = everyone_is(data_types::f16, in_dt, wei_dt) && one_of(out_dt, {data_types::f16, data_types::f32, data_types::u8, data_types::i8});
+        bool u8s8_conv = one_of(in_dt, {data_types::i8, data_types::u8}) &&
+                         wei_dt == data_types::i8 &&
+                         one_of(out_dt, {data_types::i32, data_types::f16, data_types::f32, data_types::u8, data_types::i8});
+
+        if (!f16_conv && !u8s8_conv)
+            return false;
+
+        if (!is_supported_post_ops(node))
+            return false;
+
+        // oneDNN doesn't support asymmetric weights quantization
+        if (node.weights_zero_points_term())
+            return false;
+
+        return true;
+    }
+
     static std::unique_ptr<primitive_impl> create(const convolution_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
@@ -304,7 +329,7 @@ attach_convolution_onednn::attach_convolution_onednn() {
         format::bs_fs_zyx_bsv8_fsv2,
         format::bs_fs_yx_bsv4_fsv2,
     };
-    implementation_map<convolution>::add(impl_types::onednn, convolution_onednn::create, dt, fmt);
+    implementation_map<convolution>::add(impl_types::onednn, convolution_onednn::create, convolution_onednn::validate, dt, fmt);
 }
 
 }  // namespace detail

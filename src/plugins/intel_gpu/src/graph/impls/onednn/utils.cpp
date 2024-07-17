@@ -3,7 +3,6 @@
 //
 
 #include "utils.hpp"
-#include "onednn_formats_map.hpp"
 #include <oneapi/dnnl/dnnl_debug.h>
 #include <numeric>
 #include <oneapi/dnnl/dnnl_ocl.hpp>
@@ -577,6 +576,70 @@ bool keep_weights_reorder_shape_consistent(cldnn::layout& layout, const dnnl::me
     } else {
         return false;
     }
+}
+
+size_t get_post_ops_count(const program_node& node) {
+    size_t onednn_post_ops_count = 0;
+    for (auto& fo : node.get_fused_primitives()) {
+       onednn_post_ops_count += fo.f_param->ops_count();
+    }
+
+    return onednn_post_ops_count;
+}
+
+bool is_supported_format(format fmt) {
+    static const std::vector<format> onednn_optimized_formats = {
+            format::any,
+            format::byxf,
+            format::bzyxf,
+            format::b_fs_yx_fsv8,
+            format::b_fs_zyx_fsv8,
+            format::b_fs_yx_fsv16,
+            format::b_fs_zyx_fsv16,
+            format::b_fs_yx_fsv32,
+            format::b_fs_zyx_fsv32,
+            format::bs_fs_yx_bsv4_fsv2,
+            format::bs_fs_yx_bsv4_fsv4,
+            format::bs_fs_yx_bsv8_fsv2,
+            format::bs_fs_zyx_bsv8_fsv2,
+            format::bs_fs_yx_bsv8_fsv4,
+            format::bs_fs_zyx_bsv8_fsv4,
+            format::bs_fs_yx_bsv16_fsv2,
+            format::bs_fs_zyx_bsv16_fsv2,
+            format::bs_fs_yx_bsv16_fsv4,
+            format::bs_fs_zyx_bsv16_fsv4,
+            format::bs_fs_yx_bsv16_fsv8,
+            format::bs_fs_zyx_bsv16_fsv8,
+            format::bs_fs_yx_bsv16_fsv16,
+            format::bs_fs_zyx_bsv16_fsv16,
+            format::bs_fs_yx_bsv16_fsv32,
+            format::bs_fs_zyx_bsv16_fsv32,
+            format::bs_fs_yx_bsv32_fsv16,
+            format::bs_fs_zyx_bsv32_fsv16,
+            format::bs_fs_yx_bsv32_fsv32,
+            format::bs_fs_zyx_bsv32_fsv32,
+        };
+
+    return std::find(onednn_optimized_formats.begin(), onednn_optimized_formats.end(), fmt) != onednn_optimized_formats.end();
+}
+
+bool is_supported_post_ops(const program_node& node) {
+    if (get_post_ops_count(node) > 32) {
+        return false;
+    }
+
+    for (auto& fo : node.get_fused_primitives()) {
+        if (fo.is_type<activation>()) {
+            // Some activations aren't implemented in oneDNN
+            auto activation_prim = fo.typed_desc<activation>();
+            if (activation_prim->activation_function == activation_func::negative ||
+                activation_prim->activation_function == activation_func::negation ||
+                activation_prim->activation_function == activation_func::sign)
+                return false;
+        }
+    }
+
+    return true;
 }
 
 }  // namespace onednn

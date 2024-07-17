@@ -67,7 +67,11 @@ struct primitive_type_base : primitive_type {
         auto in_dt = kernel_impl_params.get_input_layout().data_type;
         auto target_shape_type = get_shape_type(kernel_impl_params);
 
-        return implementation_map<PType>::query_available_impls(in_dt, target_shape_type);
+        return implementation_map<PType>::query_available_impls(in_dt, target_shape_type, node);
+    }
+
+    bool is_node_supported(const cldnn::program_node& node, impl_types impl_type) const override {
+        return implementation_map<PType>::is_impl_supported(node, impl_type);
     }
 
     bool does_an_implementation_exist(const cldnn::program_node& node) const override {
