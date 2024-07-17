@@ -7,6 +7,7 @@
 #include "reshape_inst.h"
 #include "eltwise_inst.h"
 #include "select_inst.h"
+#include "strided_slice_inst.h"
 #include "gather_inst.h"
 #include "pass_manager.h"
 
@@ -107,7 +108,7 @@ void mark_shape_of_subgraphs::mark_node(program_node& node) {
     // Update impl if needed
     const auto default_subgraph_impl = impl_types::cpu;
     if (_update_impls)
-        if (!node.is_type<reshape>())
+        if (!node.is_type<reshape>() && !node.is_type<strided_slice>())
             node.set_preferred_impl_type(default_subgraph_impl);
 }
 
