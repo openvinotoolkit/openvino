@@ -49,10 +49,11 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
         for (auto& user : input_b->get_users()) {
             if (user != matmul && ov::is_type<ov::op::v0::MatMul>(user)) {
                 auto other_matmul = std::dynamic_pointer_cast<ov::op::v0::MatMul>(user);
-                if (input_b == other_matmul->get_input_node_shared_ptr(0))
+                if (input_b == other_matmul->get_input_node_shared_ptr(0) || fc_input_b == fc_input_a)
                     return false;
             }
         }
+
 
         // fc_input_a and fc_input_b - are the final inputs that will be set to FullyConnected.
         // So in case of adding new operations that takes matmul inputs we need keep update fc_input_a and fc_input_b.
