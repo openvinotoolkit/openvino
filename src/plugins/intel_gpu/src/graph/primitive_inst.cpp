@@ -1432,7 +1432,13 @@ void primitive_inst::do_runtime_in_place_crop() {
 
     for (auto u : get_user_insts()) {
         if (u->get_node().is_type<crop>()) {
-            if (u->get_node().can_be_optimized()) {
+            // Check whether the crop is VariadicSplit op or not.
+            // The VariadicSplit shape infer requires executed value of input[2](split_lengths)
+            // So skip update_shape here when _node is input[2] of crop
+            auto crop_op_mode = u->_impl_params->typed_desc<crop>()->op_mode;
+            bool is_split_lengths = (crop_op_mode == cldnn::crop_ngraph_op_mode::variadic_split) &&
+                                    (_node->get_unique_id() == u->_deps[2].first->_node->get_unique_id());
+            if (u->get_node().can_be_optimized() && !is_split_lengths) {
                 GPU_DEBUG_TRACE_DETAIL << "[In place crop] update shape for " << u->id() << std::endl;
                 u->update_shape();
                 u->update_shape_done_by_other = true;
