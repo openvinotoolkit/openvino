@@ -16,10 +16,6 @@
 #include "zero_utils.hpp"
 #include "zero_wrappers.hpp"
 
-namespace {
-constexpr std::size_t DEFAULT_BATCH_SIZE = 1;
-}  // namespace
-
 namespace intel_npu {
 
 class ZeroInferRequest final : public SyncInferRequest {
@@ -58,7 +54,7 @@ private:
      * @returns The batch size deduced by the algorithm or the default value of 1 if batching cannot be performed inside
      * the plugin.
      */
-    size_t getBatchSize(const NetworkMetadata& metadata);
+    std::optional<size_t> getBatchSize(const NetworkMetadata& metadata);
 
     /**
      * @brief Check the received tensor and set the Level Zero tensor accordingly
@@ -100,10 +96,21 @@ private:
     std::shared_ptr<zeroProfiling::NpuInferProfiling> _npuProfiling;
     std::unique_ptr<Pipeline> _pipeline;
 
-    // If batching is handled on the compiler side then batching on the plugin shall be set to 1, we don't do any
-    // specific operations on the plugin in this case.
-    size_t _batchSize = DEFAULT_BATCH_SIZE;
-    std::optional<std::size_t> _batchSizeArgument = std::nullopt;
+    /**
+     * @brief Indicates how many command lists will be used inside the pipeline.
+     * @details Leveraging multiple command lists implies distributing the input/output buffers accross the batch axis
+     * between these lists.
+     *
+     * If batching is handled on compiler's side then a single command list shall be used, we don't do any
+     * specific operation inside the plugin in this case.
+     */
+    size_t _numberOfCommandLists = 1;
+
+    /**
+     * @brief The batch size used by the corresponding model.
+     * @details The attribute contains a value only if the plugin performs the batches splitting operation.
+     */
+    std::optional<std::size_t> _batchSize = std::nullopt;
 
     bool _createPipeline = true;
     bool _updateCommandList = false;

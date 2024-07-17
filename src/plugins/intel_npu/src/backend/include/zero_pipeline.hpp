@@ -28,13 +28,12 @@ public:
     Pipeline& operator=(Pipeline&&) = delete;
     virtual ~Pipeline() = default;
 
-    virtual void push(size_t batch_index) = 0;
-    virtual void pull(size_t batch_index) = 0;
-    virtual void reset(size_t batch_index) const = 0;
+    virtual void push() = 0;
+    virtual void pull() = 0;
+    virtual void reset() const = 0;
 
     virtual void updateCommandList(std::vector<std::optional<TensorData>>& inputTensorsData,
-                                   std::vector<std::optional<TensorData>>& outputTensorsData,
-                                   size_t batch_size) = 0;
+                                   std::vector<std::optional<TensorData>>& outputTensorsData) = 0;
 
 protected:
     zeroMemory::MemoryManagementUnit _deviceInputs;
@@ -48,5 +47,5 @@ std::unique_ptr<Pipeline> makePipeline(const std::shared_ptr<const IExecutor>& e
                                        std::shared_ptr<zeroProfiling::NpuInferProfiling> npu_profiling,
                                        const std::vector<std::optional<TensorData>>& inputTensorsData,
                                        const std::vector<std::optional<TensorData>>& outputTensorsData,
-                                       const size_t batch_size);
+                                       const size_t numberOfCommandLists);
 }  // namespace intel_npu
