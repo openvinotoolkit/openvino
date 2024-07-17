@@ -61,5 +61,13 @@ static constexpr ov::Property<uint32_t, ov::PropertyMutability::RO> driver_versi
  */
 static constexpr ov::Property<std::string> compilation_mode_params{"NPU_COMPILATION_MODE_PARAMS"};
 
+/**
+ * @brief [Only for NPU plugin]
+ * Type: std::bool
+ * Set turbo on or off.
+ * @ingroup ov_runtime_npu_prop_cpp_api
+ */
+static constexpr ov::Property<bool> turbo{"NPU_TURBO"};
+
 }  // namespace intel_npu
 }  // namespace ov
