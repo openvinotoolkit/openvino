@@ -328,7 +328,7 @@ ov::pass::LSTMCellFusionWithJointWeights::LSTMCellFusionWithJointWeights() {
 
         std::string f_activation_name = ft->get_type_name();
 
-        if (f_activation_name != it->get_type_name() || f_activation_name != ot->get_type_name())
+        if (!it || f_activation_name != it->get_type_name() || !ot || f_activation_name != ot->get_type_name())
             return false;
 
         f_activation_name[0] = std::tolower(f_activation_name[0]);
