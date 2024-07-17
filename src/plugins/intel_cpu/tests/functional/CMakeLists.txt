@@ -70,6 +70,12 @@ if(NOT X86_64)
          ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/x64)
 endif()
 
+if(RISCV64)
+    list(APPEND EXCLUDED_SOURCE_PATHS
+            ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/low_precision_transformations
+            ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/snippets)
+endif()
+
 ov_add_test_target(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}

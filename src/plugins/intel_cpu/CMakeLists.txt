@@ -132,6 +132,10 @@ if(NOT OV_CPU_WITH_ACL)
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/acl/*)
 endif()
 
+if(NOT RISCV64)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/riscv64/*)
+endif()
+
 if(NOT X86_64)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/x64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/x64/*
@@ -155,6 +159,12 @@ endif()
 if(NOT AARCH64)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/aarch64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/aarch64/*)
+endif()
+
+if(NOT RISCV64)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/riscv64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/riscv64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/riscv64/*)
 endif()
 
 if (NOT ENABLE_MLAS_FOR_CPU)
@@ -203,9 +213,16 @@ if (ENABLE_SNIPPETS_LIBXSMM_TPP)
     target_link_libraries(${TARGET_NAME} PRIVATE xsmm)
     target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:xsmm,INCLUDE_DIRECTORIES>)
 endif ()
+
+
 if(ENABLE_SHL_FOR_CPU)
     target_link_libraries(${TARGET_NAME} PRIVATE shl)
 endif()
+
+if(RISCV64)
+    target_link_libraries(${TARGET_NAME} PRIVATE xbyak_riscv)
+endif()
+
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 
 # Temporal solution to use template reference implementations in cases where optimizied implementation
@@ -307,6 +324,10 @@ if(BUILD_SHARED_LIBS)
 
     if(ENABLE_SHL_FOR_CPU)
         target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:shl,INTERFACE_INCLUDE_DIRECTORIES>)
+    endif()
+
+    if(RISCV64)
+        target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:xbyak_riscv,INCLUDE_DIRECTORIES>)
     endif()
 
     ov_set_threading_interface_for(${TARGET_NAME}_obj)

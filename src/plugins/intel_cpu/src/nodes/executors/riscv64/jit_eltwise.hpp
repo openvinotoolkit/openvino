@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@
 namespace ov {
 namespace intel_cpu {
 namespace executors {
-namespace aarch64 {
+namespace riscv64 {
 
 class JitEltwiseExecutor : public EltwiseExecutor {
 public:
@@ -26,9 +26,9 @@ public:
         const float gamma);
 
     bool init(const EltwiseAttrs& eltwiseAttrs,
-                const std::vector<MemoryDescPtr>& srcDescs,
-                const std::vector<MemoryDescPtr>& dstDescs,
-                const std::vector<EltwisePostOp>& postOps) override;
+              const std::vector<MemoryDescPtr>& srcDescs,
+              const std::vector<MemoryDescPtr>& dstDescs,
+              const std::vector<EltwisePostOp>& postOps) override;
 
     void exec(const std::vector<MemoryCPtr>& src,
               const std::vector<MemoryPtr>& dst,
@@ -42,7 +42,7 @@ private:
     std::function<void()> exec_func;
 };
 
-}   // namespace aarch64
+}   // namespace riscv64
 }   // namespace executors
 }   // namespace intel_cpu
 }   // namespace ov

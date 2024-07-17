@@ -60,10 +60,10 @@ target_compile_definitions(${TARGET_NAME}
         FRONTEND_LIB_SUFFIX="${FRONTEND_NAME_SUFFIX}${OV_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
         )
 
-if(RISCV64)
-    # for std::atomic_bool
-    target_link_libraries(${TARGET_NAME} PRIVATE atomic)
-endif()
+#if(RISCV64)
+#    # for std::atomic_bool
+#    target_link_libraries(${TARGET_NAME} PRIVATE atomic)
+#endif()
 
 add_dependencies(${TARGET_NAME} ${UNIT_TESTS_DEPENDENCIES})
 

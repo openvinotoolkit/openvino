@@ -61,10 +61,10 @@ if(WIN32)
     set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 endif()
 
-if(RISCV64)
-    # for std::atomic_bool
-    target_link_libraries(${TARGET_NAME} PRIVATE atomic)
-endif()
+#if(RISCV64)
+#    # for std::atomic_bool
+#    target_link_libraries(${TARGET_NAME} PRIVATE atomic)
+#endif()
 
 ov_set_threading_interface_for(${TARGET_NAME})
 ov_mark_target_as_cc(${TARGET_NAME})

@@ -56,10 +56,15 @@
 #include "executors/aarch64/jit_eltwise.hpp"
 #endif
 
+#if defined(OPENVINO_ARCH_RISCV64)
+#include "kernels/riscv64/jit_uni_eltwise_generic.hpp"
+#include "executors/riscv64/jit_eltwise.hpp"
+#endif
+
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;
 
-#ifndef OPENVINO_ARCH_ARM64
+#if !defined(OPENVINO_ARCH_ARM64) && !defined(OPENVINO_ARCH_RISCV64)
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 #endif
@@ -67,6 +72,10 @@ using namespace Xbyak;
 #if defined(OPENVINO_ARCH_ARM64)
 using namespace ov::intel_cpu::aarch64;
 using namespace dnnl::impl::cpu::aarch64;
+#endif
+
+#if defined(OPENVINO_ARCH_RISCV64)
+using namespace ov::intel_cpu::riscv64;
 #endif
 
 #define GET_OFF(field) offsetof(jit_eltwise_call_args_ptrs, field)
@@ -83,6 +92,24 @@ bool jitIsSupported(const Node* node,
                     const float gamma,
                     const std::vector<ov::element::Type>& input_precisions = {}) {
     return executors::aarch64::JitEltwiseExecutor::isSupported(
+        node->getAlgorithm(),
+        input_precisions.empty() ? node->getOriginalInputPrecisions() : input_precisions,
+        node->getOriginalOutputPrecisions(),
+        alpha,
+        beta,
+        gamma);
+}
+} // namespace
+#endif
+
+#if defined(OPENVINO_ARCH_RISCV64)
+namespace {
+bool jitIsSupported(const Node* node,
+                    const float alpha,
+                    const float beta,
+                    const float gamma,
+                    const std::vector<ov::element::Type>& input_precisions = {}) {
+    return executors::riscv64::JitEltwiseExecutor::isSupported(
         node->getAlgorithm(),
         input_precisions.empty() ? node->getOriginalInputPrecisions() : input_precisions,
         node->getOriginalOutputPrecisions(),
@@ -1605,6 +1632,10 @@ public:
         }
 #endif // OPENVINO_ARCH_ARM64
 
+#if defined(OPENVINO_ARCH_RISCV64)
+        _pKernel.reset(new jit_uni_eltwise_generic(jep, eltwise_data, ops_list, post_ops));
+#endif // OPENVINO_ARCH_RISCV64
+
         if (_pKernel)
             _pKernel->create_ker();
     }
@@ -2187,6 +2218,9 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 #if defined (OPENVINO_ARCH_ARM64)
     bool canUseOptimizedImpl = mayiuse(dnnl::impl::cpu::aarch64::asimd) && (getInputShapeAtPort(0).getRank() <= MAX_ELTWISE_DIM_RANK);
     bool canUseOptimizedShapeAgnosticImpl = isDynamicNode() && canUseOptimizedImpl;
+#elif defined(OPENVINO_ARCH_RISCV64)
+    bool canUseOptimizedImpl = getInputShapeAtPort(0).getRank() <= MAX_ELTWISE_DIM_RANK;
+    bool canUseOptimizedShapeAgnosticImpl = isDynamicNode() && canUseOptimizedImpl;
 #else
     bool canUseOptimizedImpl = mayiuse(x64::sse41) && getInputShapeAtPort(0).getRank() <= MAX_ELTWISE_DIM_RANK;
     // TODO: Add EltwiseLog algorithm support for JIT implementation
@@ -2238,7 +2272,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
                     inputPrecisions.push_back(fusedNode->getOriginalInputPrecisionAtPort(i));
             }
         }
-#ifndef OPENVINO_ARCH_ARM64
+#if !defined(OPENVINO_ARCH_ARM64) && !defined(OPENVINO_ARCH_RISCV64)
         if (fusedNode->getType() == Type::FakeQuantize) {
             canUseOptimizedShapeAgnosticImpl = false;
         }
@@ -2253,7 +2287,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0);
     }
 
-#ifndef OPENVINO_ARCH_ARM64
+#if !defined(OPENVINO_ARCH_ARM64) && !defined(OPENVINO_ARCH_RISCV64)
     implType = canUseOptimizedShapeAgnosticImpl ? EltwiseImplType::optimizedShapeAgnostic :
             canUseOptimizedImpl ? EltwiseImplType::optimized : EltwiseImplType::reference;
 
@@ -2269,7 +2303,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 #if defined(OV_CPU_WITH_ACL)
     const bool useJit = false;
 #endif
-#elif defined(OPENVINO_ARCH_ARM64)
+#elif defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
     const bool useJit = canUseOptimizedImpl &&
                         jitIsSupported(this, getAlpha(), getBeta(), getGamma());
     if (!useJit) {
@@ -2444,6 +2478,10 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             if (useJit) {
                 impl_type = impl_desc_type::jit_asimd;
             }
+            #elif defined(OPENVINO_ARCH_RISCV64)
+            if (useJit) {
+                impl_type = impl_desc_type::jit_riscv;
+            }
             #else
             impl_type = impl_desc_type::undef;
             #endif
@@ -2470,6 +2508,8 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
                 } else {
                     OPENVINO_THROW("not supported architecture");
                 }
+                #elif defined(OPENVINO_ARCH_RISCV64)
+                impl_type = impl_desc_type::jit_riscv;
                 #else
                 if (mayiuse(x64::avx512_core)) {
                     impl_type = impl_desc_type::jit_avx512;
@@ -2493,7 +2533,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
                                                                                      getInputShapeAtPort(i).getRank());
     }
 
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
     bool isBlockedApplicable = (!useJit) && one_of(getOutputShapeAtPort(0).getRank(), 1u, 3u, 4u, 5u);
 #else
     bool isBlockedApplicable = one_of(getOutputShapeAtPort(0).getRank(), 1u, 3u, 4u, 5u);
@@ -3000,7 +3040,7 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc, bool isLastP
 }
 
 bool Eltwise::canFuseParent(const NodePtr& parentNode) const {
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
     if (parentNode->getType() != Type::Convert) {
         return false;
     }
@@ -3048,9 +3088,11 @@ bool Eltwise::canFuse(const NodePtr& node) const {
         return true;
     };
 
+#if defined (OPENVINO_ARCH_ARM64) || defined (OPENVINO_ARCH_RISCV64)
 #if defined (OPENVINO_ARCH_ARM64)
     if (!mayiuse(dnnl::impl::cpu::aarch64::asimd) || (getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK))
         return false;
+#endif
 
     if (!jitIsSupported(this, getAlpha(), getBeta(), getGamma())) {
         return false;

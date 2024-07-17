@@ -162,7 +162,8 @@ inline std::string join(const Container& strs, char delim) {
     auto it = strs.begin();
     result << *it++;
     for (; it != strs.end(); it++) {
-        result << delim << *it;
+        std::string str(1, delim);
+        result << str << *it;
     }
     return result.str();
 }

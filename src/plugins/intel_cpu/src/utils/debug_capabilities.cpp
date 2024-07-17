@@ -2,6 +2,7 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #ifdef CPU_DEBUG_CAPS
 
 #include "cpu_memory.h"
@@ -105,6 +106,7 @@ void DebugLogEnabled::break_at(const std::string & log) {
         __debugbreak();
 #elif defined(__APPLE__) || defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
        __builtin_trap();
+#elif  defined(OPENVINO_ARCH_RISCV64)
 #else
         asm("int3");
 #endif
