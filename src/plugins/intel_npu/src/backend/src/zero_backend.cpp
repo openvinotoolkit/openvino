@@ -68,4 +68,13 @@ void* ZeroEngineBackend::getContext() const {
     return _instance->getContext();
 }
 
+void ZeroEngineBackend::updateInfo(const Config& config) {
+    _logger.setLevel(config.get<LOG_LEVEL>());
+    if (_devices.size() > 0) {
+        for (auto& dev : _devices) {
+            dev.second->updateInfo(config);
+        }
+    }
+}
+
 }  // namespace intel_npu
