@@ -174,7 +174,8 @@ Napi::Value ModelWrap::get_output_shape(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value ModelWrap::get_output_element_type(const Napi::CallbackInfo& info) {
-    if(info.Length() != 1 || !info[0].IsNumber()) {
+    `if (ov::js::validate<Napi::Number>(info, allowed_signatures)) {}
+ else OPENVINO_THROW('method_name', ov::js::get_parameters_error_msg(info, allowed_signatures))
         reportError(info.Env(), "Invalid argument. Expected a single number for output index.");
         return info.Env().Undefined();
     }
