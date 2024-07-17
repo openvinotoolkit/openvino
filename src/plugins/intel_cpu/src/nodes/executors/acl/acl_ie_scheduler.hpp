@@ -16,7 +16,7 @@ using namespace arm_compute;
 
 class ACLScheduler final : public IScheduler {
 public:
-    ACLScheduler(unsigned int threads);
+    ACLScheduler();
     ~ACLScheduler() override = default;
     std::uint32_t num_threads() const override;
     void set_num_threads(unsigned int num_threads) override;
@@ -26,7 +26,6 @@ protected:
     void run_workloads(std::vector<Workload> &workloads) override;
 private:
     void schedule_custom(ICPPKernel *kernel, const Hints &hints, const Window &window, ITensorPack &tensors);
-    unsigned int m_threads;
 };
 }  //  namespace intel_cpu
 }  //  namespace ov
