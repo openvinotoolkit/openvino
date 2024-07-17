@@ -60,7 +60,8 @@ std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std
                                                                        const cldnn::layout& layout,
                                                                        bool can_reuse_buffer,
                                                                        const size_t out_idx,
-                                                                       int32_t custom_next_iters_prealloc_count) {
+                                                                       int32_t custom_next_iters_prealloc_count,
+                                                                       int32_t custom_prealloc_dim) {
     size_t next_iters_prealloc_count = custom_next_iters_prealloc_count > 0
                                            ? static_cast<size_t>(custom_next_iters_prealloc_count)
                                            : _next_iters_preallocation_count;
@@ -78,6 +79,13 @@ std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std
     // buffer can be reused
     if (can_reuse_buffer)
         return {false, {}};
+
+    // If both prealloc dim and prealloc count are specified, dont predict and just use the given info
+    if (custom_prealloc_dim >= 0 && custom_next_iters_prealloc_count > 0) {
+        auto new_shape = current_shape;
+        new_shape[custom_prealloc_dim] += custom_next_iters_prealloc_count;
+        return {true, new_shape};
+    }
 
     // Check if there is enough data for prediction
     const auto& shapes = _shapes_info[id_record];
