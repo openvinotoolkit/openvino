@@ -183,6 +183,47 @@ TEST_P(OVCompileAndInferRequest, CompiledModelWorkloadTypeDelayedExecutor) {
     }
 }
 
+using OVCompileAndInferRequestTurbo = OVCompileAndInferRequest;
+
+TEST_P(OVCompileAndInferRequestTurbo, CompiledModelTurbo) {
+    configuration[intel_npu::turbo.name()] = true;
+
+    auto supportedProperties = core->get_property("NPU", supported_properties.name()).as<std::vector<PropertyName>>();
+    bool isTurboSupported =
+        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
+            return property == intel_npu::turbo.name();
+        });
+
+    if (isCommandQueueExtSupported()) {
+        ASSERT_TRUE(isTurboSupported);
+        OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
+        auto turbosetting_compiled_model = execNet.get_property(intel_npu::turbo.name());
+        OV_ASSERT_NO_THROW(turbosetting_compiled_model = true);
+        ov::InferRequest req;
+        OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
+        bool is_called = false;
+        OV_ASSERT_NO_THROW(req.set_callback([&](std::exception_ptr exception_ptr) {
+            ASSERT_EQ(exception_ptr, nullptr);
+            is_called = true;
+        }));
+        OV_ASSERT_NO_THROW(req.start_async());
+        OV_ASSERT_NO_THROW(req.wait());
+        ASSERT_TRUE(is_called);
+    } else {
+        auto cr_ex = configuration.find(intel_npu::create_executor.name());
+        if (cr_ex->second.as<int64_t>() == 1) {
+            OV_EXPECT_THROW_HAS_SUBSTRING(core->compile_model(function, target_device, configuration),
+                                          ov::Exception,
+                                          "Turbo is not supported by the current driver");
+        } else {
+            OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
+            OV_EXPECT_THROW_HAS_SUBSTRING(execNet.create_infer_request(),
+                                          ov::Exception,
+                                          "Turbo is not supported by the current driver");
+        }
+    }
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
