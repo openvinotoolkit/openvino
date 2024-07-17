@@ -216,7 +216,7 @@ bool ov::is_config_applicable(const std::string& user_device_name, const std::st
 
     // if device name is matched, check additional condition
     auto is_matched = [&](const std::string& key, MatchType match_type) -> bool {
-        auto user_value =
+        const auto& user_value =
             parsed_user_device_name._config.count(key) ? parsed_user_device_name._config.at(key).as<std::string>() : "";
         const auto& subprop_value = parsed_subprop_device_name._config.count(key)
                                         ? parsed_subprop_device_name._config.at(key).as<std::string>()
@@ -407,7 +407,7 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
                 desc.defaultConfig[ov::proxy::configuration::internal_name.name()] = dev_name;
 
             fill_config(desc.defaultConfig, config, dev_name);
-            pluginRegistry[alias] = desc;
+            pluginRegistry[alias] = std::move(desc);
             add_mutex(alias);
         } else {
             // Update registered plugin
@@ -1563,7 +1563,7 @@ ov::CoreImpl::CoreConfig::CacheConfig ov::CoreImpl::CoreConfig::CacheConfig::cre
         cache_manager = std::make_shared<ov::FileStorageCacheManager>(dir);
     }
 
-    return {dir, cache_manager};
+    return {dir, std::move(cache_manager)};
 }
 
 std::mutex& ov::CoreImpl::get_mutex(const std::string& dev_name) const {
