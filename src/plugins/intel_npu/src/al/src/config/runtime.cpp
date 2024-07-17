@@ -4,7 +4,10 @@
 
 #include "intel_npu/al/config/runtime.hpp"
 
+#include <sstream>
+
 #include "intel_npu/al/config/common.hpp"
+#include "openvino/runtime/properties.hpp"
 
 using namespace intel_npu;
 using namespace ov::intel_npu;
@@ -20,6 +23,7 @@ void intel_npu::registerRunTimeOptions(OptionsDesc& desc) {
     desc.add<CREATE_EXECUTOR>();
     desc.add<NUM_STREAMS>();
     desc.add<ENABLE_CPU_PINNING>();
+    desc.add<WORKLOAD_TYPE>();
 }
 
 // Heuristically obtained number. Varies depending on the values of PLATFORM and PERFORMANCE_HINT
@@ -127,4 +131,23 @@ std::string intel_npu::NUM_STREAMS::toString(const ov::streams::Num& val) {
     stringStream << val;
 
     return stringStream.str();
+}
+
+//
+// WORKLOAD_TYPE
+//
+
+ov::WorkloadType intel_npu::WORKLOAD_TYPE::parse(std::string_view val) {
+    std::istringstream ss = std::istringstream(std::string(val));
+    ov::WorkloadType workloadType;
+
+    ss >> workloadType;
+
+    return workloadType;
+}
+
+std::string intel_npu::WORKLOAD_TYPE::toString(const ov::WorkloadType& val) {
+    std::ostringstream ss;
+    ss << val;
+    return ss.str();
 }

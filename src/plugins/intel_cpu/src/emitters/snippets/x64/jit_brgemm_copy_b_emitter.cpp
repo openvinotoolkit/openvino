@@ -6,7 +6,7 @@
 
 #include "jit_brgemm_emitter.hpp"
 
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "snippets/lowered/expression.hpp"
 
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
@@ -43,7 +43,7 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h, cpu_isa_t
     size_t leading_dimension = *(original_shape.rbegin());
     if (!layout.empty()) {
         transposed_shape = snippets::utils::get_planar_vdims(original_shape, layout);
-        leading_dimension = ov::snippets::utils::get_in_leading_dim(original_shape, layout);
+        leading_dimension = ov::snippets::utils::get_dim_stride(expr->get_input_port(0));
     }
 
     const auto& in_subtensor = in_desc->get_subtensor();

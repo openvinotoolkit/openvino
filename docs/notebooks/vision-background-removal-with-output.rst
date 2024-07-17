@@ -14,17 +14,19 @@ The PyTorch U\ :math:`^2`-Net model is converted to OpenVINO IR format.
 The model source is available
 `here <https://github.com/xuebinqin/U-2-Net>`__.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Preparation <#preparation>`__
 
    -  `Install requirements <#install-requirements>`__
-   -  `Import the PyTorch Library and U²-Net <#import-the-pytorch-library-and-u2-net>`__
+   -  `Import the PyTorch Library and
+      U\ :math:`^2`-Net <#import-the-pytorch-library-and-u2-net>`__
    -  `Settings <#settings>`__
-   -  `Load the U²-Net Model <#load-the-u2-net-model>`__
+   -  `Load the U\ :math:`^2`-Net Model <#load-the-u2-net-model>`__
 
--  `Convert PyTorch U²-Net model to OpenVINO IR <#convert-pytorch-u2-net-model-to-openvino-ir>`__
+-  `Convert PyTorch U\ :math:`^2`-Net model to OpenVINO
+   IR <#convert-pytorch-u2-net-model-to-openvino-ir>`__
 -  `Load and Pre-Process Input
    Image <#load-and-pre-process-input-image>`__
 -  `Select inference device <#select-inference-device>`__
@@ -62,13 +64,9 @@ Install requirements
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.3 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -186,7 +184,7 @@ next cell loads the model and the pre-trained weights.
     Downloading...
     From: https://drive.google.com/uc?id=1W8E4FHIlTVstfRkYmNOjbr0VDXTZm0jD
     To: <_io.BufferedWriter name='model/u2net_lite/u2net_lite.pth'>
-    100%|██████████| 4.68M/4.68M [00:00<00:00, 20.1MB/s]
+    100%|██████████| 4.68M/4.68M [00:00<00:00, 34.0MB/s]
 
 .. parsed-literal::
 
@@ -237,8 +235,13 @@ OpenVINO IR format. Executing the following command may take a while.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/nn/functional.py:3782: UserWarning: nn.functional.upsample is deprecated. Use nn.functional.interpolate instead.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/nn/functional.py:3782: UserWarning: nn.functional.upsample is deprecated. Use nn.functional.interpolate instead.
       warnings.warn("nn.functional.upsample is deprecated. Use nn.functional.interpolate instead.")
+
+
+.. parsed-literal::
+
+    ['x']
 
 
 Load and Pre-Process Input Image
@@ -334,7 +337,7 @@ Load the OpenVINO IR model to OpenVINO Runtime and do inference.
 
 .. parsed-literal::
 
-    Inference finished. Inference time: 0.112 seconds, FPS: 8.96.
+    Inference finished. Inference time: 0.119 seconds, FPS: 8.43.
 
 
 Visualize Results
