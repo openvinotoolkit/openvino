@@ -42,6 +42,7 @@ except ImportError:
 try:
     import openvino_genai
 except ImportError:
+    autodoc_mock_imports = ["openvino"]
     autodoc_mock_imports = ["openvino_genai"]
 
 breathe_projects = {
