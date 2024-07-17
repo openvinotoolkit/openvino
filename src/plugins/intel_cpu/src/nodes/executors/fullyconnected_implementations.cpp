@@ -26,6 +26,10 @@
 #include "ov_optional.hpp"
 #include "utils/cpp/maybe_unused.hpp"
 
+#if defined(OV_CPU_WITH_SHL)
+#    include "nodes/executors/shl/shl_fullyconnected.hpp"
+#endif
+
 namespace ov {
 namespace intel_cpu {
 
@@ -301,6 +305,36 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                     context,
                     false);
             })
+        OV_CPU_INSTANCE_SHL(
+            "fullyconnected_shl",
+            ExecutorType::Shl,
+            OperationType::FullyConnected,
+            ShapeTolerance::Agnostic,
+            // supports
+            [](const FCConfig& config) -> bool {
+                VERIFY(noPostOps(config), UNSUPPORTED_POST_OPS);
+                VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
+                VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
+                VERIFY(everyone_is(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
+
+                return ShlFCExecutor::supports(config);
+            },
+            // requiresFallback
+            [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
+                return {};
+            },
+            // acceptsShapes
+            [](const MemoryArgs& memory) -> bool {
+                return true;
+            },
+            // create
+            [](const FCAttrs& attrs,
+               const PostOps& postOps,
+               const MemoryArgs& memory,
+               const ExecutorContext::CPtr context) {
+                return std::make_shared<ShlFCExecutor>(attrs, postOps, memory, context);
+            }
+        )
         OV_CPU_INSTANCE_DNNL(
             "fullyconnected_dnnl",
             ExecutorType::Dnnl,
