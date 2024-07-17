@@ -68,13 +68,11 @@ struct broadcast : public primitive_base<broadcast> {
     ///                        that are being broadcast. Values of broadcast_axes on remaining
     ///                        axes must be greater (dividable) or equal to corresponding input
     ///                        dimension values.
-    /// @param output_padding  Optional padding for output from primitive.
     broadcast(const primitive_id& id,
               const input_info& input,
               const tensor& broadcast_sizes,
-              const std::vector<uint16_t>& broadcast_axes = {},
-              const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}),
+              const std::vector<uint16_t>& broadcast_axes = {})
+        : primitive_base(id, {input}),
           broadcast_sizes(broadcast_sizes),
           broadcast_axes(broadcast_axes) {}
 
@@ -97,9 +95,8 @@ struct broadcast : public primitive_base<broadcast> {
               const input_info& input,
               const ov::Shape& target_shape,
               const ov::AxisSet& axes_mapping,
-              const ov::op::BroadcastModeSpec& broadcast_spec = ov::op::BroadcastType::EXPLICIT,
-              const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}),
+              const ov::op::BroadcastModeSpec& broadcast_spec = ov::op::BroadcastType::EXPLICIT)
+        : primitive_base(id, {input}),
           target_shape(target_shape),
           axes_mapping(axes_mapping),
           broadcast_mode(broadcast_spec),
@@ -111,9 +108,8 @@ struct broadcast : public primitive_base<broadcast> {
           const input_info& input,
           const input_info& target_shape_id,
           const ov::AxisSet& axes_mapping,
-          const ov::op::BroadcastModeSpec& broadcast_spec = ov::op::BroadcastType::EXPLICIT,
-          const padding& output_padding = padding())
-    : primitive_base(id, {input, target_shape_id}, {output_padding}),
+          const ov::op::BroadcastModeSpec& broadcast_spec = ov::op::BroadcastType::EXPLICIT)
+    : primitive_base(id, {input, target_shape_id}),
       target_shape({}),
       axes_mapping(axes_mapping),
       broadcast_mode(broadcast_spec),
