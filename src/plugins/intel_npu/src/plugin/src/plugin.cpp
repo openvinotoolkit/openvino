@@ -135,15 +135,18 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
 }
 
 size_t getFileSize(std::istream& stream) {
+    auto log = Logger::global().clone("getFileSize");
+
     const size_t streamStart = stream.tellg();
     stream.seekg(0, std::ios_base::end);
     const size_t streamEnd = stream.tellg();
     stream.seekg(streamStart, std::ios_base::beg);
-    if (streamStart < 0 || streamEnd < 0){
-        auto log = Logger::global();
-        log.setName("getFileSize");
-        log.error("Get stream location failed! startloc=%zu, streamEnd=%zu", startloc, streamEnd);
+
+    if (!stream) {
+        log.error("Stream is in bad status after tellg and seekg!");
     }
+    log.debug("Read blob size: streamStart=%zu, streamEnd=%zu", streamStart, streamEnd);
+
     return streamEnd - streamStart;
 }
 
@@ -702,7 +705,7 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) con
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
     OV_ITT_TASK_CHAIN(PLUGIN_IMPORT_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "merge_configs");
-    if(!stream){
+    if (!stream) {
         _logger.error("Stream is in bad status!");
     }
 
@@ -734,8 +737,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         }
         std::vector<uint8_t> blob(graphSize);
         stream.read(reinterpret_cast<char*>(blob.data()), graphSize);
-        if (!stream){
-            _logger.error("Reading from stream failed!");
+        if (!stream) {
+            _logger.error("Stream is in bad status after reading!");
         }
 
         auto meta = compiler->parse(blob, localConfig);

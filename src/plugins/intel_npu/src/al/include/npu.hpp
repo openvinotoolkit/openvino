@@ -84,6 +84,7 @@ public:
         const std::shared_ptr<const ICompiledModel>& compiledModel,
         const std::shared_ptr<IExecutor>& executor,
         const Config& config) = 0;
+
     virtual void updateInfo(const Config& config) = 0;
 
     virtual ov::SoPtr<ov::IRemoteTensor> createRemoteTensor(

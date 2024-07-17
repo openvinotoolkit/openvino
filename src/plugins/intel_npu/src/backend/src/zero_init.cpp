@@ -138,7 +138,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
 
     // Query our graph extension version
     std::string graph_ext_name;
-    log.debug("ZeroInitStructsHolder - tie output of queryDriverExtensionVersion")
+    log.debug("ZeroInitStructsHolder - tie output of queryDriverExtensionVersion");
     std::tie(driver_ext_version, graph_ext_name) = queryDriverExtensionVersion(extProps, count);
 
     log.info("Found Driver Version %d.%d, Driver Extension Version %d.%d (%s)",
