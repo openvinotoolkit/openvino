@@ -28,12 +28,30 @@ class StringTensorUnpackStaticTestSuite : public ::testing::TestWithParam<std::t
 
 class StringTensorUnpackStaticShapeInferenceTest: public OpStaticShapeInferenceTest<op::v15::StringTensorUnpack> {};
 
+TEST_F(StringTensorUnpackStaticShapeInferenceTest, data_from_tensor_accessor) {
+    GTEST_SKIP() << "TODO: Static shape inference lacks constant data on port 0";
+    const auto data = std::make_shared<Parameter>(element::string, ov::PartialShape::dynamic());
+    const auto op = make_op(data);
+    std::string data_val[] = {"Intel", "OpenVINO"};
+    auto string_values = std::vector<std::string>{"First sentence", "Second sentence sentence", "Third"};
+    auto const_inputs = std::unordered_map<size_t, Tensor>{{1, {element::string, Shape{2}, string_values.data()}}};
+
+    const auto input_shapes = ShapeVector{Shape{2}};
+    auto shape_infer = make_shape_inference(op);
+    const auto input_shape_refs = make_static_shape_refs(input_shapes);
+    const auto output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor(const_inputs));
+    EXPECT_EQ(output_shapes.size(), 3);
+    EXPECT_EQ(output_shapes[0], StaticShape({2}));
+    EXPECT_EQ(output_shapes[1], StaticShape({2}));
+    EXPECT_EQ(output_shapes[2], StaticShape({13}));
+}
+
 TEST_P(StringTensorUnpackStaticTestSuite, StringTensorUnpackStaticShapeInference) {
     const auto& param = GetParam();
-    const auto& input_string = std::get<0>(param);
+    const auto& input_strings = std::get<0>(param);
     const auto& input_shape = std::get<1>(param);
 
-    const auto data = std::make_shared<Constant>(element::string, input_shape, input_string);
+    const auto data = std::make_shared<Constant>(element::string, input_shape, input_strings);
     const auto op = std::make_shared<op::v15::StringTensorUnpack>(data);
     const auto input_shapes = ShapeVector{input_shape};
     auto shape_infer = make_shape_inference(op);
@@ -41,16 +59,54 @@ TEST_P(StringTensorUnpackStaticTestSuite, StringTensorUnpackStaticShapeInference
     const auto output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor());
 
     EXPECT_EQ(output_shapes.size(), 3);
-    EXPECT_EQ(output_shapes.front(), StaticShape(input_shape));
+    EXPECT_EQ(output_shapes[0], StaticShape(input_shape));
     EXPECT_EQ(output_shapes[1], StaticShape(input_shape));
+    EXPECT_EQ(output_shapes[2], StaticShape({get_character_count(input_strings)}));
 }
 
 INSTANTIATE_TEST_SUITE_P(
     StringTensorUnpackStaticShapeInferenceTests,
     StringTensorUnpackStaticTestSuite,
     ::testing::Values(
+        // single string
         std::make_tuple(
-            std::vector<std::string>{"Intel", "OpenVINO"},
-            Shape{2})
+            std::vector<std::string>{"Intel"},
+            Shape{1}),
+        // multiple strings
+        std::make_tuple(
+            std::vector<std::string>{"Intel", "OpenVINO", "AI"},
+            Shape{3}),
+        // empty string
+        std::make_tuple(
+            std::vector<std::string>{""},
+            Shape{1}),
+        // strings with special characters
+        std::make_tuple(
+            std::vector<std::string>{"In@tel", "Open#VINO", "A$I"},
+            Shape{3}),
+        // strings with spaces and an empty string
+        std::make_tuple(
+            std::vector<std::string>{"Intel Corp", "   ", "Open VINO", "", "Artificial Intelligence"},
+            Shape{1, 5}),
+        // empty vector
+        std::make_tuple(
+            std::vector<std::string>{},
+            Shape{0}),
+        // different shapes
+        std::make_tuple(
+            std::vector<std::string>{"Intel", "OpenVINO", "AI", "Edge"},
+            Shape{2, 2}),
+        std::make_tuple(
+            std::vector<std::string>{"Intel", "OpenVINO", "AI", "Edge", "Compute", "Vision"},
+            Shape{2, 3}),
+        std::make_tuple(
+            std::vector<std::string>{"Intel", "OpenVINO", "AI", "Edge", "Compute", "Vision", "Neural", "Networks"},
+            Shape{2, 2, 2}),
+        std::make_tuple(
+            std::vector<std::string>{"Intel", "OpenVINO", "AI", "Edge"},
+            Shape{1, 4}),
+        std::make_tuple(
+            std::vector<std::string>{"Intel"},
+            Shape{1, 1})
     )
 );

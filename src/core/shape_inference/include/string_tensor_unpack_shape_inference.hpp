@@ -8,10 +8,24 @@
 
 #include "openvino/op/string_tensor_unpack.hpp"
 #include "utils.hpp"
+#include "shape_infer_type_utils.hpp"
 
 namespace ov {
 namespace op {
 namespace v15 {
+namespace util {
+    static Tensor get_string_tensor(const Node* op,
+                             size_t idx,
+                             const ITensorAccessor& tensor_accessor) {
+    if (auto t = tensor_accessor(idx)) {
+        return t;
+    } else {
+        const auto& constant = as_type_ptr<opset1::Constant>(op->get_input_node_shared_ptr(idx));
+        NODE_VALIDATION_CHECK(op, constant != nullptr, "Static shape inference lacks constant data on port ", idx);
+        return constant->get_tensor_view();
+    }
+}
+}  // namespace util
 template <class TShape, class TRShape = result_shape_t<TShape>>
 std::vector<TRShape> shape_infer(const StringTensorUnpack* op,
                                  const std::vector<TShape>& input_shapes,
@@ -25,12 +39,16 @@ std::vector<TRShape> shape_infer(const StringTensorUnpack* op,
     output_shapes[1] = data_shape;
 
     // output 3: symbols
-    const auto strings = ov::op::get_input_const_data_as<TRShape, ov::element::string>(op, 0, tensor_accessor);
-    if (strings) {
-        const uint64_t string_count = data_shape[0].get_length();
-        size_t total_length = 0;
-        for(size_t i = 0; i <= string_count; ++i)
-            total_length += (*strings)[i];
+    const auto string_data = util::get_string_tensor(op, 0, tensor_accessor);
+    if (string_data) {
+        uint64_t string_count = 1;
+        for(uint64_t i = 0; i < data_shape.size(); i++) {
+            string_count *= data_shape[i].get_length();
+        }
+        const auto tensor_data = string_data.data<std::string>();
+        uint64_t total_length = 0;
+        for(size_t i = 0; i < string_count; ++i)
+            total_length += (*(tensor_data + i)).length();
         output_shapes[2] = ov::Shape{total_length};
     } else {
         output_shapes[2] = ov::PartialShape{ov::Dimension::dynamic()};
