@@ -449,7 +449,7 @@ Plugin::Plugin()
               return config.get<COMPILATION_MODE_PARAMS>();
           }}},
         {ov::intel_npu::turbo.name(),
-         {true,
+         {_backends->isCommandQueueExtSupported(),
           ov::PropertyMutability::RW,
           [](const Config& config) {
               return config.get<TURBO>();

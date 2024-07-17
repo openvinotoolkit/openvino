@@ -329,7 +329,7 @@ void CompiledModel::initialize_properties() {
               return config.get<COMPILATION_MODE_PARAMS>();
           }}},
         {ov::intel_npu::turbo.name(),
-         {true,
+         {isPropertySupported(ov::intel_npu::turbo.name()),
           ov::PropertyMutability::RO,
           [](const Config& config) {
               return config.get<TURBO>();
