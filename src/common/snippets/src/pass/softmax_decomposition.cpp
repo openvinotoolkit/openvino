@@ -34,7 +34,7 @@ SoftmaxDecomposition::SoftmaxDecomposition() {
 
         size_t axis;
         if (const auto softmax_v8 = ov::as_type_ptr<ov::op::v8::Softmax>(softmax)) {
-            axis = ov::util::normalize_axis(softmax->get_friendly_name(), softmax_v8->get_axis(), rank);
+            axis = ov::util::try_normalize_axis(*softmax, softmax_v8->get_axis(), rank);
         } else if (const auto softmax_v1 = ov::as_type_ptr<ov::op::v1::Softmax>(softmax)) {
             axis = softmax_v1->get_axis();
         } else {

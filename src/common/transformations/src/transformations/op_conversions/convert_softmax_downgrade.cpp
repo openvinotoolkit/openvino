@@ -23,7 +23,7 @@ ov::pass::ConvertSoftMax8ToSoftMax1::ConvertSoftMax8ToSoftMax1() {
 
         auto v8_axis = softmax_v8_node->get_axis();
         auto rank = softmax_v8_node->get_input_partial_shape(0).rank().get_length();
-        auto v1_axis = static_cast<size_t>(ov::util::normalize_axis(softmax_v8_node->description(), v8_axis, rank));
+        auto v1_axis = ov::util::try_normalize_axis(*softmax_v8_node, v8_axis, rank);
 
         auto softmax_v1_node = std::make_shared<ov::op::v1::Softmax>(softmax_v8_node->input_value(0), v1_axis);
         softmax_v1_node->set_friendly_name(softmax_v8_node->get_friendly_name());

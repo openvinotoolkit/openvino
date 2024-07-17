@@ -275,7 +275,7 @@ TEST_F(TypePropReverseSequenceV0Test, dynamic_invalid_negative_axis_and_data_inp
 
     OV_EXPECT_THROW(auto reverse_seq = make_op(data, seq_lengths, batch_axis, seq_axis),
                     AssertFailure,
-                    HasSubstr("Rank must be static in order to normalize negative axis=-2"));
+                    HasSubstr("Rank must be static in order to normalize negative axis: -2"));
 }
 
 TEST_F(TypePropReverseSequenceV0Test, default_ctor) {

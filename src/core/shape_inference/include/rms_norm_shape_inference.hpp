@@ -54,8 +54,10 @@ std::vector<TRShape> shape_infer(const RMSNorm* op,
     }
 
     // Axes values validation
-    if (auto axes_val = ov::op::get_input_const_data_as<TRShape, int64_t>(op, 1, tensor_accessor)) {
-        ov::util::normalize_axes(op, data_rank.get_length(), *axes_val);
+    if (data_rank.is_static()) {
+        if (auto axes_val = ov::op::get_input_const_data_as<TRShape, int64_t>(op, 1, tensor_accessor)) {
+            ov::util::validate_axes(*op, *axes_val, data_rank);
+        }
     }
 
     return {data_shape};

@@ -110,7 +110,8 @@ int64_t util::ScatterElementsUpdateBase::get_normalized_axis(const TensorVector&
 
     const auto axis = get_tensor_data_as<int64_t>(axis_input)[0];
     const auto data_rank = static_cast<int64_t>(inputs[0].get_shape().size());
-    return ov::util::normalize_axis(this, axis, data_rank);
+    ov::util::validate_axis(*this, axis, data_rank);
+    return ov::util::normalize(axis, data_rank);
 }
 }  // namespace op
 }  // namespace ov

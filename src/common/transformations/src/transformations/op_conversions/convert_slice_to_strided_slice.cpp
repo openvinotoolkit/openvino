@@ -111,9 +111,7 @@ ov::pass::SliceToStridedSlice::SliceToStridedSlice(bool use_shapes) {
         const auto& data_shape = slice_node->get_input_partial_shape(0);
         auto axes_vec = axes_const->cast_vector<int64_t>();
         if (data_shape.rank().is_static()) {
-            const auto norm_axes_vec =
-                ov::util::normalize_axes(slice_node->get_friendly_name(), axes_vec, data_shape.rank());
-            axes_vec = std::vector<int64_t>(norm_axes_vec.begin(), norm_axes_vec.end());
+            ov::util::try_normalize_axes(*slice_node, axes_vec, data_shape.rank());
         } else {
             const bool need_normalization = std::any_of(axes_vec.begin(), axes_vec.end(), [](int64_t axis) {
                 return axis < 0;

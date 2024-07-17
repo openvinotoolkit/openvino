@@ -37,7 +37,7 @@ void createDft(ProgramBuilder& p,
             if (direction != cldnn::dft_direction::forward || mode != cldnn::dft_mode::real) {
                 --axis_correction;
             }
-            ov::util::normalize_axes(op.get(), axis_correction, axes);
+            ov::util::try_normalize_axes(*op, axes, axis_correction);
         }
 
         if (op->get_input_size() == 3) {
@@ -63,7 +63,7 @@ void createDft(ProgramBuilder& p,
         if (direction != cldnn::dft_direction::forward || mode != cldnn::dft_mode::real) {
             --axis_correction;
         }
-        ov::util::normalize_axes(op.get(), axis_correction, axes);
+        ov::util::try_normalize_axes(*op, axes, axis_correction);
 
         std::vector<int64_t> signal_size;
         if (op->get_input_size() == 3) {

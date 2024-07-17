@@ -10,7 +10,6 @@
 #include "openvino/core/shape_util.hpp"
 #include "openvino/core/tensor_util.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/op/util/axes_util.hpp"
 #include "openvino/reference/reduce_prod.hpp"
 
 namespace ov {
@@ -55,7 +54,7 @@ bool ReduceProd::evaluate(TensorVector& outputs, const TensorVector& inputs) con
     OPENVINO_ASSERT(outputs.size() == 1);
     OPENVINO_ASSERT(inputs.size() == 2);
 
-    const auto reduction_axes = get_normalized_axes_from_tensor(this, inputs[1], inputs[0].get_shape().size());
+    const auto reduction_axes = ov::util::try_get_normalized_axis_set(*this, inputs[1], inputs[0].get_shape().size());
     outputs[0].set_shape(ov::util::reduce(inputs[0].get_shape(), reduction_axes, get_keep_dims()));
 
     using namespace ov::element;

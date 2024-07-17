@@ -61,7 +61,9 @@ static void CreateCommonSplitOp(ProgramBuilder& p, const std::shared_ptr<ov::Nod
         int64_t axis = -1;
         auto const_axis = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
         if (const_axis) {
-            axis = ov::util::normalize_axis(op.get(), const_axis->cast_vector<int64_t>()[0], op->get_input_partial_shape(0).rank());
+            axis = ov::util::try_normalize_axis(*op,
+                                                const_axis->cast_vector<int64_t>()[0],
+                                                op->get_input_partial_shape(0).rank());
         }
         cldnn::crop_ngraph_op_mode op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
         auto num_splits = static_cast<size_t>(1);

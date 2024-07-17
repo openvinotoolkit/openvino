@@ -58,15 +58,13 @@ ov::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
             }))
             return false;
 
-        const auto axes = ov::util::normalize_axes(squeeze->description(),
-                                                   const_axes->cast_vector<int64_t>(),
-                                                   squeeze->get_input_partial_shape(0).rank());
-
         // Here squeeze input shape is equal to stridedslice input shape,
         // since new_axis_mask, shrink_axis_mask and ellipsis_mask are all zeros.
         auto tensor_rank = squeeze->get_input_partial_shape(0).rank();
         if (tensor_rank.is_dynamic())
             return false;
+
+        const auto axes = util::try_get_normalized_axis_vector(*squeeze, const_axes->get_tensor_view(), tensor_rank);
 
         auto tensor_length = tensor_rank.get_length();
         begin_vec.resize(tensor_length, 0);
@@ -161,9 +159,10 @@ ov::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
             }))
             return false;
 
-        auto axes = ov::util::normalize_axes(squeeze->description(),
-                                             const_axes->cast_vector<int64_t>(),
-                                             squeeze->get_input_partial_shape(0).rank());
+        // TODO:1
+        auto axes = const_axes->cast_vector<int64_t>();
+        ov::util::try_normalize_axes(*squeeze, axes, squeeze->get_input_partial_shape(0).rank());
+
         std::sort(axes.begin(), axes.end());
         for (const auto& axis : axes) {
             begin_vec.insert(begin_vec.begin() + axis, 0);

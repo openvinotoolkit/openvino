@@ -61,9 +61,8 @@ ov::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
             return false;
         }
 
-        const auto axis = ov::util::normalize_axes(scatter->get_friendly_name(),
-                                                   axis_const->cast_vector<int64_t>(),
-                                                   data_pshape.rank())[0];
+        const auto axis =
+            ov::util::try_normalize_axis(*scatter, axis_const->cast_vector<int64_t>()[0], data_pshape.rank());
 
         struct Range {
             uint64_t l, r;

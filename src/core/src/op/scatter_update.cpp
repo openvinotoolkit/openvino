@@ -60,7 +60,7 @@ bool ScatterUpdate::evaluate(TensorVector& outputs, const TensorVector& inputs) 
     output.set_shape(data_shape);
 
     auto axis_val = get_tensor_data_as<int64_t>(axis)[0];
-    axis_val = ov::util::normalize_axis(this, axis_val, static_cast<int64_t>(data_shape.size()));
+    axis_val = ov::util::try_normalize_axis(*this, axis_val, data_shape.size());
 
     const auto indices_casted_vector = get_tensor_data_as<int64_t>(indices);
 

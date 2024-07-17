@@ -100,9 +100,8 @@ bool ConcatTransformation::transform(TransformationContext& context, ov::pass::p
         [](const FakeQuantizeDequantization& value) { return !value.isLowPrecision(); });
 
     bool DqWithDifferentPrecision = someDqInLowPrecision && someDqInFpPrecision;
-    const auto axis = ov::util::normalize_axis(concat->get_friendly_name(),
-                                               concat->get_axis(),
-                                               concat->get_output_partial_shape(0).rank());
+    const auto axis =
+        ov::util::try_normalize_axis(*concat, concat->get_axis(), concat->get_output_partial_shape(0).rank());
 
     OutputVector dataNodes;
     NodeVector convertNodes;
@@ -217,7 +216,7 @@ bool ConcatTransformation::canBeTransformed(const TransformationContext& context
         return false;
     }
 
-    const size_t normalizedAxis = ov::util::normalize_axis(concat->get_friendly_name(), axis, outRank);
+    const size_t normalizedAxis = ov::util::try_normalize_axis(*concat, axis, outRank);
     if (outPShape[normalizedAxis].is_dynamic()) {
         return false;
     }

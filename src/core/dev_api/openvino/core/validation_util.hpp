@@ -21,7 +21,7 @@ namespace util {
 /// \param max    Value used for normalization
 ///
 /// \return Value if positive otherwise return value + max
-OPENVINO_API int64_t normalize(const int64_t& value, const int64_t& max);
+OPENVINO_API int64_t normalize(const int64_t value, const int64_t max);
 
 /// \brief Check if values in vector are unique.
 ///
@@ -127,81 +127,101 @@ OPENVINO_API bool is_valid_axes_order(const std::vector<int64_t>& axes_order, si
 /// \return True if there are no symbols, false otherwise.
 OPENVINO_API bool has_no_symbols(const TensorSymbol& symbols);
 
-/// \brief      Handles out of range axis.
+/// \brief Checks if axis value is in rank range [-rank, rank).
+/// \note For scalar rank axis can be only 0.
 ///
-/// \param[in]  node         The node with requested axis.
-/// \param[in]  axis         The requested axis value.
-/// \param[in]  tensor_rank  The corresponding tensor rank.
-///
-/// \return    Checking if axis is in range [-tensor_rank, tensor_rank-1], otherwise
-///            returns error. If negative axis, it counts from the last to the first axis,
-///            by adding tensor_rank to axis.
-OPENVINO_API int64_t normalize_axis(const Node* node, std::int64_t axis, const Rank& tensor_rank);
+/// \param axis  Axis value.
+/// \param rank  Rank value.
+/// \return      True if axis within rank range.
+OPENVINO_API bool is_axis_valid(const int64_t axis, const int64_t rank);
 
-/// \brief      Handles out of range axis.
+/// \brief Validate axis if is in withing rank
 ///
-/// \param[in]  node_description   The node with requested axis.
-/// \param[in]  axis               The requested axis value.
-/// \param[in]  tensor_rank        The corresponding tensor rank.
+/// Throws if rank is dynamic or, axis outside rank range [-rank, rank). The error message has detailed
+/// information about node.
 ///
-/// \return    Checking if axis is in range [-tensor_rank, tensor_rank-1], otherwise
-///            returns error. If negative axis, it counts from the last to the first axis,
-///            by adding tensor_rank to axis.
-OPENVINO_API int64_t normalize_axis(const std::string& node_description, std::int64_t axis, const Rank& tensor_rank);
+/// \param node  Node use for detailed error message.
+/// \param axis  Axis value to be checked.
+/// \param rank  Rank used for axis validation.
+OPENVINO_API void validate_axis(const Node& node, int64_t axis, const Rank& rank);
 
-/// \brief      Handles out of range axis.
+/// \brief Normalize axis against the rank.
+/// \note  No input validation.
 ///
-/// \param[in]  node            The node with requested axis.
-/// \param[in]  axis            The requested axis value.
-/// \param[in]  tensor_rank     The corresponding tensor rank.
-/// \param[in]  axis_range_min  The min value of accepted range for axis.
-/// \param[in]  axis_range_max  The max value of accepted range for axis.
-///
-/// \return     Checking if axis is in range [axis_range_min, axis_range_max], otherwise
-///             returns error. If negative axis, it counts from the last to the first axis,
-///             by adding tensor_rank to axis.
-OPENVINO_API int64_t normalize_axis(const Node* node,
-                                    std::int64_t axis,
-                                    std::uint64_t tensor_rank,
-                                    std::int64_t axis_range_min,
-                                    std::int64_t axis_range_max);
+/// \param axis  Axis value to be normalized.
+/// \param rank  Rank value used for axis normalization.
+/// \return      Normalized axis value.
+OPENVINO_API size_t normalize_axis(const int64_t axis, const int64_t rank);
 
-/// \brief      Handles out of range axis.
+/// \brief Tries normalize axis against the rank.
 ///
-/// \param[in]  node_description   The name of node with requested axis.
-/// \param[in]  axis               The requested axis value.
-/// \param[in]  tensor_rank        The corresponding tensor rank.
-/// \param[in]  axis_range_min     The min value of accepted range for axis.
-/// \param[in]  axis_range_max     The max value of accepted range for axis.
+/// Throws if rank is dynamic or, axis outside rank range [-rank, rank).
 ///
-/// \return     Checking if axis is in range [axis_range_min, axis_range_max], otherwise
-///             returns error. If negative axis, it counts from the last to the first axis,
-///             by adding tensor_rank to axis.
-OPENVINO_API int64_t normalize_axis(const std::string& node_description,
-                                    std::int64_t axis,
-                                    std::uint64_t tensor_rank,
-                                    std::int64_t axis_range_min,
-                                    std::int64_t axis_range_max);
+/// \param axis  Axis value to be normalized.
+/// \param rank  Rank used for axis normalization.
+/// \return      Normalized axis value.
+OPENVINO_API size_t try_normalize_axis(const int64_t axis, const Rank& rank);
 
-/// \brief      Handles out of range axes in vector.
+/// \brief Normalize axis against the rank.
 ///
-/// \param[in]  node_description  The name of node with requested axes.
-/// \param[in]  axes              The requested vector of axes.
-/// \param[in]  tensor_rank       The corresponding tensor rank.
+/// Throws if rank is dynamic or, axis outside rank range [-rank, rank). The error message has detailed
+/// information about node.
 ///
-/// \return     If any negative axis in vector, it counts from the last to the first
-///             axis, by adding tensor_rank to axis.
-OPENVINO_API std::vector<size_t> normalize_axes(const std::string& node_description,
-                                                const std::vector<int64_t>& axes,
-                                                const Rank& tensor_rank);
+/// \param node  Node use for detailed error message.
+/// \param axis  Axis value to be normalized.
+/// \param rank  Rank used for axis normalization.
+/// \return      Normalized axis value.
+OPENVINO_API size_t try_normalize_axis(const Node& node, const int64_t axis, const Rank& rank);
 
-/// \brief      Handles out of range axes in vector.
-/// If any negative axis in vector, it counts from the last to the first axis,
-/// by adding tensor_rank to axis. Changes axes vector inplace.
+/// \brief Validate axes if are in withing rank
 ///
-/// \param[in]      node         The node with requested axes.
-/// \param[in]      tensor_rank  The corresponding tensor rank.
-/// \param[in,out]  axes         The requested vector of axes.
-OPENVINO_API void normalize_axes(const Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes);
+/// Throws if rank is dynamic or any axis outside rank range [-rank, rank). The error message has detailed
+/// information about node.
+///
+/// \param node  Node use for detailed error message.
+/// \param axes  Axes value to be checked.
+/// \param rank  Rank used for axes validation.
+OPENVINO_API void validate_axes(const Node& node, const std::vector<int64_t>& axes, const Rank& rank);
+
+/// \brief Normalize axes vector against the rank.
+/// \note  No input validation.
+///
+/// \param axes  Axes which will be normalized (in-place).
+/// \param rank  Rank value used for axes normalization.
+OPENVINO_API void normalize_axes(std::vector<int64_t>& axes, const int64_t rank);
+
+/// \brief Normalize axes against the rank.
+///
+/// Throws if rank is dynamic or any axis outside rank range [-rank, rank). The error message has detailed
+/// information about node.
+///
+/// \param node  Node use for detailed error message.
+/// \param axes  Axes which will be normalized (in-place).
+/// \param rank  Rank used for axes normalization.
+/// \return
+OPENVINO_API void try_normalize_axes(const Node& node, std::vector<int64_t>& axes, const Rank& rank);
+
+/// \brief Get the normalized axes as ov::AxisVector from tensor data.
+///
+/// Throws if rank is dynamic or any axis outside rank range [-rank, rank). The error message has detailed
+/// information about node.
+///
+/// \param node    Node use for detailed error message.
+/// \param tensor  Tensor with axes for normalization.
+/// \param rank    Rank value to normalize axes.
+/// \return        Normalized AxisVector.
+OPENVINO_API AxisVector try_get_normalized_axis_vector(const Node& node, const Tensor& tensor, const Rank& rank);
+
+/// \brief Get the normalized axes as ov::AxisSet from raw tensor data.
+///
+/// Throws if rank is dynamic or any axis outside rank range [-rank, rank). The error message has detailed
+/// information about node.
+///
+/// \param node    Node use for detailed error message.
+/// \param tensor  Tensor with axes for normalization.
+/// \param rank    Rank value to normalize axes.
+/// \return        Normalized AxisSet.
+OPENVINO_API AxisSet try_get_normalized_axis_set(const Node& node, const Tensor& tensor, const Rank& rank);
+
 }  // namespace util
 }  // namespace ov

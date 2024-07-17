@@ -160,7 +160,7 @@ void Loop::validate_and_infer_types() {
             } else {
                 auto out_shape = input_partial_shape;
                 const auto axis =
-                    ov::util::normalize_axis(this, slice_input_description->m_axis, input_partial_shape.rank());
+                    ov::util::try_normalize_axis(*this, slice_input_description->m_axis, input_partial_shape.rank());
                 out_shape[axis] = slice_input_description->m_part_size;
                 body_parameter->set_partial_shape(out_shape);
             }
@@ -269,7 +269,8 @@ void Loop::validate_and_infer_types() {
             if (zero_number_of_iter) {
                 out_shape = PartialShape{0};
             } else if (out_shape.rank().is_static()) {
-                const auto axis = ov::util::normalize_axis(this, concat_output_description->m_axis, out_shape.rank());
+                const auto axis =
+                    ov::util::try_normalize_axis(*this, concat_output_description->m_axis, out_shape.rank());
                 const auto rank = out_shape.rank().get_length();
                 if (rank == 0) {
                     out_shape = PartialShape{1};

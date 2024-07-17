@@ -47,13 +47,11 @@ bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& con
     }
 
     // get reduced axes in normal form (without negative values)
-    const auto constData = axesConstant->cast_vector<int64_t>();
     const auto inputRank = reduce->get_input_partial_shape(0).rank();
     if (inputRank.is_dynamic()) {
         return false;
     }
-
-    const std::vector<size_t> axes = ov::util::normalize_axes(reduce->get_friendly_name(), constData, inputRank);
+    const auto axes = util::try_get_normalized_axis_vector(*reduce, axesConstant->get_tensor_view(), inputRank);
 
     const auto deqByReducedConst = [&](const std::shared_ptr<Node>& eltwise) {
         const auto constShape = eltwise->get_shape();

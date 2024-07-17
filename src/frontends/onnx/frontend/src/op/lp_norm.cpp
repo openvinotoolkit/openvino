@@ -4,9 +4,9 @@
 
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
+#include "utils/common.hpp"
 #include "utils/norm.hpp"
 using namespace ov::op;
 
@@ -21,7 +21,7 @@ ov::OutputVector lp_norm(const ov::frontend::onnx::Node& node) {
     const auto data_rank = data_shape.rank();
     const std::int64_t p_norm{node.get_attribute_value<std::int64_t>("p", 2)};
     const std::int64_t axis{node.get_attribute_value<std::int64_t>("axis", -1)};
-    const size_t normalize_axis = ov::util::normalize_axis(node.get_description(), axis, data_rank);
+    const auto normalize_axis = common::normalize_axis(node.get_description(), axis, data_rank);
 
     CHECK_VALID_NODE(node,
                      p_norm == 1 || p_norm == 2,

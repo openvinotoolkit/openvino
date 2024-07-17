@@ -181,9 +181,10 @@ ov::pass::TransposeReduction::TransposeReduction() {
         if (!transpose_order || !reduction_axes)
             return false;
 
-        const auto& non_negative_axes = ov::util::normalize_axes(reduction->get_friendly_name(),
-                                                                 reduction_axes->cast_vector<int64_t>(),
-                                                                 reduction->get_input_partial_shape(0).rank());
+        const auto non_negative_axes =
+            util::try_get_normalized_axis_vector(*reduction,
+                                                 reduction_axes->get_tensor_view(),
+                                                 reduction->get_input_partial_shape(0).rank());
         reduction_axes = ov::op::v0::Constant::create(ov::element::i64, {non_negative_axes.size()}, non_negative_axes);
 
         ov::NodeVector new_ops;

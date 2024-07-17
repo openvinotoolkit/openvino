@@ -18,23 +18,17 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/util/common_util.hpp"
 #include "sequence_generator.hpp"
+#include "utils.hpp"
 
 namespace {
-const auto normalize_axis_to = [](const int64_t& tensor_rank) {
-    return [&tensor_rank](int64_t& axis) {
-        if (axis < 0) {
-            axis += tensor_rank;
-        }
-    };
-};
 
-std::string normalize_axis_error_msg(const int64_t& axis, const int64_t& lower, const int64_t& upper) {
+std::string normalize_axis_error_msg(const int64_t axis, const int64_t rank) {
     return std::string(" Parameter axis ")
         .append(std::to_string(axis))
         .append(" out of the tensor rank range [")
-        .append(std::to_string(lower))
+        .append(std::to_string(-rank))
         .append(", ")
-        .append(std::to_string(upper))
+        .append(std::to_string(rank == 0 ? 0 : rank - 1))
         .append("].");
 }
 
@@ -59,7 +53,7 @@ ov::OutputVector get_inputs_from_map(const std::shared_ptr<ov::Node>& node,
 
 }  // namespace
 
-int64_t ov::util::normalize(const int64_t& value, const int64_t& max) {
+int64_t ov::util::normalize(const int64_t value, const int64_t max) {
     return (value < 0) ? value + max : value;
 };
 
@@ -324,68 +318,56 @@ bool has_no_symbols(const ov::TensorSymbol& symbols) {
     return std::all_of(symbols.cbegin(), symbols.cend(), cmp::Equal<std::shared_ptr<ov::Symbol>>(nullptr));
 }
 
-std::vector<size_t> normalize_axes(const std::string& node_description,
-                                   const std::vector<int64_t>& axes,
-                                   const Rank& tensor_rank) {
-    std::vector<size_t> new_axes;
-    new_axes.reserve(axes.size());
+bool is_axis_valid(int64_t axis, int64_t rank) {
+    return (axis == 0) || (-rank <= axis && axis < rank);
+}
+
+void validate_axis(const Node& node, int64_t axis, const Rank& rank) {
+    const auto r = rank.get_length();
+    NODE_VALIDATION_CHECK(&node, is_axis_valid(axis, r), node.description(), normalize_axis_error_msg(axis, r));
+}
+
+size_t normalize_axis(const int64_t axis, const int64_t rank) {
+    return static_cast<size_t>(normalize(axis, rank));
+}
+
+size_t try_normalize_axis(const int64_t axis, const Rank& rank) {
+    const auto r = rank.get_length();
+    OPENVINO_ASSERT(is_axis_valid(axis, r), normalize_axis_error_msg(axis, r));
+    return normalize_axis(axis, r);
+}
+
+size_t try_normalize_axis(const Node& node, const int64_t axis, const Rank& rank) {
+    validate_axis(node, axis, rank);
+    return normalize_axis(axis, rank.get_length());
+}
+
+void validate_axes(const Node& node, const std::vector<int64_t>& axes, const Rank& rank) {
     for (const auto& axis : axes) {
-        new_axes.push_back(ov::util::normalize_axis(node_description, axis, tensor_rank));
+        validate_axis(node, axis, rank);
     }
-    return new_axes;
 }
 
-void normalize_axes(const ov::Node* node, const int64_t& tensor_rank, std::vector<int64_t>& axes) {
-    const auto axis_checker = cmp::Between<int64_t, cmp::BOTH>(-tensor_rank, tensor_rank ? (tensor_rank - 1) : 0);
-    const auto invalid_axis = std::find_if_not(axes.cbegin(), axes.cend(), axis_checker);
-    NODE_VALIDATION_CHECK(node,
-                          invalid_axis == axes.cend(),
-                          normalize_axis_error_msg(*invalid_axis, axis_checker.lower(), axis_checker.upper()));
-    std::for_each(axes.begin(), axes.end(), normalize_axis_to(tensor_rank));
-}
-
-int64_t normalize_axis(const ov::Node* node, std::int64_t axis, const Rank& tensor_rank) {
-    return ov::util::normalize_axis(node->description(), axis, tensor_rank);
-}
-
-int64_t normalize_axis(const std::string& node_description, std::int64_t axis, const Rank& tensor_rank) {
-    if (axis < 0) {
-        // Handling negative axis requires static tensor rank
-        OPENVINO_ASSERT(tensor_rank.is_static(),
-                        node_description,
-                        " Rank must be static in order to normalize negative axis=",
-                        axis);
+void normalize_axes(std::vector<int64_t>& axes, const int64_t rank) {
+    for (auto&& axis : axes) {
+        axis = normalize(axis, rank);
     }
-    if (tensor_rank.is_dynamic()) {
-        return axis;
-    }
-
-    const auto tensor_rank_value = tensor_rank.get_length();
-    return normalize_axis(node_description,
-                          axis,
-                          tensor_rank_value,
-                          -tensor_rank_value,
-                          tensor_rank_value ? (tensor_rank_value - 1) : 0);
 }
 
-int64_t normalize_axis(const ov::Node* node,
-                       std::int64_t axis,
-                       std::uint64_t tensor_rank,
-                       std::int64_t axis_range_min,
-                       std::int64_t axis_range_max) {
-    return normalize_axis(node->description(), axis, tensor_rank, axis_range_min, axis_range_max);
+void try_normalize_axes(const Node& node, std::vector<int64_t>& axes, const Rank& rank) {
+    validate_axes(node, axes, rank);
+    normalize_axes(axes, rank.get_length());
 }
 
-int64_t normalize_axis(const std::string& node_description,
-                       std::int64_t axis,
-                       std::uint64_t tensor_rank,
-                       std::int64_t axis_range_min,
-                       std::int64_t axis_range_max) {
-    // Accepted range of value for axis is [axis_range_min, axis_range_max].
-    OPENVINO_ASSERT((axis_range_min <= axis) && (axis <= axis_range_max),
-                    node_description,
-                    normalize_axis_error_msg(axis, axis_range_min, axis_range_max));
-    return normalize(axis, tensor_rank);
+AxisVector try_get_normalized_axis_vector(const Node& node, const Tensor& tensor, const Rank& rank) {
+    auto axes_values = ov::get_tensor_data_as<int64_t>(tensor);
+    try_normalize_axes(node, axes_values, rank);
+    return {axes_values.begin(), axes_values.end()};
 }
+
+AxisSet try_get_normalized_axis_set(const Node& node, const Tensor& tensor, const Rank& rank) {
+    return {try_get_normalized_axis_vector(node, tensor, rank)};
+}
+
 }  // namespace util
 }  // namespace ov

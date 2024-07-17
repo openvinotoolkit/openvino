@@ -46,7 +46,7 @@ std::shared_ptr<opset1::Constant> gatherDeqConstant(
 
     const int64_t axis = ov::as_type_ptr<opset1::Constant>(gather->get_input_node_shared_ptr(2))->cast_vector<int64_t>()[0];
     const size_t normalizedAxis =
-        ov::util::normalize_axis(gather->get_friendly_name(), axis, gather->get_input_partial_shape(0).rank());
+        ov::util::try_normalize_axis(*gather, axis, gather->get_input_partial_shape(0).rank());
 
     // Dequantization channel matches with gather axis
     if (constantShape[normalizedAxis] != 1ul) {
@@ -173,9 +173,8 @@ bool GatherTransformation::canBeTransformed(const TransformationContext& context
             }
         }
         const int64_t axis = axisConstant->cast_vector<int64_t>()[0];
-        const size_t normalizedAxis = ov::util::normalize_axis(operation->get_friendly_name(),
-                                                               axis,
-                                                               operation->get_input_partial_shape(0).rank());
+        const size_t normalizedAxis =
+            ov::util::try_normalize_axis(*operation, axis, operation->get_input_partial_shape(0).rank());
 
         if (constantShape[normalizedAxis] != 1ul) {
             const auto indicesConstant = ov::as_type_ptr<opset1::Constant>(operation->get_input_node_shared_ptr(1));

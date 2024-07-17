@@ -22,10 +22,10 @@ static std::vector<int64_t> ExtractAxes(const std::shared_ptr<ov::op::util::Inte
         OPENVINO_ASSERT(axes_constant, "Unsupported parameter node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
         axes = axes_constant->cast_vector<int64_t>();
-        ov::util::normalize_axes(op.get(), inputRank, axes);
+        ov::util::try_normalize_axes(*op, axes, inputRank);
     } else {
         for (size_t i = 0; i < inputRank; ++i) {
-            axes.push_back(ov::util::normalize_axis(op.get(), i, inputRank));
+            axes.push_back(ov::util::try_normalize_axis(*op, i, inputRank));
         }
     }
     return axes;

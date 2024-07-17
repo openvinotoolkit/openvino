@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/reference/rms_norm.hpp"
+#include "openvino/op/rms_norm.hpp"
 
 #include "evaluate_node.hpp"
 #include "openvino/core/axis_set.hpp"
 #include "openvino/core/rank.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/op/rms_norm.hpp"
-#include "openvino/op/util/axes_util.hpp"
+#include "openvino/reference/rms_norm.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "utils.hpp"
 
@@ -20,9 +19,7 @@ bool evaluate(const std::shared_ptr<ov::op::internal::RMSNorm>& node,
               ov::TensorVector& outputs,
               const ov::TensorVector& inputs) {
     using ET = typename ov::element_type_traits<T>::value_type;
-    const auto axes = ov::get_tensor_data_as<int64_t>(inputs[1]);
-    const auto normalized_axes =
-        ov::util::normalize_axes(node->get_friendly_name(), axes, inputs[0].get_shape().size());
+    const auto normalized_axes = ov::util::try_get_normalized_axis_set(*node, inputs[1], inputs[0].get_shape().size());
 
     outputs[0].set_shape(inputs[0].get_shape());
 

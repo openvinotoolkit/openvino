@@ -143,7 +143,9 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
         int64_t axis = -1;
         const auto rank = n->get_input_partial_shape(0).rank();
         if (const auto softmax_v8 = ov::as_type_ptr<const ov::op::v8::Softmax>(n)) {
-            axis = ov::util::normalize_axis(n->get_friendly_name(), softmax_v8->get_axis(), rank);
+            if (rank.is_static()) {
+                axis = ov::util::try_normalize_axis(*n, softmax_v8->get_axis(), rank);
+            }
         } else if (const auto softmax_v1 = ov::as_type_ptr<const ov::op::v1::Softmax>(n)) {
             axis = softmax_v1->get_axis();
         } else {
@@ -171,7 +173,7 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
                 return false;
 
             const auto axis_value = axis_constant->cast_vector<int32_t>(1)[0];
-            const auto normalized_axis = ov::util::normalize_axis(n->get_friendly_name(), axis_value, rank);
+            const auto normalized_axis = util::normalize(axis_value, rank.get_length());
             // Note: Reduction only over the last dimension is currently supported
             return normalized_axis == rank.get_length() - 1;
         }

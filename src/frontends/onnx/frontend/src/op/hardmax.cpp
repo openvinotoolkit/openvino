@@ -28,7 +28,7 @@ ov::OutputVector hardmax(const ov::frontend::onnx::Node& node) {
 
     auto axis = node.get_attribute_value<std::int64_t>("axis", 1);
     if (input_shape.rank().is_static()) {
-        axis = ov::util::normalize_axis(node.get_description(), axis, input_shape.rank());
+        axis = common::normalize_axis(node.get_description(), axis, input_shape.rank());
     }
 
     // reshape to 2D - "batch size" x "input feature dimensions" (NxD)
@@ -66,7 +66,8 @@ ov::OutputVector hardmax(const ov::frontend::onnx::Node& node) {
     const auto& input_shape = input.get_partial_shape();
 
     auto axis = node.get_attribute_value<std::int64_t>("axis", -1);
-    axis = ov::util::normalize_axis(node.get_description(), axis, input_shape.rank());
+    // TODO:2
+    axis = ov::util::try_normalize_axis(axis, input_shape.rank());
 
     const auto input_runtime_shape = std::make_shared<ov::op::v0::ShapeOf>(input);
     ov::Output<ov::Node> row_size =

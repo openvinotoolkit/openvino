@@ -40,7 +40,7 @@ std::vector<TRShape> shape_infer(const Roll* op,
 
     if (data_pshape.rank().is_static()) {
         if (auto axes = get_input_const_data_as<TRShape, int64_t>(op, 2, ta)) {
-            ov::util::normalize_axes(op, data_pshape.size(), *axes);
+            ov::util::validate_axes(*op, *axes, data_pshape.rank());
         }
     }
 
