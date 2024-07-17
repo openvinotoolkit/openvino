@@ -36,7 +36,10 @@ struct ConvertMatMul {
             if (!mlir::ShapedType::isDynamic(dim))
                 continue;
             // FIXME: correct in case if (!transpose_a && transpose_b)
-            auto dimSize = builder.create<tensor::DimOp>(loc, idx == 0 ? inputs[0] : inputs[1], 1);  // TODO: Use symbols instead of taking dims directly from inputs
+            auto dimSize =
+                builder.create<tensor::DimOp>(loc,
+                                              idx == 0 ? inputs[0] : inputs[1],
+                                              0);  // TODO: Use symbols instead of taking dims directly from inputs
             dynamicSizes.push_back(dimSize);
         }
         auto empty = builder.create<tensor::EmptyOp>(loc, outType, dynamicSizes);

@@ -290,6 +290,10 @@ bool elementwise_f32_binary_no_broadcast_predicate(const ov::Output<ov::Node>& o
         if(output_shape[i] != input_shape_a[i] || output_shape[i] != input_shape_b[i]) {
             return false;
         }
+        // Continue if all shapes are static.
+        if (output_shape[i].is_static() && input_shape_a[i].is_static() &&
+            input_shape_b[i].is_static())
+            continue;
         if(!ov::symbol::are_equal(output_shape[i].get_symbol(), input_shape_a[i].get_symbol()) || !ov::symbol::are_equal(output_shape[i].get_symbol(), input_shape_b[i].get_symbol())) {
             return false;
         }
