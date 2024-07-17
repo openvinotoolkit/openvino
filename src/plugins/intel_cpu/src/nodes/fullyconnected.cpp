@@ -66,7 +66,7 @@ FullyConnected::FullyConnected(const std::shared_ptr<ov::Node>& op, const GraphC
             // init w_rank and w_size
             w_rank = context->getCPUStreamExecutor()->get_rank()[0];
             w_size = ov::threading::message_manager()->get_num_sub_streams();
-            cur_dst_vec = std::vector<MemoryPtr>(w_size, nullptr);
+            // cur_dst_vec = std::vector<MemoryPtr>(w_size, nullptr);
             enable_tensor_parallel = w_size > 1 ? true : false;
             sub_memory = context->getSubMemory();
         }
@@ -108,12 +108,8 @@ ExecutorPtr FullyConnected::createExecutor() {
         VectorDims new_dims = dims;
         new_dims[dim] = splited_dim_vec[w_rank];
         memory_desc = dst_desc->cloneWithNewDims(new_dims, true);
-        if (cur_dst_vec[w_rank] == nullptr) {
-            cur_dst_vec[w_rank] = std::make_shared<Memory>(context->getEngine(), memory_desc, nullptr);
-        } else {
-            cur_dst_vec[w_rank]->redefineDesc(memory_desc);
-        }
-        memory[ARG_DST] = cur_dst_vec[w_rank];
+        cached_dst->redefineDesc(memory_desc);
+        memory[ARG_DST] = cached_dst;
         // memory[ARG_DST] =
         //     std::static_pointer_cast<Memory>(sub_memory->get_shared_memory(context->getEngine(), memory_desc, w_rank));
     }
@@ -433,6 +429,7 @@ void FullyConnected::createPrimitive() {
 
         // dst
         memory[ARG_DST] = getDstMemoryAtPort(0);
+        cached_dst = split_horizontal(context->getEngine(), dst, -1, w_rank, w_size, false);
         dst_shape = dst->getShape();
     } else {
         memory[ARG_SRC] = getSrcMemoryAtPort(DATA_ID);
