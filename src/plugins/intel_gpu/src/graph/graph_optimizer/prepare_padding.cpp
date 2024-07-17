@@ -13,6 +13,53 @@
 using namespace cldnn;
 using namespace ov::intel_gpu;
 
+namespace {
+
+template<typename T>
+padding convert_paddings(const padding& current_pad, const T& pad_begin, const T& pad_end, size_t spatial_rank) {
+    tensor::value_type pb_z = std::max<std::ptrdiff_t>(pad_begin.size() >= 3 ? pad_begin[pad_begin.size() - 3] : 0, 0);
+    tensor::value_type pb_y = std::max<std::ptrdiff_t>(pad_begin.size() >= 2 ? pad_begin[pad_begin.size() - 2] : 0, 0);
+    tensor::value_type pb_x = std::max<std::ptrdiff_t>(pad_begin.size() >= 1 ? pad_begin[pad_begin.size() - 1] : 0, 0);
+
+    tensor::value_type pe_z = std::max<std::ptrdiff_t>(pad_end.size() >= 3 ? pad_end[pad_end.size() - 3] : 0, 0);
+    tensor::value_type pe_y = std::max<std::ptrdiff_t>(pad_end.size() >= 2 ? pad_end[pad_end.size() - 2] : 0, 0);
+    tensor::value_type pe_x = std::max<std::ptrdiff_t>(pad_end.size() >= 1 ? pad_end[pad_end.size() - 1] : 0, 0);
+
+    const auto& lower_sizes = current_pad._lower_size;
+    const auto& upper_sizes = current_pad._upper_size;
+
+    std::vector<int32_t> needed_lpad, needed_upad;
+    needed_lpad.push_back(lower_sizes[0]);
+    needed_lpad.push_back(lower_sizes[1]);
+
+    needed_upad.push_back(upper_sizes[0]);
+    needed_upad.push_back(upper_sizes[1]);
+    if (spatial_rank == 3) {
+        needed_lpad.push_back(std::max(pb_z, lower_sizes[2]));
+        needed_lpad.push_back(std::max(pb_y, lower_sizes[3]));
+        needed_lpad.push_back(std::max(pb_x, lower_sizes[4]));
+
+        needed_upad.push_back(std::max(pe_z, upper_sizes[2]));
+        needed_upad.push_back(std::max(pe_y, upper_sizes[3]));
+        needed_upad.push_back(std::max(pe_x, upper_sizes[4]));
+    } else if (spatial_rank == 2) {
+        needed_lpad.push_back(std::max(pb_y, lower_sizes[2]));
+        needed_lpad.push_back(std::max(pb_x, lower_sizes[3]));
+
+        needed_upad.push_back(std::max(pe_y, upper_sizes[2]));
+        needed_upad.push_back(std::max(pe_x, upper_sizes[3]));
+    } else {
+        needed_lpad.push_back(std::max(pb_x, lower_sizes[2]));
+        needed_upad.push_back(std::max(pb_x, upper_sizes[2]));
+    }
+
+    padding needed_padding(needed_lpad, needed_upad);
+
+    return needed_padding;
+}
+
+} // namespace
+
 void prepare_padding::run(program& p) {
     if (output_size_handling_enabled) {
         // Prepare upper padding for primitives that support output_size parameter.
@@ -66,43 +113,7 @@ void prepare_padding::run(program& p) {
                 auto padding_begin = prim->padding_begin;
                 auto padding_end = prim->padding_end;
 
-                tensor::value_type pb_z = std::max<std::ptrdiff_t>(padding_begin.size() >= 3 ? padding_begin[padding_begin.size() - 3] : 0, 0);
-                tensor::value_type pb_y = std::max<std::ptrdiff_t>(padding_begin.size() >= 2 ? padding_begin[padding_begin.size() - 2] : 0, 0);
-                tensor::value_type pb_x = std::max<std::ptrdiff_t>(padding_begin.size() >= 1 ? padding_begin[padding_begin.size() - 1] : 0, 0);
-
-                tensor::value_type pe_z = std::max<std::ptrdiff_t>(padding_end.size() >= 3 ? padding_end[padding_end.size() - 3] : 0, 0);
-                tensor::value_type pe_y = std::max<std::ptrdiff_t>(padding_end.size() >= 2 ? padding_end[padding_end.size() - 2] : 0, 0);
-                tensor::value_type pe_x = std::max<std::ptrdiff_t>(padding_end.size() >= 1 ? padding_end[padding_end.size() - 1] : 0, 0);
-
-                const auto& lower_sizes = in_layout.data_padding._lower_size;
-                const auto& upper_sizes = in_layout.data_padding._upper_size;
-
-                std::vector<int32_t> needed_lpad, needed_upad;
-                needed_lpad.push_back(lower_sizes[0]);
-                needed_lpad.push_back(lower_sizes[1]);
-
-                needed_upad.push_back(upper_sizes[0]);
-                needed_upad.push_back(upper_sizes[1]);
-                if (spatial_rank == 3) {
-                    needed_lpad.push_back(std::max(pb_z, lower_sizes[2]));
-                    needed_lpad.push_back(std::max(pb_y, lower_sizes[3]));
-                    needed_lpad.push_back(std::max(pb_x, lower_sizes[4]));
-
-                    needed_upad.push_back(std::max(pe_z, upper_sizes[2]));
-                    needed_upad.push_back(std::max(pe_y, upper_sizes[3]));
-                    needed_upad.push_back(std::max(pe_x, upper_sizes[4]));
-                } else if (spatial_rank == 2) {
-                    needed_lpad.push_back(std::max(pb_y, lower_sizes[2]));
-                    needed_lpad.push_back(std::max(pb_x, lower_sizes[3]));
-
-                    needed_upad.push_back(std::max(pe_y, upper_sizes[2]));
-                    needed_upad.push_back(std::max(pe_x, upper_sizes[3]));
-                } else {
-                    needed_lpad.push_back(std::max(pb_x, lower_sizes[2]));
-                    needed_upad.push_back(std::max(pb_x, upper_sizes[2]));
-                }
-
-                padding needed_padding(needed_lpad, needed_upad);
+                auto needed_padding = convert_paddings(in_layout.data_padding, padding_begin, padding_end, spatial_rank);
 
                 add_required_padding(prim_node, needed_padding);
             } else if (node->is_type<deconvolution>()) {
@@ -131,33 +142,9 @@ void prepare_padding::run(program& p) {
                 auto padding_begin = prim->pads_begin;
                 auto padding_end = prim->pads_end;
 
-                tensor::value_type pb_z = std::max<std::ptrdiff_t>(padding_begin.size() >= 3 ? padding_begin[padding_begin.size() - 3] : 0, 0);
-                tensor::value_type pb_y = std::max<std::ptrdiff_t>(padding_begin.size() >= 2 ? padding_begin[padding_begin.size() - 2] : 0, 0);
-                tensor::value_type pb_x = std::max<std::ptrdiff_t>(padding_begin.size() >= 1 ? padding_begin[padding_begin.size() - 1] : 0, 0);
-
-                tensor::value_type pe_z = std::max<std::ptrdiff_t>(padding_end.size() >= 3 ? padding_end[padding_end.size() - 3] : 0, 0);
-                tensor::value_type pe_y = std::max<std::ptrdiff_t>(padding_end.size() >= 2 ? padding_end[padding_end.size() - 2] : 0, 0);
-                tensor::value_type pe_x = std::max<std::ptrdiff_t>(padding_end.size() >= 1 ? padding_end[padding_end.size() - 1] : 0, 0);
-
-                tensor pad_l = tensor(0);
-                tensor pad_u = tensor(0);
-                pad_l.spatial[0] = pb_x;
-                pad_l.spatial[1] = pb_y;
-                pad_l.spatial[2] = pb_z;
-
-                pad_u.spatial[0] = pe_x;
-                pad_u.spatial[1] = pe_y;
-                pad_u.spatial[2] = pe_z;
-
                 auto in_layout = prim_node.get_input_layout();
-
-                const auto& actual_lpad = in_layout.data_padding.lower_size();
-                const auto& actual_upad = in_layout.data_padding.upper_size();
-
-                auto needed_lpad = tensor::max(pad_l, actual_lpad);
-                auto needed_upad = tensor::max(pad_u, actual_upad);
-
-                padding needed_padding(needed_lpad.sizes(), needed_upad.sizes());
+                const auto spatial_rank = in_layout.get_spatial_rank();
+                auto needed_padding = convert_paddings(in_layout.data_padding, padding_begin, padding_end, spatial_rank);
 
                 add_required_padding(prim_node, needed_padding);
             }

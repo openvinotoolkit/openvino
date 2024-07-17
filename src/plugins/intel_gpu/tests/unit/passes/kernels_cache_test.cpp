@@ -166,7 +166,6 @@ TEST(kernels_cache, reuse_kernels_property) {
                       reorder("output", input_info("sum"), {{3, 2}, data_types::f16, format::bfyx}));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::hint::enable_kernels_reuse(true));
     auto prog = program::build_program(engine, topology, config, false, false);
     auto& cache = prog->get_kernels_cache();

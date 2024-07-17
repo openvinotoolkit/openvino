@@ -39,7 +39,6 @@ void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const i
     ov::Shape out_shape = is_static ? op->get_output_shape(0) : ov::Shape{};
 
     // Update output_shape in case of scalar indice
-    bool need_reshape = false;
     auto out_shape_original = out_shape;
 
     // WA for NMS->Gather construction. NMS fills part of the output blob by the -1 if these values
@@ -55,9 +54,6 @@ void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const i
 
     // Set layer name for Gather
     auto reshapeName = layerName + "";
-    if (need_reshape) {
-        layerName = layerName + "_reshape_output";
-    }
 
     // Check if Gather could be converted to other primitive
     const auto input_shape = op->get_input_partial_shape(0);
@@ -139,27 +135,6 @@ void CreateGatherOpBase(ProgramBuilder& p, const std::shared_ptr<T>& op, const i
 
             p.add_primitive(*op, gatherPrim);
         }
-    }
-
-    // Add reorder and reshape for scalar indice
-    if (need_reshape) {
-        auto input = inputs[0];
-        input.pid = layerName;
-
-        auto targetFormat = cldnn::format::get_default_format(out_shape_original.size());
-        if (targetFormat.value != cldnn::format::get_default_format(out_shape.size()).value) {
-            auto reorderName = layerName + "_cldnn_in_reorder";
-            auto targetDatatype = cldnn::element_type_to_data_type(op->get_input_element_type(0));
-            auto reorderPrim = cldnn::reorder(reorderName,
-                                              input,
-                                              targetFormat,
-                                              targetDatatype);
-            p.add_primitive(*op, reorderPrim);
-            input.pid = reorderName;
-        }
-
-        auto reshapePrim = cldnn::reshape(reshapeName, input, tensor_from_dims(out_shape_original));
-        p.add_primitive(*op, reshapePrim);
     }
 }
 

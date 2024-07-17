@@ -224,7 +224,6 @@ TEST(concat_gpu, dynamic_2d_bfyx_and_b_fs_yx_fsv32) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(false));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     ov::intel_gpu::ImplementationDesc impl = { format::bfyx, "", impl_types::ocl };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "concat", impl } }));
 
@@ -277,7 +276,6 @@ TEST(concat_gpu, dynamic_4d_bfyx_and_b_fs_yx_fsv32) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(false));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     ov::intel_gpu::ImplementationDesc impl = { format::bfyx, "", impl_types::ocl };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "concat", impl } }));
 

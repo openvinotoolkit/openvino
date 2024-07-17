@@ -249,7 +249,7 @@ void generic_eltwise_int_test(cldnn::format test_input_fmt,
                               int input2_max_val) {
     static_assert(std::is_integral<T>::value, "T must be an integral type");
     static_assert(std::is_integral<TOut>::value, "TOut must be an integral type");
-    
+
     tests::random_generator rg(GET_SUITE_NAME);
 
     VVVVF<T> input1_rnd = rg.generate_random_4d<T>(input_b, input_f, input_y, input_x, input1_min_val, input1_max_val);
@@ -299,7 +299,7 @@ void generic_eltwise_int_test(cldnn::format test_input_fmt,
     bool test_is_correct = true;
     VF<TOut> output_cpu_vec = flatten_4d<TOut>(test_input_fmt, output_cpu);
     for (size_t i = 0; i < output_cpu_vec.size(); ++i) {
-        const TOut cpu_val = output_cpu_vec[i]; 
+        const TOut cpu_val = output_cpu_vec[i];
         const TOut gpu_val = output_ptr[i];
         if (cpu_val != gpu_val) {
             test_is_correct = false;
@@ -1680,7 +1680,6 @@ TEST(eltwise_gpu_f32, dynamic_padding) {
         0.5f,   2.5f });
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     // config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input1", input1);

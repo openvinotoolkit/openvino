@@ -138,7 +138,6 @@ public:
 
     void add_primitive(const ov::Node& op, std::shared_ptr<cldnn::primitive> prim, std::vector<std::string> aliases = {});
 
-    bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) const;
     bool is_inner_program() const { return m_is_inner_program; }
     bool is_query_mode() { return queryMode; }
 

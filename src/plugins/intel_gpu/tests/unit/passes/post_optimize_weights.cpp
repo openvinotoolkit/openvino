@@ -265,7 +265,6 @@ TEST(post_optimize_weights, onednn_group_conv_weights_reorder_test) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     if (engine.get_device_info().supports_immad) {
         ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, std::string(""), impl_types::onednn };

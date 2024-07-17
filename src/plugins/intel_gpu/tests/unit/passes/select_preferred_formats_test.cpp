@@ -84,7 +84,6 @@ TEST(test_select_preferred_formats, fsv2_fallback_to_byxf) {
     topology.add(convolution("conv1", input_info("reorder"), "weights", "", 2, {1, 1}, {1, 1}, {2, 1}, {0, 1}, true));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, std::string(""), impl_types::onednn };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv1", impl} }));
 

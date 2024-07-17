@@ -18,32 +18,11 @@ static void CreateGatherTreeOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    std::vector<cldnn::input_info> reordered_inputs;
-    reordered_inputs.resize(inputs.size());
-
-    for (size_t portIndex = 0; portIndex < inputs.size(); portIndex++) {
-        auto inputDataType = cldnn::element_type_to_data_type(op->get_input_element_type(portIndex));
-        if (inputDataType == cldnn::data_types::i64) {
-            // GPU primitive does not support i64 inputs,
-            // so we need additional reorders to convert them to i32
-            auto reorderPrimName = inputs[portIndex].pid + "_" + op->get_friendly_name() + ProgramBuilder::m_preProcessTag;
-            auto targetFormat = cldnn::format::get_default_format(op->get_input_shape(portIndex).size());
-            auto preprocessPrim = cldnn::reorder(reorderPrimName,
-                                                 inputs[portIndex],
-                                                 targetFormat,
-                                                 cldnn::data_types::i32);
-            p.add_primitive(*op, preprocessPrim);
-            reordered_inputs[portIndex] = cldnn::input_info(reorderPrimName);
-        } else {
-            reordered_inputs[portIndex] = inputs[portIndex];
-        }
-    }
-
     auto gatherTreePrim = cldnn::gather_tree(layerName,
-                                             reordered_inputs[0],
-                                             reordered_inputs[1],
-                                             reordered_inputs[2],
-                                             reordered_inputs[3]);
+                                             inputs[0],
+                                             inputs[1],
+                                             inputs[2],
+                                             inputs[3]);
 
     p.add_primitive(*op, gatherTreePrim);
 }
