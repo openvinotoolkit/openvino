@@ -161,7 +161,6 @@ static Config merge_configs(const Config& globalConfig,
                             OptionMode mode = OptionMode::Both) {
     update_log_level(rawConfig);
     Config localConfig = globalConfig;
-
     localConfig.update(rawConfig, mode);
     return localConfig;
 }
@@ -550,7 +549,6 @@ Plugin::Plugin()
 void Plugin::set_property(const ov::AnyMap& properties) {
     const std::map<std::string, std::string> config = any_copy(properties);
     update_log_level(config);
-
     for (const auto& configEntry : config) {
         if (_properties.find(configEntry.first) == _properties.end()) {
             OPENVINO_THROW("Unsupported configuration key: ", configEntry.first);

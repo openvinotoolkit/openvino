@@ -171,7 +171,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
       _profilingQuery(0,
                       _executor->getInitStructs()->getDevice(),
                       _executor->getInitStructs()->getProfilingDdiTable()) {
-    _logger.trace("ZeroInferRequest::ZeroInferRequest - SyncInferRequest");
+    _logger.debug("ZeroInferRequest::ZeroInferRequest - SyncInferRequest");
     const std::unordered_map<std::string, ZeroExecutor::ArgumentDescriptor>& executorInputDescriptors =
         _executor->inputs_desc_map();
     const std::unordered_map<std::string, ZeroExecutor::ArgumentDescriptor>& executorOutputDescriptors =
@@ -179,7 +179,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
     auto proftype = config.get<PROFILING_TYPE>();
     if (proftype == ov::intel_npu::ProfilingType::INFER) {
-        _logger.trace("ZeroInferRequest::ZeroInferRequest - profiling type == ov::intel_npu::ProfilingType::INFER");
+        _logger.debug("ZeroInferRequest::ZeroInferRequest - profiling type == ov::intel_npu::ProfilingType::INFER");
         _npuProfiling = std::make_shared<zeroProfiling::NpuInferProfiling>(_executor->getInitStructs()->getContext(),
                                                                            _executor->getInitStructs()->getDevice(),
                                                                            _config.get<LOG_LEVEL>());
@@ -195,7 +195,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 
     auto allocator = zeroMemory::HostMemAllocator(_initStructs);
 
-    _logger.trace("ZeroInferRequest::ZeroInferRequest - performing I/O buffer allocation using Level Zero API");
+    _logger.debug("ZeroInferRequest::ZeroInferRequest - performing I/O buffer allocation using Level Zero API");
     for (const std::string& inputName : _metadata.inputNames) {
         if (!executorInputDescriptors.count(inputName)) {
             OPENVINO_THROW("Invalid graph input descriptor key: " + inputName);
@@ -485,7 +485,7 @@ void ZeroInferRequest::infer() {
 }
 
 void ZeroInferRequest::infer_async() {
-    _logger.trace("InferRequest::infer_async started");
+    _logger.debug("InferRequest::infer_async started");
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "infer_async");
 
     _executor->mutexLock();
@@ -548,7 +548,7 @@ void ZeroInferRequest::infer_async() {
 
 void ZeroInferRequest::get_result() {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "get_result");
-    _logger.trace("InferRequest::get_result start");
+    _logger.debug("InferRequest::get_result start");
 
     for (size_t i = 0; i < _batchSize; i++) {
         _pipeline->pull(i);
@@ -600,7 +600,7 @@ void ZeroInferRequest::get_result() {
     for (size_t i = 0; i < _batchSize; i++) {
         _pipeline->reset(i);
     }
-    _logger.trace("InferRequest::get_result finished");
+    _logger.debug("InferRequest::get_result finished");
 }
 
 void ZeroInferRequest::check_network_precision(const ov::element::Type_t precision) const {
@@ -638,7 +638,7 @@ void ZeroInferRequest::check_network_precision(const ov::element::Type_t precisi
 }
 
 std::vector<ov::ProfilingInfo> ZeroInferRequest::get_profiling_info() const {
-    _logger.trace("InferRequest::get_profiling_info started");
+    _logger.debug("InferRequest::get_profiling_info started");
     const auto& compiledModel = *std::dynamic_pointer_cast<const ICompiledModel>(_compiledModel);
     const auto& compilerConfig = compiledModel.get_config();
     if (!compilerConfig.get<PERF_COUNT>() || !_config.get<PERF_COUNT>()) {
@@ -654,15 +654,15 @@ std::vector<ov::ProfilingInfo> ZeroInferRequest::get_profiling_info() const {
         const auto& compiler = compiledModel.get_compiler();
         const auto& blob = networkDesc->compiledNetwork;
         auto profData = get_raw_profiling_data();
-        _logger.trace("InferRequest::get_profiling_info complete with compiler->process_profiling_output().");
+        _logger.debug("InferRequest::get_profiling_info complete with compiler->process_profiling_output().");
         return compiler->process_profiling_output(profData, blob, compilerConfig);
     } else {
         auto proftype = _config.get<PROFILING_TYPE>();
         if (proftype == ov::intel_npu::ProfilingType::INFER) {
-            _logger.trace("InferRequest::get_profiling_info complete with _npuProfiling->getNpuInferStatistics().");
+            _logger.debug("InferRequest::get_profiling_info complete with _npuProfiling->getNpuInferStatistics().");
             return _npuProfiling->getNpuInferStatistics();
         } else {  /// proftype = MODEL or undefined = fallback to model profiling
-            _logger.trace("InferRequest::get_profiling_info complete with _profilingQuery.getLayerStatistics().");
+            _logger.debug("InferRequest::get_profiling_info complete with _profilingQuery.getLayerStatistics().");
             return _profilingQuery.getLayerStatistics();
         }
     }

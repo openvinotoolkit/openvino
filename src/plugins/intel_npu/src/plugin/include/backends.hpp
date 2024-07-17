@@ -17,6 +17,7 @@
 #include "npu_private_properties.hpp"
 
 namespace intel_npu {
+
 enum class AvailableBackends { LEVEL_ZERO, IMD };
 
 /** @brief Represent container for all backends and hide all related searching logic */
@@ -35,6 +36,7 @@ public:
     void registerOptions(OptionsDesc& options) const;
     void* getContext() const;
     std::string getCompilationPlatform(const std::string_view platform, const std::string& deviceId) const;
+
     void setup(const Config& config);
 
 private:

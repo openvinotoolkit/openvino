@@ -243,7 +243,7 @@ LevelZeroCompilerInDriver<TableExtension>::~LevelZeroCompilerInDriver() {
             _logger.error("zeContextDestroy failed %#X", uint64_t(result));
         }
     }
-    _logger.trace("LevelZeroCompilerInDriver obj destroyed");
+    _logger.debug("LevelZeroCompilerInDriver obj destroyed");
 }
 
 /**
@@ -696,7 +696,7 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::getQu
 template <typename TableExtension>
 ov::SupportedOpsMap LevelZeroCompilerInDriver<TableExtension>::query(const std::shared_ptr<const ov::Model>& model,
                                                                      const Config& config) const {
-    _logger.trace("query start");
+    _logger.debug("query start");
 
     ov::SupportedOpsMap result;
     const std::string deviceName = "NPU";
@@ -711,7 +711,7 @@ ov::SupportedOpsMap LevelZeroCompilerInDriver<TableExtension>::query(const std::
         OPENVINO_THROW("Fail in calling querynetwork : ", e.what());
     }
 
-    _logger.trace("query end");
+    _logger.debug("query end");
     return result;
 }
 
@@ -757,7 +757,7 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_grap
 template <typename TableExtension>
 NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std::shared_ptr<const ov::Model>& model,
                                                                       const Config& config) const {
-    _logger.trace("compile start");
+    _logger.debug("compile start");
 
     ze_device_graph_properties_t deviceGraphProperties{};
     auto result = _graphDdiTableExt->pfnDeviceGetGraphProperties(_deviceHandle, &deviceGraphProperties);
@@ -850,7 +850,7 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std:
                        uint64_t(result));
     }
 
-    _logger.trace("compile end");
+    _logger.debug("compile end");
     return NetworkDescription(std::move(blob), std::move(networkMeta));
 }
 
@@ -861,7 +861,7 @@ NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::parse(const std::vect
     ze_graph_handle_t graphHandle;
 
     if (!network.empty()) {
-        _logger.trace("Import network case");
+        _logger.debug("Import network case");
         ze_graph_format_t format = ZE_GRAPH_FORMAT_NATIVE;
         ze_graph_desc_t desc{ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
                              nullptr,
@@ -900,13 +900,13 @@ NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::parse(const std::vect
                        uint64_t(result));
     }
 
-    _logger.trace("parse end");
+    _logger.debug("parse end");
     return networkMeta;
 }
 
 template <typename TableExtension>
 uint32_t LevelZeroCompilerInDriver<TableExtension>::getSupportedOpsetVersion() const {
-    _logger.trace("getSupportedOpsetVersion start");
+    _logger.debug("getSupportedOpsetVersion start");
 
     ze_device_graph_properties_t graphProperties;
 
@@ -922,7 +922,7 @@ uint32_t LevelZeroCompilerInDriver<TableExtension>::getSupportedOpsetVersion() c
     }
     const auto maxOpsetVersion = graphProperties.maxOVOpsetVersionSupported;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
-    _logger.trace("getSupportedOpset end");
+    _logger.debug("getSupportedOpset end");
     return maxOpsetVersion;
 }
 
@@ -1138,7 +1138,7 @@ NetworkMetadata LevelZeroCompilerInDriver<TableExtension>::getNetworkMeta(ze_gra
 template <typename TableExtension>
 template <typename T, typename std::enable_if_t<!NotSupportLogHandle(T), bool>>
 std::string LevelZeroCompilerInDriver<TableExtension>::getLatestBuildError() const {
-    _logger.trace("getLatestBuildError start");
+    _logger.debug("getLatestBuildError start");
 
     // Get log size
     uint32_t size = 0;
@@ -1167,7 +1167,7 @@ std::string LevelZeroCompilerInDriver<TableExtension>::getLatestBuildError() con
                         "content of latest error log!");
         return "";
     }
-    _logger.trace("getLatestBuildError end");
+    _logger.debug("getLatestBuildError end");
     return logContent;
 }
 
