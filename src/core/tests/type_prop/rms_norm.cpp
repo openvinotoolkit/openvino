@@ -204,13 +204,13 @@ TEST_F(TypePropRMSNormTest, incorrect_axes_val) {
         const auto axes = std::make_shared<Constant>(element::i32, Shape{}, 3);
         OV_EXPECT_THROW(std::ignore = make_op(data, axes, eps),
                         ov::NodeValidationFailure,
-                        HasSubstr("Parameter axis 3 out of the tensor rank range [-3, 2]"));
+                        HasSubstr("Axis 3 out of the tensor rank range [-3, 2]"));
     }
     {
         const auto axes = std::make_shared<Constant>(element::i32, Shape{}, -4);
         OV_EXPECT_THROW(std::ignore = make_op(data, axes, eps),
                         ov::NodeValidationFailure,
-                        HasSubstr("Parameter axis -4 out of the tensor rank range [-3, 2]"));
+                        HasSubstr("Axis -4 out of the tensor rank range [-3, 2]"));
     }
 }
 

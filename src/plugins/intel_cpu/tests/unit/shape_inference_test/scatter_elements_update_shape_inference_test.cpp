@@ -81,5 +81,5 @@ TEST_F(ScatterElementsUpdateV3StaticShapeInferenceTest, incorrect_axis_value) {
     input_shapes = ShapeVector{{5000, 256, 10, 15}, {30, 25, 3, 3}, {30, 25, 3, 3}, {}};
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, const_data),
                     AssertFailure,
-                    HasSubstr("Parameter axis 4 out of the tensor rank range [-4, 3]"));
+                    HasSubstr("Axis 4 out of the tensor rank range [-4, 3]"));
 }

@@ -137,7 +137,7 @@ TYPED_TEST_P(ScatterElementsUpdateTest, scatter_elements_update_axis_validation)
 
     OV_EXPECT_THROW(auto scatter = make_shared<TypeParam>(data, indices, updates, axis),
                     ov::AssertFailure,
-                    HasSubstr("Parameter axis 8 out of the tensor rank range [-4, 3]"));
+                    HasSubstr("Axis 8 out of the tensor rank range [-4, 3]"));
 }
 
 TYPED_TEST_P(ScatterElementsUpdateTest, scatter_elements_updates_indices_shape) {

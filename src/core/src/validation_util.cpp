@@ -23,7 +23,7 @@
 namespace {
 
 std::string normalize_axis_error_msg(const int64_t axis, const int64_t rank) {
-    return std::string(" Parameter axis ")
+    return std::string("Axis ")
         .append(std::to_string(axis))
         .append(" out of the tensor rank range [")
         .append(std::to_string(-rank))
@@ -324,7 +324,7 @@ bool is_axis_valid(int64_t axis, int64_t rank) {
 
 void validate_axis(const int64_t axis, const Rank& rank, const Node& node) {
     const auto r = rank.get_length();
-    NODE_VALIDATION_CHECK(&node, is_axis_valid(axis, r), node.description(), normalize_axis_error_msg(axis, r));
+    NODE_VALIDATION_CHECK(&node, is_axis_valid(axis, r), normalize_axis_error_msg(axis, r));
 }
 
 size_t normalize_axis(const int64_t axis, const int64_t rank) {
@@ -368,6 +368,5 @@ AxisVector try_get_normalized_axis_vector(const Tensor& tensor, const Rank& rank
 AxisSet try_get_normalized_axis_set(const Tensor& tensor, const Rank& rank, const Node& node) {
     return {try_get_normalized_axis_vector(tensor, rank, node)};
 }
-
 }  // namespace util
 }  // namespace ov

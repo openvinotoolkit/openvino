@@ -103,10 +103,10 @@ TEST_F(NormalizeAxisTest, try_normalize_dynamic_rank) {
 TEST_F(NormalizeAxisTest, try_normalize_invalid_axis) {
     OV_EXPECT_THROW(util::try_normalize_axis(-7, Rank(6)),
                     Exception,
-                    HasSubstr("Parameter axis -7 out of the tensor rank range [-6, 5]"));
+                    HasSubstr("Axis -7 out of the tensor rank range [-6, 5]"));
     OV_EXPECT_THROW(util::try_normalize_axis(6, Rank(6)),
                     Exception,
-                    HasSubstr("Parameter axis 6 out of the tensor rank range [-6, 5]"));
+                    HasSubstr("Axis 6 out of the tensor rank range [-6, 5]"));
 }
 
 TEST_F(NormalizeAxisTest, try_normalize_invalid_axis_with_node_description) {
@@ -116,10 +116,10 @@ TEST_F(NormalizeAxisTest, try_normalize_invalid_axis_with_node_description) {
 
     OV_EXPECT_THROW(util::try_normalize_axis(-7, n_rank, node),
                     Exception,
-                    HasSubstr("Parameter Parameter axis -7 out of the tensor rank range [-2, 1]"));
+                    HasSubstr("My node':\nAxis -7 out of the tensor rank range [-2, 1]"));
     OV_EXPECT_THROW(util::try_normalize_axis(2, n_rank, node),
                     Exception,
-                    HasSubstr("Parameter Parameter axis 2 out of the tensor rank range [-2, 1]"));
+                    HasSubstr("My node':\nAxis 2 out of the tensor rank range [-2, 1]"));
 }
 
 TEST_F(NormalizeAxisTest, validate_node_axis) {
@@ -129,10 +129,10 @@ TEST_F(NormalizeAxisTest, validate_node_axis) {
 
     OV_EXPECT_THROW(util::validate_axis(-5, shape.rank(), *node.get()),
                     NodeValidationFailure,
-                    HasSubstr("Parameter axis -5 out of the tensor rank range [-4, 3]"));
-    OV_EXPECT_THROW(util::validate_axis(4, shape.rank(), *node.get()),
+                    HasSubstr("Axis -5 out of the tensor rank range [-4, 3]"));
+    OV_EXPECT_THROW(util::validate_axis(4, shape.rank(), *node),
                     NodeValidationFailure,
-                    HasSubstr(" Parameter axis 4 out of the tensor rank range [-4, 3]"));
+                    HasSubstr("Axis 4 out of the tensor rank range [-4, 3]"));
 }
 
 TEST_F(NormalizeAxisTest, validate_axes_correct) {
@@ -148,7 +148,7 @@ TEST_F(NormalizeAxisTest, validate_axes_in_correct) {
 
     OV_EXPECT_THROW(util::validate_axes(axes, Rank(3), node),
                     Exception,
-                    HasSubstr("Parameter axis 4 out of the tensor rank range [-3, 2]"));
+                    HasSubstr("Axis 4 out of the tensor rank range [-3, 2]"));
 }
 
 TEST_F(NormalizeAxisTest, normalize_axes) {
@@ -183,7 +183,7 @@ TEST_F(NormalizeAxisTest, try_get_normalize_axis_vector_fail) {
 
     OV_EXPECT_THROW(util::try_get_normalized_axis_vector(const_axes->get_tensor_view(), Rank(2), *const_axes),
                     Exception,
-                    HasSubstr("Parameter axis -3 out of the tensor rank range [-2, 1]"));
+                    HasSubstr("Axis -3 out of the tensor rank range [-2, 1]"));
 }
 
 TEST_F(NormalizeAxisTest, try_get_normalize_axis_set) {
@@ -199,7 +199,7 @@ TEST_F(NormalizeAxisTest, try_get_normalize_axis_set_fail) {
 
     OV_EXPECT_THROW(util::try_get_normalized_axis_set(const_axes->get_tensor_view(), Rank(2), *const_axes),
                     Exception,
-                    HasSubstr("Parameter axis -3 out of the tensor rank range [-2, 1]"));
+                    HasSubstr("Axis -3 out of the tensor rank range [-2, 1]"));
 }
 
 using NormalizeAxisParam = std::tuple<int64_t,  // axis
