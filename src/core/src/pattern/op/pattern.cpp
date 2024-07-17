@@ -41,6 +41,38 @@ ValuePredicate as_value_predicate(NodePredicate pred) {
         return node_value_true_predicate;
     }
 }
+
+std::ostream& Pattern::write_type_description(std::ostream& out) const {
+    auto version = get_type_info().version_id;
+    if (version)
+        out << version << "::" << get_type_info().name;
+    else
+        out << get_type_info().name;
+
+    return out;
+}
+
+std::ostream& Pattern::write_description(std::ostream& out, uint32_t depth) const {
+    write_type_description(out);
+
+    if (depth > 0) {
+        out << " (";
+        std::string sep = "";
+        for (const auto& arg : input_values()) {
+            out << sep << arg;
+            sep = ", ";
+        }
+        out << ") -> (";
+        sep = "";
+        for (size_t i = 0; i < get_output_size(); i++) {
+            out << sep << get_output_element_type(i) << get_output_partial_shape(i);
+            sep = ", ";
+        }
+        out << ")";
+    }
+    return out;
+}
+
 }  // namespace op
 
 PatternMap as_pattern_map(const PatternValueMap& pattern_value_map) {

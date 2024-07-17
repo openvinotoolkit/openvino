@@ -36,3 +36,18 @@ ov::NodeTypeInfo ov::pass::pattern::op::WrapType::get_wrapped_type() const {
 const std::vector<ov::NodeTypeInfo>& ov::pass::pattern::op::WrapType::get_wrapped_types() const {
     return m_wrapped_types;
 }
+
+std::ostream& ov::pass::pattern::op::WrapType::write_type_description(std::ostream& out) const {
+    bool first = true;
+    out << (m_wrapped_types.size() > 1 ? "<" : "");
+    for (const auto& type : m_wrapped_types) {
+        auto version = type.version_id;
+        if (version)
+            out << (first ? "" : ", ") << version << "::" << type.name;
+        else
+            out << (first ? "" : ", ") << type.name;
+        first = false;
+    }
+    out << (m_wrapped_types.size() > 1 ? ">" : "");
+    return out;
+}
