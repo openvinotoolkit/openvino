@@ -115,10 +115,9 @@ CommandList::~CommandList() {
     }
 }
 void CommandList::updateMutableCommandList(const void* pNext) const {
-    ze_mutable_commands_exp_desc_t mutable_commands_exp_desc_t = {
-        static_cast<ze_structure_type_t>(ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT),
-        pNext,
-        0};
+    ze_mutable_commands_exp_desc_t mutable_commands_exp_desc_t = {ZE_STRUCTURE_TYPE_MUTABLE_COMMANDS_EXP_DESC,
+                                                                  pNext,
+                                                                  0};
 
     zeroUtils::throwOnFail("zeCommandListUpdateMutableCommandsExp",
                            zeCommandListUpdateMutableCommandsExp(_handle, &mutable_commands_exp_desc_t));
