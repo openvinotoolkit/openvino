@@ -23,7 +23,9 @@ ov::pass::ChainedMaximumOptimization::ChainedMaximumOptimization() {
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& vm = m.get_pattern_value_map();
 
-        const auto& A = vm.at(A_input), B = vm.at(B_input), C = vm.at(C_input);
+        const auto& A = vm.at(A_input);
+        const auto& B = vm.at(B_input);
+        const auto& C = vm.at(C_input);
         const auto& output_to_replace = vm.at(first_maximum);
 
         ov::TensorSymbol A_symbols, B_symbols, C_symbols;
