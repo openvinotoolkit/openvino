@@ -332,6 +332,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                 // It is necessary to avoid precision conversion for constant node(compressed weights)
                 ov::enable_keep_const_precision(node->get_input_node_shared_ptr(0));
 
+                // Prioritize LPT pipeline to handle dequantization part for quantized models as it more optimal in
+                // general case
                 if (ov::intel_cpu::one_of(node->get_input_node_shared_ptr(0)->get_element_type(),
                                           ov::element::u8,
                                           ov::element::i8) &&
