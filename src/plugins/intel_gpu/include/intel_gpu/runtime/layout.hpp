@@ -288,6 +288,10 @@ struct layout {
         return *this;
     }
 
+    layout clone_with_other_shape(ov::PartialShape& new_shape) {
+        return layout(new_shape, this->data_type, this->format, this->data_padding);
+    }
+
     friend bool operator==(const layout& lhs, const layout& rhs) {
         return lhs.data_type == rhs.data_type && lhs.format == rhs.format && lhs.size == rhs.size && lhs.data_padding == rhs.data_padding;
     }
@@ -307,7 +311,7 @@ struct layout {
     }
 
     /// Number of elements to be stored in this memory layout
-    size_t count() const;
+    size_t count(bool include_padding = false) const;
 
     /// Layout size with padding included
     tensor get_buffer_size() const;
