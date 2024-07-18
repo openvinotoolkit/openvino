@@ -21,7 +21,7 @@ model to OpenVINO Intermediate Representation (OpenVINO IR, `.xml` format).
 
 Most available preprocessing steps can also be performed via command-line options,
 using ``ovc``. For details on such command-line options, refer to the
-:doc:`Model Conversion <convert_model_cli_ovc>`.
+:ref:`Model Conversion <convert_model_cli_ovc>`.
 
 Code example - Saving Model with Preprocessing to OpenVINO IR
 #############################################################
