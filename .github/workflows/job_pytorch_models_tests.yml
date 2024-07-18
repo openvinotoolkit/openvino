@@ -135,7 +135,7 @@ jobs:
         if: always()
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v -k "not (TestTimmConvertModel or TestTorchHubConvertModel or test_pa_precommit)"
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v -k "not (TestTimmConvertModel or TestTorchHubConvertModel)"
         env:
           TYPE: ${{ inputs.event == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
@@ -146,18 +146,17 @@ jobs:
         if: always()
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/test_pa_transformation.py -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_pagedattention_tests.html --self-contained-html -v --tb=short -n 4
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_pa_transformation.py -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_pagedattention_tests.html --self-contained-html -v --tb=short -n 4
         env:
           TYPE: ${{ inputs.event == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
           USE_SYSTEM_CACHE: False
-          OP_REPORT_FILE: ${{ env.INSTALL_TEST_DIR }}/TEST-torch_unsupported_ops.log
 
       - name: StatefulToStateless Test
         if: always()
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/test_stateful_to_stateless_transformation.py -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_stateful_to_stateless_tests.html --self-contained-html -v --tb=short
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_stateful_to_stateless_transformation.py -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_stateful_to_stateless_tests.html --self-contained-html -v --tb=short
         env:
           TYPE: ${{ inputs.event == 'schedule' && 'nightly' || 'precommit'}}
           TEST_DEVICE: CPU
