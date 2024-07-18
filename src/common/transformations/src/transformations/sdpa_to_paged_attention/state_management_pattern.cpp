@@ -68,7 +68,9 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                                          const std::shared_ptr<ov::op::v0::Constant>& sliding_window,
                                                          ParameterVector& parameters_to_remove,
                                                          int& layer_index,
-                                                         Output<Node> max_context_len) {
+                                                         Output<Node> max_context_len,
+                                                         OutputVector& scores_outputs,
+                                                         bool use_cache_eviction) {
     MATCHER_SCOPE(StateManagementPattern);
 
     auto k_current = pattern::any_input();
@@ -163,6 +165,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                           &model_remaining_params,
                                           &sliding_window,
                                           &parameters_to_remove,
+                                          &scores_outputs,
                                           &layer_index](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto real_q = pattern_map.at(q);
@@ -344,8 +347,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                 std::make_shared<v0::Unsqueeze>(hidden_dim, v0::Constant::create(element::i64, Shape{}, {0})),
             },
             0);
-        auto pa_reshape = std::make_shared<v1::Reshape>(paged_attention, pa_shape, true);
+        auto pa_reshape = std::make_shared<v1::Reshape>(paged_attention->output(0), pa_shape, true);
         auto pa_transpose = std::make_shared<v1::Transpose>(pa_reshape, kv_transpose_order);
+        paged_attention->output(1).get_tensor().set_names({"paged_attn." + std::to_string(layer_index - 1) + "/score"});
+        scores_outputs.push_back(paged_attention->output(1));
 
         // TODO: Complete this part to work with stateless models as well as will stateful
         //  def add_kv_parameter(past_node):

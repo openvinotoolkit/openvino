@@ -24,6 +24,9 @@
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"
 
+#include "openvino/pass/visualize_tree.hpp"
+#include "openvino/pass/serialize.hpp"
+
 namespace py = pybind11;
 
 void regmodule_offline_transformations(py::module m) {
@@ -132,12 +135,25 @@ void regmodule_offline_transformations(py::module m) {
 
     m_offline_transformations.def(
         "paged_attention_transformation",
-        [](std::shared_ptr<ov::Model> model) {
+        [](std::shared_ptr<ov::Model> model, bool use_cache_eviction) {
             ov::pass::Manager manager;
-            manager.register_pass<ov::pass::SDPAToPagedAttention>();
+            manager.register_pass<ov::pass::SDPAToPagedAttention>(use_cache_eviction);
             manager.run_passes(model);
         },
-        py::arg("model"));
+        py::arg("model"),
+        py::arg("use_cache_eviction"));
+
+
+    m_offline_transformations.def(
+        "dump_model",
+        [](std::shared_ptr<ov::Model> model, const std::string& file_name) {
+            ov::pass::Manager manager;
+            manager.register_pass<ov::pass::VisualizeTree>(file_name + ".svg");
+            manager.register_pass<ov::pass::Serialize>(file_name + ".xml", file_name + ".bin");
+            manager.run_passes(model);
+        },
+        py::arg("model"),
+        py::arg("file_name"));
 
     m_offline_transformations.def(
         "stateful_to_stateless_transformation",

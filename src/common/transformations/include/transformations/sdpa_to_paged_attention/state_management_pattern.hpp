@@ -23,5 +23,7 @@ public:
                            const std::shared_ptr<ov::op::v0::Constant>& sliding_window,
                            ParameterVector& parameters_to_remove,
                            int& layer_index,
-                           ov::Output<Node> max_context_len);
+                           ov::Output<Node> max_context_len,
+                           OutputVector& scores_outputs,
+                           bool use_cache_eviction);
 };
