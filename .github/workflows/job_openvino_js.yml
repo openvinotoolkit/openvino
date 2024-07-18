@@ -63,10 +63,10 @@ jobs:
         working-directory: ${{ env.OPENVINO_JS_DIR }}/node
         run: npm run test
 
-      - name: Install and run Xvfb
+      - name: Install electron deps and run Xvfb
         if: runner.os == 'Linux'
         run: |
-          apt-get update && apt-get install -y xvfb
+          apt-get update && apt-get install -y xvfb libgtk-3-0
           Xvfb "$DISPLAY" &
 
       - name: E2E of openvino-node package
