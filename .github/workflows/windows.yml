@@ -374,6 +374,9 @@ jobs:
         working-directory: ${{ env.OPENVINO_JS_DIR }}/node
         run: call npm test
 
+      - name: Add msbuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
       - name: E2E of openvino-node package
         working-directory: ${{ env.OPENVINO_JS_DIR }}/node
         run: npm run test:e2e
