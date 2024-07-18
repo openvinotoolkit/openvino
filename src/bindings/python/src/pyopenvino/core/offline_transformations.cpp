@@ -24,9 +24,6 @@
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"
 
-#include "openvino/pass/visualize_tree.hpp"
-#include "openvino/pass/serialize.hpp"
-
 namespace py = pybind11;
 
 void regmodule_offline_transformations(py::module m) {

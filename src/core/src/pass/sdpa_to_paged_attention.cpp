@@ -146,7 +146,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     if (m_use_cache_eviction) {
         block_indices->set_partial_shape(
-            PartialShape{layer_index}); // The shape of block_indices should correspond to the number of PA nodes
+            PartialShape{layer_index});  // The shape of block_indices should correspond to the number of PA nodes
 
         auto scores_concat = std::make_shared<v0::Concat>(OutputVector{scores_outputs}, 0);
         auto scores_result = std::make_shared<v0::Result>(scores_concat);
