@@ -133,8 +133,7 @@ Performance Information F.A.Q.
 
 .. dropdown:: Why are INT8 optimized models used for benchmarking on CPUs with no VNNI support?
 
-   The benefit of low-precision optimization using the OpenVINO™
-   toolkit model optimizer extends beyond processors supporting VNNI
+   The benefit of low-precision optimization extends beyond processors supporting VNNI
    through Intel® DL Boost. The reduced bit width of INT8 compared to FP32
    allows Intel® CPU to process the data faster. Therefore, it offers
    better throughput on any converted model, regardless of the
@@ -174,6 +173,6 @@ Performance Information F.A.Q.
 
 .. container:: benchmark-banner
 
-   Results may vary. For more information, see
-   :doc:`Platforms, Configurations, Methodology <../performance-benchmarks>`.
-   See :doc:`Legal Information <../additional-resources/legal-information>`.
+   Results may vary. For more information, see:
+   :doc:`Platforms, Configurations, Methodology <../performance-benchmarks>`,
+   :doc:`Legal Information <../additional-resources/terms-of-use>`.

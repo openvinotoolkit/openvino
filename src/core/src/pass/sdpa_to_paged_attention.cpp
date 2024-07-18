@@ -9,6 +9,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/sdpa_to_paged_attention/position_ids_replacer.hpp"
@@ -100,46 +101,62 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   max_context_len->output(0));
     manager.register_pass<PrevSequenceLengthPattern>(prev_max_seq_len, batch_dim);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
-
     manager.register_pass<PositionIDsReplacer>(unsqueezed_position_ids->output(0));
-
     manager.run_passes(model);
 
-    if (has_parameter(model, "beam_idx")) {
-        if (const auto& parameter =
-                std::dynamic_pointer_cast<v0::Parameter>(model->input("beam_idx").get_node_shared_ptr())) {
-            model->remove_parameter(parameter);
-        } else {
-            return false;
+    {
+        // Remove all Assigns aggressively, the path from the kv-cache concat to Assign can be complicated,
+        // but there is no reason to track it and reject part of the Assigns, because the model will remain
+        // in incorrect form anyway.
+        auto sinks = model->get_sinks();
+
+        for (auto& sink : sinks) {
+            model->remove_sink(sink);
         }
     }
 
-    if (const auto& parameter =
-            std::dynamic_pointer_cast<v0::Parameter>(model->input("attention_mask").get_node_shared_ptr())) {
-        model->remove_parameter(parameter);
-    } else {
-        return false;
+    {
+        for (auto& result : results_to_remove) {
+            model->remove_result(result);
+        }
+    }
+
+    for (auto& param_name : {"beam_idx", "attention_mask"}) {
+        if (has_parameter(model, param_name)) {
+            if (const auto& param =
+                    std::dynamic_pointer_cast<v0::Parameter>(model->input(param_name).get_node_shared_ptr())) {
+                model->remove_parameter(param);
+
+                if (param->output(0).get_target_inputs().size() == 0) {
+                    std::stringstream consumers;
+                    consumers << std::endl;
+                    for (auto& input : param->output(0).get_target_inputs()) {
+                        consumers << *input.get_node() << std::endl;
+                    }
+                    OPENVINO_ASSERT(param->output(0).get_target_inputs().size() == 0,
+                                    "PagedAttention transformation failed: couldn't remove ",
+                                    param->output(0).get_target_inputs().size(),
+                                    " inputs of ",
+                                    param_name,
+                                    " input: ",
+                                    consumers.str());
+                }
+            } else {
+                OPENVINO_THROW("The model is in the inconsistent state. Found input '",
+                               param_name,
+                               "', but couldn't cast it to v0::Parameter.");
+                return false;
+            }
+        }
     }
 
     for (auto& parameter : parameters_to_remove) {
         model->remove_parameter(parameter);
     }
-    // Remove all Assigns aggressively, the path from the kv-cache concat to Assign can be complicated,
-    // but there is no reason to track it and reject part of the Assigns, because the model will remain
-    // in incorrect form anyway.
-    auto sinks = model->get_sinks();
-
-    for (auto& sink : sinks) {
-        model->remove_sink(sink);
-    }
-
-    for (auto& result : results_to_remove) {
-        model->remove_result(result);
-    }
 
     model->add_parameters(kv_parameters);
     model->add_parameters(model_remaining_params);
-    model->add_parameters({max_context_len});
+    model->add_parameters({std::move(max_context_len)});
     model->validate_nodes_and_infer_types();
     return true;
 }

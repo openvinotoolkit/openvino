@@ -56,25 +56,39 @@ bool ShapePredictor::can_preallocate(size_t desired_buffer_size) {
     return device_mem_usage + desired_buffer_size < _engine->get_device_info().max_global_mem_size * memory_threshold;
 }
 
-std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std::string& id,
+std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std::string& orig_id,
                                                                        const cldnn::layout& layout,
                                                                        bool can_reuse_buffer,
-                                                                       int32_t custom_next_iters_prealloc_count) {
+                                                                       const size_t out_idx,
+                                                                       int32_t custom_next_iters_prealloc_count,
+                                                                       int32_t custom_prealloc_dim) {
     size_t next_iters_prealloc_count = custom_next_iters_prealloc_count > 0
                                            ? static_cast<size_t>(custom_next_iters_prealloc_count)
                                            : _next_iters_preallocation_count;
-    auto current_shape = layout.get_shape();
+    const auto& current_shape = layout.get_shape();
     auto dt_bitwidth = ov::element::Type(layout.data_type).bitwidth();
 
-    add_shape(id, current_shape);
+    auto id_record = orig_id;
+    if (out_idx > 0) {
+        id_record += ("_out" + to_string(out_idx));
+    }
+
+    add_shape(id_record, current_shape);
 
     // Save shape information and exit without pre-allocation suggestion if current
     // buffer can be reused
     if (can_reuse_buffer)
         return {false, {}};
 
+    // If both prealloc dim and prealloc count are specified, dont predict and just use the given info
+    if (custom_prealloc_dim >= 0 && custom_next_iters_prealloc_count > 0) {
+        auto new_shape = current_shape;
+        new_shape[custom_prealloc_dim] += custom_next_iters_prealloc_count;
+        return {true, new_shape};
+    }
+
     // Check if there is enough data for prediction
-    auto& shapes = _shapes_info[id];
+    const auto& shapes = _shapes_info[id_record];
     const auto shapes_num = shapes.size();
 
     // Number of shapes used for iterations mode predictions

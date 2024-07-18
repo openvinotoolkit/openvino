@@ -252,7 +252,7 @@ void Snapshot::fuseInputs() {
                 }
                 if (!group_prod->hasCycle(group_prod_other) && !group_prod_other->hasCycle(group_prod)) {
                     // no cycles -> fusion allowed
-                    inputs_to_fuse.second = group_prod_other;
+                    inputs_to_fuse.second = std::move(group_prod_other);
                     break;
                 }
             }
@@ -335,7 +335,7 @@ void Snapshot::identifyUniques() {
         // thus check and use only the single initial layer
         auto ov_node = group->getInitialNode();
         auto metadesc = ov::npuw::online::util::getMetaDesc(ov_node);
-        auto avoids = group->avoidedTargets();
+        const auto& avoids = group->avoidedTargets();
         uniques[{metadesc, avoids}].insert(group);
     }
 
@@ -393,7 +393,7 @@ void Snapshot::mergeUniques() {
 
 std::shared_ptr<Repeated> Snapshot::tryGrowRepeatingGroups(const detail::GPtrSet& repeating_groups) {
     auto this_rep_tag = (*(repeating_groups.begin()))->repeated();  // should be the same for each group inside
-    auto this_avoided = (*(repeating_groups.begin()))->avoidedTargets();
+    const auto& this_avoided = (*(repeating_groups.begin()))->avoidedTargets();
 
     std::unordered_map<std::vector<MetaInterconnect>, std::vector<std::pair<Group::GPtr, Group::GPtr>>> mics;
 
@@ -401,10 +401,17 @@ std::shared_ptr<Repeated> Snapshot::tryGrowRepeatingGroups(const detail::GPtrSet
 
     // FIXME: this was introduced to make the partitioning
     // the same every run when created the same way.
+    // This std::sort allows to prioritize the groups from the tail
+    // of the original model. It's possible due to preservation of
+    // group IDs in topological order throughout the whole partitioning process.
+    // In the networks we're looking at, ensuring the merge order from the bottom
+    // of the network gives a better generalization for the identified repeated blocks,
+    // e.g. we can guarantee we can find one more, which otherwise would fuse into
+    // head or tail (depending on the topology).
     std::sort(repeating_groups_sorted.begin(),
               repeating_groups_sorted.end(),
               [&](const Group::GPtr& gptr_a, const Group::GPtr& gptr_b) {
-                  return gptr_a->getId() < gptr_b->getId();
+                  return gptr_a->getId() > gptr_b->getId();
               });
 
     for (const auto& group : repeating_groups_sorted) {
@@ -438,8 +445,16 @@ std::shared_ptr<Repeated> Snapshot::tryGrowRepeatingGroups(const detail::GPtrSet
             if (a.empty()) {
                 return false;  // doesn't matter for stability - no groups are fused
             }
-            return a.at(0).first->getId() < b.at(0).first->getId();
+            // This std::sort allows to prioritize groups from the tail
+            // of the original model. It's possible due to preservation of
+            // group IDs in topological order throughout the whole partitioning process.
+            // In the networks we're looking at, ensuring the merge order from the bottom
+            // of the network gives a better structure of a repeated block which can be
+            // later optimized by the plugin.
+            return a.at(0).first->getId() > b.at(0).first->getId();
         }
+        // Generally we prefer bigger blocks (in terms of number of layers)
+        // to be merged first. For other cases check the comment above
         return a.size() > b.size();
     });
 
@@ -579,9 +594,9 @@ void Snapshot::completeRepeating(const std::shared_ptr<Repeated>& reptag, const 
 
     for (const auto& gptr : gset) {
         for (const auto& layer : gptr->getContent()) {  // FIXME: should it be a part of group's API instead?
-            auto metadesc = ov::npuw::online::util::getMetaDesc(layer);
-            auto archetype = gptr->getReptrack(layer);
-            matches[{metadesc, archetype}].insert(layer);
+            const auto& metadesc = ov::npuw::online::util::getMetaDesc(layer);
+            const auto& archetype = gptr->getReptrack(layer);
+            matches[{std::move(metadesc), std::move(archetype)}].insert(layer);
         }
     }
 
@@ -590,7 +605,7 @@ void Snapshot::completeRepeating(const std::shared_ptr<Repeated>& reptag, const 
     //    equal to the number of groups.
     // 2. Total count of archetypes must be equal to size of every individual group
     for (const auto& elem : matches) {
-        auto node_set = elem.second;
+        const auto& node_set = elem.second;
         if (node_set.size() != gset.size()) {
             OPENVINO_THROW("Online partitioning couldn't match properly "
                            "during repeated blocks pass (node archetype). "

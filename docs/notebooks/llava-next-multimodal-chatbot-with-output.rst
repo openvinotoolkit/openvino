@@ -23,8 +23,8 @@ stateful transformation on LLM part and model optimization techniques
 like weights compression and quantization using
 `NNCF <https://github.com/openvinotoolkit/nncf>`__
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Download PyTorch model <#download-pytorch-model>`__
@@ -136,9 +136,8 @@ Download PyTorch model
     Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
 
 
-
-Convert model to OpenVINO Intermediate Representation
------------------------------------------------------
+OpenVINO## Convert model to OpenVINO Intermediate Representation `back
+to top ⬆️ <#Table-of-contents:>`__
 
 OpenVINO supports PyTorch models via conversion to OpenVINO Intermediate
 Representation (IR). `OpenVINO model conversion
@@ -852,6 +851,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
             self.image_newline = torch.zeros(self.config.text_config.hidden_size, dtype=torch.float32)
             self.pad_token_id = self.config.pad_token_id if self.config.pad_token_id is not None else -1
             self.past_len = 0
+            self._supports_cache_class = False
 
         def can_generate(self):
             """Returns True to validate the check that the model using `GenerationMixin.generate()` can indeed generate."""
@@ -1330,7 +1330,7 @@ Interactive demo
     def bot_streaming(message, history):
         print(message)
         if message["files"]:
-            image = message["files"][-1]["path"]
+            image = message["files"][-1]["path"] if isinstance(message["files"][-1], dict) else message["files"][-1]
         else:
             # if there's no image uploaded for this turn, look for images in the past turns
             # kept inside tuples, take the last one

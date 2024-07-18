@@ -38,8 +38,8 @@ and has the following differences:
 The steps for the quantization with accuracy control are described
 below.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Get Pytorch model and OpenVINO IR
@@ -295,14 +295,13 @@ Run quantization with accuracy control
 
 
 You should provide the calibration dataset and the validation dataset.
-It can be the same dataset.
+It can be the same dataset. - parameter ``max_drop`` defines the
+accuracy drop threshold. The quantization process stops when the
+degradation of accuracy metric on the validation dataset is less than
+the ``max_drop``. The default value is 0.01. NNCF will stop the
+quantization and report an error if the ``max_drop`` value can’t be
+reached.
 
-- parameter ``max_drop`` defines the
-  accuracy drop threshold. The quantization process stops when the
-  degradation of accuracy metric on the validation dataset is less than
-  the ``max_drop``. The default value is 0.01. NNCF will stop the
-  quantization and report an error if the ``max_drop`` value can’t be
-  reached.
 - ``drop_type`` defines how the accuracy drop will be
   calculated: ABSOLUTE (used by default) or RELATIVE.
 - ``ranking_subset_size`` - size of a subset that is used to rank layers
@@ -334,17 +333,17 @@ It can be the same dataset.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -361,17 +360,17 @@ It can be the same dataset.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -403,17 +402,17 @@ It can be the same dataset.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -437,17 +436,17 @@ It can be the same dataset.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -471,17 +470,17 @@ It can be the same dataset.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 

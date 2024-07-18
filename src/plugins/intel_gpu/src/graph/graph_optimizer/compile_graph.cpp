@@ -17,6 +17,7 @@
 #include "gemm_inst.h"
 #include "condition_inst.h"
 #include "loop_inst.h"
+#include "group_normalization_inst.h"
 #include "program_node.h"
 
 #include <iostream>
@@ -45,7 +46,6 @@ void compile_graph::run(program& p) {
     GPU_DEBUG_IF(debug_config->disable_onednn_permute_fusion == 1)
         disable_permute_fuse_onednn_gemm = true;
 
-
     for (size_t idx = 0; idx < proc_order.size(); idx++) {
         auto& node = *(std::next(proc_order.begin(), idx));
         const bool use_shape_agnostic_impl = !p.get_config().get_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape);
@@ -68,6 +68,14 @@ void compile_graph::run(program& p) {
                     if (user->is_type<permute>() && user->can_be_optimized() && !user->is_runtime_skippable() &&
                         node->get_preferred_output_fmt() != format::any)
                         change_initial_impl = false;
+                }
+            }
+            if (node->is_type<convolution>()) {
+                auto w_layout = node->as<convolution>().weights().get_output_layout();
+                // Convolution_fsv16_1x1 is only available shape agnostic kernel for onednn convolution which uses the block format.(fsv16)
+                // Onednn convolution doesn't support input padding but most of cldnn optimized convolution require input padding except fsv16_1x1.
+                if (w_layout.spatial(0) != 1 || w_layout.spatial(1) != 1) {
+                    change_initial_impl = false;
                 }
             }
         }
@@ -104,8 +112,12 @@ void compile_graph::run(program& p) {
 
         bool is_planar = format::is_default_format(node->get_output_layout().format);
 
-        if (node->is_dynamic() && !is_planar)
-            can_select_impl = false;
+        if (node->is_dynamic() && !is_planar) {
+            if (!(node->is_type<convolution>() && node->get_output_layout().format == cldnn::format::b_fs_yx_fsv16) &&
+                !(node->is_type<group_normalization>() && node->get_output_layout().format == cldnn::format::b_fs_yx_fsv16)) {
+                can_select_impl = false;
+            }
+        }
 
         if (node->is_type<condition>() || node->is_type<loop>() || node->is_type<proposal>())
             can_select_impl = true;
