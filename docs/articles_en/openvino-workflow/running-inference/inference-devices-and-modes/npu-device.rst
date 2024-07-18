@@ -132,6 +132,7 @@ offer a limited set of supported OpenVINO features.
          ov::enable_profiling
          ov::workload_type
          ov::intel_npu::compilation_mode_params
+         ov::intel_npu::turbo
 
    .. tab-item:: Read-only properties
 

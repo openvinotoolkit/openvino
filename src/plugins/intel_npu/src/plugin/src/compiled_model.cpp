@@ -209,7 +209,7 @@ void CompiledModel::configure_stream_executors() {
 }
 
 void CompiledModel::initialize_properties() {
-    const auto& pluginSupportedProperties =
+    const auto pluginSupportedProperties =
         get_plugin()->get_property(ov::supported_properties.name(), {}).as<std::vector<ov::PropertyName>>();
     const auto& isPropertySupported = [&pluginSupportedProperties](const std::string& name) {
         return std::any_of(pluginSupportedProperties.begin(),
@@ -327,6 +327,12 @@ void CompiledModel::initialize_properties() {
           ov::PropertyMutability::RO,
           [](const Config& config) {
               return config.get<COMPILATION_MODE_PARAMS>();
+          }}},
+        {ov::intel_npu::turbo.name(),
+         {isPropertySupported(ov::intel_npu::turbo.name()),
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<TURBO>();
           }}},
         // NPU Private
         // =========

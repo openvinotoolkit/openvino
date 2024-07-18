@@ -34,7 +34,7 @@ bool ZeroEngineBackend::isBatchingSupported() const {
     return _instance->getDriverExtVersion() >= ZE_GRAPH_EXT_VERSION_1_6;
 }
 
-bool ZeroEngineBackend::isWorkloadTypeSupported() const {
+bool ZeroEngineBackend::isCommandQueueExtSupported() const {
     return _instance->getCommandQueueDdiTable() != nullptr;
 }
 
