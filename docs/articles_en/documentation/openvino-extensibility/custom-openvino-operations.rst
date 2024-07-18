@@ -20,6 +20,7 @@ To add your custom operation, create a new class that extends ``ov::Op``, which 
    
    .. tab-item:: C++
       :sync: cpp
+
       .. doxygensnippet:: src/core/template_extension/identity.hpp
          :language: cpp
          :fragment: [op:common_include]
@@ -43,6 +44,7 @@ Follow the steps below to add a custom operation:
    
    .. tab-item:: C++
       :sync: cpp
+
       .. doxygensnippet:: src/core/template_extension/identity.hpp
          :language: cpp
          :fragment: [op:header]
@@ -79,6 +81,7 @@ OpenVINO™ operation contains two constructors:
    
    .. tab-item:: C++
       :sync: cpp
+
       .. doxygensnippet:: src/core/template_extension/identity.cpp
          :language: cpp
          :fragment: [op:ctor]
@@ -99,6 +102,7 @@ OpenVINO™ operation contains two constructors:
    
    .. tab-item:: C++
       :sync: cpp
+
       .. doxygensnippet:: src/core/template_extension/identity.cpp
          :language: cpp
          :fragment: [op:validate]
@@ -119,6 +123,7 @@ OpenVINO™ operation contains two constructors:
    
    .. tab-item:: C++
       :sync: cpp
+
       .. doxygensnippet:: src/core/template_extension/identity.cpp
          :language: cpp
          :fragment: [op:copy]
