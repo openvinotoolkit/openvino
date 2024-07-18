@@ -72,4 +72,4 @@ jobs:
       - name: E2E of openvino-node package
         working-directory: ${{ env.OPENVINO_JS_DIR }}/node
         run: |
-          npm run e2e
+          npm run test:e2e
