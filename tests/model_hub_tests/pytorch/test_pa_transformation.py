@@ -8,10 +8,10 @@ import models_hub_common.utils as utils
 import pytest
 import os
 
-def run_pa(tmp_path, model_id, model_link):
+def run_pa(tmp_path, model_id, model_link, use_cache_eviction):
     model = OVModelForCausalLM.from_pretrained(model_id, export=True, trust_remote_code=True)
 
-    paged_attention_transformation(model.model)
+    paged_attention_transformation(model.model, use_cache_eviction)
 
     # Test that a _PagedAttentionExtension node appeared after the transformation.
     assert any(isinstance(op, _PagedAttentionExtension) for op in model.model.get_ordered_ops()), f"The model '{model_id}' has no _PagedAttentionExtension present."
@@ -26,6 +26,20 @@ def run_pa(tmp_path, model_id, model_link):
                 assert shape[-1].is_static, f"Dimension {len(shape) - 1} of input '{name}' in '{model_id}' is not static: {shape}"
                 assert shape[-2].is_static, f"Dimension {len(shape) - 2} of input '{name}' in '{model_id}' is not static: {shape}"
 
+    # Test for the scores output to appear in the model 
+    if (use_cache_eviction):
+        model_outputs = model.model.outputs
+        for output in model_outputs:
+            print(list(output.get_names()))
+            if 'paged_attention/scores' in list(output.get_names()):
+                scores_output_present = True
+
+        assert(scores_output_present)
+
+
+                
+
+
 @pytest.mark.precommit
 @pytest.mark.parametrize("model_name, model_link, mark, reason", utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-models-precommit")))
 def test_pa_precommit(tmp_path, model_name, model_link, mark, reason, ie_device):
@@ -35,4 +49,15 @@ def test_pa_precommit(tmp_path, model_name, model_link, mark, reason, ie_device)
         pytest.skip(reason)
     elif mark == 'xfail':
         pytest.xfail(reason)
-    run_pa(tmp_path, model_name, model_link)
+    run_pa(tmp_path, model_name, model_link, False)
+
+@pytest.mark.precommit
+@pytest.mark.parametrize("model_name, model_link, mark, reason", utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-models-precommit")))
+def test_pa_precommit_use_cache_eviction(tmp_path, model_name, model_link, mark, reason, ie_device):
+    assert mark is None or mark == 'skip' or mark == 'xfail', \
+        "Incorrect test case: {}, {}".format(model_name, model_link)
+    if mark == 'skip':
+        pytest.skip(reason)
+    elif mark == 'xfail':
+        pytest.xfail(reason)
+    run_pa(tmp_path, model_name, model_link, True)

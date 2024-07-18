@@ -141,19 +141,7 @@ void regmodule_offline_transformations(py::module m) {
             manager.run_passes(model);
         },
         py::arg("model"),
-        py::arg("use_cache_eviction"));
-
-
-    m_offline_transformations.def(
-        "dump_model",
-        [](std::shared_ptr<ov::Model> model, const std::string& file_name) {
-            ov::pass::Manager manager;
-            manager.register_pass<ov::pass::VisualizeTree>(file_name + ".svg");
-            manager.register_pass<ov::pass::Serialize>(file_name + ".xml", file_name + ".bin");
-            manager.run_passes(model);
-        },
-        py::arg("model"),
-        py::arg("file_name"));
+        py::arg("use_cache_eviction") = false);
 
     m_offline_transformations.def(
         "stateful_to_stateless_transformation",

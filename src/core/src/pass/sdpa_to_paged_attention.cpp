@@ -19,7 +19,8 @@
 
 using namespace ov::op;
 
-ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_cache_eviction) : m_use_cache_eviction(use_cache_eviction) {}
+ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_cache_eviction)
+    : m_use_cache_eviction(use_cache_eviction) {}
 
 static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> node, const char* name) {
     // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a
@@ -75,7 +76,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     ParameterVector parameters_to_remove;
     ResultVector results_to_remove;  // # used, but cannot really track all Results in stateless model
     OutputVector scores_outputs;
-    
 
     std::shared_ptr<v0::Parameter> position_ids;
     if (!has_parameter(model, "position_ids")) {
@@ -145,11 +145,12 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     }
 
     if (m_use_cache_eviction) {
-        block_indices->set_partial_shape(PartialShape{layer_index}); // The shape of block_indices should correspond to the number of PA nodes
+        block_indices->set_partial_shape(
+            PartialShape{layer_index}); // The shape of block_indices should correspond to the number of PA nodes
 
         auto scores_concat = std::make_shared<v0::Concat>(OutputVector{scores_outputs}, 0);
-        scores_concat->output(0).set_tensor_ptr(std::make_shared<ov::descriptor::Tensor>(scores_concat->get_element_type(), PartialShape{layer_index}));
         auto scores_result = std::make_shared<v0::Result>(scores_concat);
+        scores_result->get_output_tensor(0).set_names({"paged_attention/scores"});
         model->add_results({scores_result});
     }
 
