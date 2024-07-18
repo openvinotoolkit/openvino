@@ -108,10 +108,8 @@ ExecutorPtr FullyConnected::createExecutor() {
         VectorDims new_dims = dims;
         new_dims[dim] = splited_dim_vec[w_rank];
         memory_desc = dst_desc->cloneWithNewDims(new_dims, true);
-        cached_dst->redefineDesc(memory_desc);
-        memory[ARG_DST] = cached_dst;
-        // memory[ARG_DST] =
-        //     std::static_pointer_cast<Memory>(sub_memory->get_shared_memory(context->getEngine(), memory_desc, w_rank));
+        memory[ARG_DST] =
+            std::static_pointer_cast<Memory>(sub_memory->get_shared_memory(context->getEngine(), memory_desc, w_rank, getName()));
     }
     const auto& executor = factory->make(memory);
     getSelectedPrimitiveDescriptor()->setImplementationType(executor->implType());

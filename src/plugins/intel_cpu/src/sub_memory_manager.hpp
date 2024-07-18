@@ -32,7 +32,7 @@ public:
         memorys.assign(_num_sub_streams, memory_info);
         _memorys_table.assign(2, memorys);
         _use_count.assign(2, 0);
-        _shared_memorys.assign(2, nullptr);
+        _shared_memorys.assign(2, {});
     }
 
     int get_memory_id(int sub_stream_id) {
@@ -58,9 +58,12 @@ public:
         }
     }
 
-    std::shared_ptr<void> get_shared_memory(const dnnl::engine& eng, MemoryDescPtr desc, int sub_stream_id) {
-        get_buffer(eng, _shared_memorys[sub_stream_id], desc);
-        return _shared_memorys[sub_stream_id];
+    std::shared_ptr<void> get_shared_memory(const dnnl::engine& eng, MemoryDescPtr desc, int sub_stream_id, std::string name) {
+        if (_shared_memorys[sub_stream_id].find(name) == _shared_memorys[sub_stream_id].end()) {
+            _shared_memorys[sub_stream_id].emplace(std::make_pair(name, nullptr));
+        }
+        get_buffer(eng, _shared_memorys[sub_stream_id][name], desc);
+        return _shared_memorys[sub_stream_id][name];
     }
 
     std::shared_ptr<void> get_pingpang_memory(const dnnl::engine& eng,
@@ -73,7 +76,7 @@ public:
 
     int _num_sub_streams;
     std::vector<std::vector<MemoryInfo>> _memorys_table;
-    std::vector<std::shared_ptr<void>> _shared_memorys;
+    std::vector<std::map<std::string, std::shared_ptr<void>>> _shared_memorys;
     std::vector<int> _use_count;
     std::mutex _flagMutex;
 };
