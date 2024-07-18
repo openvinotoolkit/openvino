@@ -284,6 +284,22 @@ public:
     }
 };
 
+struct convolution_factory : public cldnn::implementation_factory<convolution> {
+    std::unique_ptr<primitive_impl> create(const program_node& node, const kernel_impl_params& params) const override {
+        OPENVINO_ASSERT(node.is_type<convolution>());
+        return onednn::convolution_onednn::create(static_cast<const convolution_node&>(node), params);
+    }
+
+    bool validate(const program_node& node) const override {
+        OPENVINO_ASSERT(node.is_type<convolution>());
+        return onednn::convolution_onednn::validate(static_cast<const convolution_node&>(node));
+    }
+
+    std::pair<std::vector<format>, std::vector<format>> query_formats(const program_node& node) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+};
+
 namespace detail {
 
 attach_convolution_onednn::attach_convolution_onednn() {
@@ -329,7 +345,7 @@ attach_convolution_onednn::attach_convolution_onednn() {
         format::bs_fs_zyx_bsv8_fsv2,
         format::bs_fs_yx_bsv4_fsv2,
     };
-    implementation_map<convolution>::add(impl_types::onednn, convolution_onednn::create, convolution_onednn::validate, dt, fmt);
+    implementation_map<convolution>::add(impl_types::onednn, cldnn::make_unique<convolution_factory>(), dt, fmt);
 }
 
 }  // namespace detail

@@ -214,10 +214,27 @@ public:
     }
 };
 
+struct reorder_factory : public cldnn::implementation_factory<reorder> {
+    std::unique_ptr<primitive_impl> create(const program_node& node, const kernel_impl_params& params) const override {
+        OPENVINO_ASSERT(node.is_type<reorder>());
+        return onednn::reorder_onednn::create(static_cast<const reorder_node&>(node), params);
+    }
+
+    bool validate(const program_node& node) const override {
+        OPENVINO_ASSERT(node.is_type<reorder>());
+        return onednn::reorder_onednn::validate(static_cast<const reorder_node&>(node));
+    }
+
+    std::pair<std::vector<format>, std::vector<format>> query_formats(const program_node& node) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+};
+
+
 namespace detail {
 
 attach_reorder_onednn::attach_reorder_onednn() {
-    implementation_map<reorder>::add(impl_types::onednn, reorder_onednn::create, reorder_onednn::validate, {});
+    implementation_map<reorder>::add(impl_types::onednn, cldnn::make_unique<reorder_factory>(), {});
     WeightsReordersFactory::add(cldnn::impl_types::onednn, shape_types::static_shape, reorder_onednn::create_reorder_weights);
 }
 

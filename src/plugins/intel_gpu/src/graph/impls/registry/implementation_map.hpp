@@ -6,9 +6,10 @@
 
 #include "intel_gpu/primitives/implementation_desc.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/runtime/utils.hpp"
+#include "openvino/core/except.hpp"
 
 #include <functional>
-#include <map>
 #include <string>
 #include <tuple>
 #include <typeinfo>
@@ -31,6 +32,7 @@ public:
 
 struct primitive_impl;
 
+struct program_node;
 template <class PType>
 struct typed_program_node;
 
@@ -41,16 +43,48 @@ struct implementation_key {
     }
 };
 
+struct implementation_factory_base {
+public:
+    virtual std::unique_ptr<primitive_impl> create(const program_node& node, const kernel_impl_params& params) const = 0;
+    virtual bool validate(const program_node& node) const = 0;
+    virtual std::pair<std::vector<format>, std::vector<format>> query_formats(const program_node& node) const = 0;
+
+    virtual ~implementation_factory_base() = default;
+};
+
+template <typename primitive_kind>
+struct implementation_factory : public implementation_factory_base {
+    std::unique_ptr<primitive_impl> create(const program_node& node, const kernel_impl_params& params) const override {
+        if (f)
+            return f(static_cast<const typed_program_node<primitive_kind>&>(node), params);
+
+        OPENVINO_NOT_IMPLEMENTED;
+    };
+    bool validate(const program_node& node) const override {
+        return true;
+    }
+    std::pair<std::vector<format>, std::vector<format>> query_formats(const program_node& node) const override {
+        return {};
+    }
+    using simple_factory_type = std::function<std::unique_ptr<primitive_impl>(const typed_program_node<primitive_kind>&, const kernel_impl_params&)>;
+    explicit implementation_factory(simple_factory_type factory) : f(factory) { }
+    implementation_factory() = default;
+
+private:
+    simple_factory_type f;
+};
+
 template <typename primitive_kind>
 class implementation_map {
 public:
     using key_builder = implementation_key;
     using key_type = typename key_builder::type;
-    using factory_type = std::function<std::unique_ptr<primitive_impl>(const typed_program_node<primitive_kind>&, const kernel_impl_params&)>;
+    using factory_type = implementation_factory<primitive_kind>;
+    using simple_factory_type = std::function<std::unique_ptr<primitive_impl>(const typed_program_node<primitive_kind>&, const kernel_impl_params&)>;
     using validator_type = std::function<bool(const typed_program_node<primitive_kind>&)>;
-    using list_type = singleton_list<std::tuple<impl_types, shape_types, std::set<key_type>, factory_type, validator_type>>;
+    using list_type = singleton_list<std::tuple<impl_types, shape_types, std::set<key_type>, std::unique_ptr<factory_type>>>;
 
-    static factory_type get(const kernel_impl_params& impl_params, impl_types preferred_impl_type, shape_types target_shape_type) {
+    static const factory_type* get(const kernel_impl_params& impl_params, impl_types preferred_impl_type, shape_types target_shape_type) {
         auto input_layout = !impl_params.input_layouts.empty() ? impl_params.input_layouts[0] : layout{ov::PartialShape{}, data_types::f32, format::any};
         auto key = key_builder()(input_layout);
         for (auto& kv : list_type::instance()) {
@@ -63,7 +97,7 @@ public:
             std::set<key_type>& keys_set = std::get<2>(kv);
             auto& factory = std::get<3>(kv);
             if (keys_set.empty() || keys_set.find(key) != keys_set.end())  {
-                return factory;
+                return factory.get();
             }
         }
         OPENVINO_ASSERT(false, "[GPU] implementation_map for ", typeid(primitive_kind).name(),
@@ -109,18 +143,18 @@ public:
         if (desc == impls.end())
             return false;
 
-        return std::get<4>(*desc)(node);
+        return std::get<3>(*desc)->validate(node);
     }
 
     static std::set<impl_types> query_available_impls(data_types in_dt, shape_types target_shape_type, const typed_program_node<primitive_kind>& node) {
         std::set<impl_types> res;
         for (auto& kv : list_type::instance()) {
             impl_types impl_type = std::get<0>(kv);
-            validator_type validator = std::get<4>(kv);
+            const auto& factory = std::get<3>(kv);
             shape_types supported_shape_type = std::get<1>(kv);
             if ((target_shape_type & supported_shape_type) != target_shape_type)
                 continue;
-            if (!validator(node))
+            if (!factory->validate(node))
                 continue;
 
             std::set<key_type>& keys_set = std::get<2>(kv);
@@ -137,45 +171,45 @@ public:
         return res;
     }
 
-    static void add(impl_types impl_type, shape_types shape_type, factory_type factory,
+    static void add(impl_types impl_type, shape_types shape_type, simple_factory_type factory,
                     const std::vector<data_types>& types, const std::vector<format::type>& formats) {
         add(impl_type, shape_type, std::move(factory), combine(types, formats));
     }
 
-    static void add(impl_types impl_type, factory_type factory,
+    static void add(impl_types impl_type, simple_factory_type factory,
                     const std::vector<data_types>& types, const std::vector<format::type>& formats) {
         add(impl_type, std::move(factory), combine(types, formats));
     }
 
-    static void add(impl_types impl_type, factory_type factory, std::set<key_type> keys) {
+    static void add(impl_types impl_type, simple_factory_type factory, std::set<key_type> keys) {
         OPENVINO_ASSERT(impl_type != impl_types::any, "[GPU] Can't register impl with type any");
         add(impl_type, shape_types::static_shape, std::move(factory), keys);
     }
 
-    static void add(impl_types impl_type, shape_types shape_type, factory_type factory, std::set<key_type> keys) {
+    static void add(impl_types impl_type, shape_types shape_type, simple_factory_type factory, std::set<key_type> keys) {
         OPENVINO_ASSERT(impl_type != impl_types::any, "[GPU] Can't register impl with type any");
-        validator_type v = [](const typed_program_node<primitive_kind>&){ return true; };
-        list_type::instance().push_back({impl_type, shape_type, keys, std::move(factory), v});
+        auto f = cldnn::make_unique<implementation_factory<primitive_kind>>(factory);
+        list_type::instance().push_back({impl_type, shape_type, keys, std::move(f)});
     }
 
-    static void add(impl_types impl_type, shape_types shape_type, factory_type factory, validator_type validator,
+    static void add(impl_types impl_type, shape_types shape_type, std::unique_ptr<factory_type> factory,
                     const std::vector<data_types>& types, const std::vector<format::type>& formats) {
-        add(impl_type, shape_type, std::move(factory), validator, combine(types, formats));
+        add(impl_type, shape_type, std::move(factory), combine(types, formats));
     }
 
-    static void add(impl_types impl_type, factory_type factory, validator_type validator, std::set<key_type> keys) {
-        OPENVINO_ASSERT(impl_type != impl_types::any, "[GPU] Can't register impl with type any");
-        add(impl_type, shape_types::static_shape, std::move(factory), validator, keys);
-    }
-
-    static void add(impl_types impl_type, factory_type factory, validator_type validator,
+    static void add(impl_types impl_type, std::unique_ptr<factory_type> factory,
                     const std::vector<data_types>& types, const std::vector<format::type>& formats) {
-        add(impl_type, std::move(factory), validator, combine(types, formats));
+        add(impl_type, std::move(factory), combine(types, formats));
     }
 
-    static void add(impl_types impl_type, shape_types shape_type, factory_type factory, validator_type validator, std::set<key_type> keys) {
+    static void add(impl_types impl_type, std::unique_ptr<factory_type> factory, std::set<key_type> keys) {
         OPENVINO_ASSERT(impl_type != impl_types::any, "[GPU] Can't register impl with type any");
-        list_type::instance().push_back({impl_type, shape_type, keys, std::move(factory), validator});
+        add(impl_type, shape_types::static_shape, std::move(factory), keys);
+    }
+
+    static void add(impl_types impl_type, shape_types shape_type, std::unique_ptr<factory_type> factory, std::set<key_type> keys) {
+        OPENVINO_ASSERT(impl_type != impl_types::any, "[GPU] Can't register impl with type any");
+        list_type::instance().push_back({impl_type, shape_type, keys, std::move(factory)});
     }
 
     static std::set<key_type> combine(const std::vector<data_types>& types, const std::vector<format::type>& formats) {
@@ -190,14 +224,14 @@ public:
 };
 
 struct WeightsReordersFactory {
-    using factory_type = std::function<std::unique_ptr<primitive_impl>(const kernel_impl_params&)>;
-    using list_type = singleton_list<std::tuple<impl_types, shape_types, factory_type>>;
-    static void add(impl_types impl_type, shape_types shape_type, factory_type factory) {
+    using simple_factory_type = std::function<std::unique_ptr<primitive_impl>(const kernel_impl_params&)>;
+    using list_type = singleton_list<std::tuple<impl_types, shape_types, simple_factory_type>>;
+    static void add(impl_types impl_type, shape_types shape_type, simple_factory_type factory) {
         OPENVINO_ASSERT(impl_type != impl_types::any, "[GPU] Can't register WeightsReordersFactory with type any");
         list_type::instance().push_back({impl_type, shape_type, factory});
     }
 
-    static factory_type get(impl_types preferred_impl_type, shape_types target_shape_type) {
+    static simple_factory_type get(impl_types preferred_impl_type, shape_types target_shape_type) {
         for (auto& kv : list_type::instance()) {
             impl_types impl_type = std::get<0>(kv);
             shape_types supported_shape_type = std::get<1>(kv);

@@ -45,8 +45,9 @@ struct primitive_type_base : primitive_type {
         try {
             OPENVINO_ASSERT(node.type() == this, "[GPU] primitive_type_base::choose_impl: primitive type mismatch");
             auto factory = implementation_map<PType>::get(runtime_params, node.get_preferred_impl_type(), get_shape_type(runtime_params));
-            auto impl = factory(node, runtime_params);
+            auto impl = factory->create(node, runtime_params);
             impl->set_dynamic(get_shape_type(runtime_params) == shape_types::dynamic_shape);
+
             return impl;
         } catch (std::exception& e) {
             std::stringstream ss;
