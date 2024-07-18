@@ -10,8 +10,8 @@ Use Case - Integrate and Save Preprocessing Steps Into IR
                  OpenVINO Intermediate Representation.
 
 
-Previous sections covered the topic of the :doc:`preprocessing steps <preprocessing-api-details>`
-and the overview of :doc:`Layout <layout-api-overview>` API.
+Previous sections covered the :doc:`preprocessing steps <preprocessing-api-details>`
+and the overview of :doc:`Layout API <layout-api-overview>`.
 
 For many applications, it is also important to minimize read/load time of a model.
 Therefore, performing integration of preprocessing steps every time on application
@@ -20,25 +20,18 @@ once pre and postprocessing steps have been added, it can be useful to store new
 model to OpenVINO Intermediate Representation (OpenVINO IR, `.xml` format).
 
 Most available preprocessing steps can also be performed via command-line options,
-using Model Optimizer. For details on such command-line options, refer to the
-:doc:`Optimizing Preprocessing Computation <../../../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-embedding-preprocessing-computation>`.
+using ``ovc``. For details on such command-line options, refer to the
+:doc:`Model Conversion <convert_model_cli_ovc>`.
 
 Code example - Saving Model with Preprocessing to OpenVINO IR
 #############################################################
 
-When some preprocessing steps cannot be integrated into the execution graph using
-Model Optimizer command-line options (for example, ``YUV``->``RGB`` color space conversion,
-``Resize``, etc.), it is possible to write a simple code which:
+In the following example:
 
-* Reads the original model (OpenVINO IR, TensorFlow, TensorFlow Lite, ONNX, PaddlePaddle).
-* Adds the preprocessing/postprocessing steps.
-* Saves resulting model as IR (``.xml`` and ``.bin``).
+* Original ONNX model takes one ``float32`` input with the ``{1, 3, 224, 224}`` shape, the ``RGB`` channel order, and mean/scale values applied.
+* Application provides ``BGR`` image buffer with a non-fixed size and input images as batches of two.
 
-Consider the example, where an original ONNX model takes one ``float32`` input with the
-``{1, 3, 224, 224}`` shape, the ``RGB`` channel order, and mean/scale values applied.
-In contrast, the application provides ``BGR`` image buffer with a non-fixed size and
-input images as batches of two. Below is the model conversion code that can be applied
-in the model preparation script for such a case.
+Below is the model conversion code that can be applied in the model preparation script for this case:
 
 * Includes / Imports
 
@@ -62,7 +55,6 @@ in the model preparation script for such a case.
 
 * Preprocessing & Saving to the OpenVINO IR code.
 
-
 .. tab-set::
 
    .. tab-item:: Python
@@ -83,7 +75,7 @@ in the model preparation script for such a case.
 Application Code - Load Model to Target Device
 ##############################################
 
-After this, the application code can load a saved file and stop preprocessing. In this case, enable
+Next, the application code can load a saved file and stop preprocessing. In this case, enable
 :doc:`model caching <../optimizing-latency/model-caching-overview>` to minimize load
 time when the cached model is available.
 
@@ -110,7 +102,6 @@ Additional Resources
 
 * :doc:`Preprocessing Details <preprocessing-api-details>`
 * :doc:`Layout API overview <layout-api-overview>`
-* :doc:`Model Optimizer - Optimize Preprocessing Computation <../../../../documentation/legacy-features/transition-legacy-conversion-api/legacy-conversion-api/[legacy]-embedding-preprocessing-computation>`
 * :doc:`Model Caching Overview <../optimizing-latency/model-caching-overview>`
 * The `ov::preprocess::PrePostProcessor <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1preprocess_1_1_pre_post_processor.html>`__ C++ class documentation
 * The `ov::pass::Serialize <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1pass_1_1_serialize.html>`__ - pass to serialize model to XML/BIN
