@@ -377,6 +377,9 @@ jobs:
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v2
 
+      - name: Install BuildTools
+        run: winget install -e --id Microsoft.VisualStudio.2022.BuildTools --override "--passive --wait --add Microsoft.VisualStudio.Workload.VCTools;includeRecommended"
+
       - name: E2E of openvino-node package
         working-directory: ${{ env.OPENVINO_JS_DIR }}/node
         run: npm run test:e2e
