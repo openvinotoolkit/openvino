@@ -3,8 +3,8 @@
 //
 
 #include "core/operator_set.hpp"
-#include "exceptions.hpp"
-#include "utils/common.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/frontend/exception.hpp"
 #include "utils/reshape.hpp"
 using namespace ov::op;
 
@@ -22,7 +22,16 @@ ov::OutputVector flatten(const ov::frontend::onnx::Node& node) {
     if (data_rank.is_static()) {
         const std::int64_t data_rank_value = data_rank.get_length();
         // Accepted range is [-r, r] where r = rank(input).
-        axis = common::normalize_axis(node.get_description(), axis, data_rank_value);
+        FRONT_END_GENERAL_CHECK(-data_rank_value <= axis && axis <= data_rank_value,
+                                node.get_description(),
+                                " axis ",
+                                axis,
+                                " out of tensor range [",
+                                -data_rank_value,
+                                ", ",
+                                data_rank_value,
+                                "]");
+        axis = ov::util::normalize(axis, data_rank_value);
     }
     return {ov::op::util::flatten(data, static_cast<int>(axis))};
 }
