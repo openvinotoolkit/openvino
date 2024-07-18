@@ -677,7 +677,7 @@ void ov::npuw::CompiledModel::implement_properties() {
     // ===============================================
     m_prop_to_opt = {{ov::supported_properties.name(),
                       {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) {
+                       [&](const ::intel_npu::Config&) -> std::vector<PropertyName>& {
                            return m_all_supported_props;
                        }}},
                      {ov::device::id.name(),
@@ -692,7 +692,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                        }}},
                      {ov::model_name.name(),
                       {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) {
+                       [&](const ::intel_npu::Config&) -> std::string& {
                            return m_name;
                        }}},
                      {ov::optimal_number_of_infer_requests.name(),
