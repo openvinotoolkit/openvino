@@ -28,6 +28,8 @@ void ACLScheduler::schedule_custom(ICPPKernel *kernel, const Hints &hints, const
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
     const auto _num_threads = std::min(num_iterations, static_cast<unsigned int>(parallel_get_num_threads()));
 #else
+    //In OpenMP case parallel_get_num_threads() method returns 1 here because it's called outside parallel section
+    //This is the reason why this method isn't used to initialize _num_threads
     const auto _num_threads = num_iterations;
 #endif
     std::function<void(const Window &window, const ThreadInfo &info)> main_run;
