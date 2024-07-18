@@ -1462,7 +1462,6 @@ public:
     }
 
     void test_compressed_int4_accumulation(bool is_caching_test, bool is_dynamic, long int batch_num) {
-        tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
 
         long int ifm_num = 4096;
@@ -1476,7 +1475,7 @@ public:
         std::fill(input_data.begin(), input_data.end(), 1);
         set_values(input_mem, input_data);
 
-        auto weigths_data = std::vector<uint8_t>(weights_mem->count());
+        auto weigths_data = std::vector<uint8_t>(weights_mem->count() / 2);
         std::fill(weigths_data.begin(), weigths_data.end(), 0x11);
         set_values(weights_mem, weigths_data);
 
