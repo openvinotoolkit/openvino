@@ -571,13 +571,17 @@ def test_sink_model_ctors():
     assert len(model.get_results()) == 1
     assert model.get_friendly_name() == "TestModel"
 
-
-def test_sink_model_ctor_without_init_subgraph():
+@pytest.fixture
+def setup_sink_model():
     input_data = ops.parameter([2, 2], name="input_data", dtype=np.float32)
     rv = ops.read_value("var_id_667", np.float32, [2, 2])
     add = ops.add(rv, input_data, name="MemoryAdd")
     node = ops.assign(add, "var_id_667")
     res = ops.result(add, "res")
+    yield input_data, res, node 
+
+def test_sink_model_ctor_without_init_subgraph(setup_sink_model):
+    input_data, res, node = setup_sink_model
     model = Model(results=[res], sinks=[node], parameters=[input_data], name="TestModel")
 
     var_info = VariableInfo()
@@ -607,6 +611,10 @@ def test_sink_model_ctor_without_init_subgraph():
     assert len(model.get_results()) == 1
     assert model.get_friendly_name() == "TestModel"
 
+def test_model_ctors(setup_sink_model):
+    input_data, res, node = setup_sink_model
+    model = Model(results=[res], sinks=[ov.Output._from_node(node)], parameters=[input_data], name="TestModel")
+    assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
 
 def test_strides_iteration_methods():
     data = np.array([1, 2, 3])
