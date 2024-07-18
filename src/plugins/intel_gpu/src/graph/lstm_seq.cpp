@@ -66,7 +66,7 @@ std::string lstm_seq_inst::to_string(lstm_seq_node const& node) {
 
     json_composite lstm_seq_info;
     lstm_seq_info.add("cell id", cell_id);
-    node_info->add("lstm elt info", lstm_seq_info);
+    node_info->add("lstm seq info", lstm_seq_info);
     node_info->dump(primitive_description);
 
     return primitive_description.str();

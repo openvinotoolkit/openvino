@@ -164,7 +164,11 @@ struct lstm_seq : public primitive_base<lstm_seq> {
     /// @param offset_order. Order of the concatenated weights, recurrent, and bias. ONNX default is iofz [input, output, forget, block].
     /// @param direction default = 0, bidirectional = 1.
     lstm_seq(const primitive_id& id,
-             const input_info& input,
+             const input_info& initial_hidden_state,
+             const input_info& initial_cell_state,
+             const input_info& sequence_lengths,
+             const input_info& WR,
+             const input_info& B,
              const primitive_id& cell = "",
              const float clip = 0,
              const bool input_forget = 0,
@@ -175,7 +179,8 @@ struct lstm_seq : public primitive_base<lstm_seq> {
              const lstm_weights_order offset_order = lstm_weights_order::iofz,
              const uint32_t direction = 0,
              const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}),
+        : primitive_base(id, {initial_hidden_state, initial_cell_state, sequence_lengths, WR, B}, {output_padding}, {ov::element::Type_t::f32, \
+        ov::element::Type_t::f32, ov::element::Type_t::f32}, 3),
           cell(cell),
           clip(clip),
           input_forget(input_forget),

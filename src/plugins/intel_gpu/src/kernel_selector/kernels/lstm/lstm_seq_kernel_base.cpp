@@ -13,9 +13,7 @@ JitConstants LSTMSeqKernelBase::GetJitConstants(const lstm_seq_params& params) c
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     if (params.has_cell) {
-        const auto& cell = params.cell;
         jit.AddConstants({MakeJitConstant("CELL_TERM", true),
-                          MakeJitConstant("CELL", cell),
                           MakeJitConstant("CELL_DIRECTION", params.cell_direction)});
     }
     if (params.input_forget) {
@@ -68,15 +66,13 @@ KernelsData LSTMSeqKernelBase::GetCommonKernelsData(const Params& params) const 
 
     KernelData kd = KernelData::Default<lstm_seq_params>(params, orgParams.inputs.size());
 
-    const auto& input = orgParams.inputs[0];
+    //const auto& input = orgParams.inputs[0];
 
     auto newParams = orgParams;
-    newParams.inputs.resize(1);
-    newParams.inputs[0] = input;
     auto out = newParams.outputs[0];
 
     auto& kernel = kd.kernels[0];
-    auto cldnnJit = GetJitConstants(newParams);
+    auto cldnnJit = GetJitConstants(orgParams);
     auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, params);
     auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
 
@@ -84,10 +80,13 @@ KernelsData LSTMSeqKernelBase::GetCommonKernelsData(const Params& params) const 
     kernel.params.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.params.workGroups.global, params.engineInfo);
     kernel.code.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 3});
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 4});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
-    if (orgParams.has_cell) {
-        kernel.params.arguments.push_back({ArgumentDescriptor::Types::CELL, 0});
-    }
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 1});
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 2});
 
     return {kd};
 }

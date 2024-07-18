@@ -277,8 +277,6 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
 
     cldnn::tensor gemmSz = cldnn::tensor{ lstm_batch_size, 1, 4 * lstm_hidden_size, 1 };
     cldnn::layout gemmLayout = cldnn::layout(lstm_dtype, cldnn::format::bfyx, gemmSz);
-    //cldnn::tensor hiddenSz = cldnn::tensor{ lstm_batch_size, 1, lstm_hidden_size, 1 };
-    //cldnn::tensor cellCropSz = cldnn::tensor{0, 1, 0, 0};
     cldnn::primitive_id hiddenStr = inHiddenReshapeID + "_1";
     cldnn::primitive_id inputCropID = layerName + "_inputCrop";
 
@@ -291,7 +289,8 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     p.add_primitive(*op, reshapeInPrim);
 
     cldnn::primitive_id lstm_elt_id = layerName + "_lstm_seq";
-    p.add_primitive(*op, cldnn::lstm_seq(lstm_elt_id, cldnn::input_info(permuteID), inCellStateID, clip, 0, activations,
+    p.add_primitive(*op, cldnn::lstm_seq(lstm_elt_id, cldnn::input_info(permuteID), cldnn::input_info(inHiddenStateID), cldnn::input_info(inCellStateID), \
+    cldnn::input_info(WRreshapeID), cldnn::input_info(bias), inCellStateID, clip, 0, activations,
                                             activation_params, cldnn::lstm_weights_order::fizo, 0));
     //output should be [batch_size, num_directions, seq_len, hidden_size
     if (!isForward) std::reverse(output_ids_offsets.begin(), output_ids_offsets.end());

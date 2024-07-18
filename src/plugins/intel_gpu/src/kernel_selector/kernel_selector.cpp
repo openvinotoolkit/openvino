@@ -67,6 +67,10 @@ kernel_selector_base::kernel_selector_base() {
 
 KernelData kernel_selector_base::get_best_kernel(const Params& params) const {
     auto kernels = GetBestKernels(params);
+    if (kernels.empty()) {
+        int xx = 4;
+        xx++;
+    }
     OPENVINO_ASSERT(!kernels.empty(), "[GPU] Could not find a suitable kernel for ", params.layerID, " params raw string: ", params.to_cache_string_v2());
     return kernels[0];
 }
@@ -75,7 +79,10 @@ KernelData kernel_selector_base::get_best_kernel(const Params& params) const {
 KernelsData kernel_selector_base::GetNaiveBestKernel(const KernelList& all_impls, const Params& params) const {
     KernelsData kernelsData;
     std::string kernelName;
-
+    if ( params.GetType() == KernelType::LSTM_SEQ ) {
+        int z = 4;
+        z++;
+    }
     for (const auto& implementation : all_impls) {
         // TODO: Unify this check with the Validate virtual method. Make
         // sure that the method is called here only, not in all the
@@ -104,7 +111,18 @@ KernelsData kernel_selector_base::GetNaiveBestKernel(const KernelList& all_impls
     return kernelsData;
 }
 KernelsData kernel_selector_base::GetNaiveBestKernel(const Params& params, KernelType kType) const {
-    return GetNaiveBestKernel(GetAllImplementations(params, kType), params);
+    auto all = GetAllImplementations(params, kType);
+    if ( all.empty() ) {
+        int a = 4;
+        a++;
+    }
+
+    auto n = GetNaiveBestKernel(all, params);
+    if ( kType == KernelType::LSTM_SEQ ) {
+        int aaa = 4;
+        aaa++;
+    }
+    return n;
 }
 
 KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params, KernelType kType) const {
@@ -165,6 +183,10 @@ KernelList kernel_selector_base::GetAllImplementations(const Params& params, Ker
     auto device_features_key = params.engineInfo.get_supported_device_features_key();
 
     if (params.GetType() == kType) {
+        if ( params.GetType() == KernelType::LSTM_SEQ ) {
+            int zz = 4;
+            zz++;
+        }
         ParamsKey requireKey = params.GetParamsKey();
         bool forceImplementation = !params.forceImplementation.empty();
         for (auto& impl : implementations) {

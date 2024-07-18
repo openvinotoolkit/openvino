@@ -9,6 +9,7 @@ namespace kernel_selector {
 lstm_seq_kernel_selector::lstm_seq_kernel_selector() { Attach<LSTMSeqKernelRef>(); }
 
 KernelsData lstm_seq_kernel_selector::GetBestKernels(const Params& params) const {
-    return GetNaiveBestKernel(params, KernelType::LSTM_SEQ);
+    auto k = GetNaiveBestKernel(params, KernelType::LSTM_SEQ);
+    return k;
 }
 }  // namespace kernel_selector

@@ -19,7 +19,7 @@ ParamsKey LSTMSeqKernelRef::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
-    k.EnableLSTMEltCell();
+    k.EnableLSTMSeqCell();
     return k;
 }
 
