@@ -87,7 +87,7 @@ bool check_transposes(const std::vector<int64_t>& before_order,
 bool check_input_reshape(const std::shared_ptr<ov::op::v1::Reshape>& reshape,
                          const std::vector<int64_t>& new_shape,
                          const bool transposed_b) {
-    const auto input_shape = reshape->get_input_shape(0);
+    const auto& input_shape = reshape->get_input_shape(0);
     const size_t input_rank = input_shape.size();
     const size_t output_rank = reshape->get_output_shape(0).size();
     if (input_rank < 3 || output_rank != 2)

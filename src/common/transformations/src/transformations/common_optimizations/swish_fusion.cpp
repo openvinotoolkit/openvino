@@ -75,8 +75,8 @@ ov::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
-        auto exp_input = pattern_to_output.at(input);
-        auto beta_input = pattern_to_output.at(beta);
+        const auto& exp_input = pattern_to_output.at(input);
+        const auto& beta_input = pattern_to_output.at(beta);
 
         auto beta_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(beta_input.get_node_shared_ptr());
         Output<Node> new_beta;

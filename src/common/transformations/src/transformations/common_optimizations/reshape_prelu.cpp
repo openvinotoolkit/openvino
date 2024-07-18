@@ -23,12 +23,12 @@ ReshapePRelu::ReshapePRelu() {
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto prelu = pattern_map.at(prelu_m).get_node_shared_ptr();
-        const auto input = pattern_map.at(input_m);
-        const auto slope = pattern_map.at(slope_m);
+        const auto& input = pattern_map.at(input_m);
+        const auto& slope = pattern_map.at(slope_m);
 
-        const auto prelu_pshape = prelu->get_input_partial_shape(0);
+        const auto& prelu_pshape = prelu->get_input_partial_shape(0);
         const auto prelu_rank = prelu_pshape.rank();
-        const auto slope_pshape = prelu->get_input_partial_shape(1);
+        const auto& slope_pshape = prelu->get_input_partial_shape(1);
         const auto slope_rank = slope_pshape.rank();
         if (prelu_rank.get_length() == 1 || slope_rank.get_length() != 1) {
             return false;

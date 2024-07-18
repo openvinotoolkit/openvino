@@ -32,7 +32,7 @@ namespace low_precision {
 
 // Return true if `type` can be castable to at least one of `type`
 bool NetworkHelper::is_castable_to_one_of(NodeTypeInfo type, const std::unordered_set<NodeTypeInfo>& types) {
-    for (auto another : types) {
+    for (const auto& another : types) {
         if (type.is_castable(another)) {
             return true;
         }
@@ -223,11 +223,11 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<ov::opse
     auto b = as_type_ptr<ov::opset1::Constant>(addAfterMultiply->get_input_node_shared_ptr(multiplyBranch == 0 ? 1 : 0));
     std::shared_ptr<ov::opset1::Constant> bDivA;
 
-    const auto aPShape = a->get_output_partial_shape(0);
+    const auto& aPShape = a->get_output_partial_shape(0);
     assert(aPShape.is_static());
     const auto aShape = aPShape.to_shape();
 
-    const auto bPShape = b->get_output_partial_shape(0);
+    const auto& bPShape = b->get_output_partial_shape(0);
     assert(bPShape.is_static());
     const auto bShape = bPShape.to_shape();
 
@@ -343,7 +343,7 @@ bool NetworkHelper::isScalarLike(std::shared_ptr<ov::opset1::Constant> constant)
     // ticket #48857
     // return constant->get_all_data_elements_bitwise_identical();
 
-    const auto shape = constant->output(0).get_shape();
+    const auto& shape = constant->output(0).get_shape();
     if (shape_size(shape) == 1ul) {
         return true;
     }
@@ -1320,7 +1320,7 @@ std::shared_ptr<ov::opset1::Constant> NetworkHelper::normalizeDequantizationShap
     const auto getConstWithNormalizeShape = [](
         const std::shared_ptr<Node>& eltwise,
         const std::shared_ptr<ov::opset1::Constant>& constant) {
-        const auto constantShape = constant->get_shape();
+        const auto& constantShape = constant->get_shape();
         if (constantShape.empty()) {
             return constant;
         }
@@ -1670,7 +1670,7 @@ std::vector<std::vector<std::shared_ptr<ov::opset1::Constant>>> NetworkHelper::s
     }
     for (size_t i = 0; i < currConstants.size(); ++i) {
         std::vector<std::shared_ptr<ov::opset1::Constant>> newConstant;
-        const auto const_shape = currConstants[i]->get_shape();
+        const auto& const_shape = currConstants[i]->get_shape();
         if (ov::shape_size(const_shape) == 1 || const_shape[concat_axis] == 1) {
             newConstant.push_back(currConstants[i]);
             newConstants[i] = newConstant;
@@ -1685,7 +1685,7 @@ std::vector<std::vector<std::shared_ptr<ov::opset1::Constant>>> NetworkHelper::s
             THROW_IE_LPT_EXCEPTION(*concat) << "error when splitting constants before concat " <<
                 concat->get_friendly_name();
         }
-        for (auto outputResult : outputResults) {
+        for (const auto& outputResult : outputResults) {
             auto constant = as_type_ptr<ov::opset1::Constant>(outputResult.get_node_shared_ptr());
             newConstant.push_back(constant);
         }

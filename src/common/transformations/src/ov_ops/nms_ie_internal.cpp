@@ -113,15 +113,15 @@ int64_t op::internal::NonMaxSuppressionIEInternal::max_boxes_output_from_input()
 
 void op::internal::NonMaxSuppressionIEInternal::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(internal_NonMaxSuppressionIEInternal_validate_and_infer_types);
-    const auto boxes_ps = get_input_partial_shape(boxes_port);
-    const auto scores_ps = get_input_partial_shape(scores_port);
+    const auto& boxes_ps = get_input_partial_shape(boxes_port);
+    const auto& scores_ps = get_input_partial_shape(scores_port);
 
     // NonMaxSuppression produces triplets
     // that have the following format: [batch_index, class_index, box_index]
     PartialShape out_shape = {Dimension::dynamic(), 3};
 
     if (boxes_ps.rank().is_static() && scores_ps.rank().is_static()) {
-        const auto num_boxes_boxes = boxes_ps[1];
+        const auto& num_boxes_boxes = boxes_ps[1];
         const auto max_output_boxes_per_class_node = input_value(max_output_boxes_per_class_port).get_node_shared_ptr();
         if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static() &&
             op::util::is_constant(max_output_boxes_per_class_node)) {

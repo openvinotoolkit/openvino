@@ -43,7 +43,7 @@ bool FoldFakeQuantizeTransformation::transform(TransformationContext& context, o
         return false;
     }
 
-    const auto constantShape = fakeQuantize->input(1).get_partial_shape();
+    const auto& constantShape = fakeQuantize->input(1).get_partial_shape();
     if (constantShape.is_dynamic()) {
         return false;
     }

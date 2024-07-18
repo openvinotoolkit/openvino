@@ -75,7 +75,7 @@ bool PadTransformation::transform(TransformationContext& context, ov::pass::patt
                 }
             }
 
-            const auto inputPShape = pad->get_input_partial_shape(0);
+            const auto& inputPShape = pad->get_input_partial_shape(0);
             assert(inputPShape[padIdx].is_static());
             assert(inputPShape.rank().is_static());
             auto bcastedShape = Shape(inputPShape.rank().get_length(), 1ul);
@@ -102,7 +102,7 @@ bool PadTransformation::transform(TransformationContext& context, ov::pass::patt
         const std::shared_ptr<ov::opset1::Constant>& constant,
         const std::shared_ptr<ov::op::util::PadBase>& pad,
         float padVal) {
-        const auto constantShape = constant->get_shape();
+        const auto& constantShape = constant->get_shape();
         if (shape_size(constantShape) == 1ul) {
             return NetworkHelper::toScalar(constant);
         }
@@ -234,7 +234,7 @@ bool PadTransformation::canBeTransformed(const TransformationContext& context, s
             }
 
             const size_t paddingDimension = beginNonZeroIdx != -1 ? beginNonZeroIdx : endNonZeroIdx;
-            const auto padInputPShape = pad->get_input_partial_shape(0);
+            const auto& padInputPShape = pad->get_input_partial_shape(0);
             const auto padInputRank = padInputPShape.rank();
             if (padInputRank.is_dynamic() || padInputPShape[paddingDimension].is_dynamic()) {
                 return false;

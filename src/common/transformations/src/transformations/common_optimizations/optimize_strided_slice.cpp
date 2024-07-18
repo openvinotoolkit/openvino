@@ -118,7 +118,7 @@ bool ov::pass::GroupedStridedSliceOptimizer::run_on_model(const std::shared_ptr<
 
         bool valid_for_replacement = true;
 
-        auto root_plan = pair.second[0].plan;
+        const auto& root_plan = pair.second[0].plan;
         for (const auto& ss_plan : pair.second) {
             valid_for_replacement &= (ss_plan.plan.begins.size() == root_plan.begins.size());
             valid_for_replacement &=

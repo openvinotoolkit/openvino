@@ -87,7 +87,7 @@ bool convert_sequence_to_ti(const std::shared_ptr<ov::Node>& sequence,
                             const ov::Output<ov::Node>& R,
                             const ov::Output<ov::Node>& B,
                             const ov::op::RecurrentSequenceDirection& direction) {
-    auto X_pshape = X.get_partial_shape();
+    const auto& X_pshape = X.get_partial_shape();
     if (X_pshape.size() < 2) {
         return false;
     }

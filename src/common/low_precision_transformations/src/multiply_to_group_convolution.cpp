@@ -67,7 +67,7 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
         // if restrictions are absent precisions attribute is used
         if (weightsPrecision == element::undefined) {
             const auto precisionsAttribute = getAttribute<PrecisionsAttribute>(multiply->input(inputIndex == 0ul ? 1ul : 0ul));
-            const auto precisions = precisionsAttribute == nullptr ?
+            const auto& precisions = precisionsAttribute == nullptr ?
                 defaultPrecisions :
                 precisionsAttribute.as<PrecisionsAttribute>().value();
             weightsPrecision = precisions[0];
@@ -244,7 +244,7 @@ bool MultiplyToGroupConvolutionTransformation::isDynamicOrScalar(const std::shar
     }
 
     const Input<const Node> constantInput = node->input(constantIndex);
-    const auto shape = constantInput.get_partial_shape();
+    const auto& shape = constantInput.get_partial_shape();
     if (shape.is_dynamic() || shape.rank().is_dynamic()) {
         return true;
     }

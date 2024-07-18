@@ -283,6 +283,9 @@ bool FakeQuantizeDecompositionTransformation::transform(TransformationContext& c
     }
 
     auto layer = NetworkHelper::fuseConvert(node);
+    if (!layer) {
+        return false;
+    }
     bool rewritten = layer.get() != node.get();
     if (rewritten) {
         register_new_node(layer);

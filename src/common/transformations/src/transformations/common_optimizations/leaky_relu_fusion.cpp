@@ -42,7 +42,7 @@ ov::pass::LeakyReluFusion::LeakyReluFusion() {
             return false;
 
         auto leaky_relu = register_new_node<ov::op::v0::PRelu>(pattern_map.at(data_pattern), original_alpha_pattern);
-        auto maximum = pattern_map.at(max_pattern);
+        const auto& maximum = pattern_map.at(max_pattern);
         leaky_relu->set_friendly_name(maximum.get_node()->get_friendly_name());
 
         copy_runtime_info({pattern_map.at(multiply_pattern).get_node_shared_ptr(), maximum.get_node_shared_ptr()},

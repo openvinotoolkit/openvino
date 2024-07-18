@@ -95,11 +95,11 @@ ov::pass::ConvertMaxPool14ToMaxPool8::ConvertMaxPool14ToMaxPool8() {
         NodeRegistry node_registry;
         if (rounding_type_v14 == ov::op::RoundingType::CEIL_TORCH) {
             auto input = max_pool_v14->input_value(0);
-            const auto strides = max_pool_v14->get_strides();
-            const auto padding_begin = max_pool_v14->get_pads_begin();
+            const auto& strides = max_pool_v14->get_strides();
+            const auto& padding_begin = max_pool_v14->get_pads_begin();
             const auto padding_begin_node =
                 node_registry.make<Constant>(element::i64, Shape{padding_begin.size()}, padding_begin);
-            const auto padding_end = max_pool_v14->get_pads_end();
+            const auto& padding_end = max_pool_v14->get_pads_end();
             const auto padding_end_node =
                 node_registry.make<Constant>(element::i64, Shape{padding_end.size()}, padding_end);
             const auto zero = node_registry.make<Constant>(element::i64, Shape{}, 0);

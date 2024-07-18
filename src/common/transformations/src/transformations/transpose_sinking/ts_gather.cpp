@@ -163,13 +163,17 @@ TSGatherBackward::TSGatherBackward() {
 
         auto transpose = as_type_ptr<ov::op::v1::Transpose>(pattern_to_output.at(transpose_label));
         auto main_node = as_type_ptr<ov::op::v8::Gather>(pattern_to_output.at(gather_label));
-        if (transformation_callback(main_node) || !main_node) {
+        if (!transpose || !main_node) {
+            return false;
+        }
+
+        if (transformation_callback(main_node)) {
             return false;
         }
 
         auto transpose_order = as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
         auto gather_axis = as_type_ptr<ov::op::v0::Constant>(main_node->get_input_node_shared_ptr(2));
-        if (!transpose || !transpose_order || !gather_axis) {
+        if (!transpose_order || !gather_axis) {
             return false;
         }
 
@@ -202,7 +206,7 @@ TSGatherBackward::TSGatherBackward() {
         } else {
             axis = static_cast<size_t>(axes[0]);
         }
-        auto out_pshape = main_node->get_output_partial_shape(0);
+        const auto& out_pshape = main_node->get_output_partial_shape(0);
         bool optimization = out_pshape.is_static() && main_node->input_value(1).get_partial_shape().is_static();
         bool success = false;
         std::vector<size_t> axes_val;
@@ -232,7 +236,7 @@ TSGatherBackward::TSGatherBackward() {
             copy_runtime_info(main_node, squeeze);
             main_node->input(1).replace_source_output(squeeze);
             main_node->validate_and_infer_types();
-            auto new_out_pshape = main_node->get_output_partial_shape(0);
+            const auto& new_out_pshape = main_node->get_output_partial_shape(0);
             if (new_out_pshape.is_static()) {
                 const auto shape = out_pshape.get_shape();
                 const auto new_shape = new_out_pshape.get_shape();

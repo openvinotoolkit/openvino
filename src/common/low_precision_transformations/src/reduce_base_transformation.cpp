@@ -56,7 +56,7 @@ bool ReduceBaseTransformation::canBeTransformed(const TransformationContext& con
     const std::vector<size_t> axes = ov::util::normalize_axes(reduce->get_friendly_name(), constData, inputRank);
 
     const auto deqByReducedConst = [&](const std::shared_ptr<Node>& eltwise) {
-        const auto constShape = eltwise->get_shape();
+        const auto& constShape = eltwise->get_shape();
 
         if (!constShape.empty()) {
             for (size_t i = 0; i < constShape.size(); ++i) {

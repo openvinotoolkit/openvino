@@ -34,9 +34,9 @@ ov::pass::RandomUniformFusion::RandomUniformFusion() {
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        const auto data = pattern_map.at(data_pattern);
-        const auto random_uniform = pattern_map.at(random_uniform_pattern);
-        const auto constant = pattern_map.at(const_pattern);
+        const auto& data = pattern_map.at(data_pattern);
+        const auto& random_uniform = pattern_map.at(random_uniform_pattern);
+        const auto& constant = pattern_map.at(const_pattern);
         const auto ru = std::dynamic_pointer_cast<ov::op::v8::RandomUniform>(random_uniform.get_node_shared_ptr());
         if (!ru)
             return false;
@@ -49,7 +49,7 @@ ov::pass::RandomUniformFusion::RandomUniformFusion() {
         if (!old_const->get_element_type().is_real())
             return false;
 
-        auto const_shape = old_const->get_shape();
+        const auto& const_shape = old_const->get_shape();
         if (shape_size(const_shape) != 1)
             return false;
 

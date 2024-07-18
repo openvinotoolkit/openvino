@@ -42,9 +42,9 @@ ov::pass::ConvertScatterElementsToScatter::ConvertScatterElementsToScatter() {
 
         auto indices_input = broadcast->input_value(0);
 
-        const auto data_pshape = scatter->input(0).get_partial_shape();
-        const auto indices_pshape = indices_input.get_partial_shape();
-        const auto updates_pshape = scatter->input(2).get_partial_shape();
+        const auto& data_pshape = scatter->input(0).get_partial_shape();
+        const auto& indices_pshape = indices_input.get_partial_shape();
+        const auto& updates_pshape = scatter->input(2).get_partial_shape();
 
         // Check that ScatterElementsUpdate and Broadcast inputs has static shapes
         if (data_pshape.rank().is_dynamic() || indices_pshape.rank().is_dynamic() ||

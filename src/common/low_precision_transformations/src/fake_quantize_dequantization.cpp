@@ -117,8 +117,8 @@ bool FakeQuantizeDequantization::checkShape(const std::shared_ptr<ov::Node>& ele
         return true;
     }
 
-    const auto inPShape = elementwise->get_input_partial_shape(branchIndex == 1 ? 0 : 1);
-    const auto outPShape = elementwise->get_output_partial_shape(0);
+    const auto& inPShape = elementwise->get_input_partial_shape(branchIndex == 1 ? 0 : 1);
+    const auto& outPShape = elementwise->get_output_partial_shape(0);
     if (inPShape.rank() != outPShape.rank()) {
         return false;
     }
@@ -154,14 +154,14 @@ bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ov::Node
         return true;
     }
 
-    const auto partialShape = dequantizationElementwise->get_output_partial_shape(0);
+    const auto& partialShape = dequantizationElementwise->get_output_partial_shape(0);
     if (partialShape.rank().is_dynamic()) {
         return false;
     }
 
     auto dimc = channelDimIndex;
 
-    const auto channelsDimension = partialShape[dimc];
+    const auto& channelsDimension = partialShape[dimc];
     if (channelsDimension.is_dynamic()) {
         return false;
     }

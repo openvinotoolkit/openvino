@@ -30,8 +30,8 @@ std::shared_ptr<Node> moveThroughElementwise(const std::shared_ptr<Node>& transp
         elementwiseValuesConvert->get_input_node_shared_ptr(0ul);
     assert(ov::is_type<opset1::Constant>(elementwiseValues));
 
-    const auto transposeValuesShape = transposeValues->get_output_shape(0);
-    const auto elementwiseValuesShape = elementwiseValues->get_output_shape(0);
+    const auto& transposeValuesShape = transposeValues->get_output_shape(0);
+    const auto& elementwiseValuesShape = elementwiseValues->get_output_shape(0);
     if (elementwiseValuesShape.size() != shape_size(transposeValuesShape)) {
         if (shape_size(elementwiseValuesShape) != 1ul) {
             return nullptr;
@@ -110,7 +110,11 @@ ov::pass::low_precision::PullTransposeThroughDequantization::PullTransposeThroug
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher & m) -> bool {
         const auto& opsMap = m.get_pattern_value_map();
-        auto transpose = opsMap.find(matcherTranspose)->second.get_node()->shared_from_this();
+        auto it = opsMap.find(matcherTranspose);
+        if (it == opsMap.end()) {
+            return false;
+        }
+        auto transpose = it->second.get_node()->shared_from_this();
 
         while (transpose != nullptr) {
             const auto parent = transpose->get_input_node_shared_ptr(0);

@@ -43,7 +43,7 @@ bool ShuffleChannelsTransformation::transform(TransformationContext& context, ov
 
     const auto shuffleDequantizationConstant = [&](const std::shared_ptr<Node>& eltwise) {
         const auto normalizedConst = NetworkHelper::normalizeDequantizationShape(eltwise, true);
-        const auto constShape = normalizedConst->get_shape();
+        const auto& constShape = normalizedConst->get_shape();
 
         if (shape_size(constShape) == 1ul) {
             return NetworkHelper::toScalar(normalizedConst);

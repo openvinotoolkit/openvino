@@ -131,9 +131,9 @@ ov::pass::ShuffleChannelsFusion::ShuffleChannelsFusion(const bool reshape_consta
             }
         }
 
-        auto pshape_input = reshape_before->get_input_partial_shape(0);
-        auto pshape_reshape_before = reshape_before->get_output_partial_shape(0);
-        auto pshape_reshape_after = reshape_after->get_output_partial_shape(0);
+        const auto& pshape_input = reshape_before->get_input_partial_shape(0);
+        const auto& pshape_reshape_before = reshape_before->get_output_partial_shape(0);
+        const auto& pshape_reshape_after = reshape_after->get_output_partial_shape(0);
 
         auto transpose_constant = std::dynamic_pointer_cast<ov::op::v0::Constant>(
             pattern_map.at(transpose_const_pattern).get_node_shared_ptr());

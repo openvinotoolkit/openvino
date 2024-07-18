@@ -39,7 +39,7 @@ bool ReduceSumTransformation::canBeTransformed(const TransformationContext& cont
     const auto dequantization = NetworkHelper::getDequantization(reduce, defaultPrecisions);
     if (dequantization.subtract) {
         const auto reductionAxes = reduceSum->get_reduction_axes();
-        const auto inputPShape = dequantization.data.get_partial_shape();
+        const auto& inputPShape = dequantization.data.get_partial_shape();
 
         for (const auto& elem : reductionAxes) {
             if (inputPShape[elem].is_dynamic()) {
@@ -59,7 +59,7 @@ void ReduceSumTransformation::changeDequantizationValues(
     if (dequantization.subtract) {
         const auto reduceSum = ov::as_type_ptr<ov::opset1::ReduceSum>(reduce);
         const auto reductionAxes = reduceSum->get_reduction_axes();
-        const auto inputShape = reduceSum->get_input_partial_shape(0);
+        const auto& inputShape = reduceSum->get_input_partial_shape(0);
 
         // calculating the number of reduced elements
         size_t reductionSize = 1ul;

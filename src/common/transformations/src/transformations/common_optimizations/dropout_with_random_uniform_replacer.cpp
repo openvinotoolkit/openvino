@@ -37,8 +37,8 @@ ov::pass::DropoutWithRandomUniformReplacer::DropoutWithRandomUniformReplacer() {
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        const auto random_uniform = pattern_map.at(random_uniform_pattern);
-        const auto shape_of = pattern_map.at(shape_pattern);
+        const auto& random_uniform = pattern_map.at(random_uniform_pattern);
+        const auto& shape_of = pattern_map.at(shape_pattern);
         const auto ru = std::dynamic_pointer_cast<ov::op::v8::RandomUniform>(random_uniform.get_node_shared_ptr());
         if (!ru)
             return false;

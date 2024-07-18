@@ -37,7 +37,7 @@ ov::pass::SelectWithOneValueCondition::SelectWithOneValueCondition() {
             return false;
         }
 
-        auto condition_value = pattern_map.at(condition);
+        const auto& condition_value = pattern_map.at(condition);
         auto condition_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(condition_value.get_node_shared_ptr());
         if (!condition_const) {
             return false;
@@ -66,7 +66,7 @@ ov::pass::SelectWithOneValueCondition::SelectWithOneValueCondition() {
         // based on the resulted shape and the shape of the skipped branch, perform further steps
         auto select_shape = select->get_output_partial_shape(0);
         auto branch_output = select->input_value(branch_index);
-        auto branch_output_shape = branch_output.get_partial_shape();
+        const auto& branch_output_shape = branch_output.get_partial_shape();
 
         if (select_shape.is_static() && branch_output_shape.same_scheme(select_shape)) {
             // Broadcast is not needed if the select shape is exactly the same as the selected branch

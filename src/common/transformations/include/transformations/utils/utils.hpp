@@ -281,7 +281,7 @@ TRANSFORMATIONS_API bool is_on_constant_path(const ov::Output<ov::Node>& output)
 TRANSFORMATIONS_API bool process_subgraph(ov::pass::ModelPass& model_pass, const std::shared_ptr<Node>& node);
 
 template <typename T>
-ov::pass::pattern::op::ValuePredicate constant_predicate(std::function<bool(const std::vector<T>&)> predicate) {
+ov::pass::pattern::op::ValuePredicate constant_predicate(const std::function<bool(const std::vector<T>&)>& predicate) {
     return pass::pattern::op::as_value_predicate([=](std::shared_ptr<Node> n) -> bool {
         if (auto constant = as_type_ptr<v0::Constant>(n)) {
             auto values = constant->cast_vector<T>();

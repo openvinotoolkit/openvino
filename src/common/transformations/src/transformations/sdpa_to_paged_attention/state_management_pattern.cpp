@@ -171,11 +171,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
             pattern_map.at(pattern_map.count(sdpa_with_4_inputs) ? sdpa_with_4_inputs : sdpa_with_5_inputs).get_node();
         // E and Ev are from the SDPA specification at
         // https://docs.openvino.ai/2024/documentation/openvino-ir-format/operation-sets/operation-specs/sequence/scaled-dot-product-attention.html
-        auto E = sdpa_node->get_input_tensor(1).get_partial_shape()[-1];
-        auto Ev = sdpa_node->get_input_tensor(2).get_partial_shape()[-1];  // in common case may not match E
+        const auto& E = sdpa_node->get_input_tensor(1).get_partial_shape()[-1];
+        const auto& Ev = sdpa_node->get_input_tensor(2).get_partial_shape()[-1];  // in common case may not match E
 
         auto extract_num_kv_heads = [=, &pattern_map](std::shared_ptr<Node> unsqueeze,
-                                                      const Dimension& default_heads_num) {
+                                                      const Dimension& default_heads_num) -> ov::Dimension {
             // Deduce number of k/v heads from Unsqueeze-Broadcast-Reshape (UBR pattern, if present)
             // pattern that appears in case of MQA/GQA.
             // In case if UBR pattern doesn't appear, the default number of heads is used passed as default_heads_num.
@@ -256,7 +256,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
             // it avoids complication in the pattern, but we don't really have many options
             auto take_4d = [=](const std::shared_ptr<Node>& option1,
                                const std::shared_ptr<Node>& option2,
-                               const std::shared_ptr<Node>& option3) {
+                               const std::shared_ptr<Node>& option3) -> ov::Output<Node> {
                 if (pattern_map.find(option1) != pattern_map.end() &&
                     pattern_map.at(option1).get_partial_shape().rank().get_length() == 4) {
                     return pattern_map.at(option1);

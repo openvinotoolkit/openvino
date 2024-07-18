@@ -256,7 +256,7 @@ static vector<int64_t> get_squeeze_axes(const PartialShape& data_shape, const Pa
 }
 
 static bool eliminate_unsqueeze(const shared_ptr<Node>& node) {
-    auto out_shape = node->get_output_partial_shape(0);
+    const auto& out_shape = node->get_output_partial_shape(0);
     // try to replace all squeeze/unsqueeze with reshape
     if (out_shape.rank().is_static() && out_shape.rank().get_length() != 0 && count_unknown_dims(out_shape) < 2) {
         return replace_squeeze_unsqueeze(node);
@@ -467,7 +467,7 @@ pass::EliminateSqueeze::EliminateSqueeze() {
 
     matcher_pass_callback callback = [](pattern::Matcher& m) {
         const auto node = m.get_match_root();
-        auto out_shape = node->get_output_partial_shape(0);
+        const auto& out_shape = node->get_output_partial_shape(0);
         // try to replace all unsqueeze/squeeze with reshape
         if (out_shape.rank().is_static() && out_shape.rank().get_length() != 0 && count_unknown_dims(out_shape) < 2) {
             return replace_squeeze_unsqueeze(node);
@@ -582,7 +582,7 @@ bool check_reshape(const shared_ptr<Node>& node) {
                 return false;
             }
             pattern_val.insert(pattern_val.begin() + 1, 1);
-            auto in_shape = reshape->input_value(0).get_partial_shape();
+            const auto& in_shape = reshape->input_value(0).get_partial_shape();
             // Current Reshape is a product of eliminate_reshape_v1 transformation.
             // Initial Unsqueeze operation had static input shape and thus was replaced.
             // This makes us eligible to assume input shape of Reshape that we are searching for is static

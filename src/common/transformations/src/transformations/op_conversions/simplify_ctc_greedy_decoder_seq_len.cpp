@@ -35,7 +35,7 @@ ov::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
         }
 
         if (decoder_seq_len->get_input_size() > 2) {
-            const auto data_pshape = decoder_seq_len->get_input_partial_shape(0);
+            const auto& data_pshape = decoder_seq_len->get_input_partial_shape(0);
             auto blank_index =
                 std::dynamic_pointer_cast<ov::op::v0::Constant>(decoder_seq_len->input_value(2).get_node_shared_ptr());
             if (!blank_index || data_pshape.rank().is_dynamic() || data_pshape[2].is_dynamic()) {

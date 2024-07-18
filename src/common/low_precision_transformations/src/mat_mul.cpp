@@ -56,7 +56,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ov::pass::p
             const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fakeQuantize);
 
             const auto precisionsAttribute = getAttributeFromOutput<PrecisionsAttribute>(fakeQuantize);
-            const auto precisions = precisionsAttribute.empty() ?
+            const auto& precisions = precisionsAttribute.empty() ?
                 defaultPrecisions :
                 precisionsAttribute.as<PrecisionsAttribute>().value();
             const DataPrecision dataPrecision = getDataPrecision(fakeQuantize, quantizationDetails, precisions);
@@ -97,7 +97,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ov::pass::p
             Shape(dequantization1.subtract->get_output_partial_shape(0).rank().get_length(), 1) :
             dequantization1.subtractConstant->get_shape();
 
-        const auto weightsPShape = newMatMul->get_input_partial_shape(1);
+        const auto& weightsPShape = newMatMul->get_input_partial_shape(1);
         assert(weightsPShape.is_static());
         const auto weightsShape = weightsPShape.to_shape();
 
@@ -145,7 +145,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ov::pass::p
     if (NetworkHelper::isScalarLike(ov::as_type_ptr<ov::opset1::Constant>(mulConst2))) {
         mulConst2 = NetworkHelper::toScalar(ov::as_type_ptr<ov::opset1::Constant>(mulConst2));
     } else {
-        const auto constShape = mulConst2->get_shape();
+        const auto& constShape = mulConst2->get_shape();
         const size_t inputRank = matMul->get_input_partial_shape(0).rank().get_length();
 
         // unsqueeze from the left side to make both shapes of the same rank
@@ -203,8 +203,8 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
         }
 
         if (!NetworkHelper::isScalarLike(dequantization1.multiplyConstant)) {
-            const auto constantShape = dequantization1.multiplyConstant->get_shape();
-            const auto mulShape = dequantization1.multiply->get_output_partial_shape(0);
+            const auto& constantShape = dequantization1.multiplyConstant->get_shape();
+            const auto& mulShape = dequantization1.multiply->get_output_partial_shape(0);
             const size_t rank = mulShape.rank().get_length();
 
             const size_t columnsIdx = matMul->get_transpose_a() ? rank - 2 : rank - 1;
@@ -258,7 +258,7 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
         const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fakeQuantize);
 
         const auto precisionsAttribute = getAttribute<PrecisionsAttribute>(matMul->input(1));
-        const auto precisions = precisionsAttribute.empty() ?
+        const auto& precisions = precisionsAttribute.empty() ?
             defaultPrecisions :
             precisionsAttribute.as<PrecisionsAttribute>().value();
 
@@ -267,9 +267,9 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
             return false;
         }
 
-        const auto outLowShape = fakeQuantize->get_input_node_shared_ptr(3)->get_shape();
-        const auto outHighShape = fakeQuantize->get_input_node_shared_ptr(4)->get_shape();
-        const auto fakeQuantizeShape = fakeQuantize->get_output_partial_shape(0);
+        const auto& outLowShape = fakeQuantize->get_input_node_shared_ptr(3)->get_shape();
+        const auto& outHighShape = fakeQuantize->get_input_node_shared_ptr(4)->get_shape();
+        const auto& fakeQuantizeShape = fakeQuantize->get_output_partial_shape(0);
         const size_t rank = fakeQuantizeShape.rank().get_length();
 
         const size_t rowsIdx = matMul->get_transpose_b() ? rank - 1 : rank - 2;

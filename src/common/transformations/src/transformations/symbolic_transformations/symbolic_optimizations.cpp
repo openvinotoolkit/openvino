@@ -135,8 +135,8 @@ ov::pass::LabelResolvingThroughSelect::LabelResolvingThroughSelect() {
         if (!get_symbols(value_map.at(reshape).get_partial_shape(), reshape_symbols))
             return false;
         auto add_node = value_map.at(add).get_node_shared_ptr();
-        auto add_0_pshape = add_node->input_value(0).get_partial_shape();
-        auto add_1_pshape = add_node->input_value(1).get_partial_shape();
+        const auto& add_0_pshape = add_node->input_value(0).get_partial_shape();
+        const auto& add_1_pshape = add_node->input_value(1).get_partial_shape();
         if (!get_symbols(add_0_pshape, add_0_symbols) && !get_symbols(add_1_pshape, add_1_symbols))
             return false;
 

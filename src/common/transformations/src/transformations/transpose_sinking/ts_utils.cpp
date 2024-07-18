@@ -119,7 +119,7 @@ AxisVector ReverseTransposeOrder(const AxisVector& axis_order) {
 }
 
 void SwapOutputNames(Output<Node> output1, Output<Node> output2) {
-    const auto node2_output_names = output2.get_names();
+    const auto& node2_output_names = output2.get_names();
     output2.set_names(output1.get_names());
     output1.set_names(node2_output_names);
 

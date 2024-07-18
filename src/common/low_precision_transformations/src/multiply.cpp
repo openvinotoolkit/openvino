@@ -138,7 +138,7 @@ bool MultiplyTransformation::transform(TransformationContext& context, ov::pass:
 }
 
 size_t MultiplyTransformation::getInputChannels(const std::shared_ptr<ov::Node> op) const {
-    const auto channels = op->get_input_partial_shape(1)[1];
+    const auto& channels = op->get_input_partial_shape(1)[1];
     assert(channels.is_static());
     return channels.get_length();
 }

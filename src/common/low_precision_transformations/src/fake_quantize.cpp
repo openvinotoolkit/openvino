@@ -137,8 +137,8 @@ bool FakeQuantizeTransformation::checkElementwise(const std::shared_ptr<Node>& e
 
     Shape shape = constant->get_shape();
     if (shape_size(shape) != 1ul) {
-        const auto eltwiseInputPShape = eltwise->get_input_partial_shape(0);
-        const auto eltwiseOutputPShape = eltwise->get_output_partial_shape(0);
+        const auto& eltwiseInputPShape = eltwise->get_input_partial_shape(0);
+        const auto& eltwiseOutputPShape = eltwise->get_output_partial_shape(0);
         if (eltwiseInputPShape != eltwiseOutputPShape || eltwiseInputPShape.rank().is_dynamic() || eltwiseOutputPShape.rank().is_dynamic()) {
             return false;
         }

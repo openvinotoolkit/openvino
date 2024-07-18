@@ -79,8 +79,8 @@ ov::pass::ReshapeSequenceFusion::ReshapeSequenceFusion(bool use_shape_for_elimin
         auto input = pattern_map.at(reshape_input);
         auto reshape = m.get_match_root();
 
-        auto pattern_a = pattern_map.at(reshape_a_pattern);
-        auto pattern_b = pattern_map.at(reshape_b_pattern);
+        const auto& pattern_a = pattern_map.at(reshape_a_pattern);
+        const auto& pattern_b = pattern_map.at(reshape_b_pattern);
         // skip reshapes which patterns contain special numbers like -1 or 0
         if (!has_valid_pattern(pattern_a) || !has_valid_pattern(pattern_b)) {
             return false;
