@@ -455,6 +455,22 @@ public:
     }
 };
 
+struct fully_connected_factory : public cldnn::implementation_factory<fully_connected> {
+    std::unique_ptr<primitive_impl> create(const program_node& node, const kernel_impl_params& params) const override {
+        OPENVINO_ASSERT(node.is_type<fully_connected>());
+        return onednn::fully_connected_onednn::create(static_cast<const fully_connected_node&>(node), params);
+    }
+
+    bool validate(const program_node& node) const override {
+        OPENVINO_ASSERT(node.is_type<fully_connected>());
+        return onednn::fully_connected_onednn::validate(static_cast<const fully_connected_node&>(node));
+    }
+
+    std::pair<std::vector<format>, std::vector<format>> query_formats(const program_node& node) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+};
+
 namespace detail {
 
 attach_fully_connected_onednn::attach_fully_connected_onednn() {
@@ -467,7 +483,7 @@ attach_fully_connected_onednn::attach_fully_connected_onednn() {
     std::vector<format::type> fmt = {
         format::bfyx,
     };
-    implementation_map<fully_connected>::add(impl_types::onednn, fully_connected_onednn::create, fully_connected_onednn::validate, dt, fmt);
+    implementation_map<fully_connected>::add(impl_types::onednn, cldnn::make_unique<fully_connected_factory>(), dt, fmt);
 }
 
 }  // namespace detail
