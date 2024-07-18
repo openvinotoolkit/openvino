@@ -440,36 +440,6 @@ network::network(program::ptr program, stream::ptr stream, uint16_t stream_id, o
     : network(program, program->get_config(), stream, false, stream_id == 0, sub_memory_manager) {}
 
 network::~network() {
-    GPU_DEBUG_IF(debug_configuration::get_instance()->host_time_profiling) {
-        if (host_exec_times.size() >= 2) {
-            double first = static_cast<double>(host_exec_times[0]);
-            double avg = static_cast<double>(std::accumulate(host_exec_times.begin() + 1, host_exec_times.end(), (size_t)0, std::plus<size_t>()));
-            GPU_DEBUG_COUT << "Network[" << net_id << "] total host time: " << (first + avg) / 1000.0 << "ms" << std::endl;
-            avg /= (host_exec_times.size() - 1);
-            std::string resolution = " us";
-            if (avg > 1000.0) {
-                resolution = " ms";
-                avg /= 1000.0;
-                first /= 1000.0;
-            }
-            GPU_DEBUG_COUT << "Network[" << net_id << "] First infer host time: " << first << resolution << std::endl;
-            GPU_DEBUG_COUT << "Network[" << net_id << "] Infer avg host time: " << avg << resolution << std::endl;
-        }
-        uint64_t total_sync_time = 0;
-        uint64_t total_copy_time = 0;
-        for (auto& iter : _exec_order) {
-            if (iter->get_node().is_type<sync_tensor>()) {
-                auto sync_inst = std::dynamic_pointer_cast<sync_tensor_inst>(iter);
-                total_sync_time += static_cast<double>
-                    (std::accumulate(sync_inst->host_sync_times.begin(), sync_inst->host_sync_times.end(), (size_t)0, std::plus<size_t>()));
-                total_copy_time += static_cast<double>
-                    (std::accumulate(sync_inst->host_copy_times.begin(), sync_inst->host_copy_times.end(), (size_t)0, std::plus<size_t>()));
-            }
-        }
-        GPU_DEBUG_COUT << "Network[" << net_id << "] sync total wait time: " << total_sync_time / 1000.0 << "ms" << std::endl;
-        GPU_DEBUG_COUT << "Network[" << net_id << "] sync total copy time: " << total_copy_time / 1000.0 << "ms" << std::endl;
-    }
-
     if (_program != nullptr)
         _program->cancel_compilation_context();
     _memory_pool->clear_pool_for_network(net_id);
@@ -952,12 +922,7 @@ void network::add_to_exec_order(const primitive_id& id) {
 }
 
 std::map<primitive_id, network_output> network::execute(const std::vector<event::ptr>& dependencies) {
-    auto start = std::chrono::high_resolution_clock::now();
     execute_impl(dependencies);
-    auto end = std::chrono::high_resolution_clock::now();
-
-    GPU_DEBUG_IF(debug_configuration::get_instance()->host_time_profiling)
-        host_exec_times.push_back(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
 
     auto output_ids = get_output_ids();
     std::map<primitive_id, network_output> result;

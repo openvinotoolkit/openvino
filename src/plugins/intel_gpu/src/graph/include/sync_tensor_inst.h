@@ -58,8 +58,6 @@ public:
     typed_primitive_inst(network& network, const sync_tensor_node& desc);
     typed_primitive_inst(network& network) : parent(network) {}
     void update_output_memory() override;
-    std::vector<uint64_t> host_sync_times;
-    std::vector<uint64_t> host_copy_times;
 
 protected:
     void on_execute() override;

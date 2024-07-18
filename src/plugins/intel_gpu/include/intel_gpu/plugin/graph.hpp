@@ -26,6 +26,12 @@
 
 namespace ov {
 namespace intel_gpu {
+struct HostTimeProfilingEntry {
+    int64_t inputs_processing = 0;
+    int64_t enqueue = 0;
+    int64_t wait = 0;
+    int64_t outputs_processing = 0;
+};
 
 class Graph final {
 public:
@@ -40,6 +46,7 @@ public:
             const std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr);
     Graph(cldnn::BinaryInputBuffer& ib, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id = 0);
     Graph(std::shared_ptr<Graph> graph, uint16_t stream_id = 0);
+    ~Graph();
 
     void export_model(cldnn::BinaryOutputBuffer &ob);
     std::shared_ptr<ov::Model> get_runtime_model();
@@ -76,6 +83,8 @@ public:
     std::mutex& get_mutex() { return m_infer_mutex; }
 
     bool use_external_queue() const;
+
+    std::vector<HostTimeProfilingEntry> host_exec_times;
 
 private:
     RemoteContextImpl::Ptr m_context;

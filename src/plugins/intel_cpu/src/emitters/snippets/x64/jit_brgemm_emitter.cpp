@@ -7,7 +7,7 @@
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include <cpu/x64/brgemm/brgemm.hpp>
 #include <cpu/x64/amx_tile_configure.hpp>
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "utils.hpp"
 
 using namespace Xbyak;
