@@ -15,24 +15,23 @@ PluginConfig::PluginConfig() {
 }
 
 void PluginConfig::set_default() {
-    register_property(std::make_tuple(ov::enable_profiling, false),
-                      std::make_tuple(ov::device::priorities, ""),
-                      std::make_tuple(ov::hint::model_priority, ov::hint::Priority::MEDIUM),
-                      std::make_tuple(ov::log::level, ov::log::Level::NO),
-                      std::make_tuple(ov::intel_auto::device_bind_buffer, false),
-                      std::make_tuple(ov::intel_auto::schedule_policy, ov::intel_auto::SchedulePolicy::DEVICE_PRIORITY),
-                      std::make_tuple(ov::hint::performance_mode, ov::hint::PerformanceMode::LATENCY),
-                      std::make_tuple(ov::hint::execution_mode, ov::hint::ExecutionMode::PERFORMANCE),
-                      std::make_tuple(ov::hint::num_requests, 0, UnsignedTypeValidator()),
-                      std::make_tuple(ov::intel_auto::enable_startup_fallback, true),
-                      std::make_tuple(ov::intel_auto::enable_runtime_fallback, true),
-                      std::make_tuple(ov::hint::inference_precision, ov::element::f16),
-                      // RO for register only
-                      std::make_tuple(ov::device::full_name),
-                      std::make_tuple(ov::device::capabilities),
-                      std::make_tuple(ov::supported_properties));
+    register_property(
+        std::make_tuple(ov::enable_profiling, false),
+        std::make_tuple(ov::device::priorities, ""),
+        std::make_tuple(ov::hint::model_priority, ov::hint::Priority::MEDIUM),
+        std::make_tuple(ov::log::level, ov::log::Level::NO),
+        std::make_tuple(ov::intel_auto::device_bind_buffer, false),
+        std::make_tuple(ov::intel_auto::schedule_policy, ov::intel_auto::SchedulePolicy::DEVICE_PRIORITY),
+        std::make_tuple(ov::hint::performance_mode, ov::hint::PerformanceMode::LATENCY),
+        std::make_tuple(ov::hint::execution_mode, ov::hint::ExecutionMode::PERFORMANCE),
+        std::make_tuple(ov::hint::num_requests, 0, UnsignedTypeValidator()),
+        std::make_tuple(ov::intel_auto::enable_startup_fallback, true),
+        std::make_tuple(ov::intel_auto::enable_runtime_fallback, true),
+        // RO for register only
+        std::make_tuple(ov::device::full_name),
+        std::make_tuple(ov::device::capabilities),
+        std::make_tuple(ov::supported_properties));
 }
-
 void PluginConfig::register_property_impl(const ov::AnyMap::value_type& property, ov::PropertyMutability mutability, BaseValidator::Ptr validator) {
     property_validators[property.first] = validator;
     internal_properties[property.first] = property.second;
