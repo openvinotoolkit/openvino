@@ -94,12 +94,9 @@ public:
 
     SharedMemory::Ptr get(const std::string& key) const;
 
-    static const SimpleDataHash& GetHashFunc () { return simpleCRC; }
-
 protected:
     mutable std::mutex guard;
     std::unordered_map<std::string, MemoryInfo::Ptr> sharedWeights;
-    static const SimpleDataHash simpleCRC;
 };
 
 /**
