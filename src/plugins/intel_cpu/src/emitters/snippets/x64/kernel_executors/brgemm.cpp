@@ -212,7 +212,7 @@ BrgemmKernelReferenceExecutor::BrgemmKernelReferenceExecutor(ov::intel_cpu::Mult
 }
 
 std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelReferenceExecutor::compile_kernel(const BrgemmKernelConfig& c) const {
-    const auto& res = BrgemmKernelExecutor::compile_kernel(c);
+    const auto& res = std::make_shared<BrgemmCompiledKernel>();
     res->compiled_kernel.reset(new brgemm_ref_kernel(c));
     return res;
 }

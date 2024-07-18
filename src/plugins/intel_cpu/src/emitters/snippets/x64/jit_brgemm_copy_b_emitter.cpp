@@ -100,6 +100,7 @@ void jit_brgemm_copy_b_emitter::init_brgemm_copy(std::unique_ptr<matmul::jit_brg
 
 
     brgCopyKernelConf.isa = jit_brgemm_emitter::get_primitive_isa(src_dt, is_with_amx);
+    // Note: this assert can be removed when we support transposes through BrgemmCopyB
     OV_CPU_JIT_EMITTER_ASSERT(isa_has_int8_vnni(brgCopyKernelConf.isa), "BrgemmCopyB emitter requires VNNI support");
     brgCopyKernelConf.s8s8_compensation_required = src_dt == ov::element::i8 && !is_with_amx;
 

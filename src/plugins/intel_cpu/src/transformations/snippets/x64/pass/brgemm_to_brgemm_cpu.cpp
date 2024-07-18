@@ -75,7 +75,10 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
         const bool with_amx = isAMXSupported && element_type_a != ov::element::f32 &&
                               K.is_static() && K.get_length() % brgemmVNNIFactor == 0 &&
                               N.is_static() && N.get_length() % brgemmVNNIFactor == 0;
-        const bool with_comp = element_type_a == ov::element::i8 && !with_amx;
+        // Note: this condition reproduces logic from the OneDNN Brgemm implementation. This is needed to align with the
+        // backend requirements. More details in onednn/src/cpu/x64/brgemm/brgemm_utils.cpp
+        const bool with_comp = element_type_a == ov::element::i8 && !with_amx &&
+                                                 !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni_2);
 
         const auto offset_a = brgemm->get_offset_a();
         const auto offset_b = brgemm->get_offset_b();
