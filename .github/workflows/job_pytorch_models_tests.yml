@@ -113,7 +113,15 @@ jobs:
           python3 -m pip install ${INSTALL_DIR}/tools/openvino-*
           python3 -m pip install ${INSTALL_DIR}/openvino_tokenizers-*
 
-      - name: Install PyTorch tests requirements
+      - name: Install PyTorch tests requirements for precommit
+        if: ${{ inputs.model_scope == 'precommit' }}
+        run: |
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/requirements.txt
+        env:
+          CPLUS_INCLUDE_PATH: ${{ env.Python_ROOT_DIR }}/include/python${{ env.PYTHON_VERSION }}
+
+      - name: Install PyTorch tests requirements for nightly
+        if: ${{ inputs.model_scope != 'precommit' }}
         run: |
           python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/requirements.txt
           python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/requirements_secondary.txt
