@@ -20,6 +20,8 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
                                const MemoryCPtr weightsMem,
                                const ExecutorContext::CPtr context,
                                const bool needShiftSignedToUnsigned = false);
+
+std::string computeWeightsStringHash(const MemoryCPtr weightsMem, const DnnlMemoryDescPtr dstWeightDesc);
 }  // namespace utils
 }  // namespace intel_cpu
 }  // namespace ov
