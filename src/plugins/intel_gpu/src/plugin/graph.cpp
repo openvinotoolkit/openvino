@@ -189,6 +189,7 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "input_layout", "Input" },
                 { "lrn", "LRN" },
                 { "lstm_elt", "LSTM_Eltwise" },
+                { "lstm_seq", "LSTM_Seq" },
                 { "mvn", "MVN" },
                 { "normalize", "Normalize" },
                 { "permute", "Permute" },

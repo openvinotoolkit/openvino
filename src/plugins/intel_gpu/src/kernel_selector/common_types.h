@@ -41,6 +41,7 @@ enum class KernelType {
     REORG_YOLO,
     MVN,
     LSTM_ELT,
+    LSTM_SEQ,
     BORDER,
     TILE,
     SELECT,

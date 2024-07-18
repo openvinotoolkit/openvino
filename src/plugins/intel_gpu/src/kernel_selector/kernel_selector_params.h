@@ -232,6 +232,9 @@ public:
                     struct lstm_elt_t {
                         uint32_t cell : 1;
                     } lstm_elt;
+                    struct lstm_seq_t {
+                        uint32_t cell : 1;
+                    } lstm_seq;
                     struct quantize_t {
                         uint32_t scale_shift_opt : 1;
                     } quantize;
@@ -336,6 +339,7 @@ public:
     void EnableEltwiseBroadcast() { key.restrict.val.dedicated.eltwise.broadcast = 1; }
 
     void EnableLSTMEltCell() { key.restrict.val.dedicated.lstm_elt.cell = 1; }
+    void EnableLSTMSeqCell() { key.restrict.val.dedicated.lstm_seq.cell = 1; }
     void EnableConcatKernelPerInput() { key.restrict.val.dedicated.concat.kernelPerInput = 1; }
     void EnableConcatOneKernel() { key.restrict.val.dedicated.concat.oneKernel = 1; }
     void EnableArgMaxMinAxis(ArgMaxMinAxis a);
