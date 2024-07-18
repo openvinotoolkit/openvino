@@ -11,7 +11,7 @@
 #    endif
 #    include <xbyak/xbyak_util.h>
 
-#    include "jit_generator.hpp"
+#    include "openvino/reference/utils/jit_generator.hpp"
 #    include "openvino/core/type/bfloat16.hpp"
 #    include "openvino/core/type/float16.hpp"
 
@@ -51,6 +51,10 @@ bool Generator::mayiuse(const cpu_isa_t cpu_isa) {
         return true && cpu.has(Cpu::tAVX512_VPOPCNTDQ);
     case fp16:
         return cpu.has(Cpu::tF16C);
+    case cpu_isa_t::pclmulqdq:
+        return cpu.has(Cpu::tPCLMULQDQ);
+    case cpu_isa_t::vpclmulqdq:
+        return cpu.has(Cpu::tVPCLMULQDQ);
     case isa_any:
         return true;
     }
