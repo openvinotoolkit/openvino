@@ -22,6 +22,7 @@
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/reference/convert.hpp"
+#include "openvino/reference/utils/combine_hash.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
 #include "openvino/util/file_util.hpp"
@@ -67,23 +68,6 @@ std::string translate_type_name(const std::string& name) {
         return found->second;
     }
     return name;
-}
-
-size_t hash_combine(const void* v, int64_t size) {
-    constexpr auto cel_size = sizeof(size_t);
-    auto seed = static_cast<size_t>(size);
-    const auto data = static_cast<const size_t*>(v);
-    const auto d_end = std::next(data, size / cel_size);
-    // The constant value used as a magic number has been
-    // traditionally used e.g. in boost library's hash_combine.
-    // It happens to be derived from the golden ratio.
-    for (auto d = data; d != d_end; ++d) {
-        seed ^= *d + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    }
-    size_t last_bytes{0};
-    std::memcpy(&last_bytes, d_end, size % cel_size);
-    seed ^= last_bytes + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    return seed;
 }
 
 class ConstantWriter {
@@ -132,7 +116,7 @@ public:
             // the same hash for {2, 2} and {0, 128} arrays.
             // But even strong hashing algorithms sometimes give collisions.
             // Therefore we always have to compare values when finding a match in the hash multimap.
-            const HashValue hash = hash_combine(ptr_to_write, *new_size);
+            const HashValue hash = ov::runtime::combine_hash(ptr_to_write, *new_size);
             auto found = m_hash_to_file_positions.find(hash);
             // iterate over all matches of the key in the multimap
             while (found != m_hash_to_file_positions.end()) {
