@@ -1,8 +1,9 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "common_test_utils/data_utils.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -38,16 +39,14 @@ public:
 
 protected:
     void SetUp() override {
-        targetDevice = ov::test::utils::DEVICE_CPU;
+        targetDevice = utils::DEVICE_CPU;
         element::Type weight_prec;
         InputShape inputShape1, inputShape2;
         std::tie(weight_prec, inputShape1, inputShape2) = GetParam();
 
-        // auto input_shape1 = Shape{1, 3, 64, 64};
-        // auto input_shape2 = Shape{32};
         init_input_shapes({inputShape1, inputShape2});
 
-        targetDevice = test::utils::DEVICE_CPU;
+        targetDevice = utils::DEVICE_CPU;
         auto type = element::f32;
 
         auto input1 = std::make_shared<op::v0::Parameter>(type, inputDynamicShapes[0]);
@@ -61,8 +60,7 @@ protected:
 
         // Weights
         auto weights_shape = Shape{64, 64};
-        auto weights_vals = test::utils::generate_float_numbers(shape_size(weights_shape), -1, 1);
-        auto weights = op::v0::Constant::create(weight_prec, weights_shape, weights_vals);
+        auto weights = utils::make_constant(weight_prec, weights_shape, utils::InputGenerateData(-1, 2, 32768));
         auto convert = std::make_shared<op::v0::Convert>(weights, element::f32);
         auto multiply = std::make_shared<op::v1::Multiply>(convert, op::v0::Constant::create(type, {1, 1}, {0.625}));
         // Indics
