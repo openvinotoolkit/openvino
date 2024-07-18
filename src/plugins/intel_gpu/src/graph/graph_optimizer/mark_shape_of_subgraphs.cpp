@@ -79,6 +79,13 @@ bool mark_shape_of_subgraphs::can_mark_node(const program_node& node) {
             return false;
     }
 
+    // Exclude stride_slice primitive if it's input is big const ternsor, else CPU reference implementation
+    // will lead to huge performance drop.
+    if (node.is_type<strided_slice>() && node.get_dependency(0).is_constant() &&
+        node.get_dependency(0).get_output_layout().count() > 1024 * 1024) {
+        return false;
+    }
+
     auto available_impls = node.type()->get_available_impls(node);
     auto cpu_impl_found = available_impls.find(impl_types::cpu) != available_impls.end();
 
@@ -108,7 +115,7 @@ void mark_shape_of_subgraphs::mark_node(program_node& node) {
     // Update impl if needed
     const auto default_subgraph_impl = impl_types::cpu;
     if (_update_impls)
-        if (!node.is_type<reshape>() && !node.is_type<strided_slice>())
+        if (!node.is_type<reshape>())
             node.set_preferred_impl_type(default_subgraph_impl);
 }
 
