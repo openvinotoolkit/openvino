@@ -1464,7 +1464,6 @@ public:
     void test_compressed_int4_accumulation(bool is_caching_test, bool is_dynamic, long int batch_num) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
-        auto supports_immad = engine.get_device_info().supports_immad;
 
         long int ifm_num = 4096;
         long int ofm_num = 4;
@@ -1487,8 +1486,9 @@ public:
 
         auto in_layout = is_dynamic ? layout{ {-1, ifm_num}, data_types::f16, format::bfyx }
                                     : layout{ {batch_num, ifm_num}, data_types::f16, format::bfyx };
+        primitive_id empty_id = "";
 
-        auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, padding(), 2, 2);
+        auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", empty_id, "scale", empty_id, data_types::f16);
 
         topology topology(
             input_layout("input", in_layout),
