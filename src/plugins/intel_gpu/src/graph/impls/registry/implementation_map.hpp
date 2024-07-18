@@ -30,6 +30,8 @@ public:
     }
 };
 
+using in_out_fmts_t = std::pair<std::vector<format::type>, std::vector<format::type>>;
+
 struct primitive_impl;
 
 struct program_node;
@@ -47,7 +49,7 @@ struct implementation_factory_base {
 public:
     virtual std::unique_ptr<primitive_impl> create(const program_node& node, const kernel_impl_params& params) const = 0;
     virtual bool validate(const program_node& node) const = 0;
-    virtual std::pair<std::vector<format>, std::vector<format>> query_formats(const program_node& node) const = 0;
+    virtual in_out_fmts_t query_formats(const program_node& node) const = 0;
 
     virtual ~implementation_factory_base() = default;
 };
@@ -63,7 +65,7 @@ struct implementation_factory : public implementation_factory_base {
     bool validate(const program_node& node) const override {
         return true;
     }
-    std::pair<std::vector<format>, std::vector<format>> query_formats(const program_node& node) const override {
+    in_out_fmts_t query_formats(const program_node& node) const override {
         return {};
     }
     using simple_factory_type = std::function<std::unique_ptr<primitive_impl>(const typed_program_node<primitive_kind>&, const kernel_impl_params&)>;

@@ -35,6 +35,9 @@ struct primitive_type {
     virtual std::set<impl_types> get_available_impls(const program_node& node) const = 0;
     virtual bool is_node_supported(const cldnn::program_node& node, impl_types impl_type) const = 0;
 
+    using in_out_fmts_t = std::pair<std::vector<format::type>, std::vector<format::type>>;
+    virtual in_out_fmts_t query_preferred_formats(const cldnn::program_node& node, impl_types impl_type) const = 0;
+
     virtual bool does_an_implementation_exist(const program_node& node) const = 0;
     virtual bool does_an_implementation_exist(const program_node& node, const kernel_impl_params& params) const = 0;
 

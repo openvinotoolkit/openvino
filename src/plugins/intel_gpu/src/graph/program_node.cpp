@@ -636,6 +636,10 @@ bool program_node::can_use(impl_types impl_type) const {
     return get_primitive()->type->is_node_supported(*this, impl_type);
 }
 
+void program_node::select_preferred_formats(impl_types impl_type) {
+    std::tie(preferred_input_fmts, preferred_output_fmts) = get_primitive()->type->query_preferred_formats(*this, impl_type);
+}
+
 void program_node::add_dependant_shape_of_node(const program_node* node) {
     OPENVINO_ASSERT(node->is_type<shape_of>(), "[GPU] Expected node type is shape_of");
     dependant_shape_of_nodes.insert(node);

@@ -206,9 +206,5 @@ public:
     size_t get_total_conv_count();
 
     bool should_select_b_fs_yx_fsv16_layout(convolution_node const& node, layout const& output_or_weights_layout);
-
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    void select_preferred_formats_for_onednn(program_node& node, dnnl::primitive_desc prim_desc = dnnl::primitive_desc());
-#endif
 };
 }  // namespace cldnn

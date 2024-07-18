@@ -3,6 +3,7 @@
 //
 
 #include "convolution_inst.h"
+#include "permute_inst.h"
 #include "intel_gpu/runtime/format.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/utils.hpp"
@@ -17,9 +18,100 @@
 
 #include <algorithm>
 #include <memory>
-#include "convolution_onednn.hpp"
 namespace cldnn {
 namespace onednn {
+
+static std::shared_ptr<dnnl::convolution_forward::primitive_desc> get_convolution_primitive_descriptor(const kernel_impl_params& impl_params,
+                                            const dnnl::primitive_attr& attr = dnnl::primitive_attr(),
+                                            dnnl::memory::format_tag tag_in_out = dnnl::memory::format_tag::undef) {
+    auto& engine = impl_params.prog->get_engine();
+    auto prim = impl_params.typed_desc<convolution>();
+
+    auto input_layout = impl_params.get_input_layout(0);
+    auto weights_layout = impl_params.get_input_layout(1);
+    auto output_layout = impl_params.get_output_layout();
+
+    dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
+    dnnl::memory::dims dilation(prim->dilation.begin(), prim->dilation.end());
+    dnnl::memory::dims pad_l(prim->padding_begin.begin(), prim->padding_begin.end());
+    dnnl::memory::dims pad_r(prim->padding_end.begin(), prim->padding_end.end());
+
+    // issue: it could not find the implementation for 1d kernel GroupConvolution from onednn.
+    // root-cause: 3d tensor of input/output is changed to 4d via ngraph.
+    //             Creating conv description returns error if two inputs have same tensor of data input and weight.
+    //     - original dims of IR
+    //       input1: [  1, 280, 1200]      // [number of batches, number of channels, X]
+    //       input2: [280,   1,    1, 67]  // [number of output channels, number of input channels, Y, X]
+    //       output: [  1, 280, 1200]      // [number of batches, number of kernel output channels, X]
+    //     - changed dims
+    //       input1: [  1, 280, 1200,  1]
+    //       input2: [280,   1,   67,  1]
+    //       output: [  1, 280, 1200,  1]
+    // WA: Weight tensor will be updated from 4d to 5d.
+    auto grouped_weights = format::is_grouped(weights_layout.format) || prim->grouped_weights_shape;
+    if (grouped_weights && (input_layout.get_rank() == weights_layout.get_rank())) {
+        auto tensor = weights_layout.get_tensor();
+        if (tensor.spatial[0] == 1 && tensor.spatial[1] != 1) {
+            std::swap(tensor.spatial[0], tensor.spatial[1]);
+            weights_layout.set_tensor(tensor);
+        }
+        weights_layout.format = format::get_default_format(weights_layout.get_rank() + 1, true, true);
+    }
+
+    auto input_md = onednn::layout_to_memory_desc(input_layout, tag_in_out);
+    auto weights_md = onednn::layout_to_memory_desc(weights_layout, dnnl::memory::format_tag::any);
+    auto output_md = onednn::layout_to_memory_desc(output_layout, tag_in_out);
+
+    // adjust_conv_dilation_pad(dilation, stride, pad_l, pad_r, input_md, output_md, weights_md, grouped_weights);
+    for (size_t i = 0; i < dilation.size(); i++) {
+        dilation[i]--;
+        int weights_offset = (grouped_weights ? 3 : 2) + static_cast<int>(i);
+        auto os = output_md.get_dims()[2 + i];
+        auto is = input_md.get_dims()[2 + i];
+        auto ks = weights_md.get_dims()[weights_offset];
+        auto kernel_range = 1 + (ks - 1) * (dilation[i] + 1);
+        pad_r[i] = (os - 1) * stride[i] - is + kernel_range - pad_l[i];
+    }
+
+    // Extend conv parameters in case if spatials rank of output memory doesn't match size of parameters
+    int64_t insert_count = static_cast<int64_t>(output_md.get_dims().size()) - 2 - stride.size();
+    if (insert_count > 0) {
+        stride.insert(stride.end(), insert_count, 1);
+        dilation.insert(dilation.end(), insert_count, 0);
+        pad_l.insert(pad_l.end(), insert_count, 0);
+        pad_r.insert(pad_r.end(), insert_count, 0);
+    }
+
+    if (!prim->bias.empty()) {
+        auto bias_md = onednn::layout_to_memory_desc(impl_params.get_input_layout(2), dnnl::memory::format_tag::any, true);
+        return std::make_shared<dnnl::convolution_forward::primitive_desc>(
+            engine.get_onednn_engine(),
+            dnnl::prop_kind::forward_inference,
+            dnnl::algorithm::convolution_direct,
+            input_md,
+            weights_md,
+            bias_md,
+            output_md,
+            stride,
+            dilation,
+            pad_l,
+            pad_r,
+            attr);
+    } else {
+        return std::make_shared<dnnl::convolution_forward::primitive_desc>(
+            engine.get_onednn_engine(),
+            dnnl::prop_kind::forward_inference,
+            dnnl::algorithm::convolution_direct,
+            input_md,
+            weights_md,
+            output_md,
+            stride,
+            dilation,
+            pad_l,
+            pad_r,
+            attr);
+    }
+}
 
 struct convolution_onednn : typed_primitive_onednn_impl<convolution> {
     using parent = typed_primitive_onednn_impl<convolution>;
@@ -287,16 +379,86 @@ public:
 struct convolution_factory : public cldnn::implementation_factory<convolution> {
     std::unique_ptr<primitive_impl> create(const program_node& node, const kernel_impl_params& params) const override {
         OPENVINO_ASSERT(node.is_type<convolution>());
-        return onednn::convolution_onednn::create(static_cast<const convolution_node&>(node), params);
+        return convolution_onednn::create(static_cast<const convolution_node&>(node), params);
     }
 
     bool validate(const program_node& node) const override {
         OPENVINO_ASSERT(node.is_type<convolution>());
-        return onednn::convolution_onednn::validate(static_cast<const convolution_node&>(node));
+        return convolution_onednn::validate(static_cast<const convolution_node&>(node));
     }
 
-    std::pair<std::vector<format>, std::vector<format>> query_formats(const program_node& node) const override {
-        OPENVINO_NOT_IMPLEMENTED;
+    in_out_fmts_t query_formats(const program_node& node) const override {
+        OPENVINO_ASSERT(node.is_type<convolution>());
+        std::vector<format::type> in_fmts(node.get_dependencies().size(), format::any);
+        std::vector<format::type> out_fmts(node.get_outputs_count(), format::any);
+
+        const auto& conv_node = node.as<convolution>();
+
+        auto prim_desc = get_convolution_primitive_descriptor(*node.get_kernel_impl_params(), dnnl::primitive_attr(), dnnl::memory::format_tag::any);
+
+        for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
+            if (node.get_dependency(idx).is_constant())
+                continue;
+
+            // Conv or deconv gets a preferred format for its data input based on source memory description
+            // But an input format for fused post-ops should be same with an output format of conv/deconv
+            size_t prim_input = node.get_dependency_index(conv_node.input());
+
+            // Note: did not handle attribute properly. especially for zero-point
+            cldnn::format src_fmt = format::any;
+            if (idx == prim_input)
+                src_fmt = onednn::find_data_format(prim_desc->src_desc());
+            else  // Dep for fused post ops
+                src_fmt = onednn::find_data_format(prim_desc->dst_desc());
+
+            // WA: shallow convolution needs to set input format by bfyx.
+            //     onednn recommended byxf for input format. It will insert reorder before shallow conv.
+            if (node.get_input_layouts()[0].feature() == 3) {
+                bool can_optimize_permute = false;
+                // In permute-conv pattern, check if permute can be optimized
+                // when the input memory of permute has been aligned like byxf format.
+                // ex) pattern: input (bfyx) -> permute (byxf) -> oneDNN convolution
+                //      input layout of permute: bfyx [b:1, f:416, y:416, x:3]
+                //     output layout of permute: byxf [b:1, f:3, y:416, x:416]
+                // In this case, it can be handled by changing only the shape of permute without the kernel execution.
+                if (node.get_output_layout().get_rank() == 4 && node.get_dependency(0).is_type<permute>()) {
+                    auto& pnode = node.get_dependency(0).as<permute>();
+                    can_optimize_permute = pnode.get_users().size() == 1
+                        && pnode.get_output_layout().data_type == node.get_output_layout().data_type
+                        && !pnode.has_fused_primitives()
+                        && !pnode.is_output() && pnode.get_input_layout(0).is_static()
+                        && pnode.is_reverse_rotating_except_batch();
+                }
+                if (!can_optimize_permute) {
+                    src_fmt = format::get_default_format(node.get_input_layouts()[0].get_rank(), false, false);
+                } else {
+                    // The size of dependencies and users must each be 1.
+                    // In permute-conv pattern, the preferred format of permute should follow previous node.
+                    node.get_dependency(0).init_preferred_fmt(1, 1);
+                    node.get_dependency(0).set_preferred_input_fmt(0, format::bfyx);
+                    node.get_dependency(0).can_be_optimized(true);
+                }
+            }
+
+            in_fmts[idx] = src_fmt;
+
+            auto dst_fmt = onednn::find_data_format(prim_desc->dst_desc());
+            // Errata: Best impl for shallow input conv with zero-point ops is ocl:xe_lp.
+            if (src_fmt == format::bfyx) {
+                if (conv_node.get_input_layouts()[0].feature() <= 8 && conv_node.activations_zero_points_term() &&
+                    conv_node.get_input_layouts()[0].data_type == data_types::u8 && conv_node.get_output_layout().data_type == data_types::u8) {
+                    dst_fmt = format::b_fs_yx_fsv32;
+                }
+            }
+
+            if (out_fmts[0] == format::any) {
+                out_fmts[0] = dst_fmt;
+            }
+
+            GPU_DEBUG_LOG << "select_preferred_formats:" << node.id() << ": " << fmt_to_str(src_fmt) << " --> " << fmt_to_str(dst_fmt)
+                          << " For index : " << idx << std::endl;
+        }
+        return {in_fmts, out_fmts};
     }
 };
 

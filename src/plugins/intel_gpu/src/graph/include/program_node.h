@@ -470,6 +470,7 @@ public:
     }
 
     bool can_use(impl_types impl_type) const;
+    void select_preferred_formats(impl_types impl_type);
 
 protected:
     size_t unique_id = 0;
