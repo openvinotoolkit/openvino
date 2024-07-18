@@ -29,7 +29,6 @@ class StringTensorUnpackStaticTestSuite : public ::testing::TestWithParam<std::t
 class StringTensorUnpackStaticShapeInferenceTest: public OpStaticShapeInferenceTest<op::v15::StringTensorUnpack> {};
 
 TEST_F(StringTensorUnpackStaticShapeInferenceTest, data_from_tensor_accessor) {
-    GTEST_SKIP() << "TODO: Static shape inference lacks constant data on port 0";
     const auto data = std::make_shared<Parameter>(element::string, ov::PartialShape::dynamic());
     const auto op = make_op(data);
     std::string data_val[] = {"Intel", "OpenVINO"};

@@ -19,9 +19,16 @@ static Tensor get_string_tensor(const Node* op, size_t idx, const ITensorAccesso
         return t;
     } else {
         const auto& constant = as_type_ptr<opset1::Constant>(op->get_input_node_shared_ptr(idx));
-        NODE_VALIDATION_CHECK(op, constant != nullptr, "Static shape inference lacks constant data on port ", idx);
         return constant->get_tensor_view();
     }
+}
+template <class TRShape>
+static void handle_else_case(std::vector<TRShape>& output_shapes, const ov::op::v15::StringTensorUnpack* op) {
+    if (!std::is_same<TRShape, PartialShape>::value) {
+        const auto& constant = as_type_ptr<opset1::Constant>(op->get_input_node_shared_ptr(0));
+        NODE_VALIDATION_CHECK(op, constant != nullptr, "Static shape inference lacks constant data on port 0");
+    }
+    output_shapes.emplace_back(ov::PartialShape{ov::Dimension::dynamic()});
 }
 }  // namespace util
 template <class TShape, class TRShape = result_shape_t<TShape>>
@@ -30,27 +37,23 @@ std::vector<TRShape> shape_infer(const StringTensorUnpack* op,
                                  const ITensorAccessor& tensor_accessor = make_tensor_accessor()) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 1);
     const auto& data_shape = input_shapes[0];
-    auto output_shapes = std::vector<TRShape>(3);
-
-    // output 1 and 2: begins and ends
-    output_shapes[0] = data_shape;
-    output_shapes[1] = data_shape;
-
-    // output 3: symbols
-    const auto string_data = util::get_string_tensor(op, 0, tensor_accessor);
-    if (string_data) {
-        uint64_t string_count = 1;
-        for (uint64_t i = 0; i < data_shape.size(); i++) {
-            string_count *= data_shape[i].get_length();
+    auto output_shapes = std::vector<TRShape>{data_shape, data_shape};
+    if (data_shape.is_static()) {
+        const auto string_data = util::get_string_tensor(op, 0, tensor_accessor);
+        if (string_data) {
+            uint64_t string_count = string_data.get_size();
+            const auto tensor_data = string_data.data<std::string>();
+            uint64_t total_length = 0;
+            for (size_t i = 0; i < string_count; ++i)
+                total_length += (*(tensor_data + i)).length();
+            output_shapes.emplace_back(TRShape{total_length});
+        } else {
+            util::handle_else_case<TRShape>(output_shapes, op);
         }
-        const auto tensor_data = string_data.data<std::string>();
-        uint64_t total_length = 0;
-        for (size_t i = 0; i < string_count; ++i)
-            total_length += (*(tensor_data + i)).length();
-        output_shapes[2] = ov::Shape{total_length};
     } else {
-        output_shapes[2] = ov::PartialShape{ov::Dimension::dynamic()};
+        util::handle_else_case<TRShape>(output_shapes, op);
     }
+
     return output_shapes;
 }
 }  // namespace v15

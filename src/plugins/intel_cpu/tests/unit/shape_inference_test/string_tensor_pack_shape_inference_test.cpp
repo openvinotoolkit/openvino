@@ -17,7 +17,7 @@ class StringTensorPackStaticTestSuite : public ::testing::TestWithParam<std::tup
                                                               Shape,                        // begins/ends indices shape
                                                               std::vector<size_t>,          // begins
                                                               std::vector<size_t>,          // ends
-                                                              std::vector<std::string>      // symbols
+                                                              std::vector<uint8_t>          // symbols
                                                               >> {};
 
 TEST_P(StringTensorPackStaticTestSuite, StringTensorPackStaticShapeInference) {
@@ -29,7 +29,7 @@ TEST_P(StringTensorPackStaticTestSuite, StringTensorPackStaticShapeInference) {
 
     const auto begins = std::make_shared<Constant>(element::i64, indices_shape, begins_param);
     const auto ends = std::make_shared<Constant>(element::i64, indices_shape, ends_param);
-    const auto symbols = std::make_shared<Constant>(element::string, Shape{symbols_param.size()}, symbols_param);
+    const auto symbols = std::make_shared<Constant>(element::u8, Shape{symbols_param.size()}, symbols_param);
 
     const auto input_shapes = ShapeVector{indices_shape, indices_shape, Shape{symbols_param.size()}};
     const auto input_shape_refs = make_static_shape_refs(input_shapes);
@@ -50,49 +50,49 @@ INSTANTIATE_TEST_SUITE_P(
             Shape{1},
             std::vector<size_t>{0},
             std::vector<size_t>{5},
-            std::vector<std::string>{u8"\\x49", u8"\\x6e", u8"\\x74", u8"\\x65", u8"\\x6c"}),
+            std::vector<uint8_t>{0x49, 0x6e, 0x74, 0x65, 0x6c}),
         // "Intel", "OpenVINO"
         std::make_tuple(
             Shape{2},
             std::vector<size_t>{0, 5},
             std::vector<size_t>{5, 13},
-            std::vector<std::string>{u8"\\x49", u8"\\x6e", u8"\\x74", u8"\\x65", u8"\\x6c", u8"\\x4f",
-                                     u8"\\x70", u8"\\x65", u8"\\x6e", u8"\\x56", u8"\\x49", u8"\\x4e", u8"\\x4f"}),
+            std::vector<uint8_t>{0x49, 0x6e, 0x74, 0x65, 0x6c, 0x4f,
+                                 0x70, 0x65, 0x6e, 0x56, 0x49, 0x4e, 0x4f}),
         // " "
         std::make_tuple(
             Shape{1},
             std::vector<size_t>{0},
             std::vector<size_t>{0},
-            std::vector<std::string>{u8"\\x20"}),
+            std::vector<uint8_t>{0x20}),
         // ""
         std::make_tuple(
             Shape{0},
             std::vector<size_t>{},
             std::vector<size_t>{},
-            std::vector<std::string>{}),
+            std::vector<uint8_t>{}),
         // (2, 2) shape; "1", "2", "3", "4"
         std::make_tuple(
             Shape{2, 2},
             std::vector<size_t>{0, 1, 2, 3},
             std::vector<size_t>{1, 2, 3, 4},
-            std::vector<std::string>{u8"\\x31", u8"\\x32", u8"\\x33", u8"\\x34"}),
+            std::vector<uint8_t>{0x31, 0x32, 0x33, 0x34}),
         // (1, 2) shape; "1", "2"
         std::make_tuple(
             Shape{1, 2},
             std::vector<size_t>{0, 1},
             std::vector<size_t>{1, 2},
-            std::vector<std::string>{u8"\\x31", u8"\\x32"}),
+            std::vector<uint8_t>{0x31, 0x32}),
         // skipped symbols; "1", "9"
         std::make_tuple(
             Shape{2},
             std::vector<size_t>{0, 8},
             std::vector<size_t>{1, 9},
-            std::vector<std::string>{u8"\\x31", u8"\\x32", u8"\\x33", u8"\\x34", u8"\\x35", u8"\\x36", u8"\\x37", u8"\\x38", u8"\\x3"}),
+            std::vector<uint8_t>{0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x3}),
         // mixed strings; "1", "", " ", "4"
         std::make_tuple(
             Shape{2, 2},
-            std::vector<size_t>{0, 0, 1, 2},
+            std::vector<size_t>{0, 1, 1, 2},
             std::vector<size_t>{1, 1, 2, 3},
-            std::vector<std::string>{u8"\\x31", "", u8"\\x20", u8"\\x34"})
+            std::vector<uint8_t>{0x31, 0x20, 0x34})
     )
 );

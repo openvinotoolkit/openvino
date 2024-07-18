@@ -84,7 +84,7 @@ TEST(type_prop, StringTensorPack_incorrect_types) {
         const auto symbols = std::make_shared<Parameter>(element::f32, PartialShape{100});
         OV_EXPECT_THROW(std::ignore = std::make_shared<op::v15::StringTensorPack>(begins, ends, symbols),
                         NodeValidationFailure,
-                        HasSubstr("StringTensorPack expects a tensor with utf-8 encoded ov::element::string elements"));
+                        HasSubstr("StringTensorPack expects a tensor with ov::element::u8 elements"));
     }
 }
 }  // namespace test

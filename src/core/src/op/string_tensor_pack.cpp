@@ -39,8 +39,8 @@ void StringTensorPack::validate_and_infer_types() {
 
     const auto& data_element_type = get_input_element_type(2);
     NODE_VALIDATION_CHECK(this,
-                          data_element_type == ov::element::string,
-                          "StringTensorPack expects a tensor with utf-8 encoded ov::element::string elements. Got: ",
+                          data_element_type == ov::element::u8,
+                          "StringTensorPack expects a tensor with ov::element::u8 elements. Got: ",
                           data_element_type);
 
     const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
