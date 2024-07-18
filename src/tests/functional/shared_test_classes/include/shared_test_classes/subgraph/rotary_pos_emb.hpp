@@ -9,16 +9,16 @@
 namespace ov {
 namespace test {
 
-class RoPETestLlama2 : public SubgraphBaseTest, public testing::WithParamInterface<std::string> {
+class RoPETestLlama2StridedSlice : public SubgraphBaseTest, public testing::WithParamInterface<std::string> {
 private:
-    ov::OutputVector makeCosSinCache(int max_position_embeddings, int rotary_ndims);
     std::shared_ptr<ov::Model> buildROPE_Llama2(int batch,
                                                 int seq_length,
                                                 int max_position_embeddings,
                                                 int num_head,
                                                 int ndims);
-    ov::Tensor create_i32_tensor(const ov::Shape& shape, int start, int step = 1);
 protected:
+    ov::Tensor create_i32_tensor(const ov::Shape& shape, int start, int step = 1);
+    ov::OutputVector makeCosSinCache(int max_position_embeddings, int rotary_ndims);
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void SetUp() override;
 
@@ -26,11 +26,11 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<std::string>& obj);
 };
 
-class RoPETestChatGLM : public SubgraphBaseTest, public testing::WithParamInterface<std::string> {
+class RoPETestChatGLMStridedSlice : public SubgraphBaseTest, public testing::WithParamInterface<std::string> {
 private:
     std::shared_ptr<ov::Model> buildROPE_ChatGLM(int batch, int head_cnt, int rotary_dims);
-    ov::Tensor create_i32_tensor(const ov::Shape& shape, int start, int step = 1);
 protected:
+    ov::Tensor create_i32_tensor(const ov::Shape& shape, int start, int step = 1);
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void SetUp() override;
 
@@ -38,7 +38,7 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<std::string>& obj);
 };
 
-class RoPETestQwen7b : public SubgraphBaseTest, public testing::WithParamInterface<std::tuple<bool, std::string>> {
+class RoPETestQwen7bStridedSlice : public SubgraphBaseTest, public testing::WithParamInterface<std::tuple<bool, std::string>> {
 private:
     std::shared_ptr<ov::Model> buildROPE_QWen7b(bool specialReshape);
 protected:
@@ -49,7 +49,7 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<bool, std::string>>& obj);
 };
 
-class RoPETestGPTJ : public SubgraphBaseTest, public testing::WithParamInterface<std::tuple<bool, std::string>> {
+class RoPETestGPTJStridedSlice : public SubgraphBaseTest, public testing::WithParamInterface<std::tuple<bool, std::string>> {
 private:
     std::shared_ptr<ov::Model> buildROPE_GPTJ(int num_head,
                                               int hidden_dims,
@@ -78,6 +78,41 @@ protected:
 
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<std::string>& obj);
+};
+
+class RoPETestLlama2Slice : public RoPETestLlama2StridedSlice {
+private:
+    std::shared_ptr<ov::Model> buildROPE_Llama2(int batch,
+                                                int seq_length,
+                                                int max_position_embeddings,
+                                                int num_head,
+                                                int ndims);
+protected:
+    void SetUp() override;
+};
+
+class RoPETestChatGLMSlice : public RoPETestChatGLMStridedSlice {
+private:
+    std::shared_ptr<ov::Model> buildROPE_ChatGLM(int batch, int head_cnt, int rotary_dims);
+protected:
+    void SetUp() override;
+};
+
+class RoPETestQwen7bSlice : public RoPETestQwen7bStridedSlice {
+private:
+    std::shared_ptr<ov::Model> buildROPE_Qwen7b(bool specialReshape);
+protected:
+    void SetUp() override;
+};
+
+class RoPETestGPTJSlice : public RoPETestGPTJStridedSlice {
+private:
+    std::shared_ptr<ov::Model> buildROPE_GPTJ(int num_head,
+                                                int hidden_dims,
+                                                int rotary_dims,
+                                                bool hasShapeOf);
+protected:
+    void SetUp() override;
 };
 
 }  // namespace test

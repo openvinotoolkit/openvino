@@ -20,14 +20,34 @@ NPU Plugin is now available through all relevant OpenVINO distribution channels.
 
 NPU Plugin needs an NPU Driver to be installed on the system for both compiling and executing a model.
 Follow the instructions below to install the latest NPU drivers:
-* Windows driver: https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html
-* Linux driver: https://github.com/intel/linux-npu-driver/releases
+
+* `Windows driver <https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html>`__
+* `Linux driver <https://github.com/intel/linux-npu-driver/releases>`__
 
 
 The plugin uses the graph extension API exposed by the driver to convert the OpenVINO specific representation
 of the model into a proprietary format. The compiler included in the user mode driver (UMD) performs
 platform specific optimizations in order to efficiently schedule the execution of network layers and
 memory transactions on various NPU hardware submodules.
+
+To use NPU for inference, pass the device name to the ``ov::Core::compile_model()`` method:
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_npu.py
+         :language: py
+         :fragment: [compile_model_default_npu]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_npu.cpp
+         :language: cpp
+         :fragment: [compile_model_default_npu]
+
 
 Model Caching
 #############################
@@ -85,7 +105,7 @@ For more details about OpenVINO model caching, see the
 Supported Features and properties
 #######################################
 
-The NPU device is currently supported by AUTO and MULTI inference modes
+The NPU device is currently supported by AUTO inference modes
 (HETERO execution is partially supported, for certain models).
 
 The NPU support in OpenVINO is still under active development and may
@@ -106,9 +126,12 @@ offer a limited set of supported OpenVINO features.
          ov::hint::model_priority
          ov::hint::num_requests
          ov::hint::performance_mode
+         ov::hint::execution_mode
          ov::cache_dir
          ov::compilation_num_threads
          ov::enable_profiling
+         ov::workload_type
+         ov::intel_npu::compilation_mode_params
 
    .. tab-item:: Read-only properties
 
@@ -120,10 +143,14 @@ offer a limited set of supported OpenVINO features.
          ov::range_for_async_infer_requests
          ov::range_for_streams
          ov::num_streams
+         ov::execution_devices
          ov::device::architecture
          ov::device::capabilities
          ov::device::full_name
          ov::device::uuid
+         ov::device::pci_info
+         ov::device::gops
+         ov::device::type
          ov::intel_npu::device_alloc_mem_size
          ov::intel_npu::device_total_mem_size
          ov::intel_npu::driver_version
@@ -135,6 +162,60 @@ offer a limited set of supported OpenVINO features.
    based on the performance mode is **4 for THROUGHPUT** and **1 for LATENCY**.
    The default mode for the NPU device is LATENCY.
 
+**ov::intel_npu::compilation_mode_params**
+
+``ov::intel_npu::compilation_mode_params`` is an NPU-specific property that allows to
+control model compilation for NPU.
+
+.. note::
+
+   The functionality is in experimental stage currently, can be a subject for
+   deprecation and may be replaced with generic OV API in future OV releases.
+
+Following configuration options are supported:
+
+**optimization-level**
+
+Defines a preset of optimization passes to be applied during compilation.
+
+.. list-table::
+   :widths: 10 200
+   :header-rows: 1
+
+   * - **Value**
+     - **Description**
+   * - 0
+     - Reduced subset of optimization passes. Smaller compile time.
+   * - 1
+     - **Default.** Balanced performance/compile time.
+   * - 2
+     - Prioritize performance over compile time that may be an issue.
+
+**performance-hint-override**
+
+An extension for LATENCY mode being specified using ``ov::hint::performance_mode``
+Has no effect for other ``ov::hint::PerformanceMode`` hints.
+
+.. list-table::
+   :widths: 10 200
+   :header-rows: 1
+
+   * - **Value**
+     - **Description**
+   * - efficiency
+     - **Default.** Balanced performance and power consumption.
+   * - latency
+     - Prioritize performance over power efficiency.
+
+.. tab-set::
+
+   .. tab-item:: Usage example
+
+      .. code-block::
+
+         map<str, str> config = {ov::intel_npu::compilation_mode_params.name(), ov::Any("optimization-level=1 performance-hint-override=latency")};
+
+         compile_model(model, config);
 
 Limitations
 #############################

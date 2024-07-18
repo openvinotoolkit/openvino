@@ -145,6 +145,14 @@ public:
     explicit CWAI2(Results scales);
 };
 
+class CWAI3 : public ov::pass::MatcherPass {
+public:
+    using CPtr = std::shared_ptr<ov::op::v0::Constant>;
+    using Results = std::reference_wrapper<std::vector<CPtr>>;
+
+    explicit CWAI3(Results scales);
+};
+
 }  // namespace SymmZP
 
 }  // namespace patterns

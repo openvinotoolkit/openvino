@@ -6,6 +6,8 @@
 #include "intel_gpu/primitives/reshape.hpp"
 #include "intel_gpu/runtime/tensor_accessor.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "crop_inst.h"
+#include "rope_inst.h"
 #include "primitive_inst.h"
 
 #include <string>
@@ -27,6 +29,45 @@ public:
     using parent::parent;
 
     program_node& input() const { return get_dependency(0); }
+
+    bool is_runtime_propagatable_padding() const {
+        auto prim = typed_desc();
+        if (prim->mode == reshape::reshape_mode::squeeze || prim->mode == reshape::reshape_mode::unsqueeze)
+            return true;
+
+        // TODO: This function is to limit condition to a specific case (crop + reshape) among cases for the base mode
+        if (!input().is_type<crop>())
+            return false;
+
+        // TODO: If user is RoPE and dynamic padding exists, ouput padding propagation is not supported in the base mode
+        if (get_users().size() == 1 && get_users().front()->is_type<rope>())
+            return false;
+
+        auto axis = input().as<crop>().get_primitive()->axis;
+        const auto& input_pshape = input().get_output_layout(false).get_partial_shape();
+        auto input_rank = input_pshape.size();
+        auto input_last_dim = static_cast<int64_t>(input_rank - 1);
+        if (axis != input_last_dim || input_pshape[input_last_dim].is_dynamic())
+            return false;
+
+        auto input_last_dim_val = input_pshape[input_last_dim].get_length();
+        const auto& output_pshape = prim->output_partial_shape;
+        // TODO: If the reshape's output shape is non constant, issue occurs
+        // during shape inference due to execution order at runtime
+        if ((output_pshape.size() != input_rank + 1) || prim->output_pattern.empty())
+            return false;
+
+        int64_t mul = 1;
+        for (size_t i = input_rank - 1; i < output_pshape.size() ; i++) {
+            if (output_pshape[i].is_dynamic())
+                return false;
+            mul *= output_pshape[i].get_length();
+        }
+        if (input_last_dim_val != mul)
+            return false;
+
+        return true;
+    }
 
     bool has_padding() const {
         return (this->get_output_layout().data_padding || input().get_output_layout(false).data_padding || input().get_output_layout(false).has_dynamic_pad());
@@ -61,9 +102,8 @@ public:
         if (this->is_output() || this->has_fused_primitives())
             return false;
 
-        if (input().get_output_layout(false).has_dynamic_pad()) {
-            return typed_desc()->mode != reshape::reshape_mode::base;
-        }
+        if (input().get_output_layout(false).has_dynamic_pad() && is_runtime_propagatable_padding())
+            return true;
 
         if (has_padding())
             return false;
@@ -79,6 +119,9 @@ public:
         auto output_layout = this->get_output_layout();
         if (input_layout.has_dynamic_pad()) {
             auto prim = typed_desc();
+            // TODO: If outer padding exists, ouput padding propagation is not supported in the base mode
+            if (prim->mode == reshape::reshape_mode::base)
+                return;
 
             ov::PartialShape pattern_shape = { static_cast<int64_t>(prim->output_pattern.size()) };
             if (pattern_shape.size() == 0)
