@@ -2116,7 +2116,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
         usm_device_allocatable = false;
 
     bool reusable_across_network = (runtime_alloc && _node.is_dynamic_output_layout())
-                                    || (!_node.is_dynamic_output_layout() && !user_requesting_mem_reuse_false(_node));
+                                    || !user_requesting_mem_reuse_false(_node);
 
     // Do not use memory pool for nodes from shape_of subgraphs, because such nodes mostly use CPU impls and may be executed in parallel with predecessors
     // GPU kernels and cause accuracy problems. This significantly improves performance (because provides an ability not to synchronize shape_of subgraphs
