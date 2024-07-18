@@ -33,5 +33,5 @@ OPENVINO_API Tensor evaluate_upper_bound(const Output<Node>& output);
 /// \param output Node output pointing to the tensor for estimation.
 /// \return pair with Tensors for lower and upper value estimation.
 OPENVINO_API std::pair<Tensor, Tensor> evaluate_both_bounds(const Output<Node>& output);
-}
+}  // namespace util
 }  // namespace ov
