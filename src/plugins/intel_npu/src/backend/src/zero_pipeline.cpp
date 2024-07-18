@@ -143,7 +143,7 @@ public:
         }
     };
 
-    void updateCommandList(std::unordered_map<std::string, TensorData>&, size_t) override{};
+    void updateCommandList(const TensorData&, uint32_t, size_t) override {}
 
 private:
     const Config _config;
@@ -274,34 +274,11 @@ public:
         _logger.debug("IntegratedPipeline - rest() completed");
     };
 
-    void updateCommandList(std::unordered_map<std::string, TensorData>& tensors_data, size_t batch_size) override {
+    void updateCommandList(const TensorData& tensors_data, uint32_t index, size_t batch_size) override {
         for (size_t i = 0; i < batch_size; i++) {
-            for (const auto& desc : _executor->inputs_desc_map()) {
-                TensorData& inputTensorData = tensors_data.at(desc.first);
-                if (inputTensorData.changed == true) {
-                    _command_lists.at(i)->updateMutableCommandList(
-                        desc.second.idx,
-                        static_cast<unsigned char*>(inputTensorData.mem) + (i * inputTensorData.size) / batch_size);
-
-                    if (i == batch_size - 1) {
-                        inputTensorData.changed = false;
-                    }
-                }
-            }
-
-            for (const auto& desc : _executor->outputs_desc_map()) {
-                TensorData& outputTensorData = tensors_data.at(desc.first);
-                if (outputTensorData.changed == true) {
-                    _command_lists.at(i)->updateMutableCommandList(
-                        desc.second.idx,
-                        static_cast<unsigned char*>(outputTensorData.mem) + (i * outputTensorData.size) / batch_size);
-
-                    if (i == batch_size - 1) {
-                        outputTensorData.changed = false;
-                    }
-                }
-            }
-
+            _command_lists.at(i)->updateMutableCommandList(
+                index,
+                static_cast<unsigned char*>(tensors_data.mem) + (i * tensors_data.size) / batch_size);
             _command_lists.at(i)->close();
         }
     };
