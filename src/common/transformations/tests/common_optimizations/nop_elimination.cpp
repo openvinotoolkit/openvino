@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <memory>
 #include <queue>
 #include <sstream>
@@ -19,6 +20,8 @@
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/core.hpp"
+#include "openvino/util/env_util.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/utils/utils.hpp"
@@ -1746,3 +1749,40 @@ TEST_F(TransformationTestsF, TransposeElimination) {
         model_ref = std::make_shared<ov::Model>(OutputVector{result}, ParameterVector{data});
     }
 }
+
+//#define DEBUG_MODEL_PATH "/home/ekotov/WORK/DEBUG/cvs_143185/llama-2-7b-chat/pytorch/dldt/FP16/openvino_model.xml"
+//#define DEBUG_MODEL_PATH "/home/ekotov/WORK/DEBUG/cvs_143185/llama-3-8b/pytorch/dldt/FP16/openvino_model.xml"
+//#define DEBUG_MODEL_PATH "/home/ekotov/WORK/DEBUG/cvs_143185/qwen-7b-chat/pytorch/dldt/FP16/openvino_model.xml"
+#define DEBUG_MODEL_PATH "/home/ekotov/WORK/DEBUG/cvs_143185/opt-2.7b/FP16/openvino_model.xml"
+
+TEST(EmutexDebugTest, FullCompile) {
+    ::setenv("OV_PROFILE_PASS_ENABLE", "true", 1);
+    // static std::string model_path = ov::util::getenv_string("EMUTEX_DEBUG_MODEL_PATH");
+    const std::string model_path = DEBUG_MODEL_PATH;
+    for (size_t i = 0; i < 5; ++i) {
+        std::string output_path = "./EmutexDebugTest.output." + std::to_string(i);
+        ::setenv("OV_PROFILE_PASS_FILE_PATH", output_path.c_str(), 1);
+        ov::Core core;
+        auto model = core.read_model(model_path);
+        auto compiled_model = core.compile_model(model, "CPU");
+    }
+}
+
+#if 0
+TEST(EmutexDebugTest, FullCompile) {
+    ::setenv("OV_PROFILE_PASS_ENABLE", "true", 1);
+    //static std::string model_path = ov::util::getenv_string("EMUTEX_DEBUG_MODEL_PATH");
+    const std::string model_path = DEBUG_MODEL_PATH;
+    for (size_t i = 0; i < 5; ++i) {
+        std::string output_path = "./EmutexDebugTest.output." + std::to_string(i);
+        ::setenv("OV_PROFILE_PASS_FILE_PATH", output_path.c_str(), 1);
+        ov::Core core;
+        auto model = core.read_model(model_path);
+        //auto t1 = std::chrono::high_resolution_clock::now();
+        auto compiled_model = core.compile_model(model, "CPU");
+        //auto t2 = std::chrono::high_resolution_clock::now();
+        //std::chrono::duration<double, std::milli> duration = t2 - t1;
+        //std::cout << "[EMUTEX DEBUG] time " << duration.count() << " ms" << std::endl;
+    }
+}
+#endif

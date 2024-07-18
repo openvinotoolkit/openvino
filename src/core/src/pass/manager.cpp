@@ -99,19 +99,19 @@ struct TransformationInfo {
     TransformationInfo(size_t time, bool status) : time(time), status(status) {}
 };
 
-std::unordered_map<std::string, std::vector<TransformationInfo>> transformation_info;
+using TransformationInfoMap = std::unordered_map<std::string, std::vector<TransformationInfo>>;
 
-void add_transformation_info(const std::string& name, size_t time, bool status) {
-    auto it = transformation_info.find(name);
-    if (it == transformation_info.end()) {
-        it = transformation_info.emplace(name, std::vector<TransformationInfo>()).first;
+void add_transformation_info(TransformationInfoMap& ts_info, const std::string& name, size_t time, bool status) {
+    auto it = ts_info.find(name);
+    if (it == ts_info.end()) {
+        it = ts_info.emplace(name, std::vector<TransformationInfo>()).first;
     }
     it->second.emplace_back(time, status);
 }
 
 template <typename T>
-void output_transformation_info(T& output, size_t manager_time) {
-    for (const auto& pair : transformation_info) {
+void output_transformation_info(const TransformationInfoMap& ts_info, T& output, size_t manager_time) {
+    for (const auto& pair : ts_info) {
         for (const auto& item : pair.second) {
             output << pair.first << '\t' << item.time << " ms " << '\t' << (item.status ? "+" : "-") << std::endl;
         }
@@ -136,12 +136,12 @@ std::ofstream get_profile_output_file() {
     return file;
 }
 
-void save_transformation_info(size_t manager_time) {
+void save_transformation_info(const TransformationInfoMap& ts_info, size_t manager_time) {
     auto file = get_profile_output_file();
     if (file.is_open()) {
-        return output_transformation_info(file, manager_time);
+        return output_transformation_info(ts_info, file, manager_time);
     }
-    return output_transformation_info(std::cout, manager_time);
+    return output_transformation_info(ts_info, std::cout, manager_time);
 }
 
 }  // namespace
@@ -150,6 +150,7 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "pass::Manager::run_passes");
 
     const bool profile_enabled = ov::util::getenv_bool("OV_PROFILE_PASS_ENABLE");
+    TransformationInfoMap transformation_info;
 
     size_t index = 0;
     stopwatch pass_timer;
@@ -218,13 +219,13 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
         index++;
         pass_timer.stop();
         if (profile_enabled) {
-            add_transformation_info(pass->get_name(), pass_timer.get_milliseconds(), pass_applied);
+            add_transformation_info(transformation_info, pass->get_name(), pass_timer.get_milliseconds(), pass_applied);
         }
         function_changed = function_changed || pass_applied;
         needs_validate = pass_applied;
     }
     if (profile_enabled) {
-        save_transformation_info(overall_timer.get_milliseconds());
+        save_transformation_info(transformation_info, overall_timer.get_milliseconds());
     }
 
     return function_changed;
