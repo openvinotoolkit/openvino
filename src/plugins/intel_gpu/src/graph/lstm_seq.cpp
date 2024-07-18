@@ -11,48 +11,43 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(lstm_seq)
 
 layout lstm_seq_inst::calc_output_layout(lstm_seq_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
-           "Output data type forcing is not supported for lstm_seq_node!");
-    auto input_layout = impl_param.get_input_layout();
-
-    // tempGEMM{bfyx} = [b: batch, f: direction, x: 1,         y: 4 * hidden_size ] input
-    // cell{bfyx}     = [b: batch, f: direction, x: 1,         y: hidden_size ] optional
-    // output{bfyx}   = [b: batch, f: 2,         x: direction, y: hidden_size ] output
-    // The output of the lstm_seq node is the concatenation of the intermediate [hidden, cell] tensors.
-    // A crop/split node is needed to extract each individual tensors
-    auto result =
-        layout(input_layout.data_type,
-               input_layout.format,
-               tensor(input_layout.batch(), 2, input_layout.spatial(0) / 4, input_layout.feature()));
-    return result;
+    return lstm_seq_inst::calc_output_layouts<ov::PartialShape>(node, impl_param)[0];
 }
 
 template<typename ShapeType>
 std::vector<layout> lstm_seq_inst::calc_output_layouts(lstm_seq_node const& node, kernel_impl_params const& impl_param) {
-    std::vector<layout> output_layouts;
-
     // input partial shape [batch, input_size (= hidden_size * 4)]
-    auto input_layout = impl_param.get_input_layout();
-    auto input_pshape = input_layout.get_partial_shape();
-    OPENVINO_ASSERT(static_cast<bool>(impl_param.desc->output_data_types[0]) == false, "Output data type forcing is not supported for lstm_seq_node!");
-    OPENVINO_ASSERT(input_pshape.rank().get_length() == 2, "input_layout rank should be 2 on dynamic shape.");
-
-    int lstm_input_size, lstm_batch_size, lstm_hidden_size;
-    if (input_pshape[input_pshape.size() - 1].is_static()) {
-        lstm_input_size = input_pshape[input_pshape.size() - 1].get_length();
-        lstm_hidden_size = lstm_input_size / 4;
-    } else {
-        lstm_input_size = -1;
-        lstm_hidden_size = -1;
+    auto input_layout_x = impl_param.get_input_layout(0);
+    auto input_pshape_x = input_layout_x.get_partial_shape();
+    auto input_layout_hidden = impl_param.get_input_layout(1);
+    auto input_pshape_hidden = input_layout_hidden.get_partial_shape();
+    if (impl_param.desc->output_data_types.size() > 0) {
+        OPENVINO_ASSERT(static_cast<bool>(impl_param.desc->output_data_types[0]) == false, "Output data type forcing is not supported for lstm_seq_node!");
     }
+    OPENVINO_ASSERT(input_pshape_x.rank().get_length() == 3, "input_layout rank should be 3 on dynamic shape.");
 
-    if (input_pshape[input_pshape.size() - 2].is_static()) {
-        lstm_batch_size = input_pshape[input_pshape.size() - 2].get_length();
+    int lstm_batch_size, lstm_seq_length, lstm_hidden_size;
+    if (input_pshape_x[input_pshape_x.size() - 3].is_static()) {
+        lstm_batch_size = input_pshape_x[input_pshape_x.size() - 3].get_length();
     } else {
         lstm_batch_size = -1;
     }
 
-    return {cldnn::layout{ov::PartialShape{lstm_batch_size, 2, 1, lstm_hidden_size}, input_layout.data_type, input_layout.format}};
+    if (input_pshape_x[input_pshape_x.size() - 2].is_static()) {
+        lstm_seq_length = input_pshape_x[input_pshape_x.size() - 2].get_length();
+    } else {
+        lstm_seq_length = -1;
+    }
+
+    if (input_pshape_hidden[input_pshape_hidden.size() - 1].is_static()) {
+        lstm_hidden_size = input_pshape_hidden[input_pshape_hidden.size() - 1].get_length();
+    } else {
+        lstm_hidden_size = -1;
+    }
+
+    return {cldnn::layout{ov::PartialShape{lstm_batch_size, 1, lstm_seq_length, lstm_hidden_size}, input_layout_x.data_type, input_layout_x.format}, \
+            cldnn::layout{ov::PartialShape{lstm_batch_size, 1, lstm_hidden_size}, input_layout_x.data_type, input_layout_x.format}, \
+            cldnn::layout{ov::PartialShape{lstm_batch_size, 1, lstm_hidden_size}, input_layout_x.data_type, input_layout_x.format}};
 }
 
 template std::vector<layout> lstm_seq_inst::calc_output_layouts<ov::PartialShape>(lstm_seq_node const& node, const kernel_impl_params& impl_param);

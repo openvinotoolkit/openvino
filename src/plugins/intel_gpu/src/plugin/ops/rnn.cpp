@@ -252,7 +252,6 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     std::vector<cldnn::activation_additional_params> activation_params;
     GetLSTMActivationParams(op, activations, activation_params);
     float clip = op->get_clip();
-    bool isForward = op->get_direction() == ov::op::RecurrentSequenceDirection::FORWARD;
 
     //  LSTM primitive works with single precision for all in/out/weights tensors
     auto lstm_dtype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
@@ -264,8 +263,6 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     cldnn::primitive_id inHiddenStateID = inHiddenReshapeID + "_1";
     cldnn::primitive_id inCellStateID = inHiddenReshapeID + "_2";
 
-    std::vector<cldnn::input_info> output_ids_offsets;
-
     cldnn::tensor inputShape = { lstm_batch_size, lstm_sequence_len, lstm_input_size, 1 };
     cldnn::tensor inStateShape = { lstm_batch_size, 1, lstm_hidden_size, 1 };
     cldnn::layout inputLayout = cldnn::layout(lstm_dtype, cldnn::format::bfyx, inputShape);
@@ -275,11 +272,6 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     p.add_primitive(*op, cldnn::reshape(inHiddenStateID, inputs[1], inStateShape));
     p.add_primitive(*op, cldnn::reshape(inCellStateID, inputs[2], inStateShape));
 
-    cldnn::tensor gemmSz = cldnn::tensor{ lstm_batch_size, 1, 4 * lstm_hidden_size, 1 };
-    cldnn::layout gemmLayout = cldnn::layout(lstm_dtype, cldnn::format::bfyx, gemmSz);
-    cldnn::primitive_id hiddenStr = inHiddenReshapeID + "_1";
-    cldnn::primitive_id inputCropID = layerName + "_inputCrop";
-
     cldnn::primitive_id wr_concat_id = layerName + "_WRconcat";
     p.add_primitive(*op, cldnn::concatenation(wr_concat_id, { weight, recurrent }, 2));
 
@@ -288,18 +280,14 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     auto reshapeInPrim = cldnn::reshape(WRreshapeID, cldnn::input_info(wr_concat_id), tensor_from_dims(WRreshapeSize));
     p.add_primitive(*op, reshapeInPrim);
 
-    cldnn::primitive_id lstm_elt_id = layerName + "_lstm_seq";
-    p.add_primitive(*op, cldnn::lstm_seq(lstm_elt_id, cldnn::input_info(permuteID), cldnn::input_info(inHiddenStateID), cldnn::input_info(inCellStateID), \
+    cldnn::primitive_id lstm_seq_id = layerName + "_lstm_seq";
+    p.add_primitive(*op, cldnn::lstm_seq(lstm_seq_id, cldnn::input_info(permuteID), cldnn::input_info(inHiddenStateID), cldnn::input_info(inCellStateID), \
     cldnn::input_info(WRreshapeID), cldnn::input_info(bias), inCellStateID, clip, 0, activations,
                                             activation_params, cldnn::lstm_weights_order::fizo, 0));
-    //output should be [batch_size, num_directions, seq_len, hidden_size
-    if (!isForward) std::reverse(output_ids_offsets.begin(), output_ids_offsets.end());
-    // concatenated hidden state (output 1)
-    cldnn::primitive_id concatStr = layerName + ":hiddenConcat";
 
-    p.add_primitive(*op, cldnn::reshape(layerName + ".out0", lstm_elt_id, tensor_from_dims(op->get_output_shape(0))), {layerName});
-    p.add_primitive(*op, cldnn::reshape(layerName + ".out1", inHiddenStateID, tensor_from_dims(op->get_output_shape(1))));
-    p.add_primitive(*op, cldnn::reshape(layerName + ".out2", inCellStateID, tensor_from_dims(op->get_output_shape(2))));
+    p.add_primitive(*op, cldnn::reshape(layerName + ".out0", cldnn::input_info(lstm_seq_id, 0), tensor_from_dims(op->get_output_shape(0))), {layerName});
+    p.add_primitive(*op, cldnn::reshape(layerName + ".out1", cldnn::input_info(lstm_seq_id, 1), tensor_from_dims(op->get_output_shape(1))));
+    p.add_primitive(*op, cldnn::reshape(layerName + ".out2", cldnn::input_info(lstm_seq_id, 2), tensor_from_dims(op->get_output_shape(2))));
 }
 
 REGISTER_FACTORY_IMPL(v4, LSTMCell);
