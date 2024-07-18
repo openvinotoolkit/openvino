@@ -55,6 +55,7 @@
 #include "snippets/lowered/pass/validate_expanded_loops.hpp"
 #include "snippets/lowered/pass/set_load_store_scalar.hpp"
 #include "snippets/lowered/pass/extract_loop_invariants.hpp"
+#include "snippets/lowered/pass/enumerate_expressions.hpp"
 
 #include "transformations/utils/utils.hpp"
 
@@ -468,6 +469,7 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     pipeline.register_pass<lowered::pass::AllocateBuffers>(m_linear_ir->get_config().m_are_buffers_optimized);
     pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
     pipeline.register_positioned_passes(lowered_backend_passes);
+    pipeline.register_pass<lowered::pass::EnumerateExpressions>(); // after all passes renumber expressions
     pipeline.register_pass<lowered::pass::Validate>(); // must be last
     pipeline.run(*m_linear_ir);
 
@@ -507,6 +509,7 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     gen_pipeline.register_pass<lowered::pass::ValidateExpandedLoops>();
     gen_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
     gen_pipeline.register_pass<lowered::pass::OptimizeLoopSingleEvaluation>();
+    gen_pipeline.register_pass<lowered::pass::EnumerateExpressions>(); // before code gen renumber expressions
     gen_pipeline.run(*m_linear_ir);
 }
 

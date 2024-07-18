@@ -171,30 +171,27 @@ public:
     void fuse_loops(LinearIR::constExprIt loop_begin_target, LinearIR::constExprIt loop_end_target,
                     size_t loop_id_upper, size_t loop_id_lower, bool fuse_into_upper = true);
     /**
-     * @brief Update Loop ports for one Unified Loop. The method saves the order of ports since
-     *        the order of expression defines Loop bounds before explicit loop insertion (the most first and the most last expressions).
+     * @brief Replace Loop ports of Unified Loop with new ports.
      *        Note:
      *         - Update LoopPort - insert new loop target ports instead of existing.
      *         - Update ExpressionPort in the LoopPort - with saving of port parameters. It's softer method since ExpressionPort may not be port of Loop
      * @param loop_id the target Loop ID
-     * @param actual_port the current port
-     * @param target_ports vector of the new ports (the order is important!)
+     * @param port_mapping [actual port -> vector of new loop ports]
      */
-    template<typename T>
-    void update_loop_port(size_t loop_id, const T& actual_port, const std::vector<T>& target_ports) {
+    template<typename T, typename = typename std::enable_if<(std::is_same<T, ExpressionPort>::value || std::is_same<T, LoopPort>::value), bool>::type>
+    void replace_loop_ports(size_t loop_id, const std::map<T, std::vector<T>>& port_mapping) {
         const auto& loop_info = get_loop_info(loop_id);
-        loop_info->replace_with_new_ports(actual_port, target_ports);
+        loop_info->replace_with_new_ports(port_mapping);
     }
     /**
-     * @brief Update Loop ports for several Loops.
+     * @brief Replace Loop ports for several Unified Loops with new ports.
      * @param loop_ids the target Loop IDs
-     * @param actual_port the current port
-     * @param target_ports vector of the new ports (the order is important!)
+     * @param port_mapping [actual port -> vector of new loop ports]
      */
-    template<typename T>
-    void update_loops_port(const std::vector<size_t>& loop_ids, const T& actual_port, const std::vector<T>& target_ports) {
+    template<typename T, typename = typename std::enable_if<(std::is_same<T, ExpressionPort>::value || std::is_same<T, LoopPort>::value), bool>::type>
+    void replace_loops_ports(const std::vector<size_t>& loop_ids, const std::map<T, std::vector<T>>& port_mapping) {
         for (auto loop_id : loop_ids) {
-            update_loop_port(loop_id, actual_port, target_ports);
+            replace_loop_ports(loop_id, port_mapping);
         }
     }
     /**
@@ -212,12 +209,10 @@ public:
      */
     void update_loop_ports(const ExpressionPtr& expr);
     /**
-     * @brief Sort Unified Loop Ports by expression locations in Linear IR
-     * @param loop_begin_pos the first expression iterator of the Loop
-     * @param loop_end_pos the next iterator after the last expression
-     * @param loop_id target Loop ID
+     * @brief Reorder all loop ports of loop with ids from `loop_ids` by expression execution number
+     * @param loop_ids IDs of loops
      */
-    void sort_loop_ports(const LinearIR::constExprIt& loop_begin_pos, const LinearIR::constExprIt& loop_end_pos, size_t loop_id);
+    void reorder_loop_ports(const std::vector<size_t>& loop_ids);
     /**
      * @brief When the previous expression was replaced with new expressions (decomposition), the method updates the corresponding Loop.
      *        If ports of decomposed expression were the Loop ports, these Loop ports may be updated by parameters `entries` and `exits`

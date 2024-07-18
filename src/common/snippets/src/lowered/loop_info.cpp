@@ -86,7 +86,9 @@ void LoopInfo::set_increment(size_t increment) {
 }
 
 void LoopInfo::set_dim_idx(size_t dim_idx) {
-    iterate_through_ports([dim_idx](LoopPort& port) { port.dim_idx = dim_idx; });
+    auto setter = [dim_idx](LoopPort& port) { port.dim_idx = dim_idx; };
+    std::for_each(m_input_ports.begin(), m_input_ports.end(), setter);
+    std::for_each(m_output_ports.begin(), m_output_ports.end(), setter);
 }
 
 void LoopInfo::set_work_amount_const(bool value) {
@@ -121,31 +123,58 @@ const LoopPort& LoopInfo::get_loop_port(const ExpressionPort& expr_port) {
     return *find_loop_port(expr_port);
 }
 
-void LoopInfo::replace_with_new_ports(const LoopPort& actual_port, const std::vector<LoopPort>& target_ports) {
-    auto& ports = actual_port.expr_port->get_type() == ExpressionPort::Input ? m_input_ports : m_output_ports;
-    auto port_it = find_loop_port(actual_port);
-    port_it = ports.erase(port_it);
-    ports.insert(port_it, target_ports.cbegin(), target_ports.cend());
+namespace {
+void validate_new_target_ports(const std::vector<LoopPort>& target_ports, ExpressionPort::Type target_type) {
+    OPENVINO_ASSERT(target_ports.empty() ||
+                    std::all_of(target_ports.cbegin(), target_ports.cend(),
+                                [&target_type](const LoopPort& target_port) { return target_type == target_port.expr_port->get_type(); }));
+}
+void validate_new_target_ports(const std::vector<ExpressionPort>& target_ports, ExpressionPort::Type target_type) {
+    OPENVINO_ASSERT(target_ports.empty() ||
+                    std::all_of(target_ports.cbegin(), target_ports.cend(),
+                                [&target_type](const ExpressionPort& target_port) { return target_type == target_port.get_type(); }));
+}
+} // namespace
+
+void LoopInfo::replace_with_new_ports(const LoopPortMap& port_mapping) {
+    for (const auto& port_map : port_mapping) {
+        const auto& actual_port = port_map.first;
+        const auto& target_ports = port_map.second;
+        const auto& actual_port_type = actual_port.expr_port->get_type();
+        validate_new_target_ports(target_ports, actual_port_type);
+
+        auto& ports = actual_port_type == ExpressionPort::Input ? m_input_ports : m_output_ports;
+        auto port_it = find_loop_port(actual_port);
+        port_it = ports.erase(port_it);
+        ports.insert(port_it, target_ports.cbegin(), target_ports.cend());
+    }
 }
 
-void LoopInfo::replace_with_new_ports(const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports) {
-    auto& ports = actual_port.get_type() == ExpressionPort::Input ? m_input_ports : m_output_ports;
-    auto port_it = find_loop_port(actual_port);
-    // In some cases actual ExpressionPort may not be LoopPort. We shouldn't throw exception here since ExpressionPort is not strong condition as LoopPort
-    // For example, not all inner loop ports are ports of outer loops
-    if (port_it == ports.end())
-        return;
+void LoopInfo::replace_with_new_ports(const ExpressionPortMap& port_mapping) {
+    for (const auto& port_map : port_mapping) {
+        const auto& actual_port = port_map.first;
+        const auto& target_ports = port_map.second;
+        const auto& actual_port_type = actual_port.get_type();
+        validate_new_target_ports(target_ports, actual_port_type);
 
-    // to save other parameters except expression port
-    std::vector<LoopPort> target_loop_ports(target_ports.size(), *port_it);
-    std::transform(target_loop_ports.begin(), target_loop_ports.end(), target_ports.begin(), target_loop_ports.begin(),
-                   [](LoopPort loop_port, const ExpressionPort& expr_port) {
-                       LoopPort copy = std::move(loop_port);  // to save loop port parameters
-                       copy.expr_port = std::make_shared<ExpressionPort>(expr_port);
-                       return copy;
-                   });
-    port_it = ports.erase(port_it);
-    ports.insert(port_it, target_loop_ports.cbegin(), target_loop_ports.cend());
+        auto& ports = actual_port_type == ExpressionPort::Input ? m_input_ports : m_output_ports;
+        auto port_it = find_loop_port(actual_port);
+        // In some cases actual ExpressionPort may not be LoopPort. We shouldn't throw exception here since ExpressionPort is not strong condition as LoopPort
+        // For example, not all inner loop ports are ports of outer loops
+        if (port_it == ports.end())
+            continue;
+
+        // to save other parameters except expression port
+        std::vector<LoopPort> target_loop_ports(target_ports.size(), *port_it);
+        std::transform(target_loop_ports.begin(), target_loop_ports.end(), target_ports.begin(), target_loop_ports.begin(),
+                       [](LoopPort loop_port, const ExpressionPort& expr_port) {
+                           LoopPort copy = std::move(loop_port);  // to save loop port parameters
+                           copy.expr_port = std::make_shared<ExpressionPort>(expr_port);
+                           return copy;
+                       });
+        port_it = ports.erase(port_it);
+        ports.insert(port_it, target_loop_ports.cbegin(), target_loop_ports.cend());
+    }
 }
 
 std::vector<LoopPort> LoopInfo::clone_loop_ports(const ExpressionMap& expr_map, const std::vector<LoopPort>& loop_ports) {
@@ -188,9 +217,8 @@ UnifiedLoopInfo::UnifiedLoopInfo(size_t work_amount, size_t increment,
     validate();
 }
 
-void UnifiedLoopInfo::validate() const {
-    OPENVINO_ASSERT(m_input_ports.size() == m_input_port_descs.size(), "Incompatible count of input port and descs");
-    OPENVINO_ASSERT(m_output_ports.size() == m_output_port_descs.size(), "Incompatible count of output port and descs");
+void UnifiedLoopInfo::validate() {
+    reorder_ports();
 }
 
 std::shared_ptr<LoopInfo> UnifiedLoopInfo::clone_with_new_expr(const ExpressionMap& expr_map) const {
@@ -274,18 +302,34 @@ void order(const std::vector<size_t>& new_order, std::vector<T>& values) {
     }
     values = std::move(ordered_values);
 }
+std::vector<size_t> get_port_index_order(const std::vector<LoopPort>& ports) {
+    std::vector<size_t> new_indexes(ports.size());
+    std::iota(new_indexes.begin(), new_indexes.end(), 0);
+    std::sort(new_indexes.begin(), new_indexes.end(),
+        [ports](size_t l, size_t r) {
+            const auto& expr_port_l = ports[l].expr_port;
+            const auto& expr_port_r = ports[r].expr_port;
+            if (expr_port_l->get_expr() == expr_port_r->get_expr())
+                return expr_port_l->get_index() < expr_port_r->get_index();
+            return expr_port_l->get_expr()->get_exec_num() < expr_port_r->get_expr()->get_exec_num();
+        });
+    return new_indexes;
+}
 }  // namespace
 
-void UnifiedLoopInfo::reorder_input_ports(const std::vector<size_t>& new_order) {
-    validate();
-    order(new_order, m_input_ports);
-    order(new_order, m_input_port_descs);
-}
+void UnifiedLoopInfo::reorder_ports() {
+    OPENVINO_ASSERT(m_input_ports.size() == m_input_port_descs.size(), "Incompatible count of input port and descs");
+    OPENVINO_ASSERT(m_output_ports.size() == m_output_port_descs.size(), "Incompatible count of output port and descs");
 
-void UnifiedLoopInfo::reorder_output_ports(const std::vector<size_t>& new_order) {
-    validate();
-    order(new_order, m_output_ports);
-    order(new_order, m_output_port_descs);
+    auto reorder = [](std::vector<LoopPort>& ports, std::vector<LoopPortDesc>& descs) {
+        if (!ports.empty()) {
+            const auto new_order = get_port_index_order(ports);
+            order(new_order, ports);
+            order(new_order, descs);
+        }
+    };
+    reorder(m_input_ports, m_input_port_descs);
+    reorder(m_output_ports, m_output_port_descs);
 }
 
 void UnifiedLoopInfo::replace_with_cloned_descs(size_t actual_port_idx, size_t new_count, bool is_input) {
@@ -295,79 +339,49 @@ void UnifiedLoopInfo::replace_with_cloned_descs(size_t actual_port_idx, size_t n
     descs.insert(shift_it, target_shifts.cbegin(), target_shifts.cend());
 }
 
-void UnifiedLoopInfo::replace_with_new_ports(const LoopPort& actual_port, const std::vector<LoopPort>& target_ports) {
-    const auto is_input = actual_port.expr_port->get_type() == ExpressionPort::Input;
-    auto& ports = is_input ? m_input_ports : m_output_ports;
-    auto port_it = find_loop_port(actual_port);
+void UnifiedLoopInfo::replace_with_new_ports(const LoopPortMap& port_mapping) {
+    for (const auto& port_map : port_mapping) {
+        const auto& actual_port = port_map.first;
+        const auto& target_ports = port_map.second;
+        const auto& actual_port_type = actual_port.expr_port->get_type();
+        validate_new_target_ports(target_ports, actual_port_type);
 
-    replace_with_cloned_descs(std::distance(ports.begin(), port_it), target_ports.size(), is_input);
+        const auto is_input = actual_port.expr_port->get_type() == ExpressionPort::Input;
+        auto& ports = is_input ? m_input_ports : m_output_ports;
+        auto port_it = find_loop_port(actual_port);
 
-    // Instead of call `LoopInfo::replace_with_new_ports()`, we can explicitly remove LoopPort since we already found port_it.
-    port_it = ports.erase(port_it);
-    ports.insert(port_it, target_ports.cbegin(), target_ports.cend());
-    // Verify that everything is valid after this change
+        replace_with_cloned_descs(std::distance(ports.begin(), port_it), target_ports.size(), is_input);
+
+        // Instead of call `LoopInfo::replace_with_new_ports()`, we can explicitly remove LoopPort since we already found port_it.
+        port_it = ports.erase(port_it);
+        ports.insert(port_it, target_ports.cbegin(), target_ports.cend());
+    }
+
+    // Verify that everything is valid after this change + Reorder ports
     validate();
 }
 
-void UnifiedLoopInfo::replace_with_new_ports(const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports) {
-    const auto is_input = actual_port.get_type() == ExpressionPort::Input;
-    auto& ports = is_input ? m_input_ports : m_output_ports;
-    auto port_it = std::find_if(ports.begin(), ports.end(),
-                                [&actual_port](const LoopPort& port) { return *port.expr_port.get() == actual_port; });
-    // In some cases actual ExpressionPort may not be LoopPort. We shouldn't throw exception here since ExpressionPort is not strong condition as LoopPort
-    // For example, not all inner loop ports are ports of outer loops
-    if (port_it == ports.end())
-        return;
+void UnifiedLoopInfo::replace_with_new_ports(const ExpressionPortMap& port_mapping) {
+    for (const auto& port_map : port_mapping) {
+        const auto& actual_port = port_map.first;
+        const auto& target_ports = port_map.second;
+        const auto& actual_port_type = actual_port.get_type();
+        validate_new_target_ports(target_ports, actual_port_type);
 
-    replace_with_cloned_descs(std::distance(ports.begin(), port_it), target_ports.size(), is_input);
-    LoopInfo::replace_with_new_ports(actual_port, target_ports);
-    // Verify that everything is valid after this change
-    validate();
-}
-
-void UnifiedLoopInfo::update_loop_ports(const std::vector<ExpressionPort>& actual_ports, const std::vector<ExpressionPort>& target_ports) {
-    add_loop_ports(target_ports);
-    remove_loop_ports(actual_ports);
-    validate();
-}
-
-void UnifiedLoopInfo::remove_loop_ports(const std::vector<ExpressionPort>& ports) {
-    if (ports.empty())
-        return;
-    bool is_input = ports[0].get_type() == ExpressionPort::Input;
-    auto& loop_ports = is_input ? m_input_ports : m_output_ports;
-    auto& loop_ports_desc = is_input ? m_input_port_descs : m_output_port_descs;
-    for (size_t i = 0; i < ports.size(); i++) {
-        OPENVINO_ASSERT(is_input ? (ports[i].get_type() == ExpressionPort::Input) : (ports[i].get_type() == ExpressionPort::Output),
-            "ports in remove_loop_ports have different type.");
-        auto port_it = find_loop_port(ports[i]);
-        // if not in loop ports, skip
-        if (port_it == loop_ports.end())
+        const auto is_input = actual_port.get_type() == ExpressionPort::Input;
+        auto& ports = is_input ? m_input_ports : m_output_ports;
+        auto port_it = find_loop_port(actual_port);
+        // In some cases actual ExpressionPort may not be LoopPort. We shouldn't throw exception here since ExpressionPort is not strong condition as LoopPort
+        // For example, not all inner loop ports are ports of outer loops
+        if (port_it == ports.end())
             continue;
 
-        loop_ports.erase(port_it);
-        auto dist = std::distance(loop_ports.begin(), port_it);
-        loop_ports_desc.erase(loop_ports_desc.begin() + dist);
+        replace_with_cloned_descs(std::distance(ports.begin(), port_it), target_ports.size(), is_input);
+        LoopInfo::replace_with_new_ports({{actual_port, target_ports}});
     }
-}
 
-void UnifiedLoopInfo::add_loop_ports(const std::vector<ExpressionPort>& ports) {
-    if (ports.empty())
-        return;
-    bool is_input = ports[0].get_type() == ExpressionPort::Input;
-    auto& loop_ports = is_input ? m_input_ports : m_output_ports;
-    auto& loop_ports_desc = is_input ? m_input_port_descs : m_output_port_descs;
-    size_t loop_dim_idx = get_dim_idx();
-    for (size_t i = 0; i < ports.size(); i++) {
-        OPENVINO_ASSERT(is_input ? (ports[i].get_type() == ExpressionPort::Input) : (ports[i].get_type() == ExpressionPort::Output),
-            "ports in add_loop_ports have different type.");
-        // if already in loop ports, skip
-        auto loop_port = find_loop_port(ports[i]);
-        if (loop_port != loop_ports.end())
-            continue;
-        loop_ports.push_back(LoopPort(ports[i], true, loop_dim_idx));
-        loop_ports_desc.push_back(LoopPortDesc());
-    }
+    // Verify that everything is valid after this change + Reorder ports
+    validate();
 }
 
 ExpandedLoopInfo::ExpandedLoopInfo(size_t work_amount, size_t increment,
@@ -380,11 +394,9 @@ ExpandedLoopInfo::ExpandedLoopInfo(size_t work_amount, size_t increment,
     validate();
 }
 
-void ExpandedLoopInfo::validate() const {
+void ExpandedLoopInfo::validate() {
     OPENVINO_ASSERT(m_unified_loop_info, "Failed to create ExpandedLoopInfo: unified loop info is nullptr!");
-    const auto count = get_input_count() + get_output_count();
-    OPENVINO_ASSERT(utils::everyone_is(count, m_ptr_increments.size(), m_finalization_offsets.size(), m_data_sizes.size()),
-                    "Incompatible data ptr shifts!");
+    reorder_ports();
 }
 
 std::shared_ptr<LoopInfo> ExpandedLoopInfo::clone_with_new_expr(const ExpressionMap& expr_map) const {
@@ -454,16 +466,46 @@ void ExpandedLoopInfo::update_finalization_offsets(const std::vector<int64_t>& n
     m_finalization_offsets.assign(new_values.cbegin(), new_values.end());
 }
 
-void ExpandedLoopInfo::replace_with_new_ports(const LoopPort& actual_port, const std::vector<LoopPort>& target_ports) {
-    OPENVINO_ASSERT(target_ports.size() == 1, "ExpandedLoopInfo supports replace one port with only one port!");
-    LoopInfo::replace_with_new_ports(actual_port, target_ports);
+void ExpandedLoopInfo::replace_with_new_ports(const LoopPortMap& port_mapping) {
+    OPENVINO_ASSERT(std::all_of(port_mapping.cbegin(), port_mapping.cend(),
+                                [](const std::pair<LoopPort, std::vector<LoopPort>>& p) { return p.second.size() == 1;}),
+                    "ExpandedLoopInfo supports replace one port with only one port!");
+    LoopInfo::replace_with_new_ports(port_mapping);
     validate();
 }
 
-void ExpandedLoopInfo::replace_with_new_ports(const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports) {
-    OPENVINO_ASSERT(target_ports.size() == 1, "ExpandedLoopInfo supports replace one port with only one port!");
-    LoopInfo::replace_with_new_ports(actual_port, target_ports);
+void ExpandedLoopInfo::replace_with_new_ports(const ExpressionPortMap& port_mapping) {
+    OPENVINO_ASSERT(std::all_of(port_mapping.cbegin(), port_mapping.cend(),
+                                [](const std::pair<ExpressionPort, std::vector<ExpressionPort>>& p) { return p.second.size() == 1;}),
+                    "ExpandedLoopInfo supports replace one port with only one port!");
+    LoopInfo::replace_with_new_ports(port_mapping);
     validate();
+}
+
+namespace {
+void order_subvector(const std::vector<size_t>& indexes, std::vector<int64_t>& original_vector, size_t count, size_t offset) {
+    auto subvector = std::vector<int64_t>{original_vector.cbegin() + offset, original_vector.cbegin() + offset + count};
+    order(indexes, subvector);
+    std::copy(subvector.begin(), subvector.end(), original_vector.begin() + offset);
+}
+} // namespace
+
+void ExpandedLoopInfo::reorder_ports() {
+    const auto count = get_input_count() + get_output_count();
+    OPENVINO_ASSERT(utils::everyone_is(count, m_ptr_increments.size(), m_finalization_offsets.size(), m_data_sizes.size()),
+                    "Incompatible data ptr shifts!");
+
+    auto reorder = [this](std::vector<LoopPort>& ports, size_t count, size_t offset) {
+        if (!ports.empty()) {
+            const auto new_order = get_port_index_order(ports);
+            order(new_order, ports);
+            order_subvector(new_order, m_ptr_increments, count, offset);
+            order_subvector(new_order, m_finalization_offsets, count, offset);
+            order_subvector(new_order, m_data_sizes, count, offset);
+        }
+    };
+    reorder(m_input_ports, get_input_count(), 0);
+    reorder(m_output_ports, get_output_count(), get_input_count());
 }
 
 } // namespace lowered
