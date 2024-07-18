@@ -41,6 +41,13 @@ struct primitive_type_base : primitive_type {
         return choose_impl(node, *node.get_kernel_impl_params());
     }
 
+    in_out_fmts_t query_preferred_formats(const cldnn::program_node& node, impl_types impl_type) const  override{
+        OPENVINO_ASSERT(node.type() == this, "[GPU] primitive_type_base::choose_impl: primitive type mismatch");
+        auto runtime_params = *node.get_kernel_impl_params();
+        auto factory = implementation_map<PType>::get(runtime_params, impl_type, get_shape_type(runtime_params));
+        return factory->query_formats(node);
+    }
+
     std::unique_ptr<primitive_impl> choose_impl(const cldnn::program_node& node, const kernel_impl_params& runtime_params) const override {
         try {
             OPENVINO_ASSERT(node.type() == this, "[GPU] primitive_type_base::choose_impl: primitive type mismatch");

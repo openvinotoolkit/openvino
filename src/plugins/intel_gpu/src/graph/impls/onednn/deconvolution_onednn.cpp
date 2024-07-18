@@ -11,12 +11,71 @@
 
 #include <oneapi/dnnl/dnnl.hpp>
 
-#include <algorithm>
 #include <memory>
-#include "deconvolution_onednn.hpp"
 namespace cldnn {
 
 namespace onednn {
+
+static std::shared_ptr<dnnl::deconvolution_forward::primitive_desc> get_deconvolution_primitive_descriptor(const kernel_impl_params& impl_params,
+                                            const dnnl::primitive_attr& attr = dnnl::primitive_attr(),
+                                            dnnl::memory::format_tag tag_in_out = dnnl::memory::format_tag::undef) {
+    auto& engine = impl_params.prog->get_engine();
+    auto prim = impl_params.typed_desc<deconvolution>();
+
+    auto input_layout = impl_params.get_input_layout(0);
+    auto weights_layout = impl_params.get_input_layout(1);
+    auto output_layout = impl_params.get_output_layout();
+
+    dnnl::memory::dims stride(prim->stride.begin(), prim->stride.end());
+    dnnl::memory::dims dilation(input_layout.get_spatial_rank(), 1);
+    dnnl::memory::dims pad_l(prim->pad.begin(), prim->pad.end());
+    dnnl::memory::dims pad_r(prim->pad.begin(), prim->pad.end());
+
+    auto input_md = onednn::layout_to_memory_desc(input_layout, tag_in_out);
+    auto weights_md = onednn::layout_to_memory_desc(weights_layout, dnnl::memory::format_tag::any);
+    auto output_md = onednn::layout_to_memory_desc(output_layout, tag_in_out);
+    auto grouped_weights = format::is_grouped(weights_layout.format) || prim->grouped_weights_shape;
+
+    for (size_t i = 0; i < dilation.size(); i++) {
+        dilation[i]--;
+        int weights_offset = (grouped_weights ? 3 : 2) + static_cast<int>(i);
+        auto os = output_md.get_dims()[2 + i];
+        auto is = input_md.get_dims()[2 + i];
+        auto ks = weights_md.get_dims()[weights_offset];
+        auto kernel_range = 1 + (ks - 1) * (dilation[i] + 1);
+        pad_r[i] = (is - 1) * stride[i] - os + kernel_range - pad_l[i];
+    }
+
+    if (!prim->bias.empty()) {
+        auto bias_md = onednn::layout_to_memory_desc(impl_params.get_input_layout(2), dnnl::memory::format_tag::any, true);
+        return std::make_shared<dnnl::deconvolution_forward::primitive_desc>(
+            engine.get_onednn_engine(),
+            dnnl::prop_kind::forward_inference,
+            dnnl::algorithm::deconvolution_direct,
+            input_md,
+            weights_md,
+            bias_md,
+            output_md,
+            stride,
+            dilation,
+            pad_l,
+            pad_r,
+            attr);
+    } else {
+        return std::make_shared<dnnl::deconvolution_forward::primitive_desc>(
+            engine.get_onednn_engine(),
+            dnnl::prop_kind::forward_inference,
+            dnnl::algorithm::deconvolution_direct,
+            input_md,
+            weights_md,
+            output_md,
+            stride,
+            dilation,
+            pad_l,
+            pad_r,
+            attr);
+    }
+}
 
 struct deconvolution_onednn : typed_primitive_onednn_impl<deconvolution> {
     using parent = typed_primitive_onednn_impl<deconvolution>;
@@ -200,8 +259,42 @@ struct deconvolution_factory : public cldnn::implementation_factory<deconvolutio
         return onednn::deconvolution_onednn::validate(static_cast<const deconvolution_node&>(node));
     }
 
-    std::pair<std::vector<format>, std::vector<format>> query_formats(const program_node& node) const override {
-        OPENVINO_NOT_IMPLEMENTED;
+    in_out_fmts_t query_formats(const program_node& node) const override {
+        OPENVINO_ASSERT(node.is_type<deconvolution>());
+        std::vector<format::type> in_fmts(node.get_dependencies().size(), format::any);
+        std::vector<format::type> out_fmts(node.get_outputs_count(), format::any);
+
+        const auto& deconv_node = node.as<deconvolution>();
+        auto prim_desc = onednn::get_deconvolution_primitive_descriptor(*node.get_kernel_impl_params(), dnnl::primitive_attr(), dnnl::memory::format_tag::any);
+
+        for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
+            if (node.get_dependency(idx).is_constant())
+                continue;
+
+            // Conv or deconv gets a preferred format for its data input based on source memory description
+            // But an input format for fused post-ops should be same with an output format of conv/deconv
+            size_t prim_input = node.get_dependency_index(deconv_node.input());
+
+            // Note: did not handle attribute properly. especially for zero-point
+            cldnn::format src_fmt = format::any;
+            if (idx == prim_input)
+                src_fmt = onednn::find_data_format(prim_desc->src_desc());
+            else  // Dep for fused post ops
+                src_fmt = onednn::find_data_format(prim_desc->dst_desc());
+
+            in_fmts[idx] = src_fmt;
+
+            auto dst_fmt = onednn::find_data_format(prim_desc->dst_desc());
+
+            if (out_fmts[0] == format::any) {
+                out_fmts[0] = dst_fmt;
+            }
+
+            GPU_DEBUG_LOG << "select_preferred_formats:" << node.id() << ": " << fmt_to_str(src_fmt) << " --> " << fmt_to_str(dst_fmt)
+                          << " For index : " << idx << std::endl;
+        }
+
+        return {in_fmts, out_fmts};
     }
 };
 

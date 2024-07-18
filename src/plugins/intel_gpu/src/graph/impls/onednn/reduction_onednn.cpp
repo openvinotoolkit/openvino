@@ -242,7 +242,7 @@ struct reduce_factory : public cldnn::implementation_factory<reduce> {
         return onednn::reduction_onednn::validate(static_cast<const reduce_node&>(node));
     }
 
-    std::pair<std::vector<format>, std::vector<format>> query_formats(const program_node& node) const override {
+    in_out_fmts_t query_formats(const program_node& node) const override {
         OPENVINO_NOT_IMPLEMENTED;
     }
 };
