@@ -458,6 +458,22 @@ public:
     }
 };
 
+struct gemm_factory : public cldnn::implementation_factory<gemm> {
+    std::unique_ptr<primitive_impl> create(const program_node& node, const kernel_impl_params& params) const override {
+        OPENVINO_ASSERT(node.is_type<gemm>());
+        return onednn::gemm_onednn::create(static_cast<const gemm_node&>(node), params);
+    }
+
+    bool validate(const program_node& node) const override {
+        OPENVINO_ASSERT(node.is_type<gemm>());
+        return onednn::gemm_onednn::validate(static_cast<const gemm_node&>(node));
+    }
+
+    std::pair<std::vector<format>, std::vector<format>> query_formats(const program_node& node) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+};
+
 namespace detail {
 
 attach_gemm_onednn::attach_gemm_onednn() {

@@ -177,6 +177,22 @@ public:
     }
 };
 
+struct pooling_factory : public cldnn::implementation_factory<pooling> {
+    std::unique_ptr<primitive_impl> create(const program_node& node, const kernel_impl_params& params) const override {
+        OPENVINO_ASSERT(node.is_type<pooling>());
+        return onednn::pooling_onednn::create(static_cast<const pooling_node&>(node), params);
+    }
+
+    bool validate(const program_node& node) const override {
+        OPENVINO_ASSERT(node.is_type<pooling>());
+        return onednn::pooling_onednn::validate(static_cast<const pooling_node&>(node));
+    }
+
+    std::pair<std::vector<format>, std::vector<format>> query_formats(const program_node& node) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+};
+
 namespace detail {
 
 attach_pooling_onednn::attach_pooling_onednn() {
@@ -202,7 +218,7 @@ attach_pooling_onednn::attach_pooling_onednn() {
         format::bs_fs_zyx_bsv32_fsv32,
     };
 
-    implementation_map<pooling>::add(impl_types::onednn, pooling_onednn::create, pooling_onednn::validate, dt, fmt);
+    implementation_map<pooling>::add(impl_types::onednn, cldnn::make_unique<pooling_factory>(), dt, fmt);
 }
 
 }  // namespace detail

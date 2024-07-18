@@ -142,6 +142,22 @@ public:
     }
 };
 
+struct concatenation_factory : public cldnn::implementation_factory<concatenation> {
+    std::unique_ptr<primitive_impl> create(const program_node& node, const kernel_impl_params& params) const override {
+        OPENVINO_ASSERT(node.is_type<concatenation>());
+        return onednn::concatenation_onednn::create(static_cast<const concatenation_node&>(node), params);
+    }
+
+    bool validate(const program_node& node) const override {
+        OPENVINO_ASSERT(node.is_type<concatenation>());
+        return onednn::concatenation_onednn::validate(static_cast<const concatenation_node&>(node));
+    }
+
+    std::pair<std::vector<format>, std::vector<format>> query_formats(const program_node& node) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+};
+
 namespace detail {
 
 attach_concatenation_onednn::attach_concatenation_onednn() {

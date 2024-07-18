@@ -231,6 +231,22 @@ public:
     }
 };
 
+struct reduce_factory : public cldnn::implementation_factory<reduce> {
+    std::unique_ptr<primitive_impl> create(const program_node& node, const kernel_impl_params& params) const override {
+        OPENVINO_ASSERT(node.is_type<reduce>());
+        return onednn::reduction_onednn::create(static_cast<const reduce_node&>(node), params);
+    }
+
+    bool validate(const program_node& node) const override {
+        OPENVINO_ASSERT(node.is_type<reduce>());
+        return onednn::reduction_onednn::validate(static_cast<const reduce_node&>(node));
+    }
+
+    std::pair<std::vector<format>, std::vector<format>> query_formats(const program_node& node) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+};
+
 namespace detail {
 
 attach_reduction_onednn::attach_reduction_onednn() {
@@ -257,7 +273,7 @@ attach_reduction_onednn::attach_reduction_onednn() {
         format::bs_fs_zyx_bsv32_fsv32,
     };
 
-    implementation_map<reduce>::add(impl_types::onednn, reduction_onednn::create, reduction_onednn::validate, dt, fmt);
+    implementation_map<reduce>::add(impl_types::onednn, cldnn::make_unique<reduce_factory>(), dt, fmt);
 }
 
 }  // namespace detail
