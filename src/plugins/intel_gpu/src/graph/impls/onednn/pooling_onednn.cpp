@@ -188,7 +188,7 @@ struct pooling_factory : public cldnn::implementation_factory<pooling> {
         return onednn::pooling_onednn::validate(static_cast<const pooling_node&>(node));
     }
 
-    std::pair<std::vector<format>, std::vector<format>> query_formats(const program_node& node) const override {
+    in_out_fmts_t query_formats(const program_node& node) const override {
         OPENVINO_NOT_IMPLEMENTED;
     }
 };

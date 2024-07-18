@@ -466,8 +466,26 @@ struct fully_connected_factory : public cldnn::implementation_factory<fully_conn
         return onednn::fully_connected_onednn::validate(static_cast<const fully_connected_node&>(node));
     }
 
-    std::pair<std::vector<format>, std::vector<format>> query_formats(const program_node& node) const override {
-        OPENVINO_NOT_IMPLEMENTED;
+    in_out_fmts_t query_formats(const program_node& node) const override {
+        OPENVINO_ASSERT(node.is_type<fully_connected>());
+        std::vector<format::type> in_fmts(node.get_dependencies().size(), format::any);
+        std::vector<format::type> out_fmts(node.get_outputs_count(), format::any);
+
+        for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
+            if (node.get_dependency(idx).is_constant())
+                continue;
+
+            size_t out_rank = node.get_output_layout().get_rank();
+            auto target_format = format::get_default_format(out_rank);
+
+            in_fmts[idx] = target_format;
+
+            if (out_fmts[0] == format::any) {
+                out_fmts[0] = target_format;
+            }
+        }
+
+        return {in_fmts, out_fmts};
     }
 };
 
