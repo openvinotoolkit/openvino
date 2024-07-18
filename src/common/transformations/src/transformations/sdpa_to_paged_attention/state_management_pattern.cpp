@@ -349,8 +349,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
             0);
         auto pa_reshape = std::make_shared<v1::Reshape>(paged_attention->output(0), pa_shape, true);
         auto pa_transpose = std::make_shared<v1::Transpose>(pa_reshape, kv_transpose_order);
-        paged_attention->output(1).get_tensor().set_names({"paged_attn." + std::to_string(layer_index - 1) + "/score"});
-        scores_outputs.push_back(paged_attention->output(1));
+        if (use_cache_eviction) {
+            paged_attention->output(1).get_tensor().set_names({"paged_attn." + std::to_string(layer_index - 1) + "/score"});
+            scores_outputs.push_back(paged_attention->output(1));
+        }
 
         // TODO: Complete this part to work with stateless models as well as will stateful
         //  def add_kv_parameter(past_node):
