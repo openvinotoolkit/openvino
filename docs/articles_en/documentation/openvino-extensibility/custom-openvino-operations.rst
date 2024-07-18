@@ -37,7 +37,7 @@ Follow the steps below to add a custom operation:
 
    a. For the C++ API, add the ``OPENVINO_OP`` macro which defines a ``NodeTypeInfo`` object that identifies the type of the operation to the graph users and helps with dynamic type resolution. The type info of an operation currently consists of a string operation identifier and a string for operation version.
 
-   b. For the Python API, define the ``class_type_info`` attribute in your custom operation class. This attribute should be an instance of ``DiscreteTypeInfo``, which includes the operation name and the domain or extension. The operation name is a string identifier for the operation, and the domain or extension is a string that specifies the operation version or namespace. This information is used to uniquely identify the operation type within the OpenVINO framework.
+   b. For the Python API, define the ``class_type_info`` attribute in your custom operation class. This attribute should be an instance of ``DiscreteTypeInfo``, encapsulating both the operation name, which serves as a unique string identifier, and the operation version or namespace, represented as a second string.
 
 .. tab-set::
    
