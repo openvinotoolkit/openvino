@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 #include "snippets/pass/fq_decomposition.hpp"
 #include "openvino/core/rt_info.hpp"
