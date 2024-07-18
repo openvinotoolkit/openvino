@@ -9,8 +9,10 @@
 
 #include "cpu_memory.h"
 #include "memory_desc/dnnl_memory_desc.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/reorder.h"
+#include "utils/cpu_utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -87,7 +89,7 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
     MemoryPtr ptr;
     if (globalWeightCache &&
         dnnl::memory::format_kind::blocked == dstWeightDesc->getDnnlDesc().get_format_kind()) {
-        const auto string_hash = computeWeightsStringHash(weightsMem, dstWeightDesc);
+        const auto string_hash = MemoryDescUtils::computeWeightsStringHash(weightsMem, dstWeightDesc);
         ptr = *globalWeightCache->findOrCreate(string_hash, create);
     } else {
         ptr = create();
@@ -96,12 +98,6 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
     (*privateWeightCache)[format] = ptr;
 
     return ptr;
-}
-
-std::string computeWeightsStringHash(const MemoryCPtr weightsMem, const DnnlMemoryDescPtr dstWeightDesc) {
-    const auto desc_hash = dnnl::impl::primitive_hashing::get_md_hash(*dstWeightDesc->getDnnlDesc().get());
-    return std::to_string(desc_hash) + "_" + std::to_string(weightsMem->getSize()) + "_" +
-           std::to_string(reinterpret_cast<uint64_t>(weightsMem->getData()));
 }
 
 }  // namespace utils

@@ -102,6 +102,8 @@ public:
      * @return dims as string
      */
     static std::string dims2str(const VectorDims& dims);
+
+    static std::string computeWeightsStringHash(const MemoryCPtr memory, const std::shared_ptr<DnnlMemoryDesc> dstDesc);
 };
 
 }   // namespace intel_cpu
