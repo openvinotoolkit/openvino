@@ -8,6 +8,8 @@
 
 #include <memory>
 
+#include "openvino/core/except.hpp"
+
 #ifndef _WIN32
 #    define LIB_ZE_LOADER_SUFFIX ".1"
 #endif
@@ -26,8 +28,6 @@ namespace intel_npu {
     symbol_statement(zeCommandListCreate)                     \
     symbol_statement(zeCommandListDestroy)                    \
     symbol_statement(zeCommandListReset)                      \
-    symbol_statement(zeCommandListGetNextCommandIdExp)        \
-    symbol_statement(zeCommandListUpdateMutableCommandsExp)   \
     symbol_statement(zeCommandQueueCreate)                    \
     symbol_statement(zeCommandQueueDestroy)                   \
     symbol_statement(zeCommandQueueExecuteCommandLists)       \
@@ -58,6 +58,11 @@ namespace intel_npu {
     symbol_statement(zeMemAllocHost)                          \
     symbol_statement(zeMemFree)                               \
     symbol_statement(zeMemGetAllocProperties)
+
+//unsupported symbols with older ze_loader versions
+#define weak_symbols_list()                                   \
+    symbol_statement(zeCommandListGetNextCommandIdExp)        \
+    symbol_statement(zeCommandListUpdateMutableCommandsExp)
 // clang-format on
 
 class ZeroApi {
@@ -73,6 +78,7 @@ public:
     }
 #define symbol_statement(symbol) decltype(&::symbol) symbol;
     symbols_list();
+    weak_symbols_list();
 #undef symbol_statement
 
 private:
@@ -84,11 +90,17 @@ private:
 #define symbol_statement(symbol)                                                                            \
     template <typename... Args>                                                                             \
     inline typename std::invoke_result<decltype(&::symbol), Args...>::type wrapped_##symbol(Args... args) { \
-        return ZeroApi::getInstance().symbol(std::forward<Args>(args)...);                                  \
+        auto& ref = ZeroApi::getInstance();                                                                 \
+        if (ref.symbol == nullptr) {                                                                        \
+            OPENVINO_THROW("Unsupported symbol " #symbol);                                                  \
+        }                                                                                                   \
+        return ref.symbol(std::forward<Args>(args)...);                                                     \
     }
 symbols_list();
+weak_symbols_list();
 #undef symbol_statement
 #define symbol_statement(symbol) inline decltype(&::symbol) symbol = wrapped_##symbol;
 symbols_list();
+weak_symbols_list();
 #undef symbol_statement
 }  // namespace intel_npu

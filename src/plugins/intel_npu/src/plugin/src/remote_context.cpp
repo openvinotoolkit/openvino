@@ -84,6 +84,15 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
                                       mem_handle_object);
 }
 
+ov::SoPtr<ov::ITensor> RemoteContextImpl::create_host_tensor(const ov::element::Type type, const ov::Shape& shape) {
+    auto device = _backends->getDevice(_config.get<DEVICE_ID>());
+    if (device == nullptr) {
+        OPENVINO_THROW("Device is not available");
+    }
+
+    return device->createHostTensor(get_this_shared_ptr(), type, shape, _config);
+}
+
 const std::string& RemoteContextImpl::get_device_name() const {
     return _device_name;
 }
