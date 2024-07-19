@@ -14,7 +14,7 @@ namespace intel_cpu {
 CPURuntimeConfigurator::CPURuntimeConfigurator() : ov::snippets::RuntimeConfigurator(std::make_shared<CPURuntimeConfig>()) {
 }
 
-void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRPtr& linear_ir) {
+void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
     if (linear_ir->is_dynamic()) {
         update_loop_info(linear_ir);
         update_loop_args(linear_ir);
@@ -30,11 +30,11 @@ void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRPtr& li
     update_latest_shapes();
 }
 
-void CPURuntimeConfigurator::init_tensor_rank(const ov::snippets::lowered::LinearIRPtr& linear_ir) const {
+void CPURuntimeConfigurator::init_tensor_rank(const ov::snippets::lowered::LinearIRCPtr& linear_ir) const {
     m_config->tensor_rank = std::max(linear_ir->get_master_shape().size(), rank6D);
 }
 
-void CPURuntimeConfigurator::update_loop_args(const ov::snippets::lowered::LinearIRPtr& linear_ir) const {
+void CPURuntimeConfigurator::update_loop_args(const ov::snippets::lowered::LinearIRCPtr& linear_ir) const {
     const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(m_config);
     OPENVINO_ASSERT(cpu_config, "CPURuntimeConfigurator expects CPURuntimeConfig");
 

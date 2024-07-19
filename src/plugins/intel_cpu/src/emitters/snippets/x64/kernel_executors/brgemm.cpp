@@ -156,7 +156,7 @@ std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelExecutor::compile_kernel(const
     return compiled_kernel;
 }
 void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
-                                         const ov::snippets::lowered::LinearIRPtr& linear_ir,
+                                         const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                          BrgemmKernelConfig& config) const {
     const auto& input_pds = expr->get_input_port_descriptors();
     const auto& output_pds = expr->get_output_port_descriptors();

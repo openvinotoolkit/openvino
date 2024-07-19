@@ -97,7 +97,7 @@ public:
 protected:
     std::shared_ptr<BrgemmCompiledKernel> compile_kernel(const BrgemmKernelConfig& c) const override;
     void update_config(const ov::snippets::lowered::ExpressionPtr& expr,
-                       const ov::snippets::lowered::LinearIRPtr& linear_ir,
+                       const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                        BrgemmKernelConfig& config) const override;
 };
 #define GET_OFF_BRGEMM_ARGS(field) offsetof(BrgemmKernelExecutor::call_args, field)

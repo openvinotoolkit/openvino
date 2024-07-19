@@ -116,6 +116,7 @@ public:
 
     std::shared_ptr<Subgraph> clone() const;
 
+    const std::shared_ptr<RuntimeConfigurator>& get_runtime_configurator() const;
     const std::shared_ptr<RuntimeConfig>& update_runtime_config() const;
 
     static auto wrap_node_as_subgraph(const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<Subgraph>;
