@@ -21,15 +21,13 @@ Creates copy of ``data`` tensor and applies elements from ``updates`` using slic
 General logic of updating data tensor for 1D, 2D and 3D tensors:
 
 .. code-block:: py
-  indices_range = range(start, stop, step)
 
+  indices_range = range(start, stop, step)
   # For 1D data tensor:
   output[indices_range[i]] = updates[i], axis = 0
-
   # For 2D data tensor:
   output[indices_range[i]][j] = updates[i][j] if axis = 0
   output[i][indices_range[j]] = updates[i][j] if axis = 1
-
   # For 3D data tensor:
   output[indices_range[i]][j][k] = updates[i][j][k] if axis = 0
   output[i][indices_range[j]][k] = updates[i][j][k] if axis = 1
