@@ -34,13 +34,13 @@ def run_pa(tmp_path, model_id, model_link, use_block_indices_inputs, use_score_o
 
     # Test for block_indices inputs and scores outputs to appear in the model 
     if (use_block_indices_inputs):
-        block_indices_pattern = r'block_indices'
+        block_indices_pattern = r'block_indices\.[0-9]+'
         block_indices_counter = 0
 
         model_inputs = model.model.inputs
         for input in model_inputs:
             for name in list(input.get_names()):
-                if block_indices_pattern == name:
+                if re.search(block_indices_pattern, name):
                     block_indices_counter += 1
 
         assert(block_indices_counter == pa_counter)
