@@ -215,7 +215,7 @@ void optimize_value_usage(ov::Output<ov::Node>& output, STS_map& symbol_shape_so
             get_alternative_source_from_value_or_shape_source(symbol_shape_source, symbol, output, symbol_value_source);
 
     if (alternative_source.get_node_shared_ptr() != nullptr) {
-        evaluate_both_bounds(alternative_source);
+        ov::util::evaluate_both_bounds(alternative_source);
         output.replace(alternative_source);
     } else {
         // in case we can not optimize it -- it is symbol which appeared just now on the value path
