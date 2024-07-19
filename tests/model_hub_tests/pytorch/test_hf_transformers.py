@@ -6,8 +6,9 @@ import os
 import pytest
 import torch
 from huggingface_hub import model_info
+from huggingface_hub.utils import HfHubHTTPError
 from models_hub_common.constants import hf_hub_cache_dir
-from models_hub_common.utils import cleanup_dir
+from models_hub_common.utils import cleanup_dir, retry
 import transformers
 from transformers import AutoConfig, AutoModel, AutoProcessor, AutoTokenizer, AutoFeatureExtractor, AutoModelForTextToWaveform, \
     CLIPFeatureExtractor, XCLIPVisionModel, T5Tokenizer, VisionEncoderDecoderModel, ViTImageProcessor, BlipProcessor, BlipForConditionalGeneration, \
@@ -101,6 +102,7 @@ class TestTransformersModel(TestTorchConvertModel):
         self.image = Image.open(requests.get(url, stream=True).raw)
         self.cuda_available, self.gptq_postinit = None, None
 
+    @retry(3, exceptions=(HfHubHTTPError,))
     def load_model(self, name, type):
         name_suffix = ''
         if name.find(':') != -1:

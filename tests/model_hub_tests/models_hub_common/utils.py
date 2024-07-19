@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import functools
 import itertools
 import os
 import shutil
@@ -145,3 +146,18 @@ def call_with_timer(timer_label: str, func, args):
 
 def print_stat(s: str, value: float):
     print(s.format(round_num(value)))
+
+
+def retry(max_retries=3, exceptions=(Exception,)):
+    def retry_decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    print(f"Attempt {attempt + 1} of {max_retries} failed: {e}")
+                    if attempt == max_retries - 1:
+                        raise e
+        return wrapper
+    return retry_decorator
