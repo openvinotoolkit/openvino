@@ -8,6 +8,6 @@
     "electron": "30.0.6"
   },
   "dependencies": {
-    "openvino-node": "^2024.2.0"
+    "openvino-node": ".."
   }
 }
