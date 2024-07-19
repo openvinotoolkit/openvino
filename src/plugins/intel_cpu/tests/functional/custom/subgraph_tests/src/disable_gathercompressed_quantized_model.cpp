@@ -81,26 +81,41 @@ protected:
         const auto compressed_weights_precision = std::get<0>(test_param);
 
         const auto runtime_model = compiledModel.get_runtime_model();
-        const auto result = runtime_model->get_result();
-        const auto matmul = result->get_input_node_shared_ptr(0);
-        if (compressed_weights_precision == element::i8) {
-            EXPECT_EQ(matmul->get_input_element_type(1), element::i8);
-        } else if (compressed_weights_precision == element::u8) {
-            // Current oneDNN MutMul official support precision: Source(u8, s8), Weights(s8),
-            // It doesn't support:Source(u8), Weights(u8)
-            // So reorder will be inserted when weights is not s8.
-            const auto mm_productor = matmul->get_input_node_shared_ptr(1);
-            const auto type = mm_productor->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
-            EXPECT_EQ(type, "Reorder");
-            EXPECT_EQ(mm_productor->get_input_element_type(0), compressed_weights_precision);
-        } else {
-            // Keep GatherCompressed, so just check if Gather has 4 inputs.
-            for (const auto& n : runtime_model->get_ordered_ops()) {
-                const auto type = n->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
-                if (type == "Gather") {
-                    EXPECT_GE(n->get_input_size(), 4);
+        const auto matmul = runtime_model->get_result()->get_input_node_shared_ptr(0);
+
+        bool have_gather = false;
+        bool have_gather_compressed = false;
+        for (const auto& n : runtime_model->get_ordered_ops()) {
+            const auto type = n->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>();
+            if (type == "Gather") {
+                // Gather has >=4 inputs means it is GatherCompressed.
+                if (n->get_input_size() >= 4) {
+                    have_gather_compressed = true;
+                } else {
+                    have_gather = true;
                 }
             }
+        }
+
+        switch (compressed_weights_precision) {
+        case element::i8:
+            EXPECT_TRUE(have_gather);
+            EXPECT_EQ(matmul->get_input_element_type(1), element::i8);
+            // FakeQuantize(matmul's input(0))'s output precision is u8
+            EXPECT_EQ(matmul->get_rt_info().at(ov::exec_model_info::RUNTIME_PRECISION).as<ov::element::Type>(),
+                      element::u8);
+            break;
+        case element::u8:
+            EXPECT_TRUE(have_gather);
+            // Current oneDNN MutMul official support precision: Source(u8, s8), Weights(s8).
+            // So reorder will be inserted when weights is not s8, don't need to check matmul's input(1) precision.
+            break;
+        case element::u4:
+        case element::i4:
+            EXPECT_TRUE(have_gather_compressed);
+            break;
+        default:
+            break;
         }
     }
 };
