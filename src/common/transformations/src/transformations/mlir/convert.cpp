@@ -7,16 +7,18 @@
 #include <algorithm>
 #include <functional>
 #include <openvino/op/add.hpp>
-#include <openvino/op/subtract.hpp>
-#include <openvino/op/multiply.hpp>
 #include <openvino/op/divide.hpp>
-
+#include <openvino/op/multiply.hpp>
+#include <openvino/op/relu.hpp>
+#include <openvino/op/subtract.hpp>
 #include <openvino/pass/graph_rewrite.hpp>
 #include <openvino/pass/manager.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <unordered_map>
 
 // TODO: Prune unused headers -- it's hard to understand needed ones
+#include "conversion_context.hpp"
+#include "convert_common.hpp"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/InitLLVM.h"
@@ -55,20 +57,16 @@
 #include "mlir/Target/LLVMIR/Dialect/All.h"
 #include "mlir/Target/LLVMIR/Export.h"
 #include "mlir/Target/LLVMIR/ModuleTranslation.h"
+#include "mlir_op.hpp"
+#include "op/matmul.hpp"
+#include "op/relu.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations_visibility.hpp"
 #include "openvino/core/symbol.hpp"
-
-#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
-
-#include "mlir_op.hpp"
-#include "convert_common.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "subgraph_tracker.hpp"
-#include "conversion_context.hpp"
-#include "op/matmul.hpp"
-
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
+#include "transformations_visibility.hpp"
 
 namespace {
 
@@ -269,46 +267,11 @@ public:
     }
 };
 
-
-bool elementwise_f32_binary_no_broadcast_predicate(const ov::Output<ov::Node>& output) {
-    if(output.get_element_type() != ov::element::f32) {
-        return false;
-    }
-    // Check if implicit broadcast is possible, reject in this case
-    // Relies on symbolic information -- register SymbolicPropagation before applying this pattern
-    auto input_shape_a = output.get_node_shared_ptr()->get_input_partial_shape(0);
-    auto input_shape_b = output.get_node_shared_ptr()->get_input_partial_shape(1);
-    auto output_shape = output.get_partial_shape();
-    if(output_shape.rank().is_dynamic() || input_shape_a.rank().is_dynamic() || input_shape_b.rank().is_dynamic()) {
-        return false;
-    }
-    if(output_shape.rank().get_length() != input_shape_a.rank().get_length() || output_shape.rank().get_length() != input_shape_b.rank().get_length()) {
-        return false;
-    }
-
-    for(size_t i = 0; i < output_shape.size(); ++i) {
-        if(output_shape[i] != input_shape_a[i] || output_shape[i] != input_shape_b[i]) {
-            return false;
-        }
-        // Continue if all shapes are static.
-        if (output_shape[i].is_static() && input_shape_a[i].is_static() &&
-            input_shape_b[i].is_static())
-            continue;
-        if(!ov::symbol::are_equal(output_shape[i].get_symbol(), input_shape_a[i].get_symbol()) || !ov::symbol::are_equal(output_shape[i].get_symbol(), input_shape_b[i].get_symbol())) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-
 template <typename Op>
 NodePtr elementwise_f32_binary_no_broadcast() {
     using namespace ov::pass::pattern;
-    return wrap_type<Op>({any_input(), any_input()}, elementwise_f32_binary_no_broadcast_predicate);
+    return wrap_type<Op>({any_input(), any_input()}, elementwise_no_broadcast_predicate<ov::element::f32>);
 }
-
 
 void injectMLIR(std::shared_ptr<ov::Model> model, MLIRContext* context) {
     ov::pass::Manager manager;
@@ -319,6 +282,7 @@ void injectMLIR(std::shared_ptr<ov::Model> model, MLIRContext* context) {
     manager.register_pass<MarkPattern>(elementwise_f32_binary_no_broadcast<v1::Subtract>(), ConvertBinary<linalg::SubOp>());
     manager.register_pass<MarkPattern>(elementwise_f32_binary_no_broadcast<v1::Multiply>(), ConvertBinary<linalg::MulOp>());
     manager.register_pass<MarkPattern>(elementwise_f32_binary_no_broadcast<v1::Divide>(), ConvertBinary<linalg::DivOp>());
+    manager.register_pass<ReluPattern>();
     manager.register_pass<MatMulPattern>();
     manager.register_pass<Partitioner>(context);
     manager.run_passes(model);

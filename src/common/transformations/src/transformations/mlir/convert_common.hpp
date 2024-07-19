@@ -30,6 +30,13 @@ RankedTensorType importTensor(MLIRContext* ctx,
 
 Location createLocation(MLIRContext* ctx, NodePtr node);
 
+bool elementwise_no_broadcast_predicate_impl(const ov::Output<ov::Node>& output, ov::element::Type type);
+
+template <ov::element::Type_t type>
+bool elementwise_no_broadcast_predicate(const ov::Output<ov::Node>& output) {
+    return elementwise_no_broadcast_predicate_impl(output, type);
+}
+
 // Borrowed it from TPP-MLIR. FIXME: Do we have a better upstreamed alternative?
 template <typename T>
 mlir::arith::ConstantOp getConstant(OpBuilder &builder, const ov::element::Type& precision, T value) {

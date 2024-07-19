@@ -80,11 +80,23 @@ void prepareMLIRKernelWithoutWrapper(mlir::OwningOpRef<mlir::ModuleOp>& module) 
     pm.addPass(bufferization::createEmptyTensorEliminationPass());
 
     pm.addPass(bufferization::createOneShotBufferizePass());
-    // TODO: Add deallocation pass/pipeline to avoid memory leaks.
+    pm.addNestedPass<func::FuncOp>(bufferization::createFinalizingBufferizePass());
 
     // Cleanup after bufferization - possibly remove redundant copies.
     pm.addNestedPass<func::FuncOp>(createCanonicalizerPass());
     pm.addNestedPass<func::FuncOp>(createCSEPass());
+
+    // Deallocation pipeline to avoid memory leaks from created temporary buffers.
+    pm.addPass(memref::createExpandReallocPass(/*emitDeallocs=*/false));
+    pm.addPass(createCanonicalizerPass());
+    bufferization::DeallocationOptions deallocOpts;
+    deallocOpts.privateFuncDynamicOwnership = false;
+    pm.addPass(bufferization::createOwnershipBasedBufferDeallocationPass(deallocOpts));
+    pm.addPass(createCanonicalizerPass());
+    pm.addPass(bufferization::createBufferDeallocationSimplificationPass());
+    pm.addPass(bufferization::createLowerDeallocationsPass());
+    pm.addPass(createCSEPass());
+    pm.addPass(createCanonicalizerPass());
 
     // Blanket-convert any remaining high-level vector ops to loops if any remain.
     pm.addNestedPass<func::FuncOp>(createConvertVectorToSCFPass());
