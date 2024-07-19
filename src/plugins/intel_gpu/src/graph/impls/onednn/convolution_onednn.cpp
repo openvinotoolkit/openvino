@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "convolution_onednn.hpp"
 #include "convolution_inst.h"
 #include "permute_inst.h"
 #include "intel_gpu/runtime/format.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "primitive_onednn_base.h"
-#include "impls/registry/implementation_map.hpp"
 
 #include "utils.hpp"
 
@@ -334,33 +334,6 @@ public:
 #endif
     }
 
-
-    static bool validate(const convolution_node& node) {
-        if (!is_supported_format(node.get_preferred_input_fmt(0)))
-            return false;
-
-        auto in_dt = node.get_input_layout(0).data_type;
-        auto wei_dt = node.weights().get_output_layout().data_type;
-        auto out_dt = node.get_output_layout(false).data_type;
-
-        bool f16_conv = everyone_is(data_types::f16, in_dt, wei_dt) && one_of(out_dt, {data_types::f16, data_types::f32, data_types::u8, data_types::i8});
-        bool u8s8_conv = one_of(in_dt, {data_types::i8, data_types::u8}) &&
-                         wei_dt == data_types::i8 &&
-                         one_of(out_dt, {data_types::i32, data_types::f16, data_types::f32, data_types::u8, data_types::i8});
-
-        if (!f16_conv && !u8s8_conv)
-            return false;
-
-        if (!is_supported_post_ops(node))
-            return false;
-
-        // oneDNN doesn't support asymmetric weights quantization
-        if (node.weights_zero_points_term())
-            return false;
-
-        return true;
-    }
-
     static std::unique_ptr<primitive_impl> create(const convolution_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
@@ -376,141 +349,86 @@ public:
     }
 };
 
-struct convolution_factory : public cldnn::implementation_factory<convolution> {
-    std::unique_ptr<primitive_impl> create(const program_node& node, const kernel_impl_params& params) const override {
-        OPENVINO_ASSERT(node.is_type<convolution>());
-        return convolution_onednn::create(static_cast<const convolution_node&>(node), params);
-    }
-
-    bool validate(const program_node& node) const override {
-        OPENVINO_ASSERT(node.is_type<convolution>());
-        return convolution_onednn::validate(static_cast<const convolution_node&>(node));
-    }
-
-    in_out_fmts_t query_formats(const program_node& node) const override {
-        OPENVINO_ASSERT(node.is_type<convolution>());
-        std::vector<format::type> in_fmts(node.get_dependencies().size(), format::any);
-        std::vector<format::type> out_fmts(node.get_outputs_count(), format::any);
-
-        const auto& conv_node = node.as<convolution>();
-
-        auto prim_desc = get_convolution_primitive_descriptor(*node.get_kernel_impl_params(), dnnl::primitive_attr(), dnnl::memory::format_tag::any);
-
-        for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
-            if (node.get_dependency(idx).is_constant())
-                continue;
-
-            // Conv or deconv gets a preferred format for its data input based on source memory description
-            // But an input format for fused post-ops should be same with an output format of conv/deconv
-            size_t prim_input = node.get_dependency_index(conv_node.input());
-
-            // Note: did not handle attribute properly. especially for zero-point
-            cldnn::format src_fmt = format::any;
-            if (idx == prim_input)
-                src_fmt = onednn::find_data_format(prim_desc->src_desc());
-            else  // Dep for fused post ops
-                src_fmt = onednn::find_data_format(prim_desc->dst_desc());
-
-            // WA: shallow convolution needs to set input format by bfyx.
-            //     onednn recommended byxf for input format. It will insert reorder before shallow conv.
-            if (node.get_input_layouts()[0].feature() == 3) {
-                bool can_optimize_permute = false;
-                // In permute-conv pattern, check if permute can be optimized
-                // when the input memory of permute has been aligned like byxf format.
-                // ex) pattern: input (bfyx) -> permute (byxf) -> oneDNN convolution
-                //      input layout of permute: bfyx [b:1, f:416, y:416, x:3]
-                //     output layout of permute: byxf [b:1, f:3, y:416, x:416]
-                // In this case, it can be handled by changing only the shape of permute without the kernel execution.
-                if (node.get_output_layout().get_rank() == 4 && node.get_dependency(0).is_type<permute>()) {
-                    auto& pnode = node.get_dependency(0).as<permute>();
-                    can_optimize_permute = pnode.get_users().size() == 1
-                        && pnode.get_output_layout().data_type == node.get_output_layout().data_type
-                        && !pnode.has_fused_primitives()
-                        && !pnode.is_output() && pnode.get_input_layout(0).is_static()
-                        && pnode.is_reverse_rotating_except_batch();
-                }
-                if (!can_optimize_permute) {
-                    src_fmt = format::get_default_format(node.get_input_layouts()[0].get_rank(), false, false);
-                } else {
-                    // The size of dependencies and users must each be 1.
-                    // In permute-conv pattern, the preferred format of permute should follow previous node.
-                    node.get_dependency(0).init_preferred_fmt(1, 1);
-                    node.get_dependency(0).set_preferred_input_fmt(0, format::bfyx);
-                    node.get_dependency(0).can_be_optimized(true);
-                }
-            }
-
-            in_fmts[idx] = src_fmt;
-
-            auto dst_fmt = onednn::find_data_format(prim_desc->dst_desc());
-            // Errata: Best impl for shallow input conv with zero-point ops is ocl:xe_lp.
-            if (src_fmt == format::bfyx) {
-                if (conv_node.get_input_layouts()[0].feature() <= 8 && conv_node.activations_zero_points_term() &&
-                    conv_node.get_input_layouts()[0].data_type == data_types::u8 && conv_node.get_output_layout().data_type == data_types::u8) {
-                    dst_fmt = format::b_fs_yx_fsv32;
-                }
-            }
-
-            if (out_fmts[0] == format::any) {
-                out_fmts[0] = dst_fmt;
-            }
-
-            GPU_DEBUG_LOG << "select_preferred_formats:" << node.id() << ": " << fmt_to_str(src_fmt) << " --> " << fmt_to_str(dst_fmt)
-                          << " For index : " << idx << std::endl;
-        }
-        return {in_fmts, out_fmts};
-    }
-};
-
-namespace detail {
-
-attach_convolution_onednn::attach_convolution_onednn() {
-    std::vector<data_types> dt = {
-        data_types::f32,
-        data_types::f16,
-        data_types::u8,
-        data_types::i8,
-    };
-    std::vector<format::type> fmt = {
-        format::bfyx,
-        format::bfzyx,
-        format::byxf,
-        format::bzyxf,
-        format::b_fs_yx_fsv2,
-        format::b_fs_zyx_fsv2,
-        format::b_fs_yx_fsv4,
-        format::b_fs_zyx_fsv4,
-        format::b_fs_yx_fsv8,
-        format::b_fs_zyx_fsv8,
-        format::b_fs_yx_fsv16,
-        format::b_fs_zyx_fsv16,
-        format::b_fs_zyx_fsv32,
-        format::b_fs_yx_fsv32,
-        format::bs_fs_yx_bsv16_fsv16,
-        format::bs_fs_zyx_bsv16_fsv16,
-        format::bs_fs_yx_bsv16_fsv32,
-        format::bs_fs_zyx_bsv16_fsv32,
-        format::bs_fs_yx_bsv32_fsv16,
-        format::bs_fs_zyx_bsv32_fsv16,
-        format::bs_fs_yx_bsv32_fsv32,
-        format::bs_fs_zyx_bsv32_fsv32,
-        format::bs_fs_yx_bsv4_fsv4,
-        format::bs_fs_yx_bsv8_fsv4,
-        format::bs_fs_yx_bsv16_fsv8,
-        format::bs_fs_yx_bsv16_fsv4,
-        format::bs_fs_yx_bsv16_fsv2,
-        format::bs_fs_zyx_bsv8_fsv4,
-        format::bs_fs_zyx_bsv16_fsv8,
-        format::bs_fs_zyx_bsv16_fsv4,
-        format::bs_fs_zyx_bsv16_fsv2,
-        format::bs_fs_yx_bsv8_fsv2,
-        format::bs_fs_zyx_bsv8_fsv2,
-        format::bs_fs_yx_bsv4_fsv2,
-    };
-    implementation_map<convolution>::add(impl_types::onednn, cldnn::make_unique<convolution_factory>(), dt, fmt);
+std::unique_ptr<primitive_impl> ConvolutionImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    OPENVINO_ASSERT(node.is_type<convolution>());
+    return convolution_onednn::create(static_cast<const convolution_node&>(node), params);
 }
 
-}  // namespace detail
+in_out_fmts_t ConvolutionImplementationManager::query_formats(const program_node& node) const {
+    OPENVINO_ASSERT(node.is_type<convolution>());
+    std::vector<format::type> in_fmts(node.get_dependencies().size(), format::any);
+    std::vector<format::type> out_fmts(node.get_outputs_count(), format::any);
+
+    const auto& conv_node = node.as<convolution>();
+
+    auto prim_desc = get_convolution_primitive_descriptor(*node.get_kernel_impl_params(), dnnl::primitive_attr(), dnnl::memory::format_tag::any);
+
+    for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
+        if (node.get_dependency(idx).is_constant())
+            continue;
+
+        // Conv or deconv gets a preferred format for its data input based on source memory description
+        // But an input format for fused post-ops should be same with an output format of conv/deconv
+        size_t prim_input = node.get_dependency_index(conv_node.input());
+        size_t prim_weights = node.get_primitive()->input_size();
+
+        // Note: did not handle attribute properly. especially for zero-point
+        cldnn::format src_fmt = format::any;
+        if (idx == prim_input) {
+            src_fmt = onednn::find_data_format(prim_desc->src_desc());
+        } else if (idx == prim_weights) {
+            src_fmt = format::any;
+        } else {  // Dep for fused post ops
+            src_fmt = onednn::find_data_format(prim_desc->dst_desc());
+        }
+
+        // WA: shallow convolution needs to set input format by bfyx.
+        //     onednn recommended byxf for input format. It will insert reorder before shallow conv.
+        if (node.get_input_layout(0).get_partial_shape()[1] == 3) {
+            bool can_optimize_permute = false;
+            // In permute-conv pattern, check if permute can be optimized
+            // when the input memory of permute has been aligned like byxf format.
+            // ex) pattern: input (bfyx) -> permute (byxf) -> oneDNN convolution
+            //      input layout of permute: bfyx [b:1, f:416, y:416, x:3]
+            //     output layout of permute: byxf [b:1, f:3, y:416, x:416]
+            // In this case, it can be handled by changing only the shape of permute without the kernel execution.
+            if (node.get_output_layout().get_rank() == 4 && node.get_dependency(0).is_type<permute>()) {
+                auto& pnode = node.get_dependency(0).as<permute>();
+                can_optimize_permute = pnode.get_users().size() == 1
+                    && pnode.get_output_layout().data_type == node.get_output_layout().data_type
+                    && !pnode.has_fused_primitives()
+                    && !pnode.is_output() && pnode.get_input_layout(0).is_static()
+                    && pnode.is_reverse_rotating_except_batch();
+            }
+            if (!can_optimize_permute) {
+                src_fmt = format::get_default_format(node.get_input_layout(0).get_rank(), false, false);
+            } else {
+                // The size of dependencies and users must each be 1.
+                // In permute-conv pattern, the preferred format of permute should follow previous node.
+                node.get_dependency(0).init_preferred_fmt(1, 1);
+                node.get_dependency(0).set_preferred_input_fmt(0, format::bfyx);
+                node.get_dependency(0).can_be_optimized(true);
+            }
+        }
+
+        in_fmts[idx] = src_fmt;
+    }
+
+    auto dst_fmt = onednn::find_data_format(prim_desc->dst_desc());
+    if (out_fmts[0] == format::any) {
+        out_fmts[0] = dst_fmt;
+    }
+
+    // Errata: Best impl for shallow input conv with zero-point ops is ocl:xe_lp.
+    if (in_fmts[0] == format::bfyx) {
+        if (conv_node.get_input_layout(0).feature() <= 8 && conv_node.activations_zero_points_term() &&
+            conv_node.get_input_layout(0).data_type == data_types::u8 && conv_node.get_output_layout().data_type == data_types::u8) {
+            dst_fmt = format::b_fs_yx_fsv32;
+        }
+    }
+    return {in_fmts, out_fmts};
+}
+
 }  // namespace onednn
 }  // namespace cldnn
 

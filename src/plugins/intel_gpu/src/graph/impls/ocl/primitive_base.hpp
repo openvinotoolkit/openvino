@@ -53,6 +53,7 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
             _kernels.emplace_back(other._kernels[k]->clone());
         }
         this->can_reuse_memory = _kernel_data.can_reuse_memory;
+        this->m_manager = other.m_manager;
     }
 
     typed_primitive_impl_ocl(const kernel_selector::kernel_data& kd)

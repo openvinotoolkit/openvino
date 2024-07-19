@@ -31,6 +31,19 @@ using namespace cldnn;
 #define LOG_NODE_REMOVAL(id)      GPU_DEBUG_LOG_PASS << __func__ << ":" << __LINE__  << ": remove node: " << (id) << std::endl;
 #define LOG_NODE_REPLACEMENT(id)  GPU_DEBUG_LOG_PASS << __func__ << ":" << __LINE__  << ": replace node: " << (id) << std::endl;
 
+namespace {
+
+bool does_any_user_have_impl_type(program_node& node, impl_types impl) {
+    for (auto& user : node.get_users()) {
+        if (user->get_preferred_impl_type() == impl)
+            return true;
+    }
+
+    return false;
+}
+
+}  // namespace
+
 remove_redundant_reorders::remove_redundant_reorders(layout_optimizer& lo_ref, bool enable_reorder_fusing, bool update_implementations,
     bool remove_output_reorders)
     : base_pass("remove_redundant_reorders"), lo(lo_ref), enable_reorder_fusing(enable_reorder_fusing), update_implementations(update_implementations),
@@ -42,7 +55,7 @@ void remove_redundant_reorders::run(program& p) {
             return;
 
         node.set_unique_id();
-        node.set_selected_impl(node.type()->choose_impl(node));
+        node.set_selected_impl(node.type()->create_impl(node));
         if (auto impl = node.get_selected_impl()) {
             auto params = node.get_kernel_impl_params();
             p.get_kernels_cache().add_kernels_source(*params, impl->get_kernels_source());
@@ -289,7 +302,7 @@ void remove_redundant_reorders::run(program& p) {
             i_layout.data_padding.upper_size().spatial[1] == 0 && i_layout.data_padding.lower_size().spatial[1] == 0 &&
             o_layout.data_padding.upper_size() == (tensor)0 && o_layout.data_padding.lower_size() == (tensor)0 &&
             i_layout.data_type == o_layout.data_type &&
-            !layout_optimizer::onednn_check_preferred_impl_type_of_users(r_node)) {
+            !does_any_user_have_impl_type(r_node, impl_types::onednn)) {
             // If the newly aligned pad is merged into output layout during post_optimize_graph phase
             // and then buffer is reinterpreted, user node cannot handle pad properly for kernel execution
             if (!update_implementations || (i_layout.feature() % 16 == 0 &&
@@ -432,7 +445,7 @@ void remove_redundant_reorders::run(program& p) {
 
             auto old_output_layout_of_input = input.get_output_layout();
             input.set_output_layout(output_layout, false);
-            if (input.type()->does_possible_implementation_exist(input)) {
+            if (input.type()->has_impl_for(input)) {
                 // Add fused_primitive_desc of reorder to the previous node which propagates original output layout
                 // during shape inference
                 if (input.is_type<mvn>() || input.is_type<concatenation>() || input.is_type<gather>() ||
@@ -586,7 +599,7 @@ void remove_redundant_reorders::run(program& p) {
         auto old_output_layout_of_input = input.get_output_layout();
         auto output_layout = node->get_output_layout();
         input.set_output_layout(output_layout, false);
-        if (input.type()->does_possible_implementation_exist(input)) {
+        if (input.type()->has_impl_for(input)) {
             input.set_output_padding(node->get_output_layout().data_padding);
 
             // Add fused_primitive_desc of reorder to convolution which propagate original output layout to jitter

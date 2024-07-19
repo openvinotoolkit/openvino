@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "concatenation_onednn.hpp"
 #include "concatenation_inst.h"
 #include "primitive_onednn_base.h"
-#include "impls/registry/implementation_map.hpp"
+#include "impls/registry/implementation_manager.hpp"
 
 #include <oneapi/dnnl/dnnl.hpp>
 
@@ -112,23 +113,6 @@ public:
 #endif
     }
 
-    static bool validate(const concatenation_node& node) {
-        if (one_of(node.get_output_layout().data_type, {data_types::i32, data_types::f32}))
-            return false;
-
-        for (auto& dep : node.get_dependencies()) {
-            if (dep.first->is_in_data_flow() && dep.first->get_preferred_impl_type() == impl_types::onednn) {
-                return false;
-            }
-        }
-
-        if (format::is_blocked(node.get_output_layout().format)) {
-            return false;
-        }
-
-        return true;
-    }
-
     static std::unique_ptr<primitive_impl> create(const concatenation_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
@@ -142,53 +126,11 @@ public:
     }
 };
 
-struct concatenation_factory : public cldnn::implementation_factory<concatenation> {
-    std::unique_ptr<primitive_impl> create(const program_node& node, const kernel_impl_params& params) const override {
-        OPENVINO_ASSERT(node.is_type<concatenation>());
-        return onednn::concatenation_onednn::create(static_cast<const concatenation_node&>(node), params);
-    }
-
-    bool validate(const program_node& node) const override {
-        OPENVINO_ASSERT(node.is_type<concatenation>());
-        return onednn::concatenation_onednn::validate(static_cast<const concatenation_node&>(node));
-    }
-
-    in_out_fmts_t query_formats(const program_node& node) const override {
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-};
-
-namespace detail {
-
-attach_concatenation_onednn::attach_concatenation_onednn() {
-    std::vector<data_types> dt = {
-        data_types::f32,
-        data_types::f16,
-        data_types::u8,
-        data_types::i8,
-    };
-    std::vector<format::type> fmt = {
-        format::bfyx,
-        format::byxf,
-        format::b_fs_yx_fsv16,
-        format::b_fs_yx_fsv32,
-        format::bs_fs_yx_bsv16_fsv16,
-        format::bs_fs_yx_bsv16_fsv32,
-        format::bs_fs_yx_bsv32_fsv16,
-        format::bs_fs_yx_bsv32_fsv32,
-        format::b_fs_zyx_fsv16,
-        format::b_fs_zyx_fsv32,
-        format::bs_fs_zyx_bsv16_fsv16,
-        format::bs_fs_zyx_bsv16_fsv32,
-        format::bs_fs_zyx_bsv32_fsv16,
-        format::bs_fs_zyx_bsv32_fsv32,
-        format::bs_fs_yx_bsv4_fsv4,
-        format::bs_fs_yx_bsv8_fsv4,
-    };
-    implementation_map<concatenation>::add(impl_types::onednn, concatenation_onednn::create, dt, fmt);
+std::unique_ptr<primitive_impl> ConcatenationImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    OPENVINO_ASSERT(node.is_type<concatenation>());
+    return onednn::concatenation_onednn::create(static_cast<const concatenation_node&>(node), params);
 }
 
-}  // namespace detail
 }  // namespace onednn
 }  // namespace cldnn
 

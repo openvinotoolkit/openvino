@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "gemm_onednn.hpp"
 #include "gemm_inst.h"
 #include "intel_gpu/runtime/utils.hpp"
 #include "primitive_onednn_base.h"
-#include "impls/registry/implementation_map.hpp"
 
 #include <oneapi/dnnl/dnnl.hpp>
 
@@ -426,28 +426,6 @@ public:
 #endif
     }
 
-    static bool validate(const gemm_node& node) {
-        auto in0_dt = node.get_input_layout(0).data_type;
-        auto in1_dt = node.get_input_layout(1).data_type;
-        auto out_dt = node.get_output_layout(0).data_type;
-
-        if (one_of(in0_dt, {data_types::f32, data_types::i64}) || one_of(in1_dt, {data_types::f32, data_types::i64}))
-            return false;
-
-        bool f16f16_case = everyone_is(data_types::f16, in0_dt, in1_dt) && one_of(out_dt, {data_types::f16, data_types::f32, data_types::i8});
-        bool u8s8_case = one_of(in0_dt, {data_types::i8, data_types::u8}) &&
-                         one_of(in1_dt, {data_types::i8, data_types::u8}) &&
-                         one_of(out_dt, {data_types::f16, data_types::f32, data_types::i32, data_types::i8, data_types::u8});
-
-        if (!f16f16_case && !u8s8_case)
-            return false;
-
-        if (node.get_primitive()->indirect_a || node.get_primitive()->indirect_b)
-            return false;
-
-        return true;
-    }
-
     static std::unique_ptr<primitive_impl> create(const gemm_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
@@ -458,66 +436,11 @@ public:
     }
 };
 
-struct gemm_factory : public cldnn::implementation_factory<gemm> {
-    std::unique_ptr<primitive_impl> create(const program_node& node, const kernel_impl_params& params) const override {
-        OPENVINO_ASSERT(node.is_type<gemm>());
-        return onednn::gemm_onednn::create(static_cast<const gemm_node&>(node), params);
-    }
-
-    bool validate(const program_node& node) const override {
-        OPENVINO_ASSERT(node.is_type<gemm>());
-        return onednn::gemm_onednn::validate(static_cast<const gemm_node&>(node));
-    }
-
-    in_out_fmts_t query_formats(const program_node& node) const override {
-        OPENVINO_ASSERT(node.is_type<gemm>());
-        std::vector<format::type> in_fmts(node.get_dependencies().size(), format::any);
-        std::vector<format::type> out_fmts(node.get_outputs_count(), format::any);
-
-        for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
-            if (node.get_dependency(idx).is_constant())
-                continue;
-
-            size_t out_rank = node.get_output_layout().get_rank();
-            auto target_format = format::get_default_format(out_rank);
-
-            in_fmts[idx] = target_format;
-
-            if (out_fmts[0] == format::any) {
-                out_fmts[0] = target_format;
-            }
-        }
-
-        return {in_fmts, out_fmts};
-    }
-};
-
-namespace detail {
-
-attach_gemm_onednn::attach_gemm_onednn() {
-    std::vector<data_types> dt = {
-        data_types::f32,
-        data_types::f16,
-        data_types::u8,
-        data_types::i8,
-    };
-    std::vector<format::type> fmt = {
-        format::bfyx,
-        format::bfxy,
-        format::byxf,
-        format::byfx,
-        format::bxfy,
-        format::fybx,  //format used for gemm fusion
-        format::fyxb,  //format used for gemm fusion
-        format::xbfy, // format used for gemm fusion
-        format::ybfx, // format used for gemm fusion
-        format::bfzyx,
-        format::bfwzyx,
-    };
-    implementation_map<gemm>::add(impl_types::onednn, gemm_onednn::create, dt, fmt);
+std::unique_ptr<primitive_impl> GemmImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const  {
+    OPENVINO_ASSERT(node.is_type<gemm>());
+    return onednn::gemm_onednn::create(static_cast<const gemm_node&>(node), params);
 }
 
-}  // namespace detail
 }  // namespace onednn
 }  // namespace cldnn
 

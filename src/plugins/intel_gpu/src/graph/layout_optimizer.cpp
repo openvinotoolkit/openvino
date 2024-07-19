@@ -60,63 +60,6 @@ static size_t get_post_ops_count(const program_node& node) {
     return onednn_post_ops_count;
 }
 
-bool layout_optimizer::onednn_check_data_types_for_pooling(data_types in_dt, data_types out_dt) {
-    if (!data_type_traits::is_floating_point(in_dt) && in_dt != out_dt)
-            return false;
-    if ((in_dt == data_types::i8 || in_dt == data_types::u8) && out_dt != data_types::f32)
-        return true;
-    if (in_dt == data_types::f16 || out_dt == data_types::f16)
-        return true;
-    if (out_dt == data_types::f32)
-        return true;
-    if (in_dt == data_types::i32 || out_dt == data_types::i32)
-        return true;
-    if ((in_dt == data_types::i8 || out_dt == data_types::i8) || (in_dt == data_types::u8 || out_dt == data_types::u8))
-        return true;
-    return false;
-}
-
-bool layout_optimizer::onednn_check_data_types_for_convolution(data_types in_dt, data_types wei_dt, data_types out_dt) {
-    if ((in_dt == data_types::f16 && wei_dt == data_types::f16) &&
-        (out_dt == data_types::f16 || out_dt == data_types::f32 || out_dt == data_types::i8 || out_dt == data_types::u8))
-        return true;
-    if ((in_dt == data_types::i8 || in_dt == data_types::u8) && wei_dt == data_types::i8 &&
-        (out_dt == data_types::f32 || out_dt == data_types::i32 || out_dt == data_types::f16 || out_dt == data_types::i8 || out_dt == data_types::u8))
-        return true;
-    if ((in_dt == data_types::f32 && wei_dt == data_types::f32) &&
-        (out_dt == data_types::i8 || out_dt == data_types::u8))
-        return true;
-    return false;
-}
-
-// almost same with onednn_check_data_types_for_convolution.
-// removed case
-// - in_dt(f16) wei_dt(f16) out_dt(f32)
-bool layout_optimizer::onednn_check_data_types_for_deconvolution(data_types in_dt, data_types wei_dt, data_types out_dt) {
-    if ((in_dt == data_types::f16 && wei_dt == data_types::f16) &&
-        (out_dt == data_types::f16 || out_dt == data_types::i8 || out_dt == data_types::u8))
-        return true;
-    if ((in_dt == data_types::i8 || in_dt == data_types::u8) && wei_dt == data_types::i8 &&
-        (out_dt == data_types::f32 || out_dt == data_types::i32 || out_dt == data_types::f16 || out_dt == data_types::i8 || out_dt == data_types::u8))
-        return true;
-    if ((in_dt == data_types::f32 && wei_dt == data_types::f32) &&
-        (out_dt == data_types::i8 || out_dt == data_types::u8))
-        return true;
-    return false;
-}
-
-bool layout_optimizer::onednn_check_data_types_for_fc_gemm(data_types in_dt, data_types wei_dt, data_types out_dt) {
-    if ((in_dt == data_types::f16 && wei_dt == data_types::f16) &&
-        (out_dt == data_types::f16 || out_dt == data_types::f32 || out_dt == data_types::i8))
-        return true;
-    if (in_dt == data_types::f32 && wei_dt == data_types::f32)
-        return true;
-    if ((in_dt == data_types::i8 || in_dt == data_types::u8) && (wei_dt == data_types::i8) &&
-        (out_dt == data_types::i8 || out_dt == data_types::u8 || out_dt == data_types::i32 || out_dt == data_types::f16 || out_dt == data_types::f32))
-        return true;
-    return false;
-}
-
 std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive_id src_id,
                                                                        int32_t src_port,
                                                                        const layout& in_layout,
@@ -183,7 +126,7 @@ bool layout_optimizer::is_format_supported(program_node& node, format::type fmt)
     new_layout.format = fmt;
     node.set_output_layout(new_layout, false);
 
-    auto supported = node.type()->does_possible_implementation_exist(node);
+    auto supported = node.type()->has_impl_for(node);
 
     node.set_output_layout(prev_layout, false);
 
@@ -1102,7 +1045,7 @@ format layout_optimizer::get_expected_format(deconvolution_node const& node) {
     auto expected_shape = output_layout.get_shape();
     bool use_onednn_impls = _optimization_attributes.use_onednn_impls;
 
-    auto available = node.get_primitive()->type->get_available_impls(node);
+    auto available = node.get_primitive()->type->get_available_impl_types(node);
 
     if (use_onednn_impls && available.count(impl_types::onednn) > 0) {
         // XXX: need to take the situation into consideration where it is called from prepare_primitive_fusing
@@ -1237,18 +1180,6 @@ bool layout_optimizer::is_primitive_implemented_for_onednn(program_node& node) {
     return false;
 }
 
-bool layout_optimizer::onednn_check_preferred_impl_type_of_users(program_node& node) {
-    if (node.get_users().size() == 0)
-        return false;
-
-    for (auto& user : node.get_users()) {
-        if (user->get_preferred_impl_type() == impl_types::onednn)
-            return true;
-    }
-
-    return false;
-}
-
 impl_types layout_optimizer::get_forced_impl_type_by_config(program_node& node) {
 #ifdef GPU_DEBUG_CONFIG
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -1319,7 +1250,7 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
     auto prev_fmt = node.get_preferred_input_fmt(0);
     node.set_preferred_input_fmt(0, preferred_format);
     node.recalc_output_layout(false);
-    auto available = node.get_primitive()->type->get_available_impls(node);
+    auto available = node.get_primitive()->type->get_available_impl_types(node);
     node.set_preferred_input_fmt(0, prev_fmt);
 
     if (!_optimization_attributes.use_onednn_impls)
@@ -1379,6 +1310,8 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
                 }
             }
         }
+    } else if (node.is_type<prior_box>()) {
+        preferred_impl = impl_types::ocl;
     } else if (is_primitive_implemented_for_onednn(node)) {
         if (available.count(impl_types::onednn) > 0)
             return impl_types::onednn;
@@ -1670,7 +1603,7 @@ void layout_optimizer::set_implementation_forcing(const ov::intel_gpu::ImplForci
     }
 }
 
-const std::map<primitive_id, std::pair<format::type, impl_types>> layout_optimizer::get_implementation_forcing() const {
+const std::map<primitive_id, std::pair<format::type, impl_types>>& layout_optimizer::get_implementation_forcing() const {
     return _forcing_map;
 }
 

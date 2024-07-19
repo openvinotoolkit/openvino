@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "impls/onednn/utils.hpp"
+#include "reorder_onednn.hpp"
 #include "reorder_inst.h"
+#include "impls/onednn/utils.hpp"
 #include "primitive_onednn_base.h"
-#include "impls/registry/implementation_map.hpp"
+#include "impls/registry/implementation_manager.hpp"
 
 #include <oneapi/dnnl/dnnl.hpp>
 
-#include <algorithm>
 #include <memory>
+
 namespace cldnn {
 namespace onednn {
 
@@ -108,73 +109,6 @@ public:
 #endif
     }
 
-    static bool validate(const reorder_node& node) {
-        std::vector<format> onednn_optimized_fmt = {
-            format::bfyx,
-            format::byxf,
-            format::b_fs_zyx_fsv16,
-            format::b_fs_yx_fsv16,
-            format::b_fs_yx_fsv32,
-            format::bs_fs_zyx_bsv8_fsv4,
-            format::bs_fs_yx_bsv8_fsv4,
-            format::bs_fs_yx_bsv16_fsv4,
-            format::bs_fs_zyx_bsv16_fsv4,
-            format::bs_fs_yx_bsv16_fsv2,
-            format::bs_fs_zyx_bsv16_fsv2,
-            format::bs_fs_zyx_bsv8_fsv2,
-            format::bs_fs_yx_bsv8_fsv2,
-            format::bs_fs_zyx_bsv16_fsv16,
-            format::bs_fs_yx_bsv16_fsv16,
-            format::bs_fs_yx_bsv16_fsv32,
-            format::bs_fs_zyx_bsv32_fsv16,
-            format::bs_fs_yx_bsv32_fsv16,
-            format::bs_fs_zyx_bsv32_fsv32,
-            format::bs_fs_yx_bsv32_fsv32,
-        };
-
-        const auto& input_layout = node.get_input_layout(0);
-        const auto& output_layout = node.get_output_layout(0);
-
-        auto input_fmt = input_layout.format;
-        auto output_fmt = output_layout.format;
-
-        auto in_dt = input_layout.data_type;
-        auto out_dt = output_layout.data_type;
-
-        if (output_fmt == format::custom)
-            return true;
-
-        if (std::find(onednn_optimized_fmt.begin(), onednn_optimized_fmt.end(), input_fmt) == onednn_optimized_fmt.end() ||
-            std::find(onednn_optimized_fmt.begin(), onednn_optimized_fmt.end(), output_fmt) == onednn_optimized_fmt.end()) {
-            return false;
-        }
-
-        // onednn doesn't support paddings
-        if (input_layout.data_padding || output_layout.data_padding)
-            return false;
-
-        // Native impl works faster for this type of reorder
-        if (input_fmt == format::bfyx && output_fmt == format::bfyx)
-            return false;
-
-        // onednn reorder doesn't support different number of dimensions in input and output layouts
-        if (input_fmt.dimension() != output_fmt.dimension())
-            return false;
-
-        if (in_dt == data_types::i64 || out_dt == data_types::i64)
-            return false;
-
-        // For mixed precision case, oneDNN is slower than clDNN
-        if (input_fmt == format::b_fs_yx_fsv16 && data_type_traits::is_i8_u8(in_dt))
-            return false;
-        if (output_fmt == format::b_fs_yx_fsv16 && data_type_traits::is_i8_u8(in_dt))
-            return false;
-        if (output_fmt == format::bfyx && out_dt == data_types::f32)
-            return false;
-
-        return true;
-    }
-
     static std::unique_ptr<primitive_impl> create(const reorder_node& arg, const kernel_impl_params& impl_params) {
         bool is_reorder_weights = format::is_weights_format(impl_params.get_input_layout().format) ||
                                   format::is_weights_format(impl_params.get_output_layout().format);
@@ -214,31 +148,19 @@ public:
     }
 };
 
-struct reorder_factory : public cldnn::implementation_factory<reorder> {
-    std::unique_ptr<primitive_impl> create(const program_node& node, const kernel_impl_params& params) const override {
-        OPENVINO_ASSERT(node.is_type<reorder>());
-        return onednn::reorder_onednn::create(static_cast<const reorder_node&>(node), params);
-    }
-
-    bool validate(const program_node& node) const override {
-        OPENVINO_ASSERT(node.is_type<reorder>());
-        return onednn::reorder_onednn::validate(static_cast<const reorder_node&>(node));
-    }
-
-    in_out_fmts_t query_formats(const program_node& node) const override {
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-};
-
-
-namespace detail {
-
-attach_reorder_onednn::attach_reorder_onednn() {
-    implementation_map<reorder>::add(impl_types::onednn, cldnn::make_unique<reorder_factory>(), {});
-    WeightsReordersFactory::add(cldnn::impl_types::onednn, shape_types::static_shape, reorder_onednn::create_reorder_weights);
+std::unique_ptr<primitive_impl> ReorderImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    OPENVINO_ASSERT(node.is_type<reorder>());
+    return onednn::reorder_onednn::create(static_cast<const reorder_node&>(node), params);
 }
 
-}  // namespace detail
+std::unique_ptr<primitive_impl> ReorderImplementationManager::create_impl(const kernel_impl_params& params) const {
+    bool is_reorder_weights = format::is_weights_format(params.get_input_layout().format) ||
+                              format::is_weights_format(params.get_output_layout().format);
+    OPENVINO_ASSERT(is_reorder_weights);
+
+    return onednn::reorder_onednn::create_reorder_weights(params);
+}
+
 }  // namespace onednn
 }  // namespace cldnn
 

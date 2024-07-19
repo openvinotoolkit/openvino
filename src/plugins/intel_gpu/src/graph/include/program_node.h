@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "impls/registry/implementation_manager.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/primitives/implementation_desc.hpp"
 #include "intel_gpu/graph/program.hpp"
@@ -578,5 +579,6 @@ struct typed_program_node : public typed_program_node_base<PType> {
 
     program_node& input(size_t index = 0) const { return program_node::get_dependency(index); }
 };
+
 
 }  // namespace cldnn

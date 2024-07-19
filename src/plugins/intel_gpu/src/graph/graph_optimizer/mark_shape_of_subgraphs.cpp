@@ -86,8 +86,7 @@ bool mark_shape_of_subgraphs::can_mark_node(const program_node& node) {
         return false;
     }
 
-    auto available_impls = node.type()->get_available_impls(node);
-    auto cpu_impl_found = available_impls.find(impl_types::cpu) != available_impls.end();
+    auto cpu_impl_found = node.can_use(impl_types::cpu);
 
     if (cpu_impl_found)
         return true;

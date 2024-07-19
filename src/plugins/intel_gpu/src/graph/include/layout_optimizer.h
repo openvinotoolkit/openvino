@@ -180,11 +180,6 @@ public:
 
     impl_types get_forced_impl_type_by_config(program_node& node);
     bool are_layouts_suitable_for_onednn(program_node& node);
-    static bool onednn_check_data_types_for_pooling(data_types in_dt, data_types out_dt);
-    static bool onednn_check_data_types_for_convolution(data_types in_dt, data_types wei_dt, data_types out_dt);
-    static bool onednn_check_data_types_for_deconvolution(data_types in_dt, data_types wei_dt, data_types out_dt);
-    static bool onednn_check_data_types_for_fc_gemm(data_types in_dt, data_types wei_dt, data_types out_dt);
-    static bool onednn_check_preferred_impl_type_of_users(program_node& node);
     bool is_primitive_implemented_for_onednn(program_node& node);
     bool is_format_supported(program_node& node, format::type fmt);
 
@@ -197,7 +192,7 @@ public:
     optimization_attributes get_optimization_attributes() { return _optimization_attributes; }
 
     void set_implementation_forcing(const ov::intel_gpu::ImplForcingMap& map);
-    const std::map<primitive_id, std::pair<format::type, impl_types>> get_implementation_forcing() const;
+    const std::map<primitive_id, std::pair<format::type, impl_types>>& get_implementation_forcing() const;
 
     void update_formats_map(const convolution_node& node);
     bool is_format_optimized(const convolution_node& node, const format& format, bool use_weak_restrictions = false);

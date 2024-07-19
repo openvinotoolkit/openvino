@@ -7,8 +7,6 @@
 #include <numeric>
 #include <oneapi/dnnl/dnnl_ocl.hpp>
 
-#include "to_string_utils.h"
-
 namespace cldnn {
 namespace onednn {
 
@@ -590,6 +588,8 @@ size_t get_post_ops_count(const program_node& node) {
 bool is_supported_format(format fmt) {
     static const std::vector<format> onednn_optimized_formats = {
             format::any,
+            format::bfyx,
+            format::bfzyx,
             format::byxf,
             format::bzyxf,
             format::b_fs_yx_fsv8,

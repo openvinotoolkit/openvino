@@ -192,6 +192,10 @@ template <typename T>
 inline bool one_of(const T& val, const std::vector<T>& vec) {
     return std::any_of(vec.begin(), vec.end(), [&val](const T& v) { return v == val; });
 }
+template <typename T, typename... T1>
+inline bool one_of(const T& val, T1... args) {
+    return one_of(val, std::vector<T>{args...});
+}
 
 template <typename T, typename P>
 constexpr bool everyone_is(T val, P item) {

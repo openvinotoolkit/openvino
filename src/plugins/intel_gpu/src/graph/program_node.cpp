@@ -633,7 +633,7 @@ void program_node::set_preferred_output_fmt(size_t idx, format::type type) {
 }
 
 bool program_node::can_use(impl_types impl_type) const {
-    return get_primitive()->type->is_node_supported(*this, impl_type);
+    return get_primitive()->type->has_impl_for(*this, impl_type);
 }
 
 void program_node::select_preferred_formats(impl_types impl_type) {
