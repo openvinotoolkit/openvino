@@ -95,12 +95,6 @@ struct NetworkDescription final {
 class ICompiler : public std::enable_shared_from_this<ICompiler> {
 public:
     /**
-     * @brief Checks if the Compiler is compatible with the driver version
-     * @return a boolean
-     */
-    virtual bool isCompatibleWithDriverVersion(const Config& config) const = 0;
-
-    /**
      * @brief Returns the maximum OpenVino opset version supported by the compiler
      * @return opset version e.g. 11 for opset11
      */
