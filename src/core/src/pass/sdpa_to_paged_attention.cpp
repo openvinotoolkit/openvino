@@ -19,8 +19,8 @@
 
 using namespace ov::op;
 
-ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_cache_eviction)
-    : m_use_cache_eviction(use_cache_eviction) {}
+ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_block_indices_inputs, bool use_score_outputs)
+    : m_use_block_indices_inputs(use_block_indices_inputs), m_use_score_outputs(use_score_outputs) {}
 
 static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> node, const char* name) {
     // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a
@@ -44,6 +44,11 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "subsequence_begins"),
         setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices_begins"),
     };
+    if (!m_use_block_indices_inputs) {
+        auto block_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices");
+        model_remaining_params.insert(model_remaining_params.begin() + 2, block_indices);
+    }
+
     auto sliding_window = v0::Constant::create(element::i32, Shape{}, {0});  // sliding_window
 
     std::shared_ptr<v0::Parameter> input_ids_node =
@@ -104,7 +109,8 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   max_context_len->output(0),
                                                   block_indices_inputs,
                                                   score_results,
-                                                  m_use_cache_eviction);
+                                                  m_use_block_indices_inputs,
+                                                  m_use_score_outputs);
     manager.register_pass<PrevSequenceLengthPattern>(prev_max_seq_len, batch_dim);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
 
@@ -144,8 +150,11 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         model->remove_result(result);
     }
 
-    model->add_parameters(block_indices_inputs);
-    if (m_use_cache_eviction) {
+    if (m_use_block_indices_inputs) {
+        model->add_parameters(block_indices_inputs);
+    }
+
+    if (m_use_score_outputs) {
         model->add_results(score_results);
     }
 

@@ -19,11 +19,12 @@ class OPENVINO_API SDPAToPagedAttention : public ModelPass {
 public:
     OPENVINO_RTTI("SDPAToPagedAttention");
 
-    SDPAToPagedAttention(bool use_cache_eviction = false);
+    SDPAToPagedAttention(bool use_block_indices_inputs = false, bool use_score_outputs = false);
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:
-    bool m_use_cache_eviction;
+    bool m_use_block_indices_inputs;
+    bool m_use_score_outputs;
 };
 }  // namespace pass
 }  // namespace ov

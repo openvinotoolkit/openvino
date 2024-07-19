@@ -26,5 +26,6 @@ public:
                            ov::Output<Node> max_context_len,
                            ParameterVector& block_indices_inputs,
                            ResultVector& score_results,
-                           bool use_cache_eviction);
+                           bool use_block_indices,
+                           bool use_score_outputs);
 };

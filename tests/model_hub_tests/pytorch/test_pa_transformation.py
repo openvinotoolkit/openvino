@@ -9,10 +9,10 @@ import pytest
 import os
 import re
 
-def run_pa(tmp_path, model_id, model_link, use_cache_eviction):
+def run_pa(tmp_path, model_id, model_link, use_block_indices_inputs, use_score_outputs):
     model = OVModelForCausalLM.from_pretrained(model_id, export=True, trust_remote_code=True)
 
-    paged_attention_transformation(model.model, use_cache_eviction)
+    paged_attention_transformation(model.model, use_block_indices_inputs, use_score_outputs)
 
     # Test that a _PagedAttentionExtension node appeared after the transformation.
     pa_counter = 0
@@ -33,12 +33,9 @@ def run_pa(tmp_path, model_id, model_link, use_cache_eviction):
                 assert shape[-2].is_static, f"Dimension {len(shape) - 2} of input '{name}' in '{model_id}' is not static: {shape}"
 
     # Test for block_indices inputs and scores outputs to appear in the model 
-    if (use_cache_eviction):
+    if (use_block_indices_inputs):
         block_indices_pattern = r'block_indices'
         block_indices_counter = 0
-
-        score_pattern = r'scores\.[0-9]+'
-        score_outputs_counter = 0
 
         model_inputs = model.model.inputs
         for input in model_inputs:
@@ -47,6 +44,10 @@ def run_pa(tmp_path, model_id, model_link, use_cache_eviction):
                     block_indices_counter += 1
 
         assert(block_indices_counter == pa_counter)
+    
+    if (use_score_outputs):
+        score_pattern = r'scores\.[0-9]+'
+        score_outputs_counter = 0
 
         model_outputs = model.model.outputs
         for output in model_outputs:
@@ -65,7 +66,7 @@ def test_pa_precommit(tmp_path, model_name, model_link, mark, reason, ie_device)
         pytest.skip(reason)
     elif mark == 'xfail':
         pytest.xfail(reason)
-    run_pa(tmp_path, model_name, model_link, False)
+    run_pa(tmp_path, model_name, model_link, False, False)
 
 @pytest.mark.precommit
 @pytest.mark.parametrize("model_name, model_link, mark, reason", utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-models-precommit")))
@@ -76,4 +77,4 @@ def test_pa_precommit_use_cache_eviction(tmp_path, model_name, model_link, mark,
         pytest.skip(reason)
     elif mark == 'xfail':
         pytest.xfail(reason)
-    run_pa(tmp_path, model_name, model_link, True)
+    run_pa(tmp_path, model_name, model_link, True, True)
