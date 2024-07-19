@@ -616,7 +616,11 @@ def test_sink_model_ctor_without_init_subgraph(setup_sink_model):
 
 def test_model_ctors(setup_sink_model):
     input_data, res, node = setup_sink_model
+
     model = Model(results=[res], sinks=[node.output(0)], parameters=[input_data], name="TestModel")
+    assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
+
+    model = Model(results=[model.output(0)], sinks=[node.output(0)], parameters=[input_data], name="TestModel")
     assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
 
 
