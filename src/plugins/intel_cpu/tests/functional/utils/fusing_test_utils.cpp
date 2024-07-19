@@ -58,7 +58,7 @@ void CpuTestWithFusing::CheckFusingResults(const std::shared_ptr<const ov::Model
             size_t pos = 0;
             for (const auto& fusedOp : fusedOps) {
                 pos = originalLayersNames.find(fusedOp, checkFusingPosition ? pos : 0);
-                if (isFused) {
+                if (expectPostOpsToBeFused) {
                     ASSERT_TRUE(pos != std::string::npos) << "Fused op " << fusedOp << " has not been found!";
                 } else {
                     ASSERT_TRUE(pos == std::string::npos) << "op" << fusedOp << " should not be fused!";

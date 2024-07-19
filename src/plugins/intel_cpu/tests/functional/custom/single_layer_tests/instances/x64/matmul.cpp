@@ -1108,11 +1108,10 @@ INSTANTIATE_TEST_SUITE_P(
     testParamsDynamicFusingFullUndefShapes,
     MatMulLayerCPUTest::getTestCaseName);
 
-
 class FCNotFuseFQCPUTest : public MatMulLayerCPUTest {
     void SetUp() override {
         MatMulLayerCPUTest::SetUp();
-        isFused = false;
+        expectPostOpsToBeFused = false;
     }
 };
 
@@ -1135,17 +1134,16 @@ const std::vector<ShapeRelatedParams>& notFuseSmoke() {
     return params;
 }
 
-
 const auto notFuseTestParamsSmoke = ::testing::Combine(::testing::Combine(::testing::ValuesIn(notFuseSmoke()),
-                                                                ::testing::Values(ElementType::f32),
-                                                                ::testing::Values(ElementType::undefined),
-                                                                ::testing::Values(ElementType::undefined),
-                                                                ::testing::Values(utils::InputLayerType::CONSTANT),
-                                                                ::testing::Values(ov::test::utils::DEVICE_CPU),
-                                                                ::testing::Values(emptyAdditionalConfig())),
-                                             ::testing::Values(MatMulNodeType::FullyConnected),
-                                             ::testing::Values(notFusingFakeQuantizePerChannelOrPerTensor),
-                                             ::testing::ValuesIn(filterCPUInfo({CPUSpecificParams{{}, {}, {"gemm_mlas"}, "gemm_mlas"}})));
+                                                                          ::testing::Values(ElementType::f32),
+                                                                          ::testing::Values(ElementType::undefined),
+                                                                          ::testing::Values(ElementType::undefined),
+                                                                          ::testing::Values(utils::InputLayerType::CONSTANT),
+                                                                          ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                                                          ::testing::Values(emptyAdditionalConfig())),
+                                                       ::testing::Values(MatMulNodeType::FullyConnected),
+                                                       ::testing::ValuesIn({fusingFakeQuantizePerBatch, fusingFakeQuantizeFullTensor}),
+                                                       ::testing::ValuesIn({CPUSpecificParams{{}, {}, {""}, "any_type"}}));
 
 INSTANTIATE_TEST_SUITE_P(smoke_FC, FCNotFuseFQCPUTest, notFuseTestParamsSmoke, FCNotFuseFQCPUTest::getTestCaseName);
 
