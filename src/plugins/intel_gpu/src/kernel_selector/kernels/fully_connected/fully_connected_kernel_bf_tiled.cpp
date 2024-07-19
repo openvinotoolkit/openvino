@@ -15,13 +15,19 @@ static constexpr size_t min_slm_size = 256;
 namespace kernel_selector {
 
 static std::pair<size_t, size_t> get_input_bf_size(const fully_connected_params& params) {
-    size_t input_f = params.inputs[0].Feature().v;
-    size_t input_batch = params.inputs[0].Batch().v;
+    auto& input = params.inputs[0];
+    size_t input_f = input.Feature().v;
+    size_t input_batch = input.Batch().v;
+
     // 3D input
     if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
-        input_f = params.inputs[0].Y().v;
-        input_batch = params.inputs[0].Batch().v * params.inputs[0].Feature().v;
+        input_f = input.Y().v;
+        input_batch = input.Batch().v * input.Feature().v;
     }
+
+    // In Some model, input_f could be dynamic in input0. It refers to IFM value of weight.
+    if (input.is_dynamic() && input_f == 0 && params.weights.IFM().v != 0)
+        input_f = params.weights.IFM().v;
 
     return {input_batch, input_f};
 }
@@ -153,8 +159,7 @@ bool FullyConnected_bf_tiled::Validate(const Params& params) const {
 
     // Dynamic kernel doesn't support dynamic weights yet
     if (fc_params.is_shape_agnostic && input.is_dynamic()) {
-        if ((output.GetLayout() == DataLayout::bfyx && input.Y().v == 0) ||
-            (output.GetLayout() == DataLayout::bf && input.Feature().v == 0))
+        if (get_input_bf_size(fc_params).second == 0)
             return false;
     }
 
@@ -509,6 +514,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZE", 0));
     }
 
+    jit.AddConstant(MakeJitConstant("IFM_SIZE", get_input_bf_size(params).second));
     jit.AddConstant(MakeJitConstant("SIMD", simd));
     jit.AddConstant(MakeJitConstant("TILE_B", dispatchData.tile_m));
     jit.AddConstant(MakeJitConstant("HALF_TILE_B", dispatchData.tile_m/2));
@@ -539,16 +545,18 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
 
     // for 3d output we are treating spatial as features
     if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
+        auto tile_in_b_pitch = (params.inputs[0].Feature().pitch == 0) ? get_input_bf_size(params).second : params.inputs[0].Feature().pitch;
         jit.AddConstant(MakeJitConstant("TILE_OUT_F_NUM", params.outputs[0].Y().v));
         jit.AddConstant(MakeJitConstant("TILE_OUT_F_PITCH", params.outputs[0].Y().pitch));
-        jit.AddConstant(MakeJitConstant("TILE_IN_B_PITCH", params.inputs[0].Feature().pitch));
+        jit.AddConstant(MakeJitConstant("TILE_IN_B_PITCH", tile_in_b_pitch));
         jit.AddConstant(MakeJitConstant("TILE_OUT_B_PITCH", params.outputs[0].Feature().pitch));
         jit.AddConstant(MakeJitConstant("OUTPUT_3D", true));
         jit.AddConstant(MakeJitConstant("BATCH_SIZE", "(OUTPUT_BATCH_NUM * OUTPUT_FEATURE_NUM)"));
     } else {
+        auto tile_in_b_pitch = (params.inputs[0].Batch().pitch == 0) ? get_input_bf_size(params).second : params.inputs[0].Batch().pitch;
         jit.AddConstant(MakeJitConstant("TILE_OUT_F_NUM", params.outputs[0].Feature().v));
         jit.AddConstant(MakeJitConstant("TILE_OUT_F_PITCH", params.outputs[0].Feature().pitch));
-        jit.AddConstant(MakeJitConstant("TILE_IN_B_PITCH", params.inputs[0].Batch().pitch));
+        jit.AddConstant(MakeJitConstant("TILE_IN_B_PITCH", tile_in_b_pitch));
         jit.AddConstant(MakeJitConstant("TILE_OUT_B_PITCH", params.outputs[0].Batch().pitch));
         jit.AddConstant(MakeJitConstant("BATCH_SIZE", "(OUTPUT_BATCH_NUM)"));
     }
@@ -784,7 +792,8 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
     {
         auto& quan_kernel = kd.kernels[0];
         DispatchData dyn_quan_dispatch = dispatchData;
-        dyn_quan_dispatch.gws = {std::max((fc_params.inputs[0].PhysicalSize() / quantize_grp_size), (size_t)1), 1, 1};
+        auto input_size = std::max(fc_params.inputs[0].PhysicalSize(), get_input_bf_size(fc_params).second);
+        dyn_quan_dispatch.gws = {input_size, 1, 1};
         dyn_quan_dispatch.lws = {16, 1, 1};
         quan_kernel.params.workGroups.global = dyn_quan_dispatch.gws;
         quan_kernel.params.workGroups.local = dyn_quan_dispatch.lws;
@@ -814,8 +823,8 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
         quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
         quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         quan_kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
-        kd.internalBufferSizes.push_back(fc_params.inputs[0].PhysicalSize());
-        kd.internalBufferSizes.push_back(fc_params.inputs[0].PhysicalSize() / quantize_grp_size * 2);
+        kd.internalBufferSizes.push_back(input_size);
+        kd.internalBufferSizes.push_back(input_size / quantize_grp_size * 2);
         kernel_number++;
     }
     kd.internalBufferDataType = Datatype::F16;
