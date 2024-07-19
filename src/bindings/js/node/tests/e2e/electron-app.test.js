@@ -6,7 +6,7 @@ describe('E2E test of installation openvino as electron dependency', function() 
   this.timeout(50000);
 
   before((done) => {
-    exec('cp -r ./e2e/demo-electron-app/ demo-electron-app-project', (error) => {
+    exec('cp -r ./tests/e2e/demo-electron-app/ demo-electron-app-project', (error) => {
       if (error) {
         console.error(`exec error: ${error}`);
 
