@@ -53,7 +53,7 @@ static ov::SinkVector cast_to_sink_vector(const std::vector<std::shared_ptr<ov::
 static ov::SinkVector cast_to_sink_vector(const ov::OutputVector& outputs) {
     ov::SinkVector sinks;
     for (const auto& output : outputs) {
-        auto sink = std::dynamic_pointer_cast<ov::op::Sink>(std::shared_ptr<ov::Node>(output.get_node_shared_ptr()));
+        auto sink = std::dynamic_pointer_cast<ov::op::Sink>(output.get_node_shared_ptr());
         OPENVINO_ASSERT(sink != nullptr, "Output node handle {} is not instance of Sink");
         sinks.push_back(sink);
     }
