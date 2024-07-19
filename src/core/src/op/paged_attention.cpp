@@ -147,7 +147,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
                           ".");
 
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
-    set_output_type(1, element::f32, {Dimension::dynamic()});
+    set_output_type(1, get_input_element_type(0), {Dimension::dynamic()});
 }
 
 std::shared_ptr<ov::Node> PagedAttentionExtension::clone_with_new_inputs(const ov::OutputVector& new_args) const {
