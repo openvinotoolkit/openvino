@@ -3,6 +3,7 @@
 //
 
 #include "layout_optimizer.h"
+#include "impls/registry/implementation_manager.hpp"
 #include "intel_gpu/primitives/implementation_desc.hpp"
 #include "primitive_inst.h"
 #include "program_helpers.h"
@@ -46,7 +47,6 @@
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <oneapi/dnnl/dnnl.hpp>
-#include "impls/onednn/utils.hpp"
 #endif
 
 using namespace cldnn;
@@ -58,63 +58,6 @@ static size_t get_post_ops_count(const program_node& node) {
     }
 
     return onednn_post_ops_count;
-}
-
-bool layout_optimizer::onednn_check_data_types_for_pooling(data_types in_dt, data_types out_dt) {
-    if (!data_type_traits::is_floating_point(in_dt) && in_dt != out_dt)
-            return false;
-    if ((in_dt == data_types::i8 || in_dt == data_types::u8) && out_dt != data_types::f32)
-        return true;
-    if (in_dt == data_types::f16 || out_dt == data_types::f16)
-        return true;
-    if (out_dt == data_types::f32)
-        return true;
-    if (in_dt == data_types::i32 || out_dt == data_types::i32)
-        return true;
-    if ((in_dt == data_types::i8 || out_dt == data_types::i8) || (in_dt == data_types::u8 || out_dt == data_types::u8))
-        return true;
-    return false;
-}
-
-bool layout_optimizer::onednn_check_data_types_for_convolution(data_types in_dt, data_types wei_dt, data_types out_dt) {
-    if ((in_dt == data_types::f16 && wei_dt == data_types::f16) &&
-        (out_dt == data_types::f16 || out_dt == data_types::f32 || out_dt == data_types::i8 || out_dt == data_types::u8))
-        return true;
-    if ((in_dt == data_types::i8 || in_dt == data_types::u8) && wei_dt == data_types::i8 &&
-        (out_dt == data_types::f32 || out_dt == data_types::i32 || out_dt == data_types::f16 || out_dt == data_types::i8 || out_dt == data_types::u8))
-        return true;
-    if ((in_dt == data_types::f32 && wei_dt == data_types::f32) &&
-        (out_dt == data_types::i8 || out_dt == data_types::u8))
-        return true;
-    return false;
-}
-
-// almost same with onednn_check_data_types_for_convolution.
-// removed case
-// - in_dt(f16) wei_dt(f16) out_dt(f32)
-bool layout_optimizer::onednn_check_data_types_for_deconvolution(data_types in_dt, data_types wei_dt, data_types out_dt) {
-    if ((in_dt == data_types::f16 && wei_dt == data_types::f16) &&
-        (out_dt == data_types::f16 || out_dt == data_types::i8 || out_dt == data_types::u8))
-        return true;
-    if ((in_dt == data_types::i8 || in_dt == data_types::u8) && wei_dt == data_types::i8 &&
-        (out_dt == data_types::f32 || out_dt == data_types::i32 || out_dt == data_types::f16 || out_dt == data_types::i8 || out_dt == data_types::u8))
-        return true;
-    if ((in_dt == data_types::f32 && wei_dt == data_types::f32) &&
-        (out_dt == data_types::i8 || out_dt == data_types::u8))
-        return true;
-    return false;
-}
-
-bool layout_optimizer::onednn_check_data_types_for_fc_gemm(data_types in_dt, data_types wei_dt, data_types out_dt) {
-    if ((in_dt == data_types::f16 && wei_dt == data_types::f16) &&
-        (out_dt == data_types::f16 || out_dt == data_types::f32 || out_dt == data_types::i8))
-        return true;
-    if (in_dt == data_types::f32 && wei_dt == data_types::f32)
-        return true;
-    if ((in_dt == data_types::i8 || in_dt == data_types::u8) && (wei_dt == data_types::i8) &&
-        (out_dt == data_types::i8 || out_dt == data_types::u8 || out_dt == data_types::i32 || out_dt == data_types::f16 || out_dt == data_types::f32))
-        return true;
-    return false;
 }
 
 std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive_id src_id,
@@ -178,16 +121,8 @@ bool layout_optimizer::is_format_supported(program_node& node, format::type fmt)
     if (!_forcing_map.empty() && _forcing_map.count(node.id()))
         return _forcing_map.at(node.id()).first == fmt;
 
-    auto prev_layout = node.get_output_layout();
-    auto new_layout = prev_layout;
-    new_layout.format = fmt;
-    node.set_output_layout(new_layout, false);
 
-    auto supported = node.type()->does_possible_implementation_exist(node);
-
-    node.set_output_layout(prev_layout, false);
-
-    return supported;
+    return test_format<bool>(node, fmt, [](program_node& n) { return n.type()->has_impl_for(n); });
 }
 
 bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, format fmt_prev, format fmt_next) {
@@ -1017,7 +952,10 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
         if (use_onednn_impls && i8_u8_input) {
             // It is here because of post operation condition for onednn.
             // Use fsv32 for onednn friendliness.
-            expected_format = cldnn::format::b_fs_yx_fsv32;
+            if (node.get_input_layout(0).get_rank() == 4)
+                expected_format = cldnn::format::b_fs_yx_fsv32;
+            else
+                expected_format = cldnn::format::b_fs_zyx_fsv32;
         } else if (i8_u8_input) {
             if ((_optimization_attributes.b_fs_yx_fsv16_network &&
                 convolution_b_fs_yx_fsv16_opt(input_layout, output_layout, weights_layout, prim))) {
@@ -1102,7 +1040,7 @@ format layout_optimizer::get_expected_format(deconvolution_node const& node) {
     auto expected_shape = output_layout.get_shape();
     bool use_onednn_impls = _optimization_attributes.use_onednn_impls;
 
-    auto available = node.get_primitive()->type->get_available_impls(node);
+    auto available = node.get_primitive()->type->get_available_impl_types(node);
 
     if (use_onednn_impls && available.count(impl_types::onednn) > 0) {
         // XXX: need to take the situation into consideration where it is called from prepare_primitive_fusing
@@ -1183,45 +1121,6 @@ format layout_optimizer::get_expected_format(quantize_node const& node) {
     return expected;
 }
 
-bool layout_optimizer::are_layouts_suitable_for_onednn(program_node& node) {
-    auto input_layout = node.get_dependencies().front().first->get_output_layout();
-    auto in_padding = input_layout.data_padding;
-    auto output_layout = node.get_output_layout();
-    auto out_padding = output_layout.data_padding;
-    // Check if padding exists
-    if (node.get_preferred_impl_type() == impl_types::onednn && (in_padding || out_padding)) {
-        // Check spatial padding
-        bool no_spatial_padding = true;
-        auto input_spatial_rank = input_layout.get_spatial_rank();
-        auto output_spatial_rank = output_layout.get_spatial_rank();
-        for (size_t i = 0; i < input_spatial_rank; ++i) {
-            no_spatial_padding &= (in_padding._lower_size[2 + i] == 0);
-        }
-        for (size_t i = 0; i < input_spatial_rank; ++i) {
-            no_spatial_padding &= (in_padding._upper_size[2 + i] == 0);
-        }
-        for (size_t i = 0; i < output_spatial_rank; ++i) {
-            no_spatial_padding &= (out_padding._lower_size[2 + i] == 0);
-        }
-        for (size_t i = 0; i < output_spatial_rank; ++i) {
-            no_spatial_padding &= (out_padding._upper_size[2 + i] == 0);
-        }
-
-        // Onednn supports outer padding of batch axis (first element offset) if its format is 'bxxx'
-        bool no_batch_padding = true;
-        auto out_fmt = node.get_output_layout().format;
-        if (format::is_multi_blocked(input_layout.format) || format::is_multi_blocked(out_fmt) ||
-            input_layout.format.dims_order()[0] != 0 || out_fmt.dims_order()[0] != 0) {
-            no_batch_padding &= (in_padding._lower_size[0] == 0);
-            no_batch_padding &= (in_padding._upper_size[0] == 0);
-            no_batch_padding &= (out_padding._lower_size[0] == 0);
-            no_batch_padding &= (out_padding._upper_size[0] == 0);
-        }
-        return (no_spatial_padding && no_batch_padding);
-    }
-    return true;
-}
-
 bool layout_optimizer::is_primitive_implemented_for_onednn(program_node& node) {
     if (node.is_type<fully_connected>() || node.is_type<gemm>() || node.is_type<pooling>() ||
         node.is_type<convolution>() || node.is_type<deconvolution>() ||
@@ -1291,85 +1190,29 @@ impl_types layout_optimizer::get_forced_impl_type_by_config(program_node& node) 
 }
 
 impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format preferred_format) {
-    impl_types preferred_impl = impl_types::any;
+    if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
+        auto forced_impl = _forcing_map.at(node.id()).second;
+        if (forced_impl != impl_types::any)
+            return forced_impl;
+    }
     auto forced_impl = get_forced_impl_type_by_config(node);
     if (forced_impl != impl_types::any)
         return forced_impl;
 
-    if (node.get_dependencies().empty())
+    const auto params = node.get_kernel_impl_params();
+    auto shape_type = shape_types::any;
+
+    auto impl = test_format<std::shared_ptr<ImplementationManager>>(node, preferred_format,
+        [&shape_type, &params](program_node& n) {
+            return test_no_input_pad<std::shared_ptr<ImplementationManager>>(n, [&shape_type, &params](program_node& n) {
+                return n.type()->choose_impl(n, *params, shape_type);
+        });
+    });
+
+    if (impl)
+        return impl->get_impl_type();
+    else
         return impl_types::any;
-
-    auto prev_fmt = node.get_preferred_input_fmt(0);
-    node.set_preferred_input_fmt(0, preferred_format);
-    node.recalc_output_layout(false);
-    auto available = node.get_primitive()->type->get_available_impls(node);
-    node.set_preferred_input_fmt(0, prev_fmt);
-
-    if (!_optimization_attributes.use_onednn_impls)
-        available.erase(impl_types::onednn);
-
-    if (available.size() == 1)
-        return *available.begin();
-
-    if (node.is_in_shape_of_subgraph() && !node.is_type<reshape>())
-        return impl_types::cpu;
-
-    if (!_forcing_map.empty() && _forcing_map.count(node.id()) != 0) {
-        preferred_impl = _forcing_map.at(node.id()).second;
-    } else if (node.is_type<detection_output>()) {
-        const auto& program = node.get_program();
-        const auto& device_info = program.get_engine().get_device_info();
-        const int64_t lws_max = device_info.max_work_group_size;
-        auto& detection_output_node = node.as<detection_output>();
-        auto confidence_layout = detection_output_node.confidence().get_output_layout();
-        auto prim = detection_output_node.get_primitive();
-        if (confidence_layout.is_dynamic()) {
-            preferred_impl = impl_types::cpu;
-        } else {
-            auto batch_size_limitations = (device_info.supports_immad && device_info.execution_units_count >= 256) ? true : confidence_layout.batch() >= 4;
-            auto can_use_ocl_impl = confidence_layout.batch() <= lws_max &&
-                                    batch_size_limitations &&
-                                    prim->confidence_threshold >= 0.1 &&
-                                    prim->top_k <= 400 && prim->num_classes >= 16 &&
-                                    confidence_layout.feature() > 10000;
-            preferred_impl = can_use_ocl_impl ? impl_types::ocl : impl_types::cpu;
-        }
-    } else if (node.is_type<non_max_suppression>()) {
-        const std::set<format> blocked_formats = {
-            format::b_fs_yx_fsv16,
-            format::b_fs_yx_fsv32,
-            format::bs_fs_yx_bsv16_fsv16,
-            format::bs_fs_yx_bsv32_fsv16,
-            format::bs_fs_yx_bsv32_fsv32,
-        };
-        if (blocked_formats.find(node.get_input_layout(0).format) != blocked_formats.end()) {
-            preferred_impl = impl_types::ocl;
-        } else {
-            const auto& nms_node = node.as<non_max_suppression>();
-            if (nms_node.get_primitive()->rotation != non_max_suppression::Rotation::NONE) {
-                preferred_impl = impl_types::ocl;
-            } else {
-                const auto scores_layout = nms_node.input_scores().get_output_layout();
-                if (scores_layout.is_dynamic()) {
-                    preferred_impl = impl_types::cpu;
-                } else {
-                    const size_t kBatchNum = scores_layout.batch();
-                    const size_t kClassNum = scores_layout.feature();
-                    const size_t kNStreams =
-                            static_cast<size_t>(node.get_program().get_config().get_property(ov::streams::num));
-                    const size_t kKeyValue = kBatchNum * std::min(kClassNum, static_cast<size_t>(8)) * kNStreams;
-                    preferred_impl = (kKeyValue > 64) ? impl_types::ocl : impl_types::cpu;
-                }
-            }
-        }
-    } else if (is_primitive_implemented_for_onednn(node)) {
-        if (available.count(impl_types::onednn) > 0)
-            return impl_types::onednn;
-        else
-            return impl_types::ocl;
-    }
-
-    return preferred_impl;
 }
 
 format layout_optimizer::get_preferred_format(program_node& node) {
@@ -1653,7 +1496,7 @@ void layout_optimizer::set_implementation_forcing(const ov::intel_gpu::ImplForci
     }
 }
 
-const std::map<primitive_id, std::pair<format::type, impl_types>> layout_optimizer::get_implementation_forcing() const {
+const std::map<primitive_id, std::pair<format::type, impl_types>>& layout_optimizer::get_implementation_forcing() const {
     return _forcing_map;
 }
 

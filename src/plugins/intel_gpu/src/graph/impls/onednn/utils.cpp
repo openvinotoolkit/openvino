@@ -151,6 +151,7 @@ std::vector<std::pair<cldnn::format, dnnl::memory::format_tag>> format_map = {
         { cldnn::format::os_is_yx_isv16_osv16,  dnnl::memory::format_tag::OIhw16i16o },
         { cldnn::format::os_is_zyx_isv16_osv16,  dnnl::memory::format_tag::OIdhw16i16o },
         { cldnn::format::is_os_zyx_isv16_osv16,  dnnl::memory::format_tag::IOdhw16i16o },
+        { cldnn::format::is_os_yx_isv16_osv16,  dnnl::memory::format_tag::IOhw16i16o },
 
         { cldnn::format::g_os_is_zyx_isv16_osv16,  dnnl::memory::format_tag::gIOdhw16i16o },
 
@@ -609,42 +610,6 @@ size_t get_post_ops_count(const program_node& node) {
     return onednn_post_ops_count;
 }
 
-bool is_supported_format(format fmt) {
-    static const std::vector<format> onednn_optimized_formats = {
-            format::any,
-            format::byxf,
-            format::bzyxf,
-            format::b_fs_yx_fsv8,
-            format::b_fs_zyx_fsv8,
-            format::b_fs_yx_fsv16,
-            format::b_fs_zyx_fsv16,
-            format::b_fs_yx_fsv32,
-            format::b_fs_zyx_fsv32,
-            format::bs_fs_yx_bsv4_fsv2,
-            format::bs_fs_yx_bsv4_fsv4,
-            format::bs_fs_yx_bsv8_fsv2,
-            format::bs_fs_zyx_bsv8_fsv2,
-            format::bs_fs_yx_bsv8_fsv4,
-            format::bs_fs_zyx_bsv8_fsv4,
-            format::bs_fs_yx_bsv16_fsv2,
-            format::bs_fs_zyx_bsv16_fsv2,
-            format::bs_fs_yx_bsv16_fsv4,
-            format::bs_fs_zyx_bsv16_fsv4,
-            format::bs_fs_yx_bsv16_fsv8,
-            format::bs_fs_zyx_bsv16_fsv8,
-            format::bs_fs_yx_bsv16_fsv16,
-            format::bs_fs_zyx_bsv16_fsv16,
-            format::bs_fs_yx_bsv16_fsv32,
-            format::bs_fs_zyx_bsv16_fsv32,
-            format::bs_fs_yx_bsv32_fsv16,
-            format::bs_fs_zyx_bsv32_fsv16,
-            format::bs_fs_yx_bsv32_fsv32,
-            format::bs_fs_zyx_bsv32_fsv32,
-        };
-
-    return std::find(onednn_optimized_formats.begin(), onednn_optimized_formats.end(), fmt) != onednn_optimized_formats.end();
-}
-
 bool is_supported_post_ops(const program_node& node) {
     if (get_post_ops_count(node) > 32) {
         return false;
@@ -662,6 +627,30 @@ bool is_supported_post_ops(const program_node& node) {
     }
 
     return true;
+}
+
+bool is_supported_pad(const layout& layout) {
+    if (!layout.data_padding)
+        return true;
+
+    const auto& pad = layout.data_padding;
+    // Check spatial padding
+    bool no_spatial_padding = true;
+    auto spatial_rank = layout.get_spatial_rank();
+    for (size_t i = 0; i < spatial_rank; ++i) {
+        no_spatial_padding &= (pad._lower_size[2 + i] == 0);
+        no_spatial_padding &= (pad._upper_size[2 + i] == 0);
+    }
+
+    // Onednn supports outer padding of batch axis (first element offset) if its format is 'bxxx'
+    bool no_batch_padding = true;
+    auto fmt = layout.format;
+    if (format::is_multi_blocked(fmt) || fmt.dims_order()[0] != 0 || fmt.dims_order()[0] != 0) {
+        no_batch_padding &= (pad._lower_size[0] == 0);
+        no_batch_padding &= (pad._upper_size[0] == 0);
+    }
+
+    return (no_spatial_padding && no_batch_padding);
 }
 
 }  // namespace onednn
