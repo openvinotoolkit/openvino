@@ -35,8 +35,7 @@ static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> nod
     // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a
     // given single name)
     node->set_friendly_name(name);
-    OPENVINO_ASSERT(node->get_output_size() ==
-                    1);
+    OPENVINO_ASSERT(node->get_output_size() == 1);
     node->get_output_tensor(0).set_names({name});
     return node;
 }
@@ -276,8 +275,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
             auto real_k = take_4d(k_current, k_current_reshaped, k_current2);
             auto real_v = take_4d(v_current, v_current_reshaped, v_current2);
 
-            std::shared_ptr<Node> k_transpose_order =
-                kv_transpose_order;
+            std::shared_ptr<Node> k_transpose_order = kv_transpose_order;
             if (pattern_map.find(k_order) !=
                 pattern_map
                     .end()) {  // reapply transpose found in the graph by manipulating of indices of our Transpose
@@ -286,8 +284,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                                                  v0::Constant::create(element::i64, Shape{}, {0}));
             }
             k_target_layout = std::make_shared<v1::Transpose>(real_k, k_transpose_order);
-            std::shared_ptr<Node> v_transpose_order =
-                kv_transpose_order;
+            std::shared_ptr<Node> v_transpose_order = kv_transpose_order;
             if (pattern_map.find(v_order) !=
                 pattern_map
                     .end()) {  // reapply transpose found in the graph by manipulating of indices of our Transpose
@@ -331,23 +328,22 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
             alibi_slopes = v0::Constant::create(element::f32, Shape{0}, {});
         }
 
-        OutputVector params = {q_reshape, k_reshape, v_reshape, k_parameter, v_parameter};
-        params.insert(params.end(), model_remaining_params.begin(), model_remaining_params.end());
+        OutputVector pa_arguments = {q_reshape, k_reshape, v_reshape, k_parameter, v_parameter};
+        pa_arguments.insert(pa_arguments.end(), model_remaining_params.begin(), model_remaining_params.end());
         std::initializer_list<std::shared_ptr<Node>> additional_params = {scale,
                                                                           sliding_window,
                                                                           alibi_slopes,
                                                                           max_context_len.get_node_shared_ptr()};
-        params.insert(params.end(), additional_params.begin(), additional_params.end());
+        pa_arguments.insert(pa_arguments.end(), additional_params.begin(), additional_params.end());
 
         if (use_block_indices_inputs) {
-            auto block_indices =
-                setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
-                        "block_indices." + std::to_string(layer_index - 1));
-            params.insert(params.begin() + 7, block_indices);
+            auto block_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
+                                         "block_indices." + std::to_string(layer_index - 1));
+            pa_arguments.insert(pa_arguments.begin() + 7, block_indices);
             block_indices_inputs.push_back(block_indices);
         }
 
-        auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(params);
+        auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
 
         auto pa_shape = std::make_shared<v0::Concat>(
             OutputVector{
