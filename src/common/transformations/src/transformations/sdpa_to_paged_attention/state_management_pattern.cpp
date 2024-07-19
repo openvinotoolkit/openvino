@@ -341,7 +341,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
 
         if (use_block_indices_inputs) {
             auto block_indices =
-                setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices");
+                setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices." + std::to_string(layer_index - 1));
             params.insert(params.begin() + 7, block_indices);
             block_indices_inputs.push_back(block_indices);
         }
