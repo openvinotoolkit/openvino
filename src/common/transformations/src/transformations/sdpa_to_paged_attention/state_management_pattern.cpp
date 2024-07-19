@@ -340,7 +340,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         params.insert(params.end(), additional_params.begin(), additional_params.end());
 
         if (use_block_indices_inputs) {
-            auto block_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices");
+            auto block_indices =
+                setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices");
             params.insert(params.begin() + 7, block_indices);
             block_indices_inputs.push_back(block_indices);
         }
@@ -359,7 +360,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         auto pa_reshape = std::make_shared<v1::Reshape>(paged_attention->output(0), pa_shape, true);
         auto pa_transpose = std::make_shared<v1::Transpose>(pa_reshape, kv_transpose_order);
         if (use_score_outputs) {
-            auto score_result =  std::make_shared<v0::Result>(paged_attention->output(1));
+            auto score_result = std::make_shared<v0::Result>(paged_attention->output(1));
             score_result->get_output_tensor(0).set_names({"scores." + std::to_string(layer_index - 1)});
             score_results.push_back(score_result);
         }

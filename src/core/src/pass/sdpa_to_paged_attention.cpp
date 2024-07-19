@@ -20,7 +20,8 @@
 using namespace ov::op;
 
 ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_block_indices_inputs, bool use_score_outputs)
-    : m_use_block_indices_inputs(use_block_indices_inputs), m_use_score_outputs(use_score_outputs) {}
+    : m_use_block_indices_inputs(use_block_indices_inputs),
+      m_use_score_outputs(use_score_outputs) {}
 
 static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> node, const char* name) {
     // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a
@@ -39,7 +40,8 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                     "the SDPAToPagedAttention transformation.");
 
     auto max_context_len = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "max_context_len");
-    ParameterVector model_remaining_params {
+    ParameterVector model_remaining_params
+    {
         setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "past_lens"),
         setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "subsequence_begins"),
         setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices_begins"),
