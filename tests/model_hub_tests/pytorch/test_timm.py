@@ -42,10 +42,6 @@ def filter_timm(timm_list: list) -> list:
     return sorted([v[1] for v in unique_models.values()])
 
 
-def get_all_models() -> list:
-    return process_pytest_marks(os.path.join(os.path.dirname(__file__), "timm_models"))
-
-
 # To make tests reproducible we seed the random generator
 torch.manual_seed(0)
 
@@ -82,10 +78,16 @@ class TestTimmConvertModel(TestTorchConvertModel):
         self.run(name, None, ie_device)
 
     @pytest.mark.nightly
-    @pytest.mark.parametrize("name", get_all_models())
+    @pytest.mark.parametrize("name,link,mark,reason", get_models_list(os.path.join(os.path.dirname(__file__), "timm_models")))
     @pytest.mark.parametrize("mode", ["trace", "export"])
-    def test_convert_model_all_models(self, mode, name, ie_device):
+    def test_convert_model_all_models(self, mode, name, link, mark, reason, ie_device):
         self.mode = mode
+        assert mark is None or mark in [
+            'skip', 'xfail', 'xfail_trace', 'xfail_export'], f"Incorrect test case for {name}"
+        if mark == 'skip':
+            pytest.skip(reason)
+        elif mark in ['xfail', f'xfail_{mode}']:
+            pytest.xfail(reason)
         self.run(name, None, ie_device)
 
     @pytest.mark.nightly
