@@ -18,6 +18,7 @@
 using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
+using namespace ov::intel_cpu::jit_brgemm_utils;
 
 namespace ov {
 namespace intel_cpu {
@@ -72,15 +73,15 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h, cpu_isa_t
     m_brg_weight_etype = brgemm_repack->get_input_element_type(0);
     m_brgemmVNNIFactor = brgemm_repack->get_brgemm_vnni_factor();
 
-    const auto use_amx = mayiuse(avx512_core_amx) && brg_src_etype != ov::element::f32 &&
-                         (m_K_blk % m_brgemmVNNIFactor == 0) && (m_N_blk % m_brgemmVNNIFactor == 0);
+    const auto brgemm_type = get_brgemm_type(brg_src_etype, m_K_blk, m_N_blk);
 
-    init_brgemm_copy(m_kernel, leading_dimension, m_inner_N_block, m_inner_N_tail, LDB, m_K_blk, use_amx, brg_src_etype, m_brg_weight_etype);
+    init_brgemm_copy(m_kernel, leading_dimension, m_inner_N_block, m_inner_N_tail, LDB, m_K_blk, brgemm_type, brg_src_etype, m_brg_weight_etype);
 }
 
 void jit_brgemm_copy_b_emitter::init_brgemm_copy(std::unique_ptr<matmul::jit_brgemm_matmul_copy_b_t>& kernel,
                                                  size_t N, size_t N_blk, size_t N_tail, size_t LDB, size_t K,
-                                                 bool is_with_amx, const ov::element::Type& src_dt, const ov::element::Type& wei_dt) const {
+                                                 BRGEMM_TYPE brgemm_type,
+                                                 const ov::element::Type& src_dt, const ov::element::Type& wei_dt) const {
     matmul::brgemm_matmul_conf_t brgCopyKernelConf;
     brgCopyKernelConf.src_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(src_dt));
     brgCopyKernelConf.wei_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(wei_dt));
@@ -99,10 +100,11 @@ void jit_brgemm_copy_b_emitter::init_brgemm_copy(std::unique_ptr<matmul::jit_brg
     brgCopyKernelConf.req_wei_vnni_downconvert = false;
 
 
-    brgCopyKernelConf.isa = jit_brgemm_emitter::get_primitive_isa(src_dt, is_with_amx);
+    brgCopyKernelConf.isa = get_primitive_isa(src_dt, with_amx(brgemm_type));
+
     // Note: this assert can be removed when we support transposes through BrgemmCopyB
     OV_CPU_JIT_EMITTER_ASSERT(isa_has_int8_vnni(brgCopyKernelConf.isa), "BrgemmCopyB emitter requires VNNI support");
-    brgCopyKernelConf.s8s8_compensation_required = src_dt == ov::element::i8 && !is_with_amx;
+    brgCopyKernelConf.s8s8_compensation_required = with_compensations(brgemm_type);
 
     brgCopyKernelConf.has_zero_point_a = false;
     brgCopyKernelConf.has_zero_point_b = false;
