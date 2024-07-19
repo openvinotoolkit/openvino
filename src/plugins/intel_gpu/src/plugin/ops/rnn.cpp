@@ -298,12 +298,13 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     cldnn::memory::ptr shared_memory2 = p.get_engine().allocate_memory(out2Layout);
 
     cldnn::primitive_id lstm_seq_id = layerName;// + "_lstm_seq";
+    p.add_primitive(*op, cldnn::mutable_data(lstm_seq_id + ".out1", {cldnn::input_info(lstm_seq_id + ".out0")}, shared_memory1));
+    inputs.push_back(cldnn::input_info(lstm_seq_id + ".out1"));
+    p.add_primitive(*op, cldnn::mutable_data(lstm_seq_id + ".out2", {cldnn::input_info(lstm_seq_id + ".out0")}, shared_memory2));
+    inputs.push_back(cldnn::input_info(lstm_seq_id + ".out2"));
     p.add_primitive(*op, cldnn::lstm_seq(lstm_seq_id + ".out0", cldnn::input_info(permuteID), cldnn::input_info(inHiddenStateID), \
     cldnn::input_info(inCellStateID), cldnn::input_info(WRreshapeID), cldnn::input_info(bias), inCellStateID, clip, 0, activations, \
                                             activation_params, cldnn::lstm_weights_order::fizo, 0));
-
-    p.add_primitive(*op, cldnn::mutable_data(lstm_seq_id + ".out1", shared_memory1));
-    p.add_primitive(*op, cldnn::mutable_data(lstm_seq_id + ".out2", shared_memory2));
 }
 
 REGISTER_FACTORY_IMPL(v4, LSTMCell);
