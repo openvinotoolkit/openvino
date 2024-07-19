@@ -52,10 +52,6 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
     const auto& is_scalar = [](const ov::Shape& shape) {
         return shape.empty() || (shape.size() == 1 && shape[0] == 1);
     };
-    const auto shapes_equal = [is_scalar](const ov::Shape& src, const ov::Shape& dst) {
-        // WA for scalar tensors to copy {1} to {} or otherwise
-        return src == dst || (is_scalar(src) && is_scalar(dst));
-    };
     OPENVINO_ASSERT(dst, "Destination tensor was not initialized.");
     OPENVINO_ASSERT(!dynamic_cast<const ov::IRemoteTensor*>(this),
                     "Default copy to doesn't support copy from remote tensor.");
@@ -68,16 +64,11 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
                     dst->get_element_type(),
                     ")");
 
-    if (dst->get_shape() == ov::Shape{0})
-        dst->set_shape(get_shape());
-
-    OPENVINO_ASSERT(shapes_equal(get_shape(), dst->get_shape()),
-                    "Tensor shapes are not equal. (src: ",
-                    get_shape(),
-                    " != dst: ",
-                    dst->get_shape(),
-                    ")");
     const auto& shape = get_shape();
+    if (shape != dst->get_shape()) {
+        dst->set_shape(shape);
+    }
+
     auto* src_data = static_cast<const uint8_t*>(data());
     auto* dst_data = static_cast<uint8_t*>(dst->data());
     ov::Strides src_strides{get_byte_size()};
