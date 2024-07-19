@@ -116,25 +116,13 @@ KERNEL(quantize_input)(
 
 
 #if !REALIGN_FP16_OFFSET
-#   if OUTPUT_3D
-#       define MAIN_LOOP_ELEMENTS_COUNT  INPUT0_SIZE_Y
-#   else
-#       define MAIN_LOOP_ELEMENTS_COUNT  INPUT0_ELEMENTS_COUNT
-#   endif
+    #define MAIN_LOOP_ELEMENTS_COUNT  IFM_SIZE
 #else
-// For REALIGN_FP16_OFFSET one feature is processed separately before entering main loop to correct alignment.
-#   if OUTPUT_3D
-#       define MAIN_LOOP_ELEMENTS_COUNT  (INPUT0_SIZE_Y - 1)
-#   else
-#       define MAIN_LOOP_ELEMENTS_COUNT  (INPUT0_ELEMENTS_COUNT - 1)
-#   endif
+    // For REALIGN_FP16_OFFSET one feature is processed separately before entering main loop to correct alignment.
+    #define MAIN_LOOP_ELEMENTS_COUNT  (IFM_SIZE - 1)
 #endif
 
-#if OUTPUT_3D
-#   define INPUT_ELEMENTS_COUNT INPUT0_SIZE_Y
-#else
-#   define INPUT_ELEMENTS_COUNT INPUT0_ELEMENTS_COUNT
-#endif
+#define INPUT_ELEMENTS_COUNT IFM_SIZE
 
 #if IS_DYNAMIC && COMPRESSED_WEIGHTS_INT4
 #pragma disable_includes_optimization
