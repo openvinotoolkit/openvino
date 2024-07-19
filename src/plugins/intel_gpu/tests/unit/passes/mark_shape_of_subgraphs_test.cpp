@@ -53,15 +53,15 @@ TEST(mark_shape_of_subgraphs, simple_chain) {
     auto& engine = get_test_engine();
     auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic()},
                                        data_types::f32, format::bfyx};
-    auto data_0 = engine.allocate_memory({ ov::PartialShape{1}, data_types::i64, format::bfyx });
-    auto data_1 = engine.allocate_memory({ ov::PartialShape{1}, data_types::i64, format::bfyx });
+    auto data_0 = engine.allocate_memory({ ov::PartialShape{1}, data_types::i32, format::bfyx });
+    auto data_1 = engine.allocate_memory({ ov::PartialShape{1}, data_types::i32, format::bfyx });
     set_values(data_0, {0});
     set_values(data_1, {2});
     topology topology;
     topology.add(input_layout("input", input_layout_dynamic));
     topology.add(data("data_0", data_0));
     topology.add(data("data_1", data_1));
-    topology.add(shape_of("shape_of", input_info("input"), data_types::i64));
+    topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
     topology.add(gather("gather", input_info("shape_of"), input_info("data_0"), 0, 0, {}));
     topology.add(eltwise("eltwise", input_info("gather"), input_info("data_1"), eltwise_mode::sum));
     topology.add(concatenation("concat", {input_info("eltwise"), input_info("data_1")}, 0));
@@ -94,15 +94,15 @@ TEST(mark_shape_of_subgraphs, simple_chain_w_reshape_inside_subgraph) {
     auto& engine = get_test_engine();
     auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic()},
                                        data_types::f16, format::bfyx};
-    auto data_0 = engine.allocate_memory({ ov::PartialShape{1}, data_types::i64, format::bfyx });
-    auto data_1 = engine.allocate_memory({ ov::PartialShape{2}, data_types::i64, format::bfyx });
-    set_values<int64_t>(data_1, {1, 1});
+    auto data_0 = engine.allocate_memory({ ov::PartialShape{1}, data_types::i32, format::bfyx });
+    auto data_1 = engine.allocate_memory({ ov::PartialShape{2}, data_types::i32, format::bfyx });
+    set_values<int32_t>(data_1, {1, 1});
 
     topology topology;
     topology.add(input_layout("input", input_layout_dynamic));
     topology.add(data("data_0", data_0));
     topology.add(data("data_1", data_1));
-    topology.add(shape_of("shape_of", input_info("input"), data_types::i64));
+    topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
     topology.add(gather("gather", input_info("shape_of"), input_info("data_0"), 0, 1, {1}));
     topology.add(reshape("reshape", input_info("gather"), input_info("data_1"), false, ov::PartialShape{2}));
     topology.add(broadcast("broadcast", input_info("input"), input_info("reshape"), {}, ov::op::BroadcastType::BIDIRECTIONAL));
@@ -122,13 +122,13 @@ TEST(mark_shape_of_subgraphs, parallel_shape_of_subgraphs) {
     auto& engine = get_test_engine();
     auto input_layout_dynamic = layout{ov::PartialShape{1, 3, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
                                        data_types::f16, format::bfyx};
-    auto data_0 = engine.allocate_memory({ ov::PartialShape{}, data_types::i64, format::bfyx });
+    auto data_0 = engine.allocate_memory({ ov::PartialShape{}, data_types::i32, format::bfyx });
 
     topology topology;
     topology.add(input_layout("input", input_layout_dynamic));
     topology.add(data("data_0", data_0));
-    topology.add(shape_of("shape_of_0", input_info("input"), data_types::i64));
-    topology.add(shape_of("shape_of_1", input_info("input"), data_types::i64));
+    topology.add(shape_of("shape_of_0", input_info("input"), data_types::i32));
+    topology.add(shape_of("shape_of_1", input_info("input"), data_types::i32));
     topology.add(gather("gather_0", input_info("shape_of_0"), input_info("data_0"), 0, 0, {}));
     topology.add(gather("gather_1", input_info("shape_of_1"), input_info("data_0"), 0, 0, {}));
     topology.add(eltwise("eltwise", input_info("gather_0"), input_info("gather_1"), eltwise_mode::sum));
@@ -150,8 +150,8 @@ TEST(mark_shape_of_subgraphs, parallel_shape_of_subgraphs_cascade) {
     auto& engine = get_test_engine();
     auto input_layout_dynamic = layout{ov::PartialShape{1, 3, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
                                        data_types::f16, format::bfyx};
-    auto data_0 = engine.allocate_memory({ ov::PartialShape{}, data_types::i64, format::bfyx });
-    auto data_1 = engine.allocate_memory({ ov::PartialShape{1, 4, 8, 16}, data_types::i64, format::bfyx });
+    auto data_0 = engine.allocate_memory({ ov::PartialShape{}, data_types::i32, format::bfyx });
+    auto data_1 = engine.allocate_memory({ ov::PartialShape{1, 4, 8, 16}, data_types::i32, format::bfyx });
     auto data_2 = engine.allocate_memory({ ov::PartialShape{1}, data_types::f16, format::bfyx });
 
     topology topology;
@@ -159,9 +159,9 @@ TEST(mark_shape_of_subgraphs, parallel_shape_of_subgraphs_cascade) {
     topology.add(data("data_0", data_0));
     topology.add(data("data_1", data_1));
     topology.add(data("data_2", data_2));
-    topology.add(shape_of("shape_of_0", input_info("input"), data_types::i64));
+    topology.add(shape_of("shape_of_0", input_info("input"), data_types::i32));
     topology.add(gather("gather_0", input_info("shape_of_0"), input_info("data_0"), 0, 1, {1}));
-    topology.add(shape_of("shape_of_1", input_info("input"), data_types::i64));
+    topology.add(shape_of("shape_of_1", input_info("input"), data_types::i32));
     topology.add(gather("gather_1", input_info("shape_of_1"), input_info("data_0"), 0, 1, {1}));
     topology.add(scatter_update("scatter_update_0", input_info("gather_0"), input_info("data_0"), input_info("data_0"), 0));
     topology.add(scatter_update("scatter_update_1", input_info("gather_1"), input_info("data_0"), input_info("data_0"), 0));
@@ -170,7 +170,7 @@ TEST(mark_shape_of_subgraphs, parallel_shape_of_subgraphs_cascade) {
                                input_info("scatter_update_0"),
                                input_info("scatter_update_1"),
                                input_info("data_0"), {}, {}, {}, {}, {}, {}));
-    topology.add(shape_of("shape_of_2", input_info("input"), data_types::i64));
+    topology.add(shape_of("shape_of_2", input_info("input"), data_types::i32));
     topology.add(gather("gather_2", input_info("shape_of_2"), input_info("data_0"), 0, 0, {}));
     topology.add(scatter_update("scatter_update_2", input_info("gather_2"), input_info("data_0"), input_info("data_0"), 0));
     topology.add(strided_slice("strided_slice_2",
@@ -201,12 +201,12 @@ TEST(mark_shape_of_subgraphs, simple_chain_w_inserted_reorder) {
     // This test covers marking of newely added nodes during graph optimization passes
     auto& engine = get_test_engine();
     auto input_layout_dynamic = layout{ov::PartialShape::dynamic(4), data_types::f16, format::bfyx};
-    auto data_0 = engine.allocate_memory({ ov::PartialShape{1}, data_types::i64, format::bfyx });
+    auto data_0 = engine.allocate_memory({ ov::PartialShape{1}, data_types::i32, format::bfyx });
 
     topology topology;
     topology.add(input_layout("input", input_layout_dynamic));
     topology.add(data("data_0", data_0));
-    topology.add(shape_of("shape_of", input_info("input"), data_types::i64));
+    topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
     topology.add(gather("gather", input_info("shape_of"), input_info("data_0"), 0, 1, {1}));
     topology.add(reshape("reshape", input_info("gather"), true, {}, {}));
     topology.add(reorder("reorder", input_info("reshape"), format::bfyx, data_types::f16));
@@ -229,17 +229,17 @@ TEST(mark_shape_of_subgraphs, concat_with_empty_tensor_inputs) {
     auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), 4}, data_types::f32, format::bfyx};
     auto input_layout_empty = layout{ov::PartialShape{}, data_types::f32, format::bfyx};
 
-    auto data_0 = engine.allocate_memory({ ov::PartialShape{1}, data_types::i64, format::bfyx });
+    auto data_0 = engine.allocate_memory({ ov::PartialShape{1}, data_types::i32, format::bfyx });
     set_values(data_0, {0});
 
     topology topology;
     topology.add(input_layout("input", input_layout_dynamic));
     topology.add(input_layout("input_empty", input_layout_empty));
     topology.add(data("data_0", data_0));
-    topology.add(shape_of("shape_of_01", input_info("input"), data_types::i64));
+    topology.add(shape_of("shape_of_01", input_info("input"), data_types::i32));
     topology.add(gather("gather01", input_info("shape_of_01"), input_info("data_0"), 0, 1, {1}));
-    topology.add(shape_of("shape_of_02", input_info("input_empty"), data_types::i64));
-    topology.add(shape_of("shape_of_03", input_info("input_empty"), data_types::i64));
+    topology.add(shape_of("shape_of_02", input_info("input_empty"), data_types::i32));
+    topology.add(shape_of("shape_of_03", input_info("input_empty"), data_types::i32));
     topology.add(concatenation("concat", {input_info("gather01"), input_info("shape_of_02"), input_info("shape_of_03")}, 0));
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -264,7 +264,7 @@ TEST(mark_shape_of_subgraphs, concat_with_empty_tensor_inputs) {
     auto outputs = network.execute();
     auto output_prim = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<int64_t> output_ptr (output_prim, get_test_stream());
+    cldnn::mem_lock<int32_t> output_ptr (output_prim, get_test_stream());
     ASSERT_EQ(1, output_prim->get_layout().count());
     for (size_t i = 0; i < output_prim->get_layout().count(); ++i) {
         ASSERT_EQ(5, output_ptr[i]);
@@ -274,7 +274,7 @@ TEST(mark_shape_of_subgraphs, concat_with_empty_tensor_inputs) {
     auto outputs2 = network.execute();
     auto output_prim2 = outputs.begin()->second.get_memory();
 
-    cldnn::mem_lock<int64_t> output_ptr2 (output_prim2, get_test_stream());
+    cldnn::mem_lock<int32_t> output_ptr2 (output_prim2, get_test_stream());
     ASSERT_EQ(1, output_prim2->get_layout().count());
     for (size_t i = 0; i < output_prim2->get_layout().count(); ++i) {
         ASSERT_EQ(5, output_ptr2[i]);

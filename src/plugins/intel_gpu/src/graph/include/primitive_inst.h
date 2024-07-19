@@ -40,6 +40,8 @@ class primitive_inst;
 template <class PType>
 class typed_primitive_inst;
 
+struct ImplementationManager;
+
 /*
     Base class for all implementations.
 */
@@ -105,10 +107,7 @@ struct primitive_impl {
     void set_dynamic(bool val) { _is_dynamic = val; }
     bool is_dynamic() const { return _is_dynamic; }
 
-    virtual void update(primitive_inst& inst, const kernel_impl_params& impl_params) {
-        OPENVINO_ASSERT(_is_dynamic, "[GPU] update() is called for static shape implementation ", _kernel_name);
-        OPENVINO_ASSERT(false, "[GPU] update() is not implemented for dynamic implemenation ", _kernel_name);
-    }
+    virtual void update(primitive_inst& inst, const kernel_impl_params& impl_params) { }
 
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params);
 
@@ -124,10 +123,24 @@ struct primitive_impl {
 
     std::shared_ptr<kernel_impl_params> get_weights_reorder_kernel_params() const;
 
+    const ImplementationManager* m_manager = nullptr;
+
 protected:
     std::shared_ptr<WeightsReorderParams> _weights_reorder_params = nullptr;
     std::string _kernel_name;
     bool _is_dynamic = false;
+};
+
+struct ImplementationsFactory {
+    ImplementationsFactory(const program_node* node);
+
+    const program_node* m_node;
+    std::vector<std::shared_ptr<ImplementationManager>> m_available_impls;
+    program::ImplementationsCache& m_static_impls_cache;
+    std::vector<std::shared_ptr<primitive_impl>> m_dynamic_impls_cache;
+
+    std::shared_ptr<primitive_impl> get_primitive_impl_for_params(primitive_inst& inst, const kernel_impl_params& params, bool use_async_compilation);
+    bool has(impl_types impl_type) const;
 };
 
 /*
@@ -306,6 +319,7 @@ public:
 
     virtual int32_t get_prealloc_iter_num() { return -1; }
     virtual void update_shape_info_tensor(const kernel_impl_params& params);
+    kernel_impl_params get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param);
 
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
@@ -317,8 +331,8 @@ protected:
     bool update_shape_done_by_other = false;
     bool allocation_done_by_other = false;
     std::unique_ptr<kernel_impl_params> _impl_params;
-    std::unique_ptr<primitive_impl> _impl;
-    std::unique_ptr<primitive_impl> _dynamic_impl = nullptr;
+    std::shared_ptr<primitive_impl> _impl;
+    std::shared_ptr<ImplementationsFactory> _impls_factory = nullptr;
 
     // this is a set of dependencies in terms of memory, if execution of this primitive requires data from another one,
     // it should be added to this set
@@ -455,7 +469,6 @@ protected:
         }
         return false;
     }
-    kernel_impl_params get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param);
 
     // This could be implemented via single map std::unordered_map<instrumentation::perf_counter_key, std::tuple<int64_t, size_t>>
     // but the overhead on using perf_counter_key as map key is too big, thus we use hash as map key

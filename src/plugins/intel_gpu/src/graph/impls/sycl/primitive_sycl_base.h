@@ -6,7 +6,7 @@
 
 #include "primitive_inst.h"
 #include "intel_gpu/runtime/memory.hpp"
-#include "register.hpp"
+#include "impls/registry/registry.hpp"
 #include "runtime/ocl/ocl_event.hpp"
 
 #include <vector>

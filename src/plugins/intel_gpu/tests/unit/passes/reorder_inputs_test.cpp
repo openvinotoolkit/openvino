@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/runtime/internal_properties.hpp"
 #include "test_utils.h"
 #include "random_generator.hpp"
 
@@ -170,10 +171,11 @@ TEST(reorder_inputs, impl_forcing_basic_format) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(pooling("pool", input_info("input"), pooling_mode::max, { 1, 2 }, { 1, 2 }));
 
-    ov::intel_gpu::ImplementationDesc pool_impl = { format::yxfb, "" };
+    ov::intel_gpu::ImplementationDesc pool_impl = { format::yxfb, "", impl_types::ocl };
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"pool", pool_impl} }));
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
     network network(engine, topology, config);
 
@@ -208,10 +210,11 @@ TEST(reorder_inputs, impl_forcing_not_existing) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(pooling("pool", input_info("input"), pooling_mode::max, { 1, 2 }, { 1, 2 }));
 
-    ov::intel_gpu::ImplementationDesc pool_impl = { format::any, "NOT_EXISTING" };
+    ov::intel_gpu::ImplementationDesc pool_impl = { format::any, "NOT_EXISTING", impl_types::ocl };
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"pool", pool_impl} }));
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
     ASSERT_ANY_THROW(network network(engine, topology, config));
 }
@@ -228,6 +231,7 @@ TEST(reorder_inputs, impl_forcing_basic_format_kernel) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"actv", actv_impl} }));
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
     network network(engine, topology, config);
 

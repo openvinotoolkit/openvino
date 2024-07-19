@@ -4,6 +4,7 @@
 
 #include "primitive_base.hpp"
 
+#include "non_max_suppression.hpp"
 #include "non_max_suppression_inst.h"
 #include "data_inst.h"
 #include "non_max_suppression/non_max_suppression_kernel_ref.h"
@@ -193,31 +194,11 @@ private:
     }
 };
 
-namespace detail {
-
-attach_non_max_suppression_impl::attach_non_max_suppression_impl() {
-    implementation_map<non_max_suppression>::add(impl_types::ocl,
-                                                 typed_primitive_impl_ocl<non_max_suppression>::create<non_max_suppression_impl>,
-                                                 {
-                                                     std::make_tuple(data_types::i32, format::bfyx),
-
-                                                     std::make_tuple(data_types::f16, format::bfyx),
-                                                     std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
-                                                     std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
-                                                     std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
-                                                     std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
-                                                     std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
-
-                                                     std::make_tuple(data_types::f32, format::bfyx),
-                                                     std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
-                                                     std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
-                                                     std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
-                                                     std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
-                                                     std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
-                                                 });
+std::unique_ptr<primitive_impl> NMSImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    assert(node.is_type<non_max_suppression>());
+    return typed_primitive_impl_ocl<non_max_suppression>::create<non_max_suppression_impl>(static_cast<const non_max_suppression_node&>(node), params);
 }
 
-}  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
 

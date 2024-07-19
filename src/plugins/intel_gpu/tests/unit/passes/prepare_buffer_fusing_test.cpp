@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/primitives/implementation_desc.hpp"
+#include "intel_gpu/runtime/internal_properties.hpp"
 #include "test_utils.h"
 #include "random_generator.hpp"
 
@@ -413,7 +415,6 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic_onednn_batch2) {
         {"reorder2", ov::intel_gpu::ImplementationDesc{format::any, "", impl_types::onednn}}
     };
     config.set_property(ov::intel_gpu::force_implementations(forcing_map));
-
     auto prog = program::build_program(engine, topology, config, false, false);
     ASSERT_NE(prog, nullptr);
     auto& concat_node_p = prog->get_node("concat");

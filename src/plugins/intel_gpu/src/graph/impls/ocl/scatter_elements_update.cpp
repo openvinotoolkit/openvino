@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/primitives/scatter_elements_update.hpp"
 #include "primitive_base.hpp"
 
+#include "scatter_elements_update.hpp"
 #include "scatter_elements_update_inst.h"
 #include "scatter_update/scatter_elements_update_kernel_selector.h"
 #include "scatter_update/scatter_elements_update_kernel_ref.h"
@@ -83,36 +85,12 @@ struct scatter_elements_update_impl : typed_primitive_impl_ocl<scatter_elements_
     }
 };
 
-namespace detail {
-
-attach_scatter_elements_update_impl::attach_scatter_elements_update_impl() {
-    auto types = {data_types::f16, data_types::f32, data_types::i32};
-    auto formats = {
-            format::bfyx,
-            format::b_fs_yx_fsv16,
-            format::b_fs_yx_fsv32,
-            format::bs_fs_yx_bsv16_fsv16,
-            format::bs_fs_yx_bsv32_fsv16,
-            format::bs_fs_yx_bsv16_fsv32,
-            format::bs_fs_yx_bsv32_fsv32,
-            format::bfzyx,
-            format::b_fs_zyx_fsv16,
-            format::b_fs_zyx_fsv32,
-            format::bs_fs_zyx_bsv16_fsv32,
-            format::bs_fs_zyx_bsv16_fsv16,
-            format::bs_fs_zyx_bsv32_fsv32,
-            format::bs_fs_zyx_bsv32_fsv16,
-            format::bfwzyx
-    };
-
-    implementation_map<scatter_elements_update>::add(
-        impl_types::ocl,
-        typed_primitive_impl_ocl<scatter_elements_update>::create<scatter_elements_update_impl>,
-        types,
-        formats);
+std::unique_ptr<primitive_impl> ScatterElementsUpdateImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    assert(node.is_type<scatter_elements_update>());
+    return typed_primitive_impl_ocl<scatter_elements_update>::create<scatter_elements_update_impl>(
+            static_cast<const scatter_elements_update_node&>(node), params);
 }
 
-}  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
 
