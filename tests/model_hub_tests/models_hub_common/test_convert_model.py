@@ -4,7 +4,7 @@ import gc
 
 import numpy as np
 # noinspection PyUnresolvedReferences
-#import openvino_tokenizers  # do not delete, needed for text models
+import openvino_tokenizers  # do not delete, needed for text models
 from models_hub_common.multiprocessing_utils import multiprocessing_run
 from models_hub_common.utils import compare_two_tensors
 from openvino import convert_model
