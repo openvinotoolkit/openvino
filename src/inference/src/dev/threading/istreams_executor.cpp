@@ -29,7 +29,7 @@ void IStreamsExecutor::Config::set_property(const std::string& key, const ov::An
 void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
     for (const auto& it : property) {
         const auto& key = it.first;
-        const auto& value = it.second;
+        const auto value = it.second;
         if (key == ov::num_streams) {
             auto streams = value.as<ov::streams::Num>();
             if (streams == ov::streams::NUMA) {
