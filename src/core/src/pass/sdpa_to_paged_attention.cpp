@@ -144,8 +144,8 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         model->remove_result(result);
     }
 
+    model->add_parameters(block_indices_inputs);
     if (m_use_cache_eviction) {
-        model->add_parameters(block_indices_inputs);
         model->add_results(score_results);
     }
 

@@ -32,17 +32,14 @@ def run_pa(tmp_path, model_id, model_link, use_cache_eviction):
                 assert shape[-1].is_static, f"Dimension {len(shape) - 1} of input '{name}' in '{model_id}' is not static: {shape}"
                 assert shape[-2].is_static, f"Dimension {len(shape) - 2} of input '{name}' in '{model_id}' is not static: {shape}"
 
-    model_inputs = model.model.inputs
-    model_outputs = model.model.outputs
-
     # Test for block_indices inputs and scores outputs to appear in the model 
-    block_indices_pattern = r'block_indices'
-    block_indices_counter = 0
-
-    score_pattern = r'scores\.[0-9]+'
-    score_outputs_counter = 0
-
     if (use_cache_eviction):
+        block_indices_pattern = r'block_indices'
+        block_indices_counter = 0
+
+        score_pattern = r'scores\.[0-9]+'
+        score_outputs_counter = 0
+
         model_inputs = model.model.inputs
         for input in model_inputs:
             for name in list(input.get_names()):
