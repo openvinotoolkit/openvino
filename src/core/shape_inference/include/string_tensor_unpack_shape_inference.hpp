@@ -41,10 +41,10 @@ std::vector<TRShape> shape_infer(const StringTensorUnpack* op,
     if (data_shape.is_static()) {
         const auto string_data = util::get_string_tensor(op, 0, tensor_accessor);
         if (string_data) {
-            uint32_t string_count = string_data.get_size();
+            const auto string_count = string_data.get_size();
             const auto tensor_data = string_data.data<std::string>();
             uint32_t total_length = 0;
-            for (size_t i = 0; i < string_count; ++i)
+            for (uint64_t i = 0; i < string_count; ++i)
                 total_length += (*(tensor_data + i)).length();
             output_shapes.emplace_back(TRShape{total_length});
         } else {
