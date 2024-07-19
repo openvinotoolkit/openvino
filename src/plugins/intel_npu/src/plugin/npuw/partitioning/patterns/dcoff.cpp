@@ -186,6 +186,7 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
     NPUW_ASSERT(ov::op::util::is_parameter(matched_nodeA));
 
     auto matched_paramA = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeA);
+    std::cout << "Input weight shapes: " << matched_paramA->get_partial_shape() << std::endl;
     auto element_type = matched_paramA->get_element_type();
     if (element_type == ov::element::i4 || element_type == ov::element::i8) {
         LOG_DEBUG("Matched: " << matched_paramA << ", set element type to " << m_dcoff_type);
@@ -329,6 +330,7 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
     NPUW_ASSERT(ov::op::util::is_parameter(matched_nodeC));
 
     auto matched_paramA = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeA);
+    std::cout << "Input weight shapes: " << matched_paramA->get_partial_shape() << std::endl;
     auto matched_valueB = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeB);
     auto matched_paramC = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeC);
 
