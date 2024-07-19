@@ -10,8 +10,8 @@ Use Case - Integrate and Save Preprocessing Steps Into IR
                  OpenVINO Intermediate Representation.
 
 
-Previous sections covered the :doc:`preprocessing steps <preprocessing-api-details>`
-and the overview of :doc:`Layout API <layout-api-overview>`.
+Previous sections covered the :doc:`preprocessing steps <../preprocessing-api-details>`
+and the overview of :doc:`Layout API <../layout-api-overview>`.
 
 For many applications, it is also important to minimize read/load time of a model.
 Therefore, performing integration of preprocessing steps every time on application
@@ -76,7 +76,7 @@ Application Code - Load Model to Target Device
 ##############################################
 
 Next, the application code can load a saved file and stop preprocessing. In this case, enable
-:doc:`model caching <../optimizing-latency/model-caching-overview>` to minimize load
+:doc:`model caching <../../optimizing-latency/model-caching-overview>` to minimize load
 time when the cached model is available.
 
 
@@ -100,8 +100,8 @@ time when the cached model is available.
 Additional Resources
 ####################
 
-* :doc:`Preprocessing Details <preprocessing-api-details>`
-* :doc:`Layout API overview <layout-api-overview>`
+* :doc:`Preprocessing Details <../preprocessing-api-details>`
+* :doc:`Layout API overview <../layout-api-overview>`
 * :doc:`Model Caching Overview <../../optimizing-latency/model-caching-overview>`
 * The `ov::preprocess::PrePostProcessor <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1preprocess_1_1_pre_post_processor.html>`__ C++ class documentation
 * The `ov::pass::Serialize <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1pass_1_1_serialize.html>`__ - pass to serialize model to XML/BIN
