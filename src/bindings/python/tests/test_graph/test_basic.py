@@ -572,7 +572,7 @@ def test_sink_model_ctors():
     assert model.get_friendly_name() == "TestModel"
 
 
-@pytest.fixture()
+@pytest.fixture
 def setup_sink_model():
     input_data = ops.parameter([2, 2], name="input_data", dtype=np.float32)
     rv = ops.read_value("var_id_667", np.float32, [2, 2])
