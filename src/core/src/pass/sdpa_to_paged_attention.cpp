@@ -40,8 +40,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                     "the SDPAToPagedAttention transformation.");
 
     auto max_context_len = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "max_context_len");
-    ParameterVector model_remaining_params
-    {
+    ParameterVector model_remaining_params{
         setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "past_lens"),
         setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "subsequence_begins"),
         setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices_begins"),
