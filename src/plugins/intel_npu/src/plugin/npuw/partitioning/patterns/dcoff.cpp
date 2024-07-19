@@ -332,7 +332,7 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
     ov::PartialShape current_shape = matched_paramA->get_partial_shape();
     std::cout << "Input weight shapes: " << current_shape << std::endl;
     ov::Shape static_shape = current_shape.to_shape();
-    ov::Shape new_order = {static_shape[1], static_shape[2], static_shape[3]};
+    ov::Shape new_order = {static_shape[1], static_shape[2], static_shape[0]};
     ov::PartialShape new_shape(new_order);
     matched_paramA->set_partial_shape(new_shape);
     std::cout << "New Input weight shapes: " << matched_paramA->get_partial_shape() << std::endl;
