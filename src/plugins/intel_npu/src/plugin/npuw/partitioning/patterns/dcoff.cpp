@@ -186,7 +186,6 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
     NPUW_ASSERT(ov::op::util::is_parameter(matched_nodeA));
 
     auto matched_paramA = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeA);
-    std::cout << "Input weight shapes: " << matched_paramA->get_partial_shape() << std::endl;
     auto element_type = matched_paramA->get_element_type();
     if (element_type == ov::element::i4 || element_type == ov::element::i8) {
         LOG_DEBUG("Matched: " << matched_paramA << ", set element type to " << m_dcoff_type);
@@ -330,7 +329,13 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
     NPUW_ASSERT(ov::op::util::is_parameter(matched_nodeC));
 
     auto matched_paramA = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeA);
-    std::cout << "Input weight shapes: " << matched_paramA->get_partial_shape() << std::endl;
+    ov::PartialShape current_shape = matched_paramA->get_partial_shape();
+    std::cout << "Input weight shapes: " << current_shape << std::endl;
+    ov::Shape static_shape = current_shape.to_shape();
+    ov::Shape new_order = {static_shape[1], static_shape[2], static_shape[3]};
+    ov::PartialShape new_shape(new_order);
+    std::cout << "New Input weight shapes: " << current_shape << std::endl;
+    matched_paramA->set_partial_shape(new_shape);
     auto matched_valueB = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeB);
     auto matched_paramC = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeC);
 
@@ -464,7 +469,6 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dco
         NPUW_ASSERT(ov::op::util::is_parameter(matched_nodeC));
 
         auto matched_paramA = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeA);
-        std::cout << "Input weight shapes: " << matched_paramA->get_partial_shape() << std::endl;
         auto matched_valueB = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeB);
         auto matched_paramC = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeC);
 
