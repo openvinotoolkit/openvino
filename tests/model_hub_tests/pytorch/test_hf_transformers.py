@@ -102,7 +102,7 @@ class TestTransformersModel(TestTorchConvertModel):
         self.image = Image.open(requests.get(url, stream=True).raw)
         self.cuda_available, self.gptq_postinit = None, None
 
-    @retry(3, exceptions=(HfHubHTTPError,))
+    @retry(3, exceptions=(HfHubHTTPError,), delay=1)
     def load_model(self, name, type):
         name_suffix = ''
         if name.find(':') != -1:

@@ -148,7 +148,7 @@ def print_stat(s: str, value: float):
     print(s.format(round_num(value)))
 
 
-def retry(max_retries=3, exceptions=(Exception,)):
+def retry(max_retries=3, exceptions=(Exception,), delay=None):
     def retry_decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
@@ -157,7 +157,9 @@ def retry(max_retries=3, exceptions=(Exception,)):
                     return func(*args, **kwargs)
                 except exceptions as e:
                     print(f"Attempt {attempt + 1} of {max_retries} failed: {e}")
-                    if attempt == max_retries - 1:
+                    if attempt < max_retries - 1 and delay is not None:
+                        time.sleep(delay)
+                    else:
                         raise e
         return wrapper
     return retry_decorator
