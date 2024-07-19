@@ -21,9 +21,8 @@ struct multiclass_nms : public primitive_base<multiclass_nms> {
 
     multiclass_nms(const primitive_id& id,
                    const std::vector<input_info> inputs,
-                   const ov::op::util::MulticlassNmsBase::Attributes& attrs,
-                   const padding& output_padding = {})
-        : primitive_base{id, inputs, {output_padding}},
+                   const ov::op::util::MulticlassNmsBase::Attributes& attrs)
+        : primitive_base{id, inputs},
           attrs(attrs) {
         // Legacy multi-output
         if (inputs.size() == 5) {

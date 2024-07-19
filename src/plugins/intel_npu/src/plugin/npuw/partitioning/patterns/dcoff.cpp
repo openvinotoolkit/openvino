@@ -629,6 +629,51 @@ CWAI2::CWAI2(CWAI2::Results scales) {
     register_matcher(std::make_shared<opp::Matcher>(mulply, "TagCWAI2"), std::move(matcher_callback));
 }
 
+// Pattern: Phi-3 4SymW16A/GPTQ for CWAI
+//
+// FIXME: Think how it can be unified with the above
+//
+//   "tensor"       "scale"
+//    Const:A       Const:C
+//      i4          f16|f32
+//       :           :
+//       V          :
+//     Convert     :
+//     f16|f32    :
+//        :      :
+//        V      V
+//        Multiply
+//         f16|f32
+
+CWAI3::CWAI3(CWAI3::Results scales) {
+    auto constA = opp::wrap_type<ov::op::v0::Constant>();
+    auto constC = opp::wrap_type<ov::op::v0::Constant>();
+    auto cvtA = opp::wrap_type<ov::op::v0::Convert>({constA});
+    auto mulply = opp::wrap_type<ov::op::v1::Multiply>({cvtA, constC});
+
+    auto matcher_callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+        auto matched_nodeA = node_to_output.at(constA).get_node_shared_ptr();
+        auto matched_nodeC = node_to_output.at(constC).get_node_shared_ptr();
+
+        NPUW_ASSERT(ov::op::util::is_constant(matched_nodeA));
+        NPUW_ASSERT(ov::op::util::is_constant(matched_nodeC));
+
+        auto matched_valueA = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeA);
+        auto matched_valueC = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeC);
+
+        if (ov::element::i4 == matched_valueA->get_element_type() &&
+            (ov::element::f16 == matched_valueC->get_element_type() ||
+             ov::element::f32 == matched_valueC->get_element_type())) {
+            LOG_DEBUG("Matched: " << matched_valueC);
+            scales.get().push_back(matched_valueC);
+        }
+        return true;
+    };  // matcher_callback
+
+    register_matcher(std::make_shared<opp::Matcher>(mulply, "TagCWAI3"), std::move(matcher_callback));
+}
+
 // As seen in LLaMa-v2-7b:
 // Since it is Symm, all zero points for all blocks must have the same
 // value so NPUW will detect it and fuse to function body (so it is

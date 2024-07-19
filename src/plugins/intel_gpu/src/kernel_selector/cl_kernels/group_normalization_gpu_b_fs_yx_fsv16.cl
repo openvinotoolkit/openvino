@@ -14,11 +14,7 @@ KERNEL(calc_mean_per_feature)(
 ) {
     const uint data_set_idx = get_global_id(1);     // batch * feature split
     const uint in_data_set_idx = get_global_id(0);
-    #if IS_DYNAMIC
-        const uint workers_per_dataset = get_local_size(0) / FSV;    // 16 datasets are handled by one local workgroup
-    #else
-        const uint workers_per_dataset = WORKERS_PER_DATASET;
-    #endif
+    const uint workers_per_dataset = LWS0 / FSV;    // 16 datasets are handled by one local workgroup
     const uint data_set_size = INPUT0_SIZE_X * INPUT0_SIZE_Y;
     const uint items_num = data_set_size / workers_per_dataset;
     const uint leftovers = data_set_size - (items_num * workers_per_dataset);
@@ -42,7 +38,7 @@ KERNEL(calc_mean_per_feature)(
     }
 
     mean_per_feature[in_data_set_idx] = mean;
-    const uint num_local_workers = get_local_size(0);
+    const uint num_local_workers = LWS0;
     const uint worker_block_idx = in_data_set_idx / 16;
     uint reduce_add_level = 1;
     while ((SLM_SIZE / SIMD) > reduce_add_level) {
@@ -63,28 +59,35 @@ KERNEL(calc_mean_per_feature)(
 KERNEL(calc_mean_per_group)(
     __global ACCUMULATOR_TYPE* internal_mean
 ) {
-    const uint data_idx = get_global_id(0) + get_global_id(1) * get_global_size(0);
-    const uint group_size = get_local_size(0);
+    const uint data_idx = get_global_id(0) + get_global_id(1) * GWS0;
+    const uint num_workers = LWS0;
+    const uint group_size = GWS0 / NUM_GROUPS;
+    const uint items_num = group_size / num_workers;
 
-    ACCUMULATOR_TYPE mean = work_group_reduce_add(internal_mean[data_idx]);
-    mean /= TO_ACCUMULATOR_TYPE(group_size);
-    internal_mean[data_idx] = mean;
+    if ((data_idx % group_size) < num_workers) {
+        ACCUMULATOR_TYPE my_sum = ACCUMULATOR_VAL_ZERO;
+        for (uint i = 0; i < items_num; ++i) {
+            my_sum += internal_mean[data_idx + num_workers * i];
+        }
+
+        ACCUMULATOR_TYPE mean = work_group_reduce_add(my_sum);
+        mean /= TO_ACCUMULATOR_TYPE(group_size);
+        for (uint i = 0; i < items_num; ++i) {
+            internal_mean[data_idx + num_workers * i] = mean;
+        }
+    }
 }
 #elif GROUP_NORM_KERNEL_FEATURE_VAR
 REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(calc_var_per_feature)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
-    __global ACCUMULATOR_TYPE* internal_mean,
+    const __global ACCUMULATOR_TYPE* internal_mean,
     __global ACCUMULATOR_TYPE* internal_variance
 ) {
     const uint data_set_idx = get_global_id(1);     // batch * feature split
     const uint in_data_set_idx = get_global_id(0);
-    #if IS_DYNAMIC
-        const uint workers_per_dataset = get_local_size(0) / FSV;    // 16 datasets are handled by one local workgroup
-    #else
-        const uint workers_per_dataset = WORKERS_PER_DATASET;
-    #endif
+    const uint workers_per_dataset = LWS0 / FSV;    // 16 datasets are handled by one local workgroup
     const uint data_set_size = INPUT0_SIZE_X * INPUT0_SIZE_Y;
     const uint items_num = data_set_size / workers_per_dataset;
     const uint leftovers = data_set_size - (items_num * workers_per_dataset);
@@ -115,11 +118,12 @@ KERNEL(calc_var_per_feature)(
     }
 
     var_per_feature[in_data_set_idx] = variance;
+    const uint num_local_workers = LWS0;
     const uint worker_block_idx = in_data_set_idx / 16;
     uint reduce_add_level = 1;
     while ((SLM_SIZE / SIMD) > reduce_add_level) {
         barrier(CLK_LOCAL_MEM_FENCE);
-        if (worker_block_idx % (reduce_add_level * 2) == 0) {
+        if (worker_block_idx % (reduce_add_level * 2) == 0 && (in_data_set_idx + SIMD * reduce_add_level) < num_local_workers) {
             var_per_feature[in_data_set_idx] += var_per_feature[in_data_set_idx + SIMD * reduce_add_level];
         }
         reduce_add_level *= 2;
@@ -134,13 +138,24 @@ KERNEL(calc_var_per_feature)(
 KERNEL(calc_var_per_group)(
     __global ACCUMULATOR_TYPE* internal_variance
 ) {
-    const uint data_idx = get_global_id(0) + get_global_id(1) * get_global_size(0);
-    const uint group_size = get_local_size(0);
+    const uint data_idx = get_global_id(0) + get_global_id(1) * GWS0;
+    const uint num_workers = LWS0;
+    const uint group_size = GWS0 / NUM_GROUPS;
+    const uint items_num = group_size / num_workers;
 
-    ACCUMULATOR_TYPE variance = work_group_reduce_add(internal_variance[data_idx]);
-    variance /= TO_ACCUMULATOR_TYPE(group_size);
-    variance = native_powr(variance + TO_ACCUMULATOR_TYPE(EPSILON), -0.5f);
-    internal_variance[data_idx] = variance;
+    if ((data_idx % group_size) < num_workers) {
+        ACCUMULATOR_TYPE my_variance = ACCUMULATOR_VAL_ZERO;
+        for (uint i = 0; i < items_num; ++i) {
+            my_variance += internal_variance[data_idx + num_workers * i];
+        }
+
+        ACCUMULATOR_TYPE variance = work_group_reduce_add(my_variance);
+        variance /= TO_ACCUMULATOR_TYPE(group_size);
+        variance = native_powr(variance + TO_ACCUMULATOR_TYPE(EPSILON), -0.5f);
+        for (uint i = 0; i < items_num; ++i) {
+            internal_variance[data_idx + num_workers * i] = variance;
+        }
+    }
 }
 #elif GROUP_NORM_KERNEL_FINAL
 REQD_SUB_GROUP_SIZE(SIMD)
@@ -153,8 +168,8 @@ KERNEL(group_normalization_b_fs_yx_fsv16)(
 #if HAS_FUSED_OPS_DECLS
     FUSED_OPS_DECLS,
 #endif
-    __global ACCUMULATOR_TYPE* internal_mean,
-    __global ACCUMULATOR_TYPE* internal_variance
+    const __global ACCUMULATOR_TYPE* internal_mean,
+    const __global ACCUMULATOR_TYPE* internal_variance
 ) {
     const uint bf = get_global_id(1) * FSV + get_sub_group_local_id();
     const uint b = bf / OUTPUT_FEATURE_NUM;
@@ -162,21 +177,22 @@ KERNEL(group_normalization_b_fs_yx_fsv16)(
     const uint yx = get_global_id(0) / FSV;
     const uint y = yx / OUTPUT_SIZE_X;
     const uint x = yx % OUTPUT_SIZE_X;
-    const uint data_index = OUTPUT_GET_INDEX(b, f, y, x);
+    const uint input_index = INPUT0_GET_INDEX(b, f, y, x);
+    const uint output_index = OUTPUT_GET_INDEX(b, f, y, x);
 
     if (f < OUTPUT_FEATURE_NUM) {
         ACTIVATION_TYPE mean = TO_ACTIVATION_TYPE(internal_mean[bf]);
         ACTIVATION_TYPE variance = TO_ACTIVATION_TYPE(internal_variance[bf]);
-        ACTIVATION_TYPE normalized = (TO_ACTIVATION_TYPE(input[data_index]) - mean) * variance;
+        ACTIVATION_TYPE normalized = (TO_ACTIVATION_TYPE(input[input_index]) - mean) * variance;
         normalized = normalized * TO_ACTIVATION_TYPE(scale[f]) + TO_ACTIVATION_TYPE(bias[f]);
         #if HAS_FUSED_OPS
             FUSED_OPS;
-            output[data_index] = FUSED_OPS_RESULT;
+            output[output_index] = FUSED_OPS_RESULT;
         #else
-            output[data_index] = TO_OUTPUT_TYPE(ACTIVATION(normalized, ACTIVATION_PARAMS));
+            output[output_index] = TO_OUTPUT_TYPE(ACTIVATION(normalized, ACTIVATION_PARAMS));
         #endif
     } else {
-        output[data_index] = OUTPUT_VAL_ZERO;
+        output[output_index] = OUTPUT_VAL_ZERO;
     }
 }
 #endif

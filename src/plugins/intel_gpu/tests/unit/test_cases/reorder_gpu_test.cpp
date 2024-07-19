@@ -1053,14 +1053,12 @@ TEST(reorder_gpu, basic_convert_uint8rgbabyxf_to_fp32_bfyx) {
 
     tensor crop_reference_input_tensor(spatial(kernel_size, kernel_size), batch(1), feature(4 - 1));
     tensor crop_offset_tensor(spatial(0, 0), batch(0), feature(0));
-    padding output_padding = padding({ 0, 0, 0, 0 }, { 0, 0, 0, 0 }, 0);
     topology.add(
         // cropping primitive with id "crop1"
         crop("crop",
              input_info("reorder_input"),               // primitive id of the cropping input
              crop_reference_input_tensor,   // input tensor
-             crop_offset_tensor,            // bias primitive id
-             output_padding
+             crop_offset_tensor            // bias primitive id
             )
     );
 
