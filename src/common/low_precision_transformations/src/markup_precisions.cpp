@@ -152,6 +152,7 @@ bool ov::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const std::
         { name<opset1::Relu>() },
         // TODO: there are conditions
         { name<opset2::BatchToSpace>() },
+        { name<opset1::Broadcast>() },
         { name<opset1::Pad>() },
         { name<ov::opset12::Pad>() },
         { name<opset1::Reshape>() },
@@ -192,6 +193,7 @@ bool ov::pass::low_precision::MarkupPrecisions::isSupported(const std::shared_pt
         { name<opset1::Add>() },
         { name<opset1::AvgPool>() },
         { name<opset2::BatchToSpace>() },
+        { name<opset2::Broadcast>() },
         { name<opset1::Clamp>() },
         { name<opset1::Concat>() },
         // ?
