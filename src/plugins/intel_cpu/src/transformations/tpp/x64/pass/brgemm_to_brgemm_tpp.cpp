@@ -6,7 +6,7 @@
 
 #include "brgemm_to_brgemm_tpp.hpp"
 
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "transformations/tpp/x64/op/brgemm.hpp"
 

@@ -218,6 +218,26 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                 full_code += ss;
 
             b.hash_value = std::hash<std::string>()(full_code);
+
+            std::string dump_sources_dir = "";
+            GPU_DEBUG_GET_INSTANCE(debug_config);
+            GPU_DEBUG_IF(!debug_config->dump_sources.empty()) {
+                dump_sources_dir = debug_config->dump_sources;
+            }
+
+            // Add -g -s to build options to allow IGC assembly dumper to associate assembler sources with corresponding OpenCL kernel code lines
+            // Should be used with the IGC_ShaderDump option
+            if (!dump_sources_dir.empty()) {
+                std::string current_dump_file_name = dump_sources_dir;
+                if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
+                    current_dump_file_name += '/';
+
+                current_dump_file_name += "clDNN_program_" + std::to_string(_prog_id) + "_bucket_" + std::to_string(b.bucket_id)
+                                        + "_part_" + std::to_string(b.batch_id) + "_" + std::to_string(b.hash_value) + ".cl";
+
+                b.options += " -g -s " + current_dump_file_name;
+            }
+
             all_batches->push_back(b);
         }
     }

@@ -8,7 +8,7 @@
 #include "set_tpp_leading_dim.hpp"
 #include "snippets/op/brgemm.hpp"
 #include "snippets/lowered/loop_manager.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
