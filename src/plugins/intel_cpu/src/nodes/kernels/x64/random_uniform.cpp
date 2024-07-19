@@ -645,11 +645,17 @@ void MersenneTwisterGenerator<isa>::generate() {
     this->preamble();
     registersPool = RegistersPool::create(isa, {rax, rcx, rsp, rdi, k0});
 
-    r64_dst = getReg64();
+    r64_state_id = getReg64();
+    r64_state_shift = getReg64();
+    r64_step = getReg64();
     r64_work_amount = getReg64();
+    r64_elements_remaining = getReg64();
 
+    mov(r64_state_id, ptr[r64_params + GET_OFF(state_id)]);
+    mov(r64_state_shift, ptr[r64_params + GET_OFF(state_shift)]);
+    mov(r64_step, ptr[r64_params + GET_OFF(step)]);
     mov(r64_work_amount, ptr[r64_params + GET_OFF(work_amount)]);
-    mov(r64_dst, ptr[r64_params + GET_OFF(dst_ptr)]);
+    mov(r64_elements_remaining, ptr[r64_params + GET_OFF(elements_remaining)]);
 
     initVectors();
     process();
@@ -663,9 +669,26 @@ void MersenneTwisterGenerator<x64::avx512_core>::initVectors() {
     const auto r64_aux = getReg64();
     const auto r32_aux = Xbyak::Reg32(r64_aux.getIdx());
 
+    v_dst = getVmm();
     v_state = getVmm();
-    v_mt_index = getVmm();
-    v_temp = getVmm();
+    v_min = getVmm();
+    v_range = getVmm();
+    v_result = getVmm();
+    v_result_bitshift_11 = getVmm();
+    v_result_bitshift_7 = getVmm();
+    v_result_bitshift_7_const_1 = getVmm();
+    v_result_bitshift_15 = getVmm();
+    v_result_bitshift_15_const_2 = getVmm();
+    v_mask = getVmm();
+    v_divisor = getVmm();
+    v_min_elements = getVmm();
+    v_4_elements = getVmm();
+    v_2_elements = getVmm();
+    v_convert_0 = getVmm();
+    v_convert_1 = getVmm();
+    v_convert_2 = getVmm();
+    v_convert_3 = getVmm();
+
 
     // Initialize the state array.
     mov(r64_aux, ptr[r64_params + GET_OFF(state_ptr)]);
@@ -730,15 +753,6 @@ void MersenneTwisterGenerator<isa>::generateRandomNumbers(const Vmm& v_dst_0, co
     uni_vpxor(v_dst_0, v_dst_0, v_temp);
 
     uni_vmovups(v_dst_1, v_dst_0);
-}
-
-template <x64::cpu_isa_t isa>
-void MersenneTwisterGenerator<isa>::tail(const Vmm& v_dst_0, const Vmm& v_dst_1) {
-    // Handle the remaining elements
-    // if (remaining_elements > 0) {
-    generateRandomNumbers(v_dst_0, v_dst_1);
-    uni_vmovups(ptr[r64_dst], v_dst_0);
-    //}
 }
 
 template class MersenneTwisterGenerator<x64::avx512_core>;
