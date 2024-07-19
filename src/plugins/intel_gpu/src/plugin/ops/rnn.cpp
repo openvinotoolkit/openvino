@@ -10,6 +10,7 @@
 
 #include "intel_gpu/primitives/reshape.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
 #include "intel_gpu/primitives/lstm.hpp"
 #include "intel_gpu/primitives/crop.hpp"
@@ -280,14 +281,29 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     auto reshapeInPrim = cldnn::reshape(WRreshapeID, cldnn::input_info(wr_concat_id), tensor_from_dims(WRreshapeSize));
     p.add_primitive(*op, reshapeInPrim);
 
-    cldnn::primitive_id lstm_seq_id = layerName + "_lstm_seq";
-    p.add_primitive(*op, cldnn::lstm_seq(lstm_seq_id, cldnn::input_info(permuteID), cldnn::input_info(inHiddenStateID), cldnn::input_info(inCellStateID), \
-    cldnn::input_info(WRreshapeID), cldnn::input_info(bias), inCellStateID, clip, 0, activations,
+    auto a = op->get_output_shape(1);
+    auto b = op->get_output_shape(2);
+    auto mutable_precision_first = op->get_output_element_type(1);
+    cldnn::layout out1Layout = cldnn::layout(
+                cldnn::element_type_to_data_type(mutable_precision_first),
+                cldnn::format::get_default_format(op->get_output_shape(1).size()),
+                tensor_from_dims(op->get_output_shape(1)));
+    cldnn::memory::ptr shared_memory1 = p.get_engine().allocate_memory(out1Layout);
+
+    auto mutable_precision_second = op->get_output_element_type(2);
+    cldnn::layout out2Layout = cldnn::layout(
+                cldnn::element_type_to_data_type(mutable_precision_second),
+                cldnn::format::get_default_format(op->get_output_shape(2).size()),
+                tensor_from_dims(op->get_output_shape(2)));
+    cldnn::memory::ptr shared_memory2 = p.get_engine().allocate_memory(out2Layout);
+
+    cldnn::primitive_id lstm_seq_id = layerName;// + "_lstm_seq";
+    p.add_primitive(*op, cldnn::lstm_seq(lstm_seq_id + ".out0", cldnn::input_info(permuteID), cldnn::input_info(inHiddenStateID), \
+    cldnn::input_info(inCellStateID), cldnn::input_info(WRreshapeID), cldnn::input_info(bias), inCellStateID, clip, 0, activations, \
                                             activation_params, cldnn::lstm_weights_order::fizo, 0));
 
-    p.add_primitive(*op, cldnn::reshape(layerName + ".out0", cldnn::input_info(lstm_seq_id, 0), tensor_from_dims(op->get_output_shape(0))), {layerName});
-    p.add_primitive(*op, cldnn::reshape(layerName + ".out1", cldnn::input_info(lstm_seq_id, 1), tensor_from_dims(op->get_output_shape(1))));
-    p.add_primitive(*op, cldnn::reshape(layerName + ".out2", cldnn::input_info(lstm_seq_id, 2), tensor_from_dims(op->get_output_shape(2))));
+    p.add_primitive(*op, cldnn::mutable_data(lstm_seq_id + ".out1", shared_memory1));
+    p.add_primitive(*op, cldnn::mutable_data(lstm_seq_id + ".out2", shared_memory2));
 }
 
 REGISTER_FACTORY_IMPL(v4, LSTMCell);

@@ -28,8 +28,10 @@ protected:
         kernel_arguments_data args = parent::get_arguments(instance);
 
         args.cell = instance.cell_term() ? instance.cell_memory() : nullptr;
-        args.outputs = { instance.output_memory_ptr() };
-
+        // New API for mutiple outputs support
+        for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
+            args.outputs.push_back(instance.output_memory_ptr(i));
+        }
         return args;
     }
 
@@ -67,6 +69,9 @@ public:
         params.clip = primitive->clip;
         params.input_forget = primitive->input_forget;
         params.direction = primitive->direction;
+
+        params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[1]));
+        params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[2]));
 
         return params;
     }
