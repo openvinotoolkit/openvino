@@ -1095,18 +1095,6 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
 #undef CAST
 }
 
-void transpose_data_f16(const int16_t* src_data, int16_t* dst_data, size_t dim1, size_t dim2, size_t dim3) {
-    for (size_t i = 0; i < dim1; ++i) {
-        for (size_t j = 0; j < dim2; ++j) {
-            for (size_t k = 0; k < dim3; ++k) {
-                size_t src_index = i * (dim2 * dim3) + j * dim3 + k;
-                size_t dst_index = k * (dim1 * dim2) + i * dim2 + j;
-                dst_data[dst_index] = src_data[src_index];
-            }
-        }
-    }
-}
-
 void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
                             const ov::SoPtr<ov::ITensor>& zerop,
                             const ov::SoPtr<ov::ITensor>& scale,
@@ -1150,19 +1138,6 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
     } else {
         NPUW_ASSERT(false);
     }
-    const auto& to_shape = to->get_shape();
-    size_t dim1 = to_shape[0];
-    size_t dim2 = to_shape[1];
-    size_t dim3 = to_shape[2];
-
-    int16_t* to_data = static_cast<int16_t*>(to->data());
-
-    std::vector<int16_t> temp_buffer(dim1 * dim2 * dim3);
-    transpose_data_f16(to_data, temp_buffer.data(), dim1, dim2, dim3);
-    ov::Shape new_shape = {dim2, dim3, dim1};
-    to->set_shape(new_shape);
-    std::memcpy(to_data, temp_buffer.data(), temp_buffer.size() * sizeof(int16_t));
-    std::cout << "To new shape: " << to->get_shape() << std::endl;
 }
 
 template <typename InT>

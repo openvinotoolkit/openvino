@@ -462,6 +462,7 @@ DCOFFPassReshape2::DCOFFPassReshape2(DCOffMode dcoff_mode, ov::element::Type dco
         NPUW_ASSERT(ov::op::util::is_parameter(matched_nodeC));
 
         auto matched_paramA = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeA);
+        std::cout << "Input weight shapes: " << matched_paramA->get_partial_shape() << std::endl;
         auto matched_valueB = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeB);
         auto matched_paramC = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeC);
 

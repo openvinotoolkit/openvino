@@ -396,7 +396,6 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
         LOG_DEBUG("Binding parameter[" << i << "]...");
         LOG_BLOCK();
         const auto& iport = func_desc.compiled_model->inputs()[i];
-        std::cout << "Iport Tensors: " << iport.get_shape() << std::endl;
 
         auto link_iter = m_npuw_model->m_submodels_input_to_prev_output.find({idx, i});
         if (link_iter != m_npuw_model->m_submodels_input_to_prev_output.end()) {
