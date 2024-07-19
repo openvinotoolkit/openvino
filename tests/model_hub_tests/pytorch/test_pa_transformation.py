@@ -7,6 +7,7 @@ from optimum.intel import OVModelForCausalLM
 import models_hub_common.utils as utils
 import pytest
 import os
+import re
 
 def run_pa(tmp_path, model_id, model_link, use_cache_eviction):
     model = OVModelForCausalLM.from_pretrained(model_id, export=True, trust_remote_code=True)
@@ -14,7 +15,12 @@ def run_pa(tmp_path, model_id, model_link, use_cache_eviction):
     paged_attention_transformation(model.model, use_cache_eviction)
 
     # Test that a _PagedAttentionExtension node appeared after the transformation.
-    assert any(isinstance(op, _PagedAttentionExtension) for op in model.model.get_ordered_ops()), f"The model '{model_id}' has no _PagedAttentionExtension present."
+    pa_counter = 0
+    for op in model.model.get_ordered_ops():
+        if isinstance(op, _PagedAttentionExtension):
+            pa_counter += 1
+
+    assert pa_counter > 0, f"The model '{model_id}' has no _PagedAttentionExtension present."
 
     model_inputs = model.model.inputs
     for input in model_inputs:
@@ -26,19 +32,32 @@ def run_pa(tmp_path, model_id, model_link, use_cache_eviction):
                 assert shape[-1].is_static, f"Dimension {len(shape) - 1} of input '{name}' in '{model_id}' is not static: {shape}"
                 assert shape[-2].is_static, f"Dimension {len(shape) - 2} of input '{name}' in '{model_id}' is not static: {shape}"
 
-    # Test for the scores output to appear in the model 
+    model_inputs = model.model.inputs
+    model_outputs = model.model.outputs
+
+    # Test for block_indices inputs and scores outputs to appear in the model 
+    block_indices_pattern = r'block_indices'
+    block_indices_counter = 0
+
+    score_pattern = r'scores\.[0-9]+'
+    score_outputs_counter = 0
+
     if (use_cache_eviction):
+        model_inputs = model.model.inputs
+        for input in model_inputs:
+            for name in list(input.get_names()):
+                if block_indices_pattern == name:
+                    block_indices_counter += 1
+
+        assert(block_indices_counter == pa_counter)
+
         model_outputs = model.model.outputs
         for output in model_outputs:
-            print(list(output.get_names()))
-            if 'paged_attention/scores' in list(output.get_names()):
-                scores_output_present = True
+            for name in list(output.get_names()):
+                if re.search(score_pattern, name):
+                    score_outputs_counter += 1
 
-        assert(scores_output_present)
-
-
-                
-
+        assert(score_outputs_counter == pa_counter)
 
 @pytest.mark.precommit
 @pytest.mark.parametrize("model_name, model_link, mark, reason", utils.get_models_list(os.path.join(os.path.dirname(__file__), "models", "hf-tiny-random-models-precommit")))

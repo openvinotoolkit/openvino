@@ -64,12 +64,13 @@ static node_tuple kv_read_and_concat(ov::Output<ov::Node> kv_current) {
 }
 
 ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_parameters,
-                                                         const ParameterVector& model_remaining_params,
+                                                         ParameterVector& model_remaining_params,
                                                          const std::shared_ptr<ov::op::v0::Constant>& sliding_window,
                                                          ParameterVector& parameters_to_remove,
                                                          int& layer_index,
                                                          Output<Node> max_context_len,
-                                                         OutputVector& scores_outputs,
+                                                         ParameterVector& block_indices_inputs,
+                                                         ResultVector& score_results,
                                                          bool use_cache_eviction) {
     MATCHER_SCOPE(StateManagementPattern);
 
@@ -165,7 +166,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                           &model_remaining_params,
                                           &sliding_window,
                                           &parameters_to_remove,
-                                          &scores_outputs,
+                                          &block_indices_inputs,
+                                          &score_results,
                                           &layer_index](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto real_q = pattern_map.at(q);
@@ -336,6 +338,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                                                           max_context_len.get_node_shared_ptr()};
         params.insert(params.end(), additional_params.begin(), additional_params.end());
 
+        auto block_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices");
+        params.insert(params.begin() + 7, block_indices);
+        block_indices_inputs.push_back(block_indices);
+
         // Really not sure if I construct correctly because the Python code uses an additional function
         auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(params);
 
@@ -350,7 +356,9 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         auto pa_reshape = std::make_shared<v1::Reshape>(paged_attention->output(0), pa_shape, true);
         auto pa_transpose = std::make_shared<v1::Transpose>(pa_reshape, kv_transpose_order);
         if (use_cache_eviction) {
-            scores_outputs.push_back(paged_attention->output(1));
+            auto score_result =  std::make_shared<v0::Result>(paged_attention->output(1));
+            score_result->get_output_tensor(0).set_names({"scores." + std::to_string(layer_index - 1)});
+            score_results.push_back(score_result);
         }
 
         // TODO: Complete this part to work with stateless models as well as will stateful

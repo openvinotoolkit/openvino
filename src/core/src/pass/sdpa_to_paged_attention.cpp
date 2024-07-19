@@ -39,11 +39,9 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                     "the SDPAToPagedAttention transformation.");
 
     auto max_context_len = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "max_context_len");
-    auto block_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices");
     ParameterVector model_remaining_params {
         setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "past_lens"),
         setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "subsequence_begins"),
-        block_indices,
         setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices_begins"),
     };
     auto sliding_window = v0::Constant::create(element::i32, Shape{}, {0});  // sliding_window
@@ -75,7 +73,8 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     ParameterVector kv_parameters;
     ParameterVector parameters_to_remove;
     ResultVector results_to_remove;  // # used, but cannot really track all Results in stateless model
-    OutputVector scores_outputs;
+    ParameterVector block_indices_inputs;
+    ResultVector score_results;
 
     std::shared_ptr<v0::Parameter> position_ids;
     if (!has_parameter(model, "position_ids")) {
@@ -103,7 +102,8 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   parameters_to_remove,
                                                   layer_index,
                                                   max_context_len->output(0),
-                                                  scores_outputs,
+                                                  block_indices_inputs,
+                                                  score_results,
                                                   m_use_cache_eviction);
     manager.register_pass<PrevSequenceLengthPattern>(prev_max_seq_len, batch_dim);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
@@ -145,13 +145,8 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     }
 
     if (m_use_cache_eviction) {
-        block_indices->set_partial_shape(
-            PartialShape{layer_index});  // The shape of block_indices should correspond to the number of PA nodes
-
-        auto scores_concat = std::make_shared<v0::Concat>(OutputVector{scores_outputs}, 0);
-        auto scores_result = std::make_shared<v0::Result>(scores_concat);
-        scores_result->get_output_tensor(0).set_names({"paged_attention/scores"});
-        model->add_results({scores_result});
+        model->add_parameters(block_indices_inputs);
+        model->add_results(score_results);
     }
 
     model->add_parameters(kv_parameters);
