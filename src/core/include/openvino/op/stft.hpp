@@ -1,0 +1,44 @@
+// Copyright (C) 2018-2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include <cstddef>
+#include <vector>
+
+#include "openvino/op/op.hpp"
+#include "openvino/op/util/fft_base.hpp"
+
+namespace ov {
+namespace op {
+namespace v15 {
+/// \brief An operation STFT that computes the Short Time Fourier Transform.
+/// \ingroup ov_ops_cpp_api
+class OPENVINO_API STFT : public Op {
+public:
+    OPENVINO_OP("STFT");
+    STFT() = default;
+
+    /// \brief Constructs a STFT operation.
+    ///
+    /// \param data  Input data
+    /// \param window Window to perform STFT
+    /// \param signal_size Scalar value representing the size of Fourier Transform
+    /// \param frame_step The distance (number of samples) between successive window frames
+    STFT(const Output<Node>& data, const Output<Node>& window, const Output<Node>& signal_size,  int64_t frame_step);
+
+    bool visit_attributes(AttributeVisitor& visitor) override;
+    void validate_and_infer_types() override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+
+    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
+    bool has_evaluate() const override;
+
+private:
+    int64_t m_frame_step = 1;
+
+};
+}  // namespace v7
+}  // namespace op
+}  // namespace ov
