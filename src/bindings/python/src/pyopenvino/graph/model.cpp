@@ -54,7 +54,7 @@ static ov::SinkVector cast_to_sink_vector(const ov::OutputVector& outputs) {
     ov::SinkVector sinks;
     for (const auto& output : outputs) {
         auto sink = std::dynamic_pointer_cast<ov::op::Sink>(std::shared_ptr<ov::Node>(output.get_node_shared_ptr()));
-        OPENVINO_ASSERT(sink != nullptr, "Node {} is not instance of Sink");
+        OPENVINO_ASSERT(sink != nullptr, "Output node handle {} is not instance of Sink");
         sinks.push_back(sink);
     }
     return sinks;
@@ -291,7 +291,7 @@ void regclass_graph_Model(py::module m) {
 
             :param results: List of outputs.
             :type results: List[openvino.runtime.Output]
-            :param sinks: List of outputs containng nodes to be used as Sinks (e.g. Assign ops).
+            :param sinks: List of Output sink node handles.
             :type sinks: List[openvino.runtime.Output]
             :param variables: List of variables.
             :type variables: List[op.util.Variable]
@@ -320,7 +320,7 @@ void regclass_graph_Model(py::module m) {
 
         :param results: List of results.
         :type results: List[op.Result]
-        :param sinks: List of outputs containng nodes to be used as Sinks (e.g. Assign ops).
+        :param sinks: List of Output sink node handles.
         :type sinks: List[openvino.runtime.Output]
         :param variables: List of variables.
         :type variables: List[op.util.Variable]
