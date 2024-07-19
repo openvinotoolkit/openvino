@@ -14,7 +14,7 @@ namespace ov {
 namespace op {
 namespace v15 {
 namespace util {
-static Tensor get_string_tensor(const Node* op, size_t idx, const ITensorAccessor& tensor_accessor) {
+static inline Tensor get_string_tensor(const Node* op, size_t idx, const ITensorAccessor& tensor_accessor) {
     if (auto t = tensor_accessor(idx)) {
         return t;
     } else {
@@ -43,10 +43,10 @@ std::vector<TRShape> shape_infer(const StringTensorUnpack* op,
         if (string_data) {
             const auto string_count = string_data.get_size();
             const auto tensor_data = string_data.data<std::string>();
-            uint32_t total_length = 0;
+            size_t total_length = 0;
             for (uint64_t i = 0; i < string_count; ++i)
                 total_length += (*(tensor_data + i)).length();
-            output_shapes.emplace_back(TRShape{total_length});
+            output_shapes.emplace_back(TRShape{static_cast<typename TRShape::value_type>(total_length)});
         } else {
             util::handle_else_case<TRShape>(output_shapes, op);
         }
