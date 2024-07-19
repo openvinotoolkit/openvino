@@ -10,7 +10,7 @@
 namespace ov {
 namespace pass {
 
-class StateManagementPattern;
+class TRANSFORMATIONS_API StateManagementPattern;
 
 }  // namespace pass
 }  // namespace ov
