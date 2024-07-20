@@ -112,3 +112,43 @@ describe('Model.getOutputSize()', () => {
     assert.strictEqual(model.getOutputSize(), 1, 'Expected getOutputSize to return 1 for the default model');
   });
 });
+
+describe('Model.getOutputElementType()', () => {
+  it('should return a string for the element type ', () => {
+    const result = model.getOutputElementType(0);
+    assert.strictEqual(typeof result, 'string', 
+      'getOutputElementType() should return a string');
+  });
+
+  it('should accept a single number argument', () => {
+    assert.throws(() => {
+      model.getOutputElementType();
+    }, /^Error: getOutputElementType: Expected 1 argument, but 0 were provided\.$/,
+     'Should throw when called without arguments');
+
+    assert.throws(() => {
+      model.getOutputElementType('unexpected argument');
+    }, /^Error: getOutputElementType: Argument 0 is not of type number\.$/, 
+    'Should throw on non-number argument');
+
+    assert.throws(() => {
+      model.getOutputElementType(0, 1);
+    }, /^Error: getOutputElementType: Expected 1 arguement, but 2 were provided\.$/, 
+    'Should throw on multiple arguments');
+  });
+
+  it('should return a valid element type for the default model', () => {
+    const elementType = model.getOutputElementType(0);
+    assert.ok(typeof elementType === 'string' && elementType.length > 0, 
+      `Expected a non-empty string, got ${elementType}`);
+  });
+
+  it('should throw an error for out-of-range index', () => {
+    const outputSize = model.getOutputSize();
+    assert.throws(
+      () => { model.getOutputElementType(outputSize); },
+      /^Error:/,
+      'Should throw for out-of-range index'
+    );
+  });
+});
