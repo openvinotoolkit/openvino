@@ -1,25 +1,21 @@
-const { addon: ov } = require("openvino-node");
-const fs = require("node:fs");
-const path = require("node:path");
-const { createCanvas, Image, ImageData } = require("canvas");
-const { cv } = require("opencv-wasm");
+const { addon: ov } = require('openvino-node');
+const fs = require('node:fs');
+const path = require('node:path');
+const { createCanvas, ImageData } = require('canvas');
+const { cv } = require('opencv-wasm');
 const {
   transform,
   getImageData,
-  displayArrayAsImage,
-  downloadFile,
-  arrayToImageData,
-  getImageBuffer,
   argMax,
   setShape,
-} = require("../helpers.js");
+} = require('../helpers.js');
 
 // Parsing and validation of input arguments
 if (process.argv.length !== 6)
   throw new Error(
     `Usage: ${process.argv[1]} <path_to_detection_model>` +
-      ` <path_to_recognition_model>` +
-      "<path_to_image> <device_name>"
+      ' <path_to_recognition_model>' +
+      '<path_to_image> <device_name>',
   );
 
 const detModelXMLPath = process.argv[2];
@@ -33,14 +29,13 @@ async function main(detModelXMLPath, recModelXMLPath, imagePath, deviceName) {
   const detModel = await core.readModel(detModelXMLPath);
   const detCompiledModel = await core.compileModel(detModel, deviceName);
   const detInputLayer = detCompiledModel.input(0);
-  const detOutputLayer = detCompiledModel.output("boxes");
+  const detOutputLayer = detCompiledModel.output('boxes');
 
   const imageData = await getImageData(imagePath);
   const inputImageMat = cv.matFromImageData(imageData);
-  const displayImageMat = inputImageMat.clone();
 
   // Resize the image to meet network input size
-  const [B, C, H, W] = detInputLayer.shape;
+  const [, , H, W] = detInputLayer.shape;
   const resizedImage = new cv.Mat();
   cv.cvtColor(inputImageMat, inputImageMat, cv.COLOR_RGBA2RGB);
   cv.cvtColor(inputImageMat, inputImageMat, cv.COLOR_BGR2RGB);
@@ -50,7 +45,7 @@ async function main(detModelXMLPath, recModelXMLPath, imagePath, deviceName) {
   const inputImage = transform(
     resizedImage.data,
     { width: W, height: H },
-    [0, 1, 2]
+    [0, 1, 2],
   );
   const tensorData = new Float32Array(inputImage);
   const tensor = new ov.Tensor(ov.element.f32, detInputLayer.shape, tensorData);
@@ -66,7 +61,7 @@ async function main(detModelXMLPath, recModelXMLPath, imagePath, deviceName) {
   const recOutputLayer = recModelCompiled.output(0);
 
   // Process each bounding box and run inference on the recognition model
-  const [batchSize, channels, height, width] = recInputLayer.shape;
+  const [, , height, width] = recInputLayer.shape;
   // Calculate ratios
   const { ratioX, ratioY } = calculateRatios(inputImageMat, resizedImage);
 
@@ -79,7 +74,7 @@ async function main(detModelXMLPath, recModelXMLPath, imagePath, deviceName) {
   for (let i = 0; i < boundingBoxesArray.length; i++) {
     const crop = boundingBoxesArray[i];
     const [xMin, yMin, xMax, yMax] = multiplyByRatio(ratioX, ratioY, crop).map(
-      Math.floor
+      Math.floor,
     );
     const cropRect = new cv.Rect(xMin, yMin, xMax - xMin, yMax - yMin);
     const croppedImage = grayscaleImage.roi(cropRect);
@@ -93,7 +88,7 @@ async function main(detModelXMLPath, recModelXMLPath, imagePath, deviceName) {
       const tensor = new ov.Tensor(
         ov.element.f32,
         Int32Array.from(recInputLayer.shape),
-        tensorData
+        tensorData,
       );
 
       await inferAsyncProcess(
@@ -101,12 +96,12 @@ async function main(detModelXMLPath, recModelXMLPath, imagePath, deviceName) {
         recModelCompiled,
         recOutputLayer,
         i,
-        annotations
+        annotations,
       );
 
       croppedImages.push(cropImage(inputImageMat, xMin, yMin, xMax, yMax));
-    } catch (error) {
-      console.error("Error during preprocessing:", error);
+    } catch(error) {
+      console.error('Error during preprocessing:', error);
     }
 
     croppedImage.delete();
@@ -121,12 +116,12 @@ async function main(detModelXMLPath, recModelXMLPath, imagePath, deviceName) {
 
   logBoxesWithAnnotations(boxesWithAnnotations);
 
-  const resultImage = convertResultToImage(
+  convertResultToImage(
     inputImageMat,
     resizedImage,
     boxesWithAnnotations,
     { threshold: 0.3, confLabels: true },
-    "./assets/results/output_image.jpg"
+    './assets/results/output_image.jpg',
   );
 
   croppedImages.forEach((croppedImage, i) => {
@@ -200,14 +195,14 @@ function resizeAndConvertCropToModelInput(crop, netShape) {
 function extractRecognitionResults(output) {
   const outputData = output.getData();
   const outputShape = output.getShape();
-  const [batchSize, height, width] = outputShape;
+  const [, height, width] = outputShape;
 
   return setShape(outputData, [height, width]);
 }
 
 // Function to parse annotations from the recognition results
 function parseAnnotations(recognitionResults) {
-  const letters = "~0123456789abcdefghijklmnopqrstuvwxyz";
+  const letters = '~0123456789abcdefghijklmnopqrstuvwxyz';
   const annotation = [];
 
   for (const row of recognitionResults) {
@@ -219,7 +214,7 @@ function parseAnnotations(recognitionResults) {
     annotation.push(parsedLetter);
   }
 
-  return annotation.join("");
+  return annotation.join('');
 }
 
 // Function to crop the image based on the bounding box coordinates
@@ -229,10 +224,10 @@ function cropImage(originalImage, xMin, yMin, xMax, yMax) {
   xMax = Math.min(originalImage.cols, xMax);
   yMax = Math.min(originalImage.rows, yMax);
   if (xMin >= xMax || yMin >= yMax) {
-    throw new Error("Invalid crop coordinates");
+    throw new Error('Invalid crop coordinates');
   }
   const roi = originalImage.roi(
-    new cv.Rect(xMin, yMin, xMax - xMin, yMax - yMin)
+    new cv.Rect(xMin, yMin, xMax - xMin, yMax - yMin),
   );
   const cropped = new cv.Mat();
   roi.copyTo(cropped);
@@ -241,26 +236,10 @@ function cropImage(originalImage, xMin, yMin, xMax, yMax) {
   return cropped;
 }
 
-// Function to log the bounding boxes with annotations
-function printSortedAnnotations(boxesWithAnnotations) {
-  /* Sort the boxes with annotations based
-    on their position in the input image */
-  const sortedAnnotations = boxesWithAnnotations
-    .sort((a, b) => {
-      const [aXMin, aYMin] = a.box;
-      const [bXMin, bYMin] = b.box;
-
-      return aYMin - bYMin || aXMin - bXMin;
-    })
-    .map((item) => item.annotation);
-
-  console.log("Sorted Annotations:", sortedAnnotations);
-}
-
 // Get Text size
 function getTextSize(text, fontFace, fontScale) {
   const canvas = createCanvas(200, 200);
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext('2d');
   const adjustedFontScale = fontScale * 35;
   ctx.font = `${adjustedFontScale}px ${fontFace}`;
   const metrics = ctx.measureText(text);
@@ -280,7 +259,7 @@ function convertResultToImage(
   resizedImage,
   boxesWithAnnotations,
   options,
-  savePath
+  savePath,
 ) {
   const defaultOptions = { threshold: 0.3, confLabels: true };
   const { threshold, confLabels } = Object.assign(defaultOptions, options);
@@ -309,7 +288,7 @@ function convertResultToImage(
       new cv.Point(xMin, yMin),
       new cv.Point(xMax, yMax),
       colors.green,
-      3
+      3,
     );
 
     if (!confLabels) return;
@@ -319,8 +298,8 @@ function convertResultToImage(
     const thickness = 1;
     const { width: textW, height: textH } = getTextSize(
       text,
-      "Arial",
-      fontScale
+      'Arial',
+      fontScale,
     );
     const imageCopy = rgbImage.clone();
 
@@ -329,7 +308,7 @@ function convertResultToImage(
       new cv.Point(xMin, yMin - textH - 10),
       new cv.Point(xMin + textW, yMin - 10),
       colors.white,
-      cv.FILLED
+      cv.FILLED,
     );
     cv.addWeighted(imageCopy, 0.4, rgbImage, 0.6, 0, rgbImage);
     cv.putText(
@@ -340,7 +319,7 @@ function convertResultToImage(
       fontScale,
       colors.red,
       thickness,
-      cv.LINE_AA
+      cv.LINE_AA,
     );
 
     imageCopy.delete();
@@ -353,7 +332,7 @@ function convertResultToImage(
 
   try {
     saveImage(rgbImage, savePath);
-  } catch (e) {
+  } catch(e) {
     console.log(`Error occurred while saving ----> ${e}`);
   }
 
@@ -367,7 +346,7 @@ async function inferAsyncProcess(
   recModelCompiled,
   recOutputLayer,
   i,
-  annotations
+  annotations,
 ) {
   // Create infer request
   const inferRequest = recModelCompiled.createInferRequest();
@@ -383,8 +362,8 @@ async function inferAsyncProcess(
   try {
     const result = await inferRequest.inferAsync([tensor]);
     completionCallback(result[recOutputLayer], i, annotations);
-  } catch (error) {
-    console.error("Error during inference:", error);
+  } catch(error) {
+    console.error('Error during inference:', error);
   }
 }
 
@@ -398,7 +377,7 @@ function logBoxesWithAnnotations(boxesWithAnnotations) {
 
 function saveImage(rgbImage, savePath) {
   const canvas = createCanvas(rgbImage.cols, rgbImage.rows);
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext('2d');
   const componentsPerPixel =
     rgbImage.data.length / (rgbImage.cols * rgbImage.rows);
   const imgDataArr = [];
@@ -417,13 +396,13 @@ function saveImage(rgbImage, savePath) {
   const imageData = new ImageData(
     new Uint8ClampedArray(imgDataArr),
     rgbImage.cols,
-    rgbImage.rows
+    rgbImage.rows,
   );
   ctx.putImageData(imageData, 0, 0);
 
-  const dataURL = canvas.toDataURL("image/jpeg");
-  const base64Data = dataURL.replace(/^data:image\/jpeg;base64,/, "");
-  const imageBuffer = Buffer.from(base64Data, "base64");
+  const dataURL = canvas.toDataURL('image/jpeg');
+  const base64Data = dataURL.replace(/^data:image\/jpeg;base64,/, '');
+  const imageBuffer = Buffer.from(base64Data, 'base64');
 
   const saveDir = path.dirname(savePath);
   if (!fs.existsSync(saveDir)) {
@@ -431,11 +410,11 @@ function saveImage(rgbImage, savePath) {
   }
 
   fs.writeFileSync(savePath, imageBuffer);
-  console.log("Image saved successfully!", savePath);
+  console.log('Image saved successfully!', savePath);
 }
 
 try {
   main(detModelXMLPath, recModelXMLPath, imagePath, deviceName);
-} catch (error) {
-  console.error("Error Occurred", error);
+} catch(error) {
+  console.error('Error during inference:', error);
 }
