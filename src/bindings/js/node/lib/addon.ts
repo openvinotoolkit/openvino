@@ -238,10 +238,11 @@ interface Model {
    * It gets the input of the model.
    * If a model has more than one input, this method throws an exception.
    */
+  getOutputElementType(index: number): string;
   /**
    * It gets the element type of a specific output of the model.
+   * 
    */
-  getOutputElementType(index: number): string;
   input(): Output;
   /**
    * It gets the input of the model identified by the tensor name.
