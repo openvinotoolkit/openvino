@@ -6,6 +6,7 @@
 #include "node/include/helper.hpp"
 #include "node/include/model_wrap.hpp"
 #include "node/include/node_output.hpp"
+#include "node/include/type_validation.hpp"
 
 ModelWrap::ModelWrap(const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<ModelWrap>(info),
@@ -16,19 +17,17 @@ ModelWrap::ModelWrap(const Napi::CallbackInfo& info)
 Napi::Function ModelWrap::get_class(Napi::Env env) {
     return DefineClass(env,
                        "ModelWrap",
-                       {
-                           InstanceMethod("getName", &ModelWrap::get_name),
-                           InstanceMethod("output", &ModelWrap::get_output),
-                           InstanceMethod("input", &ModelWrap::get_input),
-                           InstanceMethod("isDynamic", &ModelWrap::is_dynamic),
-                           InstanceMethod("getOutputSize", &ModelWrap::get_output_size),
-                           InstanceMethod("setFriendlyName", &ModelWrap::set_friendly_name),
-                           InstanceMethod("getFriendlyName", &ModelWrap::get_friendly_name),
-                           InstanceMethod("getOutputShape", &ModelWrap::get_output_shape),
-                           InstanceMethod("getOutputElementType", &ModelWrap::get_output_element_type),
-                           InstanceAccessor<&ModelWrap::get_inputs>("inputs"),
-                           InstanceAccessor<&ModelWrap::get_outputs>("outputs"),
-                       });
+                       {InstanceMethod("getName", &ModelWrap::get_name),
+                        InstanceMethod("output", &ModelWrap::get_output),
+                        InstanceMethod("input", &ModelWrap::get_input),
+                        InstanceMethod("isDynamic", &ModelWrap::is_dynamic),
+                        InstanceMethod("getOutputSize", &ModelWrap::get_output_size),
+                        InstanceMethod("setFriendlyName", &ModelWrap::set_friendly_name),
+                        InstanceMethod("getFriendlyName", &ModelWrap::get_friendly_name),
+                        InstanceMethod("getOutputShape", &ModelWrap::get_output_shape),
+                        InstanceMethod("getOutputElementType", &ModelWrap::get_output_element_type),
+                        InstanceAccessor<&ModelWrap::get_inputs>("inputs"),
+                        InstanceAccessor<&ModelWrap::get_outputs>("outputs")});
 }
 
 void ModelWrap::set_model(const std::shared_ptr<ov::Model>& model) {
@@ -175,16 +174,14 @@ Napi::Value ModelWrap::get_output_shape(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value ModelWrap::get_output_element_type(const Napi::CallbackInfo& info) {
-    static const std::vector<os::js::Signature> allowed_signatures = {{1, {os::js::ValueType::Number}}};
-
+    std::vector<std::string> allowed_signatures;
     try {
         if (ov::js::validate<Napi::Number>(info, allowed_signatures)) {
             auto idx = info[0].As<Napi::Number>().Int32Value();
-
             auto output = _model->output(idx);
-            return cpp_to_js<os::element::Type_t, Napi::String>(info, output.get_element_type());
+            return cpp_to_js<ov::element::Type_t, Napi::String>(info, output.get_element_type());
         } else {
-            OPENVINO_THROW("getOutputElementType", os::js::get_parameters_error_msg(info, allowed_signatures));
+            OPENVINO_THROW("getOutputElementType", ov::js::get_parameters_error_msg(info, allowed_signatures));
         }
     } catch (const std::exception& e) {
         reportError(info.Env(), e.what());
