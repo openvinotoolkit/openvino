@@ -793,7 +793,7 @@ KernelsData FullyConnected_bf_tiled::GetMultiKernelsData(const Params &params,
         auto& quan_kernel = kd.kernels[0];
         DispatchData dyn_quan_dispatch = dispatchData;
         auto input_size = std::max(fc_params.inputs[0].PhysicalSize(), get_input_bf_size(fc_params).second);
-        dyn_quan_dispatch.gws = {input_size, 1, 1};
+        dyn_quan_dispatch.gws = {input_size / quantize_grp_size, 1, 1};
         dyn_quan_dispatch.lws = {16, 1, 1};
         quan_kernel.params.workGroups.global = dyn_quan_dispatch.gws;
         quan_kernel.params.workGroups.local = dyn_quan_dispatch.lws;
