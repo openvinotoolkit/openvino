@@ -111,7 +111,7 @@ public:
 
     /**
      * @brief Helper function to access model output elements types.
-     * @return Napi::Value wrapping a TypeWrap object representing the element type of the requested output.
+     * @return Napi::String representing the element type of the requested output.
      */
 
     Napi::Value get_output_element_type(const Napi::CallbackInfo& info);

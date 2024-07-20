@@ -123,17 +123,17 @@ describe('Model.getOutputElementType()', () => {
   it('should accept a single number argument', () => {
     assert.throws(() => {
       model.getOutputElementType();
-    }, /^Error: Invalid argument. Expected a single number for output index\.$/,
+    }, /^Error: getOutputElementType: Expected 1 argument, but 0 were provided\.$/,
      'Should throw when called without arguments');
 
     assert.throws(() => {
       model.getOutputElementType('unexpected argument');
-    }, /^Error: Invalid argument. Expected a single number for output index\.$/, 
+    }, /^Error: getOutputElementType: Argument 0 is not of type number\.$/, 
     'Should throw on non-number argument');
 
     assert.throws(() => {
       model.getOutputElementType(0, 1);
-    }, /^Error: Invalid argument. Expected a single number for output index\.$/, 
+    }, /^Error: getOutputElementType: Expected 1 arguement, but 2 were provided\.$/, 
     'Should throw on multiple arguments');
   });
 
