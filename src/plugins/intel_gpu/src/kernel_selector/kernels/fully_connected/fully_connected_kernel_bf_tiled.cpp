@@ -622,6 +622,12 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
             kd.kernels[execute_kernel_idx].params.workGroups.local = dispatchData.lws;
             kd.kernels[execute_kernel_idx].skip_execution = KernelData::SkipKernelExecution(prim_params);
 
+            auto& input = prim_params.inputs[0];
+            if (prim_params.outputs[0].GetLayout() == DataLayout::bfyx)
+                OPENVINO_ASSERT(input.X().pad.Total() == 0 && input.Y().pad.Total() == 0, "[GPU] Invalid padding in spatial axes observed in FC bf tiled.");
+            else
+                OPENVINO_ASSERT(input.Feature().pad.Total() == 0, "[GPU] Invalid padding in f axis observed in FC bf tiled.");
+
             if (!kd.internalBufferSizes.empty()) {
                 // Pre-quantizing kernel was generated. Update the kernel and intermediate buffers or disable it.
                 if (execute_type == KernelType::DEFAULT) {
