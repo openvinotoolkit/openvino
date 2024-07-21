@@ -29,7 +29,10 @@ JitConstants LSTMSeqKernelBase::GetJitConstants(const lstm_seq_params& params) c
         MakeJitConstant("GEMM_OFFSET_F", params.GetOffsetIndexF() * size),
         MakeJitConstant("GEMM_OFFSET_Z", params.GetOffsetIndexZ() * size),
     });
-
+    jit.AddConstants({MakeJitConstant("BATCH_SIZE", GEMMInput.Batch().v)});
+    jit.AddConstants({MakeJitConstant("SEQ_LENGTH", GEMMInput.Feature().v)});
+    jit.AddConstants({MakeJitConstant("INPUT_SIZE", GEMMInput.Y().v)});
+    jit.AddConstants({MakeJitConstant("HIDDEN_SIZE", params.inputs[1].Y().v)});
     auto ftype = GetUnitType(params);
     // if ReLU activation present, we have to reset accumulator type for the kernel to FP32
     // to avoid possible overflows on FP16, since ReLU doesn't limit upper border of its result
@@ -84,6 +87,7 @@ KernelsData LSTMSeqKernelBase::GetCommonKernelsData(const Params& params) const 
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 3});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 4});
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 5});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 1});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 2});
