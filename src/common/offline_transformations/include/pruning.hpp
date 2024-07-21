@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/GraphRewrite.hpp"
 #include "openvino/pass/manager.hpp"
 
 namespace ov {

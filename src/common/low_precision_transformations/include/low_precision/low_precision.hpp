@@ -25,7 +25,7 @@
 #include "low_precision/common/precisions_restriction.hpp"
 #include "low_precision/layer_transformation.hpp"
 #include "low_precision/markup_precisions.hpp"
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/GraphRewrite.hpp"
 #include "openvino/pass/pass.hpp"
 
 namespace ov {

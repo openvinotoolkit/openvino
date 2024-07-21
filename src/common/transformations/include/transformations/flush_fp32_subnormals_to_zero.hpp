@@ -7,7 +7,7 @@
 #include <string>
 
 #include "openvino/core/model.hpp"
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/MatcherPass.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "transformations_visibility.hpp"
 

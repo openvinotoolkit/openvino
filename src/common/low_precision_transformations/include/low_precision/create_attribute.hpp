@@ -8,7 +8,6 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "low_precision/lpt_visibility.hpp"
 #include "low_precision/base_matcher_pass.hpp"
