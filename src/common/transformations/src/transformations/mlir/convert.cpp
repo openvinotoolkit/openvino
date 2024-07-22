@@ -272,6 +272,7 @@ public:
             tracker.add_node(node, get_subgraph_mark(node));
         }
         tracker.finalize();
+        return true;
     }
 };
 
