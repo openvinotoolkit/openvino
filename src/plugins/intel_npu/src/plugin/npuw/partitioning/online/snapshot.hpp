@@ -45,6 +45,7 @@ public:
     // Advanced passes for repeated blocks algorithm
     void repeatedBlocks();
     void earlyAvoids();
+    void earlyRegroup();
 
     // Utility
     std::shared_ptr<ade::Graph> getGraph() const;
@@ -60,9 +61,14 @@ public:
 private:
     void identifyUniques();
     void mergeUniques();
+    void mergeTriangles();
     void cleanUpUniques();
+    void afterUniques();
     bool cleanUpUniquesImpl(const detail::GPtrSet& gset);
     std::shared_ptr<Repeated> tryGrowRepeatingGroups(const detail::GPtrSet& repeating_groups);
+    std::shared_ptr<Repeated> tryMergeTriangles(const detail::GPtrSet& repeating_groups);
+    std::shared_ptr<Repeated> tryMergeTriangles(const std::vector<std::shared_ptr<Group>>& prods,
+                                                const std::vector<std::vector<std::shared_ptr<Group>>>& conss);
     std::shared_ptr<Repeated> tryMergeRepeating(const std::vector<std::shared_ptr<Group>>& prods,
                                                 const std::vector<std::shared_ptr<Group>>& conss);
     std::unordered_map<std::shared_ptr<Repeated>, detail::GPtrSet> repeating() const;

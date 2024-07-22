@@ -56,7 +56,9 @@ public:
     bool hasCycle(const Group::GPtr& gptr_cons) const;
     size_t size() const;
     void freeze();
+    void noFold();
     bool isFrozen() const;
+    bool isNoFold() const;
     const detail::OVNodeSet& getContent() const;
 
     // Below is repeated blocks functionality
@@ -65,8 +67,12 @@ public:
     std::shared_ptr<Repeated> repeated() const;
     std::unordered_set<MetaInterconnect> metaInterconnect(const Group::GPtr& gptr_prod) const;
     std::unordered_set<Interconnect> interconnect(const Group::GPtr& gptr_prod) const;
+    // FIXME: unify avoid and isolate
     void avoid(const std::string& device);
+    void isolate(const std::string& tag);
     const std::set<std::string>& avoidedTargets() const;
+    const std::string& isolatedTag() const;
+    std::string specialTags() const;
 
 private:
     void includeExtraLayers(detail::OVNodeSet& input_layers,
@@ -87,7 +93,9 @@ private:
     std::shared_ptr<ade::Graph> m_graph;
     std::weak_ptr<Snapshot> m_snapshot;
     bool m_frozen = false;
+    bool m_nofold = false;
     std::set<std::string> m_avoided_devices;
+    std::string m_isol_tag = "";
 
     // Unique repeated tag
     std::shared_ptr<Repeated> m_repeated = nullptr;

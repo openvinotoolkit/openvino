@@ -22,7 +22,11 @@ namespace online {
 namespace detail {
 // For missing declaration warning
 size_t getMinGraphSize(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg);
+size_t getMinRepBlocks(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg);
+size_t getMinRepBlockSize(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg);
 std::vector<Avoid> getAvoids(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg);
+std::vector<Isolate> getIsolates(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg);
+std::vector<std::string> getNoFolds(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg);
 void dump_partitioning(const ov::npuw::Ensemble& ens, const std::shared_ptr<ov::Model>& model, const std::string& to);
 
 size_t getMinGraphSize(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg) {
@@ -35,6 +39,22 @@ size_t getMinGraphSize(const std::shared_ptr<ov::Model>& model, ::intel_npu::Con
     }
 
     LOG_INFO("Online partitioning will continue until there are " << min_size << " or less subgraphs.");
+
+    return min_size;
+}
+
+size_t getMinRepBlocks(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg) {
+    std::size_t min_size = cfg.get<::intel_npu::NPUW_ONLINE_KEEP_BLOCKS>();
+
+    LOG_INFO("Online partitioning will keep blocks with at least " << min_size << " subgraphs.");
+
+    return min_size;
+}
+
+size_t getMinRepBlockSize(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg) {
+    std::size_t min_size = cfg.get<::intel_npu::NPUW_ONLINE_KEEP_BLOCK_SIZE>();
+
+    LOG_INFO("Online partitioning will keep blocks with groups with at least " << min_size << " layers.");
 
     return min_size;
 }
@@ -82,6 +102,90 @@ std::vector<Avoid> getAvoids(const std::shared_ptr<ov::Model>& model, ::intel_np
     }
 
     return avoids;
+}
+
+std::vector<Isolate> getIsolates(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg) {
+    std::vector<Isolate> isolates;
+
+    std::string isolates_opt = cfg.getString<::intel_npu::NPUW_ONLINE_ISOLATE>();
+    if (isolates_opt.empty()) {
+        return {};
+    }
+
+    std::string s = std::move(isolates_opt);
+
+    size_t pos = 0;
+    size_t start = 0;
+    std::string token;
+
+    while ((pos = s.find(',', start)) != std::string::npos) {
+        token = s.substr(start, pos - start);
+        auto isolate_opt = util::parseIsolate(token);
+        // Check that parsing was a success
+        if (isolate_opt) {
+            isolates.push_back(*isolate_opt);
+        }
+        start = pos + 1;
+    }
+
+    // Parse the tail
+    auto isolate_opt = util::parseIsolate(s.substr(start, s.size() - start));
+    // Check that parsing was a success
+    if (isolate_opt) {
+        isolates.push_back(*isolate_opt);
+    }
+
+    if (!isolates.empty()) {
+        LOG_INFO("Online partitioning will isolate subgraphs containing specified patterns.");
+    } else {
+        LOG_WARN("Incorect pattern in NPUW_ONLINE_ISOLATE!"
+                 << " Please, follow the example: "
+                 << "DequantMatMulGQ/compute,DequantMatMulCW/compute,SwishMultXMM/compute,RMSNorm/"
+                    "compute,AdditionalCompute/compute. "
+                 << "No isolate rules will be taken into account during partitioning!");
+    }
+
+    return isolates;
+}
+
+std::vector<std::string> getNoFolds(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg) {
+    std::vector<std::string> nofolds;
+
+    std::string nofold_opt = cfg.getString<::intel_npu::NPUW_ONLINE_NOFOLD>();
+    if (nofold_opt.empty()) {
+        return {};
+    }
+
+    std::string s = std::move(nofold_opt);
+
+    size_t pos = 0;
+    size_t start = 0;
+    std::string token;
+
+    while ((pos = s.find(',', start)) != std::string::npos) {
+        token = s.substr(start, pos - start);
+        if (!token.empty()) {
+            nofolds.push_back(token);
+        }
+        start = pos + 1;
+    }
+
+    // Parse the tail
+    std::string tail = s.substr(start, s.size() - start);
+    if (!tail.empty()) {
+        nofolds.push_back(tail);
+    }
+
+    if (!nofolds.empty()) {
+        LOG_INFO("Online partitioning will mark specified tags as non-foldable.");
+    } else {
+        LOG_WARN("Incorect pattern in NPUW_ONLINE_NOFOLD!"
+                 << " Please, follow the example: "
+                 << "compute,compute2. "
+                 << "No non-fold rules will be taken into account during partitioning!");
+    }
+
+    return nofolds;
 }
 
 void dump_partitioning(const ov::npuw::Ensemble& ens, const std::shared_ptr<ov::Model>& model, const std::string& to) {
@@ -196,6 +300,7 @@ class Compiler {
         LOG_BLOCK();
 
         m_snapshot->earlyAvoids();
+        m_snapshot->earlyRegroup();
         m_snapshot->repeatedBlocks();
         m_snapshot->repeat([&] {
             m_snapshot->fuseRemnantsExtended();
@@ -222,7 +327,11 @@ public:
 
         PassContext ctx;
         ctx.min_graph_size = detail::getMinGraphSize(model, m_cfg);
+        ctx.keep_blocks = detail::getMinRepBlocks(model, m_cfg);
+        ctx.keep_block_size = detail::getMinRepBlockSize(model, m_cfg);
         ctx.avoids = detail::getAvoids(model, m_cfg);
+        ctx.isolates = detail::getIsolates(model, m_cfg);
+        ctx.nofolds = detail::getNoFolds(model, m_cfg);
 
         m_snapshot->setCtx(ctx);
 

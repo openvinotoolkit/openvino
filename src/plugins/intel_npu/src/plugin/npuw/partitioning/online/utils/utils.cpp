@@ -74,3 +74,25 @@ std::optional<ov::npuw::online::Avoid> ov::npuw::online::util::parseAvoid(const 
 
     return std::optional<Avoid>{avoid};
 }
+
+std::optional<ov::npuw::online::Isolate> ov::npuw::online::util::parseIsolate(const std::string& s) {
+    auto pos_sl = s.find('/');
+
+    if (pos_sl == std::string::npos) {
+        LOG_WARN("Incorect pattern in OPENVINO_NPUW_ISOLATE: "
+                 << s << ". Please, separate pattern and tag with /, e.g. "
+                 << " DequantMatMulGQ/compute,DequantMatMulCW/compute,"
+                 << "SwishMultXMM/compute,RMSNorm/compute,AdditionalCompute/compute. "
+                 << " Isolate rule " << s << " is ommited!");
+        return std::nullopt;
+    }
+
+    auto pattern = s.substr(0, pos_sl);
+    auto tag = s.substr(pos_sl + 1, s.size() - pos_sl - 1);
+
+    Isolate isolate;
+    isolate.pattern = std::move(pattern);
+    isolate.tag = std::move(tag);
+
+    return std::optional<Isolate>{isolate};
+}
