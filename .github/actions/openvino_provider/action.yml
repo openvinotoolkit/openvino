@@ -1,0 +1,90 @@
+name: 'OpenVINO provider'
+description: 'Provides OpenVINO build artifacts from a requested source'
+inputs:
+  commit_sha:
+    description: 'Commit hash for which to take openvino build artifacts (from post-commit or for build for source), 
+                  or "latest" to get the latest artifacts available for the given configuration'
+    required: false
+    default: 'latest'
+  nightly_package_key:
+    description: 'centos7_x86_64 | debian10_armhf | rhel8_x86_64 | ubuntu20_arm64 | ubuntu20_x86_64 | ubuntu22_x86_64 | 
+                  ubuntu24_x86_64 | macos_12_6_arm64 | macos_12_6_x86_64 | windows_x86_64'
+    required: false
+  nightly_package_source:
+    description: 'URL of file holding the links to nightly package artifacts'
+    required: false
+    default: 'https://storage.openvinotoolkit.org/repositories/openvino/packages/nightly/latest.json'
+  nightly_pip_extra_index_url:
+    description: 'Extra index URL for pip to get Python nightly openvino package'
+    required: false
+    default: 'https://storage.openvinotoolkit.org/simple/wheels/nightly'
+  commit_artifacts_key:
+    description: 'linux_ubuntu_20_04_release | linux_ubuntu_20_04_arm64_release | windows_vs2019_release'
+    required: false
+  commit_artifacts_branch:
+    description: 'Branch name to take post-commit artifacts from, 
+                  default is either a current branch or a target branch of a current PR'
+    required: false
+  commit_artifacts_path:
+    description: 'Path to the root folder with build artifacts'
+    required: false
+    default: '/mount/build-artifacts/dldt'
+outputs:
+  ov_package_name:
+    description: "Name of the package with OpenVINO build artifacts provided"
+    value: ${{ steps.openvino_nightly_download.outputs.ov_package_name || steps.openvino_commit.outputs.ov_package_name }}
+  ov_wheel_input:
+    description: "Input for pip to install OpenVINO python wheel"
+    value: ${{ steps.openvino_nightly_wheel.outputs.wheel_input || steps.openvino_commit_wheel.outputs.wheel_input }}
+
+runs:
+  using: "composite"
+  steps:
+    ### Post-commit scenario
+    - name: Download post-commit OpenVINO archives from a given hash
+      id: openvino_commit_download_from_hash
+      if: ${{ inputs.commit_artifacts_key && inputs.commit_sha }}
+      shell: bash
+      run: |
+        branch_name=${{ inputs.commit_artifacts_branch || env.GITHUB_BASE_REF || env.GITHUB_REF_NAME }}
+        artifacts_path=${{ inputs.commit_artifacts_path }}/$branch_name/commit/${{ inputs.commit_sha }}/public_${{ inputs.commit_artifacts_key }}
+
+    # TODO: save a file pointing to the latest available artifacts in "commit" folder in store_artifacts action?
+    #- name: Download latest post-commit OpenVINO archives from a given branch
+    #  id: openvino_commit_download_latest
+    #  if: ${{ inputs.commit_artifacts_key && !inputs.commit_sha }}
+    #  shell: bash
+    #  run: |
+    #    branch_name=${{ inputs.commit_artifacts_branch || env.GITHUB_BASE_REF || env.GITHUB_REF_NAME }}
+    #    artifacts_path=${{ inputs.commit_artifacts_path }}/$branch_name/commit }}
+
+
+    ### Nightly scenario
+    - name: Download nightly OpenVINO archives
+      id: openvino_nightly_download
+      if: ${{ inputs.nightly_package_key && !inputs.commit_artifacts_key }}
+      shell: bash
+      run: |
+        ov_package_url=$(curl -s ${{ inputs.nightly_package_source }} | jq -r '.${{ inputs.os }}')
+        ov_package_name=$(basename $ov_package_url)
+        wget $ov_package_url --progress=bar:force:noscroll -O $ov_package_name
+        [[ "$ov_package_name" == *.zip ]] && unzip -l "$ov_package_name" || tar -tvf "$ov_package_name"
+        echo "ov_package_name=$ov_package_name" >> $GITHUB_OUTPUT
+
+    - name: Upload nightly OpenVINO archives
+      if: steps.openvino_nightly_download.outcome == 'success'
+      uses: actions/upload-artifact@v4
+      with:
+        name: openvino_package
+        path: ${{ steps.openvino_nightly_download.outputs.ov_package_name }}
+        if-no-files-found: 'error'
+
+    - name: Get nightly wheel
+      id: openvino_nightly_wheel
+      if: steps.openvino_nightly_download.outcome == 'success'
+      shell: bash
+      run: |
+        version=$(echo ${{ steps.openvino_nightly_download.outputs.ov_package_name }} |
+          grep -oP '(?<=_)\d{4}\.\d\.\d\.dev\d{8}(?=_)')
+        wheel_input="--pre --extra-index-url ${{ inputs.nightly_pip_extra_index_url }} openvino==$version"
+        echo "wheel_input=$wheel_input" >> $GITHUB_OUTPUT
