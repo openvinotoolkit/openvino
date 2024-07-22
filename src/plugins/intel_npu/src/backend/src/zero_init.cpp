@@ -23,8 +23,9 @@ static std::tuple<uint32_t, std::string> queryDriverExtensionVersion(
     for (uint32_t i = 0; i < count; ++i) {
         auto& property = extProps[i];
 
-        if (strncmp(property.name, ZE_GRAPH_EXT_NAME, strlen(ZE_GRAPH_EXT_NAME)) != 0)
+        if (strncmp(property.name, ZE_GRAPH_EXT_NAME, strlen(ZE_GRAPH_EXT_NAME)) != 0) {
             continue;
+        }
 
         // If the driver version is latest, will just use its name.
         if (property.version == ZE_GRAPH_EXT_VERSION_CURRENT) {

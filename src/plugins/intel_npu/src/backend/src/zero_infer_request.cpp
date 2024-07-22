@@ -190,6 +190,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
         checkLevelZeroAttributesMatch(inputDescriptor, executorInputDescriptors.at(ioIndex));
 
         if (!(inputDescriptor.isStateInput || inputDescriptor.isShapeTensor)) {
+            ++ioIndex;
             continue;
         }
 
@@ -213,6 +214,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
         checkLevelZeroAttributesMatch(outputDescriptor, executorOutputDescriptors.at(ioIndex));
 
         if (!(outputDescriptor.isStateOutput || outputDescriptor.isShapeTensor)) {
+            ++ioIndex;
             continue;
         }
 

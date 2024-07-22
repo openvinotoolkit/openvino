@@ -49,8 +49,9 @@ SyncInferRequest::FoundPort SyncInferRequest::find_port(const ov::Output<const o
     auto check_tensor_names = [](const std::unordered_set<std::string>& source,
                                  const std::unordered_set<std::string>& target) {
         for (auto const& name : target) {
-            if (source.find(name) == source.end())
+            if (source.find(name) == source.end()) {
                 return false;
+            }
         }
         return true;
     };
@@ -77,8 +78,12 @@ SyncInferRequest::FoundPort SyncInferRequest::find_port(const ov::Output<const o
     SyncInferRequest::FoundPort::Type type = SyncInferRequest::FoundPort::Type::INPUT;
     for (const auto& ports : {get_inputs(), get_outputs()}) {
         for (size_t i = 0; i < ports.size(); i++) {
+            // The order of the arguments might matter for the "check_tensor_names" call. If the "CompiledModel" object
+            // was obtained via "import_model", then the number of tensor names could be cut to 32 due to limitations
+            // inside the NPU stack. For this particular scenario, we are checking if all tensor names corresponding to
+            // the "CompiledModel" are found in the provided port instead of doing the opposite.
             if (ports[i].get_index() == port.get_index() && check_nodes(ports[i].get_node(), port.get_node()) &&
-                check_tensor_names(ports[i].get_names(), port.get_names())) {
+                check_tensor_names(port.get_names(), ports[i].get_names())) {
                 std::lock_guard<std::mutex> lock(_cacheMutex);
                 _cachedPorts[port_hash] = {i, type};
                 return _cachedPorts[port_hash];
