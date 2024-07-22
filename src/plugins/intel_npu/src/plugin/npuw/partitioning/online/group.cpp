@@ -34,6 +34,15 @@ Group::Group(const std::shared_ptr<ov::Node>& node,
     m_content.insert(node);
 }
 
+Group::Group(size_t gid,
+             ade::NodeHandle nh,
+             const std::shared_ptr<ade::Graph>& g,
+             const std::weak_ptr<Snapshot>& snapshot)
+    : m_nh(std::move(nh)),
+      m_id(gid),
+      m_graph(g),
+      m_snapshot(snapshot) {}
+
 // Include Parameters, Outputs, Converts, etc to content's layers for proper linking at the plugin level
 void Group::includeExtraLayers(detail::OVNodeSet& input_layers,
                                detail::OVNodeSet& output_layers,
@@ -113,6 +122,18 @@ std::shared_ptr<ov::Node> Group::getInitialNode() const {
     }
 
     return *(m_content.begin());
+}
+
+void Group::addInput(const std::shared_ptr<ov::Node>& node) {
+    m_input_layers.insert(node);
+}
+
+void Group::addOutput(const std::shared_ptr<ov::Node>& node) {
+    m_output_layers.insert(node);
+}
+
+void Group::addContent(const std::shared_ptr<ov::Node>& node) {
+    m_content.insert(node);
 }
 
 size_t Group::getId() const {

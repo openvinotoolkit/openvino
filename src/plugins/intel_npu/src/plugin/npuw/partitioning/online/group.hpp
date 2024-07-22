@@ -35,6 +35,10 @@ public:
           ade::NodeHandle nh,
           const std::shared_ptr<ade::Graph>& g,
           const std::weak_ptr<Snapshot>& snapshot);
+    Group(size_t gid,
+          ade::NodeHandle nh,
+          const std::shared_ptr<ade::Graph>& g,
+          const std::weak_ptr<Snapshot>& snapshot);
 
     // After we formed a final structure of partitioning,
     // we append excluded Convert layers to properly link submodels
@@ -45,6 +49,9 @@ public:
     ade::NodeHandle getHandle() const;
     // Note: can only be used during initial group initialization
     std::shared_ptr<ov::Node> getInitialNode() const;
+    void addInput(const std::shared_ptr<ov::Node>& node);
+    void addOutput(const std::shared_ptr<ov::Node>& node);
+    void addContent(const std::shared_ptr<ov::Node>& node);
     size_t getId() const;
     // This group consumes its producer
     void fuse(const Group::GPtr& gptr_prod);

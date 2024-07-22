@@ -121,6 +121,32 @@ void Snapshot::buildGraph() {
     LOG_INFO("DONE.");
 }
 
+void Snapshot::singleGroup() {
+    LOG_INFO("Online partitioning: executing singleGroup pass...");
+    LOG_BLOCK();
+
+    auto nh = m_graph->create();
+    auto group = std::make_shared<Group>(0, nh, m_graph, shared_from_this());
+    m_graph->meta(nh).set(group);
+
+    for (const auto& node : m_model->get_ordered_ops()) {
+        if (ov::op::util::is_parameter(node)) {
+            auto readers = node->output(0).get_target_inputs();
+            for (auto&& r : readers) {
+                group->addInput(r.get_node()->shared_from_this());
+            }
+        } else if (ov::op::util::is_output(node)) {
+            group->addOutput(node->input(0).get_source_output().get_node_shared_ptr());
+        } else if (isOp(node)) {
+            group->addContent(node);
+        }
+    }  // for (get_ordered_ops)
+
+    NPUW_ASSERT(graphSize() == 1);
+
+    LOG_INFO("DONE.");
+}
+
 void Snapshot::collectLHF() {
     LOG_INFO("Online partitioning: executing collectLHF pass...");
     LOG_BLOCK();
