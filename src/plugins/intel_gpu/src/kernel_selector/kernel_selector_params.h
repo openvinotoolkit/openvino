@@ -187,6 +187,13 @@ public:
                         uint32_t dimFeature : 1;
                         uint32_t dimBatch : 1;
                     } softmax;
+                    struct sync_tensor_t {
+                        uint32_t dimX : 1;
+                        uint32_t dimY : 1;
+                        uint32_t dimZ : 1;
+                        uint32_t dimFeature : 1;
+                        uint32_t dimBatch : 1;
+                    } sync_tensor;
                     struct region_yolo_t {
                         uint32_t dimX : 1;
                         uint32_t dimY : 1;
@@ -330,6 +337,7 @@ public:
     void EnableRotateReorder() { key.restrict.val.dedicated.reorder.rotate = 1; }
     void EnableSurfaceInputSupport() { key.restrict.val.dedicated.reorder.surface_input = 1; }
     void EnableSoftmaxDim(SoftmaxDim d);
+    void EnableSyncTensorDim(SyncTensorDim d);
     void EnableConcatAxis(ConcatAxis a);
     void EnableReampleType(ResampleType a);
     void EnableEltwiseStride();

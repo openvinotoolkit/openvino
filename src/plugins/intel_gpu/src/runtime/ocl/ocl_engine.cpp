@@ -47,6 +47,7 @@ ocl_engine::ocl_engine(const device::ptr dev, runtime_types runtime_type)
     : engine(dev) {
     OPENVINO_ASSERT(runtime_type == runtime_types::ocl, "[GPU] Invalid runtime type specified for OCL engine. Only OCL runtime is supported");
 
+    std::cout << "[-->] ocl_engine::ocl_engine() " << std::endl;
     auto casted = dynamic_cast<ocl_device*>(dev.get());
     OPENVINO_ASSERT(casted, "[GPU] Invalid device type passed to ocl engine");
     casted->get_device().getInfo(CL_DEVICE_EXTENSIONS, &_extensions);
@@ -173,14 +174,18 @@ memory::ptr ocl_engine::allocate_memory(const layout& layout, allocation_type ty
     OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(), "[GPU] Can't allocate memory for dynamic layout");
 
     check_allocatable(layout, type);
+    //std::cout << "[-->] ocl_engine allocate_memory type: " << type << std::endl;
 
     try {
         memory::ptr res = nullptr;
         if (layout.format.is_image_2d()) {
+            //std::cout << "[-->] ocl_engine allocate_memory gpu_image2d" << std::endl;
             res = std::make_shared<ocl::gpu_image2d>(this, layout);
         } else if (type == allocation_type::cl_mem) {
+            //std::cout << "[-->] ocl_engine allocate_memory gpu_buffer" << std::endl;
             res = std::make_shared<ocl::gpu_buffer>(this, layout);
         } else {
+            //std::cout << "[-->] ocl_engine allocate_memory gpu_usm" << std::endl;
             res = std::make_shared<ocl::gpu_usm>(this, layout, type);
         }
 

@@ -54,6 +54,7 @@ using kernel_divider_mode = kernel_selector::KernelDividerMode;
 using eltwise_mode = kernel_selector::EltwiseMode;
 using eltwise_input_mode = kernel_selector::EltwiseInputMode;
 using softmax_dim = kernel_selector::SoftmaxDim;
+using sync_tensor_dim = kernel_selector::SyncTensorDim;
 using mean_subtruct_mode = kernel_selector::MeanSubtractMode;
 using mean_op = kernel_selector::MeanOp;
 using concat_axis = kernel_selector::ConcatAxis;

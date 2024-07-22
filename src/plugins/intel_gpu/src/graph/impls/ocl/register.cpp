@@ -78,6 +78,7 @@ void register_implementations() {
     REGISTER_OCL(slice);
     REGISTER_OCL(strided_slice);
     REGISTER_OCL(swiglu);
+    REGISTER_OCL(sync_tensor);
     REGISTER_OCL(tile);
     REGISTER_OCL(gather_tree);
     REGISTER_OCL(resample);

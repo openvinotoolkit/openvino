@@ -16,14 +16,18 @@ sync_tensor_inst::typed_primitive_inst(network& network, const sync_tensor_node&
     parent(network, node, !node.can_be_optimized() && (node.get_output_layout().is_static() || node.get_output_layout().has_upper_bound())) {
 }
 
+
 layout sync_tensor_inst::calc_output_layout(const sync_tensor_node& node, kernel_impl_params const& impl_param) {
+    std::cout << "[-->] sync_tensor_inst calc_output_layout" << std::endl;
     return impl_param.input_layouts[0];
 }
 
 template<typename ShapeType>
 std::vector<layout> sync_tensor_inst::calc_output_layouts(sync_tensor_node const& /*node*/, kernel_impl_params const& impl_param) {
+    std::cout << "[-->] sync_tensor_inst calc_output_layouts" << std::endl;
     auto desc = impl_param.typed_desc<sync_tensor>();
     ov::intel_gpu::op::SyncTensor op(impl_param.w_size);
+    std::cout << "[-->] sync_tensor_inst calc_output_layouts set_output_size: " << desc->num_outputs << std::endl;
     op.set_output_size(desc->num_outputs);
 
     std::vector<ShapeType> input_shapes = {impl_param.get_input_layout(0).get<ShapeType>()};
@@ -40,18 +44,29 @@ std::vector<layout> sync_tensor_inst::calc_output_layouts(sync_tensor_node const
 }
 
 template std::vector<layout> sync_tensor_inst::calc_output_layouts<ov::PartialShape>(sync_tensor_node const& node, const kernel_impl_params& impl_param);
+
 std::string sync_tensor_inst::to_string(const sync_tensor_node& node) {
+    std::cout << "[-->] sync_tensor_inst to_string" << std::endl;
+    // auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
     std::stringstream primitive_description;
+
+    // json_composite sync_tensor_info;
+    // sync_tensor_info.add("dimension", desc->dimension);
+
+    // node_info->add("sync_tensor_info", sync_tensor_info);
     node_info->dump(primitive_description);
+
     return primitive_description.str();
 }
 
 void sync_tensor_inst::on_execute() {
+    std::cout << "[-->] sync_tensor_inst on_execute" << std::endl;
     update_output_memory();
 }
 
 void sync_tensor_inst::update_output_memory() {
+    std::cout << "[-->] sync_tensor_inst update_output_memory" << std::endl;
     if (!can_be_optimized()) {
         auto my_rank = get_impl_params()->w_rank;
         _outputs[my_rank] = input_memory_ptr();

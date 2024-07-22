@@ -279,6 +279,17 @@ std::string toString(SoftmaxDim d) {
     }
 }
 
+std::string toString(SyncTensorDim d) {
+    switch (d) {
+        case SyncTensorDim::X:       return "X";
+        case SyncTensorDim::Y:       return "Y";
+        case SyncTensorDim::Z:       return "Z";
+        case SyncTensorDim::FEATURE: return "FEATURE";
+        case SyncTensorDim::BATCH:   return "BATCH";
+        default: return "";
+    }
+}
+
 std::string toString(NormalizeMode mode) {
     switch (mode) {
         case NormalizeMode::ACROSS_SPATIAL: return "ACROSS_SPATIAL";

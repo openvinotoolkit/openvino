@@ -121,4 +121,3 @@ attach_sync_tensor_impl::attach_sync_tensor_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::cpu::sync_tensor_impl)
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::sync_tensor)

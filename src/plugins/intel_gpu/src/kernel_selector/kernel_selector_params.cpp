@@ -319,6 +319,28 @@ void ParamsKey::EnableSoftmaxDim(SoftmaxDim d) {
     }
 }
 
+void ParamsKey::EnableSyncTensorDim(SyncTensorDim d) {
+    switch (d) {
+        case SyncTensorDim::X:
+            key.restrict.val.dedicated.sync_tensor.dimX = 1;
+            break;
+        case SyncTensorDim::Y:
+            key.restrict.val.dedicated.sync_tensor.dimY = 1;
+            break;
+        case SyncTensorDim::Z:
+            key.restrict.val.dedicated.sync_tensor.dimZ = 1;
+            break;
+        case SyncTensorDim::FEATURE:
+            key.restrict.val.dedicated.sync_tensor.dimFeature = 1;
+            break;
+        case SyncTensorDim::BATCH:
+            key.restrict.val.dedicated.sync_tensor.dimBatch = 1;
+            break;
+        default:
+            break;
+    }
+}
+
 void ParamsKey::EnableConcatAxis(ConcatAxis a) {
     switch (a) {
         case ConcatAxis::X:

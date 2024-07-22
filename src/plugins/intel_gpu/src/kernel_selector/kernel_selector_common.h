@@ -161,6 +161,7 @@ std::string toString(PoolType mode);
 std::string toString(LRNMode mode);
 std::string toString(KernelDividerMode mode);
 std::string toString(SoftmaxDim d);
+std::string toString(SyncTensorDim d);
 std::string toString(NormalizeMode mode);
 std::string toString(MVNMode mode);
 std::string toString(MVNEpsMode mode);

@@ -150,6 +150,8 @@
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
 
+#include "openvino/pass/visualize_tree.hpp"
+
 namespace {
 template<typename T>
 static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> node) {
@@ -200,6 +202,7 @@ namespace ov {
 namespace intel_gpu {
 
 void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
+    std::cout << "[Check] TransformationsPipeline apply enter " << std::endl;
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply");
     using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
@@ -208,6 +211,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     bool enableInt8;
     bool unroll_loop = config.get_property(ov::intel_gpu::enable_loop_unrolling);
     {
+        std::cout << "[Check] TransformationsPipeline apply enter inner " << std::endl;
         ov::pass::Manager manager;
         auto pass_config = manager.get_pass_config();
         manager.set_per_pass_validation(false);
@@ -776,6 +780,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     }
 
     {
+        std::cout << "[Check] TransformationsPipeline apply enter inner last " << std::endl;
         ov::pass::Manager manager;
 
         // Other ops support eltwise fusions
@@ -854,6 +859,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
         manager.run_passes(func);
     }
+    std::cout << "[Check] TransformationsPipeline apply serialize " << std::endl;
+
+    ov::serialize(func, "xytest.xml");
+    ov::pass::VisualizeTree("xytest.svg").run_on_model(func);
+    // ov::serialize(func, "ww_3.xml");
+    // ov::pass::VisualizeTree("ww_3.svg").run_on_model(func);
+    std::cout << "[Check] TransformationsPipeline apply end " << std::endl;
 }
 }  // namespace intel_gpu
 }  // namespace ov

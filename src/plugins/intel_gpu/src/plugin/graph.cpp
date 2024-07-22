@@ -269,6 +269,7 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "shuffle_channels", "ShuffleChannels" },
                 { "softmax", "SoftMax" },
                 { "strided_slice", "StridedSlice" },
+                { "sync_tensor", "SyncTensor" },
                 { "tile", "Tile" },
                 { "resample", "Resample" },
                 { "interp", "Interp" },
