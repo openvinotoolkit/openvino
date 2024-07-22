@@ -127,6 +127,15 @@ static constexpr ov::Property<bool> dcoff_with_scale{"NPUW_DCOFF_SCALE"};
 /**
  * @brief
  * Type: bool.
+ * Tranpose input weight tensors before the decompression procedure.
+ * Works only with function "NPUW_FOLD"ing.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> transpose_weights{"NPUW_TRANSPOSE_WEIGHTS"};
+
+/**
+ * @brief
+ * Type: bool.
  * Every subgraph will be turned into a function.
  * Warning: May cause performance issues!
  * Default value: false.

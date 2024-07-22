@@ -329,13 +329,14 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
     NPUW_ASSERT(ov::op::util::is_parameter(matched_nodeC));
 
     auto matched_paramA = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeA);
-    ov::PartialShape current_shape = matched_paramA->get_partial_shape();
-    std::cout << "Input weight shapes: " << current_shape << std::endl;
-    ov::Shape static_shape = current_shape.to_shape();
-    ov::Shape new_order = {static_shape[1], static_shape[2], static_shape[0]};
-    ov::PartialShape new_shape(new_order);
-    matched_paramA->set_partial_shape(new_shape);
-    std::cout << "New Input weight shapes: " << matched_paramA->get_partial_shape() << std::endl;
+    // Transpose weights specifically for QWEN as of now.
+    if (getTransposeWeights()) {
+        ov::PartialShape current_shape = matched_paramA->get_partial_shape();
+        ov::Shape static_shape = current_shape.to_shape();
+        ov::Shape new_order = {static_shape[1], static_shape[2], static_shape[0]};
+        ov::PartialShape new_shape(new_order);
+        matched_paramA->set_partial_shape(new_shape);
+    }
     auto matched_valueB = std::static_pointer_cast<ov::op::v0::Constant>(matched_nodeB);
     auto matched_paramC = std::static_pointer_cast<ov::op::v0::Parameter>(matched_nodeC);
 

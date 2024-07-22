@@ -30,6 +30,7 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPUW_ACC_CHECK>();
     desc.add<NPUW_ACC_THRESH>();
     desc.add<NPUW_ACC_DEVICE>();
+    desc.add<NPUW_TRANSPOSE_WEIGHTS>();
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
     desc.add<NPUW_DUMP_FULL>();
     desc.add<NPUW_DUMP_SUBS>();
