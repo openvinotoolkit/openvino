@@ -143,7 +143,7 @@ public:
         }
     };
 
-    void updateCommandList(std::unordered_map<std::string, TensorData>&, size_t) override{};
+    void updateCommandList(const TensorData&, uint32_t, size_t) override {}
 
 private:
     const Config _config;
@@ -274,60 +274,11 @@ public:
         _logger.debug("IntegratedPipeline - rest() completed");
     };
 
-    void updateCommandList(std::unordered_map<std::string, TensorData>& tensors_data, size_t batch_size) override {
-        std::vector<ze_mutable_graph_argument_exp_desc_t> mutable_argument_desc;
-        int32_t changed_tensors = 0;
-
-        for (const auto& desc : tensors_data) {
-            if (desc.second.changed == true) {
-                changed_tensors++;
-            }
-        }
-
-        mutable_argument_desc.reserve(changed_tensors);
-
-        auto set_mutable_desc =
-            [&](int32_t mutable_desc_index, uint64_t command_list_id, uint32_t arg_index, const void* arg_value) {
-                mutable_argument_desc.emplace_back(ze_mutable_graph_argument_exp_desc_t{
-                    ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC,
-                    mutable_desc_index ? &mutable_argument_desc.at(mutable_desc_index - 1) : nullptr,
-                    command_list_id,
-                    arg_index,
-                    arg_value});
-            };
-
+    void updateCommandList(const TensorData& tensors_data, uint32_t index, size_t batch_size) override {
         for (size_t i = 0; i < batch_size; i++) {
-            int32_t mutable_argument_desc_index = -1;
-
-            for (const auto& desc : _executor->inputs_desc_map()) {
-                TensorData& inputTensorData = tensors_data.at(desc.first);
-
-                if (inputTensorData.changed == true) {
-                    set_mutable_desc(
-                        ++mutable_argument_desc_index,
-                        _command_lists.at(i)->getCommandListId(),
-                        desc.second.idx,
-                        static_cast<unsigned char*>(inputTensorData.mem) + (i * inputTensorData.size) / batch_size);
-
-                    inputTensorData.changed = false;
-                }
-            }
-
-            for (const auto& desc : _executor->outputs_desc_map()) {
-                TensorData& outputTensorData = tensors_data.at(desc.first);
-
-                if (outputTensorData.changed == true) {
-                    set_mutable_desc(
-                        ++mutable_argument_desc_index,
-                        _command_lists.at(i)->getCommandListId(),
-                        desc.second.idx,
-                        static_cast<unsigned char*>(outputTensorData.mem) + (i * outputTensorData.size) / batch_size);
-
-                    outputTensorData.changed = false;
-                }
-            }
-
-            _command_lists.at(i)->updateMutableCommandList(&mutable_argument_desc.at(mutable_argument_desc_index));
+            _command_lists.at(i)->updateMutableCommandList(
+                index,
+                static_cast<unsigned char*>(tensors_data.mem) + (i * tensors_data.size) / batch_size);
             _command_lists.at(i)->close();
         }
     };

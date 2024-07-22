@@ -36,6 +36,9 @@ class TorchScriptPythonDecoder (Decoder):
         self._input_is_list = False
         self.constant_cache = constant_cache if constant_cache is not None else dict()
         self.module_extensions = module_extensions
+        self.config = None
+        if hasattr(pt_module, "config"):
+            self.config = pt_module.config.to_dict() if not isinstance(pt_module.config, dict) else pt_module.config
         if graph_element is None:
             try:
                 pt_module = self._get_scripted_model(
@@ -489,6 +492,12 @@ class TorchScriptPythonDecoder (Decoder):
 
     def get_named_input(self, name):
         raise RuntimeError("There is no named inputs in TS graph")
+
+    def get_rt_info(self):
+        rt_info = {}
+        if self.config is not None and "quantization_config" in self.config and "sym" in self.config["quantization_config"]:
+            rt_info["symmetric_quantization"] = OVAny(self.config["quantization_config"]["sym"])
+        return rt_info
 
     @staticmethod
     def _transform_tensor_list_constants_to_listconstruct(graph: torch.Graph):

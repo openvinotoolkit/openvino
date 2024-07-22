@@ -4,7 +4,7 @@
 
 #include "snippets/pass/split_dimension_m.hpp"
 
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "snippets/itt.hpp"
 
 namespace {
