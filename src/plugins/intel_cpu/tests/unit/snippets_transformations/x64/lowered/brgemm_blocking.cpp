@@ -19,7 +19,7 @@ namespace snippets {
 using namespace ov::intel_cpu;
 using namespace ov::snippets::lowered;
 using namespace ov::snippets;
-using BRGEMM_TYPE = intel_cpu::jit_brgemm_utils::BRGEMM_TYPE;
+using BRGEMM_TYPE = intel_cpu::brgemm_utils::BRGEMM_TYPE;
 
 namespace {
 void create_brgemm_loop_infos(const LinearIRPtr& linear_ir,

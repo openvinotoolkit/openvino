@@ -18,7 +18,7 @@
 #include "openvino/pass/pattern/matcher.hpp"
 
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "emitters/snippets/x64/jit_brgemm_utils.hpp"
+#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
 #include "cpu_shape.h"
 #include "utils/general_utils.h"
@@ -70,7 +70,7 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
         const auto N = *dimsMatMulIn1.rbegin();
 
         const auto element_type_a = brgemm->get_input_element_type(0);
-        auto brgemm_type = jit_brgemm_utils::get_brgemm_type(element_type_a, K, N);
+        auto brgemm_type = brgemm_utils::get_brgemm_type(element_type_a, K, N);
         const auto offset_a = brgemm->get_offset_a();
         const auto offset_b = brgemm->get_offset_b();
         const auto offset_c = brgemm->get_offset_c();
@@ -82,7 +82,7 @@ pass::BrgemmToBrgemmCPU::BrgemmToBrgemmCPU() {
                                                      offset_a, offset_b, offset_c,
                                                      brgemm_in0_desc->get_layout(), brgemm_in1_desc->get_layout(), brgemm_out_desc->get_layout());
         } else {
-            const auto copy_b_type = with_compensations(brgemm_type) ? brgemm_type : jit_brgemm_utils::BRGEMM_TYPE::REPACKING_ONLY;
+            const auto copy_b_type = with_compensations(brgemm_type) ? brgemm_type : brgemm_utils::BRGEMM_TYPE::REPACKING_ONLY;
             brgemm_repacking = std::make_shared<BrgemmCopyB>(brgemm->input_value(1), element_type_a, copy_b_type, offset_b, 0, 0,
                                                              brgemm_in1_desc->get_layout());
             set_port_desc(brgemm_repacking->input(0), brgemm_in1_desc->get_shape(), brgemm_in1_desc->get_subtensor(), brgemm_in1_desc->get_layout());

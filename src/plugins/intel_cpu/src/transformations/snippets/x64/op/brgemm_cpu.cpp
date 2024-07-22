@@ -12,7 +12,7 @@
 
 namespace ov {
 namespace intel_cpu {
-using namespace jit_brgemm_utils;
+using namespace brgemm_utils;
 
 BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, BRGEMM_TYPE type,
                      const size_t offset_a, const size_t offset_b, const size_t offset_c,

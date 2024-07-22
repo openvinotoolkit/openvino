@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "jit_brgemm_utils.hpp"
+#include "brgemm_utils.hpp"
 #include "emitters/utils.hpp"
 #include "utils/general_utils.h"
 
@@ -12,7 +12,7 @@ using namespace dnnl::impl::cpu::x64;
 
 namespace ov {
 namespace intel_cpu {
-namespace jit_brgemm_utils {
+namespace brgemm_utils {
 
 cpu_isa_t get_primitive_isa(const ov::element::Type& dt_in0, bool is_with_amx) {
     auto isa = isa_undef;
@@ -60,16 +60,16 @@ BRGEMM_TYPE get_brgemm_type(const ov::element::Type& element_type_a, const Dimen
     OV_CPU_JIT_EMITTER_THROW("Failed to determine brgemm mode");
 }
 
-}   // namespace jit_brgemm_utils
+}   // namespace brgemm_utils
 }   // namespace intel_cpu
 template <>
-EnumNames<ov::intel_cpu::jit_brgemm_utils::BRGEMM_TYPE>& EnumNames<ov::intel_cpu::jit_brgemm_utils::BRGEMM_TYPE>::get() {
+EnumNames<ov::intel_cpu::brgemm_utils::BRGEMM_TYPE>& EnumNames<ov::intel_cpu::brgemm_utils::BRGEMM_TYPE>::get() {
     static auto enum_names =
-            EnumNames<ov::intel_cpu::jit_brgemm_utils::BRGEMM_TYPE>("ov::intel_cpu::jit_bgremm_utils::BRGEMM_TYPE",
-                                                                    {{"stand_alone", ov::intel_cpu::jit_brgemm_utils::BRGEMM_TYPE::STAND_ALONE},
-                                                                     {"with_amx", ov::intel_cpu::jit_brgemm_utils::BRGEMM_TYPE::WITH_AMX},
-                                                                     {"with_compensations", ov::intel_cpu::jit_brgemm_utils::BRGEMM_TYPE::WITH_COMPENSATIONS},
-                                                                     {"repacking_only", ov::intel_cpu::jit_brgemm_utils::BRGEMM_TYPE::REPACKING_ONLY}});
+            EnumNames<ov::intel_cpu::brgemm_utils::BRGEMM_TYPE>("ov::intel_cpu::jit_bgremm_utils::BRGEMM_TYPE",
+                                                                {{"stand_alone", ov::intel_cpu::brgemm_utils::BRGEMM_TYPE::STAND_ALONE},
+                                                                 {"with_amx", ov::intel_cpu::brgemm_utils::BRGEMM_TYPE::WITH_AMX},
+                                                                 {"with_compensations", ov::intel_cpu::brgemm_utils::BRGEMM_TYPE::WITH_COMPENSATIONS},
+                                                                 {"repacking_only", ov::intel_cpu::brgemm_utils::BRGEMM_TYPE::REPACKING_ONLY}});
     return enum_names;
 }
 }   // namespace ov

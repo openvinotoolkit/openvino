@@ -8,7 +8,7 @@
 #include "snippets/op/memory_access.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 #include "snippets/shape_types.hpp"
-#include "emitters/snippets/x64/jit_brgemm_utils.hpp"
+#include "brgemm_utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -22,7 +22,7 @@ namespace intel_cpu {
 */
 class BrgemmCopyB : public snippets::modifier::MemoryAccess, public ov::op::Op {
 public:
-    using BRGEMM_TYPE = jit_brgemm_utils::BRGEMM_TYPE;
+    using BRGEMM_TYPE = brgemm_utils::BRGEMM_TYPE;
     OPENVINO_OP("BrgemmCopyB", "SnippetsOpset");
 
     BrgemmCopyB(const Output<Node>& x, const element::Type src_type, BRGEMM_TYPE type = BRGEMM_TYPE::REPACKING_ONLY,

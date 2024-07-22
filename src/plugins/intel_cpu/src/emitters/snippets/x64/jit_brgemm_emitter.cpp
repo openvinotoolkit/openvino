@@ -9,7 +9,7 @@
 #include <cpu/x64/amx_tile_configure.hpp>
 #include "snippets/utils/utils.hpp"
 #include "utils.hpp"
-#include "jit_brgemm_utils.hpp"
+#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;
@@ -31,7 +31,7 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa,
     BrgemmKernelConfig kernel_config(brg0Prc, brg1Prc,
                                      brgemm_node->get_beta(), with_amx(brgemm_type),
                                      with_compensations(brgemm_type),
-                                     jit_brgemm_utils::get_primitive_isa(brg0Prc, with_amx(brgemm_type)));
+                                     brgemm_utils::get_primitive_isa(brg0Prc, with_amx(brgemm_type)));
     m_kernel_executor = kernel_table->register_kernel<BrgemmKernelExecutor>(expr,
                                                                             compiled_kernel_cache,
                                                                             kernel_config);
@@ -73,7 +73,7 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa,
 std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     const auto brgemm = as_type_ptr<ov::intel_cpu::BrgemmCPU>(node);
     OV_CPU_JIT_EMITTER_ASSERT(brgemm, "get_supported_precisions() expects BrgemmCPU node");
-    using jit_brgemm_utils::BRGEMM_TYPE;
+    using brgemm_utils::BRGEMM_TYPE;
     switch (brgemm->get_type()) {
         case BRGEMM_TYPE::STAND_ALONE:
             return {{element::f32, element::f32}};

@@ -18,7 +18,7 @@
 using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
-using namespace ov::intel_cpu::jit_brgemm_utils;
+using namespace ov::intel_cpu::brgemm_utils;
 
 namespace ov {
 namespace intel_cpu {

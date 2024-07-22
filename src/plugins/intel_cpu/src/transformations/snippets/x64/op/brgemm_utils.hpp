@@ -10,7 +10,7 @@
 
 namespace ov {
 namespace intel_cpu {
-namespace jit_brgemm_utils {
+namespace brgemm_utils {
 
 enum class BRGEMM_TYPE {
     STAND_ALONE,            // No extra requirements, used for f32|f32
@@ -35,14 +35,14 @@ inline bool with_repacking(BRGEMM_TYPE type) { return type != BRGEMM_TYPE::STAND
 
 inline bool with_scratchpad(BRGEMM_TYPE type) { return with_compensations(type) || with_amx(type); }
 
-}   // namespace jit_brgemm_utils
+}   // namespace brgemm_utils
 }   // namespace intel_cpu
 template <>
-class AttributeAdapter<intel_cpu::jit_brgemm_utils::BRGEMM_TYPE> :
-        public EnumAttributeAdapterBase<intel_cpu::jit_brgemm_utils::BRGEMM_TYPE> {
+class AttributeAdapter<intel_cpu::brgemm_utils::BRGEMM_TYPE> :
+        public EnumAttributeAdapterBase<intel_cpu::brgemm_utils::BRGEMM_TYPE> {
 public:
-    AttributeAdapter(intel_cpu::jit_brgemm_utils::BRGEMM_TYPE& value) :
-        EnumAttributeAdapterBase<intel_cpu::jit_brgemm_utils::BRGEMM_TYPE>(value) {
+    AttributeAdapter(intel_cpu::brgemm_utils::BRGEMM_TYPE& value) :
+        EnumAttributeAdapterBase<intel_cpu::brgemm_utils::BRGEMM_TYPE>(value) {
     }
     OPENVINO_RTTI("AttributeAdapter<ov::intel_cpu::jit_brgemm_utils::BRGEMM_TYPE>");
 };

@@ -28,7 +28,7 @@
 namespace ov {
 namespace test {
 namespace snippets {
-using BRGEMM_TYPE = intel_cpu::jit_brgemm_utils::BRGEMM_TYPE;
+using BRGEMM_TYPE = intel_cpu::brgemm_utils::BRGEMM_TYPE;
 
 /*  Note[74841]:
  *  This test is almost full copy of BufferAllocationTest class from openvino/src/common/snippets/tests/include/lowered/pass/buffer_allocation.hpp.
