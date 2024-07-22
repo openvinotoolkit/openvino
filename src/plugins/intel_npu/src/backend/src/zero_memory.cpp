@@ -50,10 +50,11 @@ void* HostMemAllocator::allocate(const size_t bytes, const size_t /*alignment*/)
     ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC,
                                      nullptr,
                                      static_cast<ze_host_mem_alloc_flags_t>(_flag)};
-    ze_result_t res = zeMemAllocHost(_initStructs->getContext(), &desc, size, _alignment, &_data);
+    void* data = nullptr;
+    ze_result_t res = zeMemAllocHost(_initStructs->getContext(), &desc, size, _alignment, &data);
 
     if (res == ZE_RESULT_SUCCESS) {
-        return _data;
+        return data;
     } else {
         return nullptr;
     }
@@ -67,7 +68,7 @@ bool HostMemAllocator::deallocate(void* handle, const size_t /* bytes */, size_t
     return true;
 }
 bool HostMemAllocator::is_equal(const HostMemAllocator& other) const {
-    return other._data != nullptr && _data != nullptr && other._data == _data;
+    return (_initStructs == other._initStructs) && (_flag == other._flag);
 }
 
 void MemoryManagementUnit::appendArgument(const std::size_t argSize) {
