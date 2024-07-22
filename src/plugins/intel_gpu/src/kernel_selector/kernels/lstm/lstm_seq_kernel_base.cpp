@@ -30,7 +30,7 @@ JitConstants LSTMSeqKernelBase::GetJitConstants(const lstm_seq_params& params) c
         MakeJitConstant("GEMM_OFFSET_Z", params.GetOffsetIndexZ() * size),
     });
     jit.AddConstants({MakeJitConstant("BATCH_SIZE", GEMMInput.Batch().v)});
-    jit.AddConstants({MakeJitConstant("SEQ_LENGTH", GEMMInput.Feature().v)});
+    jit.AddConstants({MakeJitConstant("MAX_SEQ_LENGTH", GEMMInput.Feature().v)});
     jit.AddConstants({MakeJitConstant("INPUT_SIZE", GEMMInput.Y().v)});
     jit.AddConstants({MakeJitConstant("HIDDEN_SIZE", params.inputs[1].Y().v)});
     auto ftype = GetUnitType(params);
@@ -80,7 +80,7 @@ KernelsData LSTMSeqKernelBase::GetCommonKernelsData(const Params& params) const 
     auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
 
     kernel.params.workGroups.global = {out.X().v, out.Batch().v, 1};
-    kernel.params.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.params.workGroups.global, params.engineInfo);
+    kernel.params.workGroups.local = {out.X().v, 1, 1};
     kernel.code.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
@@ -88,6 +88,7 @@ KernelsData LSTMSeqKernelBase::GetCommonKernelsData(const Params& params) const 
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 3});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 4});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 5});
+    kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 6});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 1});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 2});

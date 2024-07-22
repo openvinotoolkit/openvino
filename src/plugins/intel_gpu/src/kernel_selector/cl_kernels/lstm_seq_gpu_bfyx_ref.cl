@@ -14,33 +14,67 @@
 //output2
 KERNEL(lstm_seq)(
     const __global INPUT0_TYPE* x,
-    const __global INPUT0_TYPE* initial_hidden_state,
+    const __global INPUT1_TYPE* initial_hidden_state,
     const __global INPUT0_TYPE* initial_cell_state,
+    const __global INPUT0_TYPE* sequence_lengths,
     const __global INPUT0_TYPE* W,
     const __global INPUT0_TYPE* R,
     const __global INPUT0_TYPE* B,
-    __global OUTPUT_TYPE* output0,
-    __global OUTPUT_TYPE* output1,
+    __global OUTPUT_TYPE* hidden_history,
+    __global OUTPUT_TYPE* hidden_state,
     __global OUTPUT_TYPE* cell_state
 )
 {
     const uint hidden_idx = get_global_id(0);
     const uint b = get_global_id(1);
-    global ACCUMULATOR[BATCH_SIZE][HIDDEN_SIZE] hidden_result;
-    global ACCUMULATOR[BATCH_SIZE][HIDDEN_SIZE] input_result;
-    global ACCUMULATOR[BATCH_SIZE][HIDDEN_SIZE] forget_gate_output;
-    for(int i=0;i<SEQ_LENGTH;i++){
-        if( i == 0){
+    const int gate_num = 4;
+    __local float hidden_result[BATCH_SIZE][HIDDEN_SIZE][gate_num];
+    __local float input_result[BATCH_SIZE][HIDDEN_SIZE][gate_num];
+    __local float gate_output[BATCH_SIZE][HIDDEN_SIZE][gate_num];
+
+    for(int i=0;i<sequence_lengths[b];i++){
+        for(int k=0;k<gate_num;k++){
+            //input
             for(int j=0;j<HIDDEN_SIZE;j++) {
-                hidden_result[b][hidden_idx] += initial_hidden_state[INPUT1_GET_INDEX(b, hidden_idx, 0, 0)]*R[INPUT4_GET_INDEX(1, j, hidden_idx, 0)];
+                if(i==0){
+                    hidden_result[b][hidden_idx][k] += initial_hidden_state[INPUT1_GET_INDEX(b, 0, hidden_idx)]*R[INPUT5_GET_INDEX(1, hidden_idx, j+k*HIDDEN_SIZE)];
+                }else{
+                    hidden_result[b][hidden_idx][k] += hidden_state[INPUT1_GET_INDEX(b, hidden_idx, 0)]*R[INPUT5_GET_INDEX(1, hidden_idx, j+k*HIDDEN_SIZE)];
+                }
             }
+            /*
             for(int j=0;j<INPUT_SIZE;j++) {
-                input_result[b][hidden_idx] += x[INPUT0_GET_INDEX(b, hidden_idx, j)]*W[INPUT3_GET_INDEX(0, hidden_idx, j, 0)]
+                input_result[b][hidden_idx][k] += x[INPUT0_GET_INDEX(b, hidden_idx, j)]*W[INPUT4_GET_INDEX(0, hidden_idx, j+k*HIDDEN_SIZE, 0)]
             }
             for(int j=0;j<HIDDEN_SIZE;j++){
-                forget_gate_output[b][j] = hidden_result[b][j] + input_result[b][j] + B[INPUT5_GET_INDEX(0, hidden_idx, 0, 0)];
+                gate_output[b][hidden_idx][k] = hidden_result[b][j] + input_result[b][j] + B[INPUT6_GET_INDEX(0, hidden_idx+k*HIDDEN_SIZE, 0, 0)];
             }
-            cell_state[OUTPUT2_GET_INDEX(b, hidden_idx, j)]
+            switch(k){
+                case 0:
+                case 3:
+                    gate_output[b][hidden_idx][k] = ACTIVATION_F(ACTIVATION_CLIP(gate_output[b][j][k], ACTIVATION_PARAMS_CLIP), ACTIVATION_PARAMS_F);
+                    break;
+                case 1:
+                    gate_output[b][hidden_idx][k] = ACTIVATION_G(ACTIVATION_CLIP(gate_output[b][j][k], ACTIVATION_PARAMS_CLIP), ACTIVATION_PARAMS_G);
+                    break;
+                case 2:
+                    gate_output[b][hidden_idx][k] = ACTIVATION_H(ACTIVATION_CLIP(gate_output[b][j][k], ACTIVATION_PARAMS_CLIP), ACTIVATION_PARAMS_H);
+                    break;
+                default:
+                    break;
+            }
+            */
         }
+        /*
+        if (i==0){
+            cell_state[OUTPUT2_GET_INDEX(b, hidden_idx, 0, 0)] = gate_output[b][hidden_idx][0]*initial_cell_state[OUTPUT2_GET_INDEX(b, hidden_idx, j, 0)];
+            cell_state[OUTPUT2_GET_INDEX(b, hidden_idx, 0, 0)] += gate_output[b][hidden_idx][1]*gate_output[b][hidden_idx][2];
+        }else{
+            cell_state[OUTPUT2_GET_INDEX(b, hidden_idx, 0, 0)] = gate_output[b][hidden_idx][0]*cell_state[OUTPUT2_GET_INDEX(b, hidden_idx, j, 0)];
+            cell_state[OUTPUT2_GET_INDEX(b, hidden_idx, 0, 0)] += gate_output[b][hidden_idx][1]*gate_output[b][hidden_idx][2];
+        }
+        hidden_state[OUTPUT1_GET_INDEX(b, 0, hidden_idx, 0)] = gate_output[b][hidden_idx][3]*ACTIVATION_H(ACTIVATION_CLIP(cell_state[OUTPUT2_GET_INDEX(b, 0, hidden_idx, 1)], ACTIVATION_PARAMS_CLIP), ACTIVATION_PARAMS_H);
+        hidden_history[OUTPUT0_GET_INDEX(b, 0, i, hidden_idx)] = hidden_state[OUTPUT1_GET_INDEX(b, 0, hidden_idx, 0)];
+        */
     }
 }
