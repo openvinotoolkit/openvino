@@ -1471,7 +1471,7 @@ void Graph::SortTopologically() {
         node->execIndex = -1;
     }
 
-    auto sort = [](const std::vector<NodePtr>& nodes) {
+    auto sort = [this](const std::vector<NodePtr>& nodes) {
         std::vector<NodePtr> sorted;
         sorted.reserve(nodes.size());
 
@@ -1507,25 +1507,17 @@ void Graph::SortTopologically() {
             }
         };
 
+        // Always start from output nodes
+        for (auto&& kvp : outputNodesMap) {
+            visit(kvp.second);
+        }
+
         for (const auto& node : nodes) {
             visit(node);
         }
 
         return sorted;
     };
-
-    // Insert nodes in outputNodesMap in front of graphNodes to make sure it always
-    // start tranverse from outputs
-    graphNodes.erase(std::remove_if(graphNodes.begin(), graphNodes.end(), [&](const NodePtr node){
-        auto it = std::find_if(outputNodesMap.begin(), outputNodesMap.end(), [&](const std::pair<std::size_t, NodePtr>& kvp) {
-            return kvp.second == node;
-        });
-        return it != outputNodesMap.end();
-    }), graphNodes.end());
-
-    for (auto&& kvp : outputNodesMap) {
-        graphNodes.insert(graphNodes.begin(), kvp.second);
-    }
 
     graphNodes = sort(graphNodes);
 

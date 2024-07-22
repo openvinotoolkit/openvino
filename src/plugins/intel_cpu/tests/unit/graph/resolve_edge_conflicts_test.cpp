@@ -120,8 +120,8 @@ TEST(ResolveEdgeConflictsCPUTest2, smoke_Run_ResolveEdgeConflicts2) {
     auto org_Constant_1 = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32, ov::Shape{1}, std::vector<int64_t>{1});
     auto org_ScatterNDUpdate_411 = std::make_shared<ov::op::v3::ScatterNDUpdate>(org_ShapeOf_386, org_Constant_387, org_Constant_1);
 
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(org_ReduceProd_423),
-                             std::make_shared<ov::op::v0::Result>(org_ScatterNDUpdate_411)};
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(org_ScatterNDUpdate_411),
+                             std::make_shared<ov::op::v0::Result>(org_ReduceProd_423)};
 
     const auto model = std::make_shared<const ov::Model>(results, params, "test_graph");
     graph->CreateGraph(model, context);
