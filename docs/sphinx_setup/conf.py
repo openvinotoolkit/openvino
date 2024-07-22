@@ -37,7 +37,7 @@ extensions = [
 try:
     import openvino
 except ImportError:
-    autodoc_mock_imports = ["openvino"]
+    autodoc_mock_imports = ["openvino", "openvino_genai"]
 
 breathe_projects = {
     "openvino": "../xml/"
