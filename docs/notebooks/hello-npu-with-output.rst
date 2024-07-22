@@ -4,8 +4,8 @@ Hello NPU
 Working with NPU in OpenVINO™
 -----------------------------
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Introduction <#introduction>`__
 
@@ -910,9 +910,6 @@ different performance hints.
 Discover the power of Neural Processing Unit (NPU) with OpenVINO through
 these interactive Jupyter notebooks:
 
-Introduction
-''''''''''''
-
 - `hello-world <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/hello-world>`__:
   Start your OpenVINO journey by performing inference on an OpenVINO IR
   model.
@@ -923,9 +920,6 @@ Introduction
 Model Optimization and Conversion
 '''''''''''''''''''''''''''''''''
 
--  `model-tools <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/model-tools>`__:
-   Discover how to download, convert, and benchmark models from the Open
-   Model Zoo.
 -  `tflite-to-openvino <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/tflite-to-openvino>`__:
    Learn the process of converting TensorFlow Lite models to OpenVINO IR
    format.
@@ -944,9 +938,6 @@ Advanced Computer Vision Techniques
 -  `handwritten-ocr <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/handwritten-ocr>`__:
    Apply optical character recognition to handwritten Chinese and
    Japanese text.
--  `image-inpainting <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/image-inpainting>`__:
-   Explore the art of image in-painting and restore images with missing
-   parts.
 -  `vehicle-detection-and-recognition <https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/vehicle-detection-and-recognition>`__:
    Use pre-trained models for vehicle detection and recognition in
    images.

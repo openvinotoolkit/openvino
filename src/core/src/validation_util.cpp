@@ -287,7 +287,7 @@ bool evaluate_as_partial_shape(const ov::Output<ov::Node>& output, ov::PartialSh
         const TensorSymbol& symbols = output.get_tensor().get_value_symbol();
         OPENVINO_ASSERT(symbols.empty() || lower_bound.size() == symbols.size());
 
-        std::vector<Dimension> resulting_pshape(lower_bound.size());
+        pshape.resize(lower_bound.size());
         for (size_t i = 0; i < lower_bound.size(); ++i) {
             auto low = lower_bound[i], up = upper_bound[i];
             OPENVINO_ASSERT(low >= 0 && up >= 0, "Value for partial shape evaluation can't be lower than zero.");
@@ -297,11 +297,10 @@ bool evaluate_as_partial_shape(const ov::Output<ov::Node>& output, ov::PartialSh
                 if (low == std::numeric_limits<std::int32_t>::max())
                     low = std::numeric_limits<std::int64_t>::max();
             }
-            resulting_pshape[i] = {low, up};
+            pshape[i] = {low, up};
             if (!symbols.empty())
-                resulting_pshape[i].set_symbol(symbols[i]);
+                pshape[i].set_symbol(symbols[i]);
         }
-        pshape = ov::PartialShape(resulting_pshape);
         shape_defined = true;
     }
     return shape_defined;

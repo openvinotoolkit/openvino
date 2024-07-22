@@ -15,7 +15,7 @@
 #include "snippets/lowered/pass/propagate_buffer_offset.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov {
 namespace snippets {

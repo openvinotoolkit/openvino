@@ -11,31 +11,65 @@
 
 namespace ov {
 namespace intel_cpu {
-class BrgemmKernelExecutor;
-#define GET_OFF_BRGEMM_ARGS(field) offsetof(BrgemmKernelExecutor::call_args, field)
-
 struct BrgemmKernelConfig : public snippets::KernelExecutorBase::GenericConfig {
-    friend BrgemmKernelExecutor;
 public:
     BrgemmKernelConfig(const element::Type& in0_dtype, const element::Type& in1_dtype, float beta,
-                       bool is_with_amx, bool is_with_comp,
-                       size_t M = 0, size_t N = 0, size_t K = 0,
-                       size_t LDA = 0, size_t LDB = 0, size_t LDC = 0);
-    BrgemmKernelConfig() = default;
+                       bool is_with_amx, bool is_with_comp);
+    BrgemmKernelConfig() = delete;
     bool is_completed() const override;
-    size_t hash() const;
+    size_t hash() const override { return m_hash; }
     bool operator==(const BrgemmKernelConfig& rhs) const;
-    bool operator!=(const BrgemmKernelConfig& rhs) const;
+    bool operator!=(const BrgemmKernelConfig& rhs) const {return !(*this == rhs);}
+    std::unique_ptr<GenericConfig> get_clone_ptr() const override {
+        return std::unique_ptr<BrgemmKernelConfig>( new BrgemmKernelConfig(*this));
+    }
+    void update(dnnl_dim_t M, dnnl_dim_t N, dnnl_dim_t K, dnnl_dim_t LDA, dnnl_dim_t LDB, dnnl_dim_t LDC);
+
+    dnnl_data_type_t get_dt_in0() const { return m_static_params->dt_in0; }
+    dnnl_data_type_t get_dt_in1() const { return m_static_params->dt_in1; }
+
+    dnnl::impl::cpu::x64::cpu_isa_t get_isa() const { return m_static_params->isa; }
+    bool is_with_amx() const {return m_static_params->is_with_amx; }
+    bool is_with_comp() const { return m_static_params->is_with_comp; }
+    float get_beta() const { return m_static_params->beta; }
+
+    dnnl_dim_t get_M() const { return m_M; }
+    dnnl_dim_t get_N() const { return m_N; }
+    dnnl_dim_t get_K() const { return m_K; }
+
+    dnnl_dim_t get_LDA() const { return m_LDA; }
+    dnnl_dim_t get_LDB() const { return m_LDB; }
+    dnnl_dim_t get_LDC() const { return m_LDC; }
+
+    explicit operator amx_tile_config_t() const;
+    inline bool compatible(amx_tile_config_t* rhs) const {
+        return rhs && rhs->M == m_M && rhs->N == m_N && rhs->K == m_K;
+    }
+
 #ifdef SNIPPETS_DEBUG_CAPS
-    std::string to_string() const;
+    std::string to_string() const override;
 #endif
+
 private:
-    dnnl_data_type_t dt_in0 {dnnl_f32}, dt_in1 {dnnl_f32};
-    bool is_with_amx {false};
-    bool is_with_comp {false};
-    float beta {0};
-    dnnl::impl::cpu::x64::cpu_isa_t isa {dnnl::impl::cpu::x64::isa_undef};
-    dnnl_dim_t M {0}, N {0}, K {0}, LDA {0}, LDB {0}, LDC {0};
+    struct StaticParams {
+        StaticParams(const element::Type& in0_dtype, const element::Type& in1_dtype, float beta,
+                     bool is_with_amx, bool is_with_comp);
+        const dnnl_data_type_t dt_in0 {dnnl_f32}, dt_in1 {dnnl_f32};
+        const float beta {0};
+        const bool is_with_amx {false};
+        const bool is_with_comp {false};
+        const dnnl::impl::cpu::x64::cpu_isa_t isa {dnnl::impl::cpu::x64::isa_undef};
+        const size_t hash {0};
+        bool operator==(const StaticParams& rhs) const;
+        bool operator!=(const StaticParams& rhs) const { return !(*this == rhs); }
+#ifdef SNIPPETS_DEBUG_CAPS
+        std::string to_string() const;
+#endif
+    };
+    size_t compute_hash() const;
+    std::shared_ptr<StaticParams> m_static_params;
+    dnnl_dim_t m_M {0}, m_N {0}, m_K {0}, m_LDA {0}, m_LDB {0}, m_LDC {0};
+    size_t m_hash {SIZE_MAX};
 };
 
 struct BrgemmCompiledKernel {
@@ -54,20 +88,15 @@ public:
         void* scratch = nullptr;
         amx_tile_config_t* amx_tile_config = nullptr;
     };
-    BrgemmKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, const std::shared_ptr<BrgemmKernelConfig>& config);
+    BrgemmKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, BrgemmKernelConfig config);
 
     /** Function that will be called in runtime to execute the kernel */
-    static void execute(const BrgemmKernelExecutor* desc, call_args* args);
+    static void execute(const BrgemmKernelExecutor* executor, call_args* args);
 
-    /** Update kernel config using the arguments passed, and recompile the kernel */
-    void update(size_t M, size_t N, size_t K, size_t LDA, size_t LDB, size_t LDC);
-
-    /** print current kernel config for debug purposes */
-#ifdef SNIPPETS_DEBUG_CAPS
-    std::string config_to_string() const;
-#endif
 protected:
-    std::shared_ptr<BrgemmCompiledKernel> compile_kernel(const std::shared_ptr<BrgemmKernelConfig>& c) const override;
+    std::shared_ptr<BrgemmCompiledKernel> compile_kernel(const BrgemmKernelConfig& c) const override;
+    void update_config(const ov::snippets::lowered::ExpressionPtr& expr, BrgemmKernelConfig& config) const override;
 };
+#define GET_OFF_BRGEMM_ARGS(field) offsetof(BrgemmKernelExecutor::call_args, field)
 }   // namespace intel_cpu
 }   // namespace ov

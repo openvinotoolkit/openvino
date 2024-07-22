@@ -456,6 +456,7 @@ std::string Node::getPrimitiveDescriptorType() const {
     SEARCH_TYPE(winograd);
     SEARCH_TYPE(sparse);
     SEARCH_TYPE(acl);
+    SEARCH_TYPE(shl);
     SEARCH_TYPE(_dw);
     SEARCH_TYPE(_1x1);
 
@@ -895,7 +896,7 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
     MemoryPtr ptr;
     const auto& format = dstWeightDesc->serializeFormat();
 
-    assert(privateWeightCache);
+    OPENVINO_ASSERT(privateWeightCache, "privateWeightCache is nullptr");
 
     auto itr = privateWeightCache->find(format);
     if (privateWeightCache->end() != itr) {

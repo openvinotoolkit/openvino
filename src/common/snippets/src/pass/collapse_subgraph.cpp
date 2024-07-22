@@ -21,7 +21,7 @@
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/remarks.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
@@ -47,8 +47,8 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::is_supported_op")
     auto is_supported_matmul = [](const std::shared_ptr<const Node>& n) -> bool {
         const auto& matmul = ov::as_type_ptr<const opset1::MatMul>(n);
-        const auto& out_shape = n->get_output_partial_shape(0);
-        if (!matmul || out_shape.is_dynamic() || out_shape.size() != 4)
+        const auto& out_rank = n->get_output_partial_shape(0).rank();
+        if (!matmul || out_rank.is_dynamic() || out_rank.get_length() != 4)
             return false;
         const auto intype_0 = matmul->get_input_element_type(0);
         const auto intype_1 = matmul->get_input_element_type(1);
