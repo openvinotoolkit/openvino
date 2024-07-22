@@ -1091,7 +1091,7 @@ TEST(fully_connected_gpu, bf_tiled_with_unaligned_batch) {
                                                                                 empty_bias);
     topology topology(input_layout("input", input_mem->get_layout()),
                       data("weights", weights_mem),
-                      fully_connected("fc_prim", input_info("input"), "weights", "", padding(), 3, 3));
+                      fully_connected("fc_prim", input_info("input"), "weights", "", 3, 3));
 
     // Set data optimization to allow weights reordering to optimal format
     ExecutionConfig config = get_test_default_config(engine);

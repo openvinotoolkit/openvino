@@ -233,13 +233,15 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
         return false;
 
     auto batch_size = params.is_shape_agnostic ? Align(output_b, tparams.tile_b) : output_b;
+    // If batch size is prime number, still can apply tile execution to avoid poor performance.
     if (batch_size % (tparams.tile_b * tparams.dispatch_bsv) != 0) {
+        if ((tparams.dispatch_bsv != 1) || batch_size == 1)
+            return false;
         size_t tile = simd;
         while (batch_size % tile != 0)
             tile--;
-        if ((tparams.dispatch_bsv != 1) || (tile > 1) || batch_size == 1)
+        if (tile > 1)
             return false;
-        std::cout << "batch_size = " << batch_size << ", output_b = " << output_b << std::endl << std::endl;
     }
 
     if (CeilDiv(output_f, tparams.tile_ofm * simd) % tparams.dispatch_fsv != 0)
