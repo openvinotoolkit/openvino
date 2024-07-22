@@ -109,7 +109,10 @@ DEFINE_string(scale_values, "", scale_values_message);
 DEFINE_string(img_bin_precision, "", "Specify the precision of the binary input files. Eg: 'FP32,FP16,I32,I64,U8'");
 
 DEFINE_bool(run_test, false, "Run the test (compare current results with previously dumped)");
-DEFINE_string(ref_dir, "", "A directory with reference blobs to compare with in run_test mode. Leave it empty to use the current folder.");
+DEFINE_string(
+    ref_dir,
+    "",
+    "A directory with reference blobs to compare with in run_test mode. Leave it empty to use the current folder.");
 DEFINE_string(mode, "", "Comparison mode to use");
 
 DEFINE_uint32(top_k, 1, "Top K parameter for 'classification' mode");
