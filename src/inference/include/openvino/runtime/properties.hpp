@@ -943,7 +943,7 @@ struct Properties : public Property<std::map<std::string, std::map<std::string, 
         const std::string& device_name,
         Properties&&... configs) const {
         return {name() + std::string("_") + device_name,
-            AnyMap{std::pair<std::string, Any>{std::forward<Properties>(configs)}...}};
+                AnyMap{std::pair<std::string, Any>{std::forward<Properties>(configs)}...}};
     }
 };
 
