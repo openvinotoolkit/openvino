@@ -746,7 +746,7 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std:
     ze_graph_format_t format = ZE_GRAPH_FORMAT_NGRAPH_LITE;
 
     std::string buildFlags;
-    const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 7));
+    const bool useIndices = !((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 8));
 
     buildFlags += serializeIOInfo(model, useIndices);
     buildFlags += " ";
