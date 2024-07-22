@@ -20,6 +20,6 @@ namespace Col2Im {
 //                         ::testing::Values(ov::test::utils::DEVICE_CPU)),
 //                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref_bf16"})),
 //                 Col2ImLayerCPUTest::getTestCaseName);
-// }  // namespace Col2Im
+}  // namespace Col2Im
 }  // namespace test
 }  // namespace ov
