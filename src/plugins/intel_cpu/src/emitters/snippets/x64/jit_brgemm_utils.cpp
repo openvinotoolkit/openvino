@@ -56,10 +56,20 @@ BRGEMM_TYPE get_brgemm_type(const ov::element::Type& element_type_a, const Dimen
        return BRGEMM_TYPE::WITH_COMPENSATIONS;
 
     if (one_of(element_type_a, element::u8, ov::element::bf16))
-        return BRGEMM_TYPE::WITH_REPACKING;
+        return BRGEMM_TYPE::REPACKING_ONLY;
     OV_CPU_JIT_EMITTER_THROW("Failed to determine brgemm mode");
 }
 
 }   // namespace jit_brgemm_utils
 }   // namespace intel_cpu
+template <>
+EnumNames<ov::intel_cpu::jit_brgemm_utils::BRGEMM_TYPE>& EnumNames<ov::intel_cpu::jit_brgemm_utils::BRGEMM_TYPE>::get() {
+    static auto enum_names =
+            EnumNames<ov::intel_cpu::jit_brgemm_utils::BRGEMM_TYPE>("ov::intel_cpu::jit_bgremm_utils::BRGEMM_TYPE",
+                                                                    {{"stand_alone", ov::intel_cpu::jit_brgemm_utils::BRGEMM_TYPE::STAND_ALONE},
+                                                                     {"with_amx", ov::intel_cpu::jit_brgemm_utils::BRGEMM_TYPE::WITH_AMX},
+                                                                     {"with_compensations", ov::intel_cpu::jit_brgemm_utils::BRGEMM_TYPE::WITH_COMPENSATIONS},
+                                                                     {"repacking_only", ov::intel_cpu::jit_brgemm_utils::BRGEMM_TYPE::REPACKING_ONLY}});
+    return enum_names;
+}
 }   // namespace ov

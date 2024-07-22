@@ -6,6 +6,7 @@
 
 #include "snippets/op/brgemm.hpp"
 #include "brgemm_copy_b.hpp"
+#include "emitters/snippets/x64/jit_brgemm_utils.hpp"
 
 #include "snippets/lowered/port_descriptor.hpp"
 
@@ -20,28 +21,22 @@ namespace intel_cpu {
  */
 class BrgemmCPU : public snippets::op::Brgemm {
 public:
+    using BRGEMM_TYPE = jit_brgemm_utils::BRGEMM_TYPE;
     OPENVINO_OP("BrgemmCPU", "SnippetsOpset", snippets::op::Brgemm);
 
-    enum class Type {
-        Floating,          // f32|f32
-        WithDataRepacking, // u8|i8 or bf16|bf16 (non-AMX system) - needs BrgemmCopyB on second input for data repacking
-        WithCompensations, // i8|i8 (non-AMX system) - needs BrgemmCopyB for data repacking and compensations
-        AMX,               // i8|i8 or bf16|bf16 on AMX system - needs BrgemmCopyB and scratchpad
-    };
-
-    BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Type type,
+    BrgemmCPU(const Output<Node>& A, const Output<Node>& B, BRGEMM_TYPE type,
               const size_t offset_a = 0, const size_t offset_b = 0, const size_t offset_c = 0,
               std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {},
               const size_t blk_size_m = 0, const size_t blk_size_k = 0, const size_t blk_size_n = 0, const float beta = 1.f);
-    BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<Node>& scratch, const Type type,
+    BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<Node>& scratch, BRGEMM_TYPE type,
               const size_t offset_a = 0, const size_t offset_b = 0, const size_t offset_scratch = 0, const size_t offset_c = 0,
               std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {},
               const size_t blk_size_m = 0, const size_t blk_size_k = 0, const size_t blk_size_n = 0, const float beta = 1.f);
-    BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Type type,
+    BrgemmCPU(const Output<Node>& A, const Output<Node>& B, BRGEMM_TYPE type,
               const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_c,
               std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {},
               const size_t blk_size_m = 0, const size_t blk_size_k = 0, const size_t blk_size_n = 0, const float beta = 1.f);
-    BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<Node>& scratch, const Type type,
+    BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<Node>& scratch, BRGEMM_TYPE type,
               const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_scratch, const PortDescriptor& desc_c,
               std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {},
               const size_t blk_size_m = 0, const size_t blk_size_k = 0, const size_t blk_size_n = 0, const float beta = 1.f);
@@ -50,12 +45,7 @@ public:
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    Type get_type() const { return m_type; }
-
-    bool is_with_compensations() const { return m_type == Type::WithCompensations; }
-    bool is_with_data_repacking() const { return m_type != Type::Floating; }
-    bool is_amx() const { return m_type == Type::AMX; }
-    bool is_with_scratchpad() const { return is_with_compensations() || is_amx(); }
+    BRGEMM_TYPE get_type() const { return m_type; }
 
     size_t get_offset_scratch() const;
     std::shared_ptr<BrgemmCopyB> get_brgemm_copy() const;
@@ -69,14 +59,7 @@ private:
     void validate_with_scratchpad() const;
     void validate_inputs() const;
 
-    Type m_type = Type::Floating;
+    BRGEMM_TYPE m_type = BRGEMM_TYPE::STAND_ALONE;
 };
 } // namespace intel_cpu
-
-template <>
-class AttributeAdapter<intel_cpu::BrgemmCPU::Type> : public EnumAttributeAdapterBase<intel_cpu::BrgemmCPU::Type> {
-public:
-    AttributeAdapter(intel_cpu::BrgemmCPU::Type& value) : EnumAttributeAdapterBase<intel_cpu::BrgemmCPU::Type>(value) {}
-    OPENVINO_RTTI("AttributeAdapter<ov::intel_cpu::BrgemmCPU::Type>");
-};
 } // namespace ov

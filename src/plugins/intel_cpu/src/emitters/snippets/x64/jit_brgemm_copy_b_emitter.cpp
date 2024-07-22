@@ -32,7 +32,7 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h, cpu_isa_t
         OV_CPU_JIT_EMITTER_THROW("expects BrgemmCopyB node");
     OV_CPU_JIT_EMITTER_ASSERT(is_superset(host_isa_, cpu::x64::avx2), "host_isa must be at least avx2");
 
-    m_with_comp = brgemm_repack->is_with_compensations();
+    m_with_comp = with_compensations(brgemm_repack->get_type());
     m_in_offset = brgemm_repack->get_offset_in();
     m_out_offset = brgemm_repack->get_offset_out();
     if (m_with_comp)

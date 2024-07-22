@@ -27,10 +27,11 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa,
     const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
     const auto& brg0Prc = brgemm_node->get_input_element_type(0);
     const auto& brg1Prc = brgemm_node->get_input_element_type(1);
+    const auto brgemm_type = brgemm_node->get_type();
     BrgemmKernelConfig kernel_config(brg0Prc, brg1Prc,
-                                     brgemm_node->get_beta(), brgemm_node->is_amx(),
-                                     brgemm_node->is_with_compensations(),
-                                     jit_brgemm_utils::get_primitive_isa(brg0Prc, brgemm_node->is_amx()));
+                                     brgemm_node->get_beta(), with_amx(brgemm_type),
+                                     with_compensations(brgemm_type),
+                                     jit_brgemm_utils::get_primitive_isa(brg0Prc, with_amx(brgemm_type)));
     m_kernel_executor = kernel_table->register_kernel<BrgemmKernelExecutor>(expr,
                                                                             compiled_kernel_cache,
                                                                             kernel_config);
@@ -48,7 +49,7 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa,
             return SIZE_MAX;
     };
     m_memory_offsets = {brgemm_node->get_offset_a(), brgemm_node->get_offset_b(), brgemm_node->get_offset_c()};
-    if (brgemm_node->is_with_scratchpad())
+    if (with_scratchpad(brgemm_type))
         m_memory_offsets.push_back(brgemm_node->get_offset_scratch());
 
     m_buffer_ids.assign(m_memory_offsets.size(), SIZE_MAX);
@@ -72,15 +73,16 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa,
 std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
     const auto brgemm = as_type_ptr<ov::intel_cpu::BrgemmCPU>(node);
     OV_CPU_JIT_EMITTER_ASSERT(brgemm, "get_supported_precisions() expects BrgemmCPU node");
+    using jit_brgemm_utils::BRGEMM_TYPE;
     switch (brgemm->get_type()) {
-        case BrgemmCPU::Type::Floating:
+        case BRGEMM_TYPE::STAND_ALONE:
             return {{element::f32, element::f32}};
-        case BrgemmCPU::Type::WithDataRepacking:
+        case BRGEMM_TYPE::REPACKING_ONLY:
             return {{element::u8, element::i8},
                     {element::bf16, element::bf16}};
-        case BrgemmCPU::Type::WithCompensations:
+        case BRGEMM_TYPE::WITH_COMPENSATIONS:
             return {{element::i8, element::i8, element::f32}};
-        case BrgemmCPU::Type::AMX:
+        case BRGEMM_TYPE::WITH_AMX:
             return {{element::i8, element::i8, element::u8},
                     {element::u8, element::i8, element::u8},
                     {element::bf16, element::bf16, element::u8}};

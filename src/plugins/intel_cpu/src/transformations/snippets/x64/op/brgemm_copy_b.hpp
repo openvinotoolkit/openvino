@@ -8,6 +8,7 @@
 #include "snippets/op/memory_access.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 #include "snippets/shape_types.hpp"
+#include "emitters/snippets/x64/jit_brgemm_utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -21,17 +22,13 @@ namespace intel_cpu {
 */
 class BrgemmCopyB : public snippets::modifier::MemoryAccess, public ov::op::Op {
 public:
+    using BRGEMM_TYPE = jit_brgemm_utils::BRGEMM_TYPE;
     OPENVINO_OP("BrgemmCopyB", "SnippetsOpset");
 
-    enum class Type {
-        OnlyRepacking,     // Just data repacking - one output
-        WithCompensations, // Repack data and caclulate compensations - 2 outputs (is needed for BrgemmCPU with compensations)
-    };
-
-    BrgemmCopyB(const Output<Node>& x, const element::Type src_type, const Type type = Type::OnlyRepacking,
+    BrgemmCopyB(const Output<Node>& x, const element::Type src_type, BRGEMM_TYPE type = BRGEMM_TYPE::REPACKING_ONLY,
                 const size_t offset_in = 0lu, const size_t offset_out0 = 0lu, const size_t offset_out1 = 0lu,
                 std::vector<size_t> layout_input = {}, const size_t blk_size_k = 0, const size_t blk_size_n = 0);
-    BrgemmCopyB(const Output<Node>& x, const element::Type src_type, const Type type,
+    BrgemmCopyB(const Output<Node>& x, const element::Type src_type, BRGEMM_TYPE type,
                 const PortDescriptor& desc_in0, const PortDescriptor& desc_out0, const PortDescriptor& desc_out1,
                 std::vector<size_t> layout_input = {}, const size_t blk_size_k = 0, const size_t blk_size_n = 0);
     BrgemmCopyB() = default;
@@ -49,10 +46,9 @@ public:
     ov::Shape get_repacking_buffer_shape() const;
     ov::Shape get_compensations_buffer_shape() const;
 
-    Type get_type() const { return m_type; }
+    BRGEMM_TYPE get_type() const { return m_type; }
     size_t get_brgemm_vnni_factor() const { return m_brgemmVNNIFactor; }
     element::Type get_src_element_type() const { return m_src_type; }
-    bool is_with_compensations() const { return m_type == Type::WithCompensations; }
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
@@ -72,7 +68,7 @@ private:
     void validate_element_type(const ov::element::Type& element_type);
     void compute_block_size_values(const size_t blk_size_k, const size_t blk_size_n);
 
-    Type m_type = Type::OnlyRepacking;
+    BRGEMM_TYPE m_type = BRGEMM_TYPE::REPACKING_ONLY;
     element::Type m_src_type = ov::element::undefined;  // src element type of the corresponding BRGEMM
 
     size_t m_K_blk = 0;
@@ -83,11 +79,4 @@ private:
     size_t m_brgemmVNNIFactor = 1;
 };
 } // namespace intel_cpu
-
-template <>
-class AttributeAdapter<intel_cpu::BrgemmCopyB::Type> : public EnumAttributeAdapterBase<intel_cpu::BrgemmCopyB::Type> {
-public:
-    AttributeAdapter(intel_cpu::BrgemmCopyB::Type& value) : EnumAttributeAdapterBase<intel_cpu::BrgemmCopyB::Type>(value) {}
-    OPENVINO_RTTI("AttributeAdapter<ov::intel_cpu::BrgemmCopyB::Type>");
-};
 } // namespace ov

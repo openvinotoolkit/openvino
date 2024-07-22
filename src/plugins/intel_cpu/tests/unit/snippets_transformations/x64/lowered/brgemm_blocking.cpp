@@ -19,6 +19,7 @@ namespace snippets {
 using namespace ov::intel_cpu;
 using namespace ov::snippets::lowered;
 using namespace ov::snippets;
+using BRGEMM_TYPE = intel_cpu::jit_brgemm_utils::BRGEMM_TYPE;
 
 namespace {
 void create_brgemm_loop_infos(const LinearIRPtr& linear_ir,
@@ -106,7 +107,7 @@ TEST_F(BrgemmBlockingTest, Floating) {
     {
         auto data_a = linear_ir->push_node<ov::opset10::Parameter>(precision, input_shape_a);
         auto data_b = linear_ir->push_node<ov::opset10::Parameter>(precision, input_shape_b);
-        auto brgemm = linear_ir->push_node<BrgemmCPU>(data_a.second, data_b.second, BrgemmCPU::Type::Floating,
+        auto brgemm = linear_ir->push_node<BrgemmCPU>(data_a.second, data_b.second, BRGEMM_TYPE::STAND_ALONE,
                                                       0, 0, 0, layout_a, layout_b, layout_c, m_blk, k_blk, n_blk);
         init_expr_descriptors(*brgemm.first, {}, {layout_a, layout_b, layout_c});
         auto result = linear_ir->push_node<ov::opset10::Result>(brgemm.second);
@@ -114,7 +115,7 @@ TEST_F(BrgemmBlockingTest, Floating) {
     {
         auto data_a = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_a);
         auto data_b = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_b);
-        auto brgemm = linear_ir_ref->push_node<BrgemmCPU>(data_a.second, data_b.second, BrgemmCPU::Type::Floating,
+        auto brgemm = linear_ir_ref->push_node<BrgemmCPU>(data_a.second, data_b.second, BRGEMM_TYPE::STAND_ALONE,
                                                           0, 0, 0, layout_a, layout_b, layout_c, m_blk, k_blk, n_blk);
         const auto& brgemm_expr = *brgemm.first;
         init_expr_descriptors(brgemm_expr, {{m_blk, k_blk}, {k_blk, n_blk}, {m_blk, n_blk}}, {layout_a, layout_b, layout_c});
@@ -136,7 +137,7 @@ TEST_F(BrgemmBlockingTest, BlockingIsNotNeeded) {
     {
         auto data_a = linear_ir->push_node<ov::opset10::Parameter>(precision, input_shape_a);
         auto data_b = linear_ir->push_node<ov::opset10::Parameter>(precision, input_shape_b);
-        auto brgemm = linear_ir->push_node<BrgemmCPU>(data_a.second, data_b.second, BrgemmCPU::Type::Floating,
+        auto brgemm = linear_ir->push_node<BrgemmCPU>(data_a.second, data_b.second, BRGEMM_TYPE::STAND_ALONE,
                                                                  0, 0, 0, layout, layout, layout, m, k, n);
         init_expr_descriptors(*brgemm.first);
         auto result = linear_ir->push_node<ov::opset10::Result>(brgemm.second);
@@ -144,7 +145,7 @@ TEST_F(BrgemmBlockingTest, BlockingIsNotNeeded) {
     {
         auto data_a = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_a);
         auto data_b = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_b);
-        auto brgemm = linear_ir_ref->push_node<BrgemmCPU>(data_a.second, data_b.second, BrgemmCPU::Type::Floating,
+        auto brgemm = linear_ir_ref->push_node<BrgemmCPU>(data_a.second, data_b.second, BRGEMM_TYPE::STAND_ALONE,
                                                                      0, 0, 0, layout, layout, layout, m, k, n);
         brgemm.second->set_beta(0.f);
         init_expr_descriptors(*brgemm.first, {{m, k}, {k, n}, {m, n}});
@@ -164,11 +165,11 @@ TEST_F(BrgemmBlockingTest, WithDataRepacking) {
     {
         auto data_a = linear_ir->push_node<ov::opset10::Parameter>(precision_a, input_shape_a);
         auto data_b = linear_ir->push_node<ov::opset10::Parameter>(precision_b, input_shape_b);
-        auto copy_b = linear_ir->push_node<BrgemmCopyB>(data_b.second, precision_a, BrgemmCopyB::Type::OnlyRepacking,
+        auto copy_b = linear_ir->push_node<BrgemmCopyB>(data_b.second, precision_a, BRGEMM_TYPE::REPACKING_ONLY,
                                                         0, 0, 0, VectorDims{}, k_blk, n_blk);
         init_expr_descriptors(*copy_b.first);
 
-        auto brgemm = linear_ir->push_node<BrgemmCPU>(data_a.second, copy_b.second, BrgemmCPU::Type::WithDataRepacking,
+        auto brgemm = linear_ir->push_node<BrgemmCPU>(data_a.second, copy_b.second, BRGEMM_TYPE::REPACKING_ONLY,
                                                       0, 0, 0, VectorDims{}, VectorDims{}, VectorDims{}, m_blk, k_blk, n_blk);
         init_expr_descriptors(*brgemm.first);
         auto result = linear_ir->push_node<ov::opset10::Result>(brgemm.second);
@@ -176,13 +177,13 @@ TEST_F(BrgemmBlockingTest, WithDataRepacking) {
     {
         auto data_a = linear_ir_ref->push_node<ov::opset10::Parameter>(precision_a, input_shape_a);
         auto data_b = linear_ir_ref->push_node<ov::opset10::Parameter>(precision_b, input_shape_b);
-        auto copy_b = linear_ir_ref->push_node<BrgemmCopyB>(data_b.second, precision_a, BrgemmCopyB::Type::OnlyRepacking,
+        auto copy_b = linear_ir_ref->push_node<BrgemmCopyB>(data_b.second, precision_a, BRGEMM_TYPE::REPACKING_ONLY,
                                                             0, 0, 0, VectorDims{}, k_blk, n_blk);
         const auto copy_b_expr = *copy_b.first;
         init_expr_descriptors(copy_b_expr, {{k_blk, n_blk}, {k_blk, n_blk}});
         copy_b_expr->set_loop_ids({2, 1, 0});
 
-        auto brgemm = linear_ir_ref->push_node<BrgemmCPU>(data_a.second, copy_b.second, BrgemmCPU::Type::WithDataRepacking,
+        auto brgemm = linear_ir_ref->push_node<BrgemmCPU>(data_a.second, copy_b.second, BRGEMM_TYPE::REPACKING_ONLY,
                                                           0, 0, 0, VectorDims{}, VectorDims{}, VectorDims{}, m_blk, k_blk, n_blk);
         const auto& brgemm_expr = *brgemm.first;
         init_expr_descriptors(brgemm_expr, {{m_blk, k_blk}, {k_blk, n_blk}, {m_blk, n_blk}});
@@ -204,11 +205,11 @@ TEST_F(BrgemmBlockingTest, WithDataRepackingOnlyByM) {
     {
         auto data_a = linear_ir->push_node<ov::opset10::Parameter>(precision_a, input_shape_a);
         auto data_b = linear_ir->push_node<ov::opset10::Parameter>(precision_b, input_shape_b);
-        auto copy_b = linear_ir->push_node<BrgemmCopyB>(data_b.second, precision_a, BrgemmCopyB::Type::OnlyRepacking,
+        auto copy_b = linear_ir->push_node<BrgemmCopyB>(data_b.second, precision_a, BRGEMM_TYPE::REPACKING_ONLY,
                                                         0, 0, 0, VectorDims{}, k, n);
         init_expr_descriptors(*copy_b.first);
 
-        auto brgemm = linear_ir->push_node<BrgemmCPU>(data_a.second, copy_b.second, BrgemmCPU::Type::WithDataRepacking,
+        auto brgemm = linear_ir->push_node<BrgemmCPU>(data_a.second, copy_b.second, BRGEMM_TYPE::REPACKING_ONLY,
                                                       0, 0, 0, VectorDims{}, VectorDims{}, VectorDims{}, m_blk, k, n);
         init_expr_descriptors(*brgemm.first);
         auto result = linear_ir->push_node<ov::opset10::Result>(brgemm.second);
@@ -216,13 +217,13 @@ TEST_F(BrgemmBlockingTest, WithDataRepackingOnlyByM) {
     {
         auto data_a = linear_ir_ref->push_node<ov::opset10::Parameter>(precision_a, input_shape_a);
         auto data_b = linear_ir_ref->push_node<ov::opset10::Parameter>(precision_b, input_shape_b);
-        auto copy_b = linear_ir_ref->push_node<BrgemmCopyB>(data_b.second, precision_a, BrgemmCopyB::Type::OnlyRepacking,
+        auto copy_b = linear_ir_ref->push_node<BrgemmCopyB>(data_b.second, precision_a, BRGEMM_TYPE::REPACKING_ONLY,
                                                             0, 0, 0, VectorDims{}, k, n);
         const auto copy_b_expr = *copy_b.first;
         init_expr_descriptors(copy_b_expr, {{k, n}, {k, n}});
         copy_b_expr->set_loop_ids({});
 
-        auto brgemm = linear_ir_ref->push_node<BrgemmCPU>(data_a.second, copy_b.second, BrgemmCPU::Type::WithDataRepacking,
+        auto brgemm = linear_ir_ref->push_node<BrgemmCPU>(data_a.second, copy_b.second, BRGEMM_TYPE::REPACKING_ONLY,
                                                           0, 0, 0, VectorDims{}, VectorDims{}, VectorDims{}, m_blk, k, n, 0.f);
         const auto& brgemm_expr = *brgemm.first;
         init_expr_descriptors(brgemm_expr, {{m_blk, k}, {k, n}, {m_blk, n}});
@@ -243,11 +244,11 @@ TEST_F(BrgemmBlockingTest, WithCompensations) {
     {
         auto data_a = linear_ir->push_node<ov::opset10::Parameter>(precision, input_shape_a);
         auto data_b = linear_ir->push_node<ov::opset10::Parameter>(precision, input_shape_b);
-        auto copy_b = linear_ir->push_node<BrgemmCopyB>(data_b.second, precision, BrgemmCopyB::Type::WithCompensations,
+        auto copy_b = linear_ir->push_node<BrgemmCopyB>(data_b.second, precision, BRGEMM_TYPE::WITH_COMPENSATIONS,
                                                         0, 0, 0, VectorDims{}, k_blk, n_blk);
         init_expr_descriptors(*copy_b.first);
         const auto& copy_b_n = copy_b.second;
-        auto brgemm = linear_ir->push_node<BrgemmCPU>(data_a.second, copy_b_n->output(0), copy_b_n->output(1), BrgemmCPU::Type::WithCompensations,
+        auto brgemm = linear_ir->push_node<BrgemmCPU>(data_a.second, copy_b_n->output(0), copy_b_n->output(1), BRGEMM_TYPE::WITH_COMPENSATIONS,
                                                       0, 0, 0, 0, VectorDims{}, VectorDims{}, VectorDims{}, m_blk, k_blk, n_blk);
         init_expr_descriptors(*brgemm.first);
         auto result = linear_ir->push_node<ov::opset10::Result>(brgemm.second);
@@ -255,14 +256,14 @@ TEST_F(BrgemmBlockingTest, WithCompensations) {
     {
         auto data_a = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_a);
         auto data_b = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_b);
-        auto copy_b = linear_ir_ref->push_node<BrgemmCopyB>(data_b.second, precision, BrgemmCopyB::Type::WithCompensations,
+        auto copy_b = linear_ir_ref->push_node<BrgemmCopyB>(data_b.second, precision, BRGEMM_TYPE::WITH_COMPENSATIONS,
                                                             0, 0, 0, VectorDims{}, k_blk, n_blk);
         const auto copy_b_expr = *copy_b.first;
         init_expr_descriptors(copy_b_expr, {{k_blk, n_blk}, {k_blk, n_blk}, {1, n_blk}});
         copy_b_expr->set_loop_ids({2, 1, 0});
 
         const auto& copy_b_n = copy_b.second;
-        auto brgemm = linear_ir_ref->push_node<BrgemmCPU>(data_a.second, copy_b_n->output(0), copy_b_n->output(1), BrgemmCPU::Type::WithCompensations,
+        auto brgemm = linear_ir_ref->push_node<BrgemmCPU>(data_a.second, copy_b_n->output(0), copy_b_n->output(1), BRGEMM_TYPE::WITH_COMPENSATIONS,
                                                           0, 0, 0, 0, VectorDims{}, VectorDims{}, VectorDims{}, m_blk, k_blk, n_blk);
         const auto& brgemm_expr = *brgemm.first;
         init_expr_descriptors(brgemm_expr, {{m_blk, k_blk}, {k_blk, n_blk}, {1, n_blk}, {m_blk, n_blk}});
@@ -284,10 +285,10 @@ TEST_F(BrgemmBlockingTest, AMX) {
         auto data_a = linear_ir->push_node<ov::opset10::Parameter>(precision, input_shape_a);
         auto data_b = linear_ir->push_node<ov::opset10::Parameter>(precision, input_shape_b);
         auto scratch = linear_ir->push_node<snippets::op::NewMemoryBuffer>(ov::Shape{BrgemmCPU::SCRATCH_BYTE_SIZE});
-        auto copy_b = linear_ir->push_node<BrgemmCopyB>(data_b.second, precision, BrgemmCopyB::Type::OnlyRepacking,
+        auto copy_b = linear_ir->push_node<BrgemmCopyB>(data_b.second, precision, BRGEMM_TYPE::REPACKING_ONLY,
                                                         0, 0, 0, VectorDims{}, k_blk, n_blk);
         init_expr_descriptors(*copy_b.first);
-        auto brgemm = linear_ir->push_node<BrgemmCPU>(data_a.second, copy_b.second, scratch.second, BrgemmCPU::Type::AMX,
+        auto brgemm = linear_ir->push_node<BrgemmCPU>(data_a.second, copy_b.second, scratch.second, BRGEMM_TYPE::WITH_AMX,
                                                       0, 0, 0, 0, VectorDims{}, VectorDims{}, VectorDims{}, m_blk, k_blk, n_blk);
         init_expr_descriptors(*brgemm.first);
         auto result = linear_ir->push_node<ov::opset10::Result>(brgemm.second);
@@ -295,7 +296,7 @@ TEST_F(BrgemmBlockingTest, AMX) {
     {
         auto data_a = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_a);
         auto data_b = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_b);
-        auto copy_b = linear_ir_ref->push_node<BrgemmCopyB>(data_b.second, precision, BrgemmCopyB::Type::OnlyRepacking,
+        auto copy_b = linear_ir_ref->push_node<BrgemmCopyB>(data_b.second, precision, BRGEMM_TYPE::REPACKING_ONLY,
                                                             0, 0, 0, VectorDims{}, k_blk, n_blk);
         const auto copy_b_expr = *copy_b.first;
         init_expr_descriptors(copy_b_expr, {{k_blk, n_blk}, {k_blk, n_blk}});
@@ -304,7 +305,7 @@ TEST_F(BrgemmBlockingTest, AMX) {
         auto scratch = linear_ir_ref->push_node<snippets::op::NewMemoryBuffer>(ov::Shape{BrgemmCPU::SCRATCH_BYTE_SIZE});
         scratch.first->get()->set_loop_ids({2, 1, 0});
 
-        auto brgemm = linear_ir_ref->push_node<BrgemmCPU>(data_a.second, copy_b.second, scratch.second, BrgemmCPU::Type::AMX,
+        auto brgemm = linear_ir_ref->push_node<BrgemmCPU>(data_a.second, copy_b.second, scratch.second, BRGEMM_TYPE::WITH_AMX,
                                                           0, 0, 0, 0, VectorDims{}, VectorDims{}, VectorDims{}, m_blk, k_blk, n_blk);
         const auto& brgemm_expr = *brgemm.first;
         init_expr_descriptors(brgemm_expr, {{m_blk, k_blk}, {k_blk, n_blk}, get_default_subtensor(), {m_blk, n_blk}});

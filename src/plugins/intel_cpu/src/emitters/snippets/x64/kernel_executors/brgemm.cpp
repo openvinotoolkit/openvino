@@ -167,7 +167,7 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
 
     const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(brgemm_node, "Got invalid node type in update_config");
-    if (brgemm_node->is_with_data_repacking()) {
+    if (with_repacking(brgemm_node->get_type())) {
         const auto repacking_buffer_shape = brgemm_node->get_brgemm_copy()->get_repacking_buffer_shape();
         OV_CPU_JIT_EMITTER_ASSERT(!repacking_buffer_shape.empty(), "Repacking buffer shape mustn't be empty");
         LDB = DIM_CAST(repacking_buffer_shape.back());
