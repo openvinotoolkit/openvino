@@ -71,6 +71,7 @@ public:
      * @return Handle to the allocated resource
      */
     void* allocate(const size_t bytes, const size_t alignment = STANDARD_PAGE_SIZE) noexcept;
+
     /**
      * @brief Releases handle and all associated memory resources which invalidates the handle.
      * @param handle Pointer to allocated data
@@ -84,7 +85,6 @@ private:
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
 
     ze_host_mem_alloc_flag_t _flag;
-    void* _data = nullptr;
     static const std::size_t _alignment = STANDARD_PAGE_SIZE;
 };
 
