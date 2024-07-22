@@ -68,16 +68,14 @@ to OpenVINO template extension ``Identity`` class.
 The mapping doesn’t involve any attributes, as operation Identity doesn’t have them.
 
 Extension objects, like just constructed ``extension`` can be used to add to the
-OpenVINO runtime just before the loading a model that contains custom operations:
+OpenVINO runtime just before loading a model that contains custom operations:
 
 .. doxygensnippet:: docs/articles_en/assets/snippets/ov_extensions.cpp
    :language: cpp
    :fragment: [frontend_extension_read_model]
 
-Or extensions can be constructed in a separately compiled shared library.
-Separately compiled library can be used in Model Optimizer or ``benchmark_app``.
-Read about how to build and load such a library in the chapter of “Create library with extensions” in
-:doc:`Introduction to OpenVINO Extension <../openvino-extensibility>`.
+However, extensions can also be constructed in a separately compiled shared library, that is suitable for loading models with custom operations in a Python application or tools like ``benchmark_app``.
+For details on how to build and load such library, check the following :ref:`guide <create_a_library_with_extensions>`.
 
 If operation have multiple inputs and/or outputs they will be mapped in order.
 The type of elements in input/output tensors should match expected types in the surrounding operations.

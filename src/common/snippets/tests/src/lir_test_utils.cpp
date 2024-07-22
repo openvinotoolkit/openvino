@@ -5,7 +5,7 @@
 #include "lir_test_utils.hpp"
 
 #include "snippets/lowered/linear_ir_builder.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 using namespace ov::snippets::lowered;
 using namespace ov::snippets::utils;

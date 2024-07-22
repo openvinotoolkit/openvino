@@ -344,6 +344,8 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(.*smoke_CompareWithRefs_4D_Bitwise.*/EltwiseLayerCPUTest.*_eltwise_op_type=Bitwise.*_model_type=i32_.*)");
         // Ticket: 144845
         retVector.emplace_back(R"(.*LSTMCellFusion/LSTMCellFusionWithSplitWeights.SubgraphFusedToLSTMCell/(1|8|15))");
+        // Ticket: 131541
+        retVector.emplace_back(R"(.*smoke_MulticlassNmsLayerTest_dynamic2.*_outType=i32_.*)");
     }
     // invalid test: checks u8 precision for runtime graph, while it should be f32
     retVector.emplace_back(R"(smoke_NegativeQuantizedMatMulMultiplyFusion.*)");
@@ -602,9 +604,6 @@ std::vector<std::string> disabledTestPatterns() {
         retVector.emplace_back(R"(smoke_CompareWithRefs_4D.*/EltwiseLayerCPUTest.*Sub_secondary.*INFERENCE_PRECISION_HINT=f16.*FakeQuantize.*enforceSnippets=1.*)");
         retVector.emplace_back(R"(smoke_Reduce.*/ReduceCPULayerTest.*axes=\((0.1|1)\).*Prod_KeepDims.*INFERENCE_PRECISION_HINT=f16.*)");
         retVector.emplace_back(R"(smoke_ConvertRangeSubgraphCPUTest/ConvertRangeSubgraphCPUTest\.CompareWithRefs.*Prc=f16.*)");
-        // Issue: 142465
-        retVector.emplace_back(R"(smoke_Reduce_MultiAxis_4D_fusing_CPU/ReduceCPULayerTest.CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)");
-        retVector.emplace_back(R"(smoke_Reduce_MultiAxis_5D_fusing_CPU/ReduceCPULayerTest.CompareWithRefs.*INFERENCE_PRECISION_HINT=f16.*)");
         // Issue: 143852
         retVector.emplace_back(R"((smoke|nightly)_FC_3D_FP16/.*_Fused=Multiply\(PerChannel\).*)");
         retVector.emplace_back(R"((smoke|nightly)_MM_Brgemm_Static_FP16.*TS=\(\(55\.12\)\).*_Fused=Multiply\(PerChannel\).*)");

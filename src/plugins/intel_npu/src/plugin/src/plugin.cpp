@@ -19,6 +19,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "remote_context.hpp"
 
 using namespace intel_npu;
 
@@ -676,18 +677,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     return compiledModel;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& /*model*/,
-                                                          const ov::AnyMap& /*properties*/,
-                                                          const ov::SoPtr<ov::IRemoteContext>& /*context*/) const {
-    OPENVINO_THROW_NOT_IMPLEMENTED("The remote context feature is not supported by the NPU plugin");
+std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                          const ov::AnyMap& properties,
+                                                          const ov::SoPtr<ov::IRemoteContext>& context) const {
+    auto casted = std::dynamic_pointer_cast<RemoteContextImpl>(context._ptr);
+    OPENVINO_ASSERT(casted, "Invalid remote context type. Can't cast to ov::intel_npu::RemoteContext type");
+
+    return compile_model(model, properties);
 }
 
-ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& /*remote_properties*/) const {
-    OPENVINO_THROW_NOT_IMPLEMENTED("The remote context feature is not supported by the NPU plugin");
+ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_properties) const {
+    return get_default_context(remote_properties);
 }
 
-ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap& /*remote_properties*/) const {
-    OPENVINO_THROW_NOT_IMPLEMENTED("The remote context feature is not supported by the NPU plugin");
+ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) const {
+    return std::make_shared<RemoteContextImpl>(_backends, _globalConfig);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
