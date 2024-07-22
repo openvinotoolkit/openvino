@@ -87,7 +87,6 @@ TEST_P(proposal_test, shape_infer) {
                                                     round_ratios,
                                                     shift_anchors,
                                                     normalize,
-                                                    padding({0, 0, 0, 0}, 0),
                                                     p.output_data_type,
                                                     p.num_outputs);
     std::vector<padding> output_paddings;

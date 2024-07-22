@@ -287,7 +287,14 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::IndexLoopGetitemReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::QuantizedNodeRemover>();
     manager.register_pass<ov::frontend::pytorch::pass::SoftmaxReshapeElimination>();
-    manager.register_pass<ov::frontend::pytorch::pass::U4BlockRepack>();
+
+    // Check if model is symmetrically quantized
+    bool sym = false;
+    if (model->has_rt_info("symmetric_quantization")) {
+        sym = model->get_rt_info()["symmetric_quantization"].as<bool>();
+    }
+    manager.register_pass<ov::frontend::pytorch::pass::U4BlockRepack>(sym);
+
     manager.register_pass<ov::frontend::pytorch::pass::ReversepropResolver>();
     manager.register_pass<ov::frontend::pytorch::pass::MovePackThroughLstm>();
     manager.register_pass<ov::frontend::pytorch::pass::RemovePackingOps>();
@@ -304,11 +311,11 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         auto self = model->get_parameters()[0];
         if (self->output(0).get_target_inputs().empty()) {
             // There is no consumers: safe to remove
-            OPENVINO_DEBUG << "[ WARNING ] Removing parameter[0] in converted Pytorch model, because it is never used "
-                              "and treated as `self`\n";
+            OPENVINO_DEBUG("[ WARNING ] Removing parameter[0] in converted Pytorch model, because it is never used "
+                           "and treated as `self`\n");
             model->remove_parameter(self);
         } else {
-            OPENVINO_DEBUG << "[ WARNING ] Couldn't remove parameter[0] in converted PyTorch model\n";
+            OPENVINO_DEBUG("[ WARNING ] Couldn't remove parameter[0] in converted PyTorch model\n");
         }
     }
 }

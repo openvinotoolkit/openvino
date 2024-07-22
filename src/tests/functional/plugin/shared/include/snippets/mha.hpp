@@ -11,7 +11,7 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-typedef std::tuple<std::vector<ov::PartialShape>,   // Input shapes
+typedef std::tuple<std::vector<InputShape>,   // Input shapes
                    std::vector<ov::element::Type>,  // Input Element types
                    ov::element::Type,               // Inference precision
                    bool,                            // With Multiply

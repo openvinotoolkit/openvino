@@ -1,5 +1,3 @@
-.. {#openvino_docs_model_processing_introduction}
-
 Model Preparation
 =================
 
@@ -66,15 +64,15 @@ The easiest way to obtain a model is to download it from an online database, suc
    For PyTorch models, `Python API <#convert-a-model-with-python-convert-model>`__ is the only
    conversion option.
 
-Model States
+Different model representations
 ##############################################
 
-There are three states a model in OpenVINO can be: saved on disk, loaded but not compiled
-(``ov.Model``) or loaded and compiled (``ov.CompiledModel``).
+A model in OpenVINO can be represented in three ways: saved on disk, loaded but not compiled
+(``ov.Model``), and loaded and compiled (``ov.CompiledModel``).
 
 | **Saved on disk**
-|    A model in this state consists of one or more files that fully represent the neural
-     network. A model can be stored in different ways. For example:
+|    One or more files saved on a drive, fully representing the neural network.
+     Different model formats are stored in different ways, for example:
 |       OpenVINO IR: pair of .xml and .bin files
 |       ONNX: .onnx file
 |       TensorFlow: directory with a .pb file and two subfolders or just a .pb file
@@ -88,7 +86,7 @@ There are three states a model in OpenVINO can be: saved on disk, loaded but not
      applying quantization or even adding preprocessing steps before compiling the model.
 
 | **Loaded and compiled**
-|   This state is achieved when one or more devices are specified for a model object to
+|   This representation is achieved when one or more devices are specified for a model object to
     run on (``ov.CompiledModel``), allowing device optimizations to be made and enabling
     inference.
 
