@@ -11,15 +11,18 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 namespace Col2Im {
-// INSTANTIATE_TEST_SUITE_P(smoke_Col2ImLayoutTestBF16, Col2ImLayerCPUTest,
-//         ::testing::Combine(
-//                 ::testing::Combine(
-//                         ::testing::ValuesIn(col2ImParamsVector),
-//                         ::testing::Values(ElementType::bf16),
-//                         ::testing::ValuesIn(indexPrecisions),
-//                         ::testing::Values(ov::test::utils::DEVICE_CPU)),
-//                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref_bf16"})),
-//                 Col2ImLayerCPUTest::getTestCaseName);
+namespace{
+
+INSTANTIATE_TEST_SUITE_P(smoke_Col2ImLayoutTestBF16, Col2ImLayerCPUTest,
+        ::testing::Combine(
+                ::testing::Combine(
+                        ::testing::ValuesIn(col2ImParamsVector),
+                        ::testing::Values(ElementType::bf16),
+                        ::testing::ValuesIn(indexPrecisions),
+                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref_bf16"})),
+                Col2ImLayerCPUTest::getTestCaseName);
+}
 }  // namespace Col2Im
 }  // namespace test
 }  // namespace ov
