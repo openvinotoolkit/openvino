@@ -1,0 +1,30 @@
+name: CPU plugin developer dispatcher workflow (Ubuntu 20.04)
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/cpu_dev_dispatcher.yml'
+
+concurrency:
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-cpu-dev-dispatch
+  cancel-in-progress: true
+
+permissions: read-all
+
+env:
+  PIP_CACHE_PATH: /mount/caches/pip/linux
+
+jobs:
+  CPU_Functional_Tests:
+    name: Job 1
+    timeout-minutes: 30
+    runs-on: aks-linux-8-cores-32gb
+    defaults:
+      run:
+        shell: bash
+    env:
+      WORLD: 'world'
+    steps:
+      - name: Ping
+        run: |
+          echo Hello "$WORLD"
