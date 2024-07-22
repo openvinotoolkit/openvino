@@ -7,8 +7,7 @@
 #include <memory>
 #include <utility>
 
-#include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/MatcherPass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
