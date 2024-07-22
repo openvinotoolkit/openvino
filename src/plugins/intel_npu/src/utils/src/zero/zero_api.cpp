@@ -4,7 +4,6 @@
 
 #include "intel_npu/utils/zero/zero_api.hpp"
 
-#include "openvino/core/except.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 
@@ -29,14 +28,24 @@ ZeroApi::ZeroApi() {
     try {
 #define symbol_statement(symbol) \
     this->symbol = reinterpret_cast<decltype(&::symbol)>(ov::util::get_symbol(lib, #symbol));
-        symbols_list()
+        symbols_list();
 #undef symbol_statement
     } catch (const std::runtime_error& error) {
         OPENVINO_THROW(error.what());
     }
 
+#define symbol_statement(symbol)                                                                  \
+    try {                                                                                         \
+        this->symbol = reinterpret_cast<decltype(&::symbol)>(ov::util::get_symbol(lib, #symbol)); \
+    } catch (const std::runtime_error&) {                                                         \
+        this->symbol = nullptr;                                                                   \
+    }
+    weak_symbols_list();
+#undef symbol_statement
+
 #define symbol_statement(symbol) symbol = this->symbol;
     symbols_list();
+    weak_symbols_list();
 #undef symbol_statement
 }
 
