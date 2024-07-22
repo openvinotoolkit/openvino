@@ -121,7 +121,6 @@ TSSqueezeForward::TSSqueezeForward() {
                     return false;
                 }
             } else {
-                // TODO1:
                 auto rank = main_node->get_input_partial_shape(0).rank();
                 non_negative_axes =
                     util::try_get_normalized_axis_vector(squeeze_axes->get_tensor_view(), rank, *main_node);
@@ -229,7 +228,6 @@ TSSqueezeBackward::TSSqueezeBackward() {
                     return false;
                 }
             } else {
-                // TODO1:
                 auto rank = main_node->get_input_partial_shape(0).rank();
                 non_negative_axes =
                     util::try_get_normalized_axis_vector(squeeze_axes->get_tensor_view(), rank, *main_node);

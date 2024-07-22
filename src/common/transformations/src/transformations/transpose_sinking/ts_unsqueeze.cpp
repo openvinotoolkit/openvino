@@ -120,7 +120,7 @@ TSUnsqueezeForward::TSUnsqueezeForward() {
                 return false;
             }
         } else {
-            auto rank = main_node->get_input_partial_shape(0).rank();
+            auto rank = main_node->get_output_partial_shape(0).rank();
             non_negative_axes =
                 ov::util::try_get_normalized_axis_vector(unsqueeze_axes->get_tensor_view(), rank, *main_node);
         }
