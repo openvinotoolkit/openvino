@@ -41,7 +41,7 @@ CPU::CPU() {
                 }
                 std::string cache_info;
                 std::getline(cache_file, cache_info);
-                one_info[n] = std::move(cache_info);
+                one_info[n] = cache_info;
             }
 
             if (cache_index == -1) {
@@ -80,7 +80,7 @@ CPU::CPU() {
                 }
                 std::string cache_info;
                 std::getline(cache_file, cache_info);
-                one_info[n] = std::move(cache_info);
+                one_info[n] = cache_info;
             }
 
             if (cache_index == -1) {
@@ -108,7 +108,7 @@ CPU::CPU() {
             }
             std::string cache_info;
             std::getline(cache_file, cache_info);
-            node_info_table.emplace_back(std::move(cache_info));
+            node_info_table.push_back(cache_info);
             node_index++;
         }
     };
@@ -188,11 +188,7 @@ CPU::CPU() {
         } else {
             _processors = valid_cpu_mapping_table.size();
             _cpu_mapping_table.swap(valid_cpu_mapping_table);
-            update_valid_processor_linux(std::move(phy_core_list),
-                                         _numa_nodes,
-                                         _cores,
-                                         _proc_type_table,
-                                         _cpu_mapping_table);
+            update_valid_processor_linux(phy_core_list, _numa_nodes, _cores, _proc_type_table, _cpu_mapping_table);
             return 0;
         }
     };
@@ -462,7 +458,7 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
         return;
     };
 
-    const std::vector<int> line_value_0({0, 0, 0, 0, -1, -1});
+    std::vector<int> line_value_0({0, 0, 0, 0, -1, -1});
 
     for (int n = 0; n < _processors; n++) {
         if (-1 == _cpu_mapping_table[n][CPU_MAP_SOCKET_ID]) {

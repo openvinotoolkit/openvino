@@ -216,11 +216,11 @@ bool ov::is_config_applicable(const std::string& user_device_name, const std::st
 
     // if device name is matched, check additional condition
     auto is_matched = [&](const std::string& key, MatchType match_type) -> bool {
-        const auto& user_value =
+        auto user_value =
             parsed_user_device_name._config.count(key) ? parsed_user_device_name._config.at(key).as<std::string>() : "";
-        const auto& subprop_value = parsed_subprop_device_name._config.count(key)
-                                        ? parsed_subprop_device_name._config.at(key).as<std::string>()
-                                        : "";
+        auto subprop_value = parsed_subprop_device_name._config.count(key)
+                                 ? parsed_subprop_device_name._config.at(key).as<std::string>()
+                                 : "";
 
         if (!user_value.empty() && subprop_value.empty()) {
             // property without additional limitation can be applied
@@ -307,7 +307,7 @@ ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName,
         clean_batch_properties(updated_device_name, updated_config, ov::auto_batch_timeout);
     }
 
-    return {std::move(updated_device_name), std::move(updated_config)};
+    return {updated_device_name, updated_config};
 }
 
 ov::CoreImpl::CoreImpl() {
@@ -395,7 +395,7 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
     // Register proxy plugin
     if (config.find(ov::proxy::configuration::alias.name()) != config.end()) {
         // Create proxy plugin for alias
-        const auto& alias = config.at(ov::proxy::configuration::alias.name()).as<std::string>();
+        auto alias = config.at(ov::proxy::configuration::alias.name()).as<std::string>();
         if (alias == device_name)
             dev_name = get_internal_plugin_name(dev_name, config);
         // Alias can be registered by several plugins
@@ -407,7 +407,7 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
                 desc.defaultConfig[ov::proxy::configuration::internal_name.name()] = dev_name;
 
             fill_config(desc.defaultConfig, config, dev_name);
-            pluginRegistry[alias] = std::move(desc);
+            pluginRegistry[alias] = desc;
             add_mutex(alias);
         } else {
             // Update registered plugin
@@ -428,7 +428,7 @@ void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_
         PluginDescriptor desc = PluginDescriptor(ov::proxy::create_plugin);
         desc.defaultConfig[ov::proxy::configuration::internal_name.name()] = dev_name;
         fill_config(desc.defaultConfig, config, dev_name);
-        pluginRegistry[device_name] = std::move(desc);
+        pluginRegistry[device_name] = desc;
         add_mutex(device_name);
     }
 
@@ -601,7 +601,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             // Set Core class reference to plugins
             std::weak_ptr<ov::ICore> mutableCore =
                 std::const_pointer_cast<ov::ICore>(std::dynamic_pointer_cast<const ov::ICore>(shared_from_this()));
-            plugin.set_core(std::move(mutableCore));
+            plugin.set_core(mutableCore);
         }
 
         // configuring
@@ -1252,7 +1252,7 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
             auto base_desc = pluginRegistry.find(clearDeviceName);
             if (pluginRegistry.find(deviceName) == pluginRegistry.end() && base_desc != pluginRegistry.end()) {
                 PluginDescriptor desc{base_desc->second.libraryLocation, config, base_desc->second.listOfExtentions};
-                pluginRegistry[deviceName] = std::move(desc);
+                pluginRegistry[deviceName] = desc;
             }
 
             // set config for plugins in registry
@@ -1532,8 +1532,8 @@ ov::CoreImpl::CoreConfig::CacheConfig ov::CoreImpl::CoreConfig::get_cache_config
     ov::AnyMap& parsedConfig) const {
     // cache_dir is enabled locally in compile_model only
     if (parsedConfig.count(ov::cache_dir.name())) {
-        const auto& cache_dir_val = parsedConfig.at(ov::cache_dir.name()).as<std::string>();
-        const auto& tempConfig = CoreConfig::CacheConfig::create(cache_dir_val);
+        auto cache_dir_val = parsedConfig.at(ov::cache_dir.name()).as<std::string>();
+        auto tempConfig = CoreConfig::CacheConfig::create(cache_dir_val);
         // if plugin does not explicitly support cache_dir, and if plugin is not virtual, we need to remove
         // it from config
         if (!util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir) &&
@@ -1563,7 +1563,7 @@ ov::CoreImpl::CoreConfig::CacheConfig ov::CoreImpl::CoreConfig::CacheConfig::cre
         cache_manager = std::make_shared<ov::FileStorageCacheManager>(dir);
     }
 
-    return {dir, std::move(cache_manager)};
+    return {dir, cache_manager};
 }
 
 std::mutex& ov::CoreImpl::get_mutex(const std::string& dev_name) const {

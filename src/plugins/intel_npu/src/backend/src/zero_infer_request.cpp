@@ -402,13 +402,26 @@ void ZeroInferRequest::set_tensor_data(std::shared_ptr<ov::ITensor> tensor, cons
     if (setTensorData) {
         _tensorsData[name] = TensorData{_copyAllTensors.at(name)->data(),
                                         _copyAllTensors.at(name)->get_byte_size(),
-                                        levelZeroTensorCreatedLocally,
-                                        !_createPipeline};
-        _updateCommandList = true;
+                                        levelZeroTensorCreatedLocally};
+
+        if (_pipelineIsCreated) {
+            _logger.debug("ZeroInferRequest::infer_async - update command list");
+
+            intel_npu::ZeroExecutor::ArgumentDescriptor desc;
+            if (isParameter) {
+                desc = _executor->inputs_desc_map().at(name);
+            } else {
+                desc = _executor->outputs_desc_map().at(name);
+            }
+
+            _pipeline->updateCommandList(_tensorsData[name], desc.idx, _batchSize);
+        }
     }
 }
 
-void ZeroInferRequest::set_remote_tensor_data(std::shared_ptr<ZeroRemoteTensor> tensor, const std::string& name) {
+void ZeroInferRequest::set_remote_tensor_data(std::shared_ptr<ZeroRemoteTensor> tensor,
+                                              const std::string& name,
+                                              bool isParameter) {
     auto l0_context = reinterpret_cast<ze_context_handle_t>(
         extract_object(tensor->get_context()->get_property(), ov::intel_npu::l0_context));
     if (_initStructs->getContext() != l0_context) {
@@ -421,8 +434,20 @@ void ZeroInferRequest::set_remote_tensor_data(std::shared_ptr<ZeroRemoteTensor> 
     }
 
     _copyAllTensors[name] = tensor;
-    _tensorsData[name] = TensorData{data, tensor->get_byte_size(), false, !_createPipeline};
-    _updateCommandList = true;
+    _tensorsData[name] = TensorData{data, tensor->get_byte_size(), false};
+
+    if (_pipelineIsCreated) {
+        _logger.debug("ZeroInferRequest::infer_async - update command list");
+
+        intel_npu::ZeroExecutor::ArgumentDescriptor desc;
+        if (isParameter) {
+            desc = _executor->inputs_desc_map().at(name);
+        } else {
+            desc = _executor->outputs_desc_map().at(name);
+        }
+
+        _pipeline->updateCommandList(_tensorsData[name], desc.idx, _batchSize);
+    }
 }
 
 void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
@@ -444,7 +469,9 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
                             ov::op::util::is_parameter(port.get_node()));
         } else {
             _logger.debug("ZeroInferRequest::set_tensor - set new remote tensor");
-            set_remote_tensor_data(remoteTensor, port.get_node()->get_friendly_name());
+            set_remote_tensor_data(remoteTensor,
+                                   port.get_node()->get_friendly_name(),
+                                   ov::op::util::is_parameter(port.get_node()));
         }
     }
 }
@@ -489,23 +516,11 @@ void ZeroInferRequest::infer_async() {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "infer_async");
 
     _executor->mutexLock();
-
-    if (_createPipeline) {
+    if (!_pipelineIsCreated) {
         create_pipeline();
 
-        _createPipeline = false;
-        _updateCommandList = false;
+        _pipelineIsCreated = true;
     }
-
-    if (_initStructs->getMutableCommandListVersion()) {
-        if (_updateCommandList) {
-            _logger.debug("ZeroInferRequest::infer_async - update command list");
-            _pipeline->updateCommandList(_tensorsData, _batchSize);
-
-            _updateCommandList = false;
-        }
-    }
-
     _executor->mutexUnlock();
 
     for (const std::string& name : _inputAndStateInputNames) {
