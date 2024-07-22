@@ -52,11 +52,12 @@ Compress Model Weights
 **8-bit weight quantization** method offers a balance between model size reduction and
 maintaining accuracy, which usually leads to significant performance improvements for
 Transformer-based models. Models with 8-bit compressed weights are performant on the
-vast majority of supported CPU and GPU platforms.
+vast majority of supported CPU and GPU platforms. By default, weights are compressed
+asymmetrically to "INT8_ASYM" mode with a non-fixed zero point.
 
 
-The code snippet below shows how to do 8-bit quantization of the model weights represented
-in OpenVINO IR using NNCF:
+The code snippet below shows how to do asymmetrical 8-bit quantization of the model weights
+represented in OpenVINO IR using NNCF:
 
 .. tab-set::
 
@@ -71,8 +72,8 @@ in OpenVINO IR using NNCF:
 Now, the model is ready for compilation and inference.
 It can be also saved into a compressed format, resulting in a smaller binary file.
 
-**4-bit weight quantization** method stands for an INT4-INT8 mixed-precision weight quantization,
-where INT4 is considered as the primary precision and INT8 is the backup one.
+**4-bit weight quantization** method stands for an INT4-INT8_ASYM mixed-precision weight quantization,
+where INT4 is considered as the primary precision and INT8_ASYM is the backup one.
 It usually results in a smaller model size and lower inference latency, although the accuracy
 degradation could be higher, depending on the model.
 
@@ -100,7 +101,7 @@ memory reduction, speed gain, and accuracy loss.
      - Memory Reduction
      - Latency Improvement
      - Accuracy Loss
-   * - INT8
+   * - INT8 Asymmetric
      - Low
      - Medium
      - Low
@@ -123,7 +124,7 @@ trade-offs after optimization:
   **Symmetric Compression** - ``INT4_SYM``
 
   INT4 Symmetric mode involves quantizing weights to an unsigned 4-bit integer
-  symmetrically with a fixed zero point of 8. This mode is faster than the INT8, making
+  symmetrically without zero point. This mode is faster than the INT8_ASYM, making
   it ideal for situations where **speed and size reduction are prioritized over accuracy**.
 
   .. code-block:: python
@@ -159,15 +160,15 @@ trade-offs after optimization:
   `Larger Group Size`: Results in faster inference and a smaller model, but might
   compromise accuracy.
 
-* ``ratio`` controls the ratio between INT4 and INT8 compressed layers in the model.
+* ``ratio`` controls the ratio between INT4 and INT8_ASYM compressed layers in the model.
   Ratio is a decimal between 0 and 1. For example, 0.8 means that 80% of layers will be
-  compressed to INT4, while the rest will be compressed to INT8 precision. The default
+  compressed to INT4, while the rest will be compressed to INT8_ASYM precision. The default
   value for ratio is 1.
 
   `Higher Ratio (more INT4)`: Reduces the model size and increase inference speed but
   might lead to higher accuracy degradation.
 
-  `Lower Ratio (more INT8)`: Maintains better accuracy but results in a larger model size
+  `Lower Ratio (more INT8_ASYM)`: Maintains better accuracy but results in a larger model size
   and potentially slower inference.
 
   In this example, 90% of the model's layers are quantized to INT4 asymmetrically with
@@ -238,7 +239,7 @@ If the model comes from `Hugging Face <https://huggingface.co/models>`__ and is 
 by Optimum, it may be easier to use the Optimum Intel API to perform weight compression.
 The compression type is specified when the model is loaded using the ``load_in_8bit=True``
 or ``load_in_4bit=True`` parameter. The second example uses the Weight Compression API
-from Optimum Intel instead of NNCF to compress the model to INT8.
+from Optimum Intel instead of NNCF to compress the model to INT8_ASYM.
 
 .. tab-set::
 
@@ -359,7 +360,7 @@ score indicates a lower accuracy. It is measured on the
      - 5.01
      - 10.3
    * - databricks/dolly-v2-3b
-     - INT8
+     - INT8_ASYM
      - 5.07
      - 2.6
    * - databricks/dolly-v2-3b
@@ -371,7 +372,7 @@ score indicates a lower accuracy. It is measured on the
      - 4.25
      - 24.8
    * - facebook/opt-6.7b
-     - INT8
+     - INT8_ASYM
      - 4.27
      - 6.2
    * - facebook/opt-6.7b
@@ -383,7 +384,7 @@ score indicates a lower accuracy. It is measured on the
      - 3.28
      - 25.1
    * - meta-llama/Llama-2-7b-chat-hf
-     - INT8
+     - INT8_ASYM
      - 3.29
      - 6.3
    * - meta-llama/Llama-2-7b-chat-hf
@@ -395,7 +396,7 @@ score indicates a lower accuracy. It is measured on the
      - 4.15
      - 25.6
    * - togethercomputer/RedPajama-INCITE-7B-Instruct
-     - INT8
+     - INT8_ASYM
      - 4.17
      - 6.4
    * - togethercomputer/RedPajama-INCITE-7B-Instruct
@@ -407,7 +408,7 @@ score indicates a lower accuracy. It is measured on the
      - 2.92
      - 48.5
    * - meta-llama/Llama-2-13b-chat-hf
-     - INT8
+     - INT8_ASYM
      - 2.91
      - 12.1
    * - meta-llama/Llama-2-13b-chat-hf
