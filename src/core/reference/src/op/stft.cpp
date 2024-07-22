@@ -43,10 +43,7 @@ void stft(const float* signal,
             const auto fft_out_shape = Shape{std::floor(frame_size / 2) + 1, 2};
             const auto result_idx = batch * num_frames * fft_out_shape[0] * fft_out_shape[1] +
                                     frame_idx * fft_out_shape[0] * fft_out_shape[1];
-            reference::rdft(signal_slice, Shape{frame_size}, {0}, fft_out_shape, rdft_result + result_idx);
-            for (size_t i = 0; i < shape_size(fft_out_shape); ++i) {
-                std::cout << (rdft_result + result_idx)[i] << std::endl;
-            }
+            reference::rdft(signal_slice, Shape{frame_size}, {0}, Shape{frame_size, 2}, rdft_result + result_idx);
         }
     }
 }
