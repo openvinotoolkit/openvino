@@ -3,7 +3,7 @@ auto-gptq>=0.5.1
 av
 basicsr
 datasets
-python-bidi<=0.5  # to fix issue in easyocr
+python-bidi<0.5  # to fix issue in easyocr
 easyocr
 facexlib
 numpy
