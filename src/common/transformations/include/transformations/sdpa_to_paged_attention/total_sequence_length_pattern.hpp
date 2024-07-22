@@ -4,18 +4,13 @@
 
 #pragma once
 
-#include "openvino/cc/pass/itt.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/parameter.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/utils/utils.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
 namespace pass {
 
-class TotalSequenceLengthPattern;
+class TRANSFORMATIONS_API TotalSequenceLengthPattern;
 
 }  // namespace pass
 }  // namespace ov

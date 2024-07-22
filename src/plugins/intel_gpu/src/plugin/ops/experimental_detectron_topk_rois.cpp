@@ -26,7 +26,7 @@ void CreateExperimentalDetectronTopKROIsOp(ProgramBuilder &p,
     auto argmax_layer_name = layer_name + "_topk";
     auto top_k_indices = arg_max_min(argmax_layer_name,
                                      {inputs[1]}, ov::op::TopKMode::MAX, max_rois, 0,
-                                     ov::op::TopKSortType::SORT_VALUES, false, false, cldnn::padding(), cldnn::data_types::i32);
+                                     ov::op::TopKSortType::SORT_VALUES, false, false, cldnn::data_types::i32);
 
 
     p.add_primitive(*op, top_k_indices);

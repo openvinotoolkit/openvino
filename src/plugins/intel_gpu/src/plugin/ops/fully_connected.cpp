@@ -56,7 +56,6 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
                                      scale_name,
                                      has_scalar_zp && !supports_immad ? "" : zp_name,
                                      cldnn::element_type_to_data_type(op->get_output_element_type(0)),
-                                     cldnn::padding(),
                                      op->get_input_partial_shape(0).size(),
                                      op->get_input_partial_shape(1).size());
 
@@ -87,7 +86,6 @@ static void CreateFullyConnectedOp(ProgramBuilder& p, const std::shared_ptr<op::
                                          weights_name,
                                          bias_name,
                                          cldnn::element_type_to_data_type(op->get_output_element_type(0)),
-                                         cldnn::padding(),
                                          rank_a,
                                          rank_b);
 
