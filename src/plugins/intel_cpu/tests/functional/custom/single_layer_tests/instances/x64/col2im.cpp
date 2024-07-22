@@ -11,7 +11,7 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 namespace Col2Im {
-namespace{
+namespace {
 
 INSTANTIATE_TEST_SUITE_P(smoke_Col2ImLayoutTestBF16, Col2ImLayerCPUTest,
         ::testing::Combine(
@@ -22,7 +22,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Col2ImLayoutTestBF16, Col2ImLayerCPUTest,
                         ::testing::Values(ov::test::utils::DEVICE_CPU)),
                 ::testing::Values(CPUSpecificParams{{}, {}, {}, "ref_bf16"})),
                 Col2ImLayerCPUTest::getTestCaseName);
-}
+
+}  // namespace
 }  // namespace Col2Im
 }  // namespace test
 }  // namespace ov
