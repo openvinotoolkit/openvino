@@ -3,7 +3,7 @@
 Once the project is built you can install OpenVINO™ Runtime into custom location:
 
 ```
-cmake --install <BUILDDIR> --prefix <INSTALL_DIR>
+cmake --install <BUILD_DIR> --prefix <INSTALL_DIR>
 ```
 
 ## Installation check
