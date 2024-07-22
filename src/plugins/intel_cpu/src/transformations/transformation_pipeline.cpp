@@ -134,6 +134,7 @@
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
 #include "transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp"
+#include "transformations/cpu_opset/common/pass/markup_rope_inputs.hpp"
 
 // Snippets
 #include "snippets/pass/tokenization.hpp"
@@ -840,6 +841,9 @@ void Transformations::PostLpt() {
     }
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::transpose_sinking::TSShapeOfForward);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, StatefulSDPAFusion);
+    // markup Rope Input only when BF16 inference.
+    if (inferencePrecision == ov::element::bf16)
+        CPU_REGISTER_PASS_COMMON(postLPTPassManager, MarkUpRopeInputs);
 
     // Should be before Snippets pipeline because Ngram pattern contains eltwise nodes that can be tokenized by Snippets.
     auto symbolic_pipeline = CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::SymbolicOptimizations, false);
