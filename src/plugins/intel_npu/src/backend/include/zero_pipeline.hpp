@@ -16,7 +16,6 @@ struct TensorData {
     void* mem;
     size_t size;
     bool levelZeroTensorCreatedLocally = true;
-    bool changed = false;
 };
 
 struct Pipeline {
@@ -32,8 +31,7 @@ public:
     virtual void pull() = 0;
     virtual void reset() const = 0;
 
-    virtual void updateCommandList(std::vector<std::optional<TensorData>>& inputTensorsData,
-                                   std::vector<std::optional<TensorData>>& outputTensorsData) = 0;
+    virtual void updateCommandList(const TensorData& tensorsData, const uint32_t index) = 0;
 
 protected:
     zeroMemory::MemoryManagementUnit _deviceInputs;

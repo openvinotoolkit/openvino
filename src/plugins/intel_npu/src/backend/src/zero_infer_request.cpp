@@ -338,10 +338,15 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor> tensor
     if (setTensorData) {
         tensorsData.at(index) = std::optional(TensorData{levelZeroTensors.at(index)->data(),
                                                          levelZeroTensors.at(index)->get_byte_size(),
-                                                         levelZeroTensorCreatedLocally,
-                                                         !_createPipeline});
+                                                         levelZeroTensorCreatedLocally});
 
-        _updateCommandList = true;
+        if (_pipelineIsCreated) {
+            _logger.debug("ZeroInferRequest::infer_async - update command list");
+
+            _pipeline->updateCommandList(*tensorsData.at(index),
+                                         isInput ? _executor->get_input_descriptors().at(index).idx
+                                                 : _executor->get_output_descriptors().at(index).idx);
+        }
     }
 }
 
@@ -359,15 +364,19 @@ void ZeroInferRequest::set_remote_tensor_data(const std::shared_ptr<ZeroRemoteTe
         OPENVINO_THROW("Empty buffer");
     }
 
-    if (isInput) {
-        _levelZeroInputTensors.at(index) = tensor;
-        _inputTensorsData.at(index) = std::optional(TensorData{data, tensor->get_byte_size(), false, !_createPipeline});
-    } else {
-        _levelZeroOutputTensors.at(index) = tensor;
-        _outputTensorsData.at(index) =
-            std::optional(TensorData{data, tensor->get_byte_size(), false, !_createPipeline});
+    auto& levelZeroTensors = isInput ? _levelZeroInputTensors : _levelZeroOutputTensors;
+    auto& tensorsData = isInput ? _inputTensorsData : _outputTensorsData;
+
+    levelZeroTensors.at(index) = tensor;
+    tensorsData.at(index) = std::optional(TensorData{data, tensor->get_byte_size(), false});
+
+    if (_pipelineIsCreated) {
+        _logger.debug("ZeroInferRequest::infer_async - update command list");
+
+        _pipeline->updateCommandList(*tensorsData.at(index),
+                                     isInput ? _executor->get_input_descriptors().at(index).idx
+                                             : _executor->get_output_descriptors().at(index).idx);
     }
-    _updateCommandList = true;
 }
 
 void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
@@ -445,23 +454,11 @@ void ZeroInferRequest::infer_async() {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "infer_async");
 
     _executor->mutexLock();
-
-    if (_createPipeline) {
+    if (!_pipelineIsCreated) {
         create_pipeline();
 
-        _createPipeline = false;
-        _updateCommandList = false;
+        _pipelineIsCreated = true;
     }
-
-    if (_initStructs->getMutableCommandListVersion()) {
-        if (_updateCommandList) {
-            _logger.debug("ZeroInferRequest::infer_async - update command list");
-            _pipeline->updateCommandList(_inputTensorsData, _outputTensorsData);
-
-            _updateCommandList = false;
-        }
-    }
-
     _executor->mutexUnlock();
 
     size_t inputIndex = 0;

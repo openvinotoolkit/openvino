@@ -112,8 +112,7 @@ private:
      */
     std::optional<std::size_t> _batchSize = std::nullopt;
 
-    bool _createPipeline = true;
-    bool _updateCommandList = false;
+    bool _pipelineIsCreated = false;
 };
 
 }  //  namespace intel_npu
