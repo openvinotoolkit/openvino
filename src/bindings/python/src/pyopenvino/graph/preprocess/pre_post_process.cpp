@@ -252,7 +252,7 @@ static void regclass_graph_InputTensorInfo(py::module m) {
         },
         py::arg("layout"),
         R"(
-            Set layout for input tensor info 
+            Set layout for input tensor info
             :param layout: layout to be set
             :type layout: Union[str, openvino.runtime.Layout]
         )");
@@ -366,7 +366,7 @@ static void regclass_graph_OutputTensorInfo(py::module m) {
         },
         py::arg("layout"),
         R"(
-            Set layout for output tensor info 
+            Set layout for output tensor info
             :param layout: layout to be set
             :type layout: Union[str, openvino.runtime.Layout]
         )");
@@ -379,6 +379,7 @@ static void regclass_graph_OutputTensorInfo(py::module m) {
         py::arg("compatibility_mode"),
         R"(
             Set keep names compatibility mode
+
             :param compatibility_mode: Mode to be set: True enable compatiblity, False disable
             :type layout: Boolean
         )");
@@ -431,7 +432,7 @@ static void regclass_graph_OutputModelInfo(py::module m) {
         },
         py::arg("layout"),
         R"(
-            Set layout for output model info 
+            Set layout for output model info
             :param layout: layout to be set
             :type layout: Union[str, openvino.runtime.Layout]
         )");

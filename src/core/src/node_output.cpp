@@ -98,12 +98,10 @@ void Output<Node>::replace(const Output<Node>& replacement) {
 
 RTMap& Output<Node>::get_rt_info() {
     return get_tensor().get_rt_info();
-    // return m_node->m_outputs.at(m_index)->get_rt_info();
 }
 
 const RTMap& Output<Node>::get_rt_info() const {
     return get_tensor().get_rt_info();
-    // return m_node->m_outputs.at(m_index)->get_rt_info();
 }
 
 const RTMap& Output<const Node>::get_rt_info() const {
@@ -120,12 +118,10 @@ std::string Output<Node>::get_any_name() const {
 
 void Output<Node>::set_names(const std::unordered_set<std::string>& names) {
     m_node->m_outputs.at(m_index)->set_names(names);
-    // return m_node->m_outputs.at(m_index)->get_tensor_ptr()->set_names(names);
 }
 
 void Output<Node>::add_names(const std::unordered_set<std::string>& names) {
     m_node->m_outputs.at(m_index)->add_names(names);
-    // return m_node->m_outputs.at(m_index)->get_tensor_ptr()->add_names(names);
 }
 
 const std::unordered_set<std::string>& Output<const Node>::get_names() const {
@@ -205,7 +201,7 @@ const PartialShape& Output<const Node>::get_partial_shape() const {
 std::set<Input<Node>> Output<const Node>::get_target_inputs() const {
     std::set<Input<Node>> result;
 
-    for (auto& input : m_node->m_outputs.at(m_index)->get_inputs()) {
+    for (const auto& input : m_node->m_outputs.at(m_index)->get_inputs()) {
         result.emplace(input->get_raw_pointer_node(), input->get_index());
     }
 
