@@ -51,22 +51,7 @@ target_include_directories(${TARGET_NAME} INTERFACE
 
 find_package(MLIR REQUIRED CONFIG)
 
-set(MLIR_OPENVINO_LIBS
-        MLIRAnalysis
-        MLIRExecutionEngine
-        MLIRIR
-        MLIRJitRunner
-        MLIRLLVMDialect
-        MLIRLLVMToLLVMIRTranslation
-        MLIRToLLVMIRTranslationRegistration
-        MLIRParser
-        MLIRTargetLLVMIRExport
-        MLIRSupport
-        MLIROptLib
-        LLVMX86AsmParser
-        MLIRFuncDialect
-        MLIRFuncAllExtensions
-        MLIRUBToLLVM)
+get_property(MLIR_ALL_LIBS GLOBAL PROPERTY MLIR_ALL_LIBS)
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE openvino::reference
@@ -77,6 +62,8 @@ target_link_libraries(${TARGET_NAME}
     Threads::Threads
     PUBLIC $<$<AND:$<CXX_COMPILER_ID:GNU>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.1>>:stdc++fs>
     $<$<AND:$<CXX_COMPILER_ID:Clang>,$<VERSION_LESS:$<CXX_COMPILER_VERSION>,9.0>>:c++fs>)
+
+add_tpp_mlir_libs(${TARGET_NAME})
 
 if (TBBBIND_2_5_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE ${TBBBIND_2_5_IMPORTED_TARGETS})

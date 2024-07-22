@@ -35,6 +35,9 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE "${PUBLIC_HEADERS_DIR}"
                                                       "${MLIR_INCLUDE_DIRS}"
                                                       "${LLVM_INCLUDE_DIRS}")
 
+add_tpp_mlir_includes(${TARGET_NAME}_obj)
+
+
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}_obj)
 
 ov_mark_target_as_cc(${TARGET_NAME}_obj)

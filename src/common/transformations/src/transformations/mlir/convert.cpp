@@ -57,6 +57,14 @@
 #include "mlir/Target/LLVMIR/Dialect/All.h"
 #include "mlir/Target/LLVMIR/Export.h"
 #include "mlir/Target/LLVMIR/ModuleTranslation.h"
+
+#ifdef TPP_MLIR // If TPP is available
+#include "TPP/Dialect/Check/CheckDialect.h"
+#include "TPP/Dialect/Perf/PerfDialect.h"
+#include "TPP/Dialect/Xsmm/XsmmDialect.h"
+#include "TPP/GPU/Utils.h"
+#endif
+
 #include "mlir_op.hpp"
 #include "op/matmul.hpp"
 #include "op/relu.hpp"
@@ -302,16 +310,24 @@ MLIRContext* get_shared_mlir_context() {
         llvm::InitializeNativeTarget();
         llvm::InitializeNativeTargetAsmPrinter();
 
-        // Initialize GPU-related LLVM machinery
-        // tpp::initializeGpuTargets();
+        std::cerr << "[ DEBUG ] Using TPP_MLIR: ";
+        #if TPP_MLIR
+            // Initialize GPU-related LLVM machinery
+            tpp::initializeGpuTargets();
+            std::cerr << "YES\n";
+        #else
+            std::cerr << "NO\n";
+        #endif
 
         // Add the following to include *all* MLIR Core dialects, or selectively
         // include what you need like above. You only need to register dialects that
         // will be *parsed* by the tool, not the one generated
         DialectRegistry registry;
-        // registry.insert<mlir::xsmm::XsmmDialect>();
-        // registry.insert<mlir::check::CheckDialect>();
-        // registry.insert<mlir::perf::PerfDialect>();
+        #if TPP_MLIR
+            registry.insert<mlir::xsmm::XsmmDialect>();
+            registry.insert<mlir::check::CheckDialect>();
+            registry.insert<mlir::perf::PerfDialect>();
+        #endif
 
         registerAllDialects(registry);
         registerAllExtensions(registry);
