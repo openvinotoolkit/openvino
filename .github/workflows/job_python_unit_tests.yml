@@ -121,7 +121,7 @@ jobs:
       #
 
       - name: Python API Tests
-        # if: ${{ fromJSON(inputs.affected-components).Python_API.test && runner.arch != 'ARM64' }} # Ticket: 126380, 127101
+        if: ${{ fromJSON(inputs.affected-components).Python_API.test }}
         run: |
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
@@ -246,6 +246,14 @@ jobs:
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
+      
+      - name: JAX Layer Tests - JAX FE
+        if: ${{ fromJSON(inputs.affected-components).JAX_FE.test && runner.arch != 'ARM64' && runner.os != 'macOS' }}
+        run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/jax_tests/ -m precommit_jax_fe --junitxml=${INSTALL_TEST_DIR}/TEST-jax_fe.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+          JAX_TRACE_MODE: JAXPR
 
       - name: TensorFlow Lite Layer Tests - TFL FE
         if: fromJSON(inputs.affected-components).TFL_FE.test
@@ -284,6 +292,18 @@ jobs:
           # for 'template' extension
           export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
           python3 ${OPENVINO_REPO}/docs/articles_en/assets/snippets/main.py
+
+      - name: Python API Tests -- numpy>=2.0.0
+        if: ${{ fromJSON(inputs.affected-components).Python_API.test }}
+        run: |
+          python3 -m pip uninstall -y numpy
+          python3 -m pip install "numpy>=2.0.0,<2.1.0"
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/bindings/python/requirements_test.txt
+          # for 'template' extension
+          export LD_LIBRARY_PATH=${INSTALL_TEST_DIR}:$LD_LIBRARY_PATH
+          python3 -m pytest -sv ${INSTALL_TEST_DIR}/pyopenvino \
+            --junitxml=${INSTALL_TEST_DIR}/TEST-Pyngraph.xml \
+            --ignore=${INSTALL_TEST_DIR}/pyopenvino/tests/test_utils/test_utils.py
 
       - name: Upload Test Results
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3

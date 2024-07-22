@@ -5,6 +5,7 @@
 # Enums
 from openvino._pyopenvino.properties import Affinity
 from openvino._pyopenvino.properties import CacheMode
+from openvino._pyopenvino.properties import WorkloadType
 
 # Properties
 from openvino._pyopenvino.properties import enable_profiling

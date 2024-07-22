@@ -2,19 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/reshape.hpp"
-
-#include "exceptions.hpp"
 #include "openvino/op/reshape.hpp"
-#include "utils/reshape.hpp"
 
+#include "core/operator_set.hpp"
+#include "exceptions.hpp"
+#include "utils/reshape.hpp"
 using namespace ov::op;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector reshape(const ov::frontend::onnx::Node& node) {
     ov::OutputVector ov_inputs{node.get_ov_inputs()};
     const auto data = ov_inputs.at(0);
@@ -34,8 +33,9 @@ ov::OutputVector reshape(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Reshape>(data, pattern, special_zero)};
 }
 
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("Reshape", OPSET_SINCE(1), ai_onnx::opset_1::reshape);
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

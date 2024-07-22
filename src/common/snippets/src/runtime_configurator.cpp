@@ -8,7 +8,7 @@
 #include "snippets/lowered/pass/insert_specific_iterations.hpp"
 #include "snippets/lowered/pass/compute_buffer_allocation_size.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov {
 namespace snippets {
@@ -30,7 +30,8 @@ void init_data_ptr_shifts(const lowered::UnifiedLoopInfoPtr& unified_loop_info, 
 }
 }  // namespace
 
-RuntimeConfigurator::RuntimeConfigurator(std::shared_ptr<RuntimeConfig> c) : m_config(std::move(c)) {
+RuntimeConfigurator::RuntimeConfigurator(std::shared_ptr<RuntimeConfig> c) :
+    m_config(std::move(c)) {
     OPENVINO_ASSERT(m_config, "Runtime config is nullptr!");
 }
 

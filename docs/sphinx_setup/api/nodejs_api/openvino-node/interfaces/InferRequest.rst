@@ -46,7 +46,7 @@ Methods
 
 .. rubric:: getCompiledModel
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -62,7 +62,7 @@ Methods
 
 .. rubric:: getInputTensor
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -115,7 +115,7 @@ Methods
 
 .. rubric:: getOutputTensor
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -158,7 +158,7 @@ Methods
 
 .. rubric:: getTensor
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -182,7 +182,7 @@ Methods
 
 .. rubric:: infer
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -276,7 +276,7 @@ Methods
 
 .. rubric:: inferAsync
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -316,7 +316,7 @@ Methods
 .. rubric:: setInputTensor
    :name: setInputTensor
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -365,7 +365,7 @@ Methods
 
 .. rubric:: setOutputTensor
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -413,7 +413,7 @@ Methods
 .. rubric:: setTensor
    :name: setTensor
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 

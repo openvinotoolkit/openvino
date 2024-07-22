@@ -29,7 +29,7 @@ Properties
 
 .. rubric:: inputs
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -43,7 +43,7 @@ Properties
 
 .. rubric:: outputs
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -62,7 +62,7 @@ Methods
 .. rubric:: createInferRequest
    :name: createInferRequest
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -79,7 +79,7 @@ Methods
 .. rubric:: exportModelSync
    :name: exportModelSync
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -93,7 +93,7 @@ Methods
 
 .. rubric:: input
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -152,7 +152,7 @@ Methods
 
 .. rubric:: output
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -165,7 +165,7 @@ Methods
      A compiled model output.
 
    * **Defined in:**
-   `addon.ts:294 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L294>`__
+     `addon.ts:294 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L294>`__
 
 
    .. code-block:: ts
@@ -189,7 +189,7 @@ Methods
      A compiled model output.
 
    * **Defined in:**
-   `addon.ts:300 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L300>`__
+     `addon.ts:300 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L300>`__
 
 
    .. code-block:: ts
@@ -213,5 +213,5 @@ Methods
      A compiled model output.
 
    * **Defined in:**
-   `addon.ts:306 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L306>`__
+     `addon.ts:306 <https://github.com/openvinotoolkit/openvino/blob/master/src/bindings/js/node/lib/addon.ts#L306>`__
 

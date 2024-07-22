@@ -12,6 +12,10 @@ if(ENABLE_OV_IR_FRONTEND)
     add_subdirectory(ir)
 endif()
 
+if(ENABLE_OV_JAX_FRONTEND)
+    add_subdirectory(jax)
+endif()
+
 if(ENABLE_OV_ONNX_FRONTEND)
     add_subdirectory(onnx)
 endif()

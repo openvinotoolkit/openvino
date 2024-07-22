@@ -4,6 +4,7 @@
 
 #include "custom/single_layer_tests/classes/activation.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "utils/filter_cpu_info.hpp"
 #include "common_test_utils/test_enums.hpp"
 
 using namespace CPUTestUtils;
@@ -47,7 +48,8 @@ const auto blockedCases3D = ::testing::Combine(
     ::testing::ValuesIn(netPrc()),
     ::testing::Values(ov::element::f32),
     ::testing::Values(ov::element::f32),
-    ::testing::ValuesIn(filterCPUSpecificParams(cpuParams3Dblocked()))
+    ::testing::ValuesIn(filterCPUSpecificParams(cpuParams3Dblocked())),
+    ::testing::Values(false)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation3D_Eltwise_CPU_Blocked, ActivationLayerCPUTest, blockedCases3D, ActivationLayerCPUTest::getTestCaseName);
@@ -68,7 +70,8 @@ const auto basicCases4D = ::testing::Combine(
     ::testing::ValuesIn(netPrc()),
     ::testing::Values(ov::element::f32),
     ::testing::Values(ov::element::f32),
-    ::testing::ValuesIn(filterCPUSpecificParams(cpuParams4Dblocked()))
+    ::testing::ValuesIn(filterCPUSpecificParams(cpuParams4Dblocked())),
+    ::testing::Values(false)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation4D_Eltwise_CPU_Blocked, ActivationLayerCPUTest, basicCases4D, ActivationLayerCPUTest::getTestCaseName);
@@ -89,7 +92,8 @@ const auto basicCases5D = ::testing::Combine(
     ::testing::ValuesIn(netPrc()),
     ::testing::Values(ov::element::f32),
     ::testing::Values(ov::element::f32),
-    ::testing::ValuesIn(filterCPUSpecificParams(cpuParams5Dblocked()))
+    ::testing::ValuesIn(filterCPUSpecificParams(cpuParams5Dblocked())),
+    ::testing::Values(false)
 );
 
 INSTANTIATE_TEST_SUITE_P(smoke_Activation5D_Eltwise_CPU_Blocked, ActivationLayerCPUTest, basicCases5D, ActivationLayerCPUTest::getTestCaseName);

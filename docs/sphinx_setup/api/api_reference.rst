@@ -11,13 +11,13 @@ API Reference
    :hidden:
 
    ie_python_api/api
-   c_cpp_api/group__ov__cpp__api
-   c_cpp_api/group__ov__c__api
+   OpenVINO Runtime C++ API <c_cpp_api/group__ov__cpp__api>
+   OpenVINO Runtime C API <c_cpp_api/group__ov__c__api>
    OpenVINO Node.js API <nodejs_api/nodejs_api>
 
 
 
-OpenVINO toolkit offers **APIs for Python, C, and C++** which share most features (C++ being the
+OpenVINO toolkit offers **APIs for Python, C, C++, and JavaScript** which share most features (C++ being the
 most comprehensive one), have a common structure, naming convention styles, namespaces,
 and no duplicate structures.
 

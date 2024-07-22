@@ -38,7 +38,9 @@ namespace ov {
 namespace test {
 
 std::ostream& operator <<(std::ostream& os, const InputShape& inputShape) {
-    os << ov::test::utils::partialShape2str({inputShape.first}) << "_" << ov::test::utils::vec2str(inputShape.second);
+    auto shape_str = ov::test::utils::vec2str(inputShape.second);
+    std::replace(shape_str.begin(), shape_str.end(), ',', '.');
+    os << ov::test::utils::partialShape2str({inputShape.first}) << "_" << shape_str;
     return os;
 }
 

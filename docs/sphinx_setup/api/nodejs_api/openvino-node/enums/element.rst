@@ -3,7 +3,7 @@ Enumeration element
 
 .. rubric:: f32
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -15,7 +15,7 @@ Enumeration element
 
 .. rubric:: f64
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -27,7 +27,7 @@ Enumeration element
 
 .. rubric:: i16
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -39,7 +39,7 @@ Enumeration element
 
 .. rubric:: i32
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -51,7 +51,7 @@ Enumeration element
 
 .. rubric:: i64
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -63,7 +63,7 @@ Enumeration element
 
 .. rubric:: i8
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -75,7 +75,7 @@ Enumeration element
 
 .. rubric:: string
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -87,7 +87,7 @@ Enumeration element
 
 .. rubric:: u16
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -99,7 +99,7 @@ Enumeration element
 
 .. rubric:: u32
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -111,7 +111,7 @@ Enumeration element
 
 .. rubric:: u64
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -123,7 +123,7 @@ Enumeration element
 
 .. rubric:: u8
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 

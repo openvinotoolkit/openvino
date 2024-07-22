@@ -77,7 +77,7 @@ protected:
     }
 
 public:
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
+    static kernel_impl_params update_impl_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<fully_connected>();
 
         auto get_fc_input_layouts = [primitive](const std::vector<layout>& input_layouts, bool allow_new_shape_infer) {
@@ -151,12 +151,19 @@ public:
         auto updated_impl_param = impl_param;
 
         const auto input_layouts = get_fc_input_layouts(impl_param.input_layouts, allow_new_shape_infer);
-        updated_impl_param.input_layouts[0] = input_layouts[0];
-        updated_impl_param.input_layouts[1] = input_layouts[1];
+        for (size_t i = 0; i < input_layouts.size(); ++i) {
+            updated_impl_param.input_layouts[i] = input_layouts[i];
+        }
         updated_impl_param.weights_layout = input_layouts[1];
 
         updated_impl_param.output_layouts[0] = get_fc_output_layout(input_layouts, impl_param.get_output_layout());
 
+        return updated_impl_param;
+    }
+
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
+        const auto& primitive = impl_param.typed_desc<fully_connected>();
+        auto updated_impl_param = update_impl_params(impl_param);
         auto params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(updated_impl_param, false, is_shape_agnostic);
         params.allowInputReordering = true;
 
@@ -164,10 +171,10 @@ public:
         bool with_zp = !primitive->decompression_zero_point.empty();
         if (commpressed) {
             params.compressed = true;
-            params.decompression_scale = convert_data_tensor(input_layouts[2]);
+            params.decompression_scale = convert_data_tensor(updated_impl_param.input_layouts[2]);
             if (with_zp) {
                 params.has_decompression_zp = true;
-                params.decompression_zero_point = convert_data_tensor(input_layouts[3]);
+                params.decompression_zero_point = convert_data_tensor(updated_impl_param.input_layouts[3]);
             } else if (primitive->decompression_zero_point_scalar.has_value()) {
                 params.has_decompression_zp = true;
                 params.scalar_zp = true;
@@ -188,12 +195,26 @@ public:
             params.quantization = kernel_selector::QuantizationType::NONE;
         }
 
+        params.dynamic_quantization_group_size = impl_param.get_program().get_config().get_property(ov::hint::dynamic_quantization_group_size);
+
         return params;
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
+        // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
+        if (_kernel_data.params == nullptr) {
+            _kernel_data.params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true));
+        }
+
+        auto& params = static_cast<kernel_params_t&>(*_kernel_data.params);
+        auto updated_impl_param = update_impl_params(impl_param);
+        update_shapes(params, updated_impl_param);
+
+        if (impl_param.typed_desc<fully_connected>()->input_size != 3) {
+            params.outputs = { params.outputs[0].FlattenFeatureAndSpatials() };
+        }
+
+        (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
     }
 };
 
