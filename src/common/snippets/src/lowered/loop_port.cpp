@@ -4,7 +4,7 @@
 
 #include "snippets/lowered/loop_port.hpp"
 
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 
 namespace ov {

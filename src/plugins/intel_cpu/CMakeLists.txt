@@ -123,12 +123,22 @@ if(OV_CPU_WITH_ACL)
     set(CMAKE_CXX_STANDARD 14)
 endif()
 
+if (ENABLE_SHL_FOR_CPU)
+    add_definitions(-DOV_CPU_WITH_SHL)
+    set(OV_CPU_WITH_SHL ON)
+endif()
+
 file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
                           ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
 if(NOT OV_CPU_WITH_ACL)
-    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/acl/*)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/acl/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/acl/*)
+endif()
+
+if(NOT OV_CPU_WITH_SHL)
+    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/shl/*)
 endif()
 
 if(NOT X86_64)
