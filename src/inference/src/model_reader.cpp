@@ -86,10 +86,10 @@ void update_v10_model(std::shared_ptr<ov::Model>& model, bool frontendMode = fal
                                 "Model operation names have collisions with tensor names.",
                                 " Please use MO to generate new IR version, it should allow to avoid the issue");
                 leaf_names.emplace(res_name, nullptr);
-                result->output(0).get_tensor().add_names({std::move(res_name)});
+                result->output(0).get_tensor().add_names({res_name});
             }
             for (const auto& param : model->get_parameters()) {
-                const auto& param_name = param->get_friendly_name();
+                auto param_name = param->get_friendly_name();
                 OPENVINO_ASSERT(leaf_names.find(param_name) == leaf_names.end() ||
                                     param->output(0).get_names().find(param_name) != param->output(0).get_names().end(),
                                 "Model operation names have collisions with tensor names.",
