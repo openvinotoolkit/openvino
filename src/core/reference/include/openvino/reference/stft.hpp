@@ -17,6 +17,7 @@ void stft(const float* signal,
           const Shape& signal_shape,
           const Shape& window_shape,
           const int64_t frame_size,
-          const int64_t frame_step);
+          const int64_t frame_step,
+          const bool frames_first);
 }  // namespace reference
 }  // namespace ov
