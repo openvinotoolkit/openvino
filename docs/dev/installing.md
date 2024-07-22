@@ -3,7 +3,7 @@
 Once the project is built you can install OpenVINO™ Runtime into custom location:
 
 ```
-cmake --install <BUILDDIR> --prefix <INSTALLDIR>
+cmake --install <BUILDDIR> --prefix <INSTALL_DIR>
 ```
 
 ## Installation check
@@ -18,7 +18,7 @@ To have the ability to run samples and demos, you need to clone the Open Model Z
 
 ```
 git clone https://github.com/openvinotoolkit/open_model_zoo.git
-cmake -E copy_directory ./open_model_zoo/ <INSTALLDIR>/deployment_tools/open_model_zoo/
+cmake -E copy_directory ./open_model_zoo/ <INSTALL_DIR>/deployment_tools/open_model_zoo/
 ```
 
 2. Adding OpenCV to your environment
@@ -43,13 +43,13 @@ To check your installation go to the demo directory and run Classification Demo:
 
 Linux and macOS:
 ```sh
-cd <INSTALLDIR>/deployment_tools/demo
+cd <INSTALL_DIR>/deployment_tools/demo
 ./demo_squeezenet_download_convert_run.sh
 ```
 
 Windows:
 ```sh
-cd <INSTALLDIR>\deployment_tools\demo
+cd <INSTALL_DIR>\deployment_tools\demo
 demo_squeezenet_download_convert_run.bat
 ```
 
@@ -57,7 +57,7 @@ Result:
 ```
 Top 10 results:
 
-Image <INSTALLDIR>/deployment_tools/demo/car.png
+Image <INSTALL_DIR>/deployment_tools/demo/car.png
 
 classid probability label
 ------- ----------- -----
@@ -89,13 +89,13 @@ To build C++ sample applications, run the following commands:
 
 Linux and macOS:
 ```sh
-cd <INSTALLDIR>/samples/cpp
+cd <INSTALL_DIR>/samples/cpp
 ./build_samples.sh
 ```
 
 Windows Command Prompt:
 ```sh
-cd <INSTALLDIR>\samples\cpp
+cd <INSTALL_DIR>\samples\cpp
 build_samples_msvc.bat
 ```
 
@@ -119,7 +119,7 @@ source openvino_env/bin/activate
 pip install pip --upgrade
 
 #install local package from install directory
-pip install openvino_dev-<version>-py3-none-any.whl[caffe]  --find-links=<INSTALLDIR>/tools
+pip install openvino_dev-<version>-py3-none-any.whl[caffe]  --find-links=<INSTALL_DIR>/tools
 ```
 
 Windows:
@@ -130,8 +130,8 @@ openvino_env\Scripts\activate.bat
 pip install pip --upgrade
 
 rem install local package from install directory
-cd <INSTALLDIR>\tools
-pip install openvino_dev-<version>-py3-none-any.whl[caffe] --find-links=<INSTALLDIR>\tools
+cd <INSTALL_DIR>\tools
+pip install openvino_dev-<version>-py3-none-any.whl[caffe] --find-links=<INSTALL_DIR>\tools
 ```
 
 3.  Download the Models
@@ -167,12 +167,12 @@ Set up the OpenVINO environment variables:
 
 Linux and macOS:
 ```sh
-source <INSTALLDIR>/setupvars.sh
+source <INSTALL_DIR>/setupvars.sh
 ```
 
 Windows Command Prompt:
 ```bat
-<INSTALLDIR>\setupvars.bat
+<INSTALL_DIR>\setupvars.bat
 ```
 
 Windows PowerShell:
@@ -253,7 +253,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ${InferenceEngine_LIBRARIES})
 For CMake projects, set the `OpenVINO_DIR` and when you run CMake tool:
 
 ```sh
-cmake -DOpenVINO_DIR=<INSTALLDIR>/runtime/cmake .
+cmake -DOpenVINO_DIR=<INSTALL_DIR>/runtime/cmake .
 ```
 
 Then you can find OpenVINO Runtime by [`find_package`]:
