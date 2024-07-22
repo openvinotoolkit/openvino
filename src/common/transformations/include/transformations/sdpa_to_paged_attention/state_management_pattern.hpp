@@ -19,9 +19,13 @@ class ov::pass::StateManagementPattern : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("StateManagementPattern", "0");
     StateManagementPattern(ParameterVector& kv_parameters,
-                           const ParameterVector& model_remaining_params,
+                           ParameterVector& model_remaining_params,
                            const std::shared_ptr<ov::op::v0::Constant>& sliding_window,
                            ParameterVector& parameters_to_remove,
                            int& layer_index,
-                           ov::Output<Node> max_context_len);
+                           ov::Output<Node> max_context_len,
+                           ParameterVector& block_indices_inputs,
+                           ResultVector& score_results,
+                           bool use_block_indices,
+                           bool use_score_outputs);
 };
