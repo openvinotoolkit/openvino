@@ -15,6 +15,6 @@
     "lint": "eslint ."
   },
   "engines": {
-    "node": ">=20.5.1"
+    "node": ">=21.0.0"
   }
 }

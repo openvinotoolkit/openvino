@@ -2,7 +2,7 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-const { addon: ov } = require('..');
+const { addon: ov } = require('../..');
 const assert = require('assert');
 const { test, describe, it } = require('node:test');
 const getRandomBigInt = require('random-bigint');
