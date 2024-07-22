@@ -63,7 +63,10 @@ private:
 
 class primitive_inst;
 class ICompilationContext;
-
+/*struct TPHostTimeProfilingEntry {
+    int64_t extra_sync = 0;
+    int64_t extra_copy = 0;
+};*/
 struct network {
 public:
     using ptr = std::shared_ptr<network>;
@@ -286,7 +289,7 @@ private:
     output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
     void set_variables_state_info(const std::string& variable_id, const layout& variable_layout, ov::element::Type user_specified_type, const primitive* p);
     void dump_memory_pool(std::string dump_path, int64_t curr_iter);
-
+    std::map<std::string, std::vector<int64_t>> tp_host_times;
 #ifdef GPU_DEBUG_CONFIG
     int64_t iteration = 0;
 #endif

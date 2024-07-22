@@ -27,6 +27,7 @@
 #include "input_layout_inst.h"
 #include "fully_connected_inst.h"
 #include "convolution_inst.h"
+#include "concatenation_inst.h"
 #include "deconvolution_inst.h"
 #include "mutable_data_inst.h"
 #include "condition_inst.h"
@@ -440,6 +441,36 @@ network::network(program::ptr program, stream::ptr stream, uint16_t stream_id, o
     : network(program, program->get_config(), stream, false, stream_id == 0, sub_memory_manager) {}
 
 network::~network() {
+    GPU_DEBUG_IF(debug_configuration::get_instance()->host_time_profiling) {
+        if (tp_host_times["sync_tensor"].size() >= 2) {
+            double first = static_cast<double>(tp_host_times["sync_tensor"][0]);
+            double avg = static_cast<double>(
+                std::accumulate(tp_host_times["sync_tensor"].begin() + 1, tp_host_times["sync_tensor"].end(), (size_t)0, std::plus<size_t>()));
+            avg /= (tp_host_times["sync_tensor"].size() - 1);
+            std::string resolution = " us";
+            if (avg > 1000.0) {
+                resolution = " ms";
+                avg /= 1000.0;
+                first /= 1000.0;
+            }
+            GPU_DEBUG_COUT << "Network[" << net_id << "] First infer total sync tensor host time: " << first << resolution << std::endl;
+            GPU_DEBUG_COUT << "Network[" << net_id << "] total sync tensor avg host time: " << avg << resolution << std::endl;
+        }
+        if (tp_host_times["concat"].size() >= 2) {
+            double first = static_cast<double>(tp_host_times["concat"][0]);
+            double avg = static_cast<double>(
+                std::accumulate(tp_host_times["concat"].begin() + 1, tp_host_times["concat"].end(), (size_t)0, std::plus<size_t>()));
+            avg /= (tp_host_times["concat"].size() - 1);
+            std::string resolution = " us";
+            if (avg > 1000.0) {
+                resolution = " ms";
+                avg /= 1000.0;
+                first /= 1000.0;
+            }
+            GPU_DEBUG_COUT << "Network[" << net_id << "] First infer total concat host time: " << first << resolution << std::endl;
+            GPU_DEBUG_COUT << "Network[" << net_id << "] total concat avg host time: " << avg << resolution << std::endl;
+        }
+    }
     if (_program != nullptr)
         _program->cancel_compilation_context();
     _memory_pool->clear_pool_for_network(net_id);
@@ -985,7 +1016,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     // with empty memory vector and do nothing inside this function for saving performance
     // in some cases.
     auto surf_lock = surfaces_lock::create(get_engine().type(), in_out_mem, get_stream());
-
     set_arguments();
     GPU_DEBUG_IF(debug_config->list_layers == 1) {
         for (auto& inst : _exec_order) {
@@ -1022,8 +1052,16 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     const bool needs_flushing = _is_dynamic;
     const size_t flush_frequency = needs_flushing ? 16 : 0;
     size_t executed_prims = 0;
-
+    std::map<std::string, std::vector<int64_t>> tp_host_times_each_iter;
+    tp_host_times["sync_tensor"];
+    tp_host_times["concat"];
+    tp_host_times_each_iter["sync_tensor"];
+    tp_host_times_each_iter["concat"];
     for (auto& inst : _exec_order) {
+        auto start = std::chrono::high_resolution_clock::now();
+        if (inst->get_node().is_type<sync_tensor>() || inst->get_node().is_type<concatenation>()) {
+            start = std::chrono::high_resolution_clock::now();
+        }
         // Load binary dump for input layers
         GPU_DEBUG_IF(!debug_config->load_layers_raw_dump.empty()) {
             const std::string layer_name = inst->id();
@@ -1168,8 +1206,30 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                 }
             }
         }
+        if (inst->get_node().is_type<sync_tensor>() || inst->get_node().is_type<concatenation>()) {
+            auto end = std::chrono::high_resolution_clock::now();
+            GPU_DEBUG_IF(debug_configuration::get_instance()->host_time_profiling) {
+                if (inst->get_node().is_type<sync_tensor>()) {
+                    tp_host_times_each_iter["sync_tensor"].push_back(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
+                } else {
+                    tp_host_times_each_iter["concat"].push_back(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
+                }
+            }
+        }
     }
-
+    // statistic for each iter
+    GPU_DEBUG_IF(debug_configuration::get_instance()->host_time_profiling) {
+        if (tp_host_times_each_iter["sync_tensor"].size() >= 1) {
+            const auto begin = std::begin(tp_host_times_each_iter["sync_tensor"]);
+            const auto end = std::end(tp_host_times_each_iter["sync_tensor"]);
+            tp_host_times["sync_tensor"].push_back(std::accumulate(begin, end, (size_t)0, std::plus<size_t>()));
+        }
+        if (tp_host_times_each_iter["concat"].size() >= 1) {
+            const auto begin = std::begin(tp_host_times_each_iter["concat"]);
+            const auto end = std::end(tp_host_times_each_iter["concat"]);
+            tp_host_times["concat"].push_back(std::accumulate(begin, end, (size_t)0, std::plus<size_t>()));
+        }
+    }
     // print '-data_shape' option for benchmark_app
     GPU_DEBUG_IF(debug_config->print_input_data_shapes == 1) {
         std::stringstream data_shape_str;

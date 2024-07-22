@@ -28,7 +28,6 @@ void CreateSyncTensorOp(ProgramBuilder& p, const std::shared_ptr<ov::op::interna
 
     prim.num_outputs = op->get_output_size();
     prim.output_data_types = get_output_data_types(op);
-    prim.output_paddings = get_output_paddings(op);
 
     p.add_primitive(*op, prim);
 }

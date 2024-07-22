@@ -18,10 +18,8 @@ struct sync_tensor : public primitive_base<sync_tensor> {
     /// @param id This primitive id.
     /// @param inputs of sync_tensor.
     sync_tensor(const primitive_id& id,
-                const input_info& input,
-                const padding& output_padding = padding())
-        : primitive_base(id, {input},
-        {output_padding})
+                const input_info& input)
+        : primitive_base(id, {input})
         {}
 
     size_t hash() const override {
