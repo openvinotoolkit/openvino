@@ -123,7 +123,7 @@ trade-offs after optimization:
 
   **Symmetric Compression** - ``INT4_SYM``
 
-  INT4 Symmetric mode involves quantizing weights to an unsigned 4-bit integer
+  INT4 Symmetric mode involves quantizing weights to a signed 4-bit integer
   symmetrically without zero point. This mode is faster than the INT8_ASYM, making
   it ideal for situations where **speed and size reduction are prioritized over accuracy**.
 
