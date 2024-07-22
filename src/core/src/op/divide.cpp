@@ -80,16 +80,16 @@ bool evaluate_bound(const Node* node, TensorVector& output_values, bool is_upper
     OPENVINO_ASSERT(PartialShape::broadcast_merge_into(input_shape, input2.get_partial_shape(), node->get_autob()),
                     "Argument shapes in divide operation are inconsistent.");
 
-    const auto input1_low = evaluate_lower_bound(input1);
+    const auto input1_low = ov::util::evaluate_lower_bound(input1);
     if (!input1_low)
         return false;
-    const auto input1_up = evaluate_upper_bound(input1);
+    const auto input1_up = ov::util::evaluate_upper_bound(input1);
     if (!input1_up)
         return false;
-    const auto input2_low = evaluate_lower_bound(input2);
+    const auto input2_low = ov::util::evaluate_lower_bound(input2);
     if (!input2_low)
         return false;
-    const auto input2_up = evaluate_upper_bound(input2);
+    const auto input2_up = ov::util::evaluate_upper_bound(input2);
     if (!input2_up)
         return false;
 
