@@ -59,7 +59,7 @@ JitConstants EltwiseKernelRef::GetJitConstants(const eltwise_params& params) con
         if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 4) {
             if (!params.layoutBased && !params.int8_quantization && !params.broadcast && !CheckInputsOutputNoPitchSameDims(params)) {
                 auto calc_dim = [&params](Tensor::DataChannelName channel) {
-                    size_t idx = DataTensor::Channelndex(params.outputs[0].GetLayout(), channel);
+                    int idx = DataTensor::Channelndex(params.outputs[0].GetLayout(), channel);
                     // We increment the index, because fusions dims ordering starts from one
                     return "d" + std::to_string(idx + 1);
                 };

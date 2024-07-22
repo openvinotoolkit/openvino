@@ -35,7 +35,7 @@ bool convert_divide(std::shared_ptr<ov::Node> node) {
         if (auto const_pow = ov::util::get_constant_from_source(pow)) {
             pow = const_pow;
         } else {
-            OPENVINO_DEBUG << "ConvertDivide has failed due to unsupported evaluate type in " << pow.get();
+            OPENVINO_DEBUG("ConvertDivide has failed due to unsupported evaluate type in ", pow.get());
             return false;
         }
     } else {

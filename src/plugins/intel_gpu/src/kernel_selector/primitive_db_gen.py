@@ -198,7 +198,8 @@ class OpenCL2CHeaders(object):
         characters = 1  # Newline character above
         res = ""
         for h in self.batch_headers:
-            res += '(std::string) R"(\n'
+            header_name = h[:h.find('.cl')]
+            res += '{{"{}",\n(std::string) R"(\n'.format(header_name)
             header_file = os.path.abspath(os.path.join(os.path.dirname(self.kernels_folder + "/include/batch_headers"), "batch_headers/" + h))
             content = []
             with open(header_file) as f:
@@ -207,11 +208,11 @@ class OpenCL2CHeaders(object):
                 if line.startswith('#include'):
                     continue
                 if (i + 1) % max_lines == 0 or characters + len(line) + 1 > max_characters:
-                    res += ')",' + ' (std::string) R"('
+                    res += ')"\n + (std::string) R"('
                     characters = 0
                 res += '{}\n'.format(line.rstrip())
                 characters += len(line) + 1
-            res += ')",\n\n'
+            res += ')"},\n\n'
         return self.post_process_sources(res)
 
     def post_process_sources(self, content):

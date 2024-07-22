@@ -7,7 +7,7 @@
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/snippets_isa.hpp"
 
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"

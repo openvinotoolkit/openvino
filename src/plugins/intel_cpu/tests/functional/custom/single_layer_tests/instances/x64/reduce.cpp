@@ -5,6 +5,7 @@
 #include "custom/single_layer_tests/classes/reduce.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
+#include "utils/filter_cpu_info.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 
@@ -23,7 +24,8 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_3D_fuse_dyn = {
     {{{{1, 5}, 19, {1, 10}}, {{1, 19, 2}, {1, 19, 9}, {1, 19, 2}}}},
 };
 
-std::vector<std::vector<ov::test::InputShape>> inputShapes_5D_dyn = {
+std::vector<std::vector<ov::test::InputShape>> inputShapes_5D = {
+    {{{}, {{2, 19, 2, 2, 9}}}},
     {{{{1, 5}, 19, {1, 5}, {1, 5}, {1, 5}}, {{2, 19, 2, 2, 2}, {2, 19, 3, 2, 2}}}},
 };
 
@@ -33,6 +35,14 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_6D_dyn = {
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes_Int32_dyn = {
     {{{{1, 5}, 19, {1, 5}, {1, 10}}, {{2, 19, 2, 2}, {2, 19, 2, 3}}}},
+};
+
+std::vector<std::vector<ov::test::InputShape>> inputShapes_NativeInt32_dyn = {
+    {{{{1, 5}, 2, {1, 5}, {1, 10}}, {{2, 2, 2, 2}, {2, 2, 2, 3}}}},
+};
+
+std::vector<std::vector<ov::test::InputShape>> inputShapes_NativeInt32Gather_dyn = {
+    {{{{1, 5}, 6, {1, 5}, {1, 10}}, {{1, 6, 4, 3}, {1, 6, 4, 4}}}},
 };
 
 std::vector<std::vector<ov::test::InputShape>> inputShapes_SmallChannel_dyn = {
@@ -85,6 +95,10 @@ const std::vector<std::vector<int>> axesHW = {
         {2, 3}
 };
 
+const std::vector<std::vector<int>> axesGather = {
+        {3}
+};
+
 std::vector<CPUSpecificParams> cpuParams_5D = {
         CPUSpecificParams({nCdhw16c}, {nCdhw16c}, {}, {}),
         CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
@@ -120,7 +134,7 @@ const auto fusingFakeQuantizeTranspose = fusingSpecificParams{std::make_shared<p
         {[](postNodeConfig& cfg){
             auto localPrc = cfg.input->get_element_type();
             ov::Shape newShape(cfg.input->get_output_partial_shape(0).size(), 1);
-            const auto fakeQuantize = ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, newShape);
+            const auto fakeQuantize = ov::test::utils::make_fake_quantize(cfg.input, localPrc, 256, {}, {0}, {9}, {0}, {255});
             std::vector<size_t> order(newShape.size());
             std::iota(order.begin(), order.end(), 0);
             auto last = order[order.size() - 1];
@@ -194,7 +208,7 @@ const auto params_MultiAxis_5D = testing::Combine(
                 testing::ValuesIn(inpOutPrc()),
                 testing::Values(ElementType::undefined),
                 testing::Values(ElementType::undefined),
-                testing::ValuesIn(inputShapes_5D_dyn)),
+                testing::ValuesIn(inputShapes_5D)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
         testing::Values(emptyFusingSpec),
         testing::ValuesIn(additionalConfig()));
@@ -222,7 +236,7 @@ const auto params_MultiAxis_5D_Hybrid = testing::Combine(
             testing::ValuesIn(inpOutPrc()),
             testing::Values(ElementType::undefined),
             testing::Values(ElementType::undefined),
-            testing::ValuesIn(inputShapes_5D_dyn)),
+            testing::ValuesIn(inputShapes_5D)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_HybridLayout_5D)),
         testing::Values(emptyFusingSpec),
         testing::ValuesIn(additionalConfigFP32()));
@@ -251,6 +265,34 @@ const auto params_Int32 = testing::Combine(
             testing::Values(ElementType::undefined),
             testing::Values(ElementType::undefined),
             testing::ValuesIn(inputShapes_Int32_dyn)),
+        testing::Values(emptyCPUSpec),
+        testing::Values(emptyFusingSpec),
+        testing::ValuesIn(additionalConfigFP32()));
+
+const auto params_NativeInt32 = testing::Combine(
+        testing::Combine(
+            testing::ValuesIn(axes()),
+            testing::Values(ov::test::utils::OpType::VECTOR),
+            testing::ValuesIn(keepDims()),
+            testing::ValuesIn(reductionTypesNativeInt32()),
+            testing::Values(ElementType::i32),
+            testing::Values(ElementType::undefined),
+            testing::Values(ElementType::undefined),
+            testing::ValuesIn(inputShapes_NativeInt32_dyn)),
+        testing::Values(emptyCPUSpec),
+        testing::Values(emptyFusingSpec),
+        testing::ValuesIn(additionalConfigFP32()));
+
+const auto params_NativeInt32Gather = testing::Combine(
+        testing::Combine(
+            testing::ValuesIn(axesGather),
+            testing::Values(ov::test::utils::OpType::VECTOR),
+            testing::ValuesIn(keepDims()),
+            testing::ValuesIn(reductionTypesNativeInt32()),
+            testing::Values(ElementType::i32),
+            testing::Values(ElementType::undefined),
+            testing::Values(ElementType::undefined),
+            testing::ValuesIn(inputShapes_NativeInt32Gather_dyn)),
         testing::Values(emptyCPUSpec),
         testing::Values(emptyFusingSpec),
         testing::ValuesIn(additionalConfigFP32()));
@@ -333,6 +375,20 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 INSTANTIATE_TEST_SUITE_P(
+        smoke_Reduce_NativeInt32_CPU,
+        ReduceCPULayerTest,
+        params_NativeInt32,
+        ReduceCPULayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Reduce_NativeInt32Gather_CPU,
+        ReduceCPULayerTest,
+        params_NativeInt32Gather,
+        ReduceCPULayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_NHWC_SmallChannel_CPU,
         ReduceCPULayerTest,
         params_NHWC_SmallChannel,
@@ -384,7 +440,7 @@ const auto params_MultiAxis_5D_Logical = testing::Combine(
                 testing::Values(ElementType::boolean),
                 testing::Values(ElementType::undefined),
                 testing::Values(ElementType::undefined),
-                testing::ValuesIn(inputShapes_5D_dyn)),
+                testing::ValuesIn(inputShapes_5D)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
         testing::Values(emptyFusingSpec),
         testing::ValuesIn(additionalConfigFP32()));
@@ -412,7 +468,7 @@ const auto params_MultiAxis_5D_Hybrid_Logical = testing::Combine(
             testing::Values(ElementType::boolean),
             testing::Values(ElementType::undefined),
             testing::Values(ElementType::undefined),
-            testing::ValuesIn(inputShapes_5D_dyn)),
+            testing::ValuesIn(inputShapes_5D)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_HybridLayout_5D)),
         testing::Values(emptyFusingSpec),
         testing::ValuesIn(additionalConfigFP32()));
@@ -525,7 +581,7 @@ const auto params_MultiAxis_5D_fusing = testing::Combine(
                 testing::ValuesIn(inpOutPrc()),
                 testing::Values(ElementType::undefined),
                 testing::Values(ElementType::undefined),
-                testing::ValuesIn(inputShapes_5D_dyn)),
+                testing::ValuesIn(inputShapes_5D)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
         testing::ValuesIn(fusingParamsSet),
         testing::ValuesIn(additionalConfig()));
@@ -617,7 +673,7 @@ const auto params_MultiAxis_5D_Hybrid_fusing_KeepNoDims = testing::Combine(
             testing::ValuesIn(inpOutPrc()),
             testing::Values(ElementType::undefined),
             testing::Values(ElementType::undefined),
-            testing::ValuesIn(inputShapes_5D_dyn)),
+            testing::ValuesIn(inputShapes_5D)),
         testing::ValuesIn(filterCPUSpecificParams(cpuParams_HybridLayout_5D)),
         testing::ValuesIn(fusingParamsSet_KeepNoDims),
         testing::ValuesIn(additionalConfigFP32()));

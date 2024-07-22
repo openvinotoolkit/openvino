@@ -38,7 +38,6 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/branch.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -89,7 +88,7 @@ public:
         auto pattern = std::make_shared<pattern::op::Label>(iconst1);
 
         auto callback = [pattern](pattern::Matcher& m) {
-            OPENVINO_DEBUG << "In a callback for construct_multiply_by_one against " << m.get_match_root()->get_name();
+            OPENVINO_DEBUG("In a callback for construct_multiply_by_one against ", m.get_match_root()->get_name());
             OPENVINO_ASSERT(m.get_match_root()->input_values().size() == 2);
 
             auto pattern_map = m.get_pattern_map();
@@ -98,12 +97,14 @@ public:
             auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(
                 m.get_match_root()->input_value(const_node_index).get_node_shared_ptr());
             auto second_node = m.get_match_root()->input_value(const_node_index).get_node_shared_ptr();
-            OPENVINO_DEBUG << "second_node = " << second_node->get_name()
-                           << " , pattern = " << pattern_map[pattern]->get_name();
+            OPENVINO_DEBUG("second_node = ",
+                           second_node->get_name(),
+                           " , pattern = ",
+                           pattern_map[pattern]->get_name());
 
             if (pattern_map[pattern]->get_element_type() != const_node->get_element_type() ||
                 pattern_map[pattern]->get_shape() != const_node->get_shape()) {
-                OPENVINO_DEBUG << "Operands' types and/or shape don't match";
+                OPENVINO_DEBUG("Operands' types and/or shape don't match");
                 return false;
             }
 
@@ -113,7 +114,7 @@ public:
             });
 
             if (!all_ones) {
-                OPENVINO_DEBUG << "Constant vector's values aren't equal to 1";
+                OPENVINO_DEBUG("Constant vector's values aren't equal to 1");
                 return false;
             }
 
@@ -126,9 +127,9 @@ public:
             m->get_name(),
             m,
             [m, callback](const std::shared_ptr<Node>& node) -> bool {
-                OPENVINO_DEBUG << "Running matcher " << m->get_name() << " on " << node;
+                OPENVINO_DEBUG("Running matcher ", m->get_name(), " on ", node);
                 if (std::dynamic_pointer_cast<ov::pass::pattern::Matcher>(m)->match(node->output(0))) {
-                    OPENVINO_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+                    OPENVINO_DEBUG("Matcher ", m->get_name(), " matched ", node);
                     bool status = callback(*m.get());
                     // explicitly clear Matcher state because it holds pointers to matched nodes
                     m->clear_state();
@@ -147,7 +148,7 @@ public:
         auto pattern = std::make_shared<pattern::op::Label>(iconst0);
 
         auto callback = [pattern](pattern::Matcher& m) {
-            OPENVINO_DEBUG << "In a callback for construct_add_zero against " << m.get_match_root()->get_name();
+            OPENVINO_DEBUG("In a callback for construct_add_zero against ", m.get_match_root()->get_name());
             OPENVINO_ASSERT(m.get_match_root()->input_values().size() == 2);
 
             auto pattern_map = m.get_pattern_map();
@@ -156,12 +157,14 @@ public:
             auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(
                 m.get_match_root()->input_value(const_node_index).get_node_shared_ptr());
             auto second_node = m.get_match_root()->input_value(const_node_index).get_node_shared_ptr();
-            OPENVINO_DEBUG << "second_node = " << second_node->get_name()
-                           << " , pattern = " << pattern_map[pattern]->get_name();
+            OPENVINO_DEBUG("second_node = ",
+                           second_node->get_name(),
+                           " , pattern = ",
+                           pattern_map[pattern]->get_name());
 
             if (pattern_map[pattern]->get_element_type() != const_node->get_element_type() ||
                 pattern_map[pattern]->get_shape() != const_node->get_shape()) {
-                OPENVINO_DEBUG << "Operands' types and/or shape don't match";
+                OPENVINO_DEBUG("Operands' types and/or shape don't match");
                 return false;
             }
 
@@ -171,7 +174,7 @@ public:
             });
 
             if (!all_zeros) {
-                OPENVINO_DEBUG << "Constant vector's values aren't equal to 0";
+                OPENVINO_DEBUG("Constant vector's values aren't equal to 0");
                 return false;
             }
 
@@ -185,9 +188,9 @@ public:
             m->get_name(),
             m,
             [m, callback](const std::shared_ptr<Node>& node) -> bool {
-                OPENVINO_DEBUG << "Running matcher " << m->get_name() << " on " << node;
+                OPENVINO_DEBUG("Running matcher ", m->get_name(), " on ", node);
                 if (std::dynamic_pointer_cast<ov::pass::pattern::Matcher>(m)->match(node->output(0))) {
-                    OPENVINO_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+                    OPENVINO_DEBUG("Matcher ", m->get_name(), " matched ", node);
                     bool status = callback(*m.get());
                     // explicitly clear Matcher state because it holds pointers to matched nodes
                     m->clear_state();
@@ -310,16 +313,10 @@ TEST(pattern, matcher) {
     ASSERT_EQ(n.get_matched_nodes(), (NodeVector{a}));
 
     auto abs = make_shared<op::v0::Abs>(a);
-    auto any = std::make_shared<pattern::op::Skip>(a);
-    ASSERT_TRUE(n.match(any, abs));
-    ASSERT_EQ(n.get_matched_nodes(), (NodeVector{abs, a}));
 
     auto false_pred = [](std::shared_ptr<Node> /* no */) {
         return false;
     };
-    auto any_false = std::make_shared<pattern::op::Skip>(a, false_pred);
-    ASSERT_TRUE(n.match(any_false, a));
-    ASSERT_EQ(n.get_matched_nodes(), (NodeVector{a, a}));
 
     auto pattern = std::make_shared<pattern::op::Label>(a);
     ASSERT_TRUE(n.match(pattern, a));
@@ -370,39 +367,6 @@ TEST(pattern, matcher) {
 
     ASSERT_FALSE(n.match(std::make_shared<op::v1::Add>(abs, b), std::make_shared<op::v1::Add>(b, b)));
     ASSERT_EQ(n.get_matched_nodes(), (NodeVector{}));
-
-    auto add_absb = std::make_shared<op::v1::Add>(abs, b);
-    ASSERT_TRUE(n.match(std::make_shared<op::v1::Add>(any, b), add_absb));
-    ASSERT_EQ(n.get_matched_nodes(), (NodeVector{add_absb, abs, a, b}));
-
-    ASSERT_TRUE(n.match(std::make_shared<op::v1::Add>(pattern, b), add_absb));
-    ASSERT_EQ(n.get_pattern_map()[pattern], abs);
-    ASSERT_EQ(n.get_matched_nodes(), (NodeVector{add_absb, abs, b}));
-
-    ASSERT_TRUE(n.match(std::make_shared<op::v1::Add>(b, pattern), add_absb));
-    ASSERT_EQ(n.get_pattern_map()[pattern], abs);
-    ASSERT_EQ(n.get_matched_nodes(), (NodeVector{add_absb, abs, b}));
-
-    auto c = make_shared<op::v0::Parameter>(element::i32, shape);
-    auto mul_add_absb = std::make_shared<op::v1::Multiply>(c, add_absb);
-    ASSERT_TRUE(
-        n.match(std::make_shared<op::v1::Multiply>(c, std::make_shared<op::v1::Add>(b, pattern)), mul_add_absb));
-    ASSERT_EQ(n.get_pattern_map()[pattern], abs);
-    ASSERT_EQ(n.get_matched_nodes(), (NodeVector{mul_add_absb, c, add_absb, abs, b}));
-
-    ASSERT_TRUE(n.match(std::make_shared<op::v1::Multiply>(c, std::make_shared<op::v1::Add>(any, b)),
-                        mul_add_absb));  // nested any
-    ASSERT_EQ(n.get_matched_nodes(), (NodeVector{mul_add_absb, c, add_absb, abs, a, b}));
-    ASSERT_TRUE(n.match(std::make_shared<op::v1::Multiply>(c, std::make_shared<op::v1::Add>(any, b)),
-                        std::make_shared<op::v1::Multiply>(std::make_shared<op::v1::Add>(b, abs),
-                                                           c)));  // permutations w/ any
-    auto mul_c_add_ab = make_shared<op::v1::Multiply>(c, add_ab);
-    ASSERT_TRUE(n.match(std::make_shared<op::v1::Multiply>(c, std::make_shared<op::v1::Add>(any_false, b)),
-                        std::make_shared<op::v1::Multiply>(c, std::make_shared<op::v1::Add>(a, b))));  //
-    // nested any
-    ASSERT_TRUE(n.match(std::make_shared<op::v1::Multiply>(c, std::make_shared<op::v1::Add>(any_false, b)),
-                        mul_c_add_ab));  // permutations w/ any_false
-    ASSERT_EQ(n.get_matched_nodes(), (NodeVector{mul_c_add_ab, c, add_ab, a, a, b}));
 
     auto iconst1_0 = construct_constant_node(1);
     auto iconst1_1 = construct_constant_node(1);
@@ -461,18 +425,6 @@ TEST(pattern, matcher) {
     ASSERT_TRUE(n.match(std::make_shared<pattern::op::Or>(OutputVector{std::make_shared<op::v1::Add>(a, b),
                                                                        std::make_shared<op::v1::Subtract>(a, b)}),
                         std::make_shared<op::v1::Subtract>(a, b)));
-
-    // Branch
-    {
-        auto branch = std::make_shared<pattern::op::Branch>();
-        auto star = std::make_shared<pattern::op::Or>(OutputVector{branch, std::make_shared<pattern::op::True>()});
-        auto pattern = std::make_shared<op::v1::Add>(star, star);
-        branch->set_destination(pattern);
-        auto arg =
-            std::make_shared<op::v1::Add>(std::make_shared<op::v1::Add>(a, b), std::make_shared<op::v1::Add>(b, a));
-        ASSERT_TRUE(n.match(pattern, std::make_shared<op::v1::Add>(arg, a)));
-        ASSERT_EQ(n.get_matched_nodes().size(), 4);
-    }
 
     // strict mode
     {
@@ -957,47 +909,6 @@ TEST(pattern, test_sort) {
         ASSERT_TRUE(n1.match(add));
         ASSERT_EQ(r1, n1.get_pattern_map()[pabs1_label]);
     }
-}
-
-TEST(pattern, label_on_skip) {
-    const auto zero = std::string{"0"};
-    const auto is_zero = [&zero](const Output<Node>& node) {
-        if (const auto c = as_type_ptr<op::v0::Constant>(node.get_node_shared_ptr())) {
-            return (c->get_all_data_elements_bitwise_identical() && c->convert_value_to_string(0) == zero);
-        } else {
-            return false;
-        }
-    };
-
-    Shape shape{2, 2};
-    auto a = make_shared<op::v0::Parameter>(element::i32, shape);
-    auto b = make_shared<op::v0::Parameter>(element::i32, Shape{});
-    auto iconst = op::v0::Constant::create(element::i32, Shape{}, {0.0f});
-    auto label = std::make_shared<pattern::op::Label>(iconst);
-    auto const_label = std::make_shared<pattern::op::Label>(iconst, is_zero, NodeVector{iconst});
-
-    auto bcst_pred = [](std::shared_ptr<Node> n) {
-        return ov::as_type_ptr<op::v1::Broadcast>(n) != nullptr;
-    };
-
-    auto shape_const = ov::op::v0::Constant::create(element::u64, Shape{shape.size()}, shape);
-    auto axes_const = ov::op::v0::Constant::create(element::u8, Shape{}, {0});
-    auto bcst = std::make_shared<pattern::op::Skip>(OutputVector{const_label, shape_const, axes_const}, bcst_pred);
-    auto bcst_label = std::make_shared<pattern::op::Label>(bcst, nullptr, NodeVector{bcst});
-    auto matcher =
-        std::make_shared<pattern::Matcher>(std::make_shared<op::v1::Multiply>(label, bcst_label), "label_on_skip");
-
-    auto const_broadcast = make_shared<op::v1::Broadcast>(iconst, shape_const);
-    std::shared_ptr<Node> mul = std::make_shared<op::v1::Multiply>(a, const_broadcast);
-    std::shared_ptr<Node> mul_scalar = std::make_shared<op::v1::Multiply>(b, iconst);
-    ASSERT_TRUE(matcher->match(mul));
-    ASSERT_EQ(matcher->get_pattern_map()[bcst_label], const_broadcast);
-    ASSERT_EQ(matcher->get_pattern_map()[const_label], iconst);
-    ASSERT_EQ(matcher->get_pattern_map()[label], a);
-    ASSERT_TRUE(matcher->match(mul_scalar));
-    ASSERT_EQ(matcher->get_pattern_map()[bcst_label], iconst);
-    ASSERT_EQ(matcher->get_pattern_map()[const_label], iconst);
-    ASSERT_EQ(matcher->get_pattern_map()[label], b);
 }
 
 TEST(pattern, is_contained_match) {
