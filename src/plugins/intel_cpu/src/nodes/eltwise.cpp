@@ -3062,6 +3062,10 @@ bool Eltwise::canFuse(const NodePtr& node) const {
                                                  eltwise->getGamma()))) {
         return false;
     }
+    //GeluTanh fusing is disabled because of accuracy issue (147483)
+    if (node->getAlgorithm() == Algorithm::EltwiseGeluTanh) {
+        return false;
+    }
 #else
     if (!mayiuse(x64::sse41) || getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK)
         return false;
