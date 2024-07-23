@@ -32,6 +32,14 @@ if (TPP_MLIR_DIR)
     function(add_tpp_mlir_libs target)
         target_link_directories(${target} PRIVATE ${TPP_MLIR_DIR}/lib)
         target_link_libraries(${target} PRIVATE ${TPP_MLIR_LIBS})
+        target_link_options(${target} PRIVATE
+            -Wl,--no-as-needed
+            -L${TPP_MLIR_DIR}/lib
+            -ltpp_xsmm_runner_utils
+            -Wl,--as-needed
+        )
+        #FIXME: Provide platform-independent way of doing that:
+        install(FILES ${TPP_MLIR_DIR}/lib/libtpp_xsmm_runner_utils.so ${TPP_MLIR_DIR}/lib/libtpp_xsmm_runner_utils.so.19.0git DESTINATION ${OV_CPACK_RUNTIMEDIR})
     endfunction()
 else()
     function(add_tpp_mlir_includes target)
