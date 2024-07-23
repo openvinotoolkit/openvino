@@ -429,7 +429,7 @@ jobs:
     with:
       runner: 'aks-linux-16-cores-arm'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}"}'
-      event: ${{ github.event_name }}
+      model_scope: 'precommit'
 
   Overall_Status:
     name: ci/gha_overall_status_linux_arm64

@@ -33,6 +33,9 @@ public:
           m_node_to_prod_cons(std::make_shared<detail::OVNodeMap>()),
           m_node_to_gr(std::make_shared<detail::OVNodeToGroupMap>()) {}
 
+    // Simple passes
+    void singleGroup();
+
     // Initial OV model traversal to prepare initial groups of 1 layer each
     void buildGraph();
 
