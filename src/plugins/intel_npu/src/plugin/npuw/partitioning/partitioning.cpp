@@ -1616,7 +1616,9 @@ void Partitioner::decompressionCutOff(const std::string& func_name) {
             ->build();
 
         // ChatGLM (GPTQ) and New LLaMa-v2 patterns (Symmetric)
-        auto dcoffPassReshape1 = std::make_shared<ov::npuw::patterns::SymmZP::DCOFFPassReshape1>(dcoff_mode, dcoff_type, std::ref(params_to));
+        auto dcoffPassReshape1 = std::make_shared<ov::npuw::patterns::SymmZP::DCOFFPassReshape1>(dcoff_mode,
+                                                                                                 dcoff_type,
+                                                                                                 std::ref(params_to));
         dcoffPassReshape1->setTransposeWeights(transpose_weights);
         dcoffPassReshape1->build();
         rewr.add_matcher(dcoffPassReshape1);
