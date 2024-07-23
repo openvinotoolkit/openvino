@@ -132,13 +132,13 @@ public:
                bool cpu_reservation = false,
                bool cpu_pinning = false,
                std::vector<std::vector<int>> streams_info_table = {})
-            : _name{name},
+            : _name{std::move(name)},
               _streams{streams},
               _threads_per_stream{threads_per_stream},
               _thread_preferred_core_type(thread_preferred_core_type),
               _cpu_reservation{cpu_reservation},
               _cpu_pinning{cpu_pinning},
-              _streams_info_table{streams_info_table} {
+              _streams_info_table{std::move(streams_info_table)} {
             update_executor_config();
         }
 
