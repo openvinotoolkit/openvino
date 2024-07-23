@@ -15,19 +15,8 @@
 using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
-namespace {
-dnnl::impl::cpu::x64::cpu_isa_t init_isa(dnnl_data_type_t dt_in0, dnnl_data_type_t dt_in1, bool is_with_amx) {
-    bool is_int8 = utils::one_of(dt_in0, data_type::u8, data_type::s8) &&
-                   utils::one_of(dt_in1, data_type::u8, data_type::s8);
-    return is_with_amx ?
-               cpu::x64::avx512_core_amx :
-               dt_in0 == dnnl_data_type_t::dnnl_bf16 ?
-                   cpu::x64::avx512_core_bf16 :
-                   is_int8 ?
-                       cpu::x64::avx512_core_vnni :
-                       cpu::x64::avx512_core;
-}
 
+namespace {
 size_t init_hash(dnnl_data_type_t dt_in0, dnnl_data_type_t dt_in1, float beta, bool is_with_amx,
                            bool is_with_comp, dnnl::impl::cpu::x64::cpu_isa_t isa) {
     size_t seed = 0;
@@ -43,9 +32,11 @@ size_t init_hash(dnnl_data_type_t dt_in0, dnnl_data_type_t dt_in1, float beta, b
 namespace ov {
 namespace intel_cpu {
 BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype, const element::Type& in1_dtype,
-                                       float beta, bool is_with_amx, bool is_with_comp) :
+                                       float beta, bool is_with_amx, bool is_with_comp,
+                                       dnnl::impl::cpu::x64::cpu_isa_t primitive_isa) :
                                        m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype, beta,
-                                                                                      is_with_amx, is_with_comp)) {
+                                                                                      is_with_amx, is_with_comp,
+                                                                                      primitive_isa)) {
     m_hash = compute_hash();
 }
 
@@ -75,10 +66,11 @@ BrgemmKernelConfig::operator amx_tile_config_t() const {
 }
 
 BrgemmKernelConfig::StaticParams::StaticParams(const element::Type& in0_dtype, const element::Type& in1_dtype,
-                                               float beta, bool is_with_amx, bool is_with_comp) :
+                                               float beta, bool is_with_amx, bool is_with_comp,
+                                               dnnl::impl::cpu::x64::cpu_isa_t primitive_isa) :
                                                dt_in0(DTYPE_CAST(in0_dtype)), dt_in1(DTYPE_CAST(in1_dtype)),
                                                beta(beta), is_with_amx(is_with_amx), is_with_comp(is_with_comp),
-                                               isa(init_isa(dt_in0, dt_in1, is_with_amx)),
+                                               isa(primitive_isa),
                                                hash(init_hash(dt_in0, dt_in1, beta, is_with_amx, is_with_comp, isa)) {
 }
 
@@ -175,7 +167,7 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
 
     const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(brgemm_node, "Got invalid node type in update_config");
-    if (brgemm_node->is_with_data_repacking()) {
+    if (with_repacking(brgemm_node->get_type())) {
         const auto repacking_buffer_shape = brgemm_node->get_brgemm_copy()->get_repacking_buffer_shape();
         OV_CPU_JIT_EMITTER_ASSERT(!repacking_buffer_shape.empty(), "Repacking buffer shape mustn't be empty");
         LDB = DIM_CAST(repacking_buffer_shape.back());
@@ -213,6 +205,42 @@ void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* executor, call_ar
     OV_CPU_JIT_EMITTER_ASSERT(kernel->compiled_kernel, "has nullptr kernel");
     (*kernel->compiled_kernel)(&brgemm_p);
 }
+
+#ifdef SNIPPETS_DEBUG_CAPS
+BrgemmKernelReferenceExecutor::BrgemmKernelReferenceExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, BrgemmKernelConfig config) :
+        BrgemmKernelExecutor(std::move(kernel_cache), std::move(config)) {
+}
+
+std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelReferenceExecutor::compile_kernel(const BrgemmKernelConfig& c) const {
+    const auto& res = std::make_shared<BrgemmCompiledKernel>();
+    res->compiled_kernel.reset(new brgemm_ref_kernel(c));
+    return res;
+}
+
+brgemm_ref_kernel::brgemm_ref_kernel(BrgemmKernelConfig c) : m_config(std::move(c)) {
+    OV_CPU_JIT_EMITTER_ASSERT(!m_config.is_with_comp() && !m_config.is_with_amx(),
+                              "brgemm_ref_kernel doesn't currently support compensations or amx");
+    OV_CPU_JIT_EMITTER_ASSERT(m_config.get_dt_in0() == m_config.get_dt_in1() &&
+                              m_config.get_dt_in0() == dnnl_data_type_t::dnnl_f32,
+                              "brgemm_ref_kernel currently supports only fp32 inputs");
+}
+
+void brgemm_ref_kernel::operator()(dnnl::impl::cpu::x64::brgemm_kernel_params_t* args) const {
+    auto A = reinterpret_cast<const float*>(args->ptr_A);
+    auto B = reinterpret_cast<const float*>(args->ptr_B);
+    auto C = reinterpret_cast<float*>(args->ptr_C);
+    for (dnnl_dim_t m = 0; m < m_config.get_M(); m++) {
+        for (dnnl_dim_t n = 0; n < m_config.get_N(); n++, B++) {
+            C[n] = 0;
+            for (dnnl_dim_t k = 0; k < m_config.get_K(); k++)
+                C[n] += A[k] * B[k * m_config.get_LDB()];
+        }
+        B -= m_config.get_N();
+        A += m_config.get_LDA();
+        C += m_config.get_LDC();
+    }
+}
+#endif
 
 }   // namespace intel_cpu
 }   // namespace ov
