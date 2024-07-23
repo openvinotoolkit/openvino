@@ -434,6 +434,7 @@ static void regclass_graph_OutputModelInfo(py::module m) {
         py::arg("layout"),
         R"(
             Set layout for output model info
+
             :param layout: layout to be set
             :type layout: Union[str, openvino.runtime.Layout]
         )");
