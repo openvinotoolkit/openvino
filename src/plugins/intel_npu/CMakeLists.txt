@@ -18,6 +18,28 @@ set(NPU_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 include(cmake/features.cmake)
 
+if(MSVC AND BUILD_COMPILER_FOR_DRIVER)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        # /Zi flag is used for making debug info added to pdb files instead of the library itself
+        # /DEBUG flag is used for adding PDB file to exe files, shared libraries, static libraries
+        # /OPT:REF and /OPT:ICF are used for decreasing the size of PDB files
+        # /INCREMENTAL:NO is used for disable incremental linking
+        # /FS flag forces pdb file write to MSPDBSRV.exe
+        # /Zf flag reduces the RPC call to MSPDBSRV.exe
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Zi /FS /Zf /ZH:SHA_256 /guard:cf /Qspectre")
+        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Zi /FS /Zf /ZH:SHA_256 /guard:cf /Qspectre")
+        set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /DEBUG /OPT:REF /OPT:ICF /INCREMENTAL:NO /CETCOMPAT /guard:cf")
+        set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /DEBUG /OPT:REF /OPT:ICF /INCREMENTAL:NO /CETCOMPAT /guard:cf")
+        set(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE} /DEBUG /OPT:REF /OPT:ICF /INCREMENTAL:NO /CETCOMPAT /guard:cf")
+        if(DEFINED CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY)
+            unset(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY)
+        endif()
+        if(DEFINED CMAKE_PDB_OUTPUT_DIRECTORY)
+            unset(CMAKE_PDB_OUTPUT_DIRECTORY)
+        endif()
+    endif()
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 
 if(ENABLE_NPU_DEBUG_CAPS)
