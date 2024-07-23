@@ -115,10 +115,13 @@ std::vector<tensor::value_type> layout::get_padded_dims() const {
     if (is_dynamic())
         throw std::runtime_error("[GPU] get_padded_dims() is called for dynamic shape");
 
-    auto default_fmt = format::get_default_format(format.dimension(), format::is_weights_format(format), format::is_grouped(format));
-    const auto& t = get_tensor();
-    auto padded_size = t.add(data_padding.lower_size()).add(data_padding.upper_size());
-    return padded_size.sizes(default_fmt);
+    const auto& shape = size.to_shape();
+    std::vector<tensor::value_type> res(shape.size());
+    for (auto i = 0; i < shape.size(); i++) {
+        res[i] = shape[i] + _pad_before[i] + _pad_after[i];
+    }
+    return res;  
+
 }
 
 static format to_weights_format(format f, bool is_grouped) {
@@ -206,7 +209,7 @@ std::string layout::to_short_string() const {
     s << ov::element::Type(data_type) << ":" << format.to_string() << ":";
     dump_shape(s, size);
 
-    if (data_padding.get_dynamic_pad_dims() != tensor(0)) {
+    if (has_dynamic_pad()) {
         s << ":dyn_pad_dims";
     } else {
         if (data_padding)
@@ -293,53 +296,74 @@ void layout::set_partial_shape(const ov::PartialShape& size) {
     this->size = size;
 }
 
-tensor layout::get_buffer_size() const {
-    if (is_dynamic() && !has_upper_bound()) {
-        throw std::runtime_error("[GPU] get_buffer_size() is called for dynamic shape");
+// tensor layout::get_buffer_size() const {
+//     if (is_dynamic() && !has_upper_bound()) {
+//         throw std::runtime_error("[GPU] get_buffer_size() is called for dynamic shape");
+//     }
+
+//     const auto& t = get_tensor();
+
+//     return t.add(data_padding.lower_size()).add(data_padding.upper_size());
+// }
+
+std::vector<tensor::value_type> layout::get_pitches() const {
+    const auto& padded_dims = get_padded_dims();
+
+    // reorder regarding to format
+    auto sizes = format_sizes(padded_dims, format);
+ 
+    std::vector<tensor::value_type> pitches(sizes.size(), size_t(1));
+    std::partial_sum(sizes.rbegin(), sizes.rend() - 1, pitches.rbegin() + 1, std::multiplies<size_t>());
+    return pitches;
+}
+
+size_t layout::get_linear_offset(const std::initializer_list<tensor::value_type>& index) const {
+    // const auto& l_padd = data_padding.lower_size();
+    // const auto& u_padd = data_padding.upper_size();
+
+    // const auto& t = get_tensor();
+
+    // if ((element.batch[0] < 0 && -element.batch[0] > l_padd.batch[0]) ||
+    //     (element.feature[0] < 0 && -element.feature[0] > l_padd.feature[0]) ||
+    //     (element.spatial[0] < 0 && -element.spatial[0] > l_padd.spatial[0]) ||
+    //     (element.spatial[1] < 0 && -element.spatial[1] > l_padd.spatial[1]) ||
+    //     (element.spatial[2] < 0 && -element.spatial[2] > l_padd.spatial[2]) ||
+    //     (element.spatial[3] < 0 && -element.spatial[3] > l_padd.spatial[3]) ||
+    //     (element.batch[0] >= t.batch[0] + u_padd.batch[0]) ||
+    //     (element.feature[0] >= t.feature[0] + u_padd.feature[0]) ||
+    //     (element.spatial[0] >= t.spatial[0] + u_padd.spatial[0]) ||
+    //     (element.spatial[1] >= t.spatial[1] + u_padd.spatial[1]) ||
+    //     (element.spatial[2] >= t.spatial[2] + u_padd.spatial[2]) ||
+    //     (element.spatial[3] >= t.spatial[3] + u_padd.spatial[3]))
+    //     throw std::invalid_argument("Requested to calculate linear offset for an element which lies outside of the buffer range.");
+
+    // auto padded_size = t + l_padd + u_padd;  // Cecilia: logical order
+    // auto padded_element = element + l_padd;
+    // return padded_size.get_linear_offset(padded_element, format);
+
+    OPENVINO_ASSERT(!is_dynamic() || has_upper_bound(), "[GPU] get_tensor() is called for dynamic shape without upper bound");
+    ov::Shape shape;
+    if (is_dynamic() && has_upper_bound()) {
+        for (const auto& dim : size) {
+            shape.push_back(dim.get_max_length());
+        }
+    } else {
+        shape = size.to_shape();
     }
 
-    const auto& t = get_tensor();
+    OPENVINO_ASSERT(index.size() == shape.size() && shape.size() <= shape_dim_max, "index should have the same rank as shape.")
 
-    return t.add(data_padding.lower_size()).add(data_padding.upper_size());
-}
-
-tensor layout::get_pitches() const {
-    const auto& sizes = get_buffer_size().sizes(format);
-
-    std::vector<tensor::value_type> pitches(sizes.size(), tensor::value_type(1));
-    std::partial_sum(sizes.rbegin(), sizes.rend() - 1, pitches.rbegin() + 1, std::multiplies<tensor::value_type>());
-    return {format, pitches};
-}
-
-size_t layout::get_linear_offset(tensor element) const {
-    const auto& l_padd = data_padding.lower_size();
-    const auto& u_padd = data_padding.upper_size();
-
-    const auto& t = get_tensor();
-
-    if ((element.batch[0] < 0 && -element.batch[0] > l_padd.batch[0]) ||
-        (element.feature[0] < 0 && -element.feature[0] > l_padd.feature[0]) ||
-        (element.spatial[0] < 0 && -element.spatial[0] > l_padd.spatial[0]) ||
-        (element.spatial[1] < 0 && -element.spatial[1] > l_padd.spatial[1]) ||
-        (element.spatial[2] < 0 && -element.spatial[2] > l_padd.spatial[2]) ||
-        (element.spatial[3] < 0 && -element.spatial[3] > l_padd.spatial[3]) ||
-        (element.batch[0] >= t.batch[0] + u_padd.batch[0]) ||
-        (element.feature[0] >= t.feature[0] + u_padd.feature[0]) ||
-        (element.spatial[0] >= t.spatial[0] + u_padd.spatial[0]) ||
-        (element.spatial[1] >= t.spatial[1] + u_padd.spatial[1]) ||
-        (element.spatial[2] >= t.spatial[2] + u_padd.spatial[2]) ||
-        (element.spatial[3] >= t.spatial[3] + u_padd.spatial[3]))
-        throw std::invalid_argument("Requested to calculate linear offset for an element which lies outside of the buffer range.");
-
-    auto padded_size = t + l_padd + u_padd;
-    auto padded_element = element + l_padd;
-
-    return padded_size.get_linear_offset(padded_element, format);
+    // const auto padded_index = index + _pad_before;
+    // const auto padded_shape = _pad_before + shape + _pad_after;
+    // tensor t(format, padded_shape);
+    // return t.get_linear_offset(padded_index, format);
+    return 1; // Cecilia TODO
 }
 
 /// @brief Get aligned linear size calculated as multiplication of all elements.
 size_t layout::get_linear_size() const {
-    auto sizes = get_buffer_size().sizes();
+    // auto sizes = get_buffer_size().sizes();  // cecilia: logical order
+    auto sizes = get_padded_dims();
 
     std::set<size_t> processed_dims;
     const auto& blocks = format.block_sizes();
@@ -397,12 +421,6 @@ size_t layout::get_linear_size() const {
     return total;
 }
 
-layout layout::with_padding(padding const& padd) const {
-    layout ret = *this;
-    ret.data_padding = padd;
-    return ret;
-}
-
 // tells whether l1 and l2 can be reinterpreted to each other without need of reordering
 // note: layouts can only be considered identical if data size described by both layouts match (so no data are genereted
 // nor dropped) note: if layouts describe two buffers with different size, consider them not to be identical even if
@@ -412,8 +430,6 @@ layout layout::with_padding(padding const& padd) const {
 bool layout::compatible(const layout& other) const {
     auto& l1 = *this;
     auto& l2 = other;
-    const auto& l1_pad = l1.data_padding;
-    const auto& l2_pad = l2.data_padding;
 
     if (l1.is_dynamic() || l2.is_dynamic())
         return false;
@@ -429,7 +445,7 @@ bool layout::compatible(const layout& other) const {
     // Reorders between bfyx, bfzyx, bfwzyx can be reinterpeted as reshape when
     // there is no padding and both hold same number of elements.
     if (format::is_default_format(l1.format) && format::is_default_format(l2.format) &&
-        !l1_pad && !l2_pad && l1.get_linear_size() == l2.get_linear_size())
+        !l1.padded() && !l2.padded() && l1.get_linear_size() == l2.get_linear_size())
         return true;
     if (l1_size != l2_size)
         return false;
@@ -592,7 +608,7 @@ ov::PartialShape layout::transform(const ov::PartialShape& pshape, const cldnn::
 // Check a reorder is 1d along feature axis. Or feature size fits to inner block size of feature axis
 static inline bool check_redundant_1d_along_feature(layout const& l1, layout const& l2) {
     // No padding, double blocked format and different data_type
-    if ((l1.get_linear_size() == l2.get_linear_size()) && !l1.data_padding && !l2.data_padding &&
+    if ((l1.get_linear_size() == l2.get_linear_size()) && !l1.padded() && !l2.padded() &&
         !format::is_multi_blocked(l1.format) && !format::is_multi_blocked(l2.format) &&
         l2.data_type == l1.data_type && l2.count() == l1.count()) {
         auto l1_inner_blk = format::is_single_blocked(l1.format) ? l1.format.traits().block_sizes.at(0).second : 1;
