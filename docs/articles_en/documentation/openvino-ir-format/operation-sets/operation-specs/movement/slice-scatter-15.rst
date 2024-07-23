@@ -55,8 +55,8 @@ Operator SliceScatter-15 is an equivalent to following NumPy snippet:
 * **4**: ``stop`` - 1D tensor of type *T_IND*.
 
   Defines the coordinate of the opposite vertex of the update slice, or where the update slice ends.
-  Stop indexes are exclusive, which means values lying on the ending edge are
-  not included in the update slice.
+  Stop indexes are exclusive, which means values lying on the ending edge are not updated.
+  A value larger than the size of a dimension is silently clamped.
   To create slice to the end of a dimension of unknown size ``INT_MAX``
   may be used (or ``INT_MIN`` if slicing backwards). **Required.**
 
@@ -67,9 +67,9 @@ Operator SliceScatter-15 is an equivalent to following NumPy snippet:
 
 * **6**: ``axes`` - 1D tensor of type *T_AXIS*.
 
-  Optional 1D tensor indicating which dimensions the values in ``start`` and ``stop`` apply to.
+  Optional 1D tensor indicating which dimensions the values in ``start``, ``stop`` and ``step`` apply to.
   Negative value means counting dimensions from the end. The range is ``[-r, r - 1]``, where ``r`` is the rank of the ``data`` input tensor.
-  Values are required to be unique. If a particular axis is unspecified, it will be output in full and not sliced.
+  Values are required to be unique.
   Default value: ``[0, 1, 2, ..., start.shape[0] - 1]``. **Optional.**
 
 Number of elements in ``start``, ``stop``, ``step``, and ``axes`` inputs are required to be equal.
@@ -109,7 +109,7 @@ Number of elements in ``start``, ``stop``, ``step``, and ``axes`` inputs are req
             <port id="4" precision="I32">  <!-- step -->
                 <dim>1</dim>  <!-- values: [1] -->
             </port>
-            <port id="5" precision="I32">  <!-- axis -->
+            <port id="5" precision="I32">  <!-- axes -->
                 <dim>1</dim>  <!-- values: [0] -->
             </port>
         </input>
@@ -144,7 +144,7 @@ Number of elements in ``start``, ``stop``, ``step``, and ``axes`` inputs are req
             <port id="4" precision="I32">  <!-- step -->
                 <dim>1</dim>  <!-- values: [2] -->
             </port>
-            <port id="5" precision="I32">  <!-- axis -->
+            <port id="5" precision="I32">  <!-- axes -->
                 <dim>1</dim>  <!-- values: [1] -->
             </port>
         </input>
