@@ -134,7 +134,9 @@ ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
                                                                                    gather_input_scale);
         }
 
-        transformation_callback(new_gather_node);
+        if (transformation_callback(new_gather_node)) {
+            return false;
+        }
 
         result_nodes.push_back(new_gather_node);
         new_gather_node->set_friendly_name(gather_node->get_friendly_name());
