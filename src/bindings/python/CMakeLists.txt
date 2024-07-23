@@ -115,6 +115,8 @@ set(INIT_FILES_RUNTIME "${OpenVINOPython_SOURCE_DIR}/src/openvino/__init__.py"
 ov_check_init_files_alignment("${INIT_FILES_RUNTIME}")
 
 ov_option(ENABLE_PYTHON "Enables OpenVINO Python API build" ${ENABLE_PYTHON_DEFAULT})
+# we should not cache the option to avoid situations when ENABLE_PYTHON is ON but ENABLE_PYTHON_DEFAULT is OFF
+unset(ENABLE_PYTHON CACHE)
 
 #
 # Check for wheel package
