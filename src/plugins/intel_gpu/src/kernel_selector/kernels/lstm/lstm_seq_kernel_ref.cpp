@@ -20,6 +20,8 @@ ParamsKey LSTMSeqKernelRef::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableBatching();
     k.EnableLSTMSeqCell();
+    k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::bfyx);
     return k;
 }
 

@@ -111,6 +111,10 @@ KernelsData kernel_selector_base::GetNaiveBestKernel(const KernelList& all_impls
     return kernelsData;
 }
 KernelsData kernel_selector_base::GetNaiveBestKernel(const Params& params, KernelType kType) const {
+    if (kType == KernelType::LSTM_SEQ) {
+        int a = 4;
+        a++;
+    }
     auto all = GetAllImplementations(params, kType);
     if ( all.empty() ) {
         int a = 4;
@@ -128,7 +132,10 @@ KernelsData kernel_selector_base::GetNaiveBestKernel(const Params& params, Kerne
 KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params, KernelType kType) const {
     KernelsData kernelsData;
     std::string kernelName;
-
+    if (kType == KernelType::LSTM_SEQ) {
+        int a = 4;
+        a++;
+    }
     auto allImplementations = GetAllImplementations(params, kType);
     auto kernel_params = static_cast<const base_params&>(params);
     bool int8_kernel = kernel_params.inputs[0].GetDType() == Datatype::INT8 || kernel_params.inputs[0].GetDType() == Datatype::UINT8;
