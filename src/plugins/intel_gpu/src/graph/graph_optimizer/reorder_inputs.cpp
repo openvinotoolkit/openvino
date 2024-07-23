@@ -59,19 +59,20 @@ std::map<program_node*, format::type> get_preferred_formats(program& p, layout_o
             onednn_impls_counter++;
     }
 
+    // Fallback to ocl when asymmetric weights convolution is existed.
     size_t total_convs = 0;
-    size_t num_wei_zp_convs = 0;
+    size_t num_asym_wei_convs = 0;
     for (auto n : p.get_processing_order()) {
         if (n->is_type<convolution>()) {
             total_convs++;
             if (n->as<convolution>().weights_zero_points_term())
-                num_wei_zp_convs++;
+                num_asym_wei_convs++;
         }
     }
 
-    GPU_DEBUG_LOG << "Number of convolutions with weights zero points: " << num_wei_zp_convs << "/" << total_convs << std::endl;
+    GPU_DEBUG_LOG << "Number of convolutions with weights zero points: " << num_asym_wei_convs << "/" << total_convs << std::endl;
 
-    if ((onednn_impls_counter < 1 && lo.get_optimization_attributes().use_onednn_impls) || (num_wei_zp_convs > 0)) {
+    if (lo.get_optimization_attributes().use_onednn_impls && (onednn_impls_counter < 1 || num_asym_wei_convs > 0)) {
         should_update_fmt_map = true;
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 0);
         GPU_DEBUG_LOG << "Disable oneDNN implementations globally" << std::endl;
