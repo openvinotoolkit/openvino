@@ -824,18 +824,32 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std:
                     ". ",
                     getLatestBuildError());
 
+    auto getMemoryUsage = []() -> size_t {
+        std::ifstream procStatus("/proc/self/status");
+        std::string line;
+        while (std::getline(procStatus, line)) {
+            if (line.substr(0, 6) == "VmRSS:") {
+                std::istringstream iss(line);
+                std::string key;
+                size_t memoryUsageKb;
+                iss >> key >> memoryUsageKb;
+                return memoryUsageKb * 1024;  // Convert from KB to bytes
+            }
+        }
+        return 0;  // Return 0 if VmRSS is not found (should not happen on Linux)
+    };
+
+    printf("\n\nDEBUG Before release memory ! \n");
+    size_t beforeClearMemoryUsage = getMemoryUsage();
+    std::cout << "Memory usage before clearing serializedIR: " << beforeClearMemoryUsage << " bytes" << std::endl;
     print_memory_usage();
 
-    // it is a - struct std::pair<long unsigned int, std::shared_ptr<unsigned char> >
-    // This will decrement the reference count, and if it's the last reference, it will free the memory.
-    serializedIR.second.reset();
+    serializedIR.clear();
+    std::vector<uint8_t>().swap(serializedIR); // deallocates the memory
 
-    if (!serializedIR.second) {
-        printf("Free up serializedIR ! \n");
-    }else{
-        printf("serializedIR is not free ! \n");
-    }
-
+    printf("\n\nDEBUG After release memory ! \n");
+    size_t afterClearMemoryUsage = getMemoryUsage();
+    std::cout << "Memory usage after clearing serializedIR: " << afterClearMemoryUsage << " bytes" << std::endl;
     print_memory_usage();
 
     // Get blob size first
