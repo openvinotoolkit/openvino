@@ -318,9 +318,6 @@ struct layout {
     /// Number of elements to be stored in this layout
     size_t count() const;
 
-    /// Number of elements to be stored in this memory layout including padding
-    size_t padded_count() const;
-
     /// Layout size with padding included
     tensor get_buffer_size() const;
 

@@ -225,13 +225,6 @@ size_t layout::count() const {
     return ov::shape_size(size.to_shape());
 }
 
-size_t layout::padded_count() const {
-    if (is_dynamic())
-        throw std::runtime_error("[GPU] Count is called for dynamic shape");
-
-    return get_buffer_size().count();
-}
-
 bool layout::is_dynamic() const {
     return size.is_dynamic();
 }
