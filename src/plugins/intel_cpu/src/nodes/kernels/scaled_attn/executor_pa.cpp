@@ -1581,7 +1581,8 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             scale, sliding_window, alibi_slopes, max_context_len, output_emb, output_score);
         concat_pastkv(k, v, k_cache, v_cache, past_lens, subsequence_begins, block_indices, block_indices_begins);
 
-        _kernel(q, k_cache, v_cache, output_emb, output_score, max_context_len, past_lens, subsequence_begins, block_indices, block_indices_begins, alibi_slopes);
+        _kernel(q, k_cache, v_cache, output_emb, output_score, max_context_len, past_lens, subsequence_begins, block_indices,
+            block_indices_begins, alibi_slopes);
     }
 };
 #endif
