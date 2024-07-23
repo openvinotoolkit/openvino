@@ -59,6 +59,8 @@ PagedAttention::PagedAttention(const std::shared_ptr<ov::Node>& op, const GraphC
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW("CPU: " + errorMessage);
     }
+    // output score may have no child
+    m_hasScore = !op->get_output_target_inputs(1).empty();
 }
 
 void PagedAttention::initSupportedPrimitiveDescriptors() {
@@ -69,7 +71,6 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     NodeConfig config;
     auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto orgInputNumber = getOriginalInputsNumber();
-    auto orgOutputNumber = getOriginalOutputsNumber();
     config.inConfs.resize(orgInputNumber);
     config.outConfs.resize(getOriginalOutputsNumber());
     config.inConfs[PagedAttentionExecutor::ID_Q].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
@@ -113,9 +114,8 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
 
     config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
         rtPrecision, getOutputShapeAtPort(0)));
-    if (orgOutputNumber == 2)
-        config.outConfs[1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
-            ov::element::f32, getOutputShapeAtPort(1)));
+    config.outConfs[1].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(
+        ov::element::f32, getOutputShapeAtPort(1)));
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }
@@ -145,32 +145,29 @@ void PagedAttention::createPrimitive() {
 
 void PagedAttention::execute(dnnl::stream strm) {
     auto orginInputNumber = getOriginalInputsNumber();
-    auto orginOutputNumber = getOriginalOutputsNumber();
     std::vector<MemoryPtr> inputs(orginInputNumber);
-    std::vector<MemoryPtr> outputs(orginOutputNumber);
+    std::vector<MemoryPtr> outputs(m_hasScore ? 2 : 1);
 
     for (size_t i = 0; i < orginInputNumber; i++) {
         inputs[i] = getSrcMemoryAtPort(i);
     }
 
     const auto& queryDims = inputs[0]->getStaticDims();
-    if (orginOutputNumber == 1) {
-        redefineOutputMemory({queryDims});
-    } else {
+    size_t len = 0;
+    if (m_hasScore) {
         const auto& pastLensDims = inputs[5]->getStaticDims();
         auto pastLens = inputs[5]->getDataAs<const int32_t>();
-        size_t len = 0;
         for (size_t i = 0; i < pastLensDims[0]; i++)
             len += pastLens[i];
         len += queryDims[0];
+    }
 
-        VectorDims scoreDims{len};
-        redefineOutputMemory({queryDims, scoreDims});
-    }
-    
-    for (size_t i = 0; i < orginOutputNumber; i++) {
-        outputs[i] = getDstMemoryAtPort(i);
-    }
+    VectorDims scoreDims{len};
+    redefineOutputMemory({queryDims, scoreDims});
+
+    outputs[0] = getDstMemoryAtPort(0);
+    if (m_hasScore)
+        outputs[1] = getDstMemoryAtPort(1);
 
     m_executor->execute(inputs, outputs);
 }

@@ -43,6 +43,8 @@ private:
     std::shared_ptr<ov::Extensions::Cpu::PagedAttentionExecutor> m_executor;
     template <typename T> struct AttentionExecutor;
     friend struct PagedAttentionKey;
+
+    bool m_hasScore = false;
 };
 
 }  // namespace node
