@@ -24,11 +24,9 @@ runs:
   using: "composite"
   steps:
     - name: Install Python dependencies
-      uses: py-actions/py-dependency-install@v4
-      with:
-        path: "${{ inputs.action_path && inputs.action_path || github.action_path }}/requirements.txt"
-        update-setuptools: "false"
-        update-wheel: "false"
+      shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
+      run: >-
+        pip install -r "${{ inputs.action_path && inputs.action_path || github.action_path }}/requirements.txt"
 
     - name: 'Copy artifacts'
       id: copy_artifacts
