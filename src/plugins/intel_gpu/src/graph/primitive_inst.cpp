@@ -1189,6 +1189,7 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
     }
     const auto& desc = _node->as<kv_cache>().get_primitive();
     auto& past_layout = _impl_params->input_layouts[0];
+    auto& new_layout = _impl_params->input_layouts[1];
     auto& present_layout = _impl_params->output_layouts[0];
     const auto& sequence_axis = desc->concat_axis;
     const auto& gather_axis = desc->gather_axis;
@@ -1209,8 +1210,12 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
     auto max_pad = kv_cache_inst::get_max_pad(past_layout, _deps[0].first->_max_output_layout_count[0], sequence_axis_legacy, "past_layout");
 
     if (max_pad > 0) {
-        kv_cache_inst::update_pad(present_layout, max_pad - 1, sequence_axis_legacy);
-        GPU_DEBUG_TRACE_DETAIL << "[do runtime_in_place_kv_cache] " << id() << " Updated present_layout's pad : " << present_layout.to_string() << std::endl;
+        const auto new_seq_len = static_cast<int64_t>(new_layout.get_shape()[sequence_axis]);
+        if (max_pad - new_seq_len >= 0) {
+            kv_cache_inst::update_pad(present_layout, max_pad - new_seq_len, sequence_axis_legacy);
+            GPU_DEBUG_TRACE_DETAIL << "[do runtime_in_place_kv_cache] " << id() << " Updated present_layout's pad : "
+                                   << present_layout.to_string() << std::endl;
+        }
         auto& variable = get_network().get_variable(desc->variable_info.variable_id);
         variable.set_layout(present_layout);
         GPU_DEBUG_TRACE_DETAIL << "[do_runtime_in_place_kv_cache] " << id() << "Updated variable with present_layout"
