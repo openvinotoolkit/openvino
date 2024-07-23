@@ -39,7 +39,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(size_t group_size) 
 
         if (m_data->get_element_type() == ov::element::Type_t::f32)
             return false;
-        if (!m_data->is_dynamic())
+        if (!m_fc->is_dynamic())
             return false;
 
         auto weight_shape = m_fc->get_input_partial_shape(1);
