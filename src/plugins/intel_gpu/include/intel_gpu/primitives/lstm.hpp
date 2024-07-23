@@ -268,8 +268,10 @@ struct lstm_seq : public primitive_base<lstm_seq> {
 protected:
     std::vector<input_info> get_dependencies() const override {
         std::vector<input_info> ret;
+        /*
         if (!cell.empty())
             ret.push_back(cell);
+        */
         return ret;
     }
 };

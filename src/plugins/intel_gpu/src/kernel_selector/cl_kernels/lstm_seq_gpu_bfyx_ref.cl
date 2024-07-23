@@ -14,7 +14,7 @@
 //output2
 KERNEL(lstm_seq)(
     const __global INPUT0_TYPE* x,
-    const __global INPUT1_TYPE* initial_hidden_state,
+    const __global INPUT0_TYPE* initial_hidden_state,
     const __global INPUT0_TYPE* initial_cell_state,
     const __global INPUT0_TYPE* sequence_lengths,
     const __global INPUT0_TYPE* W,
@@ -35,6 +35,7 @@ KERNEL(lstm_seq)(
     for(int i=0;i<sequence_lengths[b];i++){
         for(int k=0;k<gate_num;k++){
             //input
+            /*
             for(int j=0;j<HIDDEN_SIZE;j++) {
                 if(i==0){
                     hidden_result[b][hidden_idx][k] += initial_hidden_state[INPUT1_GET_INDEX(b, 0, hidden_idx)]*R[INPUT5_GET_INDEX(1, hidden_idx, j+k*HIDDEN_SIZE)];
@@ -42,7 +43,7 @@ KERNEL(lstm_seq)(
                     hidden_result[b][hidden_idx][k] += hidden_state[INPUT1_GET_INDEX(b, hidden_idx, 0)]*R[INPUT5_GET_INDEX(1, hidden_idx, j+k*HIDDEN_SIZE)];
                 }
             }
-            /*
+            
             for(int j=0;j<INPUT_SIZE;j++) {
                 input_result[b][hidden_idx][k] += x[INPUT0_GET_INDEX(b, hidden_idx, j)]*W[INPUT4_GET_INDEX(0, hidden_idx, j+k*HIDDEN_SIZE, 0)]
             }

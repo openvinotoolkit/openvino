@@ -241,7 +241,8 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
 
         if (in_dims0.size() != 3 ||
             op->get_input_shape(1).size() != 3 ||
-            op->get_input_shape(2).size() != 3)
+            op->get_input_shape(2).size() != 3 || op->get_input_shape(3).size() != 1 \
+            || op->get_input_shape(4).size() != 3 || op->get_input_shape(5).size() != 3 || op->get_input_shape(6).size() != 2)
             OPENVINO_THROW("Wrong input shapes for LSTMSequence op ", op->get_friendly_name());
 
         lstm_input_size = static_cast<int>(in_dims0.back());
@@ -257,13 +258,15 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
 
     //  LSTM primitive works with single precision for all in/out/weights tensors
     auto lstm_dtype = cldnn::element_type_to_data_type(op->get_output_element_type(0));
-
+    auto lstm_seq_length_dtype = cldnn::element_type_to_data_type(op->get_input_element_type(3));
     cldnn::primitive_id inReshapeID = layerName + "_inReshape";
     cldnn::primitive_id permuteID = layerName + "_inputReorder";
     cldnn::primitive_id inHiddenReshapeID = layerName + "_inHiddenReshape";
     cldnn::primitive_id inHiddenReorderID = layerName + "_inHiddenReorder";
     cldnn::primitive_id inHiddenStateID = inHiddenReshapeID + "_1";
     cldnn::primitive_id inCellStateID = inHiddenReshapeID + "_2";
+    cldnn::primitive_id inHiddenState_reor_ID = inHiddenReshapeID + "reor_1";
+    cldnn::primitive_id inCellState_reor_ID = inHiddenReshapeID + "reor_2";
     cldnn::primitive_id WreorderedID = layerName + "WT";
     cldnn::tensor WreorderedShape = {1, lstm_input_size, 4*lstm_hidden_size, 1};
     cldnn::layout WreorderedLayout = cldnn::layout(lstm_dtype, cldnn::format::bfyx, WreorderedShape);
@@ -274,16 +277,24 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     p.add_primitive(*op, cldnn::reorder(RreorderedID, recurrent, RreorderedLayout));
     cldnn::tensor inputShape = { lstm_batch_size, lstm_sequence_len, lstm_input_size, 1 };
     cldnn::tensor inStateShape = { lstm_batch_size, 1, lstm_hidden_size, 1 };
+    cldnn::layout inStateLayout = cldnn::layout(lstm_dtype, cldnn::format::bfyx, inStateShape);
     cldnn::layout inputLayout = cldnn::layout(lstm_dtype, cldnn::format::bfyx, inputShape);
     p.add_primitive(*op, cldnn::reshape(inReshapeID, inputs[0], inputShape));
     p.add_primitive(*op, cldnn::reorder(permuteID, cldnn::input_info(inReshapeID), inputLayout));
 
-    p.add_primitive(*op, cldnn::reshape(inHiddenStateID, inputs[1], inStateShape));
-    p.add_primitive(*op, cldnn::reshape(inCellStateID, inputs[2], inStateShape));
-    p.add_primitive(*op, cldnn::reorder(WreorderedID, cldnn::input_info(weight), WreorderedLayout));
+    cldnn::primitive_id reshapeseqID = layerName + "reshape_seqId";
+    cldnn::primitive_id reorderseqID = layerName + "reorder_seqId";
+    cldnn::tensor seqShape = { lstm_batch_size, 1, 1, 1};
+    cldnn::layout seqLayout = cldnn::layout(lstm_seq_length_dtype, cldnn::format::bfyx, seqShape);
+    p.add_primitive(*op, cldnn::reshape(reshapeseqID, seq_lenghts, seqShape));
+    p.add_primitive(*op, cldnn::reorder(reorderseqID, cldnn::input_info(reshapeseqID), seqLayout));
 
-    auto a = op->get_output_shape(1);
-    auto b = op->get_output_shape(2);
+    p.add_primitive(*op, cldnn::reshape(inHiddenStateID, inputs[1], inStateShape));
+    p.add_primitive(*op, cldnn::reorder(inHiddenState_reor_ID, cldnn::input_info(inHiddenStateID), inStateLayout));
+    p.add_primitive(*op, cldnn::reshape(inCellStateID, inputs[2], inStateShape));
+    p.add_primitive(*op, cldnn::reorder(inCellState_reor_ID, cldnn::input_info(inCellStateID), inStateLayout));
+    p.add_primitive(*op, cldnn::reorder(WreorderedID, weight, WreorderedLayout));
+
     auto mutable_precision_first = op->get_output_element_type(1);
     cldnn::layout out1Layout = cldnn::layout(
                 cldnn::element_type_to_data_type(mutable_precision_first),
@@ -303,9 +314,9 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     inputs.push_back(cldnn::input_info(lstm_seq_id + ".out1"));
     p.add_primitive(*op, cldnn::mutable_data(lstm_seq_id + ".out2", {cldnn::input_info(lstm_seq_id + ".out0")}, shared_memory2));
     inputs.push_back(cldnn::input_info(lstm_seq_id + ".out2"));
-    p.add_primitive(*op, cldnn::lstm_seq(lstm_seq_id + ".out0", cldnn::input_info(permuteID), cldnn::input_info(inHiddenStateID), \
-    cldnn::input_info(inCellStateID), seq_lenghts, cldnn::input_info(WreorderedID), cldnn::input_info(RreorderedID), cldnn::input_info(bias), \
-                                      inCellStateID, clip, 0, activations, activation_params, cldnn::lstm_weights_order::fizo, 0));
+    p.add_primitive(*op, cldnn::lstm_seq(lstm_seq_id + ".out0", cldnn::input_info(permuteID), cldnn::input_info(inHiddenState_reor_ID), \
+    cldnn::input_info(inCellState_reor_ID), cldnn::input_info(reorderseqID), cldnn::input_info(WreorderedID), cldnn::input_info(RreorderedID), \
+    cldnn::input_info(bias), inCellStateID, clip, 0, activations, activation_params, cldnn::lstm_weights_order::fizo, 0));
 }
 
 REGISTER_FACTORY_IMPL(v4, LSTMCell);
