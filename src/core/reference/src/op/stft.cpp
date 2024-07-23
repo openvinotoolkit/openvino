@@ -37,7 +37,7 @@ void stft(const float* signal,
         for (size_t frame_idx = 0; frame_idx < num_frames; ++frame_idx) {
             const auto start = batch_idx + frame_idx * frame_step;
             const auto end = start + frame_size;
-            std::vector<float> signal_slice(signal + start, signal + end);
+            std::vector<T> signal_slice(signal + start, signal + end);
             reference::multiply(signal_slice.data(),
                                 window,
                                 signal_slice.data(),
@@ -50,12 +50,14 @@ void stft(const float* signal,
         }
     }
     if (!frames_first) {
-        transpose(reinterpret_cast<const char*>(rdft_result),
+        const auto stft_transp_out_shape = Shape{batch_size, fft_out_shape[0], num_frames, fft_out_shape[1]};
+        std::vector<T> signal_t(rdft_result, rdft_result + shape_size(stft_transp_out_shape));
+        transpose(reinterpret_cast<const char*>(signal_t.data()),
                   reinterpret_cast<char*>(rdft_result),
                   Shape{batch_size, num_frames, fft_out_shape[0], fft_out_shape[1]},
                   sizeof(T),
                   {0, 2, 1, 3},
-                  Shape{batch_size, fft_out_shape[0], num_frames, fft_out_shape[1]});
+                  stft_transp_out_shape);
     }
 }
 }  // namespace reference
