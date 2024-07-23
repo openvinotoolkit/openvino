@@ -35,8 +35,7 @@ static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> nod
     // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a
     // given single name)
     node->set_friendly_name(name);
-    OPENVINO_ASSERT(node->get_output_size() ==
-                    1);  // Should I use assert here? I heard using ASSERTS is not the best thing
+    OPENVINO_ASSERT(node->get_output_size() == 1);
     node->get_output_tensor(0).set_names({name});
     return node;
 }
@@ -64,12 +63,15 @@ static node_tuple kv_read_and_concat(ov::Output<ov::Node> kv_current) {
 }
 
 ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_parameters,
-                                                         const ParameterVector& model_remaining_params,
+                                                         ParameterVector& model_remaining_params,
                                                          const std::shared_ptr<ov::op::v0::Constant>& sliding_window,
                                                          ParameterVector& parameters_to_remove,
                                                          int& layer_index,
                                                          Output<Node> max_context_len,
-                                                         ResultVector& score_results) {
+                                                         ParameterVector& block_indices_inputs,
+                                                         ResultVector& score_results,
+                                                         bool use_block_indices_inputs,
+                                                         bool use_score_outputs) {
     MATCHER_SCOPE(StateManagementPattern);
 
     auto k_current = pattern::any_input();
@@ -164,6 +166,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                           &model_remaining_params,
                                           &sliding_window,
                                           &parameters_to_remove,
+                                          &block_indices_inputs,
                                           &score_results,
                                           &layer_index](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -238,7 +241,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         if (pattern_map.count(qkv_current_split_node)) {
             // Fast track for merged K/V caches, based on the currently observed models topologies we don't need to
             // change layout and there is no point in the graph where it is in 4D. So `else` branch below is not
-            // applicable for this case.
+            // applicable for this case. + std::to_string(layer_index - 1)
             auto qkv_split = pattern_map.at(qkv_current_split_node).get_node_shared_ptr();
             // TODO: Consider handling Q part as well as KV here, requires more changes in the code and sets
             // VariadicSplit before Concat as essential part of the pattern
@@ -272,8 +275,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
             auto real_k = take_4d(k_current, k_current_reshaped, k_current2);
             auto real_v = take_4d(v_current, v_current_reshaped, v_current2);
 
-            std::shared_ptr<Node> k_transpose_order =
-                kv_transpose_order;  // eeeh, is it a right way to assign Constants? Maybe I should clone somehow?
+            std::shared_ptr<Node> k_transpose_order = kv_transpose_order;
             if (pattern_map.find(k_order) !=
                 pattern_map
                     .end()) {  // reapply transpose found in the graph by manipulating of indices of our Transpose
@@ -282,8 +284,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
                                                                  v0::Constant::create(element::i64, Shape{}, {0}));
             }
             k_target_layout = std::make_shared<v1::Transpose>(real_k, k_transpose_order);
-            std::shared_ptr<Node> v_transpose_order =
-                kv_transpose_order;  // eeeh, is it a right way to assign Constants? Maybe I should clone somehow?
+            std::shared_ptr<Node> v_transpose_order = kv_transpose_order;
             if (pattern_map.find(v_order) !=
                 pattern_map
                     .end()) {  // reapply transpose found in the graph by manipulating of indices of our Transpose
@@ -319,24 +320,30 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
         if (pattern_map.find(alibi) != pattern_map.end()) {
             alibi_slopes = std::make_shared<v1::Reshape>(pattern_map.at(alibi),
                                                          v0::Constant::create(element::i64, Shape{1}, {-1}),
-                                                         false);  // here {-1} is interesting in Python TODO: discuss
+                                                         false);
             if (alibi_slopes->get_element_type() == element::f32) {
                 alibi_slopes = std::make_shared<v0::Convert>(alibi_slopes, element::f32);
             }
         } else {
-            alibi_slopes = v0::Constant::create(element::f32, Shape{0}, {});  // correctly created?
+            alibi_slopes = v0::Constant::create(element::f32, Shape{0}, {});
         }
 
-        OutputVector params = {q_reshape, k_reshape, v_reshape, k_parameter, v_parameter};
-        params.insert(params.end(), model_remaining_params.begin(), model_remaining_params.end());
+        OutputVector pa_arguments = {q_reshape, k_reshape, v_reshape, k_parameter, v_parameter};
+        pa_arguments.insert(pa_arguments.end(), model_remaining_params.begin(), model_remaining_params.end());
         std::initializer_list<std::shared_ptr<Node>> additional_params = {scale,
                                                                           sliding_window,
                                                                           alibi_slopes,
                                                                           max_context_len.get_node_shared_ptr()};
-        params.insert(params.end(), additional_params.begin(), additional_params.end());
+        pa_arguments.insert(pa_arguments.end(), additional_params.begin(), additional_params.end());
 
-        // Really not sure if I construct correctly because the Python code uses an additional function
-        auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(params);
+        if (use_block_indices_inputs) {
+            auto block_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
+                                         "block_indices." + std::to_string(layer_index - 1));
+            pa_arguments.insert(pa_arguments.begin() + 7, block_indices);
+            block_indices_inputs.push_back(block_indices);
+        }
+
+        auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
 
         auto pa_shape = std::make_shared<v0::Concat>(
             OutputVector{
@@ -348,9 +355,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(ParameterVector& kv_par
             0);
         auto pa_reshape = std::make_shared<v1::Reshape>(paged_attention->output(0), pa_shape, true);
         auto pa_transpose = std::make_shared<v1::Transpose>(pa_reshape, kv_transpose_order);
-        auto score_result = std::make_shared<v0::Result>(paged_attention->output(1));
-        paged_attention->output(1).get_tensor().set_names({"paged_attn." + std::to_string(layer_index - 1) + "/score"});
-        score_results.push_back(score_result);
+        if (use_score_outputs) {
+            auto score_result = std::make_shared<v0::Result>(paged_attention->output(1));
+            score_result->get_output_tensor(0).set_names({"scores." + std::to_string(layer_index - 1)});
+            score_results.push_back(score_result);
+        }
 
         // TODO: Complete this part to work with stateless models as well as will stateful
         //  def add_kv_parameter(past_node):
