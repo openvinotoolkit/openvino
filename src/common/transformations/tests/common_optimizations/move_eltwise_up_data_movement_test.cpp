@@ -358,8 +358,8 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelEltwiseUnsqueeze) {
         auto unsqueeze_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{2}, {2, 3});  // {10, 20, 1, 1}
         auto unsqueeze = std::make_shared<ov::opset8::Unsqueeze>(input, unsqueeze_const);
 
-        auto add_per_channel = ov::opset8::Constant::create(ov::element::f32, {1, 20, 1, 1}, {0.5});
-        auto add = std::make_shared<ov::opset8::Add>(unsqueeze, add_per_channel);
+        auto per_channel_const = ov::opset8::Constant::create(ov::element::f32, {1, 20, 1, 1}, {0.5});
+        auto add = std::make_shared<ov::opset8::Add>(unsqueeze, per_channel_const);
 
         model = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{input});
         manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
@@ -367,8 +367,35 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelEltwiseUnsqueeze) {
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
 
-        auto add_per_channel = ov::opset8::Constant::create(ov::element::f32, {1, 20}, {0.5});
-        auto add = std::make_shared<ov::opset8::Add>(input, add_per_channel);
+        auto per_channel_const = ov::opset8::Constant::create(ov::element::f32, {1, 20}, {0.5});
+        auto add = std::make_shared<ov::opset8::Add>(input, per_channel_const);
+
+        auto unsqueeze_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{2}, {2, 3});  // {10, 20, 1, 1}
+        auto unsqueeze = std::make_shared<ov::opset8::Unsqueeze>(add, unsqueeze_const);
+
+        model_ref = std::make_shared<ov::Model>(ov::NodeVector{unsqueeze}, ov::ParameterVector{input});
+    }
+}
+
+TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelEltwiseUnsqueezeReverseInOrder) {
+    const ov::Shape shape{10, 20};
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
+
+        auto unsqueeze_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{2}, {2, 3});  // {10, 20, 1, 1}
+        auto unsqueeze = std::make_shared<ov::opset8::Unsqueeze>(input, unsqueeze_const);
+
+        auto per_channel_const = ov::opset8::Constant::create(ov::element::f32, {1, 20, 1, 1}, {0.5});
+        auto add = std::make_shared<ov::opset8::Add>(per_channel_const, unsqueeze);
+
+        model = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{input});
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
+    }
+    {
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
+
+        auto per_channel_const = ov::opset8::Constant::create(ov::element::f32, {1, 20}, {0.5});
+        auto add = std::make_shared<ov::opset8::Add>(per_channel_const, input);
 
         auto unsqueeze_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{2}, {2, 3});  // {10, 20, 1, 1}
         auto unsqueeze = std::make_shared<ov::opset8::Unsqueeze>(add, unsqueeze_const);
@@ -385,8 +412,8 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelEltwiseSqueeze) {
         auto squeeze_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{}, {2});  // {10, 20, 1}
         auto squeeze = std::make_shared<ov::op::v0::Squeeze>(input, squeeze_const);
 
-        auto add_per_channel = ov::opset8::Constant::create(ov::element::f32, {10, 1, 1}, {0.5});
-        auto add = std::make_shared<ov::opset8::Add>(squeeze, add_per_channel);
+        auto per_channel_const = ov::opset8::Constant::create(ov::element::f32, {10, 1, 1}, {0.5});
+        auto add = std::make_shared<ov::opset8::Add>(squeeze, per_channel_const);
 
         model = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{input});
         manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();
@@ -394,8 +421,8 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelEltwiseSqueeze) {
     {
         auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, shape);
 
-        auto add_per_channel = ov::opset8::Constant::create(ov::element::f32, {10, 1, 1, 1}, {0.5});
-        auto add = std::make_shared<ov::opset8::Add>(input, add_per_channel);
+        auto per_channel_const = ov::opset8::Constant::create(ov::element::f32, {10, 1, 1, 1}, {0.5});
+        auto add = std::make_shared<ov::opset8::Add>(input, per_channel_const);
 
         auto squeeze_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{}, {2});  // {10, 20, 1}
         auto squeeze = std::make_shared<ov::op::v0::Squeeze>(add, squeeze_const);
@@ -412,8 +439,8 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, PerChannelEltwiseSqueezeIllegal_1) {
     auto squeeze_const = ov::opset8::Constant::create(ov::element::i64, ov::Shape{}, {1});  // {10, 20}
     auto squeeze = std::make_shared<ov::op::v0::Squeeze>(input, squeeze_const);
 
-    auto add_per_channel = ov::opset8::Constant::create(ov::element::f32, {1, 1, 20}, {0.5});
-    auto add = std::make_shared<ov::opset8::Add>(squeeze, add_per_channel);
+    auto per_channel_const = ov::opset8::Constant::create(ov::element::f32, {1, 1, 20}, {0.5});
+    auto add = std::make_shared<ov::opset8::Add>(squeeze, per_channel_const);
 
     model = std::make_shared<ov::Model>(ov::NodeVector{add}, ov::ParameterVector{input});
     manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>();

@@ -154,7 +154,13 @@ ov::pass::MoveEltwiseUpThroughDataMovPerChannel::MoveEltwiseUpThroughDataMovPerC
 
         auto node = output.get_node();
 
-        if (node->get_input_partial_shape(0).size() < node->get_input_partial_shape(1).size())
+        if (node->get_output_partial_shape(0).rank().is_dynamic())
+            return false;
+
+        const size_t const_idx = ov::is_type<ov::op::v0::Constant>(node->get_input_node_ptr(0)) ? 0 : 1;
+        const size_t data_flow_idx = (const_idx + 1) % 2;
+
+        if (node->get_input_partial_shape(data_flow_idx).size() < node->get_input_partial_shape(const_idx).size())
             return false;
 
         return true;
@@ -175,7 +181,10 @@ ov::pass::MoveEltwiseUpThroughDataMovPerChannel::MoveEltwiseUpThroughDataMovPerC
             return false;
         }
 
-        auto const_shape = eltwise->get_input_shape(1);
+        const size_t const_idx = ov::is_type<ov::op::v0::Constant>(eltwise->get_input_node_ptr(0)) ? 0 : 1;
+        const size_t data_flow_idx = (const_idx + 1) % 2;
+
+        auto const_shape = eltwise->get_input_shape(const_idx);
         size_t channel_idx = 0;
         size_t channel_val = 0;
         for (size_t i = 0; i < const_shape.size(); i++) {
@@ -185,25 +194,25 @@ ov::pass::MoveEltwiseUpThroughDataMovPerChannel::MoveEltwiseUpThroughDataMovPerC
             }
         }
 
-        auto parent = pattern_map.at(eltw_data_flow_in).get_node_shared_ptr();
+        auto parent = eltwise->get_input_node_shared_ptr(data_flow_idx);
         const auto& parent_in_pshape = parent->get_input_partial_shape(0);
-        auto paranet_in_channel_dim =
+        auto parent_in_channel_dim =
             parent_in_pshape.size() <= channel_idx ? ov::Dimension(1) : parent_in_pshape[channel_idx];
-        auto paranet_out_channel_dim = parent->get_output_partial_shape(0)[channel_idx];
-        if (paranet_in_channel_dim.is_dynamic() || paranet_in_channel_dim != channel_val ||
-            paranet_out_channel_dim.is_dynamic() || paranet_out_channel_dim != channel_val)
+        auto parent_out_channel_dim = parent->get_output_partial_shape(0)[channel_idx];
+        if (parent_in_channel_dim.is_dynamic() || parent_in_channel_dim != channel_val ||
+            parent_out_channel_dim.is_dynamic() || parent_out_channel_dim != channel_val)
             return false;
 
         auto new_shape = ov::Shape(parent->get_input_partial_shape(0).size(), 1);
 
         new_shape[channel_idx] = const_shape[channel_idx];
-        auto old_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(eltwise->get_input_node_shared_ptr(1));
+        auto old_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(eltwise->get_input_node_shared_ptr(const_idx));
         auto new_const = std::make_shared<ov::op::v0::Constant>(*old_const, new_shape);
         ov::replace_node_update_name(old_const, new_const);
-        ov::replace_output_update_name(eltwise->output(0), eltwise->input_value(0));
+        ov::replace_output_update_name(eltwise->output(0), eltwise->input_value(data_flow_idx));
 
         ov::OutputVector eltwise_inputs = eltwise->input_values();
-        eltwise_inputs[0] = parent->input_value(0);
+        eltwise_inputs[data_flow_idx] = parent->input_value(0);
         auto new_eltwise = eltwise->clone_with_new_inputs(eltwise_inputs);
         ov::copy_runtime_info(eltwise, new_eltwise);
 
