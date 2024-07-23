@@ -12,11 +12,12 @@ SliceScatter
 
 **Category**: *Data movement*
 
-**Short description**: Creates copy of ``data`` tensor and applies elements from ``updates`` using slicing parametrized by ``start``, ``stop`` and ``step`` over axis ``axes``.
+**Short description**: Creates copy of ``data`` tensor and applies elements from ``updates`` using slicing parametrized by ``start``, ``stop`` and ``step`` over ``axes`` dimensions.
 
 **Detailed description**:
 
-Creates copy of ``data`` tensor and applies elements from ``updates`` using slicing parametrized by ``start``, ``stop`` and ``step`` over ``data`` axis ``axes``.
+The operation produces a copy of ``data`` tensor and updates it using values specified by ``updates`` at specific slices parametrized by ``start``, ``stop`` and ``step`` values over corresponding ``axes`` dimensions.
+The output shape and type is the same as ``data``. Number of elements for ``start``, ``stop``, ``step`` and ``axes`` is required to be equal. Values in ``axes`` are required to be unique.
 
 Operator SliceScatter-15 is an equivalent to following NumPy snippet:
 
@@ -30,13 +31,14 @@ Operator SliceScatter-15 is an equivalent to following NumPy snippet:
         step: List[int],
         axes: Optional[List[int]] = None,
     ):
+        out = np.copy(data)
         if axes is None:
             axes = list(range(len(start)))
         slice_list = [slice(None)] * data.ndim
         for slice_start, slice_stop, slice_step, slice_axis in zip(start, stop, step, axes):
             slice_list[slice_axis] = slice(slice_start, slice_stop, slice_step)
-        data[tuple(slice_list)] = updates
-        return data
+        out[tuple(slice_list)] = updates
+        return out
 
 **Attributes**: *SliceScatter* does not have attributes.
 
@@ -164,7 +166,7 @@ Number of elements in ``start``, ``stop``, ``step``, and ``axes`` inputs are req
         <input>
             <port id="0" precision="FP32">  <!-- data -->
                 <dim>3</dim>
-                <dim>5</dim>  <!-- values: [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9], [10 11 12 13 14]] -->
+                <dim>5</dim>  <!-- values: [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9], [10, 11, 12, 13, 14]] -->
             </port>
             <port id="1" precision="FP32">  <!-- updates -->
                 <dim>2</dim>
@@ -183,7 +185,7 @@ Number of elements in ``start``, ``stop``, ``step``, and ``axes`` inputs are req
         <output>
             <port id="5" precision="FP32">
                 <dim>3</dim>
-                <dim>5</dim>  <!-- values: [[ 0 50  2 60  4], [ 5  6  7  8  9], [10 70 12 80 14]] -->
+                <dim>5</dim>  <!-- values: [[0, 50, 2, 60, 4,], [5, 6, 7, 8, 9], [10, 70, 12, 80, 14]] -->
             </port>
         </output>
     </layer>
