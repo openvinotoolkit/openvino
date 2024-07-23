@@ -408,6 +408,7 @@ void primitive_inst::update_shape() {
 
     if (has_runtime_deps) {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("update_shape_sync: " + id()));
+        GPU_DEBUG_TRACE_DETAIL << "runtime synchronization for " << id() << " shape inference\n";
         if (!dependencies_events.empty() && queue_type == QueueTypes::out_of_order) {
             _network.get_stream().wait_for_events(dependencies_events);
         } else if (queue_type == QueueTypes::in_order) {
@@ -688,7 +689,6 @@ event::ptr primitive_inst::realloc_if_needed() {
         if (required_buffer_size * 10 < _max_output_layout_count[i]) {
             reclaim = true;
         }
-        reclaim = false;
         if (reclaim) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": Updated output[" << i << "] size " << updated_layouts[i].padded_count()
                                    << " is much smaller than current memory size! " << _max_output_layout_count[i]
@@ -1983,8 +1983,7 @@ event::ptr primitive_inst::update_weights() {
         GPU_DEBUG_TRACE_DETAIL << id() << ": add original weights memory " << original_layout.to_short_string() << " to weights cache; "
                                        << "cache_size=" << _reordered_weights_cache.size() << "/" << _reordered_weights_cache.capacity() << std::endl;
     } else {
-        // Set original partial shape, because it may be lost during kernel_selector::weights_tensor -> layout
-        // conversion
+        // Set original partial shape, because it may be lost during kernel_selector::weights_tensor -> layout conversion
         auto expected_layout =
             reorder_kernel_params->get_output_layout().clone_with_other_shape(original_layout.get_partial_shape());
         _impl_params->weights_layout = optional_layout(expected_layout);

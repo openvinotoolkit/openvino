@@ -293,7 +293,7 @@ struct layout {
     }
 
     layout clone_with_other_shape(const ov::Shape& new_shape) {
-        return layout(ov::PartialShape(new_shape), this->data_type, this->format, this->data_padding);
+        return clone_with_other_shape(ov::PartialShape(new_shape));
     }
 
 

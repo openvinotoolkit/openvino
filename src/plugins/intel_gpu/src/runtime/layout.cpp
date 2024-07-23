@@ -221,12 +221,14 @@ std::string layout::to_short_string() const {
 size_t layout::count() const {
     if (is_dynamic())
         throw std::runtime_error("[GPU] Count is called for dynamic shape");
+
     return ov::shape_size(size.to_shape());
 }
 
 size_t layout::padded_count() const {
     if (is_dynamic())
         throw std::runtime_error("[GPU] Count is called for dynamic shape");
+
     return get_buffer_size().count();
 }
 
