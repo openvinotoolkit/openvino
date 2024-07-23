@@ -86,9 +86,11 @@ def main():
 
     event_name = args.event_name or os.getenv('GITHUB_EVENT_NAME')
     branch_name = args.branch_name or os.getenv('GITHUB_BASE_REF') or os.getenv('GITHUB_REF_NAME')
-    merge_queue_matcher = re.search(r'gh-readonly-queue/(.*?)/pr-', branch_name)
-    if merge_queue_matcher:
-        branch_name = merge_queue_matcher.group(1)
+
+    # TODO: return, once we decide to get rid of post-commit and choose artifacts generated for a merged PR in queue?
+    # merge_queue_matcher = re.search(r'gh-readonly-queue/(.*?)/pr-', branch_name)
+    # if merge_queue_matcher:
+    #     branch_name = merge_queue_matcher.group(1)
 
     commit_hash = args.commit_sha or os.getenv('PR_HEAD_SHA') or os.getenv('GITHUB_SHA')
     event_type = 'pre_commit' if event_name == 'pull_request' else 'commit'
