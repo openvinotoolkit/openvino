@@ -10,9 +10,6 @@ inputs:
   storage_root:
     description: "Root path of the storage to place artifacts to"
     required: true
-  action_path:
-    description: "Action path, if not set - taken from github context"
-    required: false
 
 
 outputs:
@@ -26,13 +23,13 @@ runs:
     - name: Install Python dependencies
       shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
       run: >-
-        pip install -r "${{ inputs.action_path && inputs.action_path || github.action_path }}/requirements.txt"
+        pip install -r ${{ env.GITHUB_ACTION_PATH }}/requirements.txt
 
     - name: 'Copy artifacts'
       id: copy_artifacts
       shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
       run: >-
-        python ${{ inputs.action_path && inputs.action_path || github.action_path }}/store_artifacts.py
+        python ${{ env.GITHUB_ACTION_PATH }}/store_artifacts.py
         --storage_dir "${{ inputs.storage_dir }}" --storage_root "${{ inputs.storage_root }}"
         -a "${{ inputs.artifacts }}"
       env:

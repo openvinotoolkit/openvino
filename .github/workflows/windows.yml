@@ -100,7 +100,6 @@ jobs:
           repos: |
             ${{ env.OPENVINO_REPO }}
             ${{ env.OPENVINO_CONTRIB_REPO }}
-          action_path: ${{ github.workspace }}/openvino/.github/actions/create_manifest
           product_type: ${{ env.PRODUCT_TYPE }}
           target_arch: 'intel64'
           build_type: 'release'
@@ -267,7 +266,6 @@ jobs:
             ${{ env.MANIFEST_PATH }}
           storage_dir: ${{ env.PRODUCT_TYPE }}
           storage_root: ${{ env.ARTIFACTS_SHARE }}
-          action_path: ${{ github.workspace }}/openvino/.github/actions/store_artifacts
 
   Samples:
     needs: [ Build, Smart_CI ]

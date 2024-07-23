@@ -131,7 +131,6 @@ jobs:
           repos: |
             ${{ env.OPENVINO_REPO }}
             ${{ env.OPENVINO_CONTRIB_REPO }}
-          action_path: ${{ env.GITHUB_WORKSPACE }}/openvino/.github/actions/create_manifest
           product_type: ${{ env.PRODUCT_TYPE }}
           target_arch: 'aarch64'
           build_type: 'release'
@@ -322,7 +321,6 @@ jobs:
             ${{ env.MANIFEST_PATH }}
           storage_dir: ${{ env.PRODUCT_TYPE }}
           storage_root: ${{ env.ARTIFACTS_SHARE }}
-          action_path: ${{ env.GITHUB_WORKSPACE }}/openvino/.github/actions/store_artifacts
 
   Debian_Packages:
     name: Debian Packages
