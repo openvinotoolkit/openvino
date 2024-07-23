@@ -27,7 +27,6 @@
 #include "transformations/common_optimizations/depth_to_space_fusion.hpp"
 #include "transformations/common_optimizations/dilated_convolution_converter.hpp"
 #include "transformations/common_optimizations/disable_random_uniform_constant_folding.hpp"
-#include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 #include "transformations/common_optimizations/divide_fusion.hpp"
 #include "transformations/common_optimizations/eliminate_duplicate_ti_inputs.hpp"
 #include "transformations/common_optimizations/eliminate_loop_inputs_outputs.hpp"
@@ -133,14 +132,11 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
         manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
             element::TypeVector{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4});
     }
-    if (!m_use_shapes) {
-        manager.register_pass<ov::pass::DisableShapeOfConstantFolding>();
-    }
     // RemoveConcatZeroDimInput and RemoveMultiSubGraphOpDanglingParamsResults
-    // should be performed before first ConstantFolding call.
-    // The passes can deteach graph branches where zero dimesion is calculated.
-    // Zero dimensions in shape causes creation empty tensors, which are incorrect during CF.
-    // In particular, if zero dim tensor is consumed in body of MultiSubGraphOp
+    // should be performed before the first ConstantFolding call.
+    // The passes can detach graph branches where zero dimension is calculated.
+    // Zero dimensions in shape cause the creation of empty tensors, which are incorrect during CF.
+    // In particular, if zero dim tensor is consumed in the body of MultiSubGraphOp
     // RemoveConcatZeroDimInput and RemoveMultiSubGraphOpDanglingParamsResults should be called together.
     using namespace ov::pass;
     REGISTER_PASS(manager, EliminateScatterUpdate)
@@ -148,7 +144,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, EliminateLoopInputsOutputs);
     REGISTER_PASS(manager, Validate)
     // todo: ticket 96960
-    // the order EliminateDuplicateTIInputs and RemoveMultiSubGraphOpDanglingParamsResults is important
+    //The order EliminateDuplicateTIInputs and RemoveMultiSubGraphOpDanglingParamsResults is important
     // it looks like we need to combine these transformations into one.
     REGISTER_PASS(manager, EliminateDuplicateTIInputs);
     REGISTER_PASS(manager, RemoveMultiSubGraphOpDanglingParamsResults)
@@ -174,9 +170,6 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, ConvertQuantizeDequantize)
     REGISTER_PASS(manager, SimplifyShapeOfSubGraph, m_use_shapes)
 
-    if (!m_use_shapes) {
-        manager.register_pass<ov::pass::DisableShapeOfConstantFolding>();
-    }
     // workaround until dynamism in NMS is not supported
     REGISTER_PASS(manager, ConvertNmsGatherPathToUnsigned)
     REGISTER_PASS(manager, StridedSliceOptimization, m_use_shapes)
@@ -193,8 +186,8 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
 
     auto transpose_sinking = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(transpose_sinking, TransposeSinking)
-    // SplitSqueezeConcatFusion should work in same GraphRewrite as TransposesSinking,
-    // because it replaces pattern that may contain Transposes which must be optimized before
+    // SplitSqueezeConcatFusion should work in the same GraphRewrite as TransposesSinking,
+    // because it replaces patterns that may contain Transposes that must be optimized before
     // the transformation and it also inserts Transpose that can be optimized by TransposeSinking
     ADD_MATCHER(transpose_sinking, SplitSqueezeConcatFusion, m_use_shapes)
 
