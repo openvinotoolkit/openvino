@@ -159,7 +159,6 @@ ov::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
             }))
             return false;
 
-        // TODO:1
         auto axes = const_axes->cast_vector<int64_t>();
         ov::util::try_normalize_axes(axes, squeeze->get_input_partial_shape(0).rank(), *squeeze);
 
