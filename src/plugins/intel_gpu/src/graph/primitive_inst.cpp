@@ -1209,7 +1209,9 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
     auto max_pad = kv_cache_inst::get_max_pad(past_layout, _deps[0].first->_max_output_layout_count[0], sequence_axis_legacy, "past_layout");
 
     if (max_pad > 0) {
-        kv_cache_inst::update_pad(present_layout, max_pad - 1, sequence_axis_legacy);
+        const auto past_seq_len = static_cast<int64_t>(past_layout.get_shape()[sequence_axis]);
+        const auto present_seq_len = static_cast<int64_t>(present_layout.get_shape()[sequence_axis]);
+        kv_cache_inst::update_pad(present_layout, max_pad - (present_seq_len - past_seq_len), sequence_axis_legacy);
         GPU_DEBUG_TRACE_DETAIL << "[do runtime_in_place_kv_cache] " << id() << " Updated present_layout's pad : " << present_layout.to_string() << std::endl;
         auto& variable = get_network().get_variable(desc->variable_info.variable_id);
         variable.set_layout(present_layout);
