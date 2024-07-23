@@ -114,6 +114,65 @@ Graph::Graph(std::shared_ptr<Graph> graph, uint16_t stream_id)
     build(graph->get_network()->get_program());
 }
 
+Graph::~Graph() {
+    GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->host_time_profiling) {
+        const auto log_level = cldnn::debug_configuration::get_instance()->host_time_profiling;
+
+        auto get_time_str = [](int64_t time_mcs, int64_t iters_num = 1) {
+            double time = static_cast<double>(time_mcs);
+            time /= iters_num;
+
+            std::stringstream ss;
+            std::string resolution = " mcs";
+            if (time > 1000.0) {
+                resolution = " ms";
+                time /= 1000.0;
+            }
+            ss << std::fixed << std::setprecision(2) << time << resolution;
+
+            return ss.str();
+        };
+
+        auto print_entry = [this, &get_time_str, &log_level](std::string name, HostTimeProfilingEntry& entry, int64_t iters_num = 1) {
+            if (log_level == 1) {
+                GPU_DEBUG_COUT << "[stream_id=" << m_stream_id << "] " << name << " infer enqueue host time: "
+                               << get_time_str(entry.enqueue, iters_num) << std::endl;
+            } else if (log_level >= 2) {
+                auto total_time = entry.inputs_processing + entry.enqueue + entry.wait + entry.outputs_processing;
+
+                GPU_DEBUG_COUT << "[stream_id=" << m_stream_id << "] " << name << " infer host time: "
+                               << get_time_str(total_time, iters_num) << std::endl;
+                GPU_DEBUG_COUT << " - " << " Inputs processing: " << get_time_str(entry.inputs_processing, iters_num) << std::endl;
+                GPU_DEBUG_COUT << " - " << " Enqueue: " << get_time_str(entry.enqueue, iters_num) << std::endl;
+                GPU_DEBUG_COUT << " - " << " Wait: " << get_time_str(entry.wait, iters_num) << std::endl;
+                GPU_DEBUG_COUT << " - " << " Outputs processing: " << get_time_str(entry.outputs_processing, iters_num) << std::endl;
+            }
+        };
+
+        if (host_exec_times.size() >= 1) {
+            print_entry("First", host_exec_times[0], 1);
+        }
+
+        if (host_exec_times.size() >= 2) {
+            HostTimeProfilingEntry avg;
+
+            const auto begin = std::begin(host_exec_times) + 1;
+            const auto end = std::end(host_exec_times);
+            avg.inputs_processing = std::accumulate(begin, end, 0,
+                [](int64_t sum, const HostTimeProfilingEntry& entry) { return sum + entry.inputs_processing; });
+            avg.enqueue = std::accumulate(begin, end, 0,
+                [](int64_t sum, const HostTimeProfilingEntry& entry) { return sum + entry.enqueue; });
+            avg.wait = std::accumulate(begin, end, 0,
+                [](int64_t sum, const HostTimeProfilingEntry& entry) { return sum + entry.wait; });
+            avg.outputs_processing = std::accumulate(begin, end, 0,
+                [](int64_t sum, const HostTimeProfilingEntry& entry) { return sum + entry.outputs_processing; });
+
+            const auto iters_num = host_exec_times.size() - 1;
+            print_entry("Avg", avg, iters_num);
+        }
+    }
+}
+
 void Graph::build(std::shared_ptr<cldnn::program> program) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::build");
 
