@@ -39,7 +39,7 @@ public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<lstm_seq>();
         auto params = get_default_params<kernel_selector::lstm_seq_params>(impl_param);
-        for (size_t i = 1; i < primitive->input_size(); ++i) {
+        for (size_t i = 1; i < impl_param.input_layouts.size(); ++i) {
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }
 

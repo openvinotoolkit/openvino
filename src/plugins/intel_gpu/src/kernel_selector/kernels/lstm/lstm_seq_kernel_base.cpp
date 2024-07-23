@@ -67,7 +67,7 @@ KernelsData LSTMSeqKernelBase::GetCommonKernelsData(const Params& params) const 
 
     const lstm_seq_params& orgParams = static_cast<const lstm_seq_params&>(params);
 
-    KernelData kd = KernelData::Default<lstm_seq_params>(params, orgParams.inputs.size());
+    KernelData kd = KernelData::Default<lstm_seq_params>(params, 1);
 
     //const auto& input = orgParams.inputs[0];
 
