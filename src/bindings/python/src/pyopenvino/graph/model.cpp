@@ -40,23 +40,21 @@ static void set_tensor_names(const ov::ParameterVector& parameters) {
     }
 }
 
-static ov::SinkVector cast_to_sink_vector(const std::vector<std::shared_ptr<ov::Node>>& nodes) {
-    ov::SinkVector sinks;
-    sinks.reserve(nodes.size());
-    for (const auto& node : nodes) {
-        auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node);
-        OPENVINO_ASSERT(sink != nullptr, "Node {} is not instance of Sink");
-        sinks.push_back(std::move(sink));
-    }
-    return sinks;
+std::shared_ptr<ov::Node> get_node_ptr(std::shared_ptr<ov::Node> node) {
+    return node;
 }
 
-static ov::SinkVector cast_to_sink_vector(const ov::OutputVector& outputs) {
+std::shared_ptr<ov::Node> get_node_ptr(const ov::Output<ov::Node>& output) {
+    return output.get_node_shared_ptr();
+}
+
+template <typename T>
+ov::SinkVector cast_to_sink_vector(const std::vector<T>& items) {
     ov::SinkVector sinks;
-    sinks.reserve(outputs.size());
-    for (const auto& output : outputs) {
-        auto sink = std::dynamic_pointer_cast<ov::op::Sink>(output.get_node_shared_ptr());
-        OPENVINO_ASSERT(sink != nullptr, "Output node handle {} is not instance of Sink");
+    sinks.reserve(items.size());
+    for (const auto& item : items) {
+        auto sink = std::dynamic_pointer_cast<ov::op::Sink>(get_node_ptr(item));
+        OPENVINO_ASSERT(sink != nullptr, "Node {} is not instance of Sink");
         sinks.push_back(std::move(sink));
     }
     return sinks;
