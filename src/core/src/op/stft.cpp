@@ -19,9 +19,9 @@ STFT::STFT(const Output<Node>& data,
            const Output<Node>& signal_size,
            int64_t frame_step,
            bool frames_first)
-    : m_frame_step(frame_step),
-      m_frames_first(frames_first),
-      Op({data, window, signal_size}) {
+    : Op({data, window, signal_size}),
+      m_frame_step(frame_step),
+      m_frames_first(frames_first) {
     constructor_validate_and_infer_types();
 }
 
