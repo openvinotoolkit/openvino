@@ -32,6 +32,11 @@ void stft(const float* signal,
     const auto signal_length = signal_shape[signal_axis];
     const auto num_frames = static_cast<size_t>((signal_length - frame_size) / frame_step) + 1;
     const auto fft_out_shape = Shape{std::floor(frame_size / 2) + 1, 2};
+
+    const auto window_length = window_shape[0] < frame_size ? window_shape[0] : frame_size;
+    std::vector<T> pad_window(frame_size, 0);
+    std::copy(window, window + window_shape[0], pad_window.begin() + (frame_size - window_length) / 2);
+
     for (size_t batch = 0; batch < batch_size; ++batch) {
         const auto batch_idx = batch * signal_length;
         for (size_t frame_idx = 0; frame_idx < num_frames; ++frame_idx) {
@@ -39,10 +44,10 @@ void stft(const float* signal,
             const auto end = start + frame_size;
             std::vector<T> signal_slice(signal + start, signal + end);
             reference::multiply(signal_slice.data(),
-                                window,
+                                pad_window.data(),
                                 signal_slice.data(),
                                 Shape{frame_size},
-                                window_shape,
+                                Shape{frame_size},
                                 op::AutoBroadcastType::NUMPY);
             const auto result_idx = batch * num_frames * fft_out_shape[0] * fft_out_shape[1] +
                                     frame_idx * fft_out_shape[0] * fft_out_shape[1];
