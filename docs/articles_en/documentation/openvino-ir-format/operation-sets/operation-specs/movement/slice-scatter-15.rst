@@ -185,7 +185,7 @@ Number of elements in ``start``, ``stop``, ``step``, and ``axes`` inputs are req
         <output>
             <port id="5" precision="FP32">
                 <dim>3</dim>
-                <dim>5</dim>  <!-- values: [[0, 50, 2, 60, 4,], [5, 6, 7, 8, 9], [10, 70, 12, 80, 14]] -->
+                <dim>5</dim>  <!-- values: [[0, 50, 2, 60, 4], [5, 6, 7, 8, 9], [10, 70, 12, 80, 14]] -->
             </port>
         </output>
     </layer>
