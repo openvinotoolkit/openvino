@@ -8,7 +8,7 @@
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/remote_tensor.hpp"
-
+// #include "intel_gpu/plugin/async_infer_request.hpp"
 #include <string>
 #include <map>
 #include <vector>
@@ -19,6 +19,7 @@ namespace ov {
 namespace intel_gpu {
 
 class CompiledModel;
+class AsyncInferRequest;
 
 enum class TensorOwner : uint8_t {
     USER = 0,
@@ -66,6 +67,10 @@ public:
 
     bool use_external_queue() const { return m_use_external_queue; }
 
+    void set_async_request(AsyncInferRequest* asyncRequest);
+
+    void sub_streams_infer();
+
 private:
     void check_tensors() const override;
 
@@ -82,6 +87,7 @@ private:
 
     std::map<cldnn::primitive_id, cldnn::network_output> m_internal_outputs;
     VariablesMap m_variables;
+    AsyncInferRequest* m_asyncRequest = nullptr;
 
     std::shared_ptr<Graph> m_graph;
     RemoteContextImpl::Ptr m_context = nullptr;

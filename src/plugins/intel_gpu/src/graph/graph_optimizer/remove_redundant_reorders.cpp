@@ -13,6 +13,7 @@
 #include "shape_of_inst.h"
 #include "gather_inst.h"
 #include "select_inst.h"
+#include "sync_tensor_inst.h"
 #include "eltwise_inst.h"
 #include "broadcast_inst.h"
 #include "permute_inst.h"
@@ -403,7 +404,8 @@ void remove_redundant_reorders::run(program& p) {
                 continue;
 
             auto& node = node_ptr->as<reorder>();
-
+            if (node.id() == "convert:__module.model.layers.0.mlp.down_proj/aten::linear/MatMul_decompressed_to_f32")
+                std::cout << "break" << std::endl;
             auto& input = node.input();
             auto output_layout = node.get_output_layout();
 
@@ -419,6 +421,12 @@ void remove_redundant_reorders::run(program& p) {
                  input.is_type<concatenation>() || input.is_type<depth_to_space>() || input.is_type<region_yolo>() ||
                  input.is_type<detection_output>() || input.is_type<gather>() || input.is_type<broadcast>() ||
                  input.is_type<select>() || input.is_type<eltwise>());
+            // workaround for TP
+            if (input.get_dependencies().size() > 0) {
+                auto& pred = input.get_dependency(0);
+                if (allowed_dt_conversion_fuse && pred.is_type<sync_tensor>() && input.is_type<concatenation>())
+                    allowed_dt_conversion_fuse = false;
+            }
             if (!same_data_type && !allowed_dt_conversion_fuse)
                 continue;
 

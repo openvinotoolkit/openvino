@@ -4,6 +4,9 @@
 
 #include "intel_gpu/plugin/async_infer_request.hpp"
 #include "intel_gpu/runtime/itt.hpp"
+
+#include "openvino/runtime/threading/cpu_message.hpp"
+
 #include <memory>
 
 namespace ov {
@@ -25,6 +28,8 @@ AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<SyncInferRequest>& in
                             m_infer_request->wait_notify();
                         });
     }
+    // static_cast<SyncInferRequest*>(infer_request.get())->set_async_request(this);
+    m_infer_request->set_async_request(this);
 }
 void AsyncInferRequest::start_async() {
     if (m_infer_request->use_external_queue()) {
@@ -34,7 +39,17 @@ void AsyncInferRequest::start_async() {
     Parent::start_async();
 }
 
+void AsyncInferRequest::setSubInferRequest(
+    const std::vector<std::shared_ptr<IAsyncInferRequest>>& requests) {
+    m_sub_infer_requests = requests;
+}
+
 AsyncInferRequest::~AsyncInferRequest() {
+    if (m_has_sub_infers) {
+        auto message = ov::threading::message_manager();
+        message->stop_server_thread();
+        m_sub_infer_requests.clear();
+    }
     stop_and_wait();
 }
 

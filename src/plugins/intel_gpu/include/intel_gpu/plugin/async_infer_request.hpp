@@ -21,11 +21,21 @@ public:
                       const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor);
 
     ~AsyncInferRequest() override;
+    void setSubInferRequest(const std::vector<std::shared_ptr<IAsyncInferRequest>>& requests);
 
+    std::vector<std::shared_ptr<ov::IAsyncInferRequest>> getSubInferRequest() const {
+        return m_sub_infer_requests;
+    }
+
+    void setSubInfer(bool has_sub_infer) {
+        m_has_sub_infers = has_sub_infer;
+    }
     void start_async() override;
+    bool m_has_sub_infers = false;
 
 private:
     std::shared_ptr<SyncInferRequest> m_infer_request;
+    std::vector<std::shared_ptr<ov::IAsyncInferRequest>> m_sub_infer_requests;
     std::shared_ptr<ov::threading::ITaskExecutor> m_wait_executor;
 };
 

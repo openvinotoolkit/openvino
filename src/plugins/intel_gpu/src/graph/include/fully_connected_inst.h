@@ -4,11 +4,13 @@
 
 #pragma once
 #include "intel_gpu/primitives/fully_connected.hpp"
+#include "openvino/core/parallel.hpp"
 #include "primitive_inst.h"
 #include "data_inst.h"
 
 #include <string>
 #include <memory>
+#include <mutex>
 
 namespace cldnn {
 template <>
@@ -17,7 +19,13 @@ struct typed_program_node<fully_connected> : public typed_program_node_base<full
 
 public:
     typed_program_node(std::shared_ptr<primitive> prim, program& prog)
-        : parent(prim, prog) {}
+        : parent(prim, prog) {
+            if (prog.get_config().get_context_for_tp().size() > 1) { // only apply for dynamic models for now
+                w_rank = prog.get_config().subStreamExecConfig.get_rank()[0];
+                w_size = prog.get_config().get_context_for_tp().size();
+                GPU_DEBUG_TRACE_DETAIL << "Apply TP rank " << w_rank << " : " << w_size << std::endl;
+            }
+        }
 
     program_node& input() const { return get_dependency(0); }
     program_node& weights() const { return get_dependency(1); }
@@ -32,8 +40,15 @@ public:
         params->weights_layout = optional_layout(weights().get_output_layout());
         if (bias_term())
             params->bias_layout = optional_layout(bias().get_output_layout());
+        // runtime decision if needs to apply TP based on different FC inputs/weights
+        if (is_dynamic()) {
+            params->w_rank = w_rank;
+            params->w_size = w_size;
+        }
         return params;
     }
+    int w_rank = -1;
+    size_t w_size = 1; // default 1 process, world size as 1
 };
 
 using fully_connected_node = typed_program_node<fully_connected>;

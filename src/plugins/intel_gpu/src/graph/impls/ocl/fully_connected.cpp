@@ -16,20 +16,17 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
     using parent::parent;
     using kernel_selector_t = kernel_selector::fully_connected_kernel_selector;
     using kernel_params_t = kernel_selector::fully_connected_params;
-
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::fully_connected_impl)
 
     fully_connected_impl() = default;
 
     fully_connected_impl(const kernel_selector::kernel_data& kd) {
         const auto& params = kd.weightsReorderParams;
-
         if (params.is_initialized) {
             // Assumption that kernel data contains already reshaped 2d weights
             auto crop_to_2d = [](const ov::PartialShape& shape) {
                 return ov::PartialShape({shape[0], shape[1]});
             };
-
             auto weights_reorder_params = std::make_shared<WeightsReorderParams>(from_weights_tensor(params.src),
                                                                                  from_weights_tensor(params.dest),
                                                                                  params.rotate);
@@ -64,7 +61,6 @@ protected:
 
         args.weights = instance.weights_memory();
         args.bias = instance.bias_term() ? instance.bias_memory() : nullptr;
-
         args.inputs = { instance.input_memory_ptr(0) };
         size_t in_id = instance.bias_term() ? 3 : 2;
         if (!desc->decompression_scale.empty())
@@ -217,7 +213,6 @@ public:
         (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
     }
 };
-
 namespace detail {
 
 attach_fully_connected_impl::attach_fully_connected_impl() {

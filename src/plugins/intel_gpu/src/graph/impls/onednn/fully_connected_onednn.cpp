@@ -7,7 +7,7 @@
 #include "implementation_map.hpp"
 
 #include "impls/ocl/kernel_selector_helper.h"
-
+#include "openvino/runtime/threading/cpu_message.hpp"
 #include <oneapi/dnnl/dnnl.hpp>
 
 #include <algorithm>

@@ -178,6 +178,7 @@ struct CPUStreamsExecutor::Impl {
             int streams_num = _impl->_config.get_streams();
             const auto stream_id =
                 streams_num == 0 ? 0 : (_sub_stream_id >= 0 ? streams_num + _sub_stream_id : _streamId % streams_num);
+            _rank = _impl->_config.get_rank();
             get_cur_stream_info(stream_id,
                                 _impl->_config.get_cpu_pinning(),
                                 org_proc_type_table,
@@ -205,6 +206,7 @@ struct CPUStreamsExecutor::Impl {
         int _socketId = 0;
         bool _execute = false;
         int _sub_stream_id = -1;
+        std::vector<int> _rank;
         std::queue<Task> _taskQueue;
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
         std::unique_ptr<custom::task_arena> _taskArena;
@@ -335,7 +337,7 @@ struct CPUStreamsExecutor::Impl {
         _exectorMgr = executor_manager();
         auto numaNodes = get_available_numa_nodes();
         int streams_num = _config.get_streams();
-        int sub_streams_num = _config.get_sub_streams();
+        int sub_streams_num = 0;
         if (streams_num != 0) {
             std::copy_n(std::begin(numaNodes),
                         std::min<std::size_t>(streams_num, numaNodes.size()),
@@ -354,6 +356,7 @@ struct CPUStreamsExecutor::Impl {
                     {
                         std::unique_lock<std::mutex> lock(_mutex);
                         _queueCondVar.wait(lock, [&] {
+                            // std::cout << _config.get_name() << " addr: " << this << " in : " << streamId << "\n";
                             return !_taskQueue.empty() || (stopped = _isStopped);
                         });
                         if (!_taskQueue.empty()) {
@@ -513,6 +516,7 @@ struct CPUStreamsExecutor::Impl {
     std::vector<int> _usedNumaNodes;
     CustomThreadLocal _streams;
     std::shared_ptr<ExecutorManager> _exectorMgr;
+    bool _isExit = false;
 };
 
 int CPUStreamsExecutor::get_stream_id() {
@@ -532,6 +536,11 @@ int CPUStreamsExecutor::get_numa_node_id() {
 int CPUStreamsExecutor::get_socket_id() {
     auto stream = _impl->_streams.local();
     return stream->_socketId;
+}
+
+std::vector<int> CPUStreamsExecutor::get_rank() {
+    auto stream = _impl->_streams.local();
+    return stream->_rank;
 }
 
 CPUStreamsExecutor::CPUStreamsExecutor(const IStreamsExecutor::Config& config) : _impl{new Impl{config}} {}
