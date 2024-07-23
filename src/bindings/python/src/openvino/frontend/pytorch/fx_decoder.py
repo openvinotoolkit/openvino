@@ -94,7 +94,7 @@ class TorchFXPythonDecoder (Decoder):
             for i in range(len(pt_module.args)):
                 if isinstance(pt_module.args[i], (list, tuple)) and any([isinstance(a, torch.fx.Node) for a in pt_module.args[i]]):
                     for arg in pt_module.args[i]:
-                        if isinstance(arg, torch.fx.Node):
+                        if arg in self._nodes:
                             new_inputs.append(self._nodes.index(arg))
                         else:
                             new_inputs.append(InlinedInput(arg))
