@@ -5,6 +5,7 @@
 #pragma once
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
+#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
 #include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
 
@@ -28,7 +29,7 @@ private:
 
     void init_brgemm_copy(std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t>& kernel,
                           size_t N, size_t N_blk, size_t N_tail, size_t LDB, size_t K,
-                          bool is_with_amx, dnnl_data_type_t dt_in0, dnnl_data_type_t dt_in1) const;
+                          brgemm_utils::BRGEMM_TYPE brgemm_type, const ov::element::Type& dt_in0, const ov::element::Type& dt_in1) const;
     void emit_kernel_call(const dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t* kernel,
                           Xbyak::Reg64 src, Xbyak::Reg64 dst, Xbyak::Reg64 comp, size_t N, size_t K,
                           size_t offset_in, size_t offset_out, size_t offset_comp) const;
