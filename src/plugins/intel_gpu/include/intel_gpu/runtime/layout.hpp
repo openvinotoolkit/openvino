@@ -243,7 +243,7 @@ inline data_types element_type_to_data_type(ov::element::Type t) {
 //     }
 // };
 
-constexpr size_t shape_dim_max = 9;
+constexpr size_t SHAPE_RANK_MAX = 9;
 
 /// @brief Describes memory layout.
 /// @details Contains information about data stored in @ref memory.
@@ -265,7 +265,7 @@ struct layout {
             this->size = ov::PartialShape(shape);
 
             // paddings
-            OPENVINO_ASSERT(shape.size() <= shape_dim_max, "shape size exceeds maximum padding size!");
+            OPENVINO_ASSERT(shape.size() <= SHAPE_RANK_MAX, "shape size exceeds maximum padding size!");
             if(pad_before) std::copy_n(pad_before, shape.size(), _pad_before);
             if(pad_after) std::copy_n(pad_after, shape.size(), _pad_after);
         }
@@ -276,7 +276,7 @@ struct layout {
         , size(size) {
             // paddings
             size_t rank = size.rank().get_length();
-            OPENVINO_ASSERT(rank <= shape_dim_max, "shape size exceeds maximum padding size!");
+            OPENVINO_ASSERT(rank <= SHAPE_RANK_MAX, "shape size exceeds maximum padding size!");
             if(pad_before) std::copy_n(pad_before, rank, _pad_before);
             if(pad_after) std::copy_n(pad_after, rank, _pad_after);
         }
@@ -296,9 +296,9 @@ struct layout {
         size = other.size;
 
         // paddings
-        std::copy_n(other._pad_before, shape_dim_max, _pad_before);
-        std::copy_n(other._pad_after, shape_dim_max, _pad_after);
-        std::copy_n(other._dynamic_pad_dims, shape_dim_max, _dynamic_pad_dims);
+        std::copy_n(other._pad_before, SHAPE_RANK_MAX, _pad_before);
+        std::copy_n(other._pad_after, SHAPE_RANK_MAX, _pad_after);
+        std::copy_n(other._dynamic_pad_dims, SHAPE_RANK_MAX, _dynamic_pad_dims);
         return *this;
     }
 
@@ -313,9 +313,9 @@ struct layout {
 
     friend bool operator==(const layout& lhs, const layout& rhs) {
         return lhs.data_type == rhs.data_type && lhs.format == rhs.format && lhs.size == rhs.size &&
-            std::all_of(lhs._pad_before, rhs._pad_before + shape_dim_max, [](int i){ return i == 0; }) &&
-            std::all_of(lhs._pad_after, rhs._pad_after + shape_dim_max, [](int i){ return i == 0; }) &&
-            std::all_of(lhs._dynamic_pad_dims, rhs._dynamic_pad_dims + shape_dim_max, [](int i){ return i == 0; });
+            std::all_of(lhs._pad_before, rhs._pad_before + SHAPE_RANK_MAX, [](int i){ return i == 0; }) &&
+            std::all_of(lhs._pad_after, rhs._pad_after + SHAPE_RANK_MAX, [](int i){ return i == 0; }) &&
+            std::all_of(lhs._dynamic_pad_dims, rhs._dynamic_pad_dims + SHAPE_RANK_MAX, [](int i){ return i == 0; });
     }
 
     friend bool operator!=(const layout& lhs, const layout& rhs) {
@@ -348,12 +348,12 @@ struct layout {
     size_t get_linear_size() const;
 
     bool has_dynamic_pad() const {
-        return std::any_of(_dynamic_pad_dims, _dynamic_pad_dims + shape_dim_max, [](int i){ return i > 0; });
+        return std::any_of(_dynamic_pad_dims, _dynamic_pad_dims + SHAPE_RANK_MAX, [](int i){ return i > 0; });
     }
 
     bool padded() const {
-        return std::any_of(_pad_before, _pad_before + shape_dim_max, [](int i){ return i > 0; }) ||
-            std::any_of(_pad_after, _pad_after + shape_dim_max, [](int i){ return i > 0; });
+        return std::any_of(_pad_before, _pad_before + SHAPE_RANK_MAX, [](int i){ return i > 0; }) ||
+            std::any_of(_pad_after, _pad_after + SHAPE_RANK_MAX, [](int i){ return i > 0; });
     }    
 
     /// Data type stored in @ref memory (see. @ref data_types)
@@ -366,15 +366,15 @@ struct layout {
     // mutable_array_ref<tensor::value_type> _pad_before;
     // mutable_array_ref<tensor::value_type> _pad_after;
     // mutable_array_ref<tensor::value_type> _dynamic_pad_dims;
-    tensor::value_type _pad_before[shape_dim_max] = {0};  ///< Lower padding sizes. For spatials, it means size of left (X) and top (Y) padding.
-    tensor::value_type _pad_after[shape_dim_max] = {0};  ///< Upper padding sizes. For spatials, it means size of right (X) and bottom (Y) padding.
-    tensor::value_type _dynamic_pad_dims[shape_dim_max] = {0};   ///< A mask saying which dimension has dynamic pad    
+    tensor::value_type _pad_before[SHAPE_RANK_MAX] = {0};  ///< Lower padding sizes. For spatials, it means size of left (X) and top (Y) padding.
+    tensor::value_type _pad_after[SHAPE_RANK_MAX] = {0};  ///< Upper padding sizes. For spatials, it means size of right (X) and bottom (Y) padding.
+    tensor::value_type _dynamic_pad_dims[SHAPE_RANK_MAX] = {0};   ///< A mask saying which dimension has dynamic pad    
 
     void set_dynamic_pad_dims(const tensor::value_type& other) {
         if (_dynamic_pad_dims == &other)
             return;
         size_t rank = size.rank().get_length();
-        OPENVINO_ASSERT(rank <= shape_dim_max, "shape size exceeds maximum padding size!");            
+        OPENVINO_ASSERT(rank <= SHAPE_RANK_MAX, "shape size exceeds maximum padding size!");            
         std::copy_n(other, rank, _dynamic_pad_dims);
     }
 
