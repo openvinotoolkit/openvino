@@ -368,10 +368,7 @@ void TranslateSession::encode_tensor_name(Output<Node> output,
 
 namespace {
 bool is_number(const std::string& s) {
-    std::string::const_iterator it = s.begin();
-    while (it != s.end() && std::isdigit(*it))
-        ++it;
-    return !s.empty() && it == s.end();
+    return !s.empty() && std::all_of(s.begin(), s.end(), ::isdigit);
 }
 }  // namespace
 
