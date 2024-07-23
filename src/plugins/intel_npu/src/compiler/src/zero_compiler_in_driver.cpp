@@ -59,6 +59,20 @@ void checkedMemcpy(void* destination, size_t destinationSize, void const* source
     memcpy(destination, source, numberOfBytes);
 }
 
+void print_memory_usage() {
+    struct mallinfo mi = mallinfo();
+    printf("Total non-mmapped bytes (arena):       %d\n", mi.arena);
+    printf("Number of free chunks (ordblks):       %d\n", mi.ordblks);
+    printf("Number of free fastbin blocks (smblks):%d\n", mi.smblks);
+    printf("Number of mmapped regions (hblks):     %d\n", mi.hblks);
+    printf("Space in mmapped regions (hblkhd):     %d\n", mi.hblkhd);
+    printf("Maximum total allocated space (usmblks):%d\n", mi.usmblks);
+    printf("Space available in freed fastbin blocks (fsmblks):%d\n", mi.fsmblks);
+    printf("Total allocated space (uordblks):      %d\n", mi.uordblks);
+    printf("Total free space (fordblks):           %d\n", mi.fordblks);
+    printf("Topmost releasable block (keepcost):   %d\n", mi.keepcost);
+}
+
 ov::element::Type_t toOVElementType(const ze_graph_argument_precision_t zeElementType) {
     switch (zeElementType) {
     case ZE_GRAPH_ARGUMENT_PRECISION_UNKNOWN:
@@ -809,6 +823,20 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std:
                     uint64_t(result),
                     ". ",
                     getLatestBuildError());
+
+    print_memory_usage();
+
+    // it is a - struct std::pair<long unsigned int, std::shared_ptr<unsigned char> >
+    // This will decrement the reference count, and if it's the last reference, it will free the memory.
+    serializedIR.second.reset();
+
+    if (!serializedIR.second) {
+        printf("Free up serializedIR ! \n");
+    }else{
+        printf("serializedIR is not free ! \n");
+    }
+
+    print_memory_usage();
 
     // Get blob size first
     size_t blobSize = -1;
