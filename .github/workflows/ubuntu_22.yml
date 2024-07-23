@@ -344,8 +344,26 @@ jobs:
     needs: [ Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
-      runner: ${{ github.event_name == 'schedule' && 'ubuntu-22.04-16-cores' || 'ubuntu-22.04-8-cores' }}
-      event: ${{ github.event_name }}
+      runner: 'ubuntu-22.04-8-cores'
+      model_scope: 'precommit'
+
+  PyTorch_Models_Tests_Nightly_Scope1:
+    name: PyTorch Models Nightly Scope1 tests
+    if: ${{ github.event_name == 'schedule' }}
+    needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    uses: ./.github/workflows/job_pytorch_models_tests.yml
+    with:
+      runner: 'ubuntu-22.04-16-cores'
+      model_scope: 'nightly_scope1'
+
+  PyTorch_Models_Tests_Nightly_Scope2:
+    name: PyTorch Models Nightly Scope2 tests
+    if: ${{ github.event_name == 'schedule' }}
+    needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    uses: ./.github/workflows/job_pytorch_models_tests.yml
+    with:
+      runner: 'ubuntu-22.04-16-cores'
+      model_scope: 'nightly_scope2'
 
   NVIDIA_Plugin:
     name: NVIDIA plugin
@@ -476,7 +494,7 @@ jobs:
   Overall_Status:
     name: ci/gha_overall_status
     needs: [Smart_CI, Build, Debian_Packages, Samples, Conformance, ONNX_Runtime, CXX_Unit_Tests, Python_Unit_Tests, TensorFlow_Layer_Tests,
-            CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, NVIDIA_Plugin, Openvino_tokenizers]
+            CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, NVIDIA_Plugin, Openvino_tokenizers, iGPU]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
