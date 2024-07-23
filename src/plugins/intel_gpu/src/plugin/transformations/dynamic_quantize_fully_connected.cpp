@@ -37,8 +37,16 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(size_t group_size) 
         else if (pattern_map.find(fully_connected_compressed4) != pattern_map.end())
             m_fc = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(pattern_map.at(fully_connected_compressed4).get_node_shared_ptr());
 
-        const auto innermost_size = m_fc->get_input_partial_shape(0)[m_fc->get_input_partial_shape(0).size() - 1].get_length();
+        if (m_data->get_element_type() == ov::element::Type_t::f32)
+            return false;
+        if (!m_data->is_dynamic())
+            return false;
+
+        auto weight_shape = m_fc->get_input_partial_shape(1);
+        const auto innermost_size = weight_shape[weight_shape.size() - 1].get_length();
         if (group_size == 0 || (innermost_size % group_size != 0 && static_cast<size_t>(innermost_size) > group_size))
+            return false;
+        if (innermost_size < 32)
             return false;
 
         OutputVector fc_inputs;
