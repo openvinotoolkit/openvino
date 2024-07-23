@@ -316,9 +316,9 @@ void Partitioner::identifySubgraphs() {
         for (auto&& layer : group.all_layers) {
             auto it = node_id_cache.find(layer);
             if (node_id_cache.end() == it) {
-                OPENVINO_THROW("NPUW: Fatal error - partitition refers to layer ",
+                OPENVINO_THROW("NPUW: Fatal error - partitition refers to layer \"",
                                layer,
-                               " which was not found in the ov::Model");
+                               "\" which was not found in the ov::Model");
             }
             group_nodes.insert(it->second);
         }
@@ -1787,8 +1787,9 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 LOG_BLOCK();
                 this_group.repeated_id = std::move(new_id);
                 ov::npuw::RepeatedBlock this_block;
-                for (auto&& layer : this_group.all_layers) {
-                    this_block.matches.push_back(ov::npuw::RepeatedBlock::MatchedLayers{std::move(layer)});
+                for (const auto& layer : this_group.all_layers) {
+                    // Note: NOT move(layer)! It breaks the code here.
+                    this_block.matches.push_back(ov::npuw::RepeatedBlock::MatchedLayers{layer});
                 }
                 ens.repeated[this_group.repeated_id] = std::move(this_block);
                 LOG_INFO("Done.");

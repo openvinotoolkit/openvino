@@ -339,6 +339,7 @@ jobs:
     env:
       OPENVINO_JS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js"
       OPENVINO_JS_LIBS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js\\node\\bin"
+      NODE_VERSION: 21
     if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
 
     steps:
@@ -355,23 +356,35 @@ jobs:
           name: openvino_js_package
           path: ${{ env.OPENVINO_JS_LIBS_DIR }}
 
-      - name: Setup Node
+      - name: Setup Node ${{ env.NODE_VERSION }}
         uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
 
-      - name: Configure OpenVINO JS
+      - name: Configure OpenVINO JS API
         working-directory: ${{ env.OPENVINO_JS_DIR }}/node
         run: npm i
 
-      - name: Test OpenVINO JS
+      - name: Test OpenVINO JS API
         working-directory: ${{ env.OPENVINO_JS_DIR }}/node
         run: npm test
 
-      - name: Test OpenVINO JS (cmd)
+      - name: Test OpenVINO JS API (cmd)
         shell: cmd
         working-directory: ${{ env.OPENVINO_JS_DIR }}/node
         run: call npm test
+
+      - name: Add msbuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: E2E of openvino-node package
+        working-directory: ${{ env.OPENVINO_JS_DIR }}/node
+        run: npm run test:e2e
+
+      - name: E2E of openvino-node package (cmd)
+        shell: cmd
+        working-directory: ${{ env.OPENVINO_JS_DIR }}/node
+        run: call npm run test:e2e
 
       - name: Create package dir
         working-directory: ${{ env.OPENVINO_JS_DIR }}
