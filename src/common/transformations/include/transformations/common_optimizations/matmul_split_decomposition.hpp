@@ -71,5 +71,5 @@ public:
                        OutputVector& new_weights,
                        Output<Node>* bias,
                        OutputVector& new_bias,
-                       const bool& transpos_b);
+                       const bool transpos_b);
 };

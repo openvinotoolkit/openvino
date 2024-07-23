@@ -4,32 +4,12 @@
 
 #include "transformations/common_optimizations/matmul_split_decomposition.hpp"
 
-#include <cstdint>
-#include <limits>
-#include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <transformations/utils/utils.hpp>
-#include <vector>
-
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/validation_util.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/util/gather_base.hpp"
 #include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "ov_ops/type_relaxed.hpp"
-#include "transformations/utils/utils.hpp"
 
-using namespace ov::op;
 using namespace ov;
 using namespace ov::pass::pattern;
 
@@ -37,32 +17,34 @@ void pass::MatmulGatherDecomposition::split_weights(const Output<Node>& weights,
                                                     OutputVector& new_weights,
                                                     Output<Node>* bias,
                                                     OutputVector& new_bias,
-                                                    const bool& transpos_b) {
+                                                    const bool transpos_b) {
     // weights is static
-    int64_t weights_rank = static_cast<int64_t>(weights.get_partial_shape().size());
-    if (weights_rank != 2) {
+    if (weights.get_partial_shape().size() != 2u) {
         return;
     }
 
     if (bias) {
         const auto& bias_shape = bias->get_partial_shape();
-        int64_t bias_rank = static_cast<int64_t>(bias_shape.rank().get_length());
+        if (bias_shape.is_dynamic()) {
+            return;
+        }
+        auto bias_rank = bias_shape.rank().get_length();
         if (bias_rank != 3 && bias_rank != 1) {
             return;
         }
     }
 
     // Decompose weights
-    auto axis = register_new_node(v0::Constant::create(element::i32, Shape{}, {transpos_b ? 0 : 1}));
-    auto split = register_new_node<opset1::Split>(weights, axis, 3);
+    auto axis = register_new_node(op::v0::Constant::create(element::i32, Shape{}, {transpos_b ? 0 : 1}));
+    auto split = register_new_node<op::v1::Split>(weights, axis, 3);
     for (auto& out : split->outputs()) {
         new_weights.emplace_back(out);
     }
 
     if (bias) {
         // Decompose bias
-        auto axis2 = register_new_node(v0::Constant::create(element::i32, Shape{}, {-1}));  // axis -1
-        auto split2 = register_new_node<opset1::Split>(*bias, axis2, 3);
+        auto axis2 = register_new_node(op::v0::Constant::create(element::i32, Shape{}, {-1}));  // axis -1
+        auto split2 = register_new_node<op::v1::Split>(*bias, axis2, 3);
         for (auto& out : split2->outputs()) {
             new_bias.emplace_back(out);
         }
@@ -166,17 +148,17 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
         }
 
         // Heuristics: Split at axis 2, new Gahter should remove it.
-        const auto const_indices = register_new_node(v0::Constant::create(element::i32, Shape{4}, {0, 1, 3, 4}));
-        const auto const_axis = register_new_node(v0::Constant::create(element::i32, Shape{}, {0}));
-        const auto new_shape = register_new_node<v8::Gather>(reshape_input1, const_indices, const_axis);
+        const auto const_indices = register_new_node(op::v0::Constant::create(element::i32, Shape{4}, {0, 1, 3, 4}));
+        const auto const_axis = register_new_node(op::v0::Constant::create(element::i32, Shape{}, {0}));
+        const auto new_shape = register_new_node<op::v8::Gather>(reshape_input1, const_indices, const_axis);
         const auto& input = pattern_map.at(input_pattern);
         for (size_t i = 0; i < 3u; i++) {
-            const auto new_mm = register_new_node<v0::MatMul>(input, new_weights[i], false, transpose_b);
+            const auto new_mm = register_new_node<op::v0::MatMul>(input, new_weights[i], false, transpose_b);
             std::shared_ptr<ov::Node> reshape_productor = new_mm;
             if (add) {
-                reshape_productor = register_new_node<v1::Add>(new_mm, new_bias[i]);
+                reshape_productor = register_new_node<op::v1::Add>(new_mm, new_bias[i]);
             }
-            const auto new_reshape = register_new_node<v1::Reshape>(reshape_productor, new_shape, true);
+            const auto new_reshape = register_new_node<op::v1::Reshape>(reshape_productor, new_shape, true);
             ov::NodeVector from_nodes = {gathers[i], weights.get_node_shared_ptr(), matmul};
             if (add) {
                 from_nodes.emplace_back(add);
@@ -187,8 +169,9 @@ pass::MatmulGatherDecomposition::MatmulGatherDecomposition() {
 
             copy_runtime_info(from_nodes, get_new_nodes());
             // Original transpose order[2,0,3,1,4], new order should be[0,2,1,3] after first axis is removed.
-            const auto transpose_order = register_new_node(v0::Constant::create(element::i32, Shape{4}, {0, 2, 1, 3}));
-            const auto new_transpose = register_new_node<v1::Transpose>(new_reshape, transpose_order);
+            const auto transpose_order =
+                register_new_node(op::v0::Constant::create(element::i32, Shape{4}, {0, 2, 1, 3}));
+            const auto new_transpose = register_new_node<op::v1::Transpose>(new_reshape, transpose_order);
             new_transpose->set_friendly_name(gathers[i]->get_friendly_name());
 
             if (fake_quantizes[i]) {
