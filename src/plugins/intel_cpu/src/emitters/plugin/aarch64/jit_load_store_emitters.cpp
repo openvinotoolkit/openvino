@@ -213,9 +213,9 @@ size_t jit_load_emitter::get_aux_vecs_count() const {
 
 jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::aarch64::jit_generator *host, dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                                      ov::element::Type src_prc, ov::element::Type dst_prc, int store_num, int byte_offset,
-                                     ov::element::Type exec_prc, emitter_in_out_map in_out_type)
+                                     bool is_saturated, ov::element::Type exec_prc, emitter_in_out_map in_out_type)
     : jit_emitter(host, host_isa, exec_prc, in_out_type), name_("unknown"), store_num_(store_num), byte_offset_(byte_offset),
-                  src_prc_(src_prc), dst_prc_(dst_prc) {}
+                  is_saturated_(is_saturated), src_prc_(src_prc), dst_prc_(dst_prc) {}
 
 void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
     if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
@@ -375,10 +375,10 @@ void jit_store_emitter::emit_isa(const std::vector<size_t> &in_idxs, const std::
             switch (src_prc_) {
                 case ov::element::f32:
                     cvt_f32_to_i32<isa>(h, in_idxs, aux_vec_idxs);
-                    cvt_i32_to_byte<isa>(h, aux_vec_idxs, aux_vec_idxs, dst_prc_.is_signed(), false);
+                    cvt_i32_to_byte<isa>(h, aux_vec_idxs, aux_vec_idxs, dst_prc_.is_signed(), is_saturated_);
                     break;
                 case ov::element::i32:
-                    cvt_i32_to_byte<isa>(h, in_idxs, aux_vec_idxs, dst_prc_.is_signed(), false);
+                    cvt_i32_to_byte<isa>(h, in_idxs, aux_vec_idxs, dst_prc_.is_signed(), is_saturated_);
                     break;
                 case ov::element::i8:
                 case ov::element::u8:
