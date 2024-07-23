@@ -38,10 +38,16 @@ def cached_model_name(model_hash_str, device, args, cache_root, reversed = False
 
     inputs_str = ""
     for idx, input_data in enumerate(args):
-        if reversed:
-            inputs_str = "_" + str(input_data.type()) + str(input_data.size())[11:-1].replace(" ", "") + inputs_str
+        if isinstance(input_data, torch.Tensor):
+            input_dtype = str(input_data.type())
+            input_size = str(input_data.size())[11:-1].replace(" ", "")
         else:
-            inputs_str += "_" + str(input_data.type()) + str(input_data.size())[11:-1].replace(" ", "")
+            input_dtpe = type(input_data).__name__
+            input_size = ""
+        if reversed:
+            inputs_str = "_" + input_dtype + input_size + inputs_str
+        else:
+            inputs_str += "_" + input_dtype + input_size
     inputs_str = sha256(inputs_str.encode('utf-8')).hexdigest()
     file_name += inputs_str
 
@@ -85,6 +91,8 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
     cache_root = _get_cache_dir(options)
     file_name = cached_model_name(model_hash_str, device, args, cache_root)
 
+    decoder = None
+
     if file_name is not None and os.path.isfile(file_name + ".xml") and os.path.isfile(file_name + ".bin"):
         om = core.read_model(file_name + ".xml")
     else:
@@ -127,7 +135,10 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
             om.inputs[idx].get_node().set_partial_shape(PartialShape(list(torch.Size([1]))))
         else:
             om.inputs[idx].get_node().set_element_type(dtype_mapping[input_data.dtype])
-            om.inputs[idx].get_node().set_partial_shape(PartialShape(list(decoder.input_shapes[idx])))
+            if decoder is not None:
+                om.inputs[idx].get_node().set_partial_shape(PartialShape(list(decoder.input_shapes[idx])))
+            else:
+                om.inputs[idx].get_node().set_partial_shape(PartialShape(input_data.size()))
 
     om.validate_nodes_and_infer_types()
 
