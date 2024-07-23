@@ -40,7 +40,7 @@ const std::vector<FakeQuantizeWithNotOptimalTransformationTestValues> fakeQuanti
             { {0.3f}, ov::element::f32, {}, false }
         },
         {},
-        "I8"
+        "i8"
     },
     {
         { 256ul, {{ 1, 1, 1, 1 }}, { 0.f }, { 25.5f }, { -128.f }, { 127.f }, ov::element::f32 },
@@ -59,7 +59,7 @@ const std::vector<FakeQuantizeWithNotOptimalTransformationTestValues> fakeQuanti
             { {0.3f}, ov::element::f32, {}, false }
         },
         {},
-        "I8"
+        "i8"
     },
     {
         { 256ul, {{ 1, 1, 1, 1 }}, { 0.f }, { 25.5f }, { -128.f }, { 127.f }, ov::element::f32 },
@@ -78,7 +78,7 @@ const std::vector<FakeQuantizeWithNotOptimalTransformationTestValues> fakeQuanti
             { {0.3f}, ov::element::f32, {}, false }
         },
         {},
-        "I8"
+        "i8"
     },
     {
         { 256ul, {{ 1, 1, 1, 1 }}, { 0.f }, { 25.5f }, { -128.f }, { 127.f }, ov::element::f32 },
@@ -97,7 +97,7 @@ const std::vector<FakeQuantizeWithNotOptimalTransformationTestValues> fakeQuanti
             { {0.3f}, ov::element::f32, {}, false }
         },
         {},
-        "I8"
+        "i8"
     }
 };
 
