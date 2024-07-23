@@ -6,23 +6,24 @@ const { createCanvas, ImageData } = require('canvas');
 const { getImageData, transform, setShape } = require('../helpers');
 
 // Parsing and validation of input arguments
-if (process.argv.length !== 5)
+if (process.argv.length !== 6)
   throw new Error(
     `Usage: ${process.argv[1]} <path_to_unet_model>` +
       ' <path_to_foreground_image>' +
-      '<path_to_background_image>',
+      '<path_to_background_image> <device_name>',
   );
 
 const unetModelPath = process.argv[2];
 const foreGroundImage = process.argv[3];
 const backGroundImage = process.argv[4];
+const deviceName = process.argv[5];
 
-async function main(unetModelPath, foreGroundImage, backGroundImage) {
+async function main(unetModelPath, foreGroundImage, backGroundImage, deviceName) {
   const core = new ov.Core();
 
   // Read and compile model
   const model = await core.readModel(unetModelPath);
-  const compiledModel = await core.compileModel(model, 'AUTO');
+  const compiledModel = await core.compileModel(model, deviceName);
   const inputLayer = compiledModel.input(0);
   const outputLayer = compiledModel.output(0);
 
@@ -219,7 +220,7 @@ async function saveImage(rgbImage, savePath) {
   }
 }
 try {
-  main(unetModelPath, foreGroundImage, backGroundImage);
+  main(unetModelPath, foreGroundImage, backGroundImage, deviceName);
 } catch(error) {
   console.error('Error occurred', error);
 }
