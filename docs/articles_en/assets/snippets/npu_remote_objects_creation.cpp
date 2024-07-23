@@ -20,7 +20,7 @@ int main() {
     {
         //! [default_context_from_core]
         auto npu_context = core.get_default_context("NPU").as<ov::intel_npu::level_zero::ZeroContext>();
-        // Extract level_zero context handle from RemoteContext
+        // Extract raw level_zero context handle from RemoteContext
         void* context_handle = npu_context.get();
         //! [default_context_from_core]
     }
@@ -35,7 +35,7 @@ int main() {
 
     {
         //! [wrap_d3d12_resource]
-        void* shared_buffer = nullptr;  // create the d3d12 resource
+        void* shared_buffer = nullptr;  // create the Direct3D12 resource
         auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, shared_buffer);
         //! [wrap_d3d12_resource]
     }

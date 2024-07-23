@@ -41,19 +41,19 @@ To request the current default context of the plugin, use one of the following m
 
 .. tab-set::
 
-    .. tab-item:: Get context from Core
-    :sync: get-context-core
+   .. tab-item:: Get context from Core
+      :sync: get-context-core
 
-    .. doxygensnippet:: docs/articles_en/assets/snippets/npu_remote_objects_creation.cpp
-        :language: cpp
-        :fragment: [default_context_from_core]
+      .. doxygensnippet:: docs/articles_en/assets/snippets/npu_remote_objects_creation.cpp
+          :language: cpp
+          :fragment: [default_context_from_core]
 
-    .. tab-item:: Get context from compiled model
-    :sync: get-context-compiled-model
+   .. tab-item:: Get context from compiled model
+      :sync: get-context-compiled-model
 
-    .. doxygensnippet:: docs/articles_en/assets/snippets/npu_remote_objects_creation.cpp
-        :language: cpp
-        :fragment: [default_context_from_model]
+      .. doxygensnippet:: docs/articles_en/assets/snippets/npu_remote_objects_creation.cpp
+          :language: cpp
+          :fragment: [default_context_from_model]
 
 Memory Sharing Between Application and NPU Plugin
 ###########################################################
@@ -101,7 +101,7 @@ For more details, see the code snippets below:
                :language: cpp
                :fragment: [allocate_remote_level_zero_host]
 
-        .. tab-item:: Tensor - Level Zero host memory
+         .. tab-item:: Tensor - Level Zero host memory
             :sync: level-zero-host-memory
 
             .. doxygensnippet:: docs/articles_en/assets/snippets/npu_remote_objects_creation.cpp
