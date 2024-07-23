@@ -4,7 +4,6 @@
 
 #include "markup_rope_inputs.hpp"
 
-#include <transformations/utils/utils.hpp>
 #include <unordered_set>
 
 #include "itt.hpp"
@@ -12,8 +11,9 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
-#include "transformations/utils/gen_pattern.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/utils/gen_pattern.hpp"
+#include "transformations/utils/utils.hpp"
 
 ov::intel_cpu::MarkUpRopeInputs::MarkUpRopeInputs() {
     MATCHER_SCOPE(MarkUpRopeInputs);
@@ -27,8 +27,6 @@ ov::intel_cpu::MarkUpRopeInputs::MarkUpRopeInputs() {
         const auto& pattern_map = m.get_pattern_value_map();
         auto cos_input_node = pattern_map.at(cos_tab).get_node_shared_ptr();
         auto sin_input_node = pattern_map.at(sin_tab).get_node_shared_ptr();
-        // std::deque<std::shared_ptr<ov::Node>> nodes;
-        // std::unordered_set<std::shared_ptr<ov::Node>> visited;
         auto bfs_markup = [&](std::shared_ptr<ov::Node>& input) {
             nodes.push_back(input);
             while (!nodes.empty()) {
@@ -43,16 +41,16 @@ ov::intel_cpu::MarkUpRopeInputs::MarkUpRopeInputs() {
                     if (visited.count(input_node)) {
                         continue;
                     }
-                    if (!ov::is_type<ov::opset1::Constant>(input_node) && !ov::is_type<ov::opset1::Parameter>(input_node))
+                    if (!ov::is_type<ov::op::v0::Constant>(input_node) && !ov::is_type<ov::op::v0::Parameter>(input_node))
                         nodes.push_front(input_node);
                 }
             }
         };
         if (!visited.count(cos_input_node)) {
-            bfs_markup(cos_input_node);;
+            bfs_markup(cos_input_node);
         }
         if (!visited.count(sin_input_node)) {
-            bfs_markup(sin_input_node);;
+            bfs_markup(sin_input_node);
         }
         return false;
     };

@@ -3,9 +3,8 @@
 //
 #include <gtest/gtest.h>
 #include "openvino/opsets/opset1.hpp"
-#include "openvino/opsets/opset3.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
-#include <openvino/pass/manager.hpp>
+#include "openvino/pass/manager.hpp"
 #include "transformations/cpu_opset/common/pass/markup_rope_inputs.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 
