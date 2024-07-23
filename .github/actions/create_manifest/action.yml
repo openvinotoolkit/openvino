@@ -27,15 +27,18 @@ runs:
     - name: Install Python dependencies
       shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
       run: >-
-        pip install -r ${{ env.GITHUB_ACTION_PATH }}/requirements.txt
+        pip install -r ${{ env.ACTION_PATH }}/requirements.txt
+      env:
+        ACTION_PATH: ${{ runner.os == 'Windows' && '$env:GITHUB_ACTION_PATH' || '$GITHUB_ACTION_PATH' }}
 
     - name: 'Create manifest'
       id: create_manifest
       shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
       run: >-
-        python ${{ env.GITHUB_ACTION_PATH }}/create_manifest.py
+        python ${{ env.ACTION_PATH }}/create_manifest.py
         --target_arch "${{ inputs.target_arch }}" --build_type "${{ inputs.build_type }}"
         --save_to "${{ inputs.save_to }}" --product_type "${{ inputs.product_type }}" -r "${{ inputs.repos }}"
       env:
         BASE_SHA: ${{ github.event.pull_request.base.sha }}
         PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        ACTION_PATH: ${{ runner.os == 'Windows' && '$env:GITHUB_ACTION_PATH' || '$GITHUB_ACTION_PATH' }}

@@ -23,14 +23,17 @@ runs:
     - name: Install Python dependencies
       shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
       run: >-
-        pip install -r ${{ env.GITHUB_ACTION_PATH }}/requirements.txt
+        pip install -r ${{ env.ACTION_PATH }}/requirements.txt
+      env:
+        ACTION_PATH: ${{ runner.os == 'Windows' && '$env:GITHUB_ACTION_PATH' || '$GITHUB_ACTION_PATH' }}
 
     - name: 'Copy artifacts'
       id: copy_artifacts
       shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
       run: >-
-        python ${{ env.GITHUB_ACTION_PATH }}/store_artifacts.py
+        python ${{ env.ACTION_PATH }}/store_artifacts.py
         --storage_dir "${{ inputs.storage_dir }}" --storage_root "${{ inputs.storage_root }}"
         -a "${{ inputs.artifacts }}"
       env:
         PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        ACTION_PATH: ${{ runner.os == 'Windows' && '$env:GITHUB_ACTION_PATH' || '$GITHUB_ACTION_PATH' }}
