@@ -72,6 +72,8 @@ public:
         params.clip = primitive->clip;
         params.input_forget = primitive->input_forget;
         params.direction = primitive->direction;
+        //params.outputs.clear();
+        //params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[0]));
         params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[1]));
         params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[2]));
 
@@ -103,8 +105,8 @@ public:
         GPU_DEBUG_LOG << "origin input_pshape   : " << input_layout.to_short_string() << std::endl;
         GPU_DEBUG_LOG << "origin weights_layout : " << weights_layout.to_short_string() << std::endl;
 
-        input_pshape = {lstm_batch_size, 1, 1, lstm_input_size};
-        input_layout.set_partial_shape(input_pshape);
+        //input_pshape = {lstm_batch_size, 1, 1, lstm_input_size};
+        //input_layout.set_partial_shape(input_pshape);
 
         weights_pshape = {lstm_batch_size, 1, 1, lstm_hidden_size}; // {batch, direction, 1, hidden_size}
         weights_layout.format = format::adjust_to_rank(weights_layout.format, weights_pshape.size());

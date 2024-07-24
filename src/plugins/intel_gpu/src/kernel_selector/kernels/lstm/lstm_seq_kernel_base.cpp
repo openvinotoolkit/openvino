@@ -69,19 +69,9 @@ KernelsData LSTMSeqKernelBase::GetCommonKernelsData(const Params& params) const 
 
     KernelData kd = KernelData::Default<lstm_seq_params>(params, 1);
 
-    //const auto& input = orgParams.inputs[0];
-
-    auto newParams = orgParams;
-    auto out = newParams.outputs[0];
+    auto out =  orgParams.outputs[0];
 
     auto& kernel = kd.kernels[0];
-    auto cldnnJit = GetJitConstants(orgParams);
-    auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, params);
-    auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
-
-    kernel.params.workGroups.global = {out.X().v, out.Batch().v, 1};
-    kernel.params.workGroups.local = {out.X().v, 1, 1};
-    kernel.code.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
@@ -92,6 +82,13 @@ KernelsData LSTMSeqKernelBase::GetCommonKernelsData(const Params& params) const 
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 1});
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 2});
+    auto cldnnJit = GetJitConstants(orgParams);
+    auto entryPoint = GetEntryPoint(kernelName, orgParams.layerID, params);
+    auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
+
+    kernel.params.workGroups.global = {out.X().v, out.Batch().v, 1};
+    kernel.params.workGroups.local = {out.X().v, 1, 1};
+    kernel.code.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
 
     return {kd};
 }

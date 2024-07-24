@@ -14,15 +14,15 @@
 //output2
 KERNEL(lstm_seq)(
     const __global INPUT0_TYPE* x,
-    const __global INPUT0_TYPE* initial_hidden_state,
-    const __global INPUT0_TYPE* initial_cell_state,
-    const __global INPUT0_TYPE* sequence_lengths,
-    const __global INPUT0_TYPE* W,
-    const __global INPUT0_TYPE* R,
-    const __global INPUT0_TYPE* B,
+    const __global INPUT1_TYPE* initial_hidden_state,
+    const __global INPUT2_TYPE* initial_cell_state,
+    const __global INPUT3_TYPE* sequence_lengths,
+    const __global INPUT4_TYPE* W,
+    const __global INPUT5_TYPE* R,
+    const __global INPUT6_TYPE* B,
     __global OUTPUT_TYPE* hidden_history,
     __global OUTPUT_TYPE* hidden_state,
-    __global OUTPUT_TYPE* cell_state
+    __global OUTPUT2_TYPE* cell_state
 )
 {
     const uint hidden_idx = get_global_id(0);

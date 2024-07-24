@@ -468,7 +468,7 @@ ov::pass::ConvertLSTMSequenceToTensorIterator::ConvertLSTMSequenceToTensorIterat
 }
 
 ov::pass::ConvertSequenceToTensorIterator::ConvertSequenceToTensorIterator() {
-    //add_matcher<ConvertLSTMSequenceToTensorIterator>();
+    //d_matcher<ConvertLSTMSequenceToTensorIterator>();
     add_matcher<ConvertRNNSequenceToTensorIterator>();
     add_matcher<ConvertGRUSequenceToTensorIterator>();
 }
