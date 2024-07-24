@@ -392,6 +392,24 @@ def test_reshape_with_variable(device):
     assert compiled_model.input().partial_shape == ref_shape
 
 
+def test_model_sink_ctors():
+    param = ops.parameter([2, 2], name="input_data", dtype=np.float32)
+    rv = ops.read_value("var_id_667", np.float32, [2, 2])
+    add = ops.add(rv, param, name="MemoryAdd")
+    node = ops.assign(add, "var_id_667")
+    res = ops.result(add, "res")
+
+    # Model(List[openvino._pyopenvino.op.Result], List[ov::Output<ov::Node>],
+    #       List[openvino._pyopenvino.op.Parameter], str = '')
+    model = Model(results=[res], sinks=[node.output(0)], parameters=[param], name="TestModel")
+    assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
+
+    # Model(List[ov::Output<ov::Node>, List[ov::Output<ov::Node>],
+    #       List[openvino._pyopenvino.op.Parameter], str = '')
+    model2 = Model(results=[model.output(0)], sinks=[node.output(0)], parameters=[param], name="TestModel2")
+    assert model2.sinks[0].get_output_shape(0) == Shape([2, 2])
+
+
 def test_reshape_with_python_types():
     model = generate_add_model()
 
