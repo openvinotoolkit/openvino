@@ -59,7 +59,6 @@ public:
                                const Config& config) const override final;
 
     ze_result_t seriazlideIRModelAndCreateGraph(const std::shared_ptr<const ov::Model>& model,
-                                                IR& irModel,
                                                 const Config& config,
                                                 ze_device_graph_properties_t deviceGraphProperties,
                                                 ze_graph_handle_t& graphHandle) const;

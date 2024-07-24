@@ -59,38 +59,6 @@ void checkedMemcpy(void* destination, size_t destinationSize, void const* source
     memcpy(destination, source, numberOfBytes);
 }
 
-void print_memory_usage() {
-    auto getMemoryUsage = []() -> size_t {
-        std::ifstream procStatus("/proc/self/status");
-        std::string line;
-        while (std::getline(procStatus, line)) {
-            if (line.substr(0, 6) == "VmRSS:") {
-                std::istringstream iss(line);
-                std::string key;
-                size_t memoryUsageKb;
-                iss >> key >> memoryUsageKb;
-                return memoryUsageKb * 1024;  // Convert from KB to bytes
-            }
-        }
-        return 0;  // Return 0 if VmRSS is not found (should not happen on Linux)
-    };
-
-    size_t beforeClearMemoryUsage = getMemoryUsage();
-    std::cout << "Memory usage : " << beforeClearMemoryUsage << " bytes" << std::endl;
-
-    struct mallinfo mi = mallinfo();
-    printf("Total non-mmapped bytes (arena):       %d\n", mi.arena);
-    printf("Number of free chunks (ordblks):       %d\n", mi.ordblks);
-    printf("Number of free fastbin blocks (smblks):%d\n", mi.smblks);
-    printf("Number of mmapped regions (hblks):     %d\n", mi.hblks);
-    printf("Space in mmapped regions (hblkhd):     %d\n", mi.hblkhd);
-    printf("Maximum total allocated space (usmblks):%d\n", mi.usmblks);
-    printf("Space available in freed fastbin blocks (fsmblks):%d\n", mi.fsmblks);
-    printf("Total allocated space (uordblks):      %d\n", mi.uordblks);
-    printf("Total free space (fordblks):           %d\n", mi.fordblks);
-    printf("Topmost releasable block (keepcost):   %d\n", mi.keepcost);
-}
-
 ov::element::Type_t toOVElementType(const ze_graph_argument_precision_t zeElementType) {
     switch (zeElementType) {
     case ZE_GRAPH_ARGUMENT_PRECISION_UNKNOWN:
@@ -790,13 +758,12 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_grap
 template <typename TableExtension>
 ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndCreateGraph(
     const std::shared_ptr<const ov::Model>& model,
-    IR& irModel,
     const Config& config,
     ze_device_graph_properties_t deviceGraphProperties,
     ze_graph_handle_t& graphHandle) const {
     
     const ze_graph_compiler_version_info_t& compilerVersion = deviceGraphProperties.compilerVersion;
-    auto serializedIR = serializeIR(irModel, compilerVersion);
+    auto serializedIR = serializeIR(model, compilerVersion);
 
     ze_graph_format_t format = ZE_GRAPH_FORMAT_NGRAPH_LITE;
 
@@ -818,9 +785,6 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndCreat
 
     _logger.info("compileIR Using extension version: %s", typeid(TableExtension).name());
     ze_result_t result = createGraph(format, serializedIR, buildFlags, flags, &graphHandle);
-
-    printf("\n\nDEBUG - serializeIR function \n");
-    print_memory_usage();
     return result;
 }
 
@@ -844,7 +808,7 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std:
     // Graph handle should be used only in scope of compile / parse functions.
     ze_graph_handle_t graphHandle;
 
-    result = seriazlideIRModelAndCreateGraph(model, irModel, config, deviceGraphProperties, graphHandle);
+    result = seriazlideIRModelAndCreateGraph(model, config, deviceGraphProperties, graphHandle);
 
     OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
                     "Failed to compile network. L0 createGraph",
