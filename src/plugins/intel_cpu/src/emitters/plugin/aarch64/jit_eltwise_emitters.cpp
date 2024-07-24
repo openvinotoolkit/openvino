@@ -712,16 +712,16 @@ void jit_gelu_tanh_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, con
 
     tanh_emitter->emit_code(
             { vmm_aux0.getIdx() },
-            out_vec_idxs,
+            { vmm_aux0.getIdx() },
             aux_vec_idxs,
             aux_gpr_idxs);
 
     // compute 0.5 * x * (1 + tanh(G(x)))
     h->ld1r(vmm_aux1.s, table_val2("one"));
-    h->fadd(vmm_dst.s, vmm_aux1.s, vmm_dst.s);
+    h->fadd(vmm_aux0.s, vmm_aux1.s, vmm_aux0.s);
     h->ld1r(vmm_aux1.s, table_val2("half"));
-    h->fmul(vmm_dst.s, vmm_aux1.s, vmm_dst.s);
-    h->fmul(vmm_dst.s, store_src ? vmm_aux2.s : vmm_src.s, vmm_dst.s);
+    h->fmul(vmm_aux0.s, vmm_aux1.s, vmm_aux0.s);
+    h->fmul(vmm_dst.s, store_src ? vmm_aux2.s : vmm_src.s, vmm_aux0.s);
 }
 
 void jit_gelu_tanh_emitter::register_table_entries() {

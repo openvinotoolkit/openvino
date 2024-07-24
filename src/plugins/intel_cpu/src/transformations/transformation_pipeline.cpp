@@ -934,8 +934,10 @@ void Transformations::MainSnippets(void) {
 #if defined(OPENVINO_ARCH_ARM64)
             false;
 #else
-            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
-            one_of(inferencePrecision, ov::element::bf16, ov::element::f32, element::undefined);
+            (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
+             one_of(inferencePrecision, ov::element::f32, element::undefined)) ||
+            (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
+             one_of(inferencePrecision, ov::element::bf16, ov::element::f32, element::undefined));
 #endif
     if (!isMHASupported) {
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeMHASnippets);
@@ -958,7 +960,8 @@ void Transformations::MainSnippets(void) {
         if (matmul->get_transpose_a() || matmul->get_transpose_b())
             return false;
         if (in_type0 == ov::element::i8)
-            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni);
+            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni) ||
+                   dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni);
         if ((in_type0 == ov::element::bf16 && in_type1 == ov::element::bf16) ||
             ((in_type0 == element::f32 && in_type1 == ov::element::f32 && inferencePrecision == ov::element::bf16))) {
             // Implementation calls AMX BF16 brgemm only for tensors with K and N aligned on 2, otherwise fallbacks on vector impl
