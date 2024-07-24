@@ -16,14 +16,21 @@ CPURuntimeConfigurator::CPURuntimeConfigurator() : ov::snippets::RuntimeConfigur
 }
 
 void CPURuntimeConfigurator::update(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) {
-    RuntimeConfigurator::update(linear_ir);
-
     if (linear_ir->is_dynamic()) {
         const auto& loop_manager = linear_ir->get_loop_manager();
+        update_loop_info(linear_ir);
         update_loop_args(loop_manager);
+        // Update Brgemm should be before `update_buffer_scratchpad_size`
+        // because `ComputeAllocationSize` depends on subtensors which are updated in `update_brgemms`
         update_brgemms(loop_manager);
+        update_buffer_scratchpad_size(linear_ir);
         get_kernel_executor_table()->update_state();
     }
+
+    m_config->master_shape = linear_ir->get_master_shape();
+
+    update_data_offsets();
+    update_latest_shapes();
 }
 
 void CPURuntimeConfigurator::initialization(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) {
