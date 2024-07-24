@@ -87,6 +87,20 @@ bool STFT::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 
     const auto signal_size = ov::get_tensor_data_as<int64_t>(inputs[2]).front();
 
+    // TODO: Reuse shape_infer to set shape of output tensor
+    const auto& data_shape = inputs[0].get_shape();
+    Shape output_shape;
+    const size_t signal_size_dim = static_cast<size_t>(signal_size);
+    const size_t frames_dim = ((data_shape[1] - signal_size_dim) / m_frame_step) + 1;
+    const size_t fft_samples_dim = (signal_size / 2) + 1;
+    constexpr size_t complex_dim = 2;
+    if (m_frames_first) {
+        output_shape = Shape{data_shape[0], frames_dim, fft_samples_dim, complex_dim};
+    } else {
+        output_shape = Shape{data_shape[0], fft_samples_dim, frames_dim, complex_dim};
+    }
+    outputs[0].set_shape(output_shape);
+
     ov::reference::stft(inputs[0].data<const float>(),
                         inputs[1].data<const float>(),
                         outputs[0].data<float>(),
