@@ -477,6 +477,8 @@ public:
 
     size_t get_inputs_count() const override;
 
+    size_t get_aux_vecs_count() const override;
+
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ov::Node>& node = nullptr);
 
 private:

@@ -705,23 +705,18 @@ void jit_gelu_tanh_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, con
     h->ld1r(vmm_aux1.s, table_val2("gelu_tanh_sqrt_two_over_pi"));
     h->fmul(vmm_aux0.s, vmm_aux1.s, vmm_aux2.s);
 
-    const bool store_src = vmm_src.getIdx() == vmm_dst.getIdx();
-    if (store_src) {
-        h->mov(vmm_aux2.b16, vmm_src.b16);
-    }
-
     tanh_emitter->emit_code(
             { vmm_aux0.getIdx() },
-            { vmm_aux0.getIdx() },
+            { vmm_aux2.getIdx() },
             aux_vec_idxs,
             aux_gpr_idxs);
 
     // compute 0.5 * x * (1 + tanh(G(x)))
     h->ld1r(vmm_aux1.s, table_val2("one"));
-    h->fadd(vmm_aux0.s, vmm_aux1.s, vmm_aux0.s);
+    h->fadd(vmm_aux0.s, vmm_aux1.s, vmm_aux2.s);
     h->ld1r(vmm_aux1.s, table_val2("half"));
     h->fmul(vmm_aux0.s, vmm_aux1.s, vmm_aux0.s);
-    h->fmul(vmm_dst.s, store_src ? vmm_aux2.s : vmm_src.s, vmm_aux0.s);
+    h->fmul(vmm_dst.s, vmm_src.s, vmm_aux0.s);
 }
 
 void jit_gelu_tanh_emitter::register_table_entries() {
@@ -1219,6 +1214,8 @@ jit_mod_emitter::jit_mod_emitter(dnnl::impl::cpu::aarch64::jit_generator *host,
 
 size_t jit_mod_emitter::get_inputs_count() const { return 2; }
 
+size_t jit_mod_emitter::get_aux_vecs_count() const { return 1; }
+
 void jit_mod_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
         emit_isa<dnnl::impl::cpu::aarch64::asimd>(in_vec_idxs, out_vec_idxs);
@@ -1233,14 +1230,15 @@ void jit_mod_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
 
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
 
-    TReg divend = TReg(in_vec_idxs[0]);
+    TReg dividend = TReg(in_vec_idxs[0]);
     TReg divisor = TReg(in_vec_idxs[1]);
     TReg r = TReg(out_vec_idxs[0]);
+    TReg aux = TReg(aux_vec_idxs[0]);
 
-    h->uni_fdiv(r.s, divend.s, divisor.s);
-    h->frintz(r.s, r.s);
-    h->uni_fmul(r.s, r.s, divisor.s);
-    h->uni_fsub(r.s, divend.s, r.s);
+    h->fdiv(aux.s, dividend.s, divisor.s);
+    h->frintz(aux.s, aux.s);
+    h->fmul(aux.s, aux.s, divisor.s);
+    h->fsub(r.s, dividend.s, aux.s);
 }
 
 std::set<std::vector<element::Type>> jit_mod_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
@@ -1874,7 +1872,7 @@ void jit_tanh_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const st
     TReg src = TReg(in_vec_idxs[0]);
     TReg dst = TReg(out_vec_idxs[0]);
 
-    TReg aux = TReg(aux_vec_idxs.back());
+    TReg aux = TReg(aux_vec_idxs[0]);
 
     h->ld1r(aux.s, table_val2("two"));
     h->uni_fmul(aux.s, src.s, aux.s);
