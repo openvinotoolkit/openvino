@@ -8,7 +8,7 @@ import timm
 import torch
 from models_hub_common.utils import get_models_list
 
-from torch_utils import TestTorchConvertModel, process_pytest_marks
+from torch_utils import TestTorchConvertModel
 
 
 def filter_timm(timm_list: list) -> list:

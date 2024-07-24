@@ -134,7 +134,7 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope1' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_timm_tv_tests.html --self-contained-html -v -n 2 -k "TestTimmConvertModel or TestTorchHubConvertModel"
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_timm_tv_${{ inputs.model_scope }}_tests.html --self-contained-html -v -n 2 -k "TestTimmConvertModel or TestTorchHubConvertModel"
         env:
           TYPE: ${{ inputs.model_scope == 'precommit' && 'precommit' || 'nightly' }}
           TEST_DEVICE: CPU
@@ -144,7 +144,7 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly_scope2' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_tests.html --self-contained-html -v -k "not (TestTimmConvertModel or TestTorchHubConvertModel)"
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-torch_model_${{ inputs.model_scope }}_tests.html --self-contained-html -v -k "not (TestTimmConvertModel or TestTorchHubConvertModel)"
         env:
           TYPE: ${{ inputs.model_scope == 'precommit' && 'precommit' || 'nightly' }}
           TEST_DEVICE: CPU
@@ -183,7 +183,7 @@ jobs:
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         if: ${{ !cancelled() }}
         with:
-          name: test-results-torch-models
+          name: test-results-torch-models-${{ inputs.model_scope == 'precommit' }}
           path: |
             ${{ env.INSTALL_TEST_DIR }}/TEST-torch*
           if-no-files-found: 'error'
