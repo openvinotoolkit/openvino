@@ -766,7 +766,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::online::keep_block_size, NPUW_ONLINE_KEEP_BLOCK_SIZE),
                           BIND(npuw::partitioning::online::avoid, NPUW_ONLINE_AVOID),
                           BIND(npuw::partitioning::online::isolate, NPUW_ONLINE_ISOLATE),
-                          BIND(npuw::partitioning::online::nofold, NPUW_ONLINE_NOFOLD),
+                          BIND(npuw::partitioning::online::nofold, NPUW_ONLINE_NO_FOLD),
                           BIND(npuw::partitioning::online::dump_plan, NPUW_ONLINE_DUMP_PLAN),
                           BIND(npuw::partitioning::plan, NPUW_PLAN),
                           BIND(npuw::partitioning::fold, NPUW_FOLD),

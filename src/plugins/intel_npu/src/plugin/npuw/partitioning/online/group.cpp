@@ -291,7 +291,7 @@ void Group::takeFlags(const Group::GPtr& gptr_other) {
     // Update nofold
     m_nofold = gptr_other->isNoFold();
     // Update isolate tag
-    isolate(gptr_other->isolatedTag());
+    m_isol_tag = gptr_other->isolatedTag();
 }
 
 // Check if there is indirect path from this to gptr_cons

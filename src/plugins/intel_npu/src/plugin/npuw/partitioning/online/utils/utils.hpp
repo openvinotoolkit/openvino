@@ -17,15 +17,16 @@ namespace ov {
 namespace npuw {
 namespace online {
 
-enum class AvoidType { OP = 0, PATTERN = 1 };
+enum class PatternType { OP = 0, PATTERN = 1 };
 
 struct Avoid {
-    AvoidType type;
+    PatternType type;
     std::string pattern;
     std::string device;
 };
 
 struct Isolate {
+    PatternType type;
     std::string pattern;
     std::string tag;
 };
@@ -67,6 +68,7 @@ std::string getMetaDesc(const std::shared_ptr<ov::Node>& ov_node);
 std::string repeated_id(const std::shared_ptr<Repeated>& ptr);
 std::optional<Avoid> parseAvoid(const std::string& s);
 std::optional<Isolate> parseIsolate(const std::string& s);
+std::tuple<PatternType, std::string, std::string> parse(const std::string& s);
 }  // namespace util
 
 }  // namespace online

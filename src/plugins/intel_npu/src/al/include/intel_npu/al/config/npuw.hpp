@@ -33,7 +33,7 @@ DEFINE_OPT(NPUW_SUBMODEL_DEVICE, std::string, "", npuw::submodel_device, Compile
 DEFINE_OPT(NPUW_ONLINE_PIPELINE, std::string, "REP", npuw::partitioning::online::pipeline, CompileTime);
 DEFINE_OPT(NPUW_ONLINE_AVOID, std::string, "", npuw::partitioning::online::avoid, CompileTime);
 DEFINE_OPT(NPUW_ONLINE_ISOLATE, std::string, "", npuw::partitioning::online::isolate, CompileTime);
-DEFINE_OPT(NPUW_ONLINE_NOFOLD, std::string, "", npuw::partitioning::online::nofold, CompileTime);
+DEFINE_OPT(NPUW_ONLINE_NO_FOLD, std::string, "", npuw::partitioning::online::nofold, CompileTime);
 DEFINE_OPT(NPUW_ONLINE_MIN_SIZE, std::size_t, 10, npuw::partitioning::online::min_size, CompileTime);
 DEFINE_OPT(NPUW_ONLINE_KEEP_BLOCKS, std::size_t, 10, npuw::partitioning::online::keep_blocks, CompileTime);
 DEFINE_OPT(NPUW_ONLINE_KEEP_BLOCK_SIZE, std::size_t, 10, npuw::partitioning::online::keep_block_size, CompileTime);

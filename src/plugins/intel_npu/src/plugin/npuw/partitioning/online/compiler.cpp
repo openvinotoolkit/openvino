@@ -21,15 +21,19 @@ namespace online {
 
 namespace detail {
 // For missing declaration warning
-size_t getMinGraphSize(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg);
-size_t getMinRepBlocks(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg);
-size_t getMinRepBlockSize(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg);
-std::vector<Avoid> getAvoids(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg);
-std::vector<Isolate> getIsolates(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg);
-std::vector<std::string> getNoFolds(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg);
-void dump_partitioning(const ov::npuw::Ensemble& ens, const std::shared_ptr<ov::Model>& model, const std::string& to);
+size_t getMinGraphSize(::intel_npu::Config& cfg);
+size_t getMinRepBlocks(::intel_npu::Config& cfg);
+size_t getMinRepBlockSize(::intel_npu::Config& cfg);
+std::vector<Avoid> getAvoids(::intel_npu::Config& cfg);
+std::vector<Isolate> getIsolates(::intel_npu::Config& cfg);
+std::vector<Isolate> getIsolates(const std::string isolates_unparsed);
+std::vector<std::string> getNoFolds(::intel_npu::Config& cfg);
+std::vector<std::string> getNoFolds(const std::string& nofolds_unparsed);
+// Set default predefined values for COMPUTE pipeline
+void setComputeConfig(PassContext& ctx);
+void dump_partitioning(const ov::npuw::Ensemble& ens, const std::string& to);
 
-size_t getMinGraphSize(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg) {
+size_t getMinGraphSize(::intel_npu::Config& cfg) {
     std::size_t min_size = cfg.get<::intel_npu::NPUW_ONLINE_MIN_SIZE>();
 
     // Sanity check
@@ -43,7 +47,7 @@ size_t getMinGraphSize(const std::shared_ptr<ov::Model>& model, ::intel_npu::Con
     return min_size;
 }
 
-size_t getMinRepBlocks(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg) {
+size_t getMinRepBlocks(::intel_npu::Config& cfg) {
     std::size_t min_size = cfg.get<::intel_npu::NPUW_ONLINE_KEEP_BLOCKS>();
 
     LOG_INFO("Online partitioning will keep blocks with at least " << min_size << " subgraphs.");
@@ -51,7 +55,7 @@ size_t getMinRepBlocks(const std::shared_ptr<ov::Model>& model, ::intel_npu::Con
     return min_size;
 }
 
-size_t getMinRepBlockSize(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg) {
+size_t getMinRepBlockSize(::intel_npu::Config& cfg) {
     std::size_t min_size = cfg.get<::intel_npu::NPUW_ONLINE_KEEP_BLOCK_SIZE>();
 
     LOG_INFO("Online partitioning will keep blocks with groups with at least " << min_size << " layers.");
@@ -59,7 +63,7 @@ size_t getMinRepBlockSize(const std::shared_ptr<ov::Model>& model, ::intel_npu::
     return min_size;
 }
 
-std::vector<Avoid> getAvoids(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg) {
+std::vector<Avoid> getAvoids(::intel_npu::Config& cfg) {
     std::vector<Avoid> avoids;
 
     std::string avoids_opt = cfg.getString<::intel_npu::NPUW_ONLINE_AVOID>();
@@ -104,15 +108,17 @@ std::vector<Avoid> getAvoids(const std::shared_ptr<ov::Model>& model, ::intel_np
     return avoids;
 }
 
-std::vector<Isolate> getIsolates(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg) {
-    std::vector<Isolate> isolates;
+std::vector<Isolate> getIsolates(::intel_npu::Config& cfg) {
+    return getIsolates(cfg.getString<::intel_npu::NPUW_ONLINE_ISOLATE>());
+}
 
-    std::string isolates_opt = cfg.getString<::intel_npu::NPUW_ONLINE_ISOLATE>();
-    if (isolates_opt.empty()) {
+std::vector<Isolate> getIsolates(const std::string isolates_unparsed) {
+    if (isolates_unparsed.empty()) {
         return {};
     }
 
-    std::string s = std::move(isolates_opt);
+    std::vector<Isolate> isolates;
+    std::string s = std::move(isolates_unparsed);
 
     size_t pos = 0;
     size_t start = 0;
@@ -140,23 +146,25 @@ std::vector<Isolate> getIsolates(const std::shared_ptr<ov::Model>& model, ::inte
     } else {
         LOG_WARN("Incorect pattern in NPUW_ONLINE_ISOLATE!"
                  << " Please, follow the example: "
-                 << "DequantMatMulGQ/compute,DequantMatMulCW/compute,SwishMultXMM/compute,RMSNorm/"
-                    "compute,AdditionalCompute/compute. "
+                 << "Op:Select/NPU,P:DequantMatMulGQ/compute,P:DequantMatMulCW/compute,P:SwishMultXMM/compute,P:RMSNorm/"
+                    "compute,P:AdditionalCompute/compute. "
                  << "No isolate rules will be taken into account during partitioning!");
     }
 
     return isolates;
 }
 
-std::vector<std::string> getNoFolds(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg) {
-    std::vector<std::string> nofolds;
+std::vector<std::string> getNoFolds(::intel_npu::Config& cfg) {
+    return getNoFolds(cfg.getString<::intel_npu::NPUW_ONLINE_NO_FOLD>());
+}
 
-    std::string nofold_opt = cfg.getString<::intel_npu::NPUW_ONLINE_NOFOLD>();
-    if (nofold_opt.empty()) {
+std::vector<std::string> getNoFolds(const std::string& nofolds_unparsed) {
+    if (nofolds_unparsed.empty()) {
         return {};
     }
 
-    std::string s = std::move(nofold_opt);
+    std::vector<std::string> nofolds;
+    std::string s = std::move(nofolds_unparsed);
 
     size_t pos = 0;
     size_t start = 0;
@@ -179,7 +187,7 @@ std::vector<std::string> getNoFolds(const std::shared_ptr<ov::Model>& model, ::i
     if (!nofolds.empty()) {
         LOG_INFO("Online partitioning will mark specified tags as non-foldable.");
     } else {
-        LOG_WARN("Incorect pattern in NPUW_ONLINE_NOFOLD!"
+        LOG_WARN("Incorect pattern in NPUW_ONLINE_NO_FOLD!"
                  << " Please, follow the example: "
                  << "compute,compute2. "
                  << "No non-fold rules will be taken into account during partitioning!");
@@ -188,7 +196,14 @@ std::vector<std::string> getNoFolds(const std::shared_ptr<ov::Model>& model, ::i
     return nofolds;
 }
 
-void dump_partitioning(const ov::npuw::Ensemble& ens, const std::shared_ptr<ov::Model>& model, const std::string& to) {
+void setComputeConfig(PassContext& ctx) {
+    ctx.keep_blocks = 30;
+    ctx.keep_block_size = 2;
+    ctx.isolates = detail::getIsolates("P:DequantMatMulGQ/compute,P:DequantMatMulCW/compute,P:SwishMultXMM/compute,P:RMSNorm/compute,P:AdditionalCompute/compute");
+    ctx.nofolds = detail::getNoFolds("compute");
+}
+
+void dump_partitioning(const ov::npuw::Ensemble& ens, const std::string& to) {
     pugi::xml_document doc;
 
     pugi::xml_node node = doc.append_child("ensemble");
@@ -249,10 +264,11 @@ void dump_partitioning(const ov::npuw::Ensemble& ens, const std::shared_ptr<ov::
 // Interface to get online partitioning from the model
 class Compiler {
     enum class Pipeline {
-        NONE,  // Partitioning will consist of a single group with all the Ops
-        INIT,  // Initialize only. The hardest mode, every group has just 1 layer inside
-        JUST,  // "justParitioning" - combination of LHF + Remnants
-        REP,   // Repeated blocks pipeline - combination of repeatedBlocks and Remnants - default configuration
+        NONE,    // Partitioning will consist of a single group with all the Ops
+        INIT,    // Initialize only. The hardest mode, every group has just 1 layer inside
+        JUST,    // "justParitioning" - combination of LHF + Remnants
+        REP,     // Repeated blocks pipeline - combination of repeatedBlocks and Remnants - default configuration
+        COMPUTE  // Separates non-foldable compute subgraphs from the model based on predefined rules
     };
 
     Pipeline currentPipeline() {
@@ -265,6 +281,8 @@ class Compiler {
             return Pipeline::JUST;
         } else if (pipeline_opt == "REP") {
             return Pipeline::REP;
+        } else if (pipeline_opt == "COMPUTE") {
+            return Pipeline::COMPUTE;
         } else {
             LOG_WARN("Unknown partitioning compiler pipeline " << pipeline_opt << ", switching to REP");
             return Pipeline::REP;
@@ -335,12 +353,12 @@ public:
         m_snapshot->buildGraph();
 
         PassContext ctx;
-        ctx.min_graph_size = detail::getMinGraphSize(model, m_cfg);
-        ctx.keep_blocks = detail::getMinRepBlocks(model, m_cfg);
-        ctx.keep_block_size = detail::getMinRepBlockSize(model, m_cfg);
-        ctx.avoids = detail::getAvoids(model, m_cfg);
-        ctx.isolates = detail::getIsolates(model, m_cfg);
-        ctx.nofolds = detail::getNoFolds(model, m_cfg);
+        ctx.min_graph_size = detail::getMinGraphSize(m_cfg);
+        ctx.keep_blocks = detail::getMinRepBlocks(m_cfg);
+        ctx.keep_block_size = detail::getMinRepBlockSize(m_cfg);
+        ctx.avoids = detail::getAvoids(m_cfg);
+        ctx.isolates = detail::getIsolates(m_cfg);
+        ctx.nofolds = detail::getNoFolds(m_cfg);
 
         m_snapshot->setCtx(ctx);
 
@@ -354,6 +372,14 @@ public:
             just();
             break;
         case Pipeline::REP:
+            rep();
+            break;
+        case Pipeline::COMPUTE:
+            // Manually set predefined isolates and nofolds then do rep() pipeline
+            detail::setComputeConfig(ctx);
+            m_snapshot->setCtx(ctx);
+            LOG_WARN("Online partitioning will override NPUW_ONLINE_KEEP_BLOCKS, NPUW_ONLINE_KEEP_BLOCK_SIZE, "
+                     "NPUW_ONLINE_ISOLATE and NPUW_ONLINE_NO_FOLD properties due to COMPUTE pipeline being selected.");
             rep();
             break;
         }
@@ -395,7 +421,7 @@ public:
 
         std::string dump_plan_path = m_cfg.get<::intel_npu::NPUW_ONLINE_DUMP_PLAN>();
         if (!dump_plan_path.empty()) {
-            detail::dump_partitioning(ens, m_model, dump_plan_path);
+            detail::dump_partitioning(ens, dump_plan_path);
             LOG_INFO("Dumped online partitioning to " << dump_plan_path << ".");
         }
 

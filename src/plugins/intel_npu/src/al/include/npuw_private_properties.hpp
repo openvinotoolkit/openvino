@@ -42,7 +42,7 @@ namespace online {
  * @brief
  * Type: std::string.
  * Specify which partitioning pipeline to run.
- * Possible values: "NONE", "INIT", "JUST", "REP".
+ * Possible values: "NONE", "INIT", "JUST", "REP", "COMPUTE".
  * Default value: "REP".
  */
 static constexpr ov::Property<std::string> pipeline{"NPUW_ONLINE_PIPELINE"};
@@ -78,7 +78,7 @@ static constexpr ov::Property<std::string> isolate{"NPUW_ONLINE_ISOLATE"};
  *                  "compute,compute2".
  * Default value: empty.
  */
-static constexpr ov::Property<std::string> nofold{"NPUW_ONLINE_NOFOLD"};
+static constexpr ov::Property<std::string> nofold{"NPUW_ONLINE_NO_FOLD"};
 
 /**
  * @brief

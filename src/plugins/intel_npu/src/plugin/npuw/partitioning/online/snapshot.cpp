@@ -307,7 +307,7 @@ void Snapshot::earlyAvoids() {
 
     for (const auto& avoid : m_ctx.avoids) {
         switch (avoid.type) {
-        case AvoidType::OP: {
+        case PatternType::OP: {
             for (const auto& nh : m_graph->sorted()) {
                 Group::GPtr group = m_graph->meta(nh).get<Group::GPtr>();
                 // This pass should only be called at the very beginning,
@@ -318,7 +318,7 @@ void Snapshot::earlyAvoids() {
             }
             break;
         }
-        case AvoidType::PATTERN: {
+        case PatternType::PATTERN: {
             // FIXME: refactor as more patterns are supported
             if (avoid.pattern != "RMSNorm") {
                 LOG_WARN("OPENVINO_NPUW_AVOID only supports RMSNorm as a pattern (don't confuse with operations)."
@@ -349,25 +349,40 @@ void Snapshot::earlyRegroup() {
     bool handle_patterns = false;
 
     for (const auto& isolate : m_ctx.isolates) {
-        // FIXME: refactor as more patterns are supported
-        if (isolate.pattern == "RMSNorm") {
-            handle_patterns = true;
-            rewr.add_matcher<ov::npuw::patterns::RMSNorm>(shared_from_this(), isolate.tag);
-        } else if (isolate.pattern == "SwishMultXMM") {
-            handle_patterns = true;
-            rewr.add_matcher<ov::npuw::patterns::SwishMultXMM>(shared_from_this(), isolate.tag);
-        } else if (isolate.pattern == "DequantMatMulCW") {
-            handle_patterns = true;
-            rewr.add_matcher<ov::npuw::patterns::DequantMatMulCW>(shared_from_this(), isolate.tag);
-        } else if (isolate.pattern == "DequantMatMulGQ") {
-            handle_patterns = true;
-            rewr.add_matcher<ov::npuw::patterns::DequantMatMulGQ>(shared_from_this(), isolate.tag);
-        } else if (isolate.pattern == "AdditionalCompute") {
-            handle_patterns = true;
-            rewr.add_matcher<ov::npuw::patterns::AdditionalCompute>(shared_from_this(), isolate.tag);
-        } else {
-            LOG_WARN("OPENVINO_NPUW_ISOLATE only supports RMSNorm, SwishMultXMM, DequantMatMulCW, DequantMatMulGQ "
-                     << "and AdditionalCompute as patterns. Isolate pattern " << isolate.pattern << " is skipped!");
+        switch (isolate.type) {
+            case PatternType::OP: {
+                for (const auto& nh : m_graph->sorted()) {
+                    Group::GPtr group = m_graph->meta(nh).get<Group::GPtr>();
+                    // This pass should only be called at the very beginning,
+                    // thus check and match only the single initial layer
+                    if (group->getInitialNode()->description() == isolate.pattern) {
+                        group->isolate(isolate.tag);
+                    }
+                }
+                break;
+            }
+            case PatternType::PATTERN: {
+            // FIXME: refactor as more patterns are supported
+                if (isolate.pattern == "RMSNorm") {
+                    rewr.add_matcher<ov::npuw::patterns::RMSNorm>(shared_from_this(), isolate.tag);
+                    handle_patterns = true;
+                } else if (isolate.pattern == "SwishMultXMM") {
+                    rewr.add_matcher<ov::npuw::patterns::SwishMultXMM>(shared_from_this(), isolate.tag);
+                    handle_patterns = true;
+                } else if (isolate.pattern == "DequantMatMulCW") {
+                    rewr.add_matcher<ov::npuw::patterns::DequantMatMulCW>(shared_from_this(), isolate.tag);
+                    handle_patterns = true;
+                } else if (isolate.pattern == "DequantMatMulGQ") {
+                    rewr.add_matcher<ov::npuw::patterns::DequantMatMulGQ>(shared_from_this(), isolate.tag);
+                    handle_patterns = true;
+                } else if (isolate.pattern == "AdditionalCompute") {
+                    rewr.add_matcher<ov::npuw::patterns::AdditionalCompute>(shared_from_this(), isolate.tag);
+                    handle_patterns = true;
+                } else {
+                    LOG_WARN("OPENVINO_NPUW_ISOLATE only supports RMSNorm, SwishMultXMM, DequantMatMulCW, DequantMatMulGQ "
+                            << "and AdditionalCompute as patterns. Isolate pattern " << isolate.pattern << " is skipped!");
+                }
+            }
         }
     }
 
