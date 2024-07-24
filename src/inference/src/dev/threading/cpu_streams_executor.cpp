@@ -511,7 +511,7 @@ struct CPUStreamsExecutor::Impl {
     bool _isStopped = false;
     std::vector<std::shared_ptr<SubQueue>> _subTaskThread;
     std::vector<int> _usedNumaNodes;
-    CustomThreadLocal _streams;
+    ThreadLocal<std::shared_ptr<Stream>> _streams;
     std::shared_ptr<ExecutorManager> _exectorMgr;
 };
 
