@@ -19,9 +19,10 @@
 namespace ov {
 namespace autobatch_plugin {
 
-std::vector<std::string> supported_configKeys = {ov::device::priorities.name(),
-                                                 ov::auto_batch_timeout.name(),
-                                                 ov::enable_profiling.name()};
+std::vector<ov::PropertyName> supported_configKeys = {
+    ov::PropertyName{ov::device::priorities.name(), ov::PropertyMutability::RW},
+    ov::PropertyName{ov::auto_batch_timeout.name(), ov::PropertyMutability::RW},
+    ov::PropertyName{ov::enable_profiling.name(), ov::PropertyMutability::RW}};
 
 inline ov::AnyMap merge_properties(ov::AnyMap config, const ov::AnyMap& user_config) {
     for (auto&& kvp : user_config) {
@@ -82,9 +83,13 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
             return {it->second};
         }
     } else if (name == ov::supported_properties.name()) {
-        return std::vector<ov::PropertyName>{
-            ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::device::full_name.name(), ov::PropertyMutability::RO}};
+        std::vector<ov::PropertyName> property_name;
+        property_name.push_back(ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO});
+        property_name.push_back(ov::PropertyName{ov::device::full_name.name(), ov::PropertyMutability::RO});
+        for (auto& it : supported_configKeys) {
+            property_name.push_back(it);
+        }
+        return decltype(ov::supported_properties)::value_type(std::move(property_name));
     } else if (name == ov::internal::supported_properties.name()) {
         return decltype(ov::internal::supported_properties)::value_type{};
     } else if (name == ov::device::full_name.name()) {
@@ -113,6 +118,7 @@ OV_DEFINE_PLUGIN_CREATE_FUNCTION(Plugin, version)
 Plugin::Plugin() {
     set_device_name("BATCH");
     m_plugin_config.insert(ov::auto_batch_timeout(1000));  // default value (ms)
+    m_plugin_config.insert(ov::enable_profiling(false));
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -132,7 +138,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto full_properties = merge_properties(m_plugin_config, properties);
     auto device_batch = full_properties.find(ov::device::priorities.name());
     if (device_batch == full_properties.end()) {
-        OPENVINO_THROW("ov::device::priorities key for AUTO NATCH is not set for BATCH device");
+        OPENVINO_THROW("ov::device::priorities key for AUTO BATCH is not set for BATCH device");
     }
     auto meta_device = parse_meta_device(device_batch->second.as<std::string>(), properties);
 
