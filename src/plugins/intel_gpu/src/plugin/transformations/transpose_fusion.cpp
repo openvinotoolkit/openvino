@@ -162,14 +162,7 @@ TransposeMatMulMatcher::TransposeMatMulMatcher() {
         return std::dynamic_pointer_cast<ov::op::v1::Transpose>(output.get_node_shared_ptr()) == nullptr
                && is_fp_type(output);
     };
-    auto is_dynamic = [](const ov::Output<ov::Node>& output) -> bool {
-        bool is_dynamic = output.get_node_shared_ptr()->get_output_partial_shape(0).is_dynamic();
-        size_t num_inputs = output.get_node_shared_ptr()->get_input_size();
-        for (size_t idx = 0; idx < num_inputs; idx++) {
-            is_dynamic |= output.get_node_shared_ptr()->get_input_partial_shape(idx).is_dynamic();
-        }
-        return is_dynamic;
-    };
+
     auto input_a_m = any_input(not_transpose);
     auto input_b_m = any_input(not_transpose);
     auto transpose_a_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
@@ -180,7 +173,7 @@ TransposeMatMulMatcher::TransposeMatMulMatcher() {
     auto matmul_in_a = std::make_shared<Or>(OutputVector{input_a_m, transpose_a_m});
     auto matmul_in_b = std::make_shared<Or>(OutputVector{input_b_m, transpose_b_m});
 
-    auto matmul_m = wrap_type<ov::op::v0::MatMul>({ matmul_in_a, matmul_in_b }, is_dynamic);
+    auto matmul_m = wrap_type<ov::op::v0::MatMul>({ matmul_in_a, matmul_in_b });
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -246,14 +239,7 @@ TransposeMatMulTransposeMatcher::TransposeMatMulTransposeMatcher() {
         return std::dynamic_pointer_cast<ov::op::v1::Transpose>(output.get_node_shared_ptr()) == nullptr
                && is_fp_type(output);
     };
-    auto is_dynamic = [](const ov::Output<ov::Node>& output) -> bool {
-        bool is_dynamic = output.get_node_shared_ptr()->get_output_partial_shape(0).is_dynamic();
-        size_t num_inputs = output.get_node_shared_ptr()->get_input_size();
-        for (size_t idx = 0; idx < num_inputs; idx++) {
-            is_dynamic |= output.get_node_shared_ptr()->get_input_partial_shape(idx).is_dynamic();
-        }
-        return is_dynamic;
-    };
+
     auto input_a_m = any_input(not_transpose);
     auto input_b_m = any_input(not_transpose);
     auto transpose_a_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
@@ -264,7 +250,7 @@ TransposeMatMulTransposeMatcher::TransposeMatMulTransposeMatcher() {
     auto matmul_in_a = std::make_shared<Or>(OutputVector{input_a_m, transpose_a_m});
     auto matmul_in_b = std::make_shared<Or>(OutputVector{input_b_m, transpose_b_m});
 
-    auto matmul_m = wrap_type<ov::op::v0::MatMul>({ matmul_in_a, matmul_in_b }, is_dynamic);
+    auto matmul_m = wrap_type<ov::op::v0::MatMul>({ matmul_in_a, matmul_in_b });
     auto transpose_c_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
     auto transpose_c_m = wrap_type<ov::op::v1::Transpose>({matmul_m, transpose_c_order_m});
 
