@@ -980,8 +980,8 @@ void test_depth_concatenate_f32_gpu_basic_bfwzyx_along_w(bool is_caching_test) {
                 for (int zi = 0; zi < z; zi++)
                     for (int yi = 0; yi < y; yi++)
                         for (int xi = 0; xi < x; xi++) {
-                            auto out_offset = output_layout.get_linear_offset(tensor{batch(bi), feature(fi), spatial(xi, yi, zi, wi)});
-                            auto in_offset = input1_layout.get_linear_offset(tensor{batch(bi), feature(fi), spatial(xi, yi, zi, wi % w)});
+                            auto out_offset = output_layout.get_linear_offset({bi, fi, xi, yi, zi, wi});
+                            auto in_offset = input1_layout.get_linear_offset({bi, fi, xi, yi, zi, wi % w});
 
                             expected_output[out_offset] = input_data[in_offset];
                         }

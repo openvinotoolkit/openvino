@@ -89,14 +89,8 @@ static void rearrange_cache(cldnn::memory::ptr kv_in_mem, cldnn::memory::ptr bt_
                 for (size_t x = 0; x < kv_shape[3]; x++) {
                     size_t b_kv = bt_in_ptr[b* kv_shape[concat_axis] + y];
 
-                    auto in_idx = std::vector<int>{static_cast<int>(b_kv), static_cast<int>(f), static_cast<int>(y), static_cast<int>(x)};
-                    auto out_idx = std::vector<int>{static_cast<int>(b), static_cast<int>(f), static_cast<int>(y), static_cast<int>(x)};
-
-                    cldnn::tensor in(cldnn::format::bfyx, in_idx, 0);
-                    cldnn::tensor out(cldnn::format::bfyx, out_idx, 0);
-
-                    size_t out_offset = kv_out_mem->get_layout().get_linear_offset(out);
-                    size_t in_offset = kv_layout.get_linear_offset(in);
+                    size_t out_offset = kv_out_mem->get_layout().get_linear_offset({static_cast<int>(b), static_cast<int>(f), static_cast<int>(y), static_cast<int>(x)});
+                    size_t in_offset = kv_layout.get_linear_offset({static_cast<int>(b_kv), static_cast<int>(f), static_cast<int>(y), static_cast<int>(x)});
 
                     if (ov::element::Type(kv_layout.data_type).size() == 2)
                         copy_element<uint16_t>(kv_in_ptr.data(), kv_out_ptr.data(), in_offset, out_offset);

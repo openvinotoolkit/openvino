@@ -98,7 +98,7 @@ void generic_one_hot_test_int(cldnn::format test_input_fmt, int input_b, int inp
 
     VVVVF<T> output_cpu = one_hot_cpu<T>(input_rnd, one_hot_axis, one_hot_limit, input_padding_y, input_padding_x, output_padding_y, output_padding_x);
     ASSERT_EQ(output_layout.format.value, test_input_fmt.value);
-    tensor output_tensor = output_layout.get_buffer_size();
+    tensor output_tensor = tensor(output_layout.get_padded_dims());
     int y_size = output_tensor.spatial[1];
     int x_size = output_tensor.spatial[0];
     int f_size = output_tensor.feature[0];
@@ -195,7 +195,7 @@ TEST(one_hot_gpu_i32, bfzyx_ax4) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<int32_t> output_ptr(output_memory, get_test_stream());
 
-    tensor output_tensor = output_layout.get_buffer_size();
+    tensor output_tensor = tensor(output_layout.get_padded_dims());
     int z_size = output_tensor.spatial[2];
     int y_size = output_tensor.spatial[1];
     int x_size = output_tensor.spatial[0];
@@ -254,7 +254,7 @@ TEST(one_hot_gpu_i64, bfzyx_ax4) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<int64_t> output_ptr(output_memory, get_test_stream());
 
-    tensor output_tensor = output_layout.get_buffer_size();
+    tensor output_tensor = tensor(output_layout.get_padded_dims());
     int z_size = output_tensor.spatial[2];
     int y_size = output_tensor.spatial[1];
     int x_size = output_tensor.spatial[0];
@@ -366,7 +366,7 @@ TEST(one_hot_gpu_i64_to_f32, bfyx_ax4) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
-    tensor output_tensor = output_layout.get_buffer_size();
+    tensor output_tensor = tensor(output_layout.get_padded_dims());
     int z_size = output_tensor.spatial[2];
     int y_size = output_tensor.spatial[1];
     int x_size = output_tensor.spatial[0];
@@ -417,7 +417,7 @@ TEST(one_hot_gpu_i32, bfzyx_ax0) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<int32_t> output_ptr(output_memory, get_test_stream());
 
-    tensor output_tensor = output_layout.get_buffer_size();
+    tensor output_tensor = tensor(output_layout.get_padded_dims());
     int z_size = output_tensor.spatial[2];
     int y_size = output_tensor.spatial[1];
     int x_size = output_tensor.spatial[0];
@@ -472,7 +472,7 @@ TEST(one_hot_gpu_i64, bfzyx_ax0) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<int64_t> output_ptr(output_memory, get_test_stream());
 
-    tensor output_tensor = output_layout.get_buffer_size();
+    tensor output_tensor = tensor(output_layout.get_padded_dims());
     int z_size = output_tensor.spatial[2];
     int y_size = output_tensor.spatial[1];
     int x_size = output_tensor.spatial[0];
@@ -527,7 +527,7 @@ TEST(one_hot_gpu_i32, bfzyx_ax1) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<int32_t> output_ptr(output_memory, get_test_stream());
 
-    tensor output_tensor = output_layout.get_buffer_size();
+    tensor output_tensor = tensor(output_layout.get_padded_dims());
     int z_size = output_tensor.spatial[2];
     int y_size = output_tensor.spatial[1];
     int x_size = output_tensor.spatial[0];
@@ -582,7 +582,7 @@ TEST(one_hot_gpu_i64, bfzyx_ax1) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<int64_t> output_ptr(output_memory, get_test_stream());
 
-    tensor output_tensor = output_layout.get_buffer_size();
+    tensor output_tensor = tensor(output_layout.get_padded_dims());
     int z_size = output_tensor.spatial[2];
     int y_size = output_tensor.spatial[1];
     int x_size = output_tensor.spatial[0];
@@ -637,7 +637,7 @@ TEST(one_hot_gpu_i32, bfzyx_ax2) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<int32_t> output_ptr(output_memory, get_test_stream());
 
-    tensor output_tensor = output_layout.get_buffer_size();
+    tensor output_tensor = tensor(output_layout.get_padded_dims());
     int z_size = output_tensor.spatial[2];
     int y_size = output_tensor.spatial[1];
     int x_size = output_tensor.spatial[0];
@@ -692,7 +692,7 @@ TEST(one_hot_gpu_i64, bfzyx_ax2) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<int64_t> output_ptr(output_memory, get_test_stream());
 
-    tensor output_tensor = output_layout.get_buffer_size();
+    tensor output_tensor = tensor(output_layout.get_padded_dims());
     int z_size = output_tensor.spatial[2];
     int y_size = output_tensor.spatial[1];
     int x_size = output_tensor.spatial[0];
@@ -747,7 +747,7 @@ TEST(one_hot_gpu_i32, bfzyx_ax3) {
     auto output_layout = output_memory->get_layout();
     cldnn::mem_lock<int32_t> output_ptr(output_memory, get_test_stream());
 
-    tensor output_tensor = output_layout.get_buffer_size();
+    tensor output_tensor = tensor(output_layout.get_padded_dims());
     int z_size = output_tensor.spatial[2];
     int y_size = output_tensor.spatial[1];
     int x_size = output_tensor.spatial[0];

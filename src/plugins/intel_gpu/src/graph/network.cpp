@@ -155,10 +155,8 @@ float convert_element(ov::float16 h) { return static_cast<float>(h); }
 
 size_t get_x_pitch(const layout& layout) {
     try {
-        auto tensor_x0 = tensor(batch(0), feature(0), spatial(0, 0, 0, 0));
-        auto tensor_x1 = tensor(batch(0), feature(0), spatial(1, 0, 0, 0));
-        auto x0 = layout.get_linear_offset(tensor_x0);
-        auto x1 = layout.get_linear_offset(tensor_x1);
+        auto x0 = layout.get_linear_offset({0, 0, 0, 0, 0, 0});
+        auto x1 = layout.get_linear_offset({0, 0, 1, 0, 0, 0});
         return (x1 - x0);
     } catch (...) {
         // When spatial size of x=0, x_pitch is meaningless
@@ -205,7 +203,7 @@ void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream, bool dump
                         for (cldnn::tensor::value_type z = 0; z < size.spatial[2]; ++z) {
                             for (cldnn::tensor::value_type y = 0; y < size.spatial[1]; ++y) {
                                 cldnn::tensor t(cldnn::group(g), cldnn::batch(b), cldnn::feature(f), cldnn::spatial(0, y, z, w));
-                                size_t input_it = mem->get_layout().get_linear_offset(t);
+                                size_t input_it = mem->get_layout().get_linear_offset({g,b,f,0,y,z,w});
 
                                 for (cldnn::tensor::value_type x = 0; x < size.spatial[0]; ++x, input_it += x_pitch) {
                                     buffer << std::fixed << std::setprecision(6) << convert_element(mem_ptr[input_it]) << std::endl;

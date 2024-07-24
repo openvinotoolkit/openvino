@@ -32,8 +32,9 @@ void rms_ref(const memory::ptr input, const memory::ptr gamma, memory::ptr outpu
             float rms = 0.f;
             for (uint32_t y = 0; y < y_size; ++y) {
                 for (uint32_t x = 0; x < x_size; ++x) {
-                    auto tensor_src = tensor(batch(b), feature(f), spatial(x, y, 0, 0));
-                    size_t src_offset = input_layout.get_linear_offset(tensor_src);
+                    size_t src_offset = input_layout.get_linear_offset({static_cast<int32_t>(b), static_cast<int32_t>(f),
+                                                                        static_cast<int32_t>(x), static_cast<int32_t>(y),
+                                                                        0, 0});
                     rms += std::pow(static_cast<float>(src[src_offset]), 2);
                 }
             }
@@ -43,12 +44,12 @@ void rms_ref(const memory::ptr input, const memory::ptr gamma, memory::ptr outpu
 
             for (uint32_t y = 0; y < y_size; ++y) {
                 for (uint32_t x = 0; x < x_size; ++x) {
-                    auto tensor_src = tensor(batch(b), feature(f), spatial(x, y, 0, 0));
-                    auto tensor_weight = tensor(batch(0), feature(0), spatial(x, y, 0, 0));
-                    auto tensor_dst = tensor(batch(b), feature(f), spatial(x, y, 0, 0));
-                    size_t src_offset = input_layout.get_linear_offset(tensor_src);
-                    size_t weight_offset = input_layout.get_linear_offset(tensor_weight);
-                    size_t dst_offset = input_layout.get_linear_offset(tensor_dst);
+                    size_t src_offset = input_layout.get_linear_offset({static_cast<int32_t>(b), static_cast<int32_t>(f),
+                                                                        static_cast<int32_t>(x), static_cast<int32_t>(y), 0, 0});
+                    size_t weight_offset = input_layout.get_linear_offset({0, 0,
+                                                                        static_cast<int32_t>(x), static_cast<int32_t>(y), 0, 0});
+                    size_t dst_offset = input_layout.get_linear_offset({static_cast<int32_t>(b), static_cast<int32_t>(f),
+                                                                        static_cast<int32_t>(x), static_cast<int32_t>(y), 0, 0});
                     float result = rms * static_cast<float>(src[src_offset]) * static_cast<float>(weight[weight_offset]);
                     dst[dst_offset] = static_cast<T>(result);
                 }

@@ -515,8 +515,7 @@ public:
                         for (int yi = 0; yi < input_y; yi++)
                             for (int xi = 0; xi < input_x; xi++) {
                                 for (int bi = 0; bi < batch_num; bi++) {
-                                    tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, wi));
-                                    size_t offset = input_lay.get_linear_offset(coords);
+                                    size_t offset = input_lay.get_linear_offset({bi, fi, xi, yi, zi, wi});
                                     input_ptr[offset] = input_data[bi][fi][xi][yi][zi][wi];
                                 }
                             }
@@ -557,8 +556,9 @@ public:
                     for (size_t zi = 0; zi < reference_result[0][0][0].size(); zi++)
                         for (size_t yi = 0; yi < reference_result[0][0][0][0].size(); yi++) {
                             for (size_t xi = 0; xi < reference_result[0][0][0][0][0].size(); xi++) {
-                                tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, wi));
-                                size_t offset = out_lay.get_linear_offset(coords);
+                                size_t offset = out_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
+                                                                           static_cast<int32_t>(xi), static_cast<int32_t>(yi),
+                                                                           static_cast<int32_t>(zi), static_cast<int32_t>(wi)});
                                 auto val = out_ptr[offset];
                                 auto val_ref = static_cast<output_t>(reference_result[bi][fi][wi][zi][yi][xi]);
                                 auto equal = are_equal(val_ref, val, 1e-1f);
@@ -1899,8 +1899,7 @@ public:
                         for (int yi = 0; yi < input_y; yi++)
                             for (int xi = 0; xi < input_x; xi++) {
                                 for (int bi = 0; bi < batch_num; bi++) {
-                                    tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, wi));
-                                    size_t offset = input_lay.get_linear_offset(coords);
+                                    size_t offset = input_lay.get_linear_offset({bi, fi, xi, yi, zi, wi});
                                     input_ptr[offset] = input_data[bi][fi][xi][yi][zi][wi];
                                 }
                             }
@@ -1961,8 +1960,9 @@ public:
                         for (size_t zi = 0; zi < reference_result[0][0][0].size(); zi++)
                             for (size_t yi = 0; yi < reference_result[0][0][0][0].size(); yi++) {
                                 for (size_t xi = 0; xi < reference_result[0][0][0][0][0].size(); xi++) {
-                                    tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, wi));
-                                    size_t offset = out_lay.get_linear_offset(coords);
+                                    size_t offset = out_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
+                                                                            static_cast<int32_t>(xi), static_cast<int32_t>(yi),
+                                                                            static_cast<int32_t>(zi), static_cast<int32_t>(wi)});
                                     auto val = out_ptr[offset];
                                     auto val_ref = static_cast<output_t>(reference_result[bi][fi][wi][zi][yi][xi]);
                                     bool equal = need_adjust_threshold ?
@@ -2076,8 +2076,7 @@ public:
                         for (int yi = 0; yi < input_y; yi++)
                             for (int xi = 0; xi < input_x; xi++) {
                                 for (int bi = 0; bi < batch_num; bi++) {
-                                    tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, wi));
-                                    size_t offset = input_lay.get_linear_offset(coords);
+                                    size_t offset = input_lay.get_linear_offset({bi, fi, xi, yi, zi, wi});
                                     input_ptr[offset] = input_data[bi][fi][xi][yi][zi][wi];
                                 }
                             }
@@ -2120,8 +2119,9 @@ public:
                     for (size_t zi = 0; zi < reference_result[0][0][0].size(); zi++)
                         for (size_t yi = 0; yi < reference_result[0][0][0][0].size(); yi++) {
                             for (size_t xi = 0; xi < reference_result[0][0][0][0][0].size(); xi++) {
-                                tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, wi));
-                                size_t offset = out_lay.get_linear_offset(coords);
+                                size_t offset = out_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
+                                                                            static_cast<int32_t>(xi), static_cast<int32_t>(yi),
+                                                                            static_cast<int32_t>(zi), static_cast<int32_t>(wi)});
                                 auto val = out_ptr[offset];
                                 auto val_ref = static_cast<output_t>(reference_result[bi][fi][wi][zi][yi][xi]);
                                 auto equal = are_equal(val_ref, val, 1e-1f);

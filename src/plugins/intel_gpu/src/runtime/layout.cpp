@@ -117,8 +117,8 @@ std::vector<tensor::value_type> layout::get_padded_dims() const {
 
     const auto& shape = size.to_shape();
     std::vector<tensor::value_type> res(shape.size());
-    for (auto i = 0; i < shape.size(); i++) {
-        res[i] = shape[i] + _pad_before[i] + _pad_after[i];
+    for (size_t i = 0; i < shape.size(); i++) {
+        res[i] = shape[i] + data_padding.upper_size()[i] + data_padding.lower_size()[i];   // Cecilia TODO: export data_padding fileds?
     }
     return res;  
 
@@ -185,9 +185,9 @@ std::string layout::to_string() const {
       << "\tdata_type=" << ov::element::Type(data_type) << ";\n"
       << "\tformat=" << format.to_string() << ";\n"
       << "\tshape=" << size << ";\n"
-      << "\tpad_l=" << data_padding.lower_size().to_string() << ";\n"
-      << "\tpad_u=" << data_padding.upper_size().to_string() << ";\n"
-      << "\tdyn_pad_dims" << data_padding.get_dynamic_pad_dims().to_string() << ";\n"
+    //   << "\tpad_l=" << data_padding.lower_size().to_string() << ";\n"
+    //   << "\tpad_u=" << data_padding.upper_size().to_string() << ";\n"
+    //   << "\tdyn_pad_dims" << data_padding.get_dynamic_pad_dims().to_string() << ";\n"
       << "}";
     return s.str();
 }
@@ -209,7 +209,7 @@ std::string layout::to_short_string() const {
     s << ov::element::Type(data_type) << ":" << format.to_string() << ":";
     dump_shape(s, size);
 
-    if (has_dynamic_pad()) {
+    if (data_padding.is_dynamic_pad()) {
         s << ":dyn_pad_dims";
     } else {
         if (data_padding)
@@ -351,7 +351,7 @@ size_t layout::get_linear_offset(const std::initializer_list<tensor::value_type>
         shape = size.to_shape();
     }
 
-    OPENVINO_ASSERT(index.size() == shape.size() && shape.size() <= shape_dim_max, "index should have the same rank as shape.")
+    OPENVINO_ASSERT(index.size() == shape.size() && shape.size() <= SHAPE_RANK_MAX, "index should have the same rank as shape.");
 
     // const auto padded_index = index + _pad_before;
     // const auto padded_shape = _pad_before + shape + _pad_after;
@@ -421,6 +421,12 @@ size_t layout::get_linear_size() const {
     return total;
 }
 
+layout layout::with_padding(padding const& padd) const {
+    layout ret = *this;
+    ret.data_padding = padd;
+    return ret;
+}
+
 // tells whether l1 and l2 can be reinterpreted to each other without need of reordering
 // note: layouts can only be considered identical if data size described by both layouts match (so no data are genereted
 // nor dropped) note: if layouts describe two buffers with different size, consider them not to be identical even if
@@ -445,7 +451,7 @@ bool layout::compatible(const layout& other) const {
     // Reorders between bfyx, bfzyx, bfwzyx can be reinterpeted as reshape when
     // there is no padding and both hold same number of elements.
     if (format::is_default_format(l1.format) && format::is_default_format(l2.format) &&
-        !l1.padded() && !l2.padded() && l1.get_linear_size() == l2.get_linear_size())
+        !l1.data_padding && !l2.data_padding && l1.get_linear_size() == l2.get_linear_size())
         return true;
     if (l1_size != l2_size)
         return false;
@@ -493,13 +499,13 @@ bool layout::compatible(const layout& other) const {
     auto l1_pitch = l1.get_pitches();
     auto l2_pitch = l2.get_pitches();
 
-    // ignore pitches which will never be used (for dims with size == 1)
-    for (size_t i = 0; i < tensor_dim_max; ++i)
-        if (l1_size.raw[i] == 1)
-            l1_pitch.raw[i] = 0;
-    for (size_t i = 0; i < tensor_dim_max; ++i)
-        if (l2_size.raw[i] == 1)
-            l2_pitch.raw[i] = 0;
+    // // ignore pitches which will never be used (for dims with size == 1)
+    // for (size_t i = 0; i < tensor_dim_max; ++i)
+    //     if (l1_size.raw[i] == 1)
+    //         l1_pitch.raw[i] = 0;
+    // for (size_t i = 0; i < tensor_dim_max; ++i)
+    //     if (l2_size.raw[i] == 1)
+    //         l2_pitch.raw[i] = 0;
 
     auto l1_offset = l1.get_linear_offset();
     auto l2_offset = l2.get_linear_offset();
@@ -608,7 +614,7 @@ ov::PartialShape layout::transform(const ov::PartialShape& pshape, const cldnn::
 // Check a reorder is 1d along feature axis. Or feature size fits to inner block size of feature axis
 static inline bool check_redundant_1d_along_feature(layout const& l1, layout const& l2) {
     // No padding, double blocked format and different data_type
-    if ((l1.get_linear_size() == l2.get_linear_size()) && !l1.padded() && !l2.padded() &&
+    if ((l1.get_linear_size() == l2.get_linear_size()) && !l1.data_padding && !l2.data_padding &&
         !format::is_multi_blocked(l1.format) && !format::is_multi_blocked(l2.format) &&
         l2.data_type == l1.data_type && l2.count() == l1.count()) {
         auto l1_inner_blk = format::is_single_blocked(l1.format) ? l1.format.traits().block_sizes.at(0).second : 1;
