@@ -24,9 +24,13 @@ public:
     ///
     /// \param data  Input data
     /// \param window Window to perform STFT
-    /// \param signal_size Scalar value representing the size of Fourier Transform
+    /// \param frame_size Scalar value representing the size of Fourier Transform
     /// \param frame_step The distance (number of samples) between successive window frames
-    STFT(const Output<Node>& data, const Output<Node>& window, const Output<Node>& signal_size,  int64_t frame_step, bool frames_first);
+    STFT(const Output<Node>& data,
+         const Output<Node>& window,
+         const Output<Node>& frame_size,
+         int64_t frame_step,
+         bool frames_first);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
@@ -38,8 +42,7 @@ public:
 private:
     int64_t m_frame_step = 1;
     bool m_frames_first = true;
-
 };
-}  // namespace v7
+}  // namespace v15
 }  // namespace op
 }  // namespace ov
