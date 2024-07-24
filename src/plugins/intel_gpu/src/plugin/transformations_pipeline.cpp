@@ -47,6 +47,7 @@
 #include "openvino/op/rnn_cell.hpp"
 #include "openvino/op/rnn_sequence.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/pass/constant_folding.hpp"
@@ -164,14 +165,31 @@ static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> n
     return false;
 }
 
-static bool is_non_supported_decompression_op(const std::shared_ptr<const ov::Node> node) {
-    auto get_single_consumer = [](const std::shared_ptr<const ov::Node> node) -> std::shared_ptr<ov::Node> {
-        const auto consumers = node->get_output_target_inputs(0);
-        if (consumers.size() != 1)
-            return nullptr;
-        return consumers.begin()->get_node()->shared_from_this();
-    };
+static std::shared_ptr<ov::Node> get_single_non_const_dependency(const std::shared_ptr<const ov::Node> node)  {
+    std::shared_ptr<ov::Node> res = nullptr;
+    for (size_t i = 0; i < node->get_input_size(); i++) {
+        auto dep = node->get_input_node_shared_ptr(i);
+        if (ov::is_type<ov::op::v0::Constant>(dep))
+            continue;
 
+        // When multiple non-const deps return nullptr
+        if (res) {
+            return nullptr;
+        }
+
+        res = dep;
+    }
+    return res;
+}
+
+static std::shared_ptr<ov::Node> get_single_consumer(const std::shared_ptr<const ov::Node> node)  {
+    const auto consumers = node->get_output_target_inputs(0);
+    if (consumers.size() != 1)
+        return nullptr;
+    return consumers.begin()->get_node()->shared_from_this();
+}
+
+static bool is_non_supported_decompression_op(const std::shared_ptr<const ov::Node> node) {
     auto consumer = get_single_consumer(node);
     if (!consumer)
         return true;
@@ -780,6 +798,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     {
         ov::pass::Manager manager("GPU:PostLPT");
         manager.set_per_pass_validation(false);
+        auto pass_config = manager.get_pass_config();
 
         // Other ops support eltwise fusions
         const std::vector<DiscreteTypeInfo> allowed_data_movement_ops = {
@@ -791,11 +810,28 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             ov::op::v0::ReverseSequence::get_type_info_static(),
             ov::op::v1::Broadcast::get_type_info_static(),
             ov::op::v3::Broadcast::get_type_info_static(),
+            ov::op::v1::Transpose::get_type_info_static(),
         };
-        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>(allowed_data_movement_ops);
 
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
+
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>(allowed_data_movement_ops);
+        pass_config->set_callback<ov::pass::MoveEltwiseUpThroughDataMovScalar>(
+            [this](const_node_ptr& node) -> bool {
+                // In case of Transpose -> Eltwise -> MatMul pattern we allow eltwise move
+                // as Tranpose can be fused into MatMul
+                // In other cases we prefer to keep Eltwise as is since Transpose supports fusions
+                // Applicable for platforms with XMX only
+                auto input = get_single_non_const_dependency(node);
+                auto output = get_single_consumer(node);
+                if (input && output && ov::is_type<ov::op::v1::Transpose>(input) && (!ov::is_type<ov::op::v0::MatMul>(output) || !device_info.supports_immad)) {
+                    return true;
+                }
+
+                return false;
+            });
+
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
         manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>(device_info.supports_immad);
 
@@ -817,7 +853,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::pass::ConstantFolding>();
 
         manager.register_pass<ov::pass::ConvertGatherToGatherCompressed>();
-        auto pass_config = manager.get_pass_config();
         pass_config->set_callback<ov::pass::RMSFusion>([=](const_node_ptr& root) -> bool {
             if (!root->get_input_node_ptr(0)->get_input_partial_shape(0).is_static()) {
                 return false;
