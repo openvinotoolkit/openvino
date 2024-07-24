@@ -60,5 +60,7 @@ class TestBatchNorm(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     @pytest.mark.precommit_torch_export
     def test_batch_norm(self, weights, bias, eps, train, running_stats, ie_device, precision, ir_version, kwargs_to_prepare_input):
+        if running_stats and self.use_torch_export():
+            pytest.skip("running_mean not supported by torch.export")
         self._test(*self.create_model(weights, bias, eps, train, running_stats),
                    ie_device, precision, ir_version, kwargs_to_prepare_input=kwargs_to_prepare_input, dynamic_shapes=False, use_mo_convert=False)
