@@ -114,6 +114,15 @@ struct kernel_impl_params final {
         return output_layouts[idx];
     }
 
+    layout& get_output_layout(size_t idx = 0) {
+        OPENVINO_ASSERT(output_layouts.size() > idx,
+                        "The size of output layouts must be greater than the requested index: ",
+                        "Requested index is ", idx, ",",
+                        "but the size of output layouts is ", output_layouts.size());
+        return output_layouts[idx];
+    }
+
+
     bool has_fused_primitives() const { return !fused_desc.empty(); }
 
     ov::element::Type_t get_output_element_type() const {
