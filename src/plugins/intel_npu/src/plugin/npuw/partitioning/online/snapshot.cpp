@@ -284,6 +284,54 @@ void Snapshot::fuseInputs() {
     LOG_INFO("DONE");
 }
 
+void Snapshot::fuseWithinCompute() {
+    LOG_INFO("Online partitioning: executing fuseWithinCompute pass...");
+    LOG_BLOCK();
+
+    // iterate it topological order
+    for (const auto& nh : m_graph->sorted()) {
+        // skip if removed by fuseWithinCompute
+        if (!m_graph->contains(nh)) {
+            continue;
+        }
+        Group::GPtr group = m_graph->meta(nh).get<Group::GPtr>();
+        if (!group->isFrozen()) {  // we only need frozen repeated groups
+            continue;
+        }
+
+        std::pair<Group::GPtr, Group::GPtr> compute_around{nullptr, nullptr};
+        auto src_nodes = group->srcNodes();
+        auto dst_nodes = group->dstNodes();
+
+        if (src_nodes.size() != 1 || dst_nodes.size() != 1) {
+            continue;
+        }
+
+        Group::GPtr group_prod = m_graph->meta(src_nodes.at(0)).get<Group::GPtr>();
+        Group::GPtr group_cons = m_graph->meta(dst_nodes.at(0)).get<Group::GPtr>();
+
+        if (!group_prod->isFrozen() || !group_cons->isFrozen() ||  // we only need frozen repeated groups
+            group_prod->dstNodes().size() != 1 || group_cons->srcNodes().size() != 1) {
+            continue;
+        }
+
+        // At this point we have exactly G1 -> G2 -> G3
+        // Now if G1 and G3 have the same non-empty tags, we can merge all 3
+        if (group_prod->specialTags() == group_cons->specialTags() && !group_prod->isolatedTag().empty()) {
+            group_prod->fuseWith(group);
+            group_prod->fuseWith(group_cons);
+        }
+
+        // stop merging groups if the graph is already small enough
+        if (graphSize() <= m_ctx.min_graph_size) {
+            break;
+        }
+    }
+
+    LOG_INFO("Number of groups after compiler pass: " << graphSize());
+    LOG_INFO("DONE");
+}
+
 void Snapshot::earlyAvoids() {
     LOG_INFO("Online partitioning: executing earlyAvoids pass...");
     LOG_BLOCK();
@@ -385,9 +433,10 @@ void Snapshot::repeatedBlocks() {
     repeat([&] {
         mergeUniques();
     });
-    // FIXME: assuming that w/o a particular set of properties (isolate, nofold) this pass does nothing
-    mergeTriangles();
+    mergeTriangles();  // FIXME: assuming that w/o a particular set of properties (isolate, nofold) this pass does
+                       // nothing
     cleanUpUniques();
+    fuseWithinCompute();
 
     LOG_INFO("Number of groups after compiler pass: " << graphSize());
 

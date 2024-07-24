@@ -44,6 +44,7 @@ public:
     void fuseRemnantsExtended();
     void fuseRemnants();
     void fuseInputs();
+    void fuseWithinCompute();
 
     // Advanced passes for repeated blocks algorithm
     void repeatedBlocks();

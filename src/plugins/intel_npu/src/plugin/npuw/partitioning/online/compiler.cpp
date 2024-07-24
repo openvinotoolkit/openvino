@@ -268,7 +268,7 @@ class Compiler {
         INIT,    // Initialize only. The hardest mode, every group has just 1 layer inside
         JUST,    // "justParitioning" - combination of LHF + Remnants
         REP,     // Repeated blocks pipeline - combination of repeatedBlocks and Remnants - default configuration
-        COMPUTE  // Separates non-foldable compute subgraphs from the model based on predefined rules
+        COMPUTE  // Separates non-foldable compute subgraphs from the model based on predefined rules + REP
     };
 
     Pipeline currentPipeline() {
