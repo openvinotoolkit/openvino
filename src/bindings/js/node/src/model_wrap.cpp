@@ -174,9 +174,9 @@ Napi::Value ModelWrap::get_output_shape(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value ModelWrap::get_output_element_type(const Napi::CallbackInfo& info) {
-    std::vector<std::string> allowed_signatures;
+    std::vector<std::string> allowed_signatures = {"(number)"};
     try {
-        if (ov::js::validate<Napi::Number>(info, allowed_signatures)) {
+        if (info.Length() == 1 && ov::js::validate_value<int>(info.Env(), info[0])) {
             auto idx = info[0].As<Napi::Number>().Int32Value();
             auto output = _model->output(idx);
             return cpp_to_js<ov::element::Type_t, Napi::String>(info, output.get_element_type());
