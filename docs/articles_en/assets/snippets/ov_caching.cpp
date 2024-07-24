@@ -1,10 +1,10 @@
 #include <openvino/runtime/core.hpp>
 
+//! [ov:caching:part0]
 void part0() {
     std::string modelPath = "/tmp/myModel.xml";
-    std::string device = "GPU";
+    std::string device = "GPU";                             // For example: "CPU", "GPU", "NPU".
     ov::AnyMap config;
-//! [ov:caching:part0]
 ov::Core core;                                              // Step 1: create ov::Core object
 core.set_property(ov::cache_dir("/path/to/cache/dir"));     // Step 1b: Enable caching
 auto model = core.read_model(modelPath);                    // Step 2: Read Model
