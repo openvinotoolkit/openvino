@@ -275,16 +275,27 @@ void regclass_graph_Model(py::module m) {
     model.def(py::init([](const ov::OutputVector& results,
                           const ov::OutputVector& nodes,
                           const ov::ParameterVector& parameters,
+                          py::object& variables,
                           const std::string& name) {
                   set_tensor_names(parameters);
                   const auto sinks = cast_to_sink_vector(nodes);
-                  auto model = std::make_shared<ov::Model>(results, sinks, parameters, name);
-                  set_correct_variables_for_assign_ops(model, sinks);
+                  std::shared_ptr<ov::Model> model;
+                  if (py::isinstance<py::none>(variables)) {
+                      model = std::make_shared<ov::Model>(results, sinks, parameters, name);
+                      set_correct_variables_for_assign_ops(model, sinks);
+                  } else {
+                      model = std::make_shared<ov::Model>(results,
+                                                          sinks,
+                                                          parameters,
+                                                          variables.cast<ov::op::util::VariableVector>(),
+                                                          name);
+                  }
                   return model;
               }),
               py::arg("results"),
               py::arg("sinks"),
               py::arg("parameters"),
+              py::arg("variables") = py::none(),
               py::arg("name") = "",
               R"(
             Create user-defined Model which is a representation of a model
@@ -295,6 +306,8 @@ void regclass_graph_Model(py::module m) {
             :type sinks: List[openvino.runtime.Output]
             :param parameters: List of parameters.
             :type parameters: List[op.Parameter]
+            :param variables: List of variables.
+            :type variables: List[op.util.Variable]
             :param name: String to set as model's friendly name.
             :type name: str
             )");
@@ -302,16 +315,27 @@ void regclass_graph_Model(py::module m) {
     model.def(py::init([](const ov::ResultVector& results,
                           const ov::OutputVector& nodes,
                           const ov::ParameterVector& parameters,
+                          const py::object& variables,
                           const std::string& name) {
                   set_tensor_names(parameters);
                   const auto sinks = cast_to_sink_vector(nodes);
-                  auto model = std::make_shared<ov::Model>(results, sinks, parameters, name);
-                  set_correct_variables_for_assign_ops(model, sinks);
+                  std::shared_ptr<ov::Model> model;
+                  if (py::isinstance<py::none>(variables)) {
+                      model = std::make_shared<ov::Model>(results, sinks, parameters, name);
+                      set_correct_variables_for_assign_ops(model, sinks);
+                  } else {
+                      model = std::make_shared<ov::Model>(results,
+                                                          sinks,
+                                                          parameters,
+                                                          variables.cast<ov::op::util::VariableVector>(),
+                                                          name);
+                  }
                   return model;
               }),
               py::arg("results"),
               py::arg("sinks"),
               py::arg("parameters"),
+              py::arg("variables") = py::none(),
               py::arg("name") = "",
               R"(
         Create user-defined Model which is a representation of a model
@@ -322,6 +346,8 @@ void regclass_graph_Model(py::module m) {
         :type sinks: List[openvino.runtime.Output]
         :param parameters: List of parameters.
         :type parameters: List[op.Parameter]
+        :param variables: List of variables.
+        :type variables: List[op.util.Variable]
         :param name: String to set as model's friendly name.
         :type name: str
         )");
