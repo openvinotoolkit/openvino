@@ -279,18 +279,17 @@ void regclass_graph_Model(py::module m) {
                           const std::string& name) {
                   set_tensor_names(parameters);
                   const auto sinks = cast_to_sink_vector(nodes);
-                  std::shared_ptr<ov::Model> model;
                   if (py::isinstance<py::none>(variables)) {
-                      model = std::make_shared<ov::Model>(results, sinks, parameters, name);
+                      auto model = std::make_shared<ov::Model>(results, sinks, parameters, name);
                       set_correct_variables_for_assign_ops(model, sinks);
+                      return model;
                   } else {
-                      model = std::make_shared<ov::Model>(results,
-                                                          sinks,
-                                                          parameters,
-                                                          variables.cast<ov::op::util::VariableVector>(),
-                                                          name);
+                      return std::make_shared<ov::Model>(results,
+                                                         sinks,
+                                                         parameters,
+                                                         variables.cast<ov::op::util::VariableVector>(),
+                                                         name);
                   }
-                  return model;
               }),
               py::arg("results"),
               py::arg("sinks"),
@@ -319,18 +318,17 @@ void regclass_graph_Model(py::module m) {
                           const std::string& name) {
                   set_tensor_names(parameters);
                   const auto sinks = cast_to_sink_vector(nodes);
-                  std::shared_ptr<ov::Model> model;
                   if (py::isinstance<py::none>(variables)) {
-                      model = std::make_shared<ov::Model>(results, sinks, parameters, name);
+                      auto model = std::make_shared<ov::Model>(results, sinks, parameters, name);
                       set_correct_variables_for_assign_ops(model, sinks);
+                      return model;
                   } else {
-                      model = std::make_shared<ov::Model>(results,
-                                                          sinks,
-                                                          parameters,
-                                                          variables.cast<ov::op::util::VariableVector>(),
-                                                          name);
+                      return std::make_shared<ov::Model>(results,
+                                                         sinks,
+                                                         parameters,
+                                                         variables.cast<ov::op::util::VariableVector>(),
+                                                         name);
                   }
-                  return model;
               }),
               py::arg("results"),
               py::arg("sinks"),
