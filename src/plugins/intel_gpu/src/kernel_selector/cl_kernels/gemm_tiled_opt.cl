@@ -786,6 +786,12 @@ KERNEL(gemm_tiled_opt)(
         ACCUMULATOR_TYPE_VEC dequantized = TO_ACCUMULATOR_TYPE(ALPHA) * c_tile[write_id];
         #endif // BIAS_TERM
 
+        #if TRANSPOSE_OUTPUT == TRANSPOSE_X_LAST
+        const uint x_pitch = 1;
+        #else
+        const uint x_pitch = output_x_pitch;
+        #endif
+
         #if HAS_FUSED_OPS
             #if FUSED_OPS_CAN_USE_PRELOAD
         FUSED_OPS_CALC_VEC;
@@ -793,9 +799,13 @@ KERNEL(gemm_tiled_opt)(
         FUSED_OPS_VEC;
             #endif // FUSED_OPS_CAN_USE_PRELOAD
         OUTPUT_TYPE_VEC res = FUSED_OPS_RESULT_VEC;
-        BLOCK_WRITE_C(d_ptr, 0, res);
+        unroll_for (uint n_elem = 0; n_elem < B_VEC_SIZE; ++n_elem) {
+            BLOCK_WRITEN(OUTPUT_TYPE, 1, d_ptr, SIMD_WIDTH * n_elem * output_x_pitch, res[n_elem]);
+        }
         #else // HAS_FUSED_OPS
-        BLOCK_WRITE_C(d_ptr, 0, dequantized);
+        unroll_for (uint n_elem = 0; n_elem < B_VEC_SIZE; ++n_elem) {
+            BLOCK_WRITEN(OUTPUT_TYPE, 1, d_ptr, SIMD_WIDTH * n_elem * output_x_pitch, dequantized[n_elem]);
+        }
         #endif // HAS_FUSED_OPS
     #endif // TILE_N_NOT_DIVISIBLE || B_VEC_SIZE == 1
 #endif // IS_DYNAMIC
