@@ -3,7 +3,7 @@
 //
 
 #include "snippets/itt.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "eltwise_to_eltwise_tpp.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 

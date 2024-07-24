@@ -135,7 +135,7 @@ void PortDescriptorUtils::set_port_descriptor_ptr(const ov::Output<ov::Node>& ou
 
 namespace {
 template<typename T>
-void set_port_descriptor(const T& port, std::vector<size_t> subtensor, std::vector<size_t> layout) {
+void set_port_desc(const T& port, std::vector<size_t> subtensor, std::vector<size_t> layout) {
     const auto& shape = port.get_shape();
     for (size_t i = 1; i <= std::min(subtensor.size(), shape.size()); i++) {
         auto& dim = subtensor[subtensor.size() - i];
@@ -147,10 +147,10 @@ void set_port_descriptor(const T& port, std::vector<size_t> subtensor, std::vect
 }  // namespace
 
 void PortDescriptorUtils::set_port_descriptor(const ov::Input<ov::Node>& in, std::vector<size_t> subtensor, std::vector<size_t> layout) {
-    set_port_descriptor(in, subtensor, layout);
+    set_port_desc(in, subtensor, layout);
 }
 void PortDescriptorUtils::set_port_descriptor(const ov::Output<ov::Node>& in, std::vector<size_t> subtensor, std::vector<size_t> layout) {
-    set_port_descriptor(in, subtensor, layout);
+    set_port_desc(in, subtensor, layout);
 }
 
 PortDescriptorPtr PortDescriptorUtils::get_port_descriptor_ptr(const ov::Input<ov::Node>& in) {
