@@ -64,6 +64,9 @@ jobs:
       INSTALL_DIR_JS: "${{ github.workspace }}\\openvino_install\\js"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
+      ARTIFACTS_SHARE: "C:\\mount\\build-artifacts"
+      MANIFEST_PATH: "${{ github.workspace }}\\manifest.yml"
+      PRODUCT_TYPE: 'public_windows_vs2019_release'
       # TODO: specify version of compiler here
     if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
 
@@ -81,6 +84,27 @@ jobs:
           path: 'openvino_contrib'
           ref: 'master'
 
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
+          show-cache-info: 'true'
+
+      - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
+        id: create_manifest
+        uses: ./openvino/.github/actions/create_manifest
+        with:
+          repos: |
+            ${{ env.OPENVINO_REPO }}
+            ${{ env.OPENVINO_CONTRIB_REPO }}
+          product_type: ${{ env.PRODUCT_TYPE }}
+          target_arch: 'intel64'
+          build_type: 'release'
+          save_to: ${{ env.MANIFEST_PATH }}
+
       #
       # Print system info
       #
@@ -91,15 +115,6 @@ jobs:
       #
       # Dependencies
       #
-
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: ./openvino/.github/actions/setup_python
-        with:
-          version: ${{ env.PYTHON_VERSION }}
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
-          self-hosted-runner: 'true'
-          show-cache-info: 'true'
 
       - name: Install python dependencies
         run: |
@@ -239,6 +254,18 @@ jobs:
           name: openvino_js_package
           path: ${{ env.INSTALL_DIR_JS }}
           if-no-files-found: 'error'
+
+      - name: Store artifacts to a shared drive
+        id: store_artifacts
+        if: ${{ always() }}
+        uses: ./openvino/.github/actions/store_artifacts
+        with:
+          artifacts: |
+            ${{ env.BUILD_DIR }}/openvino_package.zip
+            ${{ env.BUILD_DIR }}/openvino_tests.zip
+            ${{ env.MANIFEST_PATH }}
+          storage_dir: ${{ env.PRODUCT_TYPE }}
+          storage_root: ${{ env.ARTIFACTS_SHARE }}
 
   Samples:
     needs: [ Build, Smart_CI ]
