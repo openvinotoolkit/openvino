@@ -76,13 +76,6 @@ protected:
         function = makeNgraphFunction(inType, params, d2s, "DepthToSpace");
     }
 
-#if defined(OPENVINO_ARCH_RISCV64)
-private:
-    std::string getPrimitiveType() {
-        // TODO: Support DepthToSpace op for RISCV64 arch
-        return "ref";
-    }
-#endif
 };
 
 TEST_P(DepthToSpaceLayerCPUTest, CompareWithRefs) {
