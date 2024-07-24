@@ -63,7 +63,6 @@ ov::OutputVector scan_to_tensor_iterator(const ov::OutputVector& node_inputs,
         auto shape = node_inputs[in_idx + in_offset].get_partial_shape();
         if (shape.rank().is_static()) {
             axis = try_normalize_axis_for_static_rank(axis, shape.rank());
-            // axis = common::normalize_axis(node_description, axis, shape.rank());
             shape[axis] = 1;
         } else {
             FRONT_END_GENERAL_CHECK(axis >= 0,
