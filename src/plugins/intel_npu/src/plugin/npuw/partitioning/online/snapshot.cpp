@@ -209,13 +209,11 @@ void Snapshot::fuseRemnants() {
         }
         auto consumers = group->dstNodes();
         if (!consumers.empty()) {
-            std::sort(consumers.begin(),
-                        consumers.end(),
-                        [&](const ade::NodeHandle& nh1, const ade::NodeHandle& nh2) {
-                            Group::GPtr g1 = m_graph->meta(nh1).get<Group::GPtr>();
-                            Group::GPtr g2 = m_graph->meta(nh2).get<Group::GPtr>();
-                            return g1->size() < g2->size();
-                        });
+            std::sort(consumers.begin(), consumers.end(), [&](const ade::NodeHandle& nh1, const ade::NodeHandle& nh2) {
+                Group::GPtr g1 = m_graph->meta(nh1).get<Group::GPtr>();
+                Group::GPtr g2 = m_graph->meta(nh2).get<Group::GPtr>();
+                return g1->size() < g2->size();
+            });
             for (const auto& cons : consumers) {  // FIXME: pick the smallest flops
                 Group::GPtr cons_group = m_graph->meta(cons).get<Group::GPtr>();
                 if (!group->hasCycle(cons_group)) {
@@ -338,36 +336,36 @@ void Snapshot::earlyRegroup() {
 
     for (const auto& isolate : m_ctx.isolates) {
         switch (isolate.type) {
-            case PatternType::OP: {
-                for (const auto& nh : m_graph->sorted()) {
-                    Group::GPtr group = m_graph->meta(nh).get<Group::GPtr>();
-                    // This pass should only be called at the very beginning,
-                    // thus check and match only the single initial layer
-                    if (group->getInitialNode()->description() == isolate.pattern) {
-                        group->isolate(isolate.tag);
-                    }
+        case PatternType::OP: {
+            for (const auto& nh : m_graph->sorted()) {
+                Group::GPtr group = m_graph->meta(nh).get<Group::GPtr>();
+                // This pass should only be called at the very beginning,
+                // thus check and match only the single initial layer
+                if (group->getInitialNode()->description() == isolate.pattern) {
+                    group->isolate(isolate.tag);
                 }
-                break;
             }
-            case PatternType::PATTERN: {
+            break;
+        }
+        case PatternType::PATTERN: {
             // FIXME: refactor as more patterns are supported
-                if (isolate.pattern == "RMSNorm") {
-                    rewr.add_matcher<ov::npuw::patterns::compute::RMSNorm>(shared_from_this(), isolate.tag);
-                    handle_patterns = true;
-                } else if (isolate.pattern == "SwishMul") {
-                    rewr.add_matcher<ov::npuw::patterns::compute::SwishMul>(shared_from_this(), isolate.tag);
-                    handle_patterns = true;
-                } else if (isolate.pattern == "DQMatMulCW") {
-                    rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulCW>(shared_from_this(), isolate.tag);
-                    handle_patterns = true;
-                } else if (isolate.pattern == "DQMatMulGQ") {
-                    rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulGQ>(shared_from_this(), isolate.tag);
-                    handle_patterns = true;
-                } else {
-                    LOG_WARN("OPENVINO_NPUW_ISOLATE only supports RMSNorm, SwishMul, DQMatMulCW, DQMatMulGQ "
-                            << "as patterns. Isolate pattern " << isolate.pattern << " is skipped!");
-                }
+            if (isolate.pattern == "RMSNorm") {
+                rewr.add_matcher<ov::npuw::patterns::compute::RMSNorm>(shared_from_this(), isolate.tag);
+                handle_patterns = true;
+            } else if (isolate.pattern == "SwishMul") {
+                rewr.add_matcher<ov::npuw::patterns::compute::SwishMul>(shared_from_this(), isolate.tag);
+                handle_patterns = true;
+            } else if (isolate.pattern == "DQMatMulCW") {
+                rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulCW>(shared_from_this(), isolate.tag);
+                handle_patterns = true;
+            } else if (isolate.pattern == "DQMatMulGQ") {
+                rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulGQ>(shared_from_this(), isolate.tag);
+                handle_patterns = true;
+            } else {
+                LOG_WARN("OPENVINO_NPUW_ISOLATE only supports RMSNorm, SwishMul, DQMatMulCW, DQMatMulGQ "
+                         << "as patterns. Isolate pattern " << isolate.pattern << " is skipped!");
             }
+        }
         }
     }
 
@@ -484,7 +482,7 @@ std::shared_ptr<Repeated> Snapshot::tryMergeTriangles(const GPtrSet& repeating_g
     const auto& this_special = first_rep_group->specialTags();
 
     if (repeating_groups.size() < 2) {
-        return nullptr;
+        return {};
     }
 
     std::unordered_map<std::vector<MetaInterconnect>, std::unordered_map<Group::GPtr, std::unordered_set<Group::GPtr>>>
@@ -575,7 +573,7 @@ std::shared_ptr<Repeated> Snapshot::tryMergeTriangles(const GPtrSet& repeating_g
 
     // As this set of passes ignores `excluded` groups, dont exclude here too
 
-    return nullptr;
+    return {};
 }
 
 std::shared_ptr<Repeated> Snapshot::tryMergeTriangles(const std::vector<Group::GPtr>& prods,
@@ -587,7 +585,7 @@ std::shared_ptr<Repeated> Snapshot::tryMergeTriangles(const std::vector<Group::G
     }
 
     if (prods.size() < 2) {
-        return nullptr;
+        return {};
     }
 
     // In this special case we only assume
@@ -596,11 +594,11 @@ std::shared_ptr<Repeated> Snapshot::tryMergeTriangles(const std::vector<Group::G
     // 2. All consumers have a single consumer itself
     for (const auto& cons : conss) {
         if (cons.size() != conss.front().size()) {
-            return nullptr;
+            return {};
         }
         for (const auto& el : cons) {
             if (el->dstNodes().size() > 1 || el->srcNodes().size() > 1) {
-                return nullptr;
+                return {};
             }
         }
     }
@@ -771,7 +769,7 @@ std::shared_ptr<Repeated> Snapshot::tryGrowRepeatingGroups(const GPtrSet& repeat
     // No merges happened at all? Exclude this group from the merge procedure and indicate via return value.
     this_rep_tag->exclude();
 
-    return nullptr;
+    return {};
 }
 
 std::shared_ptr<Repeated> Snapshot::tryMergeRepeating(const std::vector<Group::GPtr>& prods,
@@ -783,7 +781,7 @@ std::shared_ptr<Repeated> Snapshot::tryMergeRepeating(const std::vector<Group::G
     }
 
     if (conss.size() == 1) {
-        return nullptr;
+        return {};
     }
 
     std::unordered_set<Group::GPtr> prods_set;
@@ -801,7 +799,7 @@ std::shared_ptr<Repeated> Snapshot::tryMergeRepeating(const std::vector<Group::G
         //
         // In this method we get [ A1, A1, A2, A2 ] as prods what is not very correct
         // but this check using std::set reverts it back to the proper [ A1, A2 ] form and the check fails
-        return nullptr;
+        return {};
     }
 
     for (const auto& cons : conss) {

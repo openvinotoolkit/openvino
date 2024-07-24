@@ -26,7 +26,7 @@ public:
     RMSNorm(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& avoid_device);
 };
 
-}  // namesapce avoid
+}  // namespace avoid
 }  // namespace patterns
 }  // namespace npuw
 }  // namespace ov

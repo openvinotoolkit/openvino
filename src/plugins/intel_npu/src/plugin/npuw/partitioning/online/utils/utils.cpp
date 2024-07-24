@@ -44,14 +44,14 @@ std::string ov::npuw::online::util::repeated_id(const std::shared_ptr<Repeated>&
     return ss.str();
 }
 
-std::tuple<ov::npuw::online::PatternType, std::string, std::string> ov::npuw::online::util::parse(const std::string& s) {
+std::tuple<ov::npuw::online::PatternType, std::string, std::string> ov::npuw::online::util::parse(
+    const std::string& s) {
     auto pos_col = s.find(':');
     auto pos_sl = s.find('/');
 
     if (pos_col == std::string::npos || pos_sl == std::string::npos) {
         LOG_WARN("Incorrect pattern in OPENVINO_NPUW_AVOID or OPENVINO_NPUW_ISOLATE: "
-                 << s << ". Please, separate a device or tag with / and pattern type with :, e.g. Op:Select/NPU,P:RMSNorm/NPU or "
-                 << "Op:Select/compute2,P:DQMatMulGQ/compute,P:DQMatMulCW/compute,P:SwishMul/compute,P:RMSNorm/compute."
+                 << s << ". Please, separate a device or tag with / and pattern type with :."
                  << " Rule " << s << " is ommited!");
         return {};
     }
@@ -63,8 +63,6 @@ std::tuple<ov::npuw::online::PatternType, std::string, std::string> ov::npuw::on
     if (type != "Op" && type != "P") {
         LOG_WARN("Incorrect pattern type in OPENVINO_NPUW_AVOID or OPENVINO_NPUW_ISOLATE: "
                  << type << ". Please, use either Op for operation or P for pattern."
-                 << " E.g. Op:Select/NPU,P:RMSNorm/NPU or "
-                 << "Op:Select/compute2,P:DQMatMulGQ/compute,P:DQMatMulCW/compute,P:SwishMul/compute,P:RMSNorm/compute."
                  << " Rule " << s << " is ommited!");
         return {};
     }

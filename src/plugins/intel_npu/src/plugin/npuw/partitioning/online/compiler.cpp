@@ -198,7 +198,8 @@ std::vector<std::string> getNoFolds(const std::string& nofolds_unparsed) {
 void setComputeConfig(PassContext& ctx) {
     ctx.keep_blocks = 30;
     ctx.keep_block_size = 2;
-    ctx.isolates = detail::getIsolates("P:DQMatMulGQ/compute,P:DQMatMulCW/compute,P:SwishMul/compute,P:RMSNorm/compute");
+    ctx.isolates =
+        detail::getIsolates("P:DQMatMulGQ/compute,P:DQMatMulCW/compute,P:SwishMul/compute,P:RMSNorm/compute");
     ctx.nofolds = detail::getNoFolds("compute");
 }
 
