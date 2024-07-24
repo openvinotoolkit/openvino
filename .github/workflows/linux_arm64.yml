@@ -18,6 +18,7 @@ permissions: read-all
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
   PYTHON_VERSION: '3.11'
+  OPENVINO_SHA: '' # Change to collect artifacts from other hash than the current head
 
 jobs:
   Smart_CI:
@@ -115,6 +116,7 @@ jobs:
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
+          ref: ${{ env.OPENVINO_SHA }}
 
       - name: Clone OpenVINO Contrib
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
@@ -135,6 +137,7 @@ jobs:
           target_arch: 'aarch64'
           build_type: 'release'
           save_to: ${{ env.MANIFEST_PATH }}
+          trigger_repo_sha: ${{ env.OPENVINO_SHA }}
 
       #
       # Print system info
@@ -321,6 +324,7 @@ jobs:
             ${{ env.MANIFEST_PATH }}
           storage_dir: ${{ env.PRODUCT_TYPE }}
           storage_root: ${{ env.ARTIFACTS_SHARE }}
+          trigger_repo_sha: ${{ env.OPENVINO_SHA }}
 
   Debian_Packages:
     name: Debian Packages

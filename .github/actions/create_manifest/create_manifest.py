@@ -50,7 +50,7 @@ def get_repo_data(repo_dir: str | Path) -> dict:
 
     branch = os.getenv('GITHUB_REF') if is_trigger_repo else repo.references[0].name
     target_branch = os.getenv('GITHUB_BASE_REF') if is_trigger_repo else None
-    revision = os.getenv('PR_HEAD_SHA') or os.getenv('GITHUB_SHA') if is_trigger_repo else repo.head.commit.hexsha
+    revision = os.getenv('TRIGGER_REPO_SHA') if is_trigger_repo else repo.head.commit.hexsha
     target_revision = os.getenv('BASE_SHA') if is_trigger_repo else None
     # Commit time of a merge commit (in case of PR merged to target)
     # TODO: Save commit time of a head commit in PR as well?
