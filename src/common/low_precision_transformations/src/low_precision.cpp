@@ -189,7 +189,7 @@ MarkupOptimizations::MarkupOptimizations(
 
 bool ov::pass::low_precision::MarkupOptimizations::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(MarkupOptimizations);
-    ov::pass::Manager markup(get_pass_config());
+    ov::pass::Manager markup(get_pass_config(), "LPT:MarkupOptimizations");
     markup.set_per_pass_validation(false);
     markup.register_pass<low_precision::MarkupCanBeQuantized>(params.defaultPrecisions);
     if (!precisionRestrictions.empty()) {
@@ -216,7 +216,7 @@ bool ov::pass::low_precision::LowPrecision::run_on_model(const std::shared_ptr<o
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::LPT_LT, "LowPrecision");
 
     auto passConfig = get_pass_config();
-    ov::pass::Manager manager(passConfig);
+    ov::pass::Manager manager(passConfig, "LowPrecision");
 
     auto prerequisites = manager.register_pass<ov::pass::GraphRewrite>();
     const std::vector<ov::element::Type> supportedTypes = {ov::element::i8, ov::element::u8};

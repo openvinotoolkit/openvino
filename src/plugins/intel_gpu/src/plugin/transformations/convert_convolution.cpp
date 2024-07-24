@@ -227,7 +227,7 @@ ConvolutionMatcher::ConvolutionMatcher() {
 }
 
 bool ConvertConvolutionToInternal::run_on_model(const std::shared_ptr<ov::Model>& m) {
-    ov::pass::Manager manager;
+    ov::pass::Manager manager("ConvertConvolutionToInternal");
     auto pass_config = manager.get_pass_config();
     manager.set_per_pass_validation(false);
     manager.register_pass<AsymmetricConvolutionMatcher>();

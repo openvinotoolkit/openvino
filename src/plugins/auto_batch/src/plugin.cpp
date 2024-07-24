@@ -162,7 +162,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         const bool check_dims = (enable_tput_plugin || enable_tput_cfg);
         // find the batch dim
         auto cloned_model = model->clone();
-        ov::pass::Manager pass_manager;
+        ov::pass::Manager pass_manager("Plugin:AutoBatch");
         pass_manager.register_pass<ov::pass::InitNodeInfo>();
         pass_manager.register_pass<ov::pass::FindBatch>(false, check_dims);
         pass_manager.run_passes(cloned_model);

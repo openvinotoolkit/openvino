@@ -29,7 +29,7 @@ namespace intel_cpu {
 inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model> &nGraphFunc, int subStreamNum) {
     RUN_ON_FUNCTION_SCOPE(ConvertToCPUSpecificOpset);
 
-    ov::pass::Manager manager;
+    ov::pass::Manager manager("CPU:ConvertToCPUSpecificOpset");
     manager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(manager, ConvertMatMulToFC);
     CPU_REGISTER_PASS_X64(manager, MoveFCReshapeToWeights);

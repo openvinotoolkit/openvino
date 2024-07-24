@@ -375,7 +375,7 @@ bool ov::snippets::pass::CommonFakeQuantizeDecomposition::is_supported_fq(const 
 
 bool ov::snippets::pass::CommonFakeQuantizeDecomposition::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(CommonFakeQuantizeDecomposition);
-    ov::pass::Manager manager;
+    ov::pass::Manager manager("Snippets:CommonFakeQuantizeDecomposition");
     manager.set_per_pass_validation(false);
     manager.register_pass<ov::snippets::pass::FakeQuantizeDecomposition>();
     manager.register_pass<ov::pass::ConstantFolding>();

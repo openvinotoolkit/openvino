@@ -5,11 +5,13 @@
 #include "openvino/pass/manager.hpp"
 
 #include <algorithm>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
+#include <utility>
 
 #include "itt.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
@@ -36,35 +38,72 @@ PerfCounters& perf_counters() {
 #endif  // ENABLE_PROFILING_ITT
 
 namespace {
-bool getenv_visualize_tracing() {
-    return ov::util::getenv_bool("OV_ENABLE_VISUALIZE_TRACING");
-}
-}  // namespace
 
-ov::pass::Manager::Manager() : m_pass_config(std::make_shared<PassConfig>()), m_visualize(getenv_visualize_tracing()) {}
+/**
+ * @brief EnvVar gets the environment variable value by name.
+ * It tries to interpret the value as boolean, if it fails then
+ * the original string value is stored. This behavior helps us to reduce the number
+ * of the additional env variables.
+ *
+ * Example of usage:
+ * if OV_ENABLE_PROFILE_PASS is true, it enables console output.
+ * if OV_ENABLE_PROFILE_PASS contains a path to file (string), the out logs
+ * will be re-directed to the file.
+ */
+class EnvVar {
+public:
+    explicit EnvVar(const std::string& var) {
+        const auto& val = ov::util::getenv_string(var.c_str());
+        std::set<std::string> off = {"0", "false", "off"};
+        std::set<std::string> on = {"1", "true", "on"};
 
-ov::pass::Manager::~Manager() = default;
+        if (off.count(val)) {
+            m_is_bool = true;
+        } else if (on.count(val)) {
+            m_is_bool = true;
+            b_value = true;
+        } else {
+            s_value = val;
+        }
+    }
 
-ov::pass::Manager::Manager(std::shared_ptr<ov::pass::PassConfig> pass_config)
-    : m_pass_config(std::move(pass_config)),
-      m_visualize(getenv_visualize_tracing()) {}
+    /**
+     * @brief This ctor helps to activate/deactivate EnvVar from the code.
+     */
+    explicit EnvVar(const std::string& var, bool activate) {
+        m_is_bool = true;
+        b_value = activate;
+    }
 
-void ov::pass::Manager::set_per_pass_validation(bool new_state) {
-    m_per_pass_validation = new_state;
-}
+    bool is_enabled() const {
+        return b_value || !s_value.empty();
+    }
 
-namespace {
+    bool is_bool() const {
+        return m_is_bool;
+    }
+
+    std::string get_str() const {
+        return s_value;
+    }
+
+private:
+    bool m_is_bool = false;
+    bool b_value = false;
+    std::string s_value;
+};
+
 class stopwatch {
 public:
     void start() {
-        if (m_active == false) {
+        if (!m_active) {
             m_active = true;
             m_start_time = m_clock.now();
         }
     }
 
     void stop() {
-        if (m_active == true) {
+        if (m_active) {
             auto end_time = m_clock.now();
             m_last_time = end_time - m_start_time;
             m_active = false;
@@ -89,89 +128,174 @@ private:
     bool m_active = false;
     std::chrono::nanoseconds m_last_time = std::chrono::high_resolution_clock::duration::zero();
 };
+
+class Profiler {
+public:
+    explicit Profiler(std::string manager_name)
+        : m_visualize("OV_ENABLE_VISUALIZE_TRACING"),
+          m_serialize("OV_ENABLE_SERIALIZE_PASS"),
+          m_profile_pass("OV_ENABLE_PROFILE_PASS"),
+          m_manager_name(std::move(manager_name)) {
+        if (m_profile_pass.is_enabled() && !m_profile_pass.is_bool()) {
+            m_file.open(m_profile_pass.get_str(), std::ios_base::app);
+        }
+    }
+
+    ~Profiler() {
+        if (m_file.is_open()) {
+            m_file.close();
+        }
+    }
+
+    void start_timer(const std::string& name) {
+        if (m_profile_pass.is_enabled()) {
+            stopwatches[name] = stopwatch();
+            stopwatches[name].start();
+
+            bool is_pass_manager = name == m_manager_name;
+            if (is_pass_manager) {
+                std::cout << "PassManager " << m_manager_name << " started: " << std::endl;
+            }
+        }
+    }
+
+    void stop_timer(const std::string& name, bool applied) {
+        if (m_profile_pass.is_enabled()) {
+            auto& stopwatch = stopwatches.at(name);
+            stopwatch.stop();
+
+            bool is_pass_manager = name == m_manager_name;
+            if (m_profile_pass.is_bool()) {
+                if (is_pass_manager) {
+                    std::cout << "PassManager: ";
+                } else {
+                    std::cout << "Transformation: ";
+                }
+                std::cout << name << " " << stopwatch.get_milliseconds() << "ms " << (applied ? "+" : "-") << std::endl;
+            } else if (m_file.is_open()) {
+                if (is_pass_manager) {
+                    m_file << "m;" << name << ";" << stopwatch.get_timer_value().count() << ";" << (applied ? "1" : "0")
+                           << std::endl;
+                } else {
+                    m_file << "t;" << name << ";" << m_manager_name << ";" << stopwatch.get_timer_value().count() << ";"
+                           << (applied ? "1" : "0") << std::endl;
+                }
+            }
+        }
+    }
+
+    void visualize(const shared_ptr<ov::Model>& model, const std::string& pass_name) const {
+        static size_t viz_index = 0;
+        if (m_visualize.is_enabled()) {
+            const auto& filter = m_visualize.get_str();
+            if (m_visualize.is_bool() || (pass_name.find(filter) != std::string::npos)) {
+                const auto& file_name = gen_file_name(model->get_name(), pass_name, viz_index++);
+                ov::pass::VisualizeTree vt(file_name + ".svg");
+                vt.run_on_model(model);
+            }
+        }
+    }
+
+    void serialize(const shared_ptr<ov::Model>& model, const std::string& pass_name) const {
+        static size_t serialize_index = 0;
+        if (m_serialize.is_enabled()) {
+            const auto& filter = m_serialize.get_str();
+            if (m_serialize.is_bool() || (pass_name.find(filter) != std::string::npos)) {
+                const auto& file_name = gen_file_name(model->get_name(), pass_name, serialize_index++);
+                ov::pass::Serialize serialize(file_name + ".xml", file_name + ".bin");
+                serialize.run_on_model(model);
+            }
+        }
+    }
+
+private:
+    static std::string gen_file_name(const std::string& model_name, const std::string& pass_name, const size_t idx) {
+        std::stringstream name;
+        // visualizations and serializations will be named after the outermost function
+        const size_t num_digits_in_pass_index = 3;
+        std::string index_str = std::to_string(idx);
+        index_str = std::string(num_digits_in_pass_index - index_str.length(), '0') + index_str;
+
+        name << model_name << std::string("_") << index_str << std::string("_") << pass_name;
+        return name.str();
+    }
+
+    std::unordered_map<std::string, stopwatch> stopwatches;
+
+    EnvVar m_visualize;
+    EnvVar m_serialize;
+    EnvVar m_profile_pass;
+
+    std::string m_manager_name;
+    std::fstream m_file;
+};
+
 }  // namespace
 
-bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
+ov::pass::Manager::Manager() : m_pass_config(std::make_shared<PassConfig>()) {}
+
+ov::pass::Manager::~Manager() = default;
+
+ov::pass::Manager::Manager(std::string name) : m_pass_config(std::make_shared<PassConfig>()), m_name(std::move(name)) {}
+
+ov::pass::Manager::Manager(std::shared_ptr<ov::pass::PassConfig> pass_config, std::string name)
+    : m_pass_config(std::move(pass_config)),
+      m_name(std::move(name)) {}
+
+void ov::pass::Manager::set_per_pass_validation(bool new_state) {
+    m_per_pass_validation = new_state;
+}
+
+bool ov::pass::Manager::run_passes(const shared_ptr<ov::Model>& model) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "pass::Manager::run_passes");
+    Profiler profiler(m_name);
 
-    static bool profile_enabled = ov::util::getenv_bool("OV_PROFILE_PASS_ENABLE");
+    bool model_changed = false;
+    bool pass_changed_model = false;
 
-    size_t index = 0;
-    stopwatch pass_timer;
-    stopwatch overall_timer;
-    overall_timer.start();
-    bool pass_applied = false;
-    bool function_changed = false;
-    bool needs_validate = false;
-    for (auto& pass : m_pass_list) {
-        if (m_pass_config->is_disabled(pass->get_type_info())) {
-            OPENVINO_DEBUG("Pass ", pass->get_name(), " is disabled");
-            continue;
-        }
+    profiler.start_timer(m_name);
+    for (const auto& pass : m_pass_list) {
+        const auto& pass_name = pass->get_name();
 
-        OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ov_pass, ov::pass::perf_counters()[pass->get_type_info()]);
+        profiler.start_timer(pass_name);
+        pass_changed_model = run_pass(pass, model, pass_changed_model);
+        profiler.stop_timer(pass_name, pass_changed_model);
 
-        pass_timer.start();
+        model_changed = model_changed || pass_changed_model;
 
-        if (auto matcher_pass = dynamic_pointer_cast<MatcherPass>(pass)) {
-            // This checks is to skip the graph transformation when the graph pass relies on
-            // static shape but the function state is dynamic.
-            if (matcher_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic()) {
-                OPENVINO_DEBUG("Pass ",
-                               pass->get_name(),
-                               " requires static shape but the "
-                               "model is dynamic. Skipping this transformation");
-                continue;
-            }
-            // GraphRewrite is a temporary container for MatcherPass to make execution
-            // on on entire ov::Model
-            pass_applied = GraphRewrite(matcher_pass).run_on_model(func);
-        } else if (auto function_pass = dynamic_pointer_cast<ModelPass>(pass)) {
-            // This checks is to skip the graph transformation when the graph pass relies on
-            // static shape but the function state is dynamic.
-            if (function_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic()) {
-                OPENVINO_DEBUG("Pass ",
-                               pass->get_name(),
-                               " requires static shape but the "
-                               "model is dynamic. Skipping this transformation");
-                continue;
-            }
-
-            if (dynamic_pointer_cast<Validate>(pass)) {
-                if (needs_validate) {
-                    function_pass->run_on_model(func);
-                    needs_validate = false;
-                }
-            } else {
-                pass_applied = function_pass->run_on_model(func);
-            }
-        }
-
-        if (m_visualize) {
-            // visualizations and serializations will be named after the outermost function
-            const size_t num_digits_in_pass_index = 3;
-            std::string index_str = std::to_string(index);
-            index_str = std::string(num_digits_in_pass_index - index_str.length(), '0') + index_str;
-            auto base_filename = func->get_name() + std::string("_") + index_str + std::string("_") + pass->get_name();
-
-            if (m_visualize) {
-                auto file_ext = "svg";
-                pass::VisualizeTree vt(base_filename + std::string(".") + file_ext);
-                vt.run_on_model(func);
-            }
-        }
-        index++;
-        pass_timer.stop();
-        if (profile_enabled) {
-            cout << setw(7) << pass_timer.get_milliseconds() << "ms" << (pass_applied ? " + " : "   ")
-                 << pass->get_name() << "\n";
-        }
-        function_changed = function_changed || pass_applied;
-        needs_validate = pass_applied;
+        profiler.visualize(model, pass_name);
+        profiler.serialize(model, pass_name);
     }
-    if (profile_enabled) {
-        cout << "passes done in " << overall_timer.get_milliseconds() << "ms\n";
+    profiler.stop_timer(m_name, model_changed);
+
+    return model_changed;
+}
+
+bool ov::pass::Manager::run_pass(const std::shared_ptr<PassBase>& pass,
+                                 const std::shared_ptr<Model>& model,
+                                 bool needs_validate) {
+    if (m_pass_config->is_disabled(pass->get_type_info())) {
+        OPENVINO_DEBUG("Pass ", pass->get_name(), " is disabled.");
+        return false;
     }
 
-    return function_changed;
+    // This checks if we need to skip the graph transformation when the graph pass relies on
+    // static shape but the model state is dynamic.
+    if (pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && model->is_dynamic()) {
+        OPENVINO_DEBUG("Pass ",
+                       pass->get_name(),
+                       " requires static shape but the ",
+                       "model is dynamic. Skipping this transformation.");
+        return false;
+    }
+
+    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ov_pass, ov::pass::perf_counters()[pass->get_type_info()]);
+
+    if (auto matcher_pass = dynamic_pointer_cast<MatcherPass>(pass)) {
+        // GraphRewrite is a temporary container for MatcherPass to make execution on entire ov::Model
+        return GraphRewrite(matcher_pass).run_on_model(model);
+    } else if (auto model_pass = dynamic_pointer_cast<ModelPass>(pass)) {
+        return model_pass->run_on_model(model);
+    }
+    return false;
 }

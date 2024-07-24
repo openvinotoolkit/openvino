@@ -21,7 +21,7 @@ ov::pass::low_precision::AlignQuantizationParameters::AlignQuantizationParameter
 
 bool ov::pass::low_precision::AlignQuantizationParameters::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(AlignQuantizationParameters);
-    ov::pass::Manager manager;
+    ov::pass::Manager manager("LPT:AlignQuantizationParameters");
     manager.set_per_pass_validation(false);
     std::shared_ptr<ov::pass::GraphRewrite> propagation = manager.register_pass<ov::pass::GraphRewrite>();
     propagation->add_matcher<low_precision::CreateAttribute<QuantizationAlignmentAttribute>>();

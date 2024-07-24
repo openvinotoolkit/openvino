@@ -353,7 +353,7 @@ pass::SimplifySecondInputOfReshape::SimplifySecondInputOfReshape() {
 
 bool pass::SimplifyShapeOfSubGraph::run_on_model(const std::shared_ptr<Model>& f) {
     RUN_ON_FUNCTION_SCOPE(SimplifyShapeOfSubGraph);
-    Manager manager(get_pass_config());
+    Manager manager(get_pass_config(), "SimplifyShapeOfSubGraph");
     manager.set_per_pass_validation(false);
 
     REGISTER_PASS(manager, PrepareShapeOpsForEliminationAroundBE)
