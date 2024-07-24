@@ -31,22 +31,19 @@ BroadcastTransformation::BroadcastTransformation(const Params& params) : Transpa
 }
 
 bool BroadcastTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<ov::Node> layer) const {
-    if (layer->get_friendly_name() == "model/bidirectional/backward_lstm_1/zeros_1") {
-        std::cout << "BroadcastTransformation::canBeTransformed: " << layer->get_friendly_name() << std::endl;
-    }
     if (!LayerTransformation::canBeTransformed(context, layer)) {
         return false;
     }
 
     const auto& dequantization = NetworkHelper::getDequantization(layer, defaultPrecisions);
     if (dequantization.multiply != nullptr) {
-        if (!NetworkHelper::isScalarLike(dequantization.multiplyConstant)) {
+        if (!dequantization.isPerTensor()) {
             return false;
         }
     }
 
     if (dequantization.subtract != nullptr) {
-        if (!NetworkHelper::isScalarLike(dequantization.subtractConstant)) {
+        if (!dequantization.isPerTensor()) {
             return false;
         }
     }

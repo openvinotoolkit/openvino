@@ -11,6 +11,7 @@
 
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset2.hpp"
+#include "openvino/opsets/opset3.hpp"
 #include "openvino/opsets/opset4.hpp"
 #include "openvino/opsets/opset5.hpp"
 #include "openvino/opsets/opset6.hpp"
@@ -153,6 +154,7 @@ bool ov::pass::low_precision::MarkupPrecisions::isPrecisionPreserved(const std::
         // TODO: there are conditions
         { name<opset2::BatchToSpace>() },
         { name<opset1::Broadcast>() },
+        { name<opset3::Broadcast>() },
         { name<opset1::Pad>() },
         { name<ov::opset12::Pad>() },
         { name<opset1::Reshape>() },
