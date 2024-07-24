@@ -16,9 +16,16 @@ file(GLOB LIBRARY_SOURCES_OCL
     "${CMAKE_CURRENT_SOURCE_DIR}/ocl/*.cpp"
 )
 
+file(GLOB LIBRARY_SOURCES_LEVEL_ZERO
+    "${CMAKE_CURRENT_SOURCE_DIR}/level_zero/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/level_zero/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/level_zero/*.cpp"
+)
+
 set(LIBRARY_SOURCES_ALL
     ${LIBRARY_SOURCES_MAIN}
     ${LIBRARY_SOURCES_OCL}
+    ${LIBRARY_SOURCES_LEVEL_ZERO}
   )
 
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SOURCES_ALL})
@@ -50,6 +57,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     OpenCL::OpenCL
     openvino::itt
     openvino::runtime::dev
+    ze_loader
   )
 
 if(ENABLE_ONEDNN_FOR_GPU)

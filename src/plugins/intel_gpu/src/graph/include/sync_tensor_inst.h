@@ -59,6 +59,8 @@ public:
     typed_primitive_inst(network& network) : parent(network) {}
     void update_output_memory() override;
 
+    memory::ptr sync_memory() const { return dep_memory_ptr(0); } // input memory for sync_tensor
+
 protected:
     void on_execute() override;
 };

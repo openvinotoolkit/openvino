@@ -13,12 +13,14 @@ namespace op {
 
 SyncTensor::SyncTensor(const ov::element::Type output_type) : ov::op::Op() {
     set_output_size(1);
+    std::cout << "[sync_tensor] SyncTensor ctor set_output_size to 1" << std::endl;
     m_output_type = output_type;
     validate_and_infer_types();
 }
 
 SyncTensor::SyncTensor(const size_t world_size) : ov::op::Op() {
     m_world_size = world_size;
+    std::cout << "[sync_tensor] SyncTensor ctor m_world_size: " << m_world_size << std::endl;
     validate_and_infer_types();
 }
 
@@ -30,6 +32,7 @@ SyncTensor::SyncTensor(const Output<Node>& input,
             m_world_size(world_size),
             m_split_dimension(split_dimension) {
     set_output_size(m_world_size); // 2 outputs for now
+    std::cout << "[sync_tensor] SyncTensor ctor, set to 2? m_world_size: " << m_world_size << std::endl;
     m_output_type = output_type;
     m_tp_mode = tp_mode;
     validate_and_infer_types();

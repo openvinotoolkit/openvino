@@ -7,6 +7,8 @@
 #include "sync_tensor_inst.h"
 #include "sync_tensor/sync_tensor_kernel_selector.h"
 #include "sync_tensor/sync_tensor_kernel_ref.h"
+#include "runtime/level_zero/ocl_context.h"
+#include "runtime/level_zero/lz_context.h"
 
 
 namespace cldnn {
@@ -53,25 +55,80 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
         parent::load(ib);
     }
 
+    void get_contexts(sync_tensor_inst& instance, oclContext& oclctx, lzContext& lzctx) {
+        std::cout << "[gpu_p2p] start " << std::endl;
+
+        auto cldnnDevice = instance.get_network().get_engine().get_device();
+        auto oclDevice = std::dynamic_pointer_cast<ocl::ocl_device>(cldnnDevice);
+        auto clDevice = oclDevice->get_device();
+        cl_device_id device_id = clDevice();
+
+        int device_idx = oclctx.get_device_idx(device_id);
+
+        std::cout << "[gpu_p2p] create oclctx " << std::endl;
+        oclctx.init(device_idx);
+        std::cout << "[gpu_p2p] create lzContext " << std::endl;
+        lzctx.initZe(device_idx);
+    }
+
+    void* create_lz_buff(oclContext& oclctx, lzContext& lzctx, void* buff, size_t elemCount, uint32_t length) {
+        std::cout << "[gpu_p2p] create_lz_buff " << std::endl;
+
+        std::vector<float> initBuf(elemCount, 0);
+        if (buff != nullptr && length > 0) {
+            uint8_t* buff_ptr = static_cast<uint8_t*>(buff);
+
+            std::cout << "[-->] sync_tensor_impl orig buff_ptr ================ " << std::endl;
+            for (size_t i = 0; i < length; i++) {
+                std::cout << "[gpu_p2p] buff_ptr[" << i << "] = " << buff_ptr[i] << std::endl;
+            }
+
+            for (size_t i = 0; i < length; i++) {
+                initBuf[i] = buff_ptr[i];
+                std::cout << "[gpu_p2p] initBuf[" << i << "] = " << initBuf[i] << std::endl;
+            }
+        }
+        cl_mem clbuf = oclctx.createBuffer(elemCount * sizeof(float), initBuf);
+        std::cout << "[gpu_p2p] printBuffer " << std::endl;
+        oclctx.printBuffer(clbuf);
+
+        // derive the dma-buf handles from opencl buffers
+        std::cout << "[gpu_p2p] create handle " << std::endl;
+        uint64_t handle = oclctx.deriveHandle(clbuf);
+
+        std::cout << "[gpu_p2p] create lz buff " << std::endl;
+        void *lzptr = lzctx.createFromHandle(handle, elemCount * sizeof(float));
+        lzctx.printBuffer(lzptr);
+
+        std::cout << "[gpu_p2p] printBuffer " << std::endl;
+        oclctx.printBuffer(clbuf);
+        // oclctx.freeBuffer(clbuf);
+
+        return lzptr;
+    }
+
     event::ptr execute_impl(const std::vector<event::ptr>& events, sync_tensor_inst& instance) override {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "sync_tensor::execute_impl");
         auto& stream = instance.get_network().get_stream();
         std::cout << "[sync_tensor_impl] ocl execute_impl" << std::endl;
 
         const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
-        std::cout << "[sync_tensor_impl] ocl execute_impl: pass_through_events? " << pass_through_events << std::endl;
-
         if (!pass_through_events) {
             for (auto e : events) {
                 e->wait();
             }
         }
         stream.finish();
+
+        // auto sync_memory = instance.sync_memory();
+        // mem_lock<ov::element_type_traits<data_types::f16>::value_type, mem_lock_type::read> lock{std::move(sync_memory), stream};
+        // auto sync_mem = lock.begin();
+        // auto sync_i = static_cast<float>(sync_mem[0]);
+        // std::cout << "[sync_tensor_impl] ocl execute_impl sync_i: " << sync_i << std::endl;
+
         auto sub_mem_mgr = instance.get_network().get_sub_mem_mgr();
         auto w_rank = instance.get_network().get_program()->get_config().subStreamExecConfig.get_rank()[0];
-        std::cout << "[-->] sync_tensor_impl execute_impl w_rank: " << w_rank << std::endl;
         auto w_size = instance.get_network().get_program()->get_config().get_context_for_tp().size();
-        std::cout << "[-->] sync_tensor_impl execute_impl w_size: " << w_size << std::endl;
         auto id = sub_mem_mgr->get_memory_id(w_rank);
         std::cout << "[-->] sync_tensor_impl execute_impl w_rank: " << w_rank << ", id: " << id << std::endl;
         sub_mem_mgr->set_memory_used(id, w_rank);
@@ -87,10 +144,21 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
                 break;
             }
         }
-        sub_mem_mgr->_memorys_table[id][w_rank].send_buf = instance.output_memory(w_rank).buffer_ptr();
-        std::cout << "[-->] sync_tensor_impl get send_buf w_rank: " << w_rank << std::endl;
+
+        auto buff = instance.output_memory(w_rank).buffer_ptr();
+        auto length = instance.output_memory(w_rank).size();
+        std::cout << "[-->] sync_tensor_impl w_rank: " << w_rank << ", length: " << length << std::endl;
+        oclContext oclctx;
+        lzContext lzctx;
+        size_t elemCount = 1024 * 1024;
+        get_contexts(instance, oclctx, lzctx);
+        void *lz_buff = create_lz_buff(oclctx, lzctx, buff, elemCount, length);
+        sub_mem_mgr->_memorys_table[id][w_rank].send_buf = lz_buff;
+        std::cout << "[-->] sync_tensor_impl w_rank: " << w_rank << ", send_buf: " << lz_buff << std::endl;
+        // auto sync_mem_ptr = instance.output_memory_ptr(w_rank);
+        // bool is_cl_mem = sync_mem_ptr->get_allocation_type() == allocation_type::cl_mem;
+        // std::cout << "[-->] sync_tensor_impl w_rank: " << w_rank << ", is_cl_mem: " << is_cl_mem << std::endl;
         sub_mem_mgr->_memorys_table[id][w_rank].flag = true;
-        std::cout << "[-->] sync_tensor_impl w_rank: " << w_rank << ", set flag true " << std::endl;
         std::vector<int> wait_list(w_size, 1);
         wait_list[w_rank] = 0; // no need to wait for itself
         while (true) {
@@ -99,12 +167,18 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
                 if (idx != w_rank && wait_list[idx] > 0 && sub_mem_mgr->_memorys_table[id][idx].flag) {
                     // auto src_ptr = static_cast<uint8_t*>(sub_mem_mgr->_memorys_table[id][idx].send_buf);
                     // auto dst_ptr = instance.output_memory(idx).buffer_ptr();
-                    std::cout << "[-->] sync_tensor_impl w_rank: " << w_rank << ", memcpy, skipped" << std::endl;
                     // std::memcpy(dst_ptr, src_ptr, instance.output_memory(idx).size());
+                    std::cout << "[-->] sync_tensor_impl w_rank: " << w_rank << ", memcpy->gpu_p2p " << std::endl;
+                    // run p2p data transfer kernel: GPU0 read data from GPU1
+                    void *local_buff = create_lz_buff(oclctx, lzctx, nullptr, elemCount, 0);
+                    void *remote_buff = static_cast<uint8_t*>(sub_mem_mgr->_memorys_table[id][w_rank].send_buf);
+                    std::cout << "[-->] sync_tensor_impl w_rank: " << w_rank << ", runKernel " << std::endl;
+                    // copy from remote level_zero buff
+                    lzctx.runKernel("./test_kernel_dg2.spv", "local_read_from_remote", remote_buff, local_buff, elemCount);
                     wait_list[idx] = 0;
                 }
                 wait_size += wait_list[idx];
-                std::cout << "[-->] sync_tensor_impl execute_impl w_rank: " << w_rank << ", idx: " << idx << ", wait_size: " << wait_size << std::endl;
+                // std::cout << "[-->] sync_tensor_impl execute_impl w_rank: " << w_rank << ", idx: " << idx << ", wait_size: " << wait_size << std::endl;
             }
             if (wait_size == 0) {
                 break;
@@ -175,7 +249,6 @@ attach_sync_tensor_impl::attach_sync_tensor_impl() {
         typed_primitive_impl_ocl<sync_tensor>::create<sync_tensor_impl>, types, dyn_formats);
 
     implementation_map<sync_tensor>::add(impl_types::ocl,
-        // shape_types::any,
         shape_types::static_shape,
         typed_primitive_impl_ocl<sync_tensor>::create<sync_tensor_impl>, keys);
 }
