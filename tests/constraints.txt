@@ -29,4 +29,4 @@ networkx<=3.3
 keras>=2.0.0,<3.0.0
 
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch>=1.13,<2.3
+torch>=1.13,<2.4
