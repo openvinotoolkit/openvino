@@ -18,6 +18,6 @@ void stft(const float* signal,
           const Shape& window_shape,
           const int64_t frame_size,
           const int64_t frame_step,
-          const bool frames_first);
+          const bool transpose_frames);
 }  // namespace reference
 }  // namespace ov

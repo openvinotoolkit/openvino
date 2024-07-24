@@ -26,11 +26,13 @@ public:
     /// \param window Window to perform STFT
     /// \param frame_size Scalar value representing the size of Fourier Transform
     /// \param frame_step The distance (number of samples) between successive window frames
+    /// \param transpose_frames Flag to set output shape layout. If true the `frames` dimension is at out_shape[2],
+    ///                         otherwise it is at out_shape[1].
     STFT(const Output<Node>& data,
          const Output<Node>& window,
          const Output<Node>& frame_size,
          const Output<Node>& frame_step,
-         bool frames_first);
+         const bool transpose_frames);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
@@ -40,7 +42,7 @@ public:
     bool has_evaluate() const override;
 
 private:
-    bool m_frames_first = true;
+    bool m_transpose_frames = false;
 };
 }  // namespace v15
 }  // namespace op

@@ -26,7 +26,7 @@ void stft(const float* signal,
           const Shape& window_shape,
           const int64_t frame_size,
           const int64_t frame_step,
-          const bool frames_first) {
+          const bool transpose_frames) {
     constexpr size_t signal_axis = 1;
     const auto batch_size = signal_shape[0];
     const auto signal_length = signal_shape[signal_axis];
@@ -59,7 +59,7 @@ void stft(const float* signal,
                             rdft_result + result_idx);
         }
     }
-    if (!frames_first) {
+    if (transpose_frames) {
         const auto stft_transp_out_shape = Shape{batch_size, fft_out_shape[0], num_frames, fft_out_shape[1]};
         std::vector<T> signal_t(rdft_result, rdft_result + shape_size(stft_transp_out_shape));
         transpose(reinterpret_cast<const char*>(signal_t.data()),

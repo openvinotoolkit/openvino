@@ -18,9 +18,9 @@ STFT::STFT(const Output<Node>& data,
            const Output<Node>& window,
            const Output<Node>& frame_size,
            const Output<Node>& frame_step,
-           bool frames_first)
+           const bool transpose_frames)
     : Op({data, window, frame_size, frame_step}),
-      m_frames_first(frames_first) {
+      m_transpose_frames(transpose_frames) {
     constructor_validate_and_infer_types();
 }
 
@@ -28,12 +28,12 @@ std::shared_ptr<Node> STFT::clone_with_new_inputs(const OutputVector& new_args) 
     OV_OP_SCOPE(v15_STFT_clone_with_new_inputs);
     check_new_args_count(this, new_args);
 
-    return std::make_shared<STFT>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_frames_first);
+    return std::make_shared<STFT>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_transpose_frames);
 }
 
 bool STFT::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v15_STFT_visit_attributes);
-    visitor.on_attribute("frames_first", m_frames_first);
+    visitor.on_attribute("transpose_frames", m_transpose_frames);
     return true;
 }
 
@@ -74,7 +74,7 @@ void STFT::validate_and_infer_types() {
     // frame_step) + 1, 2}; ONNX out shape (transposed)
 
     ov::PartialShape output_shape;
-    if (m_frames_first) {  // [batch, frames, fft_samples, 2]
+    if (!m_transpose_frames) {  // [batch, frames, fft_samples, 2]
         output_shape = ov::PartialShape{data_shape[0],
                                         ((data_shape[1] - (*frame_size)[0]) / (*frame_step)[0]) + 1,
                                         ((*frame_size)[0] / 2) + 1,
@@ -113,7 +113,7 @@ bool STFT::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     const size_t frames_dim = ((data_shape[1] - frame_size_dim) / frame_step) + 1;
     const size_t fft_samples_dim = (frame_size / 2) + 1;
     constexpr size_t complex_dim = 2;
-    if (m_frames_first) {
+    if (!m_transpose_frames) {
         output_shape = Shape{data_shape[0], frames_dim, fft_samples_dim, complex_dim};
     } else {
         output_shape = Shape{data_shape[0], fft_samples_dim, frames_dim, complex_dim};
@@ -127,7 +127,7 @@ bool STFT::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
                         inputs[1].get_shape(),
                         frame_size,
                         frame_step,
-                        m_frames_first);
+                        m_transpose_frames);
     return true;
 }
 
