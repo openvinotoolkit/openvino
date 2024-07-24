@@ -31,6 +31,15 @@ void select_preferred_formats::run(program& p) {
         return;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+
+    // Fallback to ocl when asymmetric weights convolution is existed.
+    if (_lo.get_optimization_attributes().use_onednn_impls) {
+        for (auto n : p.get_processing_order()) {
+            if (n->is_type<convolution>() && n->as<convolution>().weights_zero_points_term())
+                return;
+        }
+    }
+
     auto forcing_map = _lo.get_implementation_forcing();
 
     engine.create_onednn_engine(p.get_config());
