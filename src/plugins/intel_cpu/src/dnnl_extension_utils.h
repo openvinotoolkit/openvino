@@ -22,6 +22,7 @@ namespace intel_cpu {
 class DnnlMemoryDesc;
 class DnnlBlockedMemoryDesc;
 class Shape;
+class IMemory;
 
 class DnnlExtensionUtils {
 public:
@@ -101,6 +102,13 @@ public:
     static dnnl_memory_desc_t clone_desc(const_dnnl_memory_desc_t cdesc);
     static const char* query_pd_info(const_dnnl_primitive_desc_t pd);
     static bool isUnarySupportedAsPostOp(Algorithm alg);
+    /**
+     * @brief Computes weights string hash based on weights memory and requested descriptor
+     * @param memory Weights memory pointer
+     * @param dstDesc descriptor defining weights representation after repacking
+     * @return string hash
+     */
+    static std::string computeWeightsStringHash(const std::shared_ptr<const IMemory> memory, const std::shared_ptr<DnnlMemoryDesc> dstDesc);
 };
 
 }   // namespace intel_cpu

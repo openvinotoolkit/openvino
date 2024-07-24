@@ -3,14 +3,16 @@
 //
 
 #include "dnnl_extension_utils.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "onednn/iml_type_mapper.h"
-#include "utils/general_utils.h"
+
 #include <common/primitive_desc.hpp>
 #include <common/primitive_desc_iface.hpp>
 #include <oneapi/dnnl/dnnl.hpp>
-
 #include <vector>
+
+#include "cpu_memory.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "onednn/iml_type_mapper.h"
+#include "utils/general_utils.h"
 
 using namespace dnnl;
 
@@ -252,6 +254,12 @@ bool DnnlExtensionUtils::isUnarySupportedAsPostOp(Algorithm alg) {
 #else
     return false;
 #endif
+}
+
+std::string DnnlExtensionUtils::computeWeightsStringHash(const std::shared_ptr<const IMemory> memory,
+                                                         const std::shared_ptr<DnnlMemoryDesc> dstDesc) {
+    const auto desc_hash = dnnl::impl::primitive_hashing::get_md_hash(*dstDesc->getDnnlDesc().get());
+    return std::to_string(desc_hash) + "_" + std::to_string(reinterpret_cast<uint64_t>(memory->getData()));
 }
 
 }   // namespace intel_cpu

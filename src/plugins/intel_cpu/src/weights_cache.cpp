@@ -10,8 +10,6 @@
 namespace ov {
 namespace intel_cpu {
 
-const SimpleDataHash WeightsSharing::simpleCRC;
-
 WeightsSharing::SharedMemory::SharedMemory(
         std::unique_lock<std::mutex> && lock,
         const MemoryInfo::Ptr & memory,
