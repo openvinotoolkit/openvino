@@ -39,6 +39,7 @@
     "node": ">=21.0.0"
   },
   "dependencies": {
+    "follow-redirects": "^1.15.6",
     "gunzip-maybe": "^1.4.2",
     "https-proxy-agent": "^7.0.2",
     "tar-fs": "^3.0.4"
