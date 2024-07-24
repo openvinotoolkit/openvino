@@ -266,6 +266,8 @@ void regclass_graph_Model(py::module m) {
             :type results: List[openvino.runtime.Output]
             :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
             :type sinks: List[openvino.runtime.Node]
+            :param parameters: List of parameters.
+            :type parameters: List[op.Parameter]
             :param name: String to set as model's friendly name.
             :type name: str
             )");
@@ -291,6 +293,8 @@ void regclass_graph_Model(py::module m) {
             :type results: List[openvino.runtime.Output]
             :param sinks: List of Output sink node handles.
             :type sinks: List[openvino.runtime.Output]
+            :param parameters: List of parameters.
+            :type parameters: List[op.Parameter]
             :param name: String to set as model's friendly name.
             :type name: str
             )");
@@ -316,6 +320,8 @@ void regclass_graph_Model(py::module m) {
         :type results: List[op.Result]
         :param sinks: List of Output sink node handles.
         :type sinks: List[openvino.runtime.Output]
+        :param parameters: List of parameters.
+        :type parameters: List[op.Parameter]
         :param name: String to set as model's friendly name.
         :type name: str
         )");
