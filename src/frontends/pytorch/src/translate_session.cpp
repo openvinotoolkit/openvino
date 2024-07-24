@@ -225,7 +225,8 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             }
         };
 
-        FRONT_END_GENERAL_CHECK(pytorch_model->get_subgraph_size() == 1, "Model should have exactly 1 subgraph.");
+        FRONT_END_GENERAL_CHECK(pytorch_model->decoder_type_name() != "ts" || pytorch_model->get_subgraph_size() == 1,
+                                "Model should have exactly 1 subgraph for TorchScript.");
         pytorch_model->visit_subgraph(node_visitor);
 
         ResultVector results;
