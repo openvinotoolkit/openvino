@@ -45,7 +45,7 @@ std::vector<layout> lstm_seq_inst::calc_output_layouts(lstm_seq_node const& node
         lstm_hidden_size = -1;
     }
 
-    return {cldnn::layout{ShapeType{lstm_batch_size, lstm_seq_length,  1, lstm_hidden_size}, input_layout_x.data_type, input_layout_x.format}, \
+    return {cldnn::layout{ShapeType{lstm_batch_size, 1, lstm_seq_length, lstm_hidden_size}, input_layout_x.data_type, input_layout_x.format}, \
             cldnn::layout{ShapeType{lstm_batch_size, 1, lstm_hidden_size}, input_layout_x.data_type, input_layout_x.format}, \
             cldnn::layout{ShapeType{lstm_batch_size, 1, lstm_hidden_size}, input_layout_x.data_type, input_layout_x.format}};
 }

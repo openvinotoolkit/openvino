@@ -21,8 +21,8 @@ JitConstants LSTMSeqKernelBase::GetJitConstants(const lstm_seq_params& params) c
     }
     jit.AddConstants({MakeJitConstant("DIRECTION", params.direction)});
 
-    const auto& GEMMInput = params.inputs[0];
-    size_t size = GEMMInput.X().v / 4;
+    const auto& GEMMInput = params.inputs[1];
+    size_t size = GEMMInput.Y().v;
     jit.AddConstants({
         MakeJitConstant("GEMM_OFFSET_I", params.GetOffsetIndexI() * size),
         MakeJitConstant("GEMM_OFFSET_O", params.GetOffsetIndexO() * size),
