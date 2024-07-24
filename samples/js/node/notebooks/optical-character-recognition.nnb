@@ -24,7 +24,7 @@
         {
             "language": "typescript",
             "source": [
-                "const fs = require('node:fs');\nconst path = require('node:path');\nconst { createCanvas, Image, ImageData } = require('canvas');\nconst { addon: ov } = require('openvino-node');\nconst { display } = require('node-kernel');\nconst { cv } = require('opencv-wasm');\nconst { transform, getImageData, displayArrayAsImage, downloadFile, arrayToImageData, getImageBuffer, argMax, setShape } = require('../helpers.js');\n"
+                "const fs = require(\"node:fs\");\nconst path = require(\"node:path\");\nconst { createCanvas, Image, ImageData } = require(\"canvas\");\nconst { addon: ov } = require(\"openvino-node\");\nconst { display } = require(\"node-kernel\");\nconst { cv } = require(\"opencv-wasm\");\nconst {\n  transform,\n  getImageData,\n  displayArrayAsImage,\n  downloadFile,\n  arrayToImageData,\n  getImageBuffer,\n  argMax,\n  setShape,\n} = require(\"../helpers.js\");\n"
             ],
             "outputs": []
         },
