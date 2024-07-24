@@ -89,7 +89,7 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
     MemoryPtr ptr;
     if (globalWeightCache &&
         dnnl::memory::format_kind::blocked == dstWeightDesc->getDnnlDesc().get_format_kind()) {
-        const auto string_hash = MemoryDescUtils::computeWeightsStringHash(weightsMem, dstWeightDesc);
+        const auto string_hash = DnnlExtensionUtils::computeWeightsStringHash(weightsMem, dstWeightDesc);
         ptr = *globalWeightCache->findOrCreate(string_hash, create);
     } else {
         ptr = create();

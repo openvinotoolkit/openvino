@@ -30,6 +30,10 @@ inline std::ostream& operator<<(std::ostream& os, FQInterval interval) {
 
 typedef std::tuple<InputShape, InputShape, FQInterval, FQInterval> QuantizedMatMulsWithSharedWeightsParans;
 
+/* This test verifies the correctness of the hash function computation for the shared weights.
+   Specifically, it checks that when one op requires compensations computation and second one does not,
+   the resulting hashes are not identical, and the weights are repacked for each op separately
+*/
 class QuantizedMatMulsWithSharedWeightsTest
     : public testing::WithParamInterface<QuantizedMatMulsWithSharedWeightsParans>,
       virtual public SubgraphBaseTest {
@@ -94,6 +98,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_CustomTest, QuantizedMatMulsWithSharedWeightsTest
                                  ::testing::Values(FQInterval::U8, FQInterval::I8),
                                  ::testing::Values(FQInterval::U8, FQInterval::I8)),
                          QuantizedMatMulsWithSharedWeightsTest::getTestCaseName);
-} // namespace
+}  // namespace
 }  // namespace test
 }  // namespace ov

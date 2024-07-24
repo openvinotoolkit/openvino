@@ -4,18 +4,17 @@
 
 #include "memory_desc/cpu_memory_desc_utils.h"
 
-#include <cpu_memory.h>
-#include <dnnl_types.h>
-
-#include <common/primitive_desc_iface.hpp>
-#include <numeric>
-#include <vector>
-
-#include "cpu_memory_desc.h"
-#include "graph_context.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "graph_context.h"
+#include "cpu_memory_desc.h"
 #include "memory_desc/empty_memory_desc.h"
+#include <cpu_memory.h>
+#include <vector>
+#include <cpu_memory.h>
+#include <dnnl_types.h>
+#include <numeric>
+#include <vector>
 
 using namespace dnnl;
 
@@ -135,12 +134,6 @@ Shape MemoryDescUtils::makeDummyShape(const Shape &shape, const VectorDims& dumm
         dummyDims[i] = dims[i] == Shape::UNDEFINED_DIM ? std::min(maxDims[i], std::max(minDims[i], dummyVals[i])) : dims[i];
     }
     return Shape(dummyDims);
-}
-
-std::string MemoryDescUtils::computeWeightsStringHash(const MemoryCPtr memory, const std::shared_ptr<DnnlMemoryDesc> dstDesc) {
-    const auto desc_hash = dnnl::impl::primitive_hashing::get_md_hash(*dstDesc->getDnnlDesc().get());
-    return std::to_string(desc_hash) + "_" + std::to_string(memory->getSize()) + "_" +
-           std::to_string(reinterpret_cast<uint64_t>(memory->getData()));
 }
 }   // namespace intel_cpu
 }   // namespace ov
