@@ -250,10 +250,9 @@ void ZeroInferRequest::create_pipeline() {
                           _metadata.outputs.at(outputIndex).nodeFriendlyName.c_str());
             continue;
         }
-
         _logger.debug("ZeroInferRequest::create_pipeline - allocate new tensor");
         _levelZeroOutputTensors.at(outputIndex) =
-            allocate_tensor(_metadata.outputs.at(outputIndex), OUTPUT, outputIndex, *_outputAllocator, _batchSize);
+            allocate_tensor(_metadata.outputs.at(outputIndex), outputIndex, OUTPUT, *_outputAllocator, _batchSize);
         _outputTensorsData.at(outputIndex) =
             std::optional(TensorData{_levelZeroOutputTensors.at(outputIndex)->data(),
                                      _levelZeroOutputTensors.at(outputIndex)->get_byte_size()});
