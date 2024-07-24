@@ -29,15 +29,15 @@ private:
 };
 
 /**
- * @interface SetEvaluanceOnce
+ * @interface SetEvaluateOnce
  * @brief The pass set `evaluate once = true` only to ExpandedLoopInfo which is mapped on LoopEnd in the passed iterator `end`.
  *        The pointer arithmetic should be updated in the separate optimization `OptimizeLoopSingleEvaluation`
  * @ingroup snippets
  */
-class SetEvaluanceOnce : public snippets::lowered::pass::RangedPass {
+class SetEvaluateOnce : public snippets::lowered::pass::RangedPass {
 public:
-    SetEvaluanceOnce() = default;
-    OPENVINO_RTTI("SetEvaluanceOnce", "RangedPass")
+    SetEvaluateOnce() = default;
+    OPENVINO_RTTI("SetEvaluateOnce", "RangedPass")
     bool run(snippets::lowered::LinearIR& linear_ir,
              snippets::lowered::LinearIR::constExprIt begin,
              snippets::lowered::LinearIR::constExprIt end) override;

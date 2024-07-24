@@ -62,7 +62,7 @@ snippets::lowered::SpecificIterationHandlers BrgemmBlocking::get_default_blockin
     const auto tail_size = snippets::utils::is_dynamic_value(work_amount) ? snippets::utils::get_dynamic_value<size_t>() : work_amount % block_size;
     if (tail_size != 0)
         handlers.register_pass<snippets::lowered::SpecificLoopIterType::LAST_ITER, snippets::lowered::pass::UpdateSubtensors>(tail_size);
-    handlers.register_pass<snippets::lowered::SpecificLoopIterType::LAST_ITER, SetEvaluanceOnce>();
+    handlers.register_pass<snippets::lowered::SpecificLoopIterType::LAST_ITER, SetEvaluateOnce>();
     return handlers;
 }
 
@@ -120,16 +120,16 @@ bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linea
         // If block_size is dynamic, it means that Brgemm will process full tensor:
         //   subtensor[i] = FULL_DIM as by default
         if (!snippets::utils::is_dynamic_value(block_size_m)) {
-            brgemm_expr->get_input_port_descriptor(0)->set_subtensor_value(1, block_size_m);
-            brgemm_expr->get_output_port_descriptor(0)->set_subtensor_value(1, block_size_m);
+            brgemm_expr->get_input_port_descriptor(0)->set_subtensor_dim(1, block_size_m);
+            brgemm_expr->get_output_port_descriptor(0)->set_subtensor_dim(1, block_size_m);
         }
         if (!snippets::utils::is_dynamic_value(block_size_n)) {
-            brgemm_expr->get_input_port_descriptor(1)->set_subtensor_value(0, block_size_n);
-            brgemm_expr->get_output_port_descriptor(0)->set_subtensor_value(0, block_size_n);
+            brgemm_expr->get_input_port_descriptor(1)->set_subtensor_dim(0, block_size_n);
+            brgemm_expr->get_output_port_descriptor(0)->set_subtensor_dim(0, block_size_n);
         }
         if (!snippets::utils::is_dynamic_value(block_size_k)) {
-            brgemm_expr->get_input_port_descriptor(0)->set_subtensor_value(0, block_size_k);
-            brgemm_expr->get_input_port_descriptor(1)->set_subtensor_value(1, block_size_k);
+            brgemm_expr->get_input_port_descriptor(0)->set_subtensor_dim(0, block_size_k);
+            brgemm_expr->get_input_port_descriptor(1)->set_subtensor_dim(1, block_size_k);
         }
 
         const bool need_brgemm_copy_b = brgemm_cpu && with_repacking(brgemm_cpu->get_type());

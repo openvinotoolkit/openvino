@@ -91,8 +91,8 @@ void CPURuntimeConfigurator::update_brgemms(const ov::snippets::lowered::LoopMan
         const auto& expanded_loop_info = loop_manager->get_loop_info<snippets::lowered::ExpandedLoopInfo>(loop_ids.front());
         const auto& block_size_m = expanded_loop_info->get_work_amount();
 
-        brgemm_expr->get_input_port_descriptor(0)->set_subtensor_value(1, block_size_m);
-        brgemm_expr->get_output_port_descriptor(0)->set_subtensor_value(1, block_size_m);
+        brgemm_expr->get_input_port_descriptor(0)->set_subtensor_dim(1, block_size_m);
+        brgemm_expr->get_output_port_descriptor(0)->set_subtensor_dim(1, block_size_m);
     }
 }
 

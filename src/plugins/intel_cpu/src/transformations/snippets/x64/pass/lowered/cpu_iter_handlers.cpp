@@ -36,16 +36,16 @@ std::shared_ptr<snippets::lowered::pass::PassBase> SetBrgemmBeta::merge(const st
     return merged_pass;
 }
 
-bool SetEvaluanceOnce::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
+bool SetEvaluateOnce::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
     const auto& loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(end->get()->get_node());
-    OPENVINO_ASSERT(loop_end, "SetEvaluanceOnce expected LoopEnd node in iterator `end`.");
+    OPENVINO_ASSERT(loop_end, "SetEvaluateOnce expected LoopEnd node in iterator `end`.");
     const auto& loop_info = linear_ir.get_loop_manager()->get_loop_info<ov::snippets::lowered::ExpandedLoopInfo>(loop_end->get_id());
     loop_info->set_evaluate_once(true);
     return true;
 }
 
-std::shared_ptr<snippets::lowered::pass::PassBase> SetEvaluanceOnce::merge(const std::shared_ptr<snippets::lowered::pass::PassBase>& other) {
-    return !other || ov::is_type<SetEvaluanceOnce>(other) ? std::make_shared<SetEvaluanceOnce>() : nullptr;
+std::shared_ptr<snippets::lowered::pass::PassBase> SetEvaluateOnce::merge(const std::shared_ptr<snippets::lowered::pass::PassBase>& other) {
+    return !other || ov::is_type<SetEvaluateOnce>(other) ? std::make_shared<SetEvaluateOnce>() : nullptr;
 }
 
 }  // namespace pass

@@ -430,7 +430,8 @@ public:
     ExpandedLoopInfo(size_t work_amount, size_t increment,
                      const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits,
                      std::vector<int64_t> ptr_increments, std::vector<int64_t> final_offsets, std::vector<int64_t> data_sizes,
-                     SpecificLoopIterType type, std::shared_ptr<UnifiedLoopInfo> unified_loop_info, bool is_wa_const = false);
+                     SpecificLoopIterType type, std::shared_ptr<UnifiedLoopInfo> unified_loop_info, bool is_wa_const = false,
+                     bool evaluate_once = false);
     /**
      * @brief Clone LoopInfo with new expressions
      * @param expr_map map of new and old expressions
@@ -529,7 +530,7 @@ private:
     const SpecificLoopIterType m_type = {};
     std::shared_ptr<UnifiedLoopInfo> m_unified_loop_info = {};
 
-    bool m_evaluance_once = false;
+    bool m_evaluate_once = false;
 };
 using ExpandedLoopInfoPtr = std::shared_ptr<ExpandedLoopInfo>;
 

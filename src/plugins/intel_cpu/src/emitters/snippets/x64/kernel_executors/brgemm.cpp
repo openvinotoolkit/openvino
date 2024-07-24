@@ -56,7 +56,7 @@ bool BrgemmKernelConfig::operator==(const BrgemmKernelConfig& rhs) const {
 void BrgemmKernelConfig::update(dnnl_dim_t M, dnnl_dim_t N, dnnl_dim_t K, dnnl_dim_t LDA, dnnl_dim_t LDB, dnnl_dim_t LDC) {
     // If M is zero, it means that Brgemm won't be executed (in Loop with work_amount = 0, for example)
     // To process this case, we have to make this Config as empty (nullify runtime parameters)
-    if (M == 0 && !utils::one_of(0, N, K, LDA, LDB, LDC)) {
+    if (utils::one_of(0, M, N, K)) {
         m_M = 0; m_N = 0; m_K = 0;
         m_LDA = 0; m_LDB = 0; m_LDC = 0;
     } else {
@@ -129,10 +129,8 @@ std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelExecutor::compile_kernel(const
     std::shared_ptr<BrgemmCompiledKernel> compiled_kernel = std::make_shared<BrgemmCompiledKernel>();
 
     // Brgemm is not executable - nothing to compile
-    if (config.is_empty()) {
-        compiled_kernel->compiled_kernel = std::unique_ptr<brgemm_kernel_t>();
+    if (config.is_empty())
         return compiled_kernel;
-    }
 
     cpu::x64::brgemm_t desc;
     auto status = brgemm_desc_init(&desc, config.get_isa(), cpu::x64::brgemm_strd,

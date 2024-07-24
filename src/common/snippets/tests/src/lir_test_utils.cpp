@@ -39,9 +39,7 @@ void LoweredPassTestsF::TearDown() {
 }
 
 ov::snippets::VectorDims get_default_subtensor() {
-    static const VectorDims default_subtensor{PortDescriptor::ServiceDimensions::FULL_DIM,
-                                              PortDescriptor::ServiceDimensions::FULL_DIM};
-    return default_subtensor;
+    return VectorDims(2, ov::snippets::utils::get_full_dim_value());
 }
 
 void init_expr_descriptors(const ov::snippets::lowered::ExpressionPtr& expr,

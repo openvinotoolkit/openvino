@@ -9,9 +9,6 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 
-// SIZE_MAX - is dynamic value
-size_t PortDescriptor::ServiceDimensions::FULL_DIM = SIZE_MAX - 1;
-
 PortDescriptor::PortDescriptor(const ov::Input<ov::Node>& in, VectorDims subtensor_shape, std::vector<size_t> layout)
         : PortDescriptor(ov::Input<const Node>(in.get_node(), in.get_index()), std::move(subtensor_shape), std::move(layout)) {}
 
@@ -54,7 +51,7 @@ void PortDescriptor::set_shape(const VectorDims& tensor) {
     *m_tensor_shape = tensor;
 }
 
-void PortDescriptor::set_subtensor_value(size_t idx, VectorDims::value_type value) {
+void PortDescriptor::set_subtensor_dim(size_t idx, VectorDims::value_type value) {
     OPENVINO_ASSERT(idx < m_subtensor_shape.size(), "Failed to set subtensor value: idx should be less than size");
     *(m_subtensor_shape.rbegin() + idx) = value;
 }
@@ -134,6 +131,26 @@ void PortDescriptorUtils::set_port_descriptor_ptr(const ov::Output<ov::Node>& ou
             OPENVINO_THROW("Set output port descriptor is failed: incorrect count");
         out_descs[out.get_index()] = desc;
     }
+}
+
+namespace {
+template<typename T>
+void set_port_descriptor(const T& port, std::vector<size_t> subtensor, std::vector<size_t> layout) {
+    const auto& shape = port.get_shape();
+    for (size_t i = 1; i <= std::min(subtensor.size(), shape.size()); i++) {
+        auto& dim = subtensor[subtensor.size() - i];
+        if (!utils::is_full_dim_value(dim))
+            dim = std::min(dim, shape[shape.size() - i]);
+    }
+    PortDescriptorUtils::set_port_descriptor_ptr(port, std::make_shared<PortDescriptor>(shape, subtensor, layout));
+}
+}  // namespace
+
+void PortDescriptorUtils::set_port_descriptor(const ov::Input<ov::Node>& in, std::vector<size_t> subtensor, std::vector<size_t> layout) {
+    set_port_descriptor(in, subtensor, layout);
+}
+void PortDescriptorUtils::set_port_descriptor(const ov::Output<ov::Node>& in, std::vector<size_t> subtensor, std::vector<size_t> layout) {
+    set_port_descriptor(in, subtensor, layout);
 }
 
 PortDescriptorPtr PortDescriptorUtils::get_port_descriptor_ptr(const ov::Input<ov::Node>& in) {

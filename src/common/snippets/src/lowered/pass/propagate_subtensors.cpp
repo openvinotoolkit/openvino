@@ -62,7 +62,7 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
                 const auto& desc = port.expr_port->get_descriptor_ptr();
                 auto subtensor = desc->get_subtensor();
                 if (port.dim_idx < desc->get_subtensor().size()) {
-                    desc->set_subtensor_value(port.dim_idx, new_dim_value);
+                    desc->set_subtensor_dim(port.dim_idx, new_dim_value);
                 }
 
                 const auto parent_desc = expr->get_input_port_connector(port.expr_port->get_index())->get_source().get_descriptor_ptr();
