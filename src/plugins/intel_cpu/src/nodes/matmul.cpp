@@ -475,13 +475,16 @@ void MatMul::initSupportedPrimitiveDescriptors() {
 
 #if defined(OPENVINO_ARCH_ARM64) and !defined(OPENVINO_MAT_MUL_REFERENCE)
     attrs.withBias = getOriginalInputsNumber() == 3;
+    attrs.transpose_a = this->transposeIn[0];
+    attrs.transpose_b = this->transposeIn[1];
     attrs.dequantizationScales = getDQScales();
     // TODO: not supported for ARM
     //attrs.sparseWeights = useSparseWeightsDecompression(getParentEdgeAt(WEIGHTS_ID)->getParent(),
     //                                                    getOriginalInputPrecisionAtPort(DATA_ID),
     //                                                    context->getConfig().fcSparseWeiDecompressionRate);
     attrs.sparseWeights = false;
-    attrs.dynamicQuantizationGroupSize = context->getConfig().fcDynamicQuantizationGroupSize;
+    // TODO: not supported for ARM
+    //attrs.dynamicQuantizationGroupSize = context->getConfig().fcDynamicQuantizationGroupSize;
     attrs.modelType = context->getConfig().modelType;
 
     postOps = getPostOps(fusedWith);
@@ -572,11 +575,7 @@ void MatMul::initSupportedPrimitiveDescriptors() {
 void MatMul::createPrimitive() {
     memory[ARG_SRC] = getSrcMemoryAtPort(DATA_ID);
     memory[ARG_WEI] = getSrcMemoryAtPort(WEIGHTS_ID);
-    // TODO: we don't need allocate empty memory
     memory[ARG_BIAS] = attrs.withBias ? getSrcMemoryAtPort(BIAS_ID) : MemoryDescUtils::makeEmptyMemory(context);
-//    if (attrs.withBias) {
-//        memory[ARG_BIAS] = getSrcMemoryAtPort(BIAS_ID);
-//    }
     memory[ARG_DST] = getDstMemoryAtPort(0);
     // @todo should we preconfigure only for dynamic shapes?
     // Since for static shapes primitive is created in scope of compile_model() anyway
