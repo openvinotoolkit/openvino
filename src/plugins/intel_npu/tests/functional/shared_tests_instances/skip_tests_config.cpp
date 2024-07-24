@@ -947,6 +947,11 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*OVExecGraphSerializationTest.ExecutionGraph.*"
         });
 
+        // [Tracking number: EISW-129376]
+        _skipRegistry.addPatterns("L0 memory tests not yet fixed in public driver", {
+                ".*OVClassGetMetricAndPrintNoThrow.*VpuDeviceAllocMemSizeSame.*"
+        });
+
         return _skipRegistry;
     }();
     // clang-format on

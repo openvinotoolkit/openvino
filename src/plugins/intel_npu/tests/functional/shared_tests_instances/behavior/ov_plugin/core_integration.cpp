@@ -13,10 +13,6 @@ using namespace ov::test::behavior;
 
 namespace {
 
-std::vector<std::string> devices = {
-    std::string(ov::test::utils::DEVICE_NPU),
-};
-
 // Several devices case
 INSTANTIATE_TEST_SUITE_P(compatibility_nightly_BehaviorTests_OVClassSeveralDevicesTest,
                          OVClassSeveralDevicesTestCompileModel,
