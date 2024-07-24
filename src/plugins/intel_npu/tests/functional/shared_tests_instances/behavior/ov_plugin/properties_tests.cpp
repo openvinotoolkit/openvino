@@ -178,6 +178,14 @@ INSTANTIATE_TEST_SUITE_P(
     (ov::test::utils::appendPlatformTypeTestName<OVCheckSetSupportedRWMetricsPropsTests>));
 
 INSTANTIATE_TEST_SUITE_P(
+    smoke_BehaviorTests_OVCheckSetSupportedRWMandatoryMetricsPropsTests,
+    OVCheckSetSupportedRWMetricsPropsTests,
+    ::testing::Combine(::testing::Values("MULTI", "AUTO"),
+                       ::testing::ValuesIn(OVCheckSetSupportedRWMetricsPropsTests::getRWOptionalPropertiesValues(
+                           {ov::log::level.name()}))),
+    ov::test::utils::appendPlatformTypeTestName<OVCheckSetSupportedRWMetricsPropsTests>);
+
+INSTANTIATE_TEST_SUITE_P(
     smoke_BehaviorTests_OVCheckGetSupportedROMetricsPropsTests,
     OVCheckGetSupportedROMetricsPropsTests,
     ::testing::Combine(
@@ -288,4 +296,21 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                        ::testing::ValuesIn(configsDevicePropertiesDouble)),
     (ov::test::utils::appendPlatformTypeTestName<OVClassCompileModelAndCheckSecondaryPropertiesTest>));
+
+// IE Class load and check network with ov::device::properties
+// OVClassCompileModelAndCheckSecondaryPropertiesTest only works with property num_streams of type int32_t
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_BehaviorTests_OVClassLoadNetworkAndCheckWithSecondaryPropertiesTest,
+                         OVClassCompileModelAndCheckSecondaryPropertiesTest,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU, "AUTO:NPU", "MULTI:NPU"),
+                                            ::testing::ValuesIn(configsDeviceProperties)));
+
+//
+// IE Class GetConfig
+//
+
+INSTANTIATE_TEST_SUITE_P(BehaviorTests_OVGetConfigTest_nightly,
+                         OVGetConfigTest,
+                         ::testing::Values(ov::test::utils::DEVICE_NPU),
+                         ov::test::utils::appendPlatformTypeTestName<OVGetConfigTest>);
+
 };  // namespace
