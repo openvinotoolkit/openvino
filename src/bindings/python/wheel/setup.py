@@ -266,7 +266,7 @@ class CustomBuild(build):
         self.jobs = multiprocessing.cpu_count() if self.jobs is None else int(self.jobs)
 
         if self.cmake_args is None:
-            self.cmake_args = os.getenv("CMAKE_ARGS") if os.getenv("CMAKE_ARGS") is not None else ""
+            self.cmake_args = os.getenv("CMAKE_ARGS", "")
 
     def cmake_build_and_install(self, install_cfg):
         """Runs cmake (configure, build and install) if artfiacts are not already built / installed."""
