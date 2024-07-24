@@ -9,7 +9,7 @@ import openvino as ov
 import openvino.properties as props
 
 # For example: "CPU", "GPU", "NPU".
-device_name = 'GPU'
+device_name = 'CPU'
 model_path = get_path_to_model()
 path_to_cache_dir = get_temp_dir()
 
