@@ -56,6 +56,14 @@ void STFT::validate_and_infer_types() {
         return;
     }
 
+    NODE_VALIDATION_CHECK(this,
+                          0 < signal_size && (data_shape.is_dynamic() || signal_size < data_shape[1].get_length()),
+                          "Provided frame length is ",
+                          signal_size,
+                          " but must be in range {0, ",
+                          data_shape[1],
+                          "}");
+
     // InShape:  [Batch, L]
     // OutShape: [Batch, floor(signal_size//2) + 1, T => floor(L-signal_size)//frame_step) + 1, 2]
     // Requirements: L >= signal_size
@@ -89,6 +97,15 @@ bool STFT::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 
     // TODO: Reuse shape_infer to set shape of output tensor
     const auto& data_shape = inputs[0].get_shape();
+
+    NODE_VALIDATION_CHECK(this,
+                          0 < signal_size && signal_size < data_shape[1],
+                          "Provided frame length is ",
+                          signal_size,
+                          " but must be in range {0, ",
+                          data_shape[1],
+                          "}");
+
     Shape output_shape;
     const size_t signal_size_dim = static_cast<size_t>(signal_size);
     const size_t frames_dim = ((data_shape[1] - signal_size_dim) / m_frame_step) + 1;
