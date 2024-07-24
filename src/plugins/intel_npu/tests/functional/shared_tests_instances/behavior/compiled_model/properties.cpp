@@ -166,6 +166,70 @@ INSTANTIATE_TEST_SUITE_P(smoke_Hetero_BehaviorTests, OVClassCompileModelWithCorr
                                             ::testing::ValuesIn(heteroCompiledModelConfigs)),
                          ov::test::utils::appendPlatformTypeTestName<OVClassCompileModelWithCorrectPropertiesTest>);
 
+// IE Class Load network
+
+const std::vector<ov::AnyMap> configsWithSecondaryProperties = {
+    {ov::device::properties(ov::test::utils::DEVICE_NPU,
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
+    {ov::device::properties(ov::test::utils::DEVICE_NPU,
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)),
+     ov::device::properties(ov::test::utils::DEVICE_NPU,
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))}};
+
+const std::vector<ov::AnyMap> multiConfigsWithSecondaryProperties = {
+    {ov::device::priorities(ov::test::utils::DEVICE_CPU),
+     ov::device::properties(ov::test::utils::DEVICE_CPU,
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
+    {ov::device::priorities(ov::test::utils::DEVICE_CPU),
+     ov::device::properties(ov::test::utils::DEVICE_CPU,
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)),
+     ov::device::properties(ov::test::utils::DEVICE_NPU,
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))}};
+
+const std::vector<ov::AnyMap> autoConfigsWithSecondaryProperties = {
+    {ov::device::priorities(ov::test::utils::DEVICE_CPU),
+     ov::device::properties("AUTO",
+                            ov::enable_profiling(false),
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
+    {ov::device::priorities(ov::test::utils::DEVICE_CPU),
+     ov::device::properties(ov::test::utils::DEVICE_CPU,
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
+    {ov::device::priorities(ov::test::utils::DEVICE_CPU),
+     ov::device::properties(ov::test::utils::DEVICE_CPU,
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)),
+     ov::device::properties(ov::test::utils::DEVICE_NPU,
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))},
+    {ov::device::priorities(ov::test::utils::DEVICE_CPU),
+     ov::device::properties("AUTO",
+                            ov::enable_profiling(false),
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)),
+     ov::device::properties(ov::test::utils::DEVICE_CPU,
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
+    {ov::device::priorities(ov::test::utils::DEVICE_CPU),
+     ov::device::properties("AUTO",
+                            ov::enable_profiling(false),
+                            ov::device::priorities(ov::test::utils::DEVICE_NPU),
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)),
+     ov::device::properties(ov::test::utils::DEVICE_CPU,
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)),
+     ov::device::properties(ov::test::utils::DEVICE_NPU,
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))}};
+
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests_OVClassLoadNetworkWithCorrectSecondaryPropertiesTest,
+                         OVClassCompileModelWithCorrectPropertiesTest,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU, "AUTO:NPU", "MULTI:NPU"),
+                                            ::testing::ValuesIn(configsWithSecondaryProperties)));
+
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_Multi_BehaviorTests_OVClassCompileModelWithCorrectPropertiesTest,
+                         OVClassCompileModelWithCorrectPropertiesTest,
+                         ::testing::Combine(::testing::Values("MULTI"),
+                                            ::testing::ValuesIn(multiConfigsWithSecondaryProperties)));
+
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_AUTO_BehaviorTests_OVClassCompileModelWithCorrectPropertiesTest,
+                         OVClassCompileModelWithCorrectPropertiesTest,
+                         ::testing::Combine(::testing::Values("AUTO"),
+                                            ::testing::ValuesIn(autoConfigsWithSecondaryProperties)));
+
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests, OVClassCompiledModelPropertiesIncorrectTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(compiledModelIncorrectConfigs)),
