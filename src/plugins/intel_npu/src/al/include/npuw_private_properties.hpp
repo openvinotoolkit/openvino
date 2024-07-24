@@ -64,7 +64,7 @@ static constexpr ov::Property<std::string> avoid{"NPUW_ONLINE_AVOID"};
  * Isolates predefined pattern(s) to compile and run separately from other isolated tags and no tags.
  * Only compatible with online partitioning.
  * Possible values: comma-separated list of pattern slash tag, e.g.
- *                  "DequantMatMulGQ/compute,DequantMatMulCW/compute,SwishMultXMM/compute,RMSNorm/compute".
+ *                  "DQMatMulGQ/compute,DQMatMulCW/compute,SwishMul/compute,RMSNorm/compute".
  * Default value: empty.
  */
 static constexpr ov::Property<std::string> isolate{"NPUW_ONLINE_ISOLATE"};

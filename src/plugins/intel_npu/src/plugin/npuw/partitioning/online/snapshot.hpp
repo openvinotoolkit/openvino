@@ -58,6 +58,7 @@ public:
     const detail::OVPortsMap& getPortsMap() const;
     const detail::OVNodeToGroupMapPtr& getNodeToGroupMap() const;
     const std::map<std::string, std::vector<std::set<std::string>>>& getMatches() const;
+    detail::GPtrSet getRepGroups(const std::shared_ptr<Group>& group) const;
     void repeat(detail::Pass&& pass);
     void setCtx(const PassContext& ctx);
 

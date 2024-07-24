@@ -5,7 +5,8 @@
 #include "snapshot.hpp"
 
 #include "../../logging.hpp"
-#include "../patterns/partitioning.hpp"
+#include "../patterns/avoid.hpp"
+#include "../patterns/compute.hpp"
 #include "group.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/opsets/opset1.hpp"
@@ -152,25 +153,25 @@ void Snapshot::collectLHF() {
     LOG_BLOCK();
 
     // iterate it topological order
-    auto graph = getGraph();
-    for (const auto& nh : graph->sorted()) {
+    for (const auto& nh : m_graph->sorted()) {
         // skip if removed by fuse
-        if (m_graph->contains(nh)) {
-            Group::GPtr group = m_graph->meta(nh).get<Group::GPtr>();
-            auto producers = group->srcNodes();
-            if (producers.size() == 1) {
-                auto prod = producers.at(0);
-                if (m_graph->contains(prod) && prod->dstNodes().size() == 1) {
-                    Group::GPtr prod_group = m_graph->meta(prod).get<Group::GPtr>();
-                    if (group->isFrozen() || prod_group->isFrozen()) {
-                        continue;
-                    }
-                    // stop merging groups if the graph is already small enough
-                    if (graphSize() <= m_ctx.min_graph_size) {
-                        break;
-                    }
-                    group->fuse(prod_group);
+        if (!m_graph->contains(nh)) {
+            continue;
+        }
+        Group::GPtr group = m_graph->meta(nh).get<Group::GPtr>();
+        auto producers = group->srcNodes();
+        if (producers.size() == 1) {
+            auto prod = producers.at(0);
+            if (m_graph->contains(prod) && prod->dstNodes().size() == 1) {
+                Group::GPtr prod_group = m_graph->meta(prod).get<Group::GPtr>();
+                if (group->isFrozen() || prod_group->isFrozen()) {
+                    continue;
                 }
+                // stop merging groups if the graph is already small enough
+                if (graphSize() <= m_ctx.min_graph_size) {
+                    break;
+                }
+                group->fuse(prod_group);
             }
         }
     }
@@ -197,42 +198,42 @@ void Snapshot::fuseRemnants() {
     LOG_BLOCK();
 
     // iterate it topological order
-    auto graph = getGraph();
-    for (const auto& nh : graph->sorted()) {
+    for (const auto& nh : m_graph->sorted()) {
         // skip if removed by fuseWith
-        if (m_graph->contains(nh)) {
-            Group::GPtr group = m_graph->meta(nh).get<Group::GPtr>();
-            if (group->isFrozen()) {
-                continue;
+        if (!m_graph->contains(nh)) {
+            continue;
+        }
+        Group::GPtr group = m_graph->meta(nh).get<Group::GPtr>();
+        if (group->isFrozen()) {
+            continue;
+        }
+        auto consumers = group->dstNodes();
+        if (!consumers.empty()) {
+            std::sort(consumers.begin(),
+                        consumers.end(),
+                        [&](const ade::NodeHandle& nh1, const ade::NodeHandle& nh2) {
+                            if (!m_graph->contains(nh1) || !m_graph->contains(nh2)) {
+                                return false;
+                            }
+                            Group::GPtr g1 = m_graph->meta(nh1).get<Group::GPtr>();
+                            Group::GPtr g2 = m_graph->meta(nh2).get<Group::GPtr>();
+                            return g1->size() < g2->size();
+                        });
+            for (const auto& cons : consumers) {  // FIXME: pick the smallest flops
+                if (!m_graph->contains(cons)) {
+                    continue;
+                }
+                Group::GPtr cons_group = m_graph->meta(cons).get<Group::GPtr>();
+                if (!group->hasCycle(cons_group)) {
+                    if (!cons_group->isFrozen()) {
+                        group->fuseWith(cons_group);
+                        break;
+                    }
+                }
             }
-            auto consumers = group->dstNodes();
-            if (!consumers.empty()) {
-                std::sort(consumers.begin(),
-                          consumers.end(),
-                          [&](const ade::NodeHandle& nh1, const ade::NodeHandle& nh2) {
-                              if (!m_graph->contains(nh1) || !m_graph->contains(nh2)) {
-                                  return false;
-                              }
-                              Group::GPtr g1 = m_graph->meta(nh1).get<Group::GPtr>();
-                              Group::GPtr g2 = m_graph->meta(nh2).get<Group::GPtr>();
-                              return g1->size() < g2->size();
-                          });
-                for (const auto& cons : consumers) {  // FIXME: pick the smallest flops
-                    if (!m_graph->contains(cons)) {
-                        continue;
-                    }
-                    Group::GPtr cons_group = m_graph->meta(cons).get<Group::GPtr>();
-                    if (!group->hasCycle(cons_group)) {
-                        if (!cons_group->isFrozen()) {
-                            group->fuseWith(cons_group);
-                            break;
-                        }
-                    }
-                }
-                // stop merging groups if the graph is already small enough
-                if (graphSize() <= m_ctx.min_graph_size) {
-                    break;
-                }
+            // stop merging groups if the graph is already small enough
+            if (graphSize() <= m_ctx.min_graph_size) {
+                break;
             }
         }
     }
@@ -245,8 +246,7 @@ void Snapshot::fuseInputs() {
     LOG_BLOCK();
 
     // iterate it topological order
-    auto graph = getGraph();
-    for (const auto& nh : graph->sorted()) {
+    for (const auto& nh : m_graph->sorted()) {
         // skip if removed by fuseInputs
         if (!m_graph->contains(nh)) {
             continue;
@@ -327,7 +327,7 @@ void Snapshot::earlyAvoids() {
             }
             handle_patterns = true;
 
-            rewr.add_matcher<ov::npuw::patterns::RMSNormAvoid>(shared_from_this(), avoid.device);
+            rewr.add_matcher<ov::npuw::patterns::avoid::RMSNorm>(shared_from_this(), avoid.device);
             break;
         }
         }
@@ -364,23 +364,20 @@ void Snapshot::earlyRegroup() {
             case PatternType::PATTERN: {
             // FIXME: refactor as more patterns are supported
                 if (isolate.pattern == "RMSNorm") {
-                    rewr.add_matcher<ov::npuw::patterns::RMSNorm>(shared_from_this(), isolate.tag);
+                    rewr.add_matcher<ov::npuw::patterns::compute::RMSNorm>(shared_from_this(), isolate.tag);
                     handle_patterns = true;
-                } else if (isolate.pattern == "SwishMultXMM") {
-                    rewr.add_matcher<ov::npuw::patterns::SwishMultXMM>(shared_from_this(), isolate.tag);
+                } else if (isolate.pattern == "SwishMul") {
+                    rewr.add_matcher<ov::npuw::patterns::compute::SwishMul>(shared_from_this(), isolate.tag);
                     handle_patterns = true;
-                } else if (isolate.pattern == "DequantMatMulCW") {
-                    rewr.add_matcher<ov::npuw::patterns::DequantMatMulCW>(shared_from_this(), isolate.tag);
+                } else if (isolate.pattern == "DQMatMulCW") {
+                    rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulCW>(shared_from_this(), isolate.tag);
                     handle_patterns = true;
-                } else if (isolate.pattern == "DequantMatMulGQ") {
-                    rewr.add_matcher<ov::npuw::patterns::DequantMatMulGQ>(shared_from_this(), isolate.tag);
-                    handle_patterns = true;
-                } else if (isolate.pattern == "AdditionalCompute") {
-                    rewr.add_matcher<ov::npuw::patterns::AdditionalCompute>(shared_from_this(), isolate.tag);
+                } else if (isolate.pattern == "DQMatMulGQ") {
+                    rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulGQ>(shared_from_this(), isolate.tag);
                     handle_patterns = true;
                 } else {
-                    LOG_WARN("OPENVINO_NPUW_ISOLATE only supports RMSNorm, SwishMultXMM, DequantMatMulCW, DequantMatMulGQ "
-                            << "and AdditionalCompute as patterns. Isolate pattern " << isolate.pattern << " is skipped!");
+                    LOG_WARN("OPENVINO_NPUW_ISOLATE only supports RMSNorm, SwishMul, DQMatMulCW, DQMatMulGQ "
+                            << "as patterns. Isolate pattern " << isolate.pattern << " is skipped!");
                 }
             }
         }
@@ -463,33 +460,25 @@ void Snapshot::mergeTriangles() {
 
     std::unordered_set<std::shared_ptr<Repeated>> merged_this_time;
 
-    auto graph = getGraph();
-    for (const auto& nh : graph->sorted()) {
-        if (m_graph->contains(nh)) {
-            Group::GPtr group = m_graph->meta(nh).get<Group::GPtr>();
-            auto rep = group->repeated();
+    for (const auto& nh : m_graph->sorted()) {
+        if (!m_graph->contains(nh)) {
+            continue;
+        }
 
-            detail::GPtrSet repeating_groups;
+        Group::GPtr group = m_graph->meta(nh).get<Group::GPtr>();
+        auto rep = group->repeated();
 
-            // Note: openForMerge is not used here
-            if (rep && !group->isFrozen() && merged_this_time.count(rep) == 0) {
-                for (const auto& nh_other : graph->sorted()) {
-                    if (m_graph->contains(nh_other)) {
-                        Group::GPtr group_other = m_graph->meta(nh_other).get<Group::GPtr>();
-                        auto rep_other = group_other->repeated();
+        GPtrSet repeating_groups;
 
-                        if (rep_other && !group_other->isFrozen() && (rep_other.get() == rep.get())) {
-                            repeating_groups.insert(group_other);
-                        }
-                    }
-                }
-            }
+        // Note: openForMerge is not used here
+        if (rep && !group->isFrozen() && merged_this_time.count(rep) == 0) {
+            repeating_groups = getRepGroups(group);
+        }
 
-            if (!repeating_groups.empty()) {
-                auto new_rep = tryMergeTriangles(repeating_groups);
-                if (new_rep) {
-                    merged_this_time.insert(new_rep);
-                }
+        if (!repeating_groups.empty()) {
+            auto new_rep = tryMergeTriangles(repeating_groups);
+            if (new_rep) {
+                merged_this_time.insert(new_rep);
             }
         }
     }
@@ -499,7 +488,7 @@ void Snapshot::mergeTriangles() {
 }
 
 // FIXME: At this point, it is almost a full duplicate of tryGrowRepeatingGroups
-std::shared_ptr<Repeated> Snapshot::tryMergeTriangles(const detail::GPtrSet& repeating_groups) {
+std::shared_ptr<Repeated> Snapshot::tryMergeTriangles(const GPtrSet& repeating_groups) {
     auto this_rep_tag = (*(repeating_groups.begin()))->repeated();  // should be the same for each group inside
     const auto& this_avoided = (*(repeating_groups.begin()))->avoidedTargets();
     const auto& this_special = (*(repeating_groups.begin()))->specialTags();
@@ -531,20 +520,21 @@ std::shared_ptr<Repeated> Snapshot::tryMergeTriangles(const detail::GPtrSet& rep
     for (const auto& group : repeating_groups_sorted) {
         auto consumers = group->dstNodes();
         for (const auto& cons_nh : consumers) {
-            if (m_graph->contains(cons_nh)) {
-                Group::GPtr cons_group = m_graph->meta(cons_nh).get<Group::GPtr>();
-                if (cons_group->repeated() && !group->hasCycle(cons_group) && cons_group->repeated() != this_rep_tag &&
-                    cons_group->avoidedTargets() == this_avoided && cons_group->specialTags() == this_special) {
-                    auto meta_interconnect = cons_group->metaInterconnect(group);
+            if (!m_graph->contains(cons_nh)) {
+                continue;
+            }
+            Group::GPtr cons_group = m_graph->meta(cons_nh).get<Group::GPtr>();
+            if (cons_group->repeated() && !group->hasCycle(cons_group) && cons_group->repeated() != this_rep_tag &&
+                cons_group->avoidedTargets() == this_avoided && cons_group->specialTags() == this_special) {
+                auto meta_interconnect = cons_group->metaInterconnect(group);
 
-                    // FIXME: find a better way to reduce time complexity
-                    // Need to align interconnects in the same format via sort, so they could be compared later
-                    std::vector<MetaInterconnect> mic_sorted_key(meta_interconnect.begin(), meta_interconnect.end());
-                    std::sort(mic_sorted_key.begin(), mic_sorted_key.end());
+                // FIXME: find a better way to reduce time complexity
+                // Need to align interconnects in the same format via sort, so they could be compared later
+                std::vector<MetaInterconnect> mic_sorted_key(meta_interconnect.begin(), meta_interconnect.end());
+                std::sort(mic_sorted_key.begin(), mic_sorted_key.end());
 
-                    auto& triangle = mics[mic_sorted_key];
-                    triangle[group].insert(cons_group);
-                }
+                auto& triangle = mics[mic_sorted_key];
+                triangle[group].insert(cons_group);
             }
         }
     }
@@ -682,32 +672,23 @@ void Snapshot::mergeUniques() {
 
     std::unordered_set<std::shared_ptr<Repeated>> merged_this_time;
 
-    auto graph = getGraph();
-    for (const auto& nh : graph->sorted()) {
-        if (m_graph->contains(nh)) {
-            Group::GPtr group = m_graph->meta(nh).get<Group::GPtr>();
-            auto rep = group->repeated();
+    for (const auto& nh : m_graph->sorted()) {
+        if (!m_graph->contains(nh)) {
+            continue;
+        }
+        Group::GPtr group = m_graph->meta(nh).get<Group::GPtr>();
+        auto rep = group->repeated();
 
-            detail::GPtrSet repeating_groups;
+        GPtrSet repeating_groups;
 
-            if (rep && rep->openForMerge() && merged_this_time.count(rep) == 0) {
-                for (const auto& nh_other : graph->sorted()) {
-                    if (m_graph->contains(nh_other)) {
-                        Group::GPtr group_other = m_graph->meta(nh_other).get<Group::GPtr>();
-                        auto rep_other = group_other->repeated();
+        if (rep && rep->openForMerge() && merged_this_time.count(rep) == 0) {
+            repeating_groups = getRepGroups(group);
+        }
 
-                        if (rep_other && (rep_other.get() == rep.get())) {
-                            repeating_groups.insert(group_other);
-                        }
-                    }
-                }
-            }
-
-            if (!repeating_groups.empty()) {
-                auto new_rep = tryGrowRepeatingGroups(repeating_groups);
-                if (new_rep) {
-                    merged_this_time.insert(new_rep);
-                }
+        if (!repeating_groups.empty()) {
+            auto new_rep = tryGrowRepeatingGroups(repeating_groups);
+            if (new_rep) {
+                merged_this_time.insert(new_rep);
             }
         }
     }
@@ -716,7 +697,7 @@ void Snapshot::mergeUniques() {
     LOG_INFO("DONE");
 }
 
-std::shared_ptr<Repeated> Snapshot::tryGrowRepeatingGroups(const detail::GPtrSet& repeating_groups) {
+std::shared_ptr<Repeated> Snapshot::tryGrowRepeatingGroups(const GPtrSet& repeating_groups) {
     auto this_rep_tag = (*(repeating_groups.begin()))->repeated();  // should be the same for each group inside
     const auto& this_avoided = (*(repeating_groups.begin()))->avoidedTargets();
     const auto& this_special = (*(repeating_groups.begin()))->specialTags();
@@ -743,18 +724,19 @@ std::shared_ptr<Repeated> Snapshot::tryGrowRepeatingGroups(const detail::GPtrSet
     for (const auto& group : repeating_groups_sorted) {
         auto producers = group->srcNodes();
         for (const auto& prod_nh : producers) {
-            if (m_graph->contains(prod_nh)) {
-                Group::GPtr prod_group = m_graph->meta(prod_nh).get<Group::GPtr>();
-                if (prod_group->repeated() && !prod_group->hasCycle(group) && prod_group->repeated() != this_rep_tag &&
-                    prod_group->avoidedTargets() == this_avoided && prod_group->specialTags() == this_special) {
-                    auto meta_interconnect = group->metaInterconnect(prod_group);
+            if (!m_graph->contains(prod_nh)) {
+                continue;
+            }
+            Group::GPtr prod_group = m_graph->meta(prod_nh).get<Group::GPtr>();
+            if (prod_group->repeated() && !prod_group->hasCycle(group) && prod_group->repeated() != this_rep_tag &&
+                prod_group->avoidedTargets() == this_avoided && prod_group->specialTags() == this_special) {
+                auto meta_interconnect = group->metaInterconnect(prod_group);
 
-                    // FIXME: find a better way to reduce time complexity
-                    // Need to align interconnects in the same format via sort, so they could be compared later
-                    std::vector<MetaInterconnect> mic_sorted_key(meta_interconnect.begin(), meta_interconnect.end());
-                    std::sort(mic_sorted_key.begin(), mic_sorted_key.end());
-                    mics[mic_sorted_key].push_back({prod_group, group});
-                }
+                // FIXME: find a better way to reduce time complexity
+                // Need to align interconnects in the same format via sort, so they could be compared later
+                std::vector<MetaInterconnect> mic_sorted_key(meta_interconnect.begin(), meta_interconnect.end());
+                std::sort(mic_sorted_key.begin(), mic_sorted_key.end());
+                mics[mic_sorted_key].push_back({prod_group, group});
             }
         }
     }
@@ -862,8 +844,8 @@ std::shared_ptr<Repeated> Snapshot::tryMergeRepeating(const std::vector<Group::G
     return new_rep;
 }
 
-std::unordered_map<std::shared_ptr<Repeated>, ov::npuw::online::detail::GPtrSet> Snapshot::repeating() const {
-    std::unordered_map<std::shared_ptr<Repeated>, detail::GPtrSet> repeating;
+std::unordered_map<std::shared_ptr<Repeated>, GPtrSet> Snapshot::repeating() const {
+    std::unordered_map<std::shared_ptr<Repeated>, GPtrSet> repeating;
     for (const auto& nh : m_graph->sorted()) {
         Group::GPtr group = m_graph->meta(nh).get<Group::GPtr>();
         auto rep = group->repeated();
@@ -947,7 +929,7 @@ bool Snapshot::cleanUpUniquesImpl(const GPtrSet& gptrs) {
     return false;
 }
 
-void Snapshot::completeRepeating(const std::shared_ptr<Repeated>& reptag, const detail::GPtrSet& gset) {
+void Snapshot::completeRepeating(const std::shared_ptr<Repeated>& reptag, const GPtrSet& gset) {
     std::unordered_map<Repeated::Archetype, std::unordered_set<ov::npuw::online::detail::OVNodePtr>> matches;
 
     for (const auto& gptr : gset) {
@@ -994,6 +976,26 @@ void Snapshot::completeRepeating(const std::shared_ptr<Repeated>& reptag, const 
 
     std::string tag = ov::npuw::online::util::repeated_id(reptag);
     m_layer_matches.insert({tag, layer_matches});
+}
+
+GPtrSet Snapshot::getRepGroups(const Group::GPtr& group) const {
+    auto rep = group->repeated();
+
+    GPtrSet repeating_groups;
+
+    for (const auto& nh_other : m_graph->sorted()) {
+        if (!m_graph->contains(nh_other)) {
+            continue;
+        }
+        Group::GPtr group_other = m_graph->meta(nh_other).get<Group::GPtr>();
+        auto rep_other = group_other->repeated();
+
+        if (rep_other && !group_other->isFrozen() && (rep_other.get() == rep.get())) {
+            repeating_groups.insert(group_other);
+        }
+    }
+
+    return repeating_groups;
 }
 
 const OVNodeSet& Snapshot::getNodeProducers(const OVNodePtr& node) const {

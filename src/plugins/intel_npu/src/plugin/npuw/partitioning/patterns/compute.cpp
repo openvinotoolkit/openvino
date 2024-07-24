@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "partitioning.hpp"
+#include "compute.hpp"
 
 #include "../../logging.hpp"
 #include "../online/group.hpp"     // online::Group
@@ -33,54 +33,12 @@
 namespace ov {
 namespace npuw {
 namespace patterns {
+namespace compute {
 
 namespace opp = ov::pass::pattern;
 
-//------------------------------------------------------------------------------
-// Pattern: RMSNorm, from LLaMa-v2-7b model
-//
-//            Power     Const
-//               :        :
-//               V        V
-//               ReduceMean
-//                    :
-//                    V
-//                   Add
-//                    :
-//                    V
-//                   Sqrt
-//                    :
-//                    V
-//
-RMSNormAvoid::RMSNormAvoid(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
-                           const std::string& avoid_device) {
-    auto power = opp::wrap_type<ov::op::v1::Power>({opp::any_input(), opp::any_input()});
-    auto reduce = opp::wrap_type<ov::op::v1::ReduceMean>({power, opp::wrap_type<ov::op::v0::Constant>()});
-    auto add = opp::wrap_type<ov::op::v1::Add>({reduce, opp::any_input()});
-    auto sqrt = opp::wrap_type<ov::op::v0::Sqrt>({add});
-
-    auto node_to_gptr = snapshot->getNodeToGroupMap();
-
-    // Note: Use [=] to make sure the above objects stay alive in the callback
-    auto callback = [=](ov::pass::pattern::Matcher& m) {
-        auto& node_to_output = m.get_pattern_value_map();
-        auto matched_power = node_to_output.at(power).get_node_shared_ptr();
-        auto matched_reduce = node_to_output.at(reduce).get_node_shared_ptr();
-        auto matched_add = node_to_output.at(add).get_node_shared_ptr();
-        auto matched_sqrt = node_to_output.at(sqrt).get_node_shared_ptr();
-
-        node_to_gptr->at(matched_power)->avoid(avoid_device);
-        node_to_gptr->at(matched_reduce)->avoid(avoid_device);
-        node_to_gptr->at(matched_add)->avoid(avoid_device);
-        node_to_gptr->at(matched_sqrt)->avoid(avoid_device);
-
-        return false;  // root hasn't changed
-    };
-    register_matcher(std::make_shared<opp::Matcher>(sqrt, "TagRMSNormAvoid"), std::move(callback));
-}
-
 // TODO: visualize
-DequantMatMulGQ::DequantMatMulGQ(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
+DQMatMulGQ::DQMatMulGQ(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
                                  const std::string& isol_tag) {
     auto qweight = opp::wrap_type<ov::op::v0::Constant>();
     auto qzerop = opp::wrap_type<ov::op::v0::Constant>();
@@ -131,11 +89,11 @@ DequantMatMulGQ::DequantMatMulGQ(const std::shared_ptr<ov::npuw::online::Snapsho
 
         return false;  // root hasn't changed
     };
-    register_matcher(std::make_shared<opp::Matcher>(qmm, "TagDequantMatMulGQ"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(qmm, "TagDQMatMulGQ"), std::move(callback));
 }
 
 // TODO: visualize
-DequantMatMulCW::DequantMatMulCW(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
+DQMatMulCW::DQMatMulCW(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
                                  const std::string& isol_tag) {
     auto qweight = opp::wrap_type<ov::op::v0::Constant>();
     auto qzerop = opp::wrap_type<ov::op::v0::Constant>();
@@ -185,11 +143,11 @@ DequantMatMulCW::DequantMatMulCW(const std::shared_ptr<ov::npuw::online::Snapsho
 
         return false;  // root hasn't changed
     };
-    register_matcher(std::make_shared<opp::Matcher>(qmm, "TagDequantMatMulCW"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(qmm, "TagDQMatMulCW"), std::move(callback));
 }
 
 // TODO: visualize
-SwishMultXMM::SwishMultXMM(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
+SwishMul::SwishMul(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
     auto swish = opp::wrap_type<ov::op::v4::Swish>({opp::any_input()});
     auto multiply = opp::wrap_type<ov::op::v1::Multiply>({swish, opp::any_input()});
     // FIXME: Match inputs/outputs against matmuls, but exclude those from the pattern
@@ -208,7 +166,7 @@ SwishMultXMM::SwishMultXMM(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
 
         return false;  // root hasn't changed
     };
-    register_matcher(std::make_shared<opp::Matcher>(multiply, "TagSwishMultXMM"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(multiply, "TagSwishMul"), std::move(callback));
 }
 
 // TODO: visualize
@@ -251,53 +209,7 @@ RMSNorm::RMSNorm(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, co
     register_matcher(std::make_shared<opp::Matcher>(multiply2, "TagRMSNorm"), std::move(callback));
 }
 
-// TODO: visualize
-AdditionalCompute::AdditionalCompute(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
-                                     const std::string& isol_tag) {
-    auto shapeof = opp::wrap_type<ov::op::v3::ShapeOf>({opp::any_input()});
-    auto gather = opp::wrap_type<ov::op::v8::Gather>({shapeof, opp::any_input(), opp::any_input()});
-    auto mod = opp::wrap_type<ov::op::v1::Mod>({gather, opp::any_input()});
-    auto greater = opp::wrap_type<ov::op::v1::Greater>({mod, opp::any_input()});
-    auto convert = opp::wrap_type<ov::op::v0::Convert>({greater});
-    auto divide = opp::wrap_type<ov::op::v1::Divide>({gather, opp::any_input()});
-    auto add = opp::wrap_type<ov::op::v1::Add>({divide, convert});
-    auto broadcast = opp::wrap_type<ov::op::v3::Broadcast>({add, opp::any_input()});
-    auto concat = opp::wrap_type<ov::op::v0::Concat>({broadcast, opp::any_input()});
-    auto varsplit = opp::wrap_type<ov::op::v1::VariadicSplit>({opp::any_input(), opp::any_input(), concat});
-
-    auto node_to_gptr = snapshot->getNodeToGroupMap();
-
-    // Note: Use [=] to make sure the above objects stay alive in the callback
-    auto callback = [=](ov::pass::pattern::Matcher& m) {
-        auto& node_to_output = m.get_pattern_value_map();
-
-        auto matched_shapeof = node_to_output.at(shapeof).get_node_shared_ptr();
-        auto matched_gather = node_to_output.at(gather).get_node_shared_ptr();
-        auto matched_mod = node_to_output.at(mod).get_node_shared_ptr();
-        auto matched_greater = node_to_output.at(greater).get_node_shared_ptr();
-        auto matched_convert = node_to_output.at(convert).get_node_shared_ptr();
-        auto matched_divide = node_to_output.at(divide).get_node_shared_ptr();
-        auto matched_add = node_to_output.at(add).get_node_shared_ptr();
-        auto matched_broadcast = node_to_output.at(broadcast).get_node_shared_ptr();
-        auto matched_concat = node_to_output.at(concat).get_node_shared_ptr();
-        auto matched_varsplit = node_to_output.at(varsplit).get_node_shared_ptr();
-
-        node_to_gptr->at(matched_shapeof)->isolate(isol_tag);
-        node_to_gptr->at(matched_gather)->isolate(isol_tag);
-        node_to_gptr->at(matched_mod)->isolate(isol_tag);
-        node_to_gptr->at(matched_greater)->isolate(isol_tag);
-        node_to_gptr->at(matched_convert)->isolate(isol_tag);
-        node_to_gptr->at(matched_divide)->isolate(isol_tag);
-        node_to_gptr->at(matched_add)->isolate(isol_tag);
-        node_to_gptr->at(matched_broadcast)->isolate(isol_tag);
-        node_to_gptr->at(matched_concat)->isolate(isol_tag);
-        node_to_gptr->at(matched_varsplit)->isolate(isol_tag);
-
-        return false;  // root hasn't changed
-    };
-    register_matcher(std::make_shared<opp::Matcher>(varsplit, "TagAdditionalCompute"), std::move(callback));
-}
-
+}  // namespace compute
 }  // namespace patterns
 }  // namespace npuw
 }  // namespace ov
