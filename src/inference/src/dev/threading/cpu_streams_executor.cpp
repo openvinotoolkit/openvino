@@ -225,7 +225,7 @@ struct CPUStreamsExecutor::Impl {
     // it's only a workaround for ticket CVS-111490, please be carefully when need to modify
     // CustomeThreadLocal::local(), especially like operations that will affect the count of
     // CustomThreadLocal::ThreadId
-    class CustomThreadLocal : public ThreadLocal<std::shared_ptr<Stream>> {
+    /*class CustomThreadLocal : public ThreadLocal<std::shared_ptr<Stream>> {
         class ThreadTracker {
         public:
             explicit ThreadTracker(const std::thread::id& id)
@@ -323,15 +323,14 @@ struct CPUStreamsExecutor::Impl {
         Impl* _impl;
         std::map<std::shared_ptr<CustomThreadLocal::ThreadTracker>, std::shared_ptr<Impl::Stream>> _stream_map;
         std::mutex _stream_map_mutex;
-    };
+    };*/
 
     explicit Impl(const Config& config)
         : _config{config},
           _streams(
               [this] {
                   return std::make_shared<Impl::Stream>(this);
-              },
-              this) {
+              }) {
         _exectorMgr = executor_manager();
         auto numaNodes = get_available_numa_nodes();
         int streams_num = _config.get_streams();
@@ -367,7 +366,7 @@ struct CPUStreamsExecutor::Impl {
                 }
             });
         }
-        _streams.set_thread_ids_map(_threads);
+        // _streams.set_thread_ids_map(_threads);
 
         for (auto subId = 0; subId < sub_streams_num; ++subId) {
             _subThreads.emplace_back([this, subId, sub_streams_num] {
@@ -390,9 +389,9 @@ struct CPUStreamsExecutor::Impl {
                 }
             });
         }
-        if (_subThreads.size() > 0) {
-            _streams.set_thread_ids_map(_subThreads);
-        }
+        // if (_subThreads.size() > 0) {
+        //     _streams.set_thread_ids_map(_subThreads);
+        // }
     }
 
     void Enqueue(Task task) {
@@ -511,7 +510,7 @@ struct CPUStreamsExecutor::Impl {
     bool _isStopped = false;
     std::vector<std::shared_ptr<SubQueue>> _subTaskThread;
     std::vector<int> _usedNumaNodes;
-    CustomThreadLocal _streams;
+    ov::threading::ThreadLocal<std::shared_ptr<Stream>> _streams;
     std::shared_ptr<ExecutorManager> _exectorMgr;
 };
 
