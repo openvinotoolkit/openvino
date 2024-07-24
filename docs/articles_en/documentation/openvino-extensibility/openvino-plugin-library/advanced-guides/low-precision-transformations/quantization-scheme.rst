@@ -17,7 +17,7 @@ Key steps in the quantization scheme:
 
 Quantization scheme features:
 
-* Quantization operation is expressed through the ``FakeQuantize`` operation, which involves more than scale and shift. For more details, see: :doc:`FakeQuantize-1 <../../../../openvino-ir-format/operation-sets/operation-specs/operation-specs/quantization/fake-quantize-1>`. If the ``FakeQuantize`` input and output intervals are the same, ``FakeQuantize`` degenerates to ``Multiply``, ``Subtract`` and ``Convert`` (scale & shift).
+* Quantization operation is expressed through the ``FakeQuantize`` operation, which involves more than scale and shift. For more details, see: :doc:`FakeQuantize-1 <../../../../openvino-ir-format/operation-sets/operation-specs/quantization/fake-quantize-1>`. If the ``FakeQuantize`` input and output intervals are the same, ``FakeQuantize`` degenerates to ``Multiply``, ``Subtract`` and ``Convert`` (scale & shift).
 * Dequantization operation is expressed through element-wise ``Convert``, ``Subtract`` and ``Multiply`` operations. ``Convert`` and ``Subtract`` are optional. These operations can be handled as typical element-wise operations, for example, fused or transformed to another.
 * OpenVINO plugins fuse ``Dequantize`` and ``Quantize`` operations after a low precision operation and do not fuse ``Quantize`` before it.
 
