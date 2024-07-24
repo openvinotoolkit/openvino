@@ -273,7 +273,6 @@ void regclass_graph_Model(py::module m) {
     model.def(py::init([](const ov::OutputVector& results,
                           const ov::OutputVector& nodes,
                           const ov::ParameterVector& parameters,
-                          const ov::op::util::VariableVector& variables,
                           const std::string& name) {
                   set_tensor_names(parameters);
                   const auto sinks = cast_to_sink_vector(nodes);
@@ -284,7 +283,6 @@ void regclass_graph_Model(py::module m) {
               py::arg("results"),
               py::arg("sinks"),
               py::arg("parameters"),
-              py::arg("variables") = ov::op::util::VariableVector(),
               py::arg("name") = "",
               R"(
             Create user-defined Model which is a representation of a model
@@ -293,8 +291,6 @@ void regclass_graph_Model(py::module m) {
             :type results: List[openvino.runtime.Output]
             :param sinks: List of Output sink node handles.
             :type sinks: List[openvino.runtime.Output]
-            :param variables: List of variables.
-            :type variables: List[op.util.Variable]
             :param name: String to set as model's friendly name.
             :type name: str
             )");
@@ -302,7 +298,6 @@ void regclass_graph_Model(py::module m) {
     model.def(py::init([](const ov::ResultVector& results,
                           const ov::OutputVector& nodes,
                           const ov::ParameterVector& parameters,
-                          const ov::op::util::VariableVector& variables,
                           const std::string& name) {
                   set_tensor_names(parameters);
                   const auto sinks = cast_to_sink_vector(nodes);
@@ -313,7 +308,6 @@ void regclass_graph_Model(py::module m) {
               py::arg("results"),
               py::arg("sinks"),
               py::arg("parameters"),
-              py::arg("variables") = ov::op::util::VariableVector(),
               py::arg("name") = "",
               R"(
         Create user-defined Model which is a representation of a model
@@ -322,8 +316,6 @@ void regclass_graph_Model(py::module m) {
         :type results: List[op.Result]
         :param sinks: List of Output sink node handles.
         :type sinks: List[openvino.runtime.Output]
-        :param variables: List of variables.
-        :type variables: List[op.util.Variable]
         :param name: String to set as model's friendly name.
         :type name: str
         )");
