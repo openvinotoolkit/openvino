@@ -318,6 +318,21 @@ struct CPUStreamsExecutor::Impl {
             }
         }
 
+        bool find_thread_id() {
+            auto id = std::this_thread::get_id();
+            auto search = _thread_ids.find(id);
+            if (search != _thread_ids.end()) {
+                return true;
+            }
+            std::lock_guard<std::mutex> guard(_stream_map_mutex);
+            for (auto& item : _stream_map) {
+                if (item.first->get_id() == id) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
     private:
         std::set<std::thread::id> _thread_ids;
         Impl* _impl;
@@ -516,6 +531,9 @@ struct CPUStreamsExecutor::Impl {
 };
 
 int CPUStreamsExecutor::get_stream_id() {
+    if (!_impl->_streams.find_thread_id()) {
+        return 0;
+    }
     auto stream = _impl->_streams.local();
     return stream->_streamId;
 }
@@ -525,11 +543,17 @@ int CPUStreamsExecutor::get_streams_num() {
 }
 
 int CPUStreamsExecutor::get_numa_node_id() {
+    if (!_impl->_streams.find_thread_id()) {
+        return 0;
+    }
     auto stream = _impl->_streams.local();
     return stream->_numaNodeId;
 }
 
 int CPUStreamsExecutor::get_socket_id() {
+    if (!_impl->_streams.find_thread_id()) {
+        return 0;
+    }
     auto stream = _impl->_streams.local();
     return stream->_socketId;
 }
