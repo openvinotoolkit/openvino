@@ -1,0 +1,42 @@
+from __future__ import annotations
+
+import argparse
+import os
+from pathlib import Path
+
+
+def add_common_args(parser: argparse.ArgumentParser):
+    parser.add_argument('-s', '--commit_sha', help='Commit hash for which artifacts were generated', required=True)
+    parser.add_argument('-b', '--branch_name', help='Name of GitHub branch', required=False,
+                        default=os.getenv('GITHUB_BASE_REF') or os.getenv('GITHUB_REF_NAME'))
+    parser.add_argument('-e', '--event_name', help='Name of GitHub event', required=False,
+                        default=os.getenv('GITHUB_EVENT_NAME'))
+    parser.add_argument('--storage_dir', help='Subdirectory name for artifacts, same as product type', required=True)
+    parser.add_argument('--storage_root', help='Root path of the artifacts storage', required=False,
+                        default=os.getenv('ARTIFACTS_SHARE'))
+
+
+def get_event_type(event_name: str = os.getenv('GITHUB_EVENT_NAME')) -> str:
+    return 'pre_commit' if event_name == 'pull_request' else 'commit'
+
+
+def get_storage_branch_dir(storage_root: str | Path, branch_name: str, product_name: str = 'dldt') -> Path:
+    """ Returns path to stored artifacts for a given product type """
+
+    storage_branch_dir = Path(storage_root) / product_name / branch_name
+    return storage_branch_dir
+
+
+def get_storage_dir(product_type: str, commit_hash: str, storage_root: str | Path, branch_name: str, event_name: str,
+                    product_name: str = 'dldt') -> Path:
+    """ Returns full path to stored artifacts for a given product type """
+
+    # TODO: return, once we decide to get rid of post-commit and choose artifacts generated for a merged PR in queue?
+    # merge_queue_matcher = re.search(r'gh-readonly-queue/(.*?)/pr-', branch_name)
+    # if merge_queue_matcher:
+    #     branch_name = merge_queue_matcher.group(1)
+
+    storage_branch_dir = get_storage_branch_dir(storage_root, branch_name, product_name)
+    event_type = get_event_type(event_name)
+    storage = storage_branch_dir / event_type / commit_hash / product_type
+    return storage

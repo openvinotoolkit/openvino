@@ -1,0 +1,30 @@
+name: Test restore artifacts action
+
+on:
+  pull_request:
+
+permissions: read-all
+
+jobs:
+  test_handle_actions:
+    runs-on: 'aks-linux-16-cores-32gb'
+    container:
+      image: 'openvinogithubactions.azurecr.io/ov_build/ubuntu_20_04_x64:pr-25303'
+      volumes: ["/mount:/mount"]
+    defaults:
+      run:
+        shell: bash
+    env:
+      ARTIFACTS_SHARE: "/mount/build-artifacts"
+      GITHUB_WORKSPACE: '/__w/openvino/openvino'
+      PRODUCT_TYPE: 'public_linux_ubuntu_20_04_release'
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: Restore artifacts
+        uses: ./.github/actions/restore_artifacts
+        with:
+          storage_dir: ${{ env.PRODUCT_TYPE }}
+          storage_root: ${{ env.ARTIFACTS_SHARE }}
+          event_name: "commit"
+          trigger_repo_sha: '7afc0642ba8b95b92da92decc842e7b8a103545a'
