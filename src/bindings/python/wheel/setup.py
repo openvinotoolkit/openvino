@@ -297,6 +297,7 @@ class CustomBuild(build):
                                 f"-DPython3_EXECUTABLE={sys.executable}",
                                 f"-DCMAKE_BUILD_TYPE={CONFIG}",
                                 f"-DCPACK_GENERATOR={CPACK_GENERATOR}",
+                                "-DENABLE_PYTHON=ON",
                                 "-DENABLE_WHEEL=OFF",
                                 self.cmake_args,
                                 "-S", source_dir,
