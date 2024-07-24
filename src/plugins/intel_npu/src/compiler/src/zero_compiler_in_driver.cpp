@@ -60,6 +60,24 @@ void checkedMemcpy(void* destination, size_t destinationSize, void const* source
 }
 
 void print_memory_usage() {
+    auto getMemoryUsage = []() -> size_t {
+        std::ifstream procStatus("/proc/self/status");
+        std::string line;
+        while (std::getline(procStatus, line)) {
+            if (line.substr(0, 6) == "VmRSS:") {
+                std::istringstream iss(line);
+                std::string key;
+                size_t memoryUsageKb;
+                iss >> key >> memoryUsageKb;
+                return memoryUsageKb * 1024;  // Convert from KB to bytes
+            }
+        }
+        return 0;  // Return 0 if VmRSS is not found (should not happen on Linux)
+    };
+
+    size_t beforeClearMemoryUsage = getMemoryUsage();
+    std::cout << "Memory usage : " << beforeClearMemoryUsage << " bytes" << std::endl;
+
     struct mallinfo mi = mallinfo();
     printf("Total non-mmapped bytes (arena):       %d\n", mi.arena);
     printf("Number of free chunks (ordblks):       %d\n", mi.ordblks);
@@ -769,6 +787,42 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::createGraph(const ze_grap
     // Create querynetwork handle
     return _graphDdiTableExt->pfnCreate2(_context, _deviceHandle, &desc, graph);
 }
+template <typename TableExtension>
+ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndCreateGraph(
+    const std::shared_ptr<const ov::Model>& model,
+    IR& irModel,
+    const Config& config,
+    ze_device_graph_properties_t deviceGraphProperties,
+    ze_graph_handle_t& graphHandle) const {
+    
+    const ze_graph_compiler_version_info_t& compilerVersion = deviceGraphProperties.compilerVersion;
+    auto serializedIR = serializeIR(irModel, compilerVersion);
+
+    ze_graph_format_t format = ZE_GRAPH_FORMAT_NGRAPH_LITE;
+
+    std::string buildFlags;
+
+    buildFlags += serializeIOInfo(model);
+    buildFlags += " ";
+    buildFlags += serializeConfig(config, const_cast<ze_graph_compiler_version_info_t&>(compilerVersion));
+
+    _logger.debug("compileIR Build flags : %s", buildFlags.c_str());
+    // TODO #-30202 Store graph_handle inside NetworkDesc instead of blob. But this will require changes in zeroAPI
+
+    // If OV cache is enabled, disable driver caching
+    uint32_t flags = ZE_GRAPH_FLAG_NONE;
+    const auto set_cache_dir = config.get<CACHE_DIR>();
+    if (!set_cache_dir.empty()) {
+        flags = flags | ZE_GRAPH_FLAG_DISABLE_CACHING;
+    }
+
+    _logger.info("compileIR Using extension version: %s", typeid(TableExtension).name());
+    ze_result_t result = createGraph(format, serializedIR, buildFlags, flags, &graphHandle);
+
+    printf("\n\nDEBUG - serializeIR function \n");
+    print_memory_usage();
+    return result;
+}
 
 template <typename TableExtension>
 NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std::shared_ptr<const ov::Model>& model,
@@ -786,33 +840,11 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std:
                        std::hex,
                        uint64_t(result));
     }
-    ze_graph_compiler_version_info_t& compilerVersion = deviceGraphProperties.compilerVersion;
-
-    auto serializedIR = serializeIR(model, compilerVersion);
-
-    ze_graph_format_t format = ZE_GRAPH_FORMAT_NGRAPH_LITE;
-
-    std::string buildFlags;
-
-    buildFlags += serializeIOInfo(model);
-    buildFlags += " ";
-    buildFlags += serializeConfig(config, compilerVersion);
-
-    _logger.debug("compile Build flags : %s", buildFlags.c_str());
-    // TODO #-30202 Store graph_handle inside NetworkDesc instead of blob. But this will require changes in zeroAPI
 
     // Graph handle should be used only in scope of compile / parse functions.
     ze_graph_handle_t graphHandle;
 
-    // If OV cache is enabled, disable driver caching
-    uint32_t flags = ZE_GRAPH_FLAG_NONE;
-    const auto set_cache_dir = config.get<CACHE_DIR>();
-    if (!set_cache_dir.empty()) {
-        flags = flags | ZE_GRAPH_FLAG_DISABLE_CACHING;
-    }
-
-    _logger.info("compile Using extension version: %s", typeid(TableExtension).name());
-    result = createGraph(format, serializedIR, buildFlags, flags, &graphHandle);
+    result = seriazlideIRModelAndCreateGraph(model, irModel, config, deviceGraphProperties, graphHandle);
 
     OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
                     "Failed to compile network. L0 createGraph",
@@ -823,34 +855,6 @@ NetworkDescription LevelZeroCompilerInDriver<TableExtension>::compile(const std:
                     uint64_t(result),
                     ". ",
                     getLatestBuildError());
-
-    auto getMemoryUsage = []() -> size_t {
-        std::ifstream procStatus("/proc/self/status");
-        std::string line;
-        while (std::getline(procStatus, line)) {
-            if (line.substr(0, 6) == "VmRSS:") {
-                std::istringstream iss(line);
-                std::string key;
-                size_t memoryUsageKb;
-                iss >> key >> memoryUsageKb;
-                return memoryUsageKb * 1024;  // Convert from KB to bytes
-            }
-        }
-        return 0;  // Return 0 if VmRSS is not found (should not happen on Linux)
-    };
-
-    printf("\n\nDEBUG Before release memory ! \n");
-    size_t beforeClearMemoryUsage = getMemoryUsage();
-    std::cout << "Memory usage before clearing serializedIR: " << beforeClearMemoryUsage << " bytes" << std::endl;
-    print_memory_usage();
-
-    serializedIR.clear();
-    std::vector<uint8_t>().swap(serializedIR); // deallocates the memory
-
-    printf("\n\nDEBUG After release memory ! \n");
-    size_t afterClearMemoryUsage = getMemoryUsage();
-    std::cout << "Memory usage after clearing serializedIR: " << afterClearMemoryUsage << " bytes" << std::endl;
-    print_memory_usage();
 
     // Get blob size first
     size_t blobSize = -1;

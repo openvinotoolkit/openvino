@@ -58,6 +58,12 @@ public:
     NetworkDescription compile(const std::shared_ptr<const ov::Model>& model,
                                const Config& config) const override final;
 
+    ze_result_t seriazlideIRModelAndCreateGraph(const std::shared_ptr<const ov::Model>& model,
+                                                IR& irModel,
+                                                const Config& config,
+                                                ze_device_graph_properties_t deviceGraphProperties,
+                                                ze_graph_handle_t& graphHandle) const;
+
     NetworkMetadata parse(const std::vector<uint8_t>& network, const Config& config) const override final;
 
     std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
