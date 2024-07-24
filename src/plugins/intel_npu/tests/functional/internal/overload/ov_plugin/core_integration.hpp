@@ -7,9 +7,12 @@
 #include <filesystem>
 #include "base/ov_behavior_test_utils.hpp"
 #include "behavior/ov_plugin/properties_tests.hpp"
+#include "common/functions.h"
 #include "common/utils.hpp"
 #include "common/npu_test_env_cfg.hpp"
+#include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/subgraph_builders/concat_with_params.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "common_test_utils/subgraph_builders/kso_func.hpp"
 #include "common_test_utils/subgraph_builders/single_concat_with_constant.hpp"
 #include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
@@ -167,6 +170,230 @@ TEST(compatibility_OVClassBasicPropsTestNPU, smoke_SetConfigDevicePropertiesThro
     ASSERT_THROW(core.set_property(ov::test::utils::DEVICE_AUTO,
                                    ov::device::properties(ov::test::utils::DEVICE_NPU, ov::num_streams(4))),
                  ov::Exception);
+}
+
+//
+// NPU specific metrics
+//
+
+using OVClassGetMetricAndPrintNoThrow = OVClassBaseTestP;
+TEST_P(OVClassGetMetricAndPrintNoThrow, DeviceAllocMemSizeLesserThanTotalMemSizeNPU) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::Core ie;
+    ov::Any p;
+
+    OV_ASSERT_NO_THROW(p = ie.get_property(target_device, ov::intel_npu::device_total_mem_size.name()));
+    uint64_t t = p.as<uint64_t>();
+    ASSERT_NE(t, 0);
+
+    OV_ASSERT_NO_THROW(p = ie.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+    uint64_t a = p.as<uint64_t>();
+
+    ASSERT_LT(a, t);
+
+    std::cout << "OV NPU device alloc/total memory size: " << a << "/" << t << std::endl;
+}
+
+TEST_P(OVClassGetMetricAndPrintNoThrow, DeviceAllocMemSizeLesserAfterModelIsLoadedNPU) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::Core ie;
+    ov::Any p;
+
+    OV_ASSERT_NO_THROW(p = ie.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+    uint64_t a1 = p.as<uint64_t>();
+
+    SKIP_IF_CURRENT_TEST_IS_DISABLED() {
+        auto model = ov::test::utils::make_conv_pool_relu();
+        OV_ASSERT_NO_THROW(ie.compile_model(model, target_device, {}));
+    }
+
+    OV_ASSERT_NO_THROW(p = ie.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+    uint64_t a2 = p.as<uint64_t>();
+
+    std::cout << "OV NPU device {alloc before load network/alloc after load network} memory size: {" << a1 << "/" << a2
+              << "}" << std::endl;
+
+    // after the network is loaded onto device, allocated memory value should increase
+    ASSERT_LE(a1, a2);
+}
+
+TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeLesserAfterModelIsLoaded) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::Core ie;
+    ov::Any p;
+
+    OV_ASSERT_NO_THROW(p = ie.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+    uint64_t a1 = p.as<uint64_t>();
+
+    SKIP_IF_CURRENT_TEST_IS_DISABLED() {
+        auto model = ov::test::utils::make_conv_pool_relu();
+        OV_ASSERT_NO_THROW(ie.compile_model(model, target_device, ov::AnyMap{ov::log::level(ov::log::Level::DEBUG)}));
+    }
+
+    OV_ASSERT_NO_THROW(p = ie.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+    uint64_t a2 = p.as<uint64_t>();
+
+    std::cout << "OV NPU device {alloc before load network/alloc after load network} memory size: {" << a1 << "/" << a2
+              << "}" << std::endl;
+
+    // after the network is loaded onto device, allocated memory value should increase
+    ASSERT_LE(a1, a2);
+}
+
+TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeSameAfterDestroyCompiledModel) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::Core core;
+    ov::Any deviceAllocMemSizeAny;
+
+    auto model = createModelWithLargeSize();
+
+    OV_ASSERT_NO_THROW(deviceAllocMemSizeAny =
+                               core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+    uint64_t deviceAllocMemSize = deviceAllocMemSizeAny.as<uint64_t>();
+    uint64_t deviceAllocMemSizeFinal;
+
+    for (size_t i = 0; i < 1000; ++i) {
+        ov::CompiledModel compiledModel;
+        OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device));
+
+        compiledModel = {};
+
+        OV_ASSERT_NO_THROW(deviceAllocMemSizeAny =
+                                   core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+        deviceAllocMemSizeFinal = deviceAllocMemSizeAny.as<uint64_t>();
+        ASSERT_EQ(deviceAllocMemSize, deviceAllocMemSizeFinal) << " at iteration " << i;
+    }
+}
+
+TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeSameAfterDestroyInferRequest) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::Core core;
+    ov::Any deviceAllocMemSizeAny;
+
+    ov::CompiledModel compiledModel;
+    auto model = createModelWithLargeSize();
+
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device));
+
+    OV_ASSERT_NO_THROW(deviceAllocMemSizeAny =
+                               core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+    uint64_t deviceAllocMemSize = deviceAllocMemSizeAny.as<uint64_t>();
+    uint64_t deviceAllocMemSizeFinal;
+
+    ov::InferRequest inferRequest;
+
+    for (size_t i = 0; i < 1000; ++i) {
+        inferRequest = compiledModel.create_infer_request();
+        inferRequest.infer();
+
+        inferRequest = {};
+
+        OV_ASSERT_NO_THROW(deviceAllocMemSizeAny =
+                                   core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+        deviceAllocMemSizeFinal = deviceAllocMemSizeAny.as<uint64_t>();
+        ASSERT_EQ(deviceAllocMemSize, deviceAllocMemSizeFinal) << " at iteration " << i;
+    }
+}
+
+TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeSameAfterDestroyInferRequestSetTensor) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::Core core;
+    ov::Any deviceAllocMemSizeAny;
+
+    ov::CompiledModel compiledModel;
+    auto model = createModelWithLargeSize();
+
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device));
+
+    OV_ASSERT_NO_THROW(deviceAllocMemSizeAny =
+                               core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+    uint64_t deviceAllocMemSize = deviceAllocMemSizeAny.as<uint64_t>();
+    uint64_t deviceAllocMemSizeFinal;
+
+    for (size_t i = 0; i < 1000; ++i) {
+        auto inferRequest = compiledModel.create_infer_request();
+        auto tensor = ov::Tensor(model->input(0).get_element_type(), model->input(0).get_shape());
+        ov::test::utils::fill_data_random(static_cast<ov::float16*>(tensor.data()), tensor.get_size());
+        inferRequest.set_input_tensor(tensor);
+        inferRequest.infer();
+
+        inferRequest = {};
+
+        OV_ASSERT_NO_THROW(deviceAllocMemSizeAny =
+                                   core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+        deviceAllocMemSizeFinal = deviceAllocMemSizeAny.as<uint64_t>();
+        ASSERT_EQ(deviceAllocMemSize, deviceAllocMemSizeFinal) << " at iteration " << i;
+    }
+}
+
+TEST_P(OVClassGetMetricAndPrintNoThrow, VpuDeviceAllocMemSizeSameAfterDestroyInferRequestGetTensor) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::Core core;
+    ov::Any deviceAllocMemSizeAny;
+
+    ov::CompiledModel compiledModel;
+    auto model = createModelWithLargeSize();
+
+    OV_ASSERT_NO_THROW(deviceAllocMemSizeAny =
+                               core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+    uint64_t deviceAllocMemSize = deviceAllocMemSizeAny.as<uint64_t>();
+    uint64_t deviceAllocMemSizeFinal;
+
+    for (size_t i = 0; i < 1000; ++i) {
+        OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device));
+
+        auto inferRequest = compiledModel.create_infer_request();
+        auto tensor = inferRequest.get_output_tensor();
+        inferRequest.infer();
+
+        inferRequest = {};
+        compiledModel = {};
+
+        OV_ASSERT_NO_THROW(deviceAllocMemSizeAny =
+                                   core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+        deviceAllocMemSizeFinal = deviceAllocMemSizeAny.as<uint64_t>();
+        ASSERT_LT(deviceAllocMemSize, deviceAllocMemSizeFinal) << " at iteration " << i;
+
+        tensor = {};
+
+        OV_ASSERT_NO_THROW(deviceAllocMemSizeAny =
+                                   core.get_property(target_device, ov::intel_npu::device_alloc_mem_size.name()));
+        deviceAllocMemSizeFinal = deviceAllocMemSizeAny.as<uint64_t>();
+        ASSERT_EQ(deviceAllocMemSize, deviceAllocMemSizeFinal) << " at iteration " << i;
+    }
+}
+
+TEST_P(OVClassGetMetricAndPrintNoThrow, DriverVersionNPU) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::Core ie;
+    ov::Any p;
+
+    OV_ASSERT_NO_THROW(p = ie.get_property(target_device, ov::intel_npu::driver_version.name()));
+    uint32_t t = p.as<uint32_t>();
+
+    std::cout << "NPU driver version is " << t << std::endl;
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::intel_npu::driver_version.name());
+}
+
+using OVClassCompileModel = OVClassBaseTestP;
+TEST_P(OVClassCompileModel, CompileModelWithDifferentThreadNumbers) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    ov::Core ie;
+    ov::Any p;
+
+    auto model = ov::test::utils::make_conv_pool_relu();
+    OV_ASSERT_NO_THROW(ie.compile_model(model, target_device, {{ov::compilation_num_threads.name(), ov::Any(1)}}));
+
+    OV_ASSERT_NO_THROW(ie.compile_model(model, target_device, {{ov::compilation_num_threads.name(), ov::Any(2)}}));
+
+    OV_ASSERT_NO_THROW(ie.compile_model(model, target_device, {{ov::compilation_num_threads.name(), ov::Any(4)}}));
+
+    EXPECT_ANY_THROW(ie.compile_model(model, target_device, {{ov::compilation_num_threads.name(), ov::Any(-1)}}));
+    OV_EXPECT_THROW(
+        std::ignore = ie.compile_model(model, target_device, {{ov::compilation_num_threads.name(), ov::Any(-1)}}),
+        ::ov::Exception,
+        testing::HasSubstr("ov::compilation_num_threads must be positive int32 value"));
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
