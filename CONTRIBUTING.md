@@ -1,83 +1,80 @@
 # Contributing to OpenVINO
 
-OpenVINO™ is always looking for opportunities to improve and your contributions
-play a big role in this process. There are several ways you can make the product better.
-Keep in mind that even if your input is not immediately prioritized, it may be used
-at a later time or undertaken by the community, regardless of the official roadmap.
+## How to contribute to the OpenVINO project
 
-## Provide feedback
+OpenVINO™ is always looking for opportunities to improve and your contributions
+play a big role in this process. There are several ways you can make the
+product better.
+
+# Table of Contents
+1. [Forms of contribution](#Forms-of-contribution)
+2. [Technical guide](#Technical-guide)
+
+
+## Forms of contribution
+
+### Provide Feedback
 
    * **Report bugs / issues**
-     If you notice unexpected behavior in OpenVINO or its components, you can
+     If you experience faulty behavior in OpenVINO or its components, you can
      [create a new issue](https://github.com/openvinotoolkit/openvino/issues)
      in the GitHub issue tracker.
 
    * **Propose new features / improvements**
-     If you want to share your ideas for improving OpenVINO, you can open a new
+     If you have a suggestion for improving OpenVINO or want to share your ideas, you can open a new
      [GitHub Discussion](https://github.com/openvinotoolkit/openvino/discussions).
      If your idea is already well defined, you can also create a
      [Feature Request Issue](https://github.com/openvinotoolkit/openvino/issues/new?assignees=octocat&labels=enhancement%2Cfeature&projects=&template=feature_request.yml&title=%5BFeature+Request%5D%3A+)
-     Remember to provide a detailed description, including use cases, benefits,
-     and potential challenges.
+     In both cases, provide a detailed description, including use cases, benefits, and potential challenges.
+     If your points are especially well aligned with the product vision, they will be included in the
+     development roadmap.
+     User feedback is crucial for OpenVINO development and even if your input is not immediately prioritized,
+     it may be used at a later time or undertaken by the community, regardless of the official roadmap.
 
-## Contribute code changes
 
-Before you start a contribution, check if the change has not been implemented already.
-If it happens to be in progress, align with the developer to work cooperatively.
-Remember to build OpenVINO, using the latest master branch and verify that your
-changes are still applicable. Do not address issues that only affect older non-LTS
-releases, like 2022.2. For more information, refer to the
-[Release Policy](https://docs.openvino.ai/nightly/about-openvino/release-notes-openvino/release-policy.html).
+### Contribute Code Changes
 
-   * **Fix bugs**
-
+   * **Fix Bugs or Develop New Features**
      If you want to help improving OpenVINO, choose one of the issues reported in
      [GitHub Issue Tracker](https://github.com/openvinotoolkit/openvino/issues) and
-     [create a Pull Request](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING_PR.md)
-     addressing it. Consider one of the tasks listed as
-     [first-time contributions](https://github.com/orgs/openvinotoolkit/projects/3)
+     [create a Pull Request](./CONTRIBUTING_PR.md) addressing it. If you want to start with something simple,
+     check out the [first-time contributions section](#3-start-working-on-your-good-first-issue).
+     If the feature you want to develop is more complex or not well defined by the reporter,
+     it is always a good idea to [discuss it](https://github.com/openvinotoolkit/openvino/discussions)
+     with OpenVINO developers first. Before creating a new PR, check if nobody is already
+     working on it. In such a case, you may still help, having aligned with the other developer.
 
-   * **Develop new features**
+     Importantly, always check if the change hasn't been implemented before you start working on it!
+     You can build OpenVINO using the latest master branch and make sure that it still needs your
+     changes. Also, do not address issues that only affect older non-LTS releases, like 2022.2.
 
-     If the feature you want to develop is more complex or not well defined yet,
-     you may want to [discuss it](https://github.com/openvinotoolkit/openvino/discussions)
-     with OpenVINO developers first.
+   * **Develop a New Device Plugin**
+     Since the market of computing devices is constantly evolving, OpenVINO is always open to extending
+     its support for new hardware. If you want to run inference on a device that is currently not supported,
+     you can see how to develop a new plugin for it in the
+     [Plugin Developer Guide](https://docs.openvino.ai/canonical/openvino_docs_ie_plugin_dg_overview.html).
 
-   * **Develop a new device plugin**
 
-     OpenVINO is always open to extending its support for new hardware. If you want to
-     run inference on a device that is currently not supported, you can see how to
-     develop a new plugin for it in the
-     [Plugin Developer Guide](https://docs.openvino.ai/nightly/documentation/openvino-extensibility/openvino-plugin-library.html).
+### Improve documentation
 
-## Improve documentation
+   * **OpenVINO developer documentation** is contained entirely in this repository, under the
+     [./docs/dev](https://github.com/openvinotoolkit/openvino/tree/master/docs/dev) folder.
 
-You are welcome to review and provide feedback on the existing articles.
-Whether you notice a mistake, see the possibility of improving the text,
-or think more information should be added, you can reach out to any of the
-[documentation maintainers](https://github.com/orgs/openvinotoolkit/teams/openvino-docs-maintainers)
-to discuss the potential changes. You can also edit the articles directly on GitHub or open
-them with [Github.dev](https://github.dev/openvinotoolkit/openvino). Do not forget to create
-a **Pull Request**, following the [guidelines](./CONTRIBUTING_DOCS.md).
+   * **User documentation** is built from several sources and published at
+     [docs.openvino.ai](https://docs.openvino.ai/), which is the recommended place for reading
+     these documents. Use the files maintained in this repository only for editing purposes.
 
-   * **Review user documentation**
+   * The easiest way to help with documentation is to review it and provide feedback on the
+     existing articles. Whether you notice a mistake, see the possibility of improving the text,
+     or think more information should be added, you can reach out to any of the documentation
+     contributors to discuss the potential changes.
 
-     The documentation is built from several sources, mainly
-     [docs](./docs) folder, using [Sphinx](https://www.sphinx-doc.org/) and the
-     [reStructuredText](https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html)
-     markup language. It is published at [docs.openvino.ai](https://docs.openvino.ai/),
-     which is recommended for reading the articles.
+     You can also create a Pull Request directly, following the [editor's guide](./CONTRIBUTING_DOCS.md).
 
-   * **Check OpenVINO developer documentation**
 
-     The intended audience for the developer documentation is developers. This documentation includes detailed information on the architecture of OpenVINO. It helps understand the process of building the toolkit, so you can modify and implement it as per the requirement.
-
-     The documentation is contained entirely in the [docs/dev](./docs/dev) folder.
-
-## Promote and support OpenVINO
+### Promote and Support OpenVINO
 
    * **Popularize OpenVINO**
-
      Articles, tutorials, blog posts, demos, videos, and any other involvement
      in the OpenVINO community is always a welcome contribution. If you discuss
      or present OpenVINO on various social platforms, you are raising awareness
@@ -85,83 +82,82 @@ a **Pull Request**, following the [guidelines](./CONTRIBUTING_DOCS.md).
      the toolkit. Feel free to reach out to OpenVINO developers if you need help
      with making such community-based content.
 
-   * **Help other community members**
-
-     If you are an experienced OpenVINO user and want to help, you can share your expertise
-     with the community at any time. Check GitHub
-     [Discussions](https://github.com/openvinotoolkit/openvino/discussions) and
-     [Issues](https://github.com/openvinotoolkit/openvino/issues)
-     to see if you can help someone.
+   * **Help Other Community Members**
+     If you are an experienced OpenVINO user and want to help, you can always
+     share your expertise with the community. Check GitHub Discussions and
+     Issues to see if you can help someone.
 
 ## Technical guide
 
-This section will start you off with a few simple steps to begin your contribution.
-In case of any doubts, don't hesitate to reach out to
-[the development team](https://github.com/orgs/openvinotoolkit/teams/openvino-developers/teams).
-Remember, your questions help us keep improving OpenVINO.
+This section lists all the necessary steps required to set up your environment, build OpenVINO locally, and run tests for specific components. It's a perfect place to start when you have just picked a Good First Issue and are wondering how to start working on it.
 
-### 1. Build OpenVINO.
+Keep in mind that we are here to help - **do not hesitate to ask the development team if something is not clear**. Such questions allow us to keep improving our documentation.
 
-In order to build OpenVINO, follow the [build instructions for your specific OS](./docs/dev/build.md).
+### 1. Prerequisites
 
-### 2. Choose a [Good First Issue](https://github.com/orgs/openvinotoolkit/projects/3)
+You can start with the following links:
+- [What is OpenVINO?](https://github.com/openvinotoolkit/openvino#what-is-openvino-toolkit)
+- [OpenVINO architecture](https://github.com/openvinotoolkit/openvino/blob/master/src/docs/architecture.md)
+- [User documentation](https://docs.openvino.ai/)
+- [Blog post on contributing to OpenVINO](https://medium.com/openvino-toolkit/how-to-contribute-to-an-ai-open-source-project-c741f48e009e)
+- [Pick up a Good First Issue](https://github.com/orgs/openvinotoolkit/projects/3)
+- Check out [Intel DevHub Discord server](https://discord.gg/7pVRxUwdWG) - engage in discussions, ask questions and talk to OpenVINO developers
 
-Use the links below to explore the component in question. You can run tests to make sure it works correctly.
+### 2. Building the project
 
-   * **APIs**
-     - [C API](https://github.com/openvinotoolkit/openvino/tree/master/src/bindings/c)
-     - [Core](https://github.com/openvinotoolkit/openvino/tree/master/src/core)
-     - [Python API](https://github.com/openvinotoolkit/openvino/tree/master/src/bindings/python)
+In order to build the project, follow the [build instructions for your specific OS](https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md).
 
-   * **Frontends**
-     - [IR Frontend](https://github.com/openvinotoolkit/openvino/tree/master/src/frontends/ir)
-     - [ONNX Frontend](https://github.com/openvinotoolkit/openvino/tree/master/src/frontends/onnx)
-     - [PaddlePaddle Frontend](https://github.com/openvinotoolkit/openvino/tree/master/src/frontends/paddle)
-     - [PyTorch Frontend](https://github.com/openvinotoolkit/openvino/tree/master/src/frontends/pytorch)
-     - [TensorFlow Frontend](https://github.com/openvinotoolkit/openvino/tree/master/src/frontends/tensorflow)
+### 3. Familiarize yourself with the component you'll be working with
 
-   * **Plugins**
-     - [Auto plugin](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/auto)
-     - [CPU plugin](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu)
-     - [GPU plugin](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu)
-     - [NPU plugin](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_npu)
-     - [Hetero plugin](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/hetero)
-     - [Template plugin](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/template)
+Choose the component your Good First Issue is related to. You can run tests to make sure it works correctly.
 
-   * **Tools**
-     - [Benchmark Tool](https://github.com/openvinotoolkit/openvino/tree/master/tools/benchmark_tool)
-     - [Model Optimizer](https://github.com/openvinotoolkit/openvino/tree/master/tools/mo)
+##### APIs
+- [C API](https://github.com/openvinotoolkit/openvino/tree/master/src/bindings/c)
+- [Core](https://github.com/openvinotoolkit/openvino/tree/master/src/core)
+- [Python API](https://github.com/openvinotoolkit/openvino/tree/master/src/bindings/python)
 
-   * **Others**
-     - [Documentation](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING_DOCS.md)
+##### Frontends
+- [IR Frontend](https://github.com/openvinotoolkit/openvino/tree/master/src/frontends/ir)
+- [ONNX Frontend](https://github.com/openvinotoolkit/openvino/tree/master/src/frontends/onnx)
+- [PaddlePaddle Frontend](https://github.com/openvinotoolkit/openvino/tree/master/src/frontends/paddle)
+- [PyTorch Frontend](https://github.com/openvinotoolkit/openvino/tree/master/src/frontends/pytorch)
+- [TensorFlow Frontend](https://github.com/openvinotoolkit/openvino/tree/master/src/frontends/tensorflow)
 
-### 3. Begin working on a "Good First Issue" or create a [new one](https://github.com/openvinotoolkit/openvino/issues/new?assignees=&labels=good+first+issue%2Cno_stale&projects=&template=good_first_issue.yml&title=%5BGood+First+Issue%5D%3A+)
+##### Plugins
+- [Auto plugin](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/auto)
+- [CPU plugin](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu)
+- [GPU plugin](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu)
+- [NPU plugin](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_npu)
+- [Hetero plugin](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/hetero)
+- [Template plugin](https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/template)
 
-Use the locally built OpenVINO and the information found in the issue description. Remember
-that you can assign users in the **"Contact points"** section for help. You can also
-visit [Intel DevHub Discord server](https://discord.gg/7pVRxUwdWG) and ask questions
-in the channel dedicated to **"Good First Issue"** support.
+##### Tools
+- [Benchmark Tool](https://github.com/openvinotoolkit/openvino/tree/master/tools/benchmark_tool)
+- [OpenVINO Model Converter](https://github.com/openvinotoolkit/openvino/tree/master/tools/ovc)
+
+##### Others
+- [Documentation](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING_DOCS.md)
+
+### 3. Start working on your Good First Issue
+
+To start contributing, pick a task from the [Good First Issues board](https://github.com/orgs/openvinotoolkit/projects/3).
+
+To be assigned to an issue, simply leave a comment with the `.take` command in the selected issue.
+Use the issue description and build OpenVINO locally to complete the task.
+
+You can always ask users tagged in the "Contact points" section for help!
+Visit [Intel DevHub Discord server](https://discord.gg/7pVRxUwdWG) and ask
+questions in the channel dedicated to Good First Issue support.
 
 ### 4. Submit a PR with your changes
 
-Follow the [Good Pull Request guidelines](./CONTRIBUTING_PR.md)
-and do not forget to [link your Pull Request to the issue](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#manually-linking-a-pull-request-to-an-issue-using-the-pull-request-sidebar)
-it addresses.
+Follow our [Good Pull Request guidelines](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING_PR.md). Please remember about [linking your Pull Request to the issue](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#manually-linking-a-pull-request-to-an-issue-using-the-pull-request-sidebar) it addresses.
 
 ### 5. Wait for a review
 
-We will make sure to review your **Pull Request** as soon as possible and provide feedback.
-You can expect a merge once your changes have been validated with automatic tests and
-approved by maintainers.
-
-### Additional Resources
-
-- [User documentation](https://docs.openvino.ai/)
-- [Choose a Good First Issue](https://github.com/orgs/openvinotoolkit/projects/3)
-- Learn more about [OpenVINO architecture](./src/docs/architecture.md)
-- Check out a [blog post on contributing to OpenVINO](https://medium.com/openvino-toolkit/how-to-contribute-to-an-ai-open-source-project-c741f48e009e)
-- Visit [Intel DevHub Discord server](https://discord.gg/7pVRxUwdWG) to join discussions and talk to OpenVINO developers.
+We'll make sure to review your Pull Request as soon as possible and provide you with our feedback. You can expect a merge once your changes are validated with automatic tests and approved by maintainers.
 
 ## License
 
-> **NOTE**: By making a contribution to the OpenVINO project, you agree to the terms of the [LICENSE](./LICENSE).
+By contributing to the OpenVINO project, you agree that your contributions will be
+licensed under the terms stated in the [LICENSE](./LICENSE) file.
