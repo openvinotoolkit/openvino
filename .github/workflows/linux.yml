@@ -21,7 +21,7 @@ permissions: read-all
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
   PYTHON_VERSION: '3.11'
-  OPENVINO_SHA: '' # Change to collect artifacts from other hash than the current head
+  OPENVINO_SHA: 'bb5a9d48059abb5223e785b04b0d0042ec80a3dc' # Change to collect artifacts from other hash than the current head
 
 jobs:
   Smart_CI:
