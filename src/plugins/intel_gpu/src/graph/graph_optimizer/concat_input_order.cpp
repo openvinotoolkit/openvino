@@ -78,10 +78,8 @@ void shuffle_weights(data_node& node, const std::vector<shuffle_range>& ranges, 
                     for (int32_t zi = 0; zi < wei_layout.spatial(2); ++zi) {
                         for (int32_t yi = 0; yi < wei_layout.spatial(1); ++yi) {
                             for (int32_t xi = 0; xi < wei_layout.spatial(0); ++xi) {
-                                auto old_coords = tensor(batch(ofi), feature(ifi), spatial(xi, yi, zi, wi));
-                                auto new_coords = tensor(batch(ofi), feature(new_ifi), spatial(xi, yi, zi, wi));
-                                auto old_offset = wei_layout.get_linear_offset(old_coords);
-                                auto new_offset = wei_layout.get_linear_offset(new_coords);
+                                auto old_offset = wei_layout.get_linear_offset({ofi, ifi, xi, yi, zi, wi});
+                                auto new_offset = wei_layout.get_linear_offset({ofi, new_ifi, xi, yi, zi, wi});
                                 for (size_t byte = 0; byte < bytes_per_elem; ++byte) {
                                     new_ptr[new_offset * bytes_per_elem + byte] = old_ptr[old_offset * bytes_per_elem + byte];
                                 }

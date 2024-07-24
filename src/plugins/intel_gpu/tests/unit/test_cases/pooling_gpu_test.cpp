@@ -913,7 +913,7 @@ TEST(pooling_forward_gpu, offsets_max_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i3x3x1x1_out
 
         auto output_prim = outputs.begin()->second.get_memory();
         ASSERT_EQ((int)output_prim->get_layout().count(), 4);
-        ASSERT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 16);
+        ASSERT_EQ((int)output_prim->get_layout().get_linear_size(), 16);
 
         cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
         for (size_t i = 0; i < expected.size(); ++i) {
@@ -1051,7 +1051,7 @@ TEST(pooling_forward_gpu, offsets_max_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i3x3x1x1_inp
 
         auto output_prim = outputs.begin()->second.get_memory();
         ASSERT_EQ((int)output_prim->get_layout().count(), 4);
-        ASSERT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 16);
+        ASSERT_EQ((int)output_prim->get_layout().get_linear_size(), 16);
 
         cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
         for (size_t i = 0; i < expected.size(); ++i) {
@@ -1197,7 +1197,7 @@ TEST(pooling_forward_gpu, max_yxfb_bfyx_f32_wsiz2x2_wstr2x2_i3x3x1x1_inpad2x1_ou
 
         auto output_prim = outputs.begin()->second.get_memory();
         ASSERT_EQ((int)output_prim->get_layout().count(), 9);
-        ASSERT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 25);
+        ASSERT_EQ((int)output_prim->get_layout().get_linear_size(), 25);
 
         cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
         for (size_t i = 0; i < expected.size(); ++i) {
@@ -1755,7 +1755,7 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_max_1x1x3x3_input_2x2_pool_2x2_stride_2x
 
         auto output_prim = outputs.begin()->second.get_memory();
         ASSERT_EQ((int)output_prim->get_layout().count(), 4);
-        ASSERT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 16);
+        ASSERT_EQ((int)output_prim->get_layout().get_linear_size(), 16);
 
         cldnn::mem_lock<ov::float16> output_ptr(output_prim, get_test_stream());
 
@@ -1833,7 +1833,7 @@ TEST(pooling_forward_gpu, fs_b_yx_fsv32_max_1x1x5x5_input_2x2_pool_2x2_stride_2x
 
     auto output_prim = outputs.begin()->second.get_memory();
     ASSERT_EQ((int)output_prim->get_layout().count(), 9);
-    ASSERT_EQ((int)output_prim->get_layout().get_buffer_size().count(), 25);
+    ASSERT_EQ((int)output_prim->get_layout().get_linear_size(), 25);
 
     cldnn::mem_lock<ov::float16> output_ptr(output_prim, get_test_stream());
 
@@ -1971,8 +1971,9 @@ public:
                 for (size_t zi = 0; zi < input_z(); ++zi)
                     for (size_t yi = 0; yi < input_y(); ++yi)
                         for (size_t xi = 0; xi < input_x(); ++xi) {
-                            tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, 0));
-                            size_t offset = input_lay.get_linear_offset(coords);
+                            size_t offset = input_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
+                                                                        static_cast<int32_t>(xi), static_cast<int32_t>(yi),
+                                                                        static_cast<int32_t>(zi), 0});
                             input_flat[offset] = _input[bi][fi][zi][yi][xi];
                         }
         set_values(input_mem, input_flat);
@@ -2008,8 +2009,9 @@ public:
                 for (size_t zi = 0; zi < expected[0][0].size(); ++zi)
                     for (size_t yi = 0; yi < expected[0][0][0].size(); ++yi)
                         for (size_t xi = 0; xi < expected[0][0][0][0].size(); ++xi) {
-                            tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, 0));
-                            size_t offset = out_lay.get_linear_offset(coords);
+                            size_t offset = out_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
+                                                                       static_cast<int32_t>(xi), static_cast<int32_t>(yi),
+                                                                       static_cast<int32_t>(zi), 0});
                             auto ref_val = static_cast<float>(expected[bi][fi][zi][yi][xi]);
                             auto actual_val = static_cast<float>(out_ptr[offset]);
                             if (compare_with_tolerance) {
@@ -3068,8 +3070,8 @@ public:
         cldnn::mem_lock<Type> input_mem(inputs[0], get_test_stream());
         cldnn::mem_lock<Type> output_mem(output, get_test_stream());
 
-        int output_width = output->get_layout().get_buffer_size().spatial[0];
-        int output_height = output->get_layout().get_buffer_size().spatial[1];
+        int output_width = output->get_layout().get_padded_dims()[2 + 0];
+        int output_height = output->get_layout().get_padded_dims()[2 + 1];
 
         const auto input_desc = get_linear_memory_desc(inputs[0]->get_layout());
         const auto output_desc = get_linear_memory_desc(output->get_layout());
@@ -3078,7 +3080,7 @@ public:
         {
             case cldnn::pooling_mode::max:
             {
-                for (int i = 0; i < (int)output->get_layout().get_buffer_size().count(); i++)
+                for (int i = 0; i < (int)output->get_layout().get_linear_size(); i++)
                 {
                     output_mem[i] = (generic_params->data_type == data_types::f32) ? -FLT_MAX : -65504;
                 }
@@ -3145,7 +3147,7 @@ public:
                     return y*x;
                 };
 
-                for (int i = 0; i < (int)output->get_layout().get_buffer_size().count(); i++)
+                for (int i = 0; i < (int)output->get_layout().get_linear_size(); i++)
                 {
                     output_mem[i] = 0;
                 }
@@ -3166,7 +3168,7 @@ public:
                                 pad_y_start = std::max(pad_y_start, 0);
 
                                 int output_index = (b * feature + f) * output_height * output_width;
-                                tensor lower_padding = pooling->output_paddings[0].lower_size();
+                                tensor lower_padding(pooling->output_paddings[0].lower_size());
                                 output_index += (lower_padding.spatial[1] + h) * output_width + lower_padding.spatial[0] + w;
 
                                 int num_of_elements = 0;

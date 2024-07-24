@@ -27,13 +27,13 @@ void convert_and_copy_no_pad(const src_t* src, dst_t* dst, size_t size) {
 template <typename src_t, typename dst_t>
 void convert_and_copy_padded_source(const src_t* src, dst_t* dst, cldnn::layout layout) {
     cldnn::tensor size = layout.get_tensor();
-    for (int64_t b = 0; b < size.batch[0]; b++) {
-        for (int64_t f = 0; f < size.feature[0]; f++) {
-            for (int64_t w = 0; w < size.spatial[3]; w++) {
-                for (int64_t z = 0; z < size.spatial[2]; z++) {
-                    for (int64_t y = 0; y < size.spatial[1]; y++) {
-                        for (int64_t x = 0; x < size.spatial[0]; x++) {
-                            *dst++ = static_cast<dst_t>(src[layout.get_linear_offset(cldnn::tensor(b, f, x, y, z, w))]);
+    for (auto b = 0; b < size.batch[0]; b++) {
+        for (auto f = 0; f < size.feature[0]; f++) {
+            for (auto w = 0; w < size.spatial[3]; w++) {
+                for (auto z = 0; z < size.spatial[2]; z++) {
+                    for (auto y = 0; y < size.spatial[1]; y++) {
+                        for (auto x = 0; x < size.spatial[0]; x++) {
+                            *dst++ = static_cast<dst_t>(src[layout.get_linear_offset({b, f, x, y, z, w})]);
                         }
                     }
                 }

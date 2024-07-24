@@ -45,7 +45,7 @@ inline padding get_pad(format fmt, std::vector<int64_t> axes, bool is_dynamic) {
         start_pad_val += 5;
     }
 
-    return padding(tensor(fmt, lower, 0).sizes(), tensor(fmt, upper, 0).sizes(), 0.0f, tensor(fmt, mask, 0));
+    return padding(tensor(fmt, lower, 0).sizes(), tensor(fmt, upper, 0).sizes(), 0.0f, tensor(fmt, mask, 0).sizes());
 }
 
 class reshape_test_two_inputs : public testing::TestWithParam<reshape_test_params> {};

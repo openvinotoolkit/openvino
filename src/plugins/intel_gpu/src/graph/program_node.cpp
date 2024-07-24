@@ -38,7 +38,7 @@ static size_t get_shape_data_size(const layout& l) {
         return 0;
 
     size_t size = layout::max_rank(); // all dimenstions are stored
-    auto dynamic_pad = l.data_padding.get_dynamic_pad_dims().sizes(format::get_default_format(layout::max_rank()));
+    auto dynamic_pad = layout::format_sizes(l.data_padding.get_dynamic_pad_dims(), format::get_default_format(layout::max_rank()));
     for (size_t j = 0; j < layout::max_rank(); ++j) {
         if (dynamic_pad[j] == 1) {
             size += 2; // lower + upper
@@ -594,10 +594,11 @@ bool program_node::is_padding_supported(int axis, int padding) const {
 }
 
 bool program_node::is_padded_spatial(size_t idx) const {
-    auto lower_size = get_output_layout(idx).data_padding.lower_size();
-    auto upper_size = get_output_layout(idx).data_padding.upper_size();
-    return std::any_of(lower_size.spatial.begin(), lower_size.spatial.end(), [](const tensor::value_type& el) { return el != 0; }) ||
-        std::any_of(upper_size.spatial.begin(), upper_size.spatial.end(), [](const tensor::value_type& el) { return el != 0; });
+    auto& layout = get_output_layout(idx);
+    auto lower_size = layout.data_padding.lower_size();
+    auto upper_size = layout.data_padding.upper_size();
+    return std::any_of(lower_size.begin() + 2, lower_size.begin() + layout.get_spatial_rank() - 1, [](const tensor::value_type& el) { return el != 0; }) ||
+        std::any_of(upper_size.begin() + 2, upper_size.begin() + layout.get_spatial_rank() - 1, [](const tensor::value_type& el) { return el != 0; });
 }
 
 void program_node::set_selected_impl(std::unique_ptr<primitive_impl> impl) {

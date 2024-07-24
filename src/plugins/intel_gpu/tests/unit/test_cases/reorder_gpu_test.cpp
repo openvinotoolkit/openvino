@@ -1344,7 +1344,7 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_bfyx_dynamic_padding_x) {
     layout in_dynamic_layout{ov::PartialShape::dynamic(in_shape.size()),
                              data_types::f16,
                              format::bfyx,
-                             padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims /*dynamic_pad_dim : x*/)};
+                             padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims.sizes() /*dynamic_pad_dim : x*/)};
 
     std::vector<float> subtract_val = {};
     topology topology(input_layout("input", in_dynamic_layout),
@@ -1363,7 +1363,7 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_bfyx_dynamic_padding_x) {
     auto input_mem = engine.allocate_memory({ov::PartialShape(in_shape),
                                              data_types::f16,
                                              format::bfyx,
-                                             padding({0, 0, 2, 0}, {0, 0, 1, 0}, 0.0f, dyn_pad_dims)});
+                                             padding({0, 0, 2, 0}, {0, 0, 1, 0}, 0.0f, dyn_pad_dims.sizes())});
     set_values<ov::float16>(input_mem, {
         ov::float16(0.f), ov::float16(0.f), // padding
         ov::float16(1.f), ov::float16(2.f), // data
@@ -1406,7 +1406,7 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_bfyx_dynamic_padding_f) {
     layout in_dynamic_layout{ov::PartialShape::dynamic(in_shape.size()),
                              data_types::f16,
                              format::bfyx,
-                             padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims /*dynamic_pad_dim : x*/)};
+                             padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims.sizes() /*dynamic_pad_dim : x*/)};
 
     std::vector<float> subtract_val = {};
     topology topology(input_layout("input", in_dynamic_layout),
@@ -1425,7 +1425,7 @@ TEST(reorder_gpu_f32, dynamic_bfyx_to_bfyx_dynamic_padding_f) {
     auto input_mem = engine.allocate_memory({ov::PartialShape(in_shape),
                                              data_types::f16,
                                              format::bfyx,
-                                             padding({0, 2, 0, 0}, {0, 1, 0, 0}, 0.0f, dyn_pad_dims)});
+                                             padding({0, 2, 0, 0}, {0, 1, 0, 0}, 0.0f, dyn_pad_dims.sizes())});
     set_values<ov::float16>(input_mem, {
         ov::float16(0.f), ov::float16(0.f), // f before
         ov::float16(0.f), ov::float16(0.f), // f before
@@ -1732,8 +1732,8 @@ TEST(reorder_gpu_opt, remove_redundant_reorder_reorder_with_padding)
     // r2 would be removed, but the padding value should be remained at the input primitive of r2.
     std::vector<int32_t> gt = {0, 0, 1, 1};
     auto r1_output_data_padding = net.get_primitive("r1")->get_output_layout().data_padding;
-    auto upper_padding = r1_output_data_padding.upper_size().sizes();
-    auto lower_padding = r1_output_data_padding.lower_size().sizes();
+    auto upper_padding = r1_output_data_padding.upper_size();
+    auto lower_padding = r1_output_data_padding.lower_size();
     for (int32_t i = 0 ; i < 4; i++) {
         ASSERT_EQ(upper_padding[i], gt[i]);
         ASSERT_EQ(lower_padding[i], gt[i]);

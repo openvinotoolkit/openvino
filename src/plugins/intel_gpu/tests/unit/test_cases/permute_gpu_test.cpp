@@ -736,10 +736,8 @@ TEST(permute_gpu_f32, permute_bfwzyx)
     for (int yi = 0; yi < y; ++yi)
     for (int xi = 0; xi < x; ++xi)
     {
-        auto in_index = cldnn::tensor(batch(bi), feature(fi), spatial(xi, yi, zi, wi));
-        auto out_index = cldnn::tensor(batch(fi), feature(bi), spatial(wi, zi, yi, xi));
-        expected_output[expected_layout.get_linear_offset(out_index)] =
-            input_data[input_mem->get_layout().get_linear_offset(in_index)];
+        expected_output[expected_layout.get_linear_offset({fi, bi, wi, zi, yi, xi})] =
+            input_data[input_mem->get_layout().get_linear_offset({bi, fi, xi, yi, zi, wi})];
     }
 
     topology topology(

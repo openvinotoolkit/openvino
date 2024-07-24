@@ -63,6 +63,20 @@ dnnl::memory::dims convert_gemm_tensor(cldnn::tensor t, size_t dims, bool batche
     return res;
 }
 
+dnnl::memory::dims convert_gemm_dims(const std::vector<cldnn::tensor::value_type> &sizes, size_t dims, bool batched_dims_can_be_removed) {
+    dnnl::memory::dims res(sizes.begin(), sizes.end());
+    if (dims > 4) {
+        for (size_t i = 0; i < dims - 4; i++) {
+            res[i + 1] *= res[i];
+        }
+        res.erase(res.begin(), res.begin() + dims - 4);
+    }
+    if (res.size() == 4 && batched_dims_can_be_removed) {
+        res.erase(res.begin(), res.begin() + 2);
+    }
+    return res;
+}
+
 dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims, format target) {
     if (dims.size() == target.dimension()) {
         auto tag = convert_data_format(target);
@@ -218,11 +232,11 @@ void combine_bf_with_first_spatial_dim(cldnn::layout& l) {
 
 int64_t get_offset(cldnn::layout&& l, dnnl::memory::desc&& desc) {
     int64_t offset = 0;
-    auto b_padding = l.data_padding.lower_size().batch[0];
-    auto f_padding = l.data_padding.lower_size().feature[0];
+    auto b_padding = l.data_padding.lower_size()[0];
+    auto f_padding = l.data_padding.lower_size()[1];
     if (b_padding != 0) {
         auto input_pitches = l.get_pitches();
-        offset = b_padding * input_pitches.batch[0];
+        offset = b_padding * input_pitches[0];
     } else if (f_padding != 0) {
         offset = f_padding;
         for (size_t i = 0; i < l.get_spatial_rank(); ++i) {

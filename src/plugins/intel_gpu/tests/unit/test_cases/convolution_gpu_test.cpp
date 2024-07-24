@@ -5907,7 +5907,7 @@ void blockedFormatZeroCheck(cldnn::memory::ptr out_mem) {
         batch_blocked = true;
     const int block_size = 16;
 
-    auto output_tensor = out_mem->get_layout().get_buffer_size();
+    auto output_tensor = tensor(out_mem->get_layout().get_padded_dims());
     const int b = output_tensor.batch[0];
     const int f = output_tensor.feature[0];
     const int spatials = std::accumulate(output_tensor.spatial.begin(), output_tensor.spatial.end(), 1, std::multiplies<int>());
@@ -7620,8 +7620,7 @@ TEST_P(convolution_grouped_gpu, base) {
             for (int z = 0; z < input_z; z++)
                 for (int y = 0; y < input_y; y++)
                     for (int x = 0; x < input_x; x++) {
-                        tensor coords = tensor(batch(b), feature(f), spatial(x, y, z, 0));
-                        size_t offset = input_lay.get_linear_offset(coords);
+                        size_t offset = input_lay.get_linear_offset({b, f, x, y, z, 0});
                         input_flat[offset] = input_rnd[b][f][z][y][x];
                     }
     auto input = engine.allocate_memory(input_lay);
@@ -7651,8 +7650,7 @@ TEST_P(convolution_grouped_gpu, base) {
                 for (int kzi = 0; kzi < filter_z; ++kzi)
                     for (int kyi = 0; kyi < filter_y; ++kyi)
                         for (int kxi = 0; kxi < filter_x; ++kxi) {
-                            tensor coords = tensor(group(gi), batch(ofi), feature(ifi), spatial(kxi, kyi, kzi, 0));
-                            size_t offset = weights_lay.get_linear_offset(coords);
+                            size_t offset = weights_lay.get_linear_offset({gi, ofi, ifi, kxi, kyi, kzi, 0});  // Cecilia: FIXME
                             weights_flat[offset] = weights_rnd[gi][ofi][ifi][kzi][kyi][kxi];
                         }
     auto weights = engine.allocate_memory(weights_lay);
@@ -7790,8 +7788,7 @@ TEST_P(convolution_grouped_gpu, base) {
             for (int zi = 0; zi < (int)expected_result[0][0].size(); ++zi)
                 for (int yi = 0; yi < (int)expected_result[0][0][0].size(); ++yi)
                     for (int xi = 0; xi < (int)expected_result[0][0][0][0].size(); ++xi) {
-                        tensor coords = tensor(batch(bi), feature(ofi), spatial(xi, yi, zi, 0));
-                        auto offset = out_lay.get_linear_offset(coords);
+                        auto offset = out_lay.get_linear_offset({bi, ofi, xi, yi, zi, 0});
                         auto val = out_ptr[offset];
                         auto val_ref = expected_result[bi][ofi][zi][yi][xi];
                         auto equal = are_equal(val_ref, val, 1e-2f);
@@ -7956,8 +7953,7 @@ TEST_P(convolution_general_gpu, conv_fp16_cases) {
         for (int ofi = 0; ofi < out_lay.feature(); ++ofi)
             for (int yi = 0; yi < out_lay.spatial(1); ++yi)
                 for (int xi = 0; xi < out_lay.spatial(0); ++xi) {
-                    tensor coords = tensor(batch(bi), feature(ofi), spatial(xi, yi, 0, 0));
-                    auto offset = out_lay.get_linear_offset(coords);
+                    auto offset = out_lay.get_linear_offset({bi, ofi, xi, yi, 0, 0});
                     auto val = out_ptr[offset];
                     auto val_ref = expected_result[bi][ofi][yi][xi];
                     auto equal = are_equal(val_ref, val, 1);
@@ -8272,8 +8268,8 @@ public:
             for (size_t fi = 0; fi < input_features(); ++fi)
                 for (size_t yi = 0; yi < input_y(); ++yi)
                     for (size_t xi = 0; xi < input_x(); ++xi) {
-                        tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
-                        size_t offset = input_lay.get_linear_offset(coords);
+                        size_t offset = input_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
+                                                                static_cast<int32_t>(xi), static_cast<int32_t>(yi), 0, 0});
                         input_flat[offset] = _input[bi][fi][yi][xi];
                     }
         set_values(input_mem, input_flat);
@@ -8306,8 +8302,8 @@ public:
             for (size_t fi = 0; fi < output_features(); ++fi)
                 for (size_t yi = 0; yi < expected[0][0].size(); ++yi)
                     for (size_t xi = 0; xi < expected[0][0][0].size(); ++xi) {
-                        tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
-                        size_t offset = out_lay.get_linear_offset(coords);
+                        size_t offset = out_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
+                                                        static_cast<int32_t>(xi), static_cast<int32_t>(yi), 0, 0});
 
                         ASSERT_EQ(out_ptr[offset], expected[bi][fi][yi][xi])
                             << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi << std::endl
@@ -8722,8 +8718,8 @@ public:
             for (size_t fi = 0; fi < this->input_features(); ++fi)
                 for (size_t yi = 0; yi < this->input_y(); ++yi)
                     for (size_t xi = 0; xi < this->input_x(); ++xi) {
-                        tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
-                        size_t offset = input_lay.get_linear_offset(coords);
+                        size_t offset = input_lay.get_linear_offset({static_cast<tensor::value_type>(bi), static_cast<tensor::value_type>(fi),
+                                                                    static_cast<tensor::value_type>(xi), static_cast<tensor::value_type>(yi), 0, 0});
                         input_flat[offset] = this->_input[bi][fi][yi][xi];
                     }
         set_values(input_mem, input_flat);
@@ -8756,8 +8752,8 @@ public:
             for (size_t fi = 0; fi < this->output_features(); ++fi)
                 for (size_t yi = 0; yi < expected[0][0].size(); ++yi)
                     for (size_t xi = 0; xi < expected[0][0][0].size(); ++xi) {
-                        tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
-                        size_t offset = out_lay.get_linear_offset(coords);
+                        size_t offset = out_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi),
+                                                                static_cast<int32_t>(xi), static_cast<int32_t>(yi), 0, 0});
 
                         ASSERT_EQ(out_ptr[offset], expected[bi][fi][yi][xi])
                             << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi << std::endl
@@ -9235,7 +9231,7 @@ public:
         cldnn::mem_lock<Type> bias_mem(inputs[2], get_test_stream());
         cldnn::mem_lock<Type> output_mem(output, get_test_stream());
 
-        tensor output_buffer_size = output->get_layout().get_buffer_size();
+        tensor output_buffer_size = tensor(output->get_layout().get_padded_dims());
 
         // Initialized output with zeros.
         std::fill(output_mem.begin(), output_mem.end(), static_cast<Type>(0));
@@ -9246,7 +9242,7 @@ public:
                 for (int y = 0; y < output_size_y; y++) {
                     for (int x = 0; x < output_size_x; x++) {
                         int output_index = (b * output_buffer_size.feature[0] + out_f) * output_buffer_size.spatial[1] * output_buffer_size.spatial[0];
-                        tensor lower_output_padding = convolution->output_paddings[0].lower_size();
+                        tensor lower_output_padding(convolution->output_paddings[0].lower_size());
                         output_index += (lower_output_padding.spatial[1] + y) * output_buffer_size.spatial[0] + lower_output_padding.spatial[0] + x;
 
                         output_mem[output_index] += bias_mem[out_f];
@@ -9271,7 +9267,7 @@ public:
                             int output_yi = y;
                             int output_xi = x;
                             auto output_index = (output_bi * output_buffer_size.feature[0] + output_fi) * output_buffer_size.spatial[1] * output_buffer_size.spatial[0];
-                            tensor lower_output_padding = convolution->output_paddings[0].lower_size();
+                            tensor lower_output_padding(convolution->output_paddings[0].lower_size());
                             output_index += (lower_output_padding.spatial[1] + output_yi) * output_buffer_size.spatial[0] + lower_output_padding.spatial[0] + output_xi;
 
                             for (int kernel_y = 0; kernel_y < weights_size.spatial[1]; kernel_y++) {
@@ -9524,8 +9520,7 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
         for (int ofi = 0; ofi < out_lay.feature(); ++ofi)
             for (int yi = 0; yi < out_lay.spatial(1); ++yi)
                 for (int xi = 0; xi < out_lay.spatial(0); ++xi) {
-                    tensor coords = tensor(batch(bi), feature(ofi), spatial(xi, yi, 0, 0));
-                    auto offset = out_lay.get_linear_offset(coords);
+                    auto offset = out_lay.get_linear_offset({bi, ofi, xi, yi, 0, 0});
                     auto val = out_ptr[offset];
                     auto val_ref = expected_result[bi][ofi][yi][xi];
                     auto equal = are_equal(val_ref, val, 1);

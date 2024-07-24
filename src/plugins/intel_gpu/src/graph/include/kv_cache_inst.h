@@ -56,8 +56,8 @@ public:
 
     static void update_pad(layout& l, int64_t pad, int64_t sequence_axis_legacy) {
         const auto& dyn_pad_dims = l.data_padding.get_dynamic_pad_dims();
-        const auto& lower_padd = l.data_padding.lower_size().sizes();
-        auto upper_padd = l.data_padding.upper_size().sizes();
+        const auto& lower_padd = l.data_padding.lower_size();
+        auto upper_padd = l.data_padding.upper_size();
         upper_padd[sequence_axis_legacy] = pad;
         l.data_padding = padding(lower_padd, upper_padd, 0.f, dyn_pad_dims);
     }

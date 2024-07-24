@@ -270,7 +270,7 @@ void set_values_per_batch_and_feature(cldnn::memory::ptr mem, std::vector<T> arg
         for (cldnn::tensor::value_type f = 0; f < l.feature(); ++f) {
             for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
                 for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
-                    unsigned int input_it = b*pitches.batch[0] + f*pitches.feature[0] + y*pitches.spatial[1] + x*pitches.spatial[0];
+                    unsigned int input_it = b*pitches[0] + f*pitches[1] + y*pitches[1 + 2] + x*pitches[0 + 2];
                     mem_ptr[input_it] = args[b*l.feature() + f];
                 }
             }
@@ -481,9 +481,14 @@ inline void PrintTupleTo(const std::tuple<std::shared_ptr<test_params>, std::sha
 
     str << std::endl << "Test params: " << test_param->print();
 
+    auto lower_size = primitive->output_paddings[0].lower_size();
+    auto upper_size = primitive->output_paddings[0].upper_size();
     str << "Layer params:\n"
-        << "Output padding lower size: " << test_param->print_tensor(primitive->output_paddings[0].lower_size())
-        << " upper size: " << test_param->print_tensor(primitive->output_paddings[0].upper_size()) << '\n';
+        << "Output padding lower size: ";
+    std::copy(lower_size.begin(), lower_size.end(), std::ostream_iterator<char>(std::cout, " "));
+    str << " upper size: ";
+    std::copy(upper_size.begin(), upper_size.end(), std::ostream_iterator<char>(std::cout, " "));
+    str << '\n';
 
     //TODO: do layers not have param dumping? we could consider adding it
 

@@ -23,7 +23,7 @@ padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_s
         return padding();
 
     auto in_pad = in_layout.data_padding;
-    if (in_pad.get_dynamic_pad_dims() == tensor(0)) {
+    if (in_pad.is_dynamic_pad()) {
         return padding();
     }
 
@@ -38,9 +38,9 @@ padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_s
 
     auto default_format = format::get_default_format(rank);
 
-    auto pad_lower = in_pad.lower_size().sizes(default_format);
-    auto pad_upper = in_pad.upper_size().sizes(default_format);
-    auto pad_mask = in_pad.get_dynamic_pad_dims().sizes(default_format);
+    auto pad_lower = layout::format_sizes(in_pad.lower_size(), default_format);
+    auto pad_upper = layout::format_sizes(in_pad.upper_size(), default_format);
+    auto pad_mask = layout::format_sizes(in_pad.get_dynamic_pad_dims(), default_format);
 
     std::vector<int32_t> update_pad_lower;
     std::vector<int32_t> update_pad_upper;
@@ -97,14 +97,10 @@ padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_s
         }
     }
 
-    auto convert_pad = [](const std::vector<int32_t> pad) {
-        return tensor(format::get_default_format(pad.size()), pad, 0);
-    };
-
-    return padding(convert_pad(update_pad_lower).sizes(),
-                   convert_pad(update_pad_upper).sizes(),
+    return padding(layout::format_sizes(update_pad_lower, format::get_default_format(update_pad_lower.size())),
+                   layout::format_sizes(update_pad_upper, format::get_default_format(update_pad_upper.size())),
                    0.0f,
-                   convert_pad(update_pad_mask));
+                   layout::format_sizes(update_pad_mask, format::get_default_format(update_pad_mask.size())));
 }
 
 layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_params const& impl_param) {
