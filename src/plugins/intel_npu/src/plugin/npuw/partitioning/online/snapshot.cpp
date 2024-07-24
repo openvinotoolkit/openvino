@@ -162,7 +162,7 @@ void Snapshot::collectLHF() {
         auto producers = group->srcNodes();
         if (producers.size() == 1) {
             auto prod = producers.at(0);
-            if (m_graph->contains(prod) && prod->dstNodes().size() == 1) {
+            if (prod->dstNodes().size() == 1) {
                 Group::GPtr prod_group = m_graph->meta(prod).get<Group::GPtr>();
                 if (group->isFrozen() || prod_group->isFrozen()) {
                     continue;
@@ -212,17 +212,11 @@ void Snapshot::fuseRemnants() {
             std::sort(consumers.begin(),
                         consumers.end(),
                         [&](const ade::NodeHandle& nh1, const ade::NodeHandle& nh2) {
-                            if (!m_graph->contains(nh1) || !m_graph->contains(nh2)) {
-                                return false;
-                            }
                             Group::GPtr g1 = m_graph->meta(nh1).get<Group::GPtr>();
                             Group::GPtr g2 = m_graph->meta(nh2).get<Group::GPtr>();
                             return g1->size() < g2->size();
                         });
             for (const auto& cons : consumers) {  // FIXME: pick the smallest flops
-                if (!m_graph->contains(cons)) {
-                    continue;
-                }
                 Group::GPtr cons_group = m_graph->meta(cons).get<Group::GPtr>();
                 if (!group->hasCycle(cons_group)) {
                     if (!cons_group->isFrozen()) {
@@ -257,9 +251,6 @@ void Snapshot::fuseInputs() {
         auto src_nodes = group->srcNodes();
         for (size_t i = 0; i < src_nodes.size(); ++i) {
             auto prod_nh = src_nodes[i];
-            if (!m_graph->contains(prod_nh)) {  // should be there, but check just in case
-                continue;
-            }
             Group::GPtr group_prod = m_graph->meta(prod_nh).get<Group::GPtr>();
             if (group_prod->isFrozen()) {
                 continue;
@@ -269,9 +260,6 @@ void Snapshot::fuseInputs() {
             // Double loop here since we need to consider every pair of inputs
             for (size_t j = i + 1; j < src_nodes.size(); ++j) {
                 auto prod_nh_other = src_nodes[j];
-                if (!m_graph->contains(prod_nh_other)) {  // should be there, but check just in case
-                    continue;
-                }
                 Group::GPtr group_prod_other = m_graph->meta(prod_nh_other).get<Group::GPtr>();
                 if (group_prod_other->isFrozen()) {
                     continue;
@@ -489,9 +477,11 @@ void Snapshot::mergeTriangles() {
 
 // FIXME: At this point, it is almost a full duplicate of tryGrowRepeatingGroups
 std::shared_ptr<Repeated> Snapshot::tryMergeTriangles(const GPtrSet& repeating_groups) {
-    auto this_rep_tag = (*(repeating_groups.begin()))->repeated();  // should be the same for each group inside
-    const auto& this_avoided = (*(repeating_groups.begin()))->avoidedTargets();
-    const auto& this_special = (*(repeating_groups.begin()))->specialTags();
+    const auto& first_rep_group = *(repeating_groups.begin());
+    // Those 3 should be the same for each group inside
+    auto this_rep_tag = first_rep_group->repeated();
+    const auto& this_avoided = first_rep_group->avoidedTargets();
+    const auto& this_special = first_rep_group->specialTags();
 
     if (repeating_groups.size() < 2) {
         return nullptr;
@@ -511,6 +501,7 @@ std::shared_ptr<Repeated> Snapshot::tryMergeTriangles(const GPtrSet& repeating_g
     // of the network gives a better generalization for the identified repeated blocks,
     // e.g. we can guarantee we can find one more, which otherwise would fuse into
     // head or tail (depending on the topology).
+    // FIXME: might not be needed for triangles at all
     std::sort(repeating_groups_sorted.begin(),
               repeating_groups_sorted.end(),
               [&](const Group::GPtr& gptr_a, const Group::GPtr& gptr_b) {
@@ -520,9 +511,6 @@ std::shared_ptr<Repeated> Snapshot::tryMergeTriangles(const GPtrSet& repeating_g
     for (const auto& group : repeating_groups_sorted) {
         auto consumers = group->dstNodes();
         for (const auto& cons_nh : consumers) {
-            if (!m_graph->contains(cons_nh)) {
-                continue;
-            }
             Group::GPtr cons_group = m_graph->meta(cons_nh).get<Group::GPtr>();
             if (cons_group->repeated() && !group->hasCycle(cons_group) && cons_group->repeated() != this_rep_tag &&
                 cons_group->avoidedTargets() == this_avoided && cons_group->specialTags() == this_special) {
@@ -698,9 +686,11 @@ void Snapshot::mergeUniques() {
 }
 
 std::shared_ptr<Repeated> Snapshot::tryGrowRepeatingGroups(const GPtrSet& repeating_groups) {
-    auto this_rep_tag = (*(repeating_groups.begin()))->repeated();  // should be the same for each group inside
-    const auto& this_avoided = (*(repeating_groups.begin()))->avoidedTargets();
-    const auto& this_special = (*(repeating_groups.begin()))->specialTags();
+    const auto& first_rep_group = *(repeating_groups.begin());
+    // Those 3 should be the same for each group inside
+    auto this_rep_tag = first_rep_group->repeated();
+    const auto& this_avoided = first_rep_group->avoidedTargets();
+    const auto& this_special = first_rep_group->specialTags();
 
     std::unordered_map<std::vector<MetaInterconnect>, std::vector<std::pair<Group::GPtr, Group::GPtr>>> mics;
 
@@ -724,9 +714,6 @@ std::shared_ptr<Repeated> Snapshot::tryGrowRepeatingGroups(const GPtrSet& repeat
     for (const auto& group : repeating_groups_sorted) {
         auto producers = group->srcNodes();
         for (const auto& prod_nh : producers) {
-            if (!m_graph->contains(prod_nh)) {
-                continue;
-            }
             Group::GPtr prod_group = m_graph->meta(prod_nh).get<Group::GPtr>();
             if (prod_group->repeated() && !prod_group->hasCycle(group) && prod_group->repeated() != this_rep_tag &&
                 prod_group->avoidedTargets() == this_avoided && prod_group->specialTags() == this_special) {
