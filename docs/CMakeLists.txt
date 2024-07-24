@@ -10,6 +10,8 @@ set(ENABLE_NOTEBOOKS OFF CACHE BOOL "Build with openvino notebooks.")
 set(ENABLE_OMZ OFF CACHE BOOL "Build with open_model_zoo.")
 set(ENABLE_OVMS OFF CACHE BOOL "Build with ovms.")
 set(OVMS_DOCS_DIR "" CACHE PATH "Path to model server documentation dir.")
+set(ENABLE_GENAI_API OFF CACHE BOOL "Build with OpenVINO GenAI API")
+set(OV_GENAI_SOURCE "" CACHE PATH "Path to OpenVINO GenAI cloned repository")
 
 if(${ENABLE_OVMS} AND (OVMS_DOCS_DIR STREQUAL ""))
     message( FATAL_ERROR "You want to build OVMS, but OVMS_DOCS_DIR variable is empty." )
@@ -98,6 +100,14 @@ function(build_docs)
             --output_dir=${SPHINX_SOURCE_DIR}
             --exclude_dir=${SPHINX_SOURCE_DIR})
         list(APPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "FINISHED preprocessing OMZ")
+    endif()
+
+    if(${ENABLE_GENAI_API})
+        list(PREPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "STARTED preprocessing OpenVINO GenAI Python API")
+        list(PREPEND commands
+            COMMAND ${Python3_EXECUTABLE} -m pip install openvino-genai==2024.2
+        )
+        list(PREPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "FINISHED preprocessing OpenVINO GenAI Python API")
     endif()
 
     # Preprocess docs
