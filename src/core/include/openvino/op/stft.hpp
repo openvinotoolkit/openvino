@@ -29,7 +29,7 @@ public:
     STFT(const Output<Node>& data,
          const Output<Node>& window,
          const Output<Node>& frame_size,
-         int64_t frame_step,
+         const Output<Node>& frame_step,
          bool frames_first);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
@@ -40,7 +40,6 @@ public:
     bool has_evaluate() const override;
 
 private:
-    int64_t m_frame_step = 1;
     bool m_frames_first = true;
 };
 }  // namespace v15

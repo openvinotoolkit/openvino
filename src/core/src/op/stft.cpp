@@ -17,10 +17,9 @@ namespace v15 {
 STFT::STFT(const Output<Node>& data,
            const Output<Node>& window,
            const Output<Node>& frame_size,
-           int64_t frame_step,
+           const Output<Node>& frame_step,
            bool frames_first)
-    : Op({data, window, frame_size}),
-      m_frame_step(frame_step),
+    : Op({data, window, frame_size, frame_step}),
       m_frames_first(frames_first) {
     constructor_validate_and_infer_types();
 }
@@ -29,12 +28,11 @@ std::shared_ptr<Node> STFT::clone_with_new_inputs(const OutputVector& new_args) 
     OV_OP_SCOPE(v15_STFT_clone_with_new_inputs);
     check_new_args_count(this, new_args);
 
-    return std::make_shared<STFT>(new_args.at(0), new_args.at(1), new_args.at(2), m_frame_step, m_frames_first);
+    return std::make_shared<STFT>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_frames_first);
 }
 
 bool STFT::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v15_STFT_visit_attributes);
-    visitor.on_attribute("frame_step", m_frame_step);
     visitor.on_attribute("frames_first", m_frames_first);
     return true;
 }
@@ -48,21 +46,24 @@ void STFT::validate_and_infer_types() {
     const auto& data_shape = get_input_partial_shape(0);
     const ITensorAccessor& ta = make_tensor_accessor();
     constexpr auto frame_size_port = 2;
-    auto frame_size = get_input_const_data_as<ov::PartialShape, int64_t>(this, frame_size_port, ta);
+    constexpr auto frame_step_port = 3;
+    const auto frame_size = get_input_const_data_as<ov::PartialShape, int64_t>(this, frame_size_port, ta);
+    const auto frame_step = get_input_const_data_as<ov::PartialShape, int64_t>(this, frame_step_port, ta);
 
-    if (!frame_size) {
+    if (!frame_size || !frame_step) {
         ov::PartialShape output_shape{data_shape[0], {1, -1}, {1, -1}, 2};
         set_output_type(0, get_input_element_type(0), output_shape);
         return;
     }
 
-    NODE_VALIDATION_CHECK(this,
-                          0 < frame_size && (data_shape.is_dynamic() || frame_size < data_shape[1].get_length()),
-                          "Provided frame size is ",
-                          frame_size,
-                          " but must be in range {0, ",
-                          data_shape[1],
-                          "}");
+    NODE_VALIDATION_CHECK(
+        this,
+        0 < (*frame_size)[0] && (data_shape.is_dynamic() || (*frame_size)[0] < data_shape[1].get_length()),
+        "Provided frame size is ",
+        (*frame_size)[0],
+        " but must be in range {0, ",
+        data_shape[1],
+        "}");
 
     // InShape:  [Batch, L]
     // OutShape: [Batch, floor(frame_size//2) + 1, T => floor(L-frame_size)//frame_step) + 1, 2]
@@ -70,18 +71,18 @@ void STFT::validate_and_infer_types() {
 
     // Torch out shape
     // ov::PartialShape output_shape{data_shape[0], ((*frame_size)[0] / 2) + 1, ((data_shape[1] - (*frame_size)[0]) /
-    // m_frame_step) + 1, 2}; ONNX out shape (transposed)
+    // frame_step) + 1, 2}; ONNX out shape (transposed)
 
     ov::PartialShape output_shape;
     if (m_frames_first) {  // [batch, frames, fft_samples, 2]
         output_shape = ov::PartialShape{data_shape[0],
-                                        ((data_shape[1] - (*frame_size)[0]) / m_frame_step) + 1,
+                                        ((data_shape[1] - (*frame_size)[0]) / (*frame_step)[0]) + 1,
                                         ((*frame_size)[0] / 2) + 1,
                                         2};
     } else {  // [batch, fft_samples, frames, 2]
         output_shape = ov::PartialShape{data_shape[0],
                                         ((*frame_size)[0] / 2) + 1,
-                                        ((data_shape[1] - (*frame_size)[0]) / m_frame_step) + 1,
+                                        ((data_shape[1] - (*frame_size)[0]) / (*frame_step)[0]) + 1,
                                         2};
     }
 
@@ -91,15 +92,16 @@ void STFT::validate_and_infer_types() {
 bool STFT::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OV_OP_SCOPE(v15_STFT_evaluate);
     OPENVINO_ASSERT(outputs.size() == 1);
-    OPENVINO_ASSERT(inputs.size() == 3);
+    OPENVINO_ASSERT(inputs.size() == 4);
 
     const auto frame_size = ov::get_tensor_data_as<int64_t>(inputs[2]).front();
+    const auto frame_step = ov::get_tensor_data_as<int64_t>(inputs[3]).front();
 
     // TODO: Reuse shape_infer to set shape of output tensor
     const auto& data_shape = inputs[0].get_shape();
 
     NODE_VALIDATION_CHECK(this,
-                          0 < frame_size && frame_size < data_shape[1],
+                          0 < frame_size && static_cast<size_t>(frame_size) < data_shape[1],
                           "Provided frame size is ",
                           frame_size,
                           " but must be in range {0, ",
@@ -108,7 +110,7 @@ bool STFT::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 
     Shape output_shape;
     const size_t frame_size_dim = static_cast<size_t>(frame_size);
-    const size_t frames_dim = ((data_shape[1] - frame_size_dim) / m_frame_step) + 1;
+    const size_t frames_dim = ((data_shape[1] - frame_size_dim) / frame_step) + 1;
     const size_t fft_samples_dim = (frame_size / 2) + 1;
     constexpr size_t complex_dim = 2;
     if (m_frames_first) {
@@ -124,7 +126,7 @@ bool STFT::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
                         inputs[0].get_shape(),
                         inputs[1].get_shape(),
                         frame_size,
-                        m_frame_step,
+                        frame_step,
                         m_frames_first);
     return true;
 }
