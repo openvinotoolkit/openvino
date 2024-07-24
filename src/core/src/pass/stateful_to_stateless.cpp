@@ -11,8 +11,8 @@
 #include "openvino/op/assign.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/read_value.hpp"
+#include "openvino/op/util/node_util.hpp"
 #include "openvino/pass/manager.hpp"
-#include "openvino/util/node_util.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::op;
@@ -134,14 +134,15 @@ bool ov::pass::StatefulToStateless::run_on_model(const std::shared_ptr<ov::Model
 
     for (const auto& variable_id : variables) {
         auto future_param = future_params[variable_id.variable_name];
-        auto parameter = ov::util::set_name(std::make_shared<v0::Parameter>(future_param->get_output_element_type(0),
-                                                                            future_param->get_output_partial_shape(0)),
-                                            variable_id.input_name);
+        auto parameter = std::make_shared<v0::Parameter>(future_param->get_output_element_type(0),
+                                                         future_param->get_output_partial_shape(0));
+        ov::op::util::set_name(*parameter, variable_id.input_name);
 
         replace_node(future_param, parameter);
 
         auto assign = assigns_by_var_id[variable_id.variable_name];
-        auto result = ov::util::set_name(std::make_shared<v0::Result>(assign->input_value(0)), variable_id.output_name);
+        auto result = std::make_shared<v0::Result>(assign->input_value(0));
+        ov::op::util::set_name(*result, variable_id.output_name);
 
         model->remove_sink(assign);  // Don't do replace_node(assign, result)! It will lead to silently incorrect model.
         model->remove_variable(model->get_variable_by_id(variable_id.variable_name));
