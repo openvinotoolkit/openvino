@@ -21,7 +21,7 @@ KERNEL(lstm_seq)(
     const __global INPUT5_TYPE* R,
     const __global INPUT6_TYPE* B,
     __global OUTPUT_TYPE* hidden_history,
-    __global OUTPUT_TYPE* hidden_state,
+    __global OUTPUT1_TYPE* hidden_state,
     __global OUTPUT2_TYPE* cell_state
 )
 {
@@ -66,7 +66,7 @@ KERNEL(lstm_seq)(
             }
             */
         }
-        /*
+
         if (i==0){
             cell_state[OUTPUT2_GET_INDEX(b, hidden_idx, 0, 0)] = gate_output[b][hidden_idx][0]*initial_cell_state[OUTPUT2_GET_INDEX(b, hidden_idx, j, 0)];
             cell_state[OUTPUT2_GET_INDEX(b, hidden_idx, 0, 0)] += gate_output[b][hidden_idx][1]*gate_output[b][hidden_idx][2];
@@ -76,6 +76,5 @@ KERNEL(lstm_seq)(
         }
         hidden_state[OUTPUT1_GET_INDEX(b, 0, hidden_idx, 0)] = gate_output[b][hidden_idx][3]*ACTIVATION_H(ACTIVATION_CLIP(cell_state[OUTPUT2_GET_INDEX(b, 0, hidden_idx, 1)], ACTIVATION_PARAMS_CLIP), ACTIVATION_PARAMS_H);
         hidden_history[OUTPUT0_GET_INDEX(b, 0, i, hidden_idx)] = hidden_state[OUTPUT1_GET_INDEX(b, 0, hidden_idx, 0)];
-        */
     }
 }

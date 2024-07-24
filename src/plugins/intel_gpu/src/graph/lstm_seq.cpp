@@ -28,26 +28,26 @@ std::vector<layout> lstm_seq_inst::calc_output_layouts(lstm_seq_node const& node
 
     int lstm_batch_size, lstm_seq_length, lstm_hidden_size;
     if (input_pshape_x[input_pshape_x.size() - 3].is_static()) {
-        lstm_batch_size = input_pshape_x[input_pshape_x.size() - 3].get_length();
+        lstm_batch_size = input_pshape_x[0].get_length();
     } else {
         lstm_batch_size = -1;
     }
 
     if (input_pshape_x[input_pshape_x.size() - 2].is_static()) {
-        lstm_seq_length = input_pshape_x[input_pshape_x.size() - 2].get_length();
+        lstm_seq_length = input_pshape_x[1].get_length();
     } else {
         lstm_seq_length = -1;
     }
 
     if (input_pshape_hidden[input_pshape_hidden.size() - 1].is_static()) {
-        lstm_hidden_size = input_pshape_hidden[input_pshape_hidden.size() - 1].get_length();
+        lstm_hidden_size = input_pshape_hidden[2].get_length();
     } else {
         lstm_hidden_size = -1;
     }
 
-    return {cldnn::layout{ov::PartialShape{lstm_batch_size, 1, lstm_seq_length, lstm_hidden_size}, input_layout_x.data_type, input_layout_x.format}, \
-            cldnn::layout{ov::PartialShape{lstm_batch_size, 1, lstm_hidden_size}, input_layout_x.data_type, input_layout_x.format}, \
-            cldnn::layout{ov::PartialShape{lstm_batch_size, 1, lstm_hidden_size}, input_layout_x.data_type, input_layout_x.format}};
+    return {cldnn::layout{ShapeType{lstm_batch_size, lstm_seq_length,  1, lstm_hidden_size}, input_layout_x.data_type, input_layout_x.format}, \
+            cldnn::layout{ShapeType{lstm_batch_size, 1, lstm_hidden_size}, input_layout_x.data_type, input_layout_x.format}, \
+            cldnn::layout{ShapeType{lstm_batch_size, 1, lstm_hidden_size}, input_layout_x.data_type, input_layout_x.format}};
 }
 
 template std::vector<layout> lstm_seq_inst::calc_output_layouts<ov::PartialShape>(lstm_seq_node const& node, const kernel_impl_params& impl_param);
