@@ -12,7 +12,7 @@ Quantization Scheme
 Key steps in the quantization scheme:
 
 * Low Precision Transformations: ``FakeQuantize`` decomposition to Quantize with a low precision output and Dequantize. For more details, refer to the :doc:`Quantize decomposition <../low-precision-transformations>` section.
-* Low Precision Transformations: move Dequantize through operations. For more details, refer to the :doc:`Main transformations <../step3-main>` section.
+* Low Precision Transformations: move Dequantize through operations. For more details, refer to the :doc:`Main transformations <./step3-main>` section.
 * Plugin: fuse operations with Quantize and inference in low precision.
 
 Quantization scheme features:
