@@ -3,6 +3,11 @@
 Preprocessing API - details
 ===========================
 
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   preprocessing-api-details/integrate-save-preprocessing-use-case
 
 .. meta::
    :description: Learn the details on capabilities of pre-processing API and post-processing.

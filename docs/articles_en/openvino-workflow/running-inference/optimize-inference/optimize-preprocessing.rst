@@ -10,7 +10,6 @@ Optimize Preprocessing
 
    optimize-preprocessing/preprocessing-api-details
    optimize-preprocessing/layout-api-overview
-   optimize-preprocessing/integrate-save-preprocessing-use-case
    Torchvision preprocessing converter <optimize-preprocessing/torchvision-preprocessing-converter>
 
 .. meta::
