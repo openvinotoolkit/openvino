@@ -114,7 +114,6 @@ set(INIT_FILES_RUNTIME "${OpenVINOPython_SOURCE_DIR}/src/openvino/__init__.py"
 
 ov_check_init_files_alignment("${INIT_FILES_RUNTIME}")
 
-unset(ENABLE_PYTHON CACHE) # w/a to ignore cached value
 ov_option(ENABLE_PYTHON "Enables OpenVINO Python API build" ${ENABLE_PYTHON_DEFAULT})
 
 #
