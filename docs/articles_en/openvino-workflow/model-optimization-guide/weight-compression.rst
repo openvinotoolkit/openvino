@@ -53,7 +53,7 @@ Compress Model Weights
 maintaining accuracy, which usually leads to significant performance improvements for
 Transformer-based models. Models with 8-bit compressed weights are performant on the
 vast majority of supported CPU and GPU platforms. By default, weights are compressed
-asymmetrically to "INT8_ASYM" mode with a non-fixed zero point.
+asymmetrically to "INT8_ASYM" mode.
 
 
 The code snippet below shows how to do asymmetrical 8-bit quantization of the model weights
@@ -72,8 +72,8 @@ represented in OpenVINO IR using NNCF:
 Now, the model is ready for compilation and inference.
 It can be also saved into a compressed format, resulting in a smaller binary file.
 
-**4-bit weight quantization** method stands for an INT4-INT8_ASYM mixed-precision weight quantization,
-where INT4 is considered as the primary precision and INT8_ASYM is the backup one.
+**4-bit weight quantization** method stands for an INT4-INT8 mixed-precision weight quantization,
+where INT4 is considered as the primary precision and asymmetric INT8 is the backup one.
 It usually results in a smaller model size and lower inference latency, although the accuracy
 degradation could be higher, depending on the model.
 
