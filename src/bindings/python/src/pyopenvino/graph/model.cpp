@@ -40,11 +40,11 @@ static void set_tensor_names(const ov::ParameterVector& parameters) {
     }
 }
 
-std::shared_ptr<ov::Node> get_node_ptr(std::shared_ptr<ov::Node> node) {
+static std::shared_ptr<ov::Node> get_node_ptr(std::shared_ptr<ov::Node> node) {
     return node;
 }
 
-std::shared_ptr<ov::Node> get_node_ptr(const ov::Output<ov::Node>& output) {
+static std::shared_ptr<ov::Node> get_node_ptr(const ov::Output<ov::Node>& output) {
     return output.get_node_shared_ptr();
 }
 
