@@ -145,10 +145,24 @@ private:
                      IONodeDescriptorMap& results,
                      IONodeDescriptorMap& state) const;
 
+    template <typename T = TableExtension, typename std::enable_if_t<SupportAPIGraphQueryNetworkV2(T), bool> = true>
+    ze_result_t seriazlideIRModelAndQueryNetworkCreateV2(const std::shared_ptr<const ov::Model>& model,
+                                                         const Config& config,
+                                                         ze_device_graph_properties_t deviceGraphProperties,
+                                                         const ze_device_handle_t& _deviceHandle,
+                                                         ze_graph_query_network_handle_t& hGraphQueryNetwork) const;
+
     // ext version >= 1.5, support API (pfnCreate2, pfnQueryNetworkCreate2, pfnQueryContextMemory)
     template <typename T = TableExtension, typename std::enable_if_t<SupportAPIGraphQueryNetworkV2(T), bool> = true>
     std::unordered_set<std::string> queryImpl(const std::shared_ptr<const ov::Model>& model,
                                               const Config& config) const;
+
+    template <typename T = TableExtension, typename std::enable_if_t<SupportAPIGraphQueryNetworkV1(T), bool> = true>
+    ze_result_t seriazlideIRModelAndQueryNetworkCreateV1(const std::shared_ptr<const ov::Model>& model,
+                                                         const Config& config,
+                                                         ze_device_graph_properties_t deviceGraphProperties,
+                                                         const ze_device_handle_t& _deviceHandle,
+                                                         ze_graph_query_network_handle_t& hGraphQueryNetwork) const;
 
     // ext version == 1.3 && 1.4, support API (pfnQueryNetworkCreate, pfnQueryNetworkDestroy,
     // pfnQueryNetworkGetSupportedLayers)

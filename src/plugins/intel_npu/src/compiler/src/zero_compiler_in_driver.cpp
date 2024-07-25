@@ -558,6 +558,36 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::query
     return std::unordered_set<std::string>();
 }
 
+// For ext version == 1.3 && == 1.4
+template <typename TableExtension>
+template <typename T, std::enable_if_t<SupportAPIGraphQueryNetworkV1(T), bool>>
+ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndQueryNetworkCreateV1(
+    const std::shared_ptr<const ov::Model>& model,
+    const Config& config,
+    ze_device_graph_properties_t deviceGraphProperties,
+    const ze_device_handle_t& _deviceHandle,
+    ze_graph_query_network_handle_t& hGraphQueryNetwork) const {
+    ze_graph_compiler_version_info_t& compilerVersion = deviceGraphProperties.compilerVersion;
+
+    auto serializedIR = serializeIR(model, compilerVersion);
+
+    std::string buildFlags;
+    buildFlags += serializeConfig(config, compilerVersion);
+    _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
+
+    ze_graph_desc_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
+                            nullptr,
+                            ZE_GRAPH_FORMAT_NGRAPH_LITE,
+                            serializedIR.first,
+                            serializedIR.second.get(),
+                            buildFlags.c_str()};
+
+    // Create querynetwork handle
+    ze_result_t result = _graphDdiTableExt->pfnQueryNetworkCreate(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
+
+    return result;
+}
+
 // For ext version == 1.3 && == 1.4, query is supported, calling querynetwork api in _graphDdiTableExt
 template <typename TableExtension>
 template <typename T, std::enable_if_t<SupportAPIGraphQueryNetworkV1(T), bool>>
@@ -576,6 +606,27 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::query
                        std::hex,
                        uint64_t(result));
     }
+
+    ze_graph_query_network_handle_t hGraphQueryNetwork = nullptr;
+
+    result = seriazlideIRModelAndQueryNetworkCreateV1(model,
+                                                      config,
+                                                      deviceGraphProperties,
+                                                      _deviceHandle,
+                                                      hGraphQueryNetwork);
+
+    return getQueryResultFromSupportedLayers(result, hGraphQueryNetwork);
+}
+
+// For ext version >= 1.5
+template <typename TableExtension>
+template <typename T, std::enable_if_t<SupportAPIGraphQueryNetworkV2(T), bool>>
+ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndQueryNetworkCreateV2(
+    const std::shared_ptr<const ov::Model>& model,
+    const Config& config,
+    ze_device_graph_properties_t deviceGraphProperties,
+    const ze_device_handle_t& _deviceHandle,
+    ze_graph_query_network_handle_t& hGraphQueryNetwork) const {
     ze_graph_compiler_version_info_t& compilerVersion = deviceGraphProperties.compilerVersion;
 
     auto serializedIR = serializeIR(model, compilerVersion);
@@ -584,18 +635,18 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::query
     buildFlags += serializeConfig(config, compilerVersion);
     _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
 
-    ze_graph_desc_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
-                            nullptr,
-                            ZE_GRAPH_FORMAT_NGRAPH_LITE,
-                            serializedIR.first,
-                            serializedIR.second.get(),
-                            buildFlags.c_str()};
-    ze_graph_query_network_handle_t hGraphQueryNetwork = nullptr;
+    ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
+                              nullptr,
+                              ZE_GRAPH_FORMAT_NGRAPH_LITE,
+                              serializedIR.first,
+                              serializedIR.second.get(),
+                              buildFlags.c_str(),
+                              ZE_GRAPH_FLAG_NONE};
 
     // Create querynetwork handle
-    result = _graphDdiTableExt->pfnQueryNetworkCreate(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
+    ze_result_t result = _graphDdiTableExt->pfnQueryNetworkCreate2(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
 
-    return getQueryResultFromSupportedLayers(result, hGraphQueryNetwork);
+    return result;
 }
 
 // For ext version >= 1.5
@@ -616,26 +667,14 @@ std::unordered_set<std::string> LevelZeroCompilerInDriver<TableExtension>::query
                        std::hex,
                        uint64_t(result));
     }
-    ze_graph_compiler_version_info_t& compilerVersion = deviceGraphProperties.compilerVersion;
-
-    auto serializedIR = serializeIR(model, compilerVersion);
-
-    std::string buildFlags;
-    buildFlags += serializeConfig(config, compilerVersion);
-    _logger.debug("queryImpl build flags : %s", buildFlags.c_str());
-
-    ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
-                              nullptr,
-                              ZE_GRAPH_FORMAT_NGRAPH_LITE,
-                              serializedIR.first,
-                              serializedIR.second.get(),
-                              buildFlags.c_str(),
-                              ZE_GRAPH_FLAG_NONE};
 
     ze_graph_query_network_handle_t hGraphQueryNetwork = nullptr;
 
-    // Create querynetwork handle
-    result = _graphDdiTableExt->pfnQueryNetworkCreate2(_context, _deviceHandle, &desc, &hGraphQueryNetwork);
+    result = seriazlideIRModelAndQueryNetworkCreateV2(model,
+                                                      config,
+                                                      deviceGraphProperties,
+                                                      _deviceHandle,
+                                                      hGraphQueryNetwork);
 
     return getQueryResultFromSupportedLayers(result, hGraphQueryNetwork);
 }
@@ -761,7 +800,6 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndCreat
     const Config& config,
     ze_device_graph_properties_t deviceGraphProperties,
     ze_graph_handle_t& graphHandle) const {
-    
     const ze_graph_compiler_version_info_t& compilerVersion = deviceGraphProperties.compilerVersion;
     auto serializedIR = serializeIR(model, compilerVersion);
 
@@ -774,7 +812,6 @@ ze_result_t LevelZeroCompilerInDriver<TableExtension>::seriazlideIRModelAndCreat
     buildFlags += serializeConfig(config, const_cast<ze_graph_compiler_version_info_t&>(compilerVersion));
 
     _logger.debug("compileIR Build flags : %s", buildFlags.c_str());
-    // TODO #-30202 Store graph_handle inside NetworkDesc instead of blob. But this will require changes in zeroAPI
 
     // If OV cache is enabled, disable driver caching
     uint32_t flags = ZE_GRAPH_FLAG_NONE;
