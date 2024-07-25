@@ -260,11 +260,11 @@ a sink from `ov::Model` after deleting the node from the graph with the `delete_
 
       .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
          :language: cpp
-         :fragment: [ov:state_network]
+         :fragment: [ov:stateful_model]
       
       .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.py
          :language: py
-         :fragment: [ov:state_network]
+         :fragment: [ov:stateful_model]
 
 .. note::
 

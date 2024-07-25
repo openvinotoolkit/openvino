@@ -11,13 +11,15 @@ from openvino.runtime.passes import LowLatency2, MakeStateful, Manager
 from openvino.runtime.utils import replace_node
 
 
-def state_network_example():
-    #! [ov:state_network]
+def state_model_example():
+    #! [ov:stateful_model]
     input = ops.parameter([1, 1], dtype=np.float32, name="data")
     init_const = ops.constant([[0]], dtype=np.float32)
 
-    # The ReadValue/Assign operations must be used in pairs in the network.
-    # For each such a pair, its own variable object must be created.
+    # Typically ReadValue/Assign operations are presented as pairs in models.
+    # ReadValue operation reads information from an internal memory buffer, Assign operation writes data to this buffer.
+    # For each pair, its own Variable object must be created.
+    # Variable defines name, shape and type of the buffer.
     var_info = VariableInfo()
     var_info.data_shape = init_const.get_shape()
     var_info.data_type = init_const.get_element_type()
@@ -30,7 +32,7 @@ def state_network_example():
     assign = ops.assign(add, variable)
     result = ops.result(add)
     model = ov.Model(results=[result], sinks=[assign], parameters=[input], name="model")
-    #! [ov:state_network]
+    #! [ov:stateful_model]
 
     return model
 
