@@ -186,12 +186,8 @@ private:
     void appendMemory(const std::vector<float> &data, MemoryPtr &memPtr, std::vector<MemoryPtr>& postOpsMem);
     void appendMemory(const std::vector<float> &data, MemoryPtr &memPtr, std::vector<const void*>& postOpsMem);
 
-    // bool canUseAclExecutor = false;
-    // bool canUseShlExecutor = false;
     bool canUseEltwiseExecPtr = false;
     EltwiseAttrs eltwiseAttrs;
-    // std::shared_ptr<EltwiseExecutor> aclExecPtr = nullptr;
-    // std::shared_ptr<EltwiseExecutor> shlExecPtr = nullptr;
     std::shared_ptr<EltwiseExecutor> eltwiseExecPtr = nullptr;
 
 };

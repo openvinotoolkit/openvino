@@ -90,7 +90,6 @@ protected:
 
         function = makeNgraphFunction(inPrc, paramRegionYolo, region_yolo, "RegionYolo");
     }
-
 };
 
 TEST_P(RegionYoloCPULayerTest, CompareWithRefs) {

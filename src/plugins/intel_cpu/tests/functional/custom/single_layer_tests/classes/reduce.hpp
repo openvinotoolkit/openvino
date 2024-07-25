@@ -41,9 +41,6 @@ protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 
 private:
-#if defined(OPENVINO_ARCH_RISCV64)
-    std::string getPrimitiveType();
-#endif
     utils::ReductionType reductionType;
     ElementType netPrecision;
 };

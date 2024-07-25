@@ -2351,25 +2351,6 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             inputPrecisions[i] = filterPrecision(inputPrecisions[i], forcedPrec);
         }
         outputPrecision = filterPrecision(outputPrecision, forcedPrec);
-    //     // If the op is supported by SHL executor, SHL requires FP32 precision on all inputs and outputs
-    //     // If the op is not supported by SHL executor, it will be executed by reference implementation which requires fp32 precision on all inputs and outputs too (except bitwise).
-    //     auto filterPrecision = [&](const ov::element::Type& prc) {
-    //         if (ShlEltwiseExecutor::isEltwiseAlgorithmSupported(getAlgorithm())) {
-    //             return ov::element::f32;
-    //         } else if (isBitwise(algorithm)) {
-    //             if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), prc) == supportedPrecisions.end()) {
-    //                 OPENVINO_THROW("Eltwise node with name `", getName(), "` doesn't support ", prc, " precision.");
-    //             }
-    //             return prc;
-    //         } else {  // reference
-    //             return ov::element::f32;
-    //         }
-    //     };
-
-    //     for (size_t i = 0; i < inputPrecisions.size(); i++) {
-    //         inputPrecisions[i] = filterPrecision(inputPrecisions[i]);
-    //     }
-    //     outputPrecision = filterPrecision(outputPrecision);
     }
     else {
 #endif
@@ -2588,7 +2569,6 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             addDesc(supportedPrimitiveDescriptors, ChannelsFirst);
     }
 
-    // canUseAclExecutor = !supportedPrimitiveDescriptors.empty() && !useJit;
     canUseEltwiseExecPtr = !supportedPrimitiveDescriptors.empty() && !useJit;
     if (!supportedPrimitiveDescriptors.empty())
         return;
@@ -2607,7 +2587,6 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 
     addDesc(supportedPrimitiveDescriptors, Planar);
 
-    // canUseShlExecutor = !supportedPrimitiveDescriptors.empty();
     canUseEltwiseExecPtr = !supportedPrimitiveDescriptors.empty();
     if (!supportedPrimitiveDescriptors.empty())
         return;
@@ -2656,13 +2635,6 @@ void Eltwise::prepareParams() {
         auto selectedPD = getSelectedPrimitiveDescriptor();
         eltwiseExecPtr = selectedPD->getExecutorFactoryAs<EltwiseExecutorFactory>()->makeExecutor(eltwiseAttrs, srcMemoryDescs, dstMemoryDescs, {});
         selectedPD->setImplementationType(eltwiseExecPtr->getImplType());
-        // if (canUseAclExecutor) {
-        //     aclExecPtr = selectedPD->getExecutorFactoryAs<EltwiseExecutorFactory>()->makeExecutor(eltwiseAttrs, srcMemoryDescs, dstMemoryDescs, {});
-        //     selectedPD->setImplementationType(aclExecPtr->getImplType());
-        // } else if (canUseShlExecutor) {
-        //     shlExecPtr = selectedPD->getExecutorFactoryAs<EltwiseExecutorFactory>()->makeExecutor(eltwiseAttrs, srcMemoryDescs, dstMemoryDescs, {});
-        //     selectedPD->setImplementationType(shlExecPtr->getImplType());
-        // }
 
         return;
     }
@@ -2840,25 +2812,6 @@ void Eltwise::execute(dnnl::stream strm) {
 
         eltwiseExecPtr->exec(srcMemory, dstMemory, fqDataPtrs.data());
     }
-    // else if (aclExecPtr) {
-    //     std::vector<MemoryCPtr> srcMemory;
-    //     for (size_t i = 0; i < getParentEdges().size(); i++) {
-    //         srcMemory.push_back(getSrcMemoryAtPort(i));
-    //     }
-    //     std::vector<MemoryPtr> dstMemory;
-    //     dstMemory.push_back(getDstMemoryAtPort(0));
-
-    //     aclExecPtr->exec(srcMemory, dstMemory, fqDataPtrs.data());
-    // } else if (shlExecPtr) {
-    //     std::vector<MemoryCPtr> srcMemory;
-    //     for (size_t i = 0; i < getParentEdges().size(); i++) {
-    //         srcMemory.push_back(getSrcMemoryAtPort(i));
-    //     }
-    //     std::vector<MemoryPtr> dstMemory;
-    //     dstMemory.push_back(getDstMemoryAtPort(0));
-
-    //     shlExecPtr->exec(srcMemory, dstMemory, fqDataPtrs.data());
-    // } 
     else {
         OPENVINO_THROW("Can't execute eltwise node with name: ", getName(), ". Primitive isn't created");
     }

@@ -164,7 +164,6 @@ bool ShlEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs,
     }
 
     return init_func != nullptr && init_func() == CSINN_TRUE;
-    // return shlInitFunc != nullptr && shlInitFunc() == CSINN_TRUE;
 }
 
 void ShlEltwiseExecutor::exec(const std::vector<MemoryCPtr> &src,
@@ -217,8 +216,6 @@ void ShlEltwiseExecutor::exec(const std::vector<MemoryCPtr> &src,
                        static_cast<int>(shlEltwiseAttrs.algorithm));
     }
 
-    // OPENVINO_ASSERT(shlExecFunc != nullptr && shlExecFunc() == CSINN_TRUE,
-                    // "ShlEltwiseExecutor: failed to execute");
     OPENVINO_ASSERT(exec_func != nullptr && exec_func() == CSINN_TRUE,
                     "ShlEltwiseExecutor: failed to execute");
 

@@ -75,7 +75,6 @@ protected:
         auto d2s = std::make_shared<ov::op::v0::DepthToSpace>(params[0], mode, blockSize);
         function = makeNgraphFunction(inType, params, d2s, "DepthToSpace");
     }
-
 };
 
 TEST_P(DepthToSpaceLayerCPUTest, CompareWithRefs) {
