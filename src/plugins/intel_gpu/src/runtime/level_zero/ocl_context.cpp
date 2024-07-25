@@ -144,7 +144,7 @@ void oclContext::runKernel(char *kernelCode, char *kernelName, void *ptr0, void 
     clReleaseProgram(program);
 }
 
-cl_mem oclContext::createBuffer(size_t size, const std::vector<float> &inbuf) {
+cl_mem oclContext::createBuffer(size_t size, const std::vector<uint32_t> &inbuf) {
     cl_int err;
 
     cl_mem clbuf = clCreateBuffer(context_, CL_MEM_READ_WRITE, size, nullptr, &err);

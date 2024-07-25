@@ -30,7 +30,7 @@ public:
     void freeUSM(void *ptr);
     void runKernel(char *programFile, char *kernelName, void *ptr0, void *ptr1, size_t elemCount);
 
-    cl_mem createBuffer(size_t size, const std::vector<float> &inbuf = std::vector<float>{});
+    cl_mem createBuffer(size_t size, const std::vector<uint32_t> &inbuf = std::vector<uint32_t>{});
     uint64_t deriveHandle(cl_mem clbuf);
     void readBuffer(cl_mem clbuf, std::vector<uint32_t> &outBuf, size_t size);
     void freeBuffer(cl_mem clbuf);
