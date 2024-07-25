@@ -57,7 +57,7 @@ namespace pytorch {
 namespace {
 std::map<std::string, std::string> get_unconverted_types_from_model(const std::shared_ptr<Model>& model) {
     std::map<std::string, std::string> unconverted_ops_types;
-    for (const auto& node : model->get_ordered_ops()) {
+    ov::traverse_nodes(model, [&](std::shared_ptr<Node> node) {
         if (const auto& fw_node = ov::as_type_ptr<PtFrameworkNode>(node)) {
             const auto& attrs = fw_node->get_attrs();
             FRONT_END_GENERAL_CHECK(attrs.find(PtFrameworkNode::op_type_key) != attrs.end(),
@@ -76,7 +76,7 @@ std::map<std::string, std::string> get_unconverted_types_from_model(const std::s
                 unconverted_ops_types.insert(internal_types.begin(), internal_types.end());
             }
         }
-    }
+    });
     return unconverted_ops_types;
 }
 
@@ -142,7 +142,7 @@ FrontEnd::FrontEnd() {}
 std::shared_ptr<Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr& model) const {
     auto pt_model = std::dynamic_pointer_cast<pytorch::InputModel>(model);
     FRONT_END_GENERAL_CHECK(pt_model, "Invalid input model");
-    std::map<std::string, CreatorFunction> supported_ops = get_supported_ops(model);
+    const auto& supported_ops = get_supported_ops(model);
     std::shared_ptr<Model> converted_model;
     {
         pt_model->flush_places();
@@ -223,7 +223,7 @@ void FrontEnd::convert(const std::shared_ptr<Model>& partiallyConverted) const {
 std::shared_ptr<Model> FrontEnd::convert_partially(const ov::frontend::InputModel::Ptr& model) const {
     auto pt_model = std::dynamic_pointer_cast<pytorch::InputModel>(model);
     FRONT_END_GENERAL_CHECK(pt_model, "Invalid input model");
-    std::map<std::string, CreatorFunction> supported_ops = get_supported_ops(model);
+    const auto& supported_ops = get_supported_ops(model);
     std::shared_ptr<Model> partial_model;
     {
         pt_model->flush_places();
@@ -374,14 +374,16 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
     return std::make_shared<pytorch::InputModel>(tdecoder);
 }
 
-std::map<std::string, CreatorFunction> FrontEnd::get_supported_ops(const ov::frontend::InputModel::Ptr& model) const {
-    std::map<std::string, CreatorFunction> supported_ops;
+std::unordered_map<std::string, CreatorFunction> FrontEnd::get_supported_ops(
+    const ov::frontend::InputModel::Ptr& model) const {
+    std::unordered_map<std::string, CreatorFunction> supported_ops;
     if (std::dynamic_pointer_cast<pytorch::InputModel>(model)->decoder_type_name() == "fx")
         supported_ops = get_supported_ops_fx();
     else
         supported_ops = get_supported_ops_ts();
-    for (auto i = m_op_extension_translators.begin(); i != m_op_extension_translators.end(); i++)
-        supported_ops[i->first] = i->second;
+    for (const auto& translator : m_op_extension_translators) {
+        supported_ops.emplace(translator.first, translator.second);
+    }
     return supported_ops;
 }
 

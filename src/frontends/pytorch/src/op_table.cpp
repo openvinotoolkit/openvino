@@ -317,7 +317,7 @@ OP_CONVERTER(translate_zeros_like_fx);
 }  // namespace op
 
 // Supported ops for TorchScript
-const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
+const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
     return {
         {"aten::__and__", op::translate_bitwise_and},
         {"aten::__derive_index", op::translate_derive_index},
@@ -386,6 +386,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::bitwise_and", op::translate_bitwise_and},
         {"aten::bitwise_not", op::translate_bitwise_not},
         {"aten::bitwise_or", op::translate_bitwise_or},
+        {"aten::bitwise_or_", op::inplace_op<op::translate_bitwise_or>},
         {"aten::bitwise_xor", op::translate_bitwise_xor},
         {"aten::bmm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::Bool", op::translate_bool},
@@ -741,7 +742,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
     };
 };
 
-const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
+const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
     return {
         {"<built-in function add>", op::translate_add},
         {"<built-in function floordiv>", op::translate_floor_divide},
