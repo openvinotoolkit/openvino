@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import functools
 import itertools
 import os
 import shutil
@@ -26,7 +27,6 @@ def get_models_list(file_name: str):
                 model_name, model_link = model_info.split(',')
             elif len(model_info.split(',')) == 4:
                 model_name, model_link, mark, reason = model_info.split(',')
-                assert mark in ["skip", "xfail"], "Incorrect failure mark for model info {}".format(model_info)
             models.append((model_name, model_link, mark, reason))
 
     return models
@@ -145,3 +145,20 @@ def call_with_timer(timer_label: str, func, args):
 
 def print_stat(s: str, value: float):
     print(s.format(round_num(value)))
+
+
+def retry(max_retries=3, exceptions=(Exception,), delay=None):
+    def retry_decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    print(f"Attempt {attempt + 1} of {max_retries} failed: {e}")
+                    if attempt < max_retries - 1 and delay is not None:
+                        time.sleep(delay)
+                    else:
+                        raise e
+        return wrapper
+    return retry_decorator

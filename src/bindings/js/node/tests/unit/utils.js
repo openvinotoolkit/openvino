@@ -7,7 +7,7 @@ const path = require('path');
 module.exports = { getModelPath };
 
 function getModelPath(isFP16=false) {
-  const basePath = 'tests/test_models/';
+  const basePath = 'tests/unit/test_models/';
   const modelName = `test_model_fp${isFP16 ? 16 : 32}`;
 
   return {
