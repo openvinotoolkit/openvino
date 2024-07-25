@@ -135,7 +135,7 @@ to discuss the new content.
 
 Articles, tutorials, blog posts, demos, videos, and any other involvement in the
 OpenVINO community is more than welcome. If you discuss or present OpenVINO on
-various social platforms, you are raising awareness of the product among A.I.
+various social platforms, you are raising awareness of the product among AI
 enthusiasts and enabling other people to discover the toolkit.
 
 Feel free to reach out to OpenVINO developers if you need help with making a
