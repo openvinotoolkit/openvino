@@ -4,17 +4,17 @@
 
 #include "brgemm_cpu.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "utils/general_utils.h"
-#include "snippets/utils.hpp"
 
 
 namespace ov {
 namespace intel_cpu {
+using namespace brgemm_utils;
 
-BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Type type,
+BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, BRGEMM_TYPE type,
                      const size_t offset_a, const size_t offset_b, const size_t offset_c,
                      std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c,
                      const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n, const float beta)
@@ -31,7 +31,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Type ty
     set_beta(beta);
 }
 
-BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<Node>& scratch, const Type type,
+BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<Node>& scratch, BRGEMM_TYPE type,
                      const size_t offset_a, const size_t offset_b, const size_t offset_scratch, const size_t offset_c,
                      std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c,
                      const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n, const float beta)
@@ -48,7 +48,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<
     set_beta(beta);
 }
 
-BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Type type,
+BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, BRGEMM_TYPE type,
                      const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_c,
                      std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c,
                      const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n, const float beta)
@@ -62,7 +62,7 @@ BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Type ty
     set_beta(beta);
 }
 
-BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<Node>& scratch, const Type type,
+BrgemmCPU::BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<Node>& scratch, BRGEMM_TYPE type,
                      const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_scratch, const PortDescriptor& desc_c,
                      std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c,
                      const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n, const float beta)
@@ -82,7 +82,7 @@ void BrgemmCPU::custom_constructor_validate_and_infer_types(std::vector<size_t> 
 
     // During ctor call, BrgemmCPU doesn't know his port descriptors.
     // So we use port descs from source inputs
-    const auto brgemm_copy = is_with_data_repacking() ? get_brgemm_copy() : nullptr;
+    const auto brgemm_copy = with_repacking(m_type) ? get_brgemm_copy() : nullptr;
     const auto planar_input_shapes =
         std::vector<ov::PartialShape>{ snippets::utils::get_planar_pshape(get_input_partial_shape(0), layout_a),
                                        brgemm_copy ? snippets::utils::get_planar_pshape(brgemm_copy->input(0))
@@ -98,7 +98,7 @@ void BrgemmCPU::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(BrgemmCPU_validate_and_infer_types);
     validate_inputs();
 
-    const auto brgemm_copy = is_with_data_repacking() ? get_brgemm_copy() : nullptr;
+    const auto brgemm_copy = with_repacking(m_type) ? get_brgemm_copy() : nullptr;
     const auto planar_input_shapes = get_planar_input_shapes({input(0), brgemm_copy ? brgemm_copy->input(0) : input(1)});
     auto output_shape = infer_output_partial_shape(planar_input_shapes);
     set_output_type(0, get_output_type(), get_planar_output_shape(output_shape));
@@ -109,19 +109,19 @@ void BrgemmCPU::validate_and_infer_types() {
 
 void BrgemmCPU::validate_with_scratchpad() const {
     // Additional check for 3rd input
-    if (one_of(m_type, Type::WithCompensations, Type::AMX)) {
+    if (one_of(m_type, BRGEMM_TYPE::WITH_COMPENSATIONS, BRGEMM_TYPE::WITH_AMX)) {
         const auto& pshape = get_input_partial_shape(2);
         OPENVINO_ASSERT(pshape.is_static(), "BRGEMM Scratch must have static shape");
-        if (is_with_compensations()) {
+        if (with_compensations(m_type)) {
             OPENVINO_ASSERT(get_input_element_type(2) == ov::element::f32, "BRGEMM Scratch with compensations must have FP32 element type");
         }
     }
 }
 
 void BrgemmCPU::validate_inputs() const {
-    OPENVINO_ASSERT(implication(one_of(m_type, Type::Floating, Type::WithDataRepacking), get_input_size() == 2),
+    OPENVINO_ASSERT(implication(one_of(m_type, BRGEMM_TYPE::STAND_ALONE, BRGEMM_TYPE::REPACKING_ONLY), get_input_size() == 2),
                     "BrgemmCPU expects 2 inputs in cases, when input precisions are f32|f32, u8|i8 or bf16|bf16 (non-AMX system)");
-    OPENVINO_ASSERT(implication(one_of(m_type, Type::WithCompensations, Type::AMX), get_input_size() == 3),
+    OPENVINO_ASSERT(implication(one_of(m_type, BRGEMM_TYPE::WITH_COMPENSATIONS, BRGEMM_TYPE::WITH_AMX), get_input_size() == 3),
                     "BrgemmCPU expects 3 inputs with input precisions i8|i8 and bf16|bf16 on AMX system");
 }
 
@@ -129,7 +129,7 @@ std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_a
     INTERNAL_OP_SCOPE(BrgemmCPU_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     std::shared_ptr<BrgemmCPU> brgemm;
-    if (!is_with_scratchpad()) {
+    if (!with_scratchpad(m_type)) {
         return std::make_shared<BrgemmCPU>(new_args.at(0), new_args.at(1), m_type,
                                            get_input_port_descriptor(0), get_input_port_descriptor(1), get_output_port_descriptor(0),
                                            snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
@@ -147,7 +147,7 @@ std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_a
 }
 
 std::shared_ptr<BrgemmCopyB> BrgemmCPU::get_brgemm_copy() const {
-    OPENVINO_ASSERT(one_of(m_type, Type::WithDataRepacking, Type::WithCompensations, Type::AMX), "Brgemm doesn't need BrgemmCopyB");
+    OPENVINO_ASSERT(one_of(m_type, BRGEMM_TYPE::REPACKING_ONLY, BRGEMM_TYPE::WITH_COMPENSATIONS, BRGEMM_TYPE::WITH_AMX), "Brgemm doesn't need BrgemmCopyB");
     auto b_input_node = get_input_node_shared_ptr(1);
     if (const auto brgemm_copy_b = ov::as_type_ptr<BrgemmCopyB>(b_input_node)) {
         return brgemm_copy_b;
@@ -161,7 +161,7 @@ std::shared_ptr<BrgemmCopyB> BrgemmCPU::get_brgemm_copy() const {
 }
 
 size_t BrgemmCPU::get_offset_scratch() const {
-    OPENVINO_ASSERT(is_with_scratchpad() && get_input_size() == 3, "Offset of scratchpad must be only in Brgemm with scratchpad on 3rd input");
+    OPENVINO_ASSERT(with_scratchpad(m_type) && get_input_size() == 3, "Offset of scratchpad must be only in Brgemm with scratchpad on 3rd input");
     return get_input_offset(2);
 }
 
@@ -172,14 +172,4 @@ bool BrgemmCPU::visit_attributes(AttributeVisitor& visitor) {
 }
 } // namespace intel_cpu
 
-template <>
-EnumNames<intel_cpu::BrgemmCPU::Type>& EnumNames<intel_cpu::BrgemmCPU::Type>::get() {
-    static auto enum_names =
-        EnumNames<intel_cpu::BrgemmCPU::Type>("ov::intel_cpu::BrgemmCPU::Type",
-                                              {{"floating", intel_cpu::BrgemmCPU::Type::Floating},
-                                               {"with_data_repacking", intel_cpu::BrgemmCPU::Type::WithDataRepacking},
-                                               {"with_compensations", intel_cpu::BrgemmCPU::Type::WithCompensations},
-                                               {"amx", intel_cpu::BrgemmCPU::Type::AMX}});
-    return enum_names;
-}
 } // namespace ov

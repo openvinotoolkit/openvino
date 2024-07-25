@@ -54,7 +54,7 @@ bool BatchToSpaceTransformation::transform(TransformationContext& context, ov::p
     const std::shared_ptr<Node> op = NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions);
     const auto newOperation = moveDequantizationAfter(context, op, NetworkHelper::getDequantization(op, defaultPrecisions));
 
-    OPENVINO_DEBUG << "LPT: done: " << newOperation;
+    OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;
 }
 

@@ -193,9 +193,9 @@ struct padding {
     }
 
     static padding max(padding const& lhs, padding const& rhs, float filling_value = 0.0f) {
-        auto lower = tensor::max(lhs.lower_size(), rhs.lower_size());
-        auto upper = tensor::max(lhs.upper_size(), rhs.upper_size());
-        auto dynamic_pad_dims = tensor::max(lhs.get_dynamic_pad_dims(), rhs.get_dynamic_pad_dims());
+        const auto& lower = tensor::max(lhs.lower_size(), rhs.lower_size());
+        const auto& upper = tensor::max(lhs.upper_size(), rhs.upper_size());
+        const auto& dynamic_pad_dims = tensor::max(lhs.get_dynamic_pad_dims(), rhs.get_dynamic_pad_dims());
         return padding{lower.sizes(), upper.sizes(), filling_value, dynamic_pad_dims};
     }
 
@@ -288,6 +288,15 @@ struct layout {
         return *this;
     }
 
+    layout clone_with_other_shape(const ov::PartialShape& new_shape) {
+        return layout(new_shape, this->data_type, this->format, this->data_padding);
+    }
+
+    layout clone_with_other_shape(const ov::Shape& new_shape) {
+        return clone_with_other_shape(ov::PartialShape(new_shape));
+    }
+
+
     friend bool operator==(const layout& lhs, const layout& rhs) {
         return lhs.data_type == rhs.data_type && lhs.format == rhs.format && lhs.size == rhs.size && lhs.data_padding == rhs.data_padding;
     }
@@ -306,7 +315,7 @@ struct layout {
         return (lhs.data_padding < rhs.data_padding);
     }
 
-    /// Number of elements to be stored in this memory layout
+    /// Number of elements to be stored in this layout
     size_t count() const;
 
     /// Layout size with padding included

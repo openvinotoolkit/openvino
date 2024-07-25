@@ -336,6 +336,7 @@ def random_uniform(
     output_type: str,
     global_seed: int = 0,
     op_seed: int = 0,
+    alignment: str = "tensorflow",
     name: Optional[str] = None,
 ) -> Node:
     """Return a node which generates sequence of random values from uniform distribution.
@@ -347,6 +348,8 @@ def random_uniform(
                                 'i64', 'i32', 'f64', 'f32', 'f16', 'bf16'.
     :param global_seed: Specifies global seed value. Required to be a positive integer or 0.
     :param op_seed: Specifies operational seed value. Required to be a positive integer or 0.
+    :param alignment: Specifies alignment of the randomly generated numbers to a given framework.
+                                Possible values: 'tensorflow', 'pytorch'. Default is 'tensorflow'.
     :param name: Optional output node name.
 
     :return: The new node which performs generation of random values from uniform distribution.
@@ -363,6 +366,7 @@ def random_uniform(
         "output_type": output_type,
         "global_seed": global_seed,
         "op_seed": op_seed,
+        "alignment": alignment.lower(),
     }
     return _get_node_factory_opset8().create("RandomUniform", inputs, attributes)
 

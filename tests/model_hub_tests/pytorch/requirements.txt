@@ -3,6 +3,7 @@ auto-gptq>=0.5.1
 av
 basicsr
 datasets
+python-bidi<0.5  # to fix issue in easyocr
 easyocr
 facexlib
 numpy
@@ -34,3 +35,8 @@ hf_transfer
 # requirements for specific models
 # - hf-tiny-model-private/tiny-random-RoFormerForCausalLM
 rjieba
+
+# - katuni4ka/tiny-random-qwen
+# - katuni4ka/tiny-random-internlm2
+transformers_stream_generator
+einops

@@ -15,7 +15,7 @@ fastjsonschema~=2.17.1
 tensorflow>=2.5,<2.17.0
 requests>=2.25.1
 opencv-python>=4.5
-paddlepaddle==2.6.0
+paddlepaddle==2.6.1
 protobuf>=3.18.1,<4.0.0
 py>=1.9.0
 pytest>=5.0,<7.5
@@ -25,8 +25,9 @@ pytest-timeout==2.2.0
 jax<=0.4.14
 jaxlib<=0.4.14
 kornia==0.7.0
-networkx<=3.1.0
+networkx<=3.3
 keras>=2.0.0,<3.0.0
+timm==1.0.7
 
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch>=1.13,<2.3
+torch>=1.13,<2.4

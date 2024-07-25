@@ -6,7 +6,7 @@
 
 #include "openvino/op/op.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov {
 namespace snippets {
