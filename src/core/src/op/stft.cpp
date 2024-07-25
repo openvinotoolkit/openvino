@@ -65,24 +65,19 @@ void STFT::validate_and_infer_types() {
         data_shape[1],
         "}");
 
-    // InShape:  [Batch, L]
-    // OutShape: [Batch, floor(frame_size//2) + 1, T => floor(L-frame_size)//frame_step) + 1, 2]
-    // Requirements: L >= frame_size
-
-    // Torch out shape
-    // ov::PartialShape output_shape{data_shape[0], ((*frame_size)[0] / 2) + 1, ((data_shape[1] - (*frame_size)[0]) /
-    // frame_step) + 1, 2}; ONNX out shape (transposed)
+    const auto& frame_size_val = (*frame_size)[0];
+    const auto& frame_step_val = (*frame_step)[0];
 
     ov::PartialShape output_shape;
     if (!m_transpose_frames) {  // [batch, frames, fft_samples, 2]
         output_shape = ov::PartialShape{data_shape[0],
-                                        ((data_shape[1] - (*frame_size)[0]) / (*frame_step)[0]) + 1,
-                                        ((*frame_size)[0] / 2) + 1,
+                                        ((data_shape[1] - frame_size_val) / frame_step_val) + 1,
+                                        (frame_size_val / 2) + 1,
                                         2};
     } else {  // [batch, fft_samples, frames, 2]
         output_shape = ov::PartialShape{data_shape[0],
-                                        ((*frame_size)[0] / 2) + 1,
-                                        ((data_shape[1] - (*frame_size)[0]) / (*frame_step)[0]) + 1,
+                                        (frame_size_val / 2) + 1,
+                                        ((data_shape[1] - frame_size_val) / frame_step_val) + 1,
                                         2};
     }
 
