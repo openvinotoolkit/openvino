@@ -17,7 +17,6 @@ struct STFTParams {
                const reference_tests::Tensor& frame_step,
                bool transpose_frames,
                const reference_tests::Tensor& expected_tensor,
-
                std::string name)
         : signal{signal},
           window{window},
@@ -107,6 +106,12 @@ std::vector<STFTParams> generateSTFTParams() {
                         -2.43477, 0.11273,  0.37044,  1.35963,  0.50186,  -0.84421, 0.00001,  0.54235,
                         -0.31351, 0.77101,  -1.86809, 1.73118,  1.46768,  -0.33568, 0.61134,  0.04797});
 
+    reference_tests::Tensor hann_window_5(Shape{5}, ET, std::vector<VT>{0., 0.5, 1., 0.5, 0.});
+    reference_tests::Tensor hann_window_7(Shape{7}, ET, std::vector<VT>{0., 0.25, 0.75, 1., 0.75, 0.25, 0.});
+    reference_tests::Tensor hann_window_8(
+        Shape{8},
+        ET,
+        std::vector<VT>{0., 0.18826, 0.61126, 0.95048, 0.95048, 0.61126, 0.18826, 0.});
     reference_tests::Tensor hann_window_16(Shape{16},
                                            ET,
                                            std::vector<VT>{0.,
@@ -126,8 +131,14 @@ std::vector<STFTParams> generateSTFTParams() {
                                                            0.04323,
                                                            0.});
 
+    reference_tests::Tensor frame_size_8(Shape{}, IT, std::vector<INT_T>{8});
+    reference_tests::Tensor frame_size_9(Shape{}, IT, std::vector<INT_T>{9});
     reference_tests::Tensor frame_size_16(Shape{}, IT, std::vector<INT_T>{16});
+
+    reference_tests::Tensor frame_step_2(Shape{}, IT, std::vector<INT_T>{2});
     reference_tests::Tensor frame_step_4(Shape{}, IT, std::vector<INT_T>{4});
+    reference_tests::Tensor frame_step_8(Shape{}, IT, std::vector<INT_T>{8});
+    reference_tests::Tensor frame_step_16(Shape{}, IT, std::vector<INT_T>{16});
 
     constexpr bool transpose_frames_true = true;
     constexpr bool transpose_frames_false = false;
@@ -154,14 +165,52 @@ std::vector<STFTParams> generateSTFTParams() {
                         -0.44417, 0.,       0.4314,   0.,       -0.63682, 0.,       -1.3278,  0.,       0.24368,
                         0.,       -2.56606, 0.,       -5.47521, 0.,       -2.60384, 0.,       -2.81501, 0.});
 
+    reference_tests::Tensor output_1_9_5_2_no_transp(
+        Shape{1, 9, 5, 2},
+        ET,
+        std::vector<VT>{-2.49209, 0.,       0.11167,  0.,       -1.39889, 0.,       -0.24805, 0.,       0.1782,
+                        0.,       2.38232,  0.24277,  -0.17477, 0.35359,  1.30896,  0.13583,  0.36915,  -0.59295,
+                        -0.3042,  -0.11877, -2.12336, -0.35253, 0.23782,  -0.58706, -1.06786, -0.30642, -0.74536,
+                        1.19633,  0.51216,  0.27057,  1.81552,  0.37559,  -0.10082, 0.77398,  0.73575,  0.52785,
+                        1.38254,  -1.74123, -0.47514, -0.35034, -1.41677, -0.46952, -0.2069,  -1.07442, -0.35883,
+                        -0.766,   -2.21948, 2.08087,  0.05369,  0.20314,  0.77715,  0.66349,  0.40407,  1.43908,
+                        -0.03963, 0.91941,  3.11192,  -2.07244, 0.57377,  0.14702,  0.11223,  -0.75968, -0.27419,
+                        -1.52765, 0.42377,  -0.86016, -3.88305, 1.66473,  -1.10813, -0.4328,  -0.95271, 0.53067,
+                        -0.05574, 1.01868,  -0.7169,  0.52739,  4.39323,  -0.92417, 1.39751,  0.37859,  1.30337,
+                        0.,       0.2294,   0.,       0.82838,  0.,       -4.56982, 0.,       -1.47752, 0.});
+
+    reference_tests::Tensor output_1_9_3_2_no_transp(
+        Shape{1, 9, 3, 2},
+        ET,
+        std::vector<VT>{-2.52411, 0.,       -3.6289, 0.,       1.1366,   0.,       1.99743,  2.45799,  1.84867,
+                        -0.67991, 0.26235,  0.25725, -2.243,   -1.74288, 0.39666,  0.60667,  -0.73965, -0.24622,
+                        2.91255,  -0.82545, 0.03844, 0.45931,  -1.29728, -1.50822, -2.56084, 2.24181,  -0.92956,
+                        -1.32518, 1.78749,  1.94867, 0.87525,  0.70978,  0.47508,  1.29318,  -0.18799, 0.98232,
+                        2.10241,  -2.57882, 0.88504, -1.03814, -1.44897, -2.97866, -1.59965, -0.02599, -1.02171,
+                        0.17824,  2.46326,  1.82815, -0.44417, 0.,       0.24368,  0.,       -2.81501, 0.});
+
     std::vector<STFTParams> params;
+    params.emplace_back(signal_48,
+                        hann_window_16,
+                        frame_size_16,
+                        frame_step_16,
+                        transpose_frames_true,
+                        output_1_9_3_2_no_transp,
+                        "equal_size_step");
     params.emplace_back(signal_48,
                         hann_window_16,
                         frame_size_16,
                         frame_step_4,
                         transpose_frames_true,
                         output_1_9_9_2_no_transp,
-                        "basic_stft_transp");
+                        "step_1/4_frame");
+    params.emplace_back(signal_48,
+                        hann_window_8,
+                        frame_size_16,
+                        frame_step_8,
+                        transpose_frames_true,
+                        output_1_9_5_2_no_transp,
+                        "win_size_smaller_than_frame_size");
     return params;
 }
 
