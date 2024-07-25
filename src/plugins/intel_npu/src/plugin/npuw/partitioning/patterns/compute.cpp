@@ -23,7 +23,6 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/subtract.hpp"
-#include "openvino/op/swish.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/op/label.hpp"  // any_input
@@ -142,29 +141,6 @@ DQMatMulCW::DQMatMulCW(const std::shared_ptr<ov::npuw::online::Snapshot>& snapsh
         return false;  // root hasn't changed
     };
     register_matcher(std::make_shared<opp::Matcher>(qmm, "TagDQMatMulCW"), std::move(callback));
-}
-
-// TODO: visualize
-SwishMul::SwishMul(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
-    auto swish = opp::wrap_type<ov::op::v4::Swish>({opp::any_input()});
-    auto multiply = opp::wrap_type<ov::op::v1::Multiply>({swish, opp::any_input()});
-    // FIXME: Match inputs/outputs against matmuls, but exclude those from the pattern
-
-    auto node_to_gptr = snapshot->getNodeToGroupMap();
-
-    // Note: Use [=] to make sure the above objects stay alive in the callback
-    auto callback = [=](ov::pass::pattern::Matcher& m) {
-        auto& node_to_output = m.get_pattern_value_map();
-
-        auto matched_swish = node_to_output.at(swish).get_node_shared_ptr();
-        auto matched_multiply = node_to_output.at(multiply).get_node_shared_ptr();
-
-        node_to_gptr->at(matched_swish)->isolate(isol_tag);
-        node_to_gptr->at(matched_multiply)->isolate(isol_tag);
-
-        return false;  // root hasn't changed
-    };
-    register_matcher(std::make_shared<opp::Matcher>(multiply, "TagSwishMul"), std::move(callback));
 }
 
 // TODO: visualize

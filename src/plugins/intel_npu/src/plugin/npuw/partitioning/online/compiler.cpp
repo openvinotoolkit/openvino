@@ -146,7 +146,7 @@ std::vector<Isolate> getIsolates(const std::string isolates_unparsed) {
     } else {
         LOG_WARN("Incorect pattern in NPUW_ONLINE_ISOLATE!"
                  << " Please, follow the example: "
-                 << "Op:Select/NPU,P:DQMatMulGQ/compute,P:DQMatMulCW/compute,P:SwishMul/compute,P:RMSNorm/compute. "
+                 << "Op:Select/NPU,P:DQMatMulGQ/compute,P:DQMatMulCW/compute,P:RMSNorm/compute. "
                  << "No isolate rules will be taken into account during partitioning!");
     }
 
@@ -198,8 +198,7 @@ std::vector<std::string> getNoFolds(const std::string& nofolds_unparsed) {
 void setComputeConfig(PassContext& ctx) {
     ctx.keep_blocks = 30;
     ctx.keep_block_size = 2;
-    ctx.isolates =
-        detail::getIsolates("P:DQMatMulGQ/compute,P:DQMatMulCW/compute,P:SwishMul/compute,P:RMSNorm/compute");
+    ctx.isolates = detail::getIsolates("P:DQMatMulGQ/compute,P:DQMatMulCW/compute,P:RMSNorm/compute");
     ctx.nofolds = detail::getNoFolds("compute");
 }
 

@@ -23,6 +23,7 @@ struct Repeated {
     };
 
     void exclude();
+    void resetExclude();
     bool openForMerge() const;
 
     bool m_excluded = false;

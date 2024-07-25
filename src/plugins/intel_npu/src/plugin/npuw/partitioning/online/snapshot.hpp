@@ -44,12 +44,13 @@ public:
     void fuseRemnantsExtended();
     void fuseRemnants();
     void fuseInputs();
-    void fuseWithinCompute();
 
     // Advanced passes for repeated blocks algorithm
     void repeatedBlocks();
     void earlyAvoids();
     void earlyRegroup();
+    void markInternalCompute();
+    void resetExcludedRep();
 
     // Utility
     std::shared_ptr<ade::Graph> getGraph() const;

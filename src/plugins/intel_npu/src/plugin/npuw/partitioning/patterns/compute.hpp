@@ -31,11 +31,6 @@ public:
     DQMatMulCW(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 
-class SwishMul : public ov::pass::MatcherPass {
-public:
-    SwishMul(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
-};
-
 class RMSNorm : public ov::pass::MatcherPass {
 public:
     RMSNorm(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);

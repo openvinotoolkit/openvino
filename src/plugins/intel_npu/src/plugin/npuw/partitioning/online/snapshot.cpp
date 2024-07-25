@@ -284,52 +284,48 @@ void Snapshot::fuseInputs() {
     LOG_INFO("DONE");
 }
 
-void Snapshot::fuseWithinCompute() {
-    LOG_INFO("Online partitioning: executing fuseWithinCompute pass...");
+void Snapshot::markInternalCompute() {
+    LOG_INFO("Online partitioning: executing markInternalCompute pass...");
     LOG_BLOCK();
 
     // iterate it topological order
     for (const auto& nh : m_graph->sorted()) {
-        // skip if removed by fuseWithinCompute
-        if (!m_graph->contains(nh)) {
-            continue;
-        }
         Group::GPtr group = m_graph->meta(nh).get<Group::GPtr>();
-        if (!group->isFrozen()) {  // we only need frozen repeated groups
+        if (!group->specialTags().empty() || !group->repeated()) {  // we only need repeated groups with empty tags
             continue;
         }
 
-        std::pair<Group::GPtr, Group::GPtr> compute_around{nullptr, nullptr};
-        auto src_nodes = group->srcNodes();
-        auto dst_nodes = group->dstNodes();
-
-        if (src_nodes.size() != 1 || dst_nodes.size() != 1) {
-            continue;
+        // We need to filter out compute group
+        // with all of it's producers and consumers have the same tags
+        std::unordered_set<std::string> prod_cons_tags;
+        for (const auto& prod_nh : group->srcNodes()) {
+            Group::GPtr group_prod = m_graph->meta(prod_nh).get<Group::GPtr>();
+            prod_cons_tags.insert(group_prod->specialTags());
         }
-
-        Group::GPtr group_prod = m_graph->meta(src_nodes.at(0)).get<Group::GPtr>();
-        Group::GPtr group_cons = m_graph->meta(dst_nodes.at(0)).get<Group::GPtr>();
-
-        if (!group_prod->isFrozen() || !group_cons->isFrozen() ||  // we only need frozen repeated groups
-            group_prod->dstNodes().size() != 1 || group_cons->srcNodes().size() != 1) {
-            continue;
+        for (const auto& cons_nh : group->dstNodes()) {
+            Group::GPtr group_cons = m_graph->meta(cons_nh).get<Group::GPtr>();
+            prod_cons_tags.insert(group_cons->specialTags());
         }
-
-        // At this point we have exactly G1 -> G2 -> G3
-        // Now if G1 and G3 have the same non-empty tags, we can merge all 3
-        if (group_prod->specialTags() == group_cons->specialTags() && !group_prod->isolatedTag().empty()) {
-            group_prod->fuseWith(group);
-            group_prod->fuseWith(group_cons);
-        }
-
-        // stop merging groups if the graph is already small enough
-        if (graphSize() <= m_ctx.min_graph_size) {
-            break;
+        if (prod_cons_tags.size() == 1 && !(*prod_cons_tags.begin()).empty()) {
+            NPUW_ASSERT(!group->srcNodes().empty());
+            auto prod_nh = group->srcNodes().at(0);  // all tags are the same, pick either group
+            Group::GPtr group_prod = m_graph->meta(prod_nh).get<Group::GPtr>();
+            NPUW_ASSERT(!group_prod->isolatedTag().empty());
+            group->isolate(group_prod->isolatedTag());
         }
     }
 
-    LOG_INFO("Number of groups after compiler pass: " << graphSize());
     LOG_INFO("DONE");
+}
+
+void Snapshot::resetExcludedRep() {
+    for (const auto& nh : m_graph->sorted()) {
+        Group::GPtr group = m_graph->meta(nh).get<Group::GPtr>();
+        auto rep = group->repeated();
+        if (rep) {
+            rep->resetExclude();
+        }
+    }
 }
 
 void Snapshot::earlyAvoids() {
@@ -400,9 +396,6 @@ void Snapshot::earlyRegroup() {
             if (isolate.pattern == "RMSNorm") {
                 rewr.add_matcher<ov::npuw::patterns::compute::RMSNorm>(shared_from_this(), isolate.tag);
                 handle_patterns = true;
-            } else if (isolate.pattern == "SwishMul") {
-                rewr.add_matcher<ov::npuw::patterns::compute::SwishMul>(shared_from_this(), isolate.tag);
-                handle_patterns = true;
             } else if (isolate.pattern == "DQMatMulCW") {
                 rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulCW>(shared_from_this(), isolate.tag);
                 handle_patterns = true;
@@ -410,7 +403,7 @@ void Snapshot::earlyRegroup() {
                 rewr.add_matcher<ov::npuw::patterns::compute::DQMatMulGQ>(shared_from_this(), isolate.tag);
                 handle_patterns = true;
             } else {
-                LOG_WARN("OPENVINO_NPUW_ISOLATE only supports RMSNorm, SwishMul, DQMatMulCW, DQMatMulGQ "
+                LOG_WARN("OPENVINO_NPUW_ISOLATE only supports RMSNorm, DQMatMulCW, DQMatMulGQ "
                          << "as patterns. Isolate pattern " << isolate.pattern << " is skipped!");
             }
         }
@@ -431,12 +424,15 @@ void Snapshot::repeatedBlocks() {
 
     identifyUniques();
     repeat([&] {
-        mergeUniques();
+        repeat([&] {
+            mergeUniques();
+        });
+        mergeTriangles();  // FIXME: assuming that w/o a particular set of properties (isolate, nofold) this pass does
+                           // nothing
+        markInternalCompute();
+        resetExcludedRep();
     });
-    mergeTriangles();  // FIXME: assuming that w/o a particular set of properties (isolate, nofold) this pass does
-                       // nothing
     cleanUpUniques();
-    fuseWithinCompute();
 
     LOG_INFO("Number of groups after compiler pass: " << graphSize());
 
