@@ -46,8 +46,22 @@ std::shared_ptr<ov::Node> make_embedding_bag_offsets(const element::Type& data_t
                                                                         reduction);
         }
     } else {
-        embBag =
-            std::make_shared<ov::op::v15::EmbeddingBagOffsets>(emb_table_node, indices_node, offsetsNode, reduction);
+        if (with_weights) {
+            auto defIdxNode = ov::op::v0::Constant::create(indices_type, ov::Shape{}, {-1});
+            auto tensor = create_and_fill_tensor(data_type, ov::Shape{indices.size()});
+            auto weights_node = std::make_shared<ov::op::v0::Constant>(tensor);
+            embBag = std::make_shared<ov::op::v15::EmbeddingBagOffsets>(emb_table_node,
+                                                                        indices_node,
+                                                                        offsetsNode,
+                                                                        defIdxNode,
+                                                                        weights_node,
+                                                                        reduction);
+        } else {
+            embBag = std::make_shared<ov::op::v15::EmbeddingBagOffsets>(emb_table_node,
+                                                                        indices_node,
+                                                                        offsetsNode,
+                                                                        reduction);
+        }
     }
     return embBag;
 }

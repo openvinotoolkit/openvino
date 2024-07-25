@@ -4,7 +4,7 @@
 
 #include "snippets/lowered/expression_port.hpp"
 
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 
 namespace ov {

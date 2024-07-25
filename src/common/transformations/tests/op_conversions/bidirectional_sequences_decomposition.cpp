@@ -87,7 +87,7 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionLSTM) {
         m.register_pass<ov::pass::BidirectionalSequenceDecomposition>();
         m.run_passes(f);
 
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -156,7 +156,7 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionGRU) {
         m.register_pass<ov::pass::BidirectionalSequenceDecomposition>();
         m.run_passes(f);
 
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -219,7 +219,7 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionRNN) {
         m.register_pass<ov::pass::BidirectionalSequenceDecomposition>();
         m.run_passes(f);
 
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -291,7 +291,7 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionLSTMDisabled) {
         m.get_pass_config()->set_callback(transformations_callback);
         m.run_passes(f);
 
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -343,7 +343,7 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionGRUDisabled) {
         m.get_pass_config()->set_callback(transformations_callback);
         m.run_passes(f);
 
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -394,7 +394,7 @@ TEST(TransformationTests, BidirectionalSequenceDecompositionRNNDisabled) {
         m.get_pass_config()->set_callback(transformations_callback);
         m.run_passes(f);
 
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {

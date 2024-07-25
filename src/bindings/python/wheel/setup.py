@@ -14,7 +14,7 @@ import multiprocessing
 import logging as log
 from fnmatch import fnmatchcase
 from pathlib import Path
-from shutil import copyfile, rmtree
+from shutil import copyfile, rmtree, move
 from setuptools import setup, find_namespace_packages, Extension, Command
 from setuptools.command.build_ext import build_ext
 from setuptools.command.build_clib import build_clib
@@ -135,6 +135,13 @@ LIB_INSTALL_CFG = {
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
     },
+    "jax_libs": {
+        "name": "jax",
+        "prefix": f"{BUILD_BASE}/libs.jax",
+        "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BINARY_DIR,
+    },
     "paddle_libs": {
         "name": "paddle",
         "prefix": f"{BUILD_BASE}/libs.paddle",
@@ -175,7 +182,14 @@ LIB_INSTALL_CFG = {
 DATA_INSTALL_CFG = {
     "core_dev": {
         "name": "core_dev",
-        "prefix": f"{BUILD_BASE}/libs.dev",
+        "prefix": f"{BUILD_BASE}/libs.core.dev",
+        "install_dir": "runtime",
+        "binary_dir": OPENVINO_BINARY_DIR,
+        "source_dir": OPENVINO_SOURCE_DIR
+    },
+    "core_c_dev": {
+        "name": "core_c_dev",
+        "prefix": f"{BUILD_BASE}/libs.core_c.dev",
         "install_dir": "runtime",
         "binary_dir": OPENVINO_BINARY_DIR,
         "source_dir": OPENVINO_SOURCE_DIR
@@ -252,7 +266,7 @@ class CustomBuild(build):
         self.jobs = multiprocessing.cpu_count() if self.jobs is None else int(self.jobs)
 
         if self.cmake_args is None:
-            self.cmake_args = ""
+            self.cmake_args = os.getenv("CMAKE_ARGS", "")
 
     def cmake_build_and_install(self, install_cfg):
         """Runs cmake (configure, build and install) if artfiacts are not already built / installed."""
@@ -283,6 +297,7 @@ class CustomBuild(build):
                                 f"-DPython3_EXECUTABLE={sys.executable}",
                                 f"-DCMAKE_BUILD_TYPE={CONFIG}",
                                 f"-DCPACK_GENERATOR={CPACK_GENERATOR}",
+                                "-DENABLE_PYTHON=ON",
                                 "-DENABLE_WHEEL=OFF",
                                 self.cmake_args,
                                 "-S", source_dir,
@@ -422,7 +437,7 @@ class PrepareLibs(build_clib):
         for src_dir in src_dirs:
             # additional blacklist filter, just to fix cmake install issues
             blacklist_patterns = [  # static libraries and PBD files
-                                    "^.*\\.a$", "^.*\\.lib$", "^.*\\.pdb$",
+                                    "^.*\\.a$", "^.*\\.pdb$",
                                     # TBB debug libraries
                                     "^.*_debug\\.dll$", "^.*_debug\\.\\d*\\.dylib$", "^.*_debug\\.so\\.\\d*$",
                                     # hwloc static libs on Windows
@@ -453,24 +468,37 @@ class PrepareLibs(build_clib):
         """Collect package data files from preinstalled dirs and put to the subpackage."""
         package_dir = os.path.join(PACKAGE_DIR, WHEEL_PACKAGE_DIR)
         os.makedirs(package_dir, exist_ok=True)
+        package_clibs_dir = os.path.join(PACKAGE_DIR, WHEEL_LIBS_INSTALL_DIR)
+        os.makedirs(package_clibs_dir, exist_ok=True)
 
         replacements = {
             # change the path where the libraries are installed (runtime/lib/intel64/Release -> openvino/libs)
-            f"{OV_RUNTIME_LIBS_DIR}": f"{WHEEL_LIBS_INSTALL_DIR}",
+            r"({_IMPORT_PREFIX})\/(.*)\/(.*.[lib|dylib|so|dll])": rf"\1/{WHEEL_LIBS_INSTALL_DIR}/\3",
             # change the path where the include files are installed (runtime/include -> openvino/include)
             r"({_IMPORT_PREFIX})\/(.*)\/(include)": rf"\1/{WHEEL_PACKAGE_DIR}/\3",
-            # changed the lib version (2024.3.0 -> 2430)
-            r"(.so).(\d\d)(\d\d).(\d+).(\d+)": r"\1.\3\4\5"
+            # change the libs versions (so.2024.3.0 -> so.2430 or 2024.3.0.dylib -> 2430.dylib)
+            r"(.so)?.(\d\d)(\d\d).(\d+).(\d+)(.dylib)?": r"\1.\3\4\5\6",
         }
 
         for src_dir in src_dirs:
             src, dst = Path(src_dir), Path(package_dir)
-            shutil.copytree(src, dst, dirs_exist_ok=True)
 
-            # patch cmake configurations
-            for file_path in Path(dst).rglob("*.cmake"):
+            # move the static libs to the directory with the shared libraries
+            for file_path in Path(src).rglob("*.lib"):
+                file_name = os.path.basename(file_path)
                 if file_path.is_file():
-                    replace_strings_in_file(file_path, replacements)
+                    dst_file = os.path.join(package_clibs_dir, file_name)
+                    move(file_path, dst_file)
+                    self.announce(f"Move {file_path} to {dst_file}", level=3)
+
+            if os.path.isdir(src) and os.listdir(src):
+                # copy the rest of the files to the package directly
+                shutil.copytree(src, dst, dirs_exist_ok=True)
+
+                # patch cmake configurations
+                for file_path in Path(dst).rglob("*.cmake"):
+                    if file_path.is_file():
+                        replace_strings_in_file(file_path, replacements)
 
 
 def copy_file(src, dst, verbose=False, dry_run=False):

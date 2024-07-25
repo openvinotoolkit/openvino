@@ -141,11 +141,11 @@ Supported Features
 
 The GPU plugin supports the following features:
 
-Multi-device Execution
+Automatic Device Selection
 +++++++++++++++++++++++++++++++++++++++
 
 If a system has multiple GPUs (for example, an integrated and a discrete Intel GPU), then any supported model can be executed on all GPUs simultaneously.
-It is done by specifying ``MULTI:GPU.1,GPU.0`` as a target device.
+It is done by specifying ``AUTO:GPU.1,GPU.0`` as a target device, and adding the ``CUMULATIVE_THROUGHPUT`` parameter.
 
 .. tab-set::
 
@@ -154,17 +154,17 @@ It is done by specifying ``MULTI:GPU.1,GPU.0`` as a target device.
 
       .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.py
          :language: Python
-         :fragment: compile_model_multi
+         :fragment: compile_model_auto
 
    .. tab-item:: C++
       :sync: cpp
 
       .. doxygensnippet:: docs/articles_en/assets/snippets/compile_model_gpu.cpp
          :language: cpp
-         :fragment: compile_model_multi
+         :fragment: compile_model_auto
 
 
-For more details, see the :doc:`Multi-device execution <multi-device>`.
+For more details, see the :doc:`Automatic Device Selection <auto-device-selection>`.
 
 Automatic Batching
 +++++++++++++++++++++++++++++++++++++++
@@ -476,6 +476,7 @@ Since OpenVINO relies on the OpenCL kernels for the GPU implementation, many gen
 Additional Resources
 #######################################
 
+* `Working with GPUs in OpenVINO™ Notebook <https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/gpu-device/gpu-device.ipynb>`__
 * :doc:`Inference Devices and Modes <../inference-devices-and-modes>`.
 * :doc:`Optimization guide <../optimize-inference>`.
 * `GPU plugin developer documentation <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/README.md>`__

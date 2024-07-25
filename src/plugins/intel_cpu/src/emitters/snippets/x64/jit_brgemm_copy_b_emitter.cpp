@@ -6,7 +6,7 @@
 
 #include "jit_brgemm_emitter.hpp"
 
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "snippets/lowered/expression.hpp"
 
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
@@ -18,6 +18,7 @@
 using namespace Xbyak;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
+using namespace ov::intel_cpu::brgemm_utils;
 
 namespace ov {
 namespace intel_cpu {
@@ -29,8 +30,9 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h, cpu_isa_t
     const auto brgemm_repack = ov::as_type_ptr<ov::intel_cpu::BrgemmCopyB>(expr->get_node());
     if (!brgemm_repack)
         OV_CPU_JIT_EMITTER_THROW("expects BrgemmCopyB node");
+    OV_CPU_JIT_EMITTER_ASSERT(is_superset(host_isa_, cpu::x64::avx2), "host_isa must be at least avx2");
 
-    m_with_comp = brgemm_repack->is_with_compensations();
+    m_with_comp = with_compensations(brgemm_repack->get_type());
     m_in_offset = brgemm_repack->get_offset_in();
     m_out_offset = brgemm_repack->get_offset_out();
     if (m_with_comp)
@@ -43,7 +45,7 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h, cpu_isa_t
     size_t leading_dimension = *(original_shape.rbegin());
     if (!layout.empty()) {
         transposed_shape = snippets::utils::get_planar_vdims(original_shape, layout);
-        leading_dimension = ov::snippets::utils::get_in_leading_dim(original_shape, layout);
+        leading_dimension = ov::snippets::utils::get_dim_stride(expr->get_input_port(0));
     }
 
     const auto& in_subtensor = in_desc->get_subtensor();
@@ -71,21 +73,18 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h, cpu_isa_t
     m_brg_weight_etype = brgemm_repack->get_input_element_type(0);
     m_brgemmVNNIFactor = brgemm_repack->get_brgemm_vnni_factor();
 
-    const auto use_amx = mayiuse(avx512_core_amx) && brg_src_etype != ov::element::f32 &&
-                         (m_K_blk % m_brgemmVNNIFactor == 0) && (m_N_blk % m_brgemmVNNIFactor == 0);
+    const auto brgemm_type = get_brgemm_type(brg_src_etype, m_K_blk, m_N_blk);
 
-    const auto src_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(brg_src_etype));
-    const auto wei_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(m_brg_weight_etype));
-
-    init_brgemm_copy(m_kernel, leading_dimension, m_inner_N_block, m_inner_N_tail, LDB, m_K_blk, use_amx, src_dt, wei_dt);
+    init_brgemm_copy(m_kernel, leading_dimension, m_inner_N_block, m_inner_N_tail, LDB, m_K_blk, brgemm_type, brg_src_etype, m_brg_weight_etype);
 }
 
 void jit_brgemm_copy_b_emitter::init_brgemm_copy(std::unique_ptr<matmul::jit_brgemm_matmul_copy_b_t>& kernel,
                                                  size_t N, size_t N_blk, size_t N_tail, size_t LDB, size_t K,
-                                                 bool is_with_amx, dnnl_data_type_t src_dt, dnnl_data_type_t wei_dt) const {
+                                                 BRGEMM_TYPE brgemm_type,
+                                                 const ov::element::Type& src_dt, const ov::element::Type& wei_dt) const {
     matmul::brgemm_matmul_conf_t brgCopyKernelConf;
-    brgCopyKernelConf.src_dt = src_dt;
-    brgCopyKernelConf.wei_dt = wei_dt;
+    brgCopyKernelConf.src_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(src_dt));
+    brgCopyKernelConf.wei_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(wei_dt));
     brgCopyKernelConf.wei_n_blk = static_cast<int>(N_blk);
     brgCopyKernelConf.wei_tag = dnnl_abcd;  // What's about other ranks?
     brgCopyKernelConf.copy_B_wei_stride = 0;
@@ -100,13 +99,12 @@ void jit_brgemm_copy_b_emitter::init_brgemm_copy(std::unique_ptr<matmul::jit_brg
     brgCopyKernelConf.tr_b_dt_sz = DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
     brgCopyKernelConf.req_wei_vnni_downconvert = false;
 
-    if (is_with_amx) {
-        brgCopyKernelConf.isa = avx512_core_amx;
-        brgCopyKernelConf.s8s8_compensation_required = false;
-    } else {
-        brgCopyKernelConf.isa = src_dt == dnnl_data_type_t::dnnl_bf16 ? avx512_core_bf16 : avx512_core_vnni;
-        brgCopyKernelConf.s8s8_compensation_required = src_dt == dnnl_data_type_t::dnnl_s8;
-    }
+
+    brgCopyKernelConf.isa = get_primitive_isa(src_dt, with_amx(brgemm_type));
+
+    // Note: this assert can be removed when we support transposes through BrgemmCopyB
+    OV_CPU_JIT_EMITTER_ASSERT(isa_has_int8_vnni(brgCopyKernelConf.isa), "BrgemmCopyB emitter requires VNNI support");
+    brgCopyKernelConf.s8s8_compensation_required = with_compensations(brgemm_type);
 
     brgCopyKernelConf.has_zero_point_a = false;
     brgCopyKernelConf.has_zero_point_b = false;
@@ -124,7 +122,6 @@ void jit_brgemm_copy_b_emitter::validate_arguments(const std::vector<size_t> &in
 
 void jit_brgemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     validate_arguments(in, out);
-    OV_CPU_JIT_EMITTER_ASSERT(host_isa_ == cpu::x64::avx512_core, "requires at least avx512_core instruction set");
 
     Xbyak::Reg64 src(static_cast<int>(in[0]));
     Xbyak::Reg64 dst(static_cast<int>(out[0]));

@@ -109,6 +109,9 @@ jobs:
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/src/frontends/onnx/tests/ci_utils/onnxruntime
+      ARTIFACTS_SHARE: "/mount/build-artifacts"
+      MANIFEST_PATH: '/__w/openvino/openvino/manifest.yml'
+      PRODUCT_TYPE: 'public_linux_ubuntu_20_04_release'
     if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
@@ -134,6 +137,18 @@ jobs:
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
           submodules: 'true'
           ref: 'master'
+
+      - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
+        id: create_manifest
+        uses: ./openvino/.github/actions/create_manifest
+        with:
+          repos: |
+            ${{ env.OPENVINO_REPO }}
+            ${{ env.OPENVINO_CONTRIB_REPO }}
+          product_type: ${{ env.PRODUCT_TYPE }}
+          target_arch: 'intel64'
+          build_type: 'release'
+          save_to: ${{ env.MANIFEST_PATH }}
 
       #
       # Print system info
@@ -301,6 +316,28 @@ jobs:
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
 
+      - name: Prepare debian packages for storage on share
+        if: ${{ always() }}
+        continue-on-error: true
+        run: |
+          pushd ${{ env.BUILD_DIR }}
+          mkdir deb && mv *.deb deb/
+          popd
+
+      - name: Store artifacts to a shared drive
+        id: store_artifacts
+        if: ${{ always() }}
+        uses: ./openvino/.github/actions/store_artifacts
+        with:
+          artifacts: |
+            ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+            ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
+            ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+            ${{ env.BUILD_DIR }}/deb
+            ${{ env.MANIFEST_PATH }}
+          storage_dir: ${{ env.PRODUCT_TYPE }}
+          storage_root: ${{ env.ARTIFACTS_SHARE }}
+
   Debian_Packages:
     name: Debian Packages
     needs: Build
@@ -315,7 +352,7 @@ jobs:
     uses: ./.github/workflows/job_samples_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64 }}
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64 }}", "volumes": ["/mount:/mount"]}'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
   JS_API:
@@ -553,12 +590,30 @@ jobs:
   #     - /mount:/mount
   PyTorch_Models_Tests:
     name: PyTorch Models tests
-    if: fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
+    if: ${{ github.event_name != 'schedule' && fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test }}
     needs: [ Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
-      runner: ${{ github.event_name == 'schedule' && 'ubuntu-20.04-16-cores' || 'ubuntu-20.04-8-cores' }}
-      event: ${{ github.event_name }}
+      runner: 'ubuntu-20.04-8-cores'
+      model_scope: 'precommit'
+
+  PyTorch_Models_Tests_Nightly_Scope1:
+    name: PyTorch Models Nightly Scope1 tests
+    if: ${{ github.event_name == 'schedule' }}
+    needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    uses: ./.github/workflows/job_pytorch_models_tests.yml
+    with:
+      runner: 'ubuntu-20.04-16-cores'
+      model_scope: 'nightly_scope1'
+
+  PyTorch_Models_Tests_Nightly_Scope2:
+    name: PyTorch Models Nightly Scope2 tests
+    if: ${{ github.event_name == 'schedule' }}
+    needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    uses: ./.github/workflows/job_pytorch_models_tests.yml
+    with:
+      runner: 'ubuntu-20.04-16-cores'
+      model_scope: 'nightly_scope2'
 
   NVIDIA_Plugin:
     name: NVIDIA plugin
