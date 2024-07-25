@@ -631,7 +631,7 @@ bool Constant::constant_fold(OutputVector&, const OutputVector&) {
 }
 
 const Tensor Constant::get_tensor_view() const {
-    return m_data ? Tensor{m_element_type, m_shape, m_data->get_ptr(), m_byte_strides} : Tensor{};
+    return get_data_ptr() ? Tensor{m_element_type, m_shape, m_data->get_ptr(), m_byte_strides} : Tensor{};
 }
 
 const Strides& Constant::get_strides() const {
