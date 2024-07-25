@@ -56,17 +56,17 @@ void STFT::validate_and_infer_types() {
         return;
     }
 
+    const auto& frame_size_val = (*frame_size)[0];
+    const auto& frame_step_val = (*frame_step)[0];
+
     NODE_VALIDATION_CHECK(
         this,
-        0 < (*frame_size)[0] && (data_shape.is_dynamic() || (*frame_size)[0] < data_shape[1].get_length()),
+        0 < frame_size_val && (data_shape.is_dynamic() || frame_size_val < data_shape[1].get_length()),
         "Provided frame size is ",
-        (*frame_size)[0],
+        frame_size_val,
         " but must be in range {0, ",
         data_shape[1],
         "}");
-
-    const auto& frame_size_val = (*frame_size)[0];
-    const auto& frame_step_val = (*frame_step)[0];
 
     ov::PartialShape output_shape;
     if (!m_transpose_frames) {  // [batch, frames, fft_samples, 2]
