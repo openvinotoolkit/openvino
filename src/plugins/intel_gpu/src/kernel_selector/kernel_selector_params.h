@@ -682,35 +682,29 @@ struct base_params : public Params {
 
     void set_dynamic_shape_offsets() override {
         size_t offset = 0;
-        for (auto& in : inputs) {
-            in.SetDynamicShapeOffset(offset);
-            if (in.is_dynamic()) {
+        auto update_offset = [&offset](DataTensor& tensor) {
+            tensor.SetDynamicShapeOffset(offset);
+            if (tensor.is_dynamic()) {
                 offset += DataTensor::max_rank();
-                for (auto dim : in.GetDims()) {
+                for (auto dim : tensor.GetDims()) {
                     if (dim.pad.is_dynamic)
                         offset += Tensor::Pad::NumPadOffsetsPerDim();
                 }
             }
+        };
+        for (auto& in : inputs) {
+            update_offset(in);
         }
         for (auto& fd : fused_ops) {
             if (!fd.has_outer_dep())
                 continue;
             auto& fused_op_inputs = fd.tensors;
             for (auto& fused_input : fused_op_inputs) {
-                fused_input.SetDynamicShapeOffset(offset);
-                if (fused_input.is_dynamic())
-                    offset += DataTensor::max_rank();
+                update_offset(fused_input);
             }
         }
         for (auto& out : outputs) {
-            out.SetDynamicShapeOffset(offset);
-            if (out.is_dynamic()) {
-                offset += DataTensor::max_rank();
-                for (auto& dim : out.GetDims()) {
-                    if (dim.pad.is_dynamic)
-                        offset += Tensor::Pad::NumPadOffsetsPerDim();
-                }
-            }
+            update_offset(out);
         }
     }
 
