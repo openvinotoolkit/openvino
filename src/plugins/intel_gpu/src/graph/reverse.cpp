@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/reverse.hpp"
 #include <string>
 
 #include "json_object.h"
@@ -11,10 +12,6 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(reverse)
 
-layout reverse_inst::calc_output_layout(reverse_node const& node, kernel_impl_params const& impl_param) {
-    return impl_param.get_input_layout();
-}
-
 std::string reverse_inst::to_string(reverse_node const& node) {
     const auto prim = node.get_primitive();
 
@@ -23,7 +20,7 @@ std::string reverse_inst::to_string(reverse_node const& node) {
     json_composite info;
     info.add("input id", node.input(0).id());
     info.add("axes id", node.input(1).id());
-    const auto mode = prim->mode == reverse_mode::index ? "index" : "mask";
+    const auto mode = prim->mode == ov::op::v1::Reverse::Mode::INDEX ? "index" : "mask";
     info.add("mode", mode);
 
     auto node_info = node.desc_to_json();

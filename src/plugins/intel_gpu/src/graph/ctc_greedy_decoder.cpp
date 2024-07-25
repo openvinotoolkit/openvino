@@ -13,14 +13,6 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(ctc_greedy_decoder)
 
-layout ctc_greedy_decoder_inst::calc_output_layout(ctc_greedy_decoder_node const& node, kernel_impl_params const& impl_param) {
-    auto input_node_layout = impl_param.get_input_layout();
-    auto prim = impl_param.typed_desc<ctc_greedy_decoder>();
-    auto output_type = prim->output_data_types[0].value_or(input_node_layout.data_type);
-
-    return layout(output_type, input_node_layout.format, prim->output_tensor);
-}
-
 template<typename ShapeType>
 std::vector<layout> ctc_greedy_decoder_inst::calc_output_layouts(ctc_greedy_decoder_node const& /*node*/, const kernel_impl_params& impl_param) {
     std::vector<layout> layouts;

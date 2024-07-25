@@ -48,7 +48,7 @@ public:
 
         auto config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
         cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
@@ -961,7 +961,7 @@ public:
         topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {}));
 
         ExecutionConfig config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         if (impl_type != impl_types::any)
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"strided_slice", {format::bfyx, "", impl_types::cpu}} }));
 
@@ -1014,7 +1014,7 @@ public:
         topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {}));
 
         ExecutionConfig config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         if (impl_type != impl_types::any)
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"strided_slice", {format::bfyx, "", impl_types::cpu}} }));
 
@@ -1069,7 +1069,7 @@ public:
         topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {}));
 
         ExecutionConfig config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
         if (impl_type != impl_types::any)
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"strided_slice", {format::bfyx, "", impl_types::cpu}} }));
 
@@ -1124,7 +1124,7 @@ public:
         );
 
         ExecutionConfig config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
         auto program = program::build_program(engine, topology, config, false, false, false);
         ASSERT_NE(program, nullptr);
@@ -1158,7 +1158,7 @@ public:
         );
 
         ExecutionConfig config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
         auto program = program::build_program(engine, topology, config, false, false, false);
         ASSERT_NE(program, nullptr);

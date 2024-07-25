@@ -34,10 +34,7 @@ TEST(batch_to_space_fp16_gpu, i8111_bs1222_cb0000_ce0000) {
 
     topology topology;
     topology.add(input_layout("Input", input->get_layout()));
-    topology.add(batch_to_space("batch_to_space", input_info("Input"), tensor(format::bfyx, {1,2,2,2}, 1),
-                                                                       tensor(format::bfyx, {0,0,0,0}, 0),
-                                                                       tensor(format::bfyx, {0,0,0,0}, 0),
-                                                                       tensor(format::bfyx, {1,2,2,2}, 1)));
+    topology.add(batch_to_space("batch_to_space", input_info("Input"), {1,2,2,2}, {0,0,0,0}, {0,0,0,0}));
     network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input", input);
@@ -81,10 +78,7 @@ TEST(batch_to_space_fp16_gpu, i4321_bs1212_cb0000_ce0000) {
 
     topology topology;
     topology.add(input_layout("Input", input->get_layout()));
-    topology.add(batch_to_space("batch_to_space", input_info("Input"), tensor(format::bfyx, {1,2,1,2}, 1),
-                                                                       tensor(format::bfyx, {0,0,0,0}, 0),
-                                                                       tensor(format::bfyx, {0,0,0,0}, 0),
-                                                                       tensor(format::bfyx, {1,6,2,2}, 1)));
+    topology.add(batch_to_space("batch_to_space", input_info("Input"), {1,2,1,2}, {0,0,0,0}, {0,0,0,0}));
     network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input", input);
@@ -131,10 +125,7 @@ TEST(batch_to_space_fp16_gpu, i4321_bs1212_cb0010_ce0101) {
 
     topology topology;
     topology.add(input_layout("Input", input->get_layout()));
-    topology.add(batch_to_space("batch_to_space", input_info("Input"), tensor(format::bfyx, {1,2,1,2}, 1),
-                                                                       tensor(format::bfyx, {0,0,1,0}, 0),
-                                                                       tensor(format::bfyx, {0,1,0,1}, 0),
-                                                                       tensor(format::bfyx, {1,5,1,1}, 1)));
+    topology.add(batch_to_space("batch_to_space", input_info("Input"), {1,2,1,2}, {0,0,1,0}, {0,1,0,1}));
     network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input", input);
@@ -178,10 +169,7 @@ TEST(batch_to_space_fp16_gpu, i62121_bs12311_cb02000_ce00110) {
 
     topology topology;
     topology.add(input_layout("Input", input->get_layout()));
-    topology.add(batch_to_space("batch_to_space", input_info("Input"), tensor(format::bfzyx, {1,2,3,1,1}, 1),
-                                                                       tensor(format::bfzyx, {0,2,0,0,0}, 0),
-                                                                       tensor(format::bfzyx, {0,0,1,1,0}, 0),
-                                                                       tensor(format::bfzyx, {1,2,2,1,1}, 1)));
+    topology.add(batch_to_space("batch_to_space", input_info("Input"), {1,2,3,1,1}, {0,2,0,0,0}, {0,0,1,1,0}));
     network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input", input);
@@ -227,10 +215,7 @@ TEST(batch_to_space_fp16_gpu, i1212112_bs112321_cb02000_ce00110) {
 
     topology topology;
     topology.add(input_layout("Input", input->get_layout()));
-    topology.add(batch_to_space("batch_to_space", input_info("Input"), tensor(format::bfwzyx, {1,1,2,3,2,1}, 1),
-                                                                       tensor(format::bfwzyx, {0,0,1,0,0,0}, 0),
-                                                                       tensor(format::bfwzyx, {0,0,0,2,0,0}, 0),
-                                                                       tensor(format::bfwzyx, {1,1,3,1,2,2}, 1)));
+    topology.add(batch_to_space("batch_to_space", input_info("Input"), {1,1,2,3,2,1}, {0,0,1,0,0,0}, {0,0,0,2,0,0}));
     network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input", input);
@@ -275,10 +260,7 @@ TEST(batch_to_space_fp16_gpu, i21611_bs1112_cb0000_ce0000_b_fs_yx_fsv16) {
     topology topology;
     topology.add(input_layout("Input", input->get_layout()));
     topology.add(reorder("input_fsv", input_info("Input"), format::b_fs_yx_fsv16, data_types::f16));
-    topology.add(batch_to_space("batch_to_space", input_info("input_fsv"), tensor(format::bfyx, {1,1,1,2}, 1),
-                                                                           tensor(format::bfyx, {0,0,0,0}, 0),
-                                                                           tensor(format::bfyx, {0,0,0,0}, 0),
-                                                                           tensor(format::bfyx, {1,16,1,2}, 1)));
+    topology.add(batch_to_space("batch_to_space", input_info("input_fsv"), {1,1,1,2}, {0,0,0,0}, {0,0,0,0}));
     topology.add(reorder("bts_to_bfyx", input_info("batch_to_space"), format::bfyx, data_types::f16));
 
     network network(engine, topology, get_test_default_config(engine));
@@ -326,10 +308,7 @@ TEST(batch_to_space_fp16_gpu, i2812_bs1112_cb0000_ce0000_b_fs_yx_fsv16) {
     topology topology;
     topology.add(input_layout("Input", input->get_layout()));
     topology.add(reorder("input_fsv", input_info("Input"), format::b_fs_yx_fsv16, data_types::f16));
-    topology.add(batch_to_space("batch_to_space", input_info("input_fsv"), tensor(format::bfyx, {1,1,1,2}, 1),
-                                                                           tensor(format::bfyx, {0,2,0,0}, 0),
-                                                                           tensor(format::bfyx, {0,0,0,0}, 0),
-                                                                           tensor(format::bfyx, {1,6,1,4}, 1)));
+    topology.add(batch_to_space("batch_to_space", input_info("input_fsv"), {1,1,1,2}, {0,2,0,0}, {0,0,0,0}));
     topology.add(reorder("bts_to_bfyx", input_info("batch_to_space"), format::bfyx, data_types::f16));
 
     network network(engine, topology, get_test_default_config(engine));
@@ -373,10 +352,7 @@ TEST(batch_to_space_fp32_gpu, i8111_bs1222_cb0000_ce0000) {
 
     topology topology;
     topology.add(input_layout("Input", input->get_layout()));
-    topology.add(batch_to_space("batch_to_space", input_info("Input"), tensor(format::bfyx, {1,2,2,2}, 1),
-                                                                       tensor(format::bfyx, {0,0,0,0}, 0),
-                                                                       tensor(format::bfyx, {0,0,0,0}, 0),
-                                                                       tensor(format::bfyx, {1,2,2,2}, 1)));
+    topology.add(batch_to_space("batch_to_space", input_info("Input"), {1,2,2,2}, {0,0,0,0}, {0,0,0,0}));
     network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input", input);
@@ -420,10 +396,7 @@ TEST(batch_to_space_fp32_gpu, i4321_bs1212_cb0000_ce0000) {
 
     topology topology;
     topology.add(input_layout("Input", input->get_layout()));
-    topology.add(batch_to_space("batch_to_space", input_info("Input"), tensor(format::bfyx, {1,2,1,2}, 1),
-                                                                       tensor(format::bfyx, {0,0,0,0}, 0),
-                                                                       tensor(format::bfyx, {0,0,0,0}, 0),
-                                                                       tensor(format::bfyx, {1,6,2,2}, 1)));
+    topology.add(batch_to_space("batch_to_space", input_info("Input"), {1,2,1,2}, {0,0,0,0}, {0,0,0,0}));
     network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input", input);
@@ -470,10 +443,7 @@ TEST(batch_to_space_fp32_gpu, i4321_bs1212_cb0010_ce0101) {
 
     topology topology;
     topology.add(input_layout("Input", input->get_layout()));
-    topology.add(batch_to_space("batch_to_space", input_info("Input"), tensor(format::bfyx, {1,2,1,2}, 1),
-                                                                       tensor(format::bfyx, {0,0,1,0}, 0),
-                                                                       tensor(format::bfyx, {0,1,0,1}, 0),
-                                                                       tensor(format::bfyx, {1,5,1,1}, 1)));
+    topology.add(batch_to_space("batch_to_space", input_info("Input"), {1,2,1,2}, {0,0,1,0}, {0,1,0,1}));
     network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input", input);
@@ -517,10 +487,7 @@ TEST(batch_to_space_fp32_gpu, i62121_bs12311_cb02000_ce00110) {
 
     topology topology;
     topology.add(input_layout("Input", input->get_layout()));
-    topology.add(batch_to_space("batch_to_space", input_info("Input"), tensor(format::bfzyx, {1,2,3,1,1}, 1),
-                                                                       tensor(format::bfzyx, {0,2,0,0,0}, 0),
-                                                                       tensor(format::bfzyx, {0,0,1,1,0}, 0),
-                                                                       tensor(format::bfzyx, {1,2,2,1,1}, 1)));
+    topology.add(batch_to_space("batch_to_space", input_info("Input"), {1,2,3,1,1}, {0,2,0,0,0}, {0,0,1,1,0}));
     network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input", input);
@@ -566,10 +533,7 @@ TEST(batch_to_space_fp32_gpu, i1212112_bs112321_cb02000_ce00110) {
 
     topology topology;
     topology.add(input_layout("Input", input->get_layout()));
-    topology.add(batch_to_space("batch_to_space", input_info("Input"), tensor(format::bfwzyx, {1,1,2,3,2,1}, 1),
-                                                                       tensor(format::bfwzyx, {0,0,1,0,0,0}, 0),
-                                                                       tensor(format::bfwzyx, {0,0,0,2,0,0}, 0),
-                                                                       tensor(format::bfwzyx, {1,1,3,1,2,2}, 1)));
+    topology.add(batch_to_space("batch_to_space", input_info("Input"), {1,1,2,3,2,1}, {0,0,1,0,0,0}, {0,0,0,2,0,0}));
     network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input", input);
@@ -618,10 +582,7 @@ TEST(batch_to_space_fp32_gpu, i21621_bs1112_cb0201_ce0810_b_fs_yx_fsv16) {
     topology topology;
     topology.add(input_layout("Input", input->get_layout()));
     topology.add(reorder("input_fsv", input_info("Input"), format::b_fs_yx_fsv16, data_types::f32));
-    topology.add(batch_to_space("batch_to_space", input_info("input_fsv"), tensor(format::bfyx, {1,1,1,2}, 1),
-                                                                           tensor(format::bfyx, {0,2,0,1}, 0),
-                                                                           tensor(format::bfyx, {0,8,1,0}, 0),
-                                                                           tensor(format::bfyx, {1,6,1,1}, 1)));
+    topology.add(batch_to_space("batch_to_space", input_info("input_fsv"), {1,1,1,2}, {0,2,0,1}, {0,8,1,0}));
     topology.add(reorder("bts_to_bfyx", input_info("batch_to_space"), format::bfyx, data_types::f32));
 
     network network(engine, topology, get_test_default_config(engine));
@@ -671,10 +632,7 @@ void test_batch_to_space_fp32_gpu_i41021_bs1221_cb0201_ce0810_b_fs_yx_fsv16(bool
     topology topology;
     topology.add(input_layout("Input", input->get_layout()));
     topology.add(reorder("input_fsv", input_info("Input"), format::b_fs_yx_fsv16, data_types::f32));
-    topology.add(batch_to_space("batch_to_space", input_info("input_fsv"), tensor(format::bfyx, {1,2,2,1}, 1),
-                                                                           tensor(format::bfyx, {0,8,1,0}, 0),
-                                                                           tensor(format::bfyx, {0,4,0,0}, 0),
-                                                                           tensor(format::bfyx, {1,8,3,1}, 1)));
+    topology.add(batch_to_space("batch_to_space", input_info("input_fsv"), {1,2,2,1}, {0,8,1,0}, {0,4,0,0}));
     topology.add(reorder("bts_to_bfyx", input_info("batch_to_space"), format::bfyx, data_types::f32));
 
     cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);

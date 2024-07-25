@@ -22,8 +22,7 @@ static void CreateExtractImagePatchesOp(ProgramBuilder& p, const std::shared_ptr
                                                                 op->get_sizes(),
                                                                 op->get_strides(),
                                                                 op->get_rates(),
-                                                                op->get_auto_pad(),
-                                                                tensor_from_dims(op->get_output_shape(0)));
+                                                                op->get_auto_pad());
 
     p.add_primitive(*op, extractImagePatchesPrim);
 }

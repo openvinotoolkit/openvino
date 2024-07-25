@@ -12,15 +12,6 @@
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(swiglu);
 
-layout swiglu_inst::calc_output_layout(swiglu_node const& node, kernel_impl_params const& impl_param) {
-    auto desc = impl_param.typed_desc<swiglu>();
-    auto input_layout = impl_param.get_input_layout();
-    auto output_type = impl_param.desc->output_data_types[0].value_or(input_layout.data_type);
-    auto output_format = input_layout.format;
-
-    return layout(output_type, output_format, desc->output_size);
-}
-
 template<typename ShapeType>
 std::vector<layout> swiglu_inst::calc_output_layouts(swiglu_node const& /*node*/, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<swiglu>();

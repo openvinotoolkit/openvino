@@ -80,7 +80,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         { {3, 2, 2, 5, 5} },
         "output_original",
-        "fp32",
+        ov::element::f32.get_type_name(),
         false,
     },
 
@@ -144,7 +144,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         { {3, 2, 2, 5, 5} },
         "output_original",
-        "fp32",
+        ov::element::f32.get_type_name(),
         true,
     },
 
@@ -196,7 +196,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         { {3, 2, 2, 5, 5} },
         "output_original",
-        "u8",
+        ov::element::u8.get_type_name(),
         false
     },
 
@@ -251,7 +251,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         { {3, 2, 2, 5, 5} },
         "output_original",
-        "u8",
+        ov::element::u8.get_type_name(),
         true,
     },
 
@@ -308,7 +308,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         { {3, 2, 2, 5, 5} },
         "output_original",
-        "fp32",
+        ov::element::f32.get_type_name(),
         false,
     },
 
@@ -368,7 +368,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         { {3, 2, 2, 5, 5} },
         "output_original",
-        "fp32",
+        ov::element::f32.get_type_name(),
         true,
     },
 
@@ -428,7 +428,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         {},
         "output_original",
-        "u8",
+        ov::element::u8.get_type_name(),
         true,
     },
 
@@ -485,7 +485,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         { {3, 2, 2, 5, 5} },
         "output_original",
-        "u8",
+        ov::element::u8.get_type_name(),
         false,
     },
 
@@ -542,7 +542,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         {},
         "output_original",
-        "u8",
+        ov::element::u8.get_type_name(),
         false,
     },
 
@@ -602,7 +602,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         { {3, 2, 2, 5, 5} },
         "output_original",
-        "u8",
+        ov::element::u8.get_type_name(),
         true,
     },
 };

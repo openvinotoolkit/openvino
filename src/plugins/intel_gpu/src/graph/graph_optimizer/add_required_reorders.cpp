@@ -5,7 +5,6 @@
 
 #include "pass_manager.h"
 #include "program_node.h"
-#include "mutable_data_inst.h"
 #include "convert_color_inst.h"
 #include "fully_connected_inst.h"
 #include "assign_inst.h"
@@ -76,24 +75,6 @@ void add_required_reorders::run(program& p) {
                 auto& new_reorder_node = p.get_or_create(new_reorder);
                 p.add_intermediate(new_reorder_node, *usr, dep);
                 new_reorder_node.recalc_output_layout(false);
-            }
-        }
-
-        if (usr->is_type<eltwise>()) {
-            for (size_t i = 0; i < usr->get_dependencies().size(); i++) {
-                auto& dep = usr->get_dependency(i);
-                if (!dep.is_in_data_flow() || dep.is_constant())
-                    continue;
-                auto dep_layout = dep.get_output_layout();
-                auto out_layout = usr->get_output_layout();
-                bool required_reorder = (format::dimension(out_layout.format) != format::dimension(dep_layout.format)) ||
-                                        (usr->is_in_shape_of_subgraph() && (out_layout.data_type != dep_layout.data_type));
-                if (required_reorder) {
-                    auto new_reorder = std::make_shared<reorder>(dep.id() + "_reorder_" + usr->id(), dep.id(), out_layout.format, out_layout.data_type);
-                    auto& new_reorder_node = p.get_or_create(new_reorder);
-                    p.add_intermediate(new_reorder_node, *usr, dep);
-                    new_reorder_node.recalc_output_layout(false);
-                }
             }
         }
 
@@ -229,42 +210,6 @@ void add_required_reorders::run(program& p) {
                     if (usr->type()->does_possible_implementation_exist(*usr)) {
                         correct_layout_selected = true;
                         break;
-                    } else if (original_layout.data_type == data_types::i64) {
-                        // goal of this section is to use int32 implementation
-                        // if int64 is not available for usr primitive
-                        current_layout = original_layout;
-                        current_layout.data_type = data_types::i32;
-                        usr->set_output_layout(current_layout, false);
-                        if (usr->type()->does_possible_implementation_exist(*usr)) {
-                            correct_layout_selected = true;
-                        } else {
-                            current_layout = original_layout;
-                            current_layout.data_type = data_types::i32;
-                            current_layout.format = node.first->get_output_layout().format;
-                            usr->set_output_layout(current_layout, false);
-                            if (usr->type()->does_possible_implementation_exist(*usr)) {
-                                correct_layout_selected = true;
-                            }
-                        }
-
-                        if (correct_layout_selected) {
-                            // change output_data_type field in usr to i32
-                            if ((static_cast<bool>(usr->get_primitive()->output_data_types[0]) == true) &&
-                                (*(usr->get_primitive()->output_data_types[0]) == data_types::i64)) {
-                                std::const_pointer_cast<primitive>(usr->get_primitive())->output_data_types[0] = data_types::i32;
-                            }
-                            // add reorders between usr int32 output and inputs of its users
-                            auto next_usr_itr = usr->get_users().begin();
-                            while (next_usr_itr != usr->get_users().end()) {
-                                auto next_usr = *next_usr_itr++;
-                                if (!next_usr->is_type<reorder>()) {
-                                    if ((next_usr->get_output_layout() != usr->get_output_layout())) {
-                                        add_reorder(p, usr, next_usr);
-                                    }
-                                }
-                            }
-                            break;
-                        }
                     }
                 }
 
@@ -314,54 +259,6 @@ void add_required_reorders::run(program& p) {
                     if (usr->type()->does_possible_implementation_exist(*usr)) {
                         correct_layout_selected = true;
                         break;
-                    }
-                }
-            }
-
-            if (!correct_layout_selected) {
-                // goal of this section is to use int32 implementation
-                // if int64 is not available for usr primitive
-                if (original_layout.data_type == data_types::i64) {
-                    layout original_layout_i32(original_layout.get_partial_shape(),
-                                               data_types::i32,
-                                               original_layout.format);
-                    usr->set_output_layout(original_layout_i32, false);
-                    if (usr->type()->does_possible_implementation_exist(*usr)) {
-                        correct_layout_selected = true;
-                    }
-
-                    if (!correct_layout_selected) {
-                        for (auto new_layout_format : preferred_layout_formats) {
-                            layout current_layout_i32(original_layout_i32.get_partial_shape(),
-                                                      original_layout_i32.data_type,
-                                                      new_layout_format);
-                            usr->set_output_layout(current_layout_i32, false);
-                            if (usr->type()->does_possible_implementation_exist(*usr)) {
-                                correct_layout_selected = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (!correct_layout_selected) {
-                        throw std::runtime_error("Internal Error: no implementation for " + usr->id() +
-                            " kernel which satisfies output format dependecies.");
-                    }
-
-                    // change output_data_type field in usr to i32
-                    if ((static_cast<bool>(usr->get_primitive()->output_data_types[0]) == true) &&
-                        (*(usr->get_primitive()->output_data_types[0]) == data_types::i64)) {
-                        std::const_pointer_cast<primitive>(usr->get_primitive())->output_data_types[0] = data_types::i32;
-                    }
-
-                    // add reorders between usr int32 output and inputs of its users
-                    auto next_usr_itr = usr->get_users().begin();
-                    while (next_usr_itr != usr->get_users().end()) {
-                        auto next_usr = *next_usr_itr++;
-                        if (!next_usr->is_type<reorder>()) {
-                            if ((next_usr->get_output_layout() != usr->get_output_layout())) {
-                                add_reorder(p, usr, next_usr);
-                            }
-                        }
                     }
                 }
             }

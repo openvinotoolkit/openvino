@@ -9,7 +9,6 @@
 #include "openvino/op/i420_to_rgb.hpp"
 
 #include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "intel_gpu/primitives/convert_color.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"

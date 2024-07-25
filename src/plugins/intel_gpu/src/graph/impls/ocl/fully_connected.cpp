@@ -80,7 +80,7 @@ public:
     static kernel_impl_params update_impl_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<fully_connected>();
 
-        auto get_fc_input_layouts = [primitive](const std::vector<layout>& input_layouts, bool allow_new_shape_infer) {
+        auto get_fc_input_layouts = [primitive](const std::vector<layout>& input_layouts) {
             auto reshape_to_2d = [](const ov::PartialShape& shape, const ov::Dimension& feature, size_t rank) {
                 if (shape.is_static()) {
                     auto static_shape = shape.to_shape();
@@ -98,10 +98,7 @@ public:
             auto input0_pshape = input0_layout.get_partial_shape();
             auto input1_pshape = input1_layout.get_partial_shape();
 
-            ov::Dimension feature = input0_pshape[std::min(primitive->input_size, static_cast<size_t>(4)) - 1ul];
-            if (allow_new_shape_infer) {
-                feature = input0_pshape[primitive->input_size - 1ul];
-            }
+            ov::Dimension feature = input0_pshape[primitive->input_size - 1ul];
 
             // TO DO, to remove WA
             if (primitive->input_size > 3) {
@@ -147,10 +144,9 @@ public:
             return updated_out_layout;
         };
 
-        bool allow_new_shape_infer = impl_param.get_program().is_new_shape_infer();
         auto updated_impl_param = impl_param;
 
-        const auto input_layouts = get_fc_input_layouts(impl_param.input_layouts, allow_new_shape_infer);
+        const auto input_layouts = get_fc_input_layouts(impl_param.input_layouts);
         for (size_t i = 0; i < input_layouts.size(); ++i) {
             updated_impl_param.input_layouts[i] = input_layouts[i];
         }

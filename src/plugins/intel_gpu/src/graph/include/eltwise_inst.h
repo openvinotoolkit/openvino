@@ -48,7 +48,6 @@ class typed_primitive_inst<eltwise> : public typed_primitive_inst_base<eltwise> 
 public:
     template<typename ShapeType>
     static std::vector<layout> calc_output_layouts(eltwise_node const& /*node*/, const kernel_impl_params& impl_param);
-    static layout calc_output_layout(eltwise_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(eltwise_node const& node);
     typed_primitive_inst(network& network, eltwise_node const& node);
 };

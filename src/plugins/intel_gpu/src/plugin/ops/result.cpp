@@ -3,15 +3,10 @@
 //
 
 #include "openvino/op/result.hpp"
-#include "openvino/op/nv12_to_rgb.hpp"
-#include "openvino/op/nv12_to_bgr.hpp"
-#include "openvino/op/i420_to_rgb.hpp"
-#include "openvino/op/i420_to_bgr.hpp"
 
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
-#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace intel_gpu {

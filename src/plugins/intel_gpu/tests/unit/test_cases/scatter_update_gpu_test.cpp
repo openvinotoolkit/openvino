@@ -1657,7 +1657,7 @@ TEST(scatter_update_gpu_fp32, dynamic) {
     topology.add(reorder("out", input_info("scatter_update"), format::bfyx, data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
 
     network.set_input_data("InputDictionary", input1);
@@ -1739,7 +1739,7 @@ TEST(scatter_update_gpu_fp32, mixed_input_with_dynamic_static) {
     topology.add(reorder("out", input_info("scatter_update"), format::bfyx, data_types::f32));
 
     ExecutionConfig config;
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
 
     network.set_input_data("InputDictionary", input1);
@@ -1821,7 +1821,7 @@ TEST(scatter_update_cpu_impl_fp32, dynamic) {
     topology.add(reorder("out", input_info("scatter_update"), format::bfyx, data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"scatter_update", {format::bfyx, "", impl_types::cpu}} }));
     network network(engine, topology, config);
 

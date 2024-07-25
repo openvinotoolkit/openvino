@@ -542,7 +542,7 @@ TEST(top_k_layer_tests, multiple_outputs) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     network network(engine, topology, config);
 
@@ -898,7 +898,7 @@ TEST(arg_max_min_gpu, dynamic) {
     set_values(input, input_vec);
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
     network network(engine, topology, config);
     network.set_input_data("input", input);
 
@@ -925,7 +925,7 @@ TEST(arg_max_min_test, check_second_output_data_type) {
     auto& engine = get_test_engine();
 
     ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
 
     cldnn::program prog(engine, config);
     std::vector<std::shared_ptr<primitive>> input_prims;

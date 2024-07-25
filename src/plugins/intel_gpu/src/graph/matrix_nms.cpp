@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
+#include "intel_gpu/primitives/matrix_nms.hpp"
 #include <json_object.h>
 
 #include <sstream>
@@ -60,33 +61,6 @@ std::vector<layout> matrix_nms_inst::calc_output_layouts(matrix_nms_node const& 
 }
 
 template std::vector<layout> matrix_nms_inst::calc_output_layouts<ov::PartialShape>(matrix_nms_node const& node, const kernel_impl_params& impl_param);
-
-layout matrix_nms_inst::calc_output_layout(const matrix_nms_node& node, const kernel_impl_params& impl_param) {
-    const auto primitive = impl_param.typed_desc<matrix_nms>();
-    const auto boxes_layout = impl_param.get_input_layout(0);
-    const auto scores_layout = impl_param.get_input_layout(1);
-
-    const auto batches_num = boxes_layout.batch();
-    auto classes_num = scores_layout.feature();
-    const auto boxes_num = boxes_layout.feature();
-
-    if (primitive->attribs.background_class >= 0 && primitive->attribs.background_class < classes_num)
-        classes_num = std::max(1, classes_num - 1);
-
-    int max_output_boxes_per_class{boxes_num};
-    if (primitive->attribs.nms_top_k >= 0)
-        max_output_boxes_per_class = std::min(max_output_boxes_per_class, primitive->attribs.nms_top_k);
-
-    auto max_output_boxes_per_batch = max_output_boxes_per_class * classes_num;
-    if (primitive->attribs.keep_top_k >= 0)
-        max_output_boxes_per_batch = std::min(max_output_boxes_per_batch, primitive->attribs.keep_top_k);
-
-    auto output_num = max_output_boxes_per_batch * batches_num;
-
-    // BOX_DATA: class_id, box_score, xmin, ymin, xmax, ymax
-    constexpr size_t BOX_DATA{6};
-    return layout(boxes_layout.data_type, boxes_layout.format, {output_num, BOX_DATA, 1, 1});
-}
 
 std::string matrix_nms_inst::to_string(const matrix_nms_node& node) {
     json_composite matrix_nms_info;

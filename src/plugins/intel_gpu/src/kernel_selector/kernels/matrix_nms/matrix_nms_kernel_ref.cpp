@@ -125,6 +125,13 @@ bool MatrixNmsKernelRef::Validate(const Params& p) const {
         return false;
     }
 
+    const matrix_nms_params& params = static_cast<const matrix_nms_params&>(p);
+    if (params.inputs.size() != 2)
+        return false;
+
+    if (params.outputs.size() != 3)
+        return false;
+
     return true;
 }
 

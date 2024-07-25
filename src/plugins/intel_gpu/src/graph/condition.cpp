@@ -45,34 +45,6 @@ static std::vector<layout> get_output_layouts(std::map<primitive_id, layout>&& o
     return out_layouts;
 }
 
-/*
-    Calc_output_layout method is called only when output layout is invalidated.
-    It means, that it is called when:
-    1) It has never been called.
-    2) Dependency has changed output layout.
-    In this both cases, we need to recalc branch_true and branch_false.
-    !* We can be sure, that this method was called AT LEAST once during graph compilation.*!
-*/
-layout condition_inst::calc_output_layout(condition_node const& /* node */, kernel_impl_params const& impl_param) {
-    OPENVINO_ASSERT(static_cast<bool>(impl_param.desc->output_data_types[0]) == false, "Output data type forcing is not supported for condition_node!");
-    OPENVINO_ASSERT(impl_param.get_input_layout(0).count() == 1, "layout of compare_data of condition should be {1,1,1,1}");
-
-    OPENVINO_ASSERT(impl_param.inner_progs.size() == 2, "If(Condition) contains incorrect number of inner programs ", impl_param.inner_progs.size());
-    OPENVINO_ASSERT(impl_param.io_output_maps.size() == 2, "If(Condition) contains incorrect number of io output maps ", impl_param.io_output_maps.size());
-
-    auto layouts_true  = get_output_layouts(get_out_layout_map(impl_param.inner_progs[idx_branch_true]),  impl_param.io_output_maps[idx_branch_true]);
-    auto layouts_false = get_output_layouts(get_out_layout_map(impl_param.inner_progs[idx_branch_false]), impl_param.io_output_maps[idx_branch_false]);
-
-    CLDNN_ERROR_LAYOUT_MISMATCH(impl_param.desc->id,
-                                "Branch true output layout",
-                                layouts_true[0],
-                                "branch false output layout",
-                                layouts_false[0],
-                                "Layout of the branches should be the same.");
-
-    return layouts_true[0];
-}
-
 template <class T>
 static bool convert_data(memory::ptr mem, stream& stream) {
     mem_lock<T, mem_lock_type::read> lock_data{mem, stream};
@@ -234,16 +206,10 @@ void condition_inst::update_output_layout() {
     _impl_params->memory_deps = memory_deps;
 
     auto new_layouts = _node->type()->calc_output_layouts(*_node, *_impl_params);
-    if (new_layouts.empty()) {
-        auto new_layout = _node->type()->calc_output_layout(*_node, *_impl_params);
-        new_layout.data_padding = padding::max(_node->get_primitive()->get_output_padding(0), new_layout.data_padding);
-        _impl_params->output_layouts[0] = new_layout;
-    } else {
-        for (size_t i = 0; i != new_layouts.size(); ++i) {
-            auto new_layout = new_layouts[i];
-            new_layout.data_padding = padding::max(_node->get_primitive()->get_output_padding(i), new_layout.data_padding);
-            _impl_params->output_layouts[i] = new_layout;
-        }
+    for (size_t i = 0; i != new_layouts.size(); ++i) {
+        auto new_layout = new_layouts[i];
+        new_layout.data_padding = padding::max(_node->get_primitive()->get_output_padding(i), new_layout.data_padding);
+        _impl_params->output_layouts[i] = new_layout;
     }
 }
 

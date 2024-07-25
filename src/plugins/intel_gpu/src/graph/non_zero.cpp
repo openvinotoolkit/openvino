@@ -16,12 +16,6 @@ namespace cldnn {
 // -----------------------------------------------
 GPU_DEFINE_PRIMITIVE_TYPE_ID(count_nonzero)
 
-layout count_nonzero_inst::calc_output_layout(count_nonzero_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_types[0]) == false &&
-           "Output data type forcing is not supported for count_nonzero_node!");
-    return layout{cldnn::data_types::i32, cldnn::format::bfyx, tensor{1, 1, 1, 1}};
-}
-
 template<typename ShapeType>
 std::vector<layout> count_nonzero_inst::calc_output_layouts(count_nonzero_node const& /*node*/, kernel_impl_params const& impl_param) {
     assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
@@ -52,19 +46,6 @@ count_nonzero_inst::typed_primitive_inst(network& network, count_nonzero_node co
 // gather_nonzero
 // -----------------------------------------------
 GPU_DEFINE_PRIMITIVE_TYPE_ID(gather_nonzero)
-
-layout gather_nonzero_inst::calc_output_layout(gather_nonzero_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_types[0]) == false &&
-           "Output data type forcing is not supported for gather_nonzero_node!");
-    if (impl_param.memory_deps.count(1)) {
-        auto out_size = read_vector<int64_t>(impl_param.memory_deps.at(1), impl_param.get_stream());
-        ov::Shape output_shape(out_size.begin(), out_size.end());
-        ov::PartialShape output_pshape(output_shape);
-        return layout{std::move(output_pshape), cldnn::data_types::i32, cldnn::format::bfyx};
-    } else {
-        return layout{ov::PartialShape({ov::Dimension::dynamic(), ov::Dimension::dynamic(), 1, 1}), cldnn::data_types::i32, cldnn::format::bfyx};
-    }
-}
 
 template<typename ShapeType>
 std::vector<layout> gather_nonzero_inst::calc_output_layouts(gather_nonzero_node const& /*node*/, kernel_impl_params const& impl_param) {

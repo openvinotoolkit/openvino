@@ -22,7 +22,7 @@ namespace shape_infer_tests {
 
 struct reverse_test_params {
     layout input_layout;
-    reverse_mode mode;
+    ov::op::v1::Reverse::Mode mode;
 };
 
 class reverse_test : public testing::TestWithParam<reverse_test_params> { };
@@ -53,11 +53,11 @@ TEST_P(reverse_test, shape_infer) {
 
 INSTANTIATE_TEST_SUITE_P(smoke, reverse_test,
     testing::ValuesIn(std::vector<reverse_test_params>{
-        { layout{ov::PartialShape{1, 2, 3}, data_types::f32, format::bfyx}, reverse_mode::index },
-        { layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::bfyx}, reverse_mode::mask },
-        { layout{ov::PartialShape{1, 2, 3, 4, 5}, data_types::f32, format::bfzyx}, reverse_mode::index },
-        { layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx}, reverse_mode::mask },
-        { layout{ov::PartialShape::dynamic(5), data_types::f32, format::bfzyx}, reverse_mode::index }
+        { layout{ov::PartialShape{1, 2, 3}, data_types::f32, format::bfyx}, ov::op::v1::Reverse::Mode::INDEX },
+        { layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::bfyx}, ov::op::v1::Reverse::Mode::MASK },
+        { layout{ov::PartialShape{1, 2, 3, 4, 5}, data_types::f32, format::bfzyx}, ov::op::v1::Reverse::Mode::INDEX },
+        { layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx}, ov::op::v1::Reverse::Mode::MASK },
+        { layout{ov::PartialShape::dynamic(5), data_types::f32, format::bfzyx}, ov::op::v1::Reverse::Mode::INDEX }
     }));
 
 }  // shape_infer_tests

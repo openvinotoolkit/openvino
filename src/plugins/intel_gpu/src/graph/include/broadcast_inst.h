@@ -36,7 +36,6 @@ class typed_primitive_inst<broadcast> : public typed_primitive_inst_base<broadca
 public:
     template<typename ShapeType>
     static std::vector<layout> calc_output_layouts(broadcast_node const& /*node*/, const kernel_impl_params& impl_param);
-    static layout calc_output_layout(broadcast_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(broadcast_node const& node);
     typed_primitive_inst(network& network, broadcast_node const& node);
     void update_output_memory() override;
