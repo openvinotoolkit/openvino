@@ -4,7 +4,7 @@ abeja/gpt-neox-japanese-2.7b,gpt_neox_japanese
 acl-submission-anonym/EAM-spectral,examuse,skip,Load problem
 adalbertojunior/modular-test,modular,skip,Load problem
 adept/persimmon-8b-base,persimmon
-aerner/lm-v2,open-llama,xfail,Example input problem
+aerner/lm-v2,open-llama
 afonsosamarques/ardt-vanilla-combo_train_hopper_v2-2508_1336-33,decision_transformer,xfail,Tracing problem
 aihijo/gec-zh-gector-bert-large,gector,skip,Load problem
 albert-base-v2,albert
@@ -170,6 +170,7 @@ huggingface/time-series-transformer-tourism-monthly,time_series_transformer,skip
 HuggingFaceM4/tiny-random-idefics,idefics,xfail,Unsupported op aten::any aten::einsum prim::TupleConstruct prim::TupleUnpack
 HuggingFaceM4/tiny-random-vllama-clip,vllama,skip,Load problem
 HuggingFaceM4/tiny-random-vopt-clip,vopt,skip,Load problem
+HuggingFaceH4/zephyr-7b-beta,mistral
 HuiHuang/gpt3-damo-base-zh,gpt3,skip,Load problem
 hustvl/yolos-tiny,yolos
 iakarshu/tilt_base,tilt_base_configuration,skip,Load problem
@@ -184,7 +185,7 @@ jaketae/fastspeech2-ljspeech,fastspeech2,skip,Load problem
 jambran/depression-classification,DepressionDetection,skip,Load problem
 Jellywibble/dalio-reward-charlie-v1,reward-model,skip,Load problem
 JonasGeiping/crammed-bert-legacy,crammedBERT,skip,Load problem
-jonatasgrosman/wav2vec2-large-xlsr-53-english,wav2vec2,xfail,Unsupported op aten::index_put_ prim::TupleConstruct
+jonatasgrosman/wav2vec2-large-xlsr-53-english,wav2vec2
 Joqsan/test-my-fnet,my_fnet,skip,Load problem
 jozhang97/deta-swin-large,deta,skip,Load problem
 jploski/retnet-mini-shakespeare,retnet,skip,Load problem
@@ -257,7 +258,6 @@ microsoft/xclip-base-patch32,xclip
 microsoft/xprophetnet-large-wiki100-cased,xlm-prophetnet
 miguelvictor/python-fromzero-lstmlm,lstmlm,skip,Load problem
 mingzi151/test-hf-wav2vec2bert,wav2vec2bert,skip,Load problem
-mistralai/Mistral-7B-v0.1,mistral
 MIT/ast-finetuned-audioset-10-10-0.4593,audio-spectrogram-transformer
 Mizuiro-sakura/luke-japanese-large-sentiment-analysis-wrime,luke
 mlml-chip/thyme2_colon_e2e,cnlpt,skip,Load problem
@@ -296,7 +296,7 @@ openai-gpt,openai-gpt
 OpenAssistant/oasst-rm-2-pythia-6.9b-epoch-1,gpt_neox_reward_model,skip,Load problem
 openmmlab/upernet-convnext-small,upernet
 openMUSE/clip-vit-large-patch14-text-enc,clip_text_model,skip,Load problem
-OpenVINO/opt-125m-gptq,opt
+katuni4ka/opt-125m-gptq,opt
 PatrickHaller/ngme-llama-264M,ngme,skip,Load problem
 patrickvonplaten/bert2gpt2-cnn_dailymail-fp16,encoder_decoder,skip,Load problem
 paulhindemith/test-zeroshot,test-zeroshot,skip,Load problem
