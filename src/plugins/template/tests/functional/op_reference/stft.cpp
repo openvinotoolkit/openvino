@@ -49,10 +49,22 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<STFTParams>& obj) {
         std::ostringstream name;
         name << obj.param.test_case_name;
-        name << "_input_type_";
+        name << "_signal_input_type_";
         name << obj.param.signal.type;
-        name << "_shape_";
+        name << "_signal_shape_";
         name << obj.param.signal.shape;
+        name << "_window_input_type_";
+        name << obj.param.window.type;
+        name << "_window_shape_";
+        name << obj.param.window.shape;
+        name << "_frame_size_input_type_";
+        name << obj.param.frame_size.type;
+        name << "_frame_size_shape_";
+        name << obj.param.frame_size.shape;
+        name << "_frame_step_input_type_";
+        name << obj.param.frame_step.type;
+        name << "_frame_step_shape_";
+        name << obj.param.frame_step.shape;
         name << "_transpose_frames_";
         name << obj.param.transpose_frames;
         return name.str();
