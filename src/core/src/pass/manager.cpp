@@ -295,6 +295,9 @@ bool ov::pass::Manager::run_pass(const std::shared_ptr<PassBase>& pass,
         // GraphRewrite is a temporary container for MatcherPass to make execution on entire ov::Model
         return GraphRewrite(matcher_pass).run_on_model(model);
     } else if (auto model_pass = dynamic_pointer_cast<ModelPass>(pass)) {
+        if (dynamic_pointer_cast<ov::pass::Validate>(model_pass) && !needs_validate) {
+            return false;
+        }
         return model_pass->run_on_model(model);
     }
     return false;
