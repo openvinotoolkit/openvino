@@ -12,7 +12,9 @@
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/async_infer_request.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
-
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "plugin/transformations/tensor_parallel.hpp"
 #include <sys/types.h>
 
 namespace ov {
@@ -96,8 +98,16 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
                                                                  {},
                                                                  configs_for_tp[i].streamsRankTable[i]};
                 configs_for_tp[i].subStreamExecConfig = std::move(streamExecutorConfig);
+                auto model_clone = model->clone();
+                ov::pass::Manager manager;
+                // tp related
+                if (config.get_context_for_tp().size() > 1)
+                    manager.register_pass<ov::intel_gpu::TensorParallelFusion>(config.get_context_for_tp().size(), i);
+                //manager.register_pass<ov::pass::ConstantFolding>();
+                manager.run_passes(model_clone);
+                ov::serialize(model_clone, "bell_saved_" + std::to_string(i) + ".xml");
                 m_sub_compiled_models.push_back(std::make_shared<CompiledModel>(
-                    model, plugin, m_config.get_context_for_tp()[i].as<RemoteContextImpl::Ptr>(), configs_for_tp[i], m_sub_memory_manager));
+                    model_clone, plugin, m_config.get_context_for_tp()[i].as<RemoteContextImpl::Ptr>(), configs_for_tp[i], m_sub_memory_manager));
                 GPU_DEBUG_TRACE_DETAIL << "sub models for TP created, rank " << configs_for_tp[i].streamsRankTable[i][0] << std::endl;
             };
             sub_tasks.push_back(std::bind(compile_tp_model, i));

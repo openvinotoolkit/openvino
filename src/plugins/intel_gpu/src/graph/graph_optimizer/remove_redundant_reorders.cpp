@@ -404,8 +404,6 @@ void remove_redundant_reorders::run(program& p) {
                 continue;
 
             auto& node = node_ptr->as<reorder>();
-            if (node.id() == "convert:__module.model.layers.0.mlp.down_proj/aten::linear/MatMul_decompressed_to_f32")
-                std::cout << "break" << std::endl;
             auto& input = node.input();
             auto output_layout = node.get_output_layout();
 

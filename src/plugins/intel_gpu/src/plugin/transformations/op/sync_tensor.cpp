@@ -10,12 +10,6 @@
 namespace ov {
 namespace intel_gpu {
 namespace op {
-auto split_parts = [](int len, int n) {
-        int average = len / n;
-        std::vector<int> parts(n, average);
-        parts.back() = len - average * (n - 1);
-        return parts;
-};
 
 SyncTensor::SyncTensor(const ov::element::Type output_type) : ov::op::Op() {
     set_output_size(1);
@@ -47,16 +41,23 @@ bool SyncTensor::visit_attributes(ov::AttributeVisitor& visitor) {
 }
 
 void SyncTensor::validate_and_infer_types() {
+    auto split_parts = [](int len, int n) {
+        int average = len / n;
+        std::vector<int> parts(n, average);
+        parts.back() = len - average * (n - 1);
+        return parts;
+    };
     if (get_input_size() > 0) {
         auto output_type = m_output_type == ov::element::undefined ? get_input_element_type(0) : m_output_type;
-        auto original_fc_out = get_input_source_output(0).get_partial_shape();
+        auto input_pshape = get_input_source_output(0).get_partial_shape();
+        std::vector<ov::PartialShape> p_shapes(m_world_size, input_pshape);
         auto fc_out_dim_vec = split_parts(m_split_dimension, m_world_size);
-        std::vector<ov::PartialShape> p_shapes(fc_out_dim_vec.size(), original_fc_out);
-        const int64_t axis = ov::util::normalize_axis("get aplit axis", -1, original_fc_out.rank());
-        const auto& dimension_at_axis = original_fc_out[axis];
+        const int64_t axis = ov::util::normalize_axis("get split axis", -1, input_pshape.rank());
+        const auto& dimension_at_axis = input_pshape[axis];
+
         if (dimension_at_axis.is_static()) {
-            for (size_t i =0 ; i< fc_out_dim_vec.size(); i++) {
-                p_shapes[i][axis] = ov::Dimension(fc_out_dim_vec[i]);
+            for (size_t i = 0 ; i < m_world_size; ++i) {
+                p_shapes[i][axis] = ov::Dimension(fc_out_dim_vec[i]);;
             }
         }
         for (size_t i = 0; i < p_shapes.size(); i++)
@@ -88,28 +89,9 @@ std::vector<ov::PartialShape> shape_infer(const SyncTensor* op, std::vector<ov::
         for (size_t i = 0; i < op->get_output_size(); i++)
             out_shapes.push_back(out_shape);
     } else if (op->get_tp_mode() == TP_MODE::ALL_GATHERH) {
-        auto input_shape_0 = input_shapes[0];
-        if (input_shape_0.is_dynamic()) {
-            auto split_dim = input_shape_0[-1];
-            int split_dimenstion = 0;
-            if (split_dim.is_static())
-                split_dimenstion = split_dim.get_length();
-            auto split_lengths = op->m_world_size;
-            auto fc_out_dim_vec = split_parts(split_dimenstion, split_lengths);
-            std::vector<ov::PartialShape> p_shapes(split_lengths, input_shape_0);
-            const int64_t axis = ov::util::normalize_axis("get aplit axis", -1, input_shape_0.rank());
-            const auto& dimension_at_axis = input_shape_0[axis];
-            if (dimension_at_axis.is_static()) {
-                for (size_t i =0 ; i < split_lengths; i++) {
-                    p_shapes[i][axis] = ov::Dimension(fc_out_dim_vec[i]);
-                }
-            }
-            for (size_t i = 0; i < op->get_output_size(); i++)
-                out_shapes.push_back(p_shapes[i]);
-        } else {
-            for (size_t i = 0; i < op->get_output_size(); i++)
-                out_shapes.push_back(input_shapes[0]);
-            }
+        // to be optimized
+        for (size_t i = 0; i < op->get_output_size(); i++)
+            out_shapes.push_back(input_shapes[0]);
     }
     return out_shapes;
 }
