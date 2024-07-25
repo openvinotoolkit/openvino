@@ -53,31 +53,13 @@ bool STFT::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OPENVINO_ASSERT(outputs.size() == 1);
     OPENVINO_ASSERT(inputs.size() == 4);
 
+    const auto input_shapes = ov::util::get_tensors_partial_shapes(inputs);
+    const auto output_shape = shape_infer(this, input_shapes, make_tensor_accessor(inputs)).front().to_shape();
+
+    outputs[0].set_shape(output_shape);
+
     const auto frame_size = ov::get_tensor_data_as<int64_t>(inputs[2]).front();
     const auto frame_step = ov::get_tensor_data_as<int64_t>(inputs[3]).front();
-
-    // TODO: Reuse shape_infer to set shape of output tensor
-    const auto& data_shape = inputs[0].get_shape();
-
-    NODE_VALIDATION_CHECK(this,
-                          0 < frame_size && static_cast<size_t>(frame_size) < data_shape[1],
-                          "Provided frame size is ",
-                          frame_size,
-                          " but must be in range {0, ",
-                          data_shape[1],
-                          "}");
-
-    Shape output_shape;
-    const size_t frame_size_dim = static_cast<size_t>(frame_size);
-    const size_t frames_dim = ((data_shape[1] - frame_size_dim) / frame_step) + 1;
-    const size_t fft_samples_dim = (frame_size / 2) + 1;
-    constexpr size_t complex_dim = 2;
-    if (!m_transpose_frames) {
-        output_shape = Shape{data_shape[0], frames_dim, fft_samples_dim, complex_dim};
-    } else {
-        output_shape = Shape{data_shape[0], fft_samples_dim, frames_dim, complex_dim};
-    }
-    outputs[0].set_shape(output_shape);
 
     ov::reference::stft(inputs[0].data<const float>(),
                         inputs[1].data<const float>(),
