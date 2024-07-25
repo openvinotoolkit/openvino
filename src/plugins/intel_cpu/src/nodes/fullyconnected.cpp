@@ -331,7 +331,22 @@ static bool useSparseWeightsDecompression(const NodePtr& weightsInput,
 
 void FullyConnected::initSupportedPrimitiveDescriptors() {
     attrs.withBias = getOriginalInputsNumber() == 3;
-    attrs.dequantizationScales = getDQScales();
+    if (enable_tensor_parallel) {
+        auto split_parts = [](int len, int n) {
+            int average = len / n;
+            std::vector<int> parts(n, average);
+            parts.back() = len - average * (n - 1);
+            return parts;
+        };
+        auto DQScales = getDQScales();
+        auto split_lens = split_parts(DQScales.size(), w_size);
+        auto split_offset = w_rank * split_lens[0];
+        std::vector<float> newDQScales(split_lens[w_rank]);
+        std::copy(DQScales.begin() + split_offset, DQScales.begin() + split_offset + split_lens[w_rank], newDQScales.begin());
+        attrs.dequantizationScales = newDQScales;
+    } else {
+        attrs.dequantizationScales = getDQScales();
+    }
     attrs.sparseWeights = useSparseWeightsDecompression(getParentEdgeAt(WEIGHTS_ID)->getParent(),
                                                         getOriginalInputPrecisionAtPort(DATA_ID),
                                                         context->getConfig().fcSparseWeiDecompressionRate);
