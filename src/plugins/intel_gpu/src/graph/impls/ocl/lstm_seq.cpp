@@ -74,6 +74,9 @@ public:
         params.clip = primitive->clip;
         params.input_forget = primitive->input_forget;
         params.direction = primitive->direction;
+        //Legacy multi-output
+        params.outputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
+        params.outputs.push_back(convert_data_tensor(impl_param.input_layouts[1]));
         params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(1)));
         params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(2)));
 
