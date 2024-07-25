@@ -116,25 +116,13 @@ KERNEL(quantize_input)(
 
 
 #if !REALIGN_FP16_OFFSET
-#   if OUTPUT_3D
-#       define MAIN_LOOP_ELEMENTS_COUNT  INPUT0_SIZE_Y
-#   else
-#       define MAIN_LOOP_ELEMENTS_COUNT  INPUT0_ELEMENTS_COUNT
-#   endif
+    #define MAIN_LOOP_ELEMENTS_COUNT  IFM_SIZE
 #else
-// For REALIGN_FP16_OFFSET one feature is processed separately before entering main loop to correct alignment.
-#   if OUTPUT_3D
-#       define MAIN_LOOP_ELEMENTS_COUNT  (INPUT0_SIZE_Y - 1)
-#   else
-#       define MAIN_LOOP_ELEMENTS_COUNT  (INPUT0_ELEMENTS_COUNT - 1)
-#   endif
+    // For REALIGN_FP16_OFFSET one feature is processed separately before entering main loop to correct alignment.
+    #define MAIN_LOOP_ELEMENTS_COUNT  (IFM_SIZE - 1)
 #endif
 
-#if OUTPUT_3D
-#   define INPUT_ELEMENTS_COUNT INPUT0_SIZE_Y
-#else
-#   define INPUT_ELEMENTS_COUNT INPUT0_ELEMENTS_COUNT
-#endif
+#define INPUT_ELEMENTS_COUNT IFM_SIZE
 
 #if IS_DYNAMIC && COMPRESSED_WEIGHTS_INT4
 #pragma disable_includes_optimization
@@ -316,9 +304,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
         // NOTE: Manually unrolling multiplication loop leads to lower register pressure and allows for bigger block sizes,
         //       but significantly degrades readability and generality of code.
         //       It doesn't also show noticable performance improvement on tested configurations.
-        #if DECOMPRESSION_SCALE_POST_OP
-            ACCUMULATOR_VEC_TYPE acc_tmp[TILE_B] = { };
-        #endif
+        ACCUMULATOR_VEC_TYPE acc_tmp[TILE_B] = { };
 
         #if USE_SLM && COMPRESSED_WEIGHTS_INT4
             #if TILE_OFM != 2
@@ -481,9 +467,9 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                     #endif
 #else
                     #if TILE_OFM > 1
-                        ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
+                        ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
                     #else
-                        acc[bi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
+                        acc_tmp[bi] += in_val * ((ACCUMULATOR_TYPE*)(&wei))[W_IDX];
                     #endif
 #endif
                     }
@@ -535,6 +521,18 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi] * ds;
                 #else
                 acc[bi] += acc_tmp[bi] * ds;
+                #endif
+            }
+        }
+#endif
+
+#if !DECOMPRESSION_SCALE_POST_OP
+        unroll_for (uint bi = 0; bi < TILE_B; ++bi) {
+            unroll_for(uint fi = 0; fi < TILE_OFM; ++fi) {
+                #if TILE_OFM > 1
+                ((ACCUMULATOR_TYPE*)(&acc[bi]))[fi] += ((ACCUMULATOR_TYPE*)(&acc_tmp[bi]))[fi];
+                #else
+                acc[bi] += acc_tmp[bi];
                 #endif
             }
         }
