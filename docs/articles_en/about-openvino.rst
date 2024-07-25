@@ -1,5 +1,3 @@
-.. {#about_openvino}
-
 About OpenVINO
 ==============
 
@@ -10,6 +8,7 @@ About OpenVINO
 
    about-openvino/performance-benchmarks
    about-openvino/compatibility-and-support
+   about-openvino/contributing
    Release Notes <about-openvino/release-notes-openvino>
 
 OpenVINO is a toolkit for simple and efficient deployment of various deep learning models.
