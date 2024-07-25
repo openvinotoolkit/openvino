@@ -391,13 +391,6 @@ bool ov::could_propagate(const Output<Node>& output, std::vector<Node*>& result)
     nodes_to_do.push(output.get_node());
     std::unordered_set<Node*> nodes_done;
 
-    const auto all_values_has_bounds = [](const OutputVector& values) {
-        return std::all_of(values.begin(), values.end(), [](const Output<Node>& value) {
-            const auto& t_desc = value.get_tensor();
-            return t_desc.get_lower_value() && t_desc.get_upper_value();
-        });
-    };
-
     while (status && nodes_to_do.size() > 0) {
         Node* node = nodes_to_do.top();
         if (nodes_done.count(node) == 0) {
@@ -431,7 +424,7 @@ bool ov::could_propagate(const Output<Node>& output, std::vector<Node*>& result)
                 }
             }
             if (can_add) {
-                if (all_values_has_bounds(node->outputs())) {
+                if (is_type<op::v0::Constant>(node)) {
                     propagate_rt_info(node, output);
                 } else {
                     result.push_back(node);
