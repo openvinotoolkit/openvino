@@ -165,8 +165,8 @@ offer a limited set of supported OpenVINO features.
 
 **ov::intel_npu::compilation_mode_params**
 
-``ov::intel_npu::compilation_mode_params`` is an NPU-specific property that allows to
-control model compilation for NPU.
+``ov::intel_npu::compilation_mode_params`` is an NPU-specific property that allows
+control of model compilation for NPU.
 
 .. note::
 
@@ -177,7 +177,7 @@ Following configuration options are supported:
 
 **optimization-level**
 
-Defines a preset of optimization passes to be applied during compilation.
+Defines an optimization effort hint to the compiler.
 
 .. list-table::
    :widths: 10 200
@@ -186,7 +186,7 @@ Defines a preset of optimization passes to be applied during compilation.
    * - **Value**
      - **Description**
    * - 0
-     - Reduced subset of optimization passes. Smaller compile time.
+     - Reduced subset of optimization passes. May result in smaller compile time.
    * - 1
      - **Default.** Balanced performance/compile time.
    * - 2
@@ -194,7 +194,7 @@ Defines a preset of optimization passes to be applied during compilation.
 
 **performance-hint-override**
 
-An extension for LATENCY mode being specified using ``ov::hint::performance_mode``
+The LATENCY mode can be overridden by specifying ``ov::hint::performance_mode``
 Has no effect for other ``ov::hint::PerformanceMode`` hints.
 
 .. list-table::
@@ -208,15 +208,31 @@ Has no effect for other ``ov::hint::PerformanceMode`` hints.
    * - latency
      - Prioritize performance over power efficiency.
 
-.. tab-set::
+Usage example:
 
-   .. tab-item:: Usage example
+.. code-block::
 
-      .. code-block::
+   map<str, str> config = {ov::intel_npu::compilation_mode_params.name(), ov::Any("optimization-level=1 performance-hint-override=latency")};
 
-         map<str, str> config = {ov::intel_npu::compilation_mode_params.name(), ov::Any("optimization-level=1 performance-hint-override=latency")};
+   compile_model(model, config);
 
-         compile_model(model, config);
+**npu_turbo**
+
+The turbo mode, where available, provides a hint to the system to maintain the
+maximum NPU frequency and memory throughput within the platform TDP limits.
+The turbo mode is not recommended for sustainable workloads due to higher power
+consumption and potential impact on other compute resources.
+
+.. code-block::
+
+   core.set_property("NPU", ov::intel_npu::turbo(true));
+
+or
+
+.. code-block::
+
+   core.compile_model(ov_model, "NPU", {ov::intel_npu::turbo(true)});
+
 
 Limitations
 #############################
