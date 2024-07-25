@@ -266,7 +266,7 @@ class CustomBuild(build):
         self.jobs = multiprocessing.cpu_count() if self.jobs is None else int(self.jobs)
 
         if self.cmake_args is None:
-            self.cmake_args = ""
+            self.cmake_args = os.getenv("CMAKE_ARGS", "")
 
     def cmake_build_and_install(self, install_cfg):
         """Runs cmake (configure, build and install) if artfiacts are not already built / installed."""
@@ -297,6 +297,7 @@ class CustomBuild(build):
                                 f"-DPython3_EXECUTABLE={sys.executable}",
                                 f"-DCMAKE_BUILD_TYPE={CONFIG}",
                                 f"-DCPACK_GENERATOR={CPACK_GENERATOR}",
+                                "-DENABLE_PYTHON=ON",
                                 "-DENABLE_WHEEL=OFF",
                                 self.cmake_args,
                                 "-S", source_dir,

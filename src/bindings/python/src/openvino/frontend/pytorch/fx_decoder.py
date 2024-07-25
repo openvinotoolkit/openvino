@@ -267,9 +267,7 @@ class TorchFXPythonDecoder (Decoder):
         raise RuntimeError("This input is not a Node")
 
     def get_subgraph_size(self):
-        if issubclass(type(self.pt_module), torch.fx.Node):
-            return 0
-        return len(self.get_subgraphs()) if hasattr(self.pt_module, 'blocks') else 1
+        return len(self.get_subgraphs())
 
     def decoder_type_name(self) -> str:
         return "fx"
@@ -287,9 +285,7 @@ class TorchFXPythonDecoder (Decoder):
             node_visitor(decoder)
 
     def get_subgraphs(self):
-        if issubclass(type(self.pt_module), torch.fx.Node):
-            return []
-        return list(self.pt_module.blocks())
+        return []
 
     def get_subgraph_decoder(self, index):
         decoder = TorchFXPythonDecoder(self.get_subgraphs()[index],
