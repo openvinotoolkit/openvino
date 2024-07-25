@@ -126,12 +126,7 @@ TEST_P(ov_core_test, ov_core_compile_model) {
     ov_core_free(core);
 }
 
-#ifdef OPENVINO_ARCH_ARM64
-// Ticket: 126283
-TEST_P(ov_core_test, DISABLED_ov_core_compile_model_with_property) {
-#else
 TEST_P(ov_core_test, ov_core_compile_model_with_property) {
-#endif
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -149,12 +144,7 @@ TEST_P(ov_core_test, ov_core_compile_model_with_property) {
 
     char* property_value = nullptr;
     OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &property_value));
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    // TODO: fix once ARM plugin supports multi-stream
-    EXPECT_STREQ(property_value, "1");
-#else
     EXPECT_STREQ(property_value, "2");
-#endif
     ov_free(property_value);
 
     ov_compiled_model_free(compiled_model);

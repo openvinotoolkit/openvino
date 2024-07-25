@@ -24,7 +24,8 @@ OpenVINO Release Notes
 What's new
 +++++++++++++++++++++++++++++
 
-* More Gen AI coverage and framework integrations to minimize code changes.
+* More :doc:`Gen AI <../learn-openvino/llm_inference_guide/genai-guide>` coverage and framework
+  integrations to minimize code changes.
 
   * Llama 3 optimizations for CPUs, built-in GPUs, and discrete GPUs for improved performance
     and efficient memory usage.
@@ -35,7 +36,7 @@ What's new
     Python Custom Operation empowers users to implement their own specialized operations into
     any model.
   * Notebooks expansion to ensure better coverage for new models. Noteworthy notebooks added:
-    DynamiCrafter, YOLOv10, and Chatbot notebook with Phi-3.
+    DynamiCrafter, YOLOv10, Chatbot notebook with Phi-3, and QWEN2.
 
 
 * Broader Large Language Model (LLM) support and more model compression techniques.
@@ -52,20 +53,20 @@ What's new
 
   * Model Serving Enhancements:
 
-    * OpenVINO Model Server (OVMS) now supports OpenAI-compatible API along with Continuous
+    * Preview: OpenVINO Model Server (OVMS) now supports OpenAI-compatible API along with Continuous
       Batching and PagedAttention, enabling significantly higher throughput for parallel
       inferencing, especially on Intel® Xeon® processors, when serving LLMs to many concurrent
       users.
-    * OpenVINO backend for Triton Server now supports built-in GPUs and discrete GPUs, in
-      addition to dynamic shapes support.
+    * OpenVINO backend for Triton Server now supports dynamic input shapes.
     * Integration of TorchServe through torch.compile OpenVINO backend for easy model deployment,
       provisioning to multiple instances, model versioning, and maintenance.
 
-  * Addition of the Generate API, a simplified API for text generation using large language
-    models with only a few lines of code. The API is available through the newly launched
-    OpenVINO GenAI package.
+  * Preview: addition of the :doc:`Generate API <../learn-openvino/llm_inference_guide/genai-guide>`,
+    a simplified API for text generation using large language models with only a few lines of
+    code. The API is available through the newly launched OpenVINO GenAI package.
   * Support for Intel Atom® Processor X Series. For more details, see :doc:`System Requirements <./release-notes-openvino/system-requirements>`.
   * Preview: Support for Intel® Xeon® 6 processor.
+
 
 
 OpenVINO™ Runtime
@@ -185,8 +186,8 @@ OpenVINO Model Server
 
 * OpenVINO Model server can be now used for text generation use cases using OpenAI compatible API.
 * Added support for continuous batching and PagedAttention algorithms for text generation with
-  fast and efficient in high concurrency load especially on Intel Xeon processors. Learn more
-  about it.
+  fast and efficient in high concurrency load especially on Intel Xeon processors.
+  `Learn more about it <https://github.com/openvinotoolkit/model_server/tree/releases/2024/2/demos/continuous_batching>`__.
 
 
 Neural Network Compression Framework
@@ -233,10 +234,10 @@ Known Issues
 | **Component: TBB**
 | ID: TBB-1400/ TBB-1401
 | Description:
-|   In 2024.2, oneTBB 2021.2.x is used for Intel Distribution OpenVINO Ubuntu and Red Hat
-    archives, instead of system TBB/oneTBB, which improved the performance on some platforms
-    (EMR for example), but the latency of some models drop on SPR, user can build OpenVINO with
-    **-DSYSTEM_TBB=ON** to get better latency performance for these models.
+|   In 2024.2, oneTBB 2021.2.x is used for Intel Distribution of OpenVINO Ubuntu and Red Hat
+    archives, instead of system TBB/oneTBB. This improves performance on the new generation of
+    Xeon platforms but may increase latency of some models on the previous generation. You can
+    build OpenVINO with **-DSYSTEM_TBB=ON** to get better latency performance for these models.
 
 | **Component: python API**
 | ID: CVS-141744

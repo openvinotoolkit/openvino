@@ -215,7 +215,7 @@ void optimize_value_usage(ov::Output<ov::Node>& output, STS_map& symbol_shape_so
             get_alternative_source_from_value_or_shape_source(symbol_shape_source, symbol, output, symbol_value_source);
 
     if (alternative_source.get_node_shared_ptr() != nullptr) {
-        evaluate_both_bounds(alternative_source);
+        ov::util::evaluate_both_bounds(alternative_source);
         output.replace(alternative_source);
     } else {
         // in case we can not optimize it -- it is symbol which appeared just now on the value path
@@ -315,18 +315,43 @@ std::vector<std::shared_ptr<ov::Node>> topological_order(const std::shared_ptr<o
 }
 
 void save_shape_sources(const std::shared_ptr<ov::Node>& op, STS_map& symbol_shape_source) {
-    if (!ov::is_type<ov::op::v0::ShapeOf>(op) && !ov::is_type<ov::op::v3::ShapeOf>(op))
-        return;
-    const auto& output = op->input_value(0);
-    for (const auto& d : output.get_partial_shape()) {
-        if (d.is_static())
-            continue;
-        auto symbol = d.get_symbol();
-        if (symbol == nullptr)
-            continue;
-        if (symbol_shape_source.count(symbol))
-            continue;
-        symbol_shape_source[symbol] = output;
+    if (ov::is_type<ov::op::v0::ShapeOf>(op) || ov::is_type<ov::op::v3::ShapeOf>(op)) {
+        const auto& output = op->input_value(0);
+        if (output.get_partial_shape().rank().is_dynamic())
+            return;
+        for (const auto& d : output.get_partial_shape()) {
+            if (d.is_static())
+                continue;
+            auto symbol = d.get_symbol();
+            if (symbol == nullptr)
+                continue;
+            if (symbol_shape_source.count(symbol))
+                continue;
+            symbol_shape_source[symbol] = output;
+        }
+    } else if (const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(op)) {
+        // we agreed to detach ShapeOf sourcing output axis dimension from Concat operations for smoother matching
+        // this code allows to find places to reconnect ShapeOfs
+        const auto rank = concat->get_output_partial_shape(0).rank();
+        auto axis = concat->get_axis();
+        if (axis < 0) {
+            if (rank.is_dynamic())
+                return;
+            axis += rank.get_length();
+        }
+        for (const auto& input : concat->input_values()) {
+            if (input.get_partial_shape().rank().is_dynamic())
+                continue;
+            const auto dimension = input.get_partial_shape()[axis];
+            if (dimension.is_static())
+                continue;
+            auto symbol = dimension.get_symbol();
+            if (symbol == nullptr)
+                continue;
+            if (symbol_shape_source.count(symbol))
+                continue;
+            symbol_shape_source[symbol] = input;
+        }
     }
 }
 }  // namespace

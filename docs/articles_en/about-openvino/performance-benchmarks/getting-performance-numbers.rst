@@ -184,4 +184,4 @@ insights in the application-level performance on the timeline view.
    Results may vary. For more information, see
    :doc:`F.A.Q. <./performance-benchmarks-faq>` and
    :doc:`Platforms, Configurations, Methodology <../performance-benchmarks>`.
-   See :doc:`Legal Information <../additional-resources/legal-information>`.
+   See :doc:`Legal Information <../additional-resources/terms-of-use>`.

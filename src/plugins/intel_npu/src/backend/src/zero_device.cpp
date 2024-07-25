@@ -7,8 +7,12 @@
 #include <ze_api.h>
 
 #include "intel_npu/al/itt.hpp"
+#include "intel_npu/utils/zero/zero_api.hpp"
 #include "zero_executor.hpp"
+#include "zero_host_tensor.hpp"
 #include "zero_infer_request.hpp"
+#include "zero_remote_tensor.hpp"
+#include "zero_utils.hpp"
 
 using namespace intel_npu;
 
@@ -24,27 +28,20 @@ ZeroDevice::ZeroDevice(const std::shared_ptr<ZeroInitStructsHolder>& initStructs
     // Query PCI information
     // Older drivers do not have this implementend. Linux driver returns NOT_IMPLEMENTED, while windows driver returns
     // zero values. If this is detected, we populate only device with ID from device_properties for backwards
-    // compatibility
+    // compatibility. For any other error, we just fall-back to device ID to assure backwards compatibilty with even
+    // older drivers
     pci_properties.stype = ZE_STRUCTURE_TYPE_PCI_EXT_PROPERTIES;
     ze_result_t retpci = zeDevicePciGetPropertiesExt(_initStructs->getDevice(), &pci_properties);
     if (ZE_RESULT_SUCCESS == retpci) {
-        // win backwards compatibility
+        // windows driver specific backwards compatibility
         if (pci_properties.address.device == 0) {
             log.warning("PCI information not available in driver. Falling back to deviceId");
             pci_properties.address.device = device_properties.deviceId;
         }
-    } else if (ZE_RESULT_ERROR_UNSUPPORTED_FEATURE == retpci) {
-        log.warning("PCI information not available in driver. Falling back to deviceId");
-        // linux backwards compatibilty
-        pci_properties.address.device = device_properties.deviceId;
     } else {
-        OPENVINO_THROW("L0 zeDevicePciGetPropertiesExt result: ",
-                       ze_result_to_string(retpci),
-                       ", code 0x",
-                       std::hex,
-                       uint64_t(retpci),
-                       " - ",
-                       ze_result_to_description(retpci));
+        // general backwards compatibility
+        log.warning("PCI information not available in driver. Falling back to deviceId");
+        pci_properties.address.device = device_properties.deviceId;
     }
 
     /// Calculate and store device GOPS with formula: frequency * number of tiles * ops per tile
@@ -102,6 +99,7 @@ std::string ZeroDevice::getName() const {
 #define NPU_3700_DEVICE_ID   0x6240
 #define NPU_3720_P_DEVICE_ID 0x7D1D
 #define NPU_3720_S_DEVICE_ID 0xAD1D
+#define NPU_4000_DEVICE_ID   0x643E
 
     std::string name;
     switch (device_properties.deviceId) {
@@ -111,6 +109,9 @@ std::string ZeroDevice::getName() const {
     case NPU_3720_P_DEVICE_ID:
     case NPU_3720_S_DEVICE_ID:
         name = ov::intel_npu::Platform::NPU3720;
+        break;
+    case NPU_4000_DEVICE_ID:
+        name = "4000";
         break;
     default:
         name = "AUTO_DETECT";
@@ -182,3 +183,21 @@ std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(
     const Config& config) {
     return std::make_shared<ZeroInferRequest>(_initStructs, compiledModel, executor, config);
 }
+
+ov::SoPtr<ov::IRemoteTensor> ZeroDevice::createRemoteTensor(std::shared_ptr<ov::IRemoteContext> context,
+                                                            const ov::element::Type& element_type,
+                                                            const ov::Shape& shape,
+                                                            const Config& config,
+                                                            ov::intel_npu::TensorType tensor_type,
+                                                            ov::intel_npu::MemType mem_type,
+                                                            void* mem) {
+    return {std::make_shared<
+        ZeroRemoteTensor>(context, _initStructs, element_type, shape, config, tensor_type, mem_type, mem)};
+};
+
+ov::SoPtr<ov::ITensor> ZeroDevice::createHostTensor(std::shared_ptr<ov::IRemoteContext> context,
+                                                    const ov::element::Type& element_type,
+                                                    const ov::Shape& shape,
+                                                    const Config& config) {
+    return {std::make_shared<ZeroHostTensor>(context, _initStructs, element_type, shape, config)};
+};

@@ -10,6 +10,7 @@
 #include "openvino/op/util/recurrent_sequence.hpp"
 
 namespace ov {
+OPENVINO_SUPPRESS_DEPRECATED_START
 op::v0::LSTMSequence::LSTMSequence(const Output<Node>& X,
                                    const Output<Node>& initial_hidden_state,
                                    const Output<Node>& initial_cell_state,
@@ -156,6 +157,7 @@ void op::v0::LSTMSequence::validate_and_infer_types() {
     set_output_type(1, result_et, output_shapes[1]);
     set_output_type(2, result_et, output_shapes[2]);
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 
 bool op::v5::LSTMSequence::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v5_LSTMSequence_visit_attributes);

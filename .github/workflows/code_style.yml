@@ -31,7 +31,7 @@ jobs:
 
       - name: suggester / clang-format
         if: startsWith(github.event_name, 'pull_request')
-        uses: reviewdog/action-suggester@9e1cd88b79ba3c0023c94e44accd72344f032093 # v1.13.0
+        uses: reviewdog/action-suggester@a1d57ff096639094e0ba35ef3039e79316364796 # v1.15.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           level: warning
@@ -60,7 +60,7 @@ jobs:
       # always provide suggestions even for skipped scripts in ov_shellcheck tagret
       - name: ShellCheck action
         if: always()
-        uses: reviewdog/action-shellcheck@6e3a862f231c6895fbd335b70adef8f9243d5762 # v1.21.0
+        uses: reviewdog/action-shellcheck@52f34f737a16c65b8caa8c51ae1b23036afe5685 # v1.23.0
         with:
           level: style
           reporter: github-pr-review

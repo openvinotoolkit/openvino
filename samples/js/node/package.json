@@ -8,12 +8,13 @@
     "eslint": "^8.39.0",
     "https-proxy-agent": "^7.0.2",
     "opencv-wasm": "^4.3.0-10",
+    "@tensorflow/tfjs-node": "^4.19.0",
     "openvino-node": "file:../../../src/bindings/js/node/"
   },
   "scripts": {
     "lint": "eslint ."
   },
   "engines": {
-    "node": ">=20.5.1"
+    "node": ">=21.0.0"
   }
 }

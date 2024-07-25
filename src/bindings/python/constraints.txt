@@ -1,8 +1,8 @@
 # used in multiple components
-numpy>=1.16.6,<1.27  # Python bindings, frontends
+numpy>=1.16.6,<2.1.0  # Python bindings, frontends
 
 # pytest
-pytest>=5.0,<8.3
+pytest>=5.0,<8.4
 pytest-dependency==0.6.0
 pytest-html==4.1.1
 pytest-timeout==2.2.0

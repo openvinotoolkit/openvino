@@ -14,8 +14,8 @@ of 42, meaning that it is possible to encode a 1024x1024 image to 24x24,
 while maintaining crisp reconstructions. The text-conditional model is
 then trained in the highly compressed latent space.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Load the original model <#load-the-original-model>`__
@@ -45,7 +45,6 @@ Prerequisites
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -58,28 +57,35 @@ Load and run the original pipeline
 
     import torch
     from diffusers import StableCascadeDecoderPipeline, StableCascadePriorPipeline
-    
+
     prompt = "an image of a shiba inu, donning a spacesuit and helmet"
     negative_prompt = ""
-    
+
     prior = StableCascadePriorPipeline.from_pretrained("stabilityai/stable-cascade-prior", torch_dtype=torch.float32)
     decoder = StableCascadeDecoderPipeline.from_pretrained("stabilityai/stable-cascade", torch_dtype=torch.float32)
 
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/transformers/transformer_2d.py:34: FutureWarning: `Transformer2DModelOutput` is deprecated and will be removed in version 1.0.0. Importing `Transformer2DModelOutput` from `diffusers.models.transformer_2d` is deprecated and this will be removed in a future version. Please use `from diffusers.models.modeling_outputs import Transformer2DModelOutput`, instead.
-      deprecate("Transformer2DModelOutput", "1.0.0", deprecation_message)
-    2024-06-06 03:01:11.454287: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-06-06 03:01:11.488883: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-07-13 03:34:38.692876: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-07-13 03:34:38.727848: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-06-06 03:01:12.140696: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-07-13 03:34:39.399629: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/vq_model.py:20: FutureWarning: `VQEncoderOutput` is deprecated and will be removed in version 0.31. Importing `VQEncoderOutput` from `diffusers.models.vq_model` is deprecated and this will be removed in a future version. Please use `from diffusers.models.autoencoders.vq_model import VQEncoderOutput`, instead.
+      deprecate("VQEncoderOutput", "0.31", deprecation_message)
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/vq_model.py:25: FutureWarning: `VQModel` is deprecated and will be removed in version 0.31. Importing `VQModel` from `diffusers.models.vq_model` is deprecated and this will be removed in a future version. Please use `from diffusers.models.autoencoders.vq_model import VQModel`, instead.
+      deprecate("VQModel", "0.31", deprecation_message)
 
 
 
 .. parsed-literal::
 
     Loading pipeline components...:   0%|          | 0/6 [00:00<?, ?it/s]
+
+
+.. parsed-literal::
+
+    The installed version of bitsandbytes was compiled without GPU support. 8-bit optimizers, 8-bit multiplication, and GPU quantization are unavailable.
 
 
 
@@ -94,14 +100,14 @@ it, turn it.
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
-    
+
+
     run_original_inference = widgets.Checkbox(
         value=False,
         description="Run original inference",
         disabled=False,
     )
-    
+
     run_original_inference
 
 
@@ -126,7 +132,7 @@ it, turn it.
             num_images_per_prompt=1,
             num_inference_steps=20,
         )
-    
+
         decoder_output = decoder(
             image_embeddings=prior_output.image_embeddings,
             prompt=prompt,
@@ -160,14 +166,14 @@ to 8-bit to reduce model size.
 
     import gc
     from pathlib import Path
-    
+
     import openvino as ov
     import nncf
-    
-    
+
+
     MODELS_DIR = Path("models")
-    
-    
+
+
     def convert(model: torch.nn.Module, xml_path: str, example_input, input_shape=None):
         xml_path = Path(xml_path)
         if not xml_path.exists():
@@ -181,12 +187,12 @@ to 8-bit to reduce model size.
             converted_model = nncf.compress_weights(converted_model)
             ov.save_model(converted_model, xml_path)
             del converted_model
-    
+
             # cleanup memory
             torch._C._jit_clear_class_registry()
             torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
             torch.jit._state._clear_class_state()
-    
+
             gc.collect()
 
 
@@ -207,20 +213,20 @@ here, we always use fixed shapes in conversion by using an
 .. code:: ipython3
 
     PRIOR_TEXT_ENCODER_OV_PATH = MODELS_DIR / "prior_text_encoder_model.xml"
-    
+
     prior.text_encoder.config.output_hidden_states = True
-    
-    
+
+
     class TextEncoderWrapper(torch.nn.Module):
         def __init__(self, text_encoder):
             super().__init__()
             self.text_encoder = text_encoder
-    
+
         def forward(self, input_ids, attention_mask):
             outputs = self.text_encoder(input_ids=input_ids, attention_mask=attention_mask, output_hidden_states=True)
             return outputs["text_embeds"], outputs["last_hidden_state"], outputs["hidden_states"]
-    
-    
+
+
     convert(
         TextEncoderWrapper(prior.text_encoder),
         PRIOR_TEXT_ENCODER_OV_PATH,
@@ -242,24 +248,25 @@ here, we always use fixed shapes in conversion by using an
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4481: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4371: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:86: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:86: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if input_shape[-1] > 1 or self.sliding_window is not None:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_attn_mask_utils.py:162: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if past_key_values_length > 0:
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:276: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:279: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attn_weights.size() != (bsz * self.num_heads, tgt_len, src_len):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:284: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:287: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if causal_attention_mask.size() != (bsz, 1, tgt_len, src_len):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:293: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:296: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attention_mask.size() != (bsz, 1, tgt_len, src_len):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:316: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/clip/modeling_clip.py:319: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attn_output.size() != (bsz * self.num_heads, tgt_len, self.head_dim):
 
 
 .. parsed-literal::
 
+    ['input_ids', 'attention_mask']
     INFO:nncf:Statistics of the bitwidth distribution:
     ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
     │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
@@ -275,24 +282,24 @@ here, we always use fixed shapes in conversion by using an
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
 .. code:: ipython3
 
     PRIOR_PRIOR_MODEL_OV_PATH = MODELS_DIR / "prior_prior_model.xml"
-    
+
     convert(
         prior.prior,
         PRIOR_PRIOR_MODEL_OV_PATH,
@@ -311,12 +318,13 @@ here, we always use fixed shapes in conversion by using an
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-697/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/unets/unet_stable_cascade.py:550: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/diffusers/models/unets/unet_stable_cascade.py:550: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if skip is not None and (x.size(-1) != skip.size(-1) or x.size(-2) != skip.size(-2)):
 
 
 .. parsed-literal::
 
+    ['sample', 'timestep_ratio', 'clip_text_pooled', 'clip_text', 'clip_img']
     INFO:nncf:Statistics of the bitwidth distribution:
     ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
     │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
@@ -332,17 +340,17 @@ here, we always use fixed shapes in conversion by using an
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -356,7 +364,7 @@ Decoder pipeline consists of 3 parts: decoder, text encoder and VQGAN.
 .. code:: ipython3
 
     DECODER_TEXT_ENCODER_MODEL_OV_PATH = MODELS_DIR / "decoder_text_encoder_model.xml"
-    
+
     convert(
         TextEncoderWrapper(decoder.text_encoder),
         DECODER_TEXT_ENCODER_MODEL_OV_PATH,
@@ -366,13 +374,14 @@ Decoder pipeline consists of 3 parts: decoder, text encoder and VQGAN.
         },
         input_shape={"input_ids": ((1, 77),), "attention_mask": ((1, 77),)},
     )
-    
+
     del decoder.text_encoder
     gc.collect();
 
 
 .. parsed-literal::
 
+    ['input_ids', 'attention_mask']
     INFO:nncf:Statistics of the bitwidth distribution:
     ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
     │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
@@ -388,24 +397,24 @@ Decoder pipeline consists of 3 parts: decoder, text encoder and VQGAN.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
 .. code:: ipython3
 
     DECODER_DECODER_MODEL_OV_PATH = MODELS_DIR / "decoder_decoder_model.xml"
-    
+
     convert(
         decoder.decoder,
         DECODER_DECODER_MODEL_OV_PATH,
@@ -423,6 +432,7 @@ Decoder pipeline consists of 3 parts: decoder, text encoder and VQGAN.
 
 .. parsed-literal::
 
+    ['sample', 'timestep_ratio', 'clip_text_pooled', 'effnet']
     INFO:nncf:Statistics of the bitwidth distribution:
     ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
     │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
@@ -438,34 +448,34 @@ Decoder pipeline consists of 3 parts: decoder, text encoder and VQGAN.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
 .. code:: ipython3
 
     VQGAN_PATH = MODELS_DIR / "vqgan_model.xml"
-    
-    
+
+
     class VqganDecoderWrapper(torch.nn.Module):
         def __init__(self, vqgan):
             super().__init__()
             self.vqgan = vqgan
-    
+
         def forward(self, h):
             return self.vqgan.decode(h)
-    
-    
+
+
     convert(
         VqganDecoderWrapper(decoder.vqgan),
         VQGAN_PATH,
@@ -478,6 +488,7 @@ Decoder pipeline consists of 3 parts: decoder, text encoder and VQGAN.
 
 .. parsed-literal::
 
+    ['h']
     INFO:nncf:Statistics of the bitwidth distribution:
     ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
     │   Num bits (N) │ % all parameters (layers)   │ % ratio-defining parameters (layers)   │
@@ -493,17 +504,17 @@ Decoder pipeline consists of 3 parts: decoder, text encoder and VQGAN.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -523,7 +534,7 @@ Select device from dropdown list for running inference using OpenVINO.
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -547,17 +558,17 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
 .. code:: ipython3
 
     from collections import namedtuple
-    
-    
+
+
     BaseModelOutputWithPooling = namedtuple("BaseModelOutputWithPooling", ["text_embeds", "last_hidden_state", "hidden_states"])
-    
-    
+
+
     class TextEncoderWrapper:
         dtype = torch.float32  # accessed in the original workflow
-    
+
         def __init__(self, text_encoder_path, device):
             self.text_encoder = core.compile_model(text_encoder_path, device.value)
-    
+
         def __call__(self, input_ids, attention_mask, output_hidden_states=True):
             output = self.text_encoder({"input_ids": input_ids, "attention_mask": attention_mask})
             text_embeds = output[0]
@@ -572,7 +583,7 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
             self.prior = core.compile_model(prior_path, device.value)
             self.config = namedtuple("PriorWrapperConfig", ["clip_image_in_channels", "in_channels"])(768, 16)  # accessed in the original workflow
             self.parameters = lambda: (torch.zeros(i, dtype=torch.float32) for i in range(1))  # accessed in the original workflow
-    
+
         def __call__(self, sample, timestep_ratio, clip_text_pooled, clip_text=None, clip_img=None, **kwargs):
             inputs = {
                 "sample": sample,
@@ -588,10 +599,10 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
 
     class DecoderWrapper:
         dtype = torch.float32  # accessed in the original workflow
-    
+
         def __init__(self, decoder_path, device):
             self.decoder = core.compile_model(decoder_path, device.value)
-    
+
         def __call__(self, sample, timestep_ratio, clip_text_pooled, effnet, **kwargs):
             inputs = {"sample": sample, "timestep_ratio": timestep_ratio, "clip_text_pooled": clip_text_pooled, "effnet": effnet}
             output = self.decoder(inputs)
@@ -600,14 +611,14 @@ return ``torch.Tensor``\ s instead of ``np.array``\ s.
 .. code:: ipython3
 
     VqganOutput = namedtuple("VqganOutput", "sample")
-    
-    
+
+
     class VqganWrapper:
         config = namedtuple("VqganWrapperConfig", "scale_factor")(0.3764)  # accessed in the original workflow
-    
+
         def __init__(self, vqgan_path, device):
             self.vqgan = core.compile_model(vqgan_path, device.value)
-    
+
         def decode(self, h):
             output = self.vqgan(h)[0]
             output = torch.tensor(output)
@@ -639,7 +650,7 @@ Inference
         num_images_per_prompt=1,
         num_inference_steps=20,
     )
-    
+
     decoder_output = decoder(
         image_embeddings=prior_output.image_embeddings,
         prompt=prompt,
@@ -686,7 +697,7 @@ Interactive inference
             num_inference_steps=20,
             generator=generator,
         )
-    
+
         decoder_output = decoder(
             image_embeddings=prior_output.image_embeddings,
             prompt=prompt,
@@ -696,15 +707,15 @@ Interactive inference
             num_inference_steps=10,
             generator=generator,
         ).images[0]
-    
+
         return decoder_output
 
 .. code:: ipython3
 
     import gradio as gr
     import numpy as np
-    
-    
+
+
     demo = gr.Interface(
         generate,
         [
@@ -744,7 +755,7 @@ Interactive inference
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 

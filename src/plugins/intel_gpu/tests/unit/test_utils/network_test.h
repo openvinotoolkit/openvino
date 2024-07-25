@@ -330,7 +330,7 @@ public:
                                                            std::shared_ptr<reference_node<BiasT, 2>> bias,
                                                            ov::intel_gpu::ImplementationDesc force = ov::intel_gpu::ImplementationDesc{cldnn::format::any, ""},
                                                            size_t input_dim_size = 3) {
-        topo.add(cldnn::fully_connected(id, input_info(input->id), weights->id, bias->id, ov::element::from<T>(), cldnn::padding(), input_dim_size));
+        topo.add(cldnn::fully_connected(id, input_info(input->id), weights->id, bias->id, ov::element::from<T>(), input_dim_size));
         if (force.output_format != cldnn::format::any || force.kernel_name != "")
             forced_impls[id] = force;
         VVVVF<T> output_data = fully_connected_reference_typed_3d<T>(input->reference.reference,
