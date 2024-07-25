@@ -109,7 +109,8 @@ layout reshape_inst::calc_output_layout(reshape_node const& node, kernel_impl_pa
     auto desc = impl_param.typed_desc<reshape>();
     if (desc->output_shape.count() == 0) {
         if (desc->output_partial_shape.size() != 0) {
-            return layout{desc->output_partial_shape, input_layout.data_type, input_layout.format};
+            format out_fmt = format::adjust_to_rank(input_layout.format, desc->output_partial_shape.rank().get_length());
+            return layout{desc->output_partial_shape, input_layout.data_type, out_fmt};
         } else {
             OPENVINO_ASSERT("[GPU] Output shape is not provided");
         }

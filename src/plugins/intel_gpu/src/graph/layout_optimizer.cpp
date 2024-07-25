@@ -1937,13 +1937,17 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
                 prim_input = node.get_dependency_index(node.as<convolution>().input());
             if (node.is_type<deconvolution>())
                 prim_input = node.get_dependency_index(node.as<deconvolution>().input());
+            size_t prim_weights = node.get_primitive()->input_size();
 
             // Note: did not handle attribute properly. especially for zero-point
             cldnn::format src_fmt = format::any;
-            if (idx == prim_input)
+            if (idx == prim_input) {
                 src_fmt = onednn::find_data_format(prim_desc.src_desc());
-            else  // Dep for fused post ops
+            } else if (idx == prim_weights) {
+                src_fmt = format::custom;
+            } else {  // Dep for fused post ops
                 src_fmt = onednn::find_data_format(prim_desc.dst_desc());
+            }
 
             // WA: shallow convolution needs to set input format by bfyx.
             //     onednn recommended byxf for input format. It will insert reorder before shallow conv.
