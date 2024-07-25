@@ -187,8 +187,8 @@ public:
                            << (applied ? "1" : "0") << std::endl;
                 }
             } else {
-                OPENVINO_THROW("The output file for recording transformation statistics is closed. "
-                               "Recording of the statistics is not possible.")
+                OPENVINO_THROW("The output file for logging transformation statistics is closed. "
+                               "Recording of statistics is not possible.");
             }
         }
     }
