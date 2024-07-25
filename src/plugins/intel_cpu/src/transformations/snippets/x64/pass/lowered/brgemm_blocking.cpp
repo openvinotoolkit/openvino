@@ -117,17 +117,21 @@ bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linea
         const auto block_size_n = snippets::utils::is_dynamic_value(n) ? brgemm->get_n_block_size() : std::min(brgemm->get_n_block_size(), n);
         const auto block_size_k = snippets::utils::is_dynamic_value(k) ? brgemm->get_k_block_size() : std::min(brgemm->get_k_block_size(), k);
 
+        const bool m_blocking = block_size_m != m;
+        const bool n_blocking = block_size_n != n;
+        const bool k_blocking = block_size_k != k;
+
         // If block_size is dynamic, it means that Brgemm will process full tensor:
         //   subtensor[i] = FULL_DIM as by default
-        if (!snippets::utils::is_dynamic_value(block_size_m)) {
+        if (!snippets::utils::is_dynamic_value(block_size_m) && m_blocking) {
             brgemm_expr->get_input_port_descriptor(0)->set_subtensor_dim(1, block_size_m);
             brgemm_expr->get_output_port_descriptor(0)->set_subtensor_dim(1, block_size_m);
         }
-        if (!snippets::utils::is_dynamic_value(block_size_n)) {
+        if (!snippets::utils::is_dynamic_value(block_size_n) && n_blocking) {
             brgemm_expr->get_input_port_descriptor(1)->set_subtensor_dim(0, block_size_n);
             brgemm_expr->get_output_port_descriptor(0)->set_subtensor_dim(0, block_size_n);
         }
-        if (!snippets::utils::is_dynamic_value(block_size_k)) {
+        if (!snippets::utils::is_dynamic_value(block_size_k) && k_blocking) {
             brgemm_expr->get_input_port_descriptor(0)->set_subtensor_dim(0, block_size_k);
             brgemm_expr->get_input_port_descriptor(1)->set_subtensor_dim(1, block_size_k);
         }
@@ -202,9 +206,6 @@ bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linea
             loop_manager->get_loop_info<ov::snippets::lowered::UnifiedLoopInfo>(id)->set_handlers(handlers);
         };
 
-        const bool k_blocking = block_size_k != k;
-        const bool n_blocking = block_size_n != n;
-        const bool m_blocking = block_size_m != m;
         // It is not necessary to include copyB in loop by M if there are no blocking by KN
         const bool include_repacking_in_loop = k_blocking || n_blocking;
 

@@ -35,7 +35,7 @@ RuntimeConfigurator::RuntimeConfigurator(std::shared_ptr<RuntimeConfig> c) :
     OPENVINO_ASSERT(m_config, "Runtime config is nullptr!");
 }
 
-const std::shared_ptr<RuntimeConfig>& RuntimeConfigurator::get_updated_config(const std::shared_ptr<lowered::LinearIR>& linear_ir) {
+const std::shared_ptr<RuntimeConfig>& RuntimeConfigurator::get_updated_config(const lowered::LinearIRPtr& linear_ir) {
     // First initialization
     if (m_io_num == 0)
         initialization(linear_ir);
@@ -44,7 +44,7 @@ const std::shared_ptr<RuntimeConfig>& RuntimeConfigurator::get_updated_config(co
     return m_config;
 }
 
-void RuntimeConfigurator::initialization(const std::shared_ptr<lowered::LinearIR>& linear_ir) {
+void RuntimeConfigurator::initialization(const lowered::LinearIRPtr& linear_ir) {
     init_data_info(linear_ir);
     init_tensor_rank(linear_ir);
     init_buffer_info(linear_ir);
@@ -55,7 +55,7 @@ void RuntimeConfigurator::initialization(const std::shared_ptr<lowered::LinearIR
     m_config->tile_rank = linear_ir->get_config().m_loop_depth;
 }
 
-void RuntimeConfigurator::update(const std::shared_ptr<lowered::LinearIR>& linear_ir) {
+void RuntimeConfigurator::update(const lowered::LinearIRPtr& linear_ir) {
     if (linear_ir->is_dynamic()) {
         update_loop_info(linear_ir);
         update_buffer_scratchpad_size(linear_ir);
@@ -67,11 +67,11 @@ void RuntimeConfigurator::update(const std::shared_ptr<lowered::LinearIR>& linea
     update_latest_shapes();
 }
 
-void RuntimeConfigurator::init_tensor_rank(const std::shared_ptr<lowered::LinearIR>& linear_ir) const {
+void RuntimeConfigurator::init_tensor_rank(const lowered::LinearIRPtr& linear_ir) const {
     m_config->tensor_rank = linear_ir->get_master_shape().size();
 }
 
-void RuntimeConfigurator::init_data_info(const std::shared_ptr<lowered::LinearIR>& linear_ir) {
+void RuntimeConfigurator::init_data_info(const lowered::LinearIRPtr& linear_ir) {
     const auto& parameters = linear_ir->get_parameters();
     const auto& results = linear_ir->get_results();
     m_in_num = parameters.size();
@@ -113,7 +113,7 @@ void RuntimeConfigurator::init_data_info(const std::shared_ptr<lowered::LinearIR
     }
 }
 
-void RuntimeConfigurator::init_buffer_info(const std::shared_ptr<lowered::LinearIR>& linear_ir) {
+void RuntimeConfigurator::init_buffer_info(const lowered::LinearIRPtr& linear_ir) {
     std::map<size_t, std::set<lowered::ExpressionPtr>> dynamic_buffer_clusters, static_buffer_clusters;
 
     // All needed checks are in Validate pass
@@ -143,7 +143,7 @@ void RuntimeConfigurator::init_buffer_info(const std::shared_ptr<lowered::Linear
     m_dynamic_buffer_clusters = std::move(dynamic_buffer_clusters);
 }
 
-void RuntimeConfigurator::update_loop_info(const std::shared_ptr<lowered::LinearIR>& linear_ir) const {
+void RuntimeConfigurator::update_loop_info(const lowered::LinearIRPtr& linear_ir) const {
     // Initialized UnifiedLoopInfo
     struct CurrentUnifiedLoopInfo {
         size_t current_work_amount = 0;
@@ -180,17 +180,19 @@ void RuntimeConfigurator::update_loop_info(const std::shared_ptr<lowered::Linear
             continue;
         }
 
-        expanded_loop_info->set_work_amount(
-            lowered::pass::InsertSpecificIterations::get_decomposed_loop_work_amount(current_unified_loop_info, decomposed_loop_type, current_work_amount));
+        const auto work_amount =
+            lowered::pass::InsertSpecificIterations::get_decomposed_loop_work_amount(current_unified_loop_info, decomposed_loop_type, current_work_amount);
+        expanded_loop_info->set_work_amount(work_amount);
         // Update remaining Loop work amount
-        current_work_amount -= expanded_loop_info->get_work_amount();
+        current_work_amount -= work_amount;
 
         // Update only `finalization offsets`. `Ptr increments` are always zeroed in this case
         auto updated_finalization_offsets = current_work_amount > 0 ? std::vector<int64_t>(finalization_offsets.size(), 0) : finalization_offsets;
         if (expanded_loop_info->is_evaluate_once()) {
+            expanded_loop_info->set_increment(work_amount);
             // work_amount is equal to increment in cases with `evaluate_once`
             for (size_t i = 0; i < updated_finalization_offsets.size(); ++i)
-                updated_finalization_offsets[i] += ptr_increments[i] * expanded_loop_info->get_work_amount();
+                updated_finalization_offsets[i] += ptr_increments[i] * work_amount;
         } else {
             expanded_loop_info->update_ptr_increments(ptr_increments);
         }
@@ -198,7 +200,7 @@ void RuntimeConfigurator::update_loop_info(const std::shared_ptr<lowered::Linear
     }
 }
 
-void RuntimeConfigurator::update_buffer_scratchpad_size(const std::shared_ptr<lowered::LinearIR>& linear_ir) const {
+void RuntimeConfigurator::update_buffer_scratchpad_size(const lowered::LinearIRPtr& linear_ir) const {
     const auto& loop_manager = linear_ir->get_loop_manager();
     m_config->buffer_scratchpad_size = linear_ir->get_static_buffer_scratchpad_size();
 

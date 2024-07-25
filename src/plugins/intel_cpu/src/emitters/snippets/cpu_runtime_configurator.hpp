@@ -29,31 +29,19 @@ protected:
      * @brief Update RuntimeConfig based on LinearIR
      * @param linear_ir LinearIR
      */
-    void update(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) override;
-    /**
-     * @brief Allocate and intialize fields in RuntimeConfig and RuntimeConfigurator
-     * @param linear_ir LinearIR
-     */
-    void initialization(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) override;
+    void update(const ov::snippets::lowered::LinearIRPtr& linear_ir) override;
     /**
      * @brief Initializes tensor rank of config
      * @param linear_ir LinearIR
      */
-    void init_tensor_rank(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) const override;
+    void init_tensor_rank(const ov::snippets::lowered::LinearIRPtr& linear_ir) const override;
     /**
      * @brief Calculate Loop parameters of Loop emitters and update these values in CPURuntimeConfig
-     * @param loop_manager Loop Manager
+     * @param linear_ir LinearIR
      */
-    void update_loop_args(const ov::snippets::lowered::LoopManagerPtr& loop_manager) const;
-    /**
-     * @brief Update subtensors of Brgemms
-     * @param loop_manager Loop Manager
-     */
-    void update_brgemms(const ov::snippets::lowered::LoopManagerPtr& loop_manager) const;
+    void update_loop_args(const ov::snippets::lowered::LinearIRPtr& linear_ir) const;
 
     const size_t rank6D = 6;
-    // Brgemm expressions with subtensors with dynamic values
-    std::unordered_set<ov::snippets::lowered::ExpressionPtr> m_dynamic_brgemms = {};
 };
 
 }   // namespace intel_cpu

@@ -107,8 +107,8 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
                 VectorDims new_subtensor(planar_dims.begin() + subtensor_start, planar_dims.end());
                 for (size_t i = 0; i < new_subtensor.size(); ++i) {
                     // If user forces dynamic value to set in subtensor, set real dynamic dimension using `get_dynamic_value<size_t>()`
-                    new_subtensor[i] = new_subtensor[i] == FORCED_DYNAMIC_VALUE ? utils::get_dynamic_value<size_t>()
-                                                                                : std::min(new_subtensor[i], subtensor[i]);
+                    new_subtensor[i] = new_subtensor[i] == FORCED_DYNAMIC_VALUE ? utils::get_dynamic_value<size_t>() :
+                                       utils::is_full_dim_value(subtensor[i]) ? subtensor[i] : std::min(new_subtensor[i], subtensor[i]);
                 }
                 desc->set_subtensor(new_subtensor);
             }

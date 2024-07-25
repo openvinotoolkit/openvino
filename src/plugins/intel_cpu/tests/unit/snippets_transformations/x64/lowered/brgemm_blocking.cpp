@@ -168,7 +168,8 @@ TEST_F(BrgemmBlockingTest, BlockingIsNotNeeded) {
         auto brgemm = linear_ir_ref->push_node<BrgemmCPU>(data_a.second, data_b.second, BRGEMM_TYPE::STAND_ALONE,
                                                                      0, 0, 0, layout, layout, layout, m, k, n);
         brgemm.second->set_beta(0.f);
-        init_expr_descriptors(*brgemm.first, {{m, k}, {k, n}, {m, n}});
+        const auto full_subtensor = VectorDims(2, ov::snippets::utils::get_full_dim_value());
+        init_expr_descriptors(*brgemm.first, std::vector<VectorDims>(3, full_subtensor));
         auto result = linear_ir_ref->push_node<ov::opset10::Result>(brgemm.second);
     }
 }
@@ -221,6 +222,7 @@ TEST_F(BrgemmBlockingTest, WithDataRepackingOnlyByM) {
     const ov::PartialShape input_shape_b{1, 16, 64, 384};
     const auto precision_a = ov::element::u8;
     const auto precision_b = ov::element::i8;
+    const auto full = ov::snippets::utils::get_full_dim_value();
 
     {
         auto data_a = linear_ir->push_node<ov::opset10::Parameter>(precision_a, input_shape_a);
@@ -246,7 +248,7 @@ TEST_F(BrgemmBlockingTest, WithDataRepackingOnlyByM) {
         auto brgemm = linear_ir_ref->push_node<BrgemmCPU>(data_a.second, copy_b.second, BRGEMM_TYPE::REPACKING_ONLY,
                                                           0, 0, 0, VectorDims{}, VectorDims{}, VectorDims{}, m_blk, k, n, 0.f);
         const auto& brgemm_expr = *brgemm.first;
-        init_expr_descriptors(brgemm_expr, {{m_blk, k}, {k, n}, {m_blk, n}});
+        init_expr_descriptors(brgemm_expr, {{m_blk, full}, {full, full}, {m_blk, full}});
         create_brgemm_with_copy_b_loop_infos(linear_ir_ref, brgemm_expr, copy_b_expr, 384, m_blk);
         brgemm_expr->set_loop_ids({0});
         auto result = linear_ir_ref->push_node<ov::opset10::Result>(brgemm.second);
