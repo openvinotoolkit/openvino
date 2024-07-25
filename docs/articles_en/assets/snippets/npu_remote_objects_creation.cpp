@@ -34,17 +34,17 @@ int main() {
     }
 
     {
-        //! [wrap_d3d12_resource]
-        void* shared_buffer = nullptr;  // create the Direct3D12 resource
+        //! [wrap_nt_handle]
+        void* shared_buffer = nullptr;  // create the NT handle
         auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, shared_buffer);
-        //! [wrap_d3d12_resource]
+        //! [wrap_nt_handle]
     }
 
     {
-        //! [wrap_dmabuf_resource]
-        int32_t fd_heap;  // create the DMA-BUF System Heap resource
+        //! [wrap_dmabuf_fd]
+        int32_t fd_heap;  // create the DMA-BUF System Heap file descriptor
         auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, fd_heap);
-        //! [wrap_dmabuf_resource]
+        //! [wrap_dmabuf_fd]
     }
 
     {

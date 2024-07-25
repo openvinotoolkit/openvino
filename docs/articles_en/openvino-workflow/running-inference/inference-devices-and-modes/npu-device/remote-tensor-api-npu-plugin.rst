@@ -7,13 +7,14 @@ Remote Tensor API of NPU Plugin
 .. meta::
    :description: The Remote Tensor API of NPU plugin in OpenVINO™ supports
                  interoperability with existing native APIs, such as
-                 Microsoft DirectX, or DMA-BUF System Heap.
+                 NT handle, or DMA-BUF System Heap.
 
 
 The NPU plugin implementation of the ``ov::RemoteContext`` and ``ov::RemoteTensor`` interface supports NPU
-pipeline developers who need memory sharing with existing native APIs, such as Microsoft DirectX,
-or DMA-BUF System Heap. They allow you to avoid any memory copy overhead when plugging
-OpenVINO™ inference into an existing NPU pipeline.
+pipeline developers who need memory sharing with existing native APIs (e.g. OpenCL, Vulkan, DirectX 12)
+by exporting an NT handle on Windows, or DMA-BUF System Heap on Linux and passing that pointer as the
+``shared_buffer`` member to the ``remote_tensor(..., shared_buffer)`` create function. They allow you
+to avoid any memory copy overhead when plugging OpenVINO™ inference into an existing NPU pipeline.
 
 Supported scenario by the Remote Tensor API:
 
@@ -70,24 +71,24 @@ For more details, see the code snippets below:
 
 .. tab-set::
 
-   .. tab-item:: Wrap native handles
+   .. tab-item:: Wrap native handle
       :sync: wrap-native-handles
 
       .. tab-set::
 
-         .. tab-item:: Direct3D12 resource
-            :sync: d3d12
+         .. tab-item:: NT handle
+            :sync: nthandle
 
             .. doxygensnippet:: docs/articles_en/assets/snippets/npu_remote_objects_creation.cpp
                :language: cpp
-               :fragment: [wrap_d3d12_resource]
+               :fragment: [wrap_nt_handle]
 
-         .. tab-item:: DMA-BUF System Heap resource
+         .. tab-item:: DMA-BUF System Heap file descriptor
             :sync: dma-buf
 
             .. doxygensnippet:: docs/articles_en/assets/snippets/npu_remote_objects_creation.cpp
                :language: cpp
-               :fragment: [wrap_dmabuf_resource]
+               :fragment: [wrap_dmabuf_fd]
 
    .. tab-item:: Allocate device memory
       :sync: allocate-device-memory
@@ -112,7 +113,7 @@ For more details, see the code snippets below:
 Limitations
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-* Allocation of the Direct3D12 or DMA-BUF System Heap resources is user's responsibility.
+* Allocation of the NT handle or DMA-BUF System Heap file descriptor is user's responsibility.
 
 Low-Level Methods for RemoteContext and RemoteTensor Creation
 #####################################################################
