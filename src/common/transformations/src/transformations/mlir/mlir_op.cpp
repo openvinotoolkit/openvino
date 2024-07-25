@@ -4,16 +4,17 @@
 
 #include "mlir_op.hpp"
 
-#include <vector>
 #include <algorithm>
 #include <functional>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "mlir/Dialect/Bufferization/Transforms/Passes.h"
 #include "mlir/Pass/PassManager.h"
 
 // TODO: Prune unused headers -- it's hard to understand needed ones
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/InitLLVM.h"
@@ -54,8 +55,16 @@
 #include "mlir/Target/LLVMIR/ModuleTranslation.h"
 
 #ifdef TPP_MLIR // If TPP is available
-#include "TPP/PassBundles.h"
-#include "TPP/Passes.h"
+#    if defined(__APPLE__) || defined(__linux__) || defined(__EMSCRIPTEN__)
+#        include <dlfcn.h>
+#    else
+#        error "Unsupported OS"
+#    endif
+
+#    include "PerfRunnerUtils.h"
+#    include "TPP/PassBundles.h"
+#    include "TPP/Passes.h"
+#    include "openvino/util/file_util.hpp"
 #endif
 
 namespace {
@@ -255,6 +264,19 @@ namespace mlir {
 
 using namespace ::mlir;
 
+static std::string get_xsmm_runner_path() {
+#if defined(__APPLE__) || defined(__linux__) || defined(__EMSCRIPTEN__)
+    // TODO: Add multiplatform shared library search support.
+    Dl_info info;
+    if (dladdr(reinterpret_cast<void*>(perf_start_timer), &info) == 0) {
+        llvm::errs() << "failed to find XSMM Runner library\n";
+        abort();
+    }
+    return ov::util::get_absolute_file_path(info.dli_fname);
+#else
+#    error "Unsupported OS"
+#endif
+}
 
 MLIREvaluate::MLIREvaluate(OwningOpRef<mlir::ModuleOp> _module) : module(std::move(_module)) {
     if (true) {
@@ -281,6 +303,8 @@ MLIREvaluate::MLIREvaluate(OwningOpRef<mlir::ModuleOp> _module) : module(std::mo
     engineOptions.transformer = optPipeline;  // opt level looks to be overriden in lowerToLLVMIR, but is still used
                                                 // in `create` independently
     engineOptions.llvmModuleBuilder = lowerToLLVMIR;
+    std::string xsmmLibPath = get_xsmm_runner_path();
+    engineOptions.sharedLibPaths = SmallVector<StringRef>{xsmmLibPath};
     auto maybeEngine = mlir::ExecutionEngine::create(module.get(), engineOptions);
     if (maybeEngine) {
         engine = std::move(maybeEngine.get());

@@ -27,7 +27,11 @@ if (TPP_MLIR_DIR)
             tpp_xsmm_runner_utils
         )
     function(add_tpp_mlir_includes target)
-        target_include_directories(${target} PRIVATE ${TPP_MLIR_DIR}/../include ${TPP_MLIR_DIR}/include)
+        target_include_directories(${target}
+                PRIVATE
+                    ${TPP_MLIR_DIR}/../include
+                    ${TPP_MLIR_DIR}/include
+                    ${TPP_MLIR_DIR}/../runtime)
     endfunction()
     function(add_tpp_mlir_libs target)
         target_link_directories(${target} PRIVATE ${TPP_MLIR_DIR}/lib)
