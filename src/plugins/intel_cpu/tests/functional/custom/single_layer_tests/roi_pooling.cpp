@@ -217,7 +217,6 @@ protected:
         function = makeNgraphFunction(netPrecision, params, roi_pooling, "ROIPooling");
         functionRefs = function->clone();
     }
-
 };
 
 TEST_P(ROIPoolingCPULayerTest, CompareWithRefs) {
