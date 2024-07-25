@@ -114,9 +114,19 @@ std::shared_ptr<ov::Model> MatMulFunction::getOriginal(
     const std::shared_ptr<ov::opset1::Parameter> input2 = std::make_shared<ov::opset1::Parameter>(precision, inputShape2);
     input2->set_friendly_name("input2");
 
+    std::shared_ptr<ov::Node> parent1 = input1;
+    if (!fqOnData1.empty()) {
+        parent1 = makeFakeQuantize(parent1, precision, fqOnData1);
+    }
+
+    std::shared_ptr<ov::Node> parent2 = input2;
+    if (!fqOnData2.empty()) {
+        parent2 = makeFakeQuantize(parent2, precision, fqOnData2);
+    }
+
     std::shared_ptr<Node> parent = std::make_shared<ov::opset1::MatMul>(
-        makeFakeQuantize(input1, precision, fqOnData1),
-        makeFakeQuantize(input2, precision, fqOnData2),
+        parent1,
+        parent2,
         false,
         false);
     parent->set_friendly_name("matMul");

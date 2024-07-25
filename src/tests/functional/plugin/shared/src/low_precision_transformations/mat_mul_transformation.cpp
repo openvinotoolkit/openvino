@@ -46,7 +46,7 @@ void MatMulTransformation::SetUp() {
     init_input_shapes({ testValues.inputShape1, testValues.inputShape2 });
 
     function = ov::builder::subgraph::MatMulFunction::getOriginal(
-        precision,
+        ov::element::f16, // precision,
         testValues.inputShape1,
         testValues.fqOnData1,
         testValues.inputShape2,

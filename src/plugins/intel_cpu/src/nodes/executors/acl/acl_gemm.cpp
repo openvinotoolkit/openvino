@@ -39,7 +39,8 @@ bool ACLGEMMExecutor::supports(const GEMMConfig &config) {
     const auto src1_dims = std::dynamic_pointer_cast<BlockedMemoryDesc>(config.descs.at(ARG_SRC))->getBlockDims();
     const auto src2_dims = std::dynamic_pointer_cast<BlockedMemoryDesc>(config.descs.at(ARG_WEI))->getBlockDims();
 
-    VERIFY(one_of(srcType(config), ov::element::i8, ov::element::u8), UNSUPPORTED_SRC_PRECISIONS);
+    const auto precision = srcType(config);
+    VERIFY(one_of(precision, ov::element::i8, ov::element::u8), UNSUPPORTED_SRC_PRECISIONS);
     VERIFY(postOpsNumbers(config) == 0, UNSUPPORTED_NUMBER_OF_POSTOPS);
     VERIFY(one_of(srcRank(config), 2U, 3U, 4U), UNSUPPORTED_SRC_RANK);
     VERIFY(one_of(weiRank(config), 2U, 3U, 4U), UNSUPPORTED_WEI_RANK);
@@ -48,16 +49,16 @@ bool ACLGEMMExecutor::supports(const GEMMConfig &config) {
 }
 
 void ACLGEMMExecutor::updateTensorsShapes(ACLMemoryShapes& aclMemoryShapes) {
-    if (gemmInfo.pretranspose_B()) {
-        std::swap(aclMemoryShapes[ACLArgs::ACL_WEI][0], aclMemoryShapes[ACLArgs::ACL_WEI][1]);
-    }
+//    std::swap(aclMemoryShapes[ACLArgs::ACL_SRC_0][0], aclMemoryShapes[ACLArgs::ACL_SRC_0][1]);
+//    std::swap(aclMemoryShapes[ACLArgs::ACL_WEI][0], aclMemoryShapes[ACLArgs::ACL_WEI][1]);
+//    std::swap(aclMemoryShapes[ACLArgs::ACL_DST][0], aclMemoryShapes[ACLArgs::ACL_DST][1]);
 }
 
 arm_compute::Status ACLGEMMExecutor::validateTensorsInfo(const ACLMemoryInfo & aclMemoryInfos) {
     const auto matMulValid = arm_compute::NEGEMMLowpMatrixMultiplyCore::validate(
             aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
             aclMemoryInfos[ACLArgs::ACL_WEI].get(),
-            aclMemoryInfos[ACLArgs::ACL_BIAS].get(),
+            nullptr, //aclMemoryInfos[ACLArgs::ACL_BIAS].get(),
             aclMemoryInfos[ACLArgs::ACL_DST].get(),
             gemmInfo);
     return matMulValid;
@@ -68,7 +69,7 @@ ACLFunction ACLGEMMExecutor::configureFunction(const ACLMemoryTensors & aclMemor
     gemm->configure(
             aclMemoryTensors[ACLArgs::ACL_SRC_0].get(),
             aclMemoryTensors[ACLArgs::ACL_WEI].get(),
-            aclMemoryTensors[ACLArgs::ACL_BIAS].get(),
+            nullptr, //aclMemoryTensors[ACLArgs::ACL_BIAS].get(),
             aclMemoryTensors.at(ACLArgs::ACL_DST).get(),
             gemmInfo);
     return gemm;

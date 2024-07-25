@@ -517,15 +517,15 @@ void MatMul::initSupportedPrimitiveDescriptors() {
 
     auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
     factory = std::make_shared<ExecutorFactory<GEMMAttrs, node::MatMul>>(attrs, postOps, executionContext, memoryDescs);
-    const auto nodeDescriptors = factory->getProperMemoryDescriptors(memoryDescs);
+    const auto memoryDescriptors = factory->getProperMemoryDescriptors(memoryDescs);
 
     NodeConfig nodeConfig;
-    nodeConfig.inConfs.emplace_back(nodeDescriptors.at(ARG_SRC));
-    nodeConfig.inConfs.emplace_back(nodeDescriptors.at(ARG_WEI));
-    if (attrs.withBias) nodeConfig.inConfs.emplace_back(nodeDescriptors.at(ARG_BIAS));
+    nodeConfig.inConfs.emplace_back(memoryDescriptors.at(ARG_SRC));
+    nodeConfig.inConfs.emplace_back(memoryDescriptors.at(ARG_WEI));
+    if (attrs.withBias) nodeConfig.inConfs.emplace_back(memoryDescriptors.at(ARG_BIAS));
 
     const int inPlace = canBeInPlace() ? 0 : -1;
-    nodeConfig.outConfs.emplace_back(nodeDescriptors.at(ARG_DST), BlockedMemoryDesc::FULL_MASK, inPlace);
+    nodeConfig.outConfs.emplace_back(memoryDescriptors.at(ARG_DST), BlockedMemoryDesc::FULL_MASK, inPlace);
 
     supportedPrimitiveDescriptors.emplace_back(nodeConfig, impl_desc_type::undef);
 #else

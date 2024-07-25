@@ -71,6 +71,17 @@ std::vector<MatMulTransformationTestValues> testValues = {
         "i8",
         false
     },
+//    // TODO: fp32 model generation
+//    {
+//        { 1, 1, 128, 128 },
+//        { },
+//        { 1, 1, 128, 128 },
+//        { },
+//        "matMul",
+//        "f32",
+//        false
+//    },
+
     {
         { 1, 1, 12, 2 },
         { 256ul, ov::Shape({}), {-12.8f}, {12.7f}, {-12.8f}, {12.7f} },

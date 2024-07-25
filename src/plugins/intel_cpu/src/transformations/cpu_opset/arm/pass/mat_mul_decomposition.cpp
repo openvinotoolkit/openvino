@@ -25,18 +25,6 @@ ov::intel_cpu::MatMulDecomposition::MatMulDecomposition() {
             return false;
         }
 
-//        const std::shared_ptr<ov::op::v0::MatMul> newMatMul = std::make_shared<ov::op::TypeRelaxed<ov::opset1::MatMul>>(
-//                std::vector<element::Type>({ deqPrecision, deqPrecision }), std::vector<element::Type>({ deqPrecision }),
-//                ov::op::TemporaryReplaceOutputType(dequantization1.data, deqPrecision).get(),
-//                ov::op::TemporaryReplaceOutputType(dequantization2.data, deqPrecision).get(),
-//                matMul->get_transpose_a(),
-//                matMul->get_transpose_b());
-//        const auto newMatMul = std::make_shared<ov::op::TypeRelaxed<ov::opset1::MatMul>>(
-//                parent,
-//                std::make_shared<ov::opset1::Constant>(deqPrecision, ov::Shape({}), std::vector<float>({ dequantizationSub })),
-//                matMul->get_transpose_a(),
-//                matMul->get_transpose_b());
-
         const auto newMatMul = matMul->clone_with_new_inputs({matMul->get_input_source_output(0), matMul->get_input_source_output(1)});
         // TODO: output type is hardcoded
         newMatMul->set_output_type(0, element::i32, matMul->get_output_partial_shape(0));
