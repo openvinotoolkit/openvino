@@ -38,20 +38,21 @@ void stft(const float* signal,
     std::vector<T> pad_window(frame_size, 0);
     std::copy(window, window + window_shape[0], pad_window.begin() + (frame_size_dim - window_length) / 2);
 
+    const auto fft_out_shape_size = shape_size(fft_out_shape);
     for (size_t batch = 0; batch < batch_size; ++batch) {
-        const auto batch_idx = batch * signal_length;
+        const auto batch_in_start = batch * signal_length;
+        const auto batch_frames_out = batch * num_frames;
         for (size_t frame_idx = 0; frame_idx < num_frames; ++frame_idx) {
-            const auto start = batch_idx + frame_idx * frame_step;
-            const auto end = start + frame_size;
-            std::vector<T> signal_slice(signal + start, signal + end);
+            const auto frame_start = batch_in_start + frame_idx * frame_step;
+            const auto frame_end = frame_start + frame_size;
+            std::vector<T> signal_slice(signal + frame_start, signal + frame_end);
             reference::multiply(signal_slice.data(),
                                 pad_window.data(),
                                 signal_slice.data(),
                                 Shape{frame_size_dim},
                                 Shape{frame_size_dim},
                                 op::AutoBroadcastType::NUMPY);
-            const auto result_idx = batch * num_frames * fft_out_shape[0] * fft_out_shape[1] +
-                                    frame_idx * fft_out_shape[0] * fft_out_shape[1];
+            const auto result_idx = (batch_frames_out + frame_idx) * fft_out_shape_size;
             reference::rdft(signal_slice,
                             Shape{frame_size_dim},
                             {0},
