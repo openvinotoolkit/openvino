@@ -11,6 +11,7 @@
 #include "mlir/IR/Builders.h"
 
 #include "typedefs.hpp"
+#include "convert_common.hpp"
 
 namespace ov {
 namespace mlir {
@@ -20,6 +21,7 @@ using ::mlir::MLIRContext;
 using ::mlir::OpBuilder;
 using ::mlir::Operation;
 using ::mlir::SmallVector;
+using ::mlir::ValueRange;
 
 class ConversionContext {
     static std::string rt_info_convertor ();
@@ -32,6 +34,7 @@ public:
     mlir::MLIRContext* context;
     mlir::OpBuilder* block_builder;
     NodeOutputMap nodeOutputMap;
+    std::map<SymbolPtr, Value> dimension_map;
 
     ConversionContext(mlir::MLIRContext* context, mlir::OpBuilder* block_builder);
 
@@ -45,6 +48,10 @@ public:
     static void set_convertor(NodePtr node, const Convertor& convertor);
 
     void convert(NodePtr node);
+
+    Value get_dimension_value(const Dimension& d);
+
+    SmallVector<Value> get_dynamic_dimension_values (const PartialShape& shape);
 };
 
 

@@ -68,6 +68,7 @@
 #include "mlir_op.hpp"
 #include "op/matmul.hpp"
 #include "op/relu.hpp"
+#include "op/binary_eltwise.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/symbol.hpp"
@@ -107,30 +108,6 @@ SmallVector<mlir::Type> get_types_for_values(mlir::MLIRContext* context, const o
     return types;
 }
 
-template <typename TargetOp>
-struct ConvertBinary {
-    void operator()(ConversionContext& context, NodePtr node) {
-        auto loc = createLocation(context.context, node);
-        auto& builder = context.builder();
-        // TODO: Support broadcasts
-        const auto inputs = context.getInputs(node);
-        auto outType = cast<mlir::ShapedType>(inputs[0].getType());
-        // Named binary ops directly overwrite data in `outs` buffer so, there is no need to provide non-empty
-        // destination at the tensor-level.
-        // Use `tensor.empty` to avoid temporary buffer allocation and memcpy after bufferization.
-        llvm::SmallVector<Value> dynamicSizes;
-        for (auto [idx, dim] : llvm::enumerate(outType.getShape())) {
-            if (!mlir::ShapedType::isDynamic(dim))
-                continue;
-            auto dimSize = builder.create<tensor::DimOp>(loc, inputs[0], idx);
-            dynamicSizes.push_back(dimSize);
-        }
-        auto empty = builder.create<tensor::EmptyOp>(loc, outType, dynamicSizes);
-        auto op = builder.create<TargetOp>(loc, mlir::ValueRange{inputs[0], inputs[1]}, mlir::ValueRange{empty});
-        context.addOutputs(node, op);
-    }
-};
-
 
 mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
                                                  const ov::OutputVector& inputs,
@@ -159,6 +136,24 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
         auto loc = createLocation(context, inputs[i].get_node_shared_ptr());
         auto tensor = block_builder.create<bufferization::ToTensorOp>(loc, funcInputVal, /*restrict = */ true);
         conversion_context.nodeOutputMap.emplace(inputs[i], tensor);
+
+        // FIXME: Avoid pre-population of dimension_map, take dimension values only if needed
+        auto input_shape = inputs[i].get_partial_shape();
+        auto input_rank = input_shape.rank();
+        if(input_rank.is_static()) {
+            for(size_t j = 0; j < input_rank.get_length(); ++j) {
+                auto dim = input_shape[j];
+                if(dim.is_dynamic()) {
+                    auto symbol = dim.get_symbol();
+                    assert(symbol);
+                    symbol = ov::symbol::ancestor_of(symbol);
+                    if(dim.is_dynamic() && !conversion_context.dimension_map.count(symbol)) {
+                        auto dimSize = block_builder.create<tensor::DimOp>(loc, tensor, j);
+                        conversion_context.dimension_map[symbol] = dimSize;
+                    }
+                }
+            }
+        }
     }
 
     for (size_t i = 0; i < nodes.size(); ++i) {
@@ -276,21 +271,16 @@ public:
     }
 };
 
-template <typename Op>
-NodePtr elementwise_f32_binary_no_broadcast() {
-    using namespace ov::pass::pattern;
-    return wrap_type<Op>({any_input(), any_input()}, elementwise_no_broadcast_predicate<ov::element::f32>);
-}
 
 void injectMLIR(std::shared_ptr<ov::Model> model, MLIRContext* context) {
     ov::pass::Manager manager;
     using namespace ov::op;
     manager.set_per_pass_validation(false);
     manager.register_pass<ov::pass::SymbolicPropagation>();
-    manager.register_pass<MarkPattern>(elementwise_f32_binary_no_broadcast<v1::Add>(), ConvertBinary<linalg::AddOp>());
-    manager.register_pass<MarkPattern>(elementwise_f32_binary_no_broadcast<v1::Subtract>(), ConvertBinary<linalg::SubOp>());
-    manager.register_pass<MarkPattern>(elementwise_f32_binary_no_broadcast<v1::Multiply>(), ConvertBinary<linalg::MulOp>());
-    manager.register_pass<MarkPattern>(elementwise_f32_binary_no_broadcast<v1::Divide>(), ConvertBinary<linalg::DivOp>());
+    manager.register_pass<BinaryEltwisePattern<v1::Add, linalg::AddOp>>(ov::element::f32);
+    manager.register_pass<BinaryEltwisePattern<v1::Subtract, linalg::SubOp>>(ov::element::f32);
+    manager.register_pass<BinaryEltwisePattern<v1::Multiply, linalg::MulOp>>(ov::element::f32);
+    manager.register_pass<BinaryEltwisePattern<v1::Divide, linalg::DivOp>>(ov::element::f32);
     manager.register_pass<ReluPattern>();
     manager.register_pass<MatMulPattern>();
     manager.register_pass<Partitioner>(context);

@@ -19,22 +19,12 @@ struct ConvertRelu {
     void operator()(ConversionContext& context, NodePtr node) {
         auto loc = createLocation(context.context, node);
         auto& builder = context.builder();
-        // TODO: Support broadcasts
         const auto input = context.getInputs(node)[0];
         const auto ov_output_element_type = node->get_output_element_type(0);
         const auto ov_output_shape = node->get_output_partial_shape(0);
         auto outType = importTensor(context.context, ov_output_shape, ov_output_element_type);
-        // Named unary ops directly overwrite data in `outs` buffer so, there is no need to provide non-empty
-        // destination at the tensor-level.
-        // Use `tensor.empty` to avoid temporary buffer allocation and memcpy after bufferization.
-        llvm::SmallVector<Value> dynamicSizes;
-        for (auto [idx, dim] : llvm::enumerate(outType.getShape())) {
-            if (!mlir::ShapedType::isDynamic(dim))
-                continue;
-            auto dimSize = builder.create<tensor::DimOp>(loc, input, idx);
-            dynamicSizes.push_back(dimSize);
-        }
-        auto empty = builder.create<tensor::EmptyOp>(loc, outType, dynamicSizes);
+        auto dynamic_dimensions = context.get_dynamic_dimension_values(ov_output_shape);
+        auto empty = builder.create<tensor::EmptyOp>(loc, outType, dynamic_dimensions);
         auto zero = getConstant(builder, ov_output_element_type, 0);
         auto fill = builder.create<linalg::FillOp>(loc, mlir::ValueRange{zero}, mlir::ValueRange{empty});
         auto relu =

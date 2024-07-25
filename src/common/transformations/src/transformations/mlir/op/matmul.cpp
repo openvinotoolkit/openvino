@@ -20,6 +20,7 @@ struct ConvertMatMul {
     void operator()(ConversionContext& context, NodePtr node) {
         auto matmul_node = std::dynamic_pointer_cast<ov::op::v0::MatMul>(node);
         assert(matmul_node);
+
         // FIXME: current code limitation
         assert(!matmul_node->get_transpose_a() && matmul_node->get_transpose_b());
 
@@ -29,20 +30,9 @@ struct ConvertMatMul {
         const auto inputs = context.getInputs(node);
         const auto ov_output_element_type = node->get_output_element_type(0);
         const auto ov_output_shape = node->get_output_partial_shape(0);
-        auto outType = importTensor(context.context, ov_output_shape, ov_output_element_type); // Instead of this (WRONG): cast<mlir::ShapedType>(inputs[0].getType());
-
-        llvm::SmallVector<Value> dynamicSizes;
-        for (auto [idx, dim] : llvm::enumerate(outType.getShape())) {
-            if (!mlir::ShapedType::isDynamic(dim))
-                continue;
-            // FIXME: correct in case if (!transpose_a && transpose_b)
-            auto dimSize =
-                builder.create<tensor::DimOp>(loc,
-                                              idx == 0 ? inputs[0] : inputs[1],
-                                              0);  // TODO: Use symbols instead of taking dims directly from inputs
-            dynamicSizes.push_back(dimSize);
-        }
-        auto empty = builder.create<tensor::EmptyOp>(loc, outType, dynamicSizes);
+        auto outType = importTensor(context.context, ov_output_shape, ov_output_element_type);
+        auto dynamic_dimensions = context.get_dynamic_dimension_values(ov_output_shape);
+        auto empty = builder.create<tensor::EmptyOp>(loc, outType, dynamic_dimensions);
         auto zero = getConstant(builder, ov_output_element_type, 0);
         auto fill = builder.create<linalg::FillOp>(loc, mlir::ValueRange{zero}, mlir::ValueRange{empty});
         // TODO: Add other variants of transpose_a/transpose_b
