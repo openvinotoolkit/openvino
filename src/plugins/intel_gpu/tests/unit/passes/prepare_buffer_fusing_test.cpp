@@ -84,7 +84,7 @@ TEST(prepare_buffer_fusing, static_node_after_optimized_out_dyn_reshape) {
     topology.add(data("weights", weights_memory));
     topology.add(permute("permute1", input_info("input"), {0, 2, 1}));
     topology.add(reshape("reshape", input_info("permute1"), false, {2, 4}, ov::PartialShape{2, 4}));
-    topology.add(fully_connected("fc", input_info("reshape"), "weights", "", {}, 2));
+    topology.add(fully_connected("fc", input_info("reshape"), "weights", "", 2));
     topology.add(reorder("reorder", input_info("fc"), format::bfyx, data_types::f32));
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -658,7 +658,7 @@ TEST(prepare_buffer_fusing, in_place_crop_static) {
         data("bias", bias_mem),
         data("scale", scale_mem),
         data("zp", zp_mem),
-        fully_connected("fc", input_info("input"), "weights", "bias", "scale", "zp", data_types::f32, padding(), 3, 2),
+        fully_connected("fc", input_info("input"), "weights", "bias", "scale", "zp", data_types::f32, 3, 2),
         crop("crop1", input_info("fc"), tensor(1, 2, 1, 4), tensor(0, 0, 0, 0)),
         reorder("output1", input_info("crop1"), format::bfyx, data_types::f32),
         crop("crop2", input_info("fc"), tensor(1, 2, 1, 4), tensor(0, 0, 0, 4)),
@@ -740,7 +740,7 @@ TEST(prepare_buffer_fusing, in_place_crop_dynamic) {
         data("bias", bias_mem),
         data("scale", scale_mem),
         data("zp", zp_mem),
-        fully_connected("fc", input_info("input"), "weights", "bias", "scale", "zp", data_types::f32, padding(), 3, 2),
+        fully_connected("fc", input_info("input"), "weights", "bias", "scale", "zp", data_types::f32, 3, 2),
         crop("crop1", { input_info("fc"), input_info("axis"), input_info("splits_length") }, cldnn::tensor(1), cldnn::tensor(0), op_mode, 0, axis),
         reorder("output1", input_info("crop1"), format::bfyx, data_types::f32),
         crop("crop2", { input_info("fc"), input_info("axis"), input_info("splits_length") }, cldnn::tensor(1), cldnn::tensor(0), op_mode, 1, axis),
@@ -975,13 +975,20 @@ TEST(prepare_buffer_fusing, test_checking_padding_supported) {
     auto padding2 = padding({0,0,0,0}, {0,0,0,0});
     auto padding3 = padding({0,0,0,0}, {0,0,0,0});
 
+    auto resample1 = resample("interp1", input_info("input1"), in_layout1.get_tensor(), 1, ov::op::v4::Interpolate::InterpolateMode::NEAREST);
+    resample1.output_paddings = {padding1};
+    auto resample2 = resample("interp2", input_info("input2"), in_layout2.get_tensor(), 1, ov::op::v4::Interpolate::InterpolateMode::NEAREST);
+    resample2.output_paddings = {padding2};
+    auto resample3 = resample("interp3", input_info("input3"), in_layout3.get_tensor(), 1, ov::op::v4::Interpolate::InterpolateMode::NEAREST);
+    resample3.output_paddings = {padding3};
+
     topology topology(
         input_layout("input1", in_layout1),
         input_layout("input2", in_layout2),
         input_layout("input3", in_layout3),
-        resample("interp1", input_info("input1"), in_layout1.get_tensor(), 1, ov::op::v4::Interpolate::InterpolateMode::NEAREST, padding1),
-        resample("interp2", input_info("input2"), in_layout2.get_tensor(), 1, ov::op::v4::Interpolate::InterpolateMode::NEAREST, padding2),
-        resample("interp3", input_info("input3"), in_layout3.get_tensor(), 1, ov::op::v4::Interpolate::InterpolateMode::NEAREST, padding3),
+        resample1,
+        resample2,
+        resample3,
         concatenation("concat", {input_info("interp1"), input_info("interp2"), input_info("interp3")}, 1),
         reorder("reorder", input_info("concat"), format::fs_b_yx_fsv32, data_types::f16));
 
@@ -1028,6 +1035,8 @@ TEST(prepare_buffer_fusing, skip_in_place_concat_padding_in_non_concat_axis_of_d
     set_values<ov::float16>(input3_mem, in3);
     set_values<ov::float16>(input4_mem, in4);
 
+    auto concat_prim = concatenation("concat", {input_info("strided_slice1"), input_info("strided_slice2"), input_info("strided_slice3"), input_info("strided_slice4")}, 1);
+    concat_prim.output_paddings = {concat_padding};
     topology topology(
         input_layout("input1", in_layout),
         input_layout("input2", in_layout),
@@ -1044,7 +1053,7 @@ TEST(prepare_buffer_fusing, skip_in_place_concat_padding_in_non_concat_axis_of_d
                                input_info("end"), input_info("strides"), {1, 1, 1, 0}, {1, 1, 1, 0}, {}, {}, {}, {}),
         strided_slice("strided_slice4", input_info("input4"), input_info("begin"),
                                input_info("end"), input_info("strides"), {1, 1, 1, 0}, {1, 1, 1, 0}, {}, {}, {}, {}),
-        concatenation("concat", {input_info("strided_slice1"), input_info("strided_slice2"), input_info("strided_slice3"), input_info("strided_slice4")}, 1, concat_padding),
+        concat_prim,
         reorder("reorder", input_info("concat"), format::fs_b_yx_fsv32, data_types::f16));
 
     ExecutionConfig config = get_test_default_config(engine);

@@ -51,9 +51,8 @@ struct lstm_elt : public primitive_base<lstm_elt> {
                                                                activation_func::hyperbolic_tan},
              const std::vector<activation_additional_params> activation_params = {},
              const lstm_weights_order offset_order = lstm_weights_order::iofz,
-             const uint32_t direction = 0,
-             const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}),
+             const uint32_t direction = 0)
+        : primitive_base(id, {input}),
           cell(cell),
           clip(clip),
           input_forget(input_forget),

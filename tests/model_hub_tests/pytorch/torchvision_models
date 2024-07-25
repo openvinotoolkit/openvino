@@ -3,9 +3,9 @@ convnext_base,none
 convnext_large,none
 convnext_small,none
 convnext_tiny,none
-deeplabv3_mobilenet_v3_large,none
-deeplabv3_resnet101,none
-deeplabv3_resnet50,none
+deeplabv3_mobilenet_v3_large,none,xfail_export,Requested None inlined input
+deeplabv3_resnet101,none,xfail_export,Requested None inlined input
+deeplabv3_resnet50,none,xfail_export,Requested None inlined input
 densenet121,none
 densenet161,none
 densenet169,none
@@ -21,11 +21,11 @@ efficientnet_b7,none
 efficientnet_v2_l,none
 efficientnet_v2_m,none
 efficientnet_v2_s,none
-fcn_resnet101,none
-fcn_resnet50,none
+fcn_resnet101,none,xfail_export,Requested None inlined input
+fcn_resnet50,none,xfail_export,Requested None inlined input
 googlenet,none
 inception_v3,none
-lraspp_mobilenet_v3_large,none
+lraspp_mobilenet_v3_large,none,xfail_export,Requested None inlined input
 maxvit_t,none
 mc3_18,none
 mnasnet0_5,none
@@ -39,8 +39,8 @@ mvit_v1_b,none
 mvit_v2_s,none
 r2plus1d_18,none
 r3d_18,none
-raft_large,none
-raft_small,none
+raft_large,none,xfail_export,Mutating module attribute corr_pyramid during export
+raft_small,none,xfail_export,Mutating module attribute corr_pyramid during export
 regnet_x_16gf,none
 regnet_x_1_6gf,none
 regnet_x_32gf,none

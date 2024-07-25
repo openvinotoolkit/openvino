@@ -45,7 +45,6 @@ struct border : public primitive_base<border> {
     /// @param pad_mode                 Value of elements which is used for paddings
     /// @param pad_value                Pad's value in case of PadMode::CONSTANT
     /// @param allow_negative_pad       Allow negative values in pads_begin and pad_end to remove borders
-    /// @param output_padding           Optional padding for output from primitive.
     border(const primitive_id& id,
            const std::vector<input_info>& inputs,
            int32_t non_constant_input_mask = 0,
@@ -53,9 +52,8 @@ struct border : public primitive_base<border> {
            const ov::CoordinateDiff& pads_end = {},
            const ov::op::PadMode pad_mode = ov::op::PadMode::CONSTANT,
            const float pad_value = 0.0f,
-           const bool allow_negative_pad = false,
-           const padding& output_padding = padding())
-        : primitive_base(id, inputs, {output_padding}),
+           const bool allow_negative_pad = false)
+        : primitive_base(id, inputs),
           pads_begin(pads_begin),
           pads_end(pads_end),
           pad_mode(pad_mode),
