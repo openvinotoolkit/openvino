@@ -69,7 +69,6 @@ void RecurrentCellTransformation::SetUp() {
                                                                           param.dequantization_R
                                                                       },
                                                                       addPrecisionTransparentOperations);
-    ov::pass::Serialize("test.original.xml", "test.original.bin").run_on_model(function);
 }
 
 void RecurrentCellTransformation::run() {

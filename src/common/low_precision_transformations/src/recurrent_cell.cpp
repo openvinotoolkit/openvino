@@ -24,12 +24,8 @@ namespace pass {
 namespace low_precision {
 
 RecurrentCellTransformation::RecurrentCellTransformation(const Params& params) : LayerTransformation(params) {
-    const auto X = ov::pass::pattern::any_input();
-    const auto H = ov::pass::pattern::any_input();
     const auto C = ov::pass::pattern::any_input();
     const auto S = ov::pass::pattern::any_input();
-    const auto W = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
-    const auto R = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
     const auto B = ov::pass::pattern::wrap_type<ov::opset1::Constant>();
 
     auto X_in = ov::pass::pattern::any_input();
@@ -65,8 +61,8 @@ RecurrentCellTransformation::RecurrentCellTransformation(const Params& params) :
 namespace {
 
 std::shared_ptr<ov::opset1::FakeQuantize> find_fake_quantize_upper(const std::shared_ptr<Node>& parent) {
-    if (is_type<ov::opset1::FakeQuantize>(parent)) {
-        return as_type_ptr<ov::opset1::FakeQuantize>(parent);
+    if (auto fq = as_type_ptr<ov::opset1::FakeQuantize>(parent)) {
+        return fq;
     }
 
     if (!NetworkHelper::isPrecisionPreserved(parent)) {
@@ -82,7 +78,7 @@ std::string name() {
 }
 
 bool isSupportedForPerChannelQuantization(const std::shared_ptr<Node>& node) {
-    static const std::unordered_set<std::string> precisionPreservedOps = {
+    static const std::unordered_set<std::string> supportedForPerChannelQuantization = {
         { name<opset1::DepthToSpace>() },
         { name<opset1::Interpolate>() },
         { name<opset1::MaxPool>() },
@@ -105,13 +101,20 @@ bool isSupportedForPerChannelQuantization(const std::shared_ptr<Node>& node) {
         { name<opset1::VariadicSplit>() }
     };
 
-    return precisionPreservedOps.find(node->get_type_name()) != precisionPreservedOps.end();
+    return supportedForPerChannelQuantization.find(node->get_type_name()) != supportedForPerChannelQuantization.end();
 }
 
-std::vector<std::pair<size_t, element::Type>> get_quantized_inputs(std::shared_ptr<ov::Node> lstm) {
-    return is_type<ov::opset5::LSTMSequence>(lstm) ?
-        std::vector<std::pair<size_t, element::Type>>{ {0, element::u8}, { 1, element::u8 }, { 4, element::undefined }, { 5, element::undefined } } :
-        std::vector<std::pair<size_t, element::Type>>{ {0, element::u8}, { 1, element::u8 }, { 3, element::undefined }, { 4, element::undefined } };
+std::vector<std::pair<size_t, element::Type>> get_supported_precisions(std::shared_ptr<ov::Node> lstm) {
+    // pair fields:
+    // 0 - input number,
+    // 1 - input type, `element::undefined` - any precision
+    if (is_type<ov::opset5::LSTMSequence>(lstm)) {
+        return std::vector<std::pair<size_t, element::Type>>{ {0, element::u8}, { 1, element::u8 }, { 4, element::undefined }, { 5, element::undefined } };
+    } else if (is_type<ov::opset5::LSTMSequence>(lstm)) {
+        return std::vector<std::pair<size_t, element::Type>>{ {0, element::u8}, { 1, element::u8 }, { 3, element::undefined }, { 4, element::undefined } };
+    }
+
+    OPENVINO_THROW("unsupported operation type: ", lstm->get_type_name());
 }
 
 } // namespace
@@ -143,10 +146,7 @@ void RecurrentCellTransformation::propagate(TransformationContext& context, cons
 
 bool RecurrentCellTransformation::transform(TransformationContext& context, ov::pass::pattern::Matcher& m) {
     const auto lstm = m.get_match_root();
-    if (lstm->get_friendly_name() == "model/bidirectional/forward_lstm_1/while") {
-        std::cout << lstm->get_friendly_name() << std::endl;
-    }
-    const auto inputs = get_quantized_inputs(lstm);
+    const auto inputs = get_supported_precisions(lstm);
     for (const auto& input : inputs) {
         const auto& parent = lstm->get_input_node_shared_ptr(input.first);
         if (!isSupportedForPerChannelQuantization(parent)) {
@@ -249,7 +249,7 @@ bool RecurrentCellTransformation::transform(TransformationContext& context, ov::
 }
 
 bool RecurrentCellTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> lstm) const {
-    const auto inputs = get_quantized_inputs(lstm);
+    const auto inputs = get_supported_precisions(lstm);
     for (const auto& index : inputs) {
         const auto& input = lstm->get_input_node_ptr(index.first);
         if (as_type<ov::opset1::Constant>(input) || as_type<ov::opset1::FakeQuantize>(input)) {
