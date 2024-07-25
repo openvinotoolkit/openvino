@@ -27,7 +27,6 @@ public:
     memory_ptr allocate_memory(const layout& layout, allocation_type type, bool reset = true) override;
     memory_ptr reinterpret_handle(const layout& new_layout, shared_mem_params params) override;
     memory_ptr reinterpret_buffer(const memory& memory, const layout& new_layout) override;
-    memory_ptr reinterpret_buffer_with_offset(const memory& memory, const layout& new_layout, int64_t offset = 0) override;
     bool is_the_same_buffer(const memory& mem1, const memory& mem2) override;
     bool check_allocatable(const layout& layout, allocation_type type) override;
 
