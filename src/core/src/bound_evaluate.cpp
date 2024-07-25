@@ -108,24 +108,6 @@ void invalidate_unused_values(const ov::OutputVector& outputs) {
     }
 }
 
-/**
- * @brief Process and remove nodes with bounds
- *
- * @param nodes  Vector of nodes pointers (no nullptr) to processed modified.
- * @param output Destination of RT info  propagation from processed nodes.
- */
-static void process_and_rm_nodes_with_bounds(std::vector<Node*>& nodes, const Output<Node>& output) {
-    auto first_has_bounds = std::remove_if(nodes.begin(), nodes.end(), [&output](Node* n) {
-        if (is_type<op::v0::Constant>(n)) {
-            propagate_rt_info(n, output);
-            return true;
-        } else {
-            return false;
-        }
-    });
-    nodes.erase(std::move(first_has_bounds), nodes.end());
-}
-
 /** @brief Common base for single bound evaluation. */
 struct SingleBound {
     void init(const Node& node) {
@@ -297,10 +279,6 @@ template <class Evaluator>
 void evaluate_bound(const Output<Node>& output) {
     std::vector<Node*> ordered_nodes;
     if (Evaluator::requires_evaluation(output.get_tensor()) && could_propagate(output, ordered_nodes)) {
-        // e.g. Constant has bounds set when created and does not support symbols evaluation
-        // apply rt_info propagation only and remove them from ordered_nodes
-        process_and_rm_nodes_with_bounds(ordered_nodes, output);
-
         auto bound_evaluator = Evaluator{};
         for (const auto& node : ordered_nodes) {
             bound_evaluator.init(node);
@@ -413,6 +391,13 @@ bool ov::could_propagate(const Output<Node>& output, std::vector<Node*>& result)
     nodes_to_do.push(output.get_node());
     std::unordered_set<Node*> nodes_done;
 
+    const auto all_values_has_bounds = [](const OutputVector& values) {
+        return std::all_of(values.begin(), values.end(), [](const Output<Node>& value) {
+            const auto& t_desc = value.get_tensor();
+            return t_desc.get_lower_value() && t_desc.get_upper_value();
+        });
+    };
+
     while (status && nodes_to_do.size() > 0) {
         Node* node = nodes_to_do.top();
         if (nodes_done.count(node) == 0) {
@@ -446,7 +431,11 @@ bool ov::could_propagate(const Output<Node>& output, std::vector<Node*>& result)
                 }
             }
             if (can_add) {
-                result.push_back(node);
+                if (all_values_has_bounds(node->outputs())) {
+                    propagate_rt_info(node, output);
+                } else {
+                    result.push_back(node);
+                }
                 nodes_to_do.pop();
                 nodes_done.insert(node);
             }
