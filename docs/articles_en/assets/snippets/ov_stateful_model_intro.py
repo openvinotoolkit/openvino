@@ -41,7 +41,7 @@ def low_latency_2_example():
     # TensorIterator and Parameter are created in body of TensorIterator with names
     tensor_iterator_name = "TI_name"
     body_parameter_name = "body_parameter_name"
-    idx = "0" # this is a first variable in the network
+    idx = "0" # this is a first variable in the model
 
     # The State will be named "TI_name/param_name/variable_0"
     state_name = tensor_iterator_name + "//" + body_parameter_name + "//" + "variable_" + idx
@@ -81,9 +81,9 @@ def low_latency_2_example():
 
 def replace_non_reshapable_const():
     #! [ov:replace_const]
-    # OpenVINO example. How to replace a Constant with hardcoded values of shapes in the network with another one with the new values.
+    # OpenVINO example. How to replace a Constant with hardcoded values of shapes in the model with another one with the new values.
     # Assume we know which Constant (const_with_hardcoded_shape) prevents the reshape from being applied.
-    # Then we can find this Constant by name on the network and replace it with a new one with the correct shape.
+    # Then we can find this Constant by name in the model and replace it with a new one with the correct shape.
     core = ov.Core()
     model = core.read_model("path_to_model");
     # Creating the new Constant with a correct shape.
@@ -93,7 +93,7 @@ def replace_non_reshapable_const():
         # Trying to find the problematic Constant by name.
         if node.get_friendly_name() != "name_of_non_reshapable_const":
             continue
-        # Replacing the problematic Constant with a new one. Do this for all the problematic Constants in the network, then
+        # Replacing the problematic Constant with a new one. Do this for all the problematic Constants in the model, then
         # you can apply the reshape feature.
         replace_node(node, new_const)
 
@@ -133,12 +133,12 @@ def main():
     core = ov.Core()
 
     # 2. Read a model
-    log.info("Loading network files")
+    log.info("Loading model files")
     model = core.read_model("path_to_ir_xml_from_the_previous_section");
     model.get_parameters()[0].set_layout("NC");
     ov.set_batch(model, 1);
 
-    # 3. Load network to CPU
+    # 3. Load the model to CPU
     compiled_model = core.compile_model(model, "CPU")
 
     # 4. Create Infer Request
