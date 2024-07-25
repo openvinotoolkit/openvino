@@ -63,15 +63,22 @@ std::vector<TRShape> shape_infer(const STFT* op,
 
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
-                           window_shape.is_dynamic() || (0 < window_shape[0].get_length() && window_shape[0].get_length() <= frame_size_val),
+                           window_shape.is_dynamic() ||
+                               (0 < window_shape[0].get_length() && window_shape[0].get_length() <= frame_size_val),
                            "Window input dimension must be in range [1, ",
                            frame_size_val,
                            "]");
 
     const auto& batch_dim = signal_shape[0];
     const TDim frame_size_dim = TDim{frame_size_val};
-    const TDim frames_dim = ((signal_shape[1] - frame_size_dim) / frame_step_val) + 1;
+    const TDim signal_frame_size_diff = signal_shape[1] - frame_size_dim;
     const TDim fft_samples_dim = (frame_size_val / 2) + 1;
+
+    // Divsion opeartor for static Dimension of PartialShape can return non static dimension,
+    // so get_length() is used to ensure static result for such case
+    const TDim frames_dim = (signal_frame_size_diff.is_static() ? (signal_frame_size_diff.get_length() / frame_step_val)
+                                                                : (signal_frame_size_diff / frame_step_val)) +
+                            1;
 
     TRShape output_shape;
     if (op->m_transpose_frames) {
