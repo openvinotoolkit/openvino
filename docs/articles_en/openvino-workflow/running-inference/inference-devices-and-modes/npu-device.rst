@@ -208,15 +208,13 @@ Has no effect for other ``ov::hint::PerformanceMode`` hints.
    * - latency
      - Prioritize performance over power efficiency.
 
-.. tab-set::
+Usage example:
 
-   .. tab-item:: Usage example
+.. code-block::
 
-      .. code-block::
+   map<str, str> config = {ov::intel_npu::compilation_mode_params.name(), ov::Any("optimization-level=1 performance-hint-override=latency")};
 
-         map<str, str> config = {ov::intel_npu::compilation_mode_params.name(), ov::Any("optimization-level=1 performance-hint-override=latency")};
-
-         compile_model(model, config);
+   compile_model(model, config);
 
 **npu_turbo**
 
@@ -225,19 +223,15 @@ maximum NPU frequency and memory throughput within the platform TDP limits.
 The turbo mode is not recommended for sustainable workloads due to higher power
 consumption and potential impact on other compute resources.
 
-.. tab-set::
+.. code-block::
 
-   .. tab-item:: Usage example
+   core.set_property("NPU", ov::intel_npu::turbo(true));
 
-      .. code-block::
+or
 
-         core.set_property("NPU", ov::intel_npu::turbo(true));
+.. code-block::
 
-      or
-
-      .. code-block::
-
-         core.compile_model(ov_model, "NPU", {ov::intel_npu::turbo(true)});
+   core.compile_model(ov_model, "NPU", {ov::intel_npu::turbo(true)});
 
 
 Limitations
