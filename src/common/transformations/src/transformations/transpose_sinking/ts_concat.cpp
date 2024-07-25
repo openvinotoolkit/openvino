@@ -36,7 +36,7 @@ TSConcatForward::TSConcatForward() {
             return false;
         }
 
-        if (concat_node->get_output_partial_shape(0).is_dynamic()) {
+        if (concat_node->get_output_partial_shape(0).rank().is_dynamic()) {
             return false;
         }
         // todo: support dyn rank case
@@ -83,7 +83,7 @@ TSConcatBackward::TSConcatBackward() {
         }
 
         auto concat_node = as_type_ptr<ov::op::v0::Concat>(main_node);
-        if (concat_node->get_output_partial_shape(0).is_dynamic()) {
+        if (concat_node->get_output_partial_shape(0).rank().is_dynamic()) {
             return false;
         }
 
