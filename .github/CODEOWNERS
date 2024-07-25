@@ -97,7 +97,7 @@
 
 # QA Tests:
 /tests/  @openvinotoolkit/openvino-tests-maintainers
-/tests/layer_tests/ @openvinotoolkit/openvino-tests-maintainers @openvinotoolkit/openvino-mo-maintainers
+/tests/layer_tests/ @openvinotoolkit/openvino-tests-maintainers @openvinotoolkit/openvino-ovc-maintainers
 /tests/layer_tests/pytorch_tests/ @openvinotoolkit/openvino-pytorch-frontend-maintainers
 /tests/layer_tests/tensorflow_tests @openvinotoolkit/openvino-tf-frontend-maintainers
 /tests/layer_tests/jax_tests @openvinotoolkit/openvino-tf-frontend-maintainers @openvinotoolkit/openvino-jax-frontend-maintainers
@@ -110,7 +110,7 @@
 /tools/legacy/ @openvinotoolkit/openvino-samples-maintainers
 /tools/openvino_dev/ @openvinotoolkit/openvino-tools-maintainers @openvinotoolkit/openvino-ie-python-api-maintainers
 /tools/mo/  @openvinotoolkit/openvino-mo-maintainers
-/tools/ovc/  @openvinotoolkit/openvino-mo-maintainers
+/tools/ovc/  @openvinotoolkit/openvino-ovc-maintainers
 /thirdparty/open_model_zoo/ @openvinotoolkit/omz-maintainers
 
 # Documentation
@@ -118,7 +118,7 @@
 /docs/CMakeLists.txt @openvinotoolkit/openvino-ie-maintainers
 /**/*.md  @openvinotoolkit/openvino-docs-maintainers
 /**/*.svg  @openvinotoolkit/openvino-docs-maintainers
-/docs/MO_DG/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-mo-maintainers
+/docs/MO_DG/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ovc-maintainers
 /docs/OV_Runtime_UG/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-maintainers
 /docs/IE_PLUGIN_DG/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-maintainers
 /docs/Extensibility_UG/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-maintainers
