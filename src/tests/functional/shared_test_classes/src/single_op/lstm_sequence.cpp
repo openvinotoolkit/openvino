@@ -167,7 +167,7 @@ void LSTMSequenceTest::SetUp() {
         ov::pass::Manager manager;
         if (direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL)
             manager.register_pass<ov::pass::BidirectionalLSTMSequenceDecomposition>();
-        manager.register_pass<ov::pass::ConvertLSTMSequenceToTensorIterator>();
+        //manager.register_pass<ov::pass::ConvertLSTMSequenceToTensorIterator>();
         manager.run_passes(function);
         bool ti_found = ov::test::utils::is_tensor_iterator_exist(function);
         EXPECT_EQ(ti_found, true);

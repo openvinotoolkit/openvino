@@ -276,9 +276,9 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
 
     cldnn::primitive_id lstm_seq_id = layerName;// + "_lstm_seq";
     p.add_primitive(*op, cldnn::mutable_data(lstm_seq_id + ".out1", {cldnn::input_info(lstm_seq_id + ".out0")}, shared_memory1));
-    inputs.push_back(cldnn::input_info(lstm_seq_id + ".out1"));
+    //inputs.push_back(cldnn::input_info(lstm_seq_id + ".out1"));
     p.add_primitive(*op, cldnn::mutable_data(lstm_seq_id + ".out2", {cldnn::input_info(lstm_seq_id + ".out0")}, shared_memory2));
-    inputs.push_back(cldnn::input_info(lstm_seq_id + ".out2"));
+    //inputs.push_back(cldnn::input_info(lstm_seq_id + ".out2"));
     p.add_primitive(*op, cldnn::lstm_seq(lstm_seq_id + ".out0", inputs[0], inputs[1], \
     inputs[2], inputs[3], inputs[4], inputs[5], \
     cldnn::input_info(bias), inCellStateID, clip, 0, activations, activation_params, cldnn::lstm_weights_order::fizo, 0));

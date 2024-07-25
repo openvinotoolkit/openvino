@@ -72,8 +72,8 @@ public:
         params.clip = primitive->clip;
         params.input_forget = primitive->input_forget;
         params.direction = primitive->direction;
-        params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[1]));
-        params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[2]));
+        params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(1)));
+        params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(2)));
 
         return params;
     }

@@ -305,12 +305,7 @@ protected:
                             const std::vector<padding>& output_paddings = {padding()},
                             const std::vector<optional_data_type> output_data_types = {optional_data_type()},
                             const size_t num_outputs = 1)
-        : primitive(PType::type_id(), id, input, output_paddings, output_data_types, num_outputs) {
-            if ( id == "lstmsequence:LSTMSequence_7435.out0" || id == "lstmsequence:LSTMSequence_7434.out0" ) {
-                int a = 4;
-                a++;
-            }
-        }
+        : primitive(PType::type_id(), id, input, output_paddings, output_data_types, num_outputs) {}
 };
 
 struct primitive_info {
