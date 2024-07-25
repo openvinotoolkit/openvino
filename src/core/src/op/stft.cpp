@@ -96,6 +96,10 @@ bool STFT::has_evaluate() const {
     return input_0_et == element::f32;
 }
 
+bool STFT::get_transpose_frames() const {
+    return m_transpose_frames;
+}
+
 }  // namespace v15
 }  // namespace op
 }  // namespace ov

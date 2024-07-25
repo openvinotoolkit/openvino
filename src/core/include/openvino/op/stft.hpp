@@ -41,6 +41,8 @@ public:
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
 
+    bool get_transpose_frames() const;
+
 private:
     bool m_transpose_frames = false;
 };
