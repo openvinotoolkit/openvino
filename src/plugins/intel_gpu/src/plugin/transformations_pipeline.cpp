@@ -172,7 +172,7 @@ static std::shared_ptr<ov::Node> get_single_non_const_dependency(const std::shar
         if (ov::is_type<ov::op::v0::Constant>(dep))
             continue;
 
-        // When multiple non-const deps return nullptr
+        // When there are multiple non-const deps return nullptr
         if (res) {
             return nullptr;
         }
@@ -822,11 +822,30 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 // In case of Transpose -> Eltwise -> MatMul pattern we allow eltwise move
                 // as Tranpose can be fused into MatMul
                 // In other cases we prefer to keep Eltwise as is since Transpose supports fusions
-                // Applicable for platforms with XMX only
+                // Applicable for platforms with XMX only with limited set of supported transpose orders
                 auto input = get_single_non_const_dependency(node);
                 auto output = get_single_consumer(node);
-                if (input && output && ov::is_type<ov::op::v1::Transpose>(input) && (!ov::is_type<ov::op::v0::MatMul>(output) || !device_info.supports_immad)) {
-                    return true;
+                if (input && output && ov::is_type<ov::op::v1::Transpose>(input)) {
+                    if (!ov::is_type<ov::op::v0::MatMul>(output) || !device_info.supports_immad)
+                        return true;
+
+                    auto order_node = input->get_input_node_shared_ptr(1);
+                    if (!ov::is_type<ov::op::v0::Constant>(order_node))
+                        return true;
+
+                    auto transpose_order = std::dynamic_pointer_cast<ov::op::v0::Constant>(order_node)->cast_vector<int64_t>();
+                    static const std::vector<std::vector<int64_t>> allowed_orders = {
+                        {0, 1, 2, 3},
+                        {0, 1, 3, 2},
+                        {0, 2, 1, 3},
+                        {0, 3, 1, 2},
+                        {1, 2, 0, 3},
+                        {2, 0, 1, 3},
+                        {3, 0, 1, 2},
+                    };
+
+                    if (!cldnn::one_of(transpose_order, allowed_orders))
+                        return true;
                 }
 
                 return false;
