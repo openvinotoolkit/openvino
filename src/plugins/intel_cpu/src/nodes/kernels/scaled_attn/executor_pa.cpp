@@ -871,6 +871,7 @@ struct MHAHelper {
     }
 
     void init_score_buffers(const PlainTensor& past_lens, const PlainTensor& subsequence_begins) {
+        static constexpr int cache_line_size = dnnl::impl::cpu::platform::get_cache_line_size();
         auto seq_cout = static_cast<int32_t>(past_lens.m_dims[0]);
         _score_offsets_aligned.resize<int32_t>({past_lens.m_dims[0]});
         _score_offsets.resize<int32_t>({past_lens.m_dims[0]});
@@ -881,7 +882,8 @@ struct MHAHelper {
             auto kv_len = past_lens.ptr<int32_t>()[i] + q_len;
             _score_offsets_aligned.ptr<int32_t>()[i] = total_kv_len_aligned;
             _score_offsets.ptr<int32_t>()[i] = total_kv_len;
-            total_kv_len_aligned += rnd_up(kv_len, 16);
+            // aligned to cache line to avoid false sharing
+            total_kv_len_aligned += rnd_up(kv_len, cache_line_size / sizeof(float));
             total_kv_len += kv_len;
         }
 

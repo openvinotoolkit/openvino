@@ -153,17 +153,18 @@ void PagedAttention::execute(dnnl::stream strm) {
     }
 
     const auto& queryDims = inputs[0]->getStaticDims();
-    size_t len = 0;
     if (m_hasScore) {
+        size_t len = 0;
         const auto& pastLensDims = inputs[5]->getStaticDims();
         auto pastLens = inputs[5]->getDataAs<const int32_t>();
         for (size_t i = 0; i < pastLensDims[0]; i++)
             len += pastLens[i];
         len += queryDims[0];
+        VectorDims scoreDims{len};
+        redefineOutputMemory({queryDims, scoreDims});
+    } else {
+        redefineOutputMemory(0, queryDims);
     }
-
-    VectorDims scoreDims{len};
-    redefineOutputMemory({queryDims, scoreDims});
 
     outputs[0] = getDstMemoryAtPort(0);
     if (m_hasScore)
