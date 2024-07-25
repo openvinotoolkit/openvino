@@ -267,6 +267,7 @@ Before saving the model to OpenVINO IR, consider
 :doc:`Post-training Optimization <model-optimization-guide/quantizing-models-post-training>` to achieve more efficient inference and
 a smaller model.
 
+.. _convert_model_cli_ovc:
 
 Convert a Model in CLI: ``ovc``
 ###############################

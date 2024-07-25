@@ -99,8 +99,8 @@ MemBandwidthPressure mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::
 
             // Check that input and output shape a fully defined (not dynamic)
             if (input.get_partial_shape().is_static() && output.get_partial_shape().is_static()) {
-                const auto shapeInput = input.get_shape();
-                const auto shapeOutput = output.get_shape();
+                const auto& shapeInput = input.get_shape();
+                const auto& shapeOutput = output.get_shape();
                 if (shapeInput.size() > 4 /*5D*/ && isINT8) {
                     compute_deconvs++;
                     continue;
