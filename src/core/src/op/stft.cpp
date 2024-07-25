@@ -8,7 +8,7 @@
 
 #include "itt.hpp"
 #include "openvino/reference/stft.hpp"
-#include "rdft_shape_inference.hpp"
+#include "stft_shape_inference.hpp"
 
 namespace ov {
 namespace op {
@@ -40,48 +40,12 @@ bool STFT::visit_attributes(AttributeVisitor& visitor) {
 void STFT::validate_and_infer_types() {
     OV_OP_SCOPE(v15_STFT_validate_and_infer_types);
 
-    // TODO: Add validation for input shapes
-    // TODO: Move to shape_infer
+    // TODO: Add input types validation
 
-    const auto& data_shape = get_input_partial_shape(0);
-    const ITensorAccessor& ta = make_tensor_accessor();
-    constexpr auto frame_size_port = 2;
-    constexpr auto frame_step_port = 3;
-    const auto frame_size = get_input_const_data_as<ov::PartialShape, int64_t>(this, frame_size_port, ta);
-    const auto frame_step = get_input_const_data_as<ov::PartialShape, int64_t>(this, frame_step_port, ta);
+    const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
+    const auto output_shapes = shape_infer(this, input_shapes);
 
-    if (!frame_size || !frame_step) {
-        ov::PartialShape output_shape{data_shape[0], {1, -1}, {1, -1}, 2};
-        set_output_type(0, get_input_element_type(0), output_shape);
-        return;
-    }
-
-    const auto& frame_size_val = (*frame_size)[0];
-    const auto& frame_step_val = (*frame_step)[0];
-
-    NODE_VALIDATION_CHECK(
-        this,
-        0 < frame_size_val && (data_shape.is_dynamic() || frame_size_val < data_shape[1].get_length()),
-        "Provided frame size is ",
-        frame_size_val,
-        " but must be in range {0, ",
-        data_shape[1],
-        "}");
-
-    ov::PartialShape output_shape;
-    if (!m_transpose_frames) {  // [batch, frames, fft_samples, 2]
-        output_shape = ov::PartialShape{data_shape[0],
-                                        ((data_shape[1] - frame_size_val) / frame_step_val) + 1,
-                                        (frame_size_val / 2) + 1,
-                                        2};
-    } else {  // [batch, fft_samples, frames, 2]
-        output_shape = ov::PartialShape{data_shape[0],
-                                        (frame_size_val / 2) + 1,
-                                        ((data_shape[1] - frame_size_val) / frame_step_val) + 1,
-                                        2};
-    }
-
-    set_output_type(0, get_input_element_type(0), output_shape);
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
 bool STFT::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
