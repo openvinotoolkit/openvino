@@ -176,8 +176,8 @@ public:
                     std::cout << "  ";
                 }
                 std::cout << std::setw(60) << left << name;
-                std::cout << std::setw(5) << right << stopwatch.get_milliseconds() << "ms "
-                          << (applied ? "+" : "-") << std::endl;
+                std::cout << std::setw(5) << right << stopwatch.get_milliseconds() << "ms " << (applied ? "+" : "-")
+                          << std::endl;
             } else if (m_file.is_open()) {
                 if (is_pass_manager) {
                     m_file << "m;" << name << ";" << stopwatch.get_timer_value().count() << ";" << (applied ? "1" : "0")
@@ -190,7 +190,6 @@ public:
                 OPENVINO_THROW("The output file for recording transformation statistics is closed. "
                                "Recording of the statistics is not possible.")
             }
-
         }
     }
 
