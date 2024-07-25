@@ -5,6 +5,7 @@
 #include "pyopenvino/core/core.hpp"
 
 #include <pybind11/stl.h>
+#include <fstream>
 
 #include <openvino/core/any.hpp>
 #include <openvino/runtime/core.hpp>
@@ -550,11 +551,21 @@ void regclass_Core(py::module m) {
                                      "`model_stream` must be an io.BytesIO object but " +
                                      (std::string)(py::repr(model_stream)) + "` provided");
             }
-            model_stream.attr("seek")(0);  // Always rewind stream!
-            std::stringstream _stream;
-            _stream << model_stream
-                           .attr("read")()  // alternative: model_stream.attr("get_value")()
-                           .cast<std::string>();
+            std::cout << "\n\nUsing the new import_model functionality\n\n";
+            std::fstream _stream;
+            _stream.open("example.txt", std::ios::out | std::ios::binary);
+            if (_stream.is_open()) {
+                _stream << model_stream
+                        .attr("read")()
+                        .cast<std::string>();
+                _stream.close();
+                if (std::remove("example.txt") != 0) {
+                    std::cout << "Failed to delete file" << std::endl;
+                }
+            }
+            else {
+                std::cout << "Failed to open file" << std::endl;
+            }
             py::gil_scoped_release release;
             return self.import_model(_stream, device_name, _properties);
         },
