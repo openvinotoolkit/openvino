@@ -16,6 +16,7 @@
 #include "itt.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/visualize_tree.hpp"
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/log.hpp"
 #include "perf_counters.hpp"
@@ -57,9 +58,10 @@ public:
         std::set<std::string> off = {"0", "false", "off"};
         std::set<std::string> on = {"1", "true", "on"};
 
-        if (off.count(val)) {
+        const auto& val_lower = ov::util::to_lower(var);
+        if (off.count(val_lower)) {
             m_is_bool = true;
-        } else if (on.count(val)) {
+        } else if (on.count(val_lower)) {
             m_is_bool = true;
             b_value = true;
         } else {
@@ -133,7 +135,7 @@ class Profiler {
 public:
     explicit Profiler(std::string manager_name)
         : m_visualize("OV_ENABLE_VISUALIZE_TRACING"),
-          m_serialize("OV_ENABLE_SERIALIZE_PASS"),
+          m_serialize("OV_ENABLE_SERIALIZE_TRACING"),
           m_profile_pass("OV_ENABLE_PROFILE_PASS"),
           m_manager_name(std::move(manager_name)) {
         if (m_profile_pass.is_enabled() && !m_profile_pass.is_bool()) {
@@ -154,7 +156,8 @@ public:
 
             bool is_pass_manager = name == m_manager_name;
             if (is_pass_manager) {
-                std::cout << "PassManager " << m_manager_name << " started: " << std::endl;
+                std::cout << std::setw(25) << left;
+                std::cout << "PassManager started: " << m_manager_name << std::endl;
             }
         }
     }
@@ -166,12 +169,15 @@ public:
 
             bool is_pass_manager = name == m_manager_name;
             if (m_profile_pass.is_bool()) {
+                std::cout << std::setw(25) << left;
                 if (is_pass_manager) {
-                    std::cout << "PassManager: ";
+                    std::cout << "PassManager finished: ";
                 } else {
-                    std::cout << "Transformation: ";
+                    std::cout << "  ";
                 }
-                std::cout << name << " " << stopwatch.get_milliseconds() << "ms " << (applied ? "+" : "-") << std::endl;
+                std::cout << std::setw(60) << left << name;
+                std::cout << std::setw(5) << right << stopwatch.get_milliseconds() << "ms "
+                          << (applied ? "+" : "-") << std::endl;
             } else if (m_file.is_open()) {
                 if (is_pass_manager) {
                     m_file << "m;" << name << ";" << stopwatch.get_timer_value().count() << ";" << (applied ? "1" : "0")
@@ -180,7 +186,11 @@ public:
                     m_file << "t;" << name << ";" << m_manager_name << ";" << stopwatch.get_timer_value().count() << ";"
                            << (applied ? "1" : "0") << std::endl;
                 }
+            } else {
+                OPENVINO_THROW("The output file for recording transformation statistics is closed. "
+                               "Recording of the statistics is not possible.")
             }
+
         }
     }
 
