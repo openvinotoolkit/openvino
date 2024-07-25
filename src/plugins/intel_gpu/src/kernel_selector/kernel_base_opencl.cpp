@@ -168,15 +168,7 @@ std::shared_ptr<KernelString> KernelBaseOpenCL::GetKernelString(const std::strin
     for (auto n : db.get_batch_headers()) {
         names.push_back(n.first);
     }
-    if ( name == "lstm_seq_gpu_bfyx_ref" ) {
-        int ab = 9;
-        ab++;
-    }
 
-    if ( name == "lstm_elt_gpu_bfyx_ref" ) {
-        int ab = 9;
-        ab++;
-    }
     auto codes = db.get(name);
 
     if (codes.size()) {

@@ -270,10 +270,6 @@ reshape_inst::typed_primitive_inst(network& network, reshape_node const& node) :
                                     "output layout data type",
                                     output_layout.data_type,
                                     "");
-    if ( output_layout.count() != input_layout.count() ) {
-        int a = 5;
-        a++;
-    }
     if (output_layout.is_static() && input_layout.is_static())
         CLDNN_ERROR_NOT_EQUAL(node.id(),
                               "Output layout count",

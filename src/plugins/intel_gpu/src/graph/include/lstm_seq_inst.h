@@ -57,6 +57,14 @@ public:
     }
     bool input_forget() const { return get_typed_desc<lstm_seq>()->input_forget; }
     uint32_t direction() const { return get_typed_desc<lstm_seq>()->direction; }
+    memory::ptr second_output_mem() const {
+        size_t offset = 1;
+        return dep_memory_ptr(offset);
+    }
+    memory::ptr third_output_mem() const {
+        size_t offset = 2;
+        return dep_memory_ptr(offset);
+    }
 };
 
 using lstm_seq_inst = typed_primitive_inst<lstm_seq>;

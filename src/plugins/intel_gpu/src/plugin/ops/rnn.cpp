@@ -255,10 +255,8 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     cldnn::primitive_id permuteID = layerName + "_inputReorder";
     cldnn::primitive_id inHiddenReshapeID = layerName + "_inHiddenReshape";
     cldnn::primitive_id inHiddenReorderID = layerName + "_inHiddenReorder";
-    cldnn::primitive_id inHiddenStateID = inHiddenReshapeID + "_1ohoh";
-    cldnn::primitive_id inCellStateID = inHiddenReshapeID + "_2asas";
-    cldnn::primitive_id inHiddenState_reor_ID = inHiddenReshapeID + "reor_1dsd";
-    cldnn::primitive_id inCellState_reor_ID = inHiddenReshapeID + "reor_2zxc";
+    cldnn::primitive_id inHiddenStateID = inHiddenReshapeID + "_1";
+    cldnn::primitive_id inCellStateID = inHiddenReshapeID + "_2";
 
     auto mutable_precision_first = op->get_output_element_type(1);
     cldnn::layout out1Layout = cldnn::layout(

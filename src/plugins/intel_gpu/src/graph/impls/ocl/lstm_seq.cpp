@@ -32,6 +32,8 @@ protected:
         for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
             args.outputs.push_back(instance.output_memory_ptr(i));
         }
+        args.outputs.push_back(instance.second_output_mem());
+        args.outputs.push_back(instance.third_output_mem());
         return args;
     }
 
