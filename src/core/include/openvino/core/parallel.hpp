@@ -495,6 +495,13 @@ void parallel_for2d_dynamic(const T0& D0, const T1& D1, const F& func) {
             }
         }
     });
+#elif OV_THREAD == OV_THREAD_OMP
+#    pragma omp parallel for collapse(2) schedule(dynamic, 2)
+    for (T0 d0 = 0; d0 < D0; d0++) {
+        for (T1 d1 = 0; d1 < D1; d1++) {
+            func(d0, d1);
+        }
+    }
 #else
     parallel_for2d(D0, D1, [&](size_t d0, size_t d1) {
         func(d0, d1);
@@ -564,6 +571,15 @@ void parallel_for3d_dynamic(const T0& D0, const T1& D1, const T2& D2, const F& f
                               }
                           }
                       });
+#elif OV_THREAD == OV_THREAD_OMP
+#    pragma omp parallel for collapse(3) schedule(dynamic, 2)
+    for (T0 d0 = 0; d0 < D0; d0++) {
+        for (T1 d1 = 0; d1 < D1; d1++) {
+            for (T2 d2 = 0; d2 < D2; d2++) {
+                func(d0, d1, d2);
+            }
+        }
+    }
 #else
     parallel_for3d(D0, D1, D2, [&](size_t d0, size_t d1, size_t d2) {
         func(d0, d1, d2);

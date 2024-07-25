@@ -19,12 +19,13 @@ if(THREADING STREQUAL "OMP")
                 SHA256 "62c68646747fb10f19b53217cb04a1e10ff93606f992e6b35eb8c31187c68fbf"
                 USE_NEW_LOCATION TRUE)
     elseif(LINUX AND X86_64 AND OPENVINO_GNU_LIBC)
+        set(IE_PATH_TO_DEPS "https://github.com/luo-cheng2021/cpu_extensions/releases/download/20230725")
         RESOLVE_DEPENDENCY(OMP
-                ARCHIVE_LIN "iomp.tgz"
+                ARCHIVE "omp_20240725_lin.tgz"
                 TARGET_PATH "${TEMP}/omp"
                 ENVIRONMENT "OMP"
                 VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
-                SHA256 "7832b16d82513ee880d97c27c7626f9525ebd678decf6a8fe6c38550f73227d9"
+                SHA256 "d7c600c9e1d531075b5124089808bdc4af3dc81b9054f558acb3c0976044c99b"
                 USE_NEW_LOCATION TRUE)
     elseif(APPLE AND X86_64)
         RESOLVE_DEPENDENCY(OMP

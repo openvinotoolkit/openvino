@@ -1446,7 +1446,7 @@ void Graph::Infer(SyncInferRequest* request) {
 
     switch (status) {
     case Status::ReadyDynamic:
-        InferDynamic(request, UpdateNodes(m_executableGraphNodes));
+        InferDynamic(request, UpdateNodesSeq(m_executableGraphNodes));
         break;
     case Status::ReadyDynamicSeq:
         InferDynamic(request, UpdateNodesSeq(m_executableGraphNodes));
