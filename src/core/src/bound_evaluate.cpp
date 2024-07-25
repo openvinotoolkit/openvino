@@ -139,6 +139,11 @@ struct SingleBound {
         }
     }
 
+    void set_same_bound_at_port(descriptor::Tensor& tensor_desc, const size_t port) const {
+        tensor_desc.set_lower_value(bounds[port]);
+        tensor_desc.set_upper_value(bounds[port]);
+    }
+
     TensorVector bounds;
 };
 
@@ -153,9 +158,9 @@ protected:
         return node.evaluate_lower(bounds);
     }
 
-    void set_bound_at_port(descriptor::Tensor& tensor_desc, const size_t port, const bool same_inputs) const {
+    void set_bound_at_port(descriptor::Tensor& tensor_desc, const size_t port) const {
         tensor_desc.set_lower_value(bounds[port]);
-        if (same_inputs || are_equal(bounds[port], tensor_desc.get_upper_value())) {
+        if (are_equal(bounds[port], tensor_desc.get_upper_value())) {
             tensor_desc.set_upper_value(bounds[port]);
         }
     }
@@ -172,9 +177,9 @@ protected:
         return node.evaluate_upper(bounds);
     }
 
-    void set_bound_at_port(descriptor::Tensor& tensor_desc, const size_t port, const bool same_inputs) const {
+    void set_bound_at_port(descriptor::Tensor& tensor_desc, const size_t port) const {
         tensor_desc.set_upper_value(bounds[port]);
-        if (same_inputs || are_equal(bounds[port], tensor_desc.get_lower_value())) {
+        if (are_equal(bounds[port], tensor_desc.get_lower_value())) {
             tensor_desc.set_lower_value(bounds[port]);
         }
     }
@@ -183,9 +188,7 @@ protected:
 /** @brief Both bounds evaluation specific actions. */
 struct BothBounds {
     static bool requires_evaluation(const descriptor::Tensor& tensor_desc) {
-        const auto lb = tensor_desc.get_lower_value();
-        const auto ub = tensor_desc.get_upper_value();
-        return static_cast<bool>(lb) != static_cast<bool>(ub) || !lb;
+        return !tensor_desc.get_lower_value() || !tensor_desc.get_upper_value();
     }
 
 protected:
@@ -204,9 +207,14 @@ protected:
         }
     }
 
-    void set_bound_at_port(descriptor::Tensor& tensor_desc, const size_t port, const bool same_inputs) const {
+    void set_same_bound_at_port(descriptor::Tensor& tensor_desc, const size_t port) const {
         tensor_desc.set_lower_value(lowers[port]);
-        if (same_inputs || are_equal(lowers[port], uppers[port])) {
+        tensor_desc.set_upper_value(lowers[port]);
+    }
+
+    void set_bound_at_port(descriptor::Tensor& tensor_desc, const size_t port) const {
+        tensor_desc.set_lower_value(lowers[port]);
+        if (are_equal(lowers[port], uppers[port])) {
             tensor_desc.set_upper_value(lowers[port]);
         } else {
             tensor_desc.set_upper_value(uppers[port]);
@@ -253,12 +261,13 @@ struct Evaluator : BoundType {
     }
 
     void set_bounds_and_symbols() const {
-        const auto same_inputs = node_has_same_inputs(*node);
+        const auto set_bound =
+            node_has_same_inputs(*node) ? &Evaluator::set_same_bound_at_port : &Evaluator::set_bound_at_port;
 
         for (size_t port = 0; port < node->get_output_size(); ++port) {
             auto& output_tensor_desc = node->get_output_tensor(port);
 
-            BoundType::set_bound_at_port(output_tensor_desc, port, same_inputs);
+            (this->*set_bound)(output_tensor_desc, port);
             symbol_evaluator.set_symbols_at_port(output_tensor_desc, port);
         }
     }
