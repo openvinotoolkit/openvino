@@ -15,13 +15,21 @@ if (process.argv.length !== 6)
   throw new Error(
     `Usage: ${process.argv[1]} <path_to_detection_model>` +
       ' <path_to_recognition_model>' +
-      '<path_to_image> <device_name>',
+      ' <path_to_image> <device_name>',
   );
 
 const detModelXMLPath = process.argv[2];
 const recModelXMLPath = process.argv[3];
 const imagePath = process.argv[4];
 const deviceName = process.argv[5];
+
+if (require.main === module) {
+  try {
+    main(detModelXMLPath, recModelXMLPath, imagePath, deviceName);
+  } catch(error) {
+    console.error('Error Occurred', error);
+  }
+}
 
 async function main(detModelXMLPath, recModelXMLPath, imagePath, deviceName) {
   // Initialize OpenVINO core and load the detection mode
@@ -339,7 +347,7 @@ function convertResultToImage(
   return rgbImage;
 }
 
-// infer async helper function
+// Infer async helper function
 
 async function inferAsyncProcess(
   tensor,
@@ -411,10 +419,4 @@ function saveImage(rgbImage, savePath) {
 
   fs.writeFileSync(savePath, imageBuffer);
   console.log('Image saved successfully!', savePath);
-}
-
-try {
-  main(detModelXMLPath, recModelXMLPath, imagePath, deviceName);
-} catch(error) {
-  console.error('Error during inference:', error);
 }
