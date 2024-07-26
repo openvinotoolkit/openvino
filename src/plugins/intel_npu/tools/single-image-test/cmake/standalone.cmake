@@ -44,14 +44,13 @@ set(DEPENDENCIES
         npu_tools_utils
 )
 
-if (CMAKE_COMPILER_IS_GNUCXX)
-    target_compile_options(${TARGET_NAME} PRIVATE -Wall)
-endif()
-
 file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
 
 add_executable(${TARGET_NAME} ${SOURCES})
 target_link_libraries(${TARGET_NAME} PRIVATE ${DEPENDENCIES})
+if (CMAKE_COMPILER_IS_GNUCXX)
+    target_compile_options(${TARGET_NAME} PRIVATE -Wall)
+endif()
 
 install(TARGETS ${TARGET_NAME}
         DESTINATION "tools/${TARGET_NAME}"
