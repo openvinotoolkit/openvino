@@ -6,6 +6,9 @@
 namespace ov {
 namespace intel_cpu {
 
+#define INIT(func) \
+          OPENVINO_ASSERT((func) == CSINN_TRUE, "ShlEltwiseExecutor: failed to init");
+
 inline void log_unsupported_prec(const std::vector<MemoryDescPtr>& srcDescs,
                                  const std::vector<MemoryDescPtr>& dstDescs,
                                  const Algorithm eltwiseAlgorithm) {
@@ -35,33 +38,17 @@ bool ShlEltwiseExecutor::isEltwiseAlgorithmSupported(Algorithm algorithm) {
 bool ShlEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
                                             const std::vector<MemoryDescPtr>& srcDescs,
                                             const std::vector<MemoryDescPtr>& dstDescs) const {
-    auto checkPrecision = [&srcDescs, &dstDescs](std::vector<ov::element::Type> srcVecPrc, ov::element::Type dstPrc) -> bool {
-        for (size_t i = 0; i < srcDescs.size(); i++) {
-            if (srcDescs[i]->getPrecision() != srcVecPrc[i]) return false;
-        }
-        if (dstDescs[0]->getPrecision() != dstPrc) { return false; }
-        return true;
-    };
+    if (!ShlEltwiseExecutor::isEltwiseAlgorithmSupported(eltwiseAttrs.algorithm)) {
+        DEBUG_LOG("Eltwise algorithm ", algToString(eltwiseAttrs.algorithm), " is not supported");
+        return false;
+    }
 
-    switch (eltwiseAttrs.algorithm) {
-        // Support eltwise ops with `FP32` precision only for now 
-        case Algorithm::EltwiseAdd:
-        case Algorithm::EltwiseSubtract:
-        case Algorithm::EltwiseMultiply:
-        case Algorithm::EltwiseDivide:
-        case Algorithm::EltwiseMaximum:
-        case Algorithm::EltwiseMinimum:
-        case Algorithm::EltwiseExp:
-        case Algorithm::EltwiseRelu:
-        case Algorithm::EltwisePrelu:
-            if (!(checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32))) {
-                log_unsupported_prec(srcDescs, dstDescs, eltwiseAttrs.algorithm);
-                return false;
-            }
-            break;
-        default:
-            DEBUG_LOG("Eltwise algorithm ", algToString(eltwiseAttrs.algorithm), " is not supported");
-            return false;
+    constexpr auto supported_prec = ov::element::f32;
+    auto is_precision_supported = [supported_prec](const MemoryDescPtr& desc) { return desc->getPrecision() == supported_prec; };
+    if (!(std::all_of(srcDescs.cbegin(), srcDescs.cend(), is_precision_supported) &&
+          std::all_of(dstDescs.cbegin(), dstDescs.cend(), is_precision_supported))) {
+        DEBUG_LOG("ShlEltwise supports only f32");
+        return false;
     }
 
     for (const auto & srcDesc : srcDescs) {
@@ -69,8 +56,7 @@ bool ShlEltwiseExecutorBuilder::isSupported(const EltwiseAttrs& eltwiseAttrs,
         switch (eltwiseAttrs.algorithm) {
             case Algorithm::EltwisePrelu:
                 // SHL PRelu op only supports these two kinds of layout
-                if (!(supportedLayout == csinn_layout_enum::CSINN_LAYOUT_NC1HWC0 ||
-                      supportedLayout == csinn_layout_enum::CSINN_LAYOUT_NCHW)) {
+                if (!(supportedLayout == csinn_layout_enum::CSINN_LAYOUT_NC1HWC0 || supportedLayout == csinn_layout_enum::CSINN_LAYOUT_NCHW)) {
                     DEBUG_LOG("src descriptor layout is unsupported by SHL Prelu op: ", srcDesc->serializeFormat());
                     return false;
                 }
@@ -109,61 +95,62 @@ bool ShlEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs,
     sess = ShlSession();
 
     for (size_t i = 0; i < srcDescs.size(); i++) {
-        srcTensors[i] = ShlTensor(sess, precisionToShlDataType(srcDescs[i]->getPrecision()), getShlDataLayoutByMemoryDesc(srcDescs[i]));
+        srcTensors[i] = ShlTensor(sess, precisionToShlDataType(srcDescs[i]->getPrecision()), getShlDataLayoutByMemoryDesc(srcDescs[i]), srcDescs[i]->getShape().getStaticDims());
     }
     for (size_t i = 0; i < dstDescs.size(); i++) {
-        dstTensors[i] = ShlTensor(sess, precisionToShlDataType(dstDescs[i]->getPrecision()), getShlDataLayoutByMemoryDesc(dstDescs[i]));
+        dstTensors[i] = ShlTensor(sess, precisionToShlDataType(dstDescs[i]->getPrecision()), getShlDataLayoutByMemoryDesc(dstDescs[i]), dstDescs[i]->getShape().getStaticDims());
     }
 
+    enum csinn_api_enum shl_api = CSINN_RVV;
     switch (shlEltwiseAttrs.algorithm) {
     case Algorithm::EltwiseAdd:
-        params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, CSINN_RVV);
-        setInitFunc(csinn_add_init, srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
-        break;
+        params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, shl_api);
+        INIT(csinn_add_init(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get())));
+        return true;
     case Algorithm::EltwiseSubtract:
-        params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, CSINN_RVV);
-        setInitFunc(csinn_sub_init, srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
-        break;
+        params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, shl_api);
+        INIT(csinn_sub_init(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get())));
+        return true;
     case Algorithm::EltwiseMultiply:
-        params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, CSINN_RVV);
-        setInitFunc(csinn_mul_init, srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
-        break;
+        params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, shl_api);
+        INIT(csinn_mul_init(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get())));
+        return true;
     case Algorithm::EltwiseDivide:
-        params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, CSINN_RVV);
-        setInitFunc(csinn_div_init, srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
-        break;
+        params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, shl_api);
+        INIT(csinn_div_init(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get())));
+        return true;
     case Algorithm::EltwiseMaximum:
-        params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, CSINN_RVV);
-        setInitFunc(csinn_maximum_init, srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
-        break;
+        params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, shl_api);
+        INIT(csinn_maximum_init(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get())));
+        return true;
     case Algorithm::EltwiseMinimum:
-        params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, CSINN_RVV);
-        setInitFunc(csinn_minimum_init, srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
-        break;
+        params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, shl_api);
+        INIT(csinn_minimum_init(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get())));
+        return true;
     case Algorithm::EltwiseExp:
-        params = ov::intel_cpu::make_unique<ShlSisoParams>(sess, CSINN_RVV);
-        setInitFunc(csinn_exp_init, srcTensors[0].get(), dstTensors[0].get(), static_cast<csinn_siso_params*>(params->get()));
-        break;
+        params = ov::intel_cpu::make_unique<ShlSisoParams>(sess, shl_api);
+        INIT(csinn_exp_init(srcTensors[0].get(), dstTensors[0].get(), static_cast<csinn_siso_params*>(params->get())));
+        return true;
     case Algorithm::EltwiseRelu:
         if (shlEltwiseAttrs.alpha == 0) {
-            params = ov::intel_cpu::make_unique<ShlReluParams>(sess, CSINN_RVV);
-            setInitFunc(csinn_relu_init, srcTensors[0].get(), dstTensors[0].get(), static_cast<csinn_relu_params*>(params->get()));
+            params = ov::intel_cpu::make_unique<ShlReluParams>(sess, shl_api);
+            INIT(csinn_relu_init(srcTensors[0].get(), dstTensors[0].get(), static_cast<csinn_relu_params*>(params->get())));
         }
         else {
-            params = ov::intel_cpu::make_unique<ShlReluParams>(sess, CSINN_RVV, eltwiseAttrs.alpha);
-            setInitFunc(csinn_leaky_relu_init, srcTensors[0].get(), dstTensors[0].get(), static_cast<csinn_relu_params*>(params->get()));
+            params = ov::intel_cpu::make_unique<ShlReluParams>(sess, shl_api, eltwiseAttrs.alpha);
+            INIT(csinn_leaky_relu_init(srcTensors[0].get(), dstTensors[0].get(), static_cast<csinn_relu_params*>(params->get())));
         }
-        break;
+        return true;
     case Algorithm::EltwisePrelu:
-        params = ov::intel_cpu::make_unique<ShlPReluParams>(sess, CSINN_RVV);
-        setInitFunc(csinn_prelu_init, srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_prelu_params*>(params->get()));
-        break;
+        params = ov::intel_cpu::make_unique<ShlPReluParams>(sess, shl_api);
+        INIT(csinn_prelu_init(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_prelu_params*>(params->get())));
+        return true;
     default:
         OPENVINO_THROW("Unsupported operation type for SHL Eltwise executor: ",
                        static_cast<int>(shlEltwiseAttrs.algorithm));
     }
 
-    return init_func != nullptr && init_func() == CSINN_TRUE;
+    return false;
 }
 
 void ShlEltwiseExecutor::exec(const std::vector<MemoryCPtr> &src,

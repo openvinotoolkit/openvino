@@ -24,24 +24,15 @@ public:
               const void *post_ops_data_) override;
 
     impl_desc_type getImplType() const override {
-        return implType;
+        return impl_desc_type::shl;
     }
 
 private:
     EltwiseAttrs shlEltwiseAttrs{};
-    impl_desc_type implType = impl_desc_type::shl;
     ShlSession sess = {};
     std::vector<ShlTensor> srcTensors, dstTensors;
     std::unique_ptr<IShlParams> params;
-    std::function<int()> init_func;
-    std::function<int()> shlInitFunc;
-    std::function<int()> shlExecFunc;
     std::function<int()> exec_func;
-
-    template<typename InitFunc, typename... Args>
-    void setInitFunc(InitFunc&& initFunc, Args&&... args) {
-        init_func = [this, initFunc, args...]()->int { return callFunc(initFunc, std::make_tuple(args...)); };
-    }
 
     template<typename ExecFunc, typename... Args>
     void setExecFunc(ExecFunc&& execFunc, Args&&... args) {

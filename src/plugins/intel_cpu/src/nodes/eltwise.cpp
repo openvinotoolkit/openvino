@@ -2319,40 +2319,14 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     } else {
 #endif
 #if defined(OV_CPU_WITH_SHL)
-    const bool useShl = true;
-    auto filterPrecision = [&](const ov::element::Type& prc, const ov::element::Type& forcedPrec) {
-        if (isBitwise(algorithm)) {
-            if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), prc) == supportedPrecisions.end()) {
-                OPENVINO_THROW("Eltwise node with name `", getName(), "` doesn't support ", prc, " precision.");
-            }
-            return prc;
-        }
-        return forcedPrec;
-    };
-        
-    if (useShl) {
-        // Use original output precision as a reference point since some eltwise algorithms have non-float inputs (i.e. EltwiseSelect)
-        ov::element::Type forcedPrec = getOriginalOutputPrecisionAtPort(0) == ov::element::f16 ? ov::element::f16 : ov::element::f32;
-        // SHL implementation supports only identical precisions on inputs/outputs so they are aligned it to highest one
-        if (ShlEltwiseExecutor::isEltwiseAlgorithmSupported(getAlgorithm())) {
-            for (size_t i = 0; i < getParentEdges().size(); i++) {
-                if (!getParentEdgeAt(i)->getParent()->isConstant()) {
-                    if (getOriginalInputPrecisionAtPort(i).size() > forcedPrec.size()) {
-                        forcedPrec = getOriginalInputPrecisionAtPort(i);
-                    }
-                }
-            }
-            if (!forcedPrec.is_real()) {
-                forcedPrec = ov::element::f32;
-            }
-        }
-
+    if (ShlEltwiseExecutor::isEltwiseAlgorithmSupported(getAlgorithm())) {
+        // SHL implementation supports only identical precisions on inputs/outputs and only FP32 for now
+        const ov::element::Type forcedPrec = ov::element::f32;
         for (size_t i = 0; i < inputPrecisions.size(); i++) {
-            inputPrecisions[i] = filterPrecision(inputPrecisions[i], forcedPrec);
+            inputPrecisions[i] =forcedPrec;
         }
-        outputPrecision = filterPrecision(outputPrecision, forcedPrec);
-    }
-    else {
+        outputPrecision = forcedPrec;
+    } else {
 #endif
     auto filterPrecision = [&](const ov::element::Type& prc) {
         if (implType == EltwiseImplType::reference) {
@@ -2400,7 +2374,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         Blocked
     };
 
-    auto initDesc = [&] (LayoutType lt, const bool useAclExecutor = false, const bool useJit = false) -> NodeDesc {
+    auto initDesc = [&] (LayoutType lt, const bool useEltwiseExecutor = false, const bool useJit = false) -> NodeDesc {
         auto createMemoryDesc = [lt](const Shape &shape, ov::element::Type prc, size_t offset) -> std::shared_ptr<CpuBlockedMemoryDesc> {
             const auto &dims = shape.getDims();
             if (lt == ChannelsFirst && shape.getRank() != 1) {
@@ -2474,7 +2448,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 
         config.outConfs.push_back(portConfig);
 
-        if (useAclExecutor || useJit) {
+        if (useEltwiseExecutor || useJit) {
             impl_desc_type impl_type;
             #if defined (OPENVINO_ARCH_ARM64)
             if (useJit) {
@@ -2576,7 +2550,6 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
 #endif
 
 #if defined(OV_CPU_WITH_SHL)
-    if (useShl) {
     eltwiseAttrs = {algorithm, alpha, beta, gamma};
 
     auto addDesc = [&initDesc](std::vector<NodeDesc>& supportedPrimitiveDescriptors, const LayoutType layoutType) {
@@ -2590,7 +2563,6 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     canUseEltwiseExecPtr = !supportedPrimitiveDescriptors.empty();
     if (!supportedPrimitiveDescriptors.empty())
         return;
-    }
 #endif
 
     if (isChannelsFirstApplicable)
@@ -2811,8 +2783,7 @@ void Eltwise::execute(dnnl::stream strm) {
         dstMemory.push_back(getDstMemoryAtPort(0));
 
         eltwiseExecPtr->exec(srcMemory, dstMemory, fqDataPtrs.data());
-    }
-    else {
+    } else {
         OPENVINO_THROW("Can't execute eltwise node with name: ", getName(), ". Primitive isn't created");
     }
 }
