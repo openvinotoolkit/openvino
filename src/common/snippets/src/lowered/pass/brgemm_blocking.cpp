@@ -102,21 +102,19 @@ std::tuple<size_t, size_t, size_t> BrgemmBlockingBase::get_blocking_params(const
     // Ticket: 113745
     // TODO: extend block size selection heuristics
     auto get_block_size_m = [](const size_t M) -> size_t {
-        if (snippets::utils::is_dynamic_value(M))
-            return 32;
-        return M <= 32 ? get_full_dim_value() : 32;
+        if (!snippets::utils::is_dynamic_value(M) && M <= 32)
+            return get_full_dim_value();
+        return 32;
     };
     auto get_block_size_n = [](const size_t N) -> size_t {
-        // N blocking is disabled in dynamism by default
-        if (ov::snippets::utils::is_dynamic_value(N) || N <= 64)
+        if (!snippets::utils::is_dynamic_value(N) && N <= 64)
             return get_full_dim_value();
         return 64;
     };
     auto get_block_size_k = [](const size_t K) -> size_t {
-        // K blocking is disabled in dynamism by default
-        if (ov::snippets::utils::is_dynamic_value(K) || K <= 512)
-            return get_full_dim_value();
-        return K > 1024 ? 1024 : 512;
+        if (ov::snippets::utils::is_dynamic_value(K))
+            return 512;
+        return K > 1024 ? 1024 : K > 512 ? 512 : get_full_dim_value();
     };
     return std::make_tuple(get_block_size_m(m), get_block_size_n(n), get_block_size_k(k));
 }

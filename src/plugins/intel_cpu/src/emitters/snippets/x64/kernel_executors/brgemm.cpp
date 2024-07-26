@@ -9,6 +9,7 @@
 #include "common/utils.hpp"
 #include "dnnl_extension_utils.h"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/lowered/pass/insert_specific_iterations.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
@@ -20,13 +21,13 @@ using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
 namespace {
-size_t init_hash(dnnl_data_type_t dt_in0, dnnl_data_type_t dt_in1, float beta, bool is_with_amx,
+size_t init_hash(dnnl_data_type_t dt_in0, dnnl_data_type_t dt_in1, bool is_with_amx,
                  bool is_with_comp, dnnl::impl::cpu::x64::cpu_isa_t isa) {
     size_t seed = 0;
 #define HASH(X) seed = hash_combine(seed, X)
     HASH(dt_in0); HASH(dt_in1);
     HASH(is_with_amx); HASH(is_with_comp);
-    HASH(beta); HASH(isa);
+    HASH(isa);
 #undef HASH
     return seed;
 }
@@ -35,9 +36,9 @@ size_t init_hash(dnnl_data_type_t dt_in0, dnnl_data_type_t dt_in1, float beta, b
 namespace ov {
 namespace intel_cpu {
 BrgemmKernelConfig::BrgemmKernelConfig(const element::Type& in0_dtype, const element::Type& in1_dtype,
-                                       float beta, bool is_with_amx, bool is_with_comp,
+                                       bool is_with_amx, bool is_with_comp,
                                        dnnl::impl::cpu::x64::cpu_isa_t primitive_isa) :
-                                       m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype, beta,
+                                       m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype,
                                                                                       is_with_amx, is_with_comp,
                                                                                       primitive_isa)) {
     m_hash = compute_hash();
@@ -49,28 +50,30 @@ bool BrgemmKernelConfig::is_completed() const {
 
 bool BrgemmKernelConfig::operator==(const BrgemmKernelConfig& rhs) const {
 #define EQ(X) X == rhs.X
-    return EQ(m_hash) &&
+    return EQ(m_hash) && EQ(m_beta) &&
            EQ(m_M) && EQ(m_N) && EQ(m_K) &&
            EQ(m_LDA) && EQ(m_LDB) && EQ(m_LDC) &&
            (EQ(m_static_params.get()) || *m_static_params == *(rhs.m_static_params));
 #undef EQ
 }
 
-void BrgemmKernelConfig::update(dnnl_dim_t M, dnnl_dim_t N, dnnl_dim_t K, dnnl_dim_t LDA, dnnl_dim_t LDB, dnnl_dim_t LDC) {
+void BrgemmKernelConfig::update(dnnl_dim_t M, dnnl_dim_t N, dnnl_dim_t K, dnnl_dim_t LDA, dnnl_dim_t LDB, dnnl_dim_t LDC, float beta) {
     // If M is zero, it means that Brgemm won't be executed (in Loop with work_amount = 0, for example)
     // To process this case, we have to make this Config as empty (nullify runtime parameters)
     if (utils::one_of(0, M, N, K)) {
         m_M = 0; m_N = 0; m_K = 0;
         m_LDA = 0; m_LDB = 0; m_LDC = 0;
+        m_beta = 0;
     } else {
         m_M = M; m_N = N; m_K = K;
         m_LDA = LDA; m_LDB = LDB; m_LDC = LDC;
+        m_beta = beta;
     }
     m_hash = compute_hash();
 }
 
 bool BrgemmKernelConfig::is_empty() const {
-    return everyone_is(0, m_M, m_N, m_K, m_LDA, m_LDB, m_LDC);
+    return everyone_is(0, m_M, m_N, m_K, m_LDA, m_LDB, m_LDC, m_beta);
 }
 
 BrgemmKernelConfig::operator amx_tile_config_t() const {
@@ -80,19 +83,17 @@ BrgemmKernelConfig::operator amx_tile_config_t() const {
 }
 
 BrgemmKernelConfig::StaticParams::StaticParams(const element::Type& in0_dtype, const element::Type& in1_dtype,
-                                               float beta, bool is_with_amx, bool is_with_comp,
+                                               bool is_with_amx, bool is_with_comp,
                                                dnnl::impl::cpu::x64::cpu_isa_t primitive_isa) :
                                                dt_in0(DTYPE_CAST(in0_dtype)), dt_in1(DTYPE_CAST(in1_dtype)),
-                                               beta(beta), is_with_amx(is_with_amx), is_with_comp(is_with_comp),
+                                               is_with_amx(is_with_amx), is_with_comp(is_with_comp),
                                                isa(primitive_isa),
-                                               hash(init_hash(dt_in0, dt_in1, beta, is_with_amx, is_with_comp, isa)) {
+                                               hash(init_hash(dt_in0, dt_in1, is_with_amx, is_with_comp, isa)) {
 }
 
 bool BrgemmKernelConfig::StaticParams::operator==(const StaticParams& rhs) const {
 #define EQ(X) X == rhs.X
-    return EQ(hash) &&
-           EQ(dt_in0) && EQ(dt_in1) && EQ(beta) &&
-           EQ(is_with_amx) && EQ(is_with_comp) && EQ(isa);
+    return EQ(hash) && EQ(dt_in0) && EQ(dt_in1)&& EQ(is_with_amx) && EQ(is_with_comp) && EQ(isa);
 #undef EQ
 }
 size_t BrgemmKernelConfig::compute_hash() const {
@@ -100,6 +101,7 @@ size_t BrgemmKernelConfig::compute_hash() const {
 #define HASH(X) seed = hash_combine(seed, X)
     HASH(m_M); HASH(m_N); HASH(m_K);
     HASH(m_LDA); HASH(m_LDB); HASH(m_LDC);
+    HASH(m_beta);
 #undef HASH
     return seed;
 }
@@ -110,7 +112,7 @@ std::string BrgemmKernelConfig::StaticParams::to_string() const {
     std::stringstream ss;
     PRINT(dt_in0); PRINT(dt_in1);
     PRINT(is_with_amx); PRINT(is_with_comp);
-    PRINT(beta); PRINT(isa);
+    PRINT(isa);
     return ss.str();
 }
 
@@ -119,6 +121,7 @@ std::string BrgemmKernelConfig::to_string() const {
     ss << m_static_params->to_string() << "\n";
     PRINT(m_M); PRINT(m_N); PRINT(m_K);
     PRINT(m_LDA); PRINT(m_LDB); PRINT(m_LDC);
+    PRINT(m_beta);
     return ss.str();
 }
 #undef PRINT
@@ -169,32 +172,110 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
     auto in0_subtensor = input_pds[0]->get_subtensor();
     auto in1_subtensor = input_pds[1]->get_subtensor();
 
+    // Need to update M, K, N
+    // 1. If the original value in subtensor is `FULL_DIM`, it means that
+    //    Brgemm block should process full tensor by this dim -> take dimension from shape
+    // 2. Otherwise, Brgemm block processes part of the tensor by this dim
+    //    (there is blocking by this dimension) -> take from Loop increment
+
     auto M = *++in0_subtensor.rbegin();
     auto K = *in0_subtensor.rbegin();
     auto N = *in1_subtensor.rbegin();
 
+    size_t loop_idx = 0;
+    const auto& loop_ids = expr->get_loop_ids();
+    const auto& loop_manager = linear_ir->get_loop_manager();
+    auto get_loop_info = [&](){
+        OPENVINO_ASSERT(loop_idx < loop_ids.size(), "Loop by dimension M is missed");
+        return loop_manager->get_loop_info<ov::snippets::lowered::ExpandedLoopInfo>(loop_ids[loop_idx++]);
+    };
+
+    /* ------- Dimension M ----------*/
     if (ov::snippets::utils::is_full_dim_value(M)) {
         M = *++in0_shape.rbegin();
     } else {
-        const auto& loop_ids = expr->get_loop_ids();
-        OPENVINO_ASSERT(!loop_ids.empty(), "Loop by dimension M is missed");
-        // TODO [146125]: Loop by M is first one in `loop_ids`
-        const auto& expanded_loop_info = linear_ir->get_loop_manager()->get_loop_info<ov::snippets::lowered::ExpandedLoopInfo>(loop_ids.front());
-        M = expanded_loop_info->get_increment();
+        const auto& current_expanded_loop_info = get_loop_info();
+        const auto& in_ports = current_expanded_loop_info->get_input_ports();
+        const auto& out_ports = current_expanded_loop_info->get_output_ports();
+        // Quick validation check: Should we check that port is really Brgemm port?
+        // If BrgemmCopyB in the Loop by M -> first input port will be BrgemmCopyB with `incremented=false`
+        // to avoid extra checks, we validate only first input port
+        OPENVINO_ASSERT(in_ports.size() > 1 && in_ports.front().is_incremented && in_ports.front().dim_idx == 1 &&
+                        out_ports.size() == 1 && out_ports.front().is_incremented && out_ports.front().dim_idx == 1,
+                        "Incorrect Loop by Brgemm dimension N");
+        M = current_expanded_loop_info->get_increment();
         input_pds[0]->set_subtensor_dim(1, M);
         output_pds[0]->set_subtensor_dim(1, M);
     }
 
-    if (ov::snippets::utils::is_full_dim_value(K)) {
-        K = *in0_shape.rbegin();
-    } else if (ov::snippets::utils::is_dynamic_value(K)) {
-        OPENVINO_THROW("Dynamic K is not supported");
-    }
-
+    /* ------- Dimension N ----------*/
     if (ov::snippets::utils::is_full_dim_value(N)) {
         N = *in1_shape.rbegin();
-    } else if (ov::snippets::utils::is_dynamic_value(N)) {
-        OPENVINO_THROW("Dynamic N is not supported");
+    } else {
+        const auto& current_expanded_loop_info = get_loop_info();
+        const auto& in_ports = current_expanded_loop_info->get_input_ports();
+        const auto& out_ports = current_expanded_loop_info->get_output_ports();
+        // Quick validation check: Should we check that port is really Brgemm port?
+        OPENVINO_ASSERT(in_ports.size() == 2 && !in_ports.front().is_incremented && in_ports.back().is_incremented && in_ports.back().dim_idx == 0 &&
+                        out_ports.size() == 1 && out_ports.front().is_incremented && out_ports.front().dim_idx == 0,
+                        "Incorrect Loop by Brgemm dimension N");
+        N = current_expanded_loop_info->get_increment();
+        input_pds[1]->set_subtensor_dim(0, N);
+        output_pds[0]->set_subtensor_dim(0, N);
+    }
+
+    /* ------- Dimension K ----------*/
+    // 1. If Brgemm block processes full dimension K -> `beta = 0`
+    // 2. If Brgemm block processes part of the dimension K (there is blocking), need to find
+    //    the most first executed Brgemm Block in Loops which iterate through dimension K (work_amount > 0).
+    //    First of them will have `beta = 0`, other - `beta = 1`
+    float beta = 0;
+    if (ov::snippets::utils::is_full_dim_value(K)) {
+        K = *in0_shape.rbegin();
+    } else {
+        const auto& current_expanded_loop_info = get_loop_info();
+        const auto& in_ports = current_expanded_loop_info->get_input_ports();
+        const auto& out_ports = current_expanded_loop_info->get_output_ports();
+        // Quick validation check: Should we check that port is really Brgemm port?
+        OPENVINO_ASSERT(in_ports.size() == 2 && in_ports.front().is_incremented && in_ports.front().dim_idx == 0 &&
+                                                in_ports.back().is_incremented && in_ports.back().dim_idx == 1 &&
+                        out_ports.size() == 1 && !out_ports.front().is_incremented,
+                        "Incorrect Loop by Brgemm dimension K");
+        K = current_expanded_loop_info->get_increment();
+        input_pds[0]->set_subtensor_dim(0, K);
+        input_pds[1]->set_subtensor_dim(1, K);
+
+        // Find all Expanded loops with the same Unified loop information -> they were decomposed from this Unified Loop.
+        // If there is executed Loop (work_amount > 0) and evaluated before the current -> the current Brgemm should have `beta = 1`.
+        // If there is not this Loop -> the current executed Brgemm should have `beta = 0`.
+        if (K > 0) {
+            bool is_first_executed = true;
+            const auto& current_type = current_expanded_loop_info->get_type();
+            constexpr auto loop_types = ov::snippets::lowered::pass::InsertSpecificIterations::get_loop_iteration_order();
+            // Note: No need to check `current_type` is existing and valid type - it was verified before in common control flow pipeline
+            const auto current_type_idx =
+                static_cast<size_t>(std::distance(loop_types.cbegin(), std::find(loop_types.cbegin(), loop_types.cend(), current_type)));
+            if (current_type_idx > 0) {
+                const auto& current_unified_loop_info = current_expanded_loop_info->get_unified_loop_info();
+                for (const auto& loop_pair : loop_manager->get_map()) {
+                    // Find the `executed` expanded loop with the same unified loop info
+                    // Note: No need to check `expanded_loop_info != nullptr` - it was verified before in common control flow pipeline
+                    const auto& expanded_loop_info = ov::as_type_ptr<ov::snippets::lowered::ExpandedLoopInfo>(loop_pair.second);
+                    if (expanded_loop_info->get_unified_loop_info() == current_unified_loop_info && expanded_loop_info->get_work_amount() > 0) {
+                        // Check that found `executed` expanded loop is before current target loop.
+                        for (size_t idx = 0; idx < current_type_idx; ++idx)
+                            if (expanded_loop_info->get_type() == loop_types[idx]) {
+                                is_first_executed = false;
+                                break;
+                            }
+                    }
+                    if (!is_first_executed) {
+                        beta = 1;
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     const auto LDA = DIM_CAST(snippets::utils::get_dim_stride(expr->get_input_port(0)));
@@ -206,7 +287,7 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
     if (with_repacking(brgemm_node->get_type()))
         LDB = brgemm_utils::repacking::compute_out_leading_dim(N, brgemm_node->get_input_element_type(1));
 
-    config.update(DIM_CAST(M), DIM_CAST(N), DIM_CAST(K), LDA, LDB, LDC);
+    config.update(DIM_CAST(M), DIM_CAST(N), DIM_CAST(K), LDA, LDB, LDC, beta);
 }
 
 void BrgemmKernelExecutor::execute(const BrgemmKernelExecutor* executor, call_args* args) {
