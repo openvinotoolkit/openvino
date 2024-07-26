@@ -129,8 +129,8 @@ The descriptor sets the expected structure and possible parameter values of the 
 For possible low-level properties and their description, refer to the header file:
 `remote_properties.hpp <https://github.com/openvinotoolkit/openvino/blob/master/src/inference/include/openvino/runtime/intel_npu/remote_properties.hpp>`__.
 
-See Also
-#######################################
+Additional Resources
+####################
 
 * `ov::Core <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_core.html>`__
 * `ov::RemoteTensor <https://docs.openvino.ai/2024/api/c_cpp_api/classov_1_1_remote_tensor.html>`__
