@@ -719,10 +719,53 @@ void prepare_buffer_fusing::run(program& p) {
                            concat_in_place_optimization>(p);
 
     // [2] Then try to optimize all crops
-    run_node_optimizations<crop_in_place_optimization>(p);
+    auto node_itr = p.get_processing_order().begin();
+    while (node_itr != p.get_processing_order().end()) {
+        auto& node = (*node_itr++);
+        if (!node->is_valid_output_layout())
+            continue;
+        if (!can_optimize(node))
+            continue;
+
+        program_helpers::do_for_types<crop>(*node, [&p](crop_node& node) {
+            auto pred_param = node.get_dependency(0).get_kernel_impl_params();
+            auto pred_layout = pred_param->get_output_layout();
+            if (!crop_in_place_optimization::match(node, *node.get_kernel_impl_params(), pred_layout))
+                return;
+
+            auto crop_layout = node.get_output_layout();
+            auto crop_params = node.get_kernel_impl_params();
+            if (!node.is_dynamic() && crop_in_place_optimization::can_crop_be_optimized_along_feature(crop_layout, pred_layout)) {
+                crop_in_place_optimization::update_in_place_crop_padding_along_feature(node,
+                                                                                       crop_layout,
+                                                                                       pred_layout,
+                                                                                       crop_params->input_offsets[0],
+                                                                                       node.get_primitive()->axis,
+                                                                                       false);
+            } else if (crop_in_place_optimization::can_crop_be_optimized_simple_data_format(crop_layout, pred_layout)) {
+                std::vector<layout> reshape_layouts;
+                if (node.get_users().front()->is_type<reshape>() && node.get_users().front()->as<reshape>().is_runtime_propagatable_padding()) {
+                    reshape_layouts.push_back(node.get_users().front()->get_output_layout());
+                }
+                crop_in_place_optimization::update_in_place_crop_padding_simple_data_format(crop_layout,
+                                                                                            pred_layout,
+                                                                                            reshape_layouts,
+                                                                                            crop_params->input_offsets[0],
+                                                                                            node.get_primitive()->axis,
+                                                                                            false);
+                if (reshape_layouts.size() > 0) {
+                    node.get_users().front()->set_output_layout(reshape_layouts[0]);
+                }
+            }
+            node.set_output_layout(crop_layout);
+            node.can_be_optimized(true);
+            propagate_padding_to_opt_out_users(node, node.get_output_layout().data_padding);
+            GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing] : " << node.id() << " can be optimized" << std::endl;
+        });
+    }
 
     // [3] Optimize all other primitives
-    auto node_itr = p.get_processing_order().begin();
+    node_itr = p.get_processing_order().begin();
     while (node_itr != p.get_processing_order().end()) {
         auto& node = (*node_itr++);
         if (!node->is_valid_output_layout())
