@@ -71,33 +71,29 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
         lzctx.initZe(device_idx);
     }
 
-    void* create_lz_buff(oclContext& oclctx, lzContext& lzctx, void* buff, size_t elemCount, uint32_t length) {
+    void* create_lz_buff(oclContext& oclctx, lzContext& lzctx, void* buff, size_t elemCount, size_t length) {
         std::cout << "[gpu_p2p] create_lz_buff " << std::endl;
 
         std::vector<uint32_t> initBuf(elemCount, 0);
         if (buff != nullptr && length > 0) {
-            uint8_t* buff_ptr = static_cast<uint8_t*>(buff);
+            // std::cout << "[-->] sync_tensor_impl orig buff_ptr ================ " << std::endl;
+            // for (size_t i = 0; i < length; i++) {
+            //     printf("init_ptr[%ld]: %f ", i, reinterpret_cast<float>(init_ptr[i]));
+            // }
+            // printf("\n");
 
-            std::cout << "[-->] sync_tensor_impl orig buff_ptr ================ " << std::endl;
-            for (size_t i = 0; i < length; i++) {
-                printf("buff_ptr[%ld]: %d ", i, buff_ptr[i]);
-                initBuf[i] = buff_ptr[i];
-                printf("initBuf[%ld]: %d ", i, initBuf[i]);
-            }
-            printf("\n");
+            // ov::float16: uint16_t
+            // std::memcpy(init_ptr, buff, length);
+
+            initBuf[0] = 100;
         }
         cl_mem clbuf = oclctx.createBuffer(elemCount * sizeof(uint32_t), initBuf);
-        std::cout << "[gpu_p2p] ocl printBuffer " << std::endl;
         oclctx.printBuffer(clbuf);
 
         // derive the dma-buf handles from opencl buffers
         uint64_t handle = oclctx.deriveHandle(clbuf);
         void *lzptr = lzctx.createFromHandle(handle, elemCount * sizeof(uint32_t));
         lzctx.printBuffer(lzptr);
-
-        std::cout << "[gpu_p2p] lz printBuffer " << std::endl;
-        oclctx.printBuffer(clbuf);
-        // oclctx.freeBuffer(clbuf);
 
         return lzptr;
     }
@@ -133,8 +129,8 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
             }
         }
 
-        auto buff = instance.output_memory(w_rank).buffer_ptr();
-        auto length = instance.output_memory(w_rank).size();
+        void* buff = instance.output_memory(w_rank).buffer_ptr();
+        size_t length = instance.output_memory(w_rank).size();
         printf("[sync_tensor_impl:%d] length: %ld\n", w_rank, length);
         oclContext oclctx;
         lzContext lzctx;
@@ -151,34 +147,33 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
             for (int idx = 0; idx < static_cast<int>(w_size); idx++) {
                 if (idx != w_rank && wait_list[idx] > 0 && sub_mem_mgr->_memorys_table[id][idx].flag) {
                     // auto src_ptr = static_cast<uint8_t*>(sub_mem_mgr->_memorys_table[id][idx].send_buf);
-                    // auto dst_ptr = instance.output_memory(idx).buffer_ptr();
+                    auto dst_ptr = instance.output_memory(idx).buffer_ptr();
+                    size_t dst_len = instance.output_memory(idx).size();
+                    printf("[sync_tensor_impl:%d] dst_ptr:%p dst_len:%ld \n", w_rank, dst_ptr, dst_len);
                     // std::memcpy(dst_ptr, src_ptr, instance.output_memory(idx).size());
+
                     void* remote_send_buf = (sub_mem_mgr->_memorys_table[id][idx].send_buf);
                     printf("[sync_tensor_impl:%d] remote_send_buf: %p \n", w_rank, remote_send_buf);
                     void *local_buff = create_lz_buff(oclctx, lzctx, nullptr, elemCount, 0);
-                    // void *remote_buff = static_cast<uint8_t*>(sub_mem_mgr->_memorys_table[id][w_rank].send_buf);
-                    std::cout << "[-->] sync_tensor_impl w_rank: " << w_rank << ", runKernel " << std::endl;
+
                     // copy from remote level_zero buff
+                    std::cout << "[-->] sync_tensor_impl w_rank: " << w_rank << ", runKernel " << std::endl;
                     lzctx.runKernel("./test_kernel_dg2.spv", "local_read_from_remote", remote_send_buf, local_buff, elemCount);
-                    printf("[sync_tensor_impl:%d] print local_buff\n", w_rank);
-                    lzctx.printBuffer(local_buff);
 
                     std::vector<uint32_t> outBuf(elemCount, 0);
-                    printf("[sync_tensor_impl:%d] check before kernel \n", w_rank);
-                    for (size_t i = 0; i < 16; ++i) {
-                        printf("[%ld]:%d ", i, outBuf[i]);
-                    }
-                    printf("\n");
-
-                    printf("[sync_tensor_impl:%d] readBuffer: %p \n", w_rank, outBuf.data());
                     lzctx.readBuffer(outBuf, local_buff, elemCount * sizeof(uint32_t));
-                    printf("[sync_tensor_impl:%d] readBuffer done \n", w_rank);
-
-                    printf("[sync_tensor_impl:%d] check after kernel \n", w_rank);
+                    printf("[sync_tensor_impl:%d] readBuffer \n", w_rank);
                     for (size_t i = 0; i < 16; ++i) {
-                        printf("[%ld]:%d ", i, outBuf[i]);
+                        printf("%d ", outBuf[i]);
                     }
                     printf("\n");
+
+                    printf("[sync_tensor_impl:%d] std::memcpy \n", w_rank);
+                    // auto src_ptr = instance.output_memory(w_rank).buffer_ptr();
+                    // std::memcpy(dst_ptr, src_ptr, dst_len);
+                    // std::memcpy(dst_ptr, outBuf.data(), dst_len);
+                    printf("[sync_tensor_impl:%d] std::memcpy end \n", w_rank);
+
                     wait_list[idx] = 0;
                 }
                 wait_size += wait_list[idx];
