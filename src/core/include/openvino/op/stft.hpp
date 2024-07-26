@@ -38,9 +38,6 @@ public:
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
-    bool has_evaluate() const override;
-
     bool get_transpose_frames() const;
 
 private:

@@ -48,35 +48,6 @@ void STFT::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
-bool STFT::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
-    OV_OP_SCOPE(v15_STFT_evaluate);
-    OPENVINO_ASSERT(outputs.size() == 1);
-    OPENVINO_ASSERT(inputs.size() == 4);
-
-    const auto input_shapes = ov::util::get_tensors_partial_shapes(inputs);
-    const auto output_shape = shape_infer(this, input_shapes, make_tensor_accessor(inputs)).front().to_shape();
-
-    outputs[0].set_shape(output_shape);
-
-    const auto frame_size = ov::get_tensor_data_as<int64_t>(inputs[2]).front();
-    const auto frame_step = ov::get_tensor_data_as<int64_t>(inputs[3]).front();
-
-    ov::reference::stft(inputs[0].data<const float>(),
-                        inputs[1].data<const float>(),
-                        outputs[0].data<float>(),
-                        inputs[0].get_shape(),
-                        inputs[1].get_shape(),
-                        frame_size,
-                        frame_step,
-                        m_transpose_frames);
-    return true;
-}
-
-bool STFT::has_evaluate() const {
-    OV_OP_SCOPE(v15_STFT_has_evaluate);
-    const auto& input_0_et = get_input_element_type(0);
-    return input_0_et == element::f32;
-}
 
 bool STFT::get_transpose_frames() const {
     return m_transpose_frames;
