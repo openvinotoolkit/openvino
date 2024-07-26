@@ -20,7 +20,7 @@ int main() {
     {
         //! [default_context_from_core]
         auto npu_context = core.get_default_context("NPU").as<ov::intel_npu::level_zero::ZeroContext>();
-        // Extract raw level_zero context handle from RemoteContext
+        // Extract raw level zero context handle from RemoteContext
         void* context_handle = npu_context.get();
         //! [default_context_from_core]
     }
