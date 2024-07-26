@@ -850,10 +850,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         auto dynamic_quantization_group_size = config.get_property(ov::hint::dynamic_quantization_group_size);
         GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->enable_dynamic_quantize) {
-            dynamic_quantization_group_size = 1048576;
+            dynamic_quantization_group_size = -1;
         }
-        dynamic_quantization_group_size = 1048576; // XXX: temporal enabling for test
-        if (device_info.supports_immad && dynamic_quantization_group_size == 1048576) // XXX: 1048576 is considered per-token
+
+        if (device_info.supports_immad)
             manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size);
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until

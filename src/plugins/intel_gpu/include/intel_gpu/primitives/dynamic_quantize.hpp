@@ -21,13 +21,13 @@ struct dynamic_quantize : public primitive_base<dynamic_quantize> {
     /// @param data_type Output data type of quantized
     dynamic_quantize(const primitive_id& id,
            const input_info& input,
-           const size_t group_size,
+           const int64_t group_size,
            const std::vector<optional_data_type> data_types = {optional_data_type(data_types::f16), optional_data_type(data_types::i8)},
            const padding& output_padding = padding())
            : primitive_base(id, {input}, 2, data_types, {output_padding})
 	   , group_size(group_size) {}
 
-    size_t group_size = 0;
+    int64_t group_size = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

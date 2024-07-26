@@ -11,17 +11,26 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 namespace ov {
 namespace intel_gpu {
 
-DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(size_t group_size) {
+DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(int64_t group_size) {
+    GPU_DEBUG_GET_INSTANCE(debug_config);
     using namespace ov::pass::pattern;
+
+    // per-token quantization is supported
+    if (group_size != -1) {
+        GPU_DEBUG_TRACE << "Dynamic quantization is disabled " << group_size << std::endl;
+        return;
+    }
 
     auto data = any_input();
     auto fully_connected_compressed3 = wrap_type<op::FullyConnectedCompressed>({data, any_input(), any_input(), any_input()});
     auto fully_connected_compressed4 = wrap_type<op::FullyConnectedCompressed>({data, any_input(), any_input(), any_input(), any_input()});
     auto fully_connected_compressed = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{fully_connected_compressed3, fully_connected_compressed4});
+
 
     ov::matcher_pass_callback callback = [=](Matcher& m) {
         if (transformation_callback(m.get_match_root())) {
@@ -37,17 +46,26 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(size_t group_size) 
         else if (pattern_map.find(fully_connected_compressed4) != pattern_map.end())
             m_fc = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(pattern_map.at(fully_connected_compressed4).get_node_shared_ptr());
 
-        if (m_data->get_element_type() == ov::element::Type_t::f32)
+        if (m_data->get_element_type() == ov::element::Type_t::f32) {
+            GPU_DEBUG_TRACE << m_fc->get_friendly_name() << "  Dynamic quantization is turned off because input type is not supported" << std::endl;
             return false;
-        if (!m_fc->is_dynamic())
+        }
+        if (!m_fc->is_dynamic()) {
+            GPU_DEBUG_TRACE << m_fc->get_friendly_name() << "  Dynamic quantization is turned off because static shape is not supported" << std::endl;
             return false;
+        }
 
         auto weight_shape = m_fc->get_input_partial_shape(1);
-        const auto innermost_size = weight_shape[weight_shape.size() - 1].get_length();
-        if (group_size == 0 || (innermost_size % group_size != 0 && static_cast<size_t>(innermost_size) > group_size))
+        const int64_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();
+        if (group_size != -1 &&
+            (group_size == 0 || (innermost_size % group_size != 0 && innermost_size > group_size))) {
+            GPU_DEBUG_TRACE << "Dynamic quantization: shape is not aligned with group size " << innermost_size << " / " << group_size << std::endl;
             return false;
-        if (innermost_size < 32)
+        }
+        if (innermost_size < 32) {
+            GPU_DEBUG_TRACE << "Dynamic quantization: shape is too small " << innermost_size << " / " << group_size << std::endl;
             return false;
+        }
 
         OutputVector fc_inputs;
         auto dyn_quan = std::make_shared<op::DynamicQuantize>(m_data, group_size);

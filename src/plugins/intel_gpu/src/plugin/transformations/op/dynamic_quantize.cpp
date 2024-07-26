@@ -7,13 +7,12 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "variadic_split_shape_inference.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
 
 namespace ov {
 namespace intel_gpu {
 namespace op {
 
-DynamicQuantize::DynamicQuantize(const Output<Node>& data, size_t group_size)
+DynamicQuantize::DynamicQuantize(const Output<Node>& data, int64_t group_size)
     : Op({data})
     , m_group_size(group_size) {
     set_output_size(2);
@@ -36,7 +35,6 @@ std::shared_ptr<Node> DynamicQuantize::clone_with_new_inputs(const ov::OutputVec
 }
 
 std::vector<ov::PartialShape> shape_infer(const DynamicQuantize* op, std::vector<ov::PartialShape> input_shapes) {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     std::vector<ov::PartialShape> out_shapes;
     out_shapes.push_back(input_shapes[0]);
     // FIXME: generalize to N-dim case
