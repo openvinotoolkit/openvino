@@ -9,6 +9,7 @@
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/pass/pass.hpp"
+#include "snippets/lowered/pass/propagate_subtensors.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
@@ -45,15 +46,24 @@ LinearIR::constExprIt BrgemmBlocking::get_loop_begin_pos(LinearIR& linear_ir, co
     const auto brgemm = ov::as_type_ptr<snippets::op::Brgemm>(node);
     const auto brgemm_cpu = ov::as_type_ptr<intel_cpu::BrgemmCPU>(node);
     OPENVINO_ASSERT(brgemm, "get_loop_begin_pos must be called only for Brgemm expression");
-    if (brgemm_cpu && brgemm_cpu->is_amx()) {
+    if (brgemm_cpu && with_amx(brgemm_cpu->get_type())) {
         loop_begin_it = move_new_memory_buffer(linear_ir, brgemm_it);
     }
-    if (include_repacking && brgemm_cpu && brgemm_cpu->is_with_data_repacking()) {
+    if (include_repacking && brgemm_cpu && with_repacking(brgemm_cpu->get_type())) {
         const auto& copy_b = brgemm_cpu->get_brgemm_copy();
         const auto& copy_b_expr = linear_ir.get_expr_by_node(copy_b);
         loop_begin_it = linear_ir.find(copy_b_expr);
     }
     return loop_begin_it;
+}
+
+snippets::lowered::SpecificIterationHandlers BrgemmBlocking::get_default_blocking_loop_handlers(size_t work_amount, size_t block_size) {
+    SpecificIterationHandlers handlers;
+    const auto tail_size = snippets::utils::is_dynamic_value(work_amount) ? snippets::utils::get_dynamic_value<size_t>() : work_amount % block_size;
+    if (tail_size != 0)
+        handlers.register_pass<snippets::lowered::SpecificLoopIterType::LAST_ITER, snippets::lowered::pass::UpdateSubtensors>(tail_size);
+    handlers.register_pass<snippets::lowered::SpecificLoopIterType::LAST_ITER, SetEvaluateOnce>();
+    return handlers;
 }
 
 bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
@@ -107,19 +117,28 @@ bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linea
         const auto block_size_n = snippets::utils::is_dynamic_value(n) ? brgemm->get_n_block_size() : std::min(brgemm->get_n_block_size(), n);
         const auto block_size_k = snippets::utils::is_dynamic_value(k) ? brgemm->get_k_block_size() : std::min(brgemm->get_k_block_size(), k);
 
-        *++in_0_subtensor.rbegin() = block_size_m;
-        *++out_subtensor.rbegin() = block_size_m;
-        *in_1_subtensor.rbegin() = block_size_n;
-        *out_subtensor.rbegin() = block_size_n;
-        *in_0_subtensor.rbegin() = block_size_k;
-        *++in_1_subtensor.rbegin() = block_size_k;
+        const bool m_blocking = block_size_m != m;
+        const bool n_blocking = block_size_n != n;
+        const bool k_blocking = block_size_k != k;
 
-        brgemm_expr->get_input_port_descriptor(0)->set_subtensor(in_0_subtensor);
-        brgemm_expr->get_input_port_descriptor(1)->set_subtensor(in_1_subtensor);
-        brgemm_expr->get_output_port_descriptor(0)->set_subtensor(out_subtensor);
+        // If block_size is dynamic, it means that Brgemm will process full tensor:
+        //   subtensor[i] = FULL_DIM as by default
+        if (!snippets::utils::is_dynamic_value(block_size_m) && m_blocking) {
+            brgemm_expr->get_input_port_descriptor(0)->set_subtensor_dim(1, block_size_m);
+            brgemm_expr->get_output_port_descriptor(0)->set_subtensor_dim(1, block_size_m);
+        }
+        if (!snippets::utils::is_dynamic_value(block_size_n) && n_blocking) {
+            brgemm_expr->get_input_port_descriptor(1)->set_subtensor_dim(0, block_size_n);
+            brgemm_expr->get_output_port_descriptor(0)->set_subtensor_dim(0, block_size_n);
+        }
+        if (!snippets::utils::is_dynamic_value(block_size_k) && k_blocking) {
+            brgemm_expr->get_input_port_descriptor(0)->set_subtensor_dim(0, block_size_k);
+            brgemm_expr->get_input_port_descriptor(1)->set_subtensor_dim(1, block_size_k);
+        }
 
+        const bool need_brgemm_copy_b = brgemm_cpu && with_repacking(brgemm_cpu->get_type());
         ov::snippets::lowered::ExpressionPtr copy_b_expr = nullptr;
-        if (brgemm_cpu && brgemm_cpu->is_with_data_repacking()) {
+        if (need_brgemm_copy_b) {
             const auto copy_b = brgemm_cpu->get_brgemm_copy();
             copy_b_expr = linear_ir.get_expr_by_node(copy_b);
 
@@ -129,7 +148,7 @@ bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linea
 
             copy_b_expr->get_input_port_descriptor(0)->set_subtensor(data_repacking_subtensor);
             copy_b_expr->get_output_port_descriptor(0)->set_subtensor(data_repacking_subtensor);
-            if (copy_b->is_with_compensations()) {
+            if (with_compensations(copy_b->get_type())) {
                 auto compensations_subtensor = copy_b_expr->get_output_port_descriptor(1)->get_subtensor();
                 // Compensations are computed by N dimension
                 *compensations_subtensor.rbegin() = block_size_n;
@@ -145,15 +164,17 @@ bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linea
             const auto loop_begin_it = get_loop_begin_pos(linear_ir, expr_it, include_repacking);
             const auto loop_end_it = std::next(expr_it);
 
-            const auto b_input_port = include_repacking && brgemm_cpu && brgemm_cpu->is_with_data_repacking()
+            const auto b_input_port = include_repacking && need_brgemm_copy_b
                                           ? copy_b_expr->get_input_port(0)
                                           : brgemm_expr->get_input_port(1);
 
             std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), true), LoopPort(b_input_port, false)};
-            if (!include_repacking && brgemm_cpu && brgemm_cpu->is_with_compensations())
+            if (!include_repacking && brgemm_cpu && with_compensations(brgemm_cpu->get_type()))
                 entries.emplace_back(brgemm_expr->get_input_port(2), false);
             const std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), true)};
-            loop_manager->mark_loop(loop_begin_it, loop_end_it, m, block_size_m, 1, entries, exits);
+
+            const auto id = loop_manager->mark_loop(loop_begin_it, loop_end_it, m, block_size_m, 1, entries, exits, false);
+            loop_manager->get_loop_info<ov::snippets::lowered::UnifiedLoopInfo>(id)->set_handlers(get_default_blocking_loop_handlers(m, block_size_m));
         };
 
         auto mark_n_blocking = [&]() {
@@ -162,9 +183,11 @@ bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linea
 
             const std::vector<LoopPort> entries{
                 LoopPort(brgemm_expr->get_input_port(0), false),
-                LoopPort(brgemm_cpu && brgemm_cpu->is_with_data_repacking() ? copy_b_expr->get_input_port(0) : brgemm_expr->get_input_port(1), true)};
+                LoopPort(need_brgemm_copy_b ? copy_b_expr->get_input_port(0) : brgemm_expr->get_input_port(1), true)};
             const std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), true)};
-            loop_manager->mark_loop(loop_begin_it, loop_end_it, n, block_size_n, 0, entries, exits);
+
+            const auto id = loop_manager->mark_loop(loop_begin_it, loop_end_it, n, block_size_n, 0, entries, exits, false);
+            loop_manager->get_loop_info<ov::snippets::lowered::UnifiedLoopInfo>(id)->set_handlers(get_default_blocking_loop_handlers(n, block_size_n));
         };
 
         auto mark_k_blocking = [&]() {
@@ -173,16 +196,16 @@ bool BrgemmBlocking::run(LinearIR& linear_ir, LinearIR::constExprIt begin, Linea
 
             const std::vector<LoopPort> entries{
                 LoopPort(brgemm_expr->get_input_port(0), true, 0),
-                LoopPort(brgemm_cpu && brgemm_cpu->is_with_data_repacking() ? copy_b_expr->get_input_port(0) : brgemm_expr->get_input_port(1), true, 1)};
+                LoopPort(need_brgemm_copy_b ? copy_b_expr->get_input_port(0) : brgemm_expr->get_input_port(1), true, 1)};
             const std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), false)};
-            const auto id = loop_manager->mark_loop(loop_begin_it, loop_end_it, k, block_size_k, entries, exits);
-            const auto& loop_info = loop_manager->get_loop_info<ov::snippets::lowered::UnifiedLoopInfo>(id);
-            loop_info->register_pass_to_handler<ov::snippets::lowered::SpecificLoopIterType::FIRST_ITER, SetBrgemmBeta>(0.f);
+
+            auto handlers = get_default_blocking_loop_handlers(k, block_size_k);
+            handlers.register_pass<ov::snippets::lowered::SpecificLoopIterType::FIRST_ITER, SetBrgemmBeta>(0.f);
+
+            const auto id = loop_manager->mark_loop(loop_begin_it, loop_end_it, k, block_size_k, entries, exits, false);
+            loop_manager->get_loop_info<ov::snippets::lowered::UnifiedLoopInfo>(id)->set_handlers(handlers);
         };
 
-        const bool k_blocking = block_size_k != k;
-        const bool n_blocking = block_size_n != n;
-        const bool m_blocking = block_size_m != m;
         // It is not necessary to include copyB in loop by M if there are no blocking by KN
         const bool include_repacking_in_loop = k_blocking || n_blocking;
 
