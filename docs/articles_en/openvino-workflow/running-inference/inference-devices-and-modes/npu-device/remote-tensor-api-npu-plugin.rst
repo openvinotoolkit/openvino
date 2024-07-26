@@ -36,7 +36,7 @@ The context object of the NPU plugin directly wraps Level Zero context, setting 
 Once you have obtained the context, you can use it to create the ``ov::RemoteTensor`` objects.
 
 Getting RemoteContext from the Plugin
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++
 
 To request the current default context of the plugin, use one of the following methods:
 
