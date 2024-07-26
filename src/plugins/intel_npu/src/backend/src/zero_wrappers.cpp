@@ -114,11 +114,16 @@ CommandList::~CommandList() {
         _log.error("zeCommandListDestroy failed %#X", uint64_t(result));
     }
 }
-void CommandList::updateMutableCommandList(const void* pNext) const {
-    ze_mutable_commands_exp_desc_t mutable_commands_exp_desc_t = {
-        static_cast<ze_structure_type_t>(ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT),
-        pNext,
-        0};
+void CommandList::updateMutableCommandList(uint32_t arg_index, const void* arg_value) const {
+    ze_mutable_graph_argument_exp_desc_t desc = {ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC,
+                                                 nullptr,
+                                                 _command_id,
+                                                 arg_index,
+                                                 arg_value};
+
+    ze_mutable_commands_exp_desc_t mutable_commands_exp_desc_t = {ZE_STRUCTURE_TYPE_MUTABLE_COMMANDS_EXP_DESC,
+                                                                  &desc,
+                                                                  0};
 
     zeroUtils::throwOnFail("zeCommandListUpdateMutableCommandsExp",
                            zeCommandListUpdateMutableCommandsExp(_handle, &mutable_commands_exp_desc_t));
