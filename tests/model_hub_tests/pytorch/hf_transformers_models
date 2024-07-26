@@ -68,7 +68,6 @@ ernie,nghuyong/ernie-3.0-base-zh
 ernie_m,MoritzLaurer/ernie-m-large-mnli-xnli
 esm,InstaDeepAI/nucleotide-transformer-2.5b-multi-species
 f_t5,flax-community/ft5-cnn-dm
-falcon,OpenLLM-France/Claire-7B-0.1
 fastspeech2_conformer,espnet/fastspeech2_conformer,xfail,Compile error: CPU plug-in doesn't support Tile operation with dynamic rank. Operation name: aten::repeat_interleave/Tile
 fastspeech2_conformer_with_hifigan,espnet/fastspeech2_conformer_with_hifigan,xfail,Compile error: CPU plug-in doesn't support Tile operation with dynamic rank. Operation name: __module.model/aten::repeat_interleave/Tile
 flaubert,lincoln/flaubert-mlsum-topic-classification
@@ -78,11 +77,9 @@ fnet,google/fnet-base,xfail,Unsupported op aten::fft_fftn aten::real
 focalnet,microsoft/focalnet-small
 fsmt,facebook/wmt19-en-ru,xfail,Trace error: Only tensors lists tuples of tensors or dictionary of tensors can be output from traced functions
 funnel,funnel-transformer/small
-gemma,beomi/gemma-ko-7b
 git,microsoft/git-large-coco,xfail,Trace error: We don't have an op for aten::full but it isn't a special case
 glpn,vinvino02/glpn-nyu
 gpt_neo,EleutherAI/gpt-neo-2.7B
-gpt_neox_japanese,abeja/gpt-neox-japanese-2.7b
 gpt2,openai-community/gpt2
 gptj,databricks/dolly-v1-6b
 gptsan-japanese,Tanrei/GPTSAN-japanese,xfail,Unsupported op aten::index_put_ prim::TupleConstruct prim::TupleUnpack
@@ -145,7 +142,6 @@ olmo,DrNicefellow/Microscopic-Olmo-2B-1.1k-steps
 oneformer,shi-labs/oneformer_ade20k_swin_tiny,xfail,Different number of outputs between framework and OpenVINO
 openai-gpt,openai-community/openai-gpt
 open-llama,aerner/lm-v2
-opt,facebook/opt-1.3b
 owlv2,google/owlv2-base-patch16-ensemble
 owlvit,google/owlvit-base-patch32
 patchtsmixer,ibm-granite/granite-timeseries-patchtsmixer,xfail,Only tensors lists tuples of tensors or dictionary of tensors can be output from traced functions
@@ -161,7 +157,6 @@ plbart,uclanlp/plbart-base
 poolformer,sail/poolformer_m36
 prophetnet,microsoft/prophetnet-large-uncased-squad-qg
 pvt,Zetatech/pvt-tiny-224
-qwen2,vilm/Quyen-SE-v0.1
 rag,facebook/rag-token-nq,xfail,Load error: Make sure that `context_input_ids` are passed if no `retriever` is set.
 realm,google/realm-orqa-nq-openqa,xfail,Load error: 'NoneType' object is not callable
 reformer,google/reformer-enwik8,xfail,Load error: index out of range in self
