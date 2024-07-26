@@ -32,23 +32,7 @@ private:
     ShlSession sess = {};
     std::vector<ShlTensor> srcTensors, dstTensors;
     std::unique_ptr<IShlParams> params;
-    std::function<int()> exec_func;
-
-    template<typename ExecFunc, typename... Args>
-    void setExecFunc(ExecFunc&& execFunc, Args&&... args) {
-        exec_func = [this, execFunc, args...]()->int { return callFunc(execFunc, std::make_tuple(args...)); };
-    }
-
-    template<typename Func, typename Tuple, size_t... Index>
-    int callFunc(Func&& func, Tuple&& tuple, index_sequence<Index...>) const {
-        return func(std::get<Index>(std::forward<Tuple>(tuple))...);
-    }
-
-    template<typename Func, typename Tuple>
-    int callFunc(Func&& func, Tuple&& tuple) const {
-        return callFunc(std::forward<Func>(func), std::forward<Tuple>(tuple),
-                        make_index_sequence<std::tuple_size<typename std::decay<Tuple>::type>::value>{});
-    }
+    std::function<int()> shlExecFunc;
 };
 
 class ShlEltwiseExecutorBuilder : public EltwiseExecutorBuilder {
