@@ -118,7 +118,7 @@ Limitations
 Low-Level Methods for RemoteContext and RemoteTensor Creation
 #############################################################
 
-The high-level wrappers mentioned above bring a direct dependency on native APIs to the user program.
+The high-level wrappers mentioned above bring a direct dependency on native APIs to your program.
 If you want to avoid the dependency, you still can directly use the ``ov::Core::create_context()``,
 ``ov::RemoteContext::create_tensor()``, and ``ov::RemoteContext::get_params()`` methods.
 On this level, native handles are re-interpreted as void pointers and all arguments are passed
