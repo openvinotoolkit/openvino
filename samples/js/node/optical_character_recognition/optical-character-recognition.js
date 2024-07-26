@@ -10,20 +10,20 @@ const {
   setShape,
 } = require('../helpers.js');
 
+if (require.main === module) {
 // Parsing and validation of input arguments
-if (process.argv.length !== 6)
-  throw new Error(
-    `Usage: ${process.argv[1]} <path_to_detection_model>` +
+  if (process.argv.length !== 6)
+    throw new Error(
+      `Usage: ${process.argv[1]} <path_to_detection_model>` +
       ' <path_to_recognition_model>' +
       ' <path_to_image> <device_name>',
-  );
+    );
 
-const detModelXMLPath = process.argv[2];
-const recModelXMLPath = process.argv[3];
-const imagePath = process.argv[4];
-const deviceName = process.argv[5];
+  const detModelXMLPath = process.argv[2];
+  const recModelXMLPath = process.argv[3];
+  const imagePath = process.argv[4];
+  const deviceName = process.argv[5];
 
-if (require.main === module) {
   try {
     main(detModelXMLPath, recModelXMLPath, imagePath, deviceName);
   } catch(error) {
