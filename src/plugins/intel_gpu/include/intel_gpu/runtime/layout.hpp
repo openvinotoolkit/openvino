@@ -126,7 +126,7 @@ inline data_types element_type_to_data_type(ov::element::Type t) {
     }
 }
 
-constexpr size_t SHAPE_RANK_MAX = 8;
+constexpr size_t SHAPE_RANK_MAX = 9;
 
 /// @brief Represents data padding information.
 struct padding {
@@ -175,9 +175,12 @@ struct padding {
             const std::vector<tensor::value_type>& dynamic_pad_dims = {})
         : _filling_value(filling_value) {
             // paddings
-            // if(lower_sizes.size() > 0) std::copy_n(to_abs(lower_sizes), SHAPE_RANK_MAX, _lower_size);
-            // if(upper_sizes.size() > 0) std::copy_n(to_abs(upper_sizes), SHAPE_RANK_MAX, _upper_size);
-            // if(dynamic_pad_dims.size() > 0) std::copy_n(to_abs(dynamic_pad_dims), SHAPE_RANK_MAX, _dynamic_pad_dims);
+            OPENVINO_ASSERT(lower_sizes.size() <= SHAPE_RANK_MAX);
+            OPENVINO_ASSERT(upper_sizes.size() <= SHAPE_RANK_MAX);
+            OPENVINO_ASSERT(dynamic_pad_dims.size() <= SHAPE_RANK_MAX);
+            if(lower_sizes.size() > 0) std::copy_n(to_abs(lower_sizes).begin(), lower_sizes.size(), _lower_size);
+            if(upper_sizes.size() > 0) std::copy_n(to_abs(upper_sizes).begin(), upper_sizes.size(), _upper_size);
+            if(dynamic_pad_dims.size() > 0) std::copy_n(to_abs(dynamic_pad_dims).begin(), dynamic_pad_dims.size(), _dynamic_pad_dims);
           }
 
     /// @brief Constrcuts symmetric padding.
@@ -195,6 +198,7 @@ struct padding {
         std::copy_n(other._lower_size, SHAPE_RANK_MAX, _lower_size);
         std::copy_n(other._upper_size, SHAPE_RANK_MAX, _upper_size);
         std::copy_n(other._dynamic_pad_dims, SHAPE_RANK_MAX, _dynamic_pad_dims);
+        _filling_value = other._filling_value;
     }
 
     /// @brief Copy assignment.
@@ -204,6 +208,7 @@ struct padding {
         std::copy_n(other._lower_size, SHAPE_RANK_MAX, _lower_size);
         std::copy_n(other._upper_size, SHAPE_RANK_MAX, _upper_size);
         std::copy_n(other._dynamic_pad_dims, SHAPE_RANK_MAX, _dynamic_pad_dims);
+        _filling_value = other._filling_value;
         return *this;
     }
 
@@ -248,29 +253,36 @@ struct padding {
 
     size_t hash() const {
         size_t seed = 0;
+        // std::cout << "=======" << __LINE__ << ": seed = " << seed << ", _filling_value = " << _filling_value << ", this = " << this << std::endl;
         seed = cldnn::hash_combine(seed, _filling_value);
-        // seed = cldnn::hash_combine(seed, _lower_size.hash());
-        // seed = cldnn::hash_combine(seed, _upper_size.hash());
-        // seed = cldnn::hash_combine(seed, _dynamic_pad_dims.hash());
+        // std::cout << "=======" << __LINE__ << ": seed = " << seed << std::endl;
+        seed = cldnn::hash_combine(seed, hash_range(seed, std::begin(_lower_size), std::end(_lower_size)));
+        // std::cout << "=======" << __LINE__ << ": seed = " << seed << std::endl;
+        seed = cldnn::hash_combine(seed, hash_range(seed, std::begin(_upper_size), std::end(_upper_size)));
+        // std::cout << "=======" << __LINE__ << ": seed = " << seed << std::endl;
+        seed = cldnn::hash_combine(seed, hash_range(seed, std::begin(_dynamic_pad_dims), std::end(_dynamic_pad_dims)));
+        // std::cout << "=======" << __LINE__ << ": seed = " << seed << std::endl;
         return seed;
     }
 
     void save(BinaryOutputBuffer& ob) const {
-        // ob << _lower_size;
-        // ob << _upper_size;
+        std::cout << "=========" << "called layout::save!" << std::endl;
+        ob << lower_size();
+        ob << upper_size();
         ob << _filling_value;
-        // ob << _dynamic_pad_dims;
+        ob << get_dynamic_pad_dims();
     }
 
     void load(BinaryInputBuffer& ib) {
+        std::cout << "=========" << "called layout::load!" << std::endl;
         std::vector<tensor::value_type> sizes;
         ib >> sizes;
-        // _lower_size = tensor(sizes);
+        std::copy_n(_lower_size, sizes.size(), sizes.begin());
         ib >> sizes;
-        // _upper_size = tensor(sizes);
+        std::copy_n(_upper_size, sizes.size(), sizes.begin());
         ib >> _filling_value;
         ib >> sizes;
-        // _dynamic_pad_dims = tensor(sizes);
+        std::copy_n(_dynamic_pad_dims, sizes.size(), sizes.begin());
     }
 
 private:
@@ -282,10 +294,10 @@ private:
     tensor::value_type _upper_size[SHAPE_RANK_MAX] = {0};  ///< Upper padding sizes. For spatials, it means size of right (X) and bottom (Y) padding.
     tensor::value_type _dynamic_pad_dims[SHAPE_RANK_MAX] = {0};   ///< A mask saying which dimension has dynamic pad  
 
-    static std::vector<tensor::value_type> to_abs(const std::initializer_list<tensor::value_type>& sizes) {
+    static std::vector<tensor::value_type> to_abs(const std::vector<tensor::value_type>& sizes) {
         std::vector<tensor::value_type> result;
         result.reserve(sizes.size());
-        std::transform(sizes.begin(), sizes.end(), std::back_inserter(result), [](const tensor::value_type& el) { return abs(el); });
+        std::transform(sizes.cbegin(), sizes.cend(), std::back_inserter(result), [](const tensor::value_type& el) { return abs(el); });
         return result;  // NRVO
     }
 };
@@ -309,8 +321,8 @@ struct layout {
                                                                                                    format::is_grouped(fmt)));
             ov::Shape shape(sizes.begin(), sizes.end());
             this->size = ov::PartialShape(shape);
-            size_t rank = this->size.rank().get_length();
-            OPENVINO_ASSERT(rank <= SHAPE_RANK_MAX, "shape size exceeds maximum padding size!");
+            // size_t rank = this->size.rank().get_length();
+            // OPENVINO_ASSERT(rank <= SHAPE_RANK_MAX, "shape size exceeds maximum padding size!");
         }
 
     layout(ov::PartialShape size, data_types data_type, cldnn::format fmt, padding apadding = padding())
@@ -318,8 +330,8 @@ struct layout {
         , format(fmt)
         , data_padding(apadding)
         , size(size) {
-            size_t rank = size.rank().get_length();
-            OPENVINO_ASSERT(rank <= SHAPE_RANK_MAX, "shape size exceeds maximum padding size!");
+            // size_t rank = size.rank().get_length();
+            // OPENVINO_ASSERT(rank <= SHAPE_RANK_MAX, "shape size exceeds maximum padding size!");
         }
 
     layout(const layout& other) = default;
@@ -463,12 +475,14 @@ struct layout {
     // for smaller buffer which, currently, should always be performed
     bool identical(const layout& other) const;
 
-    static size_t max_rank() { return SHAPE_RANK_MAX; }
+    static size_t max_rank() { return 8; }
     static ov::PartialShape transform(const ov::PartialShape& pshape, const cldnn::format& old_fmt, const cldnn::format& new_fmt);
 
     size_t hash() const {
         size_t seed = 0;
-        // seed = hash_combine(seed, data_padding.hash());  // Cecilia: TODO
+        size_t padding_seed = data_padding.hash();
+        // std::cout << "================layout::data_padding.hash=" << padding_seed << std::endl;
+        seed = hash_combine(seed, padding_seed);
         seed = hash_combine(seed, format.value);
         seed = hash_combine(seed, data_type);
 

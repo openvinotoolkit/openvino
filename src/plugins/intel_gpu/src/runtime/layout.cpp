@@ -112,15 +112,21 @@ std::vector<tensor::value_type> layout::get_dims() const {
 }
 
 std::vector<tensor::value_type> layout::get_padded_dims() const {
-    if (is_dynamic())
-        throw std::runtime_error("[GPU] get_padded_dims() is called for dynamic shape");
+    OPENVINO_ASSERT(!is_dynamic() || has_upper_bound(), "[GPU] get_tensor() is called for dynamic shape without upper bound");
+    ov::Shape shape;
+    if (is_dynamic() && has_upper_bound()) {
+        for (const auto& dim : size) {
+            shape.push_back(dim.get_max_length());
+        }
+    } else {
+        shape = size.to_shape();
+    }
 
-    const auto& shape = size.to_shape();
     std::vector<tensor::value_type> res(shape.size());
     for (size_t i = 0; i < shape.size(); i++) {
         res[i] = shape[i] + data_padding.upper_size()[i] + data_padding.lower_size()[i];   // Cecilia TODO: export data_padding fileds?
     }
-    return res;  
+    return res;
 
 }
 
@@ -185,9 +191,9 @@ std::string layout::to_string() const {
       << "\tdata_type=" << ov::element::Type(data_type) << ";\n"
       << "\tformat=" << format.to_string() << ";\n"
       << "\tshape=" << size << ";\n"
-    //   << "\tpad_l=" << data_padding.lower_size().to_string() << ";\n"
-    //   << "\tpad_u=" << data_padding.upper_size().to_string() << ";\n"
-    //   << "\tdyn_pad_dims" << data_padding.get_dynamic_pad_dims().to_string() << ";\n"
+      << "\tpad_l=" << tensor(data_padding.lower_size()).to_string() << ";\n"
+      << "\tpad_u=" << tensor(data_padding.upper_size()).to_string() << ";\n"
+      << "\tdyn_pad_dims" << tensor(data_padding.get_dynamic_pad_dims()).to_string() << ";\n"
       << "}";
     return s.str();
 }
@@ -341,7 +347,7 @@ size_t layout::get_linear_offset(const std::initializer_list<tensor::value_type>
     // auto padded_element = element + l_padd;
     // return padded_size.get_linear_offset(padded_element, format);
 
-    OPENVINO_ASSERT(!is_dynamic() || has_upper_bound(), "[GPU] get_tensor() is called for dynamic shape without upper bound");
+    OPENVINO_ASSERT(!is_dynamic() || has_upper_bound(), "[GPU] get_linear_offset() is called for dynamic shape without upper bound");
     ov::Shape shape;
     if (is_dynamic() && has_upper_bound()) {
         for (const auto& dim : size) {
@@ -351,13 +357,46 @@ size_t layout::get_linear_offset(const std::initializer_list<tensor::value_type>
         shape = size.to_shape();
     }
 
-    OPENVINO_ASSERT(index.size() == shape.size() && shape.size() <= SHAPE_RANK_MAX, "index should have the same rank as shape.");
+    OPENVINO_ASSERT((index.size() == 0) ||
+                    (index.size() >= shape.size() && shape.size() <= SHAPE_RANK_MAX), "index should have the same rank as shape."); //FIXME: dims?
 
-    // const auto padded_index = index + _pad_before;
-    // const auto padded_shape = _pad_before + shape + _pad_after;
-    // tensor t(format, padded_shape);
-    // return t.get_linear_offset(padded_index, format);
-    return 1; // Cecilia TODO
+    std::vector<tensor::value_type> padded_index(shape.size(), 0);
+    std::vector<tensor::value_type> padded_sizes(shape.size(), 0);
+    const auto& pad_before = data_padding.lower_size();
+    const auto& pad_after = data_padding.upper_size();
+
+    if (index.size() != 0) {
+        std::transform(pad_before.begin(), pad_before.begin() + shape.size(), index.begin(),
+                padded_index.begin(), std::plus<tensor::value_type>());
+    }
+
+    std::transform(pad_before.begin(), pad_before.begin() + shape.size(), shape.begin(),
+               padded_sizes.begin(), std::plus<tensor::value_type>());
+    std::transform(pad_after.begin(), pad_after.begin() + shape.size(), padded_sizes.begin(),
+               padded_sizes.begin(), std::plus<tensor::value_type>());
+
+    // Cecilia: TODO
+    auto to_tensor = [](const cldnn::format &format, std::vector<tensor::value_type> &shape) {
+        std::vector<tensor::value_type> dims;
+        for (auto dim : shape) {
+            dims.push_back(static_cast<tensor::value_type>(dim));
+        }
+
+        auto rank = std::max(format.dimension(), dims.size());
+        auto default_fmt = format::get_default_format(rank, format::is_weights_format(format), format::is_grouped(format));
+        if (default_fmt.dimension() > dims.size()) {
+            dims.insert(dims.end(), default_fmt.dimension() - dims.size(), 1);
+        }
+
+        while (dims.size() > default_fmt.dimension()) {
+            dims.pop_back();
+        }
+
+        return tensor(default_fmt, dims);
+    };
+
+    auto t = to_tensor(format, padded_sizes);
+    return t.get_linear_offset(to_tensor(format, padded_index), format);
 }
 
 /// @brief Get aligned linear size calculated as multiplication of all elements.
@@ -367,6 +406,7 @@ size_t layout::get_linear_size() const {
 
     std::set<size_t> processed_dims;
     const auto& blocks = format.block_sizes();
+
     for (size_t i = 0; i < blocks.size(); i++) {
         if (processed_dims.count(blocks[i].first))
             continue;
@@ -379,6 +419,11 @@ size_t layout::get_linear_size() const {
                 continue;
 
             block_size *= blocks[j].second;
+        }
+
+        if (block_axis >= sizes.size()) {
+            std::cout  << "CACTHA!!!!" << std::endl;
+            std::cout << "============== block_axis=" << block_axis << ", get_padded_dims=" << sizes.size() << ",format=" << format << ",layout.size" << size << std::endl;
         }
 
         sizes[block_axis] = align_to(sizes[block_axis], block_size);
@@ -418,6 +463,7 @@ size_t layout::get_linear_size() const {
         static_cast<size_t>(1),
         std::multiplies<size_t>());
 
+    // if (total == 0) std::cout << "========== layout=" << this->size << ", shape = " << shape_size(this->size.to_shape()) << std::endl;
     return total;
 }
 

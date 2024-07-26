@@ -1399,8 +1399,8 @@ TEST(activation_f32_fw_gpu, relu_basic_output_padding_yxfb) {
     auto output_size = output_layout.get_padded_dims();
     cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
 
-    int y_size = output_size[2 + 1];
-    int x_size = output_size[2 + 0];
+    int y_size = output_size[2 + 0];
+    int x_size = output_size[2 + 1];
     int f_size = output_size[1];
     int b_size = output_size[0];
     ASSERT_EQ(output_layout.format, format::yxfb);
