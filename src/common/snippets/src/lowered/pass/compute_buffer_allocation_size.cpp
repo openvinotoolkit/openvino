@@ -60,7 +60,7 @@ size_t ComputeBufferAllocationSize::get_allocation_size(const LoopManagerPtr& lo
     const auto processing_rank = !processed_dim_idxs.empty() ? std::max(*processed_dim_idxs.rbegin(), subtensor.size()) : subtensor.size();
     for (size_t i = 0; i < std::min(processing_rank, rank); ++i) {
         if (processed_dim_idxs.count(i) == 0) {
-            if (i < subtensor.size())
+            if (i < subtensor.size() && !utils::is_full_dim_value(*(subtensor.rbegin() + i)))
                 allocation_size = utils::dynamic_safe_mul(allocation_size, std::min(*(planar_shape.rbegin() + i), *(subtensor.rbegin() + i)));
             else
                 allocation_size = utils::dynamic_safe_mul(allocation_size, *(planar_shape.rbegin() + i));

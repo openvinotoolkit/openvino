@@ -430,7 +430,8 @@ public:
     ExpandedLoopInfo(size_t work_amount, size_t increment,
                      const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits,
                      std::vector<int64_t> ptr_increments, std::vector<int64_t> final_offsets, std::vector<int64_t> data_sizes,
-                     SpecificLoopIterType type, std::shared_ptr<UnifiedLoopInfo> unified_loop_info, bool is_wa_const = false);
+                     SpecificLoopIterType type, std::shared_ptr<UnifiedLoopInfo> unified_loop_info, bool is_wa_const = false,
+                     bool evaluate_once = false);
     /**
      * @brief Clone LoopInfo with new expressions
      * @param expr_map map of new and old expressions
@@ -474,7 +475,18 @@ public:
      * @return const ref of `m_data_sizes`
      */
     const std::vector<int64_t>& get_data_sizes() const;
+    /**
+     * @brief Returns True if the current Loop should be executed once
+     *        Otherwise, returns False
+     * @return `m_evaluance_once`
+     */
+    bool is_evaluate_once() const;
 
+    /**
+     * @brief Set value to `m_evaluance_once`
+     * @param value - new value of `m_evaluance_once`
+     */
+    void set_evaluate_once(bool value);
     /**
      * @brief Update `m_ptr_increments` using copy values from `new_values`.
      *        The count of new values must be equal to the count of current increments.
@@ -517,6 +529,8 @@ private:
 
     const SpecificLoopIterType m_type = {};
     std::shared_ptr<UnifiedLoopInfo> m_unified_loop_info = {};
+
+    bool m_evaluate_once = false;
 };
 using ExpandedLoopInfoPtr = std::shared_ptr<ExpandedLoopInfo>;
 

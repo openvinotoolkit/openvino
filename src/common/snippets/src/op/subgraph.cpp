@@ -552,7 +552,7 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
         exec_table->replace_key_expression(expression_map.at(expr.get()), expr);
     // Some kernel executors might've been registered during code emission.
     //  We need to update them, so appropriate kernels will be compiled.
-    exec_table->update_state();
+    exec_table->update_state(m_linear_ir);
     return {std::move(lowering_result)};
 }
 

@@ -21,6 +21,26 @@ namespace ov {
 namespace snippets {
 namespace utils {
 
+/* --- Special values --- */
+template<typename T, typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
+constexpr inline T get_dynamic_value() {
+    return std::numeric_limits<T>::max();
+}
+template<typename T, typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
+constexpr inline bool is_dynamic_value(T value) {
+    return value == get_dynamic_value<T>();
+}
+
+// This value means full dimension
+// For example, for the subtensor it means that scheduling should be by full dimension
+constexpr inline size_t get_full_dim_value() {
+    return get_dynamic_value<size_t>() - 1;
+}
+constexpr inline bool is_full_dim_value(size_t value) {
+    return value == get_full_dim_value();
+}
+/* ---------------------- */
+
 // Get non-scalar Constant count that will be created after FakeQuantize decomposition.
 // This count is needed to know exact count of non-scalar Constants during tokenization.
 auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) -> size_t;
@@ -57,16 +77,6 @@ template <typename T, typename U>
 inline T div_up(const T a, const U b) {
     OPENVINO_ASSERT(b != 0, "Divider must not be zero");
     return static_cast<T>((a + b - 1) / b);
-}
-
-template<typename T, typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
-constexpr inline T get_dynamic_value() {
-    return std::numeric_limits<T>::max();
-}
-
-template<typename T, typename = typename std::enable_if<(std::is_same<T, size_t>::value || std::is_same<T, int64_t>::value), bool>::type>
-constexpr inline bool is_dynamic_value(T value) {
-    return value == get_dynamic_value<T>();
 }
 
 inline bool is_dynamic_vdims(const VectorDims& shape) {
