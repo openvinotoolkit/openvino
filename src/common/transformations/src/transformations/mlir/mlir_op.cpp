@@ -65,77 +65,73 @@ using namespace mlir;
 using NodePtr = std::shared_ptr<ov::Node>;
 using SymbolPtr = std::shared_ptr<ov::Symbol>;
 
-void prepareMLIRKernelWithoutWrapper(mlir::OwningOpRef<mlir::ModuleOp>& module) {
-    // A set of default passes that lower any input IR to LLVM
+void prepareMLIRKernelWithoutWrapper(mlir::OwningOpRef<mlir::ModuleOp>& module, bool tpp_mlir_enabled) {
     PassManager pm(module->getContext());
+    if(tpp_mlir_enabled) {
+        #ifdef TPP_MLIR
+            tpp::DefaultPipelineOptions defPipelineOpts;
+            pm.addPass(tpp::createDefaultPipeline(defPipelineOpts));
+        #endif
+    } else {
+        // Cleanup before bufferization.
+        // Simplifies IR to allow better bufferization.
+        pm.addNestedPass<func::FuncOp>(createCanonicalizerPass());
+        pm.addNestedPass<func::FuncOp>(createCSEPass());
 
-#if TPP_MLIR
+        // Remove empty tensors to avoid converting them into temporary buffers.
+        pm.addPass(bufferization::createEmptyTensorEliminationPass());
 
-    tpp::DefaultPipelineOptions defPipelineOpts;
-    pm.addPass(tpp::createDefaultPipeline(defPipelineOpts));
+        pm.addPass(bufferization::createOneShotBufferizePass());
+        pm.addNestedPass<func::FuncOp>(bufferization::createFinalizingBufferizePass());
 
-#else  // Simplified default lowering to LLVM from LLVM tests
+        // Cleanup after bufferization - possibly remove redundant copies.
+        pm.addNestedPass<func::FuncOp>(createCanonicalizerPass());
+        pm.addNestedPass<func::FuncOp>(createCSEPass());
 
-    // Cleanup before bufferization.
-    // Simplifies IR to allow better bufferization.
-    pm.addNestedPass<func::FuncOp>(createCanonicalizerPass());
-    pm.addNestedPass<func::FuncOp>(createCSEPass());
+        // Deallocation pipeline to avoid memory leaks from created temporary buffers.
+        pm.addPass(memref::createExpandReallocPass(/*emitDeallocs=*/false));
+        pm.addPass(createCanonicalizerPass());
+        bufferization::DeallocationOptions deallocOpts;
+        deallocOpts.privateFuncDynamicOwnership = false;
+        pm.addPass(bufferization::createOwnershipBasedBufferDeallocationPass(deallocOpts));
+        pm.addPass(createCanonicalizerPass());
+        pm.addPass(bufferization::createBufferDeallocationSimplificationPass());
+        pm.addPass(bufferization::createLowerDeallocationsPass());
+        pm.addPass(createCSEPass());
+        pm.addPass(createCanonicalizerPass());
 
-    // Remove empty tensors to avoid converting them into temporary buffers.
-    pm.addPass(bufferization::createEmptyTensorEliminationPass());
-
-    pm.addPass(bufferization::createOneShotBufferizePass());
-    pm.addNestedPass<func::FuncOp>(bufferization::createFinalizingBufferizePass());
-
-    // Cleanup after bufferization - possibly remove redundant copies.
-    pm.addNestedPass<func::FuncOp>(createCanonicalizerPass());
-    pm.addNestedPass<func::FuncOp>(createCSEPass());
-
-    // Deallocation pipeline to avoid memory leaks from created temporary buffers.
-    pm.addPass(memref::createExpandReallocPass(/*emitDeallocs=*/false));
-    pm.addPass(createCanonicalizerPass());
-    bufferization::DeallocationOptions deallocOpts;
-    deallocOpts.privateFuncDynamicOwnership = false;
-    pm.addPass(bufferization::createOwnershipBasedBufferDeallocationPass(deallocOpts));
-    pm.addPass(createCanonicalizerPass());
-    pm.addPass(bufferization::createBufferDeallocationSimplificationPass());
-    pm.addPass(bufferization::createLowerDeallocationsPass());
-    pm.addPass(createCSEPass());
-    pm.addPass(createCanonicalizerPass());
-
-    // Blanket-convert any remaining high-level vector ops to loops if any remain.
-    pm.addNestedPass<func::FuncOp>(createConvertVectorToSCFPass());
-    // pm.addNestedPass<func::FuncOp>(createLinalgGeneralizeNamedOpsPass());
-    //  Blanket-convert any remaining linalg ops to loops if any remain.
-    pm.addNestedPass<func::FuncOp>(createConvertLinalgToLoopsPass());
-    // Blanket-convert any remaining affine ops if any remain.
-    pm.addPass(createLowerAffinePass());
-    // Convert SCF to CF (always needed).
-    pm.addPass(createConvertSCFToCFPass());
-    // Sprinkle some cleanups.
-    pm.addPass(createCanonicalizerPass());
-    pm.addPass(createCSEPass());
-    // Blanket-convert any remaining linalg ops to LLVM if any remain.
-    // pm.addPass(createConvertLinalgToLLVMPass());  // no such pass
-    // Convert vector to LLVM (always needed).
-    pm.addPass(createConvertVectorToLLVMPass());
-    // Convert Math to LLVM (always needed).
-    pm.addNestedPass<func::FuncOp>(createConvertMathToLLVMPass());
-    // Expand complicated MemRef operations before lowering them.
-    pm.addPass(memref::createExpandStridedMetadataPass());
-    // The expansion may create affine expressions. Get rid of them.
-    pm.addPass(createLowerAffinePass());
-    // Convert MemRef to LLVM (always needed).
-    // pm.addPass(memref::createExpandOpsPass());
-    pm.addPass(createFinalizeMemRefToLLVMConversionPass());
-    // Convert Func to LLVM (always needed).
-    pm.addPass(createConvertFuncToLLVMPass());
-    // Convert Index to LLVM (always needed).
-    pm.addPass(createConvertIndexToLLVMPass());
-    // Convert remaining unrealized_casts (always needed).
-    pm.addPass(createReconcileUnrealizedCastsPass());
-
-#endif
+        // Blanket-convert any remaining high-level vector ops to loops if any remain.
+        pm.addNestedPass<func::FuncOp>(createConvertVectorToSCFPass());
+        // pm.addNestedPass<func::FuncOp>(createLinalgGeneralizeNamedOpsPass());
+        //  Blanket-convert any remaining linalg ops to loops if any remain.
+        pm.addNestedPass<func::FuncOp>(createConvertLinalgToLoopsPass());
+        // Blanket-convert any remaining affine ops if any remain.
+        pm.addPass(createLowerAffinePass());
+        // Convert SCF to CF (always needed).
+        pm.addPass(createConvertSCFToCFPass());
+        // Sprinkle some cleanups.
+        pm.addPass(createCanonicalizerPass());
+        pm.addPass(createCSEPass());
+        // Blanket-convert any remaining linalg ops to LLVM if any remain.
+        // pm.addPass(createConvertLinalgToLLVMPass());  // no such pass
+        // Convert vector to LLVM (always needed).
+        pm.addPass(createConvertVectorToLLVMPass());
+        // Convert Math to LLVM (always needed).
+        pm.addNestedPass<func::FuncOp>(createConvertMathToLLVMPass());
+        // Expand complicated MemRef operations before lowering them.
+        pm.addPass(memref::createExpandStridedMetadataPass());
+        // The expansion may create affine expressions. Get rid of them.
+        pm.addPass(createLowerAffinePass());
+        // Convert MemRef to LLVM (always needed).
+        // pm.addPass(memref::createExpandOpsPass());
+        pm.addPass(createFinalizeMemRefToLLVMConversionPass());
+        // Convert Func to LLVM (always needed).
+        pm.addPass(createConvertFuncToLLVMPass());
+        // Convert Index to LLVM (always needed).
+        pm.addPass(createConvertIndexToLLVMPass());
+        // Convert remaining unrealized_casts (always needed).
+        pm.addPass(createReconcileUnrealizedCastsPass());
+    }
 
     auto result = pm.run(module.get());
     if (failed(result)) {
@@ -225,7 +221,7 @@ struct MemRef {
             assert(byte_strides[i] % element_size == 0);
             // TODO: handle case when stride is not aligned (restrict at OV API level)
             strides[i] = byte_strides[i] / element_size;
-            //std::cout << "stride [" << i << "] = " << strides[i] << "\n";
+            //std::cerr << "stride [" << i << "] = " << strides[i] << "\n";
         }
     }
 
@@ -256,22 +252,24 @@ namespace mlir {
 using namespace ::mlir;
 
 
-MLIREvaluate::MLIREvaluate(OwningOpRef<mlir::ModuleOp> _module) : module(std::move(_module)) {
-    if (true) {
-        std::cerr << "[ DEBUG ] Source MLIR:\n";
-        std::cerr << "-----------------------------------------\n";
-        module->dump();
-        std::cerr << "-----------------------------------------\n";
-    }
+MLIREvaluate::MLIREvaluate(OwningOpRef<mlir::ModuleOp> _module, bool tpp_mlir_enabled) :
+    module(std::move(_module)) {
 
-    prepareMLIRKernelWithoutWrapper(module);
+    OPENVINO_MLIR_DEBUG_PRINT(
+        "[ DEBUG ] Source MLIR:\n"
+        "-----------------------------------------\n");
+    OPENVINO_MLIR_DEBUG(module->dump());
+    OPENVINO_MLIR_DEBUG_PRINT(
+        "-----------------------------------------\n");
 
-    if (true) {
-        std::cerr << "[ DEBUG ] Target LLVM:\n";
-        std::cerr << "-----------------------------------------\n";
-        module->dump();
-        std::cerr << "-----------------------------------------\n";
-    }
+    prepareMLIRKernelWithoutWrapper(module, tpp_mlir_enabled);
+
+    OPENVINO_MLIR_DEBUG_PRINT(
+        "[ DEBUG ] Target LLVM:\n"
+        "-----------------------------------------\n");
+    OPENVINO_MLIR_DEBUG(module->dump());
+    OPENVINO_MLIR_DEBUG_PRINT(
+        "-----------------------------------------\n");
 
     auto optPipeline = mlir::makeOptimizingTransformer(2,
                                                         /*sizeLevel=*/0,  // FIXME: HARDCODED
@@ -324,6 +322,7 @@ bool MLIROp::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs)
         memref_args.push_back(MemRef(inputs[i]));
     }
     for (size_t i = 0; i < outputs.size(); ++i) {
+        // TODO: Optimize by adding all dimensions to dimensions_map, not only dynamic
         Shape target;
         PartialShape expected = get_output_partial_shape(i);
         for(size_t j = 0; j < expected.size(); ++j) {

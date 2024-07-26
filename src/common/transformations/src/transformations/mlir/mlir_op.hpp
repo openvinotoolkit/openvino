@@ -29,7 +29,7 @@ class MLIREvaluate {
 
 public:
 
-    MLIREvaluate(OwningOpRef<ModuleOp> _module);
+    MLIREvaluate(OwningOpRef<ModuleOp> _module, bool tpp_mlir_enabled);
     bool invoke_packed(std::vector<void*>& args);
 };
 

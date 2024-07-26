@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <iostream>
+
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/MLIRContext.h"
@@ -16,6 +18,11 @@
 
 namespace ov {
 namespace mlir {
+
+bool is_debug();
+
+#define OPENVINO_MLIR_DEBUG(X) do if(::ov::mlir::is_debug()) { X; } while(false)
+#define OPENVINO_MLIR_DEBUG_PRINT(X) do if(::ov::mlir::is_debug()) { ::std::cerr << X; } while(false)
 
 using namespace ::mlir;
 

@@ -4,6 +4,9 @@
 
 #include "convert_common.hpp"
 
+#include <openvino/util/env_util.hpp>
+
+
 namespace {
 
 using namespace mlir;
@@ -58,6 +61,9 @@ IntegerType getBool8Type(MLIRContext* ctx) {
 namespace ov {
 namespace mlir {
 
+bool is_debug() {
+    util::getenv_bool("OV_MLIR_DEBUG", false);
+}
 
 Location createLayerLocation(MLIRContext* ctx, const std::string& layerName, const std::string& layerType) {
     const auto layerNameAttr = StringAttr::get(ctx, layerName);
