@@ -60,7 +60,7 @@ Memory Sharing Between Application and NPU Plugin
 #################################################
 
 The classes that implement the ``ov::RemoteTensor`` interface are the wrappers for native API
-memory handles (which can be obtained from them at any time).
+memory handles, which can be obtained from them at any time.
 
 To create a shared tensor from a native memory handle, use dedicated ``create_tensor``, ``create_l0_host_tensor``, or ``create_host_tensor``
 methods of the ``ov::RemoteContext`` sub-classes.
