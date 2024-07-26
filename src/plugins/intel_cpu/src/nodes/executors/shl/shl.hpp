@@ -149,12 +149,6 @@ struct ShlTensor : public ShlStructure<csinn_tensor*> {
     }
 #endif
 
-    void setShape(const VectorDims& shape) {
-        get()->dim_count = shape.size();
-        OPENVINO_ASSERT(get()->dim_count < MAX_DIM, "Shl supports shapes with rank less or equal to 8");
-        for (int i = 0; i < get()->dim_count; ++i)
-            get()->dim[i] = static_cast<int32_t>(shape[i]);
-    };
 private:
     void setLayout(csinn_layout_enum layout) {
         get()->layout = layout;
@@ -164,6 +158,12 @@ private:
         get()->dtype = data_type;
     }
 
+    void setShape(const VectorDims& shape) {
+        get()->dim_count = shape.size();
+        OPENVINO_ASSERT(get()->dim_count < MAX_DIM, "Shl supports shapes with rank less or equal to 8");
+        for (int i = 0; i < get()->dim_count; ++i)
+            get()->dim[i] = static_cast<int32_t>(shape[i]);
+    };
 };
 
 // virtual base class for different kinds of params
@@ -270,13 +270,6 @@ struct ShlStructureTraits<csinn_prelu_params*> {
 };
 struct ShlPReluParams : public ShlParams<csinn_prelu_params*> {
     using ShlParams<csinn_prelu_params*>::ShlParams;
-};
-
-template <>
-struct ShlStructureTraits<csinn_conv2d_params*> {
-    static void destructor(csinn_conv2d_params* p) {
-        return csinn_free_params(p);
-    }
 };
 
 }   // namespace intel_cpu
