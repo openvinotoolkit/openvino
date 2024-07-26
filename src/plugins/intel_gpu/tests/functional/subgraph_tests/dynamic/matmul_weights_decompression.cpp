@@ -89,7 +89,7 @@ public:
             result << ov::test::utils::partialShape2str({actual_shape}) << "_";
         }
         result << "_" << "weights_shape=" << shape_params.weights_shape << "_";
-        result << "group_size=" << (shape_params.weights_group_size == -1 ? 123123 : shape_params.weights_group_size) << "_";
+        result << "group_size=" << (shape_params.weights_group_size == -1 ? 1111 : shape_params.weights_group_size) << "_";
         result << "weights_precision=" << weights_precision << "_";
         result << "activations_precision=" << activations_precision << "_";
         result << "transpose_weights=" << transpose << "_";

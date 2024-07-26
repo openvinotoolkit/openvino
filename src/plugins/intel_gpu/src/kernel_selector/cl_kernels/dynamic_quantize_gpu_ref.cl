@@ -51,7 +51,5 @@ KERNEL(dynamic_quantize_gpu_ref)(
             output[out_offset + x] = convert_char(input[in_offset + x] * scale);
     }
 
-    ushort8 test = vload8(0, (ushort*)input + INPUT0_GET_INDEX(b, f, 0, 0));
-
     output_scale[scale_idx] = 1.0h / scale;
 }
