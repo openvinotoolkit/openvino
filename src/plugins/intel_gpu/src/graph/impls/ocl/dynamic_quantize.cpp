@@ -33,7 +33,7 @@ struct dynamic_quantize_impl : typed_primitive_impl_ocl<dynamic_quantize> {
     }
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
-        /// XXX: handle group size here
+        /// TODO: handle group_size here
         auto params = get_default_params<kernel_selector::dynamic_quantize_params>(impl_param, is_shape_agnostic);
         params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(1)));
 

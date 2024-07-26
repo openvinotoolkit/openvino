@@ -79,6 +79,7 @@ protected:
             if (prim->activation_scale.is_valid()) {
                 auto activation_scale_idx = idx++;
                 auto act_scale_mem = instance.dep_memory_ptr(activation_scale_idx);
+                // TODO: handle group_size here
                 dnnl::memory::desc desc = onednn::layout_to_memory_desc(act_scale_mem->get_layout(), dnnl::memory::format_tag::a, true);
                 args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_SRC_0, act_scale_mem->get_onednn_memory(desc)});
             }
@@ -287,12 +288,12 @@ public:
         }
 
         bool has_decompression_zp = !prim->decompression_zero_point.empty() || prim->decompression_zero_point_scalar.has_value();
+        auto& arg = impl_params->get_program().get_node(impl_params->desc->id).as<fully_connected>();
+        int idx = !arg.bias_term() ? 3 : 4;
 
         if (has_decompression_zp) {
             ib >> make_data(&_dzp_data_type, sizeof(dnnl::memory::data_type));
-            auto& arg = impl_params->get_program().get_node(impl_params->desc->id).as<fully_connected>();
-            auto decompression_zp_idx = !arg.bias_term() ? 3 : 4;
-            auto dzp_layout = arg.get_dependency(decompression_zp_idx).get_output_layout();
+            auto dzp_layout = arg.get_dependency(idx++).get_output_layout();
 
             if (dzp_layout.count() == 1) {
                 _attrs->set_zero_points(DNNL_ARG_WEIGHTS, 0, dnnl::memory::dims{}, _dzp_data_type);
@@ -307,16 +308,11 @@ public:
         }
 
         if (dynamic_quantized_activation) {
-            int input_idx = has_bias ? 2 : 1;
-            if (has_decompression_scale)
-                input_idx++;
-            if (has_decompression_zp)
-                input_idx++;
-            // Note: it supports per-token activation scale only
+            // TODO: it supports per-token activation scale only
             auto partial_shape = impl_params->get_input_layout(0).get_partial_shape();
             auto innermost_len = partial_shape[partial_shape.size() - 1].get_length();
 
-            auto act_scale_data_type = convert_data_type(impl_params->get_input_layout(input_idx).data_type);
+            auto act_scale_data_type = convert_data_type(impl_params->get_input_layout(idx).data_type);
             _attrs->set_scales(DNNL_ARG_SRC, (1 << 1) | (1 << 0), dnnl::memory::dims{1, innermost_len}, act_scale_data_type);
         }
 

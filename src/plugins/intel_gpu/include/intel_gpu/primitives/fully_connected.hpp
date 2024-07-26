@@ -100,7 +100,8 @@ struct fully_connected : public primitive_base<fully_connected> {
           weights_rank(weights_rank) {
         OPENVINO_ASSERT(!decompression_scale.empty(), "[GPU] Compressed fully connected requires at least decompression scale input");
     }
-        /// @brief Constructs fully connected compressed layer.
+
+    /// @brief Constructs fully connected compressed layer.
     /// @param id This primitive id.
     /// @param input Input primitive id.
     /// @param weights Primitive id containing weights data.

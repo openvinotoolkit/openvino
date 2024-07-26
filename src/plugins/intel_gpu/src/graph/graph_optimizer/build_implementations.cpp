@@ -6,7 +6,6 @@
 #include "program_helpers.h"
 
 #include "intel_gpu/runtime/itt.hpp"
-#include "intel_gpu/runtime/debug_configuration.hpp"
 
 using namespace cldnn;
 

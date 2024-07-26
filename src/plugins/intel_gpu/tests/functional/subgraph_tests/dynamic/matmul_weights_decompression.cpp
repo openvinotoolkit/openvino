@@ -374,9 +374,9 @@ INSTANTIATE_TEST_SUITE_P(MatMulCompressedWeights_corner_cases_big,
                          MatmulWeightsDecompression::get_test_case_name);
 
 
-// FIXME: per_tensor_zp=0 is not supported
-// FIXME: transpose_weights is not supported
-// FIXME: weight precision u4 is only supported
+// per_tensor_zp=0 is not supported
+// transpose_weights is not supported
+// weight precision u4 is only supported
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan,
                          MatmulWeightsDecompression,
                          ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 4096}, {{1, 1, 4096}}}, {1, 4096, 4096}}),  // shape

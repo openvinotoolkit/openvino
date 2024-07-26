@@ -140,16 +140,6 @@ KernelsPriority DynamicQuantizeKernelOpt::GetKernelsPriority(const Params& /*par
     return FORCE_PRIORITY_2;
 }
 
-Datatype DynamicQuantizeKernelOpt::GetAccumulatorType(const dynamic_quantize_params& params) const {
-    Datatype types[] = { Datatype::F32, Datatype::F16, Datatype::INT64, Datatype::INT32, Datatype::UINT32};
-
-    for (Datatype type : types)
-        for (auto& in : params.inputs)
-            if (in.GetDType() == type)
-                return type;
-    return Datatype::F32;
-}
-
 bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
     if (!KernelBaseOpenCL::Validate(params))
         return false;
