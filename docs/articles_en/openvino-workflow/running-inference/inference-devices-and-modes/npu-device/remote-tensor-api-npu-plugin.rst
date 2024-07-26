@@ -64,7 +64,7 @@ memory handles, which can be obtained from them at any time.
 
 To create a shared tensor from a native memory handle, use dedicated ``create_tensor``, ``create_l0_host_tensor``, or ``create_host_tensor``
 methods of the ``ov::RemoteContext`` sub-classes.
-``ov::intel_npu::level_zero::LevelZero`` has multiple overloads methods which allow to wrap pre-allocated native handles with the ``ov::RemoteTensor``
+``ov::intel_npu::level_zero::LevelZero`` has multiple overloads methods which enable wrapping pre-allocated native handles with the ``ov::RemoteTensor``
 object or request plugin to allocate specific device memory.
 For more details, see the code snippets below:
 
