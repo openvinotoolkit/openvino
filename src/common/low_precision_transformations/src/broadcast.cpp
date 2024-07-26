@@ -69,7 +69,7 @@ bool BroadcastTransformation::canBeTransformed(const TransformationContext& cont
 
     const auto axesMappingConstant = ov::as_type_ptr<ov::opset1::Constant>(layer->get_input_node_shared_ptr(2));
     const auto& axesMapping = axesMappingConstant->cast_vector<int64_t>();
-    if (axesMapping[dequantization.channelDimIndex] != dequantization.channelDimIndex) {
+    if (static_cast<size_t>(axesMapping[dequantization.channelDimIndex]) != dequantization.channelDimIndex) {
         return false;
     }
 
