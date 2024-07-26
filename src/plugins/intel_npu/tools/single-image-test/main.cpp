@@ -2027,7 +2027,9 @@ static int runSingleImageTest() {
                 LayoutMap outputLayouts;  // Several metrics may require this
 
                 // Load the reference data
-                for (const auto& [tensorName, tensor] : outputTensors) {
+                for (const auto& out : compiledModel.outputs()) {
+                    const auto& tensorName = out.get_any_name();
+                    const auto& tensor = outputTensors.at(tensorName);
                     const ov::element::Type& precision = tensor.get_element_type();
                     const ov::Shape& shape = tensor.get_shape();
 
@@ -2067,7 +2069,8 @@ static int runSingleImageTest() {
                 outputInd = 0;
 
                 // Dump the outputs obtained upon prediction
-                for (const auto& tensorEntry : outputTensors) {
+                for (const auto& out : compiledModel.outputs()) {
+                    const auto& tensor = outputTensors.at(out.get_any_name());
                     std::ostringstream ostr;
                     ostr << netFileName << "_kmb_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
                     const auto blobFileName = ostr.str();
@@ -2075,7 +2078,7 @@ static int runSingleImageTest() {
                     std::cout << "Dump device output #" << outputInd << "_case_" << numberOfTestCase << " to "
                               << blobFileName << std::endl;
 
-                    dumpTensor(tensorEntry.second, blobFileName);
+                    dumpTensor(tensor, blobFileName);
                     ++outputInd;
                 }
 
@@ -2174,13 +2177,14 @@ static int runSingleImageTest() {
                 }
             } else {
                 size_t outputInd = 0;
-                for (const auto& tensorEntry : outputTensors) {
+                for (const auto& out : compiledModel.outputs()) {
+                    const auto& tensor = outputTensors.at(out.get_any_name());
                     std::ostringstream ostr;
                     ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
                     const auto blobFileName = ostr.str();
 
                     std::cout << "Dump reference output #" << outputInd << " to " << blobFileName << std::endl;
-                    dumpTensor(tensorEntry.second, blobFileName);
+                    dumpTensor(tensor, blobFileName);
 
                     ++outputInd;
                 }
