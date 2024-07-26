@@ -48,7 +48,6 @@ void STFT::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
-
 bool STFT::get_transpose_frames() const {
     return m_transpose_frames;
 }
