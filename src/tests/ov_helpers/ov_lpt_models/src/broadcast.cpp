@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2024 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,10 +7,8 @@
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset3.hpp"
 
-#include <ov_ops/type_relaxed.hpp>
 #include "low_precision/network_helper.hpp"
 #include "ov_lpt_models/common/builders.hpp"
-#include "common_test_utils/node_builders/fake_quantize.hpp"
 
 namespace ov {
 namespace builder {
@@ -33,7 +31,6 @@ std::shared_ptr<ov::Model> BroadcastFunction::get(
     const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const Shape& tagetShape,
     const Shape& axesMapping,
-    const ov::element::Type precisionAfterOperation,
     const ov::builder::subgraph::DequantizationOperations& dequantizationAfter) {
     const auto input = std::make_shared<ov::opset1::Parameter>(precisionBeforeDequantization, inputShape);
     std::shared_ptr<ov::Node> parent = input;
@@ -42,7 +39,6 @@ std::shared_ptr<ov::Model> BroadcastFunction::get(
         parent = makeDequantization(parent, dequantizationBefore);
     }
 
-    // TODO: ov::opset3::Broadcast
     parent = v1 ?
         make_broadcast<ov::opset1::Broadcast>(parent, tagetShape, axesMapping) :
         make_broadcast<ov::opset3::Broadcast>(parent, tagetShape, axesMapping);

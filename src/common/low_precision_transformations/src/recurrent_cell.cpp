@@ -1,13 +1,11 @@
-﻿// Copyright (C) 2022 Intel Corporation
+﻿// Copyright (C) 2022-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "low_precision/recurrent_cell.hpp"
 
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/opsets/opset1.hpp"
-
 #include <memory>
+
 #include "openvino/core/node.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/opsets/opset2.hpp"
@@ -15,6 +13,7 @@
 #include "openvino/opsets/opset5.hpp"
 #include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/disable_cleanup_attribute.hpp"
@@ -93,12 +92,10 @@ bool isSupportedForPerChannelQuantization(const std::shared_ptr<Node>& node) {
         { name<opset1::Reshape>() },
         { name<opset1::Squeeze>() },
         { name<opset2::SpaceToBatch>() },
-        { name<opset1::Split>() },
         { name<opset1::StridedSlice>() },
         { name<opset1::ShuffleChannels>() },
         { name<opset1::Transpose>() },
-        { name<opset1::Unsqueeze>() },
-        { name<opset1::VariadicSplit>() }
+        { name<opset1::Unsqueeze>() }
     };
 
     return supportedForPerChannelQuantization.find(node->get_type_name()) != supportedForPerChannelQuantization.end();
@@ -110,7 +107,7 @@ std::vector<std::pair<size_t, element::Type>> get_supported_precisions(std::shar
     // 1 - input type, `element::undefined` - any precision
     if (is_type<ov::opset5::LSTMSequence>(lstm)) {
         return std::vector<std::pair<size_t, element::Type>>{ {0, element::u8}, { 1, element::u8 }, { 4, element::undefined }, { 5, element::undefined } };
-    } else if (is_type<ov::opset5::LSTMSequence>(lstm)) {
+    } else if (is_type<ov::opset5::GRUSequence>(lstm)) {
         return std::vector<std::pair<size_t, element::Type>>{ {0, element::u8}, { 1, element::u8 }, { 3, element::undefined }, { 4, element::undefined } };
     }
 

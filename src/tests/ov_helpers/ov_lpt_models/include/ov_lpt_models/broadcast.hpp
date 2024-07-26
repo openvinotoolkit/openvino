@@ -5,7 +5,6 @@
 #pragma once
 
 #include <memory>
-#include "common/fake_quantize_on_data.hpp"
 #include "low_precision/layer_transformation.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 
@@ -22,7 +21,6 @@ public:
         const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
         const Shape& tagetShape,
         const Shape& axesMapping,
-        const ov::element::Type precisionAfterOperation,
         const ov::builder::subgraph::DequantizationOperations& dequantizationAfter);
 };
 

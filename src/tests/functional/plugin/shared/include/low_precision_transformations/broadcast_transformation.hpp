@@ -8,7 +8,6 @@
 #include <memory>
 
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
-#include "openvino/op/depth_to_space.hpp"
 
 namespace LayerTestsDefinitions {
 

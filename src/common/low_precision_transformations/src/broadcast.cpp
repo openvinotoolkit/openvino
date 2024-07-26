@@ -61,9 +61,9 @@ bool BroadcastTransformation::canBeTransformed(const TransformationContext& cont
         return false;
     }
 
-    const auto tagetShapeConstant = ov::as_type_ptr<ov::opset1::Constant>(layer->get_input_node_shared_ptr(1));
-    const auto& tagetShape = tagetShapeConstant->cast_vector<int64_t>();
-    if (tagetShape[dequantization.channelDimIndex] != inputShape[dequantization.channelDimIndex].get_length()) {
+    const auto targetShapeConstant = ov::as_type_ptr<ov::opset1::Constant>(layer->get_input_node_shared_ptr(1));
+    const auto& targetShape = targetShapeConstant->cast_vector<int64_t>();
+    if (targetShape[dequantization.channelDimIndex] != inputShape[dequantization.channelDimIndex].get_length()) {
         return false;
     }
 

@@ -9,13 +9,10 @@
 
 #include <gtest/gtest.h>
 
-#include "transformations/utils/utils.hpp"
-#include "transformations/init_node_info.hpp"
-#include "low_precision/broadcast.hpp"
-
 #include "common_test_utils/ov_test_utils.hpp"
-#include "simple_low_precision_transformer.hpp"
+#include "low_precision/broadcast.hpp"
 #include "ov_lpt_models/broadcast.hpp"
+#include "simple_low_precision_transformer.hpp"
 
 namespace {
 using namespace ov::pass;
@@ -29,8 +26,6 @@ public:
     public:
         ov::element::Type precisionBeforeDequantization;
         ov::builder::subgraph::DequantizationOperations dequantizationBefore;
-        // TODO: remove
-        ov::element::Type precisionAfterOperation;
         ov::builder::subgraph::DequantizationOperations dequantizationAfter;
     };
 
@@ -64,7 +59,6 @@ public:
             testValues.actual.dequantizationBefore,
             tagetShape,
             testValues.axesMapping,
-            testValues.actual.precisionAfterOperation,
             testValues.actual.dequantizationAfter);
 
         SimpleLowPrecisionTransformer transform;
@@ -78,13 +72,12 @@ public:
             testValues.expected.dequantizationBefore,
             tagetShape,
             testValues.axesMapping,
-            testValues.expected.precisionAfterOperation,
             testValues.expected.dequantizationAfter);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<BroadcastTransformationParams> obj) {
         const ov::PartialShape inputShape = std::get<0>(obj.param);
-        const bool v1 = std::get<1>(GetParam());
+        const bool v1 = std::get<1>(obj.param);
         const BroadcastTransformationTestValues testValues = std::get<2>(obj.param);
 
         std::ostringstream result;
@@ -95,14 +88,17 @@ public:
             testValues.axesMapping << "_" <<
             testValues.actual.precisionBeforeDequantization << "_" <<
             testValues.actual.dequantizationBefore << "_" <<
-            testValues.actual.precisionAfterOperation << "_" <<
-            testValues.actual.dequantizationAfter;
+            testValues.actual.dequantizationAfter << "_" <<
+            testValues.expected.precisionBeforeDequantization << "_" <<
+            testValues.expected.dequantizationBefore << "_" <<
+            testValues.expected.dequantizationAfter;
         return result.str();
     }
 };
 
 TEST_P(BroadcastTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
+
     auto res = compare_functions(actualFunction, referenceFunction, true);
     ASSERT_TRUE(res.first) << res.second;
 
@@ -123,13 +119,11 @@ const std::vector<BroadcastTransformationTestValues> testValues = {
         {
             ov::element::u8,
             {{ov::element::f32}, {0.1f}, {0.2f}},
-            ov::element::f32,
             {{}, {}, {}},
         },
         {
             ov::element::u8,
             {{}, {}, {}},
-            ov::element::u8,
             {{ov::element::f32}, {0.1f}, {0.2f}}
         }
     },
@@ -148,7 +142,6 @@ const std::vector<BroadcastTransformationTestValues> testValues = {
         {
             ov::element::u8,
             { {}, {}, {}},
-            ov::element::u8,
             {
                 {ov::element::f32},
                 {{0.1f, 0.2f, 0.3f}},
@@ -163,7 +156,7 @@ INSTANTIATE_TEST_SUITE_P(
     BroadcastTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(inputShapes),
-        ::testing::ValuesIn({true, false}),
+        ::testing::ValuesIn({ true, false }),
         ::testing::ValuesIn(testValues)),
     BroadcastTransformation::getTestCaseName);
 } // hw_broadcast
@@ -181,13 +174,11 @@ const std::vector<BroadcastTransformationTestValues> testValues = {
         {
             ov::element::u8,
             {{ov::element::f32}, {0.1f}, {0.2f}},
-            ov::element::f32,
             {{}, {}, {}},
         },
         {
             ov::element::u8,
             {{}, {}, {}},
-            ov::element::u8,
             {{ov::element::f32}, {0.1f}, {0.2f}}
         }
     }
