@@ -20,7 +20,7 @@ Supported scenario by the Remote Tensor API:
 
 * The NPU plugin context and memory objects can be constructed from low-level device, display, or memory handles and used to create the OpenVINO™ ``ov::CompiledModel`` or ``ov::Tensor`` objects.
 
-Class and function declarations for the API are defined in the following file: ``openvino/runtime/intel_npu/level_zero/level_zero.hpp``
+Class and function declarations for the API are defined in the following file: ``src/inference/include/openvino/runtime/intel_npu/level_zero/level_zero.hpp``
 
 The most common way to enable the interaction of your application with the Remote Tensor API is to use user-side utility classes
 and functions that consume or produce native handles directly.
