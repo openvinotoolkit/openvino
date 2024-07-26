@@ -658,10 +658,7 @@ std::vector<std::string> disabledTestPatterns() {
         // [Tracking number: E#108600]
         _skipRegistry.addPatterns(backendName.isZero(),
                 "Unsupported NPU properties", {
-                ".*OVCheckSetSupportedRWMetricsPropsTests.ChangeCorrectProperties.*EXECUTION_MODE_HINT.*",
-                ".*OVCheckChangePropComplieModleGetPropTests_InferencePrecision.*",
                 ".*OVCheckMetricsPropsTests_ModelDependceProps.*",
-                ".*OVCheckChangePropComplieModleGetPropTests_DEVICE_ID.*ENABLE_CPU_PINNING.*",
                 ".*OVClassCompileModelAndCheckSecondaryPropertiesTest.*"
         });
 
@@ -670,9 +667,6 @@ std::vector<std::string> disabledTestPatterns() {
                 "Failing properties tests", {
                 ".*OVSpecificDeviceSetConfigTest.GetConfigSpecificDeviceNoThrow.*",
                 ".*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*DEVICE_ID.*",
-                ".*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*NPU_COMPILATION_MODE.*",
-                ".*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*NPU_COMPILATION_MODE_PARAMS.*",
-                ".*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*NPU_PROFILING_OUTPUT_FILE.*"
         });
 
         // [Tracking number: E#109040]
@@ -755,9 +749,6 @@ std::vector<std::string> disabledTestPatterns() {
                 "Failing properties tests", {
                 ".*OVSpecificDeviceSetConfigTest.GetConfigSpecificDeviceNoThrow.*",
                 ".*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*DEVICE_ID.*",
-                ".*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*NPU_COMPILATION_MODE.*",
-                ".*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*NPU_COMPILATION_MODE_PARAMS.*",
-                ".*OVPropertiesIncorrectTests.SetPropertiesWithIncorrectKey.*NPU_PROFILING_OUTPUT_FILE.*"
         });
 
         // [Tracking number: E#117582]
