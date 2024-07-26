@@ -500,6 +500,14 @@ bool crop_in_place_optimization::match(const program_node& node,
     if (node.is_constant())
         return false;
 
+    // do not optimize variadic_split crop when either input1 or input2 is not constant.
+    // VariadicSplit ngraph shape infer requires value of axis(input1) and split_lengths(input2).
+    // And non_constant input1/input2 makes risky execution of runtime buffer fusing.
+    auto& crop_node = node.as<crop>();
+    if ((crop_node.get_primitive()->op_mode == cldnn::crop_ngraph_op_mode::variadic_split) &&
+        (!crop_node.get_dependency(1).is_constant() || !crop_node.get_dependency(2).is_constant()))
+        return false;
+
     if (node.get_users().size() > 0) {
         if (node.get_program().is_body_program() && node.get_dependency(0).is_type<lstm_elt>()) {
             return false;
