@@ -484,10 +484,10 @@ bool crop_in_place_optimization::match(const program_node& node,
         if (node.is_dynamic() && (user->is_type<convolution>() || user->is_type<gemm>()))
             return false;
         if (user->is_type<reshape>()) {
-            // runtime buffer fusing is only handled when there is only one reshape user
-            if (node.is_dynamic() && node.get_users().size() != 1)
-                return false;
             auto& reshape_node = user->as<reshape>();
+            // runtime buffer fusing is only handled when there is only one reshape user and reshape mode is base
+            if (node.is_dynamic() && (node.get_users().size() != 1 || reshape_node.get_primitive()->mode != reshape::reshape_mode::base))
+                return false;
             if (can_reshape_be_optimized(reshape_node) &&
                 (!node.is_dynamic() || !reshape_node.is_runtime_propagatable_padding()))
                 return false;
