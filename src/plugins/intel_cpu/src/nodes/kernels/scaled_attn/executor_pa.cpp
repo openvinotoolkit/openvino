@@ -1598,6 +1598,7 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
         if (kvcache_type == ov::element::u8) {
             executor = std::make_shared<AttentionExecutor<ov::bfloat16, uint8_t>>();
         } else {
+            OPENVINO_ASSERT(kvcache_type == ov::element::bf16, "expect kvcache type bf16, current: ", kvcache_type);
             executor = std::make_shared<AttentionExecutor<ov::bfloat16, ov::bfloat16>>();
         }
 #else
@@ -1609,6 +1610,7 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
         } else if (kvcache_type == ov::element::f16) {
             executor = std::make_shared<AttentionExecutor<float, ov::float16>>();
         } else {
+            OPENVINO_ASSERT(kvcache_type == ov::element::f32, "expect kvcache type f32, current: ", kvcache_type);
             executor = std::make_shared<AttentionExecutor<float, float>>();
         }
     } else {
