@@ -26,7 +26,7 @@ The most common way to enable the interaction of your application with the Remot
 and functions that consume or produce native handles directly.
 
 Context Sharing Between Application and NPU Plugin
-###########################################################
+##################################################
 
 NPU plugin classes that implement the ``ov::RemoteContext`` interface are responsible for context sharing.
 Obtaining a context object is the first step in sharing pipeline objects.
