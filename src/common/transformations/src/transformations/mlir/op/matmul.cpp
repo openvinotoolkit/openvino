@@ -29,8 +29,25 @@ struct ConvertMatMul {
         auto empty = builder.create<tensor::EmptyOp>(loc, outType, dynamic_dimensions);
         auto zero = getConstant(builder, ov_output_element_type, 0);
         auto fill = builder.create<linalg::FillOp>(loc, mlir::ValueRange{zero}, mlir::ValueRange{empty});
-        // TODO: Add other variants of transpose_a/transpose_b
-        auto matmul = builder.create<linalg::MatmulTransposeBOp>(loc, mlir::ValueRange{inputs[0], inputs[1]}, mlir::ValueRange{fill.getResult(0)});
+
+        mlir::SmallVector<Value, 2> ins{inputs[0], inputs[1]};
+        mlir::SmallVector<Value, 1> outs{fill.getResult(0)};
+
+        auto matmul_node = std::dynamic_pointer_cast<ov::op::v0::MatMul>(node);
+        assert(matmul_node);
+        bool isTransposedA = matmul_node->get_transpose_a();
+        bool isTransposedB = matmul_node->get_transpose_b();
+        assert(!(isTransposedA && isTransposedB));
+
+        Operation* matmul;
+        if (isTransposedA) {
+            matmul = builder.create<linalg::MatmulTransposeAOp>(loc, ins, outs);
+        } else if (isTransposedB) {
+            matmul = builder.create<linalg::MatmulTransposeBOp>(loc, ins, outs);
+        } else {
+            matmul = builder.create<linalg::MatmulOp>(loc, ins, outs);
+        }
+
         context.addOutputs(node, matmul);
     }
 };
@@ -48,11 +65,9 @@ MatMulPattern::MatMulPattern() : MarkPattern(
         auto node = std::dynamic_pointer_cast<v0::MatMul>(output.get_node_shared_ptr());
         assert(node);
         // FIXME: current code limitation
-        return
-            !has_dynamic_rank(node) &&
-            !node->get_transpose_a() && node->get_transpose_b() &&
-            node->get_input_partial_shape(0).rank().get_length() == 2 &&
-            node->get_input_partial_shape(1).rank().get_length() == 2;
+        return !has_dynamic_rank(node) && !(node->get_transpose_a() && node->get_transpose_b()) &&
+               node->get_input_partial_shape(0).rank().get_length() == 2 &&
+               node->get_input_partial_shape(1).rank().get_length() == 2;
     }),
     ConvertMatMul()) {
     }
