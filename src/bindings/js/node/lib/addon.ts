@@ -239,8 +239,9 @@ interface Model {
    * If a model has more than one input, this method throws an exception.
    */
   getOutputElementType(index: number): string;
-    /**
-   * It gets the element type of a specific output of the model.
+  /**
+   * It gets the input of the model.
+   * if a model has more than one input, this method throws an exception.
    */
   input(): Output;
   /**

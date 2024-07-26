@@ -1,10 +1,10 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
+#include "node/include/model_wrap.hpp"
 #include "node/include/addon.hpp"
 #include "node/include/errors.hpp"
 #include "node/include/helper.hpp"
-#include "node/include/model_wrap.hpp"
 #include "node/include/node_output.hpp"
 #include "node/include/type_validation.hpp"
 
@@ -174,14 +174,14 @@ Napi::Value ModelWrap::get_output_shape(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value ModelWrap::get_output_element_type(const Napi::CallbackInfo& info) {
-    std::vector<std::string> allowed_signatures = {"(number)"};
+    std::vector<std::string> allowed_signatures;
     try {
-        if (info.Length() == 1 && ov::js::validate_value<int>(info.Env(), info[0])) {
+        if (ov::js::validate<int>(info, allowed_signatures)) {
             auto idx = info[0].As<Napi::Number>().Int32Value();
-            auto output = _model->output(idx);
+            const auto& output = _model->output(idx);
             return cpp_to_js<ov::element::Type_t, Napi::String>(info, output.get_element_type());
         } else {
-            OPENVINO_THROW("getOutputElementType", ov::js::get_parameters_error_msg(info, allowed_signatures));
+            OPENVINO_THROW("'getOutputElementType'", ov::js::get_parameters_error_msg(info, allowed_signatures));
         }
     } catch (const std::exception& e) {
         reportError(info.Env(), e.what());

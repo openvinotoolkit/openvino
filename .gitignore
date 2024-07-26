@@ -75,3 +75,6 @@ coverage
 /src/plugins/intel_cpu/tools/commit_slider/slider_cache/*
 /src/plugins/intel_cpu/thirdparty/ComputeLibrary/build/*
 .github/GITHUB_OUTPUT
+src/bindings/js/node/package.json
+src/bindings/js/node/package-lock.json
+src/bindings/js/node/package-lock.json
