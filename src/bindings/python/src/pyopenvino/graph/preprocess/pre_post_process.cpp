@@ -253,6 +253,7 @@ static void regclass_graph_InputTensorInfo(py::module m) {
         py::arg("layout"),
         R"(
             Set layout for input tensor info
+
             :param layout: layout to be set
             :type layout: Union[str, openvino.runtime.Layout]
         )");
