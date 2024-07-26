@@ -10,13 +10,21 @@ if (process.argv.length !== 6)
   throw new Error(
     `Usage: ${process.argv[1]} <path_to_unet_model>` +
       ' <path_to_foreground_image>' +
-      '<path_to_background_image> <device_name>',
+      ' <path_to_background_image> <device_name>',
   );
 
 const unetModelPath = process.argv[2];
 const foreGroundImage = process.argv[3];
 const backGroundImage = process.argv[4];
 const deviceName = process.argv[5];
+
+if (require.main === module) {
+  try {
+    main(unetModelPath, foreGroundImage, backGroundImage, deviceName);
+  } catch(error) {
+    console.error('Error occurred', error);
+  }
+}
 
 async function main(
   unetModelPath,
@@ -95,7 +103,7 @@ async function main(
 
   removeBackground(resizedResult, bgRemovedResult);
 
-  // save the background removed result
+  // Save the background removed result
   await saveImage(bgRemovedResult, './bg_removed_result.jpg');
 
   // Get the background image data
@@ -237,9 +245,4 @@ async function saveImage(rgbImage, savePath) {
   } catch(error) {
     console.error('Error saving image:', error);
   }
-}
-try {
-  main(unetModelPath, foreGroundImage, backGroundImage, deviceName);
-} catch(error) {
-  console.error('Error occurred', error);
 }
