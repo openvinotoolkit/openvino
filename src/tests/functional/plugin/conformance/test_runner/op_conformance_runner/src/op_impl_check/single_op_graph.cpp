@@ -1900,13 +1900,15 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v9::GeneratePr
     }
 }
 
-std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v15::Col2Im> &node) {
-    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{12, 9});
-    const auto output_size = ov::op::v0::Constant::create<int32_t>(ov::element::i32, {2}, {4, 4});
-    const auto kernel_size = ov::op::v0::Constant::create<int32_t>(ov::element::i32, {2}, {2, 2});
-    const auto Col2ImNode = std::make_shared<ov::op::v15::Col2Im>(data, output_size, kernel_size);
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(Col2ImNode)};
-    return std::make_shared<ov::Model>(results, ov::ParameterVector{data}, "Col2ImGraph");
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v15::STFT>& node) {
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 48});
+    const auto window = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{16});
+    const auto frame_size = ov::op::v0::Constant::create<int32_t>(ov::element::i32, {}, {16});
+    const auto step_size = ov::op::v0::Constant::create<int32_t>(ov::element::i32, {}, {4});
+    constexpr bool transpose_frames = true;
+    const auto stft = std::make_shared<ov::op::v15::STFT>(data, window, frame_size, step_size, transpose_frames);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(stft)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{data, window}, "STFTGraph");
 }
 
 std::shared_ptr<ov::Model> generateRNNCellBase(const std::shared_ptr<ov::op::Op> &node) {
