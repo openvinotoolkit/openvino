@@ -123,22 +123,22 @@ describe('Model.getOutputElementType()', () => {
   it('should accept a single integer argument', () => {
     assert.throws(() => {
       model.getOutputElementType();
-    }, /^Error: getOutputElementType method called with incorrect parameters\./,
+    }, /^Error: 'getOutputElementType' method called with incorrect parameters\.\nProvided signature: \(\) \nAllowed signatures:\n- \(number\)$/,
      'Should throw when called without arguments');
 
     assert.throws(() => {
       model.getOutputElementType('unexpected argument');
-    }, /^Error: getOutputElementType method called with incorrect parameters\./,
+    }, /^Error: 'getOutputElementType' method called with incorrect parameters\.\nProvided signature: \(string\) \nAllowed signatures:\n- \(number\)$/,
     'Should throw on non-number argument');
 
     assert.throws(() => {
       model.getOutputElementType(0, 1);
-    }, /^Error: getOutputElementType method called with incorrect parameters\./,
+    }, /^Error: 'getOutputElementType' method called with incorrect parameters\.\nProvided signature: \(number,number\) \nAllowed signatures:\n- \(number\)$/,
     'Should throw on multiple arguments');
 
     assert.throws(() => {
       model.getOutputElementType(3.14);
-    }, /^Error: getOutputElementType method called with incorrect parameters\./,
+    }, /^Error: 'getOutputElementType' method called with incorrect parameters\.\nProvided signature: \(number\) \nAllowed signatures:\n- \(number\)$/,
     'Should throw on non-integer number');
   });
 
@@ -152,7 +152,7 @@ describe('Model.getOutputElementType()', () => {
     const outputSize = model.getOutputSize();
     assert.throws(
       () => { model.getOutputElementType(outputSize); },
-      /^Error:/,
+      /^Error: /,
       'Should throw for out-of-range index'
     );
   });
