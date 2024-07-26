@@ -85,7 +85,7 @@ public:
         return m_is_bool;
     }
 
-    std::string get_str() const {
+    const std::string& get_str() const {
         return s_value;
     }
 
