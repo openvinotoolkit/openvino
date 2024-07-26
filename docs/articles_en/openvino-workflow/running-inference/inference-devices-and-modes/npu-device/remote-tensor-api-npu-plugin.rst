@@ -116,7 +116,7 @@ Limitations
 * Allocation of the NT handle or DMA-BUF System Heap file descriptor is user's responsibility.
 
 Low-Level Methods for RemoteContext and RemoteTensor Creation
-#####################################################################
+#############################################################
 
 The high-level wrappers mentioned above bring a direct dependency on native APIs to the user program.
 If you want to avoid the dependency, you still can directly use the ``ov::Core::create_context()``,
