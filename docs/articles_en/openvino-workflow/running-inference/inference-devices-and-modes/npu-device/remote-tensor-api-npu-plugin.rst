@@ -33,7 +33,7 @@ Obtaining a context object is the first step in sharing pipeline objects.
 The context object of the NPU plugin directly wraps Level Zero context, setting a scope for sharing the
 ``ov::RemoteTensor`` objects. The ``ov::RemoteContext`` object is retrieved from the NPU plugin.
 
-Once you have obtained the context, you can use it to create ``ov::RemoteTensor`` objects.
+Once you have obtained the context, you can use it to create the ``ov::RemoteTensor`` objects.
 
 Getting RemoteContext from the Plugin
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
