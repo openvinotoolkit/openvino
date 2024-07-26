@@ -113,7 +113,7 @@ For more details, see the code snippets below:
 Limitations
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-* Allocation of the NT handle or DMA-BUF System Heap file descriptor is user's responsibility.
+* Allocation of the NT handle or DMA-BUF System Heap file descriptor is done manually.
 
 Low-Level Methods for RemoteContext and RemoteTensor Creation
 #############################################################
