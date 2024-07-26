@@ -57,7 +57,7 @@ To request the current default context of the plugin, use one of the following m
           :fragment: [default_context_from_model]
 
 Memory Sharing Between Application and NPU Plugin
-###########################################################
+#################################################
 
 The classes that implement the ``ov::RemoteTensor`` interface are the wrappers for native API
 memory handles (which can be obtained from them at any time).
