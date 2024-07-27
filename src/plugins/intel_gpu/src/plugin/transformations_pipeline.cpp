@@ -849,11 +849,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::RoPEShareCosSin>();
 
         auto dynamic_quantization_group_size = config.get_property(ov::hint::dynamic_quantization_group_size);
-        GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->enable_dynamic_quantize) {
-            dynamic_quantization_group_size = 1048576;
-        }
-        if (device_info.supports_immad) // XXX: 1048576 is considered per-token
+        if (device_info.supports_immad) { // XXX: 1048576 is considered per-token
+            pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
+                if (root->get_input_node_shared_ptr(0)->get_element_type() == ov::element::Type_t::f32) {
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  Dynamic quantization is turned off because input type is not supported" << std::endl;
+                    return true;
+                }
+                return false;
+            });
             manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size);
+        }
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation

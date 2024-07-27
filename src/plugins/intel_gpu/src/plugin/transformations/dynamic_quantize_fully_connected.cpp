@@ -20,19 +20,23 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(size_t group_size) 
     GPU_DEBUG_GET_INSTANCE(debug_config);
     using namespace ov::pass::pattern;
 
-    GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->enable_dynamic_quantize) {
-        group_size = 1048576;
-    }
-
     // per-token quantization is supported
     if (group_size != 1048576) {
         GPU_DEBUG_TRACE << "Dynamic quantization is disabled " << group_size << std::endl;
         return;
     }
+    auto is_dynamic = [](const ov::Output<ov::Node>& output) -> bool {
+        bool is_dynamic = output.get_node_shared_ptr()->get_output_partial_shape(0).is_dynamic();
+        size_t num_inputs = output.get_node_shared_ptr()->get_input_size();
+        for (size_t idx = 0; idx < num_inputs; idx++) {
+            is_dynamic |= output.get_node_shared_ptr()->get_input_partial_shape(idx).is_dynamic();
+        }
+        return is_dynamic;
+    };
 
     auto data = any_input();
-    auto fully_connected_compressed3 = wrap_type<op::FullyConnectedCompressed>({data, any_input(), any_input(), any_input()});
-    auto fully_connected_compressed4 = wrap_type<op::FullyConnectedCompressed>({data, any_input(), any_input(), any_input(), any_input()});
+    auto fully_connected_compressed3 = wrap_type<op::FullyConnectedCompressed>({data, any_input(), any_input(), any_input()}, is_dynamic);
+    auto fully_connected_compressed4 = wrap_type<op::FullyConnectedCompressed>({data, any_input(), any_input(), any_input(), any_input()}, is_dynamic);
     auto fully_connected_compressed = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{fully_connected_compressed3, fully_connected_compressed4});
 
 
@@ -43,21 +47,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(size_t group_size) 
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& m_data = pattern_map.at(data).get_node_shared_ptr();
 
-        std::shared_ptr<ov::intel_gpu::op::FullyConnectedCompressed> m_fc;
-        
-        if (pattern_map.find(fully_connected_compressed3) != pattern_map.end())
-            m_fc = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(pattern_map.at(fully_connected_compressed3).get_node_shared_ptr());
-        else if (pattern_map.find(fully_connected_compressed4) != pattern_map.end())
-            m_fc = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(pattern_map.at(fully_connected_compressed4).get_node_shared_ptr());
-
-        if (m_data->get_element_type() == ov::element::Type_t::f32) {
-            GPU_DEBUG_TRACE << m_fc->get_friendly_name() << "  Dynamic quantization is turned off because input type is not supported" << std::endl;
-            return false;
-        }
-        if (!m_fc->is_dynamic()) {
-            GPU_DEBUG_TRACE << m_fc->get_friendly_name() << "  Dynamic quantization is turned off because static shape is not supported" << std::endl;
-            return false;
-        }
+        auto m_fc = std::dynamic_pointer_cast<op::FullyConnectedCompressed>(m.get_match_root());
 
         auto weight_shape = m_fc->get_input_partial_shape(1);
         const size_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();
@@ -85,7 +75,6 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(size_t group_size) 
 
         new_fc->set_friendly_name(m_fc->get_friendly_name());
         ov::copy_runtime_info(m_fc, new_fc);
-
         return true;
     };
     auto m = std::make_shared<ov::pass::pattern::Matcher>(fully_connected_compressed, "DynamicQuantizeFullyConnected");

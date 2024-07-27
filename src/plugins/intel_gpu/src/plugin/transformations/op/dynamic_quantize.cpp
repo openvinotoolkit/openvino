@@ -25,8 +25,8 @@ void DynamicQuantize::validate_and_infer_types() {
     };
 
     auto out_shapes = shape_infer(this, input_shapes);
-    set_output_type(0, ov::element::Type_t::i8, out_shapes[0]);
-    set_output_type(1, ov::element::Type_t::f16, out_shapes[1]);
+    set_output_type(0, ov::element::i8, out_shapes[0]);
+    set_output_type(1, ov::element::f16, out_shapes[1]);
 }
 
 std::shared_ptr<Node> DynamicQuantize::clone_with_new_inputs(const ov::OutputVector& new_args) const {

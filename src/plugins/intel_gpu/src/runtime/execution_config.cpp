@@ -193,6 +193,10 @@ void ExecutionConfig::apply_debug_options(const cldnn::device_info& info) {
     GPU_DEBUG_IF(debug_config->disable_dynamic_impl == 1) {
         set_property(ov::intel_gpu::use_only_static_kernels_for_dynamic_shape(true));
     }
+
+    GPU_DEBUG_IF(debug_config->enable_dynamic_quantize) {
+        set_property(ov::hint::dynamic_quantization_group_size(1048576));
+    }
 }
 
 void ExecutionConfig::apply_hints(const cldnn::device_info& info) {
