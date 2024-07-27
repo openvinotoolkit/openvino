@@ -64,15 +64,10 @@ JitConstants DynamicQuantizeKernelOpt::GetJitConstants(const dynamic_quantize_pa
     jit.AddConstant(MakeJitConstant("BLOCK_NUM", block_num));
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.outputs[0]));
 
-    GPU_DEBUG_TRACE_DETAIL << "DynamicQuantizeKernelOpt VEC_SIZE(" << vec_size << ") input bfyx (" << params.inputs[0].Batch().v
-            << ", " << params.inputs[0].Feature().v << ", " << params.inputs[0].Y().v << ", "  << params.inputs[0].X().v << ")" << std::endl;
-
-
     return jit;
 }
 
 CommonDispatchData DynamicQuantizeKernelOpt::SetDefault(const dynamic_quantize_params& params) const {
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     CommonDispatchData dispatchData;
 
     auto vec_size = get_match_vector_size(params);

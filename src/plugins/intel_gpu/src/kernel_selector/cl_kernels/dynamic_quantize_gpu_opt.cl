@@ -48,14 +48,9 @@ KERNEL(dynamic_quantize_gpu_opt)(
         val[i] = AS_INPUT_TYPE_N(VLOAD_N(0, input + offset + ((local_id * iteration + i) * block_size)));
         abs_val = fabs(val[i]);
 
-        #if VEC_SIZE == 8
-            max = fmax(fmax(fmax(abs_val[0], abs_val[1]), fmax(abs_val[2], abs_val[3])),
-                                    fmax(fmax(abs_val[4], abs_val[5]), fmax(abs_val[6], abs_val[7])));
-        #else
-            for (int j = 0; j < VEC_SIZE; j++) {
-                max = fmax(max, abs_val[j]);
-            }
-        #endif
+        unroll_for (int j = 0; j < VEC_SIZE; j++) {
+            max = fmax(max, abs_val[j]);
+        }
 
         grp_max = fmax(grp_max, max);
     }
