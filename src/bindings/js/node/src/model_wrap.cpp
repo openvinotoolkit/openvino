@@ -5,6 +5,7 @@
 #include "node/include/addon.hpp"
 #include "node/include/errors.hpp"
 #include "node/include/helper.hpp"
+#include "node/include/model_wrap.hpp"
 #include "node/include/node_output.hpp"
 #include "node/include/type_validation.hpp"
 
