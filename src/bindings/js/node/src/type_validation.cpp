@@ -106,6 +106,11 @@ const char* get_attr_type<TensorWrap>() {
 }
 
 template <>
+bool validate_value<Napi::External<ov::Node>>(const Napi::Env& env, const Napi::Value& value) {
+    return value.isExternal();
+}
+
+template <>
 bool validate_value<Napi::String>(const Napi::Env& env, const Napi::Value& value) {
     return napi_string == value.Type();
 }

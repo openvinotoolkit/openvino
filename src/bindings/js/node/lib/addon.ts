@@ -263,8 +263,18 @@ interface Model {
    * It gets all the model outputs as an array
    */
   outputs: Output[];
+  /**
+   * It gets the array of NodeWrap objects.
+   */
+  getOps(): NodeWrap[];
 }
 
+interface NodeWrap{
+  /**
+   * It gets the name of the node.
+   */
+  getName(): string;
+}
 /**
  * CompiledModel represents a model that is compiled for a specific device
  * by applying multiple optimization transformations,

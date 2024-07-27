@@ -47,6 +47,9 @@ bool validate_value(const Napi::Env& env, const Napi::Value& arg) {
 };
 
 template <>
+bool validate_value<Napi::External<ov::Node>>(const Napi::Env& env, const Napi::Value& value);
+
+template <>
 bool validate_value<Napi::String>(const Napi::Env& env, const Napi::Value& value);
 
 template <>

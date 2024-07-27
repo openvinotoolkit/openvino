@@ -112,3 +112,31 @@ describe('Model.getOutputSize()', () => {
     assert.strictEqual(model.getOutputSize(), 1, 'Expected getOutputSize to return 1 for the default model');
   });
 });
+
+describe('Node.js Model.getOps()', () => {
+  it('should return array of Node operations', () => {
+    const result = model.getOps();
+
+    assert(Array.isArray(result), 'getOps should return an array');
+    assert(result.length > 0, 'getOps should return a non-empty array');
+    result.forEach(op => {
+      assert.strictEqual(typeof op.getName, 'function', 'each item should have getName method');
+    });
+  });
+
+  it('should return the expected operation', () => {
+    const result = model.getOps();
+
+    const modelOperators = result.map(op => op.getName().split('_')[0]);
+    const expectedOpsCount = 14;
+    const expectedOps = [
+      "Subtract",
+      "Transpose",
+    ];
+
+    assert.strictEqual(modelOperators.length, expectedOpsCount, `Expected ${expectedOpsCount} operations in the model`);
+    expectedOps.forEach(op => {
+      assert(modelOperators.includes(op), `Expected operation ${op} to be in the model`);
+    });
+  });
+});

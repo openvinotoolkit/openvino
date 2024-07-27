@@ -116,6 +116,12 @@ public:
      */
     Napi::Value get_output_shape(const Napi::CallbackInfo& info);
 
+    /**
+     * @brief Return ops used in the model.
+     * @param info Contains information about the environment and passed arguments
+     * @return Napi::Array containing a NodeWrap objects.
+     */
+    Napi::Value get_ops(const Napi::CallbackInfo& info);
 private:
     std::shared_ptr<ov::Model> _model;
     ov::Core _core;
