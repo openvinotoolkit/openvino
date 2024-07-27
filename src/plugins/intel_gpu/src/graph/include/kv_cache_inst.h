@@ -52,7 +52,6 @@ public:
 
     static std::string to_string(const kv_cache_node& node);
 
-    // Distribute prealloc period to prevent memory peak
     int32_t get_prealloc_iter_num() override;
 
     static void update_pad(layout& l, int64_t pad, int64_t sequence_axis_legacy) {

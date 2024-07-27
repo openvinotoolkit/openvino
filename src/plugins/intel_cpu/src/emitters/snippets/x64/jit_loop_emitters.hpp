@@ -7,7 +7,7 @@
 #include "emitters/plugin/x64/jit_emitter.hpp"
 
 #include "snippets/op/loop.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov {
 namespace intel_cpu {

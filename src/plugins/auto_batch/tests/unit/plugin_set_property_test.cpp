@@ -44,14 +44,14 @@ public:
 
 TEST_P(SetPropertyTest, SetPropertyTestCase) {
     if (m_properties.size() == 0) {
-        ASSERT_NO_THROW(m_plugin->set_property(m_properties));
+        OV_ASSERT_NO_THROW(m_plugin->set_property(m_properties));
         return;
     }
 
     if (m_throw_exception) {
         ASSERT_ANY_THROW(m_plugin->set_property(m_properties));
     } else {
-        ASSERT_NO_THROW(m_plugin->set_property(m_properties));
+        OV_ASSERT_NO_THROW(m_plugin->set_property(m_properties));
     }
 }
 

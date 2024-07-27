@@ -22,8 +22,8 @@ the PaddleOCR is as follows:
    server, the webcam will not work. You can still do inference on a
    video file.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Imports <#imports>`__
 
@@ -79,7 +79,7 @@ Imports
     from PIL import Image
     from pathlib import Path
     import tarfile
-    
+
     import openvino as ov
     from IPython import display
     import copy
@@ -87,15 +87,15 @@ Imports
 .. code:: ipython3
 
     # Import local modules
-    
+
     if not Path("./notebook_utils.py").exists():
         # Fetch `notebook_utils` module
         import requests
-    
+
         r = requests.get(
             url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
         )
-    
+
         open("notebook_utils.py", "w").write(r.text)
     import notebook_utils as utils
     import pre_post_processing as processing
@@ -110,16 +110,16 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -148,12 +148,12 @@ files to load to CPU/GPU.
 .. code:: ipython3
 
     # Define the function to download text detection and recognition models from PaddleOCR resources.
-    
-    
+
+
     def run_model_download(model_url: str, model_file_path: Path) -> None:
         """
         Download pre-trained models from PaddleOCR resources
-    
+
         Parameters:
             model_url: url link to pre-trained models
             model_file_path: file path to store the downloaded model
@@ -164,11 +164,11 @@ files to load to CPU/GPU.
         else:
             # Download the model from the server, and untar it.
             print("Downloading the pre-trained model... May take a while...")
-    
+
             # Create a directory.
             utils.download_file(model_url, archive_path.name, archive_path.parent)
             print("Model Downloaded")
-    
+
             file = tarfile.open(archive_path)
             res = file.extractall(archive_path.parent)
             file.close()
@@ -185,10 +185,10 @@ Download the Model for Text **Detection**
 .. code:: ipython3
 
     # A directory where the model will be downloaded.
-    
+
     det_model_url = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/paddle-ocr/ch_PP-OCRv3_det_infer.tar"
     det_model_file_path = Path("model/ch_PP-OCRv3_det_infer/inference.pdmodel")
-    
+
     run_model_download(det_model_url, det_model_file_path)
 
 
@@ -200,7 +200,7 @@ Download the Model for Text **Detection**
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/paddle-o…
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/paddle-o…
 
 
 .. parsed-literal::
@@ -220,7 +220,7 @@ Load the Model for Text **Detection**
     core = ov.Core()
     det_model = core.read_model(model=det_model_file_path)
     det_compiled_model = core.compile_model(model=det_model, device_name=device.value)
-    
+
     # Get input and output nodes for text detection.
     det_input_layer = det_compiled_model.input(0)
     det_output_layer = det_compiled_model.output(0)
@@ -234,7 +234,7 @@ Download the Model for Text **Recognition**
 
     rec_model_url = "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/models/paddle-ocr/ch_PP-OCRv3_rec_infer.tar"
     rec_model_file_path = Path("model/ch_PP-OCRv3_rec_infer/inference.pdmodel")
-    
+
     run_model_download(rec_model_url, rec_model_file_path)
 
 
@@ -246,7 +246,7 @@ Download the Model for Text **Recognition**
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-708/.workspace/scm/ov-notebook/notebooks/paddle-o…
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/notebooks/paddle-o…
 
 
 .. parsed-literal::
@@ -273,15 +273,15 @@ different image sizes, for example, dynamic input shapes. Hence:
 
     # Read the model and corresponding weights from a file.
     rec_model = core.read_model(model=rec_model_file_path)
-    
+
     # Assign dynamic shapes to every input layer on the last dimension.
     for input_layer in rec_model.inputs:
         input_shape = input_layer.partial_shape
         input_shape[3] = -1
         rec_model.reshape({input_layer: input_shape})
-    
+
     rec_compiled_model = core.compile_model(model=rec_model, device_name="AUTO")
-    
+
     # Get input and output nodes.
     rec_input_layer = rec_compiled_model.input(0)
     rec_output_layer = rec_compiled_model.output(0)
@@ -303,7 +303,7 @@ with Chinese text) for easy batching in inference.
     def image_preprocess(input_image, size):
         """
         Preprocess input image for text detection
-    
+
         Parameters:
             input_image: input image
             size: value for the image to be resized for text detection model
@@ -324,7 +324,7 @@ with Chinese text) for easy batching in inference.
     def resize_norm_img(img, max_wh_ratio):
         """
         Resize input image for text recognition
-    
+
         Parameters:
             img: bounding box image from text detection
             max_wh_ratio: value for the resizing for text recognition model
@@ -349,12 +349,12 @@ with Chinese text) for easy batching in inference.
         padding_im = np.zeros((imgC, imgH, imgW), dtype=np.float32)
         padding_im[:, :, 0:resized_w] = resized_image
         return padding_im
-    
-    
+
+
     def prep_for_rec(dt_boxes, frame):
         """
         Preprocessing of the detected bounding boxes for text recognition
-    
+
         Parameters:
             dt_boxes: detected bounding boxes from text detection
             frame: original input frame
@@ -365,22 +365,22 @@ with Chinese text) for easy batching in inference.
             tmp_box = copy.deepcopy(dt_boxes[bno])
             img_crop = processing.get_rotate_crop_image(ori_im, tmp_box)
             img_crop_list.append(img_crop)
-    
+
         img_num = len(img_crop_list)
         # Calculate the aspect ratio of all text bars.
         width_list = []
         for img in img_crop_list:
             width_list.append(img.shape[1] / float(img.shape[0]))
-    
+
         # Sorting can speed up the recognition process.
         indices = np.argsort(np.array(width_list))
         return img_crop_list, img_num, indices
-    
-    
+
+
     def batch_text_box(img_crop_list, img_num, indices, beg_img_no, batch_num):
         """
         Batch for text recognition
-    
+
         Parameters:
             img_crop_list: processed detected bounding box images
             img_num: number of bounding boxes from text detection
@@ -399,7 +399,7 @@ with Chinese text) for easy batching in inference.
             norm_img = resize_norm_img(img_crop_list[indices[ino]], max_wh_ratio)
             norm_img = norm_img[np.newaxis, :]
             norm_img_batch.append(norm_img)
-    
+
         norm_img_batch = np.concatenate(norm_img_batch)
         norm_img_batch = norm_img_batch.copy()
         return norm_img_batch
@@ -414,7 +414,7 @@ Postprocessing Image for Text Detection
     def post_processing_detection(frame, det_results):
         """
         Postprocess the results from text detection into bounding boxes
-    
+
         Parameters:
             frame: input image
             det_results: inference results from text detection model
@@ -427,13 +427,13 @@ Postprocessing Image for Text Detection
         for key in keep_keys:
             data_list.append(data_resize[key])
         img, shape_list = data_list
-    
+
         shape_list = np.expand_dims(shape_list, axis=0)
         pred = det_results[0]
         if isinstance(pred, paddle.Tensor):
             pred = pred.numpy()
         segmentation = pred > 0.3
-    
+
         boxes_batch = []
         for batch_index in range(pred.shape[0]):
             src_h, src_w, ratio_h, ratio_w = shape_list[batch_index]
@@ -493,7 +493,7 @@ video file. See the list of procedures below:
         2. Prepare a set of frames for text detection and recognition.
         3. Run AI inference for both text detection and recognition.
         4. Visualize the results.
-    
+
         Parameters:
             source: The webcam number to feed the video stream with primary webcam set to "0", or the video path.
             flip: To be used by VideoPlayer function for flipping capture image.
@@ -509,7 +509,7 @@ video file. See the list of procedures below:
             if use_popup:
                 title = "Press ESC to Exit"
                 cv2.namedWindow(winname=title, flags=cv2.WINDOW_GUI_NORMAL | cv2.WINDOW_AUTOSIZE)
-    
+
             processing_times = collections.deque()
             while True:
                 # Grab the frame.
@@ -529,40 +529,40 @@ video file. See the list of procedures below:
                     )
                 # Preprocess the image for text detection.
                 test_image = image_preprocess(frame, 640)
-    
+
                 # Measure processing time for text detection.
                 start_time = time.time()
                 # Perform the inference step.
                 det_results = det_compiled_model([test_image])[det_output_layer]
                 stop_time = time.time()
-    
+
                 # Postprocessing for Paddle Detection.
                 dt_boxes = post_processing_detection(frame, det_results)
-    
+
                 processing_times.append(stop_time - start_time)
                 # Use processing times from last 200 frames.
                 if len(processing_times) > 200:
                     processing_times.popleft()
                 processing_time_det = np.mean(processing_times) * 1000
-    
+
                 # Preprocess detection results for recognition.
                 dt_boxes = processing.sorted_boxes(dt_boxes)
                 batch_num = 6
                 img_crop_list, img_num, indices = prep_for_rec(dt_boxes, frame)
-    
+
                 # For storing recognition results, include two parts:
                 # txts are the recognized text results, scores are the recognition confidence level.
                 rec_res = [["", 0.0]] * img_num
                 txts = []
                 scores = []
-    
+
                 for beg_img_no in range(0, img_num, batch_num):
                     # Recognition starts from here.
                     norm_img_batch = batch_text_box(img_crop_list, img_num, indices, beg_img_no, batch_num)
-    
+
                     # Run inference for text recognition.
                     rec_results = rec_compiled_model([norm_img_batch])[rec_output_layer]
-    
+
                     # Postprocessing recognition results.
                     postprocess_op = processing.build_post_process(processing.postprocess_params)
                     rec_result = postprocess_op(rec_results)
@@ -571,12 +571,12 @@ video file. See the list of procedures below:
                     if rec_res:
                         txts = [rec_res[i][0] for i in range(len(rec_res))]
                         scores = [rec_res[i][1] for i in range(len(rec_res))]
-    
+
                 image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
                 boxes = dt_boxes
                 # Draw text recognition results beside the image.
                 draw_img = processing.draw_ocr_box_txt(image, boxes, txts, scores, drop_score=0.5, font_path=str(font_path))
-    
+
                 # Visualize the PaddleOCR results.
                 f_height, f_width = draw_img.shape[:2]
                 fps = 1000 / processing_time_det
@@ -590,7 +590,7 @@ video file. See the list of procedures below:
                     thickness=1,
                     lineType=cv2.LINE_AA,
                 )
-    
+
                 # Use this workaround if there is flickering.
                 if use_popup:
                     draw_img = cv2.cvtColor(draw_img, cv2.COLOR_RGB2BGR)
@@ -608,7 +608,7 @@ video file. See the list of procedures below:
                     # Display the image in this notebook.
                     display.clear_output(wait=True)
                     display.display(i)
-    
+
         # ctrl-c
         except KeyboardInterrupt:
             print("Interrupted")
@@ -647,12 +647,12 @@ Run live PaddleOCR:
 .. code:: ipython3
 
     USE_WEBCAM = False
-    
+
     cam_id = 0
     video_file = "https://raw.githubusercontent.com/yoyowz/classification/master/images/test.mp4"
-    
+
     source = cam_id if USE_WEBCAM else video_file
-    
+
     run_paddle_ocr(source, flip=False, use_popup=False)
 
 

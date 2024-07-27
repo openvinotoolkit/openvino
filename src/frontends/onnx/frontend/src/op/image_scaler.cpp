@@ -2,20 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/image_scaler.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
-
 using namespace ov::op;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector image_scaler(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ov_inputs();
     FRONT_END_GENERAL_CHECK(inputs.size() == 1, "ImageScaler 1 input tensor. Got: ", inputs.size());
@@ -42,8 +40,9 @@ ov::OutputVector image_scaler(const ov::frontend::onnx::Node& node) {
 
     return {scaler};
 }
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("ImageScaler", OPSET_SINCE(1), ai_onnx::opset_1::image_scaler);
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

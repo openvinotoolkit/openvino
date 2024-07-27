@@ -36,7 +36,7 @@ TEST_F(AutoLifeTimeTest, loaded_tensor) {
     // get Parameter
     config.insert(ov::device::priorities("GPU.0"));
     std::shared_ptr<ov::ICompiledModel> compiled_model;
-    ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
     auto request = compiled_model->create_infer_request();
     for (auto& iter : request->get_inputs()) {
         auto tensor = request->get_tensor(iter);
@@ -48,7 +48,7 @@ TEST_F(AutoLifeTimeTest, loaded_states) {
     // get Parameter
     config.insert(ov::device::priorities("GPU.0"));
     std::shared_ptr<ov::ICompiledModel> compiled_model;
-    ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
     auto request = compiled_model->create_infer_request();
     auto states = request->query_state();
     auto res_so = mock_states.front()._so;
@@ -61,7 +61,7 @@ TEST_F(AutoLifeTimeTest, loaded_tensor_multi) {
     // get Parameter
     config.insert(ov::device::priorities("GPU.0"));
     std::shared_ptr<ov::ICompiledModel> compiled_model;
-    ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
     auto request = compiled_model->create_infer_request();
     for (auto& iter : request->get_inputs()) {
         auto tensor = request->get_tensor(iter);
@@ -75,7 +75,7 @@ TEST_F(AutoLifeTimeTest, loaded_states_bind_buffer) {
     config.insert(ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
     config.insert(ov::intel_auto::device_bind_buffer(true));
     std::shared_ptr<ov::ICompiledModel> compiled_model;
-    ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
     auto request = compiled_model->create_infer_request();
     auto states = request->query_state();
     auto res_so = mock_states.front()._so;
