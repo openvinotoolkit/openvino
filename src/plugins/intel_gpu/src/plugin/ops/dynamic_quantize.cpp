@@ -23,7 +23,7 @@ static void CreateDynamicQuantizeOp(ProgramBuilder& p, const std::shared_ptr<op:
     auto inputs = p.GetInputInfo(op);
     std::string primitive_name = layer_type_name_ID(op);
 
-    OPENVINO_ASSERT(op->get_group_size() == -1, "Not supported group size: ", op->get_group_size());
+    OPENVINO_ASSERT(op->get_group_size() == 1048576, "Not supported group size: ", op->get_group_size());
     auto prim = cldnn::dynamic_quantize(primitive_name,
                                 inputs[0],
                                 op->get_group_size(),

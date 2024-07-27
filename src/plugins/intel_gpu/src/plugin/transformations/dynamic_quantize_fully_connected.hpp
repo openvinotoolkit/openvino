@@ -12,7 +12,7 @@ namespace intel_gpu {
 class DynamicQuantizeFullyConnected: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("DynamicQuantizeFullyConnected", "0");
-    DynamicQuantizeFullyConnected(int64_t group_size);
+    DynamicQuantizeFullyConnected(size_t group_size);
 };
 
 }   // namespace intel_gpu

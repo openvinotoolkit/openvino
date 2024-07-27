@@ -12,7 +12,7 @@ namespace ov {
 namespace intel_gpu {
 namespace op {
 
-DynamicQuantize::DynamicQuantize(const Output<Node>& data, int64_t group_size)
+DynamicQuantize::DynamicQuantize(const Output<Node>& data, size_t group_size)
     : Op({data})
     , m_group_size(group_size) {
     set_output_size(2);

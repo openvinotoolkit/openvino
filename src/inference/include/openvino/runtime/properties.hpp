@@ -571,7 +571,7 @@ static constexpr Property<ExecutionMode> execution_mode{"EXECUTION_MODE_HINT"};
  * might result in better accuracy, but the drawback is worse performance. Group size equal 0 means dynamic
  * quantization optimization is disabled.
  */
-static constexpr Property<int64_t, PropertyMutability::RW> dynamic_quantization_group_size{
+static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization_group_size{
     "DYNAMIC_QUANTIZATION_GROUP_SIZE"};
 
 /**

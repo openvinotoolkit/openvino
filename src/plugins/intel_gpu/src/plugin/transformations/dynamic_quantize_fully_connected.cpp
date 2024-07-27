@@ -16,12 +16,16 @@
 namespace ov {
 namespace intel_gpu {
 
-DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(int64_t group_size) {
+DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(size_t group_size) {
     GPU_DEBUG_GET_INSTANCE(debug_config);
     using namespace ov::pass::pattern;
 
+    GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->enable_dynamic_quantize) {
+        group_size = 1048576;
+    }
+
     // per-token quantization is supported
-    if (group_size != -1) {
+    if (group_size != 1048576) {
         GPU_DEBUG_TRACE << "Dynamic quantization is disabled " << group_size << std::endl;
         return;
     }
@@ -56,8 +60,8 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(int64_t group_size)
         }
 
         auto weight_shape = m_fc->get_input_partial_shape(1);
-        const int64_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();
-        if (group_size != -1 &&
+        const size_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();
+        if (group_size != 1048576 &&
             (group_size == 0 || (innermost_size % group_size != 0 && innermost_size > group_size))) {
             GPU_DEBUG_TRACE << "Dynamic quantization: shape is not aligned with group size " << innermost_size << " / " << group_size << std::endl;
             return false;
