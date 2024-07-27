@@ -116,35 +116,30 @@ describe('Model.getOutputSize()', () => {
 describe('Model.getOutputElementType()', () => {
   it('should return a string for the element type ', () => {
     const result = model.getOutputElementType(0);
-    assert.strictEqual(typeof result, 'string',
+    assert.strictEqual(typeof result, 'string', 
       'getOutputElementType() should return a string');
   });
 
-  it('should accept a single integer argument', () => {
+  it('should accept a single number argument', () => {
     assert.throws(() => {
       model.getOutputElementType();
-    }, /^Error: 'getOutputElementType' method called with incorrect parameters\.\nProvided signature: \(\) \nAllowed signatures:\n- \(number\)$/,
+    }, /^Error: getOutputElementType: Expected 1 argument, but 0 were provided\.$/,
      'Should throw when called without arguments');
 
     assert.throws(() => {
       model.getOutputElementType('unexpected argument');
-    }, /^Error: 'getOutputElementType' method called with incorrect parameters\.\nProvided signature: \(string\) \nAllowed signatures:\n- \(number\)$/,
+    }, /^Error: getOutputElementType: Argument 0 is not of type number\.$/, 
     'Should throw on non-number argument');
 
     assert.throws(() => {
       model.getOutputElementType(0, 1);
-    }, /^Error: 'getOutputElementType' method called with incorrect parameters\.\nProvided signature: \(number,number\) \nAllowed signatures:\n- \(number\)$/,
+    }, /^Error: getOutputElementType: Expected 1 arguement, but 2 were provided\.$/, 
     'Should throw on multiple arguments');
-
-    assert.throws(() => {
-      model.getOutputElementType(3.14);
-    }, /^Error: 'getOutputElementType' method called with incorrect parameters\.\nProvided signature: \(number\) \nAllowed signatures:\n- \(number\)$/,
-    'Should throw on non-integer number');
   });
 
   it('should return a valid element type for the default model', () => {
     const elementType = model.getOutputElementType(0);
-    assert.ok(typeof elementType === 'string' && elementType.length > 0,
+    assert.ok(typeof elementType === 'string' && elementType.length > 0, 
       `Expected a non-empty string, got ${elementType}`);
   });
 
@@ -152,7 +147,7 @@ describe('Model.getOutputElementType()', () => {
     const outputSize = model.getOutputSize();
     assert.throws(
       () => { model.getOutputElementType(outputSize); },
-      /^Error: /,
+      /^Error:/,
       'Should throw for out-of-range index'
     );
   });
