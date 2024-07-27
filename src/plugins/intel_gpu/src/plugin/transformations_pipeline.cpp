@@ -855,6 +855,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     GPU_DEBUG_TRACE << root->get_friendly_name() << "  Dynamic quantization is turned off because input type is not supported" << std::endl;
                     return true;
                 }
+
+                auto weight_shape = root->get_input_partial_shape(1);
+                const size_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();
+                if (innermost_size < 32) {
+                    GPU_DEBUG_TRACE << "Dynamic quantization: shape is too small " << innermost_size << " / " << dynamic_quantization_group_size << std::endl;
+                    return true;
+                }
                 return false;
             });
             manager.register_pass<ov::intel_gpu::DynamicQuantizeFullyConnected>(dynamic_quantization_group_size);

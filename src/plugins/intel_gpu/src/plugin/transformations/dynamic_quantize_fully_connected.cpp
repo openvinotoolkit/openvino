@@ -56,10 +56,6 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(size_t group_size) 
             GPU_DEBUG_TRACE << "Dynamic quantization: shape is not aligned with group size " << innermost_size << " / " << group_size << std::endl;
             return false;
         }
-        if (innermost_size < 32) {
-            GPU_DEBUG_TRACE << "Dynamic quantization: shape is too small " << innermost_size << " / " << group_size << std::endl;
-            return false;
-        }
 
         OutputVector fc_inputs;
         auto dyn_quan = std::make_shared<op::DynamicQuantize>(m_data, group_size);
