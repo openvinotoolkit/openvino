@@ -121,7 +121,6 @@ public:
      * @return Napi::String representing the element type of the requested output.
      *
      */
-    Napi::Value get_output_element_type(const Napi::CallbackInfo& info);
 
 private:
     std::shared_ptr<ov::Model> _model;
