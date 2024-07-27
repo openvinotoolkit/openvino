@@ -27,6 +27,7 @@ Napi::Function ModelWrap::get_class(Napi::Env env) {
                         InstanceMethod("getFriendlyName", &ModelWrap::get_friendly_name),
                         InstanceMethod("getOutputShape", &ModelWrap::get_output_shape),
                         InstanceMethod("getOutputElementType", &ModelWrap::get_output_element_type),
+                        InstanceMethod("clone", &ModelWrap::clone),
                         InstanceAccessor<&ModelWrap::get_inputs>("inputs"),
                         InstanceAccessor<&ModelWrap::get_outputs>("outputs")});
 }
@@ -188,4 +189,13 @@ Napi::Value ModelWrap::get_output_element_type(const Napi::CallbackInfo& info) {
         reportError(info.Env(), e.what());
         return info.Env().Undefined();
     }
+}
+
+Napi::Value ModelWrap::clone(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    if (info.Length() > 0) {
+        reportError(env, "clone() does not accept any arguments.");
+        return env.Undefined();
+    }
+    return cpp_to_js(env, _model->clone());
 }
