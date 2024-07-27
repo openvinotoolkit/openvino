@@ -25,7 +25,23 @@ public:
     std::shared_ptr<snippets::lowered::pass::PassBase> merge(const std::shared_ptr<snippets::lowered::pass::PassBase>& other) override;
 
 private:
-    float m_beta;
+    float m_beta = 0;
+};
+
+/**
+ * @interface SetEvaluateOnce
+ * @brief The pass set `evaluate once = true` only to ExpandedLoopInfo which is mapped on LoopEnd in the passed iterator `end`.
+ *        The pointer arithmetic should be updated in the separate optimization `OptimizeLoopSingleEvaluation`
+ * @ingroup snippets
+ */
+class SetEvaluateOnce : public snippets::lowered::pass::RangedPass {
+public:
+    SetEvaluateOnce() = default;
+    OPENVINO_RTTI("SetEvaluateOnce", "RangedPass")
+    bool run(snippets::lowered::LinearIR& linear_ir,
+             snippets::lowered::LinearIR::constExprIt begin,
+             snippets::lowered::LinearIR::constExprIt end) override;
+    std::shared_ptr<snippets::lowered::pass::PassBase> merge(const std::shared_ptr<snippets::lowered::pass::PassBase>& other) override;
 };
 }  // namespace pass
 }  // namespace intel_cpu

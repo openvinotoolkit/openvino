@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
@@ -136,7 +137,7 @@ TEST(replace_node, replacement_with_direct_parent_node) {
     auto child_2 = std::make_shared<ov::op::v0::Relu>(param);
 
     auto model = std::make_shared<ov::Model>(OutputVector{child_1, child_2}, ParameterVector{param});
-    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+    OV_ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
 
     auto relu = std::make_shared<ov::op::v0::Relu>(param);
     relu->output(0).get_tensor().set_names({"c", "d"});
@@ -144,7 +145,7 @@ TEST(replace_node, replacement_with_direct_parent_node) {
 
     // This check validates that the model is consistent and contains no loops.
     // The topological sorting throws an exception in case of a loop in the graph.
-    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+    OV_ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
 
     int relu_cnt = 0;
     for (const auto& op : model->get_ordered_ops()) {

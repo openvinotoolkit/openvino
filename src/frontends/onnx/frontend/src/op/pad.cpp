@@ -2,17 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/pad.hpp"
+#include "openvino/op/pad.hpp"
 
 #include "core/null_node.hpp"
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/pad.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "utils/convpool.hpp"
 #include "utils/reshape.hpp"
 #include "utils/split.hpp"
-
 namespace {
 ov::op::PadMode get_pad_mode(std::string mode) {
     ov::op::PadMode pad_mode;
@@ -35,8 +34,8 @@ using namespace ov::op;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ov_inputs().at(0);
 
@@ -60,8 +59,9 @@ ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
         pad_mode)};
 }
 
-}  // namespace set_1
-namespace set_11 {
+ONNX_OP("Pad", OPSET_RANGE(1, 10), ai_onnx::opset_1::pad);
+}  // namespace opset_1
+namespace opset_11 {
 ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ov_inputs();
     const auto& data = inputs[0];
@@ -99,8 +99,9 @@ ov::OutputVector pad(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v12::Pad>(data, padding_begin, padding_end, values, pad_mode)};
 }
 
-}  // namespace set_11
-}  // namespace op
+ONNX_OP("Pad", OPSET_SINCE(11), ai_onnx::opset_11::pad);
+}  // namespace opset_11
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

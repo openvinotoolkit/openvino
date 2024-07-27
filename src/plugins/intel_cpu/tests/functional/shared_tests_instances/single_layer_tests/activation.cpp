@@ -56,6 +56,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {ActivationTypes::GeluTanh,              {}},
         {ActivationTypes::Greater,                {}},
         {ActivationTypes::Swish,                 {{0.4f}}},
+        {ActivationTypes::IsFinite,              {}},
         {ActivationTypes::IsInf,                 {}},
         {ActivationTypes::IsNaN,                 {{}}},
 };

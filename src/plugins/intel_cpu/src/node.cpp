@@ -456,6 +456,7 @@ std::string Node::getPrimitiveDescriptorType() const {
     SEARCH_TYPE(winograd);
     SEARCH_TYPE(sparse);
     SEARCH_TYPE(acl);
+    SEARCH_TYPE(shl);
     SEARCH_TYPE(_dw);
     SEARCH_TYPE(_1x1);
 
@@ -830,16 +831,8 @@ void Node::prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) {
     MemoryPtr ptr;
     auto weightCache = context->getWeightsCache();
     if (weightCache != nullptr && memory::format_kind::blocked == intDesc->getDnnlDesc().get_format_kind()) {
-        const auto& format = intDesc->serializeFormat();
-        const uint64_t data_hash =
-            weightCache->GetHashFunc().hash(static_cast<const unsigned char*>(internalBlob->getData()),
-                                            internalBlob->getSize());
-
-        const std::string string_hash = name + "_" + std::to_string(indx)
-                                        + "_" + format
-                                        + "_" + std::to_string(internalBlob->getSize())
-                                        + "_" + std::to_string(data_hash);
-
+        const auto string_hash =
+            name + "_" + std::to_string(indx) + "_" + DnnlExtensionUtils::computeWeightsStringHash(internalBlob, intDesc);
         ptr = *weightCache->findOrCreate(string_hash, create);
     } else {
         ptr = create();
@@ -904,10 +897,7 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
 
     auto weightCache = context->getWeightsCache();
     if (weightCache != nullptr) {
-        const std::string string_hash = getName() + "_" + format
-            + "_" + std::to_string(edgeMem->getSize())
-            + "_" + std::to_string(*edgeMem->getDataAs<uint64_t>());
-
+        const auto string_hash = DnnlExtensionUtils::computeWeightsStringHash(edgeMem, dstWeightDesc);
         ptr = *weightCache->findOrCreate(string_hash, create);
     } else {
         ptr = create();

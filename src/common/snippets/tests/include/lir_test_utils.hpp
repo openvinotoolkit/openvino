@@ -44,20 +44,6 @@ void init_expr_descriptors(const ov::snippets::lowered::ExpressionPtr& expr,
                            const std::vector<ov::snippets::VectorDims>& subtensors = {},
                            const std::vector<ov::snippets::VectorDims>& layouts = {});
 
-/**
- * @brief Creates unified loop info based on provided entry and exit points, and adds it to the linear_ir's loops map
- * @attention This helper wraps LoopManager::mark_loop method, but only for LoopInfo creation (whereas original
- * mark_loop method also marks expressions with the corresponding loop info).
- * @param linear_ir linear_ir in which loop info should be added
- * @param entries entry points of loop
- * @param exits exit points of loop
- */
-void create_and_add_unified_loop_info(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir,
-                                      size_t work_amount,
-                                      size_t increment,
-                                      const std::vector<ov::snippets::lowered::LoopPort>& entries,
-                                      const std::vector<ov::snippets::lowered::LoopPort>& exits,
-                                      bool add_default_handlers = true);
 }  // namespace snippets
 }  // namespace test
 }  // namespace ov

@@ -6,7 +6,7 @@
 
 #include "snippets/lowered/expression.hpp"
 #include "snippets/op/loop.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/type.hpp"
@@ -123,15 +123,8 @@ std::pair<LinearIR::constExprIt, LinearIR::constExprIt> LoopManager::get_loop_bo
 }
 
 LoopPort LoopManager::get_loop_port_by_expr_port(const ExpressionPort& expr_port, const size_t loop_id) {
-    auto get_loop_port = [&](const std::vector<LoopPort>& ports) -> const LoopPort& {
-        auto it = std::find_if(ports.cbegin(), ports.cend(), [&](const LoopPort& p) { return *p.expr_port == expr_port; });
-        if (it == ports.cend())
-            OPENVINO_THROW("Expression has not been found among loop ports. Loop id: " + std::to_string(loop_id));
-        return *it;
-    };
     const auto& loop_info = get_loop_info(loop_id);
-    return expr_port.get_type() == ExpressionPort::Input ? get_loop_port(loop_info->get_input_ports())
-                                                         : get_loop_port(loop_info->get_output_ports());
+    return loop_info->get_loop_port(expr_port);
 }
 
 void LoopManager::get_io_loop_ports(LinearIR::constExprIt loop_begin_pos,
@@ -167,7 +160,6 @@ void LoopManager::get_io_loop_ports(LinearIR::constExprIt loop_begin_pos,
 void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
                             LinearIR::constExprIt loop_end_pos,
                             size_t loop_depth, size_t vector_size) {
-    const auto FULL_DIM = PortDescriptor::ServiceDimensions::FULL_DIM;
     std::vector<ExpressionPort> loop_input_ports, loop_output_ports;
     LoopManager::get_io_loop_ports(loop_begin_pos, loop_end_pos, loop_input_ports, loop_output_ports);
 
@@ -185,8 +177,8 @@ void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
                         "Failed to broadcast work amount in marking loop");
     };
 
-    auto is_outside_loop = [&FULL_DIM](const std::vector<size_t>& subtensor) {
-        return std::all_of(subtensor.begin(), subtensor.end(), [&FULL_DIM](size_t lhs) { return lhs == FULL_DIM; });
+    auto is_outside_loop = [](const std::vector<size_t>& subtensor) {
+        return std::all_of(subtensor.begin(), subtensor.end(), utils::is_full_dim_value);
     };
 
     std::vector<size_t> loop_subtensor;
@@ -199,7 +191,7 @@ void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
             subtensor[subtensor.size() - 1] = vector_size;
         }
 
-        const size_t resizing_value = is_outside_loop(subtensor) ? FULL_DIM : 1;
+        const size_t resizing_value = is_outside_loop(subtensor) ? utils::get_full_dim_value() : 1;
         while (subtensor.size() < loop_depth)
             subtensor.insert(subtensor.begin(), resizing_value);
         if (loop_subtensor.empty())
@@ -209,7 +201,7 @@ void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
                         "Incorrect scheduling parameters for loop");
 
         for (size_t dim_idx = 0; dim_idx < loop_depth; ++dim_idx) {
-            if (*(subtensor.rbegin() + dim_idx) != FULL_DIM) {
+            if (!utils::is_full_dim_value(*(subtensor.rbegin() + dim_idx))) {
                 broadcast(loop_tensor, shape, dim_idx);
             }
         }
@@ -218,7 +210,7 @@ void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
     for (size_t dim_idx = 0; dim_idx < loop_depth; ++dim_idx) {
         OPENVINO_ASSERT(dim_idx < loop_subtensor.size(), "Incorrect indexes of Loop for markup");
         const auto& subtensor_value = *(loop_subtensor.rbegin() + dim_idx);
-        if (subtensor_value == FULL_DIM) {
+        if (utils::is_full_dim_value(subtensor_value)) {
             continue;
         }
 
@@ -397,7 +389,7 @@ void LoopManager::expression_replacement(LinearIR::constExprIt new_expr_begin, L
     }
 }
 
-void LoopManager::sort_loop_ports(LinearIR::constExprIt& loop_begin_pos, LinearIR::constExprIt& loop_end_pos, size_t loop_id) {
+void LoopManager::sort_loop_ports(const LinearIR::constExprIt& loop_begin_pos, const LinearIR::constExprIt& loop_end_pos, size_t loop_id) {
     // [113536] Update this logic please, when expression numeration will be implemented
     const auto& loop_info = get_loop_info<UnifiedLoopInfo>(loop_id);
     const auto& loop_entries = loop_info->get_input_ports();

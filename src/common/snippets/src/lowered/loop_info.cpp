@@ -4,7 +4,7 @@
 
 #include "snippets/lowered/loop_info.hpp"
 
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 
 namespace ov {
@@ -98,7 +98,7 @@ std::vector<LoopPort>::iterator LoopInfo::find_loop_port(const LoopPort& loop_po
     auto& ports = loop_port.expr_port->get_type() == ExpressionPort::Input ? m_input_ports : m_output_ports;
     const auto it = std::find_if(ports.begin(), ports.end(),
                                  [&loop_port](const LoopPort& port) { return port == loop_port; });
-    OPENVINO_ASSERT(it != ports.end(), "Failed update_loop_port: existing loop port has not been found");
+    OPENVINO_ASSERT(it != ports.end(), "Failed find_loop_port: existing loop port has not been found");
     return it;
 }
 
@@ -108,6 +108,17 @@ std::vector<LoopPort>::iterator LoopInfo::find_loop_port(const ExpressionPort& e
     const auto it = std::find_if(ports.begin(), ports.end(),
                                 [&expr_port](const LoopPort& port) { return *port.expr_port.get() == expr_port; });
     return it;
+}
+
+bool LoopInfo::is_loop_port(const ExpressionPort& expr_port) {
+    const auto& loop_port_it = find_loop_port(expr_port);
+    const auto& ports = expr_port.get_type() == ExpressionPort::Input ? m_input_ports : m_output_ports;
+    return loop_port_it != ports.end();
+}
+
+const LoopPort& LoopInfo::get_loop_port(const ExpressionPort& expr_port) {
+    OPENVINO_ASSERT(is_loop_port(expr_port), "Failed get_loop_port: expr_port is not a loop port");
+    return *find_loop_port(expr_port);
 }
 
 void LoopInfo::replace_with_new_ports(const LoopPort& actual_port, const std::vector<LoopPort>& target_ports) {
@@ -259,7 +270,7 @@ void order(const std::vector<size_t>& new_order, std::vector<T>& values) {
                     "Failed to sort values: `new_order` must contain new indexes for ALL values");
     std::vector<T> ordered_values(values.size());
     for (size_t i = 0; i < values.size(); ++i) {
-        ordered_values[new_order[i]] = values[i];
+        ordered_values[i] = values[new_order[i]];
     }
     values = std::move(ordered_values);
 }
@@ -314,13 +325,58 @@ void UnifiedLoopInfo::replace_with_new_ports(const ExpressionPort& actual_port, 
     validate();
 }
 
+void UnifiedLoopInfo::update_loop_ports(const std::vector<ExpressionPort>& actual_ports, const std::vector<ExpressionPort>& target_ports) {
+    add_loop_ports(target_ports);
+    remove_loop_ports(actual_ports);
+    validate();
+}
+
+void UnifiedLoopInfo::remove_loop_ports(const std::vector<ExpressionPort>& ports) {
+    if (ports.empty())
+        return;
+    bool is_input = ports[0].get_type() == ExpressionPort::Input;
+    auto& loop_ports = is_input ? m_input_ports : m_output_ports;
+    auto& loop_ports_desc = is_input ? m_input_port_descs : m_output_port_descs;
+    for (size_t i = 0; i < ports.size(); i++) {
+        OPENVINO_ASSERT(is_input ? (ports[i].get_type() == ExpressionPort::Input) : (ports[i].get_type() == ExpressionPort::Output),
+            "ports in remove_loop_ports have different type.");
+        auto port_it = find_loop_port(ports[i]);
+        // if not in loop ports, skip
+        if (port_it == loop_ports.end())
+            continue;
+
+        loop_ports.erase(port_it);
+        auto dist = std::distance(loop_ports.begin(), port_it);
+        loop_ports_desc.erase(loop_ports_desc.begin() + dist);
+    }
+}
+
+void UnifiedLoopInfo::add_loop_ports(const std::vector<ExpressionPort>& ports) {
+    if (ports.empty())
+        return;
+    bool is_input = ports[0].get_type() == ExpressionPort::Input;
+    auto& loop_ports = is_input ? m_input_ports : m_output_ports;
+    auto& loop_ports_desc = is_input ? m_input_port_descs : m_output_port_descs;
+    size_t loop_dim_idx = get_dim_idx();
+    for (size_t i = 0; i < ports.size(); i++) {
+        OPENVINO_ASSERT(is_input ? (ports[i].get_type() == ExpressionPort::Input) : (ports[i].get_type() == ExpressionPort::Output),
+            "ports in add_loop_ports have different type.");
+        // if already in loop ports, skip
+        auto loop_port = find_loop_port(ports[i]);
+        if (loop_port != loop_ports.end())
+            continue;
+        loop_ports.push_back(LoopPort(ports[i], true, loop_dim_idx));
+        loop_ports_desc.push_back(LoopPortDesc());
+    }
+}
+
 ExpandedLoopInfo::ExpandedLoopInfo(size_t work_amount, size_t increment,
                                    const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits,
                                    std::vector<int64_t> ptr_increments, std::vector<int64_t> final_offsets, std::vector<int64_t> data_sizes,
-                                   SpecificLoopIterType type, std::shared_ptr<UnifiedLoopInfo> unified_loop_info, bool is_wa_const)
+                                   SpecificLoopIterType type, std::shared_ptr<UnifiedLoopInfo> unified_loop_info, bool is_wa_const, bool evaluate_once)
     : LoopInfo(work_amount, increment, entries, exits, is_wa_const),
       m_ptr_increments(std::move(ptr_increments)), m_finalization_offsets(std::move(final_offsets)),
-      m_data_sizes(std::move(data_sizes)), m_type(type), m_unified_loop_info(std::move(unified_loop_info)) {
+      m_data_sizes(std::move(data_sizes)), m_type(type), m_unified_loop_info(std::move(unified_loop_info)), m_evaluate_once(evaluate_once) {
     validate();
 }
 
@@ -336,7 +392,8 @@ std::shared_ptr<LoopInfo> ExpandedLoopInfo::clone_with_new_expr(const Expression
     const auto& new_output_ports = clone_loop_ports(expr_map, m_output_ports);
 
     return std::make_shared<ExpandedLoopInfo>(m_work_amount, m_increment, new_input_ports, new_output_ports,
-                                              m_ptr_increments, m_finalization_offsets, m_data_sizes, m_type, m_unified_loop_info, m_is_work_amount_const);
+                                              m_ptr_increments, m_finalization_offsets, m_data_sizes, m_type,
+                                              m_unified_loop_info, m_is_work_amount_const, m_evaluate_once);
 }
 
 bool ExpandedLoopInfo::is_dynamic() const {
@@ -377,6 +434,14 @@ const std::vector<int64_t>& ExpandedLoopInfo::get_finalization_offsets() const {
 
 const std::vector<int64_t>& ExpandedLoopInfo::get_data_sizes() const {
     return m_data_sizes;
+}
+
+bool ExpandedLoopInfo::is_evaluate_once() const {
+    return m_evaluate_once;
+}
+
+void ExpandedLoopInfo::set_evaluate_once(bool value) {
+    m_evaluate_once = value;
 }
 
 void ExpandedLoopInfo::update_ptr_increments(const std::vector<int64_t>& new_values) {
