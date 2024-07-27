@@ -20,6 +20,8 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <optional>
+#include <regex>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -66,10 +68,18 @@ DEFINE_string(device, "", "Device to use");
 DEFINE_string(config, "", "Path to the configuration file (optional)");
 DEFINE_string(ip, "", "Input precision (default: U8, available: FP32, FP16, I32, I64, U8)");
 DEFINE_string(op, "", "Output precision (default: FP32, available: FP32, FP16, I32, I64, U8)");
-DEFINE_string(il, "", "Input layout");
-DEFINE_string(ol, "", "Output layout");
-DEFINE_string(iml, "", "Model input layout");
-DEFINE_string(oml, "", "Model output layout");
+DEFINE_string(
+        il, "",
+        "Input layout for all inputs, or ';' separated list of pairs <input>:<layout>. Regex in <input> is supported");
+DEFINE_string(ol, "",
+              "Output layout for all outputs, or ';' separated list of pairs <output>:<layout>. Regex in <output> is "
+              "supported");
+DEFINE_string(iml, "",
+              "Model input layout for all model inputs, or ';' separated list of pairs <input>:<layout>. Regex in "
+              "<input> is supported");
+DEFINE_string(oml, "",
+              "Model output layout for all outputs, or ';' separated list of pairs <output>:<layout>. Regex in "
+              "<output> is supported");
 DEFINE_bool(img_as_bin, false, "Force binary input even if network expects an image");
 DEFINE_bool(pc, false, "Report performance counters");
 
@@ -154,6 +164,25 @@ std::vector<std::string> splitStringList(const std::string& str, char delim) {
     }
 
     return out;
+}
+
+std::map<std::string, std::string> parseArgMap(std::string argMap) {
+    argMap.erase(std::remove_if(argMap.begin(), argMap.end(), ::isspace), argMap.end());
+
+    const auto pairs = splitStringList(argMap, ';');
+
+    std::map<std::string, std::string> parsedMap;
+    for (auto&& pair : pairs) {
+        const auto lastDelimPos = pair.find_last_of(':');
+        auto key = pair.substr(0, lastDelimPos);
+        std::string value;
+        if (lastDelimPos != std::string::npos) {
+            value = pair.substr(lastDelimPos + 1);
+        }
+        parsedMap[std::move(key)] = std::move(value);
+    }
+
+    return parsedMap;
 }
 
 void parseCommandLine(int argc, char* argv[]) {
@@ -531,6 +560,38 @@ std::vector<std::vector<float>> parseMeanOrScale(const std::string& mean_scale,
     return result;
 }
 
+using RegexPtr = std::unique_ptr<std::regex>;
+std::map<RegexPtr, ov::Layout> parseLayoutRegex(std::string layouts) {
+    std::map<std::string, std::string> input_output_layouts = parseArgMap(std::move(layouts));
+
+    std::map<RegexPtr, ov::Layout> out;
+    for (const auto& input_output_layout : input_output_layouts) {
+        auto [name, value] = input_output_layout;
+        if (value.empty()) {
+            if (name.empty()) {
+                throw std::runtime_error("Can't parse layouts string \"" + layouts +
+                                         "\" into valid \"input:layout;input:layout\" pairs");
+            }
+            // there is no value only name, thus we consider input/output name as "any" and
+            // apply layout value as the parsed name
+            out.emplace(std::make_unique<std::regex>(".*"), name);
+            continue;
+        }
+        std::string valid_regex_str = name.empty() ? ".*" : "^" + name + "$";
+        out.emplace(std::make_unique<std::regex>(std::move(valid_regex_str)), std::move(value));
+    }
+    return out;
+}
+
+template <class T>
+std::optional<T> getRegexSubstitutionIfExist(const std::string& haystack, const std::map<RegexPtr, T>& substitutions) {
+    for (const auto& s : substitutions) {
+        if (std::regex_search(haystack, *s.first)) {
+            return {s.second};
+        }
+    }
+    return {};
+}
 //
 // File utils
 //
@@ -569,27 +630,70 @@ ov::Tensor loadImage(const ov::element::Type& precision, const ov::Shape& shape,
     return tensor;
 }
 
-ov::Tensor loadBinary(const ov::element::Type& modelPrecision, const ov::Shape& shape, const std::string& filePath,
-                      const ov::element::Type& dataPrecision) {
+ov::Tensor loadBinary(const ov::element::Type& modelPrecision, const ov::Shape& shape, const ov::Layout& layout,
+                      const std::string& filePath, const ov::element::Type& dataPrecision) {
     std::ifstream binaryFile(filePath, std::ios_base::binary | std::ios_base::ate);
     OPENVINO_ASSERT(binaryFile, "Failed to open input binary file: ", filePath);
-    const auto fileBytes = binaryFile.tellg();
+    const auto fileSize = binaryFile.tellg();
     binaryFile.seekg(0, std::ios_base::beg);
     OPENVINO_ASSERT(binaryFile.good(), "While reading a file an error is encountered");
-
-    const ov::Tensor requestedTensor(modelPrecision, shape);
-    const int reqTensorBytes = static_cast<int>(requestedTensor.get_byte_size());
+    const size_t fileBytes = static_cast<size_t>(fileSize);
+    ov::Tensor requestedTensor(modelPrecision, shape);
+    const size_t reqTensorBytes = static_cast<size_t>(requestedTensor.get_byte_size());
 
     if (dataPrecision != modelPrecision && dataPrecision != ov::element::Type_t::undefined) {
         std::cout << "Converting " << filePath << " input from " << dataPrecision << " to " << modelPrecision
                   << std::endl;
         const ov::Tensor inputTensor(dataPrecision, shape);
-        binaryFile.read(reinterpret_cast<char*>(inputTensor.data()), static_cast<std::streamsize>(fileBytes));
-        npu::utils::convertTensorPrecision(inputTensor, requestedTensor);
+        if (fileBytes == inputTensor.get_byte_size()) {
+            binaryFile.read(reinterpret_cast<char*>(inputTensor.data()), static_cast<std::streamsize>(fileBytes));
+            npu::utils::convertTensorPrecision(inputTensor, requestedTensor);
+        } else {
+            std::cout << "File contains " << fileBytes
+                      << " bytes, but it expected to be: " << inputTensor.get_byte_size()
+                      << " while converting precision from " << dataPrecision << " to " << modelPrecision
+                      << ". Check whether it is possible to batch loading " << std::endl;
+            OPENVINO_ASSERT(ov::layout::has_batch(layout),
+                            "Input layout has no batch dimenstion: ", layout.to_string());
+            size_t N = shape[ov::layout::batch_idx(layout)];
+            OPENVINO_ASSERT(fileBytes * N == inputTensor.get_byte_size(), "File contains ", fileBytes, " bytes, but ",
+                            inputTensor.get_byte_size() * N, " total in batch size ", N,
+                            " expected while converting precision from ", dataPrecision, " to ", modelPrecision);
+            ov::Shape debatchedInputTensorShape(shape);
+            debatchedInputTensorShape[ov::layout::batch_idx(layout)] = 1;
+            const ov::Tensor inputDebatchedTensor(dataPrecision, debatchedInputTensorShape);
+            binaryFile.read(reinterpret_cast<char*>(inputDebatchedTensor.data()),
+                            static_cast<std::streamsize>(fileBytes));
+            const ov::Tensor convertedPrecisionTensor(modelPrecision, debatchedInputTensorShape);
+            npu::utils::convertTensorPrecision(inputDebatchedTensor, convertedPrecisionTensor);
+            std::list<ov::Tensor> tensorsToJoin;
+            std::generate_n(std::back_inserter(tensorsToJoin), N, [&convertedPrecisionTensor]() {
+                return convertedPrecisionTensor;
+            });
+            requestedTensor = npu::utils::joinTensors(tensorsToJoin, layout);
+        }
+
     } else {
-        OPENVINO_ASSERT(fileBytes == reqTensorBytes, "File contains ", fileBytes, " bytes, but ", reqTensorBytes,
-                        " expected");
-        binaryFile.read(reinterpret_cast<char*>(requestedTensor.data()), static_cast<std::streamsize>(reqTensorBytes));
+        if (fileBytes == reqTensorBytes) {
+            binaryFile.read(reinterpret_cast<char*>(requestedTensor.data()),
+                            static_cast<std::streamsize>(reqTensorBytes));
+        } else {
+            std::cout << "File contains " << fileBytes << " bytes, but it expected to be: " << reqTensorBytes
+                      << " when datatypes match. "
+                      << ". Check whether it is possible to batch loading " << std::endl;
+            OPENVINO_ASSERT(ov::layout::has_batch(layout),
+                            "Input layout has no batch dimenstion: ", layout.to_string());
+            size_t N = shape[ov::layout::batch_idx(layout)];
+            OPENVINO_ASSERT(fileBytes * N == reqTensorBytes, "File contains ", fileBytes, " bytes, but ",
+                            reqTensorBytes, " in batch size ", N, " expected");
+
+            // duplicate a binary into tensor memory if the tensor batched
+            for (size_t n = 0; n < N; ++n) {
+                binaryFile.seekg(0, std::ios_base::beg);
+                binaryFile.read(reinterpret_cast<char*>(requestedTensor.data()) + fileBytes * n,
+                                static_cast<std::streamsize>(fileBytes));
+            }
+        }
     }
 
     return requestedTensor;
@@ -617,7 +721,7 @@ ov::Tensor loadInput(const ov::element::Type& modelPrecision, const ov::Shape& s
     if (isImage(shape, layout) && !FLAGS_img_as_bin) {
         return loadImage(modelPrecision, shape, layout, filePath, colorFormat);
     } else {
-        return loadBinary(modelPrecision, shape, filePath, dataPrecision);
+        return loadBinary(modelPrecision, shape, layout, filePath, dataPrecision);
     }
 }
 
@@ -1620,10 +1724,10 @@ static int runSingleImageTest() {
                 throw std::logic_error("Parameter -op " + FLAGS_op + " is not supported");
         }
 
-        ov::Layout inUserLayout(FLAGS_il);
-        ov::Layout outUserLayout(FLAGS_ol);
-        ov::Layout inModelLayout(FLAGS_iml);
-        ov::Layout outModelLayout(FLAGS_oml);
+        std::map<RegexPtr, ov::Layout> inUserLayouts = parseLayoutRegex(FLAGS_il);
+        std::map<RegexPtr, ov::Layout> outUserLayouts = parseLayoutRegex(FLAGS_ol);
+        std::map<RegexPtr, ov::Layout> inModelLayouts = parseLayoutRegex(FLAGS_iml);
+        std::map<RegexPtr, ov::Layout> outModelLayouts = parseLayoutRegex(FLAGS_oml);
 
         std::vector<std::string> inputFilesPerCase;
         std::vector<std::vector<std::string>> inputFilesForOneInfer;
@@ -1712,10 +1816,16 @@ static int runSingleImageTest() {
             }
 
             // Input layout
-            if (!inUserLayout.empty()) {
-                for (size_t i = 0; i < inputInfo.size(); ++i) {
+            for (size_t i = 0; i < inputInfo.size(); ++i) {
+                if (std::optional<ov::Layout> inUserLayout =
+                            getRegexSubstitutionIfExist(inputInfo[i].get_any_name(), inUserLayouts);
+                    inUserLayout.has_value()) {
                     ov::Layout inLayerModelLayout;
-                    if (inModelLayout.empty()) {
+                    if (std::optional<ov::Layout> inModelLayout =
+                                getRegexSubstitutionIfExist(inputInfo[i].get_any_name(), inModelLayouts);
+                        inModelLayout.has_value()) {
+                        inLayerModelLayout = inModelLayout.value();
+                    } else {
                         const auto shape = inputInfo[i].get_shape();
                         inLayerModelLayout = getLayoutByRank(shape.size());
                         std::cout << "WARNING: Configuring preprocessing. Since --iml option isn't set, input model "
@@ -1723,11 +1833,12 @@ static int runSingleImageTest() {
                                   << inputInfo[i].get_any_name() << "\" is infered from shape: " << toString(shape)
                                   << " rank (" << shape.size() << ") as " << inLayerModelLayout.to_string()
                                   << std::endl;
-                    } else {
-                        inLayerModelLayout = inModelLayout;
                     }
+                    std::cout << "Set layouts for the input: \"" << inputInfo[i].get_any_name() << "\", model "
+                              << inLayerModelLayout.to_string() << ", user " << inUserLayout.value().to_string()
+                              << std::endl;
                     ppp.input(i).model().set_layout(inLayerModelLayout);
-                    ppp.input(i).tensor().set_layout(inUserLayout);
+                    ppp.input(i).tensor().set_layout(inUserLayout.value());
                 }
             }
 
@@ -1766,10 +1877,16 @@ static int runSingleImageTest() {
             }
 
             // Output layout
-            if (!outUserLayout.empty()) {
-                for (size_t i = 0; i < outputInfo.size(); ++i) {
+            for (size_t i = 0; i < outputInfo.size(); ++i) {
+                if (std::optional<ov::Layout> outUserLayout =
+                            getRegexSubstitutionIfExist(outputInfo[i].get_any_name(), outUserLayouts);
+                    outUserLayout.has_value()) {
                     ov::Layout outLayerModelLayout;
-                    if (outModelLayout.empty()) {
+                    if (std::optional<ov::Layout> outModelLayout =
+                                getRegexSubstitutionIfExist(outputInfo[i].get_any_name(), outModelLayouts);
+                        outModelLayout.has_value()) {
+                        outLayerModelLayout = outModelLayout.value();
+                    } else {
                         const auto shape = outputInfo[i].get_shape();
                         outLayerModelLayout = getLayoutByRank(shape.size());
                         std::cout << "WARNING: Configuring preprocessing. Since --oml option isn't set, output model "
@@ -1777,11 +1894,12 @@ static int runSingleImageTest() {
                                   << outputInfo[i].get_any_name() << "\" is infered from shape: " << toString(shape)
                                   << " rank (" << shape.size() << ") as " << outLayerModelLayout.to_string()
                                   << std::endl;
-                    } else {
-                        outLayerModelLayout = outModelLayout;
                     }
+                    std::cout << "Set layouts for the output: \"" << outputInfo[i].get_any_name() << "\", model "
+                              << outLayerModelLayout.to_string() << ", user " << outUserLayout.value().to_string()
+                              << std::endl;
                     ppp.output(i).model().set_layout(outLayerModelLayout);
-                    ppp.output(i).tensor().set_layout(outUserLayout);
+                    ppp.output(i).tensor().set_layout(outUserLayout.value());
                 }
             }
 
@@ -1852,10 +1970,14 @@ static int runSingleImageTest() {
                 // Determine the input layout
                 ov::Layout inputLayout;
 
-                if (!inUserLayout.empty()) {
-                    inputLayout = inUserLayout;
-                } else if (!inModelLayout.empty()) {
-                    inputLayout = inModelLayout;
+                if (std::optional<ov::Layout> inUserLayout =
+                            getRegexSubstitutionIfExist(inputInfo.get_any_name(), inUserLayouts);
+                    inUserLayout.has_value()) {
+                    inputLayout = inUserLayout.value();
+                } else if (std::optional<ov::Layout> inModelLayout =
+                                   getRegexSubstitutionIfExist(inputInfo.get_any_name(), inModelLayouts);
+                           inModelLayout.has_value()) {
+                    inputLayout = inModelLayout.value();
                 } else {
                     inputLayout = getLayoutByRank(shape.size());
                     std::cout << "WARNING: Loading input data. Since --iml option isn't set, input model layout for "
@@ -1905,7 +2027,9 @@ static int runSingleImageTest() {
                 LayoutMap outputLayouts;  // Several metrics may require this
 
                 // Load the reference data
-                for (const auto& [tensorName, tensor] : outputTensors) {
+                for (const auto& out : compiledModel.outputs()) {
+                    const auto& tensorName = out.get_any_name();
+                    const auto& tensor = outputTensors.at(tensorName);
                     const ov::element::Type& precision = tensor.get_element_type();
                     const ov::Shape& shape = tensor.get_shape();
 
@@ -1922,10 +2046,14 @@ static int runSingleImageTest() {
                     // Determine the output layout
                     ov::Layout outputLayout;
 
-                    if (!outUserLayout.empty()) {
-                        outputLayout = outUserLayout;
-                    } else if (!outModelLayout.empty()) {
-                        outputLayout = outModelLayout;
+                    if (std::optional<ov::Layout> outUserLayout =
+                                getRegexSubstitutionIfExist(tensorName, outUserLayouts);
+                        outUserLayout.has_value()) {
+                        outputLayout = outUserLayout.value();
+                    } else if (std::optional<ov::Layout> outModelLayout =
+                                       getRegexSubstitutionIfExist(tensorName, outModelLayouts);
+                               outModelLayout.has_value()) {
+                        outputLayout = outModelLayout.value();
                     } else {
                         outputLayout = getLayoutByRank(shape.size());
                         std::cout << "WARNING: Since --oml option isn't set, output model layout for layer \""
@@ -1941,7 +2069,8 @@ static int runSingleImageTest() {
                 outputInd = 0;
 
                 // Dump the outputs obtained upon prediction
-                for (const auto& tensorEntry : outputTensors) {
+                for (const auto& out : compiledModel.outputs()) {
+                    const auto& tensor = outputTensors.at(out.get_any_name());
                     std::ostringstream ostr;
                     ostr << netFileName << "_kmb_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
                     const auto blobFileName = ostr.str();
@@ -1949,7 +2078,7 @@ static int runSingleImageTest() {
                     std::cout << "Dump device output #" << outputInd << "_case_" << numberOfTestCase << " to "
                               << blobFileName << std::endl;
 
-                    dumpTensor(tensorEntry.second, blobFileName);
+                    dumpTensor(tensor, blobFileName);
                     ++outputInd;
                 }
 
@@ -2048,13 +2177,14 @@ static int runSingleImageTest() {
                 }
             } else {
                 size_t outputInd = 0;
-                for (const auto& tensorEntry : outputTensors) {
+                for (const auto& out : compiledModel.outputs()) {
+                    const auto& tensor = outputTensors.at(out.get_any_name());
                     std::ostringstream ostr;
                     ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
                     const auto blobFileName = ostr.str();
 
                     std::cout << "Dump reference output #" << outputInd << " to " << blobFileName << std::endl;
-                    dumpTensor(tensorEntry.second, blobFileName);
+                    dumpTensor(tensor, blobFileName);
 
                     ++outputInd;
                 }

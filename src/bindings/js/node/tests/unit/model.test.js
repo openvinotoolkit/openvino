@@ -2,7 +2,7 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-const { addon: ov } = require('..');
+const { addon: ov } = require('../..');
 const assert = require('assert');
 const { describe, it } = require('node:test');
 const { getModelPath } = require('./utils.js');
@@ -112,6 +112,7 @@ describe('Model.getOutputSize()', () => {
     assert.strictEqual(model.getOutputSize(), 1, 'Expected getOutputSize to return 1 for the default model');
   });
 });
+<<<<<<< HEAD:src/bindings/js/node/tests/model.test.js
 
 describe('Model.getOutputElementType()', () => {
   it('should return a string for the element type ', () => {
@@ -152,3 +153,5 @@ describe('Model.getOutputElementType()', () => {
     );
   });
 });
+=======
+>>>>>>> 3056b53056d6319666f3fc250bebefb0c4b1a91e:src/bindings/js/node/tests/unit/model.test.js
