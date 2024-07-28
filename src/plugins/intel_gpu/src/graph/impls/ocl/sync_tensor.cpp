@@ -76,11 +76,9 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
 
         std::vector<uint32_t> initBuf(elemCount, 0);
         if (buff != nullptr && length > 0) {
-            // initBuf[0] = 100;
-
-            uint16_t* init_ptr = reinterpret_cast<uint16_t*>(buff);
-            initBuf[0] = init_ptr[0];
-            printf("init_ptr[0]: %d \n", init_ptr[0]);
+            // uint16_t* init_ptr = reinterpret_cast<uint16_t*>(buff);
+            initBuf[0] = 100;
+            printf("initBuf[0]: %d \n", initBuf[0]);
         }
         cl_mem clbuf = oclctx.createBuffer(elemCount * sizeof(uint32_t), initBuf);
         // oclctx.printBuffer(clbuf);
@@ -200,8 +198,8 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
                     auto mem_ptr2 = lock2.data();
                     auto sec_val2 = static_cast<float>(mem_ptr2[0]);
                     printf("[sync_tensor_impl:%d] sec_val2: %f \n", w_rank, sec_val2);
-                    mem_ptr2[0] = static_cast<ov::float16>(100);
-                    // printf("[sync_tensor_impl:%d] mem_ptr[0]: %f \n", w_rank, static_cast<float>(mem_ptr2[0]));
+                    // mem_ptr2[0] = static_cast<ov::float16>(100);
+                    mem_ptr2[0] = static_cast<ov::float16>(outBuf[0]);
                     sec_val2 = static_cast<float>(mem_ptr2[0]);
                     printf("[sync_tensor_impl:%d] sec_val2: %f \n", w_rank, sec_val2);
 
