@@ -173,18 +173,15 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
                     if (mem_dt == cldnn::data_types::f16) {
                         printf("[sync_tensor_impl:%d] cldnn::data_types::f16 \n", w_rank);
                     }
-                    {
-                        printf("[sync_tensor_impl:%d] lock \n", w_rank);
-                        mem_lock<ov::float16, mem_lock_type::read> lock(actual_mem, stream);
-                        // mem_lock<ov::float16, mem_lock_type::write> lock(actual_mem, stream);
-                        printf("[sync_tensor_impl:%d] get pointer \n", w_rank);
-                        auto mem_ptr = lock.data();
-                        float sec_val = static_cast<float>(mem_ptr[0]);
-                        printf("[sync_tensor_impl:%d] sec_val: %f \n", w_rank, sec_val);
-                        // printf("[sync_tensor_impl:%d] assign value \n", w_rank);
-                        // mem_ptr[0] = 4.0f;
-                        // std::cout << "[sync_tensor_impl:" << w_rank << "] mem_ptr[0]: " << mem_ptr[0] << std::endl;
-                    }
+                    printf("[sync_tensor_impl:%d] lock \n", w_rank);
+                    mem_lock<ov::float16, mem_lock_type::read> lock(actual_mem, stream);
+                    printf("[sync_tensor_impl:%d] get pointer \n", w_rank);
+                    auto mem_ptr = lock.data();
+                    float sec_val = static_cast<float>(mem_ptr[0]);
+                    printf("[sync_tensor_impl:%d] sec_val: %f \n", w_rank, sec_val);
+                    // printf("[sync_tensor_impl:%d] assign value \n", w_rank);
+                    // mem_ptr[0] = 4.0f;
+                    // std::cout << "[sync_tensor_impl:" << w_rank << "] mem_ptr[0]: " << mem_ptr[0] << std::endl;
 
                     output_idx = idx;
                     printf("[sync_tensor_impl:%d] check output %ld \n", w_rank, output_idx);
@@ -196,18 +193,17 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
                     if (mem_dt == cldnn::data_types::f16) {
                         printf("[sync_tensor_impl:%d] cldnn::data_types::f16 \n", w_rank);
                     }
-                    {
-                        printf("[sync_tensor_impl:%d] lock \n", w_rank);
-                        mem_lock<ov::float16, mem_lock_type::read> lock(actual_mem, stream);
-                        // mem_lock<ov::float16, mem_lock_type::write> lock(actual_mem, stream);
-                        printf("[sync_tensor_impl:%d] get pointer \n", w_rank);
-                        auto mem_ptr = lock.data();
-                        float sec_val = static_cast<float>(mem_ptr[0]);
-                        printf("[sync_tensor_impl:%d] sec_val: %f \n", w_rank, sec_val);
-                        // printf("[sync_tensor_impl:%d] assign value \n", w_rank);
-                        // mem_ptr[0] = 4.0f;
-                        // std::cout << "[sync_tensor_impl:" << w_rank << "] mem_ptr[0]: " << mem_ptr[0] << std::endl;
-                    }
+                    printf("[sync_tensor_impl:%d] lock \n", w_rank);
+                    // mem_lock<ov::float16, mem_lock_type::read> lock(actual_mem, stream);
+                    mem_lock<ov::float16, mem_lock_type::read_write> lock2(actual_mem, stream);
+                    printf("[sync_tensor_impl:%d] get pointer \n", w_rank);
+                    auto mem_ptr2 = lock2.data();
+                    auto sec_val2 = static_cast<float>(mem_ptr2[0]);
+                    printf("[sync_tensor_impl:%d] sec_val2: %f \n", w_rank, sec_val2);
+                    mem_ptr2[0] = static_cast<ov::float16>(100);
+                    // printf("[sync_tensor_impl:%d] mem_ptr[0]: %f \n", w_rank, static_cast<float>(mem_ptr2[0]));
+                    sec_val2 = static_cast<float>(mem_ptr2[0]);
+                    printf("[sync_tensor_impl:%d] sec_val2: %f \n", w_rank, sec_val2);
 
                     printf("[sync_tensor_impl:%d] std::memcpy end \n", w_rank);
                     wait_list[idx] = 0;
