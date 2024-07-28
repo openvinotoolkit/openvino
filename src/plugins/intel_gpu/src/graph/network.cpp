@@ -716,6 +716,7 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
 }
 
 std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memory::ptr mem_new) {
+    std::cout << "[network] set_output_memory " << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "Set output " << id << " " << mem_new->get_layout().to_short_string() << std::endl;
     std::shared_ptr<primitive_inst> p_inst;
     std::vector<event::ptr> ret_ev;
@@ -1196,6 +1197,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                         debug_str_for_bin_load += (filename + ",");
                     } else {
                         // Text dump
+                        std::cout << "[network.cpp] output_mem: " << output_mem << std::endl;
                         log_memory_to_file(output_mem, inst->get_output_layout(i), get_stream(), name, debug_config->dump_layers_raw);
                     }
                 }

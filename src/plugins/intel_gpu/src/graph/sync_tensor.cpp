@@ -40,11 +40,11 @@ std::vector<layout> sync_tensor_inst::calc_output_layouts(sync_tensor_node const
 
     std::vector<layout> out_layouts;
     for (size_t i = 0; i < desc->num_outputs; i++) {
-        std::cout << "[sync_tensor_inst:" << i << "]: output_shape: " << output_shapes[i] << std::endl;
+        std::cout << "[sync_tensor_inst] " << i << ": output_shape: " << output_shapes[i] << std::endl;
         auto out_type = impl_param.get_input_layout(0).data_type;
-        std::cout << "[sync_tensor_inst:" << i << "]: out_type: " << out_type << std::endl;
+        std::cout << "[sync_tensor_inst] " << i << ": out_type: " << out_type << std::endl;
         auto format = impl_param.get_output_layout(i).format;
-        std::cout << "[sync_tensor_inst:" << i << "]: format: " << format << std::endl;
+        std::cout << "[sync_tensor_inst] " << i << ": format: " << format << std::endl;
         out_layouts.push_back(layout(output_shapes[i], out_type, impl_param.get_output_layout(i).format));
     }
 
@@ -71,7 +71,7 @@ void sync_tensor_inst::on_execute() {
 void sync_tensor_inst::update_output_memory() {
     if (!can_be_optimized()) {
         auto my_rank = get_impl_params()->w_rank;
-        std::cout << "[-->] sync_tensor_inst update_output_memory add output my_rank: " << my_rank << std::endl;
+        std::cout << "[sync_tensor_inst] update_output_memory add output my_rank: " << my_rank << std::endl;
         _outputs[my_rank] = input_memory_ptr();
         return;
     }
