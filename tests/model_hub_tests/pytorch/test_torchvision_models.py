@@ -7,8 +7,9 @@ import tempfile
 import pytest
 import torch
 import torchvision.transforms.functional as F
+from models_hub_common.utils import get_models_list
 
-from torch_utils import process_pytest_marks, TestTorchConvertModel
+from torch_utils import TestTorchConvertModel
 
 
 def get_all_models() -> list:
@@ -103,10 +104,15 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
         self.mode = "export"
         self.run(model_name, None, ie_device)
 
-    @pytest.mark.parametrize("name",
-                             process_pytest_marks(os.path.join(os.path.dirname(__file__), "torchvision_models")))
+    @pytest.mark.parametrize("name,link,mark,reason", get_models_list(os.path.join(os.path.dirname(__file__), "torchvision_models")))
     @pytest.mark.parametrize("mode", ["trace", "export"])
     @pytest.mark.nightly
-    def test_convert_model_all_models(self, mode, name, ie_device):
+    def test_convert_model_all_models(self, mode, name, link, mark, reason,  ie_device):
         self.mode = mode
+        assert mark is None or mark in [
+            'skip', 'xfail', 'xfail_trace', 'xfail_export'], f"Incorrect test case for {name}"
+        if mark == 'skip':
+            pytest.skip(reason)
+        elif mark in ['xfail', f'xfail_{mode}']:
+            pytest.xfail(reason)
         self.run(name, None, ie_device)
