@@ -19,7 +19,7 @@ on:
         type: string
         required: false
       os:
-        description: 'OS that is used for building in the form of "ubuntu20"'
+        description: 'OS that is used for building in the form of "ubuntu_20_04"'
         type: string
         required: true
 
@@ -59,7 +59,7 @@ jobs:
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/src/frontends/onnx/tests/ci_utils/onnxruntime
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: '/__w/openvino/openvino/manifest.yml'
-      PRODUCT_TYPE: public_linux_${{ inputs.os }}_04_release
+      PRODUCT_TYPE: public_linux_${{ inputs.os }}_release
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
@@ -113,7 +113,7 @@ jobs:
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
 
           # For running ONNX frontend unit tests
-          if [[ ${{ inputs.os }} == 'ubuntu24' ]]; then
+          if [[ ${{ inputs.os }} == 'ubuntu_24_04' ]]; then
             # Should be removed after https://github.com/openvinotoolkit/openvino/pull/24242 is merged
             export CMAKE_GENERATOR="Unix Makefiles"
             python3 -m pip install --force-reinstall --no-cache-dir -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
@@ -191,7 +191,7 @@ jobs:
         run: |
           # Ubuntu 24 does not allow using the system Python directly so 
           # we have to use Python from the virtual environment created in Docker
-          [[ ${{ inputs.os }} == "ubuntu24" ]] && python_exec=/venv/bin/python3 || python_exec=/usr/bin/python3
+          [[ ${{ inputs.os }} == "ubuntu_24_04" ]] && python_exec=/venv/bin/python3 || python_exec=/usr/bin/python3
           $python_exec -m pip install -U pip
           $python_exec -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
           cmake -UPython* -U_Python* -UPYTHON* \
