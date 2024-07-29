@@ -31,7 +31,7 @@ More Gen AI coverage and framework integrations to minimize code changes.
 Broader Large Language Model (LLM) support and more model compression techniques.
 
 * Significant improvement in LLM performance on Intel built-in and discrete GPUs with the addition
-  of dynamic quantization, Multi-Head Attention (MHA), and OneDNN enhancements.
+  of Multi-Head Attention (MHA), and OneDNN enhancements.
 
 More portability and performance to run AI at the edge, in the cloud, or locally.
 
