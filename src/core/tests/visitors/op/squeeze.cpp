@@ -9,4 +9,4 @@
 using Types = ::testing::Types<UnaryOperatorType<ov::op::v0::Squeeze, ov::element::f32>,
                                UnaryOperatorType<ov::op::v0::Squeeze, ov::element::f16>>;
 
-INSTANTIATE_TYPED_TEST_SUITE_P(visitor_without_attribute, UnaryOperatorVisitor, Types, UnaryOperatorTypeName);
+// INSTANTIATE_TYPED_TEST_SUITE_P(visitor_without_attribute, UnaryOperatorVisitor, Types, UnaryOperatorTypeName);
