@@ -7,7 +7,7 @@ import inspect
 import numpy as np
 import pytest
 import torch
-from huggingface_hub.utils import HfHubHTTPError
+from huggingface_hub.utils import HfHubHTTPError, LocalEntryNotFoundError
 from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM
 
 from models_hub_common.utils import retry
@@ -91,7 +91,7 @@ class TestLLMModel(TestTorchConvertModel):
         self.infer_timeout = 1800
         self.cuda_available, self.gptq_postinit = None, None
 
-    @retry(3, exceptions=(HfHubHTTPError,), delay=1)
+    @retry(3, exceptions=(HfHubHTTPError, LocalEntryNotFoundError), delay=1)
     def load_model(self, name, type):
         model = None
         example = None
@@ -120,10 +120,11 @@ class TestLLMModel(TestTorchConvertModel):
 
         example = t("Some input text to verify that model works.",
                     return_tensors='pt').__dict__['data']
-        pkv, am = self.get_pkv(model, t)
-        example["past_key_values"] = pkv
-        example["attention_mask"] = torch.cat(
-            [example["attention_mask"], am], -1)
+        if type != "gptj":
+            pkv, am = self.get_pkv(model, t)
+            example["past_key_values"] = pkv
+            example["attention_mask"] = torch.cat(
+                [example["attention_mask"], am], -1)
         if type not in ["opt", "falcon"]:
             ids = torch.cumsum(example["attention_mask"] != 0, dim=1) - 1
             example["position_ids"] = ids[:, -
@@ -165,6 +166,7 @@ class TestLLMModel(TestTorchConvertModel):
             ovm = super().convert_model_impl(self.model)
         if is_patched:
             unpatch(self.model, "_openvino_module_extension_patch_orig_forward")
+        #    model_obj.float()
         return ovm
 
     def teardown_method(self):
@@ -194,17 +196,26 @@ class TestLLMModel(TestTorchConvertModel):
 
     @pytest.mark.parametrize("type,name", [
         ("baichuan", "baichuan-inc/Baichuan2-7B-Base"),
+        pytest.param("chatglm", "THUDM/chatglm3-6b",
+                     marks=pytest.mark.xfail(reason="Accuracy validation failed")),
         ("falcon", "tiiuae/falcon-7b-instruct"),
         ("gemma", "beomi/gemma-ko-7b"),
         ("gpt_neox", "EleutherAI/gpt-neox-20b"),
         ("gpt_neox", "togethercomputer/RedPajama-INCITE-7B-Instruct"),
         ("gpt_neox_japanese", "rinna/japanese-gpt-neox-3.6b"),
+        #pytest.param("gptj", "databricks/dolly-v1-6b",marks=pytest.mark.xfail(reason="prim::Constant")),
         ("llama", "lmsys/vicuna-7b-v1.5"),
         ("llama-2", "TheBloke/Llama-2-7B-GPTQ"),
+        pytest.param("llama-3.1", "hugging-quants/Meta-Llama-3.1-8B-Instruct-GPTQ-INT4",
+                     marks=pytest.mark.xfail(reason="Accuracy validation failed")),
+        pytest.param("mpt", "mosaicml/mpt-7b",
+                     marks=pytest.mark.xfail(reason="tuple index out of range")),
         ("opt", "facebook/opt-1.3b"),
         ("persimmon", "adept/persimmon-8b-base"),
         ("phi", "microsoft/phi-2"),
         ("phi3", "microsoft/Phi-3-mini-4k-instruct"),
+        pytest.param("qwen", "TheBloke/Qwen-7B-Chat-GPTQ",
+                     marks=pytest.mark.xfail(reason="Accuracy validation failed")),
         ("qwen2", "Qwen/Qwen2-0.5B-Instruct"),
         ("stablelm", "stabilityai/stablelm-3b-4e1t"),
     ])
