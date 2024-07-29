@@ -13,7 +13,6 @@
 namespace ov {
 namespace op {
 namespace v15 {
-
 STFT::STFT(const Output<Node>& data,
            const Output<Node>& window,
            const Output<Node>& frame_size,
@@ -40,12 +39,33 @@ bool STFT::visit_attributes(AttributeVisitor& visitor) {
 void STFT::validate_and_infer_types() {
     OV_OP_SCOPE(v15_STFT_validate_and_infer_types);
 
-    // TODO: Add input types validation
+    auto signal_type = get_input_element_type(0);
+    const auto& window_type = get_input_element_type(1);
+    const auto& frame_size_type = get_input_element_type(2);
+    const auto& frame_step_type = get_input_element_type(3);
+
+    const auto has_valid_signal_type = signal_type.is_dynamic() || signal_type.is_real();
+    NODE_VALIDATION_CHECK(this, has_valid_signal_type, "Expected floating point type of the 'signal' input.");
+
+    const auto has_valid_window_type =
+        window_type.is_dynamic() ||
+        (window_type.is_real() && element::Type::merge(signal_type, window_type, signal_type));
+    NODE_VALIDATION_CHECK(this,
+                          has_valid_window_type,
+                          "Expected floating point type of the 'window' input, matching the type of `signal` input.");
+
+    const auto has_valid_frame_size_type =
+        frame_size_type.is_dynamic() || frame_size_type == element::i32 || frame_size_type == element::i64;
+    NODE_VALIDATION_CHECK(this, has_valid_frame_size_type, "Expected integer type of the 'frame_size' input.");
+
+    const auto has_valid_frame_step_type =
+        frame_size_type.is_dynamic() || frame_step_type == element::i32 || frame_step_type == element::i64;
+    NODE_VALIDATION_CHECK(this, has_valid_frame_step_type, "Expected integer type of the 'frame_step' input.");
 
     const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);
 
-    set_output_type(0, get_input_element_type(0), output_shapes[0]);
+    set_output_type(0, signal_type, output_shapes[0]);
 }
 
 bool STFT::get_transpose_frames() const {
