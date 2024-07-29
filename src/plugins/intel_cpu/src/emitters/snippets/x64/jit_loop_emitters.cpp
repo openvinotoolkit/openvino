@@ -41,7 +41,8 @@ void jit_loop_begin_emitter::validate_arguments(const std::vector<size_t> &in, c
     // Note: the only expected output is work amount register (communicated to jit_loop_end_emitter)
     OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Invalid outputs size: expected 1 got " + std::to_string(out.size()));
     OV_CPU_JIT_EMITTER_ASSERT(loop_begin_label != nullptr && loop_end_label != nullptr, "has not inited labels!");
-    OV_CPU_JIT_EMITTER_ASSERT(implication(is_work_amount_dynamic, !evaluate_once), "with dynamic work_amount cannot evaluate once!");
+    OV_CPU_JIT_EMITTER_ASSERT(!snippets::utils::is_dynamic_value(wa_increment) || evaluate_once,
+                              "loop increment might be dynamic only if loop evaluates once!");
 }
 
 void jit_loop_begin_emitter::emit_code(const std::vector<size_t> &in, const std::vector<size_t> &out,
@@ -52,7 +53,8 @@ void jit_loop_begin_emitter::emit_code(const std::vector<size_t> &in, const std:
 
 void jit_loop_begin_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     // If the loop evaulate once, we can skip loop begin code emission
-    if (evaluate_once)
+    // If work_amount is dynamic, we should get runtime `work_amount` - it might be `zero` and we should skip loop evaluation
+    if (evaluate_once && !is_work_amount_dynamic)
         return;
 
     Reg64 reg_work_amount = Reg64(static_cast<int>(out.back()));
@@ -124,7 +126,8 @@ void jit_loop_end_emitter::validate_arguments(const std::vector<size_t> &in, con
                               "Invalid finalization_offsets size: expected: ", io_size, " got ", finalization_offsets.size());
     OV_CPU_JIT_EMITTER_ASSERT(data_sizes.size() == io_size, "Invalid data_sizes size: expected: ", io_size, " got ", data_sizes.size());
     OV_CPU_JIT_EMITTER_ASSERT(loop_end_label != nullptr && loop_begin_label != nullptr, "has not inited labels!");
-    OV_CPU_JIT_EMITTER_ASSERT(implication(are_ptr_shifts_dynamic, !evaluate_once), "with dynamic data pointer shifts cannot evaluate once!");
+    OV_CPU_JIT_EMITTER_ASSERT(!snippets::utils::is_dynamic_value(wa_increment) || evaluate_once,
+                              "loop increment might be dynamic only if loop evaluates once!");
 }
 
 void jit_loop_end_emitter::emit_code(const std::vector<size_t> &in, const std::vector<size_t> &out,
