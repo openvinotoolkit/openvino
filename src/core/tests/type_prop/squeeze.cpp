@@ -426,51 +426,50 @@ TEST_P(SqueezeBoundTest, propagate_symbol_and_dynamic_value) {
     EXPECT_THAT(symbols, ElementsAre(in_symbols.front()));
 }
 
-using SqueezeAxesDynamicRankTestParam = decltype(std::tuple_cat(SqueezeTypePropTestParam{}, std::make_tuple(false)) );
-class SqueezeAxesPyTorchDynamicRank :public ::testing::TestWithParam<SqueezeAxesDynamicRankTestParam> {
-    protected:
+using SqueezeAxesDynamicRankTestParam = decltype(std::tuple_cat(SqueezeTypePropTestParam{}, std::make_tuple(false)));
+class SqueezeAxesPyTorchDynamicRank : public ::testing::TestWithParam<SqueezeAxesDynamicRankTestParam> {
+protected:
     ov::PartialShape p_shape{}, exp_shape{};
     std::vector<int64_t> axes{};
     bool pytorch_dynamic_rank{};
 };
 
-INSTANTIATE_TEST_SUITE_P (
-        SqueezeAxesPyTorchDynamicRankTests,
-        SqueezeAxesPyTorchDynamicRank,
-        ::testing::Values(
-                std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{}, PartialShape::dynamic(), false),
-                std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{}, PartialShape::dynamic(), true),
+INSTANTIATE_TEST_SUITE_P(
+    SqueezeAxesPyTorchDynamicRankTests,
+    SqueezeAxesPyTorchDynamicRank,
+    ::testing::Values(
+        std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{}, PartialShape::dynamic(), false),
+        std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{}, PartialShape::dynamic(), true),
 
-                std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{0}, PartialShape{2, -1, 4}, false),
-                std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{0}, PartialShape{2, -1, 4}, true),
+        std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{0}, PartialShape{2, -1, 4}, false),
+        std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{0}, PartialShape{2, -1, 4}, true),
 
-                std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{2}, PartialShape{1, 2, 4},   false),
-                std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{2}, PartialShape::dynamic(), true),
+        std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{2}, PartialShape{1, 2, 4}, false),
+        std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{2}, PartialShape::dynamic(), true),
 
-                std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{0, 2}, PartialShape{2, 4},      false),
-                std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{0, 2}, PartialShape::dynamic(), true),
+        std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{0, 2}, PartialShape{2, 4}, false),
+        std::make_tuple(PartialShape{1, 2, -1, 4}, std::vector<int64_t>{0, 2}, PartialShape::dynamic(), true),
 
-                std::make_tuple(PartialShape{2, 4}, std::vector<int64_t>{1}, PartialShape{2, 4}, false),
-                std::make_tuple(PartialShape{2, 4}, std::vector<int64_t>{1}, PartialShape{2, 4}, true),
+        std::make_tuple(PartialShape{2, 4}, std::vector<int64_t>{1}, PartialShape{2, 4}, false),
+        std::make_tuple(PartialShape{2, 4}, std::vector<int64_t>{1}, PartialShape{2, 4}, true),
 
-                std::make_tuple(PartialShape{2, {3, 5}}, std::vector<int64_t>{}, PartialShape{2, {3, 5}}, false),
-                std::make_tuple(PartialShape{2, {3, 5}}, std::vector<int64_t>{}, PartialShape{2, {3, 5}}, true),
+        std::make_tuple(PartialShape{2, {3, 5}}, std::vector<int64_t>{}, PartialShape{2, {3, 5}}, false),
+        std::make_tuple(PartialShape{2, {3, 5}}, std::vector<int64_t>{}, PartialShape{2, {3, 5}}, true),
 
-                std::make_tuple(PartialShape{1, 2, -1}, std::vector<int64_t>{0, 1}, PartialShape{2, -1}, false),
-                std::make_tuple(PartialShape{1, 2, -1}, std::vector<int64_t>{0, 1}, PartialShape{2, -1}, true),
+        std::make_tuple(PartialShape{1, 2, -1}, std::vector<int64_t>{0, 1}, PartialShape{2, -1}, false),
+        std::make_tuple(PartialShape{1, 2, -1}, std::vector<int64_t>{0, 1}, PartialShape{2, -1}, true),
 
-                std::make_tuple(PartialShape{1, 2, -1}, std::vector<int64_t>{1}, PartialShape{1, 2, -1}, false),
-                std::make_tuple(PartialShape{1, 2, -1}, std::vector<int64_t>{1}, PartialShape{1, 2, -1}, true),
+        std::make_tuple(PartialShape{1, 2, -1}, std::vector<int64_t>{1}, PartialShape{1, 2, -1}, false),
+        std::make_tuple(PartialShape{1, 2, -1}, std::vector<int64_t>{1}, PartialShape{1, 2, -1}, true),
 
-                std::make_tuple(PartialShape{1, 1, -1}, std::vector<int64_t>{0, 1}, PartialShape{-1}, false),
-                std::make_tuple(PartialShape{1, 1, -1}, std::vector<int64_t>{0, 1}, PartialShape{-1}, true),
+        std::make_tuple(PartialShape{1, 1, -1}, std::vector<int64_t>{0, 1}, PartialShape{-1}, false),
+        std::make_tuple(PartialShape{1, 1, -1}, std::vector<int64_t>{0, 1}, PartialShape{-1}, true),
 
-                std::make_tuple(PartialShape{1, 1, -1}, std::vector<int64_t>{1}, PartialShape{1, -1}, false),
-                std::make_tuple(PartialShape{1, 1, -1}, std::vector<int64_t>{1}, PartialShape{1, -1}, true),
+        std::make_tuple(PartialShape{1, 1, -1}, std::vector<int64_t>{1}, PartialShape{1, -1}, false),
+        std::make_tuple(PartialShape{1, 1, -1}, std::vector<int64_t>{1}, PartialShape{1, -1}, true),
 
-                std::make_tuple(PartialShape{1, 2, 3}, std::vector<int64_t>{}, PartialShape{2, 3}, false),
-                std::make_tuple(PartialShape{1, 2, 3}, std::vector<int64_t>{}, PartialShape{2, 3}, true)
-        ));
+        std::make_tuple(PartialShape{1, 2, 3}, std::vector<int64_t>{}, PartialShape{2, 3}, false),
+        std::make_tuple(PartialShape{1, 2, 3}, std::vector<int64_t>{}, PartialShape{2, 3}, true)));
 
 TEST_P(SqueezeAxesPyTorchDynamicRank, squeeze_axes_dynamic_rank_param) {
     std::tie(p_shape, axes, exp_shape, pytorch_dynamic_rank) = GetParam();
