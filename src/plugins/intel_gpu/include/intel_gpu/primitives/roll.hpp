@@ -21,9 +21,8 @@ struct roll : primitive_base<roll> {
     /// @param shift Tensor which specifies the number of places by which the elements are shifted.
     roll(const primitive_id& id,
          const input_info& input,
-         const tensor& shift,
-         const padding& output_padding = {})
-        : primitive_base(id, {input}, {output_padding}),
+         const tensor& shift)
+        : primitive_base(id, {input}),
           shift(shift) {}
 
     /// @brief Constructs roll primitive for dynamic shape.
@@ -34,9 +33,8 @@ struct roll : primitive_base<roll> {
     roll(const primitive_id& id,
          const input_info& input,
          const std::vector<int32_t>& raw_shift,
-         const std::vector<int32_t>& raw_axes,
-         const padding& output_padding = {})
-        : primitive_base(id, {input}, {output_padding}),
+         const std::vector<int32_t>& raw_axes)
+        : primitive_base(id, {input}),
           raw_shift(raw_shift), raw_axes(raw_axes) {}
 
     /// @brief Tensor which specifies the number of places by which the elements are shifted.

@@ -58,6 +58,7 @@ std::string rope_inst::to_string(rope_node const& node) {
 
     json_composite rope_info;
     rope_info.add("gather_position_arg_id", desc->config.gather_position_arg_id);
+    rope_info.add("gather_rank", desc->gather_rank);
     rope_info.add("head_cnt", desc->config.head_cnt);
     rope_info.add("head_size", desc->config.head_size);
     rope_info.add("input_trans0213", desc->config.input_trans0213);

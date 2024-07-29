@@ -41,5 +41,5 @@ class TestIm2Col(PytorchLayerTest):
     @pytest.mark.parametrize("dilation", [1, 2, 3, (1, 2)])
     @pytest.mark.parametrize("padding", [0, 5, 1, [2, 3]])
     @pytest.mark.parametrize("stride", [3, 1, [2, 1]])
-    def test_exp(self, kernel_size, dilation, padding, stride, ie_device, precision, ir_version):
+    def test_im2col(self, kernel_size, dilation, padding, stride, ie_device, precision, ir_version):
         self._test(*self.create_model(kernel_size, dilation, padding, stride), ie_device, precision, ir_version)

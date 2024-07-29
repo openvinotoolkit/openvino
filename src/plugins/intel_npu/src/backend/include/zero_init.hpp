@@ -10,7 +10,8 @@
 #include <memory>
 
 #include "intel_npu/utils/logger/logger.hpp"
-#include "ze_intel_vpu_uuid.h"
+#include "ze_command_queue_npu_ext.h"
+#include "ze_intel_npu_uuid.h"
 #include "zero_types.hpp"
 
 namespace intel_npu {
@@ -39,6 +40,9 @@ public:
     inline ze_graph_dditable_ext_curr_t* getGraphDdiTable() const {
         return graph_dditable_ext_decorator.get();
     }
+    inline ze_command_queue_npu_dditable_ext_curr_t* getCommandQueueDdiTable() const {
+        return _command_queue_npu_dditable_ext;
+    }
     inline ze_graph_profiling_dditable_ext_t* getProfilingDdiTable() const {
         return _graph_profiling_ddi_table_ext;
     }
@@ -47,6 +51,9 @@ public:
     }
     inline uint32_t getDriverExtVersion() const {
         return driver_ext_version;
+    }
+    inline uint32_t getMutableCommandListVersion() const {
+        return mutable_command_list_version;
     }
 
 private:
@@ -57,10 +64,12 @@ private:
     ze_device_handle_t device_handle = nullptr;
     ze_context_handle_t context = nullptr;
     std::unique_ptr<ze_graph_dditable_ext_decorator> graph_dditable_ext_decorator;
+    ze_command_queue_npu_dditable_ext_curr_t* _command_queue_npu_dditable_ext = nullptr;
     ze_graph_profiling_dditable_ext_t* _graph_profiling_ddi_table_ext = nullptr;
 
     ze_driver_properties_t driver_properties = {};
     uint32_t driver_ext_version = 0;
+    uint32_t mutable_command_list_version = 0;
 };
 
 }  // namespace intel_npu

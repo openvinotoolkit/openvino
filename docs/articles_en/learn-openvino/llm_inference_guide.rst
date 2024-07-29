@@ -26,40 +26,35 @@ conversion to advanced use cases.
 
 The advantages of using OpenVINO for LLM deployment:
 
-*	**OpenVINO offers optimized LLM inference**; provides a full C/C++ API, leading to
-  faster operation than Python-based runtimes; includes a Python API for rapid
-  development, with the option for further optimization in C++.
-
-*	**Compatible with diverse hardware**, supports CPUs, GPUs, and neural accelerators
-  across ARM and x86/x64 architectures, integrated Intel® Processor Graphics, discrete
-  Intel® Arc™ A-Series Graphics, and discrete Intel® Data Center GPU Flex Series;
-  features automated optimization to maximize performance on target hardware.
-
-*	**Requires fewer dependencies** than frameworks like Hugging Face and PyTorch,
-  resulting in a smaller binary size and reduced memory footprint, making deployments
-  easier and updates more manageable.
-
-*	**Provides compression and precision management techniques** such as 8-bit and 4-bit
-  weight compression, including embedding layers, and storage format reduction. This
-  includes fp16 precision for non-compressed models and int8/int4 for compressed models,
-  like GPTQ models from `Hugging Face <https://huggingface.co/models>`__.
-
-*	**Supports a wide range of deep learning models and architectures** including text,
-  image, and audio generative models like Llama 2, MPT, OPT, Stable Diffusion, Stable
-  Diffusion XL. This enables the development of multimodal applications, allowing for
+* **OpenVINO offers optimized LLM inference**:
+  provides a full C/C++ API, leading to faster operation than Python-based runtimes; includes a
+  Python API for rapid development, with the option for further optimization in C++.
+* **Compatible with diverse hardware**:
+  supports CPUs, GPUs, and neural accelerators across ARM and x86/x64 architectures, integrated
+  Intel® Processor Graphics, discrete Intel® Arc™ A-Series Graphics, and discrete Intel® Data
+  Center GPU Flex Series; features automated optimization to maximize performance on target
+  hardware.
+* **Requires fewer dependencies**:
+  than frameworks like Hugging Face and PyTorch, resulting in a smaller binary size and reduced
+  memory footprint, making deployments easier and updates more manageable.
+* **Provides compression and precision management techniques**:
+  such as 8-bit and 4-bit weight compression, including embedding layers, and storage format
+  reduction. This includes fp16 precision for non-compressed models and int8/int4 for compressed
+  models, like GPTQ models from `Hugging Face <https://huggingface.co/models>`__.
+* **Supports a wide range of deep learning models and architectures**:
+  including text, image, and audio generative models like Llama 2, MPT, OPT, Stable Diffusion,
+  Stable Diffusion XL. This enables the development of multimodal applications, allowing for
   write-once, deploy-anywhere capabilities.
-
-*	**Enhances inference capabilities**: fused inference primitives such as Scaled Dot
-  Product Attention, Rotary Positional Embedding, Group Query Attention, and Mixture
-  of Experts. It also offers advanced features like in-place KV-cache, dynamic
-  quantization, KV-cache quantization and encapsulation, dynamic beam size
+* **Enhances inference capabilities**:
+  fused inference primitives such as Scaled Dot Product Attention, Rotary Positional Embedding,
+  Group Query Attention, and Mixture of Experts. It also offers advanced features like in-place
+  KV-cache, dynamic quantization, KV-cache quantization and encapsulation, dynamic beam size
   configuration, and speculative sampling.
-
-*	**Provides stateful model optimization**: models from the Hugging Face Transformers
-  are converted into a stateful form, optimizing inference performance and memory usage
-  in long-running text generation tasks by managing past KV-cache tensors more
-  efficiently internally. This feature is automatically activated for many supported
-  models, while unsupported ones remain stateless. Learn more about the
+* **Provides stateful model optimization**:
+  models from the Hugging Face Transformers are converted into a stateful form, optimizing
+  inference performance and memory usage in long-running text generation tasks by managing past
+  KV-cache tensors more efficiently internally. This feature is automatically activated for many
+  supported models, while unsupported ones remain stateless. Learn more about the
   :doc:`Stateful models and State API <../openvino-workflow/running-inference/stateful-models>`.
 
 OpenVINO offers three main paths for Generative AI use cases:

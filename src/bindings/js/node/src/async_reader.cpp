@@ -13,14 +13,11 @@ void ReaderWorker::Execute() {
 }
 
 void ReaderWorker::OnOK() {
-    Napi::HandleScope scope(Env());
-    Napi::Object mw = ModelWrap::get_class(Env()).New({});
-    ModelWrap* m = Napi::ObjectWrap<ModelWrap>::Unwrap(mw);
-    m->set_model(_model);
+    auto model = cpp_to_js(Env(), _model);
 
     delete _args;
 
-    _deferred.Resolve(mw);
+    _deferred.Resolve(model);
 }
 
 void ReaderWorker::OnError(Napi::Error const& error) {

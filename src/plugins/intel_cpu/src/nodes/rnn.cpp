@@ -271,16 +271,30 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
                 return false;
             }
             if (one_of(rnnCellBase->get_type_info(),
-                    ov::op::v0::LSTMCell::get_type_info_static(),
-                    ov::op::v4::LSTMCell::get_type_info_static(),
-                    ov::op::v5::LSTMSequence::get_type_info_static())) {
+                       ov::op::v0::LSTMCell::get_type_info_static(),
+                       ov::op::v4::LSTMCell::get_type_info_static(),
+                       ov::op::v0::LSTMSequence::get_type_info_static(),
+                       ov::op::v5::LSTMSequence::get_type_info_static())) {
                 if (rnnCellBase->get_activations() != std::vector<std::string>{"sigmoid", "tanh", "tanh"}) {
                     errorMessage = "Not supported activation functions";
                     return false;
                 }
-            } else if (!ov::is_type<ov::op::v5::RNNSequence>(op) && rnnCellBase->get_activations() != std::vector<std::string>{"sigmoid", "tanh"}) {
-                errorMessage = "Not supported activation functions";
-                return false;
+            } else if (one_of(rnnCellBase->get_type_info(),
+                              ov::op::v3::GRUCell::get_type_info_static(),
+                              ov::op::v5::GRUSequence::get_type_info_static(),
+                              ov::op::internal::AUGRUCell::get_type_info_static(),
+                              ov::op::internal::AUGRUSequence::get_type_info_static())) {
+                if (rnnCellBase->get_activations() != std::vector<std::string>{"sigmoid", "tanh"}) {
+                    errorMessage = "Not supported activation functions";
+                    return false;
+                }
+            } else if (one_of(rnnCellBase->get_type_info(),
+                              ov::op::v5::RNNSequence::get_type_info_static(),
+                              ov::op::v0::RNNCell::get_type_info_static())) {
+                if (rnnCellBase->get_activations().empty() || !one_of(rnnCellBase->get_activations().front(), "sigmoid", "tanh", "relu")) {
+                    errorMessage = "Not supported activation functions";
+                    return false;
+                }
             }
         }
 
@@ -290,10 +304,6 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
             direction = gru_seq->get_direction();
             seqLenIdx = 2;
         } else if (auto lstm_seq = ov::as_type_ptr<const ov::op::v0::LSTMSequence>(op)) {
-            if (lstm_seq->get_activations() != std::vector<std::string>{"sigmoid", "tanh", "tanh"}) {
-                errorMessage = "Not supported activation functions";
-                return false;
-            }
             direction = lstm_seq->get_direction();
             seqLenIdx = 3;
         } else if (auto lstm_seq = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(op)) {

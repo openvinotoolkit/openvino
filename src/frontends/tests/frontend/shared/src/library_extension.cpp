@@ -44,10 +44,10 @@ TEST_P(FrontendLibraryExtensionTest, verifyFunctions) {
         ov::frontend::InputModel::Ptr m_inputModel;
         m_frontEnd = m_fem.load_by_framework(m_param.m_frontEndName);
 
-        ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(m_param.m_modelName));
+        OV_ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(m_param.m_modelName));
         ASSERT_NE(m_inputModel, nullptr);
 
-        ASSERT_NO_THROW(function_ref = m_frontEnd->convert(m_inputModel));
+        OV_ASSERT_NO_THROW(function_ref = m_frontEnd->convert(m_inputModel));
         ASSERT_NE(function_ref, nullptr);
 
         const auto nodes = function_ref->get_ops();
@@ -68,10 +68,10 @@ TEST_P(FrontendLibraryExtensionTest, verifyFunctions) {
         const auto& lib_path = get_lib_path("test_builtin_extensions");
         m_frontEnd->add_extension(lib_path);
 
-        ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(m_param.m_modelName));
+        OV_ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(m_param.m_modelName));
         ASSERT_NE(m_inputModel, nullptr);
 
-        ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
+        OV_ASSERT_NO_THROW(function = m_frontEnd->convert(m_inputModel));
         ASSERT_NE(function, nullptr);
 
         const auto nodes = function->get_ops();

@@ -93,22 +93,41 @@ jobs:
           popd
 
       #
+      # Dependencies
+      #
+
+      - name: Install OpenVINO Python wheel (Linux and macOS)
+        if: runner.os != 'Windows'
+        run: |
+          # Find and install wheel
+          pushd ${INSTALL_DIR}/tools
+            wheel_name=$(find . -name 'openvino-*.whl')
+            python3 -m pip install $wheel_name
+          popd
+
+      - name: Install OpenVINO Python wheel (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          # Find and install wheel
+          $ovCoreWheelPath=Get-ChildItem -Path "${{ env.INSTALL_DIR }}\\tools" -Filter openvino-*.whl | % { $_.FullName }
+          python3 -m pip install "$ovCoreWheelPath"
+
+      #
       # Build
       #
 
       - name: Build tokenizers wheel (Linux and macOS)
         if: runner.os != 'Windows'
         run: |
-          source ${INSTALL_DIR}/setupvars.sh
-          python -m pip wheel -v --no-deps --wheel-dir ${EXTENSION_BUILD_DIR} ${OPENVINO_TOKENIZERS_REPO}
+          # use OpenVINO wheel package only to build the extension
+          python -m pip wheel -v --no-deps --wheel-dir ${EXTENSION_BUILD_DIR} --find-links ${INSTALL_DIR}/tools ${OPENVINO_TOKENIZERS_REPO}
         env:
           CMAKE_BUILD_PARALLEL_LEVEL: '4'
 
       - name: Build tokenizers wheel (Windows)
         if: runner.os == 'Windows'
         run: |
-          . "${{ env.INSTALL_DIR }}/setupvars.ps1"
-          python3 -m pip wheel -v --no-deps --wheel-dir ${env:EXTENSION_BUILD_DIR} ${env:OPENVINO_TOKENIZERS_REPO}
+          python3 -m pip wheel -v --no-deps --wheel-dir ${env:EXTENSION_BUILD_DIR} --find-links ${env:INSTALL_DIR}/tools ${env:OPENVINO_TOKENIZERS_REPO}
         env:
           CMAKE_BUILD_PARALLEL_LEVEL: '4'
 

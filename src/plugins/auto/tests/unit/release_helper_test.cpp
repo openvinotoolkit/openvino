@@ -133,14 +133,14 @@ TEST_P(AutoCompiledModelGetPropertyWithReleaseHelper, getPropertyTestAfterReleas
     config.insert(ov::device::priorities(ov::test::utils::DEVICE_CPU + std::string(",") + ov::test::utils::DEVICE_GPU));
     std::shared_ptr<ov::ICompiledModel> exeNetwork;
     std::string result;
-    ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
+    OV_ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
     if (actSleep) {
         if (!cpuSleep) {
-            ASSERT_NO_THROW(result = exeNetwork->get_property(ov::model_name.name()).as<std::string>());
+            OV_ASSERT_NO_THROW(result = exeNetwork->get_property(ov::model_name.name()).as<std::string>());
             EXPECT_EQ(result, modelNameCpu);
         }
     } else {
-        ASSERT_NO_THROW(result = exeNetwork->get_property(ov::model_name.name()).as<std::string>());
+        OV_ASSERT_NO_THROW(result = exeNetwork->get_property(ov::model_name.name()).as<std::string>());
     }
 
     auto supported_config_keys =
@@ -148,7 +148,7 @@ TEST_P(AutoCompiledModelGetPropertyWithReleaseHelper, getPropertyTestAfterReleas
     for (const auto& cfg : supported_config_keys) {
         if (cfg == ov::model_name)
             continue;
-        ASSERT_NO_THROW(exeNetwork->get_property(cfg).as<std::string>());
+        OV_ASSERT_NO_THROW(exeNetwork->get_property(cfg).as<std::string>());
     }
 }
 
@@ -212,7 +212,7 @@ TEST_P(AutoReleaseHelperTest, releaseResource) {
     config.insert(ov::device::priorities(ov::test::utils::DEVICE_CPU + std::string(",") + ov::test::utils::DEVICE_GPU));
     std::shared_ptr<ov::ICompiledModel> exeNetwork;
     if (cpuSuccess || accSuccess) {
-        ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
+        OV_ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
         if (!cpuSuccess)
             EXPECT_EQ(exeNetwork->get_property(ov::execution_devices.name()).as<std::string>(),
                       ov::test::utils::DEVICE_GPU);

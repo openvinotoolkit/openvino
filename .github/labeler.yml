@@ -141,6 +141,7 @@
 'category: TF FE':
 - 'src/frontends/tensorflow/**/*'
 - 'src/frontends/tensorflow_common/**/*'
+- 'src/bindings/python/src/openvino/frontend/tensorflow/**/*'
 - 'tests/layer_tests/tensorflow_tests/**/*'
 - 'tests/layer_tests/tensorflow2_keras_tests/**/*'
 - 'tests/layer_tests/jax_tests/**/*'
@@ -160,6 +161,11 @@
 - 'tests/layer_tests/py_frontend_tests/test_torch_frontend.py'
 - any: ['tests/model_hub_tests/**',
         '!tests/model_hub_tests/tensorflow/**/*']
+
+'category: JAX FE':
+- 'src/frontends/jax/**/*'
+- 'src/bindings/python/src/openvino/frontend/jax/**/*'
+- 'tests/layer_tests/jax_tests/**/*'
 
 'category: tools':
 - any: ['tools/**',

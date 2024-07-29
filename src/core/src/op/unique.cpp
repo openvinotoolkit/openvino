@@ -163,11 +163,9 @@ void op::v10::Unique::validate_and_infer_types() {
                     rev_idx_size = Dimension{dim_at_axis.get_max_length()};
                 }
 
-                auto output_shape = input_shape;
-                output_shape[normalized_axis] = output_dim_at_axis;
-                output_shapes[0] = output_shape;
-
-                output_shapes[2] = PartialShape{rev_idx_size};
+                output_shapes[0] = input_shape;
+                output_shapes[0][normalized_axis] = std::move(output_dim_at_axis);
+                output_shapes[2] = PartialShape{std::move(rev_idx_size)};
             }
         } else {
             // no axis => flattened input tensor

@@ -20,6 +20,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/visualize_tree.hpp"
+#include "openvino/util/file_util.hpp"
 #include "transformations/common_optimizations/compress_float_constants.hpp"
 #include "transformations/common_optimizations/fused_names_cleanup.hpp"
 
@@ -57,7 +58,7 @@ void clone_ov_nodes(const std::vector<std::shared_ptr<ov::Node>>& nodes,
                 cloned_node->input(input.get_index()).get_rt_info() = input.get_rt_info();
             }
 
-            node_map[node.get()] = cloned_node;
+            node_map[node.get()] = std::move(cloned_node);
         }
     }
 }
@@ -333,7 +334,7 @@ void serialize(const std::shared_ptr<const ov::Model>& m,
 void save_model(const std::shared_ptr<const ov::Model>& m, const std::string& output_model, bool compress_to_fp16) {
     auto cloned = m->clone();
     if (compress_to_fp16) {
-        // TODO: Implement on-the-fly compression in pass::Serialize
+        // TODO: Implement on-the-fly compression in pass::Serialize, Ticket: 145380
         bool postponed = true;
         ov::pass::compress_model_to_f16(cloned, postponed);
     }
@@ -341,8 +342,14 @@ void save_model(const std::shared_ptr<const ov::Model>& m, const std::string& ou
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::FusedNamesCleanup>();
     manager.register_pass<ov::pass::Serialize>(output_model, "");
-    manager.run_passes(cloned);
+    manager.run_passes(std::move(cloned));
 }
+
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT)
+void save_model(const std::shared_ptr<const ov::Model>& m, const std::wstring& output_model, bool compress_to_fp16) {
+    save_model(m, ov::util::wstring_to_string(output_model), compress_to_fp16);
+}
+#endif
 
 bool is_used(Node* node);
 bool is_used(Node* node) {

@@ -36,8 +36,8 @@ The notebook contains the following steps:
 8. Compare performance of converted and quantized models.
 9. Launch interactive demo
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Instantiate model <#instantiate-model>`__
 -  `Run PyTorch model inference <#run-pytorch-model-inference>`__
@@ -474,7 +474,7 @@ model.
         """
         Prepares a vision-text dataset for quantization.
         """
-        dataset = load_dataset("conceptual_captions")
+        dataset = load_dataset("google-research-datasets/conceptual_captions", trust_remote_code=True)
         train_dataset = dataset["train"].shuffle(seed=42)
         dataloader = torch.utils.data.DataLoader(train_dataset, collate_fn=collate_fn, batch_size=1)
         calibration_data = prepare_calibration_data(dataloader, opt_init_steps)
@@ -563,38 +563,17 @@ Create a quantized model from the pre-trained ``FP16`` model.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
 
-.. parsed-literal::
-
-    Output()
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
-
-
-
-
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
 
 
 
@@ -605,17 +584,17 @@ Create a quantized model from the pre-trained ``FP16`` model.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
 
 
 
@@ -626,17 +605,38 @@ Create a quantized model from the pre-trained ``FP16`` model.
 
 
 
-.. raw:: html
-
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
 
 
 
 
-.. raw:: html
 
-    <pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace">
-    </pre>
+
+
+
+
+
+
+
+
+
+
+.. parsed-literal::
+
+    Output()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -697,7 +697,7 @@ Compare File Size
 Compare inference time of the FP16 IR and quantized models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
- To measure the inference
+To measure the inference
 performance of the ``FP16`` and ``INT8`` models, we use median inference
 time on calibration dataset. So we can approximately estimate the speed
 up of the dynamic quantized models.
@@ -739,6 +739,7 @@ up of the dynamic quantized models.
 
 Interactive demo
 ----------------
+
 
 Now, it is your turn! You can provide your own image and comma-separated
 list of labels for zero-shot classification.

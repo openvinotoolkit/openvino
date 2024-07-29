@@ -51,7 +51,9 @@ TEST(fuse_primitives_with_layout, fuse_when_layout_format_of_input_and_output_ar
             node->set_output_layout(qt_layout, false);
         }
     }
-    program_wrapper::apply_opt_pass<fuse_primitives_with_layout>(*program);
+
+    layout_optimizer lo(true);
+    program_wrapper::apply_opt_pass<fuse_primitives_with_layout>(*program, lo);
 
     ASSERT_TRUE(has_node(*program, "quantize"));
 }

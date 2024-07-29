@@ -306,7 +306,7 @@ TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputRemoteTensor) {
         case RemoteTensorSharingType::PLUGIN_HOST_TENSOR: {
             auto cldnn_tensor = cldnn_context.create_host_tensor(input->get_element_type(), input_shape);
             {
-                ASSERT_NO_THROW(cldnn_tensor.data());
+                OV_ASSERT_NO_THROW(cldnn_tensor.data());
                 void* shared_buffer = cldnn_tensor.data();
                 if (ocl_instance->supports_usm()) {
                     ASSERT_EQ(ocl_instance->get_allocation_type(shared_buffer), CL_MEM_TYPE_HOST_INTEL);
@@ -328,8 +328,8 @@ TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputRemoteTensor) {
     {
         ASSERT_EQ(output->get_element_type(), ov::element::f32);
         ASSERT_EQ(output_tensor_regular.get_size(), output_tensor_shared.get_size());
-        ASSERT_NO_THROW(output_tensor_regular.data());
-        ASSERT_NO_THROW(output_tensor_shared.data());
+        OV_ASSERT_NO_THROW(output_tensor_regular.data());
+        OV_ASSERT_NO_THROW(output_tensor_shared.data());
         ov::test::utils::compare(output_tensor_regular, output_tensor_shared);
     }
 }
@@ -571,7 +571,7 @@ TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputOutputRemoteTensor) {
             auto input_tensor = gpu_context.create_host_tensor(input->get_element_type(), input_shape);
             auto output_tensor = gpu_context.create_host_tensor(output->get_output_element_type(0), allocated_out_shape);
             {
-                ASSERT_NO_THROW(input_tensor.data());
+                OV_ASSERT_NO_THROW(input_tensor.data());
                 void* shared_buffer = input_tensor.data();
                 if (ocl_instance->supports_usm()) {
                     ASSERT_EQ(ocl_instance->get_allocation_type(shared_buffer), CL_MEM_TYPE_HOST_INTEL);
@@ -598,8 +598,8 @@ TEST_P(OVRemoteTensorInputBlob_Test, smoke_canInputOutputRemoteTensor) {
     {
         ASSERT_EQ(output->get_element_type(), ov::element::f32);
         ASSERT_EQ(output_tensor_regular.get_size(), output_tensor_shared.get_size());
-        ASSERT_NO_THROW(output_tensor_regular.data());
-        ASSERT_NO_THROW(output_tensor_shared.data());
+        OV_ASSERT_NO_THROW(output_tensor_regular.data());
+        OV_ASSERT_NO_THROW(output_tensor_shared.data());
         ov::test::utils::compare(output_tensor_regular, output_tensor_shared);
     }
 }
@@ -674,7 +674,7 @@ TEST(OVRemoteTensorTests, smoke_MixedTensorTypes) {
             auto input_tensor = gpu_context.create_tensor(input->get_element_type(), input_shape);
 
             infer_request.set_tensor(input, input_tensor);
-            ASSERT_NO_THROW(infer_request.infer());
+            OV_ASSERT_NO_THROW(infer_request.infer());
 
             ASSERT_EQ(infer_request.get_output_tensor().get_shape(), output_shape_actual);
         }
@@ -690,7 +690,7 @@ TEST(OVRemoteTensorTests, smoke_MixedTensorTypes) {
             auto cl_tensor = input_tensor_1.as<ov::intel_gpu::ocl::ClBufferTensor>();
             cl::Buffer shared_buffer = cl_tensor;
             void* buffer = data.data();
-            ocl_instance->_queue.enqueueWriteBuffer(shared_buffer, true, 0, ov::shape_size(input_shape), buffer);
+            ocl_instance->_queue.enqueueWriteBuffer(shared_buffer, true, 0, ov::shape_size(input_shape) * data.get_element_type().size(), buffer);
 
             infer_request.set_tensor(input, input_tensor_1);
             infer_request.infer();
@@ -717,7 +717,7 @@ TEST(OVRemoteTensorTests, smoke_MixedTensorTypes) {
         auto cl_tensor = input_tensor_0.as<ov::intel_gpu::ocl::ClBufferTensor>();
         cl::Buffer shared_buffer = cl_tensor;
         void* buffer = data.data();
-        ocl_instance->_queue.enqueueWriteBuffer(shared_buffer, true, 0, ov::shape_size(input_shape_0), buffer);
+        ocl_instance->_queue.enqueueWriteBuffer(shared_buffer, true, 0, ov::shape_size(input_shape_0) * data.get_element_type().size(), buffer);
 
         infer_request.set_tensor(input, input_tensor_0);
         infer_request.infer();
@@ -809,8 +809,8 @@ public:
         {
             ASSERT_EQ(output->get_element_type(), ov::element::f32);
             ASSERT_EQ(output_tensor_regular.get_size(), output_tensor_shared.get_size());
-            ASSERT_NO_THROW(output_tensor_regular.data());
-            ASSERT_NO_THROW(output_tensor_shared.data());
+            OV_ASSERT_NO_THROW(output_tensor_regular.data());
+            OV_ASSERT_NO_THROW(output_tensor_shared.data());
             ov::test::utils::compare(output_tensor_regular, output_tensor_shared);
         }
 
@@ -872,8 +872,8 @@ public:
         {
             ASSERT_EQ(output->get_element_type(), ov::element::f32);
             ASSERT_EQ(output_tensor_regular.get_size(), output_tensor_shared.get_size());
-            ASSERT_NO_THROW(output_tensor_regular.data());
-            ASSERT_NO_THROW(output_tensor_shared.data());
+            OV_ASSERT_NO_THROW(output_tensor_regular.data());
+            OV_ASSERT_NO_THROW(output_tensor_shared.data());
             ov::test::utils::compare(output_tensor_regular, output_tensor_shared);
         }
 
@@ -967,7 +967,7 @@ public:
         {
             ASSERT_EQ(output->get_element_type(), ov::element::f32);
             ASSERT_EQ(output_tensor_regular.get_size(), out_tensor.get_size());
-            ASSERT_NO_THROW(output_tensor_regular.data());
+            OV_ASSERT_NO_THROW(output_tensor_regular.data());
             ov::test::utils::compare(output_tensor_regular, out_tensor);
         }
 
@@ -1057,7 +1057,7 @@ public:
         {
             ASSERT_EQ(output->get_element_type(), ov::element::f32);
             ASSERT_EQ(output_tensor_regular.get_size(), out_tensor.get_size());
-            ASSERT_NO_THROW(output_tensor_regular.data());
+            OV_ASSERT_NO_THROW(output_tensor_regular.data());
             ov::test::utils::compare(output_tensor_regular, out_tensor);
         }
 
@@ -1148,7 +1148,7 @@ public:
         {
             ASSERT_EQ(output->get_element_type(), ov::element::f32);
             ASSERT_EQ(output_tensor_regular.get_size(), out_tensor.get_size());
-            ASSERT_NO_THROW(output_tensor_regular.data());
+            OV_ASSERT_NO_THROW(output_tensor_regular.data());
             ov::test::utils::compare(output_tensor_regular, out_tensor);
         }
 
@@ -1356,8 +1356,8 @@ TEST_F(OVRemoteTensor_Test, NV12toGray) {
     // ------------------------------------------------------
     // compare results
     ASSERT_EQ(output_tensor_regular.get_size(), output_tensor_shared.get_size());
-    ASSERT_NO_THROW(output_tensor_regular.data());
-    ASSERT_NO_THROW(output_tensor_shared.data());
+    OV_ASSERT_NO_THROW(output_tensor_regular.data());
+    OV_ASSERT_NO_THROW(output_tensor_shared.data());
     float thr = 0.1f;
     ov::test::utils::compare(output_tensor_shared, output_tensor_regular, thr);
 }
@@ -1471,8 +1471,8 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_ConvertTranspose) {
     // ------------------------------------------------------
     // compare results
     ASSERT_EQ(output_tensor_regular.get_size(), output_tensor_shared.get_size());
-    ASSERT_NO_THROW(output_tensor_regular.data());
-    ASSERT_NO_THROW(output_tensor_shared.data());
+    OV_ASSERT_NO_THROW(output_tensor_regular.data());
+    OV_ASSERT_NO_THROW(output_tensor_shared.data());
     float thr = 0.1f;
     ov::test::utils::compare(output_tensor_shared, output_tensor_regular, thr);
 }
@@ -1564,8 +1564,8 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_single_plane) {
     // ------------------------------------------------------
     // compare results
     ASSERT_EQ(output_tensor_regular.get_size(), output_tensor_shared.get_size());
-    ASSERT_NO_THROW(output_tensor_regular.data());
-    ASSERT_NO_THROW(output_tensor_shared.data());
+    OV_ASSERT_NO_THROW(output_tensor_regular.data());
+    OV_ASSERT_NO_THROW(output_tensor_shared.data());
     float thr = 0.1f;
     ov::test::utils::compare(output_tensor_shared, output_tensor_regular, thr);
 }
@@ -1677,8 +1677,8 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_image_two_planes) {
     // ------------------------------------------------------
     // compare results
     ASSERT_EQ(output_tensor_regular.get_size(), output_tensor_shared.get_size());
-    ASSERT_NO_THROW(output_tensor_regular.data());
-    ASSERT_NO_THROW(output_tensor_shared.data());
+    OV_ASSERT_NO_THROW(output_tensor_regular.data());
+    OV_ASSERT_NO_THROW(output_tensor_shared.data());
     float thr = 0.1f;
     ov::test::utils::compare(output_tensor_shared, output_tensor_regular, thr);
 }
@@ -1767,8 +1767,8 @@ TEST_F(OVRemoteTensor_Test, NV12toBGR_buffer) {
     // ------------------------------------------------------
     // compare results
     ASSERT_EQ(output_tensor_regular.get_size(), out_tensor.get_size());
-    ASSERT_NO_THROW(output_tensor_regular.data());
-    ASSERT_NO_THROW(out_tensor.data());
+    OV_ASSERT_NO_THROW(output_tensor_regular.data());
+    OV_ASSERT_NO_THROW(out_tensor.data());
     float thr = 0.1f;
     ov::test::utils::compare(out_tensor, output_tensor_regular, thr);
 }
@@ -1864,7 +1864,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_single_plane) {
     }
 
     auto output_tensor_shared = inf_req_remote.get_tensor(function->get_results().at(0));
-    ASSERT_NO_THROW(output_tensor_shared.data());
+    OV_ASSERT_NO_THROW(output_tensor_shared.data());
 
     // ------------------------------------------------------
     // regular inference
@@ -1993,7 +1993,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_image_two_planes) {
     }
 
     auto output_tensor_shared = inf_req_remote.get_tensor(function->get_results().at(0));
-    ASSERT_NO_THROW(output_tensor_shared.data());
+    OV_ASSERT_NO_THROW(output_tensor_shared.data());
 
     // ------------------------------------------------------
     // regular inference
@@ -2121,7 +2121,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toGray) {
     }
 
     auto output_tensor_shared = inf_req_remote.get_tensor(function->get_results().at(0));
-    ASSERT_NO_THROW(output_tensor_shared.data());
+    OV_ASSERT_NO_THROW(output_tensor_shared.data());
 
     // ------------------------------------------------------
     // regular inference
@@ -2238,7 +2238,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_buffer) {
     inf_req_shared.start_async();
     ocl_instance->_queue.enqueueReadBuffer(shared_output_buffer, false, 0, out_size, out_tensor.data(), nullptr, nullptr);
     ocl_instance->_queue.finish();
-    ASSERT_NO_THROW(out_tensor.data());
+    OV_ASSERT_NO_THROW(out_tensor.data());
 
     // ------------------------------------------------------
     // inference using the same InferRequest but with new data
@@ -2275,7 +2275,7 @@ TEST_P(OVRemoteTensorBatched_Test, NV12toBGR_buffer) {
     inf_req_shared.start_async();
     ocl_instance->_queue.enqueueReadBuffer(shared_output_buffer_new, false, 0, out_size, out_tensor_new.data(), nullptr, nullptr);
     ocl_instance->_queue.finish();
-    ASSERT_NO_THROW(out_tensor_new.data());
+    OV_ASSERT_NO_THROW(out_tensor_new.data());
 
     // ------------------------------------------------------
     // regular inference
@@ -2491,7 +2491,7 @@ TEST(OVRemoteContextGPU, smoke_RemoteTensorSetShape) {
 
     auto remote_tensor = context.create_tensor(ov::element::f32, ov::Shape{1, 2, 3, 4});
 
-    ASSERT_NO_THROW(remote_tensor.set_shape({2, 3, 4, 5}));
-    ASSERT_NO_THROW(remote_tensor.set_shape({1, 3, 4, 5}));
-    ASSERT_NO_THROW(remote_tensor.set_shape({3, 3, 4, 5}));
+    OV_ASSERT_NO_THROW(remote_tensor.set_shape({2, 3, 4, 5}));
+    OV_ASSERT_NO_THROW(remote_tensor.set_shape({1, 3, 4, 5}));
+    OV_ASSERT_NO_THROW(remote_tensor.set_shape({3, 3, 4, 5}));
 }

@@ -21,6 +21,8 @@ on:
         required: false
         default: '{"image": null}'
 
+permissions: read-all
+
 jobs:
   GPU:
     timeout-minutes: 80

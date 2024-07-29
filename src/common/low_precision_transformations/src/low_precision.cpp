@@ -44,6 +44,7 @@
 #include "low_precision/assign_and_read_value.hpp"
 #include "low_precision/avg_pool.hpp"
 #include "low_precision/batch_to_space.hpp"
+#include "low_precision/broadcast.hpp"
 #include "low_precision/clamp.hpp"
 #include "low_precision/convolution.hpp"
 #include "low_precision/convolution_backprop_data.hpp"
@@ -142,9 +143,9 @@ void make_matcher_type_relaxed(ov::pass::GraphRewrite* transformation) {
             m->get_name(),
             m,
             [m, callback](const std::shared_ptr<Node>& node) -> bool {
-                OPENVINO_DEBUG << "Running matcher " << m->get_name() << " on " << node;
+                OPENVINO_DEBUG("Running matcher ", m->get_name(), " on ", node);
                 if (std::dynamic_pointer_cast<ov::pass::pattern::Matcher>(m)->match(node->output(0))) {
-                    OPENVINO_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+                    OPENVINO_DEBUG("Matcher ", m->get_name(), " matched ", node);
                     OV_PASS_CALLBACK(m);
                     bool status = callback(*m.get());
                     // explicitly clear Matcher state because it holds pointers to matched nodes
@@ -240,6 +241,7 @@ bool ov::pass::low_precision::LowPrecision::run_on_model(const std::shared_ptr<o
     ADD_MATCHER(common, AssignAndReadValueTransformation, f, params)
     ADD_MATCHER(common, AvgPoolTransformation, params)
     ADD_MATCHER(common, BatchToSpaceTransformation, params)
+    ADD_MATCHER(common, BroadcastTransformation, params)
     ADD_MATCHER(common, ClampTransformation, params)
     ADD_MATCHER(common, ConcatTransformation, params)
     ADD_MATCHER(common, ConvolutionTransformation, params)

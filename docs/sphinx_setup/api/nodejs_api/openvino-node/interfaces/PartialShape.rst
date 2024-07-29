@@ -20,7 +20,7 @@ Methods
 
 .. rubric:: getDimensions
 
-.. container:: m-4
+*
 
   .. code-block:: ts
 
@@ -34,7 +34,7 @@ Methods
 
 .. rubric:: isDynamic
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -48,7 +48,7 @@ Methods
 
 .. rubric:: isStatic
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -62,7 +62,7 @@ Methods
 
 .. rubric:: toString
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 

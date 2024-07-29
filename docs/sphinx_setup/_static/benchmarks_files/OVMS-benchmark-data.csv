@@ -1,67 +1,78 @@
-﻿Network model,Release,IE-Type,Platform name,Throughput-OVMS-INT8,Throughput-OV-INT8,Throughput-OVMS-FP32,Throughput-OV-FP32,UOM_T
+﻿Network model,Release,IE-Type,Platform name,Throughput-OVMS-INT8,Throughput-OV-INT8,Throughput-OVMS-FP32,Throughput-OV-FP32,
 begin_rec,,,,,,,,
-bert-base-cased,OV-2024.1,xeon,Intel®  Xeon® 8260M CPU-only,476.413,492.202,181.088,181.699,FPS
-bert-base-cased,OV-2024.1,xeon,Intel®  Xeon® Gold 6238M CPU-only,426.087,444.057,161.123,163.048,FPS
-bert-base-cased,OV-2024.1,core,Intel® Core™  i9-10920X CPU-only,162.953,177.975,53.133,58.18,FPS
-bert-base-cased,OV-2024.1,core,Intel® Core™  i3-10100 CPU-only,26.038,26.159,17.201,17.357,FPS
+bert-base-cased,OV-2024.2,xeon,Intel®  Xeon® 8260M CPU-only,,484.765,486.962,181.829,179.94
+bert-base-cased,OV-2024.2,xeon,Intel®  Xeon® Gold 6238M CPU-only,,430.151,434.276,157.835,158.277
+bert-base-cased,OV-2024.2,core,Intel® Core™  i9-11900K CPU-only,,101.044,102.838,35.727,36.57
+bert-base-cased,OV-2024.2,core,Intel® Core™  i7-11700K CPU-only,,100.741,103.322,35.046,36.607
+bert-base-cased,OV-2024.2,core,Intel® Core™  i3-10100 CPU-only,,26.124,26.329,17.155,17.387
 end_rec,,,,,,,,
 begin_rec,,,,,,,,
-bert-large-uncased,OV-2024.1,xeon,Intel®  Xeon® 8260M CPU-only,41.919,42.236,14.896,14.33,FPS
-bert-large-uncased,OV-2024.1,xeon,Intel®  Xeon® Gold 6238M CPU-only,37.289,37.704,13.063,12.897,FPS
-bert-large-uncased,OV-2024.1,core,Intel® Core™  i9-10920X CPU-only,14.046,14.276,5.033,4.96,FPS
-bert-large-uncased,OV-2024.1,core,Intel® Core™  i3-10100 CPU-only,2.428,2.401,1.446,1.432,FPS
+bert-large-uncased,OV-2024.2,xeon,Intel®  Xeon® 8260M CPU-only,,41.302,41.994,14.937,14.482
+bert-large-uncased,OV-2024.2,xeon,Intel®  Xeon® Gold 6238M CPU-only,,36.595,37.1,13.114,13.03
+bert-large-uncased,OV-2024.2,core,Intel® Core™  i9-11900K CPU-only,,10.076,10.145,3.267,3.246
+bert-large-uncased,OV-2024.2,core,Intel® Core™  i7-11700K CPU-only,,10.161,10.203,3.287,3.26
+bert-large-uncased,OV-2024.2,core,Intel® Core™  i3-10100 CPU-only,,2.422,2.424,1.447,1.427
 end_rec,,,,,,,,
 begin_rec,,,,,,,,
-Efficientdet-D0,OV-2024.1,xeon,Intel®  Xeon® 8260M CPU-only,423.3,466.485,284.666,287.182,FPS
-Efficientdet-D0,OV-2024.1,xeon,Intel®  Xeon® Gold 6238M CPU-only,352.495,389.158,210.714,202.001,FPS
-Efficientdet-D0,OV-2024.1,core,Intel® Core™  i9-10920X CPU-only,151.702,178.273,58.861,61.524,FPS
-Efficientdet-D0,OV-2024.1,core,Intel® Core™  i3-10100 CPU-only,46.985,49.806,27.872,28.841,FPS
+Efficientdet-D0,OV-2024.2,xeon,Intel®  Xeon® 8260M CPU-only,,433.166,479.055,285.65,287.547
+Efficientdet-D0,OV-2024.2,xeon,Intel®  Xeon® Gold 6238M CPU-only,,367.395,407,251.401,257.516
+Efficientdet-D0,OV-2024.2,core,Intel® Core™  i9-11900K CPU-only,,132.153,149.424,57.682,61.811
+Efficientdet-D0,OV-2024.2,core,Intel® Core™  i7-11700K CPU-only,,124.984,142.514,50.265,53.089
+Efficientdet-D0,OV-2024.2,core,Intel® Core™  i3-10100 CPU-only,,47.048,50.328,30.026,31.473
 end_rec,,,,,,,,
 begin_rec,,,,,,,,
-mask_rcnn_resnet50_atrous_coco,OV-2024.1,xeon,Intel®  Xeon® 8260M CPU-only,6.472,6.468,1.97,1.889,FPS
-mask_rcnn_resnet50_atrous_coco,OV-2024.1,xeon,Intel®  Xeon® Gold 6238M CPU-only,5.443,5.46,1.743,1.62,FPS
-mask_rcnn_resnet50_atrous_coco,OV-2024.1,core,Intel® Core™  i9-10920X CPU-only,2.035,2.023,0.555,0.531,FPS
-mask_rcnn_resnet50_atrous_coco,OV-2024.1,core,Intel® Core™  i3-10100 CPU-only,0.379,0.351,0.249,0.215,FPS
+mask_rcnn_resnet50_atrous_coco,OV-2024.2,xeon,Intel®  Xeon® 8260M CPU-only,,6.323,6.488,1.978,1.868
+mask_rcnn_resnet50_atrous_coco,OV-2024.2,xeon,Intel®  Xeon® Gold 6238M CPU-only,,5.637,5.742,1.715,1.633
+mask_rcnn_resnet50_atrous_coco,OV-2024.2,core,Intel® Core™  i9-11900K CPU-only,,1.302,1.276,0.396,0.373
+mask_rcnn_resnet50_atrous_coco,OV-2024.2,core,Intel® Core™  i7-11700K CPU-only,,1.307,1.28,0.374,0.36
+mask_rcnn_resnet50_atrous_coco,OV-2024.2,core,Intel® Core™  i3-10100 CPU-only,,0.381,0.35,0.181,0.15
 end_rec,,,,,,,,
 begin_rec,,,,,,,,
-Mobilenet-V2 ,OV-2024.1,xeon,Intel®  Xeon® 8260M CPU-only,7586.42,12368.284,3342.938,3909.837,FPS
-Mobilenet-V2 ,OV-2024.1,xeon,Intel®  Xeon® Gold 6238M CPU-only,7371.605,10620.061,2651.393,3168.019,FPS
-Mobilenet-V2 ,OV-2024.1,core,Intel® Core™  i9-10920X CPU-only,1888.454,4239.691,877.888,1072.947,FPS
-Mobilenet-V2 ,OV-2024.1,core,Intel® Core™  i3-10100 CPU-only,626.817,715.776,435.043,512.516,FPS
+Mobilenet-V2 ,OV-2024.2,xeon,Intel®  Xeon® 8260M CPU-only,,7578.115,12346.3,3354.203,3938.523
+Mobilenet-V2 ,OV-2024.2,xeon,Intel®  Xeon® Gold 6238M CPU-only,,7513.034,10367.947,2915.906,3349.306
+Mobilenet-V2 ,OV-2024.2,core,Intel® Core™  i9-11900K CPU-only,,2152.015,2740.691,745.81,882.839
+Mobilenet-V2 ,OV-2024.2,core,Intel® Core™  i7-11700K CPU-only,,2093.311,2822.613,667.391,795.616
+Mobilenet-V2 ,OV-2024.2,core,Intel® Core™  i3-10100 CPU-only,,615.392,719.715,381.686,454.574
 end_rec,,,,,,,,
 begin_rec,,,,,,,,
-Resnet-50,OV-2024.1,xeon,Intel®  Xeon® 8260M CPU-only,2353.23,2487.25,639.118,645.669,FPS
-Resnet-50,OV-2024.1,xeon,Intel®  Xeon® Gold 6238M CPU-only,2084.709,2248.889,558.128,546.481,FPS
-Resnet-50,OV-2024.1,core,Intel® Core™  i9-10920X CPU-only,794.725,940.482,205.072,199.384,FPS
-Resnet-50,OV-2024.1,core,Intel® Core™  i3-10100 CPU-only,114.636,118.435,59.034,60.112,FPS
+Resnet-50,OV-2024.2,xeon,Intel®  Xeon® 8260M CPU-only,,2354.173,2482.832,639.577,645.443
+Resnet-50,OV-2024.2,xeon,Intel®  Xeon® Gold 6238M CPU-only,,2070.726,2177.751,571.252,575.778
+Resnet-50,OV-2024.2,core,Intel® Core™  i9-11900K CPU-only,,440.402,458.622,114.169,116.577
+Resnet-50,OV-2024.2,core,Intel® Core™  i7-11700K CPU-only,,448.464,470.586,111.785,114.628
+Resnet-50,OV-2024.2,core,Intel® Core™  i3-10100 CPU-only,,114.267,118.502,57.29,58.233
 end_rec,,,,,,,,
 begin_rec,,,,,,,,
-SSD-Resnet34-1200 ,OV-2024.1,xeon,Intel®  Xeon® 8260M CPU-only,44.428,47.308,12.103,12.229,FPS
-SSD-Resnet34-1200 ,OV-2024.1,xeon,Intel®  Xeon® Gold 6238M CPU-only,38.586,40.72,10.507,10.619,FPS
-SSD-Resnet34-1200 ,OV-2024.1,core,Intel® Core™  i9-10920X CPU-only,16.863,17.476,4.217,4.271,FPS
-SSD-Resnet34-1200 ,OV-2024.1,core,Intel® Core™  i3-10100 CPU-only,1.955,1.935,1.142,1.121,FPS
+SSD-Resnet34-1200 ,OV-2024.2,xeon,Intel®  Xeon® 8260M CPU-only,,44.587,47.293,12.111,12.248
+SSD-Resnet34-1200 ,OV-2024.2,xeon,Intel®  Xeon® Gold 6238M CPU-only,,38.784,40.602,10.521,10.613
+SSD-Resnet34-1200 ,OV-2024.2,core,Intel® Core™  i9-11900K CPU-only,,7.736,7.821,2.034,2.011
+SSD-Resnet34-1200 ,OV-2024.2,core,Intel® Core™  i7-11700K CPU-only,,7.953,8.033,2.083,2.058
+SSD-Resnet34-1200 ,OV-2024.2,core,Intel® Core™  i3-10100 CPU-only,,1.951,1.936,1.04,1.014
 end_rec,,,,,,,,
 begin_rec,,,,,,,,
-SSD_Mobilenet_V1_Coco,OV-2024.1,xeon,Intel®  Xeon® 8260M CPU-only,4720.423,4991.46,1364.141,1392.376,FPS
-SSD_Mobilenet_V1_Coco,OV-2024.1,xeon,Intel®  Xeon® Gold 6238M CPU-only,4067.035,4228.271,1096.362,1112.343,FPS
-SSD_Mobilenet_V1_Coco,OV-2024.1,core,Intel® Core™  i9-10920X CPU-only,1519.287,1785.937,408.959,442.492,FPS
-SSD_Mobilenet_V1_Coco,OV-2024.1,core,Intel® Core™  i3-10100 CPU-only,256.837,265.931,135.537,139.551,FPS
+SSD_Mobilenet_V1_Coco,OV-2024.2,xeon,Intel®  Xeon® 8260M CPU-only,,4753.674,4933.241,1370.423,1379.026
+SSD_Mobilenet_V1_Coco,OV-2024.2,xeon,Intel®  Xeon® Gold 6238M CPU-only,,4165.318,4276.949,1197.151,1222.112
+SSD_Mobilenet_V1_Coco,OV-2024.2,core,Intel® Core™  i9-11900K CPU-only,,920.957,1001.56,270.597,281.293
+SSD_Mobilenet_V1_Coco,OV-2024.2,core,Intel® Core™  i7-11700K CPU-only,,941.323,1030.464,256.649,266.715
+SSD_Mobilenet_V1_Coco,OV-2024.2,core,Intel® Core™  i3-10100 CPU-only,,256.291,266.245,129.84,135.453
 end_rec,,,,,,,,
 begin_rec,,,,,,,,
-Unet-Camvid--0001 ,OV-2024.1,xeon,Intel®  Xeon® 8260M CPU-only,71.937,78.1,17.787,18.034,FPS
-Unet-Camvid--0001 ,OV-2024.1,xeon,Intel®  Xeon® Gold 6238M CPU-only,62.515,66.299,15.47,15.6,FPS
-Unet-Camvid--0001 ,OV-2024.1,core,Intel® Core™  i9-10920X CPU-only,26.386,27.506,5.861,5.932,FPS
-Unet-Camvid--0001 ,OV-2024.1,core,Intel® Core™  i3-10100 CPU-only,2.958,2.941,1.844,1.825,FPS
+Unet-Camvid--0001 ,OV-2024.2,xeon,Intel®  Xeon® 8260M CPU-only,,73.871,78.016,18.23,18.374
+Unet-Camvid--0001 ,OV-2024.2,xeon,Intel®  Xeon® Gold 6238M CPU-only,,64.573,67.713,15.815,16.023
+Unet-Camvid--0001 ,OV-2024.2,core,Intel® Core™  i9-11900K CPU-only,,12.572,12.669,3.28,3.254
+Unet-Camvid--0001 ,OV-2024.2,core,Intel® Core™  i7-11700K CPU-only,,12.779,12.894,3.315,3.299
+Unet-Camvid--0001 ,OV-2024.2,core,Intel® Core™  i3-10100 CPU-only,,2.99,2.971,1.549,1.542
 end_rec,,,,,,,,
 begin_rec,,,,,,,,
-Yolo_V3_Tiny,OV-2024.1,xeon,Intel®  Xeon® 8260M CPU-only,1864.709,2323.356,776.774,786.171,FPS
-Yolo_V3_Tiny,OV-2024.1,xeon,Intel®  Xeon® Gold 6238M CPU-only,1536.778,2031.428,594.33,602.848,FPS
-Yolo_V3_Tiny,OV-2024.1,core,Intel® Core™  i9-10920X CPU-only,480.953,863.418,211.699,248.475,FPS
-Yolo_V3_Tiny,OV-2024.1,core,Intel® Core™  i3-10100 CPU-only,119.656,133.278,70.525,75.039,FPS
+Yolo_V3_Tiny,OV-2024.2,xeon,Intel®  Xeon® 8260M CPU-only,,1863.229,2344.128,775.001,786.09
+Yolo_V3_Tiny,OV-2024.2,xeon,Intel®  Xeon® Gold 6238M CPU-only,,1669.35,2066.437,675.625,703.203
+Yolo_V3_Tiny,OV-2024.2,core,Intel® Core™  i9-11900K CPU-only,,430.441,505.532,146.284,151.09
+Yolo_V3_Tiny,OV-2024.2,core,Intel® Core™  i7-11700K CPU-only,,419.347,513.112,142.009,148.117
+Yolo_V3_Tiny,OV-2024.2,core,Intel® Core™  i3-10100 CPU-only,,117.889,133.312,63.598,69.377
 end_rec,,,,,,,,
 begin_rec,,,,,,,,
-Yolo_V8n,OV-2024.1,xeon,Intel®  Xeon® 8260M CPU-only,676.683,836.562,315.786,388.673,FPS
-Yolo_V8n,OV-2024.1,xeon,Intel®  Xeon® Gold 6238M CPU-only,500.88,702.198,264.887,318.088,FPS
-Yolo_V8n,OV-2024.1,core,Intel® Core™  i9-10920X CPU-only,176.708,269.617,91.142,112.079,FPS
-Yolo_V8n,OV-2024.1,core,Intel® Core™  i3-10100 CPU-only,57.891,67.784,37.688,40.711,FPS
+Yolo_V8n,OV-2024.2,xeon,Intel®  Xeon® 8260M CPU-only,,705.714,845.484,316.319,388.763
+Yolo_V8n,OV-2024.2,xeon,Intel®  Xeon® Gold 6238M CPU-only,,641.815,746.965,278.824,338.806
+Yolo_V8n,OV-2024.2,core,Intel® Core™  i9-11900K CPU-only,,154.54,205.294,67.744,75.634
+Yolo_V8n,OV-2024.2,core,Intel® Core™  i7-11700K CPU-only,,149.289,199.997,65.243,72.677
+Yolo_V8n,OV-2024.2,core,Intel® Core™  i3-10100 CPU-only,,55.999,68.155,34.454,38.544
 end_rec,,,,,,,,

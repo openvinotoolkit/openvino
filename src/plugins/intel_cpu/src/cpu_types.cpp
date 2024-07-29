@@ -142,6 +142,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"NV12toBGR", Type::ColorConvert},
         {"I420toRGB", Type::ColorConvert},
         {"I420toBGR", Type::ColorConvert},
+        {"Col2Im", Type::Col2Im},
         {"MVN", Type::MVN},
         {"NormalizeL2", Type::NormalizeL2},
         {"ScatterUpdate", Type::ScatterUpdate},
@@ -305,6 +306,7 @@ std::string NameFromType(const Type type) {
         CASE(MVN);
         CASE(TensorIterator);
         CASE(Convert);
+        CASE(Col2Im);
         CASE(ColorConvert);
         CASE(NormalizeL2);
         CASE(ScatterUpdate);

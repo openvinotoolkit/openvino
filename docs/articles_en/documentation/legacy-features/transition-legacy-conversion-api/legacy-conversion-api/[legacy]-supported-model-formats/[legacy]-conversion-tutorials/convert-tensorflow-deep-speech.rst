@@ -42,8 +42,8 @@ To download the model, follow the instruction below:
   2. Download the `TensorFlow MetaGraph with pre-trained weights <https://github.com/mozilla/DeepSpeech/releases/download/v0.8.2/deepspeech-0.8.2-checkpoint.tar.gz>`__.
   3. Unpack it with a file archiver application.
 
-Freezing the Model into a *.pb File
-###################################
+Freezing the Model into a "\*.pb File"
+######################################
 
 After unpacking the archives above, you have to freeze the model. This requires
 TensorFlow version 1, which is not available under Python 3.8, so you need Python 3.7 or lower.
@@ -75,7 +75,7 @@ a fixed input length shape, thus the model is not reshapable.
 Refer to the :doc:`Using Shape Inference <../../../../../../openvino-workflow/running-inference/changing-input-shape>` guide.
 
 The second is that the frozen model still has two variables: ``previous_state_c`` and ``previous_state_h``, figure
-with the frozen *.pb model is below. It means that the model keeps training these variables at each inference.
+with the frozen \*.pb model is below. It means that the model keeps training these variables at each inference.
 
 .. image:: ../../../../../../assets/images/DeepSpeech-0.8.2.png
 

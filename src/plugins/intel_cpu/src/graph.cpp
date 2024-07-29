@@ -71,6 +71,7 @@ void Graph::CreateGraph(NET &net, const GraphContext::CPtr ctx) {
         ForgetGraphData();
 
     context = ctx;
+    m_stream = dnnl::stream(getEngine());
 
     Replicate(net);
 
@@ -87,6 +88,7 @@ void Graph::CreateGraph(const std::vector<NodePtr>& graphNodes,
         ForgetGraphData();
 
     context = ctx;
+    m_stream = dnnl::stream(getEngine());
 
     this->_name = std::move(name);
     this->reuse_io_tensors = false;
@@ -366,7 +368,8 @@ void Graph::InitGraph(bool optimize) {
 
     std::tie(m_executableGraphNodes, m_executableSyncNodesInds) = ExtractExecutableNodesAndSyncPoints(syncNodesInds, graphNodes);
 
-    status = hasDynNodes ? Status::ReadyDynamic : Status::ReadyStatic;
+    status = hasDynNodes ? (parallel_get_max_threads() > 1 ? Status::ReadyDynamic : Status::ReadyDynamicSeq)
+        : Status::ReadyStatic;
 
     CPU_DEBUG_CAP_ENABLE(serialize(*this));
 }
@@ -439,8 +442,6 @@ void Graph::InitOptimalPrimitiveDescriptors() {
 
 void Graph::CreatePrimitivesAndExecConstants() const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::CreatePrimitivesAndExecConstants");
-    dnnl::stream stream(getEngine());
-
     using shared_memory_ptr = WeightsSharing::SharedMemory::Ptr;
 
     auto acquireSharedOutputs = [this](const NodePtr & node) {
@@ -480,13 +481,13 @@ void Graph::CreatePrimitivesAndExecConstants() const {
             auto sharedOutputs = acquireSharedOutputs(node);
 
             if (std::get<0>(sharedOutputs) || std::get<1>(sharedOutputs)) {
-                ExecuteNode(node, stream);
+                ExecuteNode(node, m_stream);
 
                 for (auto & output : std::get<2>(sharedOutputs))
                     output->valid(true);
             }
         } else {
-            ExecuteNode(node, stream);
+            ExecuteNode(node, m_stream);
         }
     }
 }
@@ -1123,30 +1124,23 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
 }
 
 void Graph::InferStatic(SyncInferRequest* request) {
-    dnnl::stream stream(getEngine());
-
     for (const auto& node : m_executableGraphNodes) {
         VERBOSE(node, getConfig().debugCaps.verbose);
         PERF(node, getConfig().collectPerfCounters);
 
         if (request)
             request->throw_if_canceled();
-        ExecuteNode(node, stream);
+        ExecuteNode(node, m_stream);
     }
 }
 
 namespace {
 
-class IUpdateNodes {
-public:
-    virtual void run(size_t stopIndx) = 0;
-    virtual ~IUpdateNodes() = default;
-};
-
-class UpdateNodesSeq : public IUpdateNodes {
+class UpdateNodesSeq {
 public:
     explicit UpdateNodesSeq(std::vector<NodePtr>& executableGraphNodes) : m_executableGraphNodes(executableGraphNodes) {}
-    void run(size_t stopIndx) override {
+
+    void operator()(size_t stopIndx) {
         for (; prepareCounter < stopIndx; ++prepareCounter) {
             const auto& node = m_executableGraphNodes[prepareCounter];
             if (node->isDynamicNode()) {
@@ -1177,7 +1171,7 @@ private:
 #        define ov_memory_order_acquire std::memory_order::memory_order_acquire
 #    endif
 
-class UpdateNodesBase : public IUpdateNodes {
+class UpdateNodesBase {
 public:
     explicit UpdateNodesBase(std::vector<NodePtr>& executableGraphNodes) : m_executableGraphNodes(executableGraphNodes) {}
     void updateShapes(size_t node_indx, size_t stop_indx) {
@@ -1248,7 +1242,8 @@ private:
 class UpdateNodes : public UpdateNodesBase {
 public:
     using UpdateNodesBase::UpdateNodesBase;
-    void run(size_t stopIndx) override {
+
+    void operator()(size_t stopIndx) {
         m_completion.store(false);
         auto startCounter = m_prepareCounter.load();
         tbb::detail::d1::wait_context wait_ctx(2);
@@ -1289,7 +1284,7 @@ private:
 class UpdateNodes : public UpdateNodesBase {
 public:
     using UpdateNodesBase::UpdateNodesBase;
-    void run(size_t stopIndx) override {
+    void operator()(size_t stopIndx) {
         m_completion.store(false);
         auto startCounter = m_prepareCounter.load();
         tbb::task& root = *new(tbb::task::allocate_root()) tbb::empty_task;
@@ -1317,7 +1312,7 @@ public:
 class UpdateNodes : public UpdateNodesBase {
 public:
     using UpdateNodesBase::UpdateNodesBase;
-    void run(size_t stopIndx) override {
+    void operator()(size_t stopIndx) {
         m_completion.store(false);
         auto startCounter = m_prepareCounter.load();
 
@@ -1340,20 +1335,12 @@ public:
 #endif
 } // namespace
 
-
-void Graph::InferDynamic(SyncInferRequest* request) {
-    dnnl::stream stream(getEngine());
-
-    std::unique_ptr<IUpdateNodes> updateNodes{};
-    if (parallel_get_max_threads() > 1) {
-        updateNodes.reset(new UpdateNodes(m_executableGraphNodes));
-    } else {
-        updateNodes.reset(new UpdateNodesSeq(m_executableGraphNodes));
-    }
-
+template<typename UpdateStrategy>
+void Graph::InferDynamic(SyncInferRequest* request, UpdateStrategy&& update) {
     size_t inferCounter = 0;
     for (auto stopIndx : m_executableSyncNodesInds) {
-        updateNodes->run(stopIndx);
+        update(stopIndx);
+
         for (; inferCounter < stopIndx; ++inferCounter) {
             auto& node = m_executableGraphNodes[inferCounter];
             VERBOSE(node, getConfig().debugCaps.verbose);
@@ -1362,7 +1349,7 @@ void Graph::InferDynamic(SyncInferRequest* request) {
             if (request)
                 request->throw_if_canceled();
             try {
-                ExecuteNode(node, stream);
+                ExecuteNode(node, m_stream);
             } catch (const std::exception& exp) {
                 OPENVINO_THROW(node, exp.what());
             }
@@ -1455,17 +1442,20 @@ void Graph::ParalleMtNuma(size_t num_nodes,
 }
 
 void Graph::Infer(SyncInferRequest* request) {
-    DEBUG_LOG("Starting inference of the graph: ", GetName(), ". Status: ", static_cast<int>(status));
-    if (!IsReady()) {
-        OPENVINO_THROW("Wrong state of the ov::intel_cpu::Graph. Topology is not ready.");
-    }
+    DEBUG_LOG("Infer graph: ", GetName(), ". Status: ", static_cast<int>(status));
 
-    if (Status::ReadyDynamic == status) {
-        InferDynamic(request);
-    } else if (Status::ReadyStatic == status) {
+    switch (status) {
+    case Status::ReadyDynamic:
+        InferDynamic(request, UpdateNodes(m_executableGraphNodes));
+        break;
+    case Status::ReadyDynamicSeq:
+        InferDynamic(request, UpdateNodesSeq(m_executableGraphNodes));
+        break;
+    case Status::ReadyStatic:
         InferStatic(request);
-    } else {
-        OPENVINO_THROW("Unknown ov::intel_cpu::Graph state: " , static_cast<size_t>(status));
+        break;
+    default:
+        OPENVINO_ASSERT(IsReady(), "Wrong state of the ov::intel_cpu::Graph. Topology is not ready: ", static_cast<int>(status));
     }
 
     if (infer_count != -1) infer_count++;
@@ -1832,7 +1822,7 @@ void Graph::EnforceInferencePrecision() {
 
         for (size_t i = 0; i < node->getOriginalInputsNumber(); i++) {
             auto keepOriginalInputPrecisionAtPort = [](const NodePtr& node, const size_t inPort) {
-                // keep non-float precisions
+                // keep non-float32 precisions
                 if (node->getOriginalInputPrecisionAtPort(inPort) != ov::element::f32)
                     return true;
 
@@ -1876,7 +1866,7 @@ void Graph::EnforceInferencePrecision() {
         }
 
         for (size_t i = 0; i < node->getOriginalOutputsNumber(); i++) {
-            // keep non-float precisions
+            // keep non-float32 precisions
             if (node->getOriginalOutputPrecisionAtPort(i) != ov::element::f32)
                 continue;
 

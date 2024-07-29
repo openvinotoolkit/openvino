@@ -5,6 +5,7 @@
 #pragma once
 
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 
 namespace ov {
@@ -42,7 +43,8 @@ public:
     ov::snippets::VectorDims master_shape = {};
 
     size_t buffer_scratchpad_size = 0;
-    std::vector<size_t> buffer_cluster_offsets;
+    std::vector<size_t> buffer_cluster_offsets {};
+    KernelExecutorTablePtr kernel_executor_table = std::make_shared<ov::snippets::KernelExecutorTable>();
 };
 
 /**
@@ -59,26 +61,28 @@ public:
      * @param linear_ir LinearIR
      * @return updated config
      */
-    const std::shared_ptr<RuntimeConfig>& get_updated_config(const std::shared_ptr<lowered::LinearIR>& linear_ir);
+    const std::shared_ptr<RuntimeConfig>& get_updated_config(const lowered::LinearIRPtr& linear_ir);
+    /*** Returns pointer to KernelExecutorTable owned by the config */
+    const std::shared_ptr<KernelExecutorTable>& get_kernel_executor_table() const { return m_config->kernel_executor_table; }
 
 protected:
     /**
      * @brief Update RuntimeConfig based on LinearIR
      * @param linear_ir LinearIR
      */
-    virtual void update(const std::shared_ptr<lowered::LinearIR>& linear_ir);
+    virtual void update(const lowered::LinearIRPtr& linear_ir);
     /**
      * @brief Allocate and intialize fields in RuntimeConfig and RuntimeConfigurator
      * @param linear_ir LinearIR
      */
-    virtual void initialization(const std::shared_ptr<lowered::LinearIR>& linear_ir);
+    virtual void initialization(const lowered::LinearIRPtr& linear_ir);
 
     /**
      * @brief Initializes input and data information of LinearIR:
      *        descriptors (that contains shapes and layouts) and data_sizes
      * @param linear_ir LinearIR
      */
-    void init_data_info(const std::shared_ptr<lowered::LinearIR>& linear_ir);
+    void init_data_info(const lowered::LinearIRPtr& linear_ir);
     /**
      * @brief Initializes information of buffers:
      *        - static buffer_scratchpad_size
@@ -86,23 +90,23 @@ protected:
      *        - clusters with dynamic buffers (`m_dynamic_buffer_clusters`) for the quick access in `update()`
      * @param linear_ir LinearIR
      */
-    void init_buffer_info(const std::shared_ptr<lowered::LinearIR>& linear_ir);
+    void init_buffer_info(const lowered::LinearIRPtr& linear_ir);
     /**
      * @brief Initializes tensor rank of config
      * @param linear_ir LinearIR
      */
-    virtual void init_tensor_rank(const std::shared_ptr<lowered::LinearIR>& linear_ir) const;
+    virtual void init_tensor_rank(const lowered::LinearIRPtr& linear_ir) const;
     /**
      * @brief Update Loop informations in LinearIR: Unified and ExpandedLoopInfo
      * @param linear_ir LinearIR
      */
-    void update_loop_info(const std::shared_ptr<lowered::LinearIR>& linear_ir) const;
+    void update_loop_info(const lowered::LinearIRPtr& linear_ir) const;
     /**
      * @brief Update Buffer scratchpad size and offsets if needed
      *        Note: `update_loop_info` must be called before
      * @param linear_ir LinearIR
      */
-    void update_buffer_scratchpad_size(const std::shared_ptr<lowered::LinearIR>& linear_ir) const;
+    void update_buffer_scratchpad_size(const lowered::LinearIRPtr& linear_ir) const;
     /**
      * @brief Calculate data offsets of LinearIR and update these values in RuntimeConfig
      */

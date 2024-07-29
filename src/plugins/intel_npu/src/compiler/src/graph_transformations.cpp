@@ -4,31 +4,44 @@
 
 #include "graph_transformations.hpp"
 
+#include <cstdint>
 #include <istream>
 #include <mutex>
+#include <streambuf>
 
 #include "openvino/pass/serialize.hpp"
 #include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
 
 namespace intel_npu::driverCompilerAdapter {
 
-IR serializeToIR(const std::shared_ptr<const ov::Model>& origModel, uint32_t supportedOpset) {
+IRSerializer::IRSerializer(const std::shared_ptr<const ov::Model>& origModel, const uint32_t supportedOpset)
+    : _logger("DriverCompilerAdapter::IRSerializer", Logger::global().level()),
+      _supportedOpset(supportedOpset) {
     // There is no const variant of run_passes so use const_cast here
     // as model serialization does not mutate the model
-    std::shared_ptr<ov::Model> model = std::const_pointer_cast<ov::Model>(origModel);
-
-    const auto passConfig = std::make_shared<ov::pass::PassConfig>();
-    ov::pass::Manager manager(passConfig);
+    _model = std::const_pointer_cast<ov::Model>(origModel);
 
     if (supportedOpset < 11) {
         // Need to clone to modify the model and remain thread safe
-        model = model->clone();
-        // Downgrade to opset10
-        manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
+        _model = _model->clone();
+        _logger.info("Clone model for offset smaller than 11");
     }
 
-    std::stringstream xmlStream, weightsStream;
-    manager.register_pass<ov::pass::Serialize>(xmlStream, weightsStream);
+    countModelSize();
+}
+
+void IRSerializer::serializeModelToStream(std::ostream& xml, std::ostream& weights) {
+    _logger.debug("serializeModelToStream");
+    const auto passConfig = std::make_shared<ov::pass::PassConfig>();
+    ov::pass::Manager manager(passConfig);
+
+    if (_supportedOpset < 11) {
+        // Downgrade to opset10
+        manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
+        _logger.info("Downgrade op for opset smaller than 11");
+    }
+
+    manager.register_pass<ov::pass::Serialize>(xml, weights);
 
     // Depending on the driver version, the compiler attached to it may request this information as an indicator of the
     // precision/layout preprocessing requirement. We are setting this value to "true" since the API version is no
@@ -42,15 +55,43 @@ IR serializeToIR(const std::shared_ptr<const ov::Model>& origModel, uint32_t sup
     {
         std::lock_guard<std::mutex> lock(rtInfoMutex);
 
-        model->set_rt_info(true, new_api_key);
+        _model->set_rt_info(true, new_api_key);
 
-        manager.run_passes(model);
+        manager.run_passes(_model);
 
-        auto& rtInfo = model->get_rt_info();
+        auto& rtInfo = _model->get_rt_info();
         rtInfo.erase(new_api_key);
     }
+    _logger.debug("serializeModelToStream end");
+}
 
-    return {std::move(xmlStream), std::move(weightsStream)};
+void IRSerializer::countModelSize() {
+    _logger.debug("countModelSize");
+
+    counter_streambuf xmlStreamBuf;
+    counter_streambuf weightsStreamBuf;
+    std::ostream xmlStream(&xmlStreamBuf);
+    std::ostream weightsStream(&weightsStreamBuf);
+
+    serializeModelToStream(xmlStream, weightsStream);
+
+    _xmlSize = xmlStreamBuf.size();
+    _weightsSize = weightsStreamBuf.size();
+
+    _logger.debug("countModelSize completed, xml size: %d, weights size: %d", _xmlSize, _weightsSize);
+}
+
+void IRSerializer::serializeModelToBuffer(uint8_t* xml, uint8_t* weights) {
+    _logger.debug("serializeModelToBuffer");
+
+    writer_streambuf xmlStreamBuf(xml);
+    writer_streambuf weightsStreamBuf(weights);
+    std::ostream xmlStream(&xmlStreamBuf);
+    std::ostream weightsStream(&weightsStreamBuf);
+
+    serializeModelToStream(xmlStream, weightsStream);
+
+    _logger.debug("serializeModelToBuffer end");
 }
 
 }  // namespace intel_npu::driverCompilerAdapter

@@ -16,7 +16,6 @@
 #include "openvino/pass/pattern/op/any_of.hpp"
 #include "openvino/pass/pattern/op/any_output.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
-#include "openvino/pass/pattern/op/skip.hpp"
 
 namespace ov {
 namespace pass {

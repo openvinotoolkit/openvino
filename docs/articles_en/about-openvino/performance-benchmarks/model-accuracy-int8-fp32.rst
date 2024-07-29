@@ -293,4 +293,4 @@ accuracy for the model.
    Results may vary. For more information, see
    :doc:`F.A.Q. <./performance-benchmarks-faq>` and
    :doc:`Platforms, Configurations, Methodology <../performance-benchmarks>`.
-   See :doc:`Legal Information <../additional-resources/legal-information>`.
+   See :doc:`Legal Information <../additional-resources/terms-of-use>`.

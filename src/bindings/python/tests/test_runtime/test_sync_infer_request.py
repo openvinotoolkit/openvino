@@ -25,7 +25,7 @@ from openvino import (
 from openvino.runtime import ProfilingInfo
 from openvino.preprocess import PrePostProcessor
 
-from tests.utils.helpers import generate_image, get_relu_model, generate_model_with_memory
+from tests.utils.helpers import generate_image, get_relu_model
 
 
 def create_simple_request_and_inputs(device):
@@ -630,7 +630,7 @@ def test_convert_infer_request(device):
     res = request.infer(inputs)
     with pytest.raises(TypeError) as e:
         deepcopy(res)
-    assert "cannot deepcopy 'openvino.runtime.ConstOutput' object." in str(e)
+    assert "Cannot deepcopy 'openvino.runtime.ConstOutput' object." in str(e)
 
 
 @pytest.mark.parametrize("share_inputs", [True, False])

@@ -30,4 +30,8 @@ add_subdirectory(src)
 
 if(ENABLE_TESTS)
     add_subdirectory(tests)
+    add_subdirectory(tools)
 endif()
+
+
+ov_cpack_add_component(${NPU_INTERNAL_COMPONENT} HIDDEN)
