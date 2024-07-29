@@ -43,7 +43,9 @@ std::vector<TRShape> shape_infer(const STFT* op,
     const auto frame_size = get_input_const_data_as<TRShape, int64_t>(op, 2, ta);
     const auto frame_step = get_input_const_data_as<TRShape, int64_t>(op, 3, ta);
 
-    if (!frame_size || !frame_step) {
+    if (signal_shape.rank().is_dynamic()) {
+        return {signal_shape};
+    } else if (!frame_size || !frame_step) {
         TRShape output_shape{signal_shape[0], -1, -1, 2};
         return {output_shape};
     }
