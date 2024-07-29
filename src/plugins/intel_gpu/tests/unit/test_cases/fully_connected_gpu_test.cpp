@@ -1339,7 +1339,8 @@ public:
         ov::InferRequest infer_request = compiled_model.create_infer_request();
         auto input_generate = ov::test::utils::InputGenerateData(1, 1);
         auto tensor = ov::test::utils::create_and_fill_tensor(infer_request.get_input_tensor().get_element_type(),
-                                                              ov::Shape{{1, 2}},
+                                                              // ov::Shape{{1, 2}},
+                                                              ov::Shape{{2, 2}},
                                                               input_generate);
         infer_request.set_input_tensor(tensor);
         std::cout << "infer_request infer " << std::endl;

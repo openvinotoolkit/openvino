@@ -75,23 +75,6 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
     void* create_lz_buff(oclContext& oclctx, lzContext& lzctx, std::vector<uint32_t>& initBuf, size_t elemCount) {
         std::cout << "[gpu_p2p] create_lz_buff " << std::endl;
 
-        // std::vector<uint32_t> initBuf(elemCount, 0);
-        // if (buff != nullptr && length > 0) {
-        // if (!initBuf.empty()) {
-        //     // uint16_t* init_ptr = reinterpret_cast<uint16_t*>(buff);
-        //     // initBuf[0] = static_cast<uint32_t>(100.0f);
-
-        //     union TypeValue {
-        //         float f;
-        //         uint32_t i;
-        //     };
-        //     TypeValue val;
-        //     // val.f = 100.0f;
-        //     val.i = 100;
-        //     printf("val.f: %f, val.i: %d \n", val.f, val.i);
-        //     initBuf[0] = val.i;
-        // }
-
         printf("initBuf[0]: %d \n", initBuf[0]);
         cl_mem clbuf = oclctx.createBuffer(elemCount * sizeof(uint32_t), initBuf);
         // oclctx.printBuffer(clbuf);
@@ -135,9 +118,6 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
             }
         }
 
-        // void* buff = instance.output_memory(w_rank).buffer_ptr();
-        // size_t length = instance.output_memory(w_rank).size();
-        // printf("[sync_tensor_impl:%d] length: %ld\n", w_rank, length);
         oclContext oclctx;
         lzContext lzctx;
         size_t elemCount = 1024 * 1024;
@@ -149,21 +129,31 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
                 float f;
                 uint32_t i;
             };
+            size_t copy_len = instance.output_memory((w_rank + 1) % 2).size();
+            size_t typed_copy_len = copy_len;
+            printf("[sync_tensor_impl:%d] copy_len:%ld \n", w_rank, copy_len);
+
             auto sec_mem = instance.output_memory_ptr(w_rank);
             auto data_layout = instance.get_output_layout(w_rank);
+            std::cout << "[sync_tensor_impl:" << w_rank << "] data_layout: " << data_layout << std::endl;
+
             auto actual_mem = sec_mem->get_engine()->reinterpret_buffer(*sec_mem, data_layout);
             auto mem_dt = actual_mem->get_layout().data_type;
             if (mem_dt == cldnn::data_types::f16) {
+                typed_copy_len /= 2;
                 printf("[create_local_buff:%d] local mem_dt: cldnn::data_types::f16 \n", w_rank);
             }
             mem_lock<ov::float16, mem_lock_type::read> lock(actual_mem, stream);
             auto mem_ptr = lock.data();
-            TypeValue val;
-            val.f = static_cast<float>(mem_ptr[0]);
-            printf("[create_local_buff:%d] local val.f: %f, val.i: %u \n", w_rank, val.f, val.i);
 
-            initBuf[0] = val.i;
-            printf("local initBuf[0]: %u \n", initBuf[0]);
+            for (size_t i = 0; i < typed_copy_len; ++i) {
+                TypeValue val;
+                val.f = static_cast<float>(mem_ptr[i]);
+                printf("[create_local_buff:%d] local val.f: %f, val.i: %u \n", w_rank, val.f, val.i);
+
+                initBuf[i] = val.i;
+                printf("local initBuf[%ld]: %u \n", i, initBuf[0]);
+            }
         }
 
         // void *lz_buff = create_lz_buff(oclctx, lzctx, buff, elemCount, length);
@@ -183,6 +173,7 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
                     // auto src_ptr = static_cast<uint8_t*>(sub_mem_mgr->_memorys_table[id][idx].send_buf);
                     auto dst_ptr = instance.output_memory(idx).buffer_ptr();
                     size_t dst_len = instance.output_memory(idx).size();
+                    size_t typed_dst_len = dst_len;
                     printf("[sync_tensor_impl:%d] dst_ptr:%p dst_len:%ld \n", w_rank, dst_ptr, dst_len);
                     // std::memcpy(dst_ptr, src_ptr, instance.output_memory(idx).size());
 
@@ -217,10 +208,10 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
                     auto actual_mem = sec_mem->get_engine()->reinterpret_buffer(*sec_mem, data_layout);
                     auto mem_dt = actual_mem->get_layout().data_type;
                     if (mem_dt == cldnn::data_types::f16) {
+                        typed_dst_len /= 2;
                         printf("[sync_tensor_impl:%d] cldnn::data_types::f16 \n", w_rank);
                     }
                     printf("[sync_tensor_impl:%d] lock \n", w_rank);
-                    // mem_lock<ov::float16, mem_lock_type::read> lock(actual_mem, stream);
                     mem_lock<ov::float16, mem_lock_type::read_write> lock2(actual_mem, stream);
                     printf("[sync_tensor_impl:%d] get pointer \n", w_rank);
                     auto mem_ptr2 = lock2.data();
@@ -231,14 +222,16 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
                         float f;
                         uint32_t i;
                     };
-                    TypeValue val;
-                    val.i = outBuf[0];
-                    printf("[sync_tensor_impl:%d] val.i: %d, val.f: %f \n", w_rank, val.i, val.f);
 
-                    // mem_ptr2[0] = static_cast<ov::float16>(100);
-                    mem_ptr2[0] = static_cast<ov::float16>(val.f);
-                    sec_val2 = static_cast<float>(mem_ptr2[0]);
-                    printf("[sync_tensor_impl:%d] sec_val2: %f \n", w_rank, sec_val2);
+                    for (size_t i = 0; i < typed_dst_len; ++i) {
+                        TypeValue val;
+                        val.i = outBuf[i];
+                        printf("[sync_tensor_impl:%d] val.i: %d, val.f: %f \n", w_rank, val.i, val.f);
+
+                        mem_ptr2[i] = static_cast<ov::float16>(val.f);
+                        sec_val2 = static_cast<float>(mem_ptr2[i]);
+                        printf("[sync_tensor_impl:%d] sec_val2: %f \n", w_rank, sec_val2);
+                    }
 
                     printf("[sync_tensor_impl:%d] std::memcpy end \n", w_rank);
                     wait_list[idx] = 0;
