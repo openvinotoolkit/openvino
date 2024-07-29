@@ -5,6 +5,7 @@
 #pragma once
 
 #include "snippets/lowered/pass/pass.hpp"
+#include "snippets/lowered/specific_loop_iter_handlers.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -23,6 +24,8 @@ public:
     bool run(snippets::lowered::LinearIR& linear_ir,
              snippets::lowered::LinearIR::constExprIt begin,
              snippets::lowered::LinearIR::constExprIt end) override;
+
+    static snippets::lowered::SpecificIterationHandlers get_default_blocking_loop_handlers(size_t work_amount, size_t block_size);
 
 private:
     static snippets::lowered::LinearIR::constExprIt move_new_memory_buffer(snippets::lowered::LinearIR& linear_ir,

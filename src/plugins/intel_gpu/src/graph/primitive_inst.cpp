@@ -465,7 +465,7 @@ void primitive_inst::update_shape() {
         auto desc = get_node().as<kv_cache>().get_primitive();
         auto var_mem_size = get_network().get_variable(desc->variable_info.variable_id).get_actual_mem_size();
         // Need to trigger realloc_if_needed
-        if (var_mem_size < _impl_params->get_output_layout(0).get_buffer_size().count())
+        if (var_mem_size < _impl_params->get_output_layout(0).get_linear_size())
             set_shape_change();
     }
 }
@@ -684,13 +684,13 @@ event::ptr primitive_inst::realloc_if_needed() {
             prealloc_shape[seq_axis] += tmp_prealloc_count;
             required_buffer_size = std::accumulate(prealloc_shape.begin(), prealloc_shape.end(), size_t(1), std::multiplies<size_t>());
         } else {
-            required_buffer_size = (updated_layouts[i].get_buffer_size().count());
+            required_buffer_size = (updated_layouts[i].get_linear_size());
         }
         if (required_buffer_size * 10 < _max_output_layout_count[i]) {
             reclaim = true;
         }
         if (reclaim) {
-            GPU_DEBUG_TRACE_DETAIL << id() << ": Updated output[" << i << "] size " << updated_layouts[i].get_buffer_size().count()
+            GPU_DEBUG_TRACE_DETAIL << id() << ": Updated output[" << i << "] size " << updated_layouts[i].get_linear_size()
                                    << " is much smaller than current memory size! " << _max_output_layout_count[i]
                                    << "Reset memory of output " << i << std::endl;
             _max_output_layout_count[i] = 0;
@@ -705,7 +705,7 @@ event::ptr primitive_inst::realloc_if_needed() {
     }
 
     for (size_t i = 0; i < actual_layouts.size(); ++i) {
-        bool can_reuse_buffer = (_outputs[i] && updated_layouts[i].get_buffer_size().count() <= _max_output_layout_count[i]);
+        bool can_reuse_buffer = (_outputs[i] && updated_layouts[i].get_linear_size() <= _max_output_layout_count[i]);
         std::pair<bool, ov::Shape> prealloc_info;
         if (_node->is_type<kv_cache>() && i == 0) {
             const auto& desc = _node->as<kv_cache>().get_primitive();
@@ -717,17 +717,15 @@ event::ptr primitive_inst::realloc_if_needed() {
             prealloc_info = sp.predict_preallocation_shape(id(), updated_layouts[i], can_reuse_buffer, i, tmp_prealloc_count);
         }
         if (prealloc_info.first && sp.can_preallocate(ov::shape_size(prealloc_info.second) * (dt_sizes_in_B[i]))) {
-            auto new_layout = updated_layouts[i];
-            new_layout.set_partial_shape(prealloc_info.second);
-            updated_params.output_layouts[i] = new_layout;
+            updated_params.output_layouts[i] = updated_layouts[i].clone_with_other_shape(prealloc_info.second);
         }
-        if (updated_params.output_layouts[i].get_buffer_size().count() < updated_layouts[i].get_buffer_size().count()) {
+        if (updated_params.output_layouts[i].get_linear_size() < updated_layouts[i].get_linear_size()) {
             updated_params.output_layouts[i] = updated_layouts[i];
         }
 
         if (can_reuse_buffer) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": reuse previously allocated output buffer[" << i << "] - "
-                                   << actual_layouts[i].get_buffer_size().count() << "/" << _max_output_layout_count[i]
+                                   << actual_layouts[i].get_linear_size() << "/" << _max_output_layout_count[i]
                                    << std::endl;
             if (_node->is_type<kv_cache>() && (i == 0)) {
                 // kv_cache has already assigned memory.
@@ -759,7 +757,7 @@ event::ptr primitive_inst::realloc_if_needed() {
             GPU_DEBUG_TRACE_DETAIL << id() << ": realloc output memory. " << std::endl;
             GPU_DEBUG_TRACE_DETAIL << " outputs[" << i << "] "
                                    << " Current buffer_size=" << _max_output_layout_count[i]
-                                   << " Requested buffer_size=" << updated_layouts[i].get_buffer_size().count()
+                                   << " Requested buffer_size=" << updated_layouts[i].get_linear_size()
                                    << std::endl;
             _outputs[i] = allocate_output(_network.get_engine(),
                                           _network.get_memory_pool(),
@@ -773,7 +771,7 @@ event::ptr primitive_inst::realloc_if_needed() {
                                           is_output_buffer(this, true),
                                           output_memory_ptr(i).get(),
                                           true);
-            _max_output_layout_count[i] = updated_params.output_layouts[i].get_buffer_size().count();
+            _max_output_layout_count[i] = updated_params.output_layouts[i].get_linear_size();
             GPU_DEBUG_CODE(std::string memalloc_info = "");
             GPU_DEBUG_CODE(memalloc_info += (((_outputs.size() > 1) ? ("o" + to_string(i) + ":") : "") +
                                   (_outputs[i]->from_memory_pool ? "from_pool" : "new_alloc"));)
@@ -1208,14 +1206,11 @@ void primitive_inst::do_runtime_in_place_kv_cache() {
     GPU_DEBUG_TRACE_DETAIL << "[do runtime kv_cache opt] " << id() << " initial present_layout : " << present_layout.to_string() << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "[do runtime kv_cache opt] " << id() << " initial past_layout : " << past_layout.to_string() << std::endl;
     auto max_pad = kv_cache_inst::get_max_pad(past_layout, _deps[0].first->_max_output_layout_count[0], sequence_axis_legacy, "past_layout");
-
-    if (max_pad > 0) {
-        const auto new_seq_len = static_cast<int64_t>(new_layout.get_shape()[sequence_axis]);
-        if (max_pad - new_seq_len >= 0) {
-            kv_cache_inst::update_pad(present_layout, max_pad - new_seq_len, sequence_axis_legacy);
-            GPU_DEBUG_TRACE_DETAIL << "[do runtime_in_place_kv_cache] " << id() << " Updated present_layout's pad : "
-                                   << present_layout.to_string() << std::endl;
-        }
+    const auto new_seq_len = static_cast<int64_t>(new_layout.get_shape()[sequence_axis]);
+    // In chatbot scenario, when chat history must be stored in kvcache, new_seq_len may not be 1 even if max_pad is greater than 0
+    if (max_pad - new_seq_len >= 0) {
+        kv_cache_inst::update_pad(present_layout, max_pad - new_seq_len, sequence_axis_legacy);
+        GPU_DEBUG_TRACE_DETAIL << "[do runtime_in_place_kv_cache] " << id() << " Updated present_layout's pad : " << present_layout.to_string() << std::endl;
         auto& variable = get_network().get_variable(desc->variable_info.variable_id);
         variable.set_layout(present_layout);
         GPU_DEBUG_TRACE_DETAIL << "[do_runtime_in_place_kv_cache] " << id() << "Updated variable with present_layout"
@@ -1855,7 +1850,7 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
     _impl_params->strm = _network.get_stream_ptr();
     for (size_t i = 0; i < get_node().get_output_layouts().size(); ++i) {
         if (_outputs.size() > i) {
-            _max_output_layout_count.push_back(_outputs[i] ? _outputs[i]->get_layout().get_buffer_size().count() : 0);
+            _max_output_layout_count.push_back(_outputs[i] ? _outputs[i]->get_layout().get_linear_size() : 0);
         } else {
             _outputs.push_back(nullptr);
             _max_output_layout_count.push_back(0);
@@ -1988,9 +1983,9 @@ event::ptr primitive_inst::update_weights() {
         GPU_DEBUG_TRACE_DETAIL << id() << ": add original weights memory " << original_layout.to_short_string() << " to weights cache; "
                                        << "cache_size=" << _reordered_weights_cache.size() << "/" << _reordered_weights_cache.capacity() << std::endl;
     } else {
-        auto expected_layout = reorder_kernel_params->get_output_layout();
         // Set original partial shape, because it may be lost during kernel_selector::weights_tensor -> layout conversion
-        expected_layout.set_partial_shape(original_layout.get_partial_shape());
+        auto expected_layout =
+            reorder_kernel_params->get_output_layout().clone_with_other_shape(original_layout.get_partial_shape());
         _impl_params->weights_layout = optional_layout(expected_layout);
 
         if (_reordered_weights_cache.has(expected_layout)) {
