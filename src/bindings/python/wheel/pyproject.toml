@@ -17,5 +17,5 @@ classifiers = [
 ]
 
 [build-system]
-requires = ["setuptools>=42", "wheel", "cmake"]
+requires = ["setuptools>=42,<72", "wheel", "cmake"]
 build-backend = "setuptools.build_meta"
