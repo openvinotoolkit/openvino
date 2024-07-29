@@ -55,6 +55,7 @@ OP_CONVERTER(translate_cdist);
 OP_CONVERTER(translate_celu);
 OP_CONVERTER(translate_channel_shuffle);
 OP_CONVERTER(translate_clamp);
+OP_CONVERTER(translate_col2im);
 OP_CONVERTER(translate_constant);
 OP_CONVERTER(translate_conv_transposend);
 OP_CONVERTER(translate_conv1d_ext);
@@ -408,6 +409,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::clip", op::translate_clamp},
         {"aten::clip_", op::inplace_op<op::translate_clamp>},
         {"aten::clone", op::skip_node},  // ignore clone operators that are inserted by PyTorch autograd
+        {"aten::col2im", op::translate_col2im},
         // aten::complex - Supported in limited set of patterns
         {"aten::concat", op::translate_cat},
         {"aten::contiguous", op::skip_node},  // In openvino how tensors are stored in memory is internal plugin detail,
@@ -763,7 +765,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten._scaled_dot_product_flash_attention_for_cpu.default", op::translate_scaled_dot_product_attention_fx},
         {"aten._softmax.default", op::translate_softmax_fx},
         {"aten._to_copy.default", op::translate_to_fx},
-        {"aten._unsafe_view.default", op::translate_reshape},
+        {"aten._unsafe_view.default", op::translate_reshape_fx},
         {"aten.abs.default", op::translate_1to1_match_1_inputs<opset10::Abs>},
         {"aten.acos.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Acos>},
         {"aten.acosh.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Acosh>},
@@ -968,6 +970,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.topk.default", op::translate_topk_fx},
         {"aten.transpose.int", op::translate_transpose},
         {"aten.tril.default", op::translate_tril},
+        {"aten.triu.default", op::translate_triu},
         {"aten.unbind.int", op::translate_unbind_int_fx},
         {"aten.unfold.default", op::translate_unfold},
         {"aten.unsqueeze.default", op::translate_1to1_match_2_inputs<opset10::Unsqueeze>},

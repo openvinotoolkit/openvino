@@ -49,9 +49,8 @@ struct convolution : public primitive_base<convolution> {
                 ov::CoordinateDiff padding_end,
                 bool grouped_weights_shape,
                 data_types output_data_type,
-                const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT,
-                const padding& output_padding = padding())
-            : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_data_type}}),
+                const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT)
+            : primitive_base(id, {input}, 1, {optional_data_type{output_data_type}}),
               groups(groups),
               stride(stride),
               dilation(dilation),
@@ -92,9 +91,8 @@ struct convolution : public primitive_base<convolution> {
                 ov::CoordinateDiff padding_begin,
                 ov::CoordinateDiff padding_end,
                 bool grouped_weights_shape,
-                const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT,
-                const padding& output_padding = padding())
-        : primitive_base(id, {input}, {output_padding}),
+                const ov::op::PadType& auto_pad = ov::op::PadType::EXPLICIT)
+        : primitive_base(id, {input}),
           groups(groups),
           stride(stride),
           dilation(dilation),
@@ -139,9 +137,8 @@ struct convolution : public primitive_base<convolution> {
                 ov::Strides dilation,
                 ov::CoordinateDiff padding_begin,
                 ov::CoordinateDiff padding_end,
-                bool bilinear_interpolation_pad = false,
-                const padding& output_padding = padding())
-    : primitive_base(id, inputs, {output_padding}),
+                bool bilinear_interpolation_pad = false)
+    : primitive_base(id, inputs),
       groups(groups),
       stride(stride),
       dilation(dilation),

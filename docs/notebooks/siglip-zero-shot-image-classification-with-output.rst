@@ -90,9 +90,9 @@ tokenizer and preparing the images.
 .. code:: ipython3
 
     import platform
-    
+
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "gradio>=4.19" "openvino>=2023.3.0" "transformers>=4.37" "torch>=2.1" Pillow sentencepiece protobuf scipy datasets nncf
-    
+
     if platform.system() != "Windows":
         %pip install -q "matplotlib>=3.4"
     else:
@@ -108,20 +108,20 @@ tokenizer and preparing the images.
 .. code:: ipython3
 
     from transformers import AutoProcessor, AutoModel
-    
+
     model = AutoModel.from_pretrained("google/siglip-base-patch16-224")
     processor = AutoProcessor.from_pretrained("google/siglip-base-patch16-224")
 
 
 .. parsed-literal::
 
-    2024-07-02 02:30:45.282959: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-07-02 02:30:45.316731: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-07-13 02:43:57.477894: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-07-13 02:43:57.512131: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-07-02 02:30:45.945105: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+    2024-07-13 02:43:58.111651: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
       warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/huggingface_hub/file_download.py:1132: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
       warnings.warn(
 
 
@@ -147,8 +147,8 @@ similarity score for the final result.
     import matplotlib.pyplot as plt
     import numpy as np
     from PIL import Image
-    
-    
+
+
     def visualize_result(image: Image, labels: List[str], probs: np.ndarray, top: int = 5):
         """
         Utility function for visualization classification results
@@ -166,7 +166,7 @@ similarity score for the final result.
         plt.subplot(8, 8, 1)
         plt.imshow(image)
         plt.axis("off")
-    
+
         plt.subplot(8, 8, 2)
         y = np.arange(top_probs.shape[-1])
         plt.grid()
@@ -175,7 +175,7 @@ similarity score for the final result.
         plt.gca().set_axisbelow(True)
         plt.yticks(y, [labels[index] for index in top_labels])
         plt.xlabel("probability")
-    
+
         print([{labels[x]: round(y, 2)} for x, y in zip(top_labels, top_probs)])
 
 .. code:: ipython3
@@ -184,16 +184,16 @@ similarity score for the final result.
     from pathlib import Path
     import torch
     from PIL import Image
-    
+
     image_path = Path("test_image.jpg")
     r = requests.get(
         "https://storage.openvinotoolkit.org/repositories/openvino_notebooks/data/data/image/coco.jpg",
     )
-    
+
     with image_path.open("wb") as f:
         f.write(r.content)
     image = Image.open(image_path)
-    
+
     input_labels = [
         "cat",
         "dog",
@@ -207,15 +207,15 @@ similarity score for the final result.
         "computer",
     ]
     text_descriptions = [f"This is a photo of a {label}" for label in input_labels]
-    
+
     inputs = processor(text=text_descriptions, images=[image], padding="max_length", return_tensors="pt")
-    
+
     with torch.no_grad():
         model.config.torchscript = False
         results = model(**inputs)
-    
+
     logits_per_image = results["logits_per_image"]  # this is the image-text similarity score
-    
+
     probs = logits_per_image.softmax(dim=1).detach().numpy()
     visualize_result(image, input_labels, probs[0])
 
@@ -245,7 +245,7 @@ object ready to load on the device and start making predictions.
 .. code:: ipython3
 
     import openvino as ov
-    
+
     model.config.torchscript = True
     ov_model = ov.convert_model(model, example_input=dict(inputs))
 
@@ -258,12 +258,17 @@ object ready to load on the device and start making predictions.
 .. parsed-literal::
 
     [ WARNING ]  Please fix your imports. Module %s has been moved to %s. The old module will be deleted in version %s.
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4371: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/modeling_utils.py:4371: FutureWarning: `_is_quantized_training_enabled` is going to be deprecated in transformers 4.39.0. Please use `model.hf_quantizer.is_trainable` instead
       warnings.warn(
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/siglip/modeling_siglip.py:354: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/siglip/modeling_siglip.py:354: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attn_weights.size() != (batch_size, self.num_heads, q_len, k_v_seq_len):
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/siglip/modeling_siglip.py:372: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/transformers/models/siglip/modeling_siglip.py:372: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if attn_output.size() != (batch_size, self.num_heads, q_len, self.head_dim):
+
+
+.. parsed-literal::
+
+    ['input_ids', 'pixel_values']
 
 
 Run OpenVINO model
@@ -280,16 +285,16 @@ Select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -306,7 +311,7 @@ Run OpenVINO model
 .. code:: ipython3
 
     from scipy.special import softmax
-    
+
     # compile model for loading on device
     compiled_ov_model = core.compile_model(ov_model, device.value)
     # obtain output tensor for getting predictions
@@ -364,10 +369,10 @@ model.
     from io import BytesIO
     from PIL import Image
     from requests.packages.urllib3.exceptions import InsecureRequestWarning
-    
+
     requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-    
-    
+
+
     def check_text_data(data):
         """
         Check if the given data is text-based.
@@ -377,8 +382,8 @@ model.
         if isinstance(data, list):
             return all(isinstance(x, str) for x in data)
         return False
-    
-    
+
+
     def get_pil_from_url(url):
         """
         Downloads and converts an image from a URL to a PIL Image object.
@@ -386,8 +391,8 @@ model.
         response = requests.get(url, verify=False, timeout=20)
         image = Image.open(BytesIO(response.content))
         return image.convert("RGB")
-    
-    
+
+
     def collate_fn(example, image_column="image_url", text_column="caption"):
         """
         Preprocesses an example by loading and transforming image and text data.
@@ -398,10 +403,10 @@ model.
         """
         assert len(example) == 1
         example = example[0]
-    
+
         if not check_text_data(example[text_column]):
             raise ValueError("Text data is not valid")
-    
+
         url = example[image_column]
         try:
             image = get_pil_from_url(url)
@@ -410,7 +415,7 @@ model.
                 return None
         except Exception:
             return None
-    
+
         inputs = processor(
             text=example[text_column],
             images=[image],
@@ -426,8 +431,8 @@ model.
     import torch
     from datasets import load_dataset
     from tqdm.notebook import tqdm
-    
-    
+
+
     def prepare_calibration_data(dataloader, init_steps):
         """
         This function prepares calibration data from a dataloader for a specified number of initialization steps.
@@ -449,8 +454,8 @@ model.
                         }
                     )
         return data
-    
-    
+
+
     def prepare_dataset(opt_init_steps=300, max_train_samples=1000):
         """
         Prepares a vision-text dataset for quantization.
@@ -491,12 +496,12 @@ Create a quantized model from the pre-trained ``FP16`` model.
 
     import nncf
     import logging
-    
+
     nncf.set_log_level(logging.ERROR)
-    
+
     if len(calibration_data) == 0:
         raise RuntimeError("Calibration dataset is empty. Please check internet connection and try to download images manually.")
-    
+
     calibration_dataset = nncf.Dataset(calibration_data)
     quantized_ov_model = nncf.quantize(
         model=ov_model,
@@ -610,8 +615,8 @@ model are similar to the PyTorch model.
 .. code:: ipython3
 
     from scipy.special import softmax
-    
-    
+
+
     input_labels = [
         "cat",
         "dog",
@@ -625,10 +630,10 @@ model are similar to the PyTorch model.
         "computer",
     ]
     text_descriptions = [f"This is a photo of a {label}" for label in input_labels]
-    
+
     inputs = processor(text=text_descriptions, images=[image], return_tensors="pt", padding="max_length")
     compiled_int8_ov_model = ov.compile_model(quantized_ov_model, device.value)
-    
+
     logits_per_image_out = compiled_int8_ov_model.output(0)
     ov_logits_per_image = compiled_int8_ov_model(dict(inputs))[logits_per_image_out]
     probs = softmax(ov_logits_per_image, axis=1)
@@ -652,13 +657,13 @@ Compare File Size
 .. code:: ipython3
 
     from pathlib import Path
-    
+
     fp16_model_path = "siglip-base-patch16-224.xml"
     ov.save_model(ov_model, fp16_model_path)
-    
+
     int8_model_path = "siglip-base-patch16-224_int8.xml"
     ov.save_model(quantized_ov_model, int8_model_path)
-    
+
     fp16_ir_model_size = Path(fp16_model_path).with_suffix(".bin").stat().st_size / 1024 / 1024
     quantized_model_size = Path(int8_model_path).with_suffix(".bin").stat().st_size / 1024 / 1024
     print(f"FP16 IR model size: {fp16_ir_model_size:.2f} MB")
@@ -689,8 +694,8 @@ approximately estimate the speed up of the dynamic quantized models.
 .. code:: ipython3
 
     import time
-    
-    
+
+
     def calculate_inference_time(model_path, calibration_data):
         model = ov.compile_model(model_path, device.value)
         output_layer = model.output(0)
@@ -712,7 +717,7 @@ approximately estimate the speed up of the dynamic quantized models.
 
 .. parsed-literal::
 
-    Performance speed up: 2.093
+    Performance speed up: 2.088
 
 
 Interactive inference
@@ -728,8 +733,8 @@ field, using comma as the separator (for example, ``cat,dog,bird``)
 .. code:: ipython3
 
     import gradio as gr
-    
-    
+
+
     def classify(image, text):
         """Classify image using classes listing.
         Args:
@@ -748,10 +753,10 @@ field, using comma as the separator (for example, ``cat,dog,bird``)
         )
         ov_logits_per_image = compiled_int8_ov_model(dict(inputs))[logits_per_image_out]
         probs = softmax(ov_logits_per_image[0])
-    
+
         return {label: float(prob) for label, prob in zip(labels, probs)}
-    
-    
+
+
     demo = gr.Interface(
         classify,
         [
@@ -773,7 +778,7 @@ field, using comma as the separator (for example, ``cat,dog,bird``)
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 

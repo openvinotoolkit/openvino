@@ -45,10 +45,9 @@ struct fully_connected : public primitive_base<fully_connected> {
                     const input_info& input,
                     const primitive_id& weights,
                     const primitive_id& bias = "",
-                    const padding& output_padding = padding(),
                     const size_t input_size = 2,
                     const size_t weights_rank = 2)
-        : primitive_base(id, {input}, {output_padding}),
+        : primitive_base(id, {input}),
           weights(weights),
           bias(bias),
           input_size(input_size),
@@ -65,10 +64,9 @@ struct fully_connected : public primitive_base<fully_connected> {
                     const primitive_id& weights,
                     const primitive_id& bias,
                     const data_types data_type,
-                    const padding& output_padding = padding(),
                     const size_t input_size = 2,
                     const size_t weights_rank = 2)
-        : primitive_base(id, { input }, {output_padding}, {optional_data_type{data_type}}),
+        : primitive_base(id, { input }, 1, {optional_data_type{data_type}}),
           weights(weights),
           bias(bias),
           input_size(input_size),
@@ -89,10 +87,9 @@ struct fully_connected : public primitive_base<fully_connected> {
                     const primitive_id& decompression_scale,
                     const primitive_id& decompression_zero_point,
                     const data_types data_type,
-                    const padding& output_padding = padding(),
                     const size_t input_size = 2,
                     const size_t weights_rank = 2)
-        : primitive_base(id, { input }, {output_padding}, {optional_data_type{data_type}}),
+        : primitive_base(id, { input }, 1, {optional_data_type{data_type}}),
           weights(weights),
           bias(bias),
           compressed_weights(true),
@@ -158,7 +155,8 @@ struct fully_connected : public primitive_base<fully_connected> {
 
         if (decompression_zero_point_scalar.has_value()) {
             ob << true;
-            ob << make_data(&decompression_zero_point_scalar.value(), sizeof(float));
+            float decompression_zero_point_value = decompression_zero_point_scalar.value();
+            ob << decompression_zero_point_value;
         } else {
             ob << false;
         }
@@ -178,7 +176,7 @@ struct fully_connected : public primitive_base<fully_connected> {
         ib >> has_value;
         if (has_value) {
             float decompression_zero_point_value = 0.f;
-            ib >> make_data(&decompression_zero_point_value, sizeof(float));
+            ib >> decompression_zero_point_value;
             decompression_zero_point_scalar = decompression_zero_point_value;
         } else {
             decompression_zero_point_scalar = optional_value<float>();

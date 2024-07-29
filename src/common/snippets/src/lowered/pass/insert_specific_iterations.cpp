@@ -9,7 +9,7 @@
 #include "snippets/lowered/specific_loop_iter_types.hpp"
 #include "snippets/op/memory_access.hpp"
 #include "snippets/op/buffer.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "snippets/itt.hpp"
 
 #include <array>
@@ -167,6 +167,7 @@ bool InsertSpecificIterations::decompose(LinearIR& linear_ir, LinearIR::constExp
         if (is_decomposed_loop_needed(unified_loop_info, iter_type, remaining_work_amount)) {
             const auto work_amount = get_decomposed_loop_work_amount(unified_loop_info, iter_type, remaining_work_amount);
             const auto increment = get_decomposed_loop_increment(unified_loop_info, iter_type, remaining_work_amount);
+            const auto evaluate_once = !utils::is_dynamic_value(work_amount) && work_amount == increment;
             // Update remaining Loop work amount
             // Note: if work_amount is unknown and increment = 1, it means that a loop will iterate by whole work_amount
             if (!is_wa_dynamic || increment == 1) {
@@ -199,7 +200,7 @@ bool InsertSpecificIterations::decompose(LinearIR& linear_ir, LinearIR::constExp
             const auto decomposed_loop_info = std::make_shared<ExpandedLoopInfo>(work_amount, increment,
                                                                                  decomposed_loop_entry_ports, decomposed_loop_exit_ports,
                                                                                  decomposed_ptr_increments, decomposed_finalization_offsets,
-                                                                                 decomposed_data_sizes, iter_type, unified_loop_info);
+                                                                                 decomposed_data_sizes, iter_type, unified_loop_info, false, evaluate_once);
             init_decomposed_loop(linear_ir, decomposed_loop_begin_it, decomposed_loop_end_it, decomposed_loop_info, loop_id, decomposed_loop_end);
 
             decomposed = true;

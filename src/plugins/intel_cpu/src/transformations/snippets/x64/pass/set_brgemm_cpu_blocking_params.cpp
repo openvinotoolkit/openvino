@@ -6,7 +6,7 @@
 
 #include "set_brgemm_cpu_blocking_params.hpp"
 
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 
@@ -60,7 +60,7 @@ pass::SetBrgemmCPUBlockingParams::SetBrgemmCPUBlockingParams() {
         const auto k_blk = get_block_size_k(K);
         const auto n_blk = get_block_size_n(N);
 
-        if (brgemm->is_with_data_repacking()) {
+        if (with_repacking(brgemm->get_type())) {
             const auto brgemm_copy_b = brgemm->get_brgemm_copy();
             const auto brgemmVNNIFactor = brgemm_copy_b->get_brgemm_vnni_factor();
             OPENVINO_ASSERT(K.is_dynamic() || k_blk == static_cast<size_t>(K.get_length()) || k_blk % brgemmVNNIFactor == 0,

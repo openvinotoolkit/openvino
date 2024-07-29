@@ -9,6 +9,8 @@
 #include "intel_npu/al/config/config.hpp"
 #include "intel_npu/al/icompiled_model.hpp"
 #include "intel_npu/al/icompiler.hpp"
+#include "openvino/runtime/intel_npu/remote_properties.hpp"
+#include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "sync_infer_request.hpp"
 
@@ -35,8 +37,12 @@ public:
     virtual const std::string getName() const = 0;
     /** @brief Backend has support for concurrency batching */
     virtual bool isBatchingSupported() const = 0;
+    /** @brief Backend has support for workload type */
+    virtual bool isWorkloadTypeSupported() const = 0;
     /** @brief Register backend-specific options */
     virtual void registerOptions(OptionsDesc& options) const;
+    /** @brief Get Level Zero context*/
+    virtual void* getContext() const;
 
 protected:
     virtual ~IEngineBackend() = default;
@@ -47,6 +53,8 @@ protected:
 class IExecutor {
 public:
     virtual ~IExecutor() = default;
+
+    virtual void setWorkloadType(const ov::WorkloadType workloadType) const = 0;
 };
 
 //------------------------------------------------------------------------------
@@ -74,6 +82,20 @@ public:
         const std::shared_ptr<const ICompiledModel>& compiledModel,
         const std::shared_ptr<IExecutor>& executor,
         const Config& config) = 0;
+
+    virtual ov::SoPtr<ov::IRemoteTensor> createRemoteTensor(
+        std::shared_ptr<ov::IRemoteContext> context,
+        const ov::element::Type& element_type,
+        const ov::Shape& shape,
+        const Config& config,
+        ov::intel_npu::TensorType tensor_type = ov::intel_npu::TensorType::BINDED,
+        ov::intel_npu::MemType mem_type = ov::intel_npu::MemType::L0_INTERNAL_BUF,
+        void* mem = nullptr);
+
+    virtual ov::SoPtr<ov::ITensor> createHostTensor(std::shared_ptr<ov::IRemoteContext> context,
+                                                    const ov::element::Type& element_type,
+                                                    const ov::Shape& shape,
+                                                    const Config& config);
 
 protected:
     virtual ~IDevice() = default;
