@@ -11,6 +11,25 @@
 namespace ov {
 namespace op {
 namespace v15 {
+
+namespace {
+template <class TDim, class TDiv>
+TDim floor_div(const TDim& dim, const TDiv& divisor) {
+    OPENVINO_ASSERT(divisor > 0, "Divisor must be greater than 0");
+    if (divisor == 1) {
+        return dim;
+    }
+    if (dim.get_max_length() == -1 && dim.get_min_length() == 0) {
+        return Dimension::dynamic();
+    }
+    const auto& lower_bound =
+        static_cast<int64_t>(floor(static_cast<double>(dim.get_interval().get_min_val()) / divisor));
+    const auto& upper_bound =
+        static_cast<int64_t>(floor(static_cast<double>(dim.get_interval().get_max_val()) / divisor));
+    return TDim(lower_bound, upper_bound);
+}
+}  // namespace
+
 template <class TShape, class TRShape = result_shape_t<TShape>>
 std::vector<TRShape> shape_infer(const STFT* op,
                                  const std::vector<TShape>& input_shapes,
@@ -76,10 +95,10 @@ std::vector<TRShape> shape_infer(const STFT* op,
     const TDim signal_frame_size_diff = signal_shape[1] - frame_size_dim;
     const TDim fft_samples_dim = (frame_size_val / 2) + 1;
 
-    // Divsion opeartor for static Dimension of PartialShape can return non static dimension,
-    // so get_length() is used to ensure static result for such case
+    // Divsion opeartor for static Dimension of PartialShape can return non static dimension and ceil instead of floor
+    // for lower bound, so get_length() is used to ensure static result
     const TDim frames_dim = (signal_frame_size_diff.is_static() ? (signal_frame_size_diff.get_length() / frame_step_val)
-                                                                : (signal_frame_size_diff / frame_step_val)) +
+                                                                : floor_div(signal_frame_size_diff, frame_step_val)) +
                             1;
 
     TRShape output_shape;
