@@ -64,40 +64,12 @@ public:
     ze_device_handle_t device() { return pDevice; }
 
     int initZe(int devIdx);
-    // template <typename T>
     void* createBuffer(size_t elem_count, int offset);
     void readBuffer(std::vector<uint32_t> &hostDst, void *devSrc, size_t size);
-    // template <typename T>
-    // void readBuffer(std::vector<T> &hostDst, void *devSrc, size_t size) {
-    //     ze_result_t result;
-    //     result = zeCommandListAppendMemoryCopy(command_list, hostDst.data(), devSrc, size, nullptr, 0, nullptr);
-    //     CHECK_ZE_STATUS(result, "zeCommandListAppendMemoryCopy");
-    //     result = zeCommandListClose(command_list);
-    //     CHECK_ZE_STATUS(result, "zeCommandListClose");
-    //     result = zeCommandQueueExecuteCommandLists(command_queue, 1, &command_list, nullptr);
-    //     CHECK_ZE_STATUS(result, "zeCommandQueueExecuteCommandLists");
-    //     result = zeCommandQueueSynchronize(command_queue, UINT64_MAX);
-    //     CHECK_ZE_STATUS(result, "zeCommandQueueSynchronize");
-    //     result = zeCommandListReset(command_list);
-    //     CHECK_ZE_STATUS(result, "zeCommandListReset");
-    // }
 
-    // void readBuffer(std::vector<uint32_t> &hostDst, void *devSrc, size_t size);
     void writeBuffer(std::vector<uint32_t> hostSrc, void *devDst, size_t size);
-    void runKernel(const char *spvFile, const char *funcName, void *remoteBuf, void *devBuf, size_t elemCount);
+    void runKernel(const char *spvFile, const char *funcName, void *remoteBuf, void *devBuf, size_t elemCount,
+        int srcOffsetX, int srcOffsetY, int strideX, int strideY, int width);
     void *createFromHandle(uint64_t handle, size_t bufSize);
     void printBuffer(void* ptr, size_t count = 16);
-    // void printBuffer(void* ptr, std::vector<T>& outBuf, size_t count = 16);
-    // template <typename T>
-    // void printBuffer(void *ptr, std::vector<T>& outBuf, size_t count = 16) {
-    //     readBuffer(outBuf, ptr, count*sizeof(T));
-    //     printf("The first %ld elements in level-zero ptr = %p are: \n", count, ptr);
-    //     for (size_t i = 0; i < count; i++) {
-    //         // printf("%d, ", outBuf[i]);
-    //         std::cout << "[" << outBuf[i] << "] ";
-    //         if (i && i % 16 == 0)
-    //             printf("\n");
-    //     }
-    //     printf("\n");
-    // }
 };

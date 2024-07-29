@@ -313,7 +313,8 @@ int lzContext::initKernel() {
     return 0;
 }
 
-void lzContext::runKernel(const char *spvFile, const char *funcName, void *remoteBuf, void *devBuf, size_t elemCount) {
+void lzContext::runKernel(const char *spvFile, const char *funcName, void *remoteBuf, void *devBuf, size_t elemCount,
+    int srcOffsetX, int srcOffsetY, int strideX, int strideY, int width) {
     ze_result_t result;
 
     kernelSpvFile = spvFile;
@@ -326,6 +327,9 @@ void lzContext::runKernel(const char *spvFile, const char *funcName, void *remot
     CHECK_ZE_STATUS(result, "zeKernelSetArgumentValue");
 
     result = zeKernelSetArgumentValue(function, 1, sizeof(remoteBuf), &remoteBuf);
+    CHECK_ZE_STATUS(result, "zeKernelSetArgumentValue");
+
+    result = zeKernelSetArgumentValue(function, 2, sizeof(int), &width);
     CHECK_ZE_STATUS(result, "zeKernelSetArgumentValue");
 
     ze_group_count_t groupCount = {static_cast<uint32_t>(elemCount), 1, 1};

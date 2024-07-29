@@ -187,7 +187,13 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
 
                     // copy from remote level_zero buff
                     std::cout << "[-->] sync_tensor_impl w_rank: " << w_rank << ", runKernel " << std::endl;
-                    lzctx.runKernel("./test_kernel_dg2.spv", "local_read_from_remote", remote_send_buf, local_buff, elemCount);
+                    int srcOffsetX = 0;
+                    int srcOffsetY = 0;
+                    int strideX = 0;
+                    int strideY = 0;
+                    int groud_width = 256;
+                    lzctx.runKernel("./test_kernel_dg2.spv", "local_read_from_remote", remote_send_buf, local_buff, elemCount,
+                        srcOffsetX, srcOffsetY, strideX, strideY, groud_width);
 
                     printf("[sync_tensor_impl:%d] after runKernel lzctx.printBuffer local_buff \n", w_rank);
                     lzctx.printBuffer(local_buff);
