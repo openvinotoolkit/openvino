@@ -986,17 +986,16 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             auto can_swap_parents = [&]() -> bool {
                 // Swap in below two cases
-                //     1. Peer node has fp32 output type, but fused node - int8.
+                //     1. Both branches have same data type. Select branch with lower processing number.
+                //     2. Peer node has fp32 output type, but fused node - int8.
                 //         - In that case we have to fuse to the branch with fp32 out type to avoid fp32 blobs in the quantized graph.
-                //     2. Both branches have same data type. Select branch with lower processing number
+                //
                 if (can_fuse_parents[peer_idx]) {
                     auto p1_pnum = p.get_processing_order().get_processing_number(parents[fused_idx].first);
                     auto p2_pnum = p.get_processing_order().get_processing_number(parents[peer_idx].first);
                     auto p1_dt = parents[fused_idx].first->get_output_layout().data_type;
                     auto p2_dt = parents[peer_idx].first->get_output_layout().data_type;
-                    if (data_type_traits::is_floating_point(p2_dt) && !data_type_traits::is_floating_point(p1_dt)) {
-                        return true;
-                    } else if (p1_pnum < p2_pnum && p1_dt == p2_dt) {
+                    if (p1_pnum < p2_pnum && p1_dt == p2_dt) {
                         // Notice:
                         //     - If current node has two parent nodes and one of the parent nodes is what has been fused with some nodes,
                         //       and which is not the last one of the fused primitives, the current node should be fused to that node.
@@ -1029,6 +1028,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                 }
                             }
                         }
+                        return true;
+                    } else if (data_type_traits::is_floating_point(p2_dt) && !data_type_traits::is_floating_point(p1_dt)) {
                         return true;
                     }
                 }
