@@ -90,11 +90,11 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
                              });
             }
         } else {
-            if(op->get_pytorch_dynamic_rank()){
+            if (op->get_pytorch_dynamic_rank()) {
                 int i{};
                 if (std::any_of(arg_shape.cbegin(), arg_shape.cend(), [&](const DimType& d) {
                         ++i;
-                        return d.is_dynamic() && d.compatible(1) && unique_axes->find(i-1) != unique_axes->end();
+                        return d.is_dynamic() && d.compatible(1) && unique_axes->find(i - 1) != unique_axes->end();
                     })) {
                     // we are unsure if dynamic dimensions would be equal to 1 or not, so we set dynamic output rank
                     output_shape = PartialShape::dynamic();

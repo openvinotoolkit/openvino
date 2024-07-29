@@ -26,7 +26,9 @@ bool axes_has_and_set_bound(const Node& op) {
 
 Squeeze::Squeeze() : Op() {}
 
-Squeeze::Squeeze(const Output<Node>& data, const Output<Node>& axes, const bool torch) : Op({data, axes}), m_pytorch_dynamic_rank{torch} {
+Squeeze::Squeeze(const Output<Node>& data, const Output<Node>& axes, const bool torch)
+    : Op({data, axes}),
+      m_pytorch_dynamic_rank{torch} {
     constructor_validate_and_infer_types();
 }
 

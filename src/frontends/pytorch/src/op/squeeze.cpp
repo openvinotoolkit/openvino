@@ -20,7 +20,7 @@ OutputVector translate_squeeze(const NodeContext& context) {
     if (context.input_is_none(1)) {
         return {context.mark_node(std::make_shared<v0::Squeeze>(x))};
     }
-    return {context.mark_node(std::make_shared<v0::Squeeze>(x, context.get_input(1)))};
+    return {context.mark_node(std::make_shared<v0::Squeeze>(x, context.get_input(1), true))};
 };
 
 }  // namespace op
