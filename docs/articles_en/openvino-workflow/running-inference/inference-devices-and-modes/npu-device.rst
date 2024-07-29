@@ -6,6 +6,13 @@ NPU Device
                  a low-power processing device dedicated to running AI inference.
 
 
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   npu-device/remote-tensor-api-npu-plugin
+
+
 The Neural Processing Unit is a low-power hardware solution, introduced with the
 Intel® Core™ Ultra generation of CPUs (formerly known as Meteor Lake). It enables
 you to offload certain neural network computation tasks from other devices,
