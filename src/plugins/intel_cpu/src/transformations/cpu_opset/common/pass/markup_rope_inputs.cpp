@@ -28,6 +28,7 @@ ov::intel_cpu::MarkUpRopeInputs::MarkUpRopeInputs() {
         auto cos_input_node = pattern_map.at(cos_tab).get_node_shared_ptr();
         auto sin_input_node = pattern_map.at(sin_tab).get_node_shared_ptr();
         auto bfs_markup = [&](std::shared_ptr<ov::Node>& input) {
+            std::deque<std::shared_ptr<ov::Node>> nodes;
             nodes.push_back(input);
             while (!nodes.empty()) {
                 auto curr_node = nodes.front();
