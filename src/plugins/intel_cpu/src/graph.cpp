@@ -775,8 +775,8 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
             int e_start = edge->getParent()->execIndex;
             int e_finish = edge->getChild()->execIndex;
 
-            if (boxSize != -1 && edge->getDesc().isDefined()) {
-                int64_t e_size = edge->getDesc().getCurrentMemSize();  // size in bytes (from the beginning of data to the last element)
+            if (boxSize != -1 && edge->getDesc().hasDefinedMaxSize()) {
+                int64_t e_size = edge->getDesc().getMaxMemSize();  // size in bytes (from the beginning of data to the last element)
                 boxSize = std::max(e_size, boxSize);
             } else {
                 boxSize = -1;
