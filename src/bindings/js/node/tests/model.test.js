@@ -111,8 +111,7 @@ describe('Model.getOutputSize()', () => {
   it('should return 1 for the default model', () => {
     assert.strictEqual(model.getOutputSize(), 1, 'Expected getOutputSize to return 1 for the default model');
   });
-});
-
+  
 describe('Node.js Model.getOps()', () => {
   it('should return array of Node operations', () => {
     const result = model.getOps();
