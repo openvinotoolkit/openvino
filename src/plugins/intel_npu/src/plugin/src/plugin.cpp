@@ -221,15 +221,6 @@ Plugin::Plugin()
     // parse again env_variables after backend is initialized to get backend proprieties
     _globalConfig.parseEnvVars();
 
-    // initialize properties which have device-tied default values in global config
-    // *only if there is a driver available
-    if (_metrics->GetAvailableDevicesNames().size() > 0) {
-        _globalConfig.update({{ov::intel_npu::stepping.name(),
-                               std::to_string(_metrics->GetSteppingNumber(get_specified_device_name(_globalConfig)))}});
-        _globalConfig.update({{ov::intel_npu::max_tiles.name(),
-                               std::to_string(_metrics->GetMaxTiles(get_specified_device_name(_globalConfig)))}});
-    }
-
     // Map from name to function {Config -> ov::Any}
     // Note that some properties are RW before network is loaded, and become RO after network is loaded
     _properties = {
@@ -472,14 +463,24 @@ Plugin::Plugin()
         {ov::intel_npu::stepping.name(),
          {false,
           ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<STEPPING>();
+          [&](const Config& config) {
+              if (!config.has<STEPPING>()) {
+                const auto specifiedDeviceName = get_specified_device_name(config);
+                return static_cast<int64_t>(_metrics->GetSteppingNumber(specifiedDeviceName));
+              } else {
+                return config.get<STEPPING>();
+              }
           }}},
         {ov::intel_npu::max_tiles.name(),
          {false,
           ov::PropertyMutability::RW,
-          [](const Config& config) {
-              return config.get<MAX_TILES>();
+          [&](const Config& config) {
+              if (!config.has<MAX_TILES>()) {
+                const auto specifiedDeviceName = get_specified_device_name(config);
+                return static_cast<int64_t>(_metrics->GetMaxTiles(specifiedDeviceName));
+              } else {
+                return config.get<MAX_TILES>();
+              }
           }}},
         {ov::intel_npu::compilation_mode.name(),
          {false,
@@ -632,7 +633,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // Update stepping w/ information from driver, unless provided by user or we are off-device
     // Ignore, if compilation was requested for platform, different from current
     if (!localConfig.has<STEPPING>() && device != nullptr &&
-        device->getName() == ov::intel_npu::Platform::standardize(platform)) {
+        device->getName() == ov::intel_npu::Platform::standardize(platform) &&
+        _metrics->GetBackendName() == "level_zero") {
         try {
             localConfig.update({{ov::intel_npu::stepping.name(), std::to_string(device->getSubDevId())}});
         } catch (...) {
@@ -643,7 +645,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // Update max_tiles w/ information from driver, unless provided by user or we are off-device
     // Ignore, if compilation was requested for platform, different from current
     if (!localConfig.has<MAX_TILES>() && device != nullptr &&
-        device->getName() == ov::intel_npu::Platform::standardize(platform)) {
+        device->getName() == ov::intel_npu::Platform::standardize(platform) &&
+        _metrics->GetBackendName() == "level_zero") {
         try {
             localConfig.update({{ov::intel_npu::max_tiles.name(), std::to_string(device->getMaxNumSlices())}});
         } catch (...) {

@@ -1255,7 +1255,7 @@ public:
         }
     }
 
-    void test_compressed_int4_scale_dyn_quan(bool is_caching_test, bool is_dynamic, int batch = 1) {
+    void test_compressed_int4_scale_dyn_quan(bool is_caching_test, bool is_dynamic, int batch = 1, bool is_wei_dyn = false) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
 
@@ -1285,6 +1285,11 @@ public:
         auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, -4.0f, 4.0f);
         set_values(scale_mem, scale_data);
 
+        if (is_wei_dyn) {
+            // ifm_num is dynamic
+            dyn_input_ps = is_3d ?  ov::PartialShape{ -1, -1, -1 } : ov::PartialShape{ -1, -1};
+        }
+
         auto in_layout = is_dynamic ? layout{ dyn_input_ps, data_types::f16, format::bfyx }
                                     : layout{ input_ps, data_types::f16, format::bfyx };
 
@@ -1302,7 +1307,8 @@ public:
 
             auto config = get_test_default_config(engine);
             config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-            config.set_property(ov::intel_gpu::optimize_data(true));
+            ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl };
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl_desc} }));
 
             network network(engine, topology, config);
             network.set_input_data("input", input_mem);
@@ -1365,13 +1371,13 @@ public:
     }
 
 
-    void test_compressed_int4_scale(bool is_caching_test, bool is_dynamic, long int batch_num, long int scales_group_size = 128) {
+    void test_compressed_int4_scale(bool is_caching_test, bool is_dynamic, long int batch_num, long int scales_group_size = 128, bool is_wei_dyn = false) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
         auto supports_immad = engine.get_device_info().supports_immad;
 
         long int ifm_num = 256;
-        long int ofm_num = 256;
+        long int ofm_num = 512;
 
         auto input_mem = engine.allocate_memory({ { batch_num, ifm_num}, data_types::f16, format::bfyx });
         auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u4, format::bfyx });
@@ -1392,6 +1398,11 @@ public:
         auto in_layout = is_dynamic ? layout{ {-1, ifm_num}, data_types::f16, format::bfyx }
                                     : layout{ {batch_num, ifm_num}, data_types::f16, format::bfyx };
 
+        if (is_dynamic && is_wei_dyn) {
+            // ifm_num is dynamic
+            in_layout = layout{ {-1, -1}, data_types::f16, format::bfyx };
+        }
+
         auto dcomp_zp_name = supports_immad ? "dcomp_zp" : "";
 
         auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", dcomp_zp_name, data_types::f16, 2, 2);
@@ -1409,6 +1420,8 @@ public:
 
             auto config = get_test_default_config(engine);
             config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+            ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl };
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl_desc} }));
 
             network network(engine, topology, config);
             network.set_input_data("input", input_mem);
@@ -1459,6 +1472,66 @@ public:
 
         for (size_t i = 0; i < output_ptr_ref.size(); i++)
             ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], 9.0) << "i = " << i;
+    }
+
+    void test_compressed_int4_accumulation(bool is_caching_test, bool is_dynamic, long int batch_num) {
+        auto& engine = get_test_engine();
+
+        long int ifm_num = 4096;
+        long int ofm_num = 4;
+
+        auto input_mem      = engine.allocate_memory({ { batch_num, ifm_num}, data_types::f16, format::bfyx });
+        auto weights_mem    = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u4, format::bfyx });
+        auto scale_mem      = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::f16, format::bfyx });
+
+        auto input_data = std::vector<ov::float16>(input_mem->count());
+        std::fill(input_data.begin(), input_data.end(), 1);
+        set_values(input_mem, input_data);
+
+        auto weigths_data = std::vector<uint8_t>(weights_mem->count() / 2);
+        std::fill(weigths_data.begin(), weigths_data.end(), 0x11);
+        set_values(weights_mem, weigths_data);
+
+        auto scale_data = std::vector<ov::float16>(scale_mem->count());
+        std::fill(scale_data.begin(), scale_data.end(), 1);
+        set_values(scale_mem, scale_data);
+
+        auto in_layout = is_dynamic ? layout{ {-1, ifm_num}, data_types::f16, format::bfyx }
+                                    : layout{ {batch_num, ifm_num}, data_types::f16, format::bfyx };
+        primitive_id empty_id = "";
+
+        auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", empty_id, "scale", empty_id, data_types::f16);
+
+        topology topology(
+            input_layout("input", in_layout),
+            data("weights", weights_mem),
+            data("scale", scale_mem),
+            fc_prim
+        );
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+
+        // Impl is selected only when it is running from cldnn
+        if (is_dynamic && !engine.get_device_info().supports_immad) {
+            auto inst = network->get_primitive("fc_prim");
+            auto impl = inst->get_impl();
+            ASSERT_TRUE(impl != NULL);
+            ASSERT_EQ(impl->get_kernels().size(), 1);
+        }
+
+        network->set_input_data("input", input_mem);
+
+        auto outputs = network->execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "fc_prim");
+
+        auto output_mem = outputs.begin()->second.get_memory();
+        cldnn::mem_lock<ov::float16> output_ptr (output_mem, get_test_stream());
+        for (size_t i = 0; i < output_ptr.size(); i++)
+            ASSERT_NEAR(ov::float16(ifm_num), output_ptr[i], 9.0) << "i = " << i;
     }
 
     void test_compressed_int4_scale_reuse(bool is_caching_test, bool is_dynamic, long int batch_num, long int scales_group_size = 128) {
@@ -3259,6 +3332,10 @@ TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic) {
     this->test_compressed_int4_scale(false, true, 260);
 }
 
+TEST_F(fully_connected_gpu_tests, compressed_int4_dynamic_acc) {
+    this->test_compressed_int4_accumulation(false, true, 512);
+}
+
 TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_cached) {
     this->test_compressed_int4_scale(true, true, 260);
 }
@@ -3323,6 +3400,32 @@ TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dyn_cache_dynamic) {
     this->test_compressed_int4_scale_dyn_quan(true, true, 512);
 }
 
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_f_input) {
+    this->test_compressed_int4_scale(false, true, 256, true);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_f_input_cached) {
+    this->test_compressed_int4_scale(true, true, 260, true);
+}
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_f_input_b1g64) {
+    this->test_compressed_int4_scale(false, true, 1, 64, true);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dynamic_f_input_b1g128) {
+    this->test_compressed_int4_scale(false, true, 1, 128, true);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dyn_quan_dynamic_f_input_single_batch) {
+    this->test_compressed_int4_scale_dyn_quan(false, true, 1, true);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dyn_quan_dynamic_f_input) {
+    this->test_compressed_int4_scale_dyn_quan(false, true, 512, true);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_scale_dyn_quan_dynamic_f_input_unaligned) {
+    this->test_compressed_int4_scale_dyn_quan(false, true, 511, true);
+}
 
 
 TEST_F(fully_connected_gpu_tests, compressed_scale_bias) {

@@ -12,15 +12,15 @@
 namespace ov {
 namespace intel_cpu {
 
-intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x, const element::Type src_type, const Type type,
+intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x, const element::Type src_type, BRGEMM_TYPE type,
                                     const size_t offset_in, const size_t offset_out0, const size_t offset_out1,
                                     std::vector<size_t> layout_input, const size_t blk_size_k, const size_t blk_size_n)
-    : snippets::modifier::MemoryAccess(1, type == Type::WithCompensations ? 2 : 1), op::Op({x}),
+    : snippets::modifier::MemoryAccess(1, with_compensations(type) ? 2 : 1), op::Op({x}),
       m_type(type), m_src_type(src_type) {
-    set_output_size(type == Type::WithCompensations ? 2 : 1);
+    set_output_size(with_compensations(m_type) ? 2 : 1);
     set_input_port_descriptor({0, offset_in}, 0);
     set_output_port_descriptor({0, offset_out0}, 0);
-    if (is_with_compensations()) {
+    if (with_compensations(m_type)) {
         set_output_port_descriptor({0, offset_out1}, 1);
     }
     compute_block_size_values(blk_size_k, blk_size_n);
@@ -29,15 +29,15 @@ intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x, const element::Type s
     m_inner_n_block = 16 * m_brgemmVNNIFactor;
 }
 
-intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x, const element::Type src_type, const Type type,
+intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x, const element::Type src_type, BRGEMM_TYPE type,
                                     const PortDescriptor& desc_in0, const PortDescriptor& desc_out0, const PortDescriptor& desc_out1,
                                     std::vector<size_t> layout_input, const size_t blk_size_k, const size_t blk_size_n)
-    : snippets::modifier::MemoryAccess(1, type == Type::WithCompensations ? 2 : 1), op::Op({x}),
+    : snippets::modifier::MemoryAccess(1, with_compensations(type) ? 2 : 1), op::Op({x}),
       m_type(type), m_src_type(src_type) {
-    set_output_size(type == Type::WithCompensations ? 2 : 1);
+    set_output_size(with_compensations(m_type) ? 2 : 1);
     set_input_port_descriptor(desc_in0, 0);
     set_output_port_descriptor(desc_out0, 0);
-    if (is_with_compensations()) {
+    if (with_compensations(m_type)) {
         set_output_port_descriptor(desc_out1, 1);
     }
     compute_block_size_values(blk_size_k, blk_size_n);
@@ -60,6 +60,8 @@ bool BrgemmCopyB::visit_attributes(AttributeVisitor& visitor) {
 
 void BrgemmCopyB::custom_constructor_validate_and_infer_types(std::vector<size_t> layout_input) {
     INTERNAL_OP_SCOPE(BrgemmRepack_ctor_validate_and_infer_types);
+    OPENVINO_ASSERT(m_type == BRGEMM_TYPE::WITH_COMPENSATIONS || m_type == BRGEMM_TYPE::REPACKING_ONLY,
+                    "Unsupported BRGEMM_TYPE value");
     // During ctor call, BrgemmCopyB doesn't know his port descriptors.
     // So we use port descs from source inputs
     const auto element_type = get_input_element_type(0);
@@ -69,7 +71,7 @@ void BrgemmCopyB::custom_constructor_validate_and_infer_types(std::vector<size_t
     // data repacking output
     set_output_type(0, element_type, planar_pshape);
     // If compensations are needed, they are provided in 2nd output (which is used in BrgemmCPU)
-    if (is_with_compensations()) {
+    if (with_compensations(m_type)) {
         set_output_type(1, ov::element::f32, planar_pshape);
     }
 }
@@ -82,7 +84,7 @@ void BrgemmCopyB::validate_and_infer_types() {
     const auto shape = ov::Shape(port->get_shape());
     const auto& planar_pshape = snippets::utils::get_planar_pshape(shape, port->get_layout());
     set_output_type(0, element_type, planar_pshape);
-    if (is_with_compensations()) {
+    if (with_compensations(m_type)) {
         set_output_type(1, ov::element::f32, planar_pshape);
     }
 }
@@ -118,13 +120,13 @@ std::shared_ptr<Node> intel_cpu::BrgemmCopyB::clone_with_new_inputs(const Output
     return std::make_shared<BrgemmCopyB>(new_args.at(0), m_src_type, m_type,
                                          get_input_port_descriptor(0),
                                          get_output_port_descriptor(0),
-                                         is_with_compensations() ? get_output_port_descriptor(1) : PortDescriptor{},
+                                         with_compensations(m_type) ? get_output_port_descriptor(1) : PortDescriptor{},
                                          snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
                                          m_K_blk, m_N_blk);
 }
 
 size_t BrgemmCopyB::get_offset_compensations() const {
-    OPENVINO_ASSERT(is_with_compensations() && get_output_size() == 2,
+    OPENVINO_ASSERT(with_compensations(m_type) && get_output_size() == 2,
                     "The offset for compensations must be in BrgemmCopyB only with compensations and 2 outputs!");
     return get_output_offset(1);
 }
@@ -143,13 +145,4 @@ ov::snippets::IShapeInferSnippets::Result BrgemmCopyB::ShapeInfer::infer(const s
     return {new_shapes, ov::snippets::ShapeInferStatus::success};
 }
 } // namespace intel_cpu
-
-template <>
-EnumNames<intel_cpu::BrgemmCopyB::Type>& EnumNames<intel_cpu::BrgemmCopyB::Type>::get() {
-    static auto enum_names = EnumNames<intel_cpu::BrgemmCopyB::Type>(
-        "ov::intel_cpu::BrgemmCopyB::Type",
-        {{"only_repacking", intel_cpu::BrgemmCopyB::Type::OnlyRepacking},
-         {"with_compensations", intel_cpu::BrgemmCopyB::Type::WithCompensations}});
-    return enum_names;
-}
 } // namespace ov
