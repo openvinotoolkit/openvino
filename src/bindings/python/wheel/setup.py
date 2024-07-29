@@ -328,6 +328,7 @@ class CustomBuild(build):
                                      "--component", cpack_comp_name])
 
     def run(self):
+        print("DEBUG::: build start")
         if not PYTHON_EXTENSIONS_ONLY:
             # build and install clib into temporary directories
             self.cmake_build_and_install(LIB_INSTALL_CFG)
@@ -350,7 +351,7 @@ class CustomBuild(build):
             path_rel = path.relative_to(src)
             (dst / path_rel.parent).mkdir(exist_ok=True, parents=True)
             copyfile(path, dst / path_rel)
-
+        print("DEBUG::: build end")
 
 class PrepareLibs(build_clib):
     """Prepares prebuilt libraries.
@@ -468,9 +469,12 @@ class PrepareLibs(build_clib):
                     self.announce(f"Copy {file_path} to {dst_file}", level=3)
 
         if Path(package_clibs_dir).exists():
+            print(f"DEBUG::: {WHEEL_LIBS_PACKAGE}")
             self.announce(f"Adding {WHEEL_LIBS_PACKAGE} package", level=3)
             packages.append(WHEEL_LIBS_PACKAGE)
             package_data.update({WHEEL_LIBS_PACKAGE: ["*"]})
+
+        print(f"DEBUG::: copy_package_libs end")
 
     def copy_package_data(self, src_dirs):
         """Collect package data files from preinstalled dirs and put to the subpackage."""
@@ -573,6 +577,7 @@ def replace_strings_in_file(file_path, replacements):
 class CopyExt(build_ext):
     """Copy extension files to the build directory."""
     def run(self):
+        print(f"DEBUG::: CopyExt start")
         if len(self.extensions) == 1:
             self.extensions = find_prebuilt_extensions(get_install_dirs_list(PY_INSTALL_CFG))
 
@@ -589,6 +594,9 @@ class CopyExt(build_ext):
                 set_rpath(rpath, os.path.realpath(src))
 
             copy_file(src, dst, verbose=self.verbose, dry_run=self.dry_run)
+
+        print(f"DEBUG::: CopyExt end")
+
 
 
 class CustomInstall(install):
@@ -775,6 +783,8 @@ def concat_files(input_files, output_file):
 
 OPENVINO_VERSION = WHEEL_VERSION = os.getenv("WHEEL_VERSION", "0.0.0")
 PACKAGE_DIR = get_package_dir(PY_INSTALL_CFG)
+print(f"PACKAGE_DIR: {PACKAGE_DIR}")
+print(f"OPENVINO_SOURCE_DIR: {OPENVINO_SOURCE_DIR}")
 # need to create package dir, because since https://github.com/pypa/wheel/commit/e43f2fcb296c2ac63e8bac2549ab596ab79accd0
 # egg_info command works in this folder, because it's being created automatically
 os.makedirs(PACKAGE_DIR, exist_ok=True)
