@@ -115,7 +115,7 @@ void Memory::create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
 
     if (nullptr != data) {
         m_mgrHandle->setExtBuff(const_cast<void*>(data), memSize);
-    } else {
+    } else if (m_pMemDesc->isDefined()) {
         m_mgrHandle->resize(memSize);
     }
 }
