@@ -949,6 +949,10 @@ void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
 }
 
 void GraphOptimizer::FuseFCAndTransposeOnWeights(Graph& graph) {
+#if defined(OV_CPU_WITH_SHL)
+    return;
+#endif
+
     // This optimization allows us to avoid transposing the weights in Transpose node and do it directly along with reordering in FC node
     auto& graphNodes = graph.GetNodes();
 

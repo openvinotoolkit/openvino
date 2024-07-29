@@ -80,7 +80,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         { {3, 2, 2, 5, 5} },
         "output_original",
-        "FP32",
+        "fp32",
         false,
     },
 
@@ -144,7 +144,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         { {3, 2, 2, 5, 5} },
         "output_original",
-        "FP32",
+        "fp32",
         true,
     },
 
@@ -196,7 +196,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         { {3, 2, 2, 5, 5} },
         "output_original",
-        "U8",
+        "u8",
         false
     },
 
@@ -251,7 +251,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         { {3, 2, 2, 5, 5} },
         "output_original",
-        "U8",
+        "u8",
         true,
     },
 
@@ -308,7 +308,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         { {3, 2, 2, 5, 5} },
         "output_original",
-        "FP32",
+        "fp32",
         false,
     },
 
@@ -368,7 +368,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         { {3, 2, 2, 5, 5} },
         "output_original",
-        "FP32",
+        "fp32",
         true,
     },
 
@@ -428,7 +428,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         {},
         "output_original",
-        "U8",
+        "u8",
         true,
     },
 
@@ -485,7 +485,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         { {3, 2, 2, 5, 5} },
         "output_original",
-        "U8",
+        "u8",
         false,
     },
 
@@ -542,7 +542,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         {},
         "output_original",
-        "U8",
+        "u8",
         false,
     },
 
@@ -602,7 +602,7 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionQDqTransformationParam>
         },
         { {3, 2, 2, 5, 5} },
         "output_original",
-        "U8",
+        "u8",
         true,
     },
 };

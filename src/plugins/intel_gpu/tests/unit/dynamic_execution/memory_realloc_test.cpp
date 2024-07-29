@@ -90,8 +90,7 @@ TEST(memory_reuse_realloc_reset_test, basic_conv_with_padding) {
                                   {2, 2},  /*pad_above*/
                                   {2, 2},  /*pad_below*/
                                   false,
-                                  ov::op::PadType::EXPLICIT,
-                                  padding{{0, 0, 0, 0}, 0}),
+                                  ov::op::PadType::EXPLICIT),
                       reorder("output", input_info("conv"), format::bfyx, data_types::f32)); /*output padding*/
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -339,8 +338,7 @@ TEST(memory_reuse_realloc_reset_test, basic_conv_with_padding_reorder) {
                                   {2, 2},  /*pad_above*/
                                   {2, 2},  /*pad_below*/
                                   false,
-                                  ov::op::PadType::EXPLICIT,
-                                  padding{{0, 0, 0, 0}, 0}),
+                                  ov::op::PadType::EXPLICIT),
                       reorder("output", input_info("conv"), format::bfyx, data_types::f32)); /*output padding*/
 
     ExecutionConfig config = get_test_default_config(engine);

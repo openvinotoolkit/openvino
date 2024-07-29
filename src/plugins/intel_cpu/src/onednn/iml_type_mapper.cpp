@@ -44,6 +44,7 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
     SEARCH_WORD(reorder);
     SEARCH_WORD(sparse);
     SEARCH_WORD(acl);
+    SEARCH_WORD(shl);
     SEARCH_WORD(asimd);
     if ((res & impl_desc_type::avx2) != impl_desc_type::avx2 &&
         (res & impl_desc_type::avx512) != impl_desc_type::avx512)
@@ -130,6 +131,8 @@ const char* impl_type_to_string(impl_desc_type type) {
     CASE(jit_sve256);
     CASE(jit_sve384);
     CASE(jit_sve512);
+    CASE(shl);
+    CASE(gemm_shl);
 
 #undef CASE
     return "unknown";

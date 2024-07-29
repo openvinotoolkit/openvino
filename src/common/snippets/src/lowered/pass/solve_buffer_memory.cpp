@@ -6,7 +6,7 @@
 
 #include "snippets/lowered/pass/allocate_buffers.hpp"
 #include "snippets/pass/tokenization.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "snippets/itt.hpp"
 
 

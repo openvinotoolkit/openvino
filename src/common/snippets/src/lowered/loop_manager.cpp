@@ -6,7 +6,7 @@
 
 #include "snippets/lowered/expression.hpp"
 #include "snippets/op/loop.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/type.hpp"
@@ -160,7 +160,6 @@ void LoopManager::get_io_loop_ports(LinearIR::constExprIt loop_begin_pos,
 void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
                             LinearIR::constExprIt loop_end_pos,
                             size_t loop_depth, size_t vector_size) {
-    const auto FULL_DIM = PortDescriptor::ServiceDimensions::FULL_DIM;
     std::vector<ExpressionPort> loop_input_ports, loop_output_ports;
     LoopManager::get_io_loop_ports(loop_begin_pos, loop_end_pos, loop_input_ports, loop_output_ports);
 
@@ -178,8 +177,8 @@ void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
                         "Failed to broadcast work amount in marking loop");
     };
 
-    auto is_outside_loop = [&FULL_DIM](const std::vector<size_t>& subtensor) {
-        return std::all_of(subtensor.begin(), subtensor.end(), [&FULL_DIM](size_t lhs) { return lhs == FULL_DIM; });
+    auto is_outside_loop = [](const std::vector<size_t>& subtensor) {
+        return std::all_of(subtensor.begin(), subtensor.end(), utils::is_full_dim_value);
     };
 
     std::vector<size_t> loop_subtensor;
@@ -192,7 +191,7 @@ void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
             subtensor[subtensor.size() - 1] = vector_size;
         }
 
-        const size_t resizing_value = is_outside_loop(subtensor) ? FULL_DIM : 1;
+        const size_t resizing_value = is_outside_loop(subtensor) ? utils::get_full_dim_value() : 1;
         while (subtensor.size() < loop_depth)
             subtensor.insert(subtensor.begin(), resizing_value);
         if (loop_subtensor.empty())
@@ -202,7 +201,7 @@ void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
                         "Incorrect scheduling parameters for loop");
 
         for (size_t dim_idx = 0; dim_idx < loop_depth; ++dim_idx) {
-            if (*(subtensor.rbegin() + dim_idx) != FULL_DIM) {
+            if (!utils::is_full_dim_value(*(subtensor.rbegin() + dim_idx))) {
                 broadcast(loop_tensor, shape, dim_idx);
             }
         }
@@ -211,7 +210,7 @@ void LoopManager::mark_loop(LinearIR::constExprIt loop_begin_pos,
     for (size_t dim_idx = 0; dim_idx < loop_depth; ++dim_idx) {
         OPENVINO_ASSERT(dim_idx < loop_subtensor.size(), "Incorrect indexes of Loop for markup");
         const auto& subtensor_value = *(loop_subtensor.rbegin() + dim_idx);
-        if (subtensor_value == FULL_DIM) {
+        if (utils::is_full_dim_value(subtensor_value)) {
             continue;
         }
 
