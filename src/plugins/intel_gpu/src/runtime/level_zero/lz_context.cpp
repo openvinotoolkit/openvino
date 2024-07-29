@@ -183,13 +183,11 @@ int lzContext::initZe(int devIdx) {
     return 0;
 }
 
-// template <typename T>
 void* lzContext::createBuffer(size_t elemCount, int offset) {
     ze_result_t result;
     void *devBuf = nullptr;
 
     std::vector<uint32_t> hostBuf(elemCount, 0);
-    // std::vector<T> hostBuf(elemCount, 0);
     for (size_t i = 0; i < elemCount; i++)
         hostBuf[i] = offset + (i % 1024);
 
@@ -199,11 +197,9 @@ void* lzContext::createBuffer(size_t elemCount, int offset) {
         0,
         0};
     result = zeMemAllocDevice(context, &device_desc, elemCount * sizeof(uint32_t), 1, pDevice, &devBuf);
-    // result = zeMemAllocDevice(context, &device_desc, elemCount * sizeof(T), 1, pDevice, &devBuf);
     CHECK_ZE_STATUS(result, "zeMemAllocDevice");
 
     result = zeCommandListAppendMemoryCopy(command_list, devBuf, hostBuf.data(), elemCount * sizeof(uint32_t), nullptr, 0, nullptr);
-    // result = zeCommandListAppendMemoryCopy(command_list, devBuf, hostBuf.data(), elemCount * sizeof(T), nullptr, 0, nullptr);
     CHECK_ZE_STATUS(result, "zeCommandListAppendMemoryCopy");
 
     result = zeCommandListAppendBarrier(command_list, nullptr, 0, nullptr);
@@ -224,8 +220,6 @@ void* lzContext::createBuffer(size_t elemCount, int offset) {
     return devBuf;
 }
 
-// template <typename T>
-// void lzContext::readBuffer(std::vector<T> &hostDst, void *devSrc, size_t size) {
 void lzContext::readBuffer(std::vector<uint32_t> &hostDst, void *devSrc, size_t size) {
     ze_result_t result;
     result = zeCommandListAppendMemoryCopy(command_list, hostDst.data(), devSrc, size, nullptr, 0, nullptr);
@@ -313,8 +307,8 @@ int lzContext::initKernel() {
     return 0;
 }
 
-void lzContext::runKernel(const char *spvFile, const char *funcName, void *remoteBuf, void *devBuf, size_t elemCount,
-    int srcOffsetX, int srcOffsetY, int strideX, int strideY, int width) {
+void lzContext::runKernel(const char *spvFile, const char *funcName, void *remoteBuf, void *devBuf, const size_t elemCount,
+    const int srcOffsetX, const int srcOffsetY, const int strideX, const int strideY, const int width) {
     ze_result_t result;
 
     kernelSpvFile = spvFile;
@@ -342,6 +336,10 @@ void lzContext::runKernel(const char *spvFile, const char *funcName, void *remot
     CHECK_ZE_STATUS(result, "zeKernelSetArgumentValue");
 
     result = zeKernelSetArgumentValue(function, 6, sizeof(int), &width);
+    CHECK_ZE_STATUS(result, "zeKernelSetArgumentValue");
+
+    const int size = elemCount;
+    result = zeKernelSetArgumentValue(function, 7, sizeof(int), &size);
     CHECK_ZE_STATUS(result, "zeKernelSetArgumentValue");
 
     uint32_t groupSize = 256;
@@ -414,16 +412,12 @@ void *lzContext::createFromHandle(uint64_t handle, size_t bufSize) {
     return sharedBuf;
 }
 
-// template <typename T>
-// void lzContext::printBuffer(void *ptr, std::vector<T>& outBuf, size_t count) {
 void lzContext::printBuffer(void *ptr, size_t count) {
     std::vector<uint32_t> outBuf(count, 0);
     readBuffer(outBuf, ptr, count*sizeof(uint32_t));
-    // readBuffer(outBuf, ptr, count*sizeof(T));
     printf("The first %ld elements in level-zero ptr = %p are: \n", count, ptr);
     for (size_t i = 0; i < count; i++) {
-        // printf("%d, ", outBuf[i]);
-        std::cout << "[" << outBuf[i] << "] ";
+        printf("%d, ", outBuf[i]);
         if (i && i % 16 == 0)
             printf("\n");
     }

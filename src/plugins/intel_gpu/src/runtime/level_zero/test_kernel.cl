@@ -5,16 +5,10 @@ kernel void vector_add(global int *src1, global int *src2)
   src1[id] = src1[id] + src2[id];
 }
 
-// kernel void local_read_from_remote(global int *src1, global int *src2, int width)
-// {
-//   const int id = get_global_id(0);
-//   printf("local_read_from_remote id: %d, width: %d \n", id, width);
-//   src1[id] = src2[id];
-// }
-
 kernel void local_read_from_remote(global int *src1, global int *src2,
   const int src_offset_x, const int src_offset_y,
-  const int stride_x, const int stride_y, const int width)
+  const int stride_x, const int stride_y,
+  const int width, const int size)
 {
   const int gid_x = get_global_id(0);
   const int gid_y = get_global_id(1);
@@ -25,14 +19,13 @@ kernel void local_read_from_remote(global int *src1, global int *src2,
   const int orig = gid_x + gid_y * width;
   const int offset = offset_x + offset_y * width;
 
-  if (offset < width) {
+  if (offset < size) {
     src1[orig] = src2[offset];
   }
 
-  if (orig < 30) {
+  if (gid_x > size -10 && gid_y < 10) {
     printf("local_read_from_remote gid: (%d,%d)\n", gid_x, gid_y);
-    // printf("local_read_from_remote src_offset: (%d,%d)\n", src_offset_x, src_offset_y);
-    // printf("local_read_from_remote offset: (%d,%d)\n", offset_x, offset_y);
+    printf("local_read_from_remote offset: (%d,%d)\n", offset_x, offset_y);
     printf("local_read_from_remote orig/offset: (%d,%d)\n", orig, offset);
     printf("local_read_from_remote src/dst: (%d,%d)\n", src1[orig], src2[offset]);
   }
