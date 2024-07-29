@@ -189,8 +189,8 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
                     std::cout << "[-->] sync_tensor_impl w_rank: " << w_rank << ", runKernel " << std::endl;
                     int srcOffsetX = 0;
                     int srcOffsetY = 0;
-                    int strideX = 0;
-                    int strideY = 0;
+                    int strideX = 1;
+                    int strideY = 1;
                     int groud_width = 256;
                     lzctx.runKernel("./test_kernel_dg2.spv", "local_read_from_remote", remote_send_buf, local_buff, elemCount,
                         srcOffsetX, srcOffsetY, strideX, strideY, groud_width);
