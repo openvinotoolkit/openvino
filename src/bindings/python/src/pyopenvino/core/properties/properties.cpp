@@ -108,6 +108,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_intel_cpu,
                      ov::intel_cpu::sparse_weights_decompression_rate,
                      "sparse_weights_decompression_rate");
+    wrap_property_RW(m_intel_cpu, ov::intel_cpu::alloc_max_size, "alloc_max_size");
 
     // Submodule intel_gpu
     py::module m_intel_gpu =

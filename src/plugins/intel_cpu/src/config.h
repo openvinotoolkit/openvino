@@ -93,6 +93,9 @@ struct Config {
     // is reserved.
     bool DAZOn = false;
 
+    // Don't use partial shape upper bound memory allocation by default.
+    bool allocateMaxSize = false;
+
     void readProperties(const ov::AnyMap& config, const ModelType modelType = ModelType::Unknown);
 
     void updateProperties();

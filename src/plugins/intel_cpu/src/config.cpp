@@ -328,6 +328,17 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::intel_cpu::denormals_optimization.name(),
                                ". Expected only true/false");
             }
+        } else if (key == ov::intel_cpu::alloc_max_size.name()) {
+            try {
+                allocateMaxSize = val.as<bool>();
+            } catch (ov::Exception&) {
+                allocateMaxSize = false;
+                OPENVINO_THROW("Wrong valuse ",
+                               val.as<std::string>(),
+                               " for property key ",
+                               ov::intel_cpu::alloc_max_size.name(),
+                               ". Expected only true/false");
+            }
         } else if (key == ov::intel_cpu::snippets_mode.name()) {
             try {
                 auto const mode = val.as<ov::intel_cpu::SnippetsMode>();

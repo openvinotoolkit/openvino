@@ -768,6 +768,27 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
     // Markup the boxes
     std::vector<ov::MemorySolver::Box> definedBoxes;
     std::vector<ov::MemorySolver::Box> undefinedBoxes;
+
+    //define the memory allocation strategy
+    std::function<bool(const MemoryDesc&)> sizeDefined;
+    std::function<size_t(const MemoryDesc&)> calcSize;
+
+    if (getConfig().allocateMaxSize) {
+        sizeDefined = [](const MemoryDesc& desc) {
+            return desc.hasDefinedMaxSize();
+        };
+        calcSize = [](const MemoryDesc& desc) {
+            return desc.getMaxMemSize();
+        };
+    } else {
+        sizeDefined = [](const MemoryDesc& desc) {
+            return desc.isDefined();
+        };
+        calcSize = [](const MemoryDesc& desc) {
+            return desc.getCurrentMemSize();
+        };
+    }
+
     for (size_t i = 0; i < remaining_edge_clusters_count; i++) {
         ov::MemorySolver::Box box = { std::numeric_limits<int>::max(), 0, 0, static_cast<int64_t>(i) };
         int64_t boxSize = 0;
@@ -775,8 +796,10 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
             int e_start = edge->getParent()->execIndex;
             int e_finish = edge->getChild()->execIndex;
 
-            if (boxSize != -1 && edge->getDesc().hasDefinedMaxSize()) {
-                int64_t e_size = edge->getDesc().getMaxMemSize();  // size in bytes (from the beginning of data to the last element)
+            auto&& desc = edge->getDesc();
+
+            if (boxSize != -1 && sizeDefined(desc)) {
+                int64_t e_size = calcSize(desc);  // size in bytes (from the beginning of data to the last element)
                 boxSize = std::max(e_size, boxSize);
             } else {
                 boxSize = -1;
