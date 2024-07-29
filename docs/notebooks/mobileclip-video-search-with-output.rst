@@ -65,7 +65,7 @@ Prerequisites
     remote: Counting objects: 100% (68/68), done.[K
     remote: Compressing objects: 100% (51/51), done.[K
     remote: Total 68 (delta 19), reused 65 (delta 16), pack-reused 0[K
-    Unpacking objects: 100% (68/68), 447.59 KiB | 3.52 MiB/s, done.
+    Unpacking objects: 100% (68/68), 447.59 KiB | 4.03 MiB/s, done.
 
 
 .. code:: ipython3
@@ -437,8 +437,8 @@ Perform search
 
 .. parsed-literal::
 
-    Image encoding took 0.115 ms
-    Text encoding took 0.011 ms
+    Image encoding took 0.123 ms
+    Text encoding took 0.0159 ms
 
 
 
@@ -516,8 +516,18 @@ be used separately. Let’s convert each part to OpenVINO.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-717/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/mobileclip/modules/common/transformer.py:125: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+    ['image']
+
+
+.. parsed-literal::
+
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/mobileclip/modules/common/transformer.py:125: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
       if seq_len != self.num_embeddings:
+
+
+.. parsed-literal::
+
+    ['text']
 
 
 Run OpenVINO model inference
@@ -608,8 +618,8 @@ Perform search
 
 .. parsed-literal::
 
-    Image encoding took 0.0303 ms
-    Text encoding took 0.00599 ms
+    Image encoding took 0.0321 ms
+    Text encoding took 0.00763 ms
 
 
 

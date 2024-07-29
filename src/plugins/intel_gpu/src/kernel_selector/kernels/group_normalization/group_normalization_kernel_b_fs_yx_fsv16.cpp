@@ -22,6 +22,8 @@ ParamsKey GroupNormalizationKernel_b_fs_yx_fsv16::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
+    k.EnableTensorOffset();
+    k.EnableTensorPitches();
     k.EnableBatching();
     k.EnableDifferentTypes();
     k.EnableDynamicShapesSupport();
@@ -34,22 +36,22 @@ GroupNormalizationKernelBase::MultiDispatchData GroupNormalizationKernel_b_fs_yx
     if (!params.has_dynamic_tensors()) {
         const auto& input = params.inputs[0];
 
-        dispatchData.stage_1.gws[0] = input.X().v * input.Y().v * fsv;
+        dispatchData.stage_1.gws[0] = input.X().v * input.Y().v;
         dispatchData.stage_1.gws[1] = CeilDiv(input.Feature().v, fsv) * input.Batch().v;
         dispatchData.stage_1.gws[2] = 1;
 
-        dispatchData.stage_1.lws[0] = simd;
+        dispatchData.stage_1.lws[0] = input.X().v * input.Y().v;
         dispatchData.stage_1.lws[1] = 1;
         dispatchData.stage_1.lws[2] = 1;
 
-        while ((dispatchData.stage_1.lws[0] * 2) <= params.engineInfo.maxWorkGroupSize &&
-              (dispatchData.stage_1.lws[0] * 2) <= dispatchData.stage_1.gws[0]) {
-            if (dispatchData.stage_1.gws[0] % (dispatchData.stage_1.lws[0] * 2) == 0) {
-                dispatchData.stage_1.lws[0] *= 2;
-            } else {
-                break;
+        size_t divisor = 2;
+        while (dispatchData.stage_1.lws[0] > (params.engineInfo.maxWorkGroupSize / fsv)) {
+            if (dispatchData.stage_1.gws[0] % divisor == 0) {
+                dispatchData.stage_1.lws[0] = dispatchData.stage_1.gws[0] / divisor;
             }
+            divisor += 1;
         }
+        dispatchData.stage_1.lws[0] *= fsv;
         dispatchData.stage_1.gws[0] = dispatchData.stage_1.lws[0];
 
         dispatchData.stage_2.gws[0] = input.Feature().v;
@@ -60,21 +62,38 @@ GroupNormalizationKernelBase::MultiDispatchData GroupNormalizationKernel_b_fs_yx
         dispatchData.stage_2.lws[1] = 1;
         dispatchData.stage_2.lws[2] = 1;
 
-        dispatchData.stage_final.gws[0] = input.X().v * input.Y().v * fsv;
+        divisor = 2;
+        while (dispatchData.stage_2.lws[0] > params.engineInfo.maxWorkGroupSize) {
+            if ((input.Feature().v / params.num_groups) % divisor == 0) {
+                dispatchData.stage_2.lws[0] = (input.Feature().v / params.num_groups) / divisor;
+            }
+            divisor += 1;
+        }
+
+        dispatchData.stage_final.gws[0] = input.X().v * input.Y().v;
         dispatchData.stage_final.gws[1] = CeilDiv(input.Feature().v, fsv) * input.Batch().v;
         dispatchData.stage_final.gws[2] = 1;
 
-        dispatchData.stage_final.lws[0] = simd;
-        dispatchData.stage_final.lws[1] = 1;
+        dispatchData.stage_final.lws[0] = input.X().v * input.Y().v;
+        dispatchData.stage_final.lws[1] = CeilDiv(input.Feature().v, fsv) * input.Batch().v;
         dispatchData.stage_final.lws[2] = 1;
 
-        while ((dispatchData.stage_final.lws[0] * 2) <= params.engineInfo.maxWorkGroupSize &&
-              (dispatchData.stage_final.lws[0] * 2) <= dispatchData.stage_final.gws[0]) {
-            if (dispatchData.stage_final.gws[0] % (dispatchData.stage_final.lws[0] * 2) == 0) {
-                dispatchData.stage_final.lws[0] *= 2;
-            } else {
-                break;
+        divisor = 1;
+        while (dispatchData.stage_final.lws[0] > (params.engineInfo.maxWorkGroupSize / fsv)) {
+            if (dispatchData.stage_final.gws[0] % divisor == 0) {
+                dispatchData.stage_final.lws[0] = dispatchData.stage_final.gws[0] / divisor;
             }
+            divisor += 1;
+        }
+        dispatchData.stage_final.lws[0] *= fsv;
+        dispatchData.stage_final.gws[0] *= fsv;
+
+        divisor = 2;
+        while ((dispatchData.stage_final.lws[0] * dispatchData.stage_final.lws[1]) > params.engineInfo.maxWorkGroupSize) {
+            if (dispatchData.stage_final.gws[1] % divisor == 0) {
+                dispatchData.stage_final.lws[1] = dispatchData.stage_final.gws[1] / divisor;
+            }
+            divisor += 1;
         }
     }
 
@@ -86,17 +105,20 @@ JitConstants GroupNormalizationKernel_b_fs_yx_fsv16::GetJitConstants(const group
     auto jit = GroupNormalizationKernelBase::GetJitConstants(params);
 
     jit.AddConstants({
-        MakeJitConstant("SIMD", 16),
-        MakeJitConstant("FSV", 16),
+        MakeJitConstant("SIMD", simd),
+        MakeJitConstant("FSV", fsv),
     });
 
     if (params.has_dynamic_tensors()) {
         jit.AddConstants({
+            MakeJitConstant("GWS0", "get_global_size(0)"),
+            MakeJitConstant("LWS0", "get_local_size(0)"),
             MakeJitConstant("SLM_SIZE", params.engineInfo.maxWorkGroupSize),
         });
     } else {
         jit.AddConstants({
-            MakeJitConstant("WORKERS_PER_DATASET", dispatchData.lws[0] / fsv),
+            MakeJitConstant("GWS0", dispatchData.gws[0]),
+            MakeJitConstant("LWS0", dispatchData.lws[0]),
             MakeJitConstant("SLM_SIZE", dispatchData.lws[0]),
         });
     }
@@ -147,6 +169,29 @@ void GroupNormalizationKernel_b_fs_yx_fsv16::GetUpdateDispatchDataFunc(KernelDat
         kd.internalBufferSizes.push_back(prim_params.outputs[0].Batch().v * Align(prim_params.outputs[0].Feature().v, fsv) * 4);
         kd.internalBufferSizes.push_back(prim_params.outputs[0].Batch().v * Align(prim_params.outputs[0].Feature().v, fsv) * 4);
     };
+}
+
+bool GroupNormalizationKernel_b_fs_yx_fsv16::Validate(const Params& params) const {
+    if (!Parent::Validate(params))
+        return false;
+
+    const group_normalization_params& prim_params = static_cast<const group_normalization_params&>(params);
+
+    if (prim_params.has_dynamic_tensors())
+        return true;
+
+    // no support for spatial paddings
+    if (prim_params.inputs[0].X().pad.Total() > 0 || prim_params.inputs[0].Y().pad.Total() > 0 ||
+        prim_params.outputs[0].X().pad.Total() > 0 || prim_params.outputs[0].Y().pad.Total() > 0) {
+        return false;
+    }
+
+    // feature paddings should be multiples of fsv.
+    if (prim_params.inputs[0].Feature().pad.before % fsv != 0 || prim_params.outputs[0].Feature().pad.before % fsv != 0) {
+        return false;
+    }
+
+    return true;
 }
 
 KernelsData GroupNormalizationKernel_b_fs_yx_fsv16::GetKernelsData(const Params &params) const {
