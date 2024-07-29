@@ -17,9 +17,10 @@ public:
     OPENVINO_OP("Squeeze", "opset1");
 
     Squeeze();
-    Squeeze(const Output<Node>& data, const Output<Node>& axes);
-    Squeeze(const Output<Node>& data);
+    Squeeze(const Output<Node>& data, const Output<Node>& axes, const bool torch = false);
+    Squeeze(const Output<Node>& data, const bool torch = false);
 
+    bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
     bool evaluate(TensorVector& outputs, const TensorVector& inputs) const override;
     bool has_evaluate() const override;
@@ -32,8 +33,16 @@ public:
 
     bool is_dynamic() const override;
 
+    bool get_pytorch_dynamic_rank() const {
+        return m_pytorch_dynamic_rank;
+    }
+    void set_pytorch_dynamic_rank(bool torch) {
+        m_pytorch_dynamic_rank = torch;
+    }
+
 private:
     Output<Node> get_default_axes_input() const;
+    bool m_pytorch_dynamic_rank{};
 };
 }  // namespace v0
 }  // namespace op

@@ -26,12 +26,18 @@ bool axes_has_and_set_bound(const Node& op) {
 
 Squeeze::Squeeze() : Op() {}
 
-Squeeze::Squeeze(const Output<Node>& data, const Output<Node>& axes) : Op({data, axes}) {
+Squeeze::Squeeze(const Output<Node>& data, const Output<Node>& axes, const bool torch) : Op({data, axes}), m_pytorch_dynamic_rank{torch} {
     constructor_validate_and_infer_types();
 }
 
-Squeeze::Squeeze(const Output<Node>& data) : Op({data}) {
+Squeeze::Squeeze(const Output<Node>& data, const bool torch) : Op({data}), m_pytorch_dynamic_rank{torch} {
     constructor_validate_and_infer_types();
+}
+
+bool Squeeze::visit_attributes(AttributeVisitor& visitor) {
+    OV_OP_SCOPE(v0_Squeeze_visit_attributes);
+    visitor.on_attribute("pytorch_dynamic_rank", m_pytorch_dynamic_rank);
+    return true;
 }
 
 void Squeeze::validate_and_infer_types() {
@@ -49,9 +55,9 @@ std::shared_ptr<Node> Squeeze::clone_with_new_inputs(const OutputVector& new_arg
 
     switch (new_args.size()) {
     case 1:
-        return std::make_shared<Squeeze>(new_args[0]);
+        return std::make_shared<Squeeze>(new_args[0], m_pytorch_dynamic_rank);
     case 2:
-        return std::make_shared<Squeeze>(new_args[0], new_args[1]);
+        return std::make_shared<Squeeze>(new_args[0], new_args[1], m_pytorch_dynamic_rank);
     default:
         OPENVINO_THROW("Incorrect number of new arguments");
     }
