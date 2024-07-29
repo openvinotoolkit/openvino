@@ -77,21 +77,22 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
 
         // std::vector<uint32_t> initBuf(elemCount, 0);
         // if (buff != nullptr && length > 0) {
-        if (!initBuf.empty()) {
-            // uint16_t* init_ptr = reinterpret_cast<uint16_t*>(buff);
-            // initBuf[0] = static_cast<uint32_t>(100.0f);
+        // if (!initBuf.empty()) {
+        //     // uint16_t* init_ptr = reinterpret_cast<uint16_t*>(buff);
+        //     // initBuf[0] = static_cast<uint32_t>(100.0f);
 
-            union TypeValue {
-                float f;
-                uint32_t i;
-            };
-            TypeValue val;
-            // val.f = 100.0f;
-            val.i = 100;
-            printf("val.f: %f, val.i: %d \n", val.f, val.i);
-            initBuf[0] = val.i;
-            printf("initBuf[0]: %d \n", initBuf[0]);
-        }
+        //     union TypeValue {
+        //         float f;
+        //         uint32_t i;
+        //     };
+        //     TypeValue val;
+        //     // val.f = 100.0f;
+        //     val.i = 100;
+        //     printf("val.f: %f, val.i: %d \n", val.f, val.i);
+        //     initBuf[0] = val.i;
+        // }
+
+        printf("initBuf[0]: %d \n", initBuf[0]);
         cl_mem clbuf = oclctx.createBuffer(elemCount * sizeof(uint32_t), initBuf);
         // oclctx.printBuffer(clbuf);
 
@@ -188,7 +189,7 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
                     void* remote_send_buf = (sub_mem_mgr->_memorys_table[id][idx].send_buf);
                     printf("[sync_tensor_impl:%d] remote_send_buf: %p \n", w_rank, remote_send_buf);
                     // void *local_buff = create_lz_buff(oclctx, lzctx, nullptr, elemCount, 0);
-                    std::vector<uint32_t> emptyBuf(0, 0);
+                    std::vector<uint32_t> emptyBuf(elemCount, 0);
                     void *local_buff = create_lz_buff(oclctx, lzctx, emptyBuf, elemCount);
                     printf("[sync_tensor_impl:%d] lzctx.printBuffer local_buff \n", w_rank);
                     lzctx.printBuffer(local_buff);
