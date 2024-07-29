@@ -107,12 +107,12 @@ bool ReduceKey::operator==(const ReduceKey &rhs) const {
 }
 } // namespace
 
-#if defined(OPENVINO_ARCH_X86_64)
-
 // some utility functions
 static inline bool isFloatCompatible(memory::data_type type) {
     return memory::data_type::f32 == type || memory::data_type::bf16 == type || memory::data_type::f16 == type;
 }
+
+#if defined(OPENVINO_ARCH_X86_64)
 
 template <cpu_isa_t isa>
 struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_generator {
