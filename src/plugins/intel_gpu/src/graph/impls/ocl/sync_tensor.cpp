@@ -145,7 +145,7 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
 
         std::vector<uint32_t> initBuf(elemCount, 0);
         {
-            union ValueU {
+            union TypeValue {
                 float f;
                 uint32_t i;
             };
@@ -158,7 +158,7 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
             }
             mem_lock<ov::float16, mem_lock_type::read> lock(actual_mem, stream);
             auto mem_ptr = lock.data();
-            ValueU val;
+            TypeValue val;
             val.f = static_cast<float>(mem_ptr[0]);
             printf("[create_local_buff:%d] local val.f: %f, val.i: %u \n", w_rank, val.f, val.i);
 
@@ -209,26 +209,6 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
                     }
                     printf("\n");
 
-                    // size_t output_idx = w_rank; // idx;
-                    // printf("[sync_tensor_impl:%d] check output %ld \n", w_rank, output_idx);
-                    // auto sec_mem = instance.output_memory_ptr(output_idx);
-                    // auto data_layout = instance.get_output_layout(output_idx);
-                    // printf("[sync_tensor_impl:%d] reinterpret_buffer \n", w_rank);
-                    // auto actual_mem = sec_mem->get_engine()->reinterpret_buffer(*sec_mem, data_layout);
-                    // auto mem_dt = actual_mem->get_layout().data_type;
-                    // if (mem_dt == cldnn::data_types::f16) {
-                    //     printf("[sync_tensor_impl:%d] cldnn::data_types::f16 \n", w_rank);
-                    // }
-                    // printf("[sync_tensor_impl:%d] lock \n", w_rank);
-                    // mem_lock<ov::float16, mem_lock_type::read> lock(actual_mem, stream);
-                    // printf("[sync_tensor_impl:%d] get pointer \n", w_rank);
-                    // auto mem_ptr = lock.data();
-                    // float sec_val = static_cast<float>(mem_ptr[0]);
-                    // printf("[sync_tensor_impl:%d] sec_val: %f \n", w_rank, sec_val);
-                    // // printf("[sync_tensor_impl:%d] assign value \n", w_rank);
-                    // // mem_ptr[0] = 4.0f;
-                    // // std::cout << "[sync_tensor_impl:" << w_rank << "] mem_ptr[0]: " << mem_ptr[0] << std::endl;
-
                     size_t output_idx = idx;
                     printf("[sync_tensor_impl:%d] check output %ld \n", w_rank, output_idx);
                     auto sec_mem = instance.output_memory_ptr(output_idx);
@@ -246,8 +226,17 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
                     auto mem_ptr2 = lock2.data();
                     auto sec_val2 = static_cast<float>(mem_ptr2[0]);
                     printf("[sync_tensor_impl:%d] sec_val2: %f \n", w_rank, sec_val2);
+
+                    union TypeValue {
+                        float f;
+                        uint32_t i;
+                    };
+                    TypeValue val;
+                    val.i = outBuf[0];
+                    printf("[sync_tensor_impl:%d] val.i: %d, val.f: %f \n", w_rank, val.i, val.f);
+
                     // mem_ptr2[0] = static_cast<ov::float16>(100);
-                    mem_ptr2[0] = static_cast<ov::float16>(outBuf[0]);
+                    mem_ptr2[0] = static_cast<ov::float16>(val.f);
                     sec_val2 = static_cast<float>(mem_ptr2[0]);
                     printf("[sync_tensor_impl:%d] sec_val2: %f \n", w_rank, sec_val2);
 
