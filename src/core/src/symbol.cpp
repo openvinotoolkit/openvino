@@ -125,9 +125,7 @@ void sort(ov::WeakSymbolVector& vec) {
     std::sort(vec.begin(), vec.end());
 }
 
-void replace(ov::WeakSymbolVector& vec,
-             const ov::WeakSymbol& old_s,
-             const ov::WeakSymbol& new_s) {
+void replace(ov::WeakSymbolVector& vec, const ov::WeakSymbol& old_s, const ov::WeakSymbol& new_s) {
     std::replace_if(
         vec.begin(),
         vec.end(),
@@ -338,7 +336,9 @@ ov::SymbolPtr ov::operator+(const SymbolPtr& lhs, const SymbolPtr& rhs) {
     auto new_key = ov::WeakSymbolVector({A, B});
     sort(new_key);
     std::shared_ptr<ov::MathMap> shared_map = nullptr;
-    if (A->pimpl->get_add_map() && B->pimpl->get_add_map() && A->pimpl->get_add_map().get() == B->pimpl->get_add_map().get() && !A->pimpl->get_add_map()->empty()) {  // maps are shared
+    if (A->pimpl->get_add_map() && B->pimpl->get_add_map() &&
+        A->pimpl->get_add_map().get() == B->pimpl->get_add_map().get() &&
+        !A->pimpl->get_add_map()->empty()) {  // maps are shared
         auto it = A->pimpl->get_add_map()->find(new_key);
         if (it != A->pimpl->get_add_map()->end() && it->second.lock()) {  // elements were summed before
             return it->second.lock();
@@ -385,7 +385,9 @@ ov::SymbolPtr ov::operator-(const SymbolPtr& lhs, const SymbolPtr& rhs) {
 
     std::shared_ptr<ov::MathMap> shared_map = nullptr;
 
-    if (A->pimpl->get_add_map() && B->pimpl->get_add_map() && A->pimpl->get_add_map().get() == B->pimpl->get_add_map().get() && !A->pimpl->get_add_map()->empty()) {  // maps are shared
+    if (A->pimpl->get_add_map() && B->pimpl->get_add_map() &&
+        A->pimpl->get_add_map().get() == B->pimpl->get_add_map().get() &&
+        !A->pimpl->get_add_map()->empty()) {  // maps are shared
         std::vector<ov::WeakSymbolVector> A_components{}, B_components{};
         collect_records_with_result(A, A->pimpl->get_add_map(), A_components);
         for (const auto& item : A_components) {
