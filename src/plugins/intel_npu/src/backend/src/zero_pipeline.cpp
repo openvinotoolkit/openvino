@@ -275,6 +275,10 @@ public:
     };
 
     void updateCommandList(const TensorData& tensors_data, uint32_t index, size_t batch_size) override {
+        OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_PULL,
+                          itt::domains::LevelZeroBackend,
+                          "IntegratedPipeline",
+                          "updateCommandList");
         for (size_t i = 0; i < batch_size; i++) {
             _command_lists.at(i)->updateMutableCommandList(
                 index,
