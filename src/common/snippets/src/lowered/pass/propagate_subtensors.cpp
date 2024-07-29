@@ -15,14 +15,43 @@ namespace snippets {
 namespace lowered {
 namespace pass {
 namespace {
+
+// The algorithm uses the following special values in subtensors/shapes:
+// 1. Dynamic value in subtensor/shape : SIZE_MAX
+// 2. Full dimension in subtensor      : SIZE_MAX - 1
+// 3. Default value of `new_dim_value` : SIZE_MAX - 2
+// 4. `Forced` special dynamic value   : SIZE_MAX - 3
+//
+// We have to introduce `FORCED_DYNAMIC_VALUE` to distinguish `new_dim_value = DYNAMIC`
+// from the real dynamic values in subtensors and shapes and force this value in subtensors.
+// For example, there is Brgemm with the following info in the tail Loop:
+// Input 0: shape [?, ?], existing subtensor [32, FULL_DIM]
+// Input 1: shape [?, ?], existing subtensor [FULL_DIM, FULL_DIM]
+// Output : shape [?, ?], existing subtensor [32, FULL_DIM]
+// If the user wants to force `?` in the place of `32` in subtensors, the steps will be:
+// 1. Set `?` to subtensor and shape of Input 0 :
+//    shape [?, ?] (shape has not been changed!), new subtensor [?, FULL_DIM]
+// 2. Make shape inference of Brgemm and get Output:
+//    shape [?, ?] (shape has not been changed!), existing subtensor [FULL_DIM, FULL_DIM]
+// 3. Update subtensor on output using shape:
+//    new_subtensor[i] = std::min(planar_shape[i], subtensor[i]); // i = 0: std::min(SIZE_MAX(?), 32)
+//    new subtensor [32, FULL_DIM] - has not been changed! But should be [?, FULL_DIM]
+// Conclusion: we have to distinguish forced dynamic value with existing dynamic values in shape and subtensor
+
+constexpr size_t NEW_DEFAULT_VALUE    = SIZE_MAX - 2;
+constexpr size_t FORCED_DYNAMIC_VALUE = SIZE_MAX - 3;
+
 void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
                                               const LoopInfoPtr& loop_info,
                                               LinearIR::container::const_iterator begin,
                                               LinearIR::container::const_iterator end,
                                               bool most_outer_loop,
-                                              const size_t new_dim_value = SIZE_MAX) {
-    OPENVINO_ASSERT(snippets::utils::implication(most_outer_loop, new_dim_value != SIZE_MAX),
+                                              size_t new_dim_value = NEW_DEFAULT_VALUE) {
+    // Marks the forced dynamic value
+    new_dim_value = utils::is_dynamic_value(new_dim_value) ? FORCED_DYNAMIC_VALUE : new_dim_value;
+    OPENVINO_ASSERT(snippets::utils::implication(most_outer_loop, new_dim_value != NEW_DEFAULT_VALUE),
                     "if the updated subtensor propagation was called for the outer loop, new_dim_value must not be equal to default value");
+
     std::map<lowered::PortDescriptorPtr, snippets::VectorDims> original_shapes;
     // First step: set new dim value to the corresponding input_ports' dimensions
     if (most_outer_loop) {
@@ -32,9 +61,8 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
                 const auto& expr = port.expr_port->get_expr();
                 const auto& desc = port.expr_port->get_descriptor_ptr();
                 auto subtensor = desc->get_subtensor();
-                if (port.dim_idx < subtensor.size()) {
-                    *(subtensor.rbegin() + port.dim_idx) = new_dim_value;
-                    desc->set_subtensor(subtensor);
+                if (port.dim_idx < desc->get_subtensor().size()) {
+                    desc->set_subtensor_dim(port.dim_idx, new_dim_value);
                 }
 
                 const auto parent_desc = expr->get_input_port_connector(port.expr_port->get_index())->get_source().get_descriptor_ptr();
@@ -78,7 +106,9 @@ void propagate_updated_subtensor_through_loop(const LinearIR& linear_ir,
                 const size_t subtensor_start = planar_dims.size() - subtensor.size();
                 VectorDims new_subtensor(planar_dims.begin() + subtensor_start, planar_dims.end());
                 for (size_t i = 0; i < new_subtensor.size(); ++i) {
-                    new_subtensor[i] = std::min(new_subtensor[i], subtensor[i]);
+                    // If user forces dynamic value to set in subtensor, set real dynamic dimension using `get_dynamic_value<size_t>()`
+                    new_subtensor[i] = new_subtensor[i] == FORCED_DYNAMIC_VALUE ? utils::get_dynamic_value<size_t>() :
+                                       utils::is_full_dim_value(subtensor[i]) ? subtensor[i] : std::min(new_subtensor[i], subtensor[i]);
                 }
                 desc->set_subtensor(new_subtensor);
             }
