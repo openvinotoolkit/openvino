@@ -470,7 +470,7 @@ bool crop_in_place_optimization::match(const program_node& node,
     for (auto user : node.get_users()) {
         // If the user node's output shape is already static, the padding
         // w/ dyn pad mask will not be propagated properly at runtime
-        if (node.is_dynamic() && !user->get_output_layout().is_dynamic())
+        if (node.is_dynamic() && !user->get_output_pshape().is_dynamic())
             return false;
         // do not optimize when next node is concatenation which is not output
         if (user->is_type<concatenation>() && !user->is_output())
@@ -484,10 +484,10 @@ bool crop_in_place_optimization::match(const program_node& node,
         if (node.is_dynamic() && (user->is_type<convolution>() || user->is_type<gemm>()))
             return false;
         if (user->is_type<reshape>()) {
-            // runtime buffer fusing is only handled when there is only one reshape user
-            if (node.is_dynamic() && node.get_users().size() != 1)
-                return false;
             auto& reshape_node = user->as<reshape>();
+            // runtime buffer fusing is only handled when there is only one reshape user and reshape mode is base
+            if (node.is_dynamic() && (node.get_users().size() != 1 || reshape_node.get_primitive()->mode != reshape::reshape_mode::base))
+                return false;
             if (can_reshape_be_optimized(reshape_node) &&
                 (!node.is_dynamic() || !reshape_node.is_runtime_propagatable_padding()))
                 return false;
@@ -498,6 +498,14 @@ bool crop_in_place_optimization::match(const program_node& node,
 
     // do not optimize crop, that must be calculated in propagate_constants
     if (node.is_constant())
+        return false;
+
+    // do not optimize variadic_split crop when either input1 or input2 is not constant.
+    // VariadicSplit ngraph shape infer requires value of axis(input1) and split_lengths(input2).
+    // And non_constant input1/input2 makes risky execution of runtime buffer fusing.
+    auto& crop_node = node.as<crop>();
+    if ((crop_node.get_primitive()->op_mode == cldnn::crop_ngraph_op_mode::variadic_split) &&
+        (!crop_node.get_dependency(1).is_constant() || !crop_node.get_dependency(2).is_constant()))
         return false;
 
     if (node.get_users().size() > 0) {
