@@ -1874,6 +1874,9 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 expected = format::any;
             }
         }
+        // if (output_layout.count() == 1) {
+        //     expected = format::b_fs_yx_fsv16;
+        // }
     } else if (node.is_type<arg_max_min>()) {
         // Set default format for issue 92967/98750
         // TODO: will remove when arg_max_min_ref supports blocked format

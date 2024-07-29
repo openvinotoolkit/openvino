@@ -34,13 +34,20 @@ CommonDispatchData DeconvolutionKernel_bfyx_opt::SetDefault(const deconvolution_
 
     auto wg_size = 16;
 
-    dispatchData.gws[0] = Align(params.outputs[0].X().v, wg_size * params.stride.x);
-    dispatchData.gws[1] = params.outputs[0].Y().v;
-    dispatchData.gws[2] = params.outputs[0].Batch().v * params.outputs[0].Feature().v;
+    if (params.inputs[0].X().v == 1 && params.outputs[0].X().v == 1 && params.filterSize.x == 1) {
+        dispatchData.gws[0] = Align(params.outputs[0].Y().v, wg_size * params.stride.y);
+        dispatchData.gws[1] = params.outputs[0].X().v;
+        dispatchData.gws[2] = params.outputs[0].Batch().v * params.outputs[0].Feature().v;
+    } else {
+        dispatchData.gws[0] = Align(params.outputs[0].X().v, wg_size * params.stride.x);
+        dispatchData.gws[1] = params.outputs[0].Y().v;
+        dispatchData.gws[2] = params.outputs[0].Batch().v * params.outputs[0].Feature().v;
+    }
 
     dispatchData.lws[0] = wg_size;
     dispatchData.lws[1] = 1;
     dispatchData.lws[2] = 1;
+
 
     return dispatchData;
 }
@@ -64,6 +71,11 @@ JitConstants DeconvolutionKernel_bfyx_opt::GetJitConstants(const deconvolution_p
             BoundaryCheck::DISABLED };
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }
+
+    if (params.inputs[0].X().v == 1 && params.outputs[0].X().v == 1 && params.filterSize.x == 1) {
+        jit.AddConstant(MakeJitConstant("Y_AXIS_1D_FILTER", 1));
+    }
+
     return jit;
 }
 
