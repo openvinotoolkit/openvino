@@ -258,6 +258,8 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     cldnn::primitive_id inHiddenStateID = inHiddenReshapeID + "_1";
     cldnn::primitive_id inCellStateID = inHiddenReshapeID + "_2";
 
+    cldnn::primitive_id lstm_seq_id = layerName;// + "_lstm_seq";
+
     auto mutable_precision_first = op->get_output_element_type(1);
     cldnn::layout out1Layout = cldnn::layout(
                 cldnn::element_type_to_data_type(mutable_precision_first),
@@ -272,15 +274,17 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
                 tensor_from_dims(op->get_output_shape(2)));
     cldnn::memory::ptr shared_memory2 = p.get_engine().allocate_memory(out2Layout);
 
-    cldnn::primitive_id lstm_seq_id = layerName;// + "_lstm_seq";
     p.add_primitive(*op, cldnn::mutable_data(lstm_seq_id + ".out1", {cldnn::input_info(lstm_seq_id + ".out0")}, shared_memory1));
-    //inputs.push_back(cldnn::input_info(lstm_seq_id + ".out1"));
+    inputs.push_back(cldnn::input_info(lstm_seq_id + ".out1"));
     p.add_primitive(*op, cldnn::mutable_data(lstm_seq_id + ".out2", {cldnn::input_info(lstm_seq_id + ".out0")}, shared_memory2));
-    //inputs.push_back(cldnn::input_info(lstm_seq_id + ".out2"));
-    p.add_primitive(*op, cldnn::lstm_seq(lstm_seq_id + ".out0", inputs[0], inputs[1], \
-    inputs[2], inputs[3], inputs[4], inputs[5], \
-    cldnn::input_info(bias), inCellStateID, clip, 0, activations, activation_params, cldnn::lstm_weights_order::fizo, 0));
-    //p.add_primitive(*op, cldnn::reshape(lstm_seq_id + ".out0", lstm_seq_id + ".outx", tensor_from_dims(op->get_output_shape(0))), {layerName});
+    inputs.push_back(cldnn::input_info(lstm_seq_id + ".out2"));
+
+    auto prim = cldnn::lstm_seq(lstm_seq_id + ".out0", inputs[0], inputs[1], \
+    inputs[2], inputs[3], inputs[4], inputs[5], cldnn::input_info(bias), lstm_seq_id + ".out1", \
+    lstm_seq_id + ".out2", inCellStateID, clip, 0, activations, activation_params, cldnn::lstm_weights_order::fizo, 0);
+    prim.second_output = inputs[inputs.size() - 2].pid;
+    prim.third_output = inputs[inputs.size() - 1].pid;
+    p.add_primitive(*op, prim);
 }
 
 REGISTER_FACTORY_IMPL(v4, LSTMCell);

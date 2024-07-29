@@ -32,8 +32,8 @@ protected:
         for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
             args.outputs.push_back(instance.output_memory_ptr(i));
         }
-        args.outputs.push_back(instance.second_output_mem());
-        args.outputs.push_back(instance.third_output_mem());
+        //args.outputs.push_back(instance.second_output_mem());
+        //args.outputs.push_back(instance.third_output_mem());
         return args;
     }
 
@@ -84,7 +84,7 @@ public:
     }
 
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
-        if (impl_params.get_input_layout().get_partial_shape().size() != 2) {
+        if (impl_params.get_input_layout().get_partial_shape().size() != 3) {
             return primitive_impl::static_canonicalize_shapes(impl_params);
         }
         auto updated_impl_params = canonicalize_fused_shapes(impl_params);

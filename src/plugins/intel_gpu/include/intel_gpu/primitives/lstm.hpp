@@ -171,6 +171,8 @@ struct lstm_seq : public primitive_base<lstm_seq> {
              const input_info& W,
              const input_info& R,
              const input_info& B,
+             const primitive_id& second_output,
+             const primitive_id& third_output,
              const primitive_id& cell = "",
              const float clip = 0,
              const bool input_forget = 0,
@@ -182,6 +184,8 @@ struct lstm_seq : public primitive_base<lstm_seq> {
              const uint32_t direction = 0,
              const padding& output_padding = padding())
         : primitive_base(id, {x, initial_hidden_state, initial_cell_state, seq_lenghts, W, R, B}, {output_padding}, {}, 3),
+          second_output{second_output},
+          third_output{third_output},
           cell(cell),
           clip(clip),
           input_forget(input_forget),
@@ -190,6 +194,8 @@ struct lstm_seq : public primitive_base<lstm_seq> {
           offset_order(offset_order),
           direction(direction) {}
 
+    primitive_id second_output;
+    primitive_id third_output;
     /// @brief Primitive id containing the initial value of the cell state data.
     primitive_id cell;
     /// @brief Cell clip threshold T. It is applied to the input of activations [-T, T]. No clip is applied if it is not specified.
@@ -272,6 +278,8 @@ protected:
         if (!cell.empty())
             ret.push_back(cell);
         */
+        ret.push_back(second_output);
+        ret.push_back(third_output);
         return ret;
     }
 };
