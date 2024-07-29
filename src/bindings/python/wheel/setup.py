@@ -44,7 +44,7 @@ elif machine == "riscv64":
 # The following variables can be defined in environment or .env file
 SCRIPT_DIR = Path(__file__).resolve().parents[0]
 WORKING_DIR = Path.cwd()
-BUILD_BASE = f"{WORKING_DIR}/build_{PYTHON_VERSION}"
+BUILD_BASE = f"build_{PYTHON_VERSION}"
 OPENVINO_SOURCE_DIR = SCRIPT_DIR.parents[3]
 OPENVINO_BINARY_DIR = os.getenv("OPENVINO_BINARY_DIR")
 OPENVINO_PYTHON_BINARY_DIR = os.getenv("OPENVINO_PYTHON_BINARY_DIR", "python_build")
@@ -445,6 +445,7 @@ class PrepareLibs(build_clib):
 
     def copy_package_libs(self, src_dirs):
         """Collect package data files (clibs and other plugin support files) from preinstalled dirs and put all runtime libraries to the subpackage."""
+        print(f"DEBUG::: copy_package_libs start")
         package_clibs_dir = os.path.join(PACKAGE_DIR, WHEEL_LIBS_INSTALL_DIR)
         os.makedirs(package_clibs_dir, exist_ok=True)
 
