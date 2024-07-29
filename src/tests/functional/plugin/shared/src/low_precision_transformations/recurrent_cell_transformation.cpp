@@ -21,14 +21,16 @@ std::string RecurrentCellTransformation::getTestCaseName(testing::TestParamInfo<
     std::string targetDevice;
     RecurrentCellTransformationParam param;
     ov::pass::low_precision::LayerTransformation::Params params;
-    std::tie(netPrecision, activationsShape, weightsShape, targetDevice, params, param) = obj.param;
+    bool addPrecisionTransparentOperations;
+    std::tie(netPrecision, activationsShape, weightsShape, targetDevice, params, addPrecisionTransparentOperations, param) = obj.param;
 
     std::ostringstream result;
     result << get_test_case_name_by_params(netPrecision, activationsShape[0], targetDevice, params) <<
            "FQ_X_" << param.fakeQuantize_X << "_" <<
         "DQ_X_" << param.dequantization_X << "_" <<
         "FQ_W_" << param.fakeQuantize_W << "_" <<
-        "DQ_W_" << param.dequantization_W;
+        "DQ_W_" << param.dequantization_W << "_" <<
+        "PTO" << addPrecisionTransparentOperations;
     return result.str();
 }
 
@@ -37,9 +39,10 @@ void RecurrentCellTransformation::SetUp() {
     std::vector<ov::PartialShape> activations_shapes;
     std::vector<ov::Shape> weights_shapes;
     RecurrentCellTransformationParam param;
+    bool addPrecisionTransparentOperations;
     ov::pass::low_precision::LayerTransformation::Params params;
 
-    std::tie(precision, activations_shapes, weights_shapes, targetDevice, params, param) = this->GetParam();
+    std::tie(precision, activations_shapes, weights_shapes, targetDevice, params, addPrecisionTransparentOperations, param) = this->GetParam();
 
     init_input_shapes(activations_shapes);
 
@@ -64,13 +67,14 @@ void RecurrentCellTransformation::SetUp() {
                                                                           param.dequantization_H,
                                                                           param.dequantization_W,
                                                                           param.dequantization_R
-                                                                      });
+                                                                      },
+                                                                      addPrecisionTransparentOperations);
 }
 
 void RecurrentCellTransformation::run() {
     LayerTransformation::run();
 
-    const auto params = std::get<5>(GetParam());
+    const auto params = std::get<6>(GetParam());
     const auto actualPrecision = get_runtime_precision_by_type(params.layerName);
     auto expectedPrecision = params.expectedKernelType;
     if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ov::element::f16) {
