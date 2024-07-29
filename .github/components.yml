@@ -221,6 +221,7 @@ OVC:
     - TFL_FE
     - ONNX_FE
     - PDPD_FE
+    - JAX_FE
   build:
     - Python_API
     - TOKENIZERS # TF_FE tests depends on tokenizers build
