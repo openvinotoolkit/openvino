@@ -13,6 +13,7 @@ allow-licenses:
   - '0BSD'
   - 'Python-2.0'
   - 'LGPL-3.0'
+  - 'MPL-2.0'
 fail-on-scopes:
   - 'runtime'
   - 'development'
