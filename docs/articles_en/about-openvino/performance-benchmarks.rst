@@ -13,21 +13,6 @@ Performance Benchmarks
    Efficient LLMs for AI PC <performance-benchmarks/generative-ai-performance>
    performance-benchmarks/performance-benchmarks-faq
    OpenVINO Accuracy <performance-benchmarks/model-accuracy-int8-fp32>
-   performance-benchmarks/getting-performance-numbersPerformance Benchmarks
-======================
-
-.. meta::
-   :description: Use the benchmark results for Intel® Distribution of OpenVINO™
-                 toolkit, that may help you decide what hardware to use or how
-                 to plan the workload.
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   Efficient LLMs for AI PC <performance-benchmarks/generative-ai-performance>
-   performance-benchmarks/performance-benchmarks-faq
-   OpenVINO Accuracy <performance-benchmarks/model-accuracy-int8-fp32>
    performance-benchmarks/getting-performance-numbers
 
 
