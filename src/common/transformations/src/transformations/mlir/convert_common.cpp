@@ -134,10 +134,7 @@ Location createLocation(MLIRContext* ctx, NodePtr node) {
     return createLayerLocation(ctx, node->get_friendly_name(), node->get_type_name());
 }
 
-bool elementwise_no_broadcast_predicate_impl(const ov::Output<ov::Node>& output, ov::element::Type type) {
-    if (output.get_element_type() != type) {
-        return false;
-    }
+bool elementwise_no_broadcast_predicate(const ov::Output<ov::Node>& output) {
     if (has_dynamic_rank(output.get_node_shared_ptr())) {
         return false;
     }

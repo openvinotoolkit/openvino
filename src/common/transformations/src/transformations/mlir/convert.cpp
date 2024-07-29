@@ -283,10 +283,10 @@ void injectMLIR(std::shared_ptr<ov::Model> model, MLIRContext* context, bool tpp
     using namespace ov::op;
     manager.set_per_pass_validation(false);
     manager.register_pass<ov::pass::SymbolicPropagation>();
-    manager.register_pass<BinaryEltwisePattern<v1::Add, linalg::AddOp>>(ov::element::f32);
-    manager.register_pass<BinaryEltwisePattern<v1::Subtract, linalg::SubOp>>(ov::element::f32);
-    manager.register_pass<BinaryEltwisePattern<v1::Multiply, linalg::MulOp>>(ov::element::f32);
-    manager.register_pass<BinaryEltwisePattern<v1::Divide, linalg::DivOp>>(ov::element::f32);
+    manager.register_pass<BinaryEltwisePattern<v1::Add, linalg::AddOp>>();
+    manager.register_pass<BinaryEltwisePattern<v1::Subtract, linalg::SubOp>>();
+    manager.register_pass<BinaryEltwisePattern<v1::Multiply, linalg::MulOp>>();
+    manager.register_pass<BinaryEltwisePattern<v1::Divide, linalg::DivOp>>();
     manager.register_pass<ReluPattern>();
     manager.register_pass<MatMulPattern>();
     manager.register_pass<Partitioner>(context, tpp_mlir_enabled);

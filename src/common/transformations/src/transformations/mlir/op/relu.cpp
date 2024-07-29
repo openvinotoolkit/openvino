@@ -42,8 +42,7 @@ using namespace ov::pass::pattern;
 using namespace ov::op;
 
 ReluPattern::ReluPattern()
-    : MarkPattern(wrap_type<v0::Relu>({any_input()}, elementwise_no_broadcast_predicate<ov::element::f32>),
-                  ConvertRelu()) {}
+    : MarkPattern(wrap_type<v0::Relu>({any_input()}, elementwise_no_broadcast_predicate), ConvertRelu()) {}
 
 }  // namespace mlir
 }  // namespace ov
