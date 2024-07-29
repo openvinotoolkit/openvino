@@ -727,7 +727,7 @@ void prepare_buffer_fusing::run(program& p) {
         if (!can_optimize(node))
             continue;
 
-        program_helpers::do_for_types<crop>(*node, [&p](crop_node& node) {
+        program_helpers::do_for_types<crop>(*node, [](crop_node& node) {
             auto pred_param = node.get_dependency(0).get_kernel_impl_params();
             auto pred_layout = pred_param->get_output_layout();
             if (!crop_in_place_optimization::match(node, *node.get_kernel_impl_params(), pred_layout))
