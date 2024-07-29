@@ -1,9 +1,10 @@
+OpenVINO Release Notes
+=============================
+
 .. meta::
    :description: See what has changed in OpenVINO with the latest release, as well as all
                  previous releases in this year's cycle.
 
-OpenVINO Release Notes
-=============================
 
 .. toctree::
    :maxdepth: 1
@@ -30,8 +31,8 @@ More Gen AI coverage and framework integrations to minimize code changes.
 
 Broader Large Language Model (LLM) support and more model compression techniques.
 
-* Significant improvement in LLM performance on Intel built-in and discrete GPUs with the addition
-  of Multi-Head Attention (MHA), and OneDNN enhancements.
+* Significant improvement in LLM performance on Intel discrete GPUs with the addition of
+  Multi-Head Attention (MHA) and OneDNN enhancements.
 
 More portability and performance to run AI at the edge, in the cloud, or locally.
 
@@ -59,7 +60,7 @@ Common
 
   * Increasing support for models like YoloV10 or PixArt-XL-2, thanks to enabling Squeeze and
     Concat layers.
-  * Performance of precision conversion fp16/bf16 -> fp32.
+  * Performance of precision conversion FP16/BF16 -> FP32.
 
 
 
@@ -97,9 +98,6 @@ GPU Device Plugin
 
   * LLMs and Stable Diffusion on discrete GPUs, due to latency decrease, through optimizations
     such as Multi-Head Attention (MHA) and oneDNN improvements.
-  * First token latency of LLMs for large input cases on Core Ultra integrated GPU. It can be
-    further improved with dynamic quantization enabled with an application
-    `interface <https://docs.openvino.ai/2024/api/c_cpp_api/group__ov__dev__exec__model.html#_CPPv4N2ov4hint31dynamic_quantization_group_sizeE>`__.
   * Whisper models on discrete GPU.
 
 
@@ -191,7 +189,7 @@ Neural Network Compression Framework
   Act->MatMul and Act->MUltiply->MatMul to cover the Phi family models.
 * The representation of symmetrically quantized weights has been updated to a signed data type
   with no zero point. This allows NPU to support compressed LLMs with the symmetric mode.
-* bf16 models in Post-Training Quantization are now supported; nncf.quantize().
+* BF16 models in Post-Training Quantization are now supported; nncf.quantize().
 * `Activation Sparsity <https://arxiv.org/abs/2310.17157>`__ (Contextual Sparsity) algorithm in
   the Weight Compression method is now supported (preview), speeding up LLM inference.
   The algorithm is enabled by setting the ``target_sparsity_by_scope`` option in
@@ -431,7 +429,7 @@ Previous 2024 releases
      compression of LLMs. Enabled by `gptq=True`` in nncf.compress_weights().
    * Scale Estimation algorithm for more accurate 4-bit compressed LLMs. Enabled by
      `scale_estimation=True`` in nncf.compress_weights().
-   * Added support for models with bf16 weights in nncf.compress_weights().
+   * Added support for models with BF16 weights in nncf.compress_weights().
    * nncf.quantize() method is now the recommended path for quantization initialization of
      PyTorch models in Quantization-Aware Training. See example for more details.
    * compressed_model.nncf.get_config() and nncf.torch.load_from_config() API have been added to
