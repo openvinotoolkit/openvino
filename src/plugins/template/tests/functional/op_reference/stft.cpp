@@ -204,6 +204,21 @@ std::vector<STFTParams> generateSTFTParams() {
                         -2.3712,  1.26736,  0.26513,  0.28205,  -1.42191, -1.20478, 1.58578,  -0.88636, 2.88537,
                         1.72055,  0.30074,  1.25455,  -0.75431, 0.,       -4.31307, 0.,       -0.48201, 0.});
 
+    reference_tests::Tensor output_2_9_3_2_no_transp(
+        Shape{2, 9, 3, 2},
+        ET,
+        std::vector<VT>{
+            -2.52411, 0.,      1.99743,  2.45799,  -2.243,   -1.74288, 2.91255,  -0.82545, -2.56084, 2.24181,  0.87525,
+            0.70978,  2.10241, -2.57882, -1.59965, -0.02599, -0.44417, 0.,       -3.6289,  0.,       1.84867,  -0.67991,
+            0.39666,  0.60667, 0.03844,  0.45931,  -0.92956, -1.32518, 0.47508,  1.29318,  0.88504,  -1.03814, -1.02171,
+            0.17824,  0.24368, 0.,       1.1366,   0.,       0.26235,  0.25725,  -0.73965, -0.24622, -1.29728, -1.50822,
+            1.78749,  1.94867, -0.18799, 0.98232,  -1.44897, -2.97866, 2.46326,  1.82815,  -2.81501, 0.,       0.23009,
+            0.,       -0.8824, -1.32292, 1.82039,  1.39297,  -0.61264, -0.76088, -1.69806, -0.27959, 2.42024,  -0.07393,
+            -2.3712,  1.26736, 1.58578,  -0.88636, -0.75431, 0.,       -0.69414, 0.,       -0.24572, -0.82491, 0.23871,
+            1.03274,  0.88512, 0.11954,  0.49037,  0.61252,  -2.01537, -2.16847, 0.26513,  0.28205,  2.88537,  1.72055,
+            -4.31307, 0.,      2.43185,  0.,       -1.45408, 0.19868,  0.813,    0.27265,  -0.37696, -2.37281, -2.19384,
+            2.44019,  3.35813, -0.14251, -1.42191, -1.20478, 0.30074,  1.25455,  -0.48201, 0.});
+
     reference_tests::Tensor output_1_9_9_2_transp_win_pad(
         Shape{1, 9, 9, 2},
         ET,
@@ -299,49 +314,56 @@ std::vector<STFTParams> generateSTFTParams() {
                         frame_step_16,
                         transpose_frames_true,
                         output_1_9_3_2_transp,
-                        "basic_batch_1");
+                        "basic_batch_1_transp");
     params.emplace_back(signal_2_48,
                         hann_window_16,
                         frame_size_16,
                         frame_step_16,
                         transpose_frames_true,
                         output_2_9_3_2_transp,
-                        "basic_batch_2");
+                        "basic_batch_2_transp");
+    params.emplace_back(signal_2_48,
+                        hann_window_16,
+                        frame_size_16,
+                        frame_step_16,
+                        transpose_frames_false,
+                        output_2_9_3_2_no_transp,
+                        "basic_batch_2_no_transp");
     params.emplace_back(signal_48,
                         hann_window_16,
                         frame_size_16,
                         frame_step_4,
                         transpose_frames_true,
                         output_1_9_9_2_transp,
-                        "step_1/4_frame");
+                        "step_1/4_frame_transp");
     params.emplace_back(signal_48,
                         hann_window_8,
                         frame_size_16,
                         frame_step_8,
                         transpose_frames_true,
                         output_1_9_5_2_transp,
-                        "win_size_<_frame_size");
+                        "win_size_<_frame_size_transp");
     params.emplace_back(signal_48,
                         hann_window_8,
                         frame_size_16,
                         frame_step_4,
                         transpose_frames_true,
                         output_1_9_9_2_transp_win_pad,
-                        "step_1/4_frame_&_win_size_<_frame_size");
+                        "step_1/4_frame_&_win_size_<_frame_size_transp");
     params.emplace_back(signal_48,
                         hann_window_7,
                         frame_size_11,
                         frame_step_3,
                         transpose_frames_true,
                         output_1_6_13_2_transp,
-                        "odd_sizes");
+                        "odd_sizes_transp");
     params.emplace_back(signal_48,
                         hann_window_5,
                         frame_size_9,
                         frame_step_100,
                         transpose_frames_true,
                         output_1_5_1_2_transp,
-                        "step_>_signal_size");
+                        "step_>_signal_size_transp");
     return params;
 }
 
