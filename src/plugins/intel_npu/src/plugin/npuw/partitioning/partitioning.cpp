@@ -1217,7 +1217,12 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
 
     // Now walk through through every Const bank and inspect the above properties
     auto values_are_the_same = [](const CTPtr& node_a, const CTPtr& node_b) {
-        switch (node_a->output(0).get_element_type()) {
+        const auto node_a_out = node_a->output(0);
+        // NB: Only consider first 4bits in case single value constant (e.g zp) and u4 element type
+        if (node_a_out.get_element_type() == ov::element::u4 && ov::shape_size(node_a_out.get_shape()) == 1u) {
+            return (node_a->get_vector<uint8_t>()[0] & 0x0f) == (node_b->get_vector<uint8_t>()[0] & 0x0f);
+        }
+        switch (node_a_out.get_element_type()) {
 #define HANDLE_CASE(t, T) \
     case ov::element::t:  \
         return node_a->get_vector<T>() == node_b->get_vector<T>();
@@ -1229,7 +1234,7 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
             HANDLE_CASE(f32, float);
 #undef HANDLE_CASE
         default:
-            OPENVINO_THROW("Unable to handle type ", node_a->output(0));
+            OPENVINO_THROW("Unable to handle type ", node_a_out);
         }
         return false;
     };
