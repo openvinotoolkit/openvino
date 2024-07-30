@@ -65,7 +65,7 @@ class Filter {
 
     // param: GraphData[], ieType
     static FilterByIeType(graphDataArr, value) {
-        return graphDataArr.filter((data) => data.ieType.includes(value));
+        return graphDataArr.filter((data) => data.ieType && data.ieType.includes(value));
     }
 
     // param: GraphData[], clientPlatforms[]
