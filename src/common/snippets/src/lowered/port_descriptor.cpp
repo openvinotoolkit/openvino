@@ -147,10 +147,10 @@ void set_port_desc(const T& port, std::vector<size_t> subtensor, std::vector<siz
 }  // namespace
 
 void PortDescriptorUtils::set_port_descriptor(const ov::Input<ov::Node>& in, std::vector<size_t> subtensor, std::vector<size_t> layout) {
-    set_port_desc(in, subtensor, layout);
+    set_port_desc(in, std::move(subtensor), std::move(layout));
 }
 void PortDescriptorUtils::set_port_descriptor(const ov::Output<ov::Node>& out, std::vector<size_t> subtensor, std::vector<size_t> layout) {
-    set_port_desc(out, subtensor, layout);
+    set_port_desc(out, std::move(subtensor), std::move(layout));
 }
 
 PortDescriptorPtr PortDescriptorUtils::get_port_descriptor_ptr(const ov::Input<ov::Node>& in) {

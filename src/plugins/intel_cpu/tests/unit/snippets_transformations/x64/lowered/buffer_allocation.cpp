@@ -139,7 +139,7 @@ protected:
         const auto subtensor_full = std::vector<size_t>(2, ov::snippets::utils::get_full_dim_value());
 
         // Dims are selected in order to have blocking loops by each dim
-        const size_t m = 64;
+        const size_t m = 1024;
         const size_t k = 1024;
         const size_t n1 = 128;
         const size_t n2 = 256;
@@ -194,7 +194,7 @@ protected:
         const auto subtensor_full = std::vector<size_t>(2, ov::snippets::utils::get_full_dim_value());
 
         // Dims are selected in order to have blocking loops by each dim
-        const size_t m = 64;
+        const size_t m = 1024;
         const size_t k = 1024;
         const size_t n1 = 128;
         const size_t n2 = 256;
@@ -288,7 +288,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHANotOptimizedWOSplit,
                          ::testing::Combine(
                                  ::testing::Values(false),
                                  ::testing::Values(false),
-                                 ::testing::Values(656896), // Each Buffer has own allocated memory
+                                 ::testing::Values(2622976), // Each Buffer has own allocated memory
                                  ::testing::Values(7),      // Each Buffer has unique ID
                                  ::testing::Values(7)),     // Each Buffer has unique cluster ID
                          BufferAllocationCPUTest::getTestCaseName);
@@ -297,7 +297,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHAOptimizedWOSplit, MH
                          ::testing::Combine(
                                  ::testing::Values(true),
                                  ::testing::Values(false),
-                                 ::testing::Values(557056), // (between brgemms) + (Buffer before brgemm0 and after brgemm1)
+                                 ::testing::Values(1572864), // (between brgemms) + (Buffer before brgemm0 and after brgemm1)
                                  ::testing::Values(2),     // (Buffer before brgemm0 and after brgemm1) + (between brgemms)
                                  ::testing::Values(3)),    // (Buffer before brgemm0) + (between brgemms) + (after brgemm1)
                          BufferAllocationCPUTest::getTestCaseName);
@@ -324,7 +324,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXNotOptimizedW
                          ::testing::Combine(
                                  ::testing::Values(false),
                                  ::testing::Values(false),
-                                 ::testing::Values(771328),
+                                 ::testing::Values(2491648),
                                  ::testing::Values(11),
                                  ::testing::Values(11)),
                          BufferAllocationCPUTest::getTestCaseName);
@@ -333,7 +333,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXOptimizedWOSp
                          ::testing::Combine(
                                  ::testing::Values(true),
                                  ::testing::Values(false),
-                                 ::testing::Values(524288),
+                                 ::testing::Values(1409024),
                                  ::testing::Values(3),
                                  ::testing::Values(8)),
                          BufferAllocationCPUTest::getTestCaseName);

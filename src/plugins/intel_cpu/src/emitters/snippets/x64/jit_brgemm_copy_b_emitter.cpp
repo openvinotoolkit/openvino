@@ -79,13 +79,9 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h, cpu_isa_t
 
     const auto ldb = repacking::compute_out_leading_dim(m_N_blk, m_brg_weight_etype);
     const auto wei_stride = get_dim_stride(expr->get_input_port(0), m_transpose ? 0 : 1) * m_brg_weight_etype.size();
-    // Notes:
-    // 1. 4D format tags are used just to force the needed OneDNN primitive creation.
-    //    However, the generated primitive can be also applied to tensors with other ranks
-    // 2. Format with strided access is forced in order to unify list of parameters that are needed for kernel creation:
-    //    in case of strided access format, wei_stride is used for src strides computation
-    //    whereas if we chose formats honestly, we would have to ignore wei_stride in one case and set it in another
-    const auto format = m_transpose ? dnnl_adbc : dnnl_acbd;
+    // Note: 2D format tags are used just to force the needed OneDNN primitive creation.
+    // However, the generated primitive can be also applied to tensors with other ranks
+    const auto format = m_transpose ? dnnl_ba : dnnl_ab;
     init_brgemm_copy(m_kernel, N, m_inner_N_block, m_inner_N_tail, ldb, m_K_blk, brgemm_type, brg_src_etype, m_brg_weight_etype, wei_stride, format);
 }
 

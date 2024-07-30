@@ -22,7 +22,6 @@
 #include "transformations/defs.hpp"
 #include "transformations/cpu_opset/common/pass/convert_to_swish_cpu.hpp"
 #include "transformations/snippets/common/pass/mul_add_to_fma.hpp"
-#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 
 #if defined(OPENVINO_ARCH_ARM64)
 #include "emitters/snippets/aarch64/cpu_generator.hpp"
