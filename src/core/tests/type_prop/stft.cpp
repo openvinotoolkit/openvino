@@ -32,12 +32,13 @@ TEST_F(TypePropSTFTTest, default_ctor) {
     const auto frame_step = Constant::create<int32_t>(element::i32, {}, {3});
 
     op->set_arguments(OutputVector{signal, window, frame_size, frame_step});
+    op->set_transpose_frames(true);
     op->validate_and_infer_types();
 
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_input_size(), 4);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{4, 13, 6, 2}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{4, 6, 13, 2}));
 }
 
 TEST_F(TypePropSTFTTest, all_inputs_as_params_static_shapes) {

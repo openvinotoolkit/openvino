@@ -73,6 +73,10 @@ bool STFT::get_transpose_frames() const {
     return m_transpose_frames;
 }
 
+void STFT::set_transpose_frames(const bool transpose_frames) {
+    m_transpose_frames = transpose_frames;
+}
+
 }  // namespace v15
 }  // namespace op
 }  // namespace ov

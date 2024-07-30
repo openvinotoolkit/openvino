@@ -39,6 +39,7 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     bool get_transpose_frames() const;
+    void set_transpose_frames(const bool transpose_frames);
 
 private:
     bool m_transpose_frames = false;
