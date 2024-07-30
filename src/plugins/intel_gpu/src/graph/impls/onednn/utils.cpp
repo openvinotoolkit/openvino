@@ -345,6 +345,10 @@ cldnn::format find_data_format(dnnl::memory::desc desc) {
                     break;
                 }
             }
+            // b_fs_yx_fsv2 has dnnl::memory::format_tag::undef , so not select the format.
+            if (static_cast<format::type>(fmt_idx) == format::type::b_fs_yx_fsv2) {
+                is_match = false;
+            }
             if (is_match)
                 return static_cast<format::type>(fmt_idx);
         }
