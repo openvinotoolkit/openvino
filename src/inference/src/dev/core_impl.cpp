@@ -597,7 +597,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             // Check that device plugin name is the same as requested for HW plugins
             if (!plugin_name.empty() && !is_virtual_device(plugin_name)) {
                 OPENVINO_ASSERT(deviceName.find(plugin_name) != std::string::npos,
-                                desc.libraryLocation.c_str(),
+                                ov::util::wstring_to_string(desc.libraryLocation.c_str()),
                                 " is used for ",
                                 deviceName,
                                 " , while it contains implementation for ",
