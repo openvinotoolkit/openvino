@@ -85,9 +85,10 @@ void jit_brgemm_copy_b_emitter::init_brgemm_copy(std::unique_ptr<matmul::jit_brg
     matmul::brgemm_matmul_conf_t brgCopyKernelConf;
     brgCopyKernelConf.src_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(src_dt));
     brgCopyKernelConf.wei_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(wei_dt));
+    brgCopyKernelConf.orig_wei_dt = brgCopyKernelConf.wei_dt;
     brgCopyKernelConf.wei_n_blk = static_cast<int>(N_blk);
     brgCopyKernelConf.wei_tag = dnnl_abcd;  // What's about other ranks?
-    brgCopyKernelConf.copy_B_wei_stride = 0;
+    brgCopyKernelConf.transposed_B = false;
     brgCopyKernelConf.LDB = static_cast<dim_t>(LDB);
     brgCopyKernelConf.N =  static_cast<dim_t>(N);
     brgCopyKernelConf.N_tail = static_cast<dim_t>(N_tail);
@@ -97,6 +98,8 @@ void jit_brgemm_copy_b_emitter::init_brgemm_copy(std::unique_ptr<matmul::jit_brg
     brgCopyKernelConf.N_chunk_elems = brgCopyKernelConf.N_blk;
     brgCopyKernelConf.b_dt_sz = DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
     brgCopyKernelConf.tr_b_dt_sz = DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
+    brgCopyKernelConf.copy_B_wei_stride = brgCopyKernelConf.N * brgCopyKernelConf.b_dt_sz;
+
     brgCopyKernelConf.req_wei_vnni_downconvert = false;
 
 
