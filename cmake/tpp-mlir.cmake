@@ -36,6 +36,8 @@ if (TPP_MLIR_DIR)
             -Wl,--no-as-needed
             -L${TPP_MLIR_DIR}/lib
             -ltpp_xsmm_runner_utils
+            -L${LLVM_LIBRARY_DIR}
+            -lmlir_c_runner_utils
             -Wl,--as-needed
         )
         #FIXME: Provide platform-independent way of doing that:
