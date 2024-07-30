@@ -42,9 +42,9 @@ TEST_F(TypePropSTFTTest, default_ctor) {
 
 TEST_F(TypePropSTFTTest, all_inputs_as_params_static_shapes) {
     const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{4, 48});
-    const auto window = std::make_shared<Parameter>(ov::element::f32, PartialShape{7});
-    const auto frame_size = std::make_shared<Parameter>(ov::element::i64, PartialShape{});
-    const auto frame_step = std::make_shared<Parameter>(ov::element::i64, PartialShape{});
+    const auto window = std::make_shared<Parameter>(element::f32, PartialShape{7});
+    const auto frame_size = std::make_shared<Parameter>(element::i64, PartialShape{});
+    const auto frame_step = std::make_shared<Parameter>(element::i64, PartialShape{});
 
     const auto op = make_op(signal, window, frame_size, frame_step, transform_frames);
     EXPECT_EQ(op->get_output_size(), 1);
@@ -54,9 +54,9 @@ TEST_F(TypePropSTFTTest, all_inputs_as_params_static_shapes) {
 
 TEST_F(TypePropSTFTTest, all_inputs_as_params_dyn_shapes) {
     const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{-1, -1});
-    const auto window = std::make_shared<Parameter>(ov::element::f32, PartialShape{-1});
-    const auto frame_size = std::make_shared<Parameter>(ov::element::i64, PartialShape::dynamic());
-    const auto frame_step = std::make_shared<Parameter>(ov::element::i64, PartialShape::dynamic());
+    const auto window = std::make_shared<Parameter>(element::f32, PartialShape{-1});
+    const auto frame_size = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
+    const auto frame_step = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
 
     const auto op = make_op(signal, window, frame_size, frame_step, transform_frames);
     EXPECT_EQ(op->get_output_size(), 1);
@@ -66,9 +66,9 @@ TEST_F(TypePropSTFTTest, all_inputs_as_params_dyn_shapes) {
 
 TEST_F(TypePropSTFTTest, all_inputs_as_params_dyn_rank) {
     const auto signal = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
-    const auto window = std::make_shared<Parameter>(ov::element::f32, PartialShape::dynamic());
-    const auto frame_size = std::make_shared<Parameter>(ov::element::i64, PartialShape::dynamic());
-    const auto frame_step = std::make_shared<Parameter>(ov::element::i64, PartialShape::dynamic());
+    const auto window = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+    const auto frame_size = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
+    const auto frame_step = std::make_shared<Parameter>(element::i64, PartialShape::dynamic());
 
     const auto op = make_op(signal, window, frame_size, frame_step, transform_frames);
     EXPECT_EQ(op->get_output_size(), 1);
@@ -121,75 +121,158 @@ TEST_P(TypePropSTFTTestP, stft_shapes) {
 }
 
 TEST_F(TypePropSTFTTest, signal_incompatible_shape) {
-    const auto window = std::make_shared<Parameter>(ov::element::f32, PartialShape{7});
-    const auto frame_size = std::make_shared<Parameter>(ov::element::i64, PartialShape{});
-    const auto frame_step = std::make_shared<Parameter>(ov::element::i64, PartialShape{});
+    const auto window = std::make_shared<Parameter>(element::f32, PartialShape{7});
+    const auto frame_size = std::make_shared<Parameter>(element::i64, PartialShape{});
+    const auto frame_step = std::make_shared<Parameter>(element::i64, PartialShape{});
     {
         const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{48});
         OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
-                        ov::NodeValidationFailure,
+                        NodeValidationFailure,
                         HasSubstr("The shape of signal must be 2D [batch, signal_size]"));
     }
     {
         const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{-1, 4, 48});
         OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
-                        ov::NodeValidationFailure,
+                        NodeValidationFailure,
                         HasSubstr("The shape of signal must be 2D [batch, signal_size]"));
     }
 }
 
 TEST_F(TypePropSTFTTest, window_incompatible_shape) {
     const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{4, 48});
-    const auto frame_size = std::make_shared<Parameter>(ov::element::i64, PartialShape{});
-    const auto frame_step = std::make_shared<Parameter>(ov::element::i64, PartialShape{});
+    const auto frame_size = std::make_shared<Parameter>(element::i64, PartialShape{});
+    const auto frame_step = std::make_shared<Parameter>(element::i64, PartialShape{});
     {
-        const auto window = std::make_shared<Parameter>(ov::element::f32, PartialShape{});
+        const auto window = std::make_shared<Parameter>(element::f32, PartialShape{});
         OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
-                        ov::NodeValidationFailure,
+                        NodeValidationFailure,
                         HasSubstr("The shape of window must be 1D [window_size]"));
     }
     {
-        const auto window = std::make_shared<Parameter>(ov::element::f32, PartialShape{2, 8});
+        const auto window = std::make_shared<Parameter>(element::f32, PartialShape{2, 8});
         OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
-                        ov::NodeValidationFailure,
+                        NodeValidationFailure,
                         HasSubstr("The shape of window must be 1D [window_size]"));
     }
 }
 
 TEST_F(TypePropSTFTTest, frame_size_incompatible_shape) {
     const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{4, 48});
-    const auto window = std::make_shared<Parameter>(ov::element::f32, PartialShape{7});
-    const auto frame_step = std::make_shared<Parameter>(ov::element::i64, PartialShape{});
+    const auto window = std::make_shared<Parameter>(element::f32, PartialShape{7});
+    const auto frame_step = std::make_shared<Parameter>(element::i64, PartialShape{});
     {
-        const auto frame_size = std::make_shared<Parameter>(ov::element::i64, PartialShape{1});
+        const auto frame_size = std::make_shared<Parameter>(element::i64, PartialShape{1});
         OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
-                        ov::NodeValidationFailure,
+                        NodeValidationFailure,
                         HasSubstr("The shape of frame_size must be a scalar"));
     }
     {
-        const auto frame_size = std::make_shared<Parameter>(ov::element::i64, PartialShape{1, 2});
+        const auto frame_size = std::make_shared<Parameter>(element::i64, PartialShape{1, 2});
         OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
-                        ov::NodeValidationFailure,
+                        NodeValidationFailure,
                         HasSubstr("The shape of frame_size must be a scalar"));
     }
 }
 
 TEST_F(TypePropSTFTTest, frame_step_incompatible_shape) {
     const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{4, 48});
-    const auto window = std::make_shared<Parameter>(ov::element::f32, PartialShape{7});
-    const auto frame_size = std::make_shared<Parameter>(ov::element::i64, PartialShape{});
+    const auto window = std::make_shared<Parameter>(element::f32, PartialShape{7});
+    const auto frame_size = std::make_shared<Parameter>(element::i64, PartialShape{});
     {
-        const auto frame_step = std::make_shared<Parameter>(ov::element::i64, PartialShape{1});
+        const auto frame_step = std::make_shared<Parameter>(element::i64, PartialShape{1});
 
         OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
-                        ov::NodeValidationFailure,
+                        NodeValidationFailure,
                         HasSubstr("The shape of frame_step must be a scalar"));
     }
     {
-        const auto frame_step = std::make_shared<Parameter>(ov::element::i64, PartialShape{1, 2});
+        const auto frame_step = std::make_shared<Parameter>(element::i64, PartialShape{1, 2});
         OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
-                        ov::NodeValidationFailure,
+                        NodeValidationFailure,
                         HasSubstr("The shape of frame_step must be a scalar"));
+    }
+}
+
+TEST_F(TypePropSTFTTest, signal_incompatible_type) {
+    const auto window = std::make_shared<Parameter>(element::f32, PartialShape{7});
+    const auto frame_size = std::make_shared<Parameter>(element::i64, PartialShape{});
+    const auto frame_step = std::make_shared<Parameter>(element::i64, PartialShape{});
+    {
+        const auto signal = std::make_shared<Parameter>(element::i32, PartialShape{1, 48});
+        OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
+                        NodeValidationFailure,
+                        HasSubstr("Expected floating point type of the 'signal' input"));
+    }
+    {
+        const auto signal = std::make_shared<Parameter>(element::boolean, PartialShape{1, 48});
+        OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
+                        NodeValidationFailure,
+                        HasSubstr("Expected floating point type of the 'signal' input"));
+    }
+}
+
+TEST_F(TypePropSTFTTest, window_incompatible_type) {
+    const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{4, 48});
+    const auto frame_size = std::make_shared<Parameter>(element::i64, PartialShape{});
+    const auto frame_step = std::make_shared<Parameter>(element::i64, PartialShape{});
+    {
+        const auto window = std::make_shared<Parameter>(element::i32, PartialShape{8});
+        OV_EXPECT_THROW(
+            std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
+            NodeValidationFailure,
+            HasSubstr("Expected floating point type of the 'window' input, matching the type of `signal` input"));
+    }
+    {
+        const auto window = std::make_shared<Parameter>(element::boolean, PartialShape{8});
+        OV_EXPECT_THROW(
+            std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
+            NodeValidationFailure,
+            HasSubstr("Expected floating point type of the 'window' input, matching the type of `signal` input"));
+    }
+    {
+        // Doesn't match the type of signal input
+        const auto window = std::make_shared<Parameter>(element::f16, PartialShape{8});
+        OV_EXPECT_THROW(
+            std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
+            NodeValidationFailure,
+            HasSubstr("Expected floating point type of the 'window' input, matching the type of `signal` input"));
+    }
+}
+
+TEST_F(TypePropSTFTTest, frame_size_incompatible_type) {
+    const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{4, 48});
+    const auto window = std::make_shared<Parameter>(element::f32, PartialShape{7});
+    const auto frame_step = std::make_shared<Parameter>(element::i64, PartialShape{});
+    {
+        const auto frame_size = std::make_shared<Parameter>(element::f32, PartialShape{});
+        OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
+                        NodeValidationFailure,
+                        HasSubstr("Expected i32 or i64 type of the 'frame_size' input"));
+    }
+    {
+        const auto frame_size = std::make_shared<Parameter>(element::i8, PartialShape{});
+        OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
+                        NodeValidationFailure,
+                        HasSubstr("Expected i32 or i64 type of the 'frame_size' input"));
+    }
+}
+
+TEST_F(TypePropSTFTTest, frame_step_incompatible_type) {
+    const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{4, 48});
+    const auto window = std::make_shared<Parameter>(element::f32, PartialShape{7});
+    const auto frame_size = std::make_shared<Parameter>(element::i64, PartialShape{});
+    {
+        const auto frame_step = std::make_shared<Parameter>(element::f32, PartialShape{});
+
+        OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
+                        NodeValidationFailure,
+                        HasSubstr("Expected i32 or i64  of the 'frame_step' input"));
+    }
+    {
+        const auto frame_step = std::make_shared<Parameter>(element::i8, PartialShape{});
+        OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
+                        NodeValidationFailure,
+                        HasSubstr("Expected i32 or i64  of the 'frame_step' input"));
     }
 }
 

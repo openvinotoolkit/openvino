@@ -56,11 +56,11 @@ void STFT::validate_and_infer_types() {
 
     const auto has_valid_frame_size_type =
         frame_size_type.is_dynamic() || frame_size_type == element::i32 || frame_size_type == element::i64;
-    NODE_VALIDATION_CHECK(this, has_valid_frame_size_type, "Expected integer type of the 'frame_size' input.");
+    NODE_VALIDATION_CHECK(this, has_valid_frame_size_type, "Expected i32 or i64 type of the 'frame_size' input.");
 
     const auto has_valid_frame_step_type =
         frame_size_type.is_dynamic() || frame_step_type == element::i32 || frame_step_type == element::i64;
-    NODE_VALIDATION_CHECK(this, has_valid_frame_step_type, "Expected integer type of the 'frame_step' input.");
+    NODE_VALIDATION_CHECK(this, has_valid_frame_step_type, "Expected i32 or i64  of the 'frame_step' input.");
 
     const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);
