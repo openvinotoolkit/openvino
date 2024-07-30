@@ -1,0 +1,39 @@
+name: 'Store artifacts'
+description: 'Store given artifacts in a proper place on a shared drive'
+inputs:
+  artifacts:
+    description: "Multi-line list of artifacts to store"
+    required: true
+  storage_dir:
+    description: "Directory name to store artifacts in"
+    required: true
+  storage_root:
+    description: "Root path of the storage to place artifacts to"
+    required: true
+
+
+outputs:
+  artifacts_storage_path:
+    description: "Path where the artifacts are stored"
+    value: ${{ steps.copy_artifacts.outputs.artifacts_storage_path }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Python dependencies
+      shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
+      run: >-
+        pip install -r ${{ env.ACTION_PATH }}/requirements.txt
+      env:
+        ACTION_PATH: ${{ runner.os == 'Windows' && '$env:GITHUB_ACTION_PATH' || '$GITHUB_ACTION_PATH' }}
+
+    - name: 'Copy artifacts'
+      id: copy_artifacts
+      shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
+      run: >-
+        python ${{ env.ACTION_PATH }}/store_artifacts.py
+        --storage_dir "${{ inputs.storage_dir }}" --storage_root "${{ inputs.storage_root }}"
+        -a "${{ inputs.artifacts }}"
+      env:
+        PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        ACTION_PATH: ${{ runner.os == 'Windows' && '$env:GITHUB_ACTION_PATH' || '$GITHUB_ACTION_PATH' }}
