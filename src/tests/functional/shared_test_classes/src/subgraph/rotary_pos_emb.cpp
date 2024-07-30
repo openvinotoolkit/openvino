@@ -61,8 +61,8 @@ std::shared_ptr<ov::Model> RoPETestLlama2StridedSlice::buildROPE_Llama2(int batc
                                                          {"new_axis_mask", {}},
                                                          {"shrink_axis_mask", {}},
                                                          {"ellipsis_mask", {}}});
-    auto squeeze_Squeeze = makeOP<ov::op::v0::Squeeze>({slice_Slice, 1});
-    auto squeeze_Squeeze_435 = makeOP<ov::op::v0::Squeeze>({squeeze_Squeeze, 0});
+    auto squeeze_Squeeze = makeOP<ov::op::v0::Squeeze>({slice_Slice, 1}, {{"pytorch_dynamic_rank", false}});
+    auto squeeze_Squeeze_435 = makeOP<ov::op::v0::Squeeze>({squeeze_Squeeze, 0}, {{"pytorch_dynamic_rank", false}});
     auto index_441_Gather = makeOP<ov::op::v8::Gather>({squeeze_Squeeze_435, pos_ids, 0}, {{"batch_dims", 0}});
     auto unsqueeze_Unsqueeze = makeOP<ov::op::v0::Unsqueeze>({index_441_Gather, 1});
     auto mul_Multiply =
@@ -106,8 +106,8 @@ std::shared_ptr<ov::Model> RoPETestLlama2StridedSlice::buildROPE_Llama2(int batc
                                                              {"new_axis_mask", {}},
                                                              {"shrink_axis_mask", {}},
                                                              {"ellipsis_mask", {}}});
-    auto squeeze_Squeeze_436 = makeOP<ov::op::v0::Squeeze>({slice_Slice_433, 1});
-    auto squeeze_Squeeze_437 = makeOP<ov::op::v0::Squeeze>({squeeze_Squeeze_436, 0});
+    auto squeeze_Squeeze_436 = makeOP<ov::op::v0::Squeeze>({slice_Slice_433, 1}, {{"pytorch_dynamic_rank", false}});
+    auto squeeze_Squeeze_437 = makeOP<ov::op::v0::Squeeze>({squeeze_Squeeze_436, 0}, {{"pytorch_dynamic_rank", false}});
     auto index_446_Gather = makeOP<ov::op::v8::Gather>({squeeze_Squeeze_437, pos_ids, 0}, {{"batch_dims", 0}});
     auto unsqueeze_Unsqueeze_447 = makeOP<ov::op::v0::Unsqueeze>({index_446_Gather, 1});
     auto mul_Multiply_463 =
@@ -625,8 +625,8 @@ std::shared_ptr<ov::Model> RoPETestRotateHalfWithoutTranspose::buildROPE_RotateH
                                                          {"new_axis_mask", {}},
                                                          {"shrink_axis_mask", {}},
                                                          {"ellipsis_mask", {}}});
-    auto squeeze_Squeeze = makeOP<ov::op::v0::Squeeze>({slice_Slice, 2});
-    auto squeeze_Squeeze_435 = makeOP<ov::op::v0::Squeeze>({squeeze_Squeeze, 0});
+    auto squeeze_Squeeze = makeOP<ov::op::v0::Squeeze>({slice_Slice, 2}, {{"pytorch_dynamic_rank", false}});
+    auto squeeze_Squeeze_435 = makeOP<ov::op::v0::Squeeze>({squeeze_Squeeze, 0}, {{"pytorch_dynamic_rank", false}});
     auto index_441_Gather = makeOP<ov::op::v8::Gather>({squeeze_Squeeze_435, pos_ids, 0}, {{"batch_dims", 0}});
     auto unsqueeze_Unsqueeze = makeOP<ov::op::v0::Unsqueeze>({index_441_Gather, 1});
     auto mul_Multiply = makeOP<ov::op::v1::Multiply>({input, unsqueeze_Unsqueeze}, {{"auto_broadcast", "numpy"}});
@@ -668,8 +668,8 @@ std::shared_ptr<ov::Model> RoPETestRotateHalfWithoutTranspose::buildROPE_RotateH
                                                              {"new_axis_mask", {}},
                                                              {"shrink_axis_mask", {}},
                                                              {"ellipsis_mask", {}}});
-    auto squeeze_Squeeze_436 = makeOP<ov::op::v0::Squeeze>({slice_Slice_433, 2});
-    auto squeeze_Squeeze_437 = makeOP<ov::op::v0::Squeeze>({squeeze_Squeeze_436, 0});
+    auto squeeze_Squeeze_436 = makeOP<ov::op::v0::Squeeze>({slice_Slice_433, 2}, {{"pytorch_dynamic_rank", false}});
+    auto squeeze_Squeeze_437 = makeOP<ov::op::v0::Squeeze>({squeeze_Squeeze_436, 0}, {{"pytorch_dynamic_rank", false}});
     auto index_446_Gather = makeOP<ov::op::v8::Gather>({squeeze_Squeeze_437, pos_ids, 0}, {{"batch_dims", 0}});
     auto unsqueeze_Unsqueeze_447 = makeOP<ov::op::v0::Unsqueeze>({index_446_Gather, 1});
     auto mul_Multiply_463 =
@@ -762,8 +762,8 @@ std::shared_ptr<ov::Model> RoPETestLlama2Slice::buildROPE_Llama2(int batch,
     auto transpose_Transpose = makeOP<ov::op::v1::Transpose>({input, {0, 2, 1, 3}});
     auto slice_Unsqueeze_426 = makeOP<ov::op::v0::Unsqueeze>({pos_id_end, 0});
     auto slice_Slice = makeOP<ov::op::v8::Slice>({Constant582, {0}, slice_Unsqueeze_426, {1}, {2}});
-    auto squeeze_Squeeze = makeOP<ov::op::v0::Squeeze>({slice_Slice, 1});
-    auto squeeze_Squeeze_435 = makeOP<ov::op::v0::Squeeze>({squeeze_Squeeze, 0});
+    auto squeeze_Squeeze = makeOP<ov::op::v0::Squeeze>({slice_Slice, 1}, {{"pytorch_dynamic_rank", false}});
+    auto squeeze_Squeeze_435 = makeOP<ov::op::v0::Squeeze>({squeeze_Squeeze, 0}, {{"pytorch_dynamic_rank", false}});
     auto index_441_Gather = makeOP<ov::op::v8::Gather>({squeeze_Squeeze_435, pos_ids, 0}, {{"batch_dims", 0}});
     auto unsqueeze_Unsqueeze = makeOP<ov::op::v0::Unsqueeze>({index_441_Gather, 1});
     auto mul_Multiply =
@@ -787,8 +787,8 @@ std::shared_ptr<ov::Model> RoPETestLlama2Slice::buildROPE_Llama2(int batch,
     auto slice_Slice2 = makeOP<ov::op::v8::Slice>({transpose_Transpose, {0}, slice_Unsqueeze_452, {1}, {3}});
     auto cat_Concat = makeOP<ov::op::v0::Concat>({neg_Multiply, slice_Slice2}, {{"axis", -1}});
     auto slice_Slice_433 = makeOP<ov::op::v8::Slice>({Constant585, {0}, slice_Unsqueeze_426, {1}, {2}});
-    auto squeeze_Squeeze_436 = makeOP<ov::op::v0::Squeeze>({slice_Slice_433, 1});
-    auto squeeze_Squeeze_437 = makeOP<ov::op::v0::Squeeze>({squeeze_Squeeze_436, 0});
+    auto squeeze_Squeeze_436 = makeOP<ov::op::v0::Squeeze>({slice_Slice_433, 1}, {{"pytorch_dynamic_rank", false}});
+    auto squeeze_Squeeze_437 = makeOP<ov::op::v0::Squeeze>({squeeze_Squeeze_436, 0}, {{"pytorch_dynamic_rank", false}});
     auto index_446_Gather = makeOP<ov::op::v8::Gather>({squeeze_Squeeze_437, pos_ids, 0}, {{"batch_dims", 0}});
     auto unsqueeze_Unsqueeze_447 = makeOP<ov::op::v0::Unsqueeze>({index_446_Gather, 1});
     auto mul_Multiply_463 =
