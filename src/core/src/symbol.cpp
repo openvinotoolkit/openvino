@@ -11,7 +11,7 @@ namespace ov {
 using WeakSymbol = std::weak_ptr<ov::Symbol>;
 using WeakSymbolVector = std::vector<WeakSymbol>;
 
-bool operator==(const WeakSymbol& lhs, const WeakSymbol& rhs) {
+inline bool operator==(const WeakSymbol& lhs, const WeakSymbol& rhs) {
     if (lhs.expired() && rhs.expired())
         return true;
     if (lhs.expired() || rhs.expired())
@@ -19,13 +19,14 @@ bool operator==(const WeakSymbol& lhs, const WeakSymbol& rhs) {
     return lhs.lock().get() == rhs.lock().get();
 }
 
-bool operator!=(const WeakSymbol& lhs, const WeakSymbol& rhs) {
+inline bool operator!=(const WeakSymbol& lhs, const WeakSymbol& rhs) {
     return !(lhs == rhs);
 }
 
-bool operator<(const WeakSymbol& lhs, const WeakSymbol& rhs) {
+inline bool operator<(const WeakSymbol& lhs, const WeakSymbol& rhs) {
     return std::owner_less<ov::SymbolPtr>()(lhs.lock(), rhs.lock());
 }
+
 
 struct WeakSymbolVectorHash {
     std::size_t operator()(const WeakSymbolVector& v) const {
