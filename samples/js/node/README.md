@@ -26,6 +26,7 @@ VSCode extension to run these notebook samples
   - hello-detection.nnb
   - question-answering.nnb
   - pose-estimation.nnb
+  - vision-background-removal.nnb
 
 ## Live Sample
 
