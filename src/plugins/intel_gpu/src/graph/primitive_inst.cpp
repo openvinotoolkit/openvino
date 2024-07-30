@@ -1049,9 +1049,7 @@ bool primitive_inst::update_impl(bool use_async_compilation) {
                 if (!can_be_optimized())  {
                     if (!is_current_impl_dynamic)
                         _impl = std::move(_dynamic_impl);
-                    auto new_impl_params = _impl->canonicalize_shapes(*_impl_params);
-                    _impl->update_dispatch_data(new_impl_params);
-                    update_shape_info_tensor(new_impl_params);
+                    _impl->update(*this, *_impl_params);
                 }
             } else {
                 _impl = _node->type()->choose_impl(*_node, updated_params);

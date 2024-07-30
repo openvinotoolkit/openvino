@@ -94,6 +94,12 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
         }
     }
 
+    void update(primitive_inst& inst, const kernel_impl_params& impl_params) override {
+        auto new_impl_params = this->canonicalize_shapes(impl_params);
+        update_dispatch_data(new_impl_params);
+        inst.update_shape_info_tensor(new_impl_params);
+    }
+
 protected:
     virtual kernel_arguments_data get_arguments(const typed_primitive_inst<PType>& instance, size_t stage) const = 0;
 
@@ -226,6 +232,11 @@ protected:
 
     std::pair<std::string, std::string> get_kernels_dump_info() const override {
         return kernel_dump_info;
+    }
+
+    virtual void update_dispatch_data(const kernel_impl_params& impl_params) {
+        OPENVINO_ASSERT(this->_is_dynamic, "[GPU] update_dispatch_data() is called for static shape implementation ", this-> _kernel_name);
+        OPENVINO_ASSERT(false, "[GPU] update_dispatch_data() is not implemented for dynamic implemenation ", this->_kernel_name);
     }
 };
 

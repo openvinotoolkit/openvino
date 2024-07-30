@@ -54,7 +54,7 @@ public:
         return make_unique<wait_for_events_impl>(prior_box);
     }
 
-    void update_dispatch_data(const kernel_impl_params& impl_param) override { }
+    void update(primitive_inst& inst, const kernel_impl_params& impl_param) override { }
 };
 
 namespace detail {
