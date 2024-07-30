@@ -35,10 +35,12 @@ TEST(extension, load_extension) {
 #ifdef defined(_WIN32)
 TEST(extension, load_extension_wstring) {
     std::wstring wdir = get_extension_wdir();
-    std::wstring wdir_ext_path = wdir + ov::util::string_to_wstring(ov::util::make_plugin_library_name<char>("", std::string("openvino_template_extension") + OV_BUILD_POSTFIX));
+    std::wstring wdir_ext_path = wdir + ov::util::string_to_wstring(ov::util::make_plugin_library_name<char>(
+                                            "",
+                                            std::string("openvino_template_extension") + OV_BUILD_POSTFIX));
     _wrename(ov::util::string_to_wstring(get_extension_path()).c_str(), wdir_ext_path.c_str());
     EXPECT_NO_THROW(ov::detail::load_extensions(wdir_ext_path));
-    _wrename(wdir_ext_path.c_str(),ov::util::string_to_wstring(get_extension_path()).c_str());
+    _wrename(wdir_ext_path.c_str(), ov::util::string_to_wstring(get_extension_path()).c_str());
     _wrmdir(wdir.c_str());
 }
 #endif
