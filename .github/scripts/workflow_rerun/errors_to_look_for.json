@@ -62,5 +62,9 @@
     {
         "error_text": "ERROR 502: Bad Gateway",
         "ticket": 146254
+    },
+    {
+        "error_text": "Unexpected HTTP response: 520",
+        "ticket": 147958
     }
 ]
