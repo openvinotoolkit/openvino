@@ -510,8 +510,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
 };
 
 #ifdef OV_CPU_WITH_ACL
-template <typename T>
-struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
+template <>
+struct MHAKernel<ScaledDotProductAttention::KT_ACL, float> {
     const GraphContext::CPtr context;
     size_t m_block_size;
 
@@ -596,11 +596,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
             bool b_transpose = false;
             if (k_stride_s == 1)
                 b_transpose = true;
-            auto inType = ov::element::f32;
-            if (typeid(T) == typeid(ov::float16)) {
-                inType = ov::element::f16;
-            }
-            GemmKernel qk_gemm(m_cnt, head_size, kv_len, b_transpose, inType);
+            GemmKernel qk_gemm(m_cnt, head_size, kv_len, b_transpose);
 
             arm_compute::Strides qStrides({query.stride_bytes(3), query.stride_bytes(2)});
             arm_compute::Strides kStrides({present_key.stride_bytes(3), present_key.stride_bytes(2)});
@@ -634,7 +630,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
 
             auto out = has_out_transpose ? &output_emb.at<float>({b, m_start, h * head_size}) : &output_emb.at<float>({b, h, m_start});
             auto strides = arm_compute::Strides({output_emb.stride_bytes(1), output_emb.stride_bytes(2)});
-            GemmKernel out_gemm(m_cnt, kv_len, head_size, false, inType);
+            GemmKernel out_gemm(m_cnt, kv_len, head_size);
 
             arm_compute::Strides vStrides({present_value.stride_bytes(3), present_value.stride_bytes(2)});
             out_gemm.executeGemm(qkTensor.buffer(),
@@ -1085,11 +1081,7 @@ void ScaledDotProductAttention::createPrimitive() {
 #endif
         } else {
 #ifdef OV_CPU_WITH_ACL
-            if (rtPrecision == ov::element::f16) {
-                executor = std::make_shared<AttentionExecutor < KT_ACL, ov::float16>>(context);
-            } else {
-                executor = std::make_shared<AttentionExecutor < KT_ACL, float>>(context);
-            }
+            executor = std::make_shared<AttentionExecutor<KT_ACL, float>>(context);
 #elif defined(OV_CPU_WITH_MLAS)
             executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(context);
 #elif defined(OPENVINO_ARCH_X86_64)
@@ -1717,8 +1709,6 @@ ov::element::Type ScaledDotProductAttention::getRuntimePrecision() const {
     // bf16 should be enabled only when platform supports
     if (rtPrecision == ov::element::bf16 && ov::with_cpu_x86_bfloat16()) {
         rtPrecision = ov::element::bf16;
-    } else if (rtPrecision == ov::element::f16) {
-        rtPrecision = ov::element::f16;
     } else {
         rtPrecision = ov::element::f32;
     }

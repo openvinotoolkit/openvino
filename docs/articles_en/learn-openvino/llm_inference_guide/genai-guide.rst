@@ -44,7 +44,7 @@ will not work with these instructions, make sure to
 
             import openvino_genai as ov_genai
             pipe = ov_genai.LLMPipeline(model_path, "CPU")
-            print(pipe.generate("The Sun is yellow because"))
+            print(pipe.generate("The Sun is yellow because", max_new_tokens=100))
 
       .. tab-item:: C++
          :sync: cpp
@@ -57,7 +57,7 @@ will not work with these instructions, make sure to
             int main(int argc, char* argv[]) {
                std::string model_path = argv[1];
                ov::genai::LLMPipeline pipe(model_path, "CPU");
-               std::cout << pipe.generate("The Sun is yellow because");
+               std::cout << pipe.generate("The Sun is yellow because", ov::genai::max_new_tokens(100));
             }
 
 The `LLMPipeline` is the main object used for decoding. You can construct it directly from the
@@ -85,7 +85,7 @@ below, where a lambda function outputs words to the console immediately upon gen
          pipe = ov_genai.LLMPipeline(model_path, "CPU")
 
          streamer = lambda x: print(x, end='', flush=True)
-         pipe.generate("The Sun is yellow because", streamer=streamer)
+         pipe.generate("The Sun is yellow because", streamer=streamer, max_new_tokens=100)
 
    .. tab-item:: C++
 
@@ -104,7 +104,7 @@ below, where a lambda function outputs words to the console immediately upon gen
                // false means continue generation.
                return false;
             };
-            pipe.generate("The Sun is yellow because", ov::genai::streamer(streamer));
+            pipe.generate("The Sun is yellow because", ov::genai::streamer(streamer), ov::genai::max_new_tokens(100));
          }
 
 You can also create your custom streamer for more sophisticated processing:
@@ -132,7 +132,7 @@ You can also create your custom streamer for more sophisticated processing:
                # Decode tokens and process them.
 
          pipe = ov_genai.LLMPipeline(model_path, "CPU")
-         pipe.generate("The Sun is yellow because", streamer=CustomStreamer())
+         pipe.generate("The Sun is yellow because", streamer=CustomStreamer(), max_new_tokens=100)
 
 
    .. tab-item:: C++
@@ -164,7 +164,7 @@ You can also create your custom streamer for more sophisticated processing:
 
             std::string model_path = argv[1];
             ov::genai::LLMPipeline pipe(model_path, "CPU");
-            pipe.generate("The Sun is yellow because", ov::genai::streamer(custom_streamer));
+            pipe.generate("The Sun is yellow because", ov::genai::streamer(custom_streamer), ov::genai::max_new_tokens(100));
          }
 
 Using GenAI in Chat Scenario

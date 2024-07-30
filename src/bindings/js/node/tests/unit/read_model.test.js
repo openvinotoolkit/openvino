@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 const fs = require('node:fs');
-const { addon: ov } = require('..');
+const { addon: ov } = require('../..');
 const assert = require('assert');
 const { describe, it } = require('node:test');
 const { getModelPath } = require('./utils.js');
