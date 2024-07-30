@@ -84,8 +84,8 @@ def get_torch_type(type: str) -> torch.dtype:
 def get_torch_layer(layer: str, sizes: list[int], type: str) -> nn.Module:
     data_type = get_torch_type(type)
     if layer == 'linear':
-        assert len(sizes) == 2, "invalid sizes for linear"
-        linear = nn.Linear(*sizes, dtype=data_type)
+        assert len(sizes) == 3, "invalid sizes for linear - expects [m,n,k]"
+        linear = nn.Linear(sizes[2], sizes[1], dtype=data_type)
         # Generate random weights
         linear.weight.data.normal_(0, 0.01)
         linear.bias.data.fill_(0.01)
@@ -101,7 +101,7 @@ def get_torch_layer(layer: str, sizes: list[int], type: str) -> nn.Module:
     if layer == 'div':
         return TorchDiv(sizes, data_type)
     if layer == 'matmul':
-        assert len(sizes) == 3, "invalid sizes for mm"
+        assert len(sizes) == 3, "invalid sizes for mm - expects [m,n,k]"
         return TorchMatmul(sizes, data_type)
     assert False, f"Unsupported torch layer type {layer}"
 
@@ -138,19 +138,16 @@ def get_layer_inputs(layer_desc: str, is_dynamic: bool):
 
     layer = get_layer_name(layer_desc)
 
-    if layer == 'matmul':
+    if layer == 'matmul' or layer == 'linear':
         m = input_sizes[0]
         k = input_sizes[2]
-        return [[m,k]]
+        return [m,k]
 
-    # Needs to be reversed for nn.Linear, does it apply to other layers too?
-    if layer == 'linear':
-        input_sizes.reverse()
-
-    return [input_sizes]
+    return input_sizes
 
 
-def generate_ov_model(layers_desc: str, data_type: str, file_name: str, is_dynamic: bool = False):
+def generate_ov_model(layers_desc: str, data_type: str, file_name: str,
+                      is_dynamic: bool = False):
     layers = layers_desc.split()
     torch_seq = TorchSequential()
     for layer in layers:
@@ -164,7 +161,7 @@ def generate_ov_model(layers_desc: str, data_type: str, file_name: str, is_dynam
 
     input_shapes = get_layer_inputs(layers[0], is_dynamic)
     ov_type = get_ov_type(data_type)
-    inputs = [(ov.PartialShape(shapes), ov_type) for shapes in input_shapes]
+    inputs = (ov.PartialShape(input_shapes), ov_type)
 
     ov_model = ov.convert_model(torch_seq, input=inputs)
     ov.save_model(ov_model, f"{file_name}")
@@ -188,7 +185,7 @@ def baseline_MLP(model_desc: str, data_type: str, is_dynamic: bool) -> tuple[nn.
     sizes = get_layer_sizes(model_desc)
     assert len(sizes) == 3, "Invalid baseline MLP sizes"
     mlp = BaselineMLP(sizes, get_torch_type(data_type))
-    input_shapes = get_layer_inputs(model_desc, is_dynamic)[0]
+    input_shapes = get_layer_inputs(model_desc, is_dynamic)
     m = input_shapes[0]
     n = input_shapes[1]
     k = input_shapes[2]
@@ -216,7 +213,7 @@ def main():
                         description='Generate PyTorch model and export as OV .xml')
     parser.add_argument('-l', '--layers', type=str.lower,
                         help='Model layers description. For example:\
-                                -l="linear[64,32] relu[] linear[32,16] gelu[]"\
+                                -l="linear[128,1024,256] relu[] linear[128,512,1024] gelu[]"\
                                 -l="matmul[128,128,1024] add[128,128] relu[]"\
                                 -l="add[8,8] div[8,8]"')
     parser.add_argument('-t', '--type', default='f32', type=str.lower,

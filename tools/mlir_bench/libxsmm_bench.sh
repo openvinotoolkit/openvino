@@ -36,22 +36,22 @@ if ! [ "$(command -v ${BENCH_RUNNER})" ]; then
   echo "Missing benchmark runner ${BENCH_RUNNER}"
   exit 1
 fi
-if [ ${IS_DYNAMIC} ]; then
+if [ "${IS_DYNAMIC}" ]; then
   echo "Dynamic shapes are not supported by ${BENCH_RUNNER}"
   exit 1
 fi
 
 # Kernel config.
-INPUT_SIZES=( 1024 2048 4096 8192 )
-OUTPUT_SIZES=( 128 256 512 )
+LAYERS=( 1024 2048 4096 8192 )
+MINI_BATCHES=( 128 256 512 )
 if [ ! "${DATA_TYPE}" ]; then
     DATA_TYPE="f32"
 fi
 
 echo "Result type: GFLOPS"
-for OUT_SIZE in "${OUTPUT_SIZES[@]}"; do
-  echo "MLP - OUT: ${OUT_SIZE} INS: ${INPUT_SIZES[@]}"
-  for IN_SIZE in "${INPUT_SIZES[@]}"; do
+for MB in "${MINI_BATCHES[@]}"; do
+  echo "MLP - MB: ${MB} LAYERS: ${LAYERS[@]}"
+  for LAYER in "${LAYERS[@]}"; do
     # Run benchmark.
     NUM_ITER=10000
     FUSE_TYPE=5
@@ -63,8 +63,8 @@ for OUT_SIZE in "${OUTPUT_SIZES[@]}"; do
     fi
     # Disable parallelism.
     ENV_FLAGS=OMP_NUM_THREADS=1
-    exec env ${ENV_FLAGS} ${BENCH_RUNNER} ${NUM_ITER} ${OUT_SIZE} ${FUSE_TYPE} ${TYPE} ${TILES[@]} \
-        ${LAYOUT[@]} ${IN_SIZE} ${OUT_SIZE} \
+    exec env ${ENV_FLAGS} ${BENCH_RUNNER} ${NUM_ITER} ${MB} ${FUSE_TYPE} ${TYPE} ${TILES[@]} \
+        ${LAYOUT[@]} ${LAYER} ${LAYER} \
         | sed -nE "s/.*GFLOPS\s+=\s*([0-9.]+).*/\\1/p"
   done
 done
