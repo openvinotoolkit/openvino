@@ -24,6 +24,14 @@ using MemoryArgs     = std::unordered_map<int, MemoryPtr>;
 #define ARG_WEI_0 33
 #define ARG_WEI   ARG_WEI_0
 #define ARG_BIAS  41
+#define ARG_WEI   ARG_WEI_0
+#define ARG_BIAS  41
+#define ARG_WEI   ARG_WEI_0
+#define ARG_BIAS  41
+/// Scaling factors provided at execution time.
+#define ARG_ATTR_SCALES 4096
+/// Zero points provided at execution time.
+#define ARG_ATTR_ZERO_POINTS 8192
 
 }  // namespace intel_cpu
 }  // namespace ov

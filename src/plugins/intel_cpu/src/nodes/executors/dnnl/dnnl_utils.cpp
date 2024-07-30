@@ -6,8 +6,13 @@
 
 #include <common/primitive_desc_iface.hpp>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <string>
 
 #include "cpu_memory.h"
+#include "cpu_types.h"
+#include "dnnl_extension_utils.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/dnnl_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/executors/executor.hpp"
@@ -18,12 +23,31 @@ namespace ov {
 namespace intel_cpu {
 namespace utils {
 
-DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc, const DnnlMemoryDescPtr dstDesc) {
-    const auto& weiDesc = srcDesc->getDnnlDesc();
-    const auto reorderedWeiDesc = dnnl::memory::desc{weiDesc.get_dims(), weiDesc.get_data_type(), dnnl::memory::format_tag::ba};
-    const auto transposedWeiDesc = reorderedWeiDesc.reshape(dstDesc->getDnnlDesc().get_dims());
+DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr srcDesc,
+                                                 const DnnlMemoryDescPtr dstDesc,
+                                                 bool weightsNonTransposed,
+                                                 VectorDims baseWeightsDescShape,
+                                                 int setWeightsSubMemoryOffset) {
+    if (weightsNonTransposed) {
+        const auto& weiDesc = srcDesc->getDnnlDesc();
+        const auto reorderedWeiDesc =
+            dnnl::memory::desc{weiDesc.get_dims(), weiDesc.get_data_type(), dnnl::memory::format_tag::ba};
+        const auto transposedWeiDesc = reorderedWeiDesc.reshape(dstDesc->getDnnlDesc().get_dims());
 
-    return DnnlExtensionUtils::makeDescriptor(transposedWeiDesc);
+        return DnnlExtensionUtils::makeDescriptor(transposedWeiDesc);
+    }
+
+    if (!baseWeightsDescShape.empty()) {
+        const auto& weiDesc = srcDesc->getDnnlDesc();
+        const dnnl::memory::dims dnnlDims(baseWeightsDescShape.begin(), baseWeightsDescShape.end());
+        const auto baseDesc = dnnl::memory::desc(dnnlDims, weiDesc.get_data_type(), dnnl::memory::format_tag::ab);
+        const dnnl::memory::dims offsets{0, 0};
+        const auto submemoryWeiDesc = baseDesc.submemory_desc(weiDesc.get_dims(), offsets);
+
+        return DnnlExtensionUtils::makeDescriptor(weiDesc);
+    }
+
+    return srcDesc;
 }
 
 MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,

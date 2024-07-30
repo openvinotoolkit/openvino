@@ -8,10 +8,12 @@
 #include "common/cpu_memcpy.h"
 #include "input.h"
 #include "openvino/opsets/opset1.hpp"
+#include "partitioned_mem_mgr.h"
 #include "shape_inference/shape_inference_ngraph.hpp"
 #include "slice_shape_inference_utils.hpp"
 #include "shape_inference/custom/strided_slice.hpp"
 
+#include <cstddef>
 #include <string>
 
 using namespace dnnl;
@@ -207,6 +209,7 @@ void StridedSlice::initSupportedPrimitiveDescriptors() {
 
     NodeConfig config;
     config.inConfs.resize(getParentEdges().size());
+    // config.inConfs[DATA_ID].inPlace(isOptimizedOut ? 0 : -1);
     config.inConfs[DATA_ID].inPlace(-1);
     config.inConfs[BEGIN_ID].inPlace(-1);
     config.inConfs[END_ID].inPlace(-1);
@@ -222,6 +225,7 @@ void StridedSlice::initSupportedPrimitiveDescriptors() {
         config.inConfs[AXES_ID].constant(isConstantInput[AXES_ID]);
     }
     config.outConfs.resize(1);
+    config.outConfs[0].inPlace(isOptimizedOut ? 0 : -1);
 
     std::vector<LayoutType> supportedTypes;
     if (nDims > 2 && attrs.equalDims) {
@@ -266,11 +270,60 @@ void StridedSlice::initSupportedPrimitiveDescriptors() {
     }
 }
 
+void StridedSlice::resolveInPlaceEdges(Edge::LOOK look) {
+    if (!(look & Edge::LOOK_UP) || !isInPlace()) {
+        Node::resolveInPlaceEdges(look);
+        return;
+    }
+
+    const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
+
+    if (!selected_pd)
+        OPENVINO_THROW("Cannot find selected primitive descriptor for node: ", getName());
+
+    auto outputConfig = selected_pd->getConfig().outConfs;
+
+    for (size_t i = 0; i < outputConfig.size(); i++) {
+        auto inplaceInpIndx = outputConfig[i].inPlace();
+
+        if (inplaceInpIndx < 0)
+            continue;
+
+        auto baseMemMngr = getParentEdgeAt(inplaceInpIndx)->getMemory().getMemoryMngr();
+        auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr);
+        const auto& childEdges = getChildEdgesAtPort(i);
+
+        auto baseDim = inputShapes.front().getDims()[0];
+        size_t offset = attrs.begin[0];
+        size_t partDim = attrs.end[0] - attrs.begin[0];
+
+        for (auto& childEdge : childEdges) {
+            if (childEdge->getStatus() != Edge::Status::NotAllocated) {
+                break;
+            }
+            OPENVINO_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated,
+                            " Unexpected inplace resolve call to an allocated edge: ",
+                            childEdge->name());
+            auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, baseDim, offset, partDim);
+            auto newMem =
+                std::make_shared<Memory>(getEngine(), outputConfig[0].getMemDesc(), memMngr);
+
+            childEdge->reuse(newMem);
+        }
+    }
+}
+
 bool StridedSlice::isExecutable() const {
+    if (isOptimizedOut)
+        return false;
+
     return !isInputTensorAtPortEmpty(0) && !isOutputTensorAtPortEmpty(0);
 }
 
 void StridedSlice::createPrimitive() {
+    if (isOptimizedOut)
+        return;
+
     if (inputShapesDefined() && isExecutable() && !shapeHasDataDependency) {
         if (needPrepareParams()) {
             prepareParams();
@@ -284,6 +337,9 @@ bool StridedSlice::needPrepareParams() const {
 }
 
 void StridedSlice::prepareParams() {
+    if (isOptimizedOut)
+        return;
+
     updateLastInputDims();
 
     if (srcMemory.empty()) {
@@ -304,6 +360,10 @@ bool StridedSlice::needShapeInfer() const {
 }
 
 void StridedSlice::execute(dnnl::stream strm) {
+    if (isOptimizedOut) {
+        return;
+    }
+
     if (!execPtr)
         OPENVINO_THROW(errorPrefix, "doesn't have compiled executor!");
 

@@ -4,6 +4,7 @@
 
 #include "cpu_blocked_memory_desc.h"
 #include "dnnl_blocked_memory_desc.h"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"
 
 namespace ov {
@@ -119,6 +120,10 @@ size_t CpuBlockedMemoryDesc::getCurrentMemSizeImp() const {
         e_size += 1;
         for (size_t j = 0; j < getBlockDims().size(); j++)
             e_size += (getBlockDims()[j] - 1) * getStrides()[j];
+    }
+
+    if (one_of(getPrecision(), ov::element::u4, ov::element::i4, ov::element::nf4)) {
+        return e_size / 2;
     }
 
     e_size *= getPrecision() == ov::element::u1 ? 1 : getPrecision().size();

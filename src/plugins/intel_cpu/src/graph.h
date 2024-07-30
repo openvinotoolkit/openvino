@@ -34,9 +34,10 @@ public:
 
     enum class Status {
         NotReady = 0,
-        ReadyStatic = 1,
-        ReadyDynamic = 2,
-        ReadyDynamicSeq = 3,
+        Initialized = 1,
+        ReadyStatic = 2,
+        ReadyDynamic = 3,
+        ReadyDynamicSeq = 4,
     };
 
     Graph() = default;
@@ -44,23 +45,26 @@ public:
     ~Graph();
 
     bool IsReady() {
-        return (status != Status::NotReady);
+        return one_of(status, Status::ReadyStatic, Status::ReadyDynamic, Status::ReadyDynamicSeq);
     }
 
     const Config & getConfig() const {
-        return context->getConfig();
+        return m_context->getConfig();
     }
 
     template<typename NET>
-    void CreateGraph(NET &network, const GraphContext::CPtr ctx);
+    void CreateGraph(NET &model, const GraphContext::CPtr context);
 
     void CreateGraph(const std::vector<NodePtr> &graphNodes,
                      const std::vector<EdgePtr> &graphEdges,
-                     const GraphContext::CPtr ctx,
+                     const GraphContext::CPtr context,
                      std::string name);
 
     void PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& input);
     void PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& output);
+
+    // Returns Output nodes memory descriptors
+    VecMemoryDescs getOutputMemoryDescriptors();
 
     void Infer(SyncInferRequest* request = nullptr);
 
@@ -95,11 +99,11 @@ public:
     }
 
     dnnl::engine getEngine() const {
-        return context->getEngine();
+        return m_context->getEngine();
     }
 
     GraphContext::CPtr getGraphContext() const {
-        return context;
+        return m_context;
     }
 
     void GetPerfData(std::vector<ov::ProfilingInfo> &perfMap) const;
@@ -186,7 +190,25 @@ public:
 
     Status getStatus() const {return status;}
     const std::unordered_map<std::string, node::MemoryStateNode*>& getInternalStateNodes() const;
+
+    /**
+     * Configure Graph using \p model and \p context
+     *
+     * The main stages are:
+     * - graph replication using \ref Replicate
+     * - graph initialization using \ref InitGraph
+     */
+    void Configure(const std::shared_ptr<const ov::Model>& model,
+                   const GraphContext::CPtr context,
+                   const VecMemoryDescs& inputDescriptors = {},
+                   const bool zeroCopyOutputs = false,
+                   int level = 0);
+    //
+    void Allocate();
+
     void InitGraph(bool optimize = true);
+    void InferDynamicSync(SyncInferRequest* request);
+    void InferStaticSync(SyncInferRequest* request);
 
 protected:
     void ForgetGraphData() {
@@ -215,7 +237,9 @@ protected:
 
     bool graphHasDynamicInput = false;
 
-    void Replicate(const std::shared_ptr<const ov::Model> &subgraph);
+    void Replicate(const std::shared_ptr<const ov::Model> &subgraph,
+                   const VecMemoryDescs& inputDescriptors = {},
+                   bool zeroCopyOutputs = false);
     void InitNodes();
     void InitDescriptors();
     void ResolveInplaceDirections();
@@ -223,18 +247,20 @@ protected:
     void ResolveEdgeConflicts();
     void ResolveComplexInplaceConflicts();
     bool ProcessDynNodes();
-    void GroupParallelNodes();
     void Allocate(const std::vector<size_t>& syncNodesInds);
     void AllocateWithReuse(const std::vector<size_t>& syncNodesInds);
+    void UpdateAndExecuteNode(const NodePtr& node, const dnnl::stream& stream);
     void ExecuteNode(const NodePtr& node, const dnnl::stream& stream) const;
     void CreatePrimitivesAndExecConstants() const;
     void InferStatic(SyncInferRequest* request);
-
     template<typename UpdateStrategy>
     void InferDynamic(SyncInferRequest* request, UpdateStrategy&& update);
-    void ParalleMtNuma(size_t num_nodes,
-                       ov::threading::CPUStreamsExecutor::Ptr executor,
-                       const std::function<void(size_t, size_t)>& func) const;
+    void InferDynamicWithAsync(SyncInferRequest* request);
+    void CreateDependencyMap();
+
+    void WaitForControlDependencies(const std::vector<std::vector<size_t>>& m_contolDependencies,
+                                    const NodePtr& node,
+                                    const std::shared_ptr<std::vector<std::atomic<bool>>>& m_waitHandles);
 
     friend class intel_cpu::SyncInferRequest;
     friend std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph);
@@ -251,9 +277,14 @@ private:
     // non-executable (optimized out) nodes, such as Input, Reshape, etc.
     std::vector<NodePtr> m_executableGraphNodes;
     std::vector<size_t> m_executableSyncNodesInds;
+    std::vector<std::vector<size_t>> m_contolDependencies;
+    // use something like unordered_flat_map instead?
+    std::shared_ptr<std::vector<std::atomic<bool>>> m_waitHandles;
+    std::vector<int> m_subStreamId;
 
-    GraphContext::CPtr context;
+    GraphContext::CPtr m_context;
     dnnl::stream m_stream;
+    int m_level = 0;
 
     void EnforceInferencePrecision();
     void EnforceBF16();

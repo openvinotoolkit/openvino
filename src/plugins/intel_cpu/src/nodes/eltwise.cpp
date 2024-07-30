@@ -2538,12 +2538,11 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         return;
     }
 #endif
-
+    supportedPrimitiveDescriptors.emplace_back(initDesc(Planar));
     if (isChannelsFirstApplicable)
         supportedPrimitiveDescriptors.emplace_back(initDesc(ChannelsFirst));
     if (isBlockedApplicable)
         supportedPrimitiveDescriptors.emplace_back(initDesc(Blocked));
-    supportedPrimitiveDescriptors.emplace_back(initDesc(Planar));
 }
 
 void Eltwise::createPrimitive() {

@@ -153,7 +153,8 @@ std::ostream & operator<<(std::ostream & os, const NodeDesc& desc) {
 
 std::ostream & operator<<(std::ostream & os, const Edge& edge) {
     os << edge.getParent()->getName() << "[" << edge.getInputNum() << "]->"
-       << edge.getChild()->getName() << "[" << edge.getOutputNum() << "]";
+       << edge.getChild()->getName() << "[" << edge.getOutputNum() << "] "
+       << edge.getMemoryPtr();
     return os;
 }
 
@@ -358,7 +359,6 @@ std::ostream & operator<<(std::ostream & os, const Node &c_node) {
 
     // last line(s): fused layers
     os << " " << node.getOriginalLayers();
-    os << " " << node.getParallelDomain();
 
     if (node.PerfCounter().count()) {
         os << " latency:" << node.PerfCounter().avg() << "(us) x" << node.PerfCounter().count();
@@ -603,6 +603,17 @@ std::ostream & operator<<(std::ostream & os, const dnnl::memory::desc& desc) {
         sep = ',';
     }
     os << ")";
+
+    const auto& paddedOffsets = desc.get()->padded_offsets;
+    sep = '(';
+    os << "paddedOffsets:";
+    for (int i = 0; i < ndims; i++) {
+        os << sep << paddedOffsets[i];
+        sep = ',';
+    }
+    os << ")";
+
+    os << "offset0: " << desc.get()->offset0;
 
     const auto& inner_blks  = desc.get()->format_desc.blocking.inner_blks;
     const auto& inner_nblks = desc.get()->format_desc.blocking.inner_nblks;

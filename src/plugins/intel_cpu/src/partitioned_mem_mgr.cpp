@@ -7,7 +7,7 @@
 using namespace ov::intel_cpu;
 
 void* PartitionedMemoryMngr::getRawPtr() const noexcept {
-    return static_cast<uint8_t*>(m_pMngr->getRawPtr()) + m_offset_blocks * m_size / m_size_blocks;
+    return static_cast<uint8_t*>(m_pMngr->getRawPtr()) + (m_offset_blocks * m_size) / m_size_blocks;
 }
 
 void PartitionedMemoryMngr::setExtBuff(void* ptr, size_t size) {

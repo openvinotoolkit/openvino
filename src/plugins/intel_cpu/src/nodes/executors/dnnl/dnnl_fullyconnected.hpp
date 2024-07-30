@@ -68,28 +68,6 @@ public:
         return m_primitive ? m_primitive->implType() : undef;
     }
 
-    void moveMemToNumaNode(int numaNodeID) override {
-        if (curNumaNode == numaNodeID) {
-            return;
-        }
-        const auto newPrimMemDesc = m_primitive->scratchPadDesc();
-        m_scratchPadMemory = m_context->getScratchPad(numaNodeID)->createScratchPadMem(newPrimMemDesc);
-        m_primArgs[DNNL_ARG_SCRATCHPAD] = m_scratchPadMemory->getPrimitive();
-
-        if (m_primArgs.count(DNNL_ARG_WEIGHTS)) {
-            if (!mbind_move(m_primArgs[DNNL_ARG_WEIGHTS], numaNodeID)) {
-                DEBUG_LOG("[FullyConnected] move DNNL_ARG_WEIGHTS to node ", numaNodeID, " failed");
-            }
-        }
-
-        if (m_primArgs.count(DNNL_ARG_BIAS)) {
-            if (!mbind_move(m_primArgs[DNNL_ARG_BIAS], numaNodeID)) {
-                DEBUG_LOG("[FullyConnected] move DNNL_ARG_BIAS to node ", numaNodeID, " failed");
-            }
-        }
-        curNumaNode = numaNodeID;
-    }
-
 private:
     void updateSrcMemory(const DnnlMemoryDescPtr& memDesc, const PrimitivePtr primitive, const MemoryPtr memory) {
         const auto& primMemDesc = primitive->srcDesc();
@@ -123,8 +101,11 @@ private:
         if (currentPrimitive && currentPrimitive->weightsDesc()->isCompatible(*newPrimMemDesc))
             return;
 
-        if (m_attrs.weightsNonTransposed)
-            originalMemDesc = utils::makeTransposedWeightDescriptor(originalMemDesc, newPrimMemDesc);
+        originalMemDesc = utils::makeTransposedWeightDescriptor(originalMemDesc,
+                                                                newPrimMemDesc,
+                                                                m_attrs.weightsNonTransposed,
+                                                                m_attrs.baseWeightsDescShape,
+                                                                m_attrs.weightsSubMemoryOffset);
 
         const auto weiMemory = utils::prepareWeightsMemory(originalMemDesc, newPrimMemDesc, memory, m_context, true);
         m_primArgs[DNNL_ARG_WEIGHTS] = weiMemory->getPrimitive();
@@ -140,7 +121,7 @@ private:
         if (currentPrimitive && currentPrimitive->scratchPadDesc()->isCompatible(*newPrimMemDesc))
             return;
 
-        m_scratchPadMemory = m_context->getScratchPad(curNumaNode)->createScratchPadMem(newPrimMemDesc);
+        m_scratchPadMemory = m_context->getScratchPad()->createScratchPadMem(newPrimMemDesc);
         m_primArgs[DNNL_ARG_SCRATCHPAD] = m_scratchPadMemory->getPrimitive();
     }
 
@@ -170,7 +151,6 @@ private:
     bool resetDstMemoryDataHandle = false;
     MemoryPtr m_scratchPadMemory;
     PrimitivePtr m_primitive;
-    int curNumaNode = -1;
 };
 
 }  // namespace intel_cpu

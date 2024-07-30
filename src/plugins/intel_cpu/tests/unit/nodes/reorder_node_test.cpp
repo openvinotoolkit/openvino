@@ -107,7 +107,7 @@ public:
         Config conf;
         conf.rtCacheCapacity = 100;
         auto context = std::make_shared<GraphContext>(conf,
-                                                      std::make_shared<WeightsSharing>(),
+                                                      std::make_shared<SocketsWeights>(),
                                                       false);
         const dnnl::engine cpuEngine = context->getEngine();
 

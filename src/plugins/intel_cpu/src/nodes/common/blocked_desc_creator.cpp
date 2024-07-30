@@ -73,10 +73,12 @@ private:
 } // namespace
 
 const BlockedDescCreator::CreatorsMap& BlockedDescCreator::getCommonCreators() {
-    static const CreatorsMap map{ { LayoutType::nspc, CreatorConstPtr(new PerChannelCreator) },
-                                { LayoutType::nCsp8c, CreatorConstPtr(new ChannelBlockedCreator(8)) },
-                                { LayoutType::nCsp16c, CreatorConstPtr(new ChannelBlockedCreator(16)) },
-                                { LayoutType::ncsp, CreatorConstPtr(new PlainFormatCreator) } };
+    static const CreatorsMap map{
+        { LayoutType::ncsp, CreatorConstPtr(new PlainFormatCreator) },
+        { LayoutType::nCsp8c, CreatorConstPtr(new ChannelBlockedCreator(8)) },
+        { LayoutType::nCsp16c, CreatorConstPtr(new ChannelBlockedCreator(16)) },
+        { LayoutType::nspc, CreatorConstPtr(new PerChannelCreator) },
+    };
     return map;
 }
 

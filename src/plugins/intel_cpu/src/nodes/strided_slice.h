@@ -19,6 +19,7 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
+    void resolveInPlaceEdges(Edge::LOOK look) override;
     void createPrimitive() override;
     void execute(dnnl::stream strm) override;
     bool created() const override;
@@ -28,6 +29,18 @@ public:
 
     bool isExecutable() const override;
     bool needShapeInfer() const override;
+
+    void setOptimized(bool isOptimized) {
+        this->isOptimizedOut = isOptimized;
+    }
+
+    const std::vector<int>& begin() const {
+        return attrs.begin;
+    }
+
+    const std::vector<int>& end() const {
+        return attrs.end;
+    }
 
     struct StridedSliceAttributes {
         std::vector<int> begin;
@@ -132,6 +145,8 @@ private:
     std::vector<MemoryCPtr> dstMemory;
 
     std::string errorPrefix;
+
+    bool isOptimizedOut = false;
 };
 
 }   // namespace node

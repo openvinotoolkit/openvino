@@ -110,10 +110,6 @@ Node::Node(const std::shared_ptr<ov::Node>& op,
         originalLayers = getRTInfoValue(rtInfo, "originalLayersNames");
     }
 
-    if (rtInfo.count("parallelDomain")) {
-        parallelDomain = getRTInfoValue(rtInfo, "parallelDomain");
-    }
-
     if (originalLayers.empty()) {
         addOriginalLayer(name);
     }
@@ -383,6 +379,9 @@ void Node::resolveInPlaceEdges(Edge::LOOK look) {
             const auto& childEdges = getChildEdgesAtPort(i);
 
             for (auto& childEdge : childEdges) {
+                if (childEdge->getStatus() != Edge::Status::NotAllocated) {
+                    break;
+                }
                 OPENVINO_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated,
                                 " Unexpected inplace resolve call to an allocated edge: ",
                                 childEdge->name());
@@ -413,6 +412,19 @@ MemoryDescPtr Node::getBaseMemDescAtOutputPort(size_t portNum) const {
         return outConfs[portNum].getMemDesc();
     }
     OPENVINO_THROW("Can't get output memory desc, primitive descriptor is not selected");
+}
+
+MemoryDescPtr Node::getParentOutputMemDesc(const EdgePtr& edge) {
+    const auto parentPtr = edge->getParent();
+    const auto parentSpd = parentPtr->getSelectedPrimitiveDescriptor();
+    OPENVINO_ASSERT(parentSpd, "Parent selected primitive descriptor is missed");
+
+    const auto& parentOutConfs = parentSpd->getConfig().outConfs;
+    OPENVINO_ASSERT(!parentOutConfs.empty(), "Parent output configuration is empty");
+
+    const int inNum = edge->getInputNum();
+
+    return parentSpd->getConfig().outConfs[inNum].getMemDesc();
 }
 
 std::string Node::getPrimitiveDescriptorType() const {
@@ -582,19 +594,19 @@ void Node::updateDynamicParams() {
     }
 }
 
-void Node::executeStatic(const dnnl::stream strm, int numaId) {
-    if (numaId >= 0)
-        toNumaNode(numaId);
+void Node::executeStatic(const dnnl::stream strm) {
     execute(strm);
 }
 
-void Node::executeDynamic(dnnl::stream strm, int numaId) {
+void Node::executeDynamic(dnnl::stream strm) {
     if (isExecutable()) {
-        if (numaId >= 0)
-            toNumaNode(numaId);
         executeDynamicImpl(strm);
     }
     updateLastInputDims();
+}
+
+void Node::executeDynamicSeq(dnnl::stream strm) {
+    return execute(strm);
 }
 
 bool Node::outputShapeDataDependency() const {
@@ -635,6 +647,8 @@ void Node::redefineOutputMemory(const size_t port, const VectorDims& new_output_
     const bool has_zero_dims = std::count(std::begin(new_shape), std::end(new_shape), 0lu) > 0;
     const auto mem_desc = getBaseMemDescAtOutputPort(port)->cloneWithNewDims(new_shape, has_zero_dims);
     for (size_t j = 0lu; j < edges.size(); j++) {
+        // std::cout << "Redefine output memory port: " << port << " for edge: " << *edges[j]
+        //           << " using desc: " << *mem_desc << " " << edges[j]->getMemory().getData() << "\n";
         edges[j]->getMemoryPtr()->redefineDesc(mem_desc);
     }
 }
@@ -917,29 +931,6 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
     (*privateWeightCache)[format] = ptr;
 
     return ptr;
-}
-
-void Node::toNumaNode(int numaNodeID) {
-    return toNumaNodeImpl(numaNodeID);
-}
-
-void Node::toNumaNodeImpl(int numaNodeID) {
-    if (curNumaNode == numaNodeID)
-        return;
-
-    // create scratch pad from specified numa node
-    if (scratchpadMem) {
-        scratchpadMem = context->getScratchPad(numaNodeID)->createScratchPadMem(scratchpadMem->getDescPtr());
-        primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
-    }
-
-    // mbind constant prim args to numa nodes
-    if (primArgs.count(DNNL_ARG_WEIGHTS))
-        mbind_move(primArgs[DNNL_ARG_WEIGHTS], numaNodeID);
-    if (primArgs.count(DNNL_ARG_BIAS))
-        mbind_move(primArgs[DNNL_ARG_BIAS], numaNodeID);
-
-    curNumaNode = numaNodeID;
 }
 
 bool Node::isInPlace() const {

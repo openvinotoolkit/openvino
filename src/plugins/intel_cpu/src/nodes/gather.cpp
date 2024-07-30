@@ -951,7 +951,7 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
     const auto& childEdges = getChildEdgesAtPort(outputPort);
     for (auto& childEdge : childEdges) {
         OPENVINO_ASSERT(childEdge->getStatus() == Edge::Status::NotAllocated,
-                        " Unexpected edge status in node: ",
+                        " Unexpected edge ", childEdge->name(), " status in node: ",
                         getName(),
                         " with type ",
                         getTypeStr());

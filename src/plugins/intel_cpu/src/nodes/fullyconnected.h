@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "cpu_memory.h"
+#include "cpu_types.h"
 #include "nodes/executors/executor_factory.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
@@ -59,21 +60,25 @@ public:
         this->attrs.weightsNonTransposed = weightsNonTransposed;
     }
 
+    void setWeightsSubMemoryInfo(VectorDims baseDescShape, int offset) {
+        this->attrs.baseWeightsDescShape = baseDescShape;
+        this->attrs.weightsSubMemoryOffset = offset;
+    }
+
     void fuseDecompressionMultiply(const MemoryCPtr& memory);
     void fuseDecompressionSubtract(const MemoryCPtr& memory);
-
-protected:
-    void toNumaNodeImpl(int numaID) override;
 
 private:
     static const size_t DATA_ID = 0;
     static const size_t WEIGHTS_ID = 1;
-    static const size_t BIAS_ID = 2;
+    size_t BIAS_ID = 2;
 
     ExecutorPtr createExecutor();
     void fuseDecompressionConstant(const MemoryCPtr& memory, MemoryCPtr& decompressionValuesPtr);
 
     FCAttrs attrs;
+    // tmp
+    bool hasDecompressionSubtract;
     PostOps postOps;
     MemoryArgs memory;
     ExecutorFactoryPtr<FCAttrs, node::FullyConnected> factory;
