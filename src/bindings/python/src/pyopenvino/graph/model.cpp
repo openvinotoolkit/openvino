@@ -275,26 +275,44 @@ void regclass_graph_Model(py::module m) {
     model.def(py::init([](const ov::OutputVector& results,
                           const ov::OutputVector& nodes,
                           const ov::ParameterVector& parameters,
-                          py::object& variables,
                           const std::string& name) {
                   set_tensor_names(parameters);
                   const auto sinks = cast_to_sink_vector(nodes);
-                  if (py::isinstance<py::none>(variables)) {
-                      auto model = std::make_shared<ov::Model>(results, sinks, parameters, name);
-                      set_correct_variables_for_assign_ops(model, sinks);
-                      return model;
-                  } else {
-                      return std::make_shared<ov::Model>(results,
-                                                         sinks,
-                                                         parameters,
-                                                         variables.cast<ov::op::util::VariableVector>(),
-                                                         name);
-                  }
+                  auto model = std::make_shared<ov::Model>(results, sinks, parameters, name);
+                  set_correct_variables_for_assign_ops(model, sinks);
+                  return model;
               }),
               py::arg("results"),
               py::arg("sinks"),
               py::arg("parameters"),
-              py::arg("variables") = py::none(),
+              py::arg("name") = "",
+              R"(
+            Create user-defined Model which is a representation of a model
+
+            :param results: List of outputs.
+            :type results: List[openvino.runtime.Output]
+            :param sinks: List of Output sink node handles.
+            :type sinks: List[openvino.runtime.Output]
+            :param parameters: List of parameters.
+            :type parameters: List[op.Parameter]
+            :param name: String to set as model's friendly name.
+            :type name: str
+            )");
+
+    model.def(py::init([](const ov::OutputVector& results,
+                          const ov::OutputVector& nodes,
+                          const ov::ParameterVector& parameters,
+                          const ov::op::util::VariableVector& variables,
+                          const std::string& name) {
+                  set_tensor_names(parameters);
+                  const auto sinks = cast_to_sink_vector(nodes);
+                  auto model = std::make_shared<ov::Model>(results, sinks, parameters, name);
+                  return model;
+              }),
+              py::arg("results"),
+              py::arg("sinks"),
+              py::arg("parameters"),
+              py::arg("variables"),
               py::arg("name") = "",
               R"(
             Create user-defined Model which is a representation of a model
@@ -314,26 +332,44 @@ void regclass_graph_Model(py::module m) {
     model.def(py::init([](const ov::ResultVector& results,
                           const ov::OutputVector& nodes,
                           const ov::ParameterVector& parameters,
-                          const py::object& variables,
                           const std::string& name) {
                   set_tensor_names(parameters);
                   const auto sinks = cast_to_sink_vector(nodes);
-                  if (py::isinstance<py::none>(variables)) {
-                      auto model = std::make_shared<ov::Model>(results, sinks, parameters, name);
-                      set_correct_variables_for_assign_ops(model, sinks);
-                      return model;
-                  } else {
-                      return std::make_shared<ov::Model>(results,
-                                                         sinks,
-                                                         parameters,
-                                                         variables.cast<ov::op::util::VariableVector>(),
-                                                         name);
-                  }
+                  auto model = std::make_shared<ov::Model>(results, sinks, parameters, name);
+                  set_correct_variables_for_assign_ops(model, sinks);
+                  return model;
               }),
               py::arg("results"),
               py::arg("sinks"),
               py::arg("parameters"),
-              py::arg("variables") = py::none(),
+              py::arg("name") = "",
+              R"(
+        Create user-defined Model which is a representation of a model
+
+        :param results: List of results.
+        :type results: List[op.Result]
+        :param sinks: List of Output sink node handles.
+        :type sinks: List[openvino.runtime.Output]
+        :param parameters: List of parameters.
+        :type parameters: List[op.Parameter]
+        :param name: String to set as model's friendly name.
+        :type name: str
+        )");
+
+    model.def(py::init([](const ov::ResultVector& results,
+                          const ov::OutputVector& nodes,
+                          const ov::ParameterVector& parameters,
+                          const ov::op::util::VariableVector& variables,
+                          const std::string& name) {
+                  set_tensor_names(parameters);
+                  const auto sinks = cast_to_sink_vector(nodes);
+                  auto model = std::make_shared<ov::Model>(results, sinks, parameters, name);
+                  return model;
+              }),
+              py::arg("results"),
+              py::arg("sinks"),
+              py::arg("parameters"),
+              py::arg("variables"),
               py::arg("name") = "",
               R"(
         Create user-defined Model which is a representation of a model
