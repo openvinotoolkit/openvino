@@ -19,16 +19,11 @@ static inline Tensor get_string_tensor(const Node* op, const ITensorAccessor& te
         return t;
     } else {
         const auto& constant = as_type_ptr<opset1::Constant>(op->get_input_node_shared_ptr(0));
-        return constant->get_tensor_view();
+        if (constant) {
+            return constant->get_tensor_view();
+        }
+        return ov::Tensor();
     }
-}
-template <class TRShape>
-static void handle_else_case(std::vector<TRShape>& output_shapes, const ov::op::v15::StringTensorUnpack* op) {
-    if (!std::is_same<TRShape, PartialShape>::value) {
-        const auto& constant = as_type_ptr<opset1::Constant>(op->get_input_node_shared_ptr(0));
-        NODE_VALIDATION_CHECK(op, constant != nullptr, "Static shape inference lacks constant data on port 0");
-    }
-    output_shapes.emplace_back(ov::PartialShape{ov::Dimension::dynamic()});
 }
 }  // namespace util
 template <class TShape, class TRShape = result_shape_t<TShape>>
@@ -38,20 +33,21 @@ std::vector<TRShape> shape_infer(const StringTensorUnpack* op,
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 1);
     const auto& data_shape = input_shapes[0];
     auto output_shapes = std::vector<TRShape>{data_shape, data_shape};
-    if (data_shape.is_static() && !std::is_same<TShape, ov::PartialShape>::value) {
+    if (data_shape.is_static()) {
         const auto string_data = util::get_string_tensor(op, tensor_accessor);
         if (string_data) {
             const auto string_count = string_data.get_size();
             const auto tensor_data = string_data.data<std::string>();
             size_t total_length = 0;
-            for (uint64_t i = 0; i < string_count; ++i)
-                total_length += (*(tensor_data + i)).length();
+            for (auto it = tensor_data; it != std::next(tensor_data, string_count); ++it) {
+                total_length += (*it).length();
+            }
             output_shapes.emplace_back(TRShape{static_cast<typename TRShape::value_type>(total_length)});
         } else {
-            util::handle_else_case<TRShape>(output_shapes, op);
+            output_shapes.emplace_back(ov::PartialShape{ov::Dimension::dynamic()});
         }
     } else {
-        util::handle_else_case<TRShape>(output_shapes, op);
+        output_shapes.emplace_back(ov::PartialShape{ov::Dimension::dynamic()});
     }
 
     return output_shapes;
