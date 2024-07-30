@@ -2,7 +2,7 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-const { addon: ov } = require('..');
+const { addon: ov } = require('../..');
 const assert = require('assert');
 const { describe, it } = require('node:test');
 const { getModelPath } = require('./utils.js');
@@ -14,32 +14,32 @@ const model = core.readModelSync(testXml);
 describe('PrePostProcess', () => {
 
   it('input() ', () => {
-    assert.doesNotThrow(() => 
+    assert.doesNotThrow(() =>
       new ov.preprocess.PrePostProcessor(model).input());
   });
 
   it('input(size_t input_index)', () => {
-    assert.doesNotThrow(() => 
+    assert.doesNotThrow(() =>
       new ov.preprocess.PrePostProcessor(model).input(0));
   });
 
   it('input(const std::string& tensor_name)', () => {
-    assert.doesNotThrow(() => 
+    assert.doesNotThrow(() =>
       new ov.preprocess.PrePostProcessor(model).input('data'));
   });
 
   it('output() ', () => {
-    assert.doesNotThrow(() => 
+    assert.doesNotThrow(() =>
       new ov.preprocess.PrePostProcessor(model).output());
   });
 
   it('output(size_t output_index)', () => {
-    assert.doesNotThrow(() => 
+    assert.doesNotThrow(() =>
       new ov.preprocess.PrePostProcessor(model).output(0));
   });
 
   it('output(const std::string& tensor_name)', () => {
-    assert.doesNotThrow(() => 
+    assert.doesNotThrow(() =>
       new ov.preprocess.PrePostProcessor(model).output('fc_out'));
   });
 
@@ -47,86 +47,86 @@ describe('PrePostProcess', () => {
 
 describe('InputInfo', () => {
   it('tensor()', () => {
-    assert.doesNotThrow(() => 
+    assert.doesNotThrow(() =>
       new ov.preprocess.PrePostProcessor(model).input(0).tensor());
   });
 
   it('preprocess()', () => {
-    assert.doesNotThrow(() => 
+    assert.doesNotThrow(() =>
       new ov.preprocess.PrePostProcessor(model).input(0).preprocess());
   });
 
   it('model()', () => {
-    assert.doesNotThrow(() => 
+    assert.doesNotThrow(() =>
       new ov.preprocess.PrePostProcessor(model).input(0).model());
   });
 
   it('tensor(param) throws', () => {
-    assert.throws(() => 
+    assert.throws(() =>
       new ov.preprocess.PrePostProcessor(model).input(0).tensor(0),
       /Function does not take any parameters./);
   });
 
   it('preprocess(param) throws', () => {
-    assert.throws(() => 
+    assert.throws(() =>
       new ov.preprocess.PrePostProcessor(model).input(0).preprocess(0),
       /Function does not take any parameters./);
   });
 
   it('model(param) throws', () => {
-    assert.throws(() => 
+    assert.throws(() =>
       new ov.preprocess.PrePostProcessor(model).input(0).model(0),
       /Function does not take any parameters./);
   });
 
   it('tensor().setElementType()', () => {
-    assert.doesNotThrow(() => 
+    assert.doesNotThrow(() =>
       new ov.preprocess.PrePostProcessor(model).input(0).tensor().setElementType(ov.element.u8));
   });
 
   it('tensor().setElementType() throws', () => {
-    assert.throws(() => 
+    assert.throws(() =>
       new ov.preprocess.PrePostProcessor(model).input(0).tensor().setElementType(),
       /Wrong number of parameters./);
   });
 
   it('tensor().setElementType() throws', () => {
-    assert.throws(() => 
+    assert.throws(() =>
       new ov.preprocess.PrePostProcessor(model).input(0).tensor().setElementType('invalidType'),
       /Cannot create ov::element::Type/);
   });
 
   it('tensor().SetShape()', () => {
-    assert.doesNotThrow(() => 
+    assert.doesNotThrow(() =>
       new ov.preprocess.PrePostProcessor(model).input(0).tensor().setShape([1, 10]));
   });
 
   it('tensor().SetShape() throws', () => {
-    assert.throws(() => 
+    assert.throws(() =>
       new ov.preprocess.PrePostProcessor(model).input(0).tensor().setShape(),
       /Wrong number of parameters./);
   });
 
   it('tensor().setLayout()', () => {
-    assert.doesNotThrow(() => 
+    assert.doesNotThrow(() =>
       new ov.preprocess.PrePostProcessor(model).input(0).tensor().setLayout('NHWC'));
   });
 
   it('tensor().setLayout() throws', () => {
-    assert.throws(() => 
+    assert.throws(() =>
       new ov.preprocess.PrePostProcessor(model).input(0).tensor().setLayout(),
       /Wrong number of parameters./);
   });
 
   it('preprocess().resize()', () => {
-    assert.doesNotThrow(() => 
+    assert.doesNotThrow(() =>
       new ov.preprocess.PrePostProcessor(model).input(0).preprocess().resize(
         ov.preprocess.resizeAlgorithm.RESIZE_LINEAR,
       ));
   });
 
   it('preprocess().resize() throws', () => {
-    assert.throws(() => 
+    assert.throws(() =>
       new ov.preprocess.PrePostProcessor(model).input(0).preprocess().resize(
         ov.preprocess.resizeAlgorithm.RESIZE_LINEAR, 'extraArg',
       ),
@@ -134,18 +134,18 @@ describe('InputInfo', () => {
   });
 
   it('preprocess().resize() no arg throws', () => {
-    assert.throws(() => 
+    assert.throws(() =>
       new ov.preprocess.PrePostProcessor(model).input(0).preprocess().resize(),
       /Wrong number of parameters./);
   });
 
   it('model().setLayout()', () => {
-    assert.doesNotThrow(() => 
+    assert.doesNotThrow(() =>
       new ov.preprocess.PrePostProcessor(model).input(0).model().setLayout('NCHW'));
   });
 
   it('model().setLayout() throws', () => {
-    assert.throws(() => 
+    assert.throws(() =>
       new ov.preprocess.PrePostProcessor(model).input(0).model().setLayout('NCHW', 'extraArg'),
       /Wrong number of parameters./);
   });
@@ -160,42 +160,42 @@ describe('InputInfo', () => {
 
 describe('OutputInfo', () => {
     it('tensor()', () => {
-      assert.doesNotThrow(() => 
+      assert.doesNotThrow(() =>
         new ov.preprocess.PrePostProcessor(model).output(0).tensor());
     });
-  
+
     it('tensor(param) throws', () => {
-      assert.throws(() => 
+      assert.throws(() =>
         new ov.preprocess.PrePostProcessor(model).output(0).tensor(0),
         /Function does not take any parameters./);
     });
-  
+
     it('tensor().setElementType()', () => {
-      assert.doesNotThrow(() => 
+      assert.doesNotThrow(() =>
         new ov.preprocess.PrePostProcessor(model).output(0).tensor().setElementType(ov.element.u8));
     });
-  
+
     it('tensor().setElementType() throws', () => {
-      assert.throws(() => 
+      assert.throws(() =>
         new ov.preprocess.PrePostProcessor(model).output(0).tensor().setElementType(),
         /Wrong number of parameters./);
     });
-  
+
     it('tensor().setElementType() throws', () => {
-      assert.throws(() => 
+      assert.throws(() =>
         new ov.preprocess.PrePostProcessor(model).output(0).tensor().setElementType('invalidType'),
         /Cannot create ov::element::Type/);
     });
-  
+
     it('tensor().setLayout()', () => {
-      assert.doesNotThrow(() => 
+      assert.doesNotThrow(() =>
         new ov.preprocess.PrePostProcessor(model).output(0).tensor().setLayout('NHWC'));
     });
-  
+
     it('tensor().setLayout() throws', () => {
-      assert.throws(() => 
+      assert.throws(() =>
         new ov.preprocess.PrePostProcessor(model).output(0).tensor().setLayout(),
         /Wrong number of parameters./);
     });
-  
+
   });
