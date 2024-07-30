@@ -1354,14 +1354,15 @@ public:
     void test_compressed_scale_zp_nobias_activation_large(bool is_caching_test) {
         std::cout << "[+] test_compressed_scale_zp_nobias_activation is_caching_test: " << is_caching_test << std::endl;
 
-        long unsigned int M = 1;
-        long unsigned int K = 8; // 1024;
-        long unsigned int N = 2;
+        long unsigned int M = 1024;
+        long unsigned int K = 1024;
+        long unsigned int N = 1024;
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ -1, static_cast<long int>(K) });
+        uint8_t MAX_UINT8 = 255;
         std::vector<uint8_t> weights_values(N * K, 1);
         printf("[test] weights_values \n");
         for (long unsigned int i = 0; i < N * K; ++i) {
-            weights_values[i] = i;
+            weights_values[i] = i % MAX_UINT8;
             printf("%d ", weights_values[i]);
         }
         printf("\n");
@@ -1370,7 +1371,7 @@ public:
         std::vector<float> zp_value(N, 0);
         auto zp_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{ N, 1 }, zp_value);
         auto sub = std::make_shared<ov::op::v1::Subtract>(convert, zp_const);
-        std::vector<float> scale_value(N, 1);
+        std::vector<float> scale_value(N, 0.00001);
         auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{ N, 1 }, scale_value);
         auto scale = std::make_shared<ov::op::v1::Multiply>(sub, scale_const);
         auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
@@ -1382,16 +1383,17 @@ public:
         std::cout << "[+] test_compressed_scale_zp_nobias_activation compiled_model GPU " << std::endl;
         ov::CompiledModel compiled_model = core.compile_model(model, "GPU", {{"MODEL_DISTRIBUTION_POLICY", "TENSOR_PARALLEL"}});
         ov::InferRequest infer_request = compiled_model.create_infer_request();
-        // auto input_generate = ov::test::utils::InputGenerateData(1, 1);
+
         auto input_generate = ov::test::utils::InputGenerateData(1, K);
         auto tensor = ov::test::utils::create_and_fill_tensor(infer_request.get_input_tensor().get_element_type(),
                                                               ov::Shape{{M, K}},
                                                               input_generate);
         infer_request.set_input_tensor(tensor);
+
         std::cout << "infer_request infer " << std::endl;
         infer_request.infer();
         const ov::Tensor& output_tensor = infer_request.get_output_tensor();
-        for (size_t i = 0; i < N; i++) {
+        for (size_t i = 0; i < M * N; i++) {
             std::cout << "output_tensor[" << i << "] " << output_tensor.data<float>()[i] << std::endl;
             std::cout << output_tensor.data<float>()[i] << std::endl;
         }
