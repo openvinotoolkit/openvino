@@ -873,9 +873,9 @@ public:
             if (pad_agnostic_types.count(op->get_auto_pad())) {
                 clone_op_and_fix_paddings<ov::opset1::BinaryConvolution, ov::CoordinateDiff>(op);
             }
-        } else if (auto op = ov::as_type<ov::opset1::AvgPool>(node)) {
+        } else if (auto op = ov::as_type<ov::op::util::AvgPoolBase>(node)) {
             if (pad_agnostic_types.count(op->get_auto_pad())) {
-                clone_op_and_fix_paddings<ov::opset1::AvgPool, ov::Shape>(op);
+                clone_op_and_fix_paddings<ov::op::util::AvgPoolBase, ov::Shape>(op);
             }
         } else if (auto op = ov::as_type<ov::op::util::MaxPoolBase>(node)) {
             if (pad_agnostic_types.count(op->get_auto_pad())) {
@@ -885,8 +885,35 @@ public:
     }
 };
 
+bool is_correct_tag_name(const std::string& name) {
+    if (name.length() == 0) {
+        return false;
+    }
+    if (!std::all_of(name.begin(), name.end(), [](const int c) {
+            return std::isalnum(c) || (c == '_') || (c == '-') || (c == '.');
+        })) {
+        return false;
+    }
+    if (std::isalpha(name[0]) == false && name[0] != '_') {
+        return false;
+    }
+    if (name.length() >= 3 && (name[0] == 'X' || name[0] == 'x') && (name[1] == 'M' || name[1] == 'm') &&
+        (name[2] == 'l' || name[2] == 'L')) {
+        return false;
+    }
+    return true;
+}
+
 void serialize_rt_info(pugi::xml_node& root, const std::string& name, const ov::Any& data) {
-    auto child = root.append_child(name.c_str());
+    pugi::xml_node child;
+    if (is_correct_tag_name(name)) {
+        child = root.append_child(name.c_str());
+    } else {
+        // Name may brake XML-naming specification, so better to store it as an attribute of typical
+        // node
+        child = root.append_child("info");
+        child.append_attribute("name").set_value(name.c_str());
+    }
     if (data.is<std::shared_ptr<ov::Meta>>()) {
         std::shared_ptr<ov::Meta> meta = data.as<std::shared_ptr<ov::Meta>>();
         ov::AnyMap& map = *meta;

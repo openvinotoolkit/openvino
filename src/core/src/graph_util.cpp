@@ -58,7 +58,7 @@ void clone_ov_nodes(const std::vector<std::shared_ptr<ov::Node>>& nodes,
                 cloned_node->input(input.get_index()).get_rt_info() = input.get_rt_info();
             }
 
-            node_map[node.get()] = cloned_node;
+            node_map[node.get()] = std::move(cloned_node);
         }
     }
 }

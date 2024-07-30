@@ -6,7 +6,7 @@
 
 #include "set_brgemm_copy_b_buffers_shape.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 
@@ -30,7 +30,7 @@ bool ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape::run(snippets::lowered::Lin
             const auto buffer = get_buffer_from_output(expr, 0);
             const auto buffer_shape = copy_b->get_repacking_buffer_shape();
             buffer->set_allocation_size(ov::shape_size(buffer_shape));
-            if (copy_b->is_with_compensations()) {
+            if (with_compensations(copy_b->get_type())) {
                 const auto compensations_buffer = get_buffer_from_output(expr, 1);
                 compensations_buffer->set_allocation_size(ov::shape_size(copy_b->get_compensations_buffer_shape()));
             }

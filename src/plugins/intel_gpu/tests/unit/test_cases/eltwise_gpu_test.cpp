@@ -98,7 +98,9 @@ void generic_eltwise_test(cldnn::format test_input_fmt, int input_b, int input_f
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(reorder("reorder1", input_info("input1"), input1->get_layout().with_padding(padding{{ 0, 0, input_padding_x, input_padding_y }, 0 })));
-    topology.add(eltwise("eltwise", { input_info("reorder1"), input_info("input2") }, mode, DEFAULT_BROADCAST_SPEC, padding{ { 0, 0, output_padding_x, output_padding_y }, 0 }));
+    auto eltwise_prim = eltwise("eltwise", { input_info("reorder1"), input_info("input2") }, mode, DEFAULT_BROADCAST_SPEC);
+    eltwise_prim.output_paddings = { padding{ { 0, 0, output_padding_x, output_padding_y }, 0 } };
+    topology.add(eltwise_prim);
     primitive_id out_id = "eltwise";
     if (relu)
     {
@@ -242,7 +244,9 @@ void generic_eltwise_bool_test(cldnn::format test_input_fmt, int input_b, int in
     topology.add(input_layout("input1", input1->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(reorder("reorder1", input_info("input1"), input1->get_layout().with_padding(padding{{ 0, 0, input_padding_x, input_padding_y }, 0 })));
-    topology.add(eltwise("eltwise", { input_info("reorder1"), input_info("input2") }, mode, DEFAULT_BROADCAST_SPEC, padding{ { 0, 0, output_padding_x, output_padding_y }, 0 }));
+    auto eltwise_prim = eltwise("eltwise", { input_info("reorder1"), input_info("input2") }, mode, DEFAULT_BROADCAST_SPEC);
+    eltwise_prim.output_paddings = { padding{ { 0, 0, output_padding_x, output_padding_y }, 0 } };
+    topology.add(eltwise_prim);
 
     network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input1", input1);
@@ -3633,7 +3637,9 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_output_padding) {
     topology golden_topology;
     golden_topology.add(input_layout("input1", input1->get_layout()));
     golden_topology.add(input_layout("input2", input2->get_layout()));
-    golden_topology.add(eltwise("eltwise", input_info("input1"), input_info("input2"), eltwise_mode::sum, DEFAULT_BROADCAST_SPEC, padding{ {0,0,5,10} , 0 }));
+    auto golden_eltwise_prim = eltwise("eltwise", input_info("input1"), input_info("input2"), eltwise_mode::sum, DEFAULT_BROADCAST_SPEC);
+    golden_eltwise_prim.output_paddings = {  padding{ {0,0,5,10} , 0 } };
+    golden_topology.add(golden_eltwise_prim);
 
     network golden_network(engine, golden_topology, get_test_default_config(engine));
     golden_network.set_input_data("input1", input1);
@@ -3649,7 +3655,9 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_output_padding) {
     FS_B_YX_FSV32_OUTPUT_topology.add(input_layout("input2", input2->get_layout()));
     FS_B_YX_FSV32_OUTPUT_topology.add(reorder("reorder1", input_info("input1"), layout(data_types::f16, format::fs_b_yx_fsv32, input_tensor)));
     FS_B_YX_FSV32_OUTPUT_topology.add(reorder("reorder2", input_info("input2"), layout(data_types::f16, format::byxf, input_tensor)));
-    FS_B_YX_FSV32_OUTPUT_topology.add(eltwise("eltwise", input_info("reorder1"), input_info("reorder2"), eltwise_mode::sum, DEFAULT_BROADCAST_SPEC, padding{ {0,0,5,10} , 0 }));
+    auto FS_B_YX_FSV32_OUTPUT_eltwise_prim = eltwise("eltwise", input_info("reorder1"), input_info("reorder2"), eltwise_mode::sum, DEFAULT_BROADCAST_SPEC);
+    FS_B_YX_FSV32_OUTPUT_eltwise_prim.output_paddings = {  padding{ {0,0,5,10} , 0 } };
+    FS_B_YX_FSV32_OUTPUT_topology.add(FS_B_YX_FSV32_OUTPUT_eltwise_prim);
     FS_B_YX_FSV32_OUTPUT_topology.add(reorder("reorderOutput", input_info("eltwise"), layout(data_types::f16, format::bfyx, input_tensor,
                                               padding{ {0,0,5,10} , 0 })));
 
@@ -3667,7 +3675,9 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_output_padding) {
     BYXF_OUTPUT_topology.add(input_layout("input2", input2->get_layout()));
     BYXF_OUTPUT_topology.add(reorder("reorder1", input_info("input1"), layout(data_types::f16, format::byxf, input_tensor)));
     BYXF_OUTPUT_topology.add(reorder("reorder2", input_info("input2"), layout(data_types::f16, format::fs_b_yx_fsv32, input_tensor)));
-    BYXF_OUTPUT_topology.add(eltwise("eltwise", input_info("reorder1"), input_info("reorder2"), eltwise_mode::sum, DEFAULT_BROADCAST_SPEC, padding{ {0,0,5,10} , 0 }));
+    auto BYXF_OUTPUT_eltwise_prim = eltwise("eltwise", input_info("reorder1"), input_info("reorder2"), eltwise_mode::sum, DEFAULT_BROADCAST_SPEC);
+    BYXF_OUTPUT_eltwise_prim.output_paddings = {  padding{ {0,0,5,10} , 0 } };
+    BYXF_OUTPUT_topology.add(BYXF_OUTPUT_eltwise_prim);
     BYXF_OUTPUT_topology.add(reorder("reorderOutput", input_info("eltwise"), layout(data_types::f16, format::bfyx, input_tensor,
                                      padding{ {0,0,5,10} , 0 })));
 

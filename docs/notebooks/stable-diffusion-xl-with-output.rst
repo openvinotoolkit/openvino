@@ -129,7 +129,7 @@ You can save the model on disk using the ``save_pretrained`` method.
     from pathlib import Path
     from optimum.intel.openvino import OVStableDiffusionXLPipeline
     import gc
-    
+
     model_id = "stabilityai/stable-diffusion-xl-base-1.0"
     model_dir = Path("openvino-sd-xl-base-1.0")
 
@@ -144,16 +144,16 @@ select device from dropdown list for running inference using OpenVINO
 
     import ipywidgets as widgets
     import openvino as ov
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -180,7 +180,7 @@ compression parameters.
         description="Apply weight compression",
         value=True,
     )
-    
+
     compress_weights
 
 
@@ -198,11 +198,11 @@ compression parameters.
         quantization_config = None
         if compress_weights.value:
             from optimum.intel import OVWeightQuantizationConfig
-    
+
             quantization_config = OVWeightQuantizationConfig(bits=8)
         return quantization_config
-    
-    
+
+
     quantization_config = get_quantization_config(compress_weights)
 
 .. code:: ipython3
@@ -400,7 +400,7 @@ numpy random state with a specific seed for results reproducibility.
 .. code:: ipython3
 
     import numpy as np
-    
+
     prompt = "cute cat 4k, high-res, masterpiece, best quality, soft lighting, dynamic angle"
     image = text2image_pipe(
         prompt,
@@ -433,13 +433,13 @@ Text2image Generation Interactive Demo
 .. code:: ipython3
 
     import gradio as gr
-    
+
     if text2image_pipe is None:
         text2image_pipe = OVStableDiffusionXLPipeline.from_pretrained(model_dir, device=device.value)
-    
+
     prompt = "cute cat 4k, high-res, masterpiece, best quality, soft lighting, dynamic angle"
-    
-    
+
+
     def generate_from_text(text, seed, num_steps):
         result = text2image_pipe(
             text,
@@ -449,8 +449,8 @@ Text2image Generation Interactive Demo
             width=512,
         ).images[0]
         return result
-    
-    
+
+
     with gr.Blocks() as demo:
         with gr.Column():
             positive_input = gr.Textbox(label="Text prompt")
@@ -486,7 +486,7 @@ Text2image Generation Interactive Demo
                 ],
                 [positive_input, seed_input, steps_input],
             )
-    
+
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
@@ -532,7 +532,7 @@ select device from dropdown list for running inference using OpenVINO
 .. code:: ipython3
 
     from optimum.intel import OVStableDiffusionXLImg2ImgPipeline
-    
+
     image2image_pipe = OVStableDiffusionXLImg2ImgPipeline.from_pretrained(model_dir, device=device.value)
 
 
@@ -580,17 +580,17 @@ Image2Image Generation Interactive Demo
     import gradio as gr
     from diffusers.utils import load_image
     import numpy as np
-    
-    
+
+
     load_image("https://huggingface.co/datasets/optimum/documentation-images/resolve/main/intel/openvino/sd_xl/castle_friedrich.png").resize((512, 512)).save(
         "castle_friedrich.png"
     )
-    
-    
+
+
     if image2image_pipe is None:
         image2image_pipe = OVStableDiffusionXLImg2ImgPipeline.from_pretrained(model_dir)
-    
-    
+
+
     def generate_from_image(text, image, seed, num_steps):
         result = image2image_pipe(
             text,
@@ -599,8 +599,8 @@ Image2Image Generation Interactive Demo
             generator=np.random.RandomState(seed),
         ).images[0]
         return result
-    
-    
+
+
     with gr.Blocks() as demo:
         with gr.Column():
             positive_input = gr.Textbox(label="Text prompt")
@@ -628,7 +628,7 @@ Image2Image Generation Interactive Demo
                 ],
                 [positive_input, i2i_input, seed_input, steps_input],
             )
-    
+
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
@@ -675,11 +675,11 @@ footprint
         OVStableDiffusionXLPipeline,
     )
     from pathlib import Path
-    
+
     refiner_model_id = "stabilityai/stable-diffusion-xl-refiner-1.0"
     refiner_model_dir = Path("openvino-sd-xl-refiner-1.0")
-    
-    
+
+
     if not refiner_model_dir.exists():
         refiner = OVStableDiffusionXLImg2ImgPipeline.from_pretrained(refiner_model_id, export=True, compile=False, quantization_config=quantization_config)
         refiner.half()
@@ -716,7 +716,7 @@ Run Text2Image generation with Refinement
 
     import numpy as np
     import gc
-    
+
     model_dir = Path("openvino-sd-xl-base-1.0")
     base = OVStableDiffusionXLPipeline.from_pretrained(model_dir, device=device.value)
     prompt = "cute cat 4k, high-res, masterpiece, best quality, soft lighting, dynamic angle"
@@ -728,7 +728,7 @@ Run Text2Image generation with Refinement
         generator=np.random.RandomState(314),
         output_type="latent",
     ).images[0]
-    
+
     del base
     gc.collect()
 
@@ -778,7 +778,7 @@ Run Text2Image generation with Refinement
         generator=np.random.RandomState(314),
     ).images[0]
     image.save("cat_refined.png")
-    
+
     image
 
 

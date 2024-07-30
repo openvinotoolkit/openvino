@@ -39,6 +39,7 @@
 #include "embedding_bag_inst.h"
 #include "extract_image_patches_inst.h"
 #include "reduce_inst.h"
+#include "group_normalization_inst.h"
 #include <vector>
 #include <map>
 #include <list>
@@ -400,7 +401,6 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                        desc->weights,
                                                                        bias_name,
                                                                        fc.get_output_layout().data_type,
-                                                                       desc->output_paddings[0],
                                                                        desc->input_size);
 
             if (desc->compressed_weights) {
@@ -694,6 +694,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input.is_type<mvn>();
 
+            should_fuse |= input.is_type<group_normalization>();
+
             should_fuse |= input.is_type<normalize>() && data_type_traits::is_i8_u8(input.get_input_layout(0).data_type);
 
             should_fuse |= input.is_type<deconvolution>();
@@ -891,6 +893,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                        conv_supports_fusings(parents[i].first->as<convolution>())) ||
                                       (parents[i].first->is_type<mvn>() &&
                                        mvn_supports_fusings(parents[i].first->as<mvn>(), true)) ||
+                                      (parents[i].first->is_type<group_normalization>()) ||
                                       (parents[i].first->is_type<deconvolution>()) ||
                                       (parents[i].first->is_type<permute>()) ||
                                       (parents[i].first->is_type<resample>()) ||

@@ -190,3 +190,8 @@ OPENVINO_PLUGIN_API void InjectPlugin(ov::IPlugin* target) {
     std::lock_guard<std::mutex> lock(targets_mutex);
     targets.push(std::make_shared<MockInternalPlugin>(target));
 }
+
+OPENVINO_PLUGIN_API void ClearTargets() {
+    std::lock_guard<std::mutex> lock(targets_mutex);
+    targets = {};
+}

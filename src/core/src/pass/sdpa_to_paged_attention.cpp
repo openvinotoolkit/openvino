@@ -9,6 +9,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/sdpa_to_paged_attention/position_ids_replacer.hpp"
@@ -18,6 +19,10 @@
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::op;
+
+ov::pass::SDPAToPagedAttention::SDPAToPagedAttention(bool use_block_indices_inputs, bool use_score_outputs)
+    : m_use_block_indices_inputs(use_block_indices_inputs),
+      m_use_score_outputs(use_score_outputs) {}
 
 static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> node, const char* name) {
     // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a
@@ -36,12 +41,16 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                     "the SDPAToPagedAttention transformation.");
 
     auto max_context_len = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{}), "max_context_len");
-    ParameterVector model_remaining_params = {
+    ParameterVector model_remaining_params{
         setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "past_lens"),
         setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "subsequence_begins"),
-        setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices"),
         setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices_begins"),
     };
+    if (!m_use_block_indices_inputs) {
+        auto block_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), "block_indices");
+        model_remaining_params.insert(model_remaining_params.begin() + 2, block_indices);
+    }
+
     auto sliding_window = v0::Constant::create(element::i32, Shape{}, {0});  // sliding_window
 
     std::shared_ptr<v0::Parameter> input_ids_node =
@@ -71,6 +80,8 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     ParameterVector kv_parameters;
     ParameterVector parameters_to_remove;
     ResultVector results_to_remove;  // # used, but cannot really track all Results in stateless model
+    ParameterVector block_indices_inputs;
+    ResultVector score_results;
 
     std::shared_ptr<v0::Parameter> position_ids;
     if (!has_parameter(model, "position_ids")) {
@@ -97,44 +108,72 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                   sliding_window,
                                                   parameters_to_remove,
                                                   layer_index,
-                                                  max_context_len->output(0));
+                                                  max_context_len->output(0),
+                                                  block_indices_inputs,
+                                                  score_results,
+                                                  m_use_block_indices_inputs,
+                                                  m_use_score_outputs);
     manager.register_pass<PrevSequenceLengthPattern>(prev_max_seq_len, batch_dim);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
-
     manager.register_pass<PositionIDsReplacer>(unsqueezed_position_ids->output(0));
-
     manager.run_passes(model);
 
-    if (has_parameter(model, "beam_idx")) {
-        if (const auto& parameter =
-                std::dynamic_pointer_cast<v0::Parameter>(model->input("beam_idx").get_node_shared_ptr())) {
-            model->remove_parameter(parameter);
-        } else {
-            return false;
+    {
+        // Remove all Assigns aggressively, the path from the kv-cache concat to Assign can be complicated,
+        // but there is no reason to track it and reject part of the Assigns, because the model will remain
+        // in incorrect form anyway.
+        auto sinks = model->get_sinks();
+
+        for (auto& sink : sinks) {
+            model->remove_sink(sink);
         }
     }
 
-    if (const auto& parameter =
-            std::dynamic_pointer_cast<v0::Parameter>(model->input("attention_mask").get_node_shared_ptr())) {
-        model->remove_parameter(parameter);
-    } else {
-        return false;
+    {
+        for (auto& result : results_to_remove) {
+            model->remove_result(result);
+        }
+    }
+
+    for (auto& param_name : {"beam_idx", "attention_mask"}) {
+        if (has_parameter(model, param_name)) {
+            if (const auto& param =
+                    std::dynamic_pointer_cast<v0::Parameter>(model->input(param_name).get_node_shared_ptr())) {
+                model->remove_parameter(param);
+
+                if (param->output(0).get_target_inputs().size() == 0) {
+                    std::stringstream consumers;
+                    consumers << std::endl;
+                    for (auto& input : param->output(0).get_target_inputs()) {
+                        consumers << *input.get_node() << std::endl;
+                    }
+                    OPENVINO_ASSERT(param->output(0).get_target_inputs().size() == 0,
+                                    "PagedAttention transformation failed: couldn't remove ",
+                                    param->output(0).get_target_inputs().size(),
+                                    " inputs of ",
+                                    param_name,
+                                    " input: ",
+                                    consumers.str());
+                }
+            } else {
+                OPENVINO_THROW("The model is in the inconsistent state. Found input '",
+                               param_name,
+                               "', but couldn't cast it to v0::Parameter.");
+                return false;
+            }
+        }
     }
 
     for (auto& parameter : parameters_to_remove) {
         model->remove_parameter(parameter);
     }
-    // Remove all Assigns aggressively, the path from the kv-cache concat to Assign can be complicated,
-    // but there is no reason to track it and reject part of the Assigns, because the model will remain
-    // in incorrect form anyway.
-    auto sinks = model->get_sinks();
 
-    for (auto& sink : sinks) {
-        model->remove_sink(sink);
+    if (m_use_block_indices_inputs) {
+        model->add_parameters(block_indices_inputs);
     }
 
-    for (auto& result : results_to_remove) {
-        model->remove_result(result);
+    if (m_use_score_outputs) {
+        model->add_results(score_results);
     }
 
     model->add_parameters(kv_parameters);

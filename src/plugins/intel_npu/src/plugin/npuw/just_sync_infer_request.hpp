@@ -26,6 +26,7 @@ public:
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
 private:
+    ////////////////////////////////////
     // implement IBaseInferRequest
     void prepare_for_infer() override;
     bool valid_subrequest(std::size_t idx) const override;
@@ -39,17 +40,22 @@ private:
 
     void update_subrequest_links(std::size_t idx) override;
 
+    ////////////////////////////////////
+    // now own API
+
     // FIXME: probably this one should go to the base class too
     RqPtr get_real_subrequest(std::size_t idx);
-    void bind_params_results();
+
+    void bind_global_parameters(std::size_t idx);
+    void bind_global_results(std::size_t idx);
+
     void function_prologue(std::size_t idx);
     void unpack_closure(std::size_t idx, RqPtr request);
 
+    void unsafe_run_this_prep_next(std::size_t idx, bool& next_prepared_p);
+
     void connect_subrequests();
-
     void recreate_subrequests(std::size_t idx);
-
-    static constexpr const std::size_t INVALID_IDX = std::numeric_limits<std::size_t>::max();
 
     using LinkFrom = std::pair<std::size_t /* Subrequest index */
                                ,
@@ -57,19 +63,6 @@ private:
                                >;          // FIXME: This is a third, if not fourth, definitiion of such structure
     using TensorPtr = ov::SoPtr<ov::ITensor>;
     std::map<LinkFrom, TensorPtr> m_funcall_result;
-
-    using ToSubmodel = std::pair<std::size_t /* Subrequest index */
-                                 ,
-                                 std::size_t /* Subrequest input index */
-                                 >;          // Fixme: fourth installment?
-    std::map<ToSubmodel, ov::Output<const ov::Node>> m_reader_to_orig_port;
-
-    // FIXME: STOP USING ov::Output<> AT ALL! It is a weak feature
-    // These objects get discarded on occasional model recompilation
-    std::map<ov::Output<const ov::Node>, size_t> m_port_to_subrequest_idx;
-    std::map<ov::Output<const ov::Node>,
-             ov::Output<const ov::Node>>
-        m_port_orig_to_sub;  // FIXME: this one likely replaces `m_port_to_subrequest_idx'
 
     bool m_use_function_pipelining = false;
     struct FuncallPipeline {
@@ -87,6 +80,16 @@ private:
     // subgraphs, but with only function call-related elements
     // initialized.
     std::vector<FuncallPipeline> m_funcall_pipeline;
+
+    // This structure tracks how every individual subrequest
+    // access the model's top-level (global, public, etc) parameters
+    // and results
+    struct GlobalIO {
+        using map_t = std::map<std::size_t, std::size_t>;
+        map_t global_params;   // param idx -> input idx
+        map_t global_results;  // result idx -> output idx
+    };
+    std::vector<GlobalIO> m_subrequests_gio;
 };
 
 }  // namespace npuw

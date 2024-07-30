@@ -468,6 +468,10 @@ bool crop_in_place_optimization::match(const program_node& node,
 
     const auto& crop_layout = crop_params.get_output_layout();
     for (auto user : node.get_users()) {
+        // If the user node's output shape is already static, the padding
+        // w/ dyn pad mask will not be propagated properly at runtime
+        if (node.is_dynamic() && !user->get_output_pshape().is_dynamic())
+            return false;
         // do not optimize when next node is concatenation which is not output
         if (user->is_type<concatenation>() && !user->is_output())
             return false;
@@ -480,10 +484,10 @@ bool crop_in_place_optimization::match(const program_node& node,
         if (node.is_dynamic() && (user->is_type<convolution>() || user->is_type<gemm>()))
             return false;
         if (user->is_type<reshape>()) {
-            // runtime buffer fusing is only handled when there is only one reshape user
-            if (node.is_dynamic() && node.get_users().size() != 1)
-                return false;
             auto& reshape_node = user->as<reshape>();
+            // runtime buffer fusing is only handled when there is only one reshape user and reshape mode is base
+            if (node.is_dynamic() && (node.get_users().size() != 1 || reshape_node.get_primitive()->mode != reshape::reshape_mode::base))
+                return false;
             if (can_reshape_be_optimized(reshape_node) &&
                 (!node.is_dynamic() || !reshape_node.is_runtime_propagatable_padding()))
                 return false;
@@ -494,6 +498,14 @@ bool crop_in_place_optimization::match(const program_node& node,
 
     // do not optimize crop, that must be calculated in propagate_constants
     if (node.is_constant())
+        return false;
+
+    // do not optimize variadic_split crop when either input1 or input2 is not constant.
+    // VariadicSplit ngraph shape infer requires value of axis(input1) and split_lengths(input2).
+    // And non_constant input1/input2 makes risky execution of runtime buffer fusing.
+    auto& crop_node = node.as<crop>();
+    if ((crop_node.get_primitive()->op_mode == cldnn::crop_ngraph_op_mode::variadic_split) &&
+        (!crop_node.get_dependency(1).is_constant() || !crop_node.get_dependency(2).is_constant()))
         return false;
 
     if (node.get_users().size() > 0) {
@@ -575,7 +587,8 @@ void crop_in_place_optimization::update_in_place_crop_padding_along_feature(cons
         auto spatial_size = std::max<size_t>(crop_layout.get_partial_shape().size(), 4) - 2;
         crop_axis_legacy = spatial_size - spatial_axis - 1 + 2;
     }
-    if (crop_layout.is_dynamic() && !is_runtime) {
+    // If it's build-time and node is dynamic, only dynamic padding is set first
+    if ((crop_layout.is_dynamic() || input_layout.is_dynamic()) && !is_runtime) {
         auto info_dynamic_pad = tensor(0).sizes();
         info_dynamic_pad[crop_axis_legacy] = 1;
         auto dynamic_pad_mask = tensor(info_dynamic_pad);
@@ -630,7 +643,8 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
         auto spatial_size = std::max<size_t>(crop_layout.get_partial_shape().size(), 4) - 2;
         crop_axis_legacy = spatial_size - spatial_axis - 1 + 2;
     }
-    if (crop_layout.is_dynamic() && !is_runtime) {
+    // If it's build-time and node is dynamic, only dynamic padding is set first
+    if ((crop_layout.is_dynamic() || input_layout.is_dynamic()) && !is_runtime) {
         auto dyn_pad_sizes = tensor(0).sizes();
         dyn_pad_sizes[crop_axis_legacy] = 1;
         crop_layout.data_padding.set_dynamic_pad(tensor(dyn_pad_sizes));

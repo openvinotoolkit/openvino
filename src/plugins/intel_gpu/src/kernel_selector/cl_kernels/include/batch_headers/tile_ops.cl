@@ -64,6 +64,25 @@ __attribute__((overloadable)) int local_atomic_max(local int *p, int v) {
                 (global itype *)p, as_##itype(v[0])); \
     }
 
+#define DEF_BLOCK_LOAD_STORE16(type, itype, suffix) \
+    __attribute__((overloadable)) \
+            type##16 block_load(const global type *p, int vlen) __attribute__( \
+                    (enable_if(vlen == 16, "wrong vector length"))) { \
+        type##16 x; \
+        x.s01234567 = as_##type##8( \
+                intel_sub_group_block_read8##suffix((global void *)p)); \
+        x.s89abcdef = as_##type##8( \
+                intel_sub_group_block_read8##suffix((global void *)(p + 8 * get_sub_group_size()))); \
+        return x; \
+    } \
+    __attribute__((overloadable)) void block_store( \
+            global type *p, type##16 v) { \
+        intel_sub_group_block_write8##suffix( \
+                (global itype *)p, as_##itype##8(v.s01234567)); \
+        intel_sub_group_block_write8##suffix( \
+                (global itype *)(p + 8 * get_sub_group_size()), as_##itype##8(v.s89abcdef)); \
+    }
+
 DEF_BLOCK_LOAD_STORE1(half, ushort, _us)
 DEF_BLOCK_LOAD_STORE(half, ushort, _us, 2)
 DEF_BLOCK_LOAD_STORE(half, ushort, _us, 4)
@@ -73,6 +92,7 @@ DEF_BLOCK_LOAD_STORE1(uint, uint, )
 DEF_BLOCK_LOAD_STORE(uint, uint, , 2)
 DEF_BLOCK_LOAD_STORE(uint, uint, , 4)
 DEF_BLOCK_LOAD_STORE(uint, uint, , 8)
+DEF_BLOCK_LOAD_STORE16(uint, uint, )
 
 #define DEF_BLOCK2D_LOAD_STORE(type, itype, vl, SG, suffix, BR, BC) \
     itype##vl __builtin_IB_subgroup_block_read_flat_##suffix( \

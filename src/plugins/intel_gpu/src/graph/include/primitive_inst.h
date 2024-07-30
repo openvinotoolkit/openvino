@@ -376,7 +376,7 @@ protected:
     bool _is_constant = false;
     bool _needs_completion_event = false;
 
-    size_t _max_output_layout_count = 0;
+    std::vector<size_t> _max_output_layout_count;
     std::vector<size_t> max_intermediates_memory_sizes;
 
     std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr,
@@ -398,7 +398,7 @@ protected:
     void fill_shape_info_data(const layout& runtime_layout, const layout& node_layout, int32_t* shape_info_ptr, size_t& offset);
     bool use_async_compilation();
     // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
-    bool update_impl();
+    bool update_impl(bool use_async_compilation);
     event::ptr realloc_if_needed();
 
     cldnn::network::ptr get_unfused_subgraph();

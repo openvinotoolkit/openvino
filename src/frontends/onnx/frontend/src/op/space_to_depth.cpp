@@ -2,18 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/space_to_depth.hpp"
-
-#include "openvino/frontend/exception.hpp"
 #include "openvino/op/space_to_depth.hpp"
 
+#include "core/operator_set.hpp"
+#include "openvino/frontend/exception.hpp"
 using namespace ov::op;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector space_to_depth(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ov_inputs().at(0);
     const auto& shape = data.get_partial_shape();
@@ -22,8 +21,9 @@ ov::OutputVector space_to_depth(const ov::frontend::onnx::Node& node) {
     const auto mode = v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST;
     return {std::make_shared<v0::SpaceToDepth>(data, mode, block_size)};
 }
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("SpaceToDepth", OPSET_SINCE(1), ai_onnx::opset_1::space_to_depth);
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov
