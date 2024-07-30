@@ -177,10 +177,6 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter() : _logger("LevelZeroCompile
     }
 }
 
-bool LevelZeroCompilerAdapter::isCompatibleWithDriverVersion(const Config& config) const {
-    OPENVINO_THROW_NOT_IMPLEMENTED("Driver compiler does not check for compatibility");
-}
-
 uint32_t LevelZeroCompilerAdapter::getSupportedOpsetVersion() const {
     return apiAdapter->getSupportedOpsetVersion();
 }

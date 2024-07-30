@@ -56,7 +56,7 @@ public:
 private:
     ov::SoPtr<ICompiler> getCompiler(const Config& config) const;
 
-    void checkForCompilerFallback();
+    void checkDriverVersion();
 
     std::shared_ptr<NPUBackends> _backends;
 
