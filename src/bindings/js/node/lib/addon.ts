@@ -297,6 +297,12 @@ interface CompiledModel {
   /** It gets all outputs of a compiled model. */
   outputs: Output[];
   /**
+   * It gets property for current compiled model.
+   * @param propertyName A string to get property value.
+   * @returns property value.
+   */
+  getProperty(propertyName: string): string | number | boolean;
+  /**
    * It creates an inference request object used to infer the compiled model.
    * @return {InferRequest}
    */
@@ -344,7 +350,14 @@ interface CompiledModel {
    * @returns {Output} A compiled model input.
    */
   input(name: string): Output;
-
+   /**
+   * It sets properties for current compiled model. Properties
+   * can be retrieved via {@link CompiledModel.getProperty}.
+   * @param property The object to set properties for current compiled model.
+   */
+   setProperty(property: {
+      [propertyName: string]: string | number | boolean
+    }): void;
 }
 
 /**
