@@ -21,6 +21,10 @@ void regmodule_properties(py::module m) {
         .value("NUMA", ov::Affinity::NUMA)
         .value("HYBRID_AWARE", ov::Affinity::HYBRID_AWARE);
 
+    py::enum_<ov::WorkloadType>(m_properties, "WorkloadType", py::arithmetic())
+        .value("DEFAULT", ov::WorkloadType::DEFAULT)
+        .value("EFFICIENT", ov::WorkloadType::EFFICIENT);
+
     py::enum_<ov::CacheMode>(m_properties, "CacheMode", py::arithmetic())
         .value("OPTIMIZE_SIZE", ov::CacheMode::OPTIMIZE_SIZE)
         .value("OPTIMIZE_SPEED", ov::CacheMode::OPTIMIZE_SPEED);
@@ -28,6 +32,7 @@ void regmodule_properties(py::module m) {
     // Submodule properties - properties
     wrap_property_RW(m_properties, ov::enable_profiling, "enable_profiling");
     wrap_property_RW(m_properties, ov::cache_dir, "cache_dir");
+    wrap_property_RW(m_properties, ov::workload_type, "workload_type");
     wrap_property_RW(m_properties, ov::cache_mode, "cache_mode");
     wrap_property_RW(m_properties, ov::auto_batch_timeout, "auto_batch_timeout");
     wrap_property_RW(m_properties, ov::num_streams, "num_streams");

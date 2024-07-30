@@ -34,20 +34,19 @@ std::vector<TRShape> shape_infer(const ReverseSequence* op, const std::vector<TS
     if (data_rank.is_static() && seq_lengths_rank.is_static()) {
         const auto normalized_batch_axis =
             static_cast<size_t>(ov::util::normalize_axis(op, op->get_origin_batch_axis(), data_rank));
-        DimType merged_sequence_length;
-        NODE_VALIDATION_CHECK(
-            op,
-            DimType::merge(merged_sequence_length, data_pshape[normalized_batch_axis], seq_lengths_pshape[0]),
-            "Sequence lengths input size (",
-            seq_lengths_pshape[0],
-            ") is not equal to batch axis dimension of data input (",
-            data_pshape[normalized_batch_axis],
-            ") (argument shape: ",
-            data_pshape,
-            ", sequence indices shape: ",
-            seq_lengths_pshape,
-            ").");
-        output_pshape[normalized_batch_axis] = merged_sequence_length;
+        NODE_VALIDATION_CHECK(op,
+                              DimType::merge(output_pshape[normalized_batch_axis],
+                                             data_pshape[normalized_batch_axis],
+                                             seq_lengths_pshape[0]),
+                              "Sequence lengths input size (",
+                              seq_lengths_pshape[0],
+                              ") is not equal to batch axis dimension of data input (",
+                              data_pshape[normalized_batch_axis],
+                              ") (argument shape: ",
+                              data_pshape,
+                              ", sequence indices shape: ",
+                              seq_lengths_pshape,
+                              ").");
     }
 
     return output_shapes;

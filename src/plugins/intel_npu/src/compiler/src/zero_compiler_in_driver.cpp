@@ -10,6 +10,7 @@
 
 #include "graph_transformations.hpp"
 #include "intel_npu/al/config/common.hpp"
+#include "intel_npu/al/config/compiler.hpp"
 #include "intel_npu/al/config/runtime.hpp"
 #include "intel_npu/al/itt.hpp"
 #include "intel_npu/al/prefix.hpp"
@@ -376,6 +377,47 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
     const Config& config,
     ze_graph_compiler_version_info_t& compilerVersion) const {
     std::string content = config.toString();
+    _logger.debug("Original content of config: %s", content.c_str());
+
+    // Remove optimization-level and performance-hint-override for old driver which not support them
+    if ((compilerVersion.major < 5) || (compilerVersion.major == 5 && compilerVersion.minor < 7)) {
+        std::string valueOfParams = config.get<COMPILATION_MODE_PARAMS>();
+        std::string keyOfOptL("optimization-level");
+        std::string keyOfPerfHO("performance-hint-override");
+        if (valueOfParams != "" && (valueOfParams.find(keyOfOptL) != std::string::npos ||
+                                    valueOfParams.find(keyOfPerfHO) != std::string::npos)) {
+            // Remove unsupported options from value
+            std::ostringstream optLevelStr;
+            optLevelStr << keyOfOptL << KEY_VALUE_SEPARATOR << "\\d+";
+            std::ostringstream perfHintStr;
+            perfHintStr << keyOfPerfHO << KEY_VALUE_SEPARATOR << "\\S+";
+            _logger.warning("%s property is not suppored by this compiler version. Removing from parameters",
+                            keyOfOptL.c_str());
+            valueOfParams = std::regex_replace(valueOfParams, std::regex(optLevelStr.str()), "");
+            _logger.warning("%s property is not suppored by this compiler version. Removing from parameters",
+                            keyOfPerfHO.c_str());
+            valueOfParams = std::regex_replace(valueOfParams, std::regex(perfHintStr.str()), "");
+
+            // Trim space
+            valueOfParams = std::regex_replace(valueOfParams, std::regex(R"(^\s+|\s+$)"), "");
+
+            // Replace the value in content with new value
+            std::ostringstream compilationParamsStr;
+            compilationParamsStr << ov::intel_npu::compilation_mode_params.name() << KEY_VALUE_SEPARATOR
+                                 << VALUE_DELIMITER << ".*" << VALUE_DELIMITER;
+            if (valueOfParams == "") {
+                _logger.warning("Clear empty NPU_COMPILATION_MODE_PARAMS. Removing from parameters");
+                content = std::regex_replace(content, std::regex(compilationParamsStr.str()), "");
+            } else {
+                std::ostringstream newValue;
+                newValue << ov::intel_npu::compilation_mode_params.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER
+                         << valueOfParams << VALUE_DELIMITER;
+                _logger.warning("Replace value of NPU_COMPILATION_MODE_PARAMS with new value %s",
+                                newValue.str().c_str());
+                content = std::regex_replace(content, std::regex(compilationParamsStr.str()), newValue.str().c_str());
+            }
+        }
+    }
 
     // As a consequence of complying to the conventions established in the 2.0 OV API, the set of values corresponding
     // to the "model priority" key has been modified
@@ -464,6 +506,12 @@ std::string LevelZeroCompilerInDriver<TableExtension>::serializeConfig(
             "EXECUTION_MODE_HINT property is not suppored by this compiler version. Removing from parameters");
         content = std::regex_replace(content, std::regex(batchstr.str()), "");
     }
+
+    // Remove the properties that are not used by the compiler
+    // WorkloadType is used only by compiled model
+    std::ostringstream workloadtypestr;
+    workloadtypestr << ov::workload_type.name() << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
+    content = std::regex_replace(content, std::regex(workloadtypestr.str()), "");
 
     // FINAL step to convert prefixes of remaining params, to ensure backwards compatibility
     // From 5.0.0, driver compiler start to use NPU_ prefix, the old version uses VPU_ prefix

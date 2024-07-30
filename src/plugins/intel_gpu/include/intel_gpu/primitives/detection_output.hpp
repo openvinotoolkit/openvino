@@ -75,9 +75,8 @@ struct detection_output : public primitive_base<detection_output> {
                      const bool decrease_label_id = false,
                      const bool clip_before_nms = false,
                      const bool clip_after_nms = false,
-                     const float objectness_score = 0.0f,
-                     const padding& output_padding = padding())
-        : primitive_base(id, inputs, {output_padding}),
+                     const float objectness_score = 0.0f)
+        : primitive_base(id, inputs),
           num_classes(num_classes),
           keep_top_k(keep_top_k),
           share_location(share_location),

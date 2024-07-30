@@ -199,6 +199,8 @@ KernelsData SDPAKernelOpt::GetKernelsData(const Params& params) const {
     kd.needs_sub_kernels_sync = true;
 
     GetUpdateDispatchDataFunc(kd);
+
+    size_t kd_kernels_idx = 0;
     for (const auto& kernel_idx : kernels_type) {
         auto dispatch_data = SetDefault(prim_params, kernel_idx);
         auto kernel_name = GetKernelName(kernelName, static_cast<KernelsTypes>(kernel_idx), prim_params.indirect_axis != -1);
@@ -206,7 +208,7 @@ KernelsData SDPAKernelOpt::GetKernelsData(const Params& params) const {
         auto jit_constants = GetJitConstants(prim_params, kernel_idx);
         auto jit = CreateJit(kernel_name, jit_constants, entry_point);
 
-        auto& kernel = kd.kernels[kernel_idx];
+        auto& kernel = kd.kernels[kd_kernels_idx++];
 
         auto inputs_num =
             kernel_idx == KernelsTypes::FINALIZATION ? 0 : static_cast<int>(prim_params.inputs.size());

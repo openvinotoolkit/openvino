@@ -113,10 +113,14 @@ void ov::frontend::onnx::transform::expand_onnx_functions(ModelProto& model_prot
             // In order to expand a context-dependent function, we need to infer types
             try {
                 shape_inference::InferShapes(model_proto);
+#ifdef ENABLE_OPENVINO_DEBUG
             } catch (const std::exception& e) {
-                OPENVINO_WARN << "ONNX ov::Shape inference failed: " << e.what();
+                OPENVINO_WARN("ONNX ov::Shape inference failed: ", e.what());
             }
-
+#else
+            } catch (const std::exception&) {
+            }
+#endif
             std::vector<TypeProto> input_types;
             for (const auto& input : node.input()) {
                 input_types.push_back(get_input_type(input, *graph_proto));

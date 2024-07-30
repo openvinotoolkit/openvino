@@ -149,7 +149,7 @@ bool MultiplyPartialTransformation::transform(TransformationContext& context, ov
         NetworkHelper::foldDequantization(newMultiply, fullPathIndex, defaultPrecisions);
     }
 
-    OPENVINO_DEBUG << "LPT: done: " << newMultiply;
+    OPENVINO_DEBUG("LPT: done: ", newMultiply);
     return true;
 }
 

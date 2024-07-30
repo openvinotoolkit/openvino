@@ -1,8 +1,5 @@
-.. {#openvino_supported_devices}
-
-
-Inference Device Support
-========================
+Supported Inference Devices
+============================
 
 .. meta::
    :description: Check the list of devices used by OpenVINO to run inference
@@ -26,7 +23,7 @@ OpenVINO offers the option of running automated inference with the following inf
   multiple devices at the same time.
 * :doc:`Heterogeneous Inference <../../openvino-workflow/running-inference/inference-devices-and-modes/hetero-execution>` - enables splitting inference among several devices
   automatically, for example, if one device doesn't support certain operations.
-* :doc:`Multi-device Inference <../../openvino-workflow/running-inference/inference-devices-and-modes/multi-device>` - executes inference on multiple devices.
+* :doc:`(LEGACY) Multi-device Inference <./../../documentation/legacy-features/multi-device>` - executes inference on multiple devices.
   Currently, this mode is considered a legacy solution. Using Automatic Device Selection is advised.
 * :doc:`Automatic Batching <../../openvino-workflow/running-inference/inference-devices-and-modes/automatic-batching>` - automatically groups inference requests to improve
   device utilization.
@@ -36,20 +33,20 @@ OpenVINO offers the option of running automated inference with the following inf
 Feature Support and API Coverage
 #################################
 
-=============================================================================================================================== ======= ========== ===========
- Supported Feature                                                                                                               CPU     GPU        NPU
-=============================================================================================================================== ======= ========== ===========
- :doc:`Heterogeneous execution <../../openvino-workflow/running-inference/inference-devices-and-modes/hetero-execution>`         Yes     Yes        No
- :doc:`Multi-device execution <../../openvino-workflow/running-inference/inference-devices-and-modes/multi-device>`              Yes     Yes        Partial
- :doc:`Automatic batching <../../openvino-workflow/running-inference/inference-devices-and-modes/automatic-batching>`            No      Yes        No
- :doc:`Multi-stream execution <../../openvino-workflow/running-inference/optimize-inference/optimizing-throughput>`              Yes     Yes        No
- :doc:`Models caching <../../openvino-workflow/running-inference/optimize-inference/optimizing-latency/model-caching-overview>`  Yes     Partial    Yes
- :doc:`Dynamic shapes <../../openvino-workflow/running-inference/dynamic-shapes>`                                                Yes     Partial    No
- :doc:`Import/Export <../../documentation/openvino-ecosystem>`                                                                   Yes     Yes        Yes
- :doc:`Preprocessing acceleration <../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing>`         Yes     Yes        No
- :doc:`Stateful models <../../openvino-workflow/running-inference/stateful-models>`                                              Yes     Yes        Yes
- :doc:`Extensibility <../../documentation/openvino-extensibility>`                                                               Yes     Yes        No
-=============================================================================================================================== ======= ========== ===========
+======================================================================================================================================== ======= ========== ===========
+ Supported Feature                                                                                                                        CPU     GPU        NPU
+======================================================================================================================================== ======= ========== ===========
+ :doc:`Heterogeneous execution <../../openvino-workflow/running-inference/inference-devices-and-modes/hetero-execution>`                  Yes     Yes        No
+ :doc:`(LEGACY) Multi-device execution <./../../documentation/legacy-features/multi-device>`                                              Yes     Yes        Partial
+ :doc:`Automatic batching <../../openvino-workflow/running-inference/inference-devices-and-modes/automatic-batching>`                     No      Yes        No
+ :doc:`Multi-stream execution <../../openvino-workflow/running-inference/optimize-inference/optimizing-throughput>`                       Yes     Yes        No
+ :doc:`Models caching <../../openvino-workflow/running-inference/optimize-inference/optimizing-latency/model-caching-overview>`           Yes     Partial    Yes
+ :doc:`Dynamic shapes <../../openvino-workflow/running-inference/dynamic-shapes>`                                                         Yes     Partial    No
+ :doc:`Import/Export <../../documentation/openvino-ecosystem>`                                                                            Yes     Yes        Yes
+ :doc:`Preprocessing acceleration <../../openvino-workflow/running-inference/optimize-inference/optimize-preprocessing>`                  Yes     Yes        No
+ :doc:`Stateful models <../../openvino-workflow/running-inference/stateful-models>`                                                       Yes     Yes        Yes
+ :doc:`Extensibility <../../documentation/openvino-extensibility>`                                                                        Yes     Yes        No
+======================================================================================================================================== ======= ========== ===========
 
 
 +-------------------------+-----------+------------------+-------------------+
@@ -68,8 +65,6 @@ Feature Support and API Coverage
 | AUTO                    | 40.0 %    | 100.0 %          | 97.44 %           |
 +-------------------------+-----------+------------------+-------------------+
 | BATCH                   | 26.0 %    | 100.0 %          | 58.97 %           |
-+-------------------------+-----------+------------------+-------------------+
-| MULTI                   | 30.0 %    | 100.0 %          | 58.97 %           |
 +-------------------------+-----------+------------------+-------------------+
 | HETERO                  | 30.0 %    | 99.23 %          | 58.97 %           |
 +-------------------------+-----------+------------------+-------------------+

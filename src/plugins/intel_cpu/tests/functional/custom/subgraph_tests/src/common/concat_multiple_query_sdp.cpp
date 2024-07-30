@@ -288,6 +288,7 @@ public:
 };
 
 TEST_P(ConcatMultiQuerySDPTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     InputShapeAndTransposeOrder inputShapeAndOrders;
     bool hasShapeOf;
     ElementType qkvType;

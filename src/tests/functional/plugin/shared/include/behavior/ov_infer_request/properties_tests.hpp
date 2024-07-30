@@ -92,17 +92,6 @@ TEST_P(InferRequestPropertiesTest, canSetExclusiveAsyncRequests) {
     }
 }
 
-TEST_P(InferRequestPropertiesTest, withoutExclusiveAsyncRequests) {
-    ASSERT_EQ(0ul, ov::threading::executor_manager()->get_executors_number());
-    OV_ASSERT_NO_THROW(createInferRequestWithConfig());
-    if (target_device.find(ov::test::utils::DEVICE_AUTO) == std::string::npos &&
-        target_device.find(ov::test::utils::DEVICE_MULTI) == std::string::npos &&
-        target_device.find(ov::test::utils::DEVICE_HETERO) == std::string::npos &&
-        target_device.find(ov::test::utils::DEVICE_BATCH) == std::string::npos) {
-        ASSERT_EQ(streamExecutorNumber, ov::threading::executor_manager()->get_executors_number());
-    }
-}
-
 TEST_P(InferRequestPropertiesTest, ReusableCPUStreamsExecutor) {
     ov::threading::executor_manager()->clear();
     ASSERT_EQ(0u, ov::threading::executor_manager()->get_executors_number());

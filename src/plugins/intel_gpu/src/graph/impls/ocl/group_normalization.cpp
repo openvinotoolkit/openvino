@@ -48,23 +48,23 @@ attach_group_normalization_impl::attach_group_normalization_impl() {
     auto types = {data_types::f16, data_types::f32};
     auto formats = {
             format::bfyx,
-            format::byxf,
-            format::yxfb,
             format::bfzyx,
-            format::b_fs_yx_fsv2,
-            format::b_fs_zyx_fsv2,
-            format::b_fs_yx_fsv4,
-            format::b_fs_zyx_fsv4,
             format::b_fs_yx_fsv16,
-            format::b_fs_yx_fsv32,
-            format::b_fs_zyx_fsv16,
-            format::b_fs_zyx_fsv32,
     };
 
     implementation_map<group_normalization>::add(impl_types::ocl, shape_types::static_shape,
                                      typed_primitive_impl_ocl<group_normalization>::create<group_normalization_impl>,
                                      types,
                                      formats);
+
+    const std::vector<format::type> dyn_formats {
+        format::bfyx,
+        format::b_fs_yx_fsv16,
+    };
+
+    implementation_map<group_normalization>::add(impl_types::ocl, shape_types::dynamic_shape,
+                                                 typed_primitive_impl_ocl<group_normalization>::create<group_normalization_impl>,
+                                                 types, dyn_formats);
 }
 
 }  // namespace detail

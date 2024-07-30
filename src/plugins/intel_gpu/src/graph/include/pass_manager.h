@@ -397,10 +397,12 @@ private:
 
 class fuse_primitives_with_layout : public base_pass {
 public:
-    fuse_primitives_with_layout() : base_pass("fuse_primitives_with_layout") {}
+    explicit fuse_primitives_with_layout(layout_optimizer& lo_ref) :
+        base_pass("fuse_primitives_with_layout"), _lo(lo_ref) {}
 
 private:
     void run(program& p) override;
+    layout_optimizer& _lo;
 };
 
 }  // namespace cldnn

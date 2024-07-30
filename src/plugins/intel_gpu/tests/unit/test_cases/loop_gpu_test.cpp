@@ -7,6 +7,7 @@
 #include <intel_gpu/runtime/memory.hpp>
 #include <intel_gpu/runtime/engine.hpp>
 #include <intel_gpu/graph/network.hpp>
+#include "intel_gpu/plugin/common_utils.hpp"
 #include <intel_gpu/primitives/input_layout.hpp>
 #include "intel_gpu/primitives/eltwise.hpp"
 #include <intel_gpu/primitives/data.hpp>
@@ -1211,4 +1212,109 @@ TEST(loop_gpu, support_loop_w_dynamic_input_update_primitive_id) {
         {input_data_4_4, input_data_2_4_4},
         std::vector<float>(),
         2, 3);
+}
+
+template <typename T>
+void test_loop_gpu_zero_bytes_layout(bool is_caching_test)
+{
+    auto& engine = get_test_engine();
+
+    // shape for zero bytes layout
+    auto trip_count_mem = ov::intel_gpu::allocate_memory_evenif_zero_bytes(engine, { cldnn::layout{ ov::PartialShape({0}), data_types::i32, format::bfyx } });
+
+    auto input_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 5 } });
+    auto operand_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 5 } });
+    auto initial_condition_mem = engine.allocate_memory({ data_types::i32, format::bfyx, { 1, 1, 1, 1 } });
+    auto num_iteration_mem = engine.allocate_memory({ data_types::i32, format::bfyx, { 1, 1, 1, 1 } });
+
+    std::vector<T> input_data{
+        1.0f,  2.0f, -15.f,  3.0f, 4.0f, -15.f, 5.0f,  6.0f, -15.f, 7.0f,
+        -15.f, 0.0f,  0.0f, -15.f, 0.5f, -0.5f, -15.f, 8.0f,  1.5f,  5.2f
+    };
+    std::vector<T> eltwise_operand {
+        1.f, -2.f, 3.f, -4.f, 3.0f, -2.0f, 1.f, -2.f, 3.0f, -4.0f,
+        3.f, -2.f, 1.f, -2.f, 3.5f, -4.5f, 5.f, -4.f, 3.5f, -2.2f
+    };
+    int trip_count = 8;
+    int initial_condition = 1;
+
+    // initialize input buffers
+    set_values(input_mem, input_data);
+    set_values(operand_mem, eltwise_operand);
+    set_values(trip_count_mem, { trip_count });
+    set_values(initial_condition_mem, {initial_condition});
+
+    topology body(
+        input_layout("input", input_mem->get_layout()),
+        data("eltwise_operand", operand_mem),
+        eltwise("eltwise", input_info("input"), input_info("eltwise_operand"), eltwise_mode::sum)
+    );
+
+    std::vector<loop::io_primitive_map> input_primitive_maps { loop::io_primitive_map("input", "input") };
+    std::vector<loop::io_primitive_map> output_primitive_maps { loop::io_primitive_map("loop", "eltwise") };
+    std::vector<loop::backedge_mapping> back_edges { loop::backedge_mapping("eltwise", "input") };
+
+    auto body_program = build_program(engine, body, "", output_primitive_maps, back_edges);
+
+    topology topology(
+        input_layout("input", input_mem->get_layout()),
+        input_layout("trip_count", trip_count_mem->get_layout()),
+        input_layout("initial_condition", initial_condition_mem->get_layout()),
+        mutable_data("num_iteration", num_iteration_mem),
+        loop("loop", { input_info("num_iteration"), input_info("trip_count"), input_info("initial_condition"), input_info("input") }, body_program,
+             "trip_count", "initial_condition", "num_iteration",
+             input_primitive_maps, output_primitive_maps, back_edges, 8)
+    );
+
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+
+    network->set_input_data("input", input_mem);
+    network->set_input_data("trip_count", trip_count_mem);
+    network->set_input_data("initial_condition", initial_condition_mem);
+
+    auto outputs = network->execute();
+    ASSERT_EQ(outputs.size(), 1);
+    auto output = outputs.begin()->second.get_memory();
+    auto output_layout = output->get_layout();
+
+    ASSERT_EQ(output_layout.batch(), 1);
+    ASSERT_EQ(output_layout.feature(), 1);
+    ASSERT_EQ(output_layout.spatial(0), 4);
+    ASSERT_EQ(output_layout.spatial(1), 5);
+
+    // value check
+    {
+        mem_lock<T> output_ptr{ output, get_test_stream() };
+        ASSERT_EQ(output_ptr.size(), input_data.size());
+        for (size_t i = 0, iend = input_data.size(); i < iend; ++i) {
+            ASSERT_FLOAT_EQ(output_ptr[i], input_data[i] + eltwise_operand[i] * trip_count);
+        }
+    }
+
+    // allocate new output memory
+    layout loop_l = network->get_output_memory("loop")->get_layout();
+    auto output_mem = engine.allocate_memory(loop_l);
+    network->set_output_memory("loop", output_mem);
+
+    //one more execute
+    set_values(input_mem, input_data);
+    set_values(operand_mem, eltwise_operand);
+    set_values(trip_count_mem, { trip_count });
+    set_values(initial_condition_mem, { initial_condition });
+    outputs = network->execute();
+
+    // check everything once again
+    ASSERT_EQ(outputs.size(), 1);
+    auto output2 = outputs.begin()->second.get_memory();
+    {
+        mem_lock<T> output_ptr2{ output2, get_test_stream() };
+        ASSERT_EQ(output_ptr2.size(), input_data.size());
+        for (size_t i = 0, iend = input_data.size(); i < iend; ++i) {
+            ASSERT_FLOAT_EQ(output_ptr2[i], input_data[i] + eltwise_operand[i] * trip_count);
+        }
+    }
+}
+
+TEST(loop_gpu, zero_bytes_layout) {
+    test_loop_gpu_zero_bytes_layout<float>(false);
 }

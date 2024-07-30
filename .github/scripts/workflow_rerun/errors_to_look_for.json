@@ -58,5 +58,9 @@
     {
         "error_text": "status_string: \"Timeout was reached\"",
         "ticket": 142653
+    },
+    {
+        "error_text": "ERROR 502: Bad Gateway",
+        "ticket": 146254
     }
 ]

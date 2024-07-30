@@ -8,7 +8,7 @@
 #include "intel_npu/al/config/common.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
-#include "ze_intel_vpu_uuid.h"
+#include "ze_intel_npu_uuid.h"
 #include "zero_compiler_in_driver.hpp"
 
 namespace intel_npu {
@@ -48,7 +48,7 @@ LevelZeroCompilerAdapter::LevelZeroCompilerAdapter() : _logger("LevelZeroCompile
                        uint64_t(result));
     }
 
-    const ze_driver_uuid_t uuid = ze_intel_vpu_driver_uuid;
+    const ze_driver_uuid_t uuid = ze_intel_npu_driver_uuid;
     ze_driver_properties_t props = {};
     props.stype = ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES;
     // Get our target driver
