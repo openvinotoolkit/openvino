@@ -21,7 +21,7 @@ file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
                   "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c"
                   "${DOCS_SOURCE_DIR}/articles_en/assets/snippets/*.cpp"
                   "${DOCS_SOURCE_DIR}/articles_en/assets/snippets/*.c")
-file(GLOB GPU_SOURCES "${DOCS_SOURCE_DIR}/articles_en/assets/*.cpp")
+file(GLOB GPU_SOURCES "${DOCS_SOURCE_DIR}/articles_en/assets/snippets/gpu/*.cpp")
 
 # add GPU snippets if OpenCL has been found
 if(TARGET OpenCL::OpenCL)
