@@ -204,8 +204,8 @@ std::vector<STFTParams> generateSTFTParams() {
                         -2.3712,  1.26736,  0.26513,  0.28205,  -1.42191, -1.20478, 1.58578,  -0.88636, 2.88537,
                         1.72055,  0.30074,  1.25455,  -0.75431, 0.,       -4.31307, 0.,       -0.48201, 0.});
 
-    reference_tests::Tensor output_2_9_3_2_no_transp(
-        Shape{2, 9, 3, 2},
+    reference_tests::Tensor output_2_3_9_2_no_transp(
+        Shape{2, 3, 9, 2},
         ET,
         std::vector<VT>{
             -2.52411, 0.,      1.99743,  2.45799,  -2.243,   -1.74288, 2.91255,  -0.82545, -2.56084, 2.24181,  0.87525,
@@ -327,7 +327,7 @@ std::vector<STFTParams> generateSTFTParams() {
                         frame_size_16,
                         frame_step_16,
                         transpose_frames_false,
-                        output_2_9_3_2_no_transp,
+                        output_2_3_9_2_no_transp,
                         "basic_batch_2_no_transp");
     params.emplace_back(signal_48,
                         hann_window_16,
