@@ -24,21 +24,21 @@ OpenVINO Release Notes
 What's new
 +++++++++++++++++++++++++++++
 
-More Gen AI coverage and framework integrations to minimize code changes.
+* More Gen AI coverage and framework integrations to minimize code changes.
 
-* OpenVINO pre-optimized models are now available in Hugging Face making it easier for developers
-  to get started with these models.
+  * OpenVINO pre-optimized models are now available in Hugging Face making it easier for developers
+    to get started with these models.
 
-Broader Large Language Model (LLM) support and more model compression techniques.
+* Broader Large Language Model (LLM) support and more model compression techniques.
 
-* Significant improvement in LLM performance on Intel discrete GPUs with the addition of
-  Multi-Head Attention (MHA) and OneDNN enhancements.
+  * Significant improvement in LLM performance on Intel discrete GPUs with the addition of
+    Multi-Head Attention (MHA) and OneDNN enhancements.
 
-More portability and performance to run AI at the edge, in the cloud, or locally.
+* More portability and performance to run AI at the edge, in the cloud, or locally.
 
-* Improved CPU performance when serving LLMs with the inclusion of vLLM and continuous batching
-  in the OpenVINO Model Server (OVMS). vLLM is an easy-to-use open-source library that supports
-  efficient LLM inferencing and model serving.
+  * Improved CPU performance when serving LLMs with the inclusion of vLLM and continuous batching
+    in the OpenVINO Model Server (OVMS). vLLM is an easy-to-use open-source library that supports
+    efficient LLM inferencing and model serving.
 
 
 
