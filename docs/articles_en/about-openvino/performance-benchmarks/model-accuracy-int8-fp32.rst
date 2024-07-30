@@ -7,12 +7,12 @@ Model Accuracy
 
 The following two tables present the absolute accuracy drop calculated as the accuracy difference
 between OV-accuracy and the original frame work accuracy for FP32, and the same for INT8, BF16 and
-FP16 representations of a model on three platform architectures. Please also refer to notes below
+FP16 representations of a model on three platform architectures. The third table presents the GenAI model accuracies as absolute accuracy values. Please also refer to notes below
 the table for more information.
 
 * A - Intel® Core™ i9-9000K (AVX2), INT8 and FP32
 * B - Intel® Xeon® 6338, (VNNI), INT8 and FP32
-* C - Intel(R) Xeon 8490H (VNNI, AMX), INT8, BF16, FP32
+* C - Intel® Xeon 8480+ (VNNI, AMX), INT8, BF16, FP32
 * D - Intel® Flex-170, INT8 and FP16
 
 
@@ -43,28 +43,28 @@ the table for more information.
    * - efficientdet-d0
      - COCO2017_detection_91cl
      - coco_precision
-     - -0.90%
+     - -0.9%
      - -0.63%
      - -0.61%
      - -0.62%
    * - mask_rcnn_resnet50_atrous_coco
      - COCO2017_detection_91cl_bkgr
      - coco_orig_precision
-     - -0.04%
-     - -0.03%
-     - 0.04%
-     - 0.02%
+     - -5.64%
+     - -0.30%
+     - -0.21%
+     - -0.28%
    * - mobilenet-v2
      - ImageNet2012
      - accuracy @ top1
-     -
+     - -0.87%
      - -0.87%
      - -0.89%
      - -0.95%
    * - resnet-50
      - ImageNet2012
      - accuracy @ top1
-     - -0.20%
+     - -0.2%
      - -0.18%
      - -0.18%
      - -0.13%
@@ -74,7 +74,7 @@ the table for more information.
      - -0.03%
      - -0.02%
      - -0.03%
-     - -0.03%
+     - -0.0%
    * - ssd-mobilenet-v1-coco
      - COCO2017_detection_80cl_bkgr
      - coco-precision
@@ -92,10 +92,10 @@ the table for more information.
    * - yolo_v3_tiny
      - COCO2017_detection_80cl
      - map
-     - -0.57%
-     - -0.58%
-     - -0.58%
-     - -0.70%
+     - -0.30%
+     - -0.43%
+     - -0.43%
+     - -0.87%
    * - yolo_v8n
      - COCO2017_detection_80cl
      - map
@@ -103,43 +103,8 @@ the table for more information.
      - -0.04%
      - 0.04%
      - -0.08%
-   * - chatGLM2-6b
-     - Ceval-valid-high_school_history
-     - ppl
-     -
-     - 0.75
-     - 0.75
-     -
-   * - Llama-2-7b-chat
-     - Ceval-valid-high_school_history
-     - ppl
-     -
-     - 0.55
-     - 0.25
-     -
-   * - Stable-Diffusion-V2-1
-     - LIAON-5B
-     - CLIP
-     -
-     -
-     -
-     -
-   * - Mistral-7b
-     - Wikitext
-     - ppl
-     -
-     - 8.10
-     - 8.10
-     -
-   * - Falcon-7b-instruct
-     - Wikitext
-     - ppl
-     -
-     - 14.54
-     - 14.55
-     -
 
-.. list-table:: Model Accuracy for BF16, FP32 and FP16 (FP16: Flex-170 only. BF16: Xeon(R) 8490H only)
+.. list-table:: Model Accuracy for BF16, FP32 and FP16 (FP16: Flex-170 only. BF16: Xeon(R) 8480+ only)
    :header-rows: 1
 
    * - OpenVINO™  Model name
@@ -165,7 +130,7 @@ the table for more information.
      - 0.04%
      - 0.04%
      - 0.06%
-     - 0.04%
+     - %
    * - efficientdet-d0
      - COCO2017_detection_91cl
      - coco_precision
@@ -173,15 +138,15 @@ the table for more information.
      - -0.02%
      - -0.02%
      - -0.02%
-     - -0.03%
+     - 0.04%
    * - mask_rcnn_resnet50_atrous_coco
      - COCO2017_detection_91cl_bkgr
      - coco_orig_precision
-     - -0.01%
-     - -0.01%
-     - -0.01%
-     - 0.09%
      - 0.00%
+     - 0.00%
+     - 0.00%
+     - 0.01%
+     - -0.02%
    * - mobilenet-v2
      - ImageNet2012
      - accuracy @ top1
@@ -205,7 +170,7 @@ the table for more information.
      - 0.00%
      - 0.00%
      - -0.02%
-     - 0.00%
+     - 0.02%
    * - ssd-mobilenet-v1-coco
      - COCO2017_detection_80cl_bkgr
      - coco-precision
@@ -238,48 +203,54 @@ the table for more information.
      - 0.00%
      - 0.04%
      - -0.02%
+
+.. list-table:: Model Accuracy for VNNI-FP16, VNNI-INT8, VNNI-INT4 and MTL-INT4 (Core Ultra)
+   :header-rows: 1
+   
+   * - OpenVINO™  Model name
+     - dataset
+     - Metric Name
+     - A, VNNI-FP16
+     - B, VNNI-INT8
+     - C, VNNI-INT4
+     - D, MTL-INT4
    * - chatGLM2-6b
-     - Ceval-valid-high_school_history
+     - Wikiset
      - ppl
-     -
-     - 0.75
-     - 0.8
-     -
-     -
-   * - Llama-2-7b-chat
-     - Wikitext
-     - ppl
-     -
-     - 0.30
-     - 0.55
-     -
-     -
-   * - Stable-Diffusion-V2-1
-     - LIAON-5B
-     - CLIP
-     -
-     - 31.3
-     - 22.4
-     -
-     -
-   * - Mistral-7b
-     - Wikitext
-     - ppl
-     -
-     - 8.09
-     - 8.09
-     -
-     -
+     - 5,24
+     - 5.17
+     - 6.86
+     - 6.87
    * - Falcon-7b-instruct
      - Wikitext
      - ppl
-     -
-     - 14.51
-     - 14.51
-     -
-     -
+     - 1.65
+     - 1.65
+     - 1.82
+     - 1.82
+   * - Llama-2-7b-chat
+     - Wikiset
+     - ppl
+     - 1.54
+     - 1.58
+     - 1.59
+     - 1.59
+   * - Mistral-7b
+     - Wikitext
+     - ppl
+     - 1.48
+     - 1.48
+     - 1.49
+     - 1.49
+   * - Stable-Diffusion-V2-1
+     - LIAON-5B
+     - CLIP
+     - 
+     - 
+     - 
+     - 
 
-Notes: For all accuracy metrics except perplexity a "-", (minus sign), indicates an accuracy drop.
+Notes: For all accuracy metrics a "-", (minus sign), indicates an accuracy drop.
 For perplexity (ppl) the values do not indicate a deviation from a reference but are the actual measured
 accuracy for the model.
 

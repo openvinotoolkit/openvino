@@ -56,10 +56,11 @@ Please visit the tabs below for more information on key performance indicators a
    .. tab-item:: Throughput
       :sync: throughput
 
-      Measures the number of inferences delivered within a latency threshold
-      (for example, number of Frames Per Second - FPS). When deploying a system with
-      deep learning inference, select the throughput that delivers the best trade-off
-      between latency and power for the price and performance that meets your requirements.
+      For Vision and NLP Models this measures the number of inferences delivered within a latency threshold
+      (for example, number of Frames Per Second - FPS). 
+      For GenAI (or Large Language Models) this measures the token rate after the first token aka. 2nd token 
+      throughput rate which is presented as tokens/sec. Please click on the "Workload Parameters" tab to 
+      learn more about input/output token lengths, etc. 
 
    .. tab-item:: Value
       :sync: value
@@ -86,7 +87,7 @@ Please visit the tabs below for more information on key performance indicators a
    .. tab-item:: Latency
       :sync: latency
 
-      This measures the synchronous execution of inference requests and is reported in
+      For Vision and NLP models this mhis measures the synchronous execution of inference requests and is reported in
       milliseconds. Each inference request (for example: preprocess, infer, postprocess) is
       allowed to complete before the next is started. This performance metric is relevant in
       usage scenarios where a single image input needs to be acted upon as soon as possible. An
@@ -94,6 +95,8 @@ Please visit the tabs below for more information on key performance indicators a
       single ultra sound scanning image or in real-time or near real-time applications for
       example an industrial robot's response to actions in its environment or obstacle avoidance
       for autonomous vehicles.
+      For Transformer models like Stable-Diffusion this measures the time it takes to convert the prompt
+      or input text into a finished image. It is presented in seconds. 
 
    .. tab-item:: Workload Parameters
       :sync: workloadparameters
@@ -127,21 +130,21 @@ For a listing of all platforms and configurations used for testing, refer to the
 
    .. grid-item::
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.2-platform_list.pdf
+      .. button-link:: ../_static/benchmarks_files/OV-2024.3-platform_list.pdf
          :color: primary
          :outline:
          :expand:
 
          :material-regular:`download;1.5em` Click for Hardware Platforms [PDF]
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.2-system-info-detailed.xlsx
+      .. button-link:: ../_static/benchmarks_files/OV-2024.3-system-info-detailed.xlsx
          :color: primary
          :outline:
          :expand:
 
          :material-regular:`download;1.5em` Click for Configuration Details [XLSX]
 
-      .. button-link:: ../_static/benchmarks_files/OV-2024.2-Performance-Data.xlsx
+      .. button-link:: ../_static/benchmarks_files/OV-2024.3-Performance-Data.xlsx
          :color: primary
          :outline:
          :expand:
@@ -205,7 +208,7 @@ You can also test performance for your system yourself, following the guide on
 
 
 * Intel® Distribution of OpenVINO™ toolkit performance results are based on release
-  2024.2, as of June 28, 2024.
+  2024.3, as of July 31, 2024.
 
 * OpenVINO Model Server performance results are based on release
   2024.2, as of June 28, 2024.
