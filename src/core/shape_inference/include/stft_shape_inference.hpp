@@ -80,7 +80,14 @@ std::vector<TRShape> shape_infer(const STFT* op,
                            frame_size_val,
                            " but must be in range [1, ",
                            signal_shape[1],
-                           "]");
+                           "].");
+
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           0 < frame_step_val,
+                           "Provided frame step is ",
+                           frame_step_val,
+                           " but must be greater than zero.");
 
     NODE_SHAPE_INFER_CHECK(op,
                            input_shapes,
@@ -88,7 +95,7 @@ std::vector<TRShape> shape_infer(const STFT* op,
                                (0 < window_shape[0].get_length() && window_shape[0].get_length() <= frame_size_val),
                            "Window input dimension must be in range [1, ",
                            frame_size_val,
-                           "]");
+                           "].");
 
     const auto& batch_dim = signal_shape[0];
     const TDim frame_size_dim = TDim{frame_size_val};
@@ -96,7 +103,7 @@ std::vector<TRShape> shape_infer(const STFT* op,
     const TDim fft_samples_dim = (frame_size_val / 2) + 1;
 
     // Divsion opeartor for static Dimension of PartialShape can return non static dimension and ceil instead of floor
-    // for lower bound, so get_length() is used to ensure static result
+    // for lower bound, so get_length() is used to ensure static result and custom floor_div function
     const TDim frames_dim = (signal_frame_size_diff.is_static() ? (signal_frame_size_diff.get_length() / frame_step_val)
                                                                 : floor_div(signal_frame_size_diff, frame_step_val)) +
                             1;
