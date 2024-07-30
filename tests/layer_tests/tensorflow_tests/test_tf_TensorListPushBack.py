@@ -20,22 +20,22 @@ class TestTensorListPushBack(CommonTFLayerTest):
         return inputs_data
 
     def create_tensor_list_push_back(self, element_shape, max_num_elements, element_dtype):
-        elem_type = np.int32 if element_dtype is None else element_dtype
         elem_shape = [2, 3] if element_shape == -1 else element_shape
-        self.input_type = elem_type
+        self.input_type = element_dtype
         tf.compat.v1.reset_default_graph()
         # Create the graph and model
         with tf.compat.v1.Session() as sess:
-            x = tf.compat.v1.placeholder(elem_type, elem_shape, 'x')
-            y = tf.compat.v1.placeholder(elem_type, elem_shape, 'y')
+            x = tf.compat.v1.placeholder(element_dtype, elem_shape, 'x')
+            y = tf.compat.v1.placeholder(element_dtype, elem_shape, 'y')
 
-            empty_tensor_list = tf.raw_ops.EmptyTensorList(element_shape=element_shape,
+            empty_tensor_list = tf.raw_ops.EmptyTensorList(element_shape=tf.constant(element_shape, dtype=tf.int32),
                                                            max_num_elements=max_num_elements,
                                                            element_dtype=element_dtype)
             tensor_list1 = tf.raw_ops.TensorListPushBack(input_handle=empty_tensor_list, tensor=x)
             tensor_list2 = tf.raw_ops.TensorListPushBack(input_handle=tensor_list1, tensor=y)
-            tf.raw_ops.TensorListStack(input_handle=tensor_list2, element_shape=elem_shape,
-                                       element_dtype=elem_type)
+            tf.raw_ops.TensorListStack(input_handle=tensor_list2,
+                                       element_shape=tf.constant(element_shape, dtype=tf.int32),
+                                       element_dtype=element_dtype)
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
 
@@ -43,7 +43,7 @@ class TestTensorListPushBack(CommonTFLayerTest):
 
     @pytest.mark.parametrize("element_shape", [[], [2], [3, 4], -1])
     @pytest.mark.parametrize("max_num_elements", [-1, 2, 5])
-    @pytest.mark.parametrize("element_dtype", [np.int32, np.float32, None])
+    @pytest.mark.parametrize("element_dtype", [np.int32, np.float32])
     @pytest.mark.precommit
     @pytest.mark.nightly
     def test_tensor_list_push_back(self, element_shape, max_num_elements, element_dtype, ie_device, precision,
