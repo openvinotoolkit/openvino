@@ -41,7 +41,7 @@ inline std::string resolve_extension_path(const std::string& path) {
 
 inline std::vector<Extension::Ptr> load_extensions(const std::string& path) {
     const std::string resolved_path = resolve_extension_path(path);
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT && defined(_WIN32)
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     auto so = ov::util::load_shared_object(ov::util::string_to_wstring(resolved_path).c_str());
 #else
     auto so = ov::util::load_shared_object(resolved_path.c_str());
