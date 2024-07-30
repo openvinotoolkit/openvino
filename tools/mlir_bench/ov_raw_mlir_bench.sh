@@ -95,7 +95,7 @@ for MB in "${MINI_BATCHES[@]}"; do
     MLIR_IR=$(echo "${MODEL_OUT}" \
         | awk '/Source MLIR:/{flag=1; next} /Target LLVM:/{flag=0} flag' \
         | grep -vE '^[-]+$')
-    BENCH_FLAGS="-entry-point-result=void -e entry -seed 123 -n 10000"
+    BENCH_FLAGS="-entry-point-result=void -e entry -seed 123 -n 1000"
     echo "${MLIR_IR}" | ${BENCH_RUNNER} ${BENCH_FLAGS}
   done
 done

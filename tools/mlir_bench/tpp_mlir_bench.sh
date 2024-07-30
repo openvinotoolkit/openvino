@@ -66,7 +66,7 @@ for MB in "${MINI_BATCHES[@]}"; do
         exit 1
     fi
     # Run benchmark.
-    BENCH_FLAGS="-entry-point-result=void -e entry -seed 123 -n 10000"
+    BENCH_FLAGS="-entry-point-result=void -e entry -seed 123 -n 1000"
     echo "${MLIR_IR}" | ${BENCH_RUNNER} ${BENCH_FLAGS}
   done
 done

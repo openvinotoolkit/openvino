@@ -53,7 +53,7 @@ for MB in "${MINI_BATCHES[@]}"; do
   echo "MLP - MB: ${MB} LAYERS: ${LAYERS[@]}"
   for LAYER in "${LAYERS[@]}"; do
     # Run benchmark.
-    NUM_ITER=10000
+    NUM_ITER=1000
     FUSE_TYPE=5
     TYPE=F
     TILES=(64 64 64)
