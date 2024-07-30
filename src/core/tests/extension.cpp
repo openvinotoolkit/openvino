@@ -32,7 +32,7 @@ TEST(extension, load_extension) {
     EXPECT_NO_THROW(ov::detail::load_extensions(get_extension_path()));
 }
 
-#ifdef defined(_WIN32)
+#if defined(_WIN32)
 TEST(extension, load_extension_wstring) {
     std::wstring wdir = get_extension_wdir();
     std::wstring wdir_ext_path = wdir + ov::util::string_to_wstring(ov::util::make_plugin_library_name<char>(
