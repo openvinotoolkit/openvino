@@ -22,7 +22,7 @@ TEST(attributes, stft) {
     constexpr bool transpose_frames = true;
     const auto op = std::make_shared<ov::op::v15::STFT>(data, window, frame_size, step_size, transpose_frames);
 
-    NodeBuilder builder(op, {data});
+    NodeBuilder builder(op, {data, window, frame_size, step_size});
     auto g_op = ov::as_type_ptr<ov::op::v15::STFT>(builder.create());
 
     constexpr auto expected_attr_count = 1;
