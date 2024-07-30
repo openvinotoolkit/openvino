@@ -20,6 +20,7 @@ public:
         void* send_buf;
         std::shared_ptr<void> buf;
         bool flag;
+        bool flag_written;
         bool last_used;
     };
 
