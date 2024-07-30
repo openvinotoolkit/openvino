@@ -114,7 +114,7 @@ TEST_P(FrontEndFuzzyOpTest, DISABLED_testOpFuzzy) {
 TEST_P(FrontEndFuzzyOpTest, testOpFuzzy) {
 #endif
     // load
-    ASSERT_NO_THROW(doLoadFromFile());
+    OV_ASSERT_NO_THROW(doLoadFromFile());
 
     // convert
     std::shared_ptr<ov::Model> model;

@@ -21,20 +21,25 @@ namespace pass {
 using namespace ov::op;
 using namespace ov::pass::pattern;
 
-U4BlockRepack::U4BlockRepack() {
+U4BlockRepack::U4BlockRepack(bool is_symmetrical) {
     const auto m_constant = ov::pass::pattern::wrap_type<ov::op::v0::Constant>();
     const auto m_reshape1 = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({m_constant, any_input()});
     const auto m_transpose = ov::pass::pattern::wrap_type<ov::op::v1::Transpose>({m_reshape1, any_input()});
     const auto m_reshape2 = ov::pass::pattern::wrap_type<ov::op::v1::Reshape>({m_transpose, any_input()});
 
-    auto pack_byte = [](uint8_t lo, uint8_t hi) {
+    auto pack_byte = [](uint8_t lo, uint8_t hi) -> uint8_t {
         return (hi << 4) | (lo & 0x0F);
     };  // swap halfs because Convert op assumes this layout
 
-    auto get_u4 = [](const uint8_t* src, size_t idx) {
+    std::function<uint8_t(const uint8_t*, size_t)> get_u4 = [](const uint8_t* src, size_t idx) {
         const size_t byte_idx = idx / 2;
         const uint8_t bit_shift = 4 * (idx % 2);
         return (src[byte_idx] >> bit_shift) & 0xF;
+    };
+
+    std::function<uint8_t(const uint8_t*, size_t)> get_i4 = [get_u4](const uint8_t* src, size_t idx) {
+        // by flipping first bit we get same effect as subtracting 8
+        return get_u4(src, idx) ^ 0b1000;
     };
 
     register_matcher(
@@ -69,17 +74,23 @@ U4BlockRepack::U4BlockRepack() {
 
             auto src = constant->get_data_ptr<uint8_t>();
 
-            auto new_const = std::make_shared<v0::Constant>(element::u4, destination_shape);
+            auto get_number = get_u4;
+            auto constant_dtype = element::u4;
+            if (is_symmetrical) {
+                get_number = get_i4;
+                constant_dtype = element::i4;
+            }
+            auto new_const = std::make_shared<v0::Constant>(constant_dtype, destination_shape);
             auto dst = const_cast<uint8_t*>(                                   // const_cast?
-                reinterpret_cast<const uint8_t*>(new_const->get_data_ptr()));  // TODO: How to better accees u4 data?
+                reinterpret_cast<const uint8_t*>(new_const->get_data_ptr()));  // TODO: How to better access u4 data?
 
             for (size_t iblock = 0; iblock < n_blocks; ++iblock) {
                 auto src_block = src + iblock * block_size;
                 auto dst_block = dst + iblock * block_size;
                 for (size_t i = 0; i < lane_size; ++i) {
                     for (size_t j = 0; j < block_height / 2; ++j) {  // /2 because we handle two bytes at once
-                        uint8_t lo = get_u4(src_block, 2 * j * lane_size + i);
-                        uint8_t hi = get_u4(src_block, (2 * j + 1) * lane_size + i);
+                        uint8_t lo = get_number(src_block, 2 * j * lane_size + i);
+                        uint8_t hi = get_number(src_block, (2 * j + 1) * lane_size + i);
                         dst_block[i * block_height / 2 + j] = pack_byte(lo, hi);
                     }
                 }

@@ -57,15 +57,15 @@ std::vector<ov::frontend::Place::Ptr> FrontEndCutModelTest::constructNewOutputs(
 ///////////////////////////////////////////////////////////////////
 
 TEST_P(FrontEndCutModelTest, testOverrideInputs) {
-    ASSERT_NO_THROW(doLoadFromFile());
+    OV_ASSERT_NO_THROW(doLoadFromFile());
     std::vector<Place::Ptr> newPlaces;
-    ASSERT_NO_THROW(newPlaces = constructNewInputs());
-    ASSERT_NO_THROW(m_inputModel->override_all_inputs(newPlaces));
-    ASSERT_NO_THROW(m_inputModel->get_inputs());
+    OV_ASSERT_NO_THROW(newPlaces = constructNewInputs());
+    OV_ASSERT_NO_THROW(m_inputModel->override_all_inputs(newPlaces));
+    OV_ASSERT_NO_THROW(m_inputModel->get_inputs());
     EXPECT_EQ(m_param.m_newInputs.size(), m_inputModel->get_inputs().size());
     for (auto newInput : m_inputModel->get_inputs()) {
         std::vector<std::string> names;
-        ASSERT_NO_THROW(names = newInput->get_names());
+        OV_ASSERT_NO_THROW(names = newInput->get_names());
         bool found = false;
         for (const auto& name : m_param.m_newInputs) {
             if (std::find(names.begin(), names.begin(), name) != names.end()) {
@@ -78,15 +78,15 @@ TEST_P(FrontEndCutModelTest, testOverrideInputs) {
 }
 
 TEST_P(FrontEndCutModelTest, testOverrideOutputs) {
-    ASSERT_NO_THROW(doLoadFromFile());
+    OV_ASSERT_NO_THROW(doLoadFromFile());
     std::vector<Place::Ptr> newPlaces;
-    ASSERT_NO_THROW(newPlaces = constructNewOutputs());
-    ASSERT_NO_THROW(m_inputModel->override_all_outputs(newPlaces));
-    ASSERT_NO_THROW(m_inputModel->get_outputs());
+    OV_ASSERT_NO_THROW(newPlaces = constructNewOutputs());
+    OV_ASSERT_NO_THROW(m_inputModel->override_all_outputs(newPlaces));
+    OV_ASSERT_NO_THROW(m_inputModel->get_outputs());
     EXPECT_EQ(m_param.m_newOutputs.size(), m_inputModel->get_outputs().size());
     for (auto newOutput : m_inputModel->get_outputs()) {
         std::vector<std::string> names;
-        ASSERT_NO_THROW(names = newOutput->get_names());
+        OV_ASSERT_NO_THROW(names = newOutput->get_names());
         bool found = false;
         for (const auto& name : m_param.m_newOutputs) {
             if (std::find(names.begin(), names.begin(), name) != names.end()) {
@@ -99,9 +99,9 @@ TEST_P(FrontEndCutModelTest, testOverrideOutputs) {
 }
 
 TEST_P(FrontEndCutModelTest, testOldInputs) {
-    ASSERT_NO_THROW(doLoadFromFile());
+    OV_ASSERT_NO_THROW(doLoadFromFile());
     std::shared_ptr<ov::Model> model;
-    ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel));
+    OV_ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel));
     auto ops = model->get_ordered_ops();
 
     // Ensure that it contains expected old inputs
@@ -116,9 +116,9 @@ TEST_P(FrontEndCutModelTest, testOldInputs) {
 }
 
 TEST_P(FrontEndCutModelTest, testOldOutputs) {
-    ASSERT_NO_THROW(doLoadFromFile());
+    OV_ASSERT_NO_THROW(doLoadFromFile());
     std::shared_ptr<ov::Model> model;
-    ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel));
+    OV_ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel));
     auto ops = model->get_ordered_ops();
     // Ensure that it contains expected old outputs
     for (const auto& name : m_param.m_oldOutputs) {
@@ -132,13 +132,13 @@ TEST_P(FrontEndCutModelTest, testOldOutputs) {
 }
 
 TEST_P(FrontEndCutModelTest, testNewInputs_func) {
-    ASSERT_NO_THROW(doLoadFromFile());
+    OV_ASSERT_NO_THROW(doLoadFromFile());
     std::vector<Place::Ptr> newPlaces;
-    ASSERT_NO_THROW(newPlaces = constructNewInputs());
-    ASSERT_NO_THROW(m_inputModel->override_all_inputs(newPlaces));
+    OV_ASSERT_NO_THROW(newPlaces = constructNewInputs());
+    OV_ASSERT_NO_THROW(m_inputModel->override_all_inputs(newPlaces));
 
     std::shared_ptr<ov::Model> model;
-    ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel));
+    OV_ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel));
     auto ops = model->get_ordered_ops();
 
     // Ensure that it doesn't contain old inputs
@@ -163,13 +163,13 @@ TEST_P(FrontEndCutModelTest, testNewInputs_func) {
 }
 
 TEST_P(FrontEndCutModelTest, testNewOutputs_func) {
-    ASSERT_NO_THROW(doLoadFromFile());
+    OV_ASSERT_NO_THROW(doLoadFromFile());
     std::vector<Place::Ptr> newPlaces;
-    ASSERT_NO_THROW(newPlaces = constructNewOutputs());
-    ASSERT_NO_THROW(m_inputModel->override_all_outputs(newPlaces));
+    OV_ASSERT_NO_THROW(newPlaces = constructNewOutputs());
+    OV_ASSERT_NO_THROW(m_inputModel->override_all_outputs(newPlaces));
 
     std::shared_ptr<ov::Model> model;
-    ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel));
+    OV_ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel));
     auto ops = model->get_ordered_ops();
 
     // Ensure that it doesn't contain old outputs
@@ -194,14 +194,14 @@ TEST_P(FrontEndCutModelTest, testNewOutputs_func) {
 }
 
 TEST_P(FrontEndCutModelTest, testExtractSubgraph) {
-    ASSERT_NO_THROW(doLoadFromFile());
+    OV_ASSERT_NO_THROW(doLoadFromFile());
     std::vector<Place::Ptr> newInputs, newOutputs;
-    ASSERT_NO_THROW(newInputs = constructNewInputs());
-    ASSERT_NO_THROW(newOutputs = constructNewOutputs());
-    ASSERT_NO_THROW(m_inputModel->extract_subgraph(newInputs, newOutputs));
+    OV_ASSERT_NO_THROW(newInputs = constructNewInputs());
+    OV_ASSERT_NO_THROW(newOutputs = constructNewOutputs());
+    OV_ASSERT_NO_THROW(m_inputModel->extract_subgraph(newInputs, newOutputs));
 
     std::shared_ptr<ov::Model> model;
-    ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel));
+    OV_ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel));
     auto ops = model->get_ordered_ops();
 
     // Ensure that it doesn't contain expected old outputs
@@ -226,13 +226,13 @@ TEST_P(FrontEndCutModelTest, testExtractSubgraph) {
 }
 
 TEST_P(FrontEndCutModelTest, testSetTensorValue) {
-    ASSERT_NO_THROW(doLoadFromFile());
+    OV_ASSERT_NO_THROW(doLoadFromFile());
     Place::Ptr place;
-    ASSERT_NO_THROW(place = m_inputModel->get_place_by_tensor_name(m_param.m_tensorValueName));
-    ASSERT_NO_THROW(m_inputModel->set_tensor_value(place, &m_param.m_tensorValue[0]));
+    OV_ASSERT_NO_THROW(place = m_inputModel->get_place_by_tensor_name(m_param.m_tensorValueName));
+    OV_ASSERT_NO_THROW(m_inputModel->set_tensor_value(place, &m_param.m_tensorValue[0]));
 
     std::shared_ptr<ov::Model> model;
-    ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel));
+    OV_ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel));
     auto ops = model->get_ordered_ops();
 
     auto const_name = m_param.m_tensorValueName;

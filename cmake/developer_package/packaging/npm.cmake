@@ -85,6 +85,8 @@ macro(ov_define_component_include_rules)
     unset(OV_CPACK_COMP_PKG_CONFIG_EXCLUDE_ALL)
     # symbolic links
     unset(OV_CPACK_COMP_LINKS_EXCLUDE_ALL)
+    # npu internal tools
+    set(OV_CPACK_COMP_NPU_INTERNAL_EXCLUDE_ALL EXCLUDE_FROM_ALL)
 endmacro()
 
 ov_define_component_include_rules()

@@ -70,7 +70,7 @@ public:
         std::lock_guard<std::mutex> guard(m_loading_mutex);
         for (auto& plugin_info : m_plugins) {
             if (!plugin_info.load()) {
-                OPENVINO_DEBUG << "Frontend load failed: " << plugin_info.m_file_path << "\n";
+                OPENVINO_DEBUG("Frontend load failed: ", plugin_info.m_file_path, "\n");
                 continue;
             }
             names.push_back(plugin_info.get_creator().m_name);

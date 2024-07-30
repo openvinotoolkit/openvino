@@ -2,19 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/mean_variance_normalization.hpp"
-
+#include "core/operator_set.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/mvn.hpp"
-
 using namespace ov::op;
 
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 ov::OutputVector mean_variance_normalization(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ov_inputs().at(0);
     bool across_channels = node.get_attribute_value<std::int64_t>("across_channels", 0);
@@ -23,9 +21,10 @@ ov::OutputVector mean_variance_normalization(const ov::frontend::onnx::Node& nod
     return {std::make_shared<v0::MVN>(data, across_channels, normalize_variance)};
 }
 
-}  // namespace set_1
+ONNX_OP("MeanVarianceNormalization", OPSET_RANGE(1, 8), ai_onnx::opset_1::mean_variance_normalization);
+}  // namespace opset_1
 
-namespace set_9 {
+namespace opset_9 {
 ov::OutputVector mean_variance_normalization(const ov::frontend::onnx::Node& node) {
     auto data = node.get_ov_inputs().at(0);
     auto axes = node.get_attribute_value<std::vector<std::int64_t>>("axes", {0, 2, 3});
@@ -35,8 +34,9 @@ ov::OutputVector mean_variance_normalization(const ov::frontend::onnx::Node& nod
     return {std::make_shared<v6::MVN>(data, const_axes, true, 1e-09f, ov::op::MVNEpsMode::OUTSIDE_SQRT)};
 }
 
-}  // namespace set_9
-}  // namespace op
+ONNX_OP("MeanVarianceNormalization", OPSET_SINCE(9), ai_onnx::opset_9::mean_variance_normalization);
+}  // namespace opset_9
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

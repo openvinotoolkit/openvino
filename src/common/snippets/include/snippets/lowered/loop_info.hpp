@@ -156,6 +156,16 @@ public:
     const char* get_type_name() const {
         return get_type_info().name;
     }
+    /**
+     * @brief Return true if expression port is a loop port
+     * @param expr_port - expression port to check
+     */
+    bool is_loop_port(const ExpressionPort& expr_port);
+    /**
+     * @brief Return loop port of an expression port
+     * @param expr_port - expression port.
+     */
+    const LoopPort& get_loop_port(const ExpressionPort& expr_port);
 
 protected:
     /**
@@ -325,6 +335,15 @@ public:
     void replace_with_new_ports(const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports) override;
 
     /**
+     * @brief Remove remove_ports and add add_ports to the current LoopPort.
+     *        This function removes ports directly and adds ports at the end of current LoopPort, caller is responsible to
+     *        sort the LoopPort after LoopPort being updated according to execution order of the expressions.
+     *        Note: all port in remove_ports and add_ports should have the same type.
+     * @param remove_ports need to be removed
+     * @param add_ports need to be added
+     */
+    void update_loop_ports(const std::vector<ExpressionPort>& remove_ports, const std::vector<ExpressionPort>& add_ports);
+    /**
      * @brief Iterates through all LoopPortDesc and call `caller` for each of them
      * @param caller - function that called for each LoopPortDesc
      */
@@ -374,6 +393,23 @@ private:
      *         - Consistency of ports and descriptors
      */
     void validate() const;
+    /**
+     * @brief Remove the current LoopPort that contains ExpressionPort.
+     *        Note: If there is no LoopPort with ExpressionPort `ports`, does nothing.
+     *        This function removes ports directly, caller is responsible to sort the LoopPort after updated
+     *        according to execution order of the expressions.
+     *        Note: all port in ports should have the same type.
+     * @param ports need to be removed
+     */
+    void remove_loop_ports(const std::vector<ExpressionPort>& ports);
+    /**
+     * @brief Add ports to the current LoopPort.
+     *        This function adds ports in end of current LoopPort vector, caller is responsible to
+     *        sort the LoopPort after updated according to execution order of the expressions.
+     *        Note: all port in ports should have the same type.
+     * @param ports need to be added
+     */
+    void add_loop_ports(const std::vector<ExpressionPort>& ports);
 
     SpecificIterationHandlers m_handlers = {};
     std::vector<LoopPortDesc> m_input_port_descs = {};
@@ -394,7 +430,8 @@ public:
     ExpandedLoopInfo(size_t work_amount, size_t increment,
                      const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits,
                      std::vector<int64_t> ptr_increments, std::vector<int64_t> final_offsets, std::vector<int64_t> data_sizes,
-                     SpecificLoopIterType type, std::shared_ptr<UnifiedLoopInfo> unified_loop_info, bool is_wa_const = false);
+                     SpecificLoopIterType type, std::shared_ptr<UnifiedLoopInfo> unified_loop_info, bool is_wa_const = false,
+                     bool evaluate_once = false);
     /**
      * @brief Clone LoopInfo with new expressions
      * @param expr_map map of new and old expressions
@@ -438,7 +475,18 @@ public:
      * @return const ref of `m_data_sizes`
      */
     const std::vector<int64_t>& get_data_sizes() const;
+    /**
+     * @brief Returns True if the current Loop should be executed once
+     *        Otherwise, returns False
+     * @return `m_evaluance_once`
+     */
+    bool is_evaluate_once() const;
 
+    /**
+     * @brief Set value to `m_evaluance_once`
+     * @param value - new value of `m_evaluance_once`
+     */
+    void set_evaluate_once(bool value);
     /**
      * @brief Update `m_ptr_increments` using copy values from `new_values`.
      *        The count of new values must be equal to the count of current increments.
@@ -481,6 +529,8 @@ private:
 
     const SpecificLoopIterType m_type = {};
     std::shared_ptr<UnifiedLoopInfo> m_unified_loop_info = {};
+
+    bool m_evaluate_once = false;
 };
 using ExpandedLoopInfoPtr = std::shared_ptr<ExpandedLoopInfo>;
 

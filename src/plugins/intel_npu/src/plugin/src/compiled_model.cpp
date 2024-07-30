@@ -140,8 +140,26 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
     return _model;
 }
 
-void CompiledModel::set_property(const ov::AnyMap& /*properties*/) {
-    OPENVINO_NOT_IMPLEMENTED;
+void CompiledModel::set_property(const ov::AnyMap& properties) {
+    std::map<std::string, std::string> config;
+    for (auto&& value : properties) {
+        config.emplace(value.first, value.second.as<std::string>());
+    }
+    for (const auto& configEntry : config) {
+        if (_properties.find(configEntry.first) == _properties.end()) {
+            OPENVINO_THROW("Unsupported configuration key: ", configEntry.first);
+        } else {
+            if (std::get<1>(_properties[configEntry.first]) == ov::PropertyMutability::RO) {
+                OPENVINO_THROW("READ-ONLY configuration key: ", configEntry.first);
+            }
+        }
+    }
+
+    _config.update(config);
+    if (_executorPtr != nullptr && config.find(ov::workload_type.name()) != config.end()) {
+        const auto workloadType = properties.at(ov::workload_type.name()).as<ov::WorkloadType>();
+        _executorPtr->setWorkloadType(workloadType);
+    }
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
@@ -191,6 +209,15 @@ void CompiledModel::configure_stream_executors() {
 }
 
 void CompiledModel::initialize_properties() {
+    const auto pluginSupportedProperties =
+        get_plugin()->get_property(ov::supported_properties.name(), {}).as<std::vector<ov::PropertyName>>();
+    const auto isPropertySupported = [&pluginSupportedProperties](const std::string& name) {
+        return std::any_of(pluginSupportedProperties.begin(),
+                           pluginSupportedProperties.end(),
+                           [&name](const ov::PropertyName& property) {
+                               return property == name;
+                           });
+    };
     _properties = {
         // OV Public
         // =========
@@ -237,6 +264,12 @@ void CompiledModel::initialize_properties() {
           ov::PropertyMutability::RO,
           [](const Config& config) {
               return config.get<LOADED_FROM_CACHE>();
+          }}},
+        {ov::workload_type.name(),
+         {isPropertySupported(ov::workload_type.name()),
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<WORKLOAD_TYPE>();
           }}},
         // OV Public Hints
         // =========
@@ -286,6 +319,14 @@ void CompiledModel::initialize_properties() {
                   ov::PropertyName(ov::internal::caching_properties.name(), ov::PropertyMutability::RO),
               };
               return supportedProperty;
+          }}},
+        // NPU Public
+        // =========
+        {ov::intel_npu::compilation_mode_params.name(),
+         {true,
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<COMPILATION_MODE_PARAMS>();
           }}},
         // NPU Private
         // =========

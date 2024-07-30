@@ -5,7 +5,7 @@
 #pragma once
 
 #include "./snippets_helpers.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 /* This file contains definitions of relatively simple functions (models) that will be used
  * to test snippets-specific behavior. All the functions are expected to be direct descendants of

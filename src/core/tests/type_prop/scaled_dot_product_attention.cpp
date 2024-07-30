@@ -297,6 +297,34 @@ TEST(type_prop, scaled_dot_product_attention_type_infer_4_inputs_bool_attention)
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 6}));
 }
 
+TEST(type_prop, scaled_dot_product_attention_static_broadcast_attention_L) {
+    const auto query = std::make_shared<opset13::Parameter>(element::f32, PartialShape{2, 8, 16, 32});
+    const auto key = std::make_shared<opset13::Parameter>(element::f32, PartialShape{2, 8, 48, 32});
+    const auto value = std::make_shared<opset13::Parameter>(element::f32, PartialShape{2, 8, 48, 64});
+    const auto attention_mask = std::make_shared<opset13::Parameter>(element::f32, PartialShape{2, 8, 1, 48});
+    const auto scale = std::make_shared<opset13::Parameter>(element::f32, PartialShape{1});
+    auto causal = false;
+
+    const auto op =
+        std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 8, 16, 64}));
+}
+
+TEST(type_prop, scaled_dot_product_attention_dyn_broadcast_attention_L) {
+    const auto query = std::make_shared<opset13::Parameter>(element::f32, PartialShape{2, 8, {8, -1}, 32});
+    const auto key = std::make_shared<opset13::Parameter>(element::f32, PartialShape{2, 8, -1, 32});
+    const auto value = std::make_shared<opset13::Parameter>(element::f32, PartialShape{2, 8, -1, 64});
+    const auto attention_mask = std::make_shared<opset13::Parameter>(element::f32, PartialShape{2, 8, 1, -1});
+    const auto scale = std::make_shared<opset13::Parameter>(element::f32, PartialShape{1});
+    auto causal = false;
+
+    const auto op =
+        std::make_shared<opset13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, causal);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 8, {8, -1}, 64}));
+}
+
 TEST(type_prop, scaled_dot_product_unsupported_key_shape) {
     const auto query = std::make_shared<opset13::Parameter>(element::f32, PartialShape{2, 3, 4});
     const auto key = std::make_shared<opset13::Parameter>(element::f32, PartialShape{3, 5, 4});
