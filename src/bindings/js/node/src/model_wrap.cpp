@@ -192,10 +192,15 @@ Napi::Value ModelWrap::get_output_element_type(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value ModelWrap::clone(const Napi::CallbackInfo& info) {
-    Napi::Env env = info.Env();
-    if (info.Length() > 0) {
-        reportError(env, "clone() does not accept any arguments.");
-        return env.Undefined();
+    std::vector<std::string> allowed_signatures;
+    try {
+        if (ov::js::validate(info, allowed_signatures)) {
+            return cpp_to_js(info.Env(), _model->clone());
+        } else {
+            OPENVINO_THROW("'clone'", ov::js::get_parameters_error_msg(info, allowed_signatures));
+        }
+    } catch (const std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
     }
-    return cpp_to_js(env, _model->clone());
 }

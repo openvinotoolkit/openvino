@@ -169,8 +169,9 @@ describe('Model.clone()', () => {
   });
   
   it('should not accept any arguments', () => {
-    assert.throws(() => {
-      model.clone('unexpected argument');
-    }, /^Error: clone\(\) does not accept any arguments\.$/, 'Expected clone to throw an error when called with arguments');
+    assert.throws(
+      () => model.clone("Unexpected argument").then(),
+      /'clone' method called with incorrect parameters./
+    );
   });
 });
