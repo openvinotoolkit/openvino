@@ -5,11 +5,11 @@ OpenVINO 2024.2
 .. meta::
    :google-site-verification: _YqumYQ98cmXUTwtzM_0WIIadtDc6r_TMYGbmGgNvrk
 
-**OpenVINO is an open-source toolkit** for optimizing and deploying deep learning models from cloud
-to edge. It accelerates deep learning inference across various use cases, such as generative AI, video,
-audio, and language with models from popular frameworks like PyTorch, TensorFlow, ONNX, and more.
-Convert and optimize models, and deploy across a mix of Intel® hardware and environments, on-premises
-and on-device, in the browser or in the cloud.
+**OpenVINO is an open-source toolkit** for optimizing and deploying deep learning models from
+cloud to edge. It accelerates deep learning inference across various use cases, such as
+generative AI, video, audio, and language with models from popular frameworks like PyTorch,
+TensorFlow, ONNX, and more. Convert and optimize models, and deploy across a mix of Intel®
+hardware and environments, on-premises and on-device, in the browser or in the cloud.
 
 Check out the `OpenVINO Cheat Sheet. <https://docs.openvino.ai/2024/_static/download/OpenVINO_Quick_Start_Guide.pdf>`__
 
@@ -26,16 +26,21 @@ Check out the `OpenVINO Cheat Sheet. <https://docs.openvino.ai/2024/_static/down
            <div class="splide__track">
          		<ul class="splide__list">
                   <li id="ov-homepage-slide1" class="splide__slide">
+                  <p class="ov-homepage-slide-title">OpenVINO models on Hugging Face!</p>
+                  <p class="ov-homepage-slide-subtitle">Get pre-optimized OpenVINO models, no need to convert!</p>
+                  <a class="ov-homepage-banner-btn" href="https://huggingface.co/OpenVINO">Visit Hugging Face</a>
+                  </li>
+                  <li id="ov-homepage-slide2" class="splide__slide">
                   <p class="ov-homepage-slide-title">New Generative AI API</p>
                   <p class="ov-homepage-slide-subtitle">Generate text with LLMs in only a few lines of code!</p>
                   <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/genai-guide.html">Check out our guide</a>
                   </li>
-                  <li id="ov-homepage-slide2" class="splide__slide">
+                  <li id="ov-homepage-slide3" class="splide__slide">
                   <p class="ov-homepage-slide-title">Improved model serving</p>
                   <p class="ov-homepage-slide-subtitle">OpenVINO Model Server has improved parallel inferencing!</p>
                   <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2024/ovms_what_is_openvino_model_server.html">Learn more</a>
                   </li>
-                  <li id="ov-homepage-slide3" class="splide__slide">
+                  <li id="ov-homepage-slide4" class="splide__slide">
                   <p class="ov-homepage-slide-title">OpenVINO via PyTorch 2.0 torch.compile()</p>
                   <p class="ov-homepage-slide-subtitle">Use OpenVINO directly in PyTorch-native applications!</p>
                   <a class="ov-homepage-banner-btn" href="https://docs.openvino.ai/2024/openvino-workflow/torch-compile.html">Learn more</a>
