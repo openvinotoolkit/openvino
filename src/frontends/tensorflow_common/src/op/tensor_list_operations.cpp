@@ -39,7 +39,8 @@ Output<Node> create_initial_tensor_list(const NodeContext& node,
                                         const Output<Node>& element_shape,
                                         const element::Type& element_dtype) {
     // handle tensor elements of dynamic rank
-    if (element_shape.get_partial_shape().is_dynamic() || element_shape.get_shape().size() != 1) {
+    if (element_shape.get_partial_shape().is_dynamic() || element_shape.get_shape().size() != 1 ||
+        element_dtype.is_dynamic()) {
         auto tensor_list = make_shared<TensorList>(num_elements, ov::Rank::dynamic(), element_dtype);
         return {tensor_list};
     }
@@ -143,25 +144,10 @@ OutputVector translate_tensor_list_push_back_op(const NodeContext& node) {
     auto input_handle = node.get_input(0);
     auto tensor = node.get_input(1);
 
-    // compute tensor shape to be inserted
-    auto tensor_shape = make_shared<v3::ShapeOf>(tensor, element::i32);
+    auto tensor_list_push_back = make_shared<TensorListPushBack>(input_handle, tensor);
 
-    // broadcast the tensor list to the shape [num_elements, <tensor_shape>]
-    Output<Node> num_elements = make_shared<v3::ShapeOf>(input_handle, element::i32);
-    auto zero_const = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
-    auto one_const = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
-    num_elements = make_shared<v8::Slice>(num_elements, zero_const, one_const, one_const);
-    auto new_input_handle_shape = make_shared<v0::Concat>(OutputVector{num_elements, tensor_shape}, 0);
-    input_handle = make_shared<v1::Broadcast>(input_handle, new_input_handle_shape);
-
-    // unsqueeze tensor to be inserted into the list
-    tensor = make_shared<v0::Unsqueeze>(tensor, zero_const);
-
-    // insert the tensor into the end
-    auto updated_list = make_shared<v0::Concat>(OutputVector{input_handle, tensor}, 0);
-
-    set_node_name(node.get_name(), updated_list);
-    return {updated_list};
+    set_node_name(node.get_name(), tensor_list_push_back);
+    return {tensor_list_push_back};
 }
 
 OutputVector translate_tensor_list_resize_op(const NodeContext& node) {

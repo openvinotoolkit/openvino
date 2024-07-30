@@ -576,6 +576,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<pass::TensorListReplacer>();
     manager.register_pass<pass::TensorListInLoopOptimization>();
     manager.register_pass<pass::TensorListSetItemReplacer>();
+    manager.register_pass<pass::TensorListPushBackReplacer>();
     manager.register_pass<pass::TensorListGetItemReplacer>();
 
     manager.register_pass<ov::pass::UnrollIf>();
