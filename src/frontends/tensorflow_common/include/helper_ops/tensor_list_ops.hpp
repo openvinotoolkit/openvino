@@ -185,7 +185,7 @@ public:
 };
 
 // Internal operation for TensorListPushBack
-// it inserts tensor to tensor to the tail of the list
+// it inserts tensor to the tail of the list
 class TensorListPushBack : public InternalOperation {
 public:
     OPENVINO_OP("TensorListPushBack", "ov::frontend::tensorflow", InternalOperation);
