@@ -15,8 +15,8 @@
 namespace ov {
 namespace test {
 
-using ov::op::v0::Constant;
-using ov::op::v0::Parameter;
+using op::v0::Constant;
+using op::v0::Parameter;
 using testing::HasSubstr;
 
 class TypePropSTFTTest : public TypePropOpTest<op::v15::STFT> {
@@ -26,12 +26,12 @@ public:
 
 TEST_F(TypePropSTFTTest, default_ctor) {
     const auto op = make_op();
-    const auto signal = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4, 48});
-    const auto window = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{7});
-    const auto frame_size = ov::op::v0::Constant::create<int32_t>(ov::element::i32, {}, {11});
-    const auto frame_step = ov::op::v0::Constant::create<int32_t>(ov::element::i32, {}, {3});
+    const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{4, 48});
+    const auto window = std::make_shared<Parameter>(element::f32, PartialShape{7});
+    const auto frame_size = Constant::create<int32_t>(element::i32, {}, {11});
+    const auto frame_step = Constant::create<int32_t>(element::i32, {}, {3});
 
-    op->set_arguments(ov::OutputVector{signal, window, frame_size, frame_step});
+    op->set_arguments(OutputVector{signal, window, frame_size, frame_step});
     op->validate_and_infer_types();
 
     EXPECT_EQ(op->get_output_size(), 1);
@@ -69,9 +69,9 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(TypePropSTFTTestP, stft_shapes) {
     const auto signal = std::make_shared<Parameter>(element::f32, signal_shape);
-    const auto window = std::make_shared<Parameter>(ov::element::f32, window_shape);
-    const auto frame_size = Constant::create<int32_t>(ov::element::i32, {}, {frame_size_val});
-    const auto frame_step = Constant::create<int32_t>(ov::element::i32, {}, {step_size_val});
+    const auto window = std::make_shared<Parameter>(element::f32, window_shape);
+    const auto frame_size = Constant::create<int32_t>(element::i32, {}, {frame_size_val});
+    const auto frame_step = Constant::create<int32_t>(element::i32, {}, {step_size_val});
 
     const auto op = make_op(signal, window, frame_size, frame_step, transform_frames);
     EXPECT_EQ(op->get_output_size(), 1);
