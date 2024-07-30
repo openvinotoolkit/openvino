@@ -75,7 +75,6 @@ namespace ov {
 namespace util {
 std::shared_ptr<void> load_shared_object(const char* path) {
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::string path_str = path;
     return ov::util::load_shared_object(ov::util::string_to_wstring(path).c_str());
 #else
     void* shared_object = nullptr;
