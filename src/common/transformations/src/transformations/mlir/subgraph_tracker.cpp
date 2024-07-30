@@ -116,7 +116,11 @@ void SubgraphTracker::set_dependencies(NodePtr node, const Dependencies& depende
 // set/get subgraph id that a give node belongs to
 
 SubgraphID SubgraphTracker::get_subgraph_id(NodePtr node) {
-    auto id = node->get_rt_info().at("__subgraph_id").as<SubgraphID>();
+    const auto& rti = node->get_rt_info();
+    if(!rti.count("__subgraph_id")) {
+        return nullptr;
+    }
+    auto id = rti.at("__subgraph_id").as<SubgraphID>();
     if(id) {
         id = ov::symbol::ancestor_of(id);
     }

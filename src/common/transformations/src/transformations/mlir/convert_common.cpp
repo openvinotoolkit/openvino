@@ -62,7 +62,7 @@ namespace ov {
 namespace mlir {
 
 bool is_debug() {
-    util::getenv_bool("OV_MLIR_DEBUG", false);
+    return util::getenv_bool("OV_MLIR_DEBUG", false);
 }
 
 Location createLayerLocation(MLIRContext* ctx, const std::string& layerName, const std::string& layerType) {
