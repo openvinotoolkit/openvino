@@ -25,7 +25,7 @@ kernel void local_read_from_remote(global int *src1, global int *src2,
 
   if (gid_x > size -10 && gid_y < 10) {
     printf("local_read_from_remote gid: (%d,%d)\n", gid_x, gid_y);
-    printf("local_read_from_remote offset: (%d,%d)\n", offset_x, offset_y);
+    // printf("local_read_from_remote offset: (%d,%d)\n", offset_x, offset_y);
     printf("local_read_from_remote orig/offset: (%d,%d)\n", orig, offset);
     printf("local_read_from_remote src/dst: (%d,%d)\n", src1[orig], src2[offset]);
   }

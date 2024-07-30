@@ -447,7 +447,7 @@ void primitive_inst::update_shape() {
         _impl_params->output_layouts[idx] = layout;
     };
 
-    std::cout << "primitive_inst _node->type()->calc_output_layouts" << std::endl;
+    // std::cout << "primitive_inst _node->type()->calc_output_layouts new_layouts: " << std::endl;
     auto new_layouts = _node->type()->calc_output_layouts(*_node, *_impl_params);
     if (new_layouts.empty()) {
         auto new_layout = _node->type()->calc_output_layout(*_node, *_impl_params);
