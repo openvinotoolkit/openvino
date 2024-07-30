@@ -13,6 +13,13 @@
 namespace ov {
 namespace op {
 namespace v15 {
+namespace {
+void check_int_input_at(const Node* op, size_t input_idx) {
+    const auto& in_type = op->get_input_element_type(input_idx);
+    const auto has_valid_type = in_type.is_dynamic() || in_type == element::i32 || in_type == element::i64;
+    NODE_VALIDATION_CHECK(op, has_valid_type, "Expected i32 or i64 type of the input at port: ", input_idx);
+}
+}  // namespace
 STFT::STFT(const Output<Node>& data,
            const Output<Node>& window,
            const Output<Node>& frame_size,
@@ -38,11 +45,10 @@ bool STFT::visit_attributes(AttributeVisitor& visitor) {
 
 void STFT::validate_and_infer_types() {
     OV_OP_SCOPE(v15_STFT_validate_and_infer_types);
+    NODE_VALIDATION_CHECK(this, get_input_size() == 4, "Expected 4 inputs to be provided.");
 
     auto signal_type = get_input_element_type(0);
     const auto& window_type = get_input_element_type(1);
-    const auto& frame_size_type = get_input_element_type(2);
-    const auto& frame_step_type = get_input_element_type(3);
 
     const auto has_valid_signal_type = signal_type.is_dynamic() || signal_type.is_real();
     NODE_VALIDATION_CHECK(this, has_valid_signal_type, "Expected floating point type of the 'signal' input.");
@@ -54,13 +60,8 @@ void STFT::validate_and_infer_types() {
                           has_valid_window_type,
                           "Expected floating point type of the 'window' input, matching the type of `signal` input.");
 
-    const auto has_valid_frame_size_type =
-        frame_size_type.is_dynamic() || frame_size_type == element::i32 || frame_size_type == element::i64;
-    NODE_VALIDATION_CHECK(this, has_valid_frame_size_type, "Expected i32 or i64 type of the 'frame_size' input.");
-
-    const auto has_valid_frame_step_type =
-        frame_size_type.is_dynamic() || frame_step_type == element::i32 || frame_step_type == element::i64;
-    NODE_VALIDATION_CHECK(this, has_valid_frame_step_type, "Expected i32 or i64  of the 'frame_step' input.");
+    check_int_input_at(this, 2);
+    check_int_input_at(this, 3);
 
     const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);

@@ -247,13 +247,13 @@ TEST_F(TypePropSTFTTest, frame_size_incompatible_type) {
         const auto frame_size = std::make_shared<Parameter>(element::f32, PartialShape{});
         OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
                         NodeValidationFailure,
-                        HasSubstr("Expected i32 or i64 type of the 'frame_size' input"));
+                        HasSubstr("Expected i32 or i64 type of the input at port: 2"));
     }
     {
         const auto frame_size = std::make_shared<Parameter>(element::i8, PartialShape{});
         OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
                         NodeValidationFailure,
-                        HasSubstr("Expected i32 or i64 type of the 'frame_size' input"));
+                        HasSubstr("Expected i32 or i64 type of the input at port: 2"));
     }
 }
 
@@ -266,13 +266,13 @@ TEST_F(TypePropSTFTTest, frame_step_incompatible_type) {
 
         OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
                         NodeValidationFailure,
-                        HasSubstr("Expected i32 or i64  of the 'frame_step' input"));
+                        HasSubstr("Expected i32 or i64 type of the input at port: 3"));
     }
     {
         const auto frame_step = std::make_shared<Parameter>(element::i8, PartialShape{});
         OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
                         NodeValidationFailure,
-                        HasSubstr("Expected i32 or i64  of the 'frame_step' input"));
+                        HasSubstr("Expected i32 or i64 type of the input at port: 3"));
     }
 }
 
