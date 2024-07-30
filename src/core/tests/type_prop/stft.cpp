@@ -120,5 +120,78 @@ TEST_P(TypePropSTFTTestP, stft_shapes) {
     EXPECT_EQ(op->get_output_partial_shape(0), expected_shape);
 }
 
+TEST_F(TypePropSTFTTest, signal_incompatible_shape) {
+    const auto window = std::make_shared<Parameter>(ov::element::f32, PartialShape{7});
+    const auto frame_size = std::make_shared<Parameter>(ov::element::i64, PartialShape{});
+    const auto frame_step = std::make_shared<Parameter>(ov::element::i64, PartialShape{});
+    {
+        const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{48});
+        OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
+                        ov::NodeValidationFailure,
+                        HasSubstr("The shape of signal must be 2D [batch, signal_size]"));
+    }
+    {
+        const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{-1, 4, 48});
+        OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
+                        ov::NodeValidationFailure,
+                        HasSubstr("The shape of signal must be 2D [batch, signal_size]"));
+    }
+}
+
+TEST_F(TypePropSTFTTest, window_incompatible_shape) {
+    const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{4, 48});
+    const auto frame_size = std::make_shared<Parameter>(ov::element::i64, PartialShape{});
+    const auto frame_step = std::make_shared<Parameter>(ov::element::i64, PartialShape{});
+    {
+        const auto window = std::make_shared<Parameter>(ov::element::f32, PartialShape{});
+        OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
+                        ov::NodeValidationFailure,
+                        HasSubstr("The shape of window must be 1D [window_size]"));
+    }
+    {
+        const auto window = std::make_shared<Parameter>(ov::element::f32, PartialShape{2, 8});
+        OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
+                        ov::NodeValidationFailure,
+                        HasSubstr("The shape of window must be 1D [window_size]"));
+    }
+}
+
+TEST_F(TypePropSTFTTest, frame_size_incompatible_shape) {
+    const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{4, 48});
+    const auto window = std::make_shared<Parameter>(ov::element::f32, PartialShape{7});
+    const auto frame_step = std::make_shared<Parameter>(ov::element::i64, PartialShape{});
+    {
+        const auto frame_size = std::make_shared<Parameter>(ov::element::i64, PartialShape{1});
+        OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
+                        ov::NodeValidationFailure,
+                        HasSubstr("The shape of frame_size must be a scalar"));
+    }
+    {
+        const auto frame_size = std::make_shared<Parameter>(ov::element::i64, PartialShape{1, 2});
+        OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
+                        ov::NodeValidationFailure,
+                        HasSubstr("The shape of frame_size must be a scalar"));
+    }
+}
+
+TEST_F(TypePropSTFTTest, frame_step_incompatible_shape) {
+    const auto signal = std::make_shared<Parameter>(element::f32, PartialShape{4, 48});
+    const auto window = std::make_shared<Parameter>(ov::element::f32, PartialShape{7});
+    const auto frame_size = std::make_shared<Parameter>(ov::element::i64, PartialShape{});
+    {
+        const auto frame_step = std::make_shared<Parameter>(ov::element::i64, PartialShape{1});
+
+        OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
+                        ov::NodeValidationFailure,
+                        HasSubstr("The shape of frame_step must be a scalar"));
+    }
+    {
+        const auto frame_step = std::make_shared<Parameter>(ov::element::i64, PartialShape{1, 2});
+        OV_EXPECT_THROW(std::ignore = make_op(signal, window, frame_size, frame_step, transform_frames),
+                        ov::NodeValidationFailure,
+                        HasSubstr("The shape of frame_step must be a scalar"));
+    }
+}
+
 }  // namespace test
 }  // namespace ov
