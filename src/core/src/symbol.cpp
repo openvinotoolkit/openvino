@@ -27,7 +27,6 @@ inline bool operator<(const WeakSymbol& lhs, const WeakSymbol& rhs) {
     return std::owner_less<ov::SymbolPtr>()(lhs.lock(), rhs.lock());
 }
 
-
 struct WeakSymbolVectorHash {
     std::size_t operator()(const WeakSymbolVector& v) const {
         size_t seed = 0;
