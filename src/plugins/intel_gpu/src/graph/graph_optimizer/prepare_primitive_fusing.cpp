@@ -995,41 +995,42 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                     auto p2_pnum = p.get_processing_order().get_processing_number(parents[peer_idx].first);
                     auto p1_dt = parents[fused_idx].first->get_output_layout().data_type;
                     auto p2_dt = parents[peer_idx].first->get_output_layout().data_type;
-                    if (p1_pnum < p2_pnum && p1_dt == p2_dt) {
-                        // Notice:
-                        //     - If current node has two parent nodes and one of the parent nodes is what has been fused with some nodes,
-                        //       and which is not the last one of the fused primitives, the current node should be fused to that node.
-                        //     - See example graph and description below.
-                        //         : Where [convolution1 - parent1 - eltwise1] have been fused to convolution1,
-                        //               1) if parent1 exists in fusing_history as the node to which the current node will be fused,
-                        //               2) and parent1 is not the last one among the primitives fused to convolution1
-                        //                  (e.g. eltwise1, eltwise2, eltwise3 and eltwise4 will be fused to convolution1 the last one is eltwise4),
-                        //           current node should be fused into [convolution1 - parent1 - eltwise1] without index swapping.
-                        //         : There is no problem with swapping index when eltwise1 has not yet been fused at the time of fusing current node.
-                        //
-                        //                convolution1    convolution2
-                        //                      |             |
-                        //                   parent1       parent2
-                        //                   /     \       /
-                        //           eltwise1       current
-                        //               |             |
-                        //           eltwise2          |
-                        //                \            |
-                        //             eltwise3 -- eltwise4
-                        //
-                        for (auto& fused_prim : parents[fused_idx].first->get_fused_primitives()) {
-                            auto iter = fusing_history.find(node.id());
-                            if (iter != fusing_history.end()) {
-                                for (auto id : iter->second) {
-                                    if (id.first == fused_prim.desc->id &&
-                                        id.first != parents[fused_idx].first->get_fused_primitives().back().desc->id) {
-                                        return false;
-                                    }
+                    // Notice:
+                    //     - If current node has two parent nodes and one of the parent nodes is what has been fused with some nodes,
+                    //       and which is not the last one of the fused primitives, the current node should be fused to that node.
+                    //     - See example graph and description below.
+                    //         : Where [convolution1 - parent1 - eltwise1] have been fused to convolution1,
+                    //               1) if parent1 exists in fusing_history as the node to which the current node will be fused,
+                    //               2) and parent1 is not the last one among the primitives fused to convolution1
+                    //                  (e.g. eltwise1, eltwise2, eltwise3 and eltwise4 will be fused to convolution1 the last one is eltwise4),
+                    //           current node should be fused into [convolution1 - parent1 - eltwise1] without index swapping.
+                    //         : There is no problem with swapping index when eltwise1 has not yet been fused at the time of fusing current node.
+                    //
+                    //                convolution1    convolution2
+                    //                      |             |
+                    //                   parent1       parent2
+                    //                   /     \       /
+                    //           eltwise1       current
+                    //               |             |
+                    //           eltwise2          |
+                    //                \            |
+                    //             eltwise3 -- eltwise4
+                    //
+                    for (auto& fused_prim : parents[fused_idx].first->get_fused_primitives()) {
+                        auto iter = fusing_history.find(node.id());
+                        if (iter != fusing_history.end()) {
+                            for (auto id : iter->second) {
+                                if (id.first == fused_prim.desc->id &&
+                                    id.first != parents[fused_idx].first->get_fused_primitives().back().desc->id) {
+                                    return false;
                                 }
                             }
                         }
+                    }
+                    if (p1_pnum < p2_pnum && p1_dt == p2_dt) {
                         return true;
-                    } else if (data_type_traits::is_floating_point(p2_dt) && !data_type_traits::is_floating_point(p1_dt)) {
+                    }
+                    if (data_type_traits::is_floating_point(p2_dt) && !data_type_traits::is_floating_point(p1_dt)) {
                         return true;
                     }
                 }
