@@ -264,6 +264,16 @@ elseif(NOT TARGET arm_compute::arm_compute)
         get_filename_component(toolchain_prefix "${CMAKE_CXX_COMPILER}" DIRECTORY)
         list(APPEND ARM_COMPUTE_OPTIONS toolchain_prefix="${toolchain_prefix}/")
     elseif(APPLE)
+        # we need to bypass this information in case of custom compiler is passed
+        # to cmake call. Such compiler and compiler prefix need to be passed to scons
+        get_filename_component(cxx_compiler "${CMAKE_CXX_COMPILER}" NAME)
+        get_filename_component(c_compiler "${CMAKE_C_COMPILER}" NAME)
+        get_filename_component(compiler_prefix "${CMAKE_CXX_COMPILER}" DIRECTORY)
+
+        set(cmake_build_env
+            CC=${c_compiler}
+            CXX=${cxx_compiler})
+
         if(CMAKE_OSX_DEPLOYMENT_TARGET)
             set(extra_cxx_flags "${extra_cxx_flags} -mmacosx-version-min=${CMAKE_OSX_DEPLOYMENT_TARGET}")
             set(minos_added ON)
@@ -275,8 +285,9 @@ elseif(NOT TARGET arm_compute::arm_compute)
             endif()
             set(extra_cxx_flags "${extra_cxx_flags} --sysroot ${CMAKE_OSX_SYSROOT}")
         endif()
-
-        set(extra_cxx_flags "${extra_cxx_flags} -Wno-error=return-stack-address")
+        if(OV_COMPILER_IS_CLANG)
+            set(extra_cxx_flags "${extra_cxx_flags} -Wno-error=return-stack-address")
+        endif()
         get_filename_component(compiler_prefix "${CMAKE_CXX_COMPILER}" DIRECTORY)
         list(APPEND ARM_COMPUTE_OPTIONS compiler_prefix="${compiler_prefix}/")
 

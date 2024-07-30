@@ -93,7 +93,11 @@ function(ov_add_plugin)
         endif()
 
         if(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CROSSCOMPILING)
-            target_link_options(${OV_PLUGIN_NAME} PRIVATE -Wl,--unresolved-symbols=ignore-in-shared-libs)
+            if (APPLE)
+                target_link_options(${OV_PLUGIN_NAME} PRIVATE -Wl,-undefined,dynamic_lookup)
+            else()
+                target_link_options(${OV_PLUGIN_NAME} PRIVATE -Wl,--unresolved-symbols=ignore-in-shared-libs)
+            endif()
         endif()
 
         set(custom_filter "")

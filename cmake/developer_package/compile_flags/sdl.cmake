@@ -29,7 +29,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM
             # Remove all symbol table and relocation information from the executable
             set(OV_C_CXX_FLAGS "${OV_C_CXX_FLAGS} -s")
         endif()
-        if(NOT MINGW)
+        if(NOT MINGW AND NOT APPLE)
             set(OV_LINKER_FLAGS "${OV_LINKER_FLAGS} -z noexecstack -z relro -z now")
         endif()
     elseif(OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
