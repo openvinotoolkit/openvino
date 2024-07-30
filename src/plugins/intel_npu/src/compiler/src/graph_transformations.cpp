@@ -33,7 +33,7 @@ IRSerializer::IRSerializer(const std::shared_ptr<const ov::Model>& origModel, co
 void IRSerializer::serializeModelToStream(std::ostream& xml, std::ostream& weights) {
     _logger.debug("serializeModelToStream");
     const auto passConfig = std::make_shared<ov::pass::PassConfig>();
-    ov::pass::Manager manager(passConfig);
+    ov::pass::Manager manager(passConfig, "NPU:serializeModelToStream");
 
     if (_supportedOpset < 11) {
         // Downgrade to opset10

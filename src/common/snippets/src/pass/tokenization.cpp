@@ -76,7 +76,7 @@ bool EnumerateNodes::run_on_model(const std::shared_ptr<ov::Model> &m) {
 
 bool SnippetsTokenization::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(SnippetsTokenization);
-    ov::pass::Manager manager(get_pass_config());
+    ov::pass::Manager manager(get_pass_config(), "Snippets:Tokenization");
     manager.set_per_pass_validation(false);
 
     manager.register_pass<EnumerateNodes>();

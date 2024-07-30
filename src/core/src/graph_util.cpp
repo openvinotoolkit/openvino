@@ -326,7 +326,7 @@ void serialize(const std::shared_ptr<const ov::Model>& m,
                const std::string& xml_path,
                const std::string& bin_path,
                ov::pass::Serialize::Version version) {
-    ov::pass::Manager manager;
+    ov::pass::Manager manager("Serialize");
     manager.register_pass<ov::pass::Serialize>(xml_path, bin_path, version);
     manager.run_passes(std::const_pointer_cast<ov::Model>(m));
 }
@@ -339,7 +339,7 @@ void save_model(const std::shared_ptr<const ov::Model>& m, const std::string& ou
         ov::pass::compress_model_to_f16(cloned, postponed);
     }
 
-    ov::pass::Manager manager;
+    ov::pass::Manager manager("SaveModel");
     manager.register_pass<ov::pass::FusedNamesCleanup>();
     manager.register_pass<ov::pass::Serialize>(output_model, "");
     manager.run_passes(std::move(cloned));
