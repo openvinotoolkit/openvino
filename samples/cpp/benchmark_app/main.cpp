@@ -332,6 +332,17 @@ int main(int argc, char* argv[]) {
         slog::info << "OpenVINO:" << slog::endl;
         slog::info << ov::get_openvino_version() << slog::endl;
         slog::info << "Device info:" << slog::endl;
+        const auto& versions = core.get_versions(device_name);
+        std::string description = versions.at(device_name).description;
+        if (description.find(device_name) == std::string::npos) {
+            std::cout << "Error: requested device: " << device_name << " Loaded device: " << description << std::endl;
+            throw std::logic_error("error");
+        }
+    
+
+        slog::info << device_name << slog::endl;
+        slog::info << versions.at(device_name).description << slog::endl;
+        
         slog::info << core.get_versions(device_name) << slog::endl;
 
         // ----------------- 3. Setting device configuration
