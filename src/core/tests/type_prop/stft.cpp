@@ -55,6 +55,10 @@ INSTANTIATE_TEST_SUITE_P(
     type_prop_stft_shape,
     TypePropSTFTTestP,
     testing::Values(
+        std::make_tuple(PartialShape{1, 48}, PartialShape{16}, 16, 16, true, PartialShape{1, 9, 3, 2}),
+        std::make_tuple(PartialShape{1, 48}, PartialShape{16}, 16, 16, false, PartialShape{1, 3, 9, 2}),
+        std::make_tuple(PartialShape{2, 48}, PartialShape{8}, 16, 4, true, PartialShape{2, 9, 9, 2}),
+        std::make_tuple(PartialShape{2, 48}, PartialShape{5}, 9, 100, true, PartialShape{2, 5, 1, 2}),
         std::make_tuple(PartialShape{4, 48}, PartialShape{7}, 11, 3, true, PartialShape{4, 6, 13, 2}),
         std::make_tuple(PartialShape{4, 48}, PartialShape{7}, 11, 3, false, PartialShape{4, 13, 6, 2}),
         std::make_tuple(PartialShape{4, 56}, PartialShape{7}, 11, 3, true, PartialShape{4, 6, 16, 2}),
@@ -63,6 +67,7 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple(PartialShape{-1, -1}, PartialShape{7}, 11, 3, false, PartialShape{-1, {1, -1}, 6, 2}),
         std::make_tuple(PartialShape{-1, -1}, PartialShape{7}, 11, 3, true, PartialShape{-1, 6, {1, -1}, 2}),
         std::make_tuple(PartialShape{-1, {48, 56}}, PartialShape{7}, 11, 3, true, PartialShape{-1, 6, {13, 16}, 2}),
+        std::make_tuple(PartialShape{{2, 4}, {48, 56}}, PartialShape{7}, 11, 3, true, PartialShape{{2, 4}, 6, {13, 16}, 2}),
         std::make_tuple(PartialShape::dynamic(), PartialShape{7}, 11, 3, true, PartialShape::dynamic()),
         std::make_tuple(PartialShape::dynamic(), PartialShape::dynamic(), 11, 3, true, PartialShape::dynamic())),
     testing::PrintToStringParamName());
