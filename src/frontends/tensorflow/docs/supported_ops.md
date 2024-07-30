@@ -21,8 +21,8 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | AddV2                                                   | YES                           |                               |
 | AdjustContrast                                          | NO                            |                               |
 | AdjustContrastv2                                        | YES                           |                               |
-| AdjustHue                                               | YES                           |                               |
-| AdjustSaturation                                        | YES                           |                               |
+| AdjustHue<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           |                               |
+| AdjustSaturation<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           |                               |
 | All                                                     | YES                           |                               |
 | AllCandidateSampler                                     | NO                            |                               |
 | AllToAll                                                | NO                            |                               |
@@ -487,7 +487,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | GroupByReducerDataset                                   | NO                            |                               |
 | GroupByWindowDataset                                    | NO                            |                               |
 | GuaranteeConst                                          | NO                            |                               |
-| HSVToRGB                                                | YES                           |                               |
+| HSVToRGB<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           |                               |
 | HashTable                                               | YES                           |                               |
 | HashTableV2                                             | YES                           |                               |
 | HistogramFixedWidth                                     | NO                            |                               |
@@ -629,7 +629,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | MatrixDiagV2                                            | NO                            |                               |
 | MatrixDiagV3                                            | NO                            |                               |
 | MatrixExponential                                       | NO                            |                               |
-| MatrixInverse<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           |                               |
+| MatrixInverse                                           | YES                           |                               |
 | MatrixLogarithm                                         | NO                            |                               |
 | MatrixSetDiag                                           | NO                            |                               |
 | MatrixSetDiagV2                                         | NO                            |                               |
@@ -988,7 +988,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | ReverseV2                                               | YES                           |                               |
 | RewriteDataset                                          | NO                            |                               |
 | RightShift                                              | NO                            |                               |
-| Rint<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           |                               |
+| Rint                                                    | YES                           |                               |
 | RngReadAndSkip                                          | NO                            |                               |
 | RngSkip                                                 | NO                            |                               |
 | Roll                                                    | YES                           |                               |
@@ -1227,7 +1227,7 @@ A "supported operation" is one that TensorFlow Frontend can convert to the OpenV
 | StringSplitV2                                           | YES                           | openvino-tokenizers required  |
 | StringStrip                                             | NO                            |                               |
 | StringToHashBucket                                      | NO                            |                               |
-| StringToHashBucketFast<sup><mark style="background-color: #00FF00">NEW</mark></sup> | YES                           | openvino-tokenizers required  |
+| StringToHashBucketFast                                  | YES                           | openvino-tokenizers required  |
 | StringToHashBucketStrong                                | NO                            |                               |
 | StringToNumber                                          | NO                            |                               |
 | StringUpper                                             | NO                            |                               |
