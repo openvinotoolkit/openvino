@@ -74,7 +74,7 @@ size_t get_leading_dim(ExpressionPort port, const snippets::lowered::LoopManager
     bool full_dim_substituted = false;
     for (size_t i = 1; i <= subtensor.size(); i++) {
         const auto idx = subtensor.size() - i;
-        if (subtensor[idx] == snippets::lowered::PortDescriptor::ServiceDimensions::FULL_DIM) {
+        if (ov::snippets::utils::is_full_dim_value(subtensor[idx])) {
             // the reason that we don't support FULL_DIM substitution for an arbitrary layout is that
             // the layout and subtersor can (and usually do) have different ranks
             full_dim_substituted = true;
