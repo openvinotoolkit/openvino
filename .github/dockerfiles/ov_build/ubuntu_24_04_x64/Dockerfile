@@ -28,7 +28,7 @@ RUN apt-get update && \
         python3-full \
         # For Java API
         default-jdk \
-        # Compiler
+        # Compiler. TODO: remove and use the system one; if the system one is used, onnx fails to build
         gcc-10 \
         g++-10 \
         && \
