@@ -43,7 +43,7 @@ public:
     * @brief Update current kernel config in accordance with the passed expression. Corresponding kernel is recompiled if necessary.
      * This method should be called to update KernelExecutor based on runtime info (e.g. shapes) available through expression ptr
     */
-    virtual void update_by_expression(const lowered::ExpressionPtr& expr) = 0;
+    virtual void update_by_expression(const lowered::ExpressionPtr& expr, const lowered::LinearIRPtr& linear_ir) = 0;
     /**
     * @brief Replace current kernel config with the provided value. Corresponding kernel is recompiled if necessary.
      * This method should be called to restore a saved state of the executor, that was configured using update_by_expression().
@@ -70,8 +70,8 @@ public:
     explicit KernelExecutor(Conf c) : KernelExecutorBase(), m_config{std::move(c)} {}
 
     // Note: override when final is redundant, but needed to avoid warnings on some compilers
-    void update_by_expression(const lowered::ExpressionPtr& expr) override final { // NOLINT
-        update_config(expr, m_config);
+    void update_by_expression(const lowered::ExpressionPtr& expr, const lowered::LinearIRPtr& linear_ir) override final { // NOLINT
+        update_config(expr, linear_ir, m_config);
         OPENVINO_ASSERT(m_config.is_completed(), "Failed to update kernel config in update_by_expression");
         update_kernel(m_config, m_kernel);
         OPENVINO_ASSERT(m_kernel, "Failed to compile kernel executor");
@@ -103,7 +103,7 @@ public:
 
 protected:
     /*** Updates stored kernel config based on runtime info from expression (e.g. new input shapes). */
-    virtual void update_config(const lowered::ExpressionPtr& expr, Conf& config) const = 0;
+    virtual void update_config(const lowered::ExpressionPtr& expr, const lowered::LinearIRPtr& linear_ir, Conf& config) const = 0;
     /*** Updates stored kernel in accordance with the passed config. Recompilation of the kernel is
      * performed if necessary. */
     virtual void update_kernel(const Conf& c, std::shared_ptr<KernelType>& kernel) const = 0;
@@ -130,9 +130,9 @@ public:
         return m_table.at(expr);
     }
     /*** Updates every registered KernelExecutor in accordance with the corresponding expression */
-    void update_state() const {
+    void update_state(const lowered::LinearIRPtr& linear_ir) const {
         for (const auto& record : m_table)
-            record.second->update_by_expression(record.first);
+            record.second->update_by_expression(record.first, linear_ir);
     }
 
     /*** Returns lambda function that contains current state of the table, and restores this state when called  */
