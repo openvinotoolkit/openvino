@@ -348,6 +348,9 @@ void Graph::InitGraph(bool optimize) {
     ResolveComplexInplaceConflicts();
 
     optimizer.ApplyImplSpecificGraphOptimizations(*this);
+    while (ResolveComplexInplaceConflicts()) {
+        optimizer.ApplyImplSpecificGraphOptimizations(*this);
+    }
 
     GroupParallelNodes();
 
@@ -592,9 +595,10 @@ void Graph::ResolveEdgeConflicts() {
     }
 }
 
-void Graph::ResolveComplexInplaceConflicts() {
+bool Graph::ResolveComplexInplaceConflicts() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::ResolveComplexInplaceConflicts");
 
+    bool insertedReorder = false;
     ptrdiff_t numberOfEdges = static_cast<ptrdiff_t>(graphEdges.size());
 
     std::unordered_set<std::string> uniqueLayerNames;
@@ -637,9 +641,11 @@ void Graph::ResolveComplexInplaceConflicts() {
         auto edge = graphEdges[i];
         if (needReorder(edge)) {
             insertReorder(edge, false, uniqueLayerNames);
+            insertedReorder = true;
             updateEdge(i);
         }
     }
+    return insertedReorder;
 }
 
 static inline bool isConstOutput(EdgePtr edge) {

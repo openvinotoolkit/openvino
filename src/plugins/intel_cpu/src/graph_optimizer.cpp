@@ -2217,6 +2217,14 @@ void GraphOptimizer::DropDoubleReorders(Graph &graph) {
             Reorder* nn = dynamic_cast<Reorder*>(nextNode.get());
             if (nn == nullptr)
                 OPENVINO_THROW("Cannot get reorder layer ", nextNode->getName());
+            bool nnIsOptimized = nn->getOptimized();
+            if (n->getOptimized() || nnIsOptimized) {
+                if (nnIsOptimized) {
+                    processed.insert(nextNode);
+                }
+                processed.insert(node);
+                continue;
+            }
 
             NodePtr p = n->getParentEdgeAt(0)->getParent();
             NodePtr c = nn->getChildEdgeAt(0)->getChild();

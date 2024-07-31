@@ -221,7 +221,7 @@ protected:
     void ResolveInplaceDirections();
     void InitOptimalPrimitiveDescriptors();
     void ResolveEdgeConflicts();
-    void ResolveComplexInplaceConflicts();
+    bool ResolveComplexInplaceConflicts();
     bool ProcessDynNodes();
     void GroupParallelNodes();
     void Allocate(const std::vector<size_t>& syncNodesInds);
