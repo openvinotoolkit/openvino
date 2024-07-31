@@ -9,6 +9,7 @@
 
 #include "openvino/util/monitors/cpu_performance_counter.hpp"
 #include "openvino/util/monitors/gpu_performance_counter.hpp"
+#include "openvino/util/monitors/npu_performance_counter.hpp"
 
 namespace ov {
 namespace util {
@@ -38,6 +39,8 @@ void DeviceMonitor::collect_data(const std::string& deviceName) {
             devices_performance_counters[deviceName] = std::make_shared<ov::util::monitor::CpuPerformanceCounter>();
         if (deviceName == "GPU")
             devices_performance_counters[deviceName] = std::make_shared<ov::util::monitor::GpuPerformanceCounter>();
+        if (deviceName == "NPU")
+            devices_performance_counters[deviceName] = std::make_shared<ov::util::monitor::NpuPerformanceCounter>();
     }
     while (deviceLoad_history.size() < history_size) {
         auto devicesLoad = devices_performance_counters[deviceName]->get_load();

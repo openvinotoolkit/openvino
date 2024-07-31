@@ -588,6 +588,13 @@ std::list<DeviceInformation> Plugin::get_valid_device(
                               std::to_string(device_utilization[device_luid]).c_str(),
                               utilization_threshold);
             }
+        } else if (device_info.device_name.find("NPU") == 0) {
+            for (auto item : device_utilization) {
+                LOG_DEBUG_TAG("========[%s] Current utilization [%s]-[%.2f]",
+                              device_info.device_name.c_str(),
+                              item.first.c_str(),
+                              item.second);
+            }
         } else {
             // checking utilization
             // TODO: to be implemented for other device

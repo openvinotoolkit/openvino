@@ -13,14 +13,13 @@
 namespace ov {
 namespace util {
 namespace monitor {
-class CpuPerformanceCounter : public PerformanceCounter {
+class NpuPerformanceCounter : public PerformanceCounter {
 public:
-    CpuPerformanceCounter(int n_cores = 0);
-    virtual ~CpuPerformanceCounter() = default;
+    NpuPerformanceCounter();
+    virtual ~NpuPerformanceCounter() = default;
     std::map<std::string, double> get_load() override;
 
 private:
-    int n_cores;
     class PerformanceCounterImpl;
     std::shared_ptr<PerformanceCounterImpl> performance_counter = nullptr;
 };
