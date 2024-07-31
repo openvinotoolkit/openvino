@@ -6,17 +6,6 @@
 
 namespace intel_npu {
 
-std::optional<size_t> NetworkMetadata::findByName(const std::vector<IODescriptor>& descriptors,
-                                                  const std::string_view targetName) {
-    for (size_t descriptorIndex = 0; descriptorIndex < descriptors.size(); ++descriptorIndex) {
-        if (descriptors.at(descriptorIndex).nameFromCompiler == targetName) {
-            return descriptorIndex;
-        }
-    }
-
-    return std::nullopt;
-}
-
 void NetworkMetadata::bindRelatedDescriptors() {
     size_t ioIndex = 0;
 
@@ -27,18 +16,24 @@ void NetworkMetadata::bindRelatedDescriptors() {
         }
 
         if (input.isStateInput) {
-            const std::optional<size_t> relatedDescriptorIndex = findByName(outputs, input.nameFromCompiler);
+            const auto relatedDescriptorIterator =
+                std::find_if(outputs.begin(), outputs.end(), [&](const IODescriptor& output) {
+                    return output.isStateOutput && (output.nameFromCompiler == input.nameFromCompiler);
+                });
 
-            if (relatedDescriptorIndex.has_value()) {
-                input.relatedDescriptorIndex = relatedDescriptorIndex;
-                outputs.at(*relatedDescriptorIndex).relatedDescriptorIndex = std::optional(ioIndex);
+            if (relatedDescriptorIterator != outputs.end()) {
+                input.relatedDescriptorIndex = std::distance(outputs.begin(), relatedDescriptorIterator);
+                outputs.at(*input.relatedDescriptorIndex).relatedDescriptorIndex = ioIndex;
             }
         } else if (input.isShapeTensor) {
-            const std::optional<size_t> relatedDescriptorIndex = findByName(inputs, input.nameFromCompiler);
+            const auto relatedDescriptorIterator =
+                std::find_if(inputs.begin(), inputs.end(), [&](const IODescriptor& candidate) {
+                    return !candidate.isShapeTensor && (candidate.nameFromCompiler == input.nameFromCompiler);
+                });
 
-            if (relatedDescriptorIndex.has_value() && *relatedDescriptorIndex != ioIndex) {
-                input.relatedDescriptorIndex = relatedDescriptorIndex;
-                inputs.at(*relatedDescriptorIndex).relatedDescriptorIndex = std::optional(ioIndex);
+            if (relatedDescriptorIterator != inputs.end()) {
+                input.relatedDescriptorIndex = std::distance(inputs.begin(), relatedDescriptorIterator);
+                inputs.at(*input.relatedDescriptorIndex).relatedDescriptorIndex = ioIndex;
             }
         }
 
@@ -54,11 +49,14 @@ void NetworkMetadata::bindRelatedDescriptors() {
         }
 
         if (output.isShapeTensor) {
-            const std::optional<size_t> relatedDescriptorIndex = findByName(outputs, output.nameFromCompiler);
+            const auto relatedDescriptorIterator =
+                std::find_if(outputs.begin(), outputs.end(), [&](const IODescriptor& candidate) {
+                    return !candidate.isShapeTensor && (candidate.nameFromCompiler == output.nameFromCompiler);
+                });
 
-            if (relatedDescriptorIndex.has_value() && *relatedDescriptorIndex != ioIndex) {
-                output.relatedDescriptorIndex = relatedDescriptorIndex;
-                outputs.at(*relatedDescriptorIndex).relatedDescriptorIndex = std::optional(ioIndex);
+            if (relatedDescriptorIterator != outputs.end()) {
+                output.relatedDescriptorIndex = std::distance(outputs.begin(), relatedDescriptorIterator);
+                outputs.at(*output.relatedDescriptorIndex).relatedDescriptorIndex = ioIndex;
             }
         }
 

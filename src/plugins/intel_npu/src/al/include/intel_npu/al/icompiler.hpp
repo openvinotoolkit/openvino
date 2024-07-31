@@ -123,9 +123,6 @@ struct NetworkMetadata final {
      */
     void bindRelatedDescriptors();
 
-private:
-    std::optional<size_t> findByName(const std::vector<IODescriptor>& descriptors, const std::string_view targetName);
-
 };  // namespace intel_npu
 
 /**
