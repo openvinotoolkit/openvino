@@ -581,7 +581,7 @@ void regclass_Core(py::module m) {
             } else {
                 OPENVINO_THROW("Failed to open temporary file for model stream");
             }
-            
+
             return result;
         },
         py::arg("model_stream"),
