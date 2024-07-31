@@ -71,7 +71,7 @@ void LinearIRBuilder::clone(const LinearIR* src, LinearIR* dst,  ExpressionMap& 
 
     dst->m_expressions = clone_range(src->m_expressions.cbegin(), src->m_expressions.cend(), expression_map);
     for (const auto& expr : dst->m_expressions) {
-        dst->register_expression(expr, true);
+        dst->register_expression(expr, true, expr->get_exec_num());
     }
 
     dst->m_loop_manager = src->m_loop_manager->clone_with_new_expr(expression_map);

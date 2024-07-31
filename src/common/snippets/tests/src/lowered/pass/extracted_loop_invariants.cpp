@@ -263,14 +263,14 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsFromInnermostToLoopOuts
         auto add = linear_ir->push_node<ov::opset10::Add>(param_0.second, broadcastmove.second);
         init_expr_descriptors(*add.first, {subtensor, subtensor, subtensor}, {layout, layout, layout});
         auto result = linear_ir->push_node<ov::opset10::Result>(add.second);
-        linear_ir->get_loop_manager()->mark_loop(broadcastmove.first, result.first, 3, 1,
-                                                 std::vector<LoopPort>{LoopPort((*broadcastmove.first)->get_input_port(0), true, 1),
-                                                                       LoopPort((*add.first)->get_input_port(0), true, 1)},
-                                                 std::vector<LoopPort>{LoopPort((*add.first)->get_output_port(0), true, 1)});
         linear_ir->get_loop_manager()->mark_loop(broadcastmove.first, result.first, 512, vector_size,
                                                  std::vector<LoopPort>{LoopPort((*broadcastmove.first)->get_input_port(0), true, 0),
                                                                        LoopPort((*add.first)->get_input_port(0), true, 0)},
                                                  std::vector<LoopPort>{LoopPort((*add.first)->get_output_port(0), true, 0)});
+        linear_ir->get_loop_manager()->mark_loop(broadcastmove.first, result.first, 3, 1,
+                                                 std::vector<LoopPort>{LoopPort((*broadcastmove.first)->get_input_port(0), true, 1),
+                                                                       LoopPort((*add.first)->get_input_port(0), true, 1)},
+                                                 std::vector<LoopPort>{LoopPort((*add.first)->get_output_port(0), true, 1)});
         linear_ir->set_loop_depth(2);
     }
     {
@@ -281,14 +281,14 @@ TEST_F(ExtractLoopInvariantsTest, ExtractedLoopInvariantsFromInnermostToLoopOuts
         auto add = linear_ir_ref->push_node<ov::opset10::Add>(param_0.second, broadcastmove.second);
         init_expr_descriptors(*add.first, {subtensor, subtensor, subtensor}, {layout, layout, layout});
         auto result = linear_ir_ref->push_node<ov::opset10::Result>(add.second);
-        linear_ir_ref->get_loop_manager()->mark_loop(add.first, result.first, 3, 1,
-                                                     std::vector<LoopPort>{LoopPort((*add.first)->get_input_port(0), true, 1),
-                                                                           LoopPort((*add.first)->get_input_port(1), true, 1)},
-                                                     std::vector<LoopPort>{LoopPort((*add.first)->get_output_port(0), true, 1)});
         linear_ir_ref->get_loop_manager()->mark_loop(add.first, result.first, 512, vector_size,
                                                      std::vector<LoopPort>{LoopPort((*add.first)->get_input_port(0), true, 0),
                                                                            LoopPort((*add.first)->get_input_port(1), true, 0)},
                                                      std::vector<LoopPort>{LoopPort((*add.first)->get_output_port(0), true, 0)});
+        linear_ir_ref->get_loop_manager()->mark_loop(add.first, result.first, 3, 1,
+                                                     std::vector<LoopPort>{LoopPort((*add.first)->get_input_port(0), true, 1),
+                                                                           LoopPort((*add.first)->get_input_port(1), true, 1)},
+                                                     std::vector<LoopPort>{LoopPort((*add.first)->get_output_port(0), true, 1)});
     }
 }
 

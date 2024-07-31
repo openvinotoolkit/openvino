@@ -76,8 +76,7 @@ void extract_expr(const ExpressionPtr& expr, LinearIR& linear_ir,
     }
 }
 
-void update_loop_ports(const ExpressionPtr& expr, const LoopManagerPtr& loop_manager, size_t inner_loop_id,
-                       const LinearIR::constExprIt& inner_loop_begin_pos, const LinearIR::constExprIt& inner_loop_end_pos) {
+void update_loop_ports(const ExpressionPtr& expr, const LoopManagerPtr& loop_manager, size_t inner_loop_id) {
     const auto& inner_loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(inner_loop_id);
     // delete expr input ports from loop input points, add expr output ports' consumers if
     // consumed in inner loop to loop input ports.
@@ -91,25 +90,24 @@ void update_loop_ports(const ExpressionPtr& expr, const LoopManagerPtr& loop_man
             }
         }
     }
-    const auto& expr_input_ports = expr->get_input_ports();
-    inner_loop_info->update_loop_ports(expr_input_ports, new_loop_input_ports);
+
+    // Need to replace several existing LoopPorts (which are expression ports) with new several.
+    // However, LoopInfo can replace only one LoopPort with several other.
+    // We can replace one real port with new ports and delete other existing loop ports.
+    bool inserted = false;
+    for (const auto& port : expr->get_input_ports()) {
+        if (inner_loop_info->is_loop_port(port)) {
+            inner_loop_info->replace_with_new_ports(port, (inserted ? std::vector<ExpressionPort>{} : new_loop_input_ports));
+            inserted = true;
+        }
+    }
 
     // delete expr out ports from loop out ports directly if it's in loop output ports
-    std::vector<ExpressionPort> out_ports_to_delete;
     for (size_t i = 0; i < expr->get_output_count(); ++i) {
         const auto& out_port = expr->get_output_port(i);
         if (inner_loop_info->is_loop_port(out_port)) {
-            out_ports_to_delete.push_back(out_port);
+            inner_loop_info->replace_with_new_ports(out_port, {});
         }
-    }
-    if (!out_ports_to_delete.empty()) {
-        std::vector<ExpressionPort> new_ports;
-        inner_loop_info->update_loop_ports(out_ports_to_delete, new_ports);
-    }
-    // TODO: 142990.
-    // Need sort after update loop ports. There are possibility that all exprs are moved to outer loop.
-    if (!inner_loop_info->get_input_ports().empty() && !inner_loop_info->get_output_ports().empty()) {
-        loop_manager->sort_loop_ports(inner_loop_begin_pos, inner_loop_end_pos, inner_loop_id);
     }
 }
 
@@ -139,8 +137,8 @@ bool extract_from_loop(const size_t& inner_loop_id, LinearIR& linear_ir) {
             if (is_extraction_applicable(port_expr, inner_loop_info)) {
                 status = true;
                 LinearIR::constExprIt inner_loop_begin_pos, inner_loop_end_pos;
-                std::tie(inner_loop_begin_pos, inner_loop_end_pos) =
-                    loop_manager->get_loop_bounds(linear_ir, inner_loop_id);
+                std::tie(inner_loop_begin_pos, inner_loop_end_pos) = loop_manager->get_loop_bounds(linear_ir, inner_loop_id);
+
                 // extract scalar on inputs if there are
                 for (size_t i = 0; i < port_expr->get_input_count(); ++i) {
                     auto parent = port_expr->get_input_port_connector(i)->get_source().get_expr();
@@ -148,8 +146,18 @@ bool extract_from_loop(const size_t& inner_loop_id, LinearIR& linear_ir) {
                         extract_expr(parent, linear_ir, inner_loop_begin_pos, inner_loop_end_pos);
                     }
                 }
+                // Inner Loops can contain ports which are ports of outer Loops as well.
+                // When we move extract expressions from inner loops and move them, we can corrupt the sort of LoopPorts of outer Loops.
+                // Firstly, we should save outer loop ids, before extraction
+                const auto outer_loop_ids = LoopManager::get_outer_expr_loops(port_expr, inner_loop_id);
+
+                // Secondly, complete extraction
                 extract_expr(port_expr, linear_ir, inner_loop_begin_pos, inner_loop_end_pos);
-                update_loop_ports(port_expr, loop_manager, inner_loop_id, inner_loop_begin_pos, inner_loop_end_pos);
+                update_loop_ports(port_expr, loop_manager, inner_loop_id);
+
+                // Thirdly, update outer loops
+                loop_manager->sort_loop_ports(outer_loop_ids);
+
                 expr_extracted = true;
                 break;  // extracted and refreshed loop_input_ports. break potential_extractable_exprs loop, and go while() to start again.
             }

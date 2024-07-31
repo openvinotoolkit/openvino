@@ -171,6 +171,7 @@ Validate::Validate() {
 bool Validate::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::Validate")
 
+    double prev_exec_order = -1 * std::numeric_limits<double>::max();
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
         const auto expr = *expr_it;
         const auto node = expr->get_node();
@@ -182,6 +183,9 @@ bool Validate::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lo
         // Loop expr doesn't have shapes and layouts
         if (!ov::is_type<op::LoopBase>(node))
             validate_ports(expr);
+
+        OPENVINO_ASSERT(expr->get_exec_num() > prev_exec_order, "Invalid execution order of expression");
+        prev_exec_order = expr->get_exec_num();
     }
 
     validate_buffer_expressions(linear_ir.get_buffers());

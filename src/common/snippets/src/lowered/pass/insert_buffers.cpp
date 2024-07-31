@@ -178,18 +178,11 @@ void InsertBuffers::insertion(LinearIR& linear_ir,
 
             // potential_consumers is unsorted by linear IR set.
             // We have to find first expr in Linear IR from the set to insert Buffer before *all* consumers
-            // [113536]: Remove this logic with `std::find` using, when expression numeration will be supported
             OPENVINO_ASSERT(!potential_consumers.empty(), "Buffer should have one consumer at least");
-            auto consumer_expr = potential_consumers.begin()->get_expr();
-            if (potential_consumers.size() > 1) {
-                std::set<ExpressionPtr> consumers;
-                for (const auto& port : potential_consumers)
-                    consumers.insert(port.get_expr());
-                const auto it = std::find_if(begin_it, end_it,
-                                             [&consumers](const ExpressionPtr& expr) { return consumers.count(expr) > 0; });
-                OPENVINO_ASSERT(it != end_it, "Consumer of Buffer has not been found in Linear IR");
-                consumer_expr = *it;
-            }
+            const auto& consumer_expr = std::min_element(potential_consumers.begin(), potential_consumers.end(),
+                                                         [](const ExpressionPort& l, const ExpressionPort& r) {
+                                                             return l.get_expr()->get_exec_num() < r.get_expr()->get_exec_num();
+                                                         })->get_expr();
 
             // We should insert Buffer between first different Loops.
             // Example: Current expr Loop identifies: 3, 2, 1
