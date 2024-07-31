@@ -215,7 +215,7 @@ jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::aarch64::jit_generator *ho
                                      ov::element::Type src_prc, ov::element::Type dst_prc, int store_num, int byte_offset,
                                      bool is_saturated, ov::element::Type exec_prc, emitter_in_out_map in_out_type)
     : jit_emitter(host, host_isa, exec_prc, in_out_type), name_("unknown"), store_num_(store_num), byte_offset_(byte_offset),
-                  is_saturated_(is_saturated), src_prc_(src_prc), dst_prc_(dst_prc) {}
+                  src_prc_(src_prc), dst_prc_(dst_prc), is_saturated_(is_saturated) {}
 
 void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
     if (host_isa_ == dnnl::impl::cpu::aarch64::asimd) {
