@@ -89,6 +89,22 @@ bool FakeQuantizeDequantization::isLowPrecision() const {
     return DataPrecision::isSupported(data.get_element_type());
 }
 
+ov::element::Type FakeQuantizeDequantization::getPrecision() const {
+    if (multiply != nullptr) {
+        return is_type<ov::opset1::Constant>(multiply->get_input_node_ptr(0)) ?
+            multiply->get_input_element_type(1) :
+            multiply->get_input_element_type(0);
+    }
+
+    if (subtract != nullptr) {
+        return is_type<ov::opset1::Constant>(subtract->get_input_node_ptr(0)) ?
+            subtract->get_input_element_type(1) :
+            subtract->get_input_element_type(0);
+    }
+
+    THROW_IE_LPT_EXCEPTION_BASE << "dequantization is empty";
+}
+
 bool FakeQuantizeDequantization::isPerTensor() const {
     if (multiplyConstant == nullptr) {
         THROW_IE_LPT_EXCEPTION_BASE << "multiply constant can not be empty";
