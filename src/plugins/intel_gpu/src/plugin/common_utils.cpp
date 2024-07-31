@@ -33,7 +33,7 @@ void convert_and_copy_padded_source(const src_t* src, dst_t* dst, cldnn::layout 
                 for (auto z = 0; z < size.spatial[2]; z++) {
                     for (auto y = 0; y < size.spatial[1]; y++) {
                         for (auto x = 0; x < size.spatial[0]; x++) {
-                            *dst++ = static_cast<dst_t>(src[layout.get_linear_offset({b, f, x, y, z, w})]);
+                            *dst++ = static_cast<dst_t>(src[layout.get_linear_offset({b, f, w, z, y, x})]);
                         }
                     }
                 }

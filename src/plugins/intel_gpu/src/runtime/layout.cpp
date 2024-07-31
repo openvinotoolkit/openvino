@@ -122,9 +122,24 @@ std::vector<tensor::value_type> layout::get_padded_dims() const {
         shape = size.to_shape();
     }
 
-    std::vector<tensor::value_type> res(shape.size());
-    for (size_t i = 0; i < shape.size(); i++) {
-        res[i] = shape[i] + data_padding.upper_size()[i] + data_padding.lower_size()[i];   // Cecilia TODO: export data_padding fileds?
+    std::vector<tensor::value_type> dims;
+    for (auto dim : shape) {
+        dims.push_back(static_cast<tensor::value_type>(dim));
+    }
+
+    auto rank = std::max(format.dimension(), dims.size());
+    auto default_fmt = format::get_default_format(rank, format::is_weights_format(format), format::is_grouped(format));
+    if (default_fmt.dimension() > dims.size()) {
+        dims.insert(dims.end(), default_fmt.dimension() - dims.size(), 1);
+    }
+
+    while (dims.size() > default_fmt.dimension()) {
+        dims.pop_back();
+    }
+
+    std::vector<tensor::value_type> res(dims.size());
+    for (size_t i = 0; i < res.size(); i++) {
+        res[i] = dims[i] + data_padding.upper_size()[i] + data_padding.lower_size()[i];   // Cecilia TODO: export data_padding fileds?
     }
     return res;
 
@@ -375,28 +390,24 @@ size_t layout::get_linear_offset(const std::initializer_list<tensor::value_type>
     std::transform(pad_after.begin(), pad_after.begin() + shape.size(), padded_sizes.begin(),
                padded_sizes.begin(), std::plus<tensor::value_type>());
 
-    // Cecilia: TODO
-    auto to_tensor = [](const cldnn::format &format, std::vector<tensor::value_type> &shape) {
+    // Cecilia: TODO rework this piece to not depend on tensor.
+    auto rank = std::max(format.dimension(), padded_sizes.size());
+    auto default_fmt = format::get_default_format(rank, format::is_weights_format(format), format::is_grouped(format));
+    auto to_tensor = [default_fmt](const cldnn::format &format, std::vector<tensor::value_type> &shape, tensor::value_type default_val = 0) {
         std::vector<tensor::value_type> dims;
         for (auto dim : shape) {
             dims.push_back(static_cast<tensor::value_type>(dim));
         }
-
-        auto rank = std::max(format.dimension(), dims.size());
-        auto default_fmt = format::get_default_format(rank, format::is_weights_format(format), format::is_grouped(format));
         if (default_fmt.dimension() > dims.size()) {
-            dims.insert(dims.end(), default_fmt.dimension() - dims.size(), 1);
-        }
-
-        while (dims.size() > default_fmt.dimension()) {
-            dims.pop_back();
+            dims.insert(dims.end(), default_fmt.dimension() - dims.size(), default_val);
         }
 
         return tensor(default_fmt, dims);
     };
 
-    auto t = to_tensor(format, padded_sizes);
-    return t.get_linear_offset(to_tensor(format, padded_index), format);
+    auto t = to_tensor(format, padded_sizes, 1);  // padded_sizes in logical order
+    auto t_index = to_tensor(default_fmt, padded_index);  // padded_index in logical order
+    return t.get_linear_offset(t_index, format);
 }
 
 /// @brief Get aligned linear size calculated as multiplication of all elements.
