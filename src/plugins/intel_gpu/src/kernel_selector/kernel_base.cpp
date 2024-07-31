@@ -140,8 +140,10 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
     if (conf.empty())
         return jit;
 
-    if (params.fused_ops.size() == 1 && params.fused_ops[0].GetType() == KernelType::REORDER)
+    if (std::all_of(params.fused_ops.cbegin(), params.fused_ops.cend(),
+        [](fused_operation_desc desc) { return desc.GetType() == KernelType::REORDER; })) {
         return jit;
+    }
 
     try {
         for (auto& c : conf) {

@@ -11,6 +11,7 @@
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/crop.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/reshape.hpp>
 
 #include <algorithm>
 #include <array>
@@ -9931,6 +9932,59 @@ TEST(convolution_gpu_onednn, has_proper_synchronization) {
     for (size_t i = 0; i < res_ref->get_layout().get_linear_size(); ++i) {
         ASSERT_EQ(test_mem[i], ref_mem[i]);
     }
+}
+
+// A test that detects crashes in OneDNN convolution selection checks
+TEST(convolution_gpu_onednn, grouped_runtime_weights) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    int64_t input_b = 1, input_f = 256, input_y = 29, input_x = 29;
+    auto input_size = ov::PartialShape{ input_b, input_f, input_y, input_x };
+    auto input_data = rg.generate_random_4d<ov::float16>(input_b, input_f, input_y, input_x, -1, 1);
+    auto input_data_byxf = flatten_4d(format::byxf, input_data);
+    auto input_mem = engine.allocate_memory({ input_size, data_types::f16, format::byxf });
+    set_values(input_mem, input_data_byxf);
+
+    int64_t weights_b = 1, weights_f = 256, weights_y = 5, weights_x = 5;
+    auto weights_size = ov::PartialShape{ weights_b, weights_f, weights_y, weights_x };
+    auto weights_data = rg.generate_random_4d<ov::float16>(weights_b, weights_f, weights_y, weights_x, -1, 1);
+    auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
+    auto weights_mem = engine.allocate_memory({ weights_size, data_types::f16, format::bfyx });
+    set_values(weights_mem, weights_data_bfyx);
+
+    auto input = input_layout("input", input_mem->get_layout());
+    auto weights = input_layout("weights", weights_mem->get_layout());
+    auto weights_reshape = reshape("reshaped_weights", input_info("weights"), true, { 256, 1, 1, 5, 5 }, { 256, 1, 1, 5, 5 });
+    auto conv = convolution("conv", input_info("input"), "reshaped_weights", no_bias, 256, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 0, 0 }, true);
+    auto output_reorder = reorder("reorder", input_info("conv"), { data_types::f32, format::bfyx, { 1, 256, 25, 25 } });
+
+    topology topology(input, weights, weights_reshape, conv, output_reorder);
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::byxf, "", impl_types::onednn };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl }}));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+
+    network.set_input_data("input", input_mem);
+    network.set_input_data("weights", weights_mem);
+
+    auto output = network.execute();
+
+    ASSERT_EQ(output.size(), size_t(1));
+    ASSERT_EQ(output.begin()->first, "reorder");
+
+    auto output_memory = output.at("reorder").get_memory();
+    auto output_layout = output_memory->get_layout();
+    cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+    ASSERT_EQ(output_layout.get_shape(), ov::Shape({1, 256, 25, 25}));
 }
 
 #endif   // ENABLE_ONEDNN_FOR_GPU
