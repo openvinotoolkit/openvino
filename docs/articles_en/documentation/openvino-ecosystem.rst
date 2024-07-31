@@ -16,6 +16,7 @@ OpenVINO™ Ecosystem Overview
    openvino-ecosystem/openvino-security-add-on
 
 
+
 OpenVINO™ is a big project, offering more than just the core runtime. This page will give
 you an overview of a whole ecosystem of tools and solutions under the OpenVINO umbrella.
 
@@ -66,7 +67,7 @@ without the need to convert.
 
 | **OpenVINO Training Extensions**
 | :bdg-link-dark:`Github <https://github.com/openvinotoolkit/training_extensions>`
-| :bdg-link-success:`Overview Page <https://docs.openvino.ai/2024/documentation/openvino-ecosystem/openvino-training-extensions.html>`
+  :bdg-link-success:`Overview Page <https://docs.openvino.ai/2024/documentation/openvino-ecosystem/openvino-training-extensions.html>`
 
 A convenient environment to train Deep Learning models and convert them using the OpenVINO™
 toolkit for optimized inference.
@@ -75,7 +76,7 @@ toolkit for optimized inference.
 
 | **OpenVINO Security Addon**
 | :bdg-link-dark:`Github <https://github.com/openvinotoolkit/security_addon>`
-| :bdg-link-success:`User Guide <https://docs.openvino.ai/2024/documentation/openvino-ecosystem/openvino-security-add-on.html>`
+  :bdg-link-success:`User Guide <https://docs.openvino.ai/2024/documentation/openvino-ecosystem/openvino-security-add-on.html>`
 
 A solution for Model Developers and Independent Software Vendors to use secure packaging and
 secure model execution.
@@ -84,7 +85,7 @@ secure model execution.
 
 | **Datumaro**
 | :bdg-link-dark:`Github <https://github.com/openvinotoolkit/datumaro>`
-| :bdg-link-success:`Overview Page <https://docs.openvino.ai/2024/documentation/openvino-ecosystem/datumaro.html>`
+  :bdg-link-success:`Overview Page <https://docs.openvino.ai/2024/documentation/openvino-ecosystem/datumaro.html>`
 
 A framework and a CLI tool for building, transforming, and analyzing datasets.
 |hr|
@@ -92,7 +93,7 @@ A framework and a CLI tool for building, transforming, and analyzing datasets.
 
 | **Intel® Geti™**
 | :bdg-link-dark:`Github <https://github.com/openvinotoolkit/geti-sdk>`
-| :bdg-link-info:`Official Website <https://geti.intel.com/>`
+  :bdg-link-info:`Official Website <https://geti.intel.com/>`
 
 Intel's new software for building computer vision
 models in a fraction of the time and with less data. This software eases laborious
@@ -103,7 +104,7 @@ development process, empowering teams to produce custom AI models at scale.
 
 | **Tokenizers**
 | :bdg-link-dark:`Github <https://github.com/openvinotoolkit/openvino_tokenizers>`
-| :bdg-link-success:`User Guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/ov-tokenizers.html>`
+  :bdg-link-success:`User Guide <https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/ov-tokenizers.html>`
 
 OpenVINO Tokenizers add text processing operations to OpenVINO.
 |hr|
@@ -111,23 +112,22 @@ OpenVINO Tokenizers add text processing operations to OpenVINO.
 
 | **OpenVINO's Open Model Zoo**
 | :bdg-link-dark:`Github <https://github.com/openvinotoolkit/open_model_zoo>`
-| :bdg-link-success:`User Guide <https://docs.openvino.ai/nightly/documentation/legacy-features/model-zoo.html>`
+  :bdg-link-success:`User Guide <https://docs.openvino.ai/nightly/documentation/legacy-features/model-zoo.html>`
 
 Open Model Zoo includes optimized deep learning models and a set of demos to
 expedite development of high-performance deep learning inference applications.
-|hr|
 
+OpenVINO-based AI projects
+##########################
 
-| **Awesome OpenVINO repository**
-| :bdg-link-dark:`Github <https://github.com/openvinotoolkit/awesome-openvino>`
-
-A repository listing a selection of OpenVINO-based AI projects, such as
-`OpenVINO™ AI Plugins for GIMP <https://github.com/intel/openvino-ai-plugins-gimp>`__,
+OpenVINO is used in many educational, multimodal, and AI projects in the fields of AI Audio,
+Natural Language Processing, AI Computer Vision, Generative AI, operating systems and API extensions.
+Examples of such projects are: `OpenVINO AI Plugins for GIMP <https://github.com/intel/openvino-ai-plugins-gimp>`__,
 `OpenVINO Code <https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/openvino_code>`__, and
 `NVIDIA GPU Plugin <https://github.com/openvinotoolkit/openvino_contrib/tree/master/modules/nvidia_plugin>`__.
-|hr|
 
-
+A detailed listing of OpenVINO-based AI projects is available in the
+`Awesome OpenVINO repository <https://github.com/openvinotoolkit/awesome-openvino>`__
 
 
 
