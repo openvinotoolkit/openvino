@@ -19,7 +19,6 @@ RUN apt-get update && \
     apt-get install \
         curl \
         git \
-        ca-certificates \
         gpg-agent \
         tzdata \
         libtbb2 \
@@ -27,9 +26,6 @@ RUN apt-get update && \
         python3.11-dev \
         python3.11-venv \
         python3.11-distutils \
-        python3-dev \
-        python3-venv \
-        python3-pip \
         # For Java API
         default-jdk \
         && \

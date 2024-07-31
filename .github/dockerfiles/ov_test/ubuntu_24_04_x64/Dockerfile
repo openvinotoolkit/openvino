@@ -13,8 +13,6 @@ ENV DEBIAN_FRONTEND="noninteractive" \
 
 RUN apt-get update && \
     apt-get install software-properties-common && \
-    add-apt-repository --yes --no-update ppa:git-core/ppa && \
-    add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
     apt-get update && \
     apt-get install \
         curl \
@@ -23,8 +21,7 @@ RUN apt-get update && \
         tzdata \
         # Python
         python3-full \
-        # For Java API
-        default-jdk \
+        libhdf5-dev \
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -33,18 +30,6 @@ ADD install_build_dependencies.sh /install_build_dependencies.sh
 RUN chmod +x /install_build_dependencies.sh && \
     /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
-
-# Install sscache
-ARG SCCACHE_VERSION="v0.7.5"
-ENV SCCACHE_HOME="/opt/sccache" \
-    SCCACHE_PATH="/opt/sccache/sccache"
-
-RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
-    SCCACHE_ARCHIVE="sccache-${SCCACHE_VERSION}-x86_64-unknown-linux-musl.tar.gz" && \
-    curl -SLO https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/${SCCACHE_ARCHIVE} && \
-    tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
-
-ENV PATH="$SCCACHE_HOME:$PATH"
 
 # Create a virtual environment for the system Python as Python in Ubuntu 24 complains about installing
 # packages into the system Python
@@ -56,3 +41,4 @@ ENV PIP_VERSION="24.0"
 RUN /venv/bin/python3 -m pip install --upgrade pip==${PIP_VERSION}
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
+ENV PIP_INSTALL_PATH=/venv/lib/python3/site-packages

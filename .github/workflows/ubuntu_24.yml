@@ -68,6 +68,7 @@ jobs:
         with:
           images: |
             ov_build/ubuntu_24_04_x64
+            ov_test/ubuntu_24_04_x64
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
@@ -83,9 +84,26 @@ jobs:
       event-name: ${{ github.event_name }}
       os: 'ubuntu_24_04'
 
+  Debian_Packages:
+    name: Debian Packages
+    needs: [ Docker, Build ]
+    uses: ./.github/workflows/job_debian_packages.yml
+    with:
+      runner: 'aks-linux-4-cores-16gb'
+      image: 'openvinogithubactions.azurecr.io/dockerhub/ubuntu:24.04'
+
+  Samples:
+    needs: [ Docker, Build, Smart_CI ]
+    if: fromJSON(needs.smart_ci.outputs.affected_components).samples
+    uses: ./.github/workflows/job_samples_tests.yml
+    with:
+      runner: 'aks-linux-4-cores-16gb'
+      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}", "volumes": ["/mount:/mount"]}'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+
   Overall_Status:
     name: ci/gha_overall_status_ubuntu_24
-    needs: [Smart_CI, Build]
+    needs: [Smart_CI, Build, Debian_Packages, Samples]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

@@ -20,7 +20,6 @@ RUN apt-get update && \
         curl \
         wget \
         git \
-        ca-certificates \
         gpg-agent \
         tzdata \
         # Python

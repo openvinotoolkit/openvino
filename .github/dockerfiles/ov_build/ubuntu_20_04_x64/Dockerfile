@@ -19,13 +19,8 @@ RUN apt-get update && \
     apt-get install \
         curl \
         git \
-        ca-certificates \
         gpg-agent \
         tzdata \
-        # Python (3.8)
-        python3-dev \
-        python3-venv \
-        python3-pip \
         # For Java API
         default-jdk \
         # Compiler \
