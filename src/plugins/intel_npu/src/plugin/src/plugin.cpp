@@ -708,9 +708,6 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) con
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
     OV_ITT_TASK_CHAIN(PLUGIN_IMPORT_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "merge_configs");
-    if (!stream) {
-        _logger.error("Stream is in bad status!");
-    }
 
     const std::map<std::string, std::string> propertiesMap = any_copy(properties);
     auto localConfig = merge_configs(_globalConfig, propertiesMap, OptionMode::RunTime);
@@ -741,7 +738,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         std::vector<uint8_t> blob(graphSize);
         stream.read(reinterpret_cast<char*>(blob.data()), graphSize);
         if (!stream) {
-            _logger.error("Stream is in bad status after reading!");
+            OPENVINO_THROW("Blob is in exceptional state after reading!");
         }
 
         auto meta = compiler->parse(blob, localConfig);

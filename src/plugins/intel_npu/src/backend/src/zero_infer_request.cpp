@@ -131,7 +131,7 @@ std::optional<size_t> getBatchSize(
     }
 
     if (batch_size.size() != 1) {
-        logger.warning("Batching works only when we have the same batch size for all tensors!");
+        logger.info("Batching works only when we have the same batch size for all tensors!");
         return std::nullopt;
     }
 
