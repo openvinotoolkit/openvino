@@ -19,12 +19,10 @@ class Identity(Op):
 # ! [op:header]
 
 # ! [op:ctor]
-    def __init__(self, inputs, attrs=None):
+    def __init__(self, inputs):
         super().__init__(self)
         self.set_arguments(inputs)
         self.constructor_validate_and_infer_types()
-        if attrs is not None:
-            self._attrs = attrs
 # ! [op:ctor]
 
 # ! [op:validate]
@@ -39,8 +37,6 @@ class Identity(Op):
 
 # ! [op:evaluate]
     def evaluate(self, outputs, inputs):
-        if np.array_equal(outputs[0].data, inputs[0].data):  # Nothing to do
-            return True
         outputs[0].shape = inputs[0].shape
         inputs[0].copy_to(outputs[0])
         return True
@@ -51,7 +47,5 @@ class Identity(Op):
 
 # ! [op:visit_attributes]
     def visit_attributes(self, visitor):
-        if hasattr(self, "_attrs"):
-            visitor.on_attributes(self._attrs)
         return True
 # ! [op:visit_attributes]
