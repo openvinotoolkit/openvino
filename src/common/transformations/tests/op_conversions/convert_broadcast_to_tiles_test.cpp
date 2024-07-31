@@ -32,8 +32,8 @@ TEST(TransformationTests, ConvertBroadcastToTilesDynamic) {
         pass::Manager manager;
         manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::ConvertBroadcastToTiles>();
-        ASSERT_NO_THROW(manager.run_passes(f));
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(manager.run_passes(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
     // TODO: construct reference graph and use TEST_F
 }

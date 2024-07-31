@@ -163,6 +163,14 @@ bool NPUBackends::isBatchingSupported() const {
     return false;
 }
 
+bool NPUBackends::isWorkloadTypeSupported() const {
+    if (_backend != nullptr) {
+        return _backend->isWorkloadTypeSupported();
+    }
+
+    return false;
+}
+
 std::shared_ptr<IDevice> NPUBackends::getDevice(const std::string& specificName) const {
     _logger.debug("Searching for device %s to use started...", specificName.c_str());
     // TODO iterate over all available backends
@@ -196,6 +204,14 @@ void NPUBackends::registerOptions(OptionsDesc& options) const {
     if (_backend != nullptr) {
         _backend->registerOptions(options);
     }
+}
+
+void* NPUBackends::getContext() const {
+    if (_backend != nullptr) {
+        return _backend->getContext();
+    }
+
+    OPENVINO_THROW("No available backend");
 }
 
 // TODO config should be also specified to backends, to allow use logging in devices and all levels below

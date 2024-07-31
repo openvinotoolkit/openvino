@@ -21,7 +21,7 @@
 #include "snippets/pass/gn_decomposition.hpp"
 
 #include "snippets/runtime_configurator.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/lowered/linear_ir.hpp"
@@ -54,6 +54,7 @@
 #include "snippets/lowered/pass/normalize_loop_ids.hpp"
 #include "snippets/lowered/pass/validate_expanded_loops.hpp"
 #include "snippets/lowered/pass/set_load_store_scalar.hpp"
+#include "snippets/lowered/pass/extract_loop_invariants.hpp"
 
 #include "transformations/utils/utils.hpp"
 
@@ -459,6 +460,7 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     pipeline.register_pass<lowered::pass::MoveScalarToConsumer>();
     pipeline.register_pass<lowered::pass::InsertBroadcastMove>();
     pipeline.register_pass<lowered::pass::LoadMoveBroadcastToBroadcastLoad>();
+    pipeline.register_pass<lowered::pass::ExtractLoopInvariants>();
     pipeline.register_pass<lowered::pass::ValidateShapes>();
     pipeline.register_pass<lowered::pass::ValidateUnifiedLoops>();
     pipeline.register_pass<lowered::pass::InitLoops>();
@@ -470,7 +472,7 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     pipeline.run(*m_linear_ir);
 
 #ifdef SNIPPETS_DEBUG_CAPS
-    if (m_linear_ir->get_config().perf_count_mode != lowered::PerfCountMode::Disabled) {
+    if (m_linear_ir->get_config().debug_config.perf_count_mode != DebugCapsConfig::PerfCountMode::Disabled) {
         lowered::pass::InsertPerfCount perf_count_pass({});
         perf_count_pass.run(*m_linear_ir, m_linear_ir->cbegin(), m_linear_ir->cend());
     }
@@ -544,13 +546,13 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
     auto lowering_result = m_generator->generate(linear_ir, compile_params);
 
     // Note: Since the code emission is performed on a copy of LIR, but RuntimeConfigurator works with the initial instance,
-    //  we need to replace cloned expression pointers to original ones in the KernelExecutorTable
+    //  we need to replace cloned expression pointers to original ones in the KernelExecutorTable. Ticket: 129772
     const auto& exec_table = m_generator->get_target_machine()->get_runtime_configurator()->get_kernel_executor_table();
     for (const auto& expr : *m_linear_ir)
         exec_table->replace_key_expression(expression_map.at(expr.get()), expr);
     // Some kernel executors might've been registered during code emission.
     //  We need to update them, so appropriate kernels will be compiled.
-    exec_table->update_state();
+    exec_table->update_state(m_linear_ir);
     return {std::move(lowering_result)};
 }
 

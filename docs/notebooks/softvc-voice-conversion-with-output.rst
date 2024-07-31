@@ -18,8 +18,8 @@ audio are preserved.
 
 In this tutorial we will use the base model flow.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Prerequisites <#prerequisites>`__
 -  `Use the original model to run an
@@ -35,6 +35,7 @@ Prerequisites
 
 .. code:: ipython3
 
+    %pip install -qU "pip<24.1"  # to fix fairseq install problem
     %pip install -q "openvino>=2023.2.0"
     !git clone https://github.com/svc-develop-team/so-vits-svc -b 4.1-Stable
     %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu  tqdm librosa "torch>=2.1.0" "torchaudio>=2.1.0" faiss-cpu "gradio>=4.19" "numpy>=1.23.5" "fairseq==0.12.2" praat-parselmouth
@@ -51,21 +52,21 @@ own <https://github.com/svc-develop-team/so-vits-svc#%EF%B8%8F-training>`__.
 
     # Fetch `notebook_utils` module
     import requests
-    
+
     r = requests.get(
         url="https://raw.githubusercontent.com/openvinotoolkit/openvino_notebooks/latest/utils/notebook_utils.py",
     )
-    
+
     open("notebook_utils.py", "w").write(r.text)
     from notebook_utils import download_file
-    
+
     # ContentVec
     download_file(
         "https://huggingface.co/lj1995/VoiceConversionWebUI/resolve/main/hubert_base.pt",
         "checkpoint_best_legacy_500.pt",
         directory="so-vits-svc/pretrain/",
     )
-    
+
     # pretrained models and configs from a collection of so-vits-svc-4.0 models. You can use other models.
     download_file(
         "https://huggingface.co/therealvul/so-vits-svc-4.0/resolve/main/Rainbow%20Dash%20(singing)/kmeans_10000.pt",
@@ -87,7 +88,7 @@ own <https://github.com/svc-develop-team/so-vits-svc#%EF%B8%8F-training>`__.
         "D_30400.pth",
         directory="so-vits-svc/logs/44k/",
     )
-    
+
     # a wav sample
     download_file(
         "https://huggingface.co/datasets/santifiorino/spinetta/resolve/main/spinetta/000.wav",
@@ -112,7 +113,7 @@ Define the Sovits Model.
 .. code:: ipython3
 
     from inference.infer_tool import Svc
-    
+
     model = Svc("logs/44k/G_30400.pth", "configs/config.json", device="cpu")
 
 Define ``kwargs`` and make an inference.
@@ -128,7 +129,7 @@ Define ``kwargs`` and make an inference.
         "auto_predict_f0": False,
         "noice_scale": 0.4,
     }
-    
+
     audio = model.slice_inference(**kwargs)
 
 And let compare the original audio with the result.
@@ -136,7 +137,7 @@ And let compare the original audio with the result.
 .. code:: ipython3
 
     import IPython.display as ipd
-    
+
     # original
     ipd.Audio("raw/000.wav", rate=model.target_sample)
 
@@ -168,14 +169,14 @@ without need to look inside.
     import openvino as ov
     import torch
     from pathlib import Path
-    
-    
+
+
     dummy_c = torch.randn(1, 256, 813)
     dummy_f0 = torch.randn(1, 813)
     dummy_uv = torch.ones(1, 813)
     dummy_g = torch.tensor([[0]])
     model.net_g_ms.forward = model.net_g_ms.infer
-    
+
     net_g_kwargs = {
         "c": dummy_c,
         "f0": dummy_f0,
@@ -187,10 +188,10 @@ without need to look inside.
         "vol": torch.tensor(0),
     }
     core = ov.Core()
-    
-    
+
+
     net_g_model_xml_path = Path("models/ov_net_g_model.xml")
-    
+
     if not net_g_model_xml_path.exists():
         converted_model = ov.convert_model(model.net_g_ms, example_input=net_g_kwargs)
         net_g_model_xml_path.parent.mkdir(parents=True, exist_ok=True)
@@ -207,16 +208,16 @@ Select a device from dropdown list for running inference using OpenVINO.
 
     import ipywidgets as widgets
     import openvino as ov
-    
+
     core = ov.Core()
-    
+
     device = widgets.Dropdown(
         options=core.available_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 We should create a wrapper for ``net_g_ms`` model to keep it’s
@@ -230,16 +231,16 @@ on a device.
         def __init__(self, net_g_model_xml_path):
             super().__init__()
             self.net_g_model = core.compile_model(net_g_model_xml_path, device.value)
-    
+
         def infer(self, c, *, f0, uv, g, noice_scale=0.35, seed=52468, predict_f0=False, vol=None):
             if vol is None:  # None is not allowed as an input
                 results = self.net_g_model((c, f0, uv, g, noice_scale, seed, predict_f0))
             else:
                 results = self.net_g_model((c, f0, uv, g, noice_scale, seed, predict_f0, vol))
-    
+
             return torch.from_numpy(results[0]), torch.from_numpy(results[1])
-    
-    
+
+
     model.net_g_ms = NetGModelWrapper(net_g_model_xml_path)
     audio = model.slice_inference(**kwargs)
 
@@ -248,7 +249,7 @@ Check result. Is it identical to that created by the original model.
 .. code:: ipython3
 
     import IPython.display as ipd
-    
+
     ipd.Audio(audio, rate=model.target_sample)
 
 Interactive inference
@@ -259,26 +260,26 @@ Interactive inference
 .. code:: ipython3
 
     import gradio as gr
-    
-    
+
+
     src_audio = gr.Audio(label="Source Audio", type="filepath")
     output_audio = gr.Audio(label="Output Audio", type="numpy")
-    
+
     title = "SoftVC VITS Singing Voice Conversion with Gradio"
     description = f'Gradio Demo for SoftVC VITS Singing Voice Conversion and OpenVINO™. Upload a source audio, then click the "Submit" button to inference. Audio sample rate should be {model.target_sample}'
-    
-    
+
+
     def infer(src_audio, tran, slice_db, noice_scale):
         kwargs["raw_audio_path"] = src_audio
         kwargs["tran"] = tran
         kwargs["slice_db"] = slice_db
         kwargs["noice_scale"] = noice_scale
-    
+
         audio = model.slice_inference(**kwargs)
-    
+
         return model.target_sample, audio
-    
-    
+
+
     demo = gr.Interface(
         infer,
         [
@@ -306,7 +307,7 @@ Interactive inference
         description=description,
         examples=[["raw/000.wav", 0, -30, 0.4, False]],
     )
-    
+
     try:
         demo.queue().launch(debug=False)
     except Exception:

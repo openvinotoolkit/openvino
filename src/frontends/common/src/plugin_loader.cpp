@@ -114,7 +114,7 @@ void ov::frontend::find_plugins(const std::string& dir_name, std::vector<PluginI
             }) == res.end()) {
             res.emplace_back(std::move(plugin_info));
         } else {
-            OPENVINO_DEBUG << "Static frontend for '" << plugin_info.m_file_name << "' is already loaded\n";
+            OPENVINO_DEBUG("Static frontend for '", plugin_info.m_file_name, "' is already loaded\n");
         }
     }
 }
@@ -161,29 +161,38 @@ bool PluginInfo::load_internal() {
 #else
         so = ov::util::load_shared_object(m_file_path.c_str());
 #endif
-    } catch (const std::exception& ex) {
-        OPENVINO_DEBUG << "Error loading FrontEnd '" << m_file_path << "': " << ex.what()
-                       << " Please check that frontend library doesn't have unresolved dependencies." << std::endl;
+    }
+#ifdef ENABLE_OPENVINO_DEBUG
+    catch (const std::exception& ex) {
+        OPENVINO_DEBUG("Error loading FrontEnd '",
+                       m_file_path,
+                       "': ",
+                       ex.what(),
+                       " Please check that frontend library doesn't have unresolved dependencies.\n");
         return false;
     }
+#else
+    catch (const std::exception&) {
+        return false;
+    }
+#endif
 
     auto info_addr = reinterpret_cast<void* (*)()>(ov::util::get_symbol(so, "get_api_version"));
     if (!info_addr) {
-        OPENVINO_DEBUG << "Loaded FrontEnd [" << m_file_path << "] doesn't have API version" << std::endl;
+        OPENVINO_DEBUG("Loaded FrontEnd [", m_file_path, "] doesn't have API version");
         return false;
     }
     FrontEndVersion plug_info{reinterpret_cast<FrontEndVersion>(info_addr())};
 
     if (plug_info != OV_FRONTEND_API_VERSION) {
         // Plugin has incompatible API version, do not load it
-        OPENVINO_DEBUG << "Loaded FrontEnd [" << m_file_path << "] has incompatible API version" << plug_info
-                       << std::endl;
+        OPENVINO_DEBUG("Loaded FrontEnd [", m_file_path, "] has incompatible API version", plug_info, "\n");
         return false;
     }
 
     auto creator_addr = reinterpret_cast<void* (*)()>(ov::util::get_symbol(so, "get_front_end_data"));
     if (!creator_addr) {
-        OPENVINO_DEBUG << "Loaded FrontEnd [" << m_file_path << "] doesn't have Frontend Data" << std::endl;
+        OPENVINO_DEBUG("Loaded FrontEnd [", m_file_path, "] doesn't have Frontend Data", "\n");
         return false;
     }
 

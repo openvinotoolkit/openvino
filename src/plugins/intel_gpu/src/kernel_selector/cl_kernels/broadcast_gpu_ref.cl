@@ -253,6 +253,7 @@ inline uint FUNC(get_idx_pos)(OPTIONAL_SHAPE_INFO_ARG uint out_b, uint out_f, ui
 #define VLOAD CAT(vload, VEC_SIZE)
 #define VSTORE CAT(vstore,VEC_SIZE)
 #define INPUT0_VTYPE MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE)
+#define OUTPUT_VTYPE MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE)
 
 KERNEL(broadcast_gpu_ref)(
     OPTIONAL_SHAPE_INFO_ARG
@@ -322,7 +323,7 @@ KERNEL(broadcast_gpu_ref)(
             uint output_idx = out_pos;
             unroll_for(uint j = 0; j < y_nums; j++) {
                 unroll_for(uint i = 0; i < x_stride; i++) {
-                    output[output_idx + i] = input[idx_pos + i];
+                    output[output_idx + i] = TO_OUTPUT_TYPE(input[idx_pos + i]);
                 }
                 output_idx += OUTPUT_SIZE_X;
             }
@@ -330,7 +331,10 @@ KERNEL(broadcast_gpu_ref)(
             uint output_idx = out_pos;
             INPUT0_VTYPE input_vec = VLOAD(0, &input[idx_pos]);
             unroll_for(uint i = 0; i < y_nums; i++) {
-                VSTORE(input_vec, 0, &output[output_idx]);
+                OUTPUT_VTYPE out_v;
+                for (int j = 0; j < VEC_SIZE; ++j)
+                    out_v[j] = TO_OUTPUT_TYPE(input_vec[j]);
+                VSTORE(out_v, 0, &output[output_idx]);
                 output_idx += OUTPUT_SIZE_X;
             }
 
@@ -339,7 +343,7 @@ KERNEL(broadcast_gpu_ref)(
 
                 output_idx = out_pos;
                 unroll_for(uint i = 0; i < y_nums; i++) {
-                    output[output_idx + x_stride] = input_val;
+                    output[output_idx + x_stride] = TO_OUTPUT_TYPE(input_val);
                     output_idx += OUTPUT_SIZE_X;
                 }
             }
@@ -375,7 +379,7 @@ KERNEL(broadcast_gpu_ref)(
         const uint out_pos = OUTPUT_GET_INDEX(out_b, out_f, out_y, out_x);
         const uint idx_pos = FUNC_CALL(get_idx_pos)(OPTIONAL_SHAPE_INFO_TENSOR out_b, out_f, out_y, out_x);
 #endif
-        output[out_pos] = input[idx_pos];
+        output[out_pos] = TO_OUTPUT_TYPE(input[idx_pos]);
     }
 }
 
