@@ -22,7 +22,7 @@ def setup_edit_url(app, pagename, templatename, context, doctree):
         return False
 
     def get_edit_url():
-        """Return a URL for an "edit this page" link."""
+        """Return a URL for an "Edit on GitHub" link."""
         doc_context = dict()
         doc_context.update(**context)
 
