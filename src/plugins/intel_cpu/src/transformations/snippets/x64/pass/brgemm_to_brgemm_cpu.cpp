@@ -31,7 +31,7 @@ using namespace snippets::lowered;
 
 namespace {
 std::vector<size_t> make_subtensor(const ov::Shape& tensor) {
-    return std::vector<size_t>(std::min(tensor.size(), size_t(2)), PortDescriptor::ServiceDimensions::FULL_DIM);
+    return std::vector<size_t>(std::min(tensor.size(), size_t(2)), ov::snippets::utils::get_full_dim_value());
 }
 template<typename T>
 void set_full_port_desc(const T& port) {

@@ -24,6 +24,7 @@ public:
         return std::unique_ptr<BrgemmKernelConfig>( new BrgemmKernelConfig(*this));
     }
     void update(dnnl_dim_t M, dnnl_dim_t N, dnnl_dim_t K, dnnl_dim_t LDA, dnnl_dim_t LDB, dnnl_dim_t LDC);
+    bool is_empty() const;
 
     dnnl_data_type_t get_dt_in0() const { return m_static_params->dt_in0; }
     dnnl_data_type_t get_dt_in1() const { return m_static_params->dt_in1; }
@@ -95,7 +96,9 @@ public:
 
 protected:
     std::shared_ptr<BrgemmCompiledKernel> compile_kernel(const BrgemmKernelConfig& c) const override;
-    void update_config(const ov::snippets::lowered::ExpressionPtr& expr, BrgemmKernelConfig& config) const override;
+    void update_config(const ov::snippets::lowered::ExpressionPtr& expr,
+                       const ov::snippets::lowered::LinearIRPtr& linear_ir,
+                       BrgemmKernelConfig& config) const override;
 };
 #define GET_OFF_BRGEMM_ARGS(field) offsetof(BrgemmKernelExecutor::call_args, field)
 
