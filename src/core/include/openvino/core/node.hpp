@@ -451,8 +451,8 @@ private:
     mutable std::string m_unique_name;
     mutable std::atomic_bool m_name_changing{false};
     static std::atomic<size_t> m_next_instance_id;
-    std::deque<descriptor::Input> m_inputs;
     std::deque<descriptor::Output> m_outputs;
+    std::deque<descriptor::Input> m_inputs;
     RTMap m_rt_info;
 
     // The vector of SharedRTInfo attributes associated to Functions

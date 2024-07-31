@@ -1540,6 +1540,18 @@ TEST(model, topological_sort_throws_if_loop_with_one_node) {
                  ov::Exception);
 }
 
+TEST(model, topological_sort_throws_if_loop_with_two_node) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
+    auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
+    // Loop relu1->relu2->relu1
+    relu1->input(0).replace_source_output(relu2->output(0));
+
+    auto result = std::make_shared<ov::opset8::Result>(relu2);
+    ASSERT_THROW(std::ignore = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{arg0}),
+                 ov::Exception);
+}
+
 TEST(model, topological_sort_throws_if_loop_with_several_nodes) {
     auto arg0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     auto relu1 = std::make_shared<ov::op::v0::Relu>(arg0);

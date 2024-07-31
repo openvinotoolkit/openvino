@@ -236,13 +236,17 @@ std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
         Node* node = nodes_to_do.top();
         if (nodes_done.count(node) == 0) {
             bool can_add = true;
-            if (++nodes_visited[node] > 2)
+            if (++nodes_visited[node] > 2) {
+                // break circular dependencies to release memory
+                node->set_arguments(OutputVector{});
+                node->clear_control_dependencies();
                 // Node may be at the top of `nodes_to_do` not more than twice before it's added to `nodes_done` -
                 // when visited and placed in `nodes_to_do` and after the subtree traversal is finished.
                 // Otherwise it's a loop.
                 OPENVINO_THROW("Loop detected during topological sort starting from '",
                                node->get_friendly_name(),
                                "' node.");
+            }
 
             size_t arg_count = node->get_input_size();
             for (size_t i = 0; i < arg_count; ++i) {
