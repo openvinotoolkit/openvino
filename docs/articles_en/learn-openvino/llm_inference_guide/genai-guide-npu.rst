@@ -53,22 +53,21 @@ Additional configuration options
 
 Compiling models for NPU may take a while. By default, LLMPipeline for NPU is configured for faster compilation, but it may result in lower performance. To achieve better performance at the expense of compilation time, you may try these settings:
 
+.. tab-set::
 
-    .. tab-set::
+   .. tab-item:: Python
+      :sync: py
 
-       .. tab-item:: Python
-          :sync: py
+      .. code-block:: python
 
-          .. code-block:: python
+         # Config here
 
-             # Config here
+   .. tab-item:: C++
+      :sync: cpp
 
-       .. tab-item:: C++
-          :sync: cpp
+      .. code-block:: cpp
 
-          .. code-block:: cpp
-
-             // Config here
+         // Config here
 
 
 Additional Resources
