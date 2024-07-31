@@ -71,17 +71,26 @@ KERNEL(rope_ref)(
     uint cos_sin_b = b < INPUT1_BATCH_NUM ? b : 0;
     uint cos_sin_p = p + INPUT1_FEATURE_NUM - INPUT0_FEATURE_NUM < INPUT1_FEATURE_NUM ? p + INPUT1_FEATURE_NUM - INPUT0_FEATURE_NUM : 0;
     uint cos_sin_h = h < INPUT1_SIZE_Y ? h : 0;
-    uint cos_sin_idx = INPUT1_GET_INDEX(cos_sin_b, cos_sin_p, cos_sin_h, 0);
+
+#ifndef SIN_COS_HAVE_DYNAMIC_PADDINGS
+    uint cos_sin_idx = INPUT1_GET_INDEX(cos_sin_b, cos_sin_h, cos_sin_p, 0);
+
+    uint cos_idx = cos_sin_idx;
+    uint sin_idx = cos_sin_idx;
+#else
+    uint cos_idx = INPUT1_GET_INDEX(cos_sin_b, cos_sin_h, cos_sin_p, 0);
+    uint sin_idx = INPUT2_GET_INDEX(cos_sin_b, cos_sin_h, cos_sin_p, 0);
+#endif
 
     uint output_idx = OUTPUT_GET_INDEX(b, p, h, 0);
 
     INPUT0_TYPE in1 = input[input_idx + r];
     INPUT0_TYPE in2 = input[input_idx + HALF_ROTARY_NDIMS + r];
 
-    output[output_idx + r] = cos[cos_sin_idx + r] * in1 - sin[cos_sin_idx + r] * in2;
+    output[output_idx + r] = cos[cos_idx + r] * in1 - sin[sin_idx + r] * in2;
 
-    output[output_idx + HALF_ROTARY_NDIMS + r] = cos[cos_sin_idx + HALF_ROTARY_NDIMS + r] * in2 +
-                                                 sin[cos_sin_idx + HALF_ROTARY_NDIMS + r] * in1;
+    output[output_idx + HALF_ROTARY_NDIMS + r] = cos[cos_idx + HALF_ROTARY_NDIMS + r] * in2 +
+                                                 sin[sin_idx + HALF_ROTARY_NDIMS + r] * in1;
 }
 #endif
 
@@ -128,16 +137,25 @@ KERNEL(rope_ref)(
     cos_sin_p = gather[gather_idx];
 #endif
     cos_sin_p = cos_sin_p < INPUT1_SIZE_Y ? cos_sin_p : 0;
+
+#ifndef SIN_COS_HAVE_DYNAMIC_PADDINGS
     uint cos_sin_idx = INPUT1_GET_INDEX(cos_sin_b, cos_sin_h, cos_sin_p, 0);
+
+    uint cos_idx = cos_sin_idx;
+    uint sin_idx = cos_sin_idx;
+#else
+    uint cos_idx = INPUT1_GET_INDEX(cos_sin_b, cos_sin_h, cos_sin_p, 0);
+    uint sin_idx = INPUT2_GET_INDEX(cos_sin_b, cos_sin_h, cos_sin_p, 0);
+#endif
 
     uint output_idx = OUTPUT_GET_INDEX(b, h, p, 0);
 
     INPUT0_TYPE in1 = input[input_idx + r];
     INPUT0_TYPE in2 = input[input_idx + HALF_ROTARY_NDIMS + r];
 
-    output[output_idx + r] = cos[cos_sin_idx + r] * in1 - sin[cos_sin_idx + r] * in2;
+    output[output_idx + r] = cos[cos_idx + r] * in1 - sin[sin_idx + r] * in2;
 
-    output[output_idx + HALF_ROTARY_NDIMS + r] = cos[cos_sin_idx + HALF_ROTARY_NDIMS + r] * in2 +
-                                                 sin[cos_sin_idx + HALF_ROTARY_NDIMS + r] * in1;
+    output[output_idx + HALF_ROTARY_NDIMS + r] = cos[cos_idx + HALF_ROTARY_NDIMS + r] * in2 +
+                                                 sin[sin_idx + HALF_ROTARY_NDIMS + r] * in1;
 }
 #endif
