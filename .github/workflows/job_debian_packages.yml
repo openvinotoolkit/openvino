@@ -48,7 +48,7 @@ jobs:
 
           if [[ "${{ runner.arch }}" == "X64" ]]; then
             # Install debian packages from previous release
-            apt-get install --no-install-recommends -y gnupg wget ca-certificates
+            apt-get install --no-install-recommends -y gnupg wget ca-certificates lsb-release
             wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
             apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
             

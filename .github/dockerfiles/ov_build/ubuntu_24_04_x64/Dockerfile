@@ -22,6 +22,9 @@ RUN apt-get update && \
         gpg-agent \
         tzdata \
         # Python
+        python3-dev \
+        python3-venv \
+        python3-pip \
         python3-full \
         # For Java API
         default-jdk \
