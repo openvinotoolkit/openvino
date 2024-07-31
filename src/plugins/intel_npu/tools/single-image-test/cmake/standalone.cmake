@@ -18,7 +18,7 @@ endif()
 
 find_package(Threads REQUIRED)
 find_package(OpenVINO REQUIRED COMPONENTS Runtime)
-find_package(TBB REQUIRED)
+find_package(TBB QUIET)
 find_package(OpenCV REQUIRED COMPONENTS core imgproc imgcodecs)
 
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../common" common EXCLUDE_FROM_ALL)
@@ -37,21 +37,28 @@ set(DEPENDENCIES
         Threads::Threads
         gflags
         openvino::runtime
-        TBB::tbb
         opencv_core
         opencv_imgproc
         opencv_imgcodecs
         npu_tools_utils
 )
 
-if (CMAKE_COMPILER_IS_GNUCXX)
-    target_compile_options(${TARGET_NAME} PRIVATE -Wall)
+if (TBB_FOUND)
+    list(APPEND DEPENDENCIES TBB::tbb)
+else()
+    message(WARNING
+        "TBB not found. We will try to build SIT without TBB. "
+        "If OpenVINO was built with TBB, you'll likely get a linking error. "
+        "Make sure you have called setupvars or have specified TBB_DIR.")
 endif()
 
 file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
 
 add_executable(${TARGET_NAME} ${SOURCES})
 target_link_libraries(${TARGET_NAME} PRIVATE ${DEPENDENCIES})
+if (CMAKE_COMPILER_IS_GNUCXX)
+    target_compile_options(${TARGET_NAME} PRIVATE -Wall)
+endif()
 
 install(TARGETS ${TARGET_NAME}
         DESTINATION "tools/${TARGET_NAME}"
