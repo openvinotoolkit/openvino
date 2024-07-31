@@ -85,7 +85,7 @@ Step 1: Download and Install OpenVINO Core Components
    .. code-block:: sh
 
       cd <user_home>/Downloads
-      curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.2/windows/w_openvino_toolkit_windows_2024.2.0.15519.5c0f38f83f6_x86_64.zip --output openvino_2024.2.0.zip
+      Invoke-WebRequest -Uri "https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.2/windows/w_openvino_toolkit_windows_2024.2.0.15519.5c0f38f83f6_x86_64.zip" -OutFile "openvino_2024.2.0.zip"
 
    .. note::
 
@@ -98,9 +98,9 @@ Step 1: Download and Install OpenVINO Core Components
 
    .. code-block:: sh
 
-      tar -xf openvino_2024.2.0.zip
-      ren w_openvino_toolkit_windows_2024.2.0.15519.5c0f38f83f6_x86_64 openvino_2024.2.0
-      move openvino_2024.2.0 "C:\Program Files (x86)\Intel"
+      Expand-Archive -Path "openvino_2024.2.0.zip" -DestinationPath .
+      Rename-Item -Path "w_openvino_toolkit_windows_2024.2.0.15519.5c0f38f83f6_x86_64" -NewName "openvino_2024.2.0"
+      Move-Item -Path "openvino_2024.2.0" -Destination "C:\Program Files (x86)\Intel"
 
 
 4. (Optional) Install *numpy* Python Library:
@@ -121,8 +121,8 @@ Step 1: Download and Install OpenVINO Core Components
 
    .. code-block:: sh
 
-      cd C:\Program Files (x86)\Intel
-      mklink /D openvino_2024 openvino_2024.2.0
+      cd "C:\Program Files (x86)\Intel"
+      New-Item -ItemType SymbolicLink -Path "openvino_2024" -Target "openvino_2024.2.0"
 
 
    .. note::
