@@ -74,6 +74,9 @@
 'category: NPU':
 - 'src/plugins/intel_npu/**/*'
 
+'category: NPUW':
+- 'src/plugins/intel_npu/src/plugin/npuw/**/*'
+
 'category: HETERO':
 - 'src/plugins/hetero/**/*'
 
