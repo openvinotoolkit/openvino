@@ -41,7 +41,7 @@ if ! [ "$(command -v ${BENCH_RUNNER})" ]; then
   echo "Missing benchmark runner ${BENCH_RUNNER}"
   exit 1
 fi
-if [ ${IS_DYNAMIC} ]; then
+if [ "${IS_DYNAMIC}" ]; then
   echo "Dynamic shapes are not supported by ${BENCH_RUNNER}"
   exit 1
 fi
@@ -53,7 +53,7 @@ if [ ! "${DATA_TYPE}" ]; then
     DATA_TYPE="f32"
 fi
 
-echo "Result type: time [ns]"
+echo "Result type: time [s]"
 for MB in "${MINI_BATCHES[@]}"; do
   echo "MLP - MB: ${MB} LAYERS: ${LAYERS[@]}"
   for LAYER in "${LAYERS[@]}"; do
