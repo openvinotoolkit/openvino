@@ -138,8 +138,8 @@ protected:
         const size_t k_blk = 16;
         const size_t n_blk = 64;
         const auto subtensor_scalar = std::vector<size_t>{1};
-        const auto subtensor_power = std::vector<size_t>{1, ov::snippets::lowered::PortDescriptor::ServiceDimensions::FULL_DIM};
-        const auto subtensor_full = std::vector<size_t>(2, ov::snippets::lowered::PortDescriptor::ServiceDimensions::FULL_DIM);
+        const auto subtensor_power = std::vector<size_t>{1, ov::snippets::utils::get_full_dim_value()};
+        const auto subtensor_full = std::vector<size_t>(2, ov::snippets::utils::get_full_dim_value());
 
         const auto parameter0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape({1, 12, 128, 64}));
         const auto parameter1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape({1, 128, 12, 64}));
@@ -196,8 +196,8 @@ protected:
         const size_t k_blk = 16;
         const size_t n_blk = 64;
         const auto subtensor_scalar = std::vector<size_t>{1};
-        const auto subtensor_power = std::vector<size_t>{1, ov::snippets::lowered::PortDescriptor::ServiceDimensions::FULL_DIM};
-        const auto subtensor_full = std::vector<size_t>(2, ov::snippets::lowered::PortDescriptor::ServiceDimensions::FULL_DIM);
+        const auto subtensor_power = std::vector<size_t>{1, ov::snippets::utils::get_full_dim_value()};
+        const auto subtensor_full = std::vector<size_t>(2, ov::snippets::utils::get_full_dim_value());
 
         const auto parameter0 = std::make_shared<ov::op::v0::Parameter>(ov::element::bf16, ov::PartialShape({1, 12, 128, 64}));
         const auto parameter1 = std::make_shared<ov::op::v0::Parameter>(ov::element::bf16, ov::PartialShape({1, 128, 12, 64}));

@@ -1316,7 +1316,7 @@ public:
         }
     }
 
-    void test_transpose_matmul_f16(size_t num_dims, bool is_input_dynamic, bool is_caching_test, std::vector<size_t> BMKN, std::vector<int64_t> input0_order, std::vector<int64_t> input1_order) {
+    void test_transpose_matmul_f16(size_t num_dims, bool is_input_dynamic, bool is_caching_test, std::vector<size_t> BMKN, std::vector<int64_t> input0_order, std::vector<int64_t> input1_order, const double abs_error = 0.0001) {
         tests::random_generator rg;
         rg.set_seed(GET_SUITE_NAME);
 
@@ -1411,7 +1411,6 @@ public:
 
         ASSERT_EQ(output_ptr.size(), ref_out_data.size());
 
-        const auto abs_error = 0.0001;
         for (uint32_t i = 0; i < ref_out_data.size(); ++i) {
             ASSERT_NEAR(output_ptr[i], ref_out_data[i], abs_error) << "at " << i;
         }
@@ -1487,8 +1486,20 @@ TEST_F(gemm_gpu_tests, transpose_matmul_static_3d_f16) {
     this->test_transpose_matmul_f16(3, false, false, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{0, 2, 1}, /*input1_order*/{1, 2, 0});
 }
 
+TEST_F(gemm_gpu_tests, transpose_matmul_static_3d_f16_n32) {
+    this->test_transpose_matmul_f16(3, false, false, /*BMKN*/{1, 256, 32, 128}, /*input0_order*/{0, 1, 2}, /*input1_order*/{0, 2, 1}, 0.1);
+}
+
 TEST_F(gemm_gpu_tests, transpose_matmul_static_3d_f32) {
     this->test_transpose_matmul_f32(3, false, false, /*BMKN*/{19, 37, 23, 29}, /*input0_order*/{0, 2, 1}, /*input1_order*/{1, 2, 0});
+}
+
+TEST_F(gemm_gpu_tests, transpose_matmul_static_3d_f32_n32) {
+    this->test_transpose_matmul_f32(3, false, false, /*BMKN*/{2, 128, 16, 256}, /*input0_order*/{0, 1, 2}, /*input1_order*/{0, 2, 1});
+}
+
+TEST_F(gemm_gpu_tests, transpose_matmul_static_3d_f32_n32_k_remainder) {
+    this->test_transpose_matmul_f32(3, false, false, /*BMKN*/{2, 128, 17, 256}, /*input0_order*/{0, 1, 2}, /*input1_order*/{0, 2, 1});
 }
 
 TEST_F(gemm_gpu_tests, transpose_matmul_dynamic_4d_f16_unaligned) {
