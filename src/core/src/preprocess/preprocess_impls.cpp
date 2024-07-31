@@ -69,7 +69,7 @@ InputInfo::InputInfoImpl::InputInfoData InputInfo::InputInfoImpl::create_new_par
                            [&](int64_t v) -> const Dimension& {
                                return new_param_shape[v];
                            });
-            new_param_shape = PartialShape(dims);
+            new_param_shape = PartialShape(std::move(dims));
         }
     } else {
         Layout new_layout;
@@ -77,7 +77,7 @@ InputInfo::InputInfoImpl::InputInfoData InputInfo::InputInfoImpl::create_new_par
             get_preprocess()->calculate_param_shape(new_param_shape, res.m_model_layout);
         if (res.m_tensor_layout.empty()) {
             // Reusing param's layout according to converted calculated layout
-            res.m_tensor_layout = new_layout;
+            res.m_tensor_layout = std::move(new_layout);
         }
     }
 

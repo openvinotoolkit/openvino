@@ -258,6 +258,7 @@ public:
                 uint32_t int64 : 1;
                 uint32_t F16 : 1;
                 uint32_t F32 : 1;
+                uint32_t BF16 : 1;
             } val;
             uint32_t raw;
         } DataTypesKey;
@@ -357,6 +358,21 @@ enum class dev_type {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Arch type
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+enum class gpu_arch {
+    unknown = 0,
+    gen9 = 1,
+    gen11 = 2,
+    xe_lp = 3,
+    xe_hp = 4,
+    xe_hpg = 5,
+    xe_hpc = 6,
+    xe2 = 7,
+};
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // EngineInfo
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct EngineInfo {
@@ -376,9 +392,12 @@ struct EngineInfo {
     bool enable_sub_groups_emulation = false;
     bool bOptHintsSupport = false;
     bool bLocalBlockIOSupport = false;
+    bool supports_microkernels = false;
     uint32_t vendor_id = 0x0;
     dev_type deviceType = dev_type::integrated_gpu;
     uint32_t computeUnitsCount = 0;
+    uint32_t ip_version = 0;
+    gpu_arch arch = gpu_arch::unknown;
     uint32_t maxThreadsPerExecutionUnit = 0;
     uint32_t maxThreadsPerDevice = 0;
     uint64_t maxWorkGroupSize = 0;
@@ -663,35 +682,29 @@ struct base_params : public Params {
 
     void set_dynamic_shape_offsets() override {
         size_t offset = 0;
-        for (auto& in : inputs) {
-            in.SetDynamicShapeOffset(offset);
-            if (in.is_dynamic()) {
+        auto update_offset = [&offset](DataTensor& tensor) {
+            tensor.SetDynamicShapeOffset(offset);
+            if (tensor.is_dynamic()) {
                 offset += DataTensor::max_rank();
-                for (auto dim : in.GetDims()) {
+                for (auto dim : tensor.GetDims()) {
                     if (dim.pad.is_dynamic)
                         offset += Tensor::Pad::NumPadOffsetsPerDim();
                 }
             }
+        };
+        for (auto& in : inputs) {
+            update_offset(in);
         }
         for (auto& fd : fused_ops) {
             if (!fd.has_outer_dep())
                 continue;
             auto& fused_op_inputs = fd.tensors;
             for (auto& fused_input : fused_op_inputs) {
-                fused_input.SetDynamicShapeOffset(offset);
-                if (fused_input.is_dynamic())
-                    offset += DataTensor::max_rank();
+                update_offset(fused_input);
             }
         }
         for (auto& out : outputs) {
-            out.SetDynamicShapeOffset(offset);
-            if (out.is_dynamic()) {
-                offset += DataTensor::max_rank();
-                for (auto& dim : out.GetDims()) {
-                    if (dim.pad.is_dynamic)
-                        offset += Tensor::Pad::NumPadOffsetsPerDim();
-                }
-            }
+            update_offset(out);
         }
     }
 

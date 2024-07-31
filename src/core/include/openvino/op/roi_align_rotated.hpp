@@ -55,7 +55,7 @@ public:
     }
 
 private:
-    bool m_clockwise_mode;
+    bool m_clockwise_mode{};
 };
 }  // namespace v15
 }  // namespace op

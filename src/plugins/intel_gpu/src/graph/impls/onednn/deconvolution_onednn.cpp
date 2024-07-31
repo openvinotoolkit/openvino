@@ -50,10 +50,6 @@ protected:
         return args;
     }
 
-    static std::shared_ptr<dnnl::primitive_attr> get_primitive_attributes(const typed_program_node<deconvolution>& arg) {
-        return arg.get_onednn_primitive_attributes();
-    }
-
     static std::shared_ptr<WeightsReorderParams> get_weights_reorder(const kernel_impl_params& impl_params, const dnnl::primitive_desc& pd) {
         auto cldnn_prim = impl_params.typed_desc<deconvolution>();
 
@@ -153,7 +149,7 @@ public:
     static std::unique_ptr<primitive_impl> create(const deconvolution_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
-        auto attr = get_primitive_attributes(arg);
+        auto attr = impl_params.attrs_onednn;
         auto prim_desc = get_deconvolution_primitive_descriptor(impl_params, *attr);
 
         return cldnn::make_unique<deconvolution_onednn>(engine, config, attr, *prim_desc, get_weights_reorder(impl_params, *prim_desc));

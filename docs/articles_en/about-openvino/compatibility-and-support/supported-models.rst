@@ -1,44 +1,33 @@
-Supported Models
-========================
+AI Models verified for OpenVINO™
+=====================================
 
-.. toctree::
-   :maxdepth: 1
-   :hidden:
+The following is a list of models that have been verified to work with OpenVINO. Note that other
+models from OpenVINO-supported frameworks may also work properly but have not been tested.
 
-   about-openvino/performance-benchmarks
-   about-openvino/compatibility-and-support
-   Release Notes <about-openvino/release-notes-openvino>
-   Additional Resources <about-openvino/additional-resources>
+**AI Models that run on Intel® Core Ultra™ Processors with OpenVINO™ toolkit:**
 
 .. raw:: html
-      
+
    <link rel="stylesheet" type="text/css" href="../../_static/css/openVinoDataTables.css">
-   <label>hide/reveal additional columns:</label><br/>
-   <label class="column-container">
-       Topology
-      <input type="checkbox" id="topology" name="topology" value="topology" data-column="0" class="toggle-vis"/>
-      <label for="topology" class="checkmark"></label>
-   </label>
-   <label class="column-container">
-      Source framework
-      <input type="checkbox" checked id="source" name="source" value="source" data-column="1" class="toggle-vis"/>
-      <label for="source" class="checkmark"></label>
-   </label>
-   <label class="column-container">
-      Precision
-      <input type="checkbox" checked id="precision" name="precision" value="precision" data-column="2" class="toggle-vis"/>
-      <label for="precision" class="checkmark"></label>
-   </label>
-   <label class="column-container">
-      Arc
-      <input type="checkbox" checked id="arc" name="arc" value="arc" data-column="6" class="toggle-vis"/>
-      <label for="arc" class="checkmark"></label>
-   </label>
+
 
 .. csv-table::
    :class: modeldata stripe
    :name: supportedModelsTable
    :header-rows: 1
-   :file:  ../../_static/models.csv
+   :file:  ../../_static/download/supported_models.csv
 
+
+Check marks indicate models that passed inference with no errors. Empty cells indicate models
+that were not tested. No failing runs producing an error have been recorded.
+
+In the precision column, the "optimum-intel default" label corresponds to FP32 for small models
+and INT8 for models greater than 1B parameters.
+
+
+| Note:
+| The results as of June 17 2024, for OpenVINO version 2024.2.
+| The models come from different public model repositories, such as Pytorch Model Zoo and
+  HuggingFace; they were executed on the designated hardware with OpenVINO either natively or
+  as a backend.
 

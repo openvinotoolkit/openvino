@@ -34,6 +34,7 @@
 #include <gmock/gmock.h>
 #include "random_gen.h"
 #include "uniform_quantized_real_distribution.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "to_string_utils.h"
 #include "program_node.h"
 

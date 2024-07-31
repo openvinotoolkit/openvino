@@ -37,6 +37,7 @@
         "openvino-onnx-frontend-maintainers": "category: ONNX FE",
         "openvino-ie-tests-maintainers": "category: IE Tests",
         "openvino-mo-maintainers": "category: MO",
+        "openvino-ovc-maintainers": "category: OVC",
         "openvino-ngraph-maintainers": "category: Core",
         "openvino-scripts-maintainers": "category: build",
         "openvino-tests-maintainers": "category: IE Tests",

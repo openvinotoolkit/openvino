@@ -36,6 +36,9 @@ class TorchScriptPythonDecoder (Decoder):
         self._input_is_list = False
         self.constant_cache = constant_cache if constant_cache is not None else dict()
         self.module_extensions = module_extensions
+        self.config = None
+        if hasattr(pt_module, "config"):
+            self.config = pt_module.config.to_dict() if not isinstance(pt_module.config, dict) else pt_module.config
         if graph_element is None:
             try:
                 pt_module = self._get_scripted_model(
@@ -96,6 +99,7 @@ class TorchScriptPythonDecoder (Decoder):
         if isinstance(pt_module, torch.nn.Module):
             pt_module.eval()
         input_signature = None
+        input_parameters = None
         if isinstance(pt_module, torch.nn.Module) and not isinstance(pt_module, (torch.jit._trace.TopLevelTracedModule, torch.jit._script.RecursiveScriptModule)):
             # input params is dictionary contains input names and their signature values (type hints and default values if any)
             input_params = inspect.signature(pt_module.forward if hasattr(
@@ -150,8 +154,10 @@ class TorchScriptPythonDecoder (Decoder):
                     scripted, preserved_attrs=preserved_attrs)
             else:
                 f_model = scripted
+            self._example_input = input_parameters["example_inputs"] if input_parameters else None
         else:
             f_model = pt_module
+            self._example_input = example_inputs
 
         self._input_signature = input_signature
         return f_model
@@ -486,6 +492,12 @@ class TorchScriptPythonDecoder (Decoder):
 
     def get_named_input(self, name):
         raise RuntimeError("There is no named inputs in TS graph")
+
+    def get_rt_info(self):
+        rt_info = {}
+        if self.config is not None and "quantization_config" in self.config and "sym" in self.config["quantization_config"]:
+            rt_info["symmetric_quantization"] = OVAny(self.config["quantization_config"]["sym"])
+        return rt_info
 
     @staticmethod
     def _transform_tensor_list_constants_to_listconstruct(graph: torch.Graph):

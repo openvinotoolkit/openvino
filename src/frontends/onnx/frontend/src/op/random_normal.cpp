@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op/random_normal.hpp"
-
+#include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/frontend/common/random_normal_helper.hpp"
 #include "openvino/op/constant.hpp"
 #include "utils/common.hpp"
-
 using namespace ov::op;
 using ::ONNX_NAMESPACE::TensorProto_DataType;
 using ov::Shape;
@@ -16,8 +14,8 @@ using ov::Shape;
 namespace ov {
 namespace frontend {
 namespace onnx {
-namespace op {
-namespace set_1 {
+namespace ai_onnx {
+namespace opset_1 {
 
 ov::OutputVector random_normal(const ov::frontend::onnx::Node& node) {
     CHECK_VALID_NODE(node, node.has_attribute("shape"), "RandomNormal operator must specify a 'shape' attribute.");
@@ -38,8 +36,9 @@ ov::OutputVector random_normal(const ov::frontend::onnx::Node& node) {
     return res.first;
 }
 
-}  // namespace set_1
-}  // namespace op
+ONNX_OP("RandomNormal", OPSET_SINCE(1), ai_onnx::opset_1::random_normal);
+}  // namespace opset_1
+}  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
 }  // namespace ov

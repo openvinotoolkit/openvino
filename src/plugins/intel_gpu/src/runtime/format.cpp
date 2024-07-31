@@ -25,6 +25,7 @@ static const std::map<format::type, format_traits> format_traits_map {
         FMT_TRAITS(yxfb,                  1, 1, 2, 0, {2, 3, 1, 0},             "yxfb",     "bfxy",     {}),
         FMT_TRAITS(byxf,                  1, 1, 2, 0, {0, 2, 3, 1},             "byxf",     "bfxy",     {}),
         FMT_TRAITS(bfyx,                  1, 1, 2, 0, {0, 1, 2, 3},             "bfyx",     "bfxy",     {}),
+        FMT_TRAITS(bfxy,                  1, 1, 2, 0, {0, 1, 3, 2},             "bfxy",     "bfxy",     {}),
         FMT_TRAITS(fbyx,                  1, 1, 2, 0, {1, 0, 2, 3},             "fbyx",     "bfxy",     {}),
         FMT_TRAITS(fyxb,                  1, 1, 2, 0, {1, 2, 3, 0},             "fyxb",     "bfxy",     {}),
         FMT_TRAITS(fybx,                  1, 1, 2, 0, {1, 2, 0, 3},             "fybx",     "bfxy",     {}),

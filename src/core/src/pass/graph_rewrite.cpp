@@ -141,16 +141,16 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
         // Keep this property check for backward compatibility. In future transformation property
         // will be deprecated and removed.
         if (m_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && f->is_dynamic()) {
-            OPENVINO_DEBUG << "matcher callback requires static shape but the "
-                              "model is dynamic, skipping this "
-                              "optimization till the shapes are fully "
-                              "materialized";
+            OPENVINO_DEBUG("matcher callback requires static shape but the "
+                           "model is dynamic, skipping this "
+                           "optimization till the shapes are fully "
+                           "materialized");
             return false;
         }
 
         // Apply MatcherPass. In case if it returns true no other MatcherPasses will apply
         // to this node
-        bool status = m_pass->apply(node);
+        bool status = m_pass->apply(std::move(node));
 
         // In case if MatcherPass registered nodes they will be added to the beginning of execution
         // queue
@@ -273,10 +273,10 @@ void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pat
     m_matcher = m;
     m_handler = [m, callback](const std::shared_ptr<Node>& node) -> bool {
         if (m->match(node->output(0))) {
-            OPENVINO_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+            OPENVINO_DEBUG("Matcher ", m->get_name(), " matched ", node);
             OV_PASS_CALLBACK(m);
             const bool status = callback(*m.get());
-            OPENVINO_DEBUG << "Matcher " << m->get_name() << " callback " << (status ? "succeded" : "failed");
+            OPENVINO_DEBUG("Matcher ", m->get_name(), " callback ", (status ? "succeded" : "failed"));
             // explicitly clear Matcher state because it holds pointers to matched nodes
             m->clear_state();
             return status;

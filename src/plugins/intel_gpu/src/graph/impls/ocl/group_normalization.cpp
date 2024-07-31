@@ -32,8 +32,13 @@ struct group_normalization_impl : typed_primitive_impl_ocl<group_normalization> 
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
+        // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
+        if (_kernel_data.params == nullptr) {
+            _kernel_data.params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true));
+        }
+
+        update_shapes(*_kernel_data.params, impl_param);
+        (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
     }
 };
 
@@ -43,23 +48,23 @@ attach_group_normalization_impl::attach_group_normalization_impl() {
     auto types = {data_types::f16, data_types::f32};
     auto formats = {
             format::bfyx,
-            format::byxf,
-            format::yxfb,
             format::bfzyx,
-            format::b_fs_yx_fsv2,
-            format::b_fs_zyx_fsv2,
-            format::b_fs_yx_fsv4,
-            format::b_fs_zyx_fsv4,
             format::b_fs_yx_fsv16,
-            format::b_fs_yx_fsv32,
-            format::b_fs_zyx_fsv16,
-            format::b_fs_zyx_fsv32,
     };
 
     implementation_map<group_normalization>::add(impl_types::ocl, shape_types::static_shape,
                                      typed_primitive_impl_ocl<group_normalization>::create<group_normalization_impl>,
                                      types,
                                      formats);
+
+    const std::vector<format::type> dyn_formats {
+        format::bfyx,
+        format::b_fs_yx_fsv16,
+    };
+
+    implementation_map<group_normalization>::add(impl_types::ocl, shape_types::dynamic_shape,
+                                                 typed_primitive_impl_ocl<group_normalization>::create<group_normalization_impl>,
+                                                 types, dyn_formats);
 }
 
 }  // namespace detail

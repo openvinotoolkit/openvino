@@ -24,28 +24,63 @@ inline void CheckNumberOfNodesWithType(std::shared_ptr<const ov::Model> function
     ASSERT_EQ(num_ops, expectedCount);
 }
 
-TEST_P(RoPETestLlama2, CompareWithRefs) {
+TEST_P(RoPETestLlama2StridedSlice, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
     auto function = compiledModel.get_runtime_model();
     CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
 };
 
-TEST_P(RoPETestChatGLM, CompareWithRefs) {
+TEST_P(RoPETestChatGLMStridedSlice, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
     auto function = compiledModel.get_runtime_model();
     CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
 };
 
-TEST_P(RoPETestQwen7b, CompareWithRefs) {
+TEST_P(RoPETestQwen7bStridedSlice, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
     auto function = compiledModel.get_runtime_model();
     CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
 };
 
-TEST_P(RoPETestGPTJ, CompareWithRefs) {
+TEST_P(RoPETestGPTJStridedSlice, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
+    auto function = compiledModel.get_runtime_model();
+    CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
+};
+
+TEST_P(RoPETestRotateHalfWithoutTranspose, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
+    auto function = compiledModel.get_runtime_model();
+    CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
+}
+
+TEST_P(RoPETestLlama2Slice, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
+    auto function = compiledModel.get_runtime_model();
+    CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
+};
+
+TEST_P(RoPETestChatGLMSlice, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
+    auto function = compiledModel.get_runtime_model();
+    CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
+};
+
+TEST_P(RoPETestQwen7bSlice, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
+    auto function = compiledModel.get_runtime_model();
+    CheckNumberOfNodesWithType(function, {"RoPE"}, 1);
+};
+
+TEST_P(RoPETestGPTJSlice, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
     auto function = compiledModel.get_runtime_model();

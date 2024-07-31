@@ -247,7 +247,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"DynamicPartition", CreatorFunction(translate_dynamic_partition_op)},
         {"Einsum", CreatorFunction(translate_einsum_op)},
         {"Elu", CreatorFunction(translate_elu_op)},
-        {"EmptyTensorList", CreatorFunction(translate_tensor_list_reserve_op)},
+        {"EmptyTensorList", CreatorFunction(translate_empty_tensor_list_op)},
         {"EnsureShape", CreatorFunction(translate_identity_op)},
         {"ExpandDims", CreatorFunction(translate_expand_dims_op)},
         {"ExtractImagePatches", CreatorFunction(translate_extract_image_patches_op)},

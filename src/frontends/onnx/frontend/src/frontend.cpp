@@ -93,7 +93,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& in
     if (!m_transformation_extensions.empty()) {
         auto model = decode(input_model);
 
-        ov::pass::Manager manager;
+        ov::pass::Manager manager("Frontend:ONNX:convert_partially");
         for (const auto& transformation : m_transformation_extensions) {
             transformation->register_pass(manager);
         }
@@ -113,7 +113,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& in
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     // Here, you can register transformations as a second step of importing process
     // In particular, you can operate on not supported ops (it allows to N:N ONNX->OV mapping).
-    ov::pass::Manager manager;
+    ov::pass::Manager manager("Frontend:ONNX:normalize");
     manager.register_pass<pass::ResolveNameCollisions>(true);
     manager.run_passes(model);
 }
@@ -125,7 +125,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& input_model)
     if (!m_transformation_extensions.empty()) {
         auto model = decode(input_model);
 
-        ov::pass::Manager manager;
+        ov::pass::Manager manager("Frontend:ONNX:convert");
         for (const auto& transformation : m_transformation_extensions) {
             transformation->register_pass(manager);
         }
@@ -192,11 +192,13 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
     std::ifstream model_stream;
     if (variants[0].is<std::string>()) {
         const auto path = variants[0].as<std::string>();
+        validate_path(path);
         model_stream.open(path, std::ios::in | std::ifstream::binary);
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     else if (variants[0].is<std::wstring>()) {
         const auto path = variants[0].as<std::wstring>();
+        validate_path(path);
         model_stream.open(path.c_str(), std::ios::in | std::ifstream::binary);
     }
 #endif

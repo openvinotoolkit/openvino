@@ -20,11 +20,11 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         var parentElement = toggle.parentElement;
-        if (!parentElement
-            || !parentElement.parentElement
+        if (!parentElement.parentElement
             || !parentElement.parentElement.parentElement
+            || !parentElement.classList.contains('current')
             || !parentElement.parentElement.classList.contains('current')
-            || (parentElement.parentElement.classList.contains('current') && (parentElement.parentElement))
+            || (parentElement.parentElement.classList.contains('current') && (!parentElement.parentElement))
         ) {
             toggle.classList.add('rotate');
         }

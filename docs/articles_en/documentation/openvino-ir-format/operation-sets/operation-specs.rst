@@ -22,6 +22,8 @@ Operation Specifications
    Assign-6 <operation-specs/infrastructure/assign-6>
    Atan-1 <operation-specs/arithmetic/atan-1>
    Atanh-3 <operation-specs/arithmetic/atanh-3>
+   AUGRUCell <operation-specs/internal/augru-cell>
+   AUGRUSequence <operation-specs/internal/augru-sequence>
    AvgPool-1 <operation-specs/pooling/avg-pool-1>
    AvgPool-14 <operation-specs/pooling/avg-pool-14>
    BatchNormInference-1 <operation-specs/normalization/batch-norm-inference-1>
@@ -107,7 +109,7 @@ Operation Specifications
    Interpolate-1 <operation-specs/image/interpolate-1>
    Interpolate-4 <operation-specs/image/interpolate-4>
    Interpolate-11 <operation-specs/image/interpolate-11>
-   Inverse-14 <operation-specs/matrix/Inverse_14>
+   Inverse-14 <operation-specs/matrix/inverse-14>
    IsFinite-10 <operation-specs/comparison/isfinite-10>
    IsInf-10 <operation-specs/comparison/isinf-10>
    IsNaN-10 <operation-specs/comparison/isnan-10>
@@ -130,6 +132,7 @@ Operation Specifications
    MaxPool-1 <operation-specs/pooling/max-pool-1>
    MaxPool-8 <operation-specs/pooling/max-pool-8>
    MaxPool-14 <operation-specs/pooling/max-pool-14>
+   Shape Calculation Rules for Pooling Operators <operation-specs/pooling/pooling_shape_rules>
    Maximum-1 <operation-specs/arithmetic/maximum-1>
    Minimum-1 <operation-specs/arithmetic/minimum-1>
    Mish-4 <operation-specs/activation/mish-4>

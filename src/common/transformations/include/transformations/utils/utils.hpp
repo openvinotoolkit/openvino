@@ -115,6 +115,17 @@ inline std::string get_ie_output_name(const Output<Node>& output) {
 float cast_eps_to_float(double eps_d);
 
 template <typename T>
+bool get_constant_value(const std::shared_ptr<ov::Node>& node, T& value) {
+    auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
+    if (!constant)
+        return false;
+    if (shape_size(constant->get_shape()) != 1)
+        return false;
+    value = constant->cast_vector<T>()[0];
+    return true;
+}
+
+template <typename T>
 bool has_constant_value(const std::shared_ptr<Node>& node,
                         const T value,
                         T epsilon = std::numeric_limits<T>::epsilon()) {

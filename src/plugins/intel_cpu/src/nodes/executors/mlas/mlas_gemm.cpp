@@ -51,7 +51,7 @@ static MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory,
     if (weightCache != nullptr) {
         std::string format = "gemm_mlas_" + std::to_string(N) + "_" + std::to_string(K);
         const std::string string_hash = format + "_" + std::to_string(weightsMemory->getSize()) + "_" +
-            std::to_string(*weightsMemory->getDataAs<uint64_t>());
+                                        std::to_string(reinterpret_cast<uint64_t>(weightsMemory->getData()));
         DEBUG_LOG("MlasGemmExecutor: findOrCreate, string_hash: ", string_hash);
         return *weightCache->findOrCreate(string_hash, create);
     }
