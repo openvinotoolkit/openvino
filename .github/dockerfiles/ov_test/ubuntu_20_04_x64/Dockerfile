@@ -34,13 +34,6 @@ RUN chmod +x /install_build_dependencies.sh && \
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3.8 get-pip.py  --no-cache-dir pip==${PIP_VERSION} && \
-    python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
-    rm -f get-pip.py
-
-# Setup pip
-ENV PIP_VERSION="24.0"
-RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
