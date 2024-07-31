@@ -250,7 +250,7 @@ crop_inst::typed_primitive_inst(network& network, crop_node const& node) : paren
                                         "Invalid Batch offset: exceeds data for output!");
     }
 
-    if (node.can_be_optimized()) {
+    if (!node.is_dynamic() && node.can_be_optimized()) {
         update_output_memory();
     }
 }

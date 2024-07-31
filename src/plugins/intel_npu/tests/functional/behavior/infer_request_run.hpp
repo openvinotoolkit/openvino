@@ -473,6 +473,55 @@ TEST_P(BatchingRunTests, SetInputTensorInfer_Caching) {
     for (size_t i = 0; i < shape_size; ++i) {
         EXPECT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
     }
+
+    delete[] buffer;
+}
+
+TEST_P(BatchingRunTests, CheckTwoRunsInfer) {
+    auto batch_shape = Shape{4, 2, 2, 2};
+    auto shape_size = ov::shape_size(batch_shape);
+    auto model = createBatchingModel(element::f32, batch_shape, "N...");
+    float* buffer = new float[shape_size];
+
+    auto context = core->get_default_context(target_device);
+
+    compiled_model = core->compile_model(model, target_device, configuration);
+    ov::InferRequest inference_request;
+    inference_request = compiled_model.create_infer_request();
+
+    ov::Tensor tensor{element::f32, batch_shape, buffer};
+
+    inference_request.set_input_tensor(tensor);
+    auto actual_tensor = inference_request.get_output_tensor(0);
+    auto* actual = actual_tensor.data<float>();
+    auto* input_data = tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = 5.f;
+    }
+    inference_request.infer();  // Adds '1' to each element
+    for (size_t i = 0; i < shape_size; ++i) {
+        EXPECT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
+    }
+
+    auto l0_host_input_tensor = context.create_host_tensor(ov::element::f32, batch_shape);
+    auto l0_host_output_tensor = context.create_host_tensor(ov::element::f32, actual_tensor.get_shape());
+
+    auto* input_data_host_tensor = l0_host_input_tensor.data();
+    input_data = reinterpret_cast<float*>(input_data_host_tensor);
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = 5.f;
+    }
+    inference_request.set_input_tensor(l0_host_input_tensor);
+    inference_request.set_output_tensor(l0_host_output_tensor);
+    inference_request.infer();
+
+    auto* actual_host_tensor = l0_host_output_tensor.data();
+    actual = reinterpret_cast<float*>(actual_host_tensor);
+    for (size_t i = 0; i < shape_size; ++i) {
+        EXPECT_NEAR(actual[i], 6.f, 1e-5) << "Expected=6, actual=" << actual[i] << " for index " << i;
+    }
+
+    delete[] buffer;
 }
 
 }  // namespace behavior

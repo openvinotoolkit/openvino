@@ -14,20 +14,27 @@ namespace intel_cpu {
 CPURuntimeConfigurator::CPURuntimeConfigurator() : ov::snippets::RuntimeConfigurator(std::make_shared<CPURuntimeConfig>()) {
 }
 
-void CPURuntimeConfigurator::update(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) {
-    RuntimeConfigurator::update(linear_ir);
-
+void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRPtr& linear_ir) {
     if (linear_ir->is_dynamic()) {
-        get_kernel_executor_table()->update_state();
+        update_loop_info(linear_ir);
         update_loop_args(linear_ir);
+        // Update KernelExecutor Table should be before `update_buffer_scratchpad_size`
+        // because `ComputeAllocationSize` depends on subtensors which are updated in the table
+        get_kernel_executor_table()->update_state(linear_ir);
+        update_buffer_scratchpad_size(linear_ir);
     }
+
+    m_config->master_shape = linear_ir->get_master_shape();
+
+    update_data_offsets();
+    update_latest_shapes();
 }
 
-void CPURuntimeConfigurator::init_tensor_rank(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) const {
+void CPURuntimeConfigurator::init_tensor_rank(const ov::snippets::lowered::LinearIRPtr& linear_ir) const {
     m_config->tensor_rank = std::max(linear_ir->get_master_shape().size(), rank6D);
 }
 
-void CPURuntimeConfigurator::update_loop_args(const std::shared_ptr<ov::snippets::lowered::LinearIR>& linear_ir) const {
+void CPURuntimeConfigurator::update_loop_args(const ov::snippets::lowered::LinearIRPtr& linear_ir) const {
     const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(m_config);
     OPENVINO_ASSERT(cpu_config, "CPURuntimeConfigurator expects CPURuntimeConfig");
 
