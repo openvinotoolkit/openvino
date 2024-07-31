@@ -82,7 +82,7 @@ inline int8_t upc(int8_t h) {
     return h | (-((h & (1 << 3)) >> 3) & (-8));
 }
 
-// NOTE: This routine implements the OLD ORDER
+// NOTE: This routine implements the NEW ORDER
 #define avx2_i4toi8(vinput, vout0, vout1)                                         \
     {                                                                             \
         __m256i himask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0xF0));    \
@@ -102,8 +102,8 @@ inline int8_t upc(int8_t h) {
         __m256i vhires = _mm256_or_si256(vhi, _mm256_and_si256(vsubhi, vextend)); \
         __m256i vlores = _mm256_or_si256(vlo, _mm256_and_si256(vsublo, vextend)); \
                                                                                   \
-        __m256i vunlo = _mm256_unpacklo_epi8(vhires, vlores);                     \
-        __m256i vunhi = _mm256_unpackhi_epi8(vhires, vlores);                     \
+        __m256i vunlo = _mm256_unpacklo_epi8(vlores, vhires);                     \
+        __m256i vunhi = _mm256_unpackhi_epi8(vlores, vhires);                     \
         *vout0 = _mm256_permute2x128_si256(vunlo, vunhi, 0x20);                   \
         *vout1 = _mm256_permute2x128_si256(vunlo, vunhi, 0x31);                   \
     }
@@ -339,8 +339,8 @@ void unpack_i4i8(const ov::SoPtr<ov::ITensor>& from,
     pDst = static_cast<int8_t*>(to->data()) + tailOffset;
 
     for (std::size_t index = 0; index < ((total % 64) >> 1); index++) {
-        *(pDst++) = upc(hi4(*(pSrc)));
         *(pDst++) = upc(lo4(*(pSrc)));
+        *(pDst++) = upc(hi4(*(pSrc)));
         pSrc++;
     }
     UNPACK_SAVE_TICK();
@@ -458,8 +458,8 @@ void unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
     int8_t unpackedToI8[VECSIZE] = {0};
     size_t unpackedIdx = 0;
     for (std::size_t index = 0; index < total; index++) {
-        unpackedToI8[unpackedIdx++] = upc(hi4(*(pSrc)));
         unpackedToI8[unpackedIdx++] = upc(lo4(*(pSrc)));
+        unpackedToI8[unpackedIdx++] = upc(hi4(*(pSrc)));
         if (unpackedIdx == VECSIZE) {
             __m128i i8vec = _mm_loadu_si64(reinterpret_cast<__m128i*>(unpackedToI8));
             __m128i f16vec = avx2_i8tof16(i8vec);
