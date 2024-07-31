@@ -70,14 +70,14 @@ void init_expr_descriptors(const ov::snippets::lowered::ExpressionPtr& expr,
     for (size_t i = 0; i < n_inputs; ++i) {
         const auto& subtensor = subtensors.empty() ? get_default_subtensor() : subtensors[i];
         const auto& layout = layouts.empty() ? VectorDims{} : layouts[i];
-        const auto desc = std::make_shared<PortDescriptor>(pshape_to_vdims(node->get_input_partial_shape(i)), subtensor, layout);
+        const auto desc = std::make_shared<PortDescriptor>(node->input(i), subtensor, layout);
         PortDescriptorUtils::set_port_descriptor_ptr(node->input(i), desc);
         update_expr_desc(expr->get_input_port_descriptor(i), desc);
     }
     for (size_t i = 0; i < n_outputs; ++i) {
         const auto& subtensor = subtensors.empty() ? get_default_subtensor() : subtensors[i + n_inputs];
         const auto& layout = layouts.empty() ? VectorDims{} : layouts[i + n_inputs];
-        const auto desc = std::make_shared<PortDescriptor>(pshape_to_vdims(node->get_output_partial_shape(i)), subtensor, layout);
+        const auto desc = std::make_shared<PortDescriptor>(node->output(i), subtensor, layout);
         PortDescriptorUtils::set_port_descriptor_ptr(node->output(i), desc);
         update_expr_desc(expr->get_output_port_descriptor(i), desc);
     }

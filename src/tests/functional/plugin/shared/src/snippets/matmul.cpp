@@ -46,6 +46,11 @@ void MatMul::init_subgraph(const std::vector<ov::element::Type>& types) {
     function = f.getOriginal();
 }
 
+void MatMulTransposeB::init_subgraph(const std::vector<ov::element::Type>& types) {
+    auto f = ov::test::snippets::MatMulFunction(inputDynamicShapes, types, true);
+    function = f.getOriginal();
+}
+
 void MatMulFQ::init_subgraph(const std::vector<ov::element::Type>& types) {
     auto f = ov::test::snippets::FQMatMulFunction(inputDynamicShapes);
     function = f.getOriginal();
@@ -72,6 +77,12 @@ void MatMulQuantizedSoftmax::init_subgraph(const std::vector<ov::element::Type>&
 }
 
 TEST_P(MatMul, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    validateNumSubgraphs();
+}
+
+TEST_P(MatMulTransposeB, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();

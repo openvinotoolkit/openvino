@@ -968,7 +968,7 @@ std::shared_ptr<ov::Model> MHATransposedInputFunction::initReference() const {
         in1 = std::make_shared<ov::op::v1::Transpose>(in1, transposeConst);
     }
     if (m_transposed_b) {
-        if (m_order != std::vector<int64_t>{0, 2, 1, 3}) {
+        if (m_order != std::vector<int64_t>{0, 2, 1, 3} && !m_transpose_b_native_support) {
             const auto rank = input_shapes[1].size();
             std::vector<int32_t> transpose_order(rank, 0);
             std::iota(transpose_order.begin(), transpose_order.end(), 0);
@@ -988,7 +988,8 @@ std::shared_ptr<ov::Model> MHATransposedInputFunction::initReference() const {
         matmul0_in1 = std::make_shared<ov::op::v1::Transpose>(param1, transposeConst);
     }
 
-    const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(param0, matmul0_in1);
+    const bool mm0_transpose_b = m_transposed_b && m_transpose_b_native_support;
+    const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(param0, matmul0_in1, false, mm0_transpose_b);
     const auto softmax = std::make_shared<ov::op::v8::Softmax>(matMul0, -1);
     const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softmax, param2);
 

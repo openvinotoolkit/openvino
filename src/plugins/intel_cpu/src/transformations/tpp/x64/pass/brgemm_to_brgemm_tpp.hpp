@@ -20,6 +20,9 @@ class BrgemmToBrgemmTPP: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("BrgemmToBrgemmTPP", "0");
     BrgemmToBrgemmTPP();
+
+    static bool is_supported_brgemm_configuration(const std::vector<std::vector<size_t>>& layouts,
+                                                  const ov::element::TypeVector& precisions);
 };
 
 

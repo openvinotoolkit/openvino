@@ -79,7 +79,8 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
             return {{element::f32, element::f32}};
         case BRGEMM_TYPE::REPACKING_ONLY:
             return {{element::u8, element::i8},
-                    {element::bf16, element::bf16}};
+                    {element::bf16, element::bf16},
+                    {element::f32, element::f32}};
         case BRGEMM_TYPE::WITH_COMPENSATIONS:
             return {{element::i8, element::i8, element::f32}};
         case BRGEMM_TYPE::WITH_AMX:

@@ -22,8 +22,8 @@ namespace snippets {
 //         Result
 class MatMulFunction : public SnippetsFunctionBase {
 public:
-    explicit MatMulFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions)
-    : SnippetsFunctionBase(inputShapes), precisions(precisions) {
+    explicit MatMulFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions, bool transpose_b = false)
+    : SnippetsFunctionBase(inputShapes), precisions(precisions), transpose_b(transpose_b) {
         OPENVINO_ASSERT(input_shapes.size() == 2, "Got invalid number of input shapes");
         validate_precisions(precisions);
     }
@@ -39,6 +39,7 @@ protected:
     std::shared_ptr<ov::Model> initReference() const override;
 
     std::vector<ov::element::Type> precisions;
+    bool transpose_b;
 };
 
 class FQMatMulFunction : public SnippetsFunctionBase {

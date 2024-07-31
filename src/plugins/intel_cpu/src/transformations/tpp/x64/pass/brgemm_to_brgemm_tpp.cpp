@@ -25,12 +25,17 @@ namespace pass {
 
 using namespace snippets::lowered;
 
-namespace {
-template<typename T, typename... Args>
-void set_port_desc(const T& port, Args... params) {
-    PortDescriptorUtils::set_port_descriptor_ptr(port, std::make_shared<PortDescriptor>(params...));
+bool BrgemmToBrgemmTPP::is_supported_brgemm_configuration(const std::vector<std::vector<size_t>>& layouts,
+                                                          const ov::element::TypeVector& precisions) {
+    OPENVINO_ASSERT(layouts.size() == 3 && precisions.size() == 3, "snippets::op::Brgemm must have 2 inputs and 1 output");
+    const bool supported_layouts = std::all_of(layouts.begin(), layouts.end(), [](const std::vector<size_t>& layout) {
+        return layout.empty() || layout.back() == layout.size() - 1;
+    });
+    const bool supported_precisions = std::all_of(precisions.begin(), precisions.end(), [](const ov::element::Type& et) {
+        return et == ov::element::f32;
+    });
+    return supported_layouts && supported_precisions;
 }
-} // namespace
 
 BrgemmToBrgemmTPP::BrgemmToBrgemmTPP() {
     MATCHER_SCOPE(BrgemmToBrgemmTPP);
@@ -52,56 +57,39 @@ BrgemmToBrgemmTPP::BrgemmToBrgemmTPP() {
         const auto& brgemm_in1_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(1));
         const auto& brgemm_out_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->output(0));
 
+        const auto& layout_a = brgemm_in0_desc->get_layout();
+        const auto& layout_b = brgemm_in1_desc->get_layout();
+        const auto& layout_c = brgemm_out_desc->get_layout();
+
+        const auto& precision_a = brgemm->get_input_element_type(0);
+        const auto& precision_b = brgemm->get_input_element_type(1);
+        const auto& precision_c = brgemm->get_output_element_type(0);
+
+        if (!is_supported_brgemm_configuration({layout_a, layout_b, layout_c}, {precision_a, precision_b, precision_c}))
+            return false;
+
         const auto dimsMatMulIn0 = snippets::utils::get_planar_pshape(brgemm->input(0)).get_shape();
         const auto dimsMatMulIn1 = snippets::utils::get_planar_pshape(brgemm->input(1)).get_shape();
-
-        const auto M = *++dimsMatMulIn0.rbegin();
-        const auto K = *dimsMatMulIn0.rbegin();
-        const auto N = *dimsMatMulIn1.rbegin();
-
-        const auto element_type_a = brgemm->get_input_element_type(0);
-        const auto element_type_b = brgemm->get_input_element_type(1);
 
         const auto offset_a = brgemm->get_offset_a();
         const auto offset_b = brgemm->get_offset_b();
         const auto offset_c = brgemm->get_offset_c();
 
         std::shared_ptr<tpp::op::BrgemmTPP> brgemm_tpp = nullptr;
-        if (element_type_a == ov::element::f32) {
+        if (precision_a == ov::element::f32) {
             brgemm_tpp = std::make_shared<tpp::op::BrgemmTPP>(brgemm->input_value(0),
                                                               brgemm->input_value(1),
                                                               offset_a, offset_b, offset_c,
-                                                              brgemm_in0_desc->get_layout(),
-                                                              brgemm_in1_desc->get_layout(),
-                                                              brgemm_out_desc->get_layout());
+                                                              layout_a, layout_b, layout_c);
         }
         OPENVINO_ASSERT(brgemm_tpp, "Failed to create BrgemmTPP node in the BrgemmToBrgemmTPP pass");
-        // Set blocking params
-        // Ticket: 113745
-        // TODO: extend block size selection heuristics
-        auto get_block_size_m = [](const size_t M) {
-            return 32;
-        };
-        auto get_block_size_k = [=](const size_t K) {
-            if (element_type_b != ov::element::f32)
-                return K;
-            return K > 1024 ? 1024 : K > 512 ? 512 : K;
-        };
-        auto get_block_size_n = [=](const size_t N) {
-            return element_type_b != ov::element::f32 ? N : 64;
-        };
-
-        brgemm_tpp->set_m_block_size(get_block_size_m(M));
-        brgemm_tpp->set_k_block_size(get_block_size_k(K));
-        brgemm_tpp->set_n_block_size(get_block_size_n(N));
-
         brgemm_tpp->set_friendly_name(brgemm->get_friendly_name());
         ov::replace_node(brgemm, brgemm_tpp);
 
         // Set FULL_DIM tensors on ports to avoid automatic loop markup (blocked loops will be inserted in a separate transformation)
-        set_port_desc(brgemm_tpp->input(0), brgemm_in0_desc->get_shape(), brgemm_in0_desc->get_subtensor(), brgemm_in0_desc->get_layout());
-        set_port_desc(brgemm_tpp->input(1), brgemm_in1_desc->get_shape(), brgemm_in1_desc->get_subtensor(), brgemm_in1_desc->get_layout());
-        set_port_desc(brgemm_tpp->output(0), brgemm_out_desc->get_shape(), brgemm_out_desc->get_subtensor(), brgemm_out_desc->get_layout());
+        PortDescriptorUtils::set_port_descriptor(brgemm_tpp->input(0), brgemm_in0_desc->get_subtensor(), brgemm_in0_desc->get_layout());
+        PortDescriptorUtils::set_port_descriptor(brgemm_tpp->input(1), brgemm_in1_desc->get_subtensor(), brgemm_in1_desc->get_layout());
+        PortDescriptorUtils::set_port_descriptor(brgemm_tpp->output(0), brgemm_out_desc->get_subtensor(), brgemm_out_desc->get_layout());
 
         // need to run validate_and_infer_types manually: either input shapes were updated or
         // output Layout was updated (out shape will be updated in validate_and_infer_types())
