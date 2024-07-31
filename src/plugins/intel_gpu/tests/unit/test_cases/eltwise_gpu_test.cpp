@@ -1543,6 +1543,82 @@ TEST(eltwise_cpu_impl_f32, dynamic_kernel_broadcast_mixed_ranks_5d_2d) {
     }
 }
 
+
+// This pattern occurs wrong output index due to miss the dyn_pad offset calculation.
+//
+// input0: [dynamic_shape]
+// input1: [static_shape]
+// fused_input0: [dynamic_shape + dyn_pad]
+// output: [dynamic_shape]
+//
+TEST(eltwise_gpu_f32, dynamic_padding) {
+    auto& engine = get_test_engine();
+
+    ov::Shape in_shape = {2, 2, 2, 2};
+    auto in_layout_1 = layout{ov::PartialShape::dynamic(in_shape.size()), data_types::f32, format::bfyx};
+    auto in_const_layout = layout{{1, 1, 1, 2}, data_types::f32, format::bfyx};
+    auto in_layout_2 = layout{ov::PartialShape::dynamic(in_shape.size()), data_types::f32, format::bfyx, {{0, 0, 1, 0}, {0, 0, 1, 0}, 0.0f, tensor({0, 0, 1, 0}, 0)}};
+    auto in_mem_layout = layout{ov::PartialShape(in_shape), data_types::f32, format::bfyx};
+    auto in_const_mem_layout = layout{{1, 1, 1, 2}, data_types::f32, format::bfyx};
+    auto input1 = engine.allocate_memory(in_mem_layout);
+    auto input2 = engine.allocate_memory(in_mem_layout);
+    auto input_const = engine.allocate_memory(in_const_mem_layout);
+
+    topology topology;
+    topology.add(input_layout("input1", in_layout_1));
+    topology.add(data("input_const", input_const));
+    topology.add(input_layout("input2", in_layout_2));
+    topology.add(eltwise("eltwise1", { input_info("input1"), input_info("input_const") }, eltwise_mode::prod));
+    topology.add(eltwise("eltwise2", { input_info("eltwise1"), input_info("input2") }, eltwise_mode::prod));
+    topology.add(reorder("out", input_info("eltwise2"), format::bfyx, data_types::f32));
+
+    set_values(input1, {
+        1.f,   0.f, 5.f, 1.5f,
+        2.f,   0.f, 6.f, 5.2f,
+        3.f,  0.5f, 7.f, 12.f,
+        4.f, -0.5f, 8.f,  8.f
+    });
+
+    set_values(input2, {
+        0.5f,   2.5f,  0.5f,  2.5f,
+         5.f,   7.f,    2.f,   4.f,
+        15.f,  17.f,    8.f,  10.f,
+        -2.f,  6.5f,  -0.5f, -2.5f });
+
+    set_values(input_const, {
+        0.5f,   2.5f });
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    // config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto inst = network.get_primitive("out");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "out");
+
+    auto output = outputs.at("out").get_memory();
+
+    float answers[16] = {  0.25f,  0.f,     1.25f,  9.375f,
+                           5.f,    0.f,     6.f,   52.f,
+                          22.5f,  21.25f,  28.f,  300.f,
+                          -4.f,   -8.125f, -2.f,  -50.f };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (int i = 0; i < 16; i++) {
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+    }
+}
+
 TEST(eltwise_gpu_f32, add_basic_8d) {
     auto& engine = get_test_engine();
 
