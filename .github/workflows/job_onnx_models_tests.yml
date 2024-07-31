@@ -75,6 +75,7 @@ jobs:
             src/frontends/onnx/tests/tests_python/model_zoo_preprocess.sh
           sparse-checkout-cone-mode: false
           path: 'openvino'
+          ref: ${{ env.OPENVINO_SHA }}
 
       - name: Update Models
         run: bash ${OPENVINO_REPO}/src/frontends/onnx/tests/tests_python/model_zoo_preprocess.sh -d ${MODELS_SHARE_PATH} -o -s "${{ env.ONNX_MODEL_ZOO_SHA }}"

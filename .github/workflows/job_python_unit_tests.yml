@@ -283,6 +283,7 @@ jobs:
           sparse-checkout: docs/articles_en/assets/snippets
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'false'
+          ref: ${{ env.OPENVINO_SHA }}
 
       - name: Docs Python snippets
         if: runner.os != 'macOS'
