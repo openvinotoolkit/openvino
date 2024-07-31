@@ -203,7 +203,7 @@ void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream, bool dump
                         for (cldnn::tensor::value_type z = 0; z < size.spatial[2]; ++z) {
                             for (cldnn::tensor::value_type y = 0; y < size.spatial[1]; ++y) {
                                 cldnn::tensor t(cldnn::group(g), cldnn::batch(b), cldnn::feature(f), cldnn::spatial(0, y, z, w));
-                                size_t input_it = mem->get_layout().get_linear_offset({g,b,f,0,y,z,w});
+                                size_t input_it = mem->get_layout().get_linear_offset({g,b,f,w,z,y,0});
 
                                 for (cldnn::tensor::value_type x = 0; x < size.spatial[0]; ++x, input_it += x_pitch) {
                                     buffer << std::fixed << std::setprecision(6) << convert_element(mem_ptr[input_it]) << std::endl;

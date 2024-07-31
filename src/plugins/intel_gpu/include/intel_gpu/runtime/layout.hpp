@@ -266,7 +266,7 @@ struct padding {
     }
 
     void save(BinaryOutputBuffer& ob) const {
-        std::cout << "=========" << "called layout::save!" << std::endl;
+        std::vector<tensor::value_type> sizes;
         ob << lower_size();
         ob << upper_size();
         ob << _filling_value;
@@ -274,15 +274,14 @@ struct padding {
     }
 
     void load(BinaryInputBuffer& ib) {
-        std::cout << "=========" << "called layout::load!" << std::endl;
         std::vector<tensor::value_type> sizes;
         ib >> sizes;
-        std::copy_n(_lower_size, sizes.size(), sizes.begin());
+        std::copy_n(sizes.begin(), sizes.size(), _lower_size);
         ib >> sizes;
-        std::copy_n(_upper_size, sizes.size(), sizes.begin());
+        std::copy_n(sizes.begin(), sizes.size(), _upper_size);
         ib >> _filling_value;
         ib >> sizes;
-        std::copy_n(_dynamic_pad_dims, sizes.size(), sizes.begin());
+        std::copy_n(sizes.begin(), sizes.size(), _dynamic_pad_dims);
     }
 
 private:
@@ -501,15 +500,18 @@ struct layout {
         return seed;
     }
 
+    /// @brief Returns a vector of tensors values, ordered regarding to @p format from the default format.
     template <class T>
     inline static std::vector<tensor::value_type> format_sizes(const std::vector<T> &_sizes, const cldnn::format &fmt) {
         const auto& output_order = fmt.order();
-        const auto& internal_order = fmt.internal_order();
-        std::vector<tensor::value_type> sizes(output_order.size(), 0);
+        std::vector<tensor::value_type> sizes(output_order.size(), 1);
+
+        auto default_fmt = format::get_default_format(sizes.size(), format::is_weights_format(fmt), format::is_grouped(fmt));
+        const auto& default_order = default_fmt.order();
 
         for (size_t i = 0; i < sizes.size(); ++i) {
             auto c = output_order[i];
-            auto pos = internal_order.find(c);
+            auto pos = default_order.find(c);
             if (pos == std::string::npos)
                 throw std::domain_error(std::string("Unknown coord type: ") + c);
 

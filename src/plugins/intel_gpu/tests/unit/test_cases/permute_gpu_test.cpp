@@ -736,8 +736,11 @@ TEST(permute_gpu_f32, permute_bfwzyx)
     for (int yi = 0; yi < y; ++yi)
     for (int xi = 0; xi < x; ++xi)
     {
-        expected_output[expected_layout.get_linear_offset({fi, bi, wi, zi, yi, xi})] =
-            input_data[input_mem->get_layout().get_linear_offset({bi, fi, xi, yi, zi, wi})];
+        auto out_idx = expected_layout.get_linear_offset({fi, bi, wi, zi, yi, xi});
+        auto in_idx = input_mem->get_layout().get_linear_offset({bi, fi, xi, yi, zi, wi});
+        std::cout << "========================== out_idx = " << out_idx << ", in_idx = " << in_idx << std::endl;
+        expected_output[out_idx] =
+            input_data[in_idx];
     }
 
     topology topology(

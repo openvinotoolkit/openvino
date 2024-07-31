@@ -2460,7 +2460,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution_input_and_output_padding) {
             { 2, 1 },
             false,
             ov::op::PadType::EXPLICIT);
-    conv.output_paddings = { padding{ { 0,0,x_pad,y_pad }, 0 } };
+    conv.output_paddings = { padding{ { 0,0,y_pad,x_pad }, 0 } };
 
     topology topology(
         input_layout("input", input->get_layout()),

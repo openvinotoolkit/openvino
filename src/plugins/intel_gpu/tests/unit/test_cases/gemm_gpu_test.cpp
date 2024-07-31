@@ -381,7 +381,7 @@ public:
                 for (cldnn::tensor::value_type f = 0; f < l.feature(); ++f) {
                     for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
                         for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
-                            auto buffer_idx = l.get_linear_offset({b, f, x, y});
+                            auto buffer_idx = l.get_linear_offset({b, f, y, x});
                             mem_ptr[buffer_idx] = data[data_idx++];
                         }
                     }
@@ -435,13 +435,13 @@ public:
                                                                                 data_types::f16,
                                                                                 format::bfyx,
                                                                                 n_dim_only ? padding({0, 0, 0, 0}, {0, 0, 0, 0}, 0.0f, dyn_pad_dims_input1) :
-                                                                                             padding({padding_size_batch1, 0, 0, 0}, {0, padding_size_batch2, padding_size_k, padding_size_m}, 0.0f, dyn_pad_dims_input1)});
+                                                                                             padding({padding_size_batch1, 0, 0, 0}, {0, padding_size_batch2, padding_size_m, padding_size_k}, 0.0f, dyn_pad_dims_input1)});
 
         auto input2_mem = engine.reinterpret_buffer(*aligned_input2_mem, layout{ov::PartialShape(in2_shape),
                                                                                 data_types::f16,
                                                                                 format::bfyx,
-                                                                                n_dim_only ? padding({0, 0, 0, 0}, {0, 0, padding_size_n, 0}, 0.0f, dyn_pad_dims_input2) :
-                                                                                            padding({0, padding_size_batch2, 0, 0}, {padding_size_batch1, 0, padding_size_n, padding_size_k}, 0.0f, dyn_pad_dims_input2)});
+                                                                                n_dim_only ? padding({0, 0, 0, 0}, {0, 0, 0, padding_size_n}, 0.0f, dyn_pad_dims_input2) :
+                                                                                            padding({0, padding_size_batch2, 0, 0}, {padding_size_batch1, 0, padding_size_k, padding_size_n}, 0.0f, dyn_pad_dims_input2)});
 
         auto input_1_data = rg.generate_random_1d<ov::float16>(ov::shape_size(in1_shape), -2, 2);
         auto input_2_data = rg.generate_random_1d<ov::float16>(ov::shape_size(in2_shape), -2, 2);
@@ -719,7 +719,7 @@ public:
                 for (cldnn::tensor::value_type f = 0; f < l.feature(); ++f) {
                     for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
                         for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
-                            auto buffer_idx = l.get_linear_offset({b, f, x, y});
+                            auto buffer_idx = l.get_linear_offset({b, f, y, x});
                             mem_ptr[buffer_idx] = data[data_idx++];
                         }
                     }
@@ -864,7 +864,7 @@ public:
                 for (cldnn::tensor::value_type f = 0; f < l.feature(); ++f) {
                     for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
                         for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
-                            auto buffer_idx = l.get_linear_offset({b, f, x, y});
+                            auto buffer_idx = l.get_linear_offset({b, f, y, x});
                             mem_ptr[buffer_idx] = data[data_idx++];
                         }
                     }
@@ -1007,7 +1007,7 @@ public:
                 for (cldnn::tensor::value_type f = 0; f < l.feature(); ++f) {
                     for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
                         for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
-                            auto buffer_idx = l.get_linear_offset({b, f, x, y});
+                            auto buffer_idx = l.get_linear_offset({b, f, y, x});
                             mem_ptr[buffer_idx] = data[data_idx++];
                         }
                     }
@@ -2669,7 +2669,7 @@ public:
                 for (cldnn::tensor::value_type f = 0; f < l.feature(); ++f) {
                     for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
                         for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
-                            auto buffer_idx = l.get_linear_offset({b, f, x, y});
+                            auto buffer_idx = l.get_linear_offset({b, f, y, x});
                             mem_ptr[buffer_idx] = data[data_idx++];
                         }
                     }
@@ -2834,7 +2834,7 @@ public:
                 for (cldnn::tensor::value_type f = 0; f < l.feature(); ++f) {
                     for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
                         for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
-                            auto buffer_idx = l.get_linear_offset({b, f, x, y});
+                            auto buffer_idx = l.get_linear_offset({b, f, y, x});
                             mem_ptr[buffer_idx] = data[data_idx++];
                         }
                     }
