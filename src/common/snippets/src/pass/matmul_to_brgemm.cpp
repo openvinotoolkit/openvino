@@ -18,16 +18,12 @@ namespace snippets {
 namespace pass {
 
 void MatMulToBrgemm::init_ports(const std::shared_ptr<op::Brgemm>& brgemm) const {
-    auto get_subtensor = []() {
-        return std::vector<size_t>{ lowered::PortDescriptor::ServiceDimensions::FULL_DIM, lowered::PortDescriptor::ServiceDimensions::FULL_DIM };
-    };
+    const auto subtensor = std::vector<size_t>(2, utils::get_full_dim_value());
     for (const auto& input : brgemm->inputs()) {
         const auto& tensor = utils::pshape_to_vdims(input.get_partial_shape());
-        const auto& subtensor = get_subtensor();
         lowered::PortDescriptorUtils::set_port_descriptor_ptr(input, std::make_shared<lowered::PortDescriptor>(tensor, subtensor));
     }
     const auto& tensor = utils::pshape_to_vdims(brgemm->get_output_partial_shape(0));
-    const auto& subtensor = get_subtensor();
     lowered::PortDescriptorUtils::set_port_descriptor_ptr(brgemm->output(0), std::make_shared<lowered::PortDescriptor>(tensor, subtensor));
 }
 

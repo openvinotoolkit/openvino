@@ -43,6 +43,14 @@ public:
                                                const ov::Shape& shape,
                                                const ov::AnyMap& params) override;
 
+    /**
+     * @brief This method is used to create a host tensor object friendly for the device in current context.
+     * @param type Tensor element type.
+     * @param shape Tensor shape.
+     * @return A tensor instance with device friendly memory.
+     */
+    ov::SoPtr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override;
+
 private:
     std::shared_ptr<ov::IRemoteContext> get_this_shared_ptr();
 

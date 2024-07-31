@@ -60,11 +60,19 @@ Parameter/Result tensor names. If there are no tensor names,
             .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
                :language: cpp
                :fragment: [ov:make_stateful_tensor_names]
+            
+            .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.py
+               :language: py
+               :fragment: [ov:make_stateful_tensor_names]
 
          .. tab-item:: Using Parameter/Result operations
 
             .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
                :language: cpp
+               :fragment: [ov:make_stateful_ov_nodes]
+            
+            .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.py
+               :language: py
                :fragment: [ov:make_stateful_ov_nodes]
 
    .. tab-item:: command line
@@ -114,6 +122,10 @@ To apply LowLatency2 Transformation, follow the instruction below:
          .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
             :language: cpp
             :fragment: [ov:get_ov_model]
+         
+         .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.py
+            :language: py
+            :fragment: [ov:get_ov_model]
 
 2. Change the number of iterations inside TensorIterator/Loop nodes in the model using the
    :doc:`Reshape <../changing-input-shape>` feature.
@@ -129,6 +141,10 @@ To apply LowLatency2 Transformation, follow the instruction below:
          .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
             :language: cpp
             :fragment: [ov:reshape_ov_model]
+         
+         .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.py
+            :language: py
+            :fragment: [ov:reshape_ov_model]
 
    **Unrolling**: If the LowLatency2 transformation is applied to a model containing
    TensorIterator/Loop nodes with exactly one iteration inside, these nodes are unrolled.
@@ -142,6 +158,10 @@ To apply LowLatency2 Transformation, follow the instruction below:
 
          .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
             :language: cpp
+            :fragment: [ov:apply_low_latency_2]
+         
+         .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.py
+            :language: py
             :fragment: [ov:apply_low_latency_2]
 
 
@@ -158,6 +178,10 @@ To apply LowLatency2 Transformation, follow the instruction below:
 
          .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
             :language: cpp
+            :fragment: [ov:low_latency_2_use_parameters]
+         
+         .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.py
+            :language: py
             :fragment: [ov:low_latency_2_use_parameters]
 
 
@@ -177,6 +201,10 @@ To apply LowLatency2 Transformation, follow the instruction below:
 
          .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
             :language: cpp
+            :fragment: [ov:low_latency_2]
+         
+         .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.py
+            :language: py
             :fragment: [ov:low_latency_2]
 
 
@@ -208,6 +236,10 @@ To apply LowLatency2 Transformation, follow the instruction below:
          .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
             :language: cpp
             :fragment: [ov:replace_const]
+         
+         .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.py
+            :language: py
+            :fragment: [ov:replace_const]
 
 Stateful Model from Scratch
 ##################################
@@ -228,7 +260,11 @@ a sink from `ov::Model` after deleting the node from the graph with the `delete_
 
       .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.cpp
          :language: cpp
-         :fragment: [ov:state_network]
+         :fragment: [ov:stateful_model]
+      
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_stateful_models_intro.py
+         :language: py
+         :fragment: [ov:stateful_model]
 
 .. note::
 

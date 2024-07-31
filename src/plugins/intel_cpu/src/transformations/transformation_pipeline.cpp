@@ -307,9 +307,10 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // Decompression handling related transformations must be run separately from common preLPT pipeline
     // since there is used the same transformations as in LPT related transformations, but with the specific settings.
     // This must be done in order to keep compressed MatMul weights with decompression operations as is
-    ov::pass::Manager decompression_handling_manager;
+    ov::pass::Manager decompression_handling_manager("CPU:DecompressionHandling");
     decompression_handling_manager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::InitNodeInfo);
+    const bool useLpt = !defaultPrecisions.empty();
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::ConvertGatherToGatherCompressed);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::MarkShapeOfSubgraphs);
     // We need to fuse Transpose to MatMul to have a simpler callback for the next transformation
@@ -330,15 +331,23 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             if (ov::is_type<ov::op::internal::GatherCompressed>(node)) {
                 // It is necessary to avoid precision conversion for constant node(compressed weights)
                 ov::enable_keep_const_precision(node->get_input_node_shared_ptr(0));
+
+                // Prioritize LPT pipeline to handle dequantization part for quantized models as it more optimal in
+                // general case
+                if (ov::intel_cpu::one_of(node->get_input_node_shared_ptr(0)->get_element_type(),
+                                          ov::element::u8,
+                                          ov::element::i8) &&
+                    useLpt) {
+                    return true;
+                }
             }
             return false;
         },
         ov::pass::ConvertGatherToGatherCompressed);
     decompression_handling_manager.run_passes(model);
 
-    ov::pass::Manager manager;
+    ov::pass::Manager manager("Plugin:CPU");
     manager.set_per_pass_validation(false);
-    const bool useLpt = !defaultPrecisions.empty();
     if (useLpt)
         CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkDequantizationSubgraph, defaultPrecisions);
 
@@ -723,7 +732,7 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
             QuantizationGranularityRestriction::create<ov::opset1::ConvolutionBackpropData>({0})
         });
 
-    ov::pass::Manager lptManager;
+    ov::pass::Manager lptManager("CPU:LPT");
     CPU_REGISTER_PASS_COMMON(lptManager, LowPrecision,
         supportedPrecisions,
         quantizationRestrictions,
@@ -772,7 +781,7 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
 void Transformations::PostLpt() {
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, PostLpt);
 
-    ov::pass::Manager postLPTPassManager;
+    ov::pass::Manager postLPTPassManager("CPU:PostLPT");
     postLPTPassManager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::UnrollTensorIterator);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ReshapePRelu);
@@ -895,7 +904,7 @@ void Transformations::MainSnippets(void) {
                                                                      mha_token_enable_transpose_on_output, is_dynamic_mha_token_enabled,
                                                                      mha_supported_transpose_ranks);
 
-    ov::pass::Manager snippetsManager;
+    ov::pass::Manager snippetsManager("CPU:Snippets");
     snippetsManager.set_per_pass_validation(false);
     if (!ignoreCallback) {
 #if defined(OPENVINO_ARCH_ARM64)
@@ -919,8 +928,10 @@ void Transformations::MainSnippets(void) {
 #if defined(OPENVINO_ARCH_ARM64)
             false;
 #else
-            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
-            one_of(inferencePrecision, ov::element::bf16, ov::element::f32, element::undefined);
+            (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) &&
+             one_of(inferencePrecision, ov::element::f32, element::undefined)) ||
+            (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
+             one_of(inferencePrecision, ov::element::bf16, ov::element::f32, element::undefined));
 #endif
     if (!isMHASupported) {
         CPU_DISABLE_PASS_COMMON(snippetsManager, snippets::pass::TokenizeMHASnippets);
@@ -943,7 +954,8 @@ void Transformations::MainSnippets(void) {
         if (matmul->get_transpose_a() || matmul->get_transpose_b())
             return false;
         if (in_type0 == ov::element::i8)
-            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni);
+            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni) ||
+                   dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2_vnni);
         if ((in_type0 == ov::element::bf16 && in_type1 == ov::element::bf16) ||
             ((in_type0 == element::f32 && in_type1 == ov::element::f32 && inferencePrecision == ov::element::bf16))) {
             // Implementation calls AMX BF16 brgemm only for tensors with K and N aligned on 2, otherwise fallbacks on vector impl
@@ -1094,7 +1106,7 @@ void Transformations::MainSnippets(void) {
 }
 
 void Transformations::PostSnippets(void) {
-    ov::pass::Manager postSnippetsManager;
+    ov::pass::Manager postSnippetsManager("CPU:PostSnippets");
     postSnippetsManager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(postSnippetsManager, ov::pass::FakeQuantizeDecomposition);
     CPU_SET_CALLBACK_COMMON(postSnippetsManager,
