@@ -11,6 +11,7 @@
 #include "snippets_isa.hpp"
 
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/kernel_executor_table.hpp"
 #include "snippets/shape_types.hpp"
 #include "target_machine.hpp"
 
@@ -32,7 +33,8 @@ class LoweringResult {
     std::vector<std::shared_ptr<Emitter>> m_saved_emitters{};
 
 public:
-    std::shared_ptr<CompiledSnippet> compiled_snippet = nullptr;
+    CompiledSnippetPtr compiled_snippet = nullptr;
+    KernelExecutorTablePtr kernel_executor_table = nullptr;
 };
 
 /**

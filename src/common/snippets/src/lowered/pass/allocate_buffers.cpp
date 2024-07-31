@@ -31,6 +31,7 @@ bool AllocateBuffers::run(lowered::LinearIR& linear_ir, lowered::LinearIR::const
     PassPipeline pipeline;
     pipeline.register_pass<ComputeBufferAllocationSize>(linear_ir.get_config().m_loop_depth);
     if (m_is_optimized_mode) {
+        // Renumber expressions to get integer order values -> it's important for MemorySolver
         pipeline.register_pass<EnumerateExpressions>();
         pipeline.register_pass<SetBufferRegGroup>();
         pipeline.register_pass<DefineBufferClusters>();

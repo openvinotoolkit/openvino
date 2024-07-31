@@ -110,28 +110,21 @@ public:
      */
     void set_work_amount_const(bool value);
 
-    /**
-     * @brief Replace the current LoopPort `actual_port` with new `target_ports`
-     * @param actual_port actual port
-     * @param target_ports new ports. The ports order is important. Can contain `actual_port`
-     */
-    virtual void replace_with_new_ports(const LoopPort& actual_port, const std::vector<LoopPort>& target_ports);
-    /**
-     * @brief Replace the current LoopPort that contains ExpressionPort `actual_port` with new `target_ports`
-     *        Note: If there is no LoopPort with this ExpressionPort `actual_port`, does nothing
-     * @param actual_port actual port
-     * @param target_ports new ports. The ports order is important. Can contain `actual_port`
-     */
-    virtual void replace_with_new_ports(const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports);
+    using ExpressionPortMap = std::map<ExpressionPort, std::vector<ExpressionPort>>;
+    using LoopPortMap = std::map<LoopPort, std::vector<LoopPort>>;
 
     /**
-     * @brief Iterates through all loop ports and call `caller` for each of them
-     * @param caller - function that called for each loop port
+     * @brief Replace the current loop ports with the corresponding new loop ports
+     * @param port_mapping [actual port -> vector of new loop ports]
      */
-    inline void iterate_through_ports(const std::function<void(LoopPort&)>& caller) {
-        std::for_each(m_input_ports.begin(), m_input_ports.end(), caller);
-        std::for_each(m_output_ports.begin(), m_output_ports.end(), caller);
-    }
+    virtual void replace_with_new_ports(const LoopPortMap& port_mapping);
+    /**
+     * @brief Replace the current loop ports which contain ExpressionPort from `port_mapping` with the corresponding new loop ports
+     *        Note: If there is no LoopPort with this ExpressionPort `actual_port`, does nothing
+     * @param port_mapping [actual port -> vector of new loop ports]
+     */
+    virtual void replace_with_new_ports(const ExpressionPortMap& port_mapping);
+
     /**
      * @brief Iterates through all loop ports and call `caller` for each of them
      * @param caller - function that called for each loop port
@@ -140,6 +133,11 @@ public:
         std::for_each(m_input_ports.cbegin(), m_input_ports.cend(), caller);
         std::for_each(m_output_ports.cbegin(), m_output_ports.cend(), caller);
     }
+
+    /**
+     * @brief Reorder ALL Loop Ports by execution order of expressions
+     */
+    virtual void reorder_ports() = 0;
 
     // Note that get_type_info_static and get_type_info are needed to mimic OPENVINO_RTTI interface,
     // so the standard OPENVINO_RTTI(...) macros could be used in derived classes.
@@ -182,6 +180,10 @@ protected:
      */
     template<typename T>
     std::vector<LoopPort>::iterator find_loop_port(const T& loop_port);
+    /**
+     * @brief Validate the current state of LoopInfo:
+     */
+    virtual void validate() = 0;
 
     size_t m_work_amount = 0;
     size_t m_increment = 0;
@@ -310,39 +312,22 @@ public:
     }
 
     /**
-     * @brief Reorder ALL input Loop Ports by `new_order`: `m_input_ports[new_order[i]] = m_input_ports[i]`
-     * @param new_order vector of new indexes
+     * @brief Reorder ALL Loop Ports by execution order of expressions
      */
-    void reorder_input_ports(const std::vector<size_t>& new_order);
-    /**
-     * @brief Reorder ALL output Loop Ports by `new_order`: `m_output_ports[new_order[i]] = m_output_ports[i]`
-     * @param new_order vector of new indexes
-     */
-    void reorder_output_ports(const std::vector<size_t>& new_order);
+    void reorder_ports() override;
 
     /**
-     * @brief Replace the current LoopPort `actual_port` with new `target_ports`
-     * @param actual_port actual port
-     * @param target_ports new ports. Ther order of ports is important. Can contains `actual_port`
+     * @brief Replace the current loop ports with the corresponding new loop ports
+     * @param port_mapping [actual port -> vector of new loop ports]
      */
-    void replace_with_new_ports(const LoopPort& actual_port, const std::vector<LoopPort>& target_ports) override;
+    void replace_with_new_ports(const LoopPortMap& port_mapping) override;
     /**
-     * @brief Replace the current LoopPort that contains ExpressionPort `actual_port` with new `target_ports`
+     * @brief Replace the current loop ports which contain ExpressionPort from `port_mapping` with the corresponding new loop ports
      *        Note: If there is no LoopPort with this ExpressionPort `actual_port`, does nothing
-     * @param actual_port actual port
-     * @param target_ports new ports. Ther order of ports is important. Can contains `actual_port`
+     * @param port_mapping [actual port -> vector of new loop ports]
      */
-    void replace_with_new_ports(const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports) override;
+    void replace_with_new_ports(const ExpressionPortMap& port_mapping) override;
 
-    /**
-     * @brief Remove remove_ports and add add_ports to the current LoopPort.
-     *        This function removes ports directly and adds ports at the end of current LoopPort, caller is responsible to
-     *        sort the LoopPort after LoopPort being updated according to execution order of the expressions.
-     *        Note: all port in remove_ports and add_ports should have the same type.
-     * @param remove_ports need to be removed
-     * @param add_ports need to be added
-     */
-    void update_loop_ports(const std::vector<ExpressionPort>& remove_ports, const std::vector<ExpressionPort>& add_ports);
     /**
      * @brief Iterates through all LoopPortDesc and call `caller` for each of them
      * @param caller - function that called for each LoopPortDesc
@@ -389,27 +374,11 @@ private:
      */
     void replace_with_cloned_descs(size_t actual_port_idx, size_t new_count, bool is_input);
     /**
-     * @brief Validate the current state of UnifiedLoopInfo:
-     *         - Consistency of ports and descriptors
+     * @brief Validate the current state of ExpandedLoopInfo:
+     *         - Consistency of ports and data pointer shift patameters
+     *         - Order loop ports by expression execution order
      */
-    void validate() const;
-    /**
-     * @brief Remove the current LoopPort that contains ExpressionPort.
-     *        Note: If there is no LoopPort with ExpressionPort `ports`, does nothing.
-     *        This function removes ports directly, caller is responsible to sort the LoopPort after updated
-     *        according to execution order of the expressions.
-     *        Note: all port in ports should have the same type.
-     * @param ports need to be removed
-     */
-    void remove_loop_ports(const std::vector<ExpressionPort>& ports);
-    /**
-     * @brief Add ports to the current LoopPort.
-     *        This function adds ports in end of current LoopPort vector, caller is responsible to
-     *        sort the LoopPort after updated according to execution order of the expressions.
-     *        Note: all port in ports should have the same type.
-     * @param ports need to be added
-     */
-    void add_loop_ports(const std::vector<ExpressionPort>& ports);
+    void validate() override;
 
     SpecificIterationHandlers m_handlers = {};
     std::vector<LoopPortDesc> m_input_port_descs = {};
@@ -501,27 +470,31 @@ public:
     void update_finalization_offsets(const std::vector<int64_t>& new_values);
 
     /**
-     * @brief Replace the current LoopPort `actual_port` with new `target_ports`
+     * @brief Replace the current loop ports with the corresponding new loop ports
      *        Attention: ExpandedLoopInfo supports only replace one port with one port!
-     * @param actual_port actual port
-     * @param target_ports vector with the single target port!
+     * @param port_mapping [actual port -> vector of new loop ports]
      */
-    void replace_with_new_ports(const LoopPort& actual_port, const std::vector<LoopPort>& target_ports) override;
+    void replace_with_new_ports(const LoopPortMap& port_mapping) override;
     /**
-     * @brief Replace the current LoopPort `actual_port` with new `target_ports`
+     * @brief Replace the current loop ports which contain ExpressionPort from `port_mapping` with the corresponding new loop ports
      *        Note: If there is no LoopPort with this ExpressionPort `actual_port`, does nothing
      *        Attention: ExpandedLoopInfo supports only replace one port with one port!
-     * @param actual_port actual port
-     * @param target_ports vector with the single target port!
+     * @param port_mapping [actual port -> vector of new loop ports]
      */
-    void replace_with_new_ports(const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports) override;
+    void replace_with_new_ports(const ExpressionPortMap& port_mapping) override;
+
+    /**
+     * @brief Reorder ALL input Loop Ports by execution order of expressions
+     */
+    void reorder_ports() override;
 
 private:
     /**
      * @brief Validate the current state of ExpandedLoopInfo:
      *         - Consistency of ports and data pointer shift patameters
+     *         - Order loop ports by expression execution order
      */
-    void validate() const;
+    void validate() override;
 
     std::vector<int64_t> m_ptr_increments = {};
     std::vector<int64_t> m_finalization_offsets = {};

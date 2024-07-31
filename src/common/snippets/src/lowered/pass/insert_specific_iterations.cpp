@@ -12,8 +12,6 @@
 #include "snippets/utils/utils.hpp"
 #include "snippets/itt.hpp"
 
-#include <array>
-
 namespace ov {
 namespace snippets {
 namespace lowered {
@@ -158,11 +156,8 @@ bool InsertSpecificIterations::decompose(LinearIR& linear_ir, LinearIR::constExp
     auto remaining_work_amount = unified_loop_info->get_work_amount();
     const auto is_wa_dynamic = utils::is_dynamic_value(remaining_work_amount);
 
-    static constexpr std::array<SpecificLoopIterType, 3> loop_iterations = {
-        SpecificLoopIterType::FIRST_ITER, SpecificLoopIterType::MAIN_BODY, SpecificLoopIterType::LAST_ITER
-    };
-
     auto decomposed = false;
+    constexpr auto loop_iterations = get_loop_iteration_order();
     for (const auto& iter_type : loop_iterations) {
         if (is_decomposed_loop_needed(unified_loop_info, iter_type, remaining_work_amount)) {
             const auto work_amount = get_decomposed_loop_work_amount(unified_loop_info, iter_type, remaining_work_amount);

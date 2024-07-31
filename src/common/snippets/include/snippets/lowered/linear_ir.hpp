@@ -130,6 +130,8 @@ public:
 
     bool is_dynamic() const;
 
+    void enumerate_expressions() const;
+
     /* ------ Helpers for work with LinearIR ----- */
     /**
      * @brief Creates new Expression from `new_node` with inputs `inputs`,
@@ -261,8 +263,11 @@ private:
     ExpressionPtr create_expression(const std::shared_ptr<Node>& n, const std::vector<PortConnectorPtr>& new_inputs,
                                     const std::vector<size_t>& loop_ids, bool update_loop_ports, const std::vector<std::set<ExpressionPort>>& consumers = {});
 
-    void register_expression(const ExpressionPtr& expr, bool io_allowed);
+    void register_expression(const ExpressionPtr& expr, bool io_allowed, double exec_num);
     void unregister_expression(const ExpressionPtr& expr);
+
+    // return execution number for new expression which will be inserted before `insert_pos`
+    double get_inserted_expr_exec_num(constExprIt insertion_pos) const;
 
     container m_expressions{};
     std::unordered_map<std::shared_ptr<Node>, std::shared_ptr<Expression>> m_node2expression_map;
@@ -279,6 +284,7 @@ private:
     size_t m_static_buffer_scratchpad_size = 0;
 };
 using LinearIRPtr = std::shared_ptr<LinearIR>;
+using LinearIRCPtr = std::shared_ptr<const LinearIR>;
 
 template<typename iterator>
 iterator LinearIR::find(iterator begin, iterator end, const ExpressionPtr& target) const {

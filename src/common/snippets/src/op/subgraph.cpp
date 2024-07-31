@@ -55,6 +55,7 @@
 #include "snippets/lowered/pass/validate_expanded_loops.hpp"
 #include "snippets/lowered/pass/set_load_store_scalar.hpp"
 #include "snippets/lowered/pass/extract_loop_invariants.hpp"
+#include "snippets/lowered/pass/enumerate_expressions.hpp"
 
 #include "transformations/utils/utils.hpp"
 
@@ -468,6 +469,7 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     pipeline.register_pass<lowered::pass::AllocateBuffers>(m_linear_ir->get_config().m_are_buffers_optimized);
     pipeline.register_pass<lowered::pass::CleanRepeatedDataPointerShifts>();
     pipeline.register_positioned_passes(lowered_backend_passes);
+    pipeline.register_pass<lowered::pass::EnumerateExpressions>(); // after all passes renumber expressions
     pipeline.register_pass<lowered::pass::Validate>(); // must be last
     pipeline.run(*m_linear_ir);
 
@@ -507,6 +509,7 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     gen_pipeline.register_pass<lowered::pass::ValidateExpandedLoops>();
     gen_pipeline.register_pass<lowered::pass::CleanupLoopOffsets>();
     gen_pipeline.register_pass<lowered::pass::OptimizeLoopSingleEvaluation>();
+    gen_pipeline.register_pass<lowered::pass::EnumerateExpressions>(); // before code gen renumber expressions
     gen_pipeline.run(*m_linear_ir);
 }
 
@@ -544,22 +547,21 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
     }
 
     auto lowering_result = m_generator->generate(linear_ir, compile_params);
-
-    // Note: Since the code emission is performed on a copy of LIR, but RuntimeConfigurator works with the initial instance,
-    //  we need to replace cloned expression pointers to original ones in the KernelExecutorTable. Ticket: 129772
-    const auto& exec_table = m_generator->get_target_machine()->get_runtime_configurator()->get_kernel_executor_table();
-    for (const auto& expr : *m_linear_ir)
-        exec_table->replace_key_expression(expression_map.at(expr.get()), expr);
     // Some kernel executors might've been registered during code emission.
     //  We need to update them, so appropriate kernels will be compiled.
+    const auto& exec_table = m_generator->get_target_machine()->get_runtime_configurator()->get_kernel_executor_table();
     exec_table->update_state(m_linear_ir);
     return {std::move(lowering_result)};
 }
 
-const std::shared_ptr<RuntimeConfig>& Subgraph::update_runtime_config() const {
+const std::shared_ptr<RuntimeConfigurator>& Subgraph::get_runtime_configurator() const {
     OPENVINO_ASSERT(m_generator, "Generator has not been inited!");
+    return m_generator->get_target_machine()->get_runtime_configurator();
+}
+
+const std::shared_ptr<RuntimeConfig>& Subgraph::update_runtime_config() const {
     OPENVINO_ASSERT(m_linear_ir, "LoweredLinearIR has not been inited!");
-    return m_generator->get_target_machine()->get_runtime_configurator()->get_updated_config(m_linear_ir);
+    return get_runtime_configurator()->get_updated_config(m_linear_ir);
 }
 
 void Subgraph::print() const {

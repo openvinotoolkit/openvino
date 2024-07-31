@@ -5,7 +5,8 @@
 #include "snippets/lowered/pass/solve_buffer_memory.hpp"
 
 #include "snippets/lowered/pass/allocate_buffers.hpp"
-#include "snippets/pass/tokenization.hpp"
+#include "snippets/op/buffer.hpp"
+#include "snippets/op/loop.hpp"
 #include "snippets/utils/utils.hpp"
 #include "snippets/itt.hpp"
 
@@ -14,6 +15,14 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
+namespace {
+int casted_execution_number(const ExpressionPtr& expr) {
+    const auto original_consumer_order = expr->get_exec_num();
+    double intpart;
+    OPENVINO_ASSERT(std::modf(original_consumer_order, &intpart) == 0.0, "Unsupported execution number of expression for MemorySolver");
+    return static_cast<int>(original_consumer_order);
+}
+}  // namespace
 
 std::pair<LinearIR::container, LinearIR::container> SolveBufferMemory::extract_static_and_dynamic_buffers(const LinearIR::container& buffer_expressions) {
     LinearIR::container static_buffer_exprs, dynamic_buffer_exprs;
@@ -57,8 +66,7 @@ std::vector<ov::MemorySolver::Box> SolveBufferMemory::init_boxes(const LinearIR:
         for (const auto& buffer_out : buffer_outs) {
             const auto consumers = buffer_out->get_consumers();
             for (const auto& consumer : consumers) {
-                const auto consumer_order = static_cast<int>(ov::snippets::pass::GetTopologicalOrder(consumer.get_expr()->get_node()));
-                e_finish = std::max(e_finish, consumer_order);  // the last consumer
+                e_finish = std::max(e_finish, casted_execution_number(consumer.get_expr()));  // the last consumer
             }
         }
         e_start = e_finish;
@@ -66,12 +74,12 @@ std::vector<ov::MemorySolver::Box> SolveBufferMemory::init_boxes(const LinearIR:
         const auto& buffer_ins = buffer_expr->get_input_port_connectors();
         for (const auto& buffer_in : buffer_ins) {
             const auto& source = buffer_in->get_source();
-            e_start = static_cast<int>(ov::snippets::pass::GetTopologicalOrder(source.get_expr()->get_node()));
+            e_start = casted_execution_number(source.get_expr());
 
             const auto buffer_siblings = buffer_in->get_consumers();
             for (const auto& sibling : buffer_siblings) {
                 if (const auto loop_end = ov::as_type_ptr<ov::snippets::op::LoopEnd>(sibling.get_expr()->get_node())) {
-                    e_start = std::min(e_start, static_cast<int>(ov::snippets::pass::GetTopologicalOrder(loop_end->get_loop_begin())));
+                    e_start = std::min(e_start, casted_execution_number(sibling.get_expr()));
                 }
             }
         }
