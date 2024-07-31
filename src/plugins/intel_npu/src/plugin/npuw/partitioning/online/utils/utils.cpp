@@ -50,9 +50,8 @@ std::tuple<ov::npuw::online::PatternType, std::string, std::string> ov::npuw::on
     auto pos_sl = s.find('/');
 
     if (pos_col == std::string::npos || pos_sl == std::string::npos) {
-        LOG_WARN("Incorrect pattern in OPENVINO_NPUW_AVOID or OPENVINO_NPUW_ISOLATE: "
-                 << s << ". Please, separate a device or tag with / and pattern type with :."
-                 << " Rule " << s << " is ommited!");
+        LOG_WARN("Incorrect pattern: " << s << ". Please, separate a device or tag with / and pattern type with :."
+                                       << " Rule " << s << " is ommited!");
         return {};
     }
 
@@ -61,9 +60,8 @@ std::tuple<ov::npuw::online::PatternType, std::string, std::string> ov::npuw::on
     auto device_or_tag = s.substr(pos_sl + 1, s.size() - pos_sl - 1);
 
     if (type != "Op" && type != "P") {
-        LOG_WARN("Incorrect pattern type in OPENVINO_NPUW_AVOID or OPENVINO_NPUW_ISOLATE: "
-                 << type << ". Please, use either Op for operation or P for pattern."
-                 << " Rule " << s << " is ommited!");
+        LOG_WARN("Incorrect pattern type: " << type << ". Please, use either Op for operation or P for pattern."
+                                            << " Rule " << s << " is ommited!");
         return {};
     }
 

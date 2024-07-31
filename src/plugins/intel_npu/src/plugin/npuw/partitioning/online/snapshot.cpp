@@ -311,6 +311,10 @@ void Snapshot::markInternalCompute() {
             auto prod_nh = group->srcNodes().at(0);  // all tags are the same, pick either group
             Group::GPtr group_prod = m_graph->meta(prod_nh).get<Group::GPtr>();
             NPUW_ASSERT(!group_prod->isolatedTag().empty());
+            if (group_prod->isolatedTag() !=
+                "compute") {  // this pass only operates with "compute" tag set by COMPUTE pipeline
+                continue;
+            }
             group->isolate(group_prod->isolatedTag());
         }
     }
@@ -427,8 +431,7 @@ void Snapshot::repeatedBlocks() {
         repeat([&] {
             mergeUniques();
         });
-        mergeTriangles();  // FIXME: assuming that w/o a particular set of properties (isolate, nofold) this pass does
-                           // nothing
+        mergeTriangles();
         markInternalCompute();
         resetExcludedRep();
     });
@@ -703,7 +706,7 @@ void Snapshot::mergeUniques() {
 
     std::unordered_set<std::shared_ptr<Repeated>> merged_this_time;
 
-    for (const auto& nh : m_graph->sorted()) {
+    for (const auto& nh : m_graph->nodes()) {
         if (!m_graph->contains(nh)) {
             continue;
         }

@@ -63,7 +63,7 @@ static constexpr ov::Property<std::string> avoid{"NPUW_ONLINE_AVOID"};
  * Type: std::string.
  * Isolates predefined pattern(s) to compile and run separately from other isolated tags and no tags.
  * Only compatible with online partitioning.
- * Possible values: comma-separated list of pattern slash tag, e.g.
+ * Possible values: comma-separated list of layer or pattern name slash tag, e.g.
  *                  "Op:Select/compute2,P:DQMatMulGQ/compute,P:DQMatMulCW/compute,P:RMSNorm/compute".
  * Default value: empty.
  */
@@ -94,7 +94,7 @@ static constexpr ov::Property<std::size_t> min_size{"NPUW_ONLINE_MIN_SIZE"};
 /**
  * @brief
  * Type: std::size_t.
- * Lower boundary of repeated block size in groups the plugin can keep.
+ * Sets the minimum number of repeating groups of the same pattern the plugin will keep in the partitioning.
  * Used to control fusion term criteria in online partitioning.
  * Only compatible with online partitioning.
  * Possible values: Integer > 0.
@@ -105,7 +105,7 @@ static constexpr ov::Property<std::size_t> keep_blocks{"NPUW_ONLINE_KEEP_BLOCKS"
 /**
  * @brief
  * Type: std::size_t.
- * Lower boundary of group size within a repeated block the plugin can keep.
+ * Sets the minimum group size (in layers) within the same pattern the plugin will keep in the partitioning.
  * Used to control fusion term criteria in online partitioning.
  * Only compatible with online partitioning.
  * Possible values: Integer > 0.

@@ -50,15 +50,11 @@ size_t getMinGraphSize(::intel_npu::Config& cfg) {
 size_t getMinRepBlocks(::intel_npu::Config& cfg) {
     std::size_t min_size = cfg.get<::intel_npu::NPUW_ONLINE_KEEP_BLOCKS>();
 
-    LOG_INFO("Online partitioning will keep blocks with at least " << min_size << " subgraphs.");
-
     return min_size;
 }
 
 size_t getMinRepBlockSize(::intel_npu::Config& cfg) {
     std::size_t min_size = cfg.get<::intel_npu::NPUW_ONLINE_KEEP_BLOCK_SIZE>();
-
-    LOG_INFO("Online partitioning will keep blocks with groups with at least " << min_size << " layers.");
 
     return min_size;
 }
@@ -196,8 +192,7 @@ std::vector<std::string> getNoFolds(const std::string& nofolds_unparsed) {
 }
 
 void setComputeConfig(PassContext& ctx) {
-    ctx.keep_blocks = 30;
-    ctx.keep_block_size = 2;
+    // FIXME: initialize via a dedicated function instead of parsing
     ctx.isolates = detail::getIsolates("P:DQMatMulGQ/compute,P:DQMatMulCW/compute,P:RMSNorm/compute");
     ctx.nofolds = detail::getNoFolds("compute");
 }
@@ -377,7 +372,6 @@ public:
             // Manually set predefined isolates and nofolds then do rep() pipeline
             detail::setComputeConfig(ctx);
             m_snapshot->setCtx(ctx);
-            LOG_WARN("Online partitioning will override some properties due to COMPUTE pipeline being selected.");
             rep();
             break;
         }
