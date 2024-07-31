@@ -136,7 +136,7 @@ void replace(ov::WeakSymbolVector& vec, const ov::WeakSymbol& old_s, const ov::W
     sort(vec);
 }
 
-void replace_no_check(const ov::SymbolPtr& old_symbol, const ov::SymbolPtr& new_symbol, ov::MathMap& m) {
+void replace_no_check(ov::SymbolPtr old_symbol, ov::SymbolPtr new_symbol, ov::MathMap& m) {
     ov::MathMap map_with_old;
     for (const auto& item : m)
         if (item.second == ov::WeakSymbol(old_symbol) || contains(item.first, old_symbol.get()))
@@ -195,8 +195,8 @@ void insert_with_check(const ov::WeakSymbolVector& key,
         m.insert({key, value});
 }
 
-void replace_inplace_with_check(const ov::SymbolPtr& old_symbol,
-                                const ov::SymbolPtr& new_symbol,
+void replace_inplace_with_check(ov::SymbolPtr old_symbol,
+                                ov::SymbolPtr new_symbol,
                                 ov::MathMap& m,
                                 std::queue<std::pair<ov::WeakSymbol, ov::WeakSymbol>>& to_equalize) {
     ov::MathMap with_old;
@@ -212,8 +212,8 @@ void replace_inplace_with_check(const ov::SymbolPtr& old_symbol,
     }
 }
 
-void replace_with_check(const ov::SymbolPtr& old_symbol,
-                        const ov::SymbolPtr& new_symbol,
+void replace_with_check(ov::SymbolPtr old_symbol,
+                        ov::SymbolPtr new_symbol,
                         ov::MathMap& old_map,
                         ov::MathMap& new_map,
                         std::queue<std::pair<ov::WeakSymbol, ov::WeakSymbol>>& to_equalize) {
@@ -247,7 +247,7 @@ void replace_with_check(const ov::SymbolPtr& old_symbol,
         new_map.insert({item.first, item.second});
 }
 
-void collect_records_with_result(const ov::SymbolPtr& result,
+void collect_records_with_result(ov::SymbolPtr result,
                                  const std::shared_ptr<ov::MathMap>& map,
                                  std::vector<ov::WeakSymbolVector>& records) {
     if (map)
@@ -256,9 +256,9 @@ void collect_records_with_result(const ov::SymbolPtr& result,
                 records.push_back(item.first);
 }
 
-void share_map(const std::shared_ptr<ov::MathMap>& shared_map,
-               const std::shared_ptr<ov::MathMap>& donor_map,
-               void (*set_map)(const ov::WeakSymbol&, const std::shared_ptr<ov::MathMap>&)) {
+void share_map(std::shared_ptr<ov::MathMap> shared_map,
+               std::shared_ptr<ov::MathMap> donor_map,
+               void (*set_map)(const ov::WeakSymbol&, std::shared_ptr<ov::MathMap>)) {
     if (!donor_map || donor_map->empty())
         return;
     for (const auto& item : *donor_map) {
@@ -347,7 +347,7 @@ ov::SymbolPtr ov::operator+(const SymbolPtr& lhs, const SymbolPtr& rhs) {
     } else {
         // share maps (if any) between A and B
         shared_map = std::make_shared<ov::MathMap>();
-        auto set_m_add = [](const ov::WeakSymbol& s, const std::shared_ptr<ov::MathMap>& m) -> void {
+        auto set_m_add = [](const ov::WeakSymbol& s, std::shared_ptr<ov::MathMap> m) -> void {
             if (!s.expired())
                 s.lock()->pimpl->set_add_map(m);
         };
@@ -411,7 +411,7 @@ ov::SymbolPtr ov::operator-(const SymbolPtr& lhs, const SymbolPtr& rhs) {
     } else {
         // share maps (if any) between A and B
         shared_map = std::make_shared<ov::MathMap>();
-        auto set_m_add = [](const ov::WeakSymbol& s, const std::shared_ptr<ov::MathMap>& m) -> void {
+        auto set_m_add = [](const ov::WeakSymbol& s, std::shared_ptr<ov::MathMap> m) -> void {
             if (!s.expired())
                 s.lock()->pimpl->set_add_map(m);
         };

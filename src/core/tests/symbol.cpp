@@ -60,3 +60,12 @@ TEST(shape, test_symbol_add_sub) {
     auto G = E - F;  // G = A + B + C - B - C = A
     ASSERT_TRUE(ov::symbol::are_equal(A, G));
 }
+
+TEST(shape, test_symbol_null) {
+    auto A = std::make_shared<ov::Symbol>();
+    std::shared_ptr<ov::Symbol> B = nullptr;
+    ASSERT_EQ(A + B, nullptr);
+    ASSERT_EQ(nullptr, A + B);
+    ASSERT_EQ(A - B, nullptr);
+    ASSERT_EQ(nullptr, A - B);
+}
