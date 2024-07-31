@@ -337,12 +337,7 @@ inline void scale_add2_reduce_max(float* a,
         vst1q_f32(a + i, v_a);
         i += vec_len_f32_neon;
     }
-    float32x2_t v_low = vget_low_f32(v_max);
-    float32x2_t v_high = vget_high_f32(v_max);
-    float32x2_t max1 = vpmax_f32(v_low, v_high);
-    float32x2_t max2 = vpmax_f32(max1, max1);
-
-    max = vget_lane_f32(max2, 0);
+    max = vmaxvq_f32(v_max);
 
 #endif
     for (; i < size; i++) {
@@ -502,11 +497,7 @@ inline void exp_reduce_sum(float* a, const float max, const size_t size, float& 
         vst1q_f32(a + i, v_a);
         i += vec_len_f32_neon;
     }
-    float32x2_t vlow = vget_low_f32(v_sum);
-    float32x2_t vhigh = vget_high_f32(v_sum);
-    vlow = vpadd_f32(vlow, vhigh);
-    vlow = vpadd_f32(vlow, vlow);
-    sum = vget_lane_f32(vlow, 0);
+    sum = vaddvq_f32(v_sum);
 
 #endif
     for (; i < size; i++) {

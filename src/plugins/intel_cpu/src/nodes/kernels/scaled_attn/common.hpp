@@ -210,11 +210,9 @@ static constexpr size_t vec_len_f32_neon = vec_len_neon / sizeof(float);
         const auto shift   = vreinterpretq_f32_u32(vdupq_n_u32(0x4b00007f)); // 2^23 + 127 = 0x1.0000fep23f
         const auto one   = vdupq_n_f32(1.0f); // 1
         const auto two   = vdupq_n_f32(2.0f); // 2
-        const auto inv_ln2 = vreinterpretq_f32_u32(vdupq_n_u32(0x3fb8aa3b)); // 1 / ln(2) = 0x1.715476p+0f
-        const auto neg_ln2_hi =
-                vreinterpretq_f32_u32(vdupq_n_u32(0xbf317200)); // -ln(2) from bits  -1 to -19: -0x1.62e400p-1f
-        const auto neg_ln2_lo =
-                vreinterpretq_f32_u32(vdupq_n_u32(0xb5bfbe8e)); // -ln(2) from bits -20 to -42: -0x1.7f7d1cp-20f
+        const auto inv_ln2 = vreinterpretq_f32_u32(vdupq_n_u32(0x3fb8aa3b));
+        const auto neg_ln2_hi = vreinterpretq_f32_u32(vdupq_n_u32(0xbf317200));
+        const auto neg_ln2_lo = vreinterpretq_f32_u32(vdupq_n_u32(0xb5bfbe8e));
 
         const auto inf       = vdupq_n_f32(std::numeric_limits<float>::infinity());
         const auto max_input = vdupq_n_f32(88.37f); // Approximately ln(2^127.5)
@@ -238,7 +236,6 @@ static constexpr size_t vec_len_f32_neon = vec_len_neon / sizeof(float);
         const auto p12345 = vfmaq_f32(p1, p2345, r2);
 
         auto poly = vfmaq_f32(scale, p12345, scale);
-        poly = vfmaq_f32(scale, p12345, scale);
         poly = vmulq_f32(poly, two);
 
         poly = vbslq_f32(vcltq_f32(src, min_input), zero, poly);
