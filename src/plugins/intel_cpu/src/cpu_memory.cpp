@@ -130,7 +130,7 @@ void Memory::load(const IMemory& src, bool ftz) const {
 void Memory::nullify() {
     void* dataPtr = getData();
     if (dataPtr != nullptr)
-        memset(dataPtr, 0, getDesc().getCurrentMemSize());
+        memset(dataPtr, 0, getDesc().getMaxMemSize());
 }
 
 void Memory::redefineDesc(MemoryDescPtr desc) {
