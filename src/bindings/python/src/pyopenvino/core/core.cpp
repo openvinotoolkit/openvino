@@ -554,25 +554,34 @@ void regclass_Core(py::module m) {
             model_stream.attr("seek")(0);  // Always rewind stream!
             const std::string filename = "model_stream.txt";
             std::fstream _stream(filename, std::ios::out | std::ios::binary);
-            const py::bytes data = model_stream.attr("read")();
-
-            // convert the Python bytes object to C++ string
-            char* buffer;
-            Py_ssize_t length;
-            PYBIND11_BYTES_AS_STRING_AND_SIZE(data.ptr(), &buffer, &length);
-            _stream.write(buffer, length);
-            _stream.close();
-
-            std::fstream _fstream(filename, std::ios::in | std::ios::binary);
-            py::gil_scoped_release release;
-            const auto result = self.import_model(_fstream, device_name, _properties);
-            _fstream.close();
-            if (std::remove(filename.c_str()) != 0) {
-                const std::string abs_path =
-                    py::module_::import("os").attr("getcwd")().cast<std::string>() + "/" + filename;
-                const std::string warning_message = "Temporary file " + abs_path + " failed to delete!";
-                PyErr_WarnEx(PyExc_RuntimeWarning, warning_message.c_str(), 1);
+            if (_stream.is_open()) {
+                const py::bytes data = model_stream.attr("read")();
+                // convert the Python bytes object to C++ string
+                char* buffer;
+                Py_ssize_t length;
+                PYBIND11_BYTES_AS_STRING_AND_SIZE(data.ptr(), &buffer, &length);
+                _stream.write(buffer, length);
+                _stream.close();
+            } else {
+                OPENVINO_THROW("Failed to open temporary file for model stream");
             }
+
+            ov::CompiledModel result;
+            std::fstream _fstream(filename, std::ios::in | std::ios::binary);
+            if (_fstream.is_open()) {
+                py::gil_scoped_release release;
+                result = self.import_model(_fstream, device_name, _properties);
+                _fstream.close();
+                if (std::remove(filename.c_str()) != 0) {
+                    const std::string abs_path =
+                        py::module_::import("os").attr("getcwd")().cast<std::string>() + "/" + filename;
+                    const std::string warning_message = "Temporary file " + abs_path + " failed to delete!";
+                    PyErr_WarnEx(PyExc_RuntimeWarning, warning_message.c_str(), 1);
+                }
+            } else {
+                OPENVINO_THROW("Failed to open temporary file for model stream");
+            }
+            
             return result;
         },
         py::arg("model_stream"),
