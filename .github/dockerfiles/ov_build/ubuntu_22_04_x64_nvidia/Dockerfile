@@ -1,4 +1,4 @@
-FROM openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+FROM openvinogithubactions.azurecr.io/dockerhub/nvidia/cuda:11.8.0-runtime-ubuntu22.04
 
 USER root
 
@@ -18,14 +18,16 @@ RUN apt-get update && \
     apt-get update && \
     apt-get install \
         curl \
+        wget \
         git \
         gpg-agent \
         tzdata \
+        # Python
+        python3.11-dev \
+        python3.11-venv \
+        python3.11-distutils \
         # For Java API
         default-jdk \
-        # Compiler \
-        gcc-10 \
-        g++-10 \
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -34,10 +36,6 @@ ADD install_build_dependencies.sh /install_build_dependencies.sh
 RUN chmod +x /install_build_dependencies.sh && \
     /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
-
-# Set gcc-10 as a default compiler
-RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 30 && \
-    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 30
 
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
@@ -49,11 +47,26 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
     curl -SLO https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/${SCCACHE_ARCHIVE} && \
     tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
 
-ENV PATH="$SCCACHE_HOME:$PATH"
+# Install CUDA
+RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb && \
+    dpkg -i cuda-keyring_1.1-1_all.deb
+RUN apt-get update && apt-get install -y cuda-runtime-11-8 cuda-11-8 && apt-get install -y \
+    libcudnn8=8.9.4.*-1+cuda11.8 \
+    libcudnn8-dev=8.9.4.*-1+cuda11.8 \
+    libcudnn8-samples=8.9.4.*-1+cuda11.8 \
+    libcutensor1=1.7.0.1-1 \
+    libcutensor-dev=1.7.0.1-1 \
+    cuda-drivers
+
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
+
+# Use Python 3.11 as default
+# Using venv here 'cause other methods to switch the default Python on Ubuntu 22 break both system and wheels build
+RUN python3.11 -m venv venv
+ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}

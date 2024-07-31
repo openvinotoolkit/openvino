@@ -1,4 +1,4 @@
-FROM openvinogithubactions.azurecr.io/dockerhub/ubuntu:22.04
+FROM openvinogithubactions.azurecr.io/dockerhub/ubuntu:24.04
 
 USER root
 
@@ -13,19 +13,14 @@ ENV DEBIAN_FRONTEND="noninteractive" \
 
 RUN apt-get update && \
     apt-get install software-properties-common && \
-    add-apt-repository --yes --no-update ppa:git-core/ppa && \
-    add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
     apt-get update && \
     apt-get install \
         curl \
         git \
-        ca-certificates \
         gpg-agent \
         tzdata \
         # Python
-        python3.11-dev \
-        python3.11-venv \
-        python3.11-distutils \
+        python3-full \
         libhdf5-dev \
         && \
     rm -rf /var/lib/apt/lists/*
@@ -36,17 +31,14 @@ RUN chmod +x /install_openvino_dependencies.sh && \
     /install_openvino_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
+# Create a virtual environment for the system Python as Python in Ubuntu 24 complains about installing
+# packages into the system Python
+RUN python3 -m venv venv
+ENV PATH="/venv/bin:$PATH"
+
 # Setup pip
 ENV PIP_VERSION="24.0"
-RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
-    python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
-    rm -f get-pip.py
-
-# Use Python 3.11 as default
-# Using venv here 'cause other methods to switch the default Python on Ubuntu 20 break both system and wheels build
-RUN python3.11 -m venv venv
-ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
+RUN /venv/bin/python3 -m pip install --upgrade pip==${PIP_VERSION}
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
-ENV PIP_INSTALL_PATH=/venv/lib/python3.11/site-packages
+ENV PIP_INSTALL_PATH=/venv/lib/python3/site-packages
