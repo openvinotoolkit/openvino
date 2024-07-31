@@ -61,7 +61,7 @@ more about workflows and job organization.
 If new tests do not align with any existing job across all workflows, it is possible to
 create a dedicated job for them.
 
-An example dedicated job for a single set of tests from [`linux.yml`](./../../../../.github/workflows/linux.yml):
+An example dedicated job for a single set of tests from [`ubuntu_22.yml`](./../../../../.github/workflows/ubuntu_22.yml):
 ```yaml
 NVIDIA_Plugin:
   name: NVIDIA plugin

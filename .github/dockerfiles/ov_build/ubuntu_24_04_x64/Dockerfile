@@ -1,4 +1,4 @@
-FROM openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+FROM openvinogithubactions.azurecr.io/dockerhub/ubuntu:24.04
 
 USER root
 
@@ -21,9 +21,14 @@ RUN apt-get update && \
         git \
         gpg-agent \
         tzdata \
+        # Python
+        python3-dev \
+        python3-venv \
+        python3-pip \
+        python3-full \
         # For Java API
         default-jdk \
-        # Compiler \
+        # Compiler. TODO: remove and use the system one; if the system one is used, onnx fails to build
         gcc-10 \
         g++-10 \
         && \
@@ -39,7 +44,7 @@ RUN chmod +x /install_build_dependencies.sh && \
 RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 30 && \
     update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 30
 
-# Install sscache
+# Install sccache
 ARG SCCACHE_VERSION="v0.7.5"
 ENV SCCACHE_HOME="/opt/sccache" \
     SCCACHE_PATH="/opt/sccache/sccache"
@@ -50,10 +55,14 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
     tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
 
 ENV PATH="$SCCACHE_HOME:$PATH"
+
+# Create a virtual environment for the system Python as Python in Ubuntu 24 complains about installing
+# packages into the system Python
+RUN python3 -m venv venv
+ENV PATH="/venv/bin:$PATH"
+
 # Setup pip
 ENV PIP_VERSION="24.0"
-RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
-    rm -f get-pip.py
+RUN /venv/bin/python3 -m pip install --upgrade pip==${PIP_VERSION}
 
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
