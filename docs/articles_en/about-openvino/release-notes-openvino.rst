@@ -270,11 +270,22 @@ OpenVINO pre-optimized models are now available on Hugging Face:
 
 
 
+Known Issues
+-----------------------------
 
+| **Component: OpenVINO.GenAI**
+| ID: 148308
+| Description:
+|   The OpenVINO.GenAI archive distribution doesn't include debug libraries for OpenVINO
+    Tokenizers and OpenVINO.GenAI.
 
-
-
-
+| **Component: OpenVINO.GenAI**
+| ID: 146283
+| Description:
+|   For some LLM models, longer prompts, such as several thousand tokens, may result in
+    decreased accuracy on the GPU plugin.
+| Workaround:
+|   It is recommended to run the model in the FP32 precision to avoid the issue.
 
 
 
