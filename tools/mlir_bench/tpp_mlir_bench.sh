@@ -6,21 +6,25 @@
 # Runs MLIR only MLP benchmarks using TPP-MLIR.
 
 die_syntax() {
-  echo "Syntax: $0 [-t (f32|f16|bf16|...)] [-D]"
+  echo "Syntax: $0 [-t (f32|f16|bf16|...)] [-D] [-C]"
   echo ""
   echo "  -t: Optional data type"
   echo "  -D: Set model shapes to dynamic"
+  echo "  -C: Weights as constants (default: arguments)"
   exit 1
 }
 
 # Cmd-line opts
-while getopts "t:D" arg; do
+while getopts "t:DC" arg; do
   case ${arg} in
     t)
       DATA_TYPE=${OPTARG}
       ;;
     D)
       IS_DYNAMIC=true
+      ;;
+    C)
+      CONST_WEIGHTS=true
       ;;
     ?)
       echo "Invalid option: ${OPTARG}"
@@ -59,7 +63,11 @@ for MB in "${MINI_BATCHES[@]}"; do
   for LAYER in "${LAYERS[@]}"; do
     # Generate model.
     MODEL_CONFIG=(--batch=${MB} --layers=${LAYER},${LAYER} -bias -relu)
-    GEN_FLAGS=(--kernel=args --float-type=${DATA_TYPE} --seed=123)
+    KERNEL_TYPE=args
+    if [ "${CONST_WEIGHTS}" ]; then
+        KERNEL_TYPE=const
+    fi
+    GEN_FLAGS=(--kernel=${KERNEL_TYPE} --float-type=${DATA_TYPE} --seed=123)
     MLIR_IR=$(${MODEL_GEN} "${MODEL_CONFIG[@]}" "${GEN_FLAGS[@]}")
     if [ $? != 0 ]; then
         echo "Failed to generate model"
