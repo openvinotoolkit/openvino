@@ -1,0 +1,30 @@
+// Copyright (C) 2018-2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include "openvino/op/op.hpp"
+#include "openvino/op/util/binary_elementwise_bitwise.hpp"
+
+namespace ov {
+namespace op {
+namespace v15 {
+/// \brief Elementwise bitwise BitwiseLeftShift operation.
+/// \ingroup ov_ops_cpp_api
+class OPENVINO_API BitwiseLeftShift : public util::BinaryElementwiseBitwise {
+public:
+    OPENVINO_OP("BitwiseLeftShift", "opset15", util::BinaryElementwiseBitwise);
+    /// \brief Constructs a bitwise BitwiseLeftShift operation.
+    BitwiseLeftShift() = default;
+    /// \brief Constructs a bitwise BitwiseLeftShift operation.
+    ///
+    BitwiseLeftShift(const Output<Node>& arg0,
+                     const Output<Node>& arg1,
+                     const AutoBroadcastSpec& auto_broadcast = AutoBroadcastSpec(AutoBroadcastType::NUMPY));
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+};
+}  // namespace v15
+}  // namespace op
+}  // namespace ov
