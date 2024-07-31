@@ -71,11 +71,6 @@ jobs:
     if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
 
     steps:
-      - name: Print files location
-        run: |
-          ls "C:\Program Files (x86)\Windows Kits\10\build\10.0.22621.0\universalDDIs\x64"
-          ls "C:\Program Files (x86)\Windows Kits\10\Include"
-
       - name: Clone OpenVINO
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
