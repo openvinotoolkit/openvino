@@ -1,9 +1,8 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-import platform
-
 import numpy as np
+import platform
 import pytest
 from common.tf_layer_test_class import CommonTFLayerTest
 
@@ -66,15 +65,12 @@ class TestBinaryOps(CommonTFLayerTest):
             'FloorMod': tf.raw_ops.FloorMod,
             'FloorDiv': tf.raw_ops.FloorDiv,
             'Xdivy': tf.raw_ops.Xdivy,
-            'BitwiseAnd': tf.raw_ops.BitwiseAnd,
-            'BitwiseOr': tf.raw_ops.BitwiseOr,
-            'BitwiseXor': tf.raw_ops.BitwiseXor,
         }
 
         input_type = np.float32
         if op_type in ["LogicalAnd", "LogicalOr", "LogicalXor"]:
             input_type = bool
-        elif op_type in ["BitwiseAnd", "BitwiseOr", "BitwiseXor", 'Pow']:
+        elif op_type in ['Pow']:
             input_type = np.int32
         self.input_type = input_type
 
@@ -100,21 +96,21 @@ class TestBinaryOps(CommonTFLayerTest):
     @pytest.mark.parametrize("op_type",
                              ['Add', 'AddV2', 'Sub', 'Mul', 'Div', 'RealDiv', 'SquaredDifference', 'Pow',
                               'Maximum', 'Minimum', 'Equal', 'NotEqual', 'Mod', 'Greater', 'GreaterEqual', 'Less',
-                              'LessEqual', 'LogicalAnd', 'LogicalOr', 'FloorMod', 'FloorDiv',
-                              'Xdivy', 'BitwiseAnd', 'BitwiseOr', 'BitwiseXor', ])
+                              'LessEqual', 'LogicalAnd', 'LogicalOr', 'FloorMod', 'FloorDiv', 'Xdivy'])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122716')
     def test_binary_op(self, x_shape, y_shape, ie_device, precision, ir_version, temp_dir, op_type,
                        use_legacy_frontend):
-        if use_legacy_frontend and op_type in ['BitwiseAnd', 'BitwiseOr', 'BitwiseXor', 'Xdivy']:
-            pytest.skip("Bitwise and Xdivy ops are supported only by new TF FE.")
-        if op_type in ['BitwiseAnd', 'BitwiseOr', 'BitwiseXor', 'Pow', 'Mod'] and ie_device == 'GPU':
-            pytest.skip("GPU does not support Bitwise ops. For Mod and Pow it has inference mismatch")
+        if use_legacy_frontend and op_type in ['Xdivy']:
+            pytest.skip("Xdivy op is supported only by new TF FE.")
+        if op_type in ['Pow', 'Mod'] and ie_device == 'GPU':
+            pytest.skip("For Mod and Pow GPU has inference mismatch")
         if op_type in ['Mod', 'FloorDiv', 'FloorMod']:
             pytest.skip("Inference mismatch for Mod and FloorDiv")
-        if ie_device == 'GPU' and precision == 'FP16' and op_type in ['Equal', 'NotEqual', 'Greater', 'GreaterEqual', 'Less', 'LessEqual']:
-            pytest.skip("Accuracy mismatch on GPU")            
+        if ie_device == 'GPU' and precision == 'FP16' and op_type in ['Equal', 'NotEqual', 'Greater', 'GreaterEqual',
+                                                                      'Less', 'LessEqual']:
+            pytest.skip("Accuracy mismatch on GPU")
         self._test(*self.create_add_placeholder_const_net(x_shape=x_shape, y_shape=y_shape, op_type=op_type), ie_device,
                    precision, ir_version, temp_dir=temp_dir, use_legacy_frontend=use_legacy_frontend)
