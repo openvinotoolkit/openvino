@@ -194,6 +194,7 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_para
         auto second_primiary_axis_size =  dispatchData.gws[1];  // YF axes
         dispatchData.gws[0] = first_primary_axis_size * input.Feature().v;  // takes XF axes
         dispatchData.gws[1] = second_primiary_axis_size / input.Feature().v;  // takes Y axis
+        dispatchData.lws = {1, 1, 1};
     }
 
     return dispatchData;
