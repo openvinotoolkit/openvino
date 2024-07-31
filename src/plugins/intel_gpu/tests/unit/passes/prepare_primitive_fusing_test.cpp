@@ -689,3 +689,106 @@ TEST(prepare_primitive_fusing, dont_fuse_eltwise_to_dyn_dts) {
     ASSERT_NE(prog, nullptr);
     ASSERT_TRUE(has_node(*prog, "scale1"));
 }
+
+static void move_next(program& p, primitive_id node_id, primitive_id key_id) {
+    auto n = &p.get_node(node_id);
+    p.get_processing_order().erase(&p.get_node(node_id));
+    p.get_processing_order().insert_next(&p.get_node(key_id), n);
+}
+
+TEST(prepare_primitive_fusing, fuse_by_priotizing_to_parent_in_fusing_history) {
+    //    in1    in2                   in1   in2
+    //     |      |                     |     |
+    //   conv1  conv2                   |   conv2
+    //     |      |                     |    /
+    //   actv1  eltw1                   |   /
+    //    /   \   |                     |  /
+    //  eltw2   eltw3      ----->     conv1 (actv1, eltw2, eltw3, eltw4, eltw5, eltw6)
+    //    |       |                     |
+    //  eltw4     |                     |
+    //    |       |                     |
+    //  eltw6 -- eltw5                  |
+    //            |                     |
+    //           eltw7                eltw7
+    //
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    auto in_layout      = layout{ ov::PartialShape{32, 96, -1, -1}, data_types::f32, format::bfyx };
+    auto weights_layout = layout{ ov::PartialShape{32, 96, 1, 1}, data_types::f32, format::bfyx};
+    auto eltwise_layout = layout{ ov::PartialShape{1, 1, 1, 1}, data_types::f32, format::bfyx };
+
+    auto weights_memory = engine.allocate_memory(weights_layout);
+    auto eltwise_memory = engine.allocate_memory(eltwise_layout);
+
+    auto weights_data   = rg.generate_random_4d<ov::float16>(32, 96, 1, 1, 1, 1);
+    auto eltwise_data   = rg.generate_random_4d<ov::float16>(1, 1, 1, 1, 1, 1);
+
+    topology topology(
+        input_layout("input1", in_layout),
+        input_layout("input2", in_layout),
+        data("weight1", weights_memory),
+        data("weight2", weights_memory),
+        data("data1", eltwise_memory),
+        data("data2", eltwise_memory),
+        data("data3", eltwise_memory),
+        data("data4", eltwise_memory),
+        data("data5", eltwise_memory),
+        convolution("conv1", input_info("input1"), "weight1", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false),
+        convolution("conv2", input_info("input2"), "weight2", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false),
+        activation("actv1", input_info("conv1"), activation_func::hard_sigmoid),
+        eltwise("eltw1", { input_info("conv2"), input_info("data1") }, eltwise_mode::sum, data_types::f32),
+        eltwise("eltw2", { input_info("actv1"), input_info("data2") }, eltwise_mode::prod, data_types::f32),
+        eltwise("eltw3", { input_info("actv1"), input_info("eltw1") }, eltwise_mode::sub, data_types::f32),
+        eltwise("eltw4", { input_info("eltw2"), input_info("data3") }, eltwise_mode::prod, data_types::f32),
+        eltwise("eltw5", { input_info("eltw3"), input_info("eltw6") }, eltwise_mode::prod, data_types::f32),
+        eltwise("eltw6", { input_info("eltw4"), input_info("data4") }, eltwise_mode::sum, data_types::f32),
+        eltwise("eltw7", { input_info("eltw5"), input_info("data5") }, eltwise_mode::prod, data_types::f32)
+    );
+
+
+    set_values(weights_memory, weights_data);
+    set_values(eltwise_memory, eltwise_data);
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    auto program = program::build_program(engine, topology, config, false, true);
+    ASSERT_NE(program, nullptr);
+
+    int32_t process_number_conv1 = program->get_processing_order().get_processing_number(&program->get_node("conv1"));
+    int32_t process_number_conv2 = program->get_processing_order().get_processing_number(&program->get_node("conv2"));
+
+    if (process_number_conv1 > process_number_conv2) {
+        // Change the processing order to create a expected test case,
+        // where fused_idx < peer_idx and the processing order of parents[0] is lower than parents[1].
+        //
+        // index  : 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 |
+        // before : w2| w1| i2| c2| i1| c1| a1| d5| d4| d3| d2 | e2 | e4 | e6 | d1 | e1 | e3 | e5 | e7 |
+        // after  : w1| w2| i1| c1| a1| i2| c2| d5| d4| d3| d2 | d1 | e1 | e2 | e3 | e4 | e6 | e5 | e7 |
+        //
+        // w : weights
+        // i : input
+        // c : convolution
+        // a : activation
+        // d : data
+        // e : eltwise
+        //
+        move_next(*program, "weight2", "weight1");
+        move_next(*program, "input1" , "weight2");
+        move_next(*program, "conv1"  , "input1" );
+        move_next(*program, "actv1"  , "conv1"  );
+        move_next(*program, "data1"  , "data2"  );
+        move_next(*program, "eltw1"  , "data1"  );
+        move_next(*program, "eltw3"  , "eltw2"  );
+    }
+
+    layout_optimizer lo(true);
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*program, lo);
+
+    ASSERT_FALSE(has_node(*program, "actv1"));
+    ASSERT_FALSE(has_node(*program, "eltw3"));
+    ASSERT_FALSE(has_node(*program, "eltw4"));
+    ASSERT_FALSE(has_node(*program, "eltw5"));
+    ASSERT_FALSE(has_node(*program, "eltw6"));
+}
