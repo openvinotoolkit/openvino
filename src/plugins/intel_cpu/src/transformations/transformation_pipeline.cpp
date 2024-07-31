@@ -35,6 +35,7 @@
 #include "transformations/common_optimizations/matmul_const_transposes_extraction.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
+#include "transformations/common_optimizations/markup_rope_inputs.hpp"
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/op_conversions/convert_avgpool_downgrade.hpp"
@@ -134,7 +135,7 @@
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
 #include "transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp"
-#include "transformations/cpu_opset/common/pass/markup_rope_inputs.hpp"
+
 
 // Snippets
 #include "snippets/pass/tokenization.hpp"
@@ -843,7 +844,7 @@ void Transformations::PostLpt() {
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, StatefulSDPAFusion);
     // markup Rope Input only when BF16 inference.
     if (inferencePrecision == ov::element::bf16)
-        CPU_REGISTER_PASS_COMMON(postLPTPassManager, MarkUpRopeInputs);
+        CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MarkUpRopeInputs);
 
     // Should be before Snippets pipeline because Ngram pattern contains eltwise nodes that can be tokenized by Snippets.
     auto symbolic_pipeline = CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::SymbolicOptimizations, false);

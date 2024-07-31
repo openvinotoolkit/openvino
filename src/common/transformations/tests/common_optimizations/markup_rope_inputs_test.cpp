@@ -5,7 +5,7 @@
 #include "openvino/opsets/opset1.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/cpu_opset/common/pass/markup_rope_inputs.hpp"
+#include "transformations/common_optimizations/markup_rope_inputs.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 
 TEST_F(TransformationTestsF, MarkUpRopeInputsTest) {
@@ -44,7 +44,7 @@ TEST_F(TransformationTestsF, MarkUpRopeInputsTest) {
         model = std::make_shared<ov::Model>(rope, ov::ParameterVector{input, input_a, input_b}, "model");
     }
 
-    manager.register_pass<ov::intel_cpu::MarkUpRopeInputs>();
+    manager.register_pass<ov::pass::MarkUpRopeInputs>();
 
     {
         auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 10, 8, 64});
