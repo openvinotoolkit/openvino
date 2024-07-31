@@ -134,7 +134,7 @@ std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelExecutor::compile_kernel(const
     if (config.is_empty())
         return compiled_kernel;
 
-    cpu::x64::brgemm_t desc;
+    cpu::x64::brgemm_desc_t desc;
     auto status = brgemm_desc_init(&desc, config.get_isa(), cpu::x64::brgemm_strd,
                                    config.get_dt_in0(), config.get_dt_in1(),
                                    false, false, cpu::x64::brgemm_row_major, 1.f,
