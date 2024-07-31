@@ -116,6 +116,7 @@ jobs:
           if [[ ${{ inputs.os }} == 'ubuntu_24_04' ]]; then
             # Should be removed after https://github.com/openvinotoolkit/openvino/pull/24242 is merged
             export CMAKE_GENERATOR="Unix Makefiles"
+            export CMAKE_ARGS="-DONNX_USE_PROTOBUF_SHARED_LIBS=ON"
             python3 -m pip install --force-reinstall --no-cache-dir -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
           else
             python3 -m pip install --force-reinstall -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
