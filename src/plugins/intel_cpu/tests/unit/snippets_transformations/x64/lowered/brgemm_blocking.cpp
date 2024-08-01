@@ -25,6 +25,16 @@ using BRGEMM_TYPE = intel_cpu::brgemm_utils::BRGEMM_TYPE;
 
 namespace {
 
+SpecificIterationHandlers get_k_loop_handlers(size_t work_amount, size_t block_size) {
+    auto handlers = BrgemmBlockingBase::get_default_blocking_loop_handlers(work_amount, block_size);
+#ifdef SNIPPETS_LIBXSMM_TPP
+    handlers.register_pass<SpecificLoopIterType::FIRST_ITER, ov::intel_cpu::tpp::pass::BrgemmTPPBlocking::SetBrgemmBeta>();
+#else
+    handlers.register_pass<SpecificLoopIterType::FIRST_ITER, ov::intel_cpu::pass::BrgemmCPUBlocking::DummyPass>();
+#endif
+    return handlers;
+}
+
 void create_brgemm_loop_infos(const LinearIRPtr& linear_ir,
                               const ExpressionPtr& brgemm_expr,
                               size_t m = 0, size_t m_blk = 0,
@@ -39,8 +49,7 @@ void create_brgemm_loop_infos(const LinearIRPtr& linear_ir,
                 std::vector<LoopPort>{LoopPort(brgemm_expr->get_input_port(0)),
                                       LoopPort(brgemm_expr->get_input_port(1), true, 1)},
                 std::vector<LoopPort>{LoopPort(brgemm_expr->get_output_port(0), false)},
-                BrgemmBlockingBase::get_default_blocking_loop_handlers(k, k_block));
-        loop_info->register_pass_to_handler<SpecificLoopIterType::FIRST_ITER, ov::snippets::lowered::pass::DummyPass>();
+                get_k_loop_handlers(k, k_block));
         linear_ir->get_loop_manager()->add_loop_info(loop_info);
     }
     if (n_block) {
@@ -78,8 +87,7 @@ void create_brgemm_with_copy_b_loop_infos(const LinearIRPtr& linear_ir,
                 std::vector<LoopPort>{LoopPort(brgemm_expr->get_input_port(0)),
                                       LoopPort(copy_b_expr->get_input_port(0), true, 1)},
                 std::vector<LoopPort>{LoopPort(brgemm_expr->get_output_port(0), false)},
-                BrgemmBlockingBase::get_default_blocking_loop_handlers(k, k_block));
-        loop_info->register_pass_to_handler<SpecificLoopIterType::FIRST_ITER, ov::snippets::lowered::pass::DummyPass>();
+                get_k_loop_handlers(k, k_block));
         linear_ir->get_loop_manager()->add_loop_info(loop_info);
     }
     if (n_block) {

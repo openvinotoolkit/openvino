@@ -154,14 +154,6 @@ std::shared_ptr<snippets::lowered::pass::PassBase> SetEvaluateOnce::merge(const 
     return !other || ov::is_type<SetEvaluateOnce>(other) ? std::make_shared<SetEvaluateOnce>() : nullptr;
 }
 
-bool DummyPass::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
-    return true;
-}
-
-std::shared_ptr<snippets::lowered::pass::PassBase> DummyPass::merge(const std::shared_ptr<snippets::lowered::pass::PassBase>& other) {
-    return !other || ov::is_type<DummyPass>(other) ? std::make_shared<DummyPass>() : nullptr;
-}
-
 } // namespace pass
 } // namespace lowered
 } // namespace snippets

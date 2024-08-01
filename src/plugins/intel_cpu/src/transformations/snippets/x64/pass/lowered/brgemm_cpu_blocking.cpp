@@ -8,7 +8,6 @@
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/pass/pass.hpp"
-#include "snippets/lowered/pass/iter_handler.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
@@ -24,6 +23,13 @@ using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 using namespace ov::intel_cpu::brgemm_utils;
 using namespace ov::snippets::lowered;
 using namespace ov::snippets::utils;
+
+bool BrgemmCPUBlocking::DummyPass::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
+    return true;
+}
+std::shared_ptr<snippets::lowered::pass::PassBase> BrgemmCPUBlocking::DummyPass::merge(const std::shared_ptr<snippets::lowered::pass::PassBase>& other) {
+    return !other || ov::is_type<DummyPass>(other) ? std::make_shared<DummyPass>() : nullptr;
+}
 
 LinearIR::constExprIt BrgemmCPUBlocking::move_new_memory_buffer(LinearIR& linear_ir, const LinearIR::constExprIt& brgemm_it) {
     const auto& brgemm_expr = brgemm_it->get();
@@ -62,7 +68,7 @@ std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(const 
 
 SpecificIterationHandlers BrgemmCPUBlocking::get_k_loop_handlers(size_t work_amount, size_t block_size) const {
     SpecificIterationHandlers handlers = ov::snippets::lowered::pass::BrgemmBlockingBase::get_k_loop_handlers(work_amount, block_size);
-    handlers.register_pass<SpecificLoopIterType::FIRST_ITER, ov::snippets::lowered::pass::DummyPass>();
+    handlers.register_pass<SpecificLoopIterType::FIRST_ITER, DummyPass>();
     return handlers;
 }
 

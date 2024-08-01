@@ -159,6 +159,30 @@ std::shared_ptr<BrgemmCompiledKernel> BrgemmKernelExecutor::compile_kernel(const
 
     return compiled_kernel;
 }
+float BrgemmKernelExecutor::get_beta(const ov::snippets::lowered::LoopManagerPtr& loop_manager, int loop_id,
+                                     const ov::snippets::lowered::ExpandedLoopInfoPtr& current_expanded_loop_info) {
+    // Find all Expanded loops with the same Unified loop information -> they were decomposed from this Unified Loop.
+    // Note that LoopInfo are normalized and sorted (due to NormalizedLoopIDs pass).
+    // It means that previous executed Loops have Loop ID less the current Loop ID.
+    // - If there is executed Loop (work_amount > 0) and evaluated before the current -> the current Brgemm should have `beta = 1`.
+    // - If there is not this Loop -> the current executed Brgemm should have `beta = 0`.
+    if (loop_id > 0) {
+        const auto& current_unified_loop_info = current_expanded_loop_info->get_unified_loop_info();
+        // Check the previous Loops
+        --loop_id;
+        while (loop_id >= 0) {
+            const auto& expanded_loop_info = loop_manager->get_loop_info<ov::snippets::lowered::ExpandedLoopInfo>(loop_id);
+            if (expanded_loop_info->get_unified_loop_info() != current_unified_loop_info)
+                return 0;
+            if (expanded_loop_info->get_work_amount() > 0) {
+                // there is previous executed Brgemm with `beta = 0` -> the current Brgemm should have `beta = 1`
+                return 1;
+            }
+            --loop_id;
+        }
+    }
+    return 0;
+}
 void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                                          const ov::snippets::lowered::LinearIRPtr& linear_ir,
                                          BrgemmKernelConfig& config) const {
@@ -244,29 +268,8 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
         K = current_expanded_loop_info->get_increment();
         input_pds[0]->set_subtensor_dim(0, K);
         input_pds[1]->set_subtensor_dim(1, K);
-
-        // Find all Expanded loops with the same Unified loop information -> they were decomposed from this Unified Loop.
-        // Note that LoopInfo are normalized and sorted (due to NormalizedLoopIDs pass).
-        // It means that previous executed Loops have Loop ID less the current Loop ID.
-        // - If there is executed Loop (work_amount > 0) and evaluated before the current -> the current Brgemm should have `beta = 1`.
-        // - If there is not this Loop -> the current executed Brgemm should have `beta = 0`.
-        int loop_id = static_cast<int>(loop_ids.back());
-        if (K > 0 && loop_id > 0) {
-            const auto& current_unified_loop_info = current_expanded_loop_info->get_unified_loop_info();
-            // Check the previous Loops
-            --loop_id;
-            while (loop_id >= 0) {
-                const auto& expanded_loop_info = loop_manager->get_loop_info<ov::snippets::lowered::ExpandedLoopInfo>(loop_id);
-                if (expanded_loop_info->get_unified_loop_info() != current_unified_loop_info)
-                    break;
-                if (expanded_loop_info->get_work_amount() > 0) {
-                    // there is previous executed Brgemm with `beta = 0` -> the current Brgemm should have `beta = 1`
-                    beta = 1;
-                    break;
-                }
-                --loop_id;
-            }
-        }
+        if (K > 0)
+            beta = get_beta(loop_manager, static_cast<int>(loop_ids.back()), current_expanded_loop_info);
     }
 
     const auto LDA = DIM_CAST(snippets::utils::get_dim_stride(expr->get_input_port(0)));

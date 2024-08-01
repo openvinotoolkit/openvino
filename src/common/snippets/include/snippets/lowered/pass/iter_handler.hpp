@@ -80,20 +80,6 @@ public:
     std::shared_ptr<snippets::lowered::pass::PassBase> merge(const std::shared_ptr<snippets::lowered::pass::PassBase>& other) override;
 };
 
-/**
- * @interface DummyPass
- * @brief The empty pass. For example, It can be used to force insertion of first specific iteration
- * @ingroup snippets
- */
-class DummyPass : public snippets::lowered::pass::RangedPass {
-public:
-    DummyPass() = default;
-    OPENVINO_RTTI("DummyPass", "RangedPass")
-    bool run(snippets::lowered::LinearIR& linear_ir,
-             snippets::lowered::LinearIR::constExprIt begin,
-             snippets::lowered::LinearIR::constExprIt end) override;
-    std::shared_ptr<snippets::lowered::pass::PassBase> merge(const std::shared_ptr<snippets::lowered::pass::PassBase>& other) override;
-};
 } // namespace pass
 } // namespace lowered
 } // namespace snippets

@@ -10,6 +10,7 @@
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/op/loop.hpp"
 
+
 namespace ov {
 namespace snippets {
 namespace lowered {

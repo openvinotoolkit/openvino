@@ -9,6 +9,9 @@
 #include "emitters/snippets/cpu_kernel_executor_table.hpp"
 #include <cpu/x64/brgemm/brgemm.hpp>
 
+#include "snippets/lowered/loop_manager.hpp"
+#include "snippets/lowered/loop_info.hpp"
+
 namespace ov {
 namespace intel_cpu {
 struct BrgemmKernelConfig : public snippets::KernelExecutorBase::GenericConfig {
@@ -99,6 +102,9 @@ protected:
     void update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                        const ov::snippets::lowered::LinearIRPtr& linear_ir,
                        BrgemmKernelConfig& config) const override;
+
+    static float get_beta(const ov::snippets::lowered::LoopManagerPtr& loop_manager, int loop_id,
+                          const ov::snippets::lowered::ExpandedLoopInfoPtr& current_expanded_loop_info);
 };
 #define GET_OFF_BRGEMM_ARGS(field) offsetof(BrgemmKernelExecutor::call_args, field)
 
