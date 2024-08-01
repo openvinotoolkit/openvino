@@ -806,18 +806,23 @@ void prepare_buffer_fusing::run(program& p) {
                                                                                        node.get_primitive()->axis,
                                                                                        false);
             } else if (crop_in_place_optimization::can_crop_be_optimized_simple_data_format(crop_layout, pred_layout)) {
+                std::pair<const program_node*, layout> user_info;
                 std::vector<layout> reshape_layouts;
-                if (node.get_users().front()->is_type<reshape>() && node.get_users().front()->as<reshape>().is_runtime_propagatable_padding()) {
-                    reshape_layouts.push_back(node.get_users().front()->get_output_layout());
+                if (node.get_users().front()->is_type<reshape>()) {
+                    auto& reshape_node = node.get_users().front()->as<reshape>();
+                    if (reshape_node.is_runtime_propagatable_padding()) {
+                        user_info.first = &reshape_node;
+                        user_info.second = reshape_node.get_output_layout();
+                    }
                 }
                 crop_in_place_optimization::update_in_place_crop_padding_simple_data_format(crop_layout,
                                                                                             pred_layout,
-                                                                                            reshape_layouts,
+                                                                                            user_info,
                                                                                             crop_params->input_offsets[0],
                                                                                             node.get_primitive()->axis,
                                                                                             false);
-                if (reshape_layouts.size() > 0) {
-                    node.get_users().front()->set_output_layout(reshape_layouts[0]);
+                if (user_info.first) {
+                    node.get_users().front()->set_output_layout(user_info.second);
                 }
             }
             node.set_output_layout(crop_layout);
