@@ -10,8 +10,6 @@
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/op/loop.hpp"
 
-#include <array>
-
 namespace ov {
 namespace snippets {
 namespace lowered {
@@ -53,14 +51,6 @@ public:
      * @return increment
      */
     static size_t get_decomposed_loop_increment(const UnifiedLoopInfoPtr& unified_loop_info, SpecificLoopIterType type, size_t remaining_work_amount);
-
-    /**
-     * @brief Return the order of Loop Iteration execution
-     * @return arrays of loop iteration types
-     */
-    constexpr static std::array<SpecificLoopIterType, 3> get_loop_iteration_order() {
-        return { SpecificLoopIterType::FIRST_ITER, SpecificLoopIterType::MAIN_BODY, SpecificLoopIterType::LAST_ITER };
-    }
 
 private:
     /**

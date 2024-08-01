@@ -82,7 +82,7 @@ public:
 
 /**
  * @interface DummyPass
- * @brief The empty pass. It can be used to force insertion of first specific iteration
+ * @brief The empty pass. For example, It can be used to force insertion of first specific iteration
  * @ingroup snippets
  */
 class DummyPass : public snippets::lowered::pass::RangedPass {

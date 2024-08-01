@@ -246,34 +246,25 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
         input_pds[1]->set_subtensor_dim(1, K);
 
         // Find all Expanded loops with the same Unified loop information -> they were decomposed from this Unified Loop.
-        // If there is executed Loop (work_amount > 0) and evaluated before the current -> the current Brgemm should have `beta = 1`.
-        // If there is not this Loop -> the current executed Brgemm should have `beta = 0`.
-        if (K > 0) {
-            bool is_first_executed = true;
-            const auto& current_type = current_expanded_loop_info->get_type();
-            constexpr auto loop_types = ov::snippets::lowered::pass::InsertSpecificIterations::get_loop_iteration_order();
-            // Note: No need to check `current_type` is existing and valid type - it was verified before in common control flow pipeline
-            const auto current_type_idx =
-                static_cast<size_t>(std::distance(loop_types.cbegin(), std::find(loop_types.cbegin(), loop_types.cend(), current_type)));
-            if (current_type_idx > 0) {
-                const auto& current_unified_loop_info = current_expanded_loop_info->get_unified_loop_info();
-                for (const auto& loop_pair : loop_manager->get_map()) {
-                    // Find the `executed` expanded loop with the same unified loop info
-                    // Note: No need to check `expanded_loop_info != nullptr` - it was verified before in common control flow pipeline
-                    const auto& expanded_loop_info = ov::as_type_ptr<ov::snippets::lowered::ExpandedLoopInfo>(loop_pair.second);
-                    if (expanded_loop_info->get_unified_loop_info() == current_unified_loop_info && expanded_loop_info->get_work_amount() > 0) {
-                        // Check that found `executed` expanded loop is before current target loop.
-                        for (size_t idx = 0; idx < current_type_idx; ++idx)
-                            if (expanded_loop_info->get_type() == loop_types[idx]) {
-                                is_first_executed = false;
-                                break;
-                            }
-                    }
-                    if (!is_first_executed) {
-                        beta = 1;
-                        break;
-                    }
+        // Note that LoopInfo are normalized and sorted (due to NormalizedLoopIDs pass).
+        // It means that previous executed Loops have Loop ID less the current Loop ID.
+        // - If there is executed Loop (work_amount > 0) and evaluated before the current -> the current Brgemm should have `beta = 1`.
+        // - If there is not this Loop -> the current executed Brgemm should have `beta = 0`.
+        int loop_id = static_cast<int>(loop_ids.back());
+        if (K > 0 && loop_id > 0) {
+            const auto& current_unified_loop_info = current_expanded_loop_info->get_unified_loop_info();
+            // Check the previous Loops
+            --loop_id;
+            while (loop_id >= 0) {
+                const auto& expanded_loop_info = loop_manager->get_loop_info<ov::snippets::lowered::ExpandedLoopInfo>(loop_id);
+                if (expanded_loop_info->get_unified_loop_info() != current_unified_loop_info)
+                    break;
+                if (expanded_loop_info->get_work_amount() > 0) {
+                    // there is previous executed Brgemm with `beta = 0` -> the current Brgemm should have `beta = 1`
+                    beta = 1;
+                    break;
                 }
+                --loop_id;
             }
         }
     }
