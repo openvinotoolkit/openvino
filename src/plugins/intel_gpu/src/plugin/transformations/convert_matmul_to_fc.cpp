@@ -44,7 +44,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
         auto fc_input_a = pattern_map.at(activations_m);
         auto fc_input_b = pattern_map.at(weights_m);
 
-        // Not to transpose fc_input_b which should be fc_input_a of other sibling MatMul
+        // Not to convert fc_input_b which should be fc_input_a of other sibling MatMul
         auto input_b = fc_input_b.get_node_shared_ptr();
         for (auto& user : input_b->get_users()) {
             if (user != matmul && ov::is_type<ov::op::v0::MatMul>(user) && ov::is_type<ov::op::v0::Convert>(input_b)) {
