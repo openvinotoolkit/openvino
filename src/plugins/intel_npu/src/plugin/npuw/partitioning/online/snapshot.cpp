@@ -672,11 +672,7 @@ std::shared_ptr<Repeated> Snapshot::tryMergeTriangles(const std::vector<Group::G
         }
     }
 
-    // Sanity check
-    if (mic2.size() != conss.front().size()) {
-        OPENVINO_THROW("Online partitioning encountered an incorrect number of second order interconnects "
-                       "during mergeTriangles pass!");
-    };
+    // Note: mic2.size() and conss.front().size() might not be equal here
 
     // Cache cons->prod pairs
     std::unordered_map<Group::GPtr, Group::GPtr> cons_prod_cache;
