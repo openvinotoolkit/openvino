@@ -2323,7 +2323,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         // SHL implementation supports only identical precisions on inputs/outputs and only FP32 for now
         const ov::element::Type forcedPrec = ov::element::f32;
         for (size_t i = 0; i < inputPrecisions.size(); i++) {
-            inputPrecisions[i] =forcedPrec;
+            inputPrecisions[i] = forcedPrec;
         }
         outputPrecision = forcedPrec;
     } else {
