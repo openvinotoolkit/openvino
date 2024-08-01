@@ -23,13 +23,20 @@ using ::mlir::ModuleOp;
 using ::mlir::ExecutionEngine;
 using ::mlir::ModuleOp;
 
+enum MlirMode {
+    MLIR_MODE_TPP,
+    MLIR_MODE_GC,
+    MLIR_MODE_DEFAULT,
+};
+
+
 class MLIREvaluate {
     OwningOpRef<ModuleOp> module;  // FIXME: needs to be kept?
     std::unique_ptr<ExecutionEngine> engine;
 
 public:
 
-    MLIREvaluate(OwningOpRef<ModuleOp> _module, bool tpp_mlir_enabled);
+    MLIREvaluate(OwningOpRef<ModuleOp> _module, MlirMode mode);
     bool invoke_packed(std::vector<void*>& args);
 };
 

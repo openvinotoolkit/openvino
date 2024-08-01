@@ -58,6 +58,10 @@
 #include "TPP/Passes.h"
 #endif
 
+#ifdef GRAPH_COMPILER
+#include "gc/Transforms/Passes.h"
+#endif
+
 namespace {
 
 using namespace mlir;
@@ -65,72 +69,81 @@ using namespace mlir;
 using NodePtr = std::shared_ptr<ov::Node>;
 using SymbolPtr = std::shared_ptr<ov::Symbol>;
 
-void prepareMLIRKernelWithoutWrapper(mlir::OwningOpRef<mlir::ModuleOp>& module, bool tpp_mlir_enabled) {
+void prepareMLIRKernelWithoutWrapper(mlir::OwningOpRef<mlir::ModuleOp>& module, ov::mlir::MlirMode mode) {
     PassManager pm(module->getContext());
-    if(tpp_mlir_enabled) {
-        #ifdef TPP_MLIR
+
+    switch (mode) {
+#ifdef TPP_MLIR
+        case ov::mlir::MLIR_MODE_TPP:
             tpp::DefaultPipelineOptions defPipelineOpts;
             pm.addPass(tpp::createDefaultPipeline(defPipelineOpts));
-        #endif
-    } else {
-        // Cleanup before bufferization.
-        // Simplifies IR to allow better bufferization.
-        pm.addNestedPass<func::FuncOp>(createCanonicalizerPass());
-        pm.addNestedPass<func::FuncOp>(createCSEPass());
+            break;
+#endif
+#ifdef GRAPH_COMPILER
+        case ov::mlir::MLIR_MODE_GC:
+            gc::populateCPUPipeline(pm);
+            break;
+#endif
+        default:
+            assert(ov::mlir::MLIR_MODE_DEFAULT);
+            // Cleanup before bufferization.
+            // Simplifies IR to allow better bufferization.
+            pm.addNestedPass<func::FuncOp>(createCanonicalizerPass());
+            pm.addNestedPass<func::FuncOp>(createCSEPass());
 
-        // Remove empty tensors to avoid converting them into temporary buffers.
-        pm.addPass(bufferization::createEmptyTensorEliminationPass());
+            // Remove empty tensors to avoid converting them into temporary buffers.
+            pm.addPass(bufferization::createEmptyTensorEliminationPass());
 
-        pm.addPass(bufferization::createOneShotBufferizePass());
-        pm.addNestedPass<func::FuncOp>(bufferization::createFinalizingBufferizePass());
+            pm.addPass(bufferization::createOneShotBufferizePass());
+            pm.addNestedPass<func::FuncOp>(bufferization::createFinalizingBufferizePass());
 
-        // Cleanup after bufferization - possibly remove redundant copies.
-        pm.addNestedPass<func::FuncOp>(createCanonicalizerPass());
-        pm.addNestedPass<func::FuncOp>(createCSEPass());
+            // Cleanup after bufferization - possibly remove redundant copies.
+            pm.addNestedPass<func::FuncOp>(createCanonicalizerPass());
+            pm.addNestedPass<func::FuncOp>(createCSEPass());
 
-        // Deallocation pipeline to avoid memory leaks from created temporary buffers.
-        pm.addPass(memref::createExpandReallocPass(/*emitDeallocs=*/false));
-        pm.addPass(createCanonicalizerPass());
-        bufferization::DeallocationOptions deallocOpts;
-        deallocOpts.privateFuncDynamicOwnership = false;
-        pm.addPass(bufferization::createOwnershipBasedBufferDeallocationPass(deallocOpts));
-        pm.addPass(createCanonicalizerPass());
-        pm.addPass(bufferization::createBufferDeallocationSimplificationPass());
-        pm.addPass(bufferization::createLowerDeallocationsPass());
-        pm.addPass(createCSEPass());
-        pm.addPass(createCanonicalizerPass());
+            // Deallocation pipeline to avoid memory leaks from created temporary buffers.
+            pm.addPass(memref::createExpandReallocPass(/*emitDeallocs=*/false));
+            pm.addPass(createCanonicalizerPass());
+            bufferization::DeallocationOptions deallocOpts;
+            deallocOpts.privateFuncDynamicOwnership = false;
+            pm.addPass(bufferization::createOwnershipBasedBufferDeallocationPass(deallocOpts));
+            pm.addPass(createCanonicalizerPass());
+            pm.addPass(bufferization::createBufferDeallocationSimplificationPass());
+            pm.addPass(bufferization::createLowerDeallocationsPass());
+            pm.addPass(createCSEPass());
+            pm.addPass(createCanonicalizerPass());
 
-        // Blanket-convert any remaining high-level vector ops to loops if any remain.
-        pm.addNestedPass<func::FuncOp>(createConvertVectorToSCFPass());
-        // pm.addNestedPass<func::FuncOp>(createLinalgGeneralizeNamedOpsPass());
-        //  Blanket-convert any remaining linalg ops to loops if any remain.
-        pm.addNestedPass<func::FuncOp>(createConvertLinalgToLoopsPass());
-        // Blanket-convert any remaining affine ops if any remain.
-        pm.addPass(createLowerAffinePass());
-        // Convert SCF to CF (always needed).
-        pm.addPass(createConvertSCFToCFPass());
-        // Sprinkle some cleanups.
-        pm.addPass(createCanonicalizerPass());
-        pm.addPass(createCSEPass());
-        // Blanket-convert any remaining linalg ops to LLVM if any remain.
-        // pm.addPass(createConvertLinalgToLLVMPass());  // no such pass
-        // Convert vector to LLVM (always needed).
-        pm.addPass(createConvertVectorToLLVMPass());
-        // Convert Math to LLVM (always needed).
-        pm.addNestedPass<func::FuncOp>(createConvertMathToLLVMPass());
-        // Expand complicated MemRef operations before lowering them.
-        pm.addPass(memref::createExpandStridedMetadataPass());
-        // The expansion may create affine expressions. Get rid of them.
-        pm.addPass(createLowerAffinePass());
-        // Convert MemRef to LLVM (always needed).
-        // pm.addPass(memref::createExpandOpsPass());
-        pm.addPass(createFinalizeMemRefToLLVMConversionPass());
-        // Convert Func to LLVM (always needed).
-        pm.addPass(createConvertFuncToLLVMPass());
-        // Convert Index to LLVM (always needed).
-        pm.addPass(createConvertIndexToLLVMPass());
-        // Convert remaining unrealized_casts (always needed).
-        pm.addPass(createReconcileUnrealizedCastsPass());
+            // Blanket-convert any remaining high-level vector ops to loops if any remain.
+            pm.addNestedPass<func::FuncOp>(createConvertVectorToSCFPass());
+            // pm.addNestedPass<func::FuncOp>(createLinalgGeneralizeNamedOpsPass());
+            //  Blanket-convert any remaining linalg ops to loops if any remain.
+            pm.addNestedPass<func::FuncOp>(createConvertLinalgToLoopsPass());
+            // Blanket-convert any remaining affine ops if any remain.
+            pm.addPass(createLowerAffinePass());
+            // Convert SCF to CF (always needed).
+            pm.addPass(createConvertSCFToCFPass());
+            // Sprinkle some cleanups.
+            pm.addPass(createCanonicalizerPass());
+            pm.addPass(createCSEPass());
+            // Blanket-convert any remaining linalg ops to LLVM if any remain.
+            // pm.addPass(createConvertLinalgToLLVMPass());  // no such pass
+            // Convert vector to LLVM (always needed).
+            pm.addPass(createConvertVectorToLLVMPass());
+            // Convert Math to LLVM (always needed).
+            pm.addNestedPass<func::FuncOp>(createConvertMathToLLVMPass());
+            // Expand complicated MemRef operations before lowering them.
+            pm.addPass(memref::createExpandStridedMetadataPass());
+            // The expansion may create affine expressions. Get rid of them.
+            pm.addPass(createLowerAffinePass());
+            // Convert MemRef to LLVM (always needed).
+            // pm.addPass(memref::createExpandOpsPass());
+            pm.addPass(createFinalizeMemRefToLLVMConversionPass());
+            // Convert Func to LLVM (always needed).
+            pm.addPass(createConvertFuncToLLVMPass());
+            // Convert Index to LLVM (always needed).
+            pm.addPass(createConvertIndexToLLVMPass());
+            // Convert remaining unrealized_casts (always needed).
+            pm.addPass(createReconcileUnrealizedCastsPass());
     }
 
     auto result = pm.run(module.get());
@@ -206,10 +219,10 @@ std::unique_ptr<llvm::Module> lowerToLLVMIR(Operation* module, llvm::LLVMContext
 }
 
 // TODO: u4/i4 types are not supported
-struct MemRef {
-    MemRef() = default;
+struct MemRefDescriptor {
+    MemRefDescriptor() = default;
 
-    MemRef(ov::Tensor tensor)
+    MemRefDescriptor    (ov::Tensor tensor)
         : allocated(tensor.data()),
           aligned(tensor.data()),
           offset(0),
@@ -252,7 +265,7 @@ namespace mlir {
 using namespace ::mlir;
 
 
-MLIREvaluate::MLIREvaluate(OwningOpRef<mlir::ModuleOp> _module, bool tpp_mlir_enabled) :
+MLIREvaluate::MLIREvaluate(OwningOpRef<mlir::ModuleOp> _module, MlirMode mode) :
     module(std::move(_module)) {
 
     OPENVINO_MLIR_DEBUG_PRINT(
@@ -262,7 +275,7 @@ MLIREvaluate::MLIREvaluate(OwningOpRef<mlir::ModuleOp> _module, bool tpp_mlir_en
     OPENVINO_MLIR_DEBUG_PRINT(
         "-----------------------------------------\n");
 
-    prepareMLIRKernelWithoutWrapper(module, tpp_mlir_enabled);
+    prepareMLIRKernelWithoutWrapper(module, mode);
 
     OPENVINO_MLIR_DEBUG_PRINT(
         "[ DEBUG ] Target LLVM:\n"
@@ -317,9 +330,9 @@ NodePtr MLIROp::clone_with_new_inputs(const ov::OutputVector& new_args) const {
 }
 
 bool MLIROp::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
-    std::vector<MemRef> memref_args;
+    std::vector<MemRefDescriptor> memref_args;
     for (size_t i = 0; i < inputs.size(); ++i) {
-        memref_args.push_back(MemRef(inputs[i]));
+        memref_args.push_back(MemRefDescriptor(inputs[i]));
     }
     for (size_t i = 0; i < outputs.size(); ++i) {
         // TODO: Optimize by adding all dimensions to dimensions_map, not only dynamic
@@ -337,11 +350,11 @@ bool MLIROp::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs)
         }
         //std::cerr << "[ DEBUG ] Set outputs[" << i << "].shape(" << target << ")\n";
         outputs[i].set_shape(target);
-        memref_args.push_back(MemRef(outputs[i]));
+        memref_args.push_back(MemRefDescriptor(outputs[i]));
     }
     std::vector<void*> args;
 
-    std::for_each(memref_args.begin(), memref_args.end(), [&args](MemRef& x) {
+    std::for_each(memref_args.begin(), memref_args.end(), [&args](MemRefDescriptor& x) {
         x.append_to_packed_args(args);
     });
 

@@ -151,6 +151,14 @@ endfunction()
 include(cmake/tpp-mlir.cmake)
 
 #
+# Graph Compiler
+#
+if (ENABLE_GRAPH_COMPILER)
+    include(cmake/graph-compiler.cmake)
+    add_definitions(-DGRAPH_COMPILER)
+endif()
+
+#
 # Build
 #
 

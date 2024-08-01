@@ -59,6 +59,10 @@
 #include "mlir/Target/LLVMIR/Export.h"
 #include "mlir/Target/LLVMIR/ModuleTranslation.h"
 
+#ifdef GRAPH_COMPILER
+#include "gc/ExecutionEngine/Driver/Driver.h"
+#endif
+
 #ifdef TPP_MLIR // If TPP is available
 #include "TPP/Dialect/Check/CheckDialect.h"
 #include "TPP/Dialect/Perf/PerfDialect.h"
@@ -188,7 +192,7 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
 
 
 // This pass converts a group of nodes into a single MLIROp
-NodePtr ngraph_to_mlir_op(MLIRContext* context, SubgraphPtr subgraph, bool tpp_mlir_enabled) {
+NodePtr ngraph_to_mlir_op(MLIRContext* context, SubgraphPtr subgraph, MlirMode mode) {
     mlir::OwningOpRef<mlir::ModuleOp> module = ngraph_to_mlir(context, subgraph->inputs, subgraph->nodes, subgraph->outputs);
 
     const auto& inputs = subgraph->inputs;
@@ -232,7 +236,7 @@ NodePtr ngraph_to_mlir_op(MLIRContext* context, SubgraphPtr subgraph, bool tpp_m
     }
     return std::make_shared<MLIROp>(
         subgraph->inputs,
-        std::make_shared<MLIREvaluate>(std::move(module), tpp_mlir_enabled),
+        std::make_shared<MLIREvaluate>(std::move(module), mode),
         output_types,
         output_map
     );
@@ -253,18 +257,18 @@ void replace_subgraph(SubgraphPtr subgraph, NodePtr node) {
 
 class Partitioner : public ov::pass::ModelPass {
     MLIRContext* context;
-    bool tpp_mlir_enabled;
+    MlirMode mode;
 public:
     OPENVINO_RTTI("Partitioner");
 
-    Partitioner(MLIRContext* context, bool tpp_mlir_enabled) :
+    Partitioner(MLIRContext* context, MlirMode mode) :
         context(context),
-        tpp_mlir_enabled(tpp_mlir_enabled)
+        mode(mode)
     {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
         SubgraphTracker tracker([this](SubgraphPtr subgraph) {
-                auto mlir_op = ngraph_to_mlir_op(context, subgraph, tpp_mlir_enabled);
+                auto mlir_op = ngraph_to_mlir_op(context, subgraph, mode);
                 replace_subgraph(subgraph, mlir_op);
                 OPENVINO_MLIR_DEBUG_PRINT("Created MLIR op: " << mlir_op << "\n");
             }
@@ -278,7 +282,7 @@ public:
 };
 
 
-void injectMLIR(std::shared_ptr<ov::Model> model, MLIRContext* context, bool tpp_mlir_enabled) {
+void injectMLIR(std::shared_ptr<ov::Model> model, MLIRContext* context, MlirMode mode) {
     ov::pass::Manager manager;
     using namespace ov::op;
     manager.set_per_pass_validation(false);
@@ -289,55 +293,68 @@ void injectMLIR(std::shared_ptr<ov::Model> model, MLIRContext* context, bool tpp
     manager.register_pass<BinaryEltwisePattern<v1::Divide, linalg::DivOp>>();
     manager.register_pass<ReluPattern>();
     manager.register_pass<MatMulPattern>();
-    manager.register_pass<Partitioner>(context, tpp_mlir_enabled);
+    manager.register_pass<Partitioner>(context, mode);
     manager.run_passes(model);
     model->validate_nodes_and_infer_types();
 }
 
+void loadDialects(MLIRContext* context) {
+    context->loadDialect<mlir::func::FuncDialect>();
+    context->loadDialect<mlir::linalg::LinalgDialect>();
+    context->loadDialect<mlir::bufferization::BufferizationDialect>();
+}
 
-MLIRContext* get_shared_mlir_context(bool tpp_mlir_enabled_current) {
+MLIRContext* get_shared_mlir_context(MlirMode mode) {
     // Gives MLIRContext instance shared for entire OV process and initialized once upon the initial request
     // FIXME: Bind with OpenVINO lifetime in the sutable class instead of dirty tricking with static lifetime
 
     static std::shared_ptr<MLIRContext> context;
-    static bool tpp_mlir_enabled = tpp_mlir_enabled_current;
+    static bool current_mode = mode;
 
-    if(context) {
-        if(tpp_mlir_enabled_current != tpp_mlir_enabled) {
-            OPENVINO_MLIR_DEBUG_PRINT("[ DEBUG ] Switched TPP mode, reinitialize MLIR context\n");
-            tpp_mlir_enabled = tpp_mlir_enabled_current;
-            context.reset();
+    if (context) {
+        if (current_mode != mode) {
+            OPENVINO_MLIR_DEBUG_PRINT("[ DEBUG ] Switching MLIR mode to: ");
+            current_mode = mode;
+        } else {
+            return context.get();
         }
+    } else {
+        OPENVINO_MLIR_DEBUG_PRINT("[ DEBUG ] MLIR mode: ");
     }
 
-    if (!context) {
-
+#ifdef GRAPH_COMPILER
+    if (mode == MLIR_MODE_GC) {
+        OPENVINO_MLIR_DEBUG_PRINT("GC\n");
+        context = std::make_shared<MLIRContext>(gc::initCompilerAndGetDialects());
+    } else {
+#endif
         // Initialize the LLVM machinery
         llvm::InitializeNativeTarget();
         llvm::InitializeNativeTargetAsmPrinter();
-
-        OPENVINO_MLIR_DEBUG_PRINT("[ DEBUG ] Using TPP_MLIR: ");
-        if(tpp_mlir_enabled) {
-            OPENVINO_MLIR_DEBUG_PRINT("YES\n");
+#ifdef TPP_MLIR
+        if (mode == MLIR_MODE_TPP) {
+            OPENVINO_MLIR_DEBUG_PRINT("TPP\n");
             // Initialize GPU-related LLVM machinery
-            #ifdef TPP_MLIR
-                tpp::initializeGpuTargets();
-            #endif
+            tpp::initializeGpuTargets();
         } else {
-            OPENVINO_MLIR_DEBUG_PRINT("NO\n");
-        }
+#endif
+            assert(mode == MLIR_MODE_DEFAULT);
+            OPENVINO_MLIR_DEBUG_PRINT("DEFAULT\n");
+#ifdef TPP_MLIR
+            }
+#endif
 
         // Add the following to include *all* MLIR Core dialects, or selectively
         // include what you need like above. You only need to register dialects that
         // will be *parsed* by the tool, not the one generated
         DialectRegistry registry;
-        if(tpp_mlir_enabled) {
-            #ifdef TPP_MLIR
-                registry.insert<mlir::xsmm::XsmmDialect>();
-                registry.insert<mlir::check::CheckDialect>();
-                registry.insert<mlir::perf::PerfDialect>();
-            #endif
+#ifdef TPP_MLIR
+        if (mode == MLIR_MODE_TPP) {
+            registry.insert<mlir::xsmm::XsmmDialect>();
+            registry.insert<mlir::check::CheckDialect>();
+            registry.insert<mlir::perf::PerfDialect>();
         }
+#endif
 
         registerAllDialects(registry);
         registerAllExtensions(registry);
@@ -347,11 +364,11 @@ MLIRContext* get_shared_mlir_context(bool tpp_mlir_enabled_current) {
 
         context = std::make_shared<MLIRContext>(registry);
 
-        context->loadDialect<mlir::func::FuncDialect>();
-        context->loadDialect<mlir::linalg::LinalgDialect>();
-        context->loadDialect<mlir::bufferization::BufferizationDialect>();
+#ifdef GRAPH_COMPILER
     }
+#endif
 
+    loadDialects(context.get());
     return context.get();
 }
 
@@ -359,19 +376,44 @@ MLIRContext* get_shared_mlir_context(bool tpp_mlir_enabled_current) {
 
 void ov::pass::transformMLIR(std::shared_ptr<ov::Model> model) {
     if(util::getenv_bool("OV_MLIR", true)) {
-        bool tpp_mlir_default =
-            #ifdef TPP_MLIR
-                true;
-            #else
-                false;
-            #endif
-        bool tpp_mlir_enabled = util::getenv_bool("OV_MLIR_TPP", tpp_mlir_default);
-        #ifndef TPP_MLIR
-            OPENVINO_ASSERT(!tpp_mlir_enabled,
-                "[ ERROR ] OpenVINO wasn't compiled with TPP_MLIR support, "
-                "but OV_MLIR_TPP environment variable is set to enable it.");
-        #endif
+        const char *default_mode =
+#ifdef TPP_MLIR
+                "TPP";
+#elif defined(GRAPH_COMPILER)
+                "GC";
+#else
+                "DEFAULT";
+#endif
+        auto mode_str = util::getenv_string("OV_MLIR_MODE");
 
-        injectMLIR(model, get_shared_mlir_context(tpp_mlir_enabled), tpp_mlir_enabled);
+        if (mode_str == "") {
+            mode_str = default_mode;
+        } else {
+            // Convert to uppercase
+            std::transform(mode_str.begin(), mode_str.end(), mode_str.begin(), ::toupper);
+        }
+
+        MlirMode mode;
+
+        if (mode_str == "TPP") {
+#ifndef TPP_MLIR
+            OPENVINO_THROW(
+                "[ ERROR ] OpenVINO wasn't compiled with TPP_MLIR support, "
+                "but OV_MLIR_MODE environment variable is set to TPP.");
+#endif
+            mode = MLIR_MODE_TPP;
+        } else if (mode_str == "GC") {
+#ifndef GRAPH_COMPILER
+            OPENVINO_THROW(
+                "[ ERROR ] OpenVINO wasn't compiled with GRAPH_COMPILER support, "
+                "but OV_MLIR_MODE environment variable is set to GC.");
+#endif
+            mode = MLIR_MODE_GC;
+        } else {
+            OPENVINO_ASSERT(mode_str == "DEFAULT");
+            mode = MLIR_MODE_DEFAULT;
+        }
+
+        injectMLIR(model, get_shared_mlir_context(mode), mode);
     }
 }

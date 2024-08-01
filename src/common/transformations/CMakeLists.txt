@@ -28,12 +28,17 @@ ov_build_target_faster(${TARGET_NAME}_obj
 
 target_compile_features(${TARGET_NAME}_obj PUBLIC cxx_std_17)
 
-target_link_libraries(${TARGET_NAME}_obj PRIVATE openvino::reference openvino::itt openvino::core::dev openvino::shape_inference)
+target_link_libraries(${TARGET_NAME}_obj PRIVATE
+        openvino::reference
+        openvino::itt
+        openvino::core::dev
+        openvino::shape_inference)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE "${PUBLIC_HEADERS_DIR}"
                                                       "${CMAKE_CURRENT_SOURCE_DIR}/src"
                                                       "${MLIR_INCLUDE_DIRS}"
-                                                      "${LLVM_INCLUDE_DIRS}")
+                                                      "${LLVM_INCLUDE_DIRS}"
+                                                      "${GRAPH_COMPILER_INCLUDES}")
 
 add_tpp_mlir_includes(${TARGET_NAME}_obj)
 
