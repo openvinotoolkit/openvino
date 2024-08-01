@@ -86,6 +86,14 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
     }
 
     const auto& loop_manager = linear_ir.get_loop_manager();
+    // copyB_once when M and N is blocked
+    bool copyB_once = !is_full_dim_value(m_block) && !is_full_dim_value(n_block) && is_full_dim_value(k_block);
+    if (copyB_once) {
+        const auto& loop_begin = linear_ir.find(copy_b_expr);
+        const std::vector<LoopPort> entries{LoopPort(copy_b_expr->get_input_port(0), true)};
+        const std::vector<LoopPort> exits{LoopPort(copy_b_expr->get_output_port(0), true)};
+        mark_copyb_blocking(loop_manager, loop_begin, std::next(loop_begin), entries, exits, n_block);
+    }
     if (!is_full_dim_value(k_block)) {
         const auto loop_begin = get_loop_begin_pos(linear_ir, brgemm_it, copy_b_expr);
         const std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), true, 0),
@@ -96,14 +104,14 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
         brgemm->set_beta(0.f);
     }
     if (!is_full_dim_value(n_block)) {
-        const auto loop_begin = get_loop_begin_pos(linear_ir, brgemm_it, copy_b_expr);
-        const std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), false),
-                                            LoopPort(copy_b_expr->get_input_port(0), true)};
+        const auto loop_begin = get_loop_begin_pos(linear_ir, brgemm_it, copyB_once ? nullptr : copy_b_expr);
+        const auto b_input_port = copyB_once ? brgemm_expr->get_input_port(1) : copy_b_expr->get_input_port(0);
+        const std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), false), LoopPort(b_input_port, false)};
         const std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), true)};
         mark_n_blocking(loop_manager, loop_begin, std::next(brgemm_it), entries, exits, n_block);
     }
     if (!is_full_dim_value(m_block)) {
-        const bool include_repacking = !is_full_dim_value(k_block) || !is_full_dim_value(n_block);
+        const bool include_repacking = (!is_full_dim_value(k_block) || !is_full_dim_value(n_block)) && !copyB_once;
         const auto loop_begin = get_loop_begin_pos(linear_ir, brgemm_it, include_repacking ? copy_b_expr : nullptr);
         const auto b_input_port = include_repacking ? copy_b_expr->get_input_port(0) : brgemm_expr->get_input_port(1);
         std::vector<LoopPort> entries{LoopPort(brgemm_expr->get_input_port(0), true), LoopPort(b_input_port, false)};
