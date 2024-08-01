@@ -17,7 +17,9 @@ ParamsKey GroupNormalizationKernelBfyx::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::bfzyx);
     k.EnableBatching();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
@@ -34,26 +36,38 @@ GroupNormalizationKernelBase::MultiDispatchData GroupNormalizationKernelBfyx::Se
 
         dispatchData.stage_1.gws[0] = input.X().v;
         dispatchData.stage_1.gws[1] = input.Y().v;
-        dispatchData.stage_1.gws[2] = input.Feature().v * input.Batch().v;
+        dispatchData.stage_1.gws[2] = input.Z().v * input.Feature().v * input.Batch().v;
 
         dispatchData.stage_1.lws[0] = input.X().v;
         dispatchData.stage_1.lws[1] = input.Y().v;
-        dispatchData.stage_1.lws[2] = 1;
+        dispatchData.stage_1.lws[2] = input.Z().v;
 
-        if ((input.X().v * input.Y().v) > params.engineInfo.maxWorkGroupSize) {
-            if (input.Y().v > params.engineInfo.maxWorkGroupSize) {
+        if ((input.X().v * input.Y().v * input.Z().v) > params.engineInfo.maxWorkGroupSize) {
+            if (input.Z().v > params.engineInfo.maxWorkGroupSize) {
                 dispatchData.stage_1.lws[0] = 1;
-                for (size_t lws = 2; lws <= input.Y().v; ++lws) {
-                    if (input.Y().v % lws == 0 && (input.Y().v / lws) <= params.engineInfo.maxWorkGroupSize) {
-                        dispatchData.stage_1.lws[1] = input.Y().v / lws;
+                dispatchData.stage_1.lws[1] = 1;
+                for (size_t lws = 2; lws <= input.Z().v; ++lws) {
+                    if (input.Z().v % lws == 0 && (input.Z().v / lws) <= params.engineInfo.maxWorkGroupSize) {
+                        dispatchData.stage_1.lws[2] = input.Z().v / lws;
+                        dispatchData.stage_1.gws[2] = dispatchData.stage_1.lws[2] * input.Feature().v * input.Batch().v;
                         break;
                     }
                 }
             } else {
-                for (size_t lws = 2; lws <= input.X().v; ++lws) {
-                    if (input.X().v % lws == 0 && (input.X().v / lws * input.Y().v) <= params.engineInfo.maxWorkGroupSize) {
-                        dispatchData.stage_1.lws[0] = input.X().v / lws;
-                        break;
+                if ((input.Y().v * input.Z().v) > params.engineInfo.maxWorkGroupSize) {
+                    dispatchData.stage_1.lws[0] = 1;
+                    for (size_t lws = 2; lws <= input.Y().v; ++lws) {
+                        if (input.Y().v % lws == 0 && (input.Y().v / lws * input.Z().v) <= params.engineInfo.maxWorkGroupSize) {
+                            dispatchData.stage_1.lws[1] = input.Y().v / lws;
+                            break;
+                        }
+                    }
+                } else {
+                    for (size_t lws = 2; lws <= input.X().v; ++lws) {
+                        if (input.X().v % lws == 0 && (input.X().v / lws * input.Y().v * input.Z().v) <= params.engineInfo.maxWorkGroupSize) {
+                            dispatchData.stage_1.lws[0] = input.X().v / lws;
+                            break;
+                        }
                     }
                 }
             }
@@ -77,11 +91,11 @@ GroupNormalizationKernelBase::MultiDispatchData GroupNormalizationKernelBfyx::Se
             divisor += 1;
         }
 
-        dispatchData.stage_final.gws[0] = input.X().v * input.Y().v;
+        dispatchData.stage_final.gws[0] = input.X().v * input.Y().v * input.Z().v;
         dispatchData.stage_final.gws[1] = input.Feature().v * input.Batch().v;
         dispatchData.stage_final.gws[2] = 1;
 
-        dispatchData.stage_final.lws[0] = input.X().v * input.Y().v;
+        dispatchData.stage_final.lws[0] = input.X().v * input.Y().v * input.Z().v;
         dispatchData.stage_final.lws[1] = input.Feature().v * input.Batch().v;
         dispatchData.stage_final.lws[2] = 1;
 
@@ -115,13 +129,15 @@ JitConstants GroupNormalizationKernelBfyx::GetJitConstants(const group_normaliza
             MakeJitConstant("GWS0", "get_global_size(0)"),
             MakeJitConstant("LWS0", "get_local_size(0)"),
             MakeJitConstant("LWS1", "get_local_size(1)"),
+            MakeJitConstant("LWS2", "get_local_size(2)"),
         });
     } else {
         jit.AddConstants({
-            MakeJitConstant("SLM_SIZE", (dispatchData.lws[0] * dispatchData.lws[1])),
+            MakeJitConstant("SLM_SIZE", (dispatchData.lws[0] * dispatchData.lws[1] * dispatchData.lws[2])),
             MakeJitConstant("GWS0", dispatchData.gws[0]),
             MakeJitConstant("LWS0", dispatchData.lws[0]),
             MakeJitConstant("LWS1", dispatchData.lws[1]),
+            MakeJitConstant("LWS2", dispatchData.lws[2]),
         });
     }
     auto activation_dt = GetActivationType(params);
@@ -130,7 +146,9 @@ JitConstants GroupNormalizationKernelBfyx::GetJitConstants(const group_normaliza
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order;
-        if (params.inputs[0].GetDims().size() <= 4) {
+        if (params.inputs[0].GetDims().size() == 5) {
+            idx_order = { "(b)", "(f)", "(z)", "(y)", "(x)" };
+        } else if (params.inputs[0].GetDims().size() <= 4) {
             idx_order = { "(b)", "(f)", "(y)", "(x)" };
         } else {
             OPENVINO_THROW("group_normalization_bfyx doesn't support 5D or higher dims.");
