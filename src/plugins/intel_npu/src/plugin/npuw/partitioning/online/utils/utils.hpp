@@ -17,17 +17,27 @@ namespace ov {
 namespace npuw {
 namespace online {
 
-enum class AvoidType { OP = 0, PATTERN = 1 };
+enum class PatternType { OP = 0, PATTERN = 1 };
 
 struct Avoid {
-    AvoidType type;
+    PatternType type;
     std::string pattern;
     std::string device;
 };
 
+struct Isolate {
+    PatternType type;
+    std::string pattern;
+    std::string tag;
+};
+
 struct PassContext {
     size_t min_graph_size = 10;
+    size_t keep_blocks = 10;
+    size_t keep_block_size = 10;
     std::vector<Avoid> avoids;
+    std::vector<Isolate> isolates;
+    std::vector<std::string> nofolds;
 };
 
 // Forward declaration
@@ -48,7 +58,7 @@ using GPtrSet = std::unordered_set<std::shared_ptr<Group>>;
 using OVPortsMap = std::unordered_map<std::pair<OVNodePtr, OVNodePtr>, std::pair<size_t, size_t>>;
 using Reptrack = std::vector<std::shared_ptr<Repeated>>;
 using ReptrackMap = std::unordered_map<OVNodePtr, Reptrack>;
-using Uniques = std::unordered_map<std::pair<std::string, std::set<std::string>>, GPtrSet>;
+using Uniques = std::unordered_map<std::tuple<std::string, std::set<std::string>, std::string>, GPtrSet>;
 using Pass = std::function<void(void)>;
 }  // namespace detail
 
@@ -57,6 +67,8 @@ namespace util {
 std::string getMetaDesc(const std::shared_ptr<ov::Node>& ov_node);
 std::string repeated_id(const std::shared_ptr<Repeated>& ptr);
 std::optional<Avoid> parseAvoid(const std::string& s);
+std::optional<Isolate> parseIsolate(const std::string& s);
+std::tuple<PatternType, std::string, std::string> parse(const std::string& s);
 }  // namespace util
 
 }  // namespace online

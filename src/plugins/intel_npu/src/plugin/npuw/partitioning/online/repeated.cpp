@@ -29,6 +29,10 @@ void Repeated::exclude() {
     m_excluded = true;
 }
 
+void Repeated::resetExclude() {
+    m_excluded = false;
+}
+
 bool Repeated::openForMerge() const {
     return !m_excluded;
 }
