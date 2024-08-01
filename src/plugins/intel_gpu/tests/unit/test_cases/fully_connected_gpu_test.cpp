@@ -1348,7 +1348,6 @@ public:
         const ov::Tensor& output_tensor = infer_request.get_output_tensor();
         for (size_t i = 0; i < 2; i++) {
             std::cout << "output_tensor[" << i << "] " << output_tensor.data<float>()[i] << std::endl;
-            std::cout << output_tensor.data<float>()[i] << std::endl;
         }
     }
 
@@ -1356,8 +1355,8 @@ public:
         std::cout << "[+] test_compressed_scale_zp_nobias_activation is_caching_test: " << is_caching_test << std::endl;
 
         long unsigned int M = 1024;
-        long unsigned int K = 1024;
-        long unsigned int N = 1024;
+        long unsigned int K = 4;
+        long unsigned int N = 2048;
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ -1, static_cast<long int>(K) });
         uint8_t MAX_UINT8 = 255;
         std::vector<uint8_t> weights_values(N * K, 1);
@@ -1394,9 +1393,11 @@ public:
         std::cout << "infer_request infer " << std::endl;
         infer_request.infer();
         const ov::Tensor& output_tensor = infer_request.get_output_tensor();
-        for (size_t i = 0; i < M * N; i++) {
-            std::cout << "output_tensor[" << i << "] " << output_tensor.data<float>()[i] << std::endl;
-            std::cout << output_tensor.data<float>()[i] << std::endl;
+        size_t count = M * N;
+        for (size_t i = 0; i < count; i++) {
+            if (i < 16 || i > count - 16) {
+                std::cout << "output_tensor[" << i << "] " << output_tensor.data<float>()[i] << std::endl;
+            }
         }
     }
 

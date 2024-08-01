@@ -9,6 +9,7 @@
 #include "sync_tensor/sync_tensor_kernel_ref.h"
 #include "runtime/level_zero/ocl_context.h"
 #include "runtime/level_zero/lz_context.h"
+#include "runtime/ocl/ocl_memory.hpp"
 
 
 namespace cldnn {
@@ -60,6 +61,7 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
         auto oclDevice = std::dynamic_pointer_cast<ocl::ocl_device>(cldnnDevice);
         auto clDevice = oclDevice->get_device();
         cl_device_id device_id = clDevice();
+        printf("[get_contexts] device_id: %p \n", device_id);
 
         int device_idx = oclctx.get_device_idx(device_id);
 
@@ -69,18 +71,104 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
         lzctx.initZe(device_idx);
     }
 
-    void* create_lz_buff(oclContext& oclctx, lzContext& lzctx, std::vector<uint32_t>& initBuf, const size_t elemCount) {
-        std::cout << "[gpu_p2p] create_lz_buff " << std::endl;
-
-        printf("initBuf[0]: %d \n", initBuf[0]);
+    void* create_lz_buff(oclContext& oclctx, lzContext& lzctx, std::vector<uint32_t>& initBuf, const size_t elemCount, const int rank) {
         cl_mem clbuf = oclctx.createBuffer(elemCount * sizeof(uint32_t), initBuf);
+        printf("[create_lz_buff:%d] clbuf: %p \n", rank, clbuf);
         // oclctx.printBuffer(clbuf);
 
         // derive the dma-buf handles from opencl buffers
         uint64_t handle = oclctx.deriveHandle(clbuf);
         void *lzptr = lzctx.createFromHandle(handle, elemCount * sizeof(uint32_t));
+        printf("[create_lz_buff:%d] lzptr: %p \n", rank, lzptr);
         lzctx.printBuffer(lzptr);
 
+        return lzptr;
+    }
+
+    void printCLBuff(cl_command_queue& cl_queue, cl_mem& clbuf, size_t size, oclContext& oclctx, std::vector<uint32_t>& resBuf) {
+        printf("[printCLBuff] clbuf: %p \n", clbuf);
+
+        cl_int err;
+        err = clEnqueueReadBuffer(cl_queue, clbuf, CL_TRUE, 0, size, resBuf.data(), 0, NULL, NULL);
+        CHECK_OCL_ERROR_EXIT(err, "clEnqueueReadBuffer failed");
+        clFinish(cl_queue);
+        printf("The first %ld elements in cl_mem = %p are: \n", size, clbuf);
+
+        uint8_t* res_ptr = reinterpret_cast<uint8_t*>(resBuf.data());
+        for (size_t i = 0; i < size; i++) {
+            if (i > 16 && i < size - 16) continue;
+            printf("0x%x ", res_ptr[i]);
+            if (i && i % 16 == 0)
+                printf("\n");
+        }
+        printf("\n");
+    }
+
+    void printLZBuff(lzContext& lzctx, void* ptr, size_t size) {
+        printf("[printLZBuff] ptr: %p \n", ptr);
+
+        std::vector<uint32_t> resBuf(size / 4, 0);
+        lzctx.readBuffer(resBuf, ptr, size);
+
+        uint8_t* res_ptr = reinterpret_cast<uint8_t*>(resBuf.data());
+        for (size_t i = 0; i < size; i++) {
+            if (i > 16 && i < size - 16) continue;
+
+            printf("[0x%x] ", res_ptr[i]);
+            if (i && i % 16 == 0)
+                printf("\n");
+        }
+        printf("\n");
+    }
+
+    void* ocl_to_lz(sync_tensor_inst& instance, stream& stream, const int idx, oclContext& oclctx, lzContext& lzctx, const size_t size, const int rank) {
+        printf("[ocl_to_lz:%d] size: %ld \n", rank, size);
+        // // size_t main_buffer_size = 0;
+        // // err = clGetMemObjectInfo(clbuf, CL_MEM_SIZE, sizeof(main_buffer_size), &main_buffer_size, NULL);
+        // // CHECK_OCL_ERROR(err, "clGetMemObjectInfo - CL_MEM_SIZE failed");
+        // // printf("[ocl_to_lz] main_buffer_size: %ld \n", main_buffer_size);
+
+
+        // ocl::ocl_engine* engine = downcast<ocl::ocl_engine>(instance.output_memory_ptr(idx)->get_engine());
+        // cl::Context clContext = engine->get_cl_context();
+        cl::CommandQueue clQueue = downcast<ocl::ocl_stream>(stream).get_cl_queue();
+        cl_command_queue cl_queue = clQueue();
+        cl::Buffer clBuf = std::dynamic_pointer_cast<const ocl::gpu_buffer>(instance.output_memory_ptr(idx))->get_buffer();
+        cl_mem clbuf = clBuf();
+
+        cl_int err;
+        // print clbuf
+        std::vector<uint32_t> resBuf(size / 4, 0);
+        printf("[ocl_to_lz:%d] print output cl_mem \n", rank);
+        printCLBuff(cl_queue, clbuf, size, oclctx, resBuf);
+
+        uint64_t nativeHandle;
+        err = clGetMemObjectInfo(clbuf, CL_MEM_ALLOCATION_HANDLE_INTEL, sizeof(nativeHandle), &nativeHandle, NULL);
+        CHECK_OCL_ERROR(err, "clGetMemObjectInfo - CL_MEM_ALLOCATION_HANDLE_INTEL failed");
+        // printf("[ocl_to_lz] nativeHandle: %ld, 0x%lx \n", nativeHandle, nativeHandle);
+        // std::cout << "[ocl_to_lz] convert nativeHandle to lz handle " << std::endl;
+        void *lzptr = lzctx.createFromHandle(nativeHandle, size);
+        // printf("[ocl_to_lz] lzptr: %p \n", lzptr);
+        // lzctx.printBuffer(lzptr);
+        printf("[ocl_to_lz:%d] print output lzptr\n", rank);
+        printLZBuff(lzctx, lzptr, size);
+
+        // cl_mem new_buf;
+        // new_buf = oclctx.createBuffer(size, resBuf);
+        // printf("[printCLBuff:%d] print new cl_mem \n", rank);
+        // printCLBuff(cl_queue, clbuf, size, oclctx, resBuf);
+
+        // err = clGetMemObjectInfo(new_buf, CL_MEM_ALLOCATION_HANDLE_INTEL, sizeof(nativeHandle), &nativeHandle, NULL);
+        // CHECK_OCL_ERROR(err, "clGetMemObjectInfo - CL_MEM_ALLOCATION_HANDLE_INTEL failed");
+        // // printf("[ocl_to_lz] nativeHandle: %ld, 0x%lx \n", nativeHandle, nativeHandle);
+        // // std::cout << "[ocl_to_lz] convert nativeHandle 2 to lz handle " << std::endl;
+        // lzptr = lzctx.createFromHandle(nativeHandle, size);
+        // // printf("[ocl_to_lz] lzptr: %p \n", lzptr);
+        // // lzctx.printBuffer(lzptr);
+        // printf("[printLZBuff:%d] print new lzptr \n", rank);
+        // printLZBuff(lzctx, lzptr, size);
+
+        // // void *lzptr = create_lz_buff(oclctx, lzctx, resBuf, elemCount);
         return lzptr;
     }
 
@@ -116,57 +204,76 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
             }
         }
 
+        union TypeValue {
+            float f;
+            uint32_t i;
+        };
         oclContext oclctx;
         lzContext lzctx;
         const size_t elemCount = 1024 * 1024;
         get_contexts(instance, oclctx, lzctx);
 
         std::vector<uint32_t> initBuf(elemCount, 0);
-        {
-            union TypeValue {
-                float f;
-                uint32_t i;
-            };
-            size_t copy_len = instance.output_memory((w_rank + 1) % w_size).size();
-            size_t typed_copy_len = copy_len;
-            printf("[sync_tensor_impl:%d] copy_len:%ld \n", w_rank, copy_len);
+        int copy_idx = (w_rank + 1) % w_size;
+        // {
+        //     size_t typed_copy_len = instance.output_memory(copy_idx).size();
 
-            auto sec_mem = instance.output_memory_ptr(w_rank);
-            auto data_layout = instance.get_output_layout(w_rank);
+        //     auto sec_mem = instance.output_memory_ptr(w_rank);
+        //     auto data_layout = instance.get_output_layout(w_rank);
 
-            auto actual_mem = sec_mem->get_engine()->reinterpret_buffer(*sec_mem, data_layout);
-            auto mem_dt = actual_mem->get_layout().data_type;
-            if (mem_dt == cldnn::data_types::f16) {
-                typed_copy_len /= 2;
-                printf("[create_local_buff:%d] local mem_dt: cldnn::data_types::f16 \n", w_rank);
-            }
-            mem_lock<ov::float16, mem_lock_type::read> lock(actual_mem, stream);
-            auto mem_ptr = lock.data();
+        //     auto actual_mem = sec_mem->get_engine()->reinterpret_buffer(*sec_mem, data_layout);
+        //     auto mem_dt = actual_mem->get_layout().data_type;
+        //     if (mem_dt == cldnn::data_types::f16) {
+        //         typed_copy_len /= 2;
+        //         printf("[create_local_buff:%d] local mem_dt: cldnn::data_types::f16 \n", w_rank);
+        //     }
+        //     printf("[sync_tensor_impl:%d] typed_copy_len: %ld \n", w_rank, typed_copy_len);
 
-            for (size_t i = 0; i < typed_copy_len; ++i) {
-                TypeValue val;
-                val.f = static_cast<float>(mem_ptr[i]);
+        //     mem_lock<ov::float16, mem_lock_type::read> lock(actual_mem, stream);
+        //     auto mem_ptr = lock.data();
 
-                initBuf[i] = val.i;
-                printf("[create_local_buff:%d] local val.f: %f, val.i: %u; initBuf[%ld]: %u \n", w_rank, val.f, val.i, i, initBuf[0]);
-                // printf("local initBuf[%ld]: %u \n", i, initBuf[0]);
-            }
-        }
+        //     for (size_t i = 0; i < typed_copy_len; ++i) {
+        //         TypeValue val;
+        //         val.f = static_cast<float>(mem_ptr[i]);
 
-        // void *lz_buff = create_lz_buff(oclctx, lzctx, buff, elemCount, length);
-        void *lz_buff = create_lz_buff(oclctx, lzctx, initBuf, elemCount);
+        //         initBuf[i] = val.i;
+        //         printf("[create_local_buff:%d] lz_buff val.f: %f, val.i: %u; initBuf[%ld]: %u \n", w_rank, val.f, val.i, i, initBuf[0]);
+
+        //         // val.f = 100.0f;
+        //         // initBuf[i] = val.i;
+        //         // printf("[create_local_buff:%d] lz_buff val.f: %f, val.i: %u; initBuf[%ld]: %u \n", w_rank, val.f, val.i, i, initBuf[0]);
+        //     }
+        // }
+
+        size_t copy_len = instance.output_memory(copy_idx).size();
+        printf("[sync_tensor_impl:%d] copy_len: %ld \n", w_rank, copy_len);
+
+        // // lz buff from initBuf
+        // void *lz_buff = create_lz_buff(oclctx, lzctx, initBuf, elemCount);
+        // lz buff from cl_mem
+        void *lz_buff = ocl_to_lz(instance, stream, w_rank, oclctx, lzctx, copy_len, w_rank);
+        printf("[sync_tensor_impl:%d] lz_buff: %p\n", w_rank, lz_buff);
+
         // printf("[sync_tensor_impl:%d] lzctx.printBuffer lz_buff \n", w_rank);
         // lzctx.printBuffer(lz_buff);
         // sub_mem_mgr->_memorys_table[id][w_rank].send_buf = lz_buff;
         // printf("[sync_tensor_impl:%d] send_buf: %p\n", w_rank, lz_buff);
 
-        // void *local_buff = create_lz_buff(oclctx, lzctx, nullptr, elemCount, 0);
-        std::vector<uint32_t> emptyBuf(elemCount, 0);
-        void *local_buff = create_lz_buff(oclctx, lzctx, emptyBuf, elemCount);
-        // printf("[sync_tensor_impl:%d] lzctx.printBuffer local_buff \n", w_rank);
-        // lzctx.printBuffer(local_buff);
-        sub_mem_mgr->_memorys_table[id][w_rank].send_buf = local_buff;
-        printf("[sync_tensor_impl:%d] send_buf: %p\n", w_rank, local_buff);
+        // std::vector<uint32_t> emptyBuf(elemCount, 0);
+        // void *local_buff = create_lz_buff(oclctx, lzctx, emptyBuf, elemCount);
+        // // printf("[sync_tensor_impl:%d] lzctx.printBuffer local_buff \n", w_rank);
+        // // lzctx.printBuffer(local_buff);
+
+        // void* local_send_buff = instance.output_memory(copy_idx).buffer_ptr();
+        // printf("[sync_tensor_impl:%d] local_send_buff: %p\n", w_rank, local_send_buff);
+
+        void *receive_buff = ocl_to_lz(instance, stream, copy_idx, oclctx, lzctx, copy_len, w_rank);
+        printf("[sync_tensor_impl:%d] receive_buff: %p\n", w_rank, receive_buff);
+
+        // sub_mem_mgr->_memorys_table[id][w_rank].send_buf = local_buff;
+        // sub_mem_mgr->_memorys_table[id][w_rank].send_buf = local_send_buff;
+
+        sub_mem_mgr->_memorys_table[id][w_rank].send_buf = lz_buff;
 
         sub_mem_mgr->_memorys_table[id][w_rank].flag = true;
         std::vector<int> wait_list(w_size, 1);
@@ -187,16 +294,25 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
                     printf("[sync_tensor_impl:%d] remote_send_buf: %p \n", w_rank, remote_send_buf);
 
                     // write level_zero buff to remote
-                    std::cout << "[-->] sync_tensor_impl w_rank: " << w_rank << ", runKernel " << std::endl;
                     int srcOffsetX = 0;
                     int srcOffsetY = 0;
                     int strideX = 1;
                     int strideY = 1;
                     int groud_width = 256;
+                    // read
                     // lzctx.runKernel("./test_kernel_dg2.spv", "local_read_from_remote", remote_send_buf, local_buff,
                     //     elemCount, srcOffsetX, srcOffsetY, strideX, strideY, groud_width);
-                    lzctx.runKernel("./test_kernel_dg2.spv", "local_write_to_remote", remote_send_buf, lz_buff,
-                        elemCount, srcOffsetX, srcOffsetY, strideX, strideY, groud_width);
+                    // write
+                    // lzctx.runKernel("./test_kernel_dg2.spv", "local_write_to_remote", remote_send_buf, lz_buff,
+                    //     elemCount, srcOffsetX, srcOffsetY, strideX, strideY, groud_width);
+
+                    // elemCount -> size
+                    printf("[sync_tensor_impl:%d] runKernel \n", w_rank);
+                    // lzctx.runKernel("./test_kernel_dg2.spv", "local_write_to_remote", remote_send_buf, lz_buff,
+                    //     copy_len, srcOffsetX, srcOffsetY, strideX, strideY, groud_width);
+                    lzctx.runKernel("./test_kernel_dg2.spv", "local_read_from_remote", remote_send_buf, receive_buff,
+                        copy_len, srcOffsetX, srcOffsetY, strideX, strideY, groud_width);
+                        // elemCount, srcOffsetX, srcOffsetY, strideX, strideY, groud_width);
 
                     // printf("[sync_tensor_impl:%d] after runKernel lzctx.printBuffer local_buff \n", w_rank);
                     // lzctx.printBuffer(local_buff);
@@ -221,45 +337,48 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
             if (wait_list_remote[idx] > 0 && sub_mem_mgr->_memorys_table[id][idx].flag_written) {
                 printf("[sync_tensor_impl:%d] remote write is done \n", w_rank);
 
-                std::vector<uint32_t> outBuf(elemCount, 0);
-                lzctx.readBuffer(outBuf, local_buff, elemCount * sizeof(uint32_t));
-                printf("[sync_tensor_impl:%d] readBuffer local_buff \n", w_rank);
-                for (size_t i = 0; i < 16; ++i) {
-                    printf("[%d] ", outBuf[i]);
-                }
-                printf("\n");
+                // // // std::vector<uint32_t> outBuf(elemCount, 0);
+                // // // lzctx.readBuffer(outBuf, local_send_buff, elemCount * sizeof(uint32_t));
+                // // std::vector<uint8_t> outBuf(copy_len, 0);
+                // // lzctx.readBuffer(outBuf, local_send_buff, copy_len * sizeof(uint8_t));
+                // // printf("[sync_tensor_impl:%d] readBuffer local_send_buff \n", w_rank);
+                // // uint16_t* out_ptr = reinterpret_cast<uint16_t*>(outBuf.data());
+                // // for (size_t i = 0; i < copy_len / 2; ++i) {
+                // //     printf("[%d] ", [i]);
+                // // }
+                // // printf("\n");
 
-                size_t typed_dst_len = instance.output_memory(idx).size();
-                printf("[sync_tensor_impl:%d] check output %d, dst_len: %ld \n", w_rank, idx, typed_dst_len);
+                // Size_t dst_len = instance.output_memory(idx).size();
+                // Auto sec_mem = instance.output_memory_ptr(idx);
+                // Auto data_layout = instance.get_output_layout(idx);
+                // Printf("[sync_tensor_impl:%d] reinterpret_buffer \n", w_rank);
+                // Auto actual_mem = sec_mem->get_engine()->reinterpret_buffer(*sec_mem, data_layout);
+                // Auto mem_dt = actual_mem->get_layout().data_type;
+                // If (mem_dt == cldnn::data_types::f16) {
+                //     // typed_dst_len /= 2;
+                //     printf("[sync_tensor_impl:%d] cldnn::data_types::f16 \n", w_rank);
+                // }
+                // Printf("[sync_tensor_impl:%d] check output %d, dst_len: %ld \n", w_rank, idx, dst_len);
 
-                auto sec_mem = instance.output_memory_ptr(idx);
-                auto data_layout = instance.get_output_layout(idx);
-                printf("[sync_tensor_impl:%d] reinterpret_buffer \n", w_rank);
-                auto actual_mem = sec_mem->get_engine()->reinterpret_buffer(*sec_mem, data_layout);
-                auto mem_dt = actual_mem->get_layout().data_type;
-                if (mem_dt == cldnn::data_types::f16) {
-                    typed_dst_len /= 2;
-                    printf("[sync_tensor_impl:%d] cldnn::data_types::f16 \n", w_rank);
-                }
-                mem_lock<ov::float16, mem_lock_type::read_write> lock(actual_mem, stream);
-                auto mem_ptr = lock.data();
-                auto sec_val = static_cast<float>(mem_ptr[0]);
-                printf("[sync_tensor_impl:%d] lock sec_val2: %f \n", w_rank, sec_val);
+                // Printf("[sync_tensor_impl:%d] start to lock memory \n", w_rank);
+                // // mem_lock<ov::float16, mem_lock_type::read_write> lock(actual_mem, stream);
+                // Mem_lock<ov::float16, mem_lock_type::read> lock(actual_mem, stream);
+                // Auto mem_ptr = lock.data();
 
-                union TypeValue {
-                    float f;
-                    uint32_t i;
-                };
+                // For (size_t i = 0; i < dst_len; ++i) {
+                //     if (i > 16 && i < dst_len - 16) continue;
 
-                for (size_t i = 0; i < typed_dst_len; ++i) {
-                    TypeValue val;
-                    val.i = outBuf[i];
-                    printf("[sync_tensor_impl:%d] val.i: %d, val.f: %f \n", w_rank, val.i, val.f);
+                //     TypeValue val;
+                //     // read
+                //     val.f = static_cast<float>(mem_ptr[i]);
+                //     initBuf[i] = val.i;
+                //     printf("[sync_tensor_impl:%d] check after 1 val.f: %f, val.i: %u; initBuf[%ld]: %u \n", w_rank, val.f, val.i, i, initBuf[i]);
 
-                    mem_ptr[i] = static_cast<ov::float16>(val.f);
-                    sec_val = static_cast<float>(mem_ptr[i]);
-                    printf("[sync_tensor_impl:%d] sec_val2: %f \n", w_rank, sec_val);
-                }
+                // }
+
+                printf("[sync_tensor_impl:%d] check kernel receive_buff, copy_len: %ld \n", w_rank, copy_len);
+                printLZBuff(lzctx, receive_buff, copy_len);
+
                 wait_list_remote[idx] = 0;
                 printf("[sync_tensor_impl:%d] wirte to local done, break \n", w_rank);
                 break;

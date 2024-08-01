@@ -339,6 +339,7 @@ void lzContext::runKernel(const char *spvFile, const char *funcName, void *remot
     CHECK_ZE_STATUS(result, "zeKernelSetArgumentValue");
 
     const int size = elemCount;
+    printf("[lz_kernel] elemCount: %ld, size: %d \n", elemCount, size);
     result = zeKernelSetArgumentValue(function, 7, sizeof(int), &size);
     CHECK_ZE_STATUS(result, "zeKernelSetArgumentValue");
 

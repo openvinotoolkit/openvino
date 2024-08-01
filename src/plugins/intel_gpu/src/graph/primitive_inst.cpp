@@ -2181,19 +2181,26 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
         is_output_buffer || is_cpu ||
         has_any_cpu_user_not_shape_of(_node.get_users()) ||
         !_engine.supports_allocation(allocation_type::usm_device) ||
-        (_node.is_shape_infer_dep() && _engine.get_device_info().dev_type == device_type::integrated_gpu) ||
-        // lockable memory for FC is TP enabled, as we need to do allreduce/allgather for outputs, to be optimized further
-        (_node.is_type<fully_connected>() && _node.as<fully_connected>().w_size != 1);
-    std::cout << "[primitive_inst] allocate_output use_lockable_memory: " << use_lockable_memory << std::endl;
+        (_node.is_shape_infer_dep() && _engine.get_device_info().dev_type == device_type::integrated_gpu);
+        // // lockable memory for FC is TP enabled, as we need to do allreduce/allgather for outputs, to be optimized further
+        // (_node.is_type<fully_connected>() && _node.as<fully_connected>().w_size != 1);
+    std::cout << "[primitive_inst:" << _node.id() << "] allocate_output use_lockable_memory: " << use_lockable_memory << std::endl;
     const auto& lockable_mem_type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
 
     auto alloc_type = use_lockable_memory ? lockable_mem_type
                     : !usm_device_allocatable ? lockable_mem_type : allocation_type::usm_device;
-    std::cout << "[primitive_inst] allocate_output alloc_type: " << alloc_type << ", is_internal: " << is_internal << std::endl;
-    if (_node.is_type<sync_tensor>()) {
-        alloc_type = allocation_type::usm_host;
+    // std::cout << "[primitive_inst:" << _node.id() << "] allocate_output 1 alloc_type: " << alloc_type << ", is_internal: " << is_internal << std::endl;
+    // if (_node.is_type<sync_tensor>()) {
+    //     alloc_type = allocation_type::usm_host;
+    // }
+
+    if (_node.is_type<fully_connected>() && _node.as<fully_connected>().w_size != 1) {
+        alloc_type = allocation_type::cl_mem;
     }
-    std::cout << "[primitive_inst] allocate_output alloc_type: " << alloc_type << ", is_internal: " << is_internal << std::endl;
+    if (_node.is_type<sync_tensor>()) {
+        alloc_type = allocation_type::cl_mem;
+    }
+    std::cout << "[primitive_inst:" << _node.id() << "] allocate_output 2 alloc_type: " << alloc_type << ", is_internal: " << is_internal << std::endl;
 
     if (is_internal) {
         bool is_reorder_weights = _node.is_type<reorder>() && _node.as<reorder>().get_primitive()->weights_reorder_params;
