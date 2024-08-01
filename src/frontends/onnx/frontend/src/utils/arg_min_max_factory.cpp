@@ -65,7 +65,7 @@ std::shared_ptr<ov::Node> ArgMinMaxFactory::make_topk_subgraph(v11::TopK::Mode m
         // result = res_index - 1 = 3 - 1 = 2
 
         const int64_t normalized_axis =
-            ov::util::normalize_axis(m_input_node.get_node(), m_axis, m_input_node.get_partial_shape().rank());
+            ov::util::try_normalize_axis(m_axis, m_input_node.get_partial_shape().rank(), *m_input_node.get_node());
 
         const auto axis_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {normalized_axis});
         const auto reverse = std::make_shared<v1::Reverse>(m_input_node, axis_node, v1::Reverse::Mode::INDEX);

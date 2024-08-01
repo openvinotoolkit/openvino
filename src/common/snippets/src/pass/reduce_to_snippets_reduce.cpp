@@ -33,7 +33,7 @@ snippets::pass::ReduceToSnippetsReduce::ReduceToSnippetsReduce() {
         const auto& data_input = reduce->get_input_source_output(0);
         const auto reduce_rank = reduce->get_input_partial_shape(0).rank();
         OPENVINO_ASSERT(reduce_rank.is_static(), "ReduceToSnippetsReduce doesn't support dynamic ranks.");
-        const auto axis = ov::util::normalize_axis(reduce->get_friendly_name(), axis_constant->cast_vector<int32_t>(1)[0], reduce_rank);
+        const auto axis = ov::util::try_normalize_axis(axis_constant->cast_vector<int32_t>(1)[0], reduce_rank, *reduce);
 
         std::shared_ptr<snippets::op::ReduceBase> snippets_reduce = nullptr;
         if (ov::is_type<ov::op::v1::ReduceSum>(reduce))

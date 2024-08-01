@@ -47,7 +47,7 @@ TEST(type_prop, squeeze_incorrect_negative_axes) {
 
     OV_EXPECT_THROW(auto s = make_shared<op::v0::Squeeze>(param, axes_node),
                     ov::Exception,
-                    HasSubstr("Parameter axis -10 out of the tensor rank range"));
+                    HasSubstr("Axis -10 out of the tensor rank range"));
 }
 
 TEST(type_prop, squeeze_data_static_param_axes_1D_single_elem_static_shape_no_squeezable_dims) {

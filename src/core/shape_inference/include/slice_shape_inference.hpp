@@ -109,7 +109,7 @@ std::vector<TRShape> shape_infer(const Slice* op,
                               "Slice `axes` input must have compatible shape with `start`, `stop`, `step` inputs.");
 
         if (auto axes = get_input_const_data_as<TRShape, int64_t>(op, 4, ta)) {
-            ov::util::normalize_axes(op, input_shape.rank().get_length(), *axes);
+            ov::util::try_normalize_axes(*axes, input_shape.rank(), *op);
             axes_map.add(*axes);
             NODE_VALIDATION_CHECK(op, axes_map.is_valid, "Slice values in `axes` input must be unique.");
         }

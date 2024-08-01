@@ -45,7 +45,7 @@ std::shared_ptr<ov::Model> SoftmaxFunction::initOriginal() const {
 
 std::shared_ptr<ov::Model> SoftmaxFunction::initLowered() const {
     auto data = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
-    const auto normalized_axis = ov::util::normalize_axis("", axis, data->get_output_partial_shape(0).rank());
+    const auto normalized_axis = ov::util::try_normalize_axis(axis, data->get_output_partial_shape(0).rank());
 
     const auto reduce_max = std::make_shared<ov::snippets::op::ReduceMax>(data, normalized_axis);
     const auto subtract = std::make_shared<ov::op::v1::Subtract>(data, reduce_max);

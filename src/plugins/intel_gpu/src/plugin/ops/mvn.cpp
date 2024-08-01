@@ -54,7 +54,7 @@ static void CreateMVNOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v6::MVN
     OPENVINO_ASSERT(inConst != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
     std::vector<int64_t> axes = inConst->cast_vector<int64_t>();
-    ov::util::normalize_axes(op.get(), op->get_output_partial_shape(0).size(), axes);
+    ov::util::try_normalize_axes(axes, op->get_output_partial_shape(0).rank(), *op);
 
     bool normalize_variance = op->get_normalize_variance();
     float eps = op->get_eps();

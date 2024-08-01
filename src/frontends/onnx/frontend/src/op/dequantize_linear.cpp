@@ -144,7 +144,7 @@ ov::OutputVector dequantize_linear(const ov::Output<ov::Node>& x,
 
     FRONT_END_GENERAL_CHECK(x_shape.rank().is_static(), "Rank of the input data tensor has to be known (static).");
 
-    axis = ov::util::normalize_axis(node.get_description(), axis, x_shape.rank());
+    axis = common::normalize_axis(node.get_description(), axis, x_shape.rank());
 
     validate_scale(scale, x, axis);
     const auto scale_reshaped = reshape_input(scale, axis, x_shape);
