@@ -19,6 +19,9 @@ namespace onednn {
 struct fully_connected_onednn : typed_primitive_onednn_impl<fully_connected> {
     using parent = typed_primitive_onednn_impl<fully_connected>;
     using parent::parent;
+    static constexpr int COMMON = 0;
+    static constexpr int PER_OC = 2;
+    static constexpr int GROUPED = 3;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::fully_connected_onednn)
 
@@ -282,9 +285,9 @@ public:
             ib >> _ds_group_size;
             ib >> make_data(&_ds_data_type, sizeof(dnnl::memory::data_type));
             if (!is_four_bit_weight)
-                _attrs->set_scales(DNNL_ARG_WEIGHTS, 1 << 1, dnnl::memory::dims{}, _ds_data_type);
+                _attrs->set_scales(DNNL_ARG_WEIGHTS, PER_OC, dnnl::memory::dims{}, _ds_data_type);
             else
-                _attrs->set_scales(DNNL_ARG_WEIGHTS, (1 << 1) + (1 << 0), {_ds_group_size, 1}, _ds_data_type);
+                _attrs->set_scales(DNNL_ARG_WEIGHTS, GROUPED, {_ds_group_size, 1}, _ds_data_type);
         }
 
         bool has_decompression_zp = !prim->decompression_zero_point.empty() || prim->decompression_zero_point_scalar.has_value();
@@ -296,13 +299,13 @@ public:
             auto dzp_layout = arg.get_dependency(idx++).get_output_layout();
 
             if (dzp_layout.count() == 1) {
-                _attrs->set_zero_points(DNNL_ARG_WEIGHTS, 0, dnnl::memory::dims{}, _dzp_data_type);
+                _attrs->set_zero_points(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, _dzp_data_type);
             } else {
                 auto ngroups = dzp_layout.get_dim(1);
                 if (ngroups == 1) {
-                    _attrs->set_zero_points(DNNL_ARG_WEIGHTS, 1 << 1, dnnl::memory::dims{}, _dzp_data_type);
+                    _attrs->set_zero_points(DNNL_ARG_WEIGHTS, PER_OC, dnnl::memory::dims{}, _dzp_data_type);
                 } else {
-                    _attrs->set_zero_points(DNNL_ARG_WEIGHTS, (1 << 1) + (1 << 0), {_ds_group_size, 1}, _dzp_data_type);
+                    _attrs->set_zero_points(DNNL_ARG_WEIGHTS, GROUPED, {_ds_group_size, 1}, _dzp_data_type);
                 }
             }
         }
@@ -313,7 +316,7 @@ public:
             auto innermost_len = partial_shape[partial_shape.size() - 1].get_length();
 
             auto act_scale_data_type = convert_data_type(impl_params->get_input_layout(idx).data_type);
-            _attrs->set_scales(DNNL_ARG_SRC, (1 << 1) | (1 << 0), dnnl::memory::dims{1, innermost_len}, act_scale_data_type);
+            _attrs->set_scales(DNNL_ARG_SRC, GROUPED, dnnl::memory::dims{1, innermost_len}, act_scale_data_type);
         }
 
         if (is_compressed) {
@@ -358,10 +361,10 @@ public:
                 group_size = ifm / ngroups;
                 if (!is_four_bit_weight) {
                     // 8-bit quantized weight
-                    attr->set_scales(DNNL_ARG_WEIGHTS, 1 << 1, dnnl::memory::dims{}, ds_data_type);
+                    attr->set_scales(DNNL_ARG_WEIGHTS, PER_OC, dnnl::memory::dims{}, ds_data_type);
                 } else {
                     // OneDNN does not support scalar zero-point for s4 and u8 type. Need to broadcast it.
-                    attr->set_scales(DNNL_ARG_WEIGHTS, (1 << 1) + (1 << 0), {group_size, 1}, ds_data_type);
+                    attr->set_scales(DNNL_ARG_WEIGHTS, GROUPED, {group_size, 1}, ds_data_type);
                 }
             }
 
@@ -371,13 +374,13 @@ public:
                 dzp_data_type = convert_data_type(dzp_layout.data_type);
 
                 if (dzp_layout.count() == 1) {
-                    attr->set_zero_points(DNNL_ARG_WEIGHTS, 0, dnnl::memory::dims{}, dzp_data_type);
+                    attr->set_zero_points(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, dzp_data_type);
                 } else {
                     auto ngroups = dzp_layout.get_dim(1);
                     if (ngroups == 1) {
-                        attr->set_zero_points(DNNL_ARG_WEIGHTS, 1 << 1, dnnl::memory::dims{}, dzp_data_type);
+                        attr->set_zero_points(DNNL_ARG_WEIGHTS, PER_OC, dnnl::memory::dims{}, dzp_data_type);
                     } else {
-                        attr->set_zero_points(DNNL_ARG_WEIGHTS, (1 << 1) + (1 << 0), {group_size, 1}, dzp_data_type);
+                        attr->set_zero_points(DNNL_ARG_WEIGHTS, GROUPED, {group_size, 1}, dzp_data_type);
                     }
                 }
             }
@@ -389,7 +392,7 @@ public:
                 auto innermost_len = partial_shape[partial_shape.size() - 1].get_length();
 
                 auto act_scale_data_type = convert_data_type(impl_params.input_layouts[idx].data_type);
-                attr->set_scales(DNNL_ARG_SRC, (1 << 1) | (1 << 0), dnnl::memory::dims{1, innermost_len}, act_scale_data_type);
+                attr->set_scales(DNNL_ARG_SRC, GROUPED, dnnl::memory::dims{1, innermost_len}, act_scale_data_type);
             }
 
             auto prim_desc = get_matmul_primitive_descriptor(impl_params, impl_params.prog->get_engine(),
