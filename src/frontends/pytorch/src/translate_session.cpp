@@ -225,7 +225,8 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             }
         };
 
-        FRONT_END_GENERAL_CHECK(pytorch_model->get_subgraph_size() == 1, "Model should have exactly 1 subgraph.");
+        FRONT_END_GENERAL_CHECK(pytorch_model->decoder_type_name() != "ts" || pytorch_model->get_subgraph_size() == 1,
+                                "Model should have exactly 1 subgraph for TorchScript.");
         pytorch_model->visit_subgraph(node_visitor);
 
         ResultVector results;
@@ -368,10 +369,7 @@ void TranslateSession::encode_tensor_name(Output<Node> output,
 
 namespace {
 bool is_number(const std::string& s) {
-    std::string::const_iterator it = s.begin();
-    while (it != s.end() && std::isdigit(*it))
-        ++it;
-    return !s.empty() && it == s.end();
+    return !s.empty() && std::all_of(s.begin(), s.end(), ::isdigit);
 }
 }  // namespace
 

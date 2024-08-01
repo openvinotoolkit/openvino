@@ -53,8 +53,9 @@ private:
      * @brief Check the received remote tensor and copy it to the Level Zero tensor
      * @param tensor Reference to a tensor.
      * @param name Friendly name of the tensor.
+     * @param isParameter True if tensor is a parameter.
      */
-    void set_remote_tensor_data(std::shared_ptr<ZeroRemoteTensor> tensor, const std::string& name);
+    void set_remote_tensor_data(std::shared_ptr<ZeroRemoteTensor> tensor, const std::string& name, bool isParameter);
 
     void check_network_precision(const ov::element::Type_t precision) const override;
     void create_pipeline();
@@ -66,6 +67,8 @@ private:
     Logger _logger;
 
     ze_device_properties_t _properties = {};
+    std::shared_ptr<const zeroMemory::HostMemAllocator> _inputAllocator;
+    std::shared_ptr<const zeroMemory::HostMemAllocator> _outputAllocator;
 
     zeroProfiling::ProfilingPool _profilingPool;
     zeroProfiling::ProfilingQuery _profilingQuery;
@@ -77,8 +80,7 @@ private:
     // specific operations on the plugin in this case.
     size_t _batchSize = DEFAULT_BATCH_SIZE;
 
-    bool _createPipeline = true;
-    bool _updateCommandList = false;
+    bool _pipelineIsCreated = false;
 };
 
 }  //  namespace intel_npu

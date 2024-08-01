@@ -42,7 +42,7 @@ TEST_F(EvaluateBoundTest, no_exception_when_node_has_output_with_dynamic_rank) {
     fn_op->set_output_type(1, element::i32, PartialShape{{1, 4}});
     fn_op->validate_and_infer_types();
 
-    EXPECT_NO_THROW(evaluate_both_bounds(fn_op));
+    EXPECT_NO_THROW(ov::util::evaluate_both_bounds(fn_op));
 }
 
 TEST_F(EvaluateBoundTest, no_exception_when_node_has_output_with_dynamic_element_type) {
@@ -50,7 +50,7 @@ TEST_F(EvaluateBoundTest, no_exception_when_node_has_output_with_dynamic_element
     fn_op->set_output_type(1, element::dynamic, PartialShape{4});
     fn_op->validate_and_infer_types();
 
-    EXPECT_NO_THROW(evaluate_both_bounds(fn_op));
+    EXPECT_NO_THROW(ov::util::evaluate_both_bounds(fn_op));
 }
 
 using BoundEvaluatorTest = ::testing::Test;

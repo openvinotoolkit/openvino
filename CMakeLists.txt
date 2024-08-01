@@ -92,6 +92,9 @@ endif()
 if(NOT OV_LIBC_VERSION VERSION_EQUAL 0.0)
     message (STATUS "LIBC_VERSION .......................... " ${OV_LIBC_VERSION})
 endif()
+if(DEFINED OPENVINO_STDLIB)
+    message (STATUS "STDLIB ................................ " ${OPENVINO_STDLIB})
+endif()
 
 # remove file with exported targets to force its regeneration
 file(REMOVE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
