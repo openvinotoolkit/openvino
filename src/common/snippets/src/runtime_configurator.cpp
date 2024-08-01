@@ -35,6 +35,10 @@ RuntimeConfigurator::RuntimeConfigurator(std::shared_ptr<RuntimeConfig> c) :
     OPENVINO_ASSERT(m_config, "Runtime config is nullptr!");
 }
 
+void RuntimeConfigurator::reset_kernel_executor_table() const {
+    m_config->kernel_executor_table = std::make_shared<ov::snippets::KernelExecutorTable>();
+}
+
 const std::shared_ptr<RuntimeConfig>& RuntimeConfigurator::get_updated_config(const lowered::LinearIRCPtr& linear_ir) {
     // First initialization
     if (m_io_num == 0)

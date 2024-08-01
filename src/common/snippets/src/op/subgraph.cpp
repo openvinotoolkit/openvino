@@ -533,21 +533,17 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
     // Note: to not corrupt the lowered linear IR for the shape-dependent passes, we have to make a copy
     OPENVINO_ASSERT(m_linear_ir, "Attempt to call generate, when linear IR was not initialized");
     ov::snippets::lowered::ExpressionMap expression_map;
-    auto linear_ir = *lowered::LinearIRBuilder().clone(m_linear_ir, expression_map);
+    const auto linear_ir = lowered::LinearIRBuilder().clone(m_linear_ir, expression_map);
 
     if (is_dynamic()) {
         ov::snippets::lowered::pass::PassPipeline shape_dependent_pipeline;
         shape_dependent_pipeline.register_pass<ov::snippets::lowered::pass::SetLoadStoreScalar>();
         shape_dependent_pipeline.register_pass<ov::snippets::lowered::pass::InsertBroadcastMove>();
         shape_dependent_pipeline.register_pass<ov::snippets::lowered::pass::LoadMoveBroadcastToBroadcastLoad>();
-        shape_dependent_pipeline.run(linear_ir);
+        shape_dependent_pipeline.run(*linear_ir);
     }
 
     auto lowering_result = m_generator->generate(linear_ir, compile_params);
-    // Some kernel executors might've been registered during code emission.
-    //  We need to update them, so appropriate kernels will be compiled.
-    const auto& exec_table = get_runtime_configurator()->get_kernel_executor_table();
-    exec_table->update_state(m_linear_ir);
     return {std::move(lowering_result)};
 }
 
