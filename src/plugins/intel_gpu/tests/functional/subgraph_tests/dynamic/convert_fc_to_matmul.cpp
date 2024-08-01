@@ -12,20 +12,10 @@
 #include "openvino/op/add.hpp"
 
 
-/*
- *
- *                    Input0(F32)         Input1(F32)
- *                        |  |                /
- *                  Convert_0(FP16)     Convert_1(FP16)
- *                     |  |       \         /
- *                     |  |        \       /
- *                   MatMul_0       MatMul_1
- */
-
- 
 namespace {
 
 using ov::test::InputShape;
+
 
 using MatmulConversionParams = std::tuple<std::vector<InputShape>,       // input shapes
                                                      ov::element::Type,  // input precision
@@ -34,6 +24,14 @@ using MatmulConversionParams = std::tuple<std::vector<InputShape>,       // inpu
                                                      bool,          // transpose on input0(fc_input_a) of matmul_1
                                                      bool>;        // transpose on input1(fc_input_b) of matmul_1
 
+/*
+ *
+ *                    Input0(F32)          Input1(F32)
+ *                        |                   /
+ *                  Convert_0(FP16)     Convert_1(FP16)
+ *                     |  |       \         /
+ *                   MatMul_0       MatMul_1
+ */
 class MatmulConversionsSameParent : public testing::WithParamInterface<MatmulConversionParams>,
                      virtual public ov::test::SubgraphBaseTest {
 public:
@@ -171,12 +169,13 @@ INSTANTIATE_TEST_SUITE_P(MatmulConversionsSameParent_transposed,
 
 /*
  *
- *    Input2(F32)         Input0(F32)       Input1(F32)
- *       |                   |                /
- *    Convert_2(FP16)    Convert_0(FP16)   Convert_1(FP16)
- *            \          /        \         /
- *             \        /          \       /
- *              MatMul_0           MatMul_1
+ *    Input2(F32)          Input0(F32)          Input1(F32)
+ *       |                    |                    /
+ *    Convert_2(FP16)     Convert_0(FP16)      Convert_1(FP16)
+ *            \            /        \            /
+ *           (in0)      (in1)      (in0)      (in1)
+ *              \        /            \        /
+ *               MatMul_0              MatMul_1
  */
 class MatmulConversions : public testing::WithParamInterface<MatmulConversionParams>,
                      virtual public ov::test::SubgraphBaseTest {
@@ -291,7 +290,7 @@ INSTANTIATE_TEST_SUITE_P(MatmulConversions_basic_1,
                                             ::testing::Values(false),
                                             ::testing::Values(false),
                                             ::testing::Values(false)),
-                         MatmulConversionsSameParent::getTestCaseName);
+                         MatmulConversions::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(MatmulConversions_basic_2,
                          MatmulConversions,
@@ -300,6 +299,102 @@ INSTANTIATE_TEST_SUITE_P(MatmulConversions_basic_2,
                                             ::testing::Values(true),
                                             ::testing::Values(false),
                                             ::testing::Values(false),
+                                            ::testing::Values(false)),
+                         MatmulConversions::getTestCaseName);
+
+
+/*
+ *
+ *    Input2               Input0               Input1
+ *       |                   |                    /
+ *    Convert_2(FP16)    Convert_0(FP16)   Convert_1(FP16)
+ *           \            /         \           /
+ *           (in0)     (in1)       (in1)     (in0)
+ *             \        /             \       /
+ *              MatMul_0               MatMul_1
+ */
+class MatmulConversionsOtherTypeSibling : public MatmulConversions,
+            virtual public ov::test::SubgraphBaseTest {
+public:
+
+protected:
+    std::shared_ptr<ov::Model> init_subgraph(std::vector<ov::PartialShape>& input_shapes,
+                                             const ov::element::Type input_precision,
+                                             bool matmul0_tran_0,
+                                             bool matmul0_tran_1,
+                                             bool matmul1_tran_0,
+                                             bool matmul1_tran_1) {
+        auto input0 = std::make_shared<ov::op::v0::Parameter>(input_precision, input_shapes[0]);
+        auto input1 = std::make_shared<ov::op::v0::Parameter>(input_precision, input_shapes[1]);
+        auto input2 = std::make_shared<ov::op::v0::Parameter>(input_precision, input_shapes[2]);
+        auto convert_0 = std::make_shared<ov::op::v0::Convert>(input0, ov::element::f16);
+        auto convert_1 = std::make_shared<ov::op::v0::Convert>(input1, ov::element::f16);
+        auto convert_2 = std::make_shared<ov::op::v0::Convert>(input2, ov::element::f16);
+
+        auto matmul_0 = std::make_shared<ov::op::v0::MatMul>(convert_2, convert_0, matmul0_tran_0, matmul0_tran_1);
+        auto matmul_1 = std::make_shared<ov::op::v0::MatMul>(convert_1, convert_0, matmul1_tran_0, matmul1_tran_1);
+
+        return std::make_shared<ov::Model>(ov::NodeVector{matmul_1}, ov::ParameterVector{input0, input1}, "MatmulConversionsOtherTypeSibling");
+    }
+
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+
+        std::vector<InputShape> input_shapes;
+        ov::element::Type input_precision;
+        bool matmul0_tran_0;
+        bool matmul0_tran_1;
+        bool matmul1_tran_0;
+        bool matmul1_tran_1;
+
+        std::tie(input_shapes,
+                 input_precision,
+                 matmul0_tran_0,
+                 matmul0_tran_1,
+                 matmul1_tran_0,
+                 matmul1_tran_1) = GetParam();
+
+        init_input_shapes(input_shapes);
+
+        inType = outType = input_precision;
+        function = init_subgraph(inputDynamicShapes,
+                                 input_precision,
+                                 matmul0_tran_0,
+                                 matmul0_tran_1,
+                                 matmul1_tran_0,
+                                 matmul1_tran_1);
+    }
+};
+
+TEST_P(MatmulConversionsOtherTypeSibling, Inference) {
+    run();
+}
+
+const std::vector<std::vector<InputShape>> test_input_shapes_basic_3 = {
+    {{{1, 16, 128}, {{1, 16, 128}}}, {{1, 16, 64}, {{1, 16, 64}}}, {{1, 32, 16}, {{1, 32, 16}}}},
+};
+
+const std::vector<std::vector<InputShape>> test_input_shapes_basic_4 = {
+    {{{1, 16, 128}, {{1, 16, 128}}}, {{1, 16, 64}, {{1, 16, 64}}}, {{1, 16, 128}, {{1, 16, 128}}}},
+};
+
+INSTANTIATE_TEST_SUITE_P(MatmulConversionsOtherTypeSibling_basic_1,
+                         MatmulConversionsOtherTypeSibling,
+                         ::testing::Combine(::testing::ValuesIn(test_input_shapes_basic_3),
+                                            ::testing::ValuesIn(test_input_precisions_basic),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(true),
+                                            ::testing::Values(false)),
+                         MatmulConversionsSameParent::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(MatmulConversionsOtherTypeSibling_basic_2,
+                         MatmulConversionsOtherTypeSibling,
+                         ::testing::Combine(::testing::ValuesIn(test_input_shapes_basic_4),
+                                            ::testing::ValuesIn(test_input_precisions_basic),
+                                            ::testing::Values(true),
+                                            ::testing::Values(false),
+                                            ::testing::Values(true),
                                             ::testing::Values(false)),
                          MatmulConversionsSameParent::getTestCaseName);
 
