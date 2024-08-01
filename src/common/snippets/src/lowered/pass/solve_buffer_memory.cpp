@@ -5,7 +5,8 @@
 #include "snippets/lowered/pass/solve_buffer_memory.hpp"
 
 #include "snippets/lowered/pass/allocate_buffers.hpp"
-#include "snippets/pass/tokenization.hpp"
+#include "snippets/op/buffer.hpp"
+#include "snippets/op/loop.hpp"
 #include "snippets/utils/utils.hpp"
 #include "snippets/itt.hpp"
 
@@ -14,6 +15,18 @@ namespace ov {
 namespace snippets {
 namespace lowered {
 namespace pass {
+namespace {
+std::map<double, int> create_execution_number_mapping(const LinearIR& linear_ir) {
+    std::map<double, int> mapping;
+    int int_number = 0;
+    for (const auto& expr : linear_ir) {
+        const auto& double_execution_number = expr->get_exec_num();
+        OPENVINO_ASSERT(mapping.count(double_execution_number) == 0, "Incorrect Expression execution numbers!");
+        mapping[double_execution_number] = int_number++;
+    }
+    return mapping;
+}
+}  // namespace
 
 std::pair<LinearIR::container, LinearIR::container> SolveBufferMemory::extract_static_and_dynamic_buffers(const LinearIR::container& buffer_expressions) {
     LinearIR::container static_buffer_exprs, dynamic_buffer_exprs;
@@ -38,7 +51,16 @@ std::pair<LinearIR::container, LinearIR::container> SolveBufferMemory::extract_s
     return { static_buffer_exprs, dynamic_buffer_exprs };
 }
 
-std::vector<ov::MemorySolver::Box> SolveBufferMemory::init_boxes(const LinearIR::container& buffer_expressions) {
+std::vector<ov::MemorySolver::Box> SolveBufferMemory::init_boxes(const LinearIR::container& buffer_expressions, const LinearIR& linear_ir) {
+    // ov::MemorySolver interface requires integer execution numbers (lifetime must be integer).
+    // To align with ov::MemorySolver interface, we create the map [double -> integer]
+    const auto int_execution_numbers = create_execution_number_mapping(linear_ir);
+    auto casted_execution_number = [&](const ExpressionPtr& expr) {
+        const auto double_execution_number = expr->get_exec_num();
+        OPENVINO_ASSERT(int_execution_numbers.count(double_execution_number) != 0, "Expression execution number has not been found!");
+        return int_execution_numbers.at(double_execution_number);
+    };
+
     std::map<int, ov::MemorySolver::Box> map_boxes;
     for (const auto& buffer_expr : buffer_expressions) {
         const auto& buffer = ov::as_type_ptr<op::Buffer>(buffer_expr->get_node());
@@ -57,8 +79,7 @@ std::vector<ov::MemorySolver::Box> SolveBufferMemory::init_boxes(const LinearIR:
         for (const auto& buffer_out : buffer_outs) {
             const auto consumers = buffer_out->get_consumers();
             for (const auto& consumer : consumers) {
-                const auto consumer_order = static_cast<int>(ov::snippets::pass::GetTopologicalOrder(consumer.get_expr()->get_node()));
-                e_finish = std::max(e_finish, consumer_order);  // the last consumer
+                e_finish = std::max(e_finish, casted_execution_number(consumer.get_expr()));  // the last consumer
             }
         }
         e_start = e_finish;
@@ -66,12 +87,12 @@ std::vector<ov::MemorySolver::Box> SolveBufferMemory::init_boxes(const LinearIR:
         const auto& buffer_ins = buffer_expr->get_input_port_connectors();
         for (const auto& buffer_in : buffer_ins) {
             const auto& source = buffer_in->get_source();
-            e_start = static_cast<int>(ov::snippets::pass::GetTopologicalOrder(source.get_expr()->get_node()));
+            e_start = casted_execution_number(source.get_expr());
 
             const auto buffer_siblings = buffer_in->get_consumers();
             for (const auto& sibling : buffer_siblings) {
                 if (const auto loop_end = ov::as_type_ptr<ov::snippets::op::LoopEnd>(sibling.get_expr()->get_node())) {
-                    e_start = std::min(e_start, static_cast<int>(ov::snippets::pass::GetTopologicalOrder(loop_end->get_loop_begin())));
+                    e_start = std::min(e_start, casted_execution_number(sibling.get_expr()));
                 }
             }
         }
@@ -98,8 +119,8 @@ std::vector<ov::MemorySolver::Box> SolveBufferMemory::init_boxes(const LinearIR:
     return boxes;
 }
 
-void SolveBufferMemory::solve_static_buffer_memory(const LinearIR::container& static_buffer_expressions) {
-    const auto boxes = init_boxes(static_buffer_expressions);
+void SolveBufferMemory::solve_static_buffer_memory(const LinearIR::container& static_buffer_expressions, const LinearIR& linear_ir) {
+    const auto boxes = init_boxes(static_buffer_expressions, linear_ir);
 
     ov::MemorySolver memSolver(boxes);
     m_static_buffer_scratchpad_size = static_cast<size_t>(memSolver.solve()) * m_alignment;  // alignment in byte
@@ -148,7 +169,7 @@ bool SolveBufferMemory::run(LinearIR& linear_ir) {
     std::tie(static_buffer_exprs, dynamic_buffer_exprs) = extract_static_and_dynamic_buffers(linear_ir.get_buffers());
 
     if (!static_buffer_exprs.empty())
-        solve_static_buffer_memory(static_buffer_exprs);
+        solve_static_buffer_memory(static_buffer_exprs, linear_ir);
 
     if (!dynamic_buffer_exprs.empty())
         set_dynamic_buffer_offset(dynamic_buffer_exprs);
