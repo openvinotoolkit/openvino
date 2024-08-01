@@ -270,7 +270,7 @@ void primitive_inst::update_shape() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("update_shape: " + id()));
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::shape_inference);
     if (update_shape_done_by_other) {
-        update_shape_done_by_other = false; // reset
+        update_shape_done_by_other = false;  // reset
         GPU_DEBUG_TRACE_DETAIL << id() << ": update shape is done by other: "
                                << _impl_params->output_layouts[0].to_short_string() << std::endl;
         return;
@@ -299,7 +299,8 @@ void primitive_inst::update_shape() {
             new_layout = _impl_params->get_input_layout(0);
         }
 
-        // If we still have a dynamic dimension, which basiclly means that we don't have an initializer, then replace dynamic dims with 0
+        // If we still have a dynamic dimension, which basiclly means that we don't have an initializer, then replace
+        // dynamic dims with 0
         if (new_layout.is_dynamic()) {
             auto pshape = new_layout.get_partial_shape();
             for (auto& d : pshape) {
@@ -318,11 +319,18 @@ void primitive_inst::update_shape() {
         }
     }
 
-    // Reset shape is defined by input shape changes
     if (input_shape_changed)
         set_shape_change();
-    else
+    else {
         reset_shape_change();
+
+        // if input shape is not changed, loop doesn't need to update anything.
+        // We assume that tensor ranks are static, thus shape_of doesn't need to update anything even if input shape is
+        // dynamic
+         if (_node->is_type<shape_of>() || _node->is_type<loop>())
+            return;
+    }
+
 
     // Do not update shapes in shape_of subraph if shape_of's input shape is not changed
     if (_node->is_in_shape_of_subgraph()) {
@@ -413,7 +421,7 @@ void primitive_inst::update_shape() {
         }
         auto& old_layout = _impl_params->output_layouts[idx];
         // check only paddings since only they are changed
-        if (old_layout.data_padding != layout.data_padding) {
+        if (old_layout != layout) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": update shape: was: " << _impl_params->get_output_layout(idx).to_short_string()
                                    << " now: " << layout.to_short_string() << std::endl;
             set_shape_change();
