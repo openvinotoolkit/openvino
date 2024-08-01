@@ -25,10 +25,10 @@ namespace pass {
  *  +-------------------------------+
  */
 
-class TRANSFORMATIONS_API MarkUpRopeInputs : public ov::pass::MatcherPass {
+class TRANSFORMATIONS_API MarkRopeInputsToKeepInMixedPrecision : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("MarkUpRopeInputs", "0");
-    MarkUpRopeInputs();
+    OPENVINO_RTTI("MarkRopeInputsToKeepInMixedPrecision", "0");
+    MarkRopeInputsToKeepInMixedPrecision();
 
 private:
     std::unordered_set<ov::Node*> visited;

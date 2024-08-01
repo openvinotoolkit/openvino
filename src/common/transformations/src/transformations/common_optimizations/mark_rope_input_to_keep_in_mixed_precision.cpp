@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/markup_rope_inputs.hpp"
+#include "transformations/common_optimizations/mark_rope_input_to_keep_in_mixed_precision.hpp"
 
 #include <unordered_set>
 
@@ -15,8 +15,8 @@
 #include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/utils.hpp"
 
-ov::pass::MarkUpRopeInputs::MarkUpRopeInputs() {
-    MATCHER_SCOPE(MarkUpRopeInputs);
+ov::pass::MarkRopeInputsToKeepInMixedPrecision::MarkRopeInputsToKeepInMixedPrecision() {
+    MATCHER_SCOPE(MarkRopeInputsToKeepInMixedPrecision);
     using namespace ov::pass::pattern;
     using namespace ov::gen_pattern;
     auto cos_tab = any_input();

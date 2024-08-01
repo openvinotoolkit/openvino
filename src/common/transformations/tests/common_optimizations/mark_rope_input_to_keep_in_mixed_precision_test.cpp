@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "transformations/common_optimizations/markup_rope_inputs.hpp"
+#include "transformations/common_optimizations/mark_rope_input_to_keep_in_mixed_precision.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/opsets/opset1.hpp"
@@ -9,7 +9,7 @@
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 
-TEST_F(TransformationTestsF, MarkUpRopeInputsTest) {
+TEST_F(TransformationTestsF, MarkRopeInputsToKeepInMixedPrecisionTest) {
     /*
     The 2nd/3rd inputs of ROPE is marked as FP32
                 Param2  Param3
@@ -46,7 +46,7 @@ TEST_F(TransformationTestsF, MarkUpRopeInputsTest) {
         model = std::make_shared<ov::Model>(rope, ov::ParameterVector{input, input_a, input_b}, "model");
     }
 
-    manager.register_pass<ov::pass::MarkUpRopeInputs>();
+    manager.register_pass<ov::pass::MarkRopeInputsToKeepInMixedPrecision>();
 
     {
         auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 10, 8, 64});
