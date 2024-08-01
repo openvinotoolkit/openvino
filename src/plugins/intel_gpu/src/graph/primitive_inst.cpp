@@ -279,11 +279,12 @@ void primitive_inst::update_shape() {
     for (size_t i = 0; i < _deps.size(); i++) {
         auto idx = _deps[i].second;
         auto new_shape = _deps[i].first->_impl_params->get_output_layout(idx);
-        if (_impl_params->get_input_layout(i) != new_shape) {
+        auto& old_shape = _impl_params->input_layouts[i];
+        if (old_shape != new_shape) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": update shape dep [" << i << "] : " << _deps[i].first->id()
                                    << " was: " << _impl_params->get_input_layout(i).to_short_string()
                                    << " now: " << new_shape.to_short_string() << std::endl;
-            _impl_params->input_layouts[i] = new_shape;
+            old_shape = new_shape;
             input_shape_changed = true;
         }
     }
@@ -321,8 +322,7 @@ void primitive_inst::update_shape() {
 
     if (input_shape_changed) {
         set_shape_change();
-    }
-    else {
+    } else {
         reset_shape_change();
 
         // if input shape is not changed, loop doesn't need to update anything.
