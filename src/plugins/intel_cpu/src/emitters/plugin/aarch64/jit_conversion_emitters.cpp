@@ -17,6 +17,12 @@ template <cpu_isa_t isa>
 static void jit_convert_process(dnnl::impl::cpu::aarch64::jit_generator* h,
                                 const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
                                 ov::element::Type input_type, ov::element::Type output_type, bool is_saturated) {
+    if (input_type == output_type) {
+        using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
+        h->mov(TReg(out_idxs[0]).b16, TReg(in_idxs[0]).b16);
+        return;
+    }
+
     switch (output_type) {
         case ov::element::f32:
             switch (input_type) {
@@ -117,8 +123,6 @@ void jit_convert_emitter::validate_types() const {
                               "Unsupported input type: ", input_type.get_type_name());
     OV_CPU_JIT_EMITTER_ASSERT(one_of(output_type, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8),
                               "Unsupported output type: ", output_type.get_type_name());
-    OV_CPU_JIT_EMITTER_ASSERT(input_type != output_type, "Input type ", input_type.get_type_name(), " and output type ",
-                              output_type.get_type_name(), " should be different.");
 }
 
 size_t jit_convert_emitter::get_inputs_count() const { return 1; }
