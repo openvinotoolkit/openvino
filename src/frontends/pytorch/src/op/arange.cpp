@@ -7,6 +7,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "pt_framework_node.hpp"
 #include "utils.hpp"
 
@@ -108,6 +109,17 @@ OutputVector translate_arange_fx(const NodeContext& context) {
     if (context.has_attribute("dtype")) {
         dtype = context.get_attribute<element::Type>("dtype");
     }
+    auto input_squeeze = [&context](ov::Output<Node> input) {
+        if (input.get_partial_shape().rank().is_dynamic() ||
+            (input.get_partial_shape().rank().is_static() && input.get_partial_shape().rank().get_length() == 1)) {
+            auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+            input = context.mark_node(std::make_shared<ov::op::v0::Squeeze>(input, zero));
+        }
+        return input;
+    };
+    start = input_squeeze(start);
+    end = input_squeeze(end);
+    step = input_squeeze(step);
     auto range = context.mark_node(std::make_shared<v4::Range>(start, end, step, dtype));
     if (!context.has_attribute("dtype")) {
         range = context.mark_node(std::make_shared<v1::ConvertLike>(range, context.get_input(0)));

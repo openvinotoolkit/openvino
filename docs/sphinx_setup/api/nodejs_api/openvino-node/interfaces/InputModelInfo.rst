@@ -15,7 +15,7 @@ Methods
 
 .. rubric:: setLayout
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 

@@ -69,6 +69,8 @@ private:
         bool allow_exception = false) const;
 
     Configuration m_cfg;
+
+    mutable size_t independent_submodel_size = 0;
 };
 
 }  // namespace hetero

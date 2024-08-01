@@ -70,6 +70,7 @@
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
+#include "plugin/transformations/group_norm_composition.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
@@ -141,6 +142,7 @@
 #include "transformations/op_conversions/softmax_decomposition.hpp"
 #include "transformations/op_conversions/softplus_decomposition.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
+#include "transformations/op_conversions/group_normalization_decomposition.hpp"
 #include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
 #include "transformations/opset_conversions/convert_opset3_to_opset2.hpp"
 #include "transformations/resolve_names_collisions.hpp"
@@ -206,7 +208,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     bool enableInt8;
     bool unroll_loop = config.get_property(ov::intel_gpu::enable_loop_unrolling);
     {
-        ov::pass::Manager manager;
+        ov::pass::Manager manager("Plugin:GPU");
         auto pass_config = manager.get_pass_config();
         manager.set_per_pass_validation(false);
 
@@ -293,6 +295,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 }
                 return !is_type<ov::op::v0::MatMul>(next_node);
             });
+
+        manager.register_pass<ov::intel_gpu::GroupNormComposition>();
 
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
         // it expects to have the same data type for weights and zero points (apply it only for u8 data type, since other compression
@@ -624,6 +628,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::ConvertGather8ToGather7>();
         pass_config->disable<ov::pass::ConvertGather7ToGather1>();
         pass_config->disable<ov::pass::ConvertTopK11ToTopK3>();
+        pass_config->disable<ov::pass::GroupNormalizationDecomposition>();
 
         pass_config->enable<ov::pass::ConvertInterpolate1ToInterpolate4>();
 
@@ -662,7 +667,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             QuantizationGranularityRestriction::create<ov::op::v1::ConvolutionBackpropData>({0}),
         });
 
-        ov::pass::Manager lptManager;
+        ov::pass::Manager lptManager("GPU:LPT");
 
         auto lptPassConfig = lptManager.get_pass_config();
         // quantized LSTMSequence / GPUSequence are not supported yet. Avoid extra transformation
@@ -751,7 +756,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply::run_passes");
-        ov::pass::Manager manager;
+        ov::pass::Manager manager("GPU:UnrollTensorIterator");
         // This ConstantFolding pass is added to fold reshapes added for constant inputs on NMS internal operation which prevents upper-bound calculation
         // TODO: check why we have these reshapes
         manager.register_pass<ov::pass::ConstantFolding>();
@@ -771,7 +776,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     }
 
     {
-        ov::pass::Manager manager;
+        ov::pass::Manager manager("GPU:PostLPT");
 
         // Other ops support eltwise fusions
         const std::vector<DiscreteTypeInfo> allowed_data_movement_ops = {

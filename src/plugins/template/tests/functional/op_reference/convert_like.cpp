@@ -181,6 +181,12 @@ INSTANTIATE_TEST_SUITE_P(
                       ov::element::f16,
                       std::vector<float8_e8m0>{-0.0f, -6.0f, 1.0f, 0.5f, 2.0f, 1.5f, 6.0f, 3.0f},
                       std::vector<float16>{f16_min, f16_min, 1.0f, 0.5f, 2.0f, 2.0f, 8.0f, 2.0f}),
+        ConvertParams(ConversionTypes::CONVERT_LIKE,
+                      ov::PartialShape{7},
+                      ov::element::bf16,
+                      ov::element::f16,
+                      std::vector<bfloat16>{0.5f, 0.1640625f, 0.5f, 2.5f, 1.5f, 0.5f, 3.5f},
+                      std::vector<float16>{0.5f, 0.1640625f, 0.5f, 2.5f, 1.5f, 0.5f, 3.5f}),
         // destination f32
         ConvertParams(ConversionTypes::CONVERT_LIKE,
                       ov::PartialShape{2, 2},

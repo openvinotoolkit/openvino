@@ -29,7 +29,7 @@ bool ov::npuw::metrics::NRMSE::operator()(const ov::SoPtr<ov::ITensor>& actual,
     } else {
         ov::Tensor dst(ov::element::Type_t::f32, actual->get_shape());
         ov::npuw::util::to_f32(ov::make_tensor(actual), dst);
-        actual_f32 = dst;
+        actual_f32 = std::move(dst);
     }
 
     if (ov::element::Type_t::f32 == reference->get_element_type()) {

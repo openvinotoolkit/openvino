@@ -598,8 +598,21 @@ static inline bool check_redundant_1d_along_feature(layout const& l1, layout con
         auto l1_inner_blk = format::is_single_blocked(l1.format) ? l1.format.traits().block_sizes.at(0).second : 1;
         auto l2_inner_blk = format::is_single_blocked(l2.format) ? l2.format.traits().block_sizes.at(0).second : 1;
         auto max_inner_blk = std::max(l1_inner_blk, l2_inner_blk);
-        if (static_cast<size_t>(l2.feature()) == l1.count() && l2.feature() == l1.feature() &&
-           (l2.feature() % max_inner_blk == 0)) {
+        auto has_batch_block = format::is_single_blocked(l1.format) && l1.format.traits().block_sizes.at(0).first == 0;
+        has_batch_block |= format::is_single_blocked(l2.format) && l2.format.traits().block_sizes.at(0).first == 0;
+
+        auto is_1x1_spatial = [](layout const& l) {
+            for (size_t i = 0; i < l.get_spatial_rank(); ++i) {
+                if (l.spatial(i) > 1)
+                    return false;
+            }
+            return true;
+        };
+
+        if ((static_cast<size_t>(l2.feature()) == l1.count() ||
+            (max_inner_blk > 1 && !has_batch_block && l1.batch() == l2.batch() &&
+            l1.get_dims_order()[0] == 0 && l2.get_dims_order()[0] == 0 && is_1x1_spatial(l1) && is_1x1_spatial(l2))) &&
+            l2.feature() == l1.feature() && (l2.feature() % max_inner_blk == 0)) {
             return true;
         }
 

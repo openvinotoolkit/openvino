@@ -5,6 +5,7 @@
 #include "custom/single_layer_tests/classes/mvn.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
+#include "utils/filter_cpu_info.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 
 using namespace CPUTestUtils;

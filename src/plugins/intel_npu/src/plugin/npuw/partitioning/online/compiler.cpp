@@ -49,7 +49,7 @@ std::vector<Avoid> getAvoids(const std::shared_ptr<ov::Model>& model, ::intel_np
         return {};
     }
 
-    std::string s = avoids_opt;
+    std::string s = std::move(avoids_opt);
 
     size_t pos = 0;
     size_t start = 0;
@@ -145,13 +145,13 @@ void dump_partitioning(const ov::npuw::Ensemble& ens, const std::shared_ptr<ov::
 // Interface to get online partitioning from the model
 class Compiler {
     enum class Pipeline {
-        NONE,  // Do nothing, partitioning will be empty
+        NONE,  // Partitioning will consist of a single group with all the Ops
         INIT,  // Initialize only. The hardest mode, every group has just 1 layer inside
         JUST,  // "justParitioning" - combination of LHF + Remnants
         REP,   // Repeated blocks pipeline - combination of repeatedBlocks and Remnants - default configuration
     };
 
-    Pipeline currentPipeline(const std::shared_ptr<ov::Model>& model) {
+    Pipeline currentPipeline() {
         std::string pipeline_opt = m_cfg.getString<::intel_npu::NPUW_ONLINE_PIPELINE>();
         if (pipeline_opt == "NONE") {
             return Pipeline::NONE;
@@ -168,6 +168,15 @@ class Compiler {
     }
 
     // Compiler pipelines
+    void none() {
+        LOG_INFO("Online partitioning: compiling single group pipeline...");
+        LOG_BLOCK();
+
+        m_snapshot->singleGroup();
+
+        LOG_INFO("Done");
+    }
+
     void init() {
         LOG_INFO("Online partitioning: compiling initial pipeline...");
         LOG_BLOCK();
@@ -205,12 +214,12 @@ class Compiler {
     }
 
 public:
-    explicit Compiler(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg)
+    Compiler(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg)
         : m_model(model),
           m_snapshot(std::make_shared<Snapshot>(model)),
           m_cfg(cfg) {
-        if (currentPipeline(model) == Pipeline::NONE) {
-            LOG_INFO("NPUW_ONLINE_PIPELINE is set to NONE. No online partitioning is done.");
+        if (currentPipeline() == Pipeline::NONE) {
+            none();
             return;
         }
 
@@ -226,7 +235,7 @@ public:
 
         m_snapshot->setCtx(ctx);
 
-        switch (currentPipeline(model)) {
+        switch (currentPipeline()) {
         case Pipeline::NONE:
             break;  // unreachable
         case Pipeline::INIT:
@@ -247,6 +256,7 @@ public:
             Group::GPtr group = graph->meta(nh).get<Group::GPtr>();
             LOG_DEBUG("Group " << group->getId() << ", size " << group->size());
         }
+
         LOG_INFO("Done");
     }
 
@@ -272,7 +282,7 @@ public:
             repeated.insert({reptag_and_matches.first, block});
             LOG_INFO("Got " << block.matches.at(0).size() << " repeated blocks of size " << block.matches.size());
         }
-        ens.repeated = repeated;
+        ens.repeated = std::move(repeated);
 
         std::string dump_plan_path = m_cfg.get<::intel_npu::NPUW_ONLINE_DUMP_PLAN>();
         if (!dump_plan_path.empty()) {

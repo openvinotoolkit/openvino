@@ -8,7 +8,7 @@
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/snippets_isa.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov {
 namespace snippets {
@@ -138,6 +138,40 @@ std::shared_ptr<pass::PassBase> TransformInnerSplitLoop::merge(const std::shared
         return merged_pass;
     const auto casted_pass = ov::as_type_ptr<TransformInnerSplitLoop>(other);
     if (!casted_pass || m_tail_size != casted_pass->m_tail_size)
+        return nullptr;
+    return merged_pass;
+}
+
+bool SetEvaluateOnce::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
+    const auto& loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(end->get()->get_node());
+    OPENVINO_ASSERT(loop_end, "SetEvaluateOnce expected LoopEnd node in iterator `end`.");
+    const auto& loop_info = linear_ir.get_loop_manager()->get_loop_info<ov::snippets::lowered::ExpandedLoopInfo>(loop_end->get_id());
+    loop_info->set_evaluate_once(true);
+    return true;
+}
+
+std::shared_ptr<snippets::lowered::pass::PassBase> SetEvaluateOnce::merge(const std::shared_ptr<snippets::lowered::pass::PassBase>& other) {
+    return !other || ov::is_type<SetEvaluateOnce>(other) ? std::make_shared<SetEvaluateOnce>() : nullptr;
+}
+
+SetBrgemmBeta::SetBrgemmBeta(float beta) : snippets::lowered::pass::RangedPass(), m_beta(beta) {}
+
+bool SetBrgemmBeta::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
+    for (auto expr_it = begin; expr_it != end; ++expr_it) {
+        const auto& expr = expr_it->get();
+        if (const auto brgemm = ov::as_type_ptr<ov::snippets::op::Brgemm>(expr->get_node())) {
+            brgemm->set_beta(m_beta);
+        }
+    }
+    return true;
+}
+
+std::shared_ptr<snippets::lowered::pass::PassBase> SetBrgemmBeta::merge(const std::shared_ptr<snippets::lowered::pass::PassBase>& other) {
+    const auto merged_pass = std::make_shared<SetBrgemmBeta>(m_beta);
+    if (other == nullptr)
+        return merged_pass;
+    const auto casted_pass = ov::as_type_ptr<SetBrgemmBeta>(other);
+    if (!casted_pass || m_beta != casted_pass->m_beta)
         return nullptr;
     return merged_pass;
 }

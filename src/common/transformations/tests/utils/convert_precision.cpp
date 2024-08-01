@@ -382,6 +382,40 @@ TEST(TransformationTests, ConvertPrecision_Convert_clamp_1) {
     ASSERT_TRUE(res.valid) << res.message;
 }
 
+TEST(TransformationTests, ConvertPrecision_Convert_clamp_bf16_f16) {
+    // fp16 out of range should be clamped to [fp16_min, fp16_max]
+    std::shared_ptr<Model> model(nullptr), model_ref(nullptr);
+    {
+        auto input = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 1000, 3});
+        auto const_node = opset10::Constant::create(element::bf16, Shape{3}, {100000.0f, -100000.0f, 10.0f});
+        auto convert = std::make_shared<opset4::Convert>(const_node, element::f16);
+        auto add_1 = make_shared<opset10::Add>(input, convert);
+        model = std::make_shared<Model>(NodeVector{add_1}, ParameterVector{input});
+
+        pass::Manager manager;
+        static const precisions_map precisions = {{element::bf16, element::f16}};
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<pass::ConvertPrecision>(precisions);
+        manager.run_passes(model);
+    }
+
+    {
+        auto max_fp16 = static_cast<float>(std::numeric_limits<ov::float16>::max());
+        auto input = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 1000, 3});
+        auto const_node = opset10::Constant::create(element::f16, Shape{3}, {max_fp16, -max_fp16, 10.0f});
+        auto add_1 = make_shared<opset10::Add>(input, const_node);
+
+        model_ref = std::make_shared<Model>(NodeVector{add_1}, ParameterVector{input});
+    }
+    ASSERT_NO_THROW(check_rt_info(model));
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::CONST_VALUES)
+                        .enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+    const auto res = fc.compare(model, model_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
+
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 TEST(TransformationTests, ConvertPrecision_Convert_clamp_2) {
 #else

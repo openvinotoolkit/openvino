@@ -69,8 +69,8 @@ std::optional<ov::npuw::online::Avoid> ov::npuw::online::util::parseAvoid(const 
 
     Avoid avoid;
     avoid.type = type == "Op" ? AvoidType::OP : AvoidType::PATTERN;
-    avoid.pattern = pattern;
-    avoid.device = device;
+    avoid.pattern = std::move(pattern);
+    avoid.device = std::move(device);
 
     return std::optional<Avoid>{avoid};
 }
