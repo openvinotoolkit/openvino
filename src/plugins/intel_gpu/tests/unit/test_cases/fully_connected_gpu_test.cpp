@@ -1317,6 +1317,9 @@ public:
     void test_compressed_scale_zp_nobias_activation(bool is_caching_test) {
         std::cout << "[+] test_compressed_scale_zp_nobias_activation is_caching_test: " << is_caching_test << std::endl;
 
+        long unsigned int M = 2;
+        // long unsigned int K = 2;
+        long unsigned int N = 2;
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ -1, 2 });
         std::vector<uint8_t> weights_values = { 1, 2, 3, 4};
         auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ 2, 2 }, weights_values);
@@ -1346,17 +1349,20 @@ public:
         std::cout << "infer_request infer " << std::endl;
         infer_request.infer();
         const ov::Tensor& output_tensor = infer_request.get_output_tensor();
-        for (size_t i = 0; i < 2; i++) {
-            std::cout << "output_tensor[" << i << "] " << output_tensor.data<float>()[i] << std::endl;
+        size_t count = M * N;
+        for (size_t i = 0; i < count; i++) {
+            if (i < 16 || i > count - 16) {
+                std::cout << "output_tensor[" << i << "] " << output_tensor.data<float>()[i] << std::endl;
+            }
         }
     }
 
     void test_compressed_scale_zp_nobias_activation_large(bool is_caching_test) {
         std::cout << "[+] test_compressed_scale_zp_nobias_activation is_caching_test: " << is_caching_test << std::endl;
 
-        long unsigned int M = 1024;
+        long unsigned int M = 8;
         long unsigned int K = 4;
-        long unsigned int N = 2048;
+        long unsigned int N = 1024;
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ -1, static_cast<long int>(K) });
         uint8_t MAX_UINT8 = 255;
         std::vector<uint8_t> weights_values(N * K, 1);

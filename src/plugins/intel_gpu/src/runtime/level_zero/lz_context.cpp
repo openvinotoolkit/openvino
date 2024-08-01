@@ -310,6 +310,9 @@ int lzContext::initKernel() {
 void lzContext::runKernel(const char *spvFile, const char *funcName, void *remoteBuf, void *devBuf, const size_t elemCount,
     const int srcOffsetX, const int srcOffsetY, const int strideX, const int strideY, const int width) {
     ze_result_t result;
+    const int size = elemCount / 4; // use int instead of uint8_t
+    printf("[lz_kernel] elemCount: %ld, size: %d \n", elemCount, size);
+    if (size < 1) return;
 
     kernelSpvFile = spvFile;
     kernelFuncName = funcName;
@@ -338,8 +341,6 @@ void lzContext::runKernel(const char *spvFile, const char *funcName, void *remot
     result = zeKernelSetArgumentValue(function, 6, sizeof(int), &width);
     CHECK_ZE_STATUS(result, "zeKernelSetArgumentValue");
 
-    const int size = elemCount;
-    printf("[lz_kernel] elemCount: %ld, size: %d \n", elemCount, size);
     result = zeKernelSetArgumentValue(function, 7, sizeof(int), &size);
     CHECK_ZE_STATUS(result, "zeKernelSetArgumentValue");
 
@@ -347,7 +348,8 @@ void lzContext::runKernel(const char *spvFile, const char *funcName, void *remot
     zeKernelSetGroupSize(function, groupSize, 1, 1);
 
     // ze_group_count_t groupCount = {static_cast<uint32_t>(elemCount), 1, 1};
-    ze_group_count_t groupCount = {static_cast<uint32_t>(elemCount + groupSize - 1) / groupSize, 1, 1};
+    // ze_group_count_t groupCount = {static_cast<uint32_t>(elemCount + groupSize - 1) / groupSize, 1, 1};
+    ze_group_count_t groupCount = {static_cast<uint32_t>(size + groupSize - 1) / groupSize, 1, 1};
     result = zeCommandListAppendLaunchKernel(command_list, function, &groupCount, kernelTsEvent, 0, nullptr);
     CHECK_ZE_STATUS(result, "zeCommandListAppendLaunchKernel");
 

@@ -21,15 +21,15 @@ kernel void local_read_from_remote(global int *src1, global int *src2,
 
   if (offset < size) {
     src1[orig] = src2[offset];
-  }
 
-  if (gid_x < 10 && gid_y < 10) {
-    printf("local_read_from_remote gid: (%d,%d), orig/offset: (%d,%d), src/dst: (%d,%d), size: %d \n", gid_x, gid_y, orig, offset, src2[offset], src1[orig], size);
+    if (gid_x < 10 && gid_y < 10) {
+      printf("local_read_from_remote gid: (%d,%d), orig/offset: (%d,%d), src/dst: (%d,%d), size: %d \n", gid_x, gid_y, orig, offset, src2[offset], src1[orig], size);
+    }
   }
 }
 
-// kernel void local_write_to_remote(global int *src1, global int *src2,
-kernel void local_write_to_remote(global unsigned char *src1, global unsigned char *src2,
+// kernel void local_write_to_remote(global unsigned char *src1, global unsigned char *src2,
+kernel void local_write_to_remote(global int *src1, global int *src2,
   const int src_offset_x, const int src_offset_y,
   const int stride_x, const int stride_y,
   const int width, const int size)
@@ -45,9 +45,10 @@ kernel void local_write_to_remote(global unsigned char *src1, global unsigned ch
 
   if (offset < size) {
     src2[orig] = src1[offset];
+
+    if (gid_x < 10 && gid_y < 10) {
+      printf("local_write_to_remote gid: (%d,%d), orig/offset: (%d,%d), src/dst: (%d,%d), size: %d \n", gid_x, gid_y, orig, offset, src1[offset], src2[orig], size);
+    }
   }
 
-  if (gid_x < 10 && gid_y < 10) {
-    printf("local_write_to_remote gid: (%d,%d), orig/offset: (%d,%d), src/dst: (%d,%d), size: %d \n", gid_x, gid_y, orig, offset, src1[offset], src2[orig], size);
-  }
 }
