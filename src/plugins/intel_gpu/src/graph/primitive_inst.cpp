@@ -318,23 +318,11 @@ void primitive_inst::update_shape() {
         }
     }
 
+    // Reset shape is defined by input shape changes
     if (input_shape_changed)
         set_shape_change();
     else
         reset_shape_change();
-
-    // We assume that tensor ranks are static, thus shape_of doesn't need to update anything even if input shape is dynamic
-    if (_node->is_type<shape_of>() && !input_shape_changed) {
-        reset_shape_change();
-        return;
-    }
-
-    // if input shape is not changed, loop doesn't need to update anything.
-    // because actual output layout will be calculated after the end of body network execution.
-    if (_node->is_type<loop>() && !input_shape_changed) {
-        reset_shape_change();
-        return;
-    }
 
     // Do not update shapes in shape_of subraph if shape_of's input shape is not changed
     if (_node->is_in_shape_of_subgraph()) {
@@ -423,12 +411,14 @@ void primitive_inst::update_shape() {
             auto data_padding = padding::max(_impl_params->get_output_layout(idx).data_padding, layout.data_padding);
             layout.data_padding = padding::max(_node->get_primitive()->get_output_padding(idx), data_padding);
         }
-        if (_impl_params->get_output_layout(idx) != layout) {
+        auto& old_layout = _impl_params->output_layouts[idx];
+        // check only paddings since only they are changed
+        if (old_layout.data_padding != layout.data_padding) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": update shape: was: " << _impl_params->get_output_layout(idx).to_short_string()
                                    << " now: " << layout.to_short_string() << std::endl;
             set_shape_change();
+            old_layout = layout;
         }
-        _impl_params->output_layouts[idx] = layout;
     };
 
     auto new_layouts = _node->type()->calc_output_layouts(*_node, *_impl_params);
