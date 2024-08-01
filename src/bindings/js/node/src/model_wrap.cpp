@@ -7,6 +7,7 @@
 #include "node/include/errors.hpp"
 #include "node/include/helper.hpp"
 #include "node/include/node_output.hpp"
+#include "node/include/node_wrap.hpp"
 
 ModelWrap::ModelWrap(const Napi::CallbackInfo& info)
     : Napi::ObjectWrap<ModelWrap>(info),
@@ -25,6 +26,7 @@ Napi::Function ModelWrap::get_class(Napi::Env env) {
                         InstanceMethod("setFriendlyName", &ModelWrap::set_friendly_name),
                         InstanceMethod("getFriendlyName", &ModelWrap::get_friendly_name),
                         InstanceMethod("getOutputShape", &ModelWrap::get_output_shape),
+                        InstanceMethod("getOps", &ModelWrap::get_ops)
                         InstanceAccessor<&ModelWrap::get_inputs>("inputs"),
                         InstanceAccessor<&ModelWrap::get_outputs>("outputs")});
 }
@@ -170,4 +172,17 @@ Napi::Value ModelWrap::get_output_shape(const Napi::CallbackInfo& info) {
         reportError(info.Env(), e.what());
         return info.Env().Undefined();
     }
+}
+
+Napi::Value ModelWrap::get_ops(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    std::vector<std::shared_ptr<ov::Node>> ops = Model.get_ops();  // Assuming Model.get_ops() returns std::vector<std::shared_ptr<ov::Node>>
+
+    Napi::Array result = Napi::Array::New(env, ops.size());
+    for (size_t i = 0; i < ops.size(); ++i) {
+        Napi::Object nodeWrap = NodeWrap::get_class(env).New({Napi::External<std::shared_ptr<ov::Node>>::New(env, &ops[i])});
+        result[i] = nodeWrap;
+    }
+
+    return result;
 }
