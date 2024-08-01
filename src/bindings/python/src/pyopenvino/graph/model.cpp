@@ -53,8 +53,9 @@ ov::SinkVector cast_to_sink_vector(const std::vector<T>& items) {
     ov::SinkVector sinks;
     sinks.reserve(items.size());
     for (const auto& item : items) {
-        auto sink = std::dynamic_pointer_cast<ov::op::Sink>(get_node_ptr(item));
-        OPENVINO_ASSERT(sink != nullptr, "Node is not instance of Sink");
+        const auto node = get_node_ptr(item);
+        auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node);
+        OPENVINO_ASSERT(sink != nullptr, "Node " + node->get_name() + " is not instance of Sink");
         sinks.push_back(std::move(sink));
     }
     return sinks;
@@ -64,7 +65,7 @@ static std::vector<std::shared_ptr<ov::Node>> cast_to_node_vector(const ov::Sink
     std::vector<std::shared_ptr<ov::Node>> nodes;
     for (const auto& sink : sinks) {
         auto node = std::dynamic_pointer_cast<ov::Node>(sink);
-        OPENVINO_ASSERT(node != nullptr, "Sink is not instance of Node");
+        OPENVINO_ASSERT(node != nullptr, "Sink " + sink->get_name() + " is not instance of Node");
         nodes.push_back(node);
     }
     return nodes;
@@ -1200,9 +1201,9 @@ void regclass_graph_Model(py::module m) {
         [](ov::Model& self, py::list& sinks) {
             ov::SinkVector sinks_cpp;
             for (py::handle sink : sinks) {
-                auto sink_cpp =
-                    std::dynamic_pointer_cast<ov::op::Sink>(sink.cast<std::shared_ptr<ov::op::v6::Assign>>());
-                OPENVINO_ASSERT(sink_cpp != nullptr, "Assign is not instance of Sink");
+                const auto assign = sink.cast<std::shared_ptr<ov::op::v6::Assign>>();
+                auto sink_cpp = std::dynamic_pointer_cast<ov::op::Sink>(assign);
+                OPENVINO_ASSERT(sink_cpp != nullptr, "Assign " + assign->get_name() + " is not instance of Sink");
                 sinks_cpp.push_back(sink_cpp);
             }
             self.add_sinks(sinks_cpp);
