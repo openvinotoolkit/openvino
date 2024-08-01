@@ -342,14 +342,18 @@ void RoPE::initSupportedPrimitiveDescriptors() {
     bool can_inplace = false;
 
     if (m_config.is_qwen) {
-        if (rtPrecision == ov::element::bf16) {
+        if (rtPrecision == ov::element::f16) {
+            m_executor = std::make_shared<RoPEExecutorQwen<ov::float16>>(m_config);
+        } else if (rtPrecision == ov::element::bf16) {
             m_executor = std::make_shared<RoPEExecutorQwen<ov::bfloat16>>(m_config);
         } else {
             m_executor = std::make_shared<RoPEExecutorQwen<float>>(m_config);
             rtPrecision = ov::element::f32;
         }
     } else if (m_config.is_chatglm) {
-        if (rtPrecision == ov::element::bf16) {
+        if (rtPrecision == ov::element::f16) {
+            m_executor = std::make_shared<RoPEExecutorChatGLM<ov::float16>>(m_config);
+        } else if (rtPrecision == ov::element::bf16) {
             m_executor = std::make_shared<RoPEExecutorChatGLM<ov::bfloat16>>(m_config);
         } else {
             m_executor = std::make_shared<RoPEExecutorChatGLM<float>>(m_config);
@@ -360,7 +364,9 @@ void RoPE::initSupportedPrimitiveDescriptors() {
         OPENVINO_ASSERT(m_config.slice_start == 0);
         OPENVINO_ASSERT(m_config.slice_stop == 0);
         OPENVINO_ASSERT(m_config.gather_position_arg_id == 0);
-        if (rtPrecision == ov::element::bf16) {
+        if (rtPrecision == ov::element::f16) {
+            m_executor = std::make_shared<RoPEExecutorInterleaved<ov::float16>>(m_config);
+        } else if (rtPrecision == ov::element::bf16) {
             m_executor = std::make_shared<RoPEExecutorInterleaved<ov::bfloat16>>(m_config);
         } else {
             m_executor = std::make_shared<RoPEExecutorInterleaved<float>>(m_config);
@@ -368,7 +374,9 @@ void RoPE::initSupportedPrimitiveDescriptors() {
         }
     } else {
         can_inplace = true;
-        if (rtPrecision == ov::element::bf16) {
+        if (rtPrecision == ov::element::f16) {
+            m_executor = std::make_shared<RoPEExecutorRotateHalf<ov::float16>>(m_config);
+        } else if (rtPrecision == ov::element::bf16) {
             m_executor = std::make_shared<RoPEExecutorRotateHalf<ov::bfloat16>>(m_config);
         } else {
             m_executor = std::make_shared<RoPEExecutorRotateHalf<float>>(m_config);

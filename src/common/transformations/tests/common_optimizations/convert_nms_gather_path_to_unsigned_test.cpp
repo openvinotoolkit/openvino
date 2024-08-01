@@ -202,7 +202,7 @@ TEST(TransformationTests, test_convert_to_unsigned_nms_gather_3) {
     manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::pass::ConvertNmsGatherPathToUnsigned>();
     manager.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_EQ(count_ops_of_type<ov::op::v0::Convert>(f), 0);
 }
 
@@ -260,7 +260,7 @@ TEST(TransformationTests, test_convert_to_unsigned_nms_gather_with_if_condition)
     manager.register_pass<pass::InitNodeInfo>();
     manager.register_pass<pass::ConvertNmsGatherPathToUnsigned>();
     manager.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
 
     const auto& ops = f->get_ops();
     const auto& gather_it = find(ops.begin(), ops.end(), target_gather);

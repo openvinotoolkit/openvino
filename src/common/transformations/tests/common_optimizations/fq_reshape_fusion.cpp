@@ -122,7 +122,7 @@ TEST_P(FQReshapeFusionTests, ReshapeMatMul) {
     manager.register_pass<ov::pass::CheckUniqueNames>(unh);
 
     manager.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
 
     auto fc =
         FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS).enable(FunctionsComparator::NODES);

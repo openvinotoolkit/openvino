@@ -4,12 +4,15 @@
 
 #include "nodes/executors/dnnl/dnnl_utils.hpp"
 
+#include <common/primitive_desc_iface.hpp>
 #include <oneapi/dnnl/dnnl.hpp>
 
 #include "cpu_memory.h"
 #include "memory_desc/dnnl_memory_desc.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/reorder.h"
+#include "utils/cpu_utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -32,6 +35,7 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
     const auto& format = dstWeightDesc->serializeFormat();
 
     const auto privateWeightCache = context->getPrivateWeighCache();
+    OPENVINO_ASSERT(privateWeightCache, "privateWeightCache is nullptr");
     if (privateWeightCache) {
         auto itr = privateWeightCache->find(format);
         if (privateWeightCache->end() != itr) {
@@ -85,8 +89,7 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
     MemoryPtr ptr;
     if (globalWeightCache &&
         dnnl::memory::format_kind::blocked == dstWeightDesc->getDnnlDesc().get_format_kind()) {
-        const std::string string_hash = format + "_" + std::to_string(weightsMem->getSize()) + "_" +
-                                        std::to_string(*weightsMem->getDataAs<uint64_t>());
+        const auto string_hash = DnnlExtensionUtils::computeWeightsStringHash(weightsMem, dstWeightDesc);
         ptr = *globalWeightCache->findOrCreate(string_hash, create);
     } else {
         ptr = create();

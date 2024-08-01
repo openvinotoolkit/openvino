@@ -80,22 +80,18 @@ void NonZero::validate_and_infer_types() {
     if (input_shape.rank().compatible(0)) {
         set_output_type(0, m_output_type, PartialShape::dynamic(2));
     } else {
-        auto dim = Dimension{0, 1};
+        auto output_shape = PartialShape{input_shape.rank(), {0, 1}};
+        auto& dim = output_shape[1];
         for (auto&& d : input_shape)
             dim *= d;
-        set_output_type(0, m_output_type, PartialShape{input_shape.rank(), dim});
+        set_output_type(0, m_output_type, output_shape);
     }
 
     set_input_is_relevant_to_shape(0);
 
     if (const auto input_constant = ov::util::get_constant_from_source(input_value(0))) {
         // input_value is available to calculate output shape
-
-        // const_cast of Constant data is needed to avoid obsolete copy of this data into the Tensor.
-        // It's safe here as evaluate() method doesn't modify input Tensors.
-        const auto inputs = TensorVector{{input_constant->get_element_type(),
-                                          input_constant->get_shape(),
-                                          const_cast<void*>(input_constant->get_data_ptr())}};
+        const auto inputs = TensorVector{input_constant->get_tensor_view()};
         auto outputs = TensorVector{{m_output_type, {}}};
         if (!evaluate(outputs, inputs))
             return;

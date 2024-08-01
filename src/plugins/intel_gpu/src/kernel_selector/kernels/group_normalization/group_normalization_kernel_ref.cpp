@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2023-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,9 +75,8 @@ GroupNormalizationKernelRef::DispatchData GroupNormalizationKernelRef::SetDefaul
 
 JitConstants GroupNormalizationKernelRef::GetJitConstants(KernelId kernelId,
                                                           const group_normalization_params &params) const {
-    auto jit = MakeBaseParamsJitConstants(params);
-    jit.AddConstant(MakeJitConstant("EPSILON", static_cast<float>(params.epsilon)));
-    jit.AddConstant(MakeJitConstant("NUM_GROUPS", params.num_groups));
+    auto jit = GroupNormalizationKernelBase::GetJitConstants(params);
+
     switch (kernelId) {
     case eCalcMeanKernel:
         jit.AddConstant(MakeJitConstant("MEAN_KERNEL_ENABLED", true));
@@ -167,4 +166,7 @@ KernelsData GroupNormalizationKernelRef::GetKernelsData(const Params &params) co
     return {kd};
 }
 
+KernelsPriority GroupNormalizationKernelRef::GetKernelsPriority(const Params& /*params*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+}
 } // namespace kernel_selector

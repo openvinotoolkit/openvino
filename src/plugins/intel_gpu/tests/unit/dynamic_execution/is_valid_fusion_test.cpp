@@ -70,8 +70,7 @@ TEST(eltwise_activation_fusing_test, basic_dynamic_rank4) {
                                   {2, 2},  /*pad_above*/
                                   {2, 2},  /*pad_below*/
                                   false,
-                                  ov::op::PadType::EXPLICIT,
-                                  padding{{0, 0, 0, 0}, 0}),
+                                  ov::op::PadType::EXPLICIT),
                       eltwise("eltwise", input_info("conv"), input_info("const1"), eltwise_mode::sum),
                       activation("prelu", input_info("eltwise"), "const2", activation_func::relu_negative_slope),
                       reorder("output", input_info("prelu"), format::bfyx, data_types::f32));
