@@ -27,6 +27,7 @@ VSCode extension to run these notebook samples
   - question-answering.nnb
   - pose-estimation.nnb
   - optical-character-recognition.nnb
+  - vision-background-removal.nnb
 
 ## Live Sample
 
