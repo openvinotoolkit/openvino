@@ -73,13 +73,13 @@ KERNEL(rope_ref)(
     uint cos_sin_h = h < INPUT1_SIZE_Y ? h : 0;
 
 #ifndef SIN_COS_HAVE_DYNAMIC_PADDINGS
-    uint cos_sin_idx = INPUT1_GET_INDEX(cos_sin_b, cos_sin_h, cos_sin_p, 0);
+    uint cos_sin_idx = INPUT1_GET_INDEX(cos_sin_b, cos_sin_p, cos_sin_h, 0);
 
     uint cos_idx = cos_sin_idx;
     uint sin_idx = cos_sin_idx;
 #else
-    uint cos_idx = INPUT1_GET_INDEX(cos_sin_b, cos_sin_h, cos_sin_p, 0);
-    uint sin_idx = INPUT2_GET_INDEX(cos_sin_b, cos_sin_h, cos_sin_p, 0);
+    uint cos_idx = INPUT1_GET_INDEX(cos_sin_b, cos_sin_p, cos_sin_h, 0);
+    uint sin_idx = INPUT2_GET_INDEX(cos_sin_b, cos_sin_p, cos_sin_h, 0);
 #endif
 
     uint output_idx = OUTPUT_GET_INDEX(b, p, h, 0);
