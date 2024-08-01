@@ -1507,6 +1507,14 @@ void Graph::SortTopologically() {
             }
         };
 
+        // First execute MemoryInput because it will change the memory pointer of
+        // its sibling MemoryOutput. So execute first to avoid potential issue.
+        for (const auto& node : nodes) {
+            if (node->getType() == Type::MemoryInput) {
+                visit(node);
+            }
+        }
+
         // Always start from output nodes
         for (auto&& kvp : outputNodesMap) {
             visit(kvp.second);
