@@ -148,7 +148,7 @@ ov_compiled_model_create_infer_request(compiled_model, &infer_request);
 
 //! [ov_dynamic_shapes:set_input_tensor]
 ov_output_port_t* input_port = NULL;
-ov_element_type_e* type = NULL;
+ov_element_type_e type = UNDEFINED;
 ov_shape_t input_shape_1;
 ov_tensor_t* input_tensor_1 = NULL;
 ov_tensor_t* output_tensor = NULL;
@@ -164,7 +164,7 @@ void* data_2 = NULL;
 // Shape {1, 128} is compatible with any reshape statements made in previous examples
 {
 ov_model_input(model, &input_port);
-ov_port_get_element_type(input_port, type);
+ov_port_get_element_type(input_port, &type);
 int64_t dims[2] = {1, 128};
 ov_shape_create(2, dims, &input_shape_1);
 ov_tensor_create(type, input_shape_1, &input_tensor_1);

@@ -105,30 +105,32 @@ TEST(pattern, wrap_type_list) {
 // ! [ov:wrap_type_list]
 
 void patterns_misc() {
-// ! [ov:any_input]
-    auto pattern_mul = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({pattern::any_input(), pattern::any_input()});
-    auto pattern_abs = ov::pass::pattern::wrap_type<ov::op::v0::Abs>({pattern_mul->output(0)});
-    auto pattern_relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({pattern_abs->output(0)});
-// ! [ov:any_input]
+{
+    // ! [ov:any_input]
+        auto pattern_mul = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({pattern::any_input(), pattern::any_input()});
+        auto pattern_abs = ov::pass::pattern::wrap_type<ov::op::v0::Abs>({pattern_mul->output(0)});
+        auto pattern_relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({pattern_abs->output(0)});
+    // ! [ov:any_input]
 
-// ! [ov:wrap_type_predicate]
-    ov::pass::pattern::wrap_type<ov::op::v0::Relu>({pattern::any_input()}, pattern::consumers_count(2));
-// ! [ov:wrap_type_predicate]
+    // ! [ov:wrap_type_predicate]
+        ov::pass::pattern::wrap_type<ov::op::v0::Relu>({pattern::any_input()}, pattern::consumers_count(2));
+    // ! [ov:wrap_type_predicate]
+}
+{
+    // ! [ov:any_input_predicate]
+        auto pattern_mul = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({pattern::any_input([](const Output<Node>& value){
+                                                                                return value.get_shape().size() == 4;}),
+                                                                            pattern::any_input([](const Output<Node>& value){
+                                                                                return value.get_shape().size() == 4;})});
+        auto pattern_abs = ov::pass::pattern::wrap_type<ov::op::v0::Abs>({pattern_mul->output(0)});
+        auto pattern_relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({pattern_abs->output(0)});
+    // ! [ov:any_input_predicate]
 
 
-// ! [ov:any_input_predicate]
-    auto pattern_mul = ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({pattern::any_input([](const Output<Node>& value){
-                                                                            return value.get_shape().size() == 4;}),
-                                                                         pattern::any_input([](const Output<Node>& value){
-                                                                            return value.get_shape().size() == 4;})});
-    auto pattern_abs = ov::pass::pattern::wrap_type<ov::op::v0::Abs>({pattern_mul->output(0)});
-    auto pattern_relu = ov::pass::pattern::wrap_type<ov::op::v0::Relu>({pattern_abs->output(0)});
-// ! [ov:any_input_predicate]
-
-
-// ! [ov:optional_predicate]
-    auto pattern_sig_opt = ov::pass::pattern::optional<ov::op::v0::Sigmoid>(pattern_relu, pattern::consumers_count(2));
-// ! [ov:optional_predicate]
+    // ! [ov:optional_predicate]
+        auto pattern_sig_opt = ov::pass::pattern::optional<ov::op::v0::Sigmoid>(pattern_relu, pattern::consumers_count(2));
+    // ! [ov:optional_predicate]
+}
 }
 
 
