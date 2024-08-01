@@ -21,6 +21,11 @@ std::vector<RefBitwiseParams> generateBitwiseParams() {
             .inputs({{{10}, element::i32, std::vector<int32_t>{0, -0, 1, -1, 3, -3, 2, -2, 64, -64}},
                      {{1}, element::i32, std::vector<int32_t>{1}}})
             .expected({{10}, element::i32, std::vector<int32_t>{0, 0, 0, -1, 1, -2, 1, -1, 32, -32}}),
+        Builder{}
+            .opType(BitwiseTypes::BITWISE_RIGHT_SHIFT)
+            .inputs({{{10}, element::i8, std::vector<int8_t>{0, -0, 1, -1, 3, -3, 2, -2, 64, -64}},
+                     {{1}, element::i8, std::vector<int8_t>{1}}})
+            .expected({{10}, element::i8, std::vector<int8_t>{0, 0, 0, -1, 1, -2, 1, -1, 32, -32}}),
     };
     return bitwiseParams;
 }

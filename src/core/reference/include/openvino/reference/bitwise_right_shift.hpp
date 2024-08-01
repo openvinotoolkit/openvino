@@ -34,7 +34,7 @@ void bitwise_right_shift(const T* arg0,
                          T* out,
                          const Shape& arg0_shape,
                          const Shape& arg1_shape,
-                         const op::AutoBroadcastSpec& broadcast_spec) {
+                         const op::AutoBroadcastSpec& broadcast_spec = op::AutoBroadcastType::NUMPY) {
     autobroadcast_binop(arg0, arg1, out, arg0_shape, arg1_shape, broadcast_spec, func::bit_shift_right<T>);
 }
 }  // namespace reference
