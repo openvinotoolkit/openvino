@@ -250,7 +250,7 @@ def test_model_sink_ctors():
 
     # Model(List[ov::Output<ov::Node>, List[ov::Output<ov::Node>],
     # List[openvino._pyopenvino.op.Parameter], str = '')
-    model = Model(results=[model.output(0)], sinks=[node.output(0)], parameters=[input_data], name="TestModel")
+    model = Model(results=[res.output(0)], sinks=[node.output(0)], parameters=[input_data], name="TestModel")
     model.validate_nodes_and_infer_types()
     assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
     assert sinks == [sink.get_type_name() for sink in model.get_sinks()]
@@ -274,7 +274,7 @@ def test_model_sink_ctors():
 
     # Model(List[ov::Output<ov::Node>, List[ov::Output<ov::Node>],
     # List[openvino._pyopenvino.op.Parameter], List[openvino._pyopenvino.op.util.Variable], str = '')
-    model = Model(results=[model.output(0)], sinks=[assign.output(0)], parameters=[input_data], variables=[variable_1], name="TestModel")
+    model = Model(results=[res.output(0)], sinks=[assign.output(0)], parameters=[input_data], variables=[variable_1], name="TestModel")
     model.validate_nodes_and_infer_types()
     assert model.sinks[0].get_output_shape(0) == Shape([2, 2])
     assert sinks == [sink.get_type_name() for sink in model.get_sinks()]
