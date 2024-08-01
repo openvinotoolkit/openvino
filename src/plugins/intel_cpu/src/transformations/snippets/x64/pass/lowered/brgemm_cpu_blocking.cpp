@@ -8,6 +8,7 @@
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/pass/pass.hpp"
+#include "snippets/lowered/pass/iter_handler.hpp"
 #include "snippets/snippets_isa.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
@@ -59,6 +60,12 @@ std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(const 
     return blocking_params;
 }
 
+SpecificIterationHandlers BrgemmCPUBlocking::get_k_loop_handlers(size_t work_amount, size_t block_size) const {
+    SpecificIterationHandlers handlers = ov::snippets::lowered::pass::BrgemmBlockingBase::get_k_loop_handlers(work_amount, block_size);
+    handlers.register_pass<SpecificLoopIterType::FIRST_ITER, ov::snippets::lowered::pass::DummyPass>();
+    return handlers;
+}
+
 bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
                                             const LinearIR::constExprIt& brgemm_it,
                                             size_t m_block,
@@ -92,8 +99,6 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
                                             LoopPort(copy_b_expr->get_input_port(0), true, 1)};
         const std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), false)};
         mark_k_blocking(loop_manager, loop_begin, std::next(brgemm_it), entries, exits, k_block);
-    } else {
-        brgemm->set_beta(0.f);
     }
     if (!is_full_dim_value(n_block)) {
         const auto loop_begin = get_loop_begin_pos(linear_ir, brgemm_it, copy_b_expr);

@@ -40,7 +40,7 @@ void create_brgemm_loop_infos(const LinearIRPtr& linear_ir,
                                       LoopPort(brgemm_expr->get_input_port(1), true, 1)},
                 std::vector<LoopPort>{LoopPort(brgemm_expr->get_output_port(0), false)},
                 BrgemmBlockingBase::get_default_blocking_loop_handlers(k, k_block));
-        loop_info->register_pass_to_handler<SpecificLoopIterType::FIRST_ITER, ov::snippets::lowered::pass::SetBrgemmBeta>(0.f);
+        loop_info->register_pass_to_handler<SpecificLoopIterType::FIRST_ITER, ov::snippets::lowered::pass::DummyPass>();
         linear_ir->get_loop_manager()->add_loop_info(loop_info);
     }
     if (n_block) {
@@ -79,7 +79,7 @@ void create_brgemm_with_copy_b_loop_infos(const LinearIRPtr& linear_ir,
                                       LoopPort(copy_b_expr->get_input_port(0), true, 1)},
                 std::vector<LoopPort>{LoopPort(brgemm_expr->get_output_port(0), false)},
                 BrgemmBlockingBase::get_default_blocking_loop_handlers(k, k_block));
-        loop_info->register_pass_to_handler<SpecificLoopIterType::FIRST_ITER, ov::snippets::lowered::pass::SetBrgemmBeta>(0.f);
+        loop_info->register_pass_to_handler<SpecificLoopIterType::FIRST_ITER, ov::snippets::lowered::pass::DummyPass>();
         linear_ir->get_loop_manager()->add_loop_info(loop_info);
     }
     if (n_block) {
@@ -173,7 +173,6 @@ TEST_F(BrgemmCPUBlockingTest, BlockingIsNotNeeded) {
         auto data_a = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_a);
         auto data_b = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_b);
         auto brgemm = linear_ir_ref->push_node<BrgemmCPU>(data_a.second, data_b.second, BRGEMM_TYPE::STAND_ALONE);
-        brgemm.second->set_beta(0.f);
         const auto full_subtensor = VectorDims(2, ov::snippets::utils::get_full_dim_value());
         init_expr_descriptors(*brgemm.first, std::vector<VectorDims>(3, full_subtensor));
         auto result = linear_ir_ref->push_node<ov::opset10::Result>(brgemm.second);
@@ -211,7 +210,6 @@ TEST_F(BrgemmCPUBlockingTest, WithDataRepacking) {
         init_expr_descriptors(brgemm_expr, {{m_blk, full_dim}, {full_dim, full_dim}, {m_blk, full_dim}});
         create_brgemm_with_copy_b_loop_infos(linear_ir_ref, brgemm_expr, copy_b_expr, m, m_blk);
         brgemm_expr->set_loop_ids({0});
-        brgemm.second->set_beta(0.f);
         auto result = linear_ir_ref->push_node<ov::opset10::Result>(brgemm.second);
     }
 }
@@ -247,7 +245,6 @@ TEST_F(BrgemmCPUBlockingTest, WithCompensations) {
         init_expr_descriptors(brgemm_expr, {{m_blk, full_dim}, {full_dim, full_dim}, {1, full_dim}, {m_blk, full_dim}});
         create_brgemm_loop_infos(linear_ir_ref, brgemm_expr, m, m_blk);
         brgemm_expr->set_loop_ids({0});
-        brgemm.second->set_beta(0.f);
         auto result = linear_ir_ref->push_node<ov::opset10::Result>(brgemm.second);
     }
 }
@@ -285,7 +282,6 @@ TEST_F(BrgemmCPUBlockingTest, AMX) {
         init_expr_descriptors(brgemm_expr, {{m_blk, full_dim}, {full_dim, full_dim}, get_default_subtensor(), {m_blk, full_dim}});
         create_brgemm_with_copy_b_loop_infos(linear_ir_ref, brgemm_expr, copy_b_expr, m, m_blk);
         brgemm_expr->set_loop_ids({0});
-        brgemm.second->set_beta(0.f);
         auto result = linear_ir_ref->push_node<ov::opset10::Result>(brgemm.second);
     }
 }
