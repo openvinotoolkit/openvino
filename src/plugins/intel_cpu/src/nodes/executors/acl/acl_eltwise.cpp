@@ -361,90 +361,12 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
                 return acl_op;
             };
             break;
-        case Algorithm::EltwiseRelu:
-            if (aclEltwiseAttrs.alpha == 0) {
-                if (!NEActivationLayer::validate(&srcTensorsInfo[0], &dstTensorsInfo[0],
-                                                 ActivationLayerInfo::ActivationFunction::RELU))
-                    return false;
-            } else {
-                if (!NEActivationLayer::validate(&srcTensorsInfo[0], &dstTensorsInfo[0],
-                                                 {ActivationLayerInfo::ActivationFunction::LEAKY_RELU, aclEltwiseAttrs.alpha}))
-                    return false;
-            }
-            exec_func = [this]() -> std::unique_ptr<IFunction> {
-                auto acl_op = std::make_unique<NEActivationLayer>();
-                if (aclEltwiseAttrs.alpha == 0) {
-                    acl_op->configure(&srcTensors[0], &dstTensors[0], ActivationLayerInfo::ActivationFunction::RELU);
-                } else {
-                    acl_op->configure(&srcTensors[0], &dstTensors[0],
-                                      {ActivationLayerInfo::ActivationFunction::LEAKY_RELU, aclEltwiseAttrs.alpha});
-                }
-                return acl_op;
-            };
-            break;
-        case Algorithm::EltwiseGeluErf:
-            if (!NEActivationLayer::validate(&srcTensorsInfo[0], &dstTensorsInfo[0], ActivationLayerInfo::ActivationFunction::GELU))
-                return false;
-            exec_func = [this]() -> std::unique_ptr<IFunction> {
-                auto acl_op = std::make_unique<NEActivationLayer>();
-                acl_op->configure(&srcTensors[0], &dstTensors[0], ActivationLayerInfo::ActivationFunction::GELU);
-                return acl_op;
-            };
-            break;
-        case Algorithm::EltwiseElu:
-            if (!NEActivationLayer::validate(&srcTensorsInfo[0], &dstTensorsInfo[0],
-                                             {ActivationLayerInfo::ActivationFunction::ELU, aclEltwiseAttrs.alpha}))
-                return false;
-            exec_func = [this]() -> std::unique_ptr<IFunction> {
-                auto acl_op = std::make_unique<NEActivationLayer>();
-                acl_op->configure(&srcTensors[0], &dstTensors[0], {ActivationLayerInfo::ActivationFunction::ELU, aclEltwiseAttrs.alpha});
-                return acl_op;
-            };
-            break;
-        case Algorithm::EltwiseTanh:
-            if (!NEActivationLayer::validate(&srcTensorsInfo[0], &dstTensorsInfo[0],
-                                             {ActivationLayerInfo::ActivationFunction::TANH, 1.f, 1.f}))
-                return false;
-            exec_func = [this]() -> std::unique_ptr<IFunction> {
-                auto acl_op = std::make_unique<NEActivationLayer>();
-                acl_op->configure(&srcTensors[0], &dstTensors[0],
-                                  {ActivationLayerInfo::ActivationFunction::TANH, 1.f, 1.f});
-                return acl_op;
-            };
-            break;
-        case Algorithm::EltwiseSigmoid:
-            if (!NEActivationLayer::validate(&srcTensorsInfo[0], &dstTensorsInfo[0], ActivationLayerInfo::ActivationFunction::LOGISTIC))
-                return false;
-            exec_func = [this]() -> std::unique_ptr<IFunction> {
-                auto acl_op = std::make_unique<NEActivationLayer>();
-                acl_op->configure(&srcTensors[0], &dstTensors[0], ActivationLayerInfo::ActivationFunction::LOGISTIC);
-                return acl_op;
-            };
-            break;
         case Algorithm::EltwiseAbs:
             if (!NEAbsLayer::validate(&srcTensorsInfo[0], &dstTensorsInfo[0]))
                 return false;
             exec_func = [this]() -> std::unique_ptr<IFunction> {
                 auto acl_op = std::make_unique<NEAbsLayer>();
                 acl_op->configure(&srcTensors[0], &dstTensors[0]);
-                return acl_op;
-            };
-            break;
-        case Algorithm::EltwiseSqrt:
-            if (!NEActivationLayer::validate(&srcTensorsInfo[0], &dstTensorsInfo[0], ActivationLayerInfo::ActivationFunction::SQRT))
-                return false;
-            exec_func = [this]() -> std::unique_ptr<IFunction> {
-                auto acl_op = std::make_unique<NEActivationLayer>();
-                acl_op->configure(&srcTensors[0], &dstTensors[0], ActivationLayerInfo::ActivationFunction::SQRT);
-                return acl_op;
-            };
-            break;
-        case Algorithm::EltwiseSoftRelu:
-            if (!NEActivationLayer::validate(&srcTensorsInfo[0], &dstTensorsInfo[0], ActivationLayerInfo::ActivationFunction::SOFT_RELU))
-                return false;
-            exec_func = [this]() -> std::unique_ptr<IFunction> {
-                auto acl_op = std::make_unique<NEActivationLayer>();
-                acl_op->configure(&srcTensors[0], &dstTensors[0], ActivationLayerInfo::ActivationFunction::SOFT_RELU);
                 return acl_op;
             };
             break;
@@ -457,28 +379,6 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
                 return acl_op;
             };
             break;
-        case Algorithm::EltwiseClamp:
-            if (!NEActivationLayer::validate(&srcTensorsInfo[0], &dstTensorsInfo[0],
-                                             {ActivationLayerInfo::ActivationFunction::LU_BOUNDED_RELU, aclEltwiseAttrs.beta, aclEltwiseAttrs.alpha}))
-                return false;
-            exec_func = [this]() -> std::unique_ptr<IFunction> {
-                auto acl_op = std::make_unique<NEActivationLayer>();
-                acl_op->configure(&srcTensors[0], &dstTensors[0],
-                                  {ActivationLayerInfo::ActivationFunction::LU_BOUNDED_RELU, aclEltwiseAttrs.beta, aclEltwiseAttrs.alpha});
-                return acl_op;
-            };
-            break;
-        case Algorithm::EltwiseSwish:
-            if (!NEActivationLayer::validate(&srcTensorsInfo[0], &dstTensorsInfo[0],
-                                             {ActivationLayerInfo::ActivationFunction::SWISH, aclEltwiseAttrs.alpha}))
-                return false;
-            exec_func = [this]() -> std::unique_ptr<IFunction> {
-                auto acl_op = std::make_unique<NEActivationLayer>();
-                acl_op->configure(&srcTensors[0], &dstTensors[0],
-                                  {ActivationLayerInfo::ActivationFunction::SWISH, aclEltwiseAttrs.alpha});
-                return acl_op;
-            };
-            break;
         case Algorithm::EltwisePrelu:
             if (!NEPReluLayer::validate(&srcTensorsInfo[0], &srcTensorsInfo[1], &dstTensorsInfo[0]))
                 return false;
@@ -488,12 +388,29 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
                 return acl_op;
             };
             break;
+        case Algorithm::EltwiseRelu:
+        case Algorithm::EltwiseGeluErf:
+        case Algorithm::EltwiseElu:
+        case Algorithm::EltwiseTanh:
+        case Algorithm::EltwiseSigmoid:
+        case Algorithm::EltwiseSqrt:
+        case Algorithm::EltwiseSoftRelu:
+        case Algorithm::EltwiseClamp:
+        case Algorithm::EltwiseSwish:
         case Algorithm::EltwiseHswish:
-            if (!NEActivationLayer::validate(&srcTensorsInfo[0], &dstTensorsInfo[0], ActivationLayerInfo::ActivationFunction::HARD_SWISH))
+            if (!NEActivationLayer::validate(&srcTensorsInfo[0], &dstTensorsInfo[0],
+                                             getActivationLayerInfo(aclEltwiseAttrs.algorithm,
+                                                                    aclEltwiseAttrs.alpha,
+                                                                    aclEltwiseAttrs.beta,
+                                                                    aclEltwiseAttrs.gamma)))
                 return false;
             exec_func = [this]() -> std::unique_ptr<IFunction> {
                 auto acl_op = std::make_unique<NEActivationLayer>();
-                acl_op->configure(&srcTensors[0], &dstTensors[0], ActivationLayerInfo::ActivationFunction::HARD_SWISH);
+                acl_op->configure(&srcTensors[0], &dstTensors[0],
+                                  getActivationLayerInfo(aclEltwiseAttrs.algorithm,
+                                                         aclEltwiseAttrs.alpha,
+                                                         aclEltwiseAttrs.beta,
+                                                         aclEltwiseAttrs.gamma));
                 return acl_op;
             };
             break;
