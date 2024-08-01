@@ -22,9 +22,6 @@ class MatMulToBrgemm: public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("MatMulToBrgemm", "0");
     MatMulToBrgemm();
-
-private:
-    void init_ports(const std::shared_ptr<op::Brgemm>& brgemm) const;
 };
 
 
