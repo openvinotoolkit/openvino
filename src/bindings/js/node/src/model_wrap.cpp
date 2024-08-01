@@ -176,7 +176,7 @@ Napi::Value ModelWrap::get_output_shape(const Napi::CallbackInfo& info) {
 
 Napi::Value ModelWrap::get_ops(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
-    std::vector<std::shared_ptr<ov::Node>> ops = Model.get_ops();  // Assuming Model.get_ops() returns std::vector<std::shared_ptr<ov::Node>>
+    std::vector<std::shared_ptr<ov::Node>> ops = _model->get_ops();
 
     Napi::Array result = Napi::Array::New(env, ops.size());
     for (size_t i = 0; i < ops.size(); ++i) {
