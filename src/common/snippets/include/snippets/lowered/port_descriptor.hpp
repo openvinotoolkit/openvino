@@ -82,14 +82,14 @@ private:
 
 class PortDescriptorUtils {
 public:
-    static void set_port_descriptor_ptr(const ov::Input<ov::Node>& n, const PortDescriptorPtr& desc);
-    static void set_port_descriptor_ptr(const ov::Output<ov::Node>& n, const PortDescriptorPtr& desc);
-    static void set_port_descriptor(const ov::Input<ov::Node>& n, std::vector<size_t> subtensor, std::vector<size_t> layout = {});
-    static void set_port_descriptor(const ov::Output<ov::Node>& n, std::vector<size_t> subtensor, std::vector<size_t> layout = {});
+    static void set_port_descriptor_ptr(const ov::Input<ov::Node>& in, const PortDescriptorPtr& desc);
+    static void set_port_descriptor_ptr(const ov::Output<ov::Node>& out, const PortDescriptorPtr& desc);
+    static void set_port_descriptor(const ov::Input<ov::Node>& in, std::vector<size_t> subtensor, std::vector<size_t> layout = {});
+    static void set_port_descriptor(const ov::Output<ov::Node>& out, std::vector<size_t> subtensor, std::vector<size_t> layout = {});
 
     static PortDescriptorPtr get_port_descriptor_ptr(const ov::Input<ov::Node>& in);
-    static PortDescriptorPtr get_port_descriptor_ptr(const ov::Input<const ov::Node>& out);
-    static PortDescriptorPtr get_port_descriptor_ptr(const ov::Output<ov::Node>& in);
+    static PortDescriptorPtr get_port_descriptor_ptr(const ov::Input<const ov::Node>& in);
+    static PortDescriptorPtr get_port_descriptor_ptr(const ov::Output<ov::Node>& out);
     static PortDescriptorPtr get_port_descriptor_ptr(const ov::Output<const ov::Node>& out);
 
     static void clean(const std::shared_ptr<ov::Node>& node);
