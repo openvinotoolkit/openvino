@@ -560,6 +560,30 @@ inline std::istream& operator>>(std::istream& is, ExecutionMode& mode) {
  */
 static constexpr Property<ExecutionMode> execution_mode{"EXECUTION_MODE_HINT"};
 
+struct GSNum  {
+    constexpr GSNum() : gs_num{0} {};
+
+    constexpr GSNum(const uint64_t num_) : gs_num{num_} {}
+
+    constexpr operator uint64_t() const {
+        return gs_num;
+    }
+
+    uint64_t gs_num = 0;
+};
+
+/**
+ * @brief Dynamic quantization for per-token granularity
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr GSNum PER_TOKEN{UINT64_MAX};
+
+/**
+ * @brief Disable dynamic quantization
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr GSNum DISABLED{0};
+
 /**
  * @brief This property defines group size for dynamic quantization optimization
  * @ingroup ov_runtime_cpp_prop_api
@@ -571,7 +595,7 @@ static constexpr Property<ExecutionMode> execution_mode{"EXECUTION_MODE_HINT"};
  * might result in better accuracy, but the drawback is worse performance. Group size equal 0 means dynamic
  * quantization optimization is disabled.
  */
-static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization_group_size{
+static constexpr Property<GSNum, PropertyMutability::RW> dynamic_quantization_group_size{
     "DYNAMIC_QUANTIZATION_GROUP_SIZE"};
 
 /**
