@@ -124,7 +124,7 @@
 /docs/openvino-extensibility/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-maintainers
 /docs/snippets/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-maintainers
 /docs/articles_en/assets/snippets/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-maintainers
-/docs/openvino-workflow/running-inference/inference-devices-and-modes/cpu-device.rst @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-cpu-maintainers @openvinotoolkit/openvino_contrib-arm_plugin-maintainers
+/docs/openvino-workflow/running-inference/inference-devices-and-modes/cpu-device.rst @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-cpu-maintainers
 /docs/openvino-workflow/running-inference/inference-devices-and-modes/cpu-device/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-cpu-maintainers
 /docs/openvino-workflow/running-inference/inference-devices-and-modes/gpu-device.rst @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-gpu-maintainers
 /docs/openvino-workflow/running-inference/inference-devices-and-modes/gpu-device/ @openvinotoolkit/openvino-docs-maintainers @openvinotoolkit/openvino-ie-gpu-maintainers
