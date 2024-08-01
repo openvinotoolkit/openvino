@@ -195,7 +195,7 @@ The `run_conformace.py` script has an optional `--expected_failures` argument wh
 
 You can find the files with the most up-to-date expected failures for different devices and conformance types [here](./../../../../../tests/test_utils/functional_test_utils/layer_tests_summary/skip_configs).
 
-These files are used in [the Linux GitHub workflow](./../../../../../../.github/workflows/linux.yml) for test skip. 
+These files are used in [the Linux GitHub workflow](./../../../../../../.github/workflows/ubuntu_22.yml) for test skip. 
 
 You can update the file(s) you need with either new passing tests, i.e., when something is fixed, or with new failing tests to skip them. The changes will be reflected in the GitHub actions pipeline, in the `Conformance_Tests` job.
 

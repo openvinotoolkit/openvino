@@ -27,27 +27,17 @@ public:
 
     BrgemmCopyB(const Output<Node>& x, const element::Type src_type, BRGEMM_TYPE type = BRGEMM_TYPE::REPACKING_ONLY,
                 const size_t offset_in = 0lu, const size_t offset_out0 = 0lu, const size_t offset_out1 = 0lu,
-                std::vector<size_t> layout_input = {}, const size_t blk_size_k = 0, const size_t blk_size_n = 0);
+                std::vector<size_t> layout_input = {});
     BrgemmCopyB(const Output<Node>& x, const element::Type src_type, BRGEMM_TYPE type,
                 const PortDescriptor& desc_in0, const PortDescriptor& desc_out0, const PortDescriptor& desc_out1,
-                std::vector<size_t> layout_input = {}, const size_t blk_size_k = 0, const size_t blk_size_n = 0);
+                std::vector<size_t> layout_input = {});
     BrgemmCopyB() = default;
 
     size_t get_offset_in() const { return get_input_offset(0); }
     size_t get_offset_out() const { return get_output_offset(0); }
     size_t get_offset_compensations() const;
 
-    size_t get_k_block_size() const { return m_K_blk; }
-    size_t get_n_block_size() const { return m_N_blk; }
-    size_t get_n_inner_block_size() const { return m_inner_n_block; }
-    void set_k_block_size(size_t block_size) { m_K_blk = block_size; }
-    void set_n_block_size(size_t block_size) { m_N_blk = block_size; }
-
-    ov::Shape get_repacking_buffer_shape() const;
-    ov::Shape get_compensations_buffer_shape() const;
-
     BRGEMM_TYPE get_type() const { return m_type; }
-    size_t get_brgemm_vnni_factor() const { return m_brgemmVNNIFactor; }
     element::Type get_src_element_type() const { return m_src_type; }
 
     bool visit_attributes(AttributeVisitor& visitor) override;
@@ -66,17 +56,9 @@ public:
 private:
     void custom_constructor_validate_and_infer_types(std::vector<size_t> layout_input = {});
     void validate_element_type(const ov::element::Type& element_type);
-    void compute_block_size_values(const size_t blk_size_k, const size_t blk_size_n);
 
     BRGEMM_TYPE m_type = BRGEMM_TYPE::REPACKING_ONLY;
     element::Type m_src_type = ov::element::undefined;  // src element type of the corresponding BRGEMM
-
-    size_t m_K_blk = 0;
-    size_t m_N_blk = 0;
-    // OneDNN implementation requirement: BrgemmCopyB oneDNN implementation repacks data by m_brgemmVNNIFactor * m_inner_n_block blocks.
-    // Consequently, in snippets emitter, we need to invoke the oneDNN kernel iterating accordingly to this block
-    size_t m_inner_n_block = 0;
-    size_t m_brgemmVNNIFactor = 1;
 };
 } // namespace intel_cpu
 } // namespace ov
