@@ -704,7 +704,7 @@ void prepare_buffer_fusing::run(program& p) {
         if (node->is_type<read_value>() || node->is_type<kv_cache>())
             return true;
 
-        if (node->is_type<reshape>() && is_dynamic && is_planar && no_pad && !node->is_output() && !node->has_fused_primitives()) {
+        if ((node->is_type<crop>() || node->is_type<reshape>()) && is_dynamic && is_planar && no_pad && !node->is_output() && !node->has_fused_primitives()) {
             return true;
         }
 
