@@ -30,11 +30,10 @@ namespace ov {
 namespace op {
 namespace util {
 
-namespace {
-void visit_path_impl(ov::Node* node,
-                     std::unordered_set<ov::Node*>& visited,
-                     std::function<void(ov::Node*)> func,
-                     std::function<bool(ov::Node*)> skip_node_predicate) {
+void visit_path(ov::Node* node,
+                std::unordered_set<ov::Node*>& visited,
+                std::function<void(ov::Node*)> func,
+                std::function<bool(ov::Node*)> skip_node_predicate) {
     if (!node)
         return;
     visited.insert(node);
@@ -56,7 +55,6 @@ void visit_path_impl(ov::Node* node,
         }
     }
 }
-}  // namespace
 
 bool get_single_value(const std::shared_ptr<op::v0::Constant>& const_node, float& value, bool check_value_range) {
     switch (const_node->get_element_type()) {
@@ -287,7 +285,7 @@ void visit_shape_path(Node* node, std::unordered_set<ov::Node*>& visited, std::f
     auto is_shapeof = [](ov::Node* node) {
         return ov::is_type<ov::op::v0::ShapeOf>(node) || ov::is_type<ov::op::v3::ShapeOf>(node);
     };
-    visit_path_impl(node, visited, func, is_shapeof);
+    visit_path(node, visited, func, is_shapeof);
 }
 
 void visit_constant_path(ov::Node* node, std::unordered_set<ov::Node*>& visited, std::function<void(ov::Node*)> func) {
@@ -296,7 +294,7 @@ void visit_constant_path(ov::Node* node, std::unordered_set<ov::Node*>& visited,
                         "visit_constant_path is called for non-constant path.");
         return false;
     };
-    visit_path_impl(node, visited, func, check_parameter);
+    visit_path(node, visited, func, check_parameter);
 }
 
 bool is_dequantization_subgraph(const Output<Node>& node) {
