@@ -2,23 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/op/dynamic_quantize.hpp"
+#include "ov_ops/dynamic_quantize.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/primitives/dynamic_quantize.hpp"
 
 namespace ov {
-namespace op {
-namespace internal {
-using DynamicQuantize = ov::intel_gpu::op::DynamicQuantize;
-}  // namespace internal
-}  // namespace op
-}  // namespace ov
-
-namespace ov {
 namespace intel_gpu {
 
-static void CreateDynamicQuantizeOp(ProgramBuilder& p, const std::shared_ptr<op::DynamicQuantize>& op) {
+static void CreateDynamicQuantizeOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::DynamicQuantize>& op) {
     validate_inputs_count(op, {1});
     auto inputs = p.GetInputInfo(op);
     std::string primitive_name = layer_type_name_ID(op);

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/op/dynamic_quantize.hpp"
+#include "ov_ops/dynamic_quantize.hpp"
 #include "dynamic_quantize_inst.h"
 
 #include "primitive_type_base.h"
@@ -23,14 +23,14 @@ layout dynamic_quantize_inst::calc_output_layout(dynamic_quantize_node const& no
 
 template<typename ShapeType>
 std::vector<layout> dynamic_quantize_inst::__calc_output_layouts(layout &act_layout, size_t group_size) {
-    ov::intel_gpu::op::DynamicQuantize op;
+    ov::op::internal::DynamicQuantize op;
     auto output_format = act_layout.format;
 
     std::vector<ShapeType> input_shapes = {
         act_layout.get<ShapeType>(),
     };
 
-    auto output_shapes = shape_infer(&op, input_shapes);
+    auto output_shapes = ov::op::internal::DynamicQuantize::shape_infer(&op, input_shapes);
 
     return { layout(output_shapes[0], data_types::i8, output_format), layout(output_shapes[1], data_types::f16, output_format) };
 }

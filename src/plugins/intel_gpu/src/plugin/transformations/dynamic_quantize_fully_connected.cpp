@@ -5,7 +5,7 @@
 #include "dynamic_quantize_fully_connected.hpp"
 
 #include "intel_gpu/op/fully_connected_compressed.hpp"
-#include "intel_gpu/op/dynamic_quantize.hpp"
+#include "ov_ops/dynamic_quantize.hpp"
 
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -58,7 +58,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(size_t group_size) 
         }
 
         OutputVector fc_inputs;
-        auto dyn_quan = std::make_shared<op::DynamicQuantize>(m_data, group_size);
+        auto dyn_quan = std::make_shared<ov::op::internal::DynamicQuantize>(m_data, group_size, element::f16);
         for (size_t i = 0; i < m_fc->get_input_size(); i++)
             fc_inputs.push_back(m_fc->get_input_node_shared_ptr(i));
         fc_inputs[0] = dyn_quan->output(0);
