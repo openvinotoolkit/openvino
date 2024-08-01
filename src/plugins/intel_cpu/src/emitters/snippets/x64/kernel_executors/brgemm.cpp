@@ -4,12 +4,13 @@
 
 #include "brgemm.hpp"
 
-#include "snippets/lowered/loop_manager.hpp"
-
 #include <cpu/x64/amx_tile_configure.hpp>
+
 #include "common/utils.hpp"
 #include "dnnl_extension_utils.h"
+#include "snippets/lowered/loop_manager.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
 #define DIM_CAST(X) static_cast<dnnl_dim_t>(X)
 #define DTYPE_CAST(X) static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(X))
@@ -199,14 +200,11 @@ void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::Expression
     const auto LDA = DIM_CAST(snippets::utils::get_dim_stride(expr->get_input_port(0)));
     const auto LDC = DIM_CAST(snippets::utils::get_dim_stride(expr->get_output_port(0)));
     auto LDB = DIM_CAST(snippets::utils::get_dim_stride(expr->get_input_port(1)));
-
     const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(brgemm_node, "Got invalid node type in update_config");
-    if (with_repacking(brgemm_node->get_type())) {
-        const auto repacking_buffer_shape = brgemm_node->get_brgemm_copy()->get_repacking_buffer_shape();
-        OV_CPU_JIT_EMITTER_ASSERT(!repacking_buffer_shape.empty(), "Repacking buffer shape mustn't be empty");
-        LDB = DIM_CAST(repacking_buffer_shape.back());
-    }
+    // In case of data repacking LDB is chosen in accordance with repacking buffer size
+    if (with_repacking(brgemm_node->get_type()))
+        LDB = brgemm_utils::repacking::compute_out_leading_dim(N, brgemm_node->get_input_element_type(1));
 
     config.update(DIM_CAST(M), DIM_CAST(N), DIM_CAST(K), LDA, LDB, LDC);
 }
