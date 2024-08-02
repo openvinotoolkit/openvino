@@ -220,7 +220,7 @@ void ShlEltwiseExecutor::exec(const std::vector<MemoryCPtr> &src,
     for (size_t i = 0; i < dst.size(); i++) {
         dstTensors[i].setData(dst[i]->getData());
     }
-    // std::cout << shlExecFunc() << std::endl;
+
     OPENVINO_ASSERT(shlExecFunc != nullptr && shlExecFunc() == CSINN_TRUE,
                     "ShlEltwiseExecutor: failed to execute");
 

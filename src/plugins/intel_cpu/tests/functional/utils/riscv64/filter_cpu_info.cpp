@@ -40,6 +40,8 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice(const std::vector<CPUSpeci
 
         if (selectedTypeStr.find("jit") != std::string::npos)
             continue;
+        if (selectedTypeStr.find("acl") != std::string::npos)
+            continue;
         if (selectedTypeStr.find("sse42") != std::string::npos)
             continue;
         if (selectedTypeStr.find("avx") != std::string::npos)

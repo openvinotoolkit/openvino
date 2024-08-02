@@ -369,9 +369,7 @@ const std::vector<CPUSpecificParams>& cpuParams_4D_Planar() {
 
 const std::vector<CPUSpecificParams>& cpuParams_4D_PerChannel() {
     static const std::vector<CPUSpecificParams> cpuParams_4D = {
-#if !defined(OV_CPU_WITH_SHL)
         CPUSpecificParams({nhwc, nhwc}, {nhwc}, {}, {}),
-#endif
     };
     return cpuParams_4D;
 }
