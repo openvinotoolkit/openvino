@@ -5,6 +5,7 @@
 #pragma once
 
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
 #include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 
@@ -109,11 +110,22 @@ protected:
      * @param linear_ir LinearIR
      */
     virtual void init_tensor_rank(const lowered::LinearIRCPtr& linear_ir) const;
+
+    struct UnifiedLoopInfoRtParams {
+        size_t work_amount = 0;
+        std::vector<int64_t> ptr_increments;
+        std::vector<int64_t> finalization_offsets;
+    };
+    static UnifiedLoopInfoRtParams compute_runtime_params(const lowered::UnifiedLoopInfoPtr& unified_loop_info);
+
+    using LoopInfoRuntimeParamsMap = std::unordered_map<lowered::UnifiedLoopInfoPtr, UnifiedLoopInfoRtParams>;
     /**
      * @brief Update Loop informations in LinearIR: Unified and ExpandedLoopInfo
      * @param linear_ir LinearIR
+     * @param initializated_info_map Reference on a map [LoopInfo->RuntimeParams].
+     * Can be used to pass in the method loop infos which were already initialized, e.g. by parallel domain optimization
      */
-    void update_loop_info(const lowered::LinearIRCPtr& linear_ir) const;
+    void update_loop_info(const lowered::LinearIRCPtr& linear_ir, LoopInfoRuntimeParamsMap& initializated_info_map) const;
     /**
      * @brief Update Buffer scratchpad size and offsets if needed
      *        Note: `update_loop_info` must be called before
@@ -123,7 +135,8 @@ protected:
     /**
      * @brief Calculate data offsets of LinearIR and update these values in RuntimeConfig
      */
-    void update_data_offsets() const;
+    void update_data_offsets(const std::vector<ov::snippets::VectorDims>& shapes = {},
+                             const std::vector<std::vector<size_t>>& layouts = {}) const;
     /**
      * @brief Update latest input shapes
      */

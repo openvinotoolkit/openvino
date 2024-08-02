@@ -24,7 +24,7 @@ public:
     InitLoops() = default;
     bool run(LinearIR& linear_ir) override;
 
-    static void init_loop_info(const UnifiedLoopInfoPtr& loop_info, size_t loop_id, bool only_runtime_args = false);
+    static void update_runtime_parameters(const UnifiedLoopInfoPtr& loop_info, bool update_work_amount = true);
 };
 
 } // namespace pass

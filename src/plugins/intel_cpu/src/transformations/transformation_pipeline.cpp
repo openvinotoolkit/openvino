@@ -951,7 +951,7 @@ void Transformations::MainSnippets(void) {
 #if defined(OPENVINO_ARCH_X86_64)
     auto is_supported_matmul = [this](const std::shared_ptr<const ov::Node>& n) {
         const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(n);
-        if (!matmul || matmul->is_dynamic())
+        if (!matmul)
             return false;
         const auto in_type0 = matmul->get_input_element_type(0);
         const auto in_type1 = matmul->get_input_element_type(1);
@@ -982,10 +982,15 @@ void Transformations::MainSnippets(void) {
         }
         return true;
     };
-    auto is_unsupported_parallel_work_amount = [&](const std::shared_ptr<const ov::Node>& n, const ov::Shape& shape) {
-        const size_t parallel_work_amount = std::accumulate(shape.rbegin() + 2, shape.rend(), 1, std::multiplies<size_t>());
+    auto is_unsupported_parallel_work_amount = [&](const std::shared_ptr<const ov::Node>& n, const ov::PartialShape& shape) {
+        ov::Dimension parallel_work_amount = 1;
+        for (auto it = shape.rbegin() + 2; it != shape.rend(); ++it)
+            parallel_work_amount *= *it;
+        // In dynamic scenario, it is impossible to decide at compilation stage whether parrallel work amount is supported
+        if (parallel_work_amount.is_dynamic())
+            return false;
         const auto is_unsupported_parallel_work_amount =
-            parallel_work_amount < tokenization_config.get_concurrency() &&
+            static_cast<size_t>(parallel_work_amount.get_length()) < tokenization_config.get_concurrency() &&
             !ov::snippets::pass::SplitDimensionM::can_be_optimized(n, tokenization_config.get_concurrency());
         return is_unsupported_parallel_work_amount;
     };
@@ -1083,11 +1088,11 @@ void Transformations::MainSnippets(void) {
             if (!is_supported_matmul(child))
                 return true;
 
-            const auto& shape = child->get_input_shape(0);
-            return is_unsupported_parallel_work_amount(n, shape);
+            const auto& pshape = child->get_input_partial_shape(0);
+            return is_unsupported_parallel_work_amount(n, pshape);
         }, snippets::pass::TokenizeMHASnippets);
         CPU_SET_CALLBACK_X64(snippetsManager, [&](const std::shared_ptr<const ov::Node>& n) -> bool {
-            return !is_supported_matmul(n) || is_unsupported_parallel_work_amount(n, n->get_output_shape(0));
+            return !is_supported_matmul(n) || is_unsupported_parallel_work_amount(n, n->get_output_partial_shape(0));
         }, snippets::pass::ExtractReshapesFromMHA);
     }
 

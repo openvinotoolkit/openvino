@@ -13,23 +13,6 @@
 namespace ov {
 namespace snippets {
 
-namespace {
-void init_data_ptr_shifts(const lowered::UnifiedLoopInfoPtr& unified_loop_info, std::vector<int64_t>& ptr_increments,
-                          std::vector<int64_t>& finalization_offsets) {
-    const auto count = unified_loop_info->get_input_count() + unified_loop_info->get_output_count();
-    ptr_increments.resize(count);
-    finalization_offsets.resize(count);
-
-    size_t idx = 0;
-    unified_loop_info->iterate_through_descs(
-        [&ptr_increments, &finalization_offsets, &idx](const lowered::UnifiedLoopInfo::LoopPortDesc& desc) {
-            ptr_increments[idx] = desc.ptr_increment;
-            finalization_offsets[idx] = desc.finalization_offset;
-            ++idx;
-        });
-}
-}  // namespace
-
 RuntimeConfigurator::RuntimeConfigurator(std::shared_ptr<RuntimeConfig> c) :
     m_config(std::move(c)) {
     OPENVINO_ASSERT(m_config, "Runtime config is nullptr!");
@@ -61,7 +44,8 @@ void RuntimeConfigurator::initialization(const lowered::LinearIRCPtr& linear_ir)
 
 void RuntimeConfigurator::update(const lowered::LinearIRCPtr& linear_ir) {
     if (linear_ir->is_dynamic()) {
-        update_loop_info(linear_ir);
+        LoopInfoRuntimeParamsMap initialized_info;
+        update_loop_info(linear_ir, initialized_info);
         update_buffer_scratchpad_size(linear_ir);
     }
 
@@ -147,15 +131,8 @@ void RuntimeConfigurator::init_buffer_info(const lowered::LinearIRCPtr& linear_i
     m_dynamic_buffer_clusters = std::move(dynamic_buffer_clusters);
 }
 
-void RuntimeConfigurator::update_loop_info(const lowered::LinearIRCPtr& linear_ir) const {
-    // Initialized UnifiedLoopInfo
-    struct CurrentUnifiedLoopInfo {
-        size_t current_work_amount = 0;
-        std::vector<int64_t> ptr_increments;
-        std::vector<int64_t> finalization_offsets;
-    };
-    std::unordered_map<lowered::UnifiedLoopInfoPtr, CurrentUnifiedLoopInfo> initializated_info_map;
-
+void RuntimeConfigurator::update_loop_info(const lowered::LinearIRCPtr& linear_ir,
+                                           LoopInfoRuntimeParamsMap& initializated_info_map) const {
     const auto& loop_map = linear_ir->get_loop_manager()->get_map();
     for (const auto& p : loop_map) {
         const auto& expanded_loop_info = ov::as_type_ptr<lowered::ExpandedLoopInfo>(p.second);
@@ -165,14 +142,12 @@ void RuntimeConfigurator::update_loop_info(const lowered::LinearIRCPtr& linear_i
         const auto& current_unified_loop_info = expanded_loop_info->get_unified_loop_info();
         if (initializated_info_map.count(current_unified_loop_info) == 0) {
             auto& current_info = initializated_info_map[current_unified_loop_info];
-            lowered::pass::InitLoops::init_loop_info(current_unified_loop_info, true);
-
-            current_info.current_work_amount = current_unified_loop_info->get_work_amount();
-            init_data_ptr_shifts(current_unified_loop_info, current_info.ptr_increments, current_info.finalization_offsets);
+            lowered::pass::InitLoops::update_runtime_parameters(current_unified_loop_info);
+            current_info = compute_runtime_params(current_unified_loop_info);
         }
 
         auto& initializated_info = initializated_info_map.at(current_unified_loop_info);
-        auto& current_work_amount = initializated_info.current_work_amount;
+        auto& current_work_amount = initializated_info.work_amount;
         const auto& ptr_increments = initializated_info.ptr_increments;
         const auto& finalization_offsets = initializated_info.finalization_offsets;
 
@@ -232,7 +207,10 @@ void RuntimeConfigurator::update_buffer_scratchpad_size(const lowered::LinearIRC
     OPENVINO_ASSERT(!utils::is_dynamic_value(m_config->buffer_scratchpad_size), "Buffer scratchpad size must be defined!");
 }
 
-void RuntimeConfigurator::update_data_offsets() const {
+void RuntimeConfigurator::update_data_offsets(const std::vector<ov::snippets::VectorDims>& shapes,
+                                              const std::vector<std::vector<size_t>>& layouts) const {
+    OPENVINO_ASSERT(shapes.empty() || shapes.size() == m_io_num, "Number of custom shapes must be 0 or be equal to m_io_num");
+    OPENVINO_ASSERT(layouts.empty() || layouts.size() == m_io_num, "Number of custom layouts must be 0 or be equal to m_io_num");
     for (size_t i = 0; i < m_io_num; ++i) {
         // offsets represent distance between consecutive elements of corresponding dimension.
         // If a dim size == 1, then the next dim starts immediately and the stride is 0
@@ -242,11 +220,11 @@ void RuntimeConfigurator::update_data_offsets() const {
         // case 2:
         //    shape:      s0, s1, s2 == 1, s3
         //    offsets: s1*s3, s3,       0,  1
-        const auto& shape = m_io_descs[i]->get_shape();
+        const auto& shape = shapes.empty() ? m_io_descs[i]->get_shape() : shapes[i];
         if (shape == m_latest_shapes[i])
             continue;
 
-        const auto& layout = m_io_descs[i]->get_layout();
+        const auto& layout = layouts.empty() ? m_io_descs[i]->get_layout() : layouts[i];
         auto& offsets = m_config->io_data_offsets[i];
 
         offsets.resize(m_config->tensor_rank);
@@ -285,6 +263,23 @@ void RuntimeConfigurator::update_latest_shapes() {
 void RuntimeConfigurator::set_kernel_executor_table(std::shared_ptr<KernelExecutorTable> table) const {
     OPENVINO_ASSERT(table, "Failed to update Kernel Executo Table: passed table is missed");
     m_config->kernel_executor_table = std::move(table);
+}
+
+RuntimeConfigurator::UnifiedLoopInfoRtParams RuntimeConfigurator::compute_runtime_params(const lowered::UnifiedLoopInfoPtr& loop_info) {
+    RuntimeConfigurator::UnifiedLoopInfoRtParams rt_params;
+    rt_params.work_amount = loop_info->get_work_amount();
+    const auto count = loop_info->get_input_count() + loop_info->get_output_count();
+    rt_params.ptr_increments.resize(count);
+    rt_params.finalization_offsets.resize(count);
+
+    size_t idx = 0;
+    loop_info->iterate_through_descs(
+        [&rt_params, &idx](const lowered::UnifiedLoopInfo::LoopPortDesc& desc) {
+            rt_params.ptr_increments[idx] = desc.ptr_increment;
+            rt_params.finalization_offsets[idx] = desc.finalization_offset;
+            ++idx;
+        });
+    return rt_params;
 }
 
 } // namespace snippets
