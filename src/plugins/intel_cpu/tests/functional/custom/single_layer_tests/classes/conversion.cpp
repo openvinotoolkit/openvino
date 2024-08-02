@@ -49,7 +49,6 @@ bool ConvertCPULayerTest::isInOutPrecisionSupported(ov::element::Type inPrc, ov:
         (inPrc == ov::element::f32 && (outPrc == ov::element::u8 || outPrc == ov::element::i8)))
         return false;
 #endif
-
     return true;
 }
 
