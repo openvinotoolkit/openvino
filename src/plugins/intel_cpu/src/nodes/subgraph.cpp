@@ -752,7 +752,7 @@ void Subgraph::prepareParams() {
             // 1. Generate JIT code if needed
             // 2. Update runtime config with dynamic values
             //    If JIT code has been taken from cache, need to set cached kernel executor table for the configuration
-            // 3. Create SubgraphDynamicSpecializedExecutor<CPURuntimeConfig>(snippet->update_runtime_config());
+            // 3. Create SubgraphDynamicSpecializedExecutor
             const auto code_gen_result = cache->getOrCreate(SubgraphCodeGeneratorKey(subgraph_attrs, getBroadcastingMask(in_shapes)),
                                                             [](const SubgraphCodeGeneratorKey& key) -> std::shared_ptr<SubgraphCodeGenerator> {
                                                                 return std::make_shared<SubgraphCodeGenerator>(key.attrs, std::make_shared<CPURuntimeConfig>());

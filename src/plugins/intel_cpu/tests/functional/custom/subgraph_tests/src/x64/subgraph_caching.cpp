@@ -38,16 +38,13 @@
 #include "utils/cpu_test_utils.hpp"
 #include "internal_properties.hpp"
 
-
-using namespace CPUTestUtils;
-
 namespace ov {
 namespace test {
 using namespace ov::test::utils;
 
 typedef std::tuple<
         std::vector<InputShape>, // Input Shapes
-        std::vector<ElementType> // Input precisions
+        ElementType              // Input precisions
 > SubgraphCacheTestParams;
 
 class SubgraphCacheTest : public testing::WithParamInterface<SubgraphCacheTestParams>,
@@ -55,8 +52,8 @@ class SubgraphCacheTest : public testing::WithParamInterface<SubgraphCacheTestPa
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<SubgraphCacheTestParams> &obj) {
         std::vector<InputShape> inputShapes;
-        std::vector<ElementType> inputPrecisions;
-        std::tie(inputShapes, inputPrecisions) = obj.param;
+        ElementType inputPrecision;
+        std::tie(inputShapes, inputPrecision) = obj.param;
 
         std::ostringstream results;
 
@@ -64,9 +61,7 @@ public:
             results << "IS[" << i << "]=" << inputShapes[i];
         }
 
-        for (size_t i = 0; i < inputPrecisions.size(); i++) {
-            results << "InPRC" << std::to_string(i) << "=" << inputPrecisions[i] << "_";
-        }
+        results << "InPRC" << "=" << inputPrecision << "_";
 
         return results.str();
     }
@@ -76,8 +71,8 @@ protected:
         targetDevice = ov::test::utils::DEVICE_CPU;
 
         std::vector<InputShape> inputShapes;
-        std::vector<ElementType> inputPrecisions;
-        std::tie(inputShapes, inputPrecisions) = this->GetParam();
+        ElementType inputPrecision;
+        std::tie(inputShapes, inputPrecision) = this->GetParam();
 
         init_input_shapes(inputShapes);
 
@@ -86,7 +81,7 @@ protected:
 
         ov::ParameterVector paramVec;
         for (size_t i = 0; i < inputDynamicShapes.size(); i++) {
-            paramVec.push_back(std::make_shared<ov::op::v0::Parameter>(inputPrecisions[i], inputDynamicShapes[i]));
+            paramVec.push_back(std::make_shared<ov::op::v0::Parameter>(inputPrecision, inputDynamicShapes[i]));
         }
 
         auto matmul0 = std::make_shared<ov::op::v0::MatMul>(paramVec[0], paramVec[1]);
@@ -101,30 +96,16 @@ protected:
         auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{add0, add1}, -1);
         function = std::make_shared<ov::Model>(concat, paramVec, "Subgraph");
     }
-
-    void validate_result() const {
-        const std::set<std::string> types = { "Input", "Output", "Subgraph", "Concatenation" };
-        const auto function = compiledModel.get_runtime_model();
-        for (const auto& op : function->get_ordered_ops()) {
-            const auto& rtInfo = op->get_rt_info();
-            auto it = rtInfo.find(ov::exec_model_info::LAYER_TYPE);
-            OPENVINO_ASSERT(rtInfo.end() != it);
-            const auto node_type = it->second.as<std::string>();
-            ASSERT_TRUE(types.count(node_type)) << "The execution node is unexpected : " << node_type;
-        }
-    }
 };
 
 TEST_P(SubgraphCacheTest, CompareWithRefs) {
     run();
-    validate_result();
+
+    CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "MatMul", 0);
+    CPUTestUtils::CheckNumberOfNodesWithType(compiledModel, "Subgraph", 2);
 }
 
 namespace {
-
-std::vector<ElementType> inputPrecisions {
-    ElementType::f32, ElementType::f32, ElementType::f32, ElementType::f32
-};
 
 std::vector<InputShape> inputShapes {
     {{1, 2, -1, -1}, {{1, 2, 10, 3}, {1, 2, 10, 3}, {1, 2, 10, 8}, {1, 2, 10, 3}}},
@@ -136,7 +117,7 @@ std::vector<InputShape> inputShapes {
 INSTANTIATE_TEST_SUITE_P(smoke_SubgraphCache, SubgraphCacheTest,
                         ::testing::Combine(
                                 ::testing::Values(inputShapes),
-                                ::testing::Values(inputPrecisions)),
+                                ::testing::Values(ElementType::f32)),
                         SubgraphCacheTest::getTestCaseName);
 
 }  // namespace

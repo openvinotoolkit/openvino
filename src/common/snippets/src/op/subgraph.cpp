@@ -546,7 +546,7 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
     auto lowering_result = m_generator->generate(linear_ir, compile_params);
     // Some kernel executors might've been registered during code emission.
     //  We need to update them, so appropriate kernels will be compiled.
-    const auto& exec_table = m_generator->get_target_machine()->get_runtime_configurator()->get_kernel_executor_table();
+    const auto& exec_table = get_runtime_configurator()->get_kernel_executor_table();
     exec_table->update_state(m_linear_ir);
     return {std::move(lowering_result)};
 }
