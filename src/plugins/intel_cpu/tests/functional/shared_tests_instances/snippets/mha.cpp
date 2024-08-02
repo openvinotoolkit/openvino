@@ -143,9 +143,21 @@ std::vector<std::vector<ov::test::InputShape>> splitm_dynamic_shapes_4d = {
         {PartialShape{-1, -1, -1, -1}, {{1, 128, 2, 64}, {1, 17, 2, 64}, {1, 128, 2, 64}}},
     },
     {
-        {PartialShape{-1, -1, -1, -1}, {{1, 32, 2, 64}}},
+        {PartialShape{-1, 128, -1, -1}, {{1, 128, 2, 64}}},
         {PartialShape{-1, -1, -1, -1}, {{1, 16, 2, 64}}},
-        {PartialShape{-1, -1, -1, -1}, {{1, 1, 32, 16}}},
+        {PartialShape{-1, -1, 128, -1}, {{1, 1, 128, 16}}},
+        {PartialShape{-1, -1, -1, -1}, {{1, 16, 2, 32}}},
+    },
+    {
+        {PartialShape{-1, 32, -1, -1}, {{1, 32, 2, 64}}},
+        {PartialShape{-1, -1, -1, -1}, {{1, 16, 2, 64}}},
+        {PartialShape{-1, -1, 32, -1}, {{1, 1, 32, 16}}},
+        {PartialShape{-1, -1, -1, -1}, {{1, 16, 2, 32}}},
+    },
+    {
+        {PartialShape{-1, -1, -1, -1}, {{1, 16, 2, 64}}},
+        {PartialShape{-1, -1, -1, -1}, {{1, 16, 2, 64}}},
+        {PartialShape{-1, -1, 16, -1}, {{1, 1, 16, 16}}},
         {PartialShape{-1, -1, -1, -1}, {{1, 16, 2, 32}}},
     },
 };

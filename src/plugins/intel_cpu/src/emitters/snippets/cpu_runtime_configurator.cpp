@@ -164,14 +164,38 @@ std::unordered_set<UnifiedLoopInfoPtr> CPURuntimeConfigurator::ParallelWAOptimiz
 }
 
 bool CPURuntimeConfigurator::ParallelWAOptimizer::check_brgemms(const ov::snippets::lowered::LinearIRPtr& linear_ir) {
-    auto found_it = std::find_if(linear_ir->begin(), linear_ir->end(), [](const ExpressionPtr& expr) {
+    auto is_brgemm = [](const ExpressionPtr& expr) {
         return ov::is_type<ov::snippets::op::Brgemm>(expr->get_node());
-    });
-    if (found_it == linear_ir->end())
+    };
+    auto brgemm_it = std::find_if(linear_ir->begin(), linear_ir->end(), is_brgemm);
+    std::unordered_set<ExpressionPtr> brgemms;
+    while (brgemm_it != linear_ir->end()) {
+        brgemms.insert(*brgemm_it);
+        brgemm_it = std::find_if(std::next(brgemm_it), linear_ir->end(), is_brgemm);
+    }
+    if (brgemms.empty())
         return false;
-    const auto& brgemm = *found_it;
-    const auto planar_shape = ov::snippets::utils::get_planar_vdims(brgemm->get_input_port(0));
-    return ov::snippets::utils::is_dynamic_value(*++planar_shape.rbegin());
+
+    const auto loop_manager = linear_ir->get_loop_manager();
+    for (const auto& brgemm : brgemms) {
+        const auto& loop_idces = brgemm->get_loop_ids();
+        if (loop_idces.empty())
+            return false;
+        const auto& outermost_loop_id = loop_idces[0];
+        const auto& outermost_loop = loop_manager->get_loop_info(outermost_loop_id);
+        // WA: the feature doesn't work in static case
+        if (!ov::snippets::utils::is_dynamic_value(outermost_loop->get_work_amount())) {
+            return false;
+        }
+        bool loop_by_m = true;
+        outermost_loop->iterate_through_ports([&loop_by_m](const LoopPort& port) {
+            if (port.is_incremented && port.dim_idx != 1)
+                loop_by_m = false;
+        });
+        if (!loop_by_m)
+            return false;
+    }
+    return true;
 }
 
 void CPURuntimeConfigurator::ParallelWAOptimizer::init(const ov::snippets::lowered::LinearIRPtr& linear_ir) {
