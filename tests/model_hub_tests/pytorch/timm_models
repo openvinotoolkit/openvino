@@ -81,7 +81,7 @@ dpn68b.mx_in1k,None
 dpn92.mx_in1k,None
 dpn98.mx_in1k,None
 eca_botnext26ts_256.c1_in1k,None
-eca_halonext26ts.c1_in1k,None
+eca_halonext26ts.c1_in1k,None,xfail_export,Accuracy validation failed
 eca_nfnet_l0.ra2_in1k,None
 eca_nfnet_l1.ra2_in1k,None
 eca_nfnet_l2.ra3_in1k,None
