@@ -95,7 +95,7 @@ inline ov::Shape get_tensor_shape(const ov::PartialShape& pshape) {
 }
 
 inline ov::Shape predict_shape(const std::string& name, const cldnn::layout layout, cldnn::ShapePredictor& shape_predictor) {
-    auto prealloc_info = shape_predictor.predict_preallocation_shape(name, layout, false);
+    auto prealloc_info = shape_predictor.predict_preallocation_shape(std::hash<std::string>()(name), layout, false);
     const auto& preallocation_shape = prealloc_info.second;
     auto can_preallocate_buffer = prealloc_info.first &&
                                     shape_predictor.can_preallocate(cldnn::ceil_div(ov::shape_size(preallocation_shape) *
