@@ -17,16 +17,16 @@ namespace {
 using ov::test::InputShape;
 
 
-using MatmulConversionParams = std::tuple<std::vector<InputShape>,       // input shapes
+using MatmulConversionParams = std::tuple<std::vector<InputShape>,  // input shapes
                                                      ov::element::Type,  // input precision
-                                                     bool,          // transpose on input0(fc_input_a) of matmul_0
-                                                     bool,          // transpose on input1(fc_input_b) of matmul_0
-                                                     bool,          // transpose on input0(fc_input_a) of matmul_1
-                                                     bool>;        // transpose on input1(fc_input_b) of matmul_1
+                                                     bool,  // transpose on input0(fc_input_a) of matmul_0
+                                                     bool,  // transpose on input1(fc_input_b) of matmul_0
+                                                     bool,  // transpose on input0(fc_input_a) of matmul_1
+                                                     bool>;  // transpose on input1(fc_input_b) of matmul_1
 
 /*
  *
- *                    Input0(F32)          Input1(F32)
+ *                    Input0               Input1
  *                        |                   /
  *                  Convert_0(FP16)     Convert_1(FP16)
  *                     |  |       \         /
@@ -169,7 +169,7 @@ INSTANTIATE_TEST_SUITE_P(MatmulConversionsSameParent_transposed,
 
 /*
  *
- *    Input2(F32)          Input0(F32)          Input1(F32)
+ *    Input2               Input0                Input1
  *       |                    |                    /
  *    Convert_2(FP16)     Convert_0(FP16)      Convert_1(FP16)
  *            \            /        \            /
