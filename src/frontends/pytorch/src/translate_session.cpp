@@ -68,6 +68,13 @@ std::shared_ptr<ov::Model> TranslateSession::translate_graph(const ov::frontend:
             param->output(0).set_names({param->get_friendly_name()});
         }
     }
+
+    // process model rt_info
+    auto rt_info = pytorch_model->get_decoder()->get_rt_info();
+    for (auto item : rt_info) {
+        model->set_rt_info(item.second, item.first);
+    }
+
     return model;
 }
 
@@ -82,9 +89,10 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
         auto mutated_tensors = std::make_shared<std::set<size_t>>();
         std::vector<size_t> inserted_params;
 
-        if (input_model) {
+        if (input_model && input_model->m_requested_places.size() == 0) {
             // When we have input model we should use its inputs order to create Parameters
             // We use m_inputs instead of get_inputs() because latter doesn't have "self" input
+            // If there are fake places we don't need to use model inputs in that case
             for (auto& input_p : input_model->m_inputs) {
                 auto pytorch_place = std::dynamic_pointer_cast<pytorch::Place>(input_p);
                 FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported.");
@@ -97,10 +105,6 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 encode_tensor_name(parameter->output(0), tensor_id);
                 parameters->push_back(parameter);
                 (*tensor_map)[tensor_id] = parameter;
-            }
-            // Add all tensors that were frozen
-            for (auto& desc : input_model->m_descriptors) {
-                (*tensor_map)[desc.first] = desc.second.m_value;
             }
         } else {
             // Go over all pytorch_model inputs and register them in the tensor map:
@@ -118,6 +122,12 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 encode_tensor_name(parameter->output(0), inputs.at(i), {pytorch_model->get_input_debug_name(i)});
                 parameters->push_back(parameter);
                 (*tensor_map)[inputs.at(i)] = parameter;
+            }
+        }
+        if (input_model) {
+            // Add all tensors that were frozen
+            for (auto& desc : input_model->m_descriptors) {
+                (*tensor_map)[desc.first] = desc.second.m_value;
             }
         }
 
@@ -187,8 +197,12 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                                                 recorded_in_tensor_id);
                     }
                     m_may_be_alias[fw_tensor_id] = {node->inputs().at(0), node, converted_outputs[i]};
-                    OPENVINO_DEBUG << "Registered alias: " << fw_tensor_id << " of tensor: " << node->inputs().at(0)
-                                   << " of operation: " << context.get_op_type();
+                    OPENVINO_DEBUG("Registered alias: ",
+                                   fw_tensor_id,
+                                   " of tensor: ",
+                                   node->inputs().at(0),
+                                   " of operation: ",
+                                   context.get_op_type());
                 }
                 FRONT_END_GENERAL_CHECK(tensor_map->find(fw_tensor_id) == tensor_map->end(),
                                         "Duplicated producer for PT value with unique ID: ",
@@ -196,10 +210,14 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 auto out_type = context.get_output_type(i);
                 if (out_type.is<element::Type>()) {
                     if (!converted_outputs[i].get_element_type().compatible(out_type.as<element::Type>())) {
-                        OPENVINO_DEBUG << "[WARNING] Produced output type for operation " << context.get_op_type()
-                                       << " for tensor id: " << fw_tensor_id << " is incompatible: produced "
-                                       << converted_outputs[i].get_element_type() << " vs "
-                                       << out_type.as<element::Type>();
+                        OPENVINO_DEBUG("[WARNING] Produced output type for operation ",
+                                       context.get_op_type(),
+                                       " for tensor id: ",
+                                       fw_tensor_id,
+                                       " is incompatible: produced ",
+                                       converted_outputs[i].get_element_type(),
+                                       " vs ",
+                                       out_type.as<element::Type>());
                     }
                 }
                 (*tensor_map)[fw_tensor_id] = converted_outputs[i];
@@ -207,7 +225,8 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             }
         };
 
-        FRONT_END_GENERAL_CHECK(pytorch_model->get_subgraph_size() == 1, "Model should have exactly 1 subgraph.");
+        FRONT_END_GENERAL_CHECK(pytorch_model->decoder_type_name() != "ts" || pytorch_model->get_subgraph_size() == 1,
+                                "Model should have exactly 1 subgraph for TorchScript.");
         pytorch_model->visit_subgraph(node_visitor);
 
         ResultVector results;
@@ -259,11 +278,11 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 // empty external_tensor_map means this is main body of the model and we don't want to create
                 // additional outputs in that case.
                 if (!external_tensor_map.empty()) {
-                    OPENVINO_DEBUG << "Creating Result for mutated tensor  " << tensor_id;
+                    OPENVINO_DEBUG("Creating Result for mutated tensor  ", tensor_id);
                     results.push_back(std::make_shared<v0::Result>(tensor_map->at(tensor_id)));
                 }
             } else {
-                OPENVINO_DEBUG << "Mutated tensor with id " << tensor_id << " doesn't exist in inputs, skipping.";
+                OPENVINO_DEBUG("Mutated tensor with id ", tensor_id, " doesn't exist in inputs, skipping.");
             }
         }
         if (!external_tensor_map.empty()) {
@@ -293,7 +312,7 @@ OutputVector TranslateSession::convert_node(const NodeContext& context) {
         if (it != m_translator_map.end()) {
             return it->second(context);
         }
-        OPENVINO_DEBUG << "No translator found for: " << context.get_op_type() << "\n";
+        OPENVINO_DEBUG("No translator found for: ", context.get_op_type(), "\n");
     } catch (std::exception& e) {
         exception = e.what();
         if (m_telemetry) {
@@ -305,7 +324,7 @@ OutputVector TranslateSession::convert_node(const NodeContext& context) {
     } catch (...) {
         exception = "Unknown exception type.";
     }
-    OPENVINO_DEBUG << exception << "\n";
+    OPENVINO_DEBUG(exception, "\n");
     try {
         // Create PtFrameworkNode for everything that wasn't able to be converted normally
         return make_framework_node(context, exception);
@@ -314,7 +333,7 @@ OutputVector TranslateSession::convert_node(const NodeContext& context) {
     } catch (...) {
         exception += " Unknown exception happened while creating FrameworkNode with subgraphs";
     }
-    OPENVINO_DEBUG << exception << "\n";
+    OPENVINO_DEBUG(exception, "\n");
     return make_framework_node_ignore_bodies(context, exception);
 }
 
@@ -322,8 +341,11 @@ void TranslateSession::encode_tensor_name(Output<Node> output,
                                           size_t tensor_idx,
                                           std::vector<std::string> additional_names) {
     if (!output.get_names().empty()) {
-        OPENVINO_DEBUG << "Tensor names already exist: " << output.get_any_name() << ". Will not be rewritten with "
-                       << tensor_idx << ". This is likely a mutated tensor.";
+        OPENVINO_DEBUG("Tensor names already exist: ",
+                       output.get_any_name(),
+                       ". Will not be rewritten with ",
+                       tensor_idx,
+                       ". This is likely a mutated tensor.");
         return;
     }
     auto name = std::to_string(tensor_idx);
@@ -347,10 +369,7 @@ void TranslateSession::encode_tensor_name(Output<Node> output,
 
 namespace {
 bool is_number(const std::string& s) {
-    std::string::const_iterator it = s.begin();
-    while (it != s.end() && std::isdigit(*it))
-        ++it;
-    return !s.empty() && it == s.end();
+    return !s.empty() && std::all_of(s.begin(), s.end(), ::isdigit);
 }
 }  // namespace
 
@@ -424,10 +443,20 @@ Output<Node> TranslateSession::get_reverseprop_op(const std::shared_ptr<TorchDec
             return it->second(direct_op_output, value);
         }
 
-    } catch (std::exception& e) {
-        OPENVINO_DEBUG << "Exception happened during conversion of backprop op: " << node->get_op_type()
-                       << " with schema: " << node->get_schema() << ": " << e.what();
     }
+#ifdef ENABLE_OPENVINO_DEBUG
+    catch (std::exception& e) {
+        OPENVINO_DEBUG("Exception happened during conversion of backprop op: ",
+                       node->get_op_type(),
+                       " with schema: ",
+                       node->get_schema(),
+                       ": ",
+                       e.what());
+    }
+#else
+    catch (std::exception&) {
+    }
+#endif
     // Create PtFrameworkNode representing unconverted backprop operation
     return std::make_shared<PtFrameworkNode>(node, OutputVector{value}, 1, true);
 }

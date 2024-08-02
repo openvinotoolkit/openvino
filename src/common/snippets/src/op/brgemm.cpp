@@ -5,7 +5,7 @@
 #include "snippets/op/brgemm.hpp"
 
 #include "snippets/itt.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 #include "openvino/core/rt_info.hpp"
 
@@ -32,60 +32,40 @@ std::vector<size_t> get_output_layout(const std::shared_ptr<const ov::Node>& n) 
 
 Brgemm::Brgemm(const Output<Node>& A, const Output<Node>& B,
                const size_t offset_a, const size_t offset_b, const size_t offset_c,
-               std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c,
-               const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n)
+               std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c)
     : MemoryAccess(std::set<size_t>{0, 1}, std::set<size_t>{0}), Op({A, B}) {
     set_output_size(1);
     set_input_offset(offset_a, 0);
     set_input_offset(offset_b, 1);
     set_output_offset(offset_c, 0);
-    compute_block_size_values(blk_size_m, blk_size_k, blk_size_n);
     custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
 }
 
 Brgemm::Brgemm(const Output<Node>& A, const Output<Node>& B,
                const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_c,
-               std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c,
-               const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n)
+               std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c)
     : MemoryAccess(PortMap{{0, desc_a}, {1, desc_b}}, PortMap{{0, desc_c}}), Op({A, B}) {
     set_output_size(1);
-    compute_block_size_values(blk_size_m, blk_size_k, blk_size_n);
     custom_constructor_validate_and_infer_types(std::move(layout_a), std::move(layout_b), std::move(layout_c));
-}
-
-void Brgemm::compute_block_size_values(const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n) {
-    const auto input_shape_0 = snippets::utils::get_planar_pshape(input(0)).get_shape();
-    const auto input_shape_1 = snippets::utils::get_planar_pshape(input(1)).get_shape();
-    m_M_blk = blk_size_m != 0 ? blk_size_m : *++input_shape_0.rbegin();
-    m_K_blk = blk_size_k != 0 ? blk_size_k : *input_shape_0.rbegin();
-    m_N_blk = blk_size_n != 0 ? blk_size_n : *input_shape_1.rbegin();
 }
 
 void Brgemm::custom_constructor_validate_and_infer_types(std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c) {
     INTERNAL_OP_SCOPE(BrgemmCPU_constructor_validate_and_infer_types);
-    validate_inputs();
 
     // During ctor call, Brgemm doesn't know his port descriptors.
     // So we use explicit layouts from parameters
     const auto planar_input_shapes =
             std::vector<ov::PartialShape>{ ov::snippets::utils::get_planar_pshape(get_input_partial_shape(0), layout_a),
                                            ov::snippets::utils::get_planar_pshape(get_input_partial_shape(1), layout_b) };
-    auto output_shape = get_output_partial_shape(planar_input_shapes);
+    auto output_shape = infer_output_partial_shape(planar_input_shapes);
     set_output_type(0, get_output_type(), ov::snippets::utils::get_planar_pshape(output_shape, layout_c));
-}
-
-void Brgemm::validate_inputs() const {
-    // If no leading dimensions are provided, assume dense row-major inputs-outputs
-    NODE_VALIDATION_CHECK(this, get_input_partial_shape(0).is_static() && get_input_partial_shape(1).is_static(),
-                          "Brgemm currently supports only static shapes.");
 }
 
 void Brgemm::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(Brgemm_validate_and_infer_types);
-    validate_inputs();
 
     const auto planar_input_shapes = get_planar_input_shapes(inputs());
-    auto output_shape = get_output_partial_shape(planar_input_shapes);
+    auto output_shape = infer_output_partial_shape(planar_input_shapes);
     set_output_type(0, get_output_type(), get_planar_output_shape(output_shape));
 }
 
@@ -100,9 +80,6 @@ std::shared_ptr<Node> Brgemm::clone_with_new_inputs(const OutputVector& new_args
 }
 
 bool Brgemm::visit_attributes(AttributeVisitor& visitor) {
-    visitor.on_attribute("blk_M", m_M_blk);
-    visitor.on_attribute("blk_K", m_K_blk);
-    visitor.on_attribute("blk_N", m_N_blk);
     visitor.on_attribute("beta", m_beta);
     return MemoryAccess::visit_attributes(visitor);
 }
@@ -146,7 +123,7 @@ ov::PartialShape Brgemm::get_planar_output_shape(const ov::PartialShape& output_
     return output_shape;
 }
 
-ov::PartialShape Brgemm::get_output_partial_shape(const std::vector<ov::PartialShape>& input_shapes) const {
+ov::PartialShape Brgemm::infer_output_partial_shape(const std::vector<ov::PartialShape>& input_shapes) const {
     OPENVINO_ASSERT(input_shapes.size() == 2, "BRGEMM expects 2 input shapes for shape inference");
 
     // Note: All majors checks are missed because Brgemm is transformed from MatMul with whole shape infer support

@@ -87,7 +87,7 @@ TEST_F(CompiledModelTests, GetOutputsThrowsIfReturnErr) {
 TEST_F(CompiledModelTests, GetOutputs) {
     std::vector<ov::Output<const ov::Node>> data;
     EXPECT_CALL(*mock_compiled_model.get(), outputs()).Times(1).WillOnce(ReturnRefOfCopy(model->outputs()));
-    ASSERT_NO_THROW(data = compiled_model.outputs());
+    OV_ASSERT_NO_THROW(data = compiled_model.outputs());
     ASSERT_EQ(data, model->outputs());
 }
 
@@ -101,7 +101,7 @@ TEST_F(CompiledModelTests, GetInputs) {
     EXPECT_CALL(*mock_compiled_model.get(), inputs()).Times(1).WillOnce(ReturnRefOfCopy(model->inputs()));
 
     std::vector<ov::Output<const ov::Node>> info;
-    ASSERT_NO_THROW(info = compiled_model.inputs());
+    OV_ASSERT_NO_THROW(info = compiled_model.inputs());
     ASSERT_EQ(info, model->inputs());
 }
 
@@ -118,7 +118,7 @@ protected:
 TEST_F(CompiledModelWithIInferReqTests, CanCreateInferRequest) {
     EXPECT_CALL(*mock_compiled_model.get(), create_infer_request()).WillOnce(Return(mock_infer_request));
     ov::InferRequest actualInferReq;
-    ASSERT_NO_THROW(actualInferReq = compiled_model.create_infer_request());
+    OV_ASSERT_NO_THROW(actualInferReq = compiled_model.create_infer_request());
 }
 
 TEST_F(CompiledModelWithIInferReqTests, CreateInferRequestThrowsIfReturnNotOK) {
@@ -129,7 +129,7 @@ TEST_F(CompiledModelWithIInferReqTests, CreateInferRequestThrowsIfReturnNotOK) {
 TEST_F(CompiledModelWithIInferReqTests, QueryStateThrowsIfReturnErr) {
     EXPECT_CALL(*mock_compiled_model.get(), create_infer_request()).WillOnce(Return(mock_infer_request));
     ov::InferRequest actualInferReq;
-    ASSERT_NO_THROW(actualInferReq = compiled_model.create_infer_request());
+    OV_ASSERT_NO_THROW(actualInferReq = compiled_model.create_infer_request());
     EXPECT_CALL(*mock_infer_request.get(), query_state()).Times(1).WillOnce(Throw(std::runtime_error{""}));
     EXPECT_THROW(actualInferReq.query_state(), std::runtime_error);
 }
@@ -137,7 +137,7 @@ TEST_F(CompiledModelWithIInferReqTests, QueryStateThrowsIfReturnErr) {
 TEST_F(CompiledModelWithIInferReqTests, QueryState) {
     EXPECT_CALL(*mock_compiled_model.get(), create_infer_request()).WillOnce(Return(mock_infer_request));
     ov::InferRequest actualInferReq;
-    ASSERT_NO_THROW(actualInferReq = compiled_model.create_infer_request());
+    OV_ASSERT_NO_THROW(actualInferReq = compiled_model.create_infer_request());
     ov::SoPtr<ov::IVariableState> state = std::make_shared<ov::MockIVariableState>();
     EXPECT_CALL(*mock_infer_request.get(), query_state())
         .Times(1)
@@ -165,7 +165,7 @@ protected:
 TEST_F(CompiledModelBaseTests, canForwardCreateInferRequest) {
     auto inferReqInternal = std::make_shared<ov::MockIAsyncInferRequest>();
     EXPECT_CALL(*mock_compiled_model.get(), create_infer_request()).Times(1).WillRepeatedly(Return(inferReqInternal));
-    ASSERT_NO_THROW(compiled_model.create_infer_request());
+    OV_ASSERT_NO_THROW(compiled_model.create_infer_request());
 }
 
 TEST_F(CompiledModelBaseTests, canReportErrorInCreateInferRequest) {

@@ -15,7 +15,7 @@ namespace op {
 namespace pooling {
 static int64_t get_normalized_axis(const ov::op::util::MaxPoolBase* op, const int64_t axis) {
     const auto rank = op->get_input_partial_shape(0).rank();
-    return rank.is_static() ? ov::util::normalize_axis(op, axis, rank) : axis;
+    return rank.is_static() ? ov::util::try_normalize_axis(axis, rank, *op) : axis;
 }
 }  // namespace pooling
 static bool has_evaluate_util(const ov::element::Type& element_type) {
@@ -204,9 +204,9 @@ bool MaxPool::evaluate(TensorVector& outputs, const TensorVector& inputs) const 
     const auto input_shapes = std::vector<PartialShape>{inputs[0].get_shape()};
     auto pads_begin = m_pads_begin;
     auto pads_end = m_pads_end;
-    const auto output_shape = shape_infer(this, input_shapes, pads_begin, pads_end).front();
+    const auto output_shapes = shape_infer(this, input_shapes, pads_begin, pads_end);
 
-    outputs[0].set_shape(output_shape.get_shape());
+    outputs[0].set_shape(output_shapes[0].get_shape());
     using namespace ov::element;
     return IF_TYPE_OF_CONVERT_TENSORS(v1_MaxPool_evaluate,
                                       this,

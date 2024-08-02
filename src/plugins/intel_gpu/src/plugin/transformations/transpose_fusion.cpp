@@ -45,14 +45,6 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
         return std::dynamic_pointer_cast<ov::op::v1::Transpose>(output.get_node_shared_ptr()) == nullptr
                && is_fp_type(output);
     };
-    auto is_dynamic = [](const ov::Output<ov::Node>& output) -> bool {
-        bool is_dynamic = output.get_node_shared_ptr()->get_output_partial_shape(0).is_dynamic();
-        size_t num_inputs = output.get_node_shared_ptr()->get_input_size();
-        for (size_t idx = 0; idx < num_inputs; idx++) {
-            is_dynamic |= output.get_node_shared_ptr()->get_input_partial_shape(idx).is_dynamic();
-        }
-        return is_dynamic;
-    };
 
     auto input_q_m = any_input(not_transpose);
     auto input_k_m = any_input(not_transpose);
@@ -70,10 +62,10 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
     auto sdpa_in_k = std::make_shared<Or>(OutputVector{input_k_m, transpose_k_m});
     auto sdpa_in_v = std::make_shared<Or>(OutputVector{input_v_m, transpose_v_m});
 
-    auto sdpa_without_attn_mask_m = wrap_type<ov::op::v13::ScaledDotProductAttention>({ sdpa_in_q, sdpa_in_k, sdpa_in_v }, is_dynamic);
-    auto sdpa_with_attn_mask_m = wrap_type<ov::op::v13::ScaledDotProductAttention>({ sdpa_in_q, sdpa_in_k, sdpa_in_v, input_attn_mask }, is_dynamic);
+    auto sdpa_without_attn_mask_m = wrap_type<ov::op::v13::ScaledDotProductAttention>({ sdpa_in_q, sdpa_in_k, sdpa_in_v });
+    auto sdpa_with_attn_mask_m = wrap_type<ov::op::v13::ScaledDotProductAttention>({ sdpa_in_q, sdpa_in_k, sdpa_in_v, input_attn_mask });
     auto sdpa_with_attn_mask_and_scale_m =
-        wrap_type<ov::op::v13::ScaledDotProductAttention>({ sdpa_in_q, sdpa_in_k, sdpa_in_v, input_attn_mask, input_scale }, is_dynamic);
+        wrap_type<ov::op::v13::ScaledDotProductAttention>({ sdpa_in_q, sdpa_in_k, sdpa_in_v, input_attn_mask, input_scale });
 
     auto sdpa_m = std::make_shared<Or>(OutputVector{sdpa_without_attn_mask_m, sdpa_with_attn_mask_m, sdpa_with_attn_mask_and_scale_m});
 

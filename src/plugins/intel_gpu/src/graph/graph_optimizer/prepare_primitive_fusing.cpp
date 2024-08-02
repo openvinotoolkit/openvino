@@ -39,6 +39,7 @@
 #include "embedding_bag_inst.h"
 #include "extract_image_patches_inst.h"
 #include "reduce_inst.h"
+#include "group_normalization_inst.h"
 #include <vector>
 #include <map>
 #include <list>
@@ -196,26 +197,30 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
 
 
         if (node->get_output_layout().is_dynamic()) {
-            auto broadcast_type = eltw_node.get_primitive()->broadcast_spec.m_type;
-            if (!eltw_node.get_dependency(non_const_dep_idx).is_type<fully_connected>())
-                continue;
-            if (broadcast_type != ov::op::AutoBroadcastType::NUMPY && broadcast_type != ov::op::AutoBroadcastType::NONE)
-                continue;
-            // Numpy broadcast rule requires the dimension size which is not one to be same as the corresponding dimension of the other operand.
-            // So we can ensure that the feature size is same for this broadcasting rule, thereby being considered as bias.
-            auto const_shape = eltw_node.get_dependency(const_dep_idx).get_output_layout().get_shape();
-            int32_t count_elements_not_one = 0;
-            int32_t idx_element_not_one = -1;
-            for (size_t i = 0; i < const_shape.size(); ++i) {
-                if (const_shape[i] != 1) {
-                    count_elements_not_one++;
-                    idx_element_not_one = static_cast<int32_t>(i);
+            if (eltw_node.get_dependency(non_const_dep_idx).is_type<fully_connected>()) {
+                auto broadcast_type = eltw_node.get_primitive()->broadcast_spec.m_type;
+                if (broadcast_type != ov::op::AutoBroadcastType::NUMPY && broadcast_type != ov::op::AutoBroadcastType::NONE)
+                    continue;
+
+                // Numpy broadcast rule requires the dimension size which is not one to be same as the corresponding dimension of the other operand.
+                // So we can ensure that the feature size is same for this broadcasting rule, thereby being considered as bias.
+                auto const_shape = eltw_node.get_dependency(const_dep_idx).get_output_layout().get_shape();
+                int32_t count_elements_not_one = 0;
+                int32_t idx_element_not_one = -1;
+                for (size_t i = 0; i < const_shape.size(); ++i) {
+                    if (const_shape[i] != 1) {
+                        count_elements_not_one++;
+                        idx_element_not_one = static_cast<int32_t>(i);
+                    }
+                    if (count_elements_not_one > 1)
+                        break;
                 }
-                if (count_elements_not_one > 1)
-                    break;
-            }
-            if (count_elements_not_one != 1 ||
-                (idx_element_not_one != (static_cast<int32_t>(const_shape.size()) - 1))) {
+
+                if (count_elements_not_one != 1 ||
+                    (idx_element_not_one != (static_cast<int32_t>(const_shape.size()) - 1))) {
+                    continue;
+                }
+            } else if (!eltw_node.get_dependency(non_const_dep_idx).is_type<convolution>()) {
                 continue;
             }
         } else {
@@ -396,7 +401,6 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                                                                        desc->weights,
                                                                        bias_name,
                                                                        fc.get_output_layout().data_type,
-                                                                       desc->output_paddings[0],
                                                                        desc->input_size);
 
             if (desc->compressed_weights) {
@@ -690,6 +694,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input.is_type<mvn>();
 
+            should_fuse |= input.is_type<group_normalization>();
+
             should_fuse |= input.is_type<normalize>() && data_type_traits::is_i8_u8(input.get_input_layout(0).data_type);
 
             should_fuse |= input.is_type<deconvolution>();
@@ -887,6 +893,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                        conv_supports_fusings(parents[i].first->as<convolution>())) ||
                                       (parents[i].first->is_type<mvn>() &&
                                        mvn_supports_fusings(parents[i].first->as<mvn>(), true)) ||
+                                      (parents[i].first->is_type<group_normalization>()) ||
                                       (parents[i].first->is_type<deconvolution>()) ||
                                       (parents[i].first->is_type<permute>()) ||
                                       (parents[i].first->is_type<resample>()) ||
@@ -977,27 +984,70 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             size_t fused_idx = can_fuse_parents[0] ? 0 : 1;
             size_t peer_idx  = can_fuse_parents[0] ? 1 : 0;
 
-            int p1_pnum = p.get_processing_order().get_processing_number(parents[fused_idx].first);
-            int p2_pnum = p.get_processing_order().get_processing_number(parents[peer_idx].first);
+            auto can_swap_parents = [&]() -> bool {
+                // Swap in below two cases
+                //     1. Both branches have same data type. Select branch with lower processing number.
+                //     2. Peer node has fp32 output type, but fused node - int8.
+                //         - In that case we have to fuse to the branch with fp32 out type to avoid fp32 blobs in the quantized graph.
+                //
+                if (can_fuse_parents[peer_idx]) {
+                    auto p1_pnum = p.get_processing_order().get_processing_number(parents[fused_idx].first);
+                    auto p2_pnum = p.get_processing_order().get_processing_number(parents[peer_idx].first);
+                    auto p1_dt = parents[fused_idx].first->get_output_layout().data_type;
+                    auto p2_dt = parents[peer_idx].first->get_output_layout().data_type;
+                    // Notice:
+                    //     - If current node has two parent nodes and one of the parent nodes is what has been fused with some nodes,
+                    //       and which is not the last one of the fused primitives, the current node should be fused to that node.
+                    //     - See example graph and description below.
+                    //         : Where [convolution1 - parent1 - eltwise1] have been fused to convolution1,
+                    //               1) if parent1 exists in fusing_history as the node to which the current node will be fused,
+                    //               2) and parent1 is not the last one among the primitives fused to convolution1
+                    //                  (e.g. eltwise1, eltwise2, eltwise3 and eltwise4 will be fused to convolution1 the last one is eltwise4),
+                    //           current node should be fused into [convolution1 - parent1 - eltwise1] without index swapping.
+                    //         : There is no problem with swapping index when eltwise1 has not yet been fused at the time of fusing current node.
+                    //
+                    //                convolution1    convolution2
+                    //                      |             |
+                    //                   parent1       parent2
+                    //                   /     \       /
+                    //           eltwise1       current
+                    //               |             |
+                    //           eltwise2          |
+                    //                \            |
+                    //             eltwise3 -- eltwise4
+                    //
+                    for (auto& fused_prim : parents[fused_idx].first->get_fused_primitives()) {
+                        auto iter = fusing_history.find(node.id());
+                        if (iter != fusing_history.end()) {
+                            for (auto id : iter->second) {
+                                if (id.first == fused_prim.desc->id &&
+                                    id.first != parents[fused_idx].first->get_fused_primitives().back().desc->id) {
+                                    return false;
+                                }
+                            }
+                        }
+                    }
+                    if (p1_pnum < p2_pnum && p1_dt == p2_dt) {
+                        return true;
+                    }
+                    if (data_type_traits::is_floating_point(p2_dt) && !data_type_traits::is_floating_point(p1_dt)) {
+                        return true;
+                    }
+                }
+                return false;
+            };
 
-            auto p1_dt = parents[fused_idx].first->get_output_layout().data_type;
-            auto p2_dt = parents[peer_idx].first->get_output_layout().data_type;
-
-            if (can_fuse_parents[peer_idx] &&
-               ((p1_pnum < p2_pnum && p1_dt == p2_dt) || (data_type_traits::is_floating_point(p2_dt) && !data_type_traits::is_floating_point(p1_dt)))) {
-                // Swap in 2 cases:
-                // 1. Both branches have same data type. Select branch with lower processing number
-                // 2. Peer node has fp32 output type, but fused node - int8. In that case we have to fuse to the branch
-                // with fp32 out type to avoid fp32 blobs in the quantized graph.
+            if (can_swap_parents()) {
                 std::swap(fused_idx, peer_idx);
             }
 
             auto fused_node = parents[fused_idx].first;
             auto peer_node = parents[peer_idx].first;
-
             if (_lo.get_optimization_attributes().use_onednn_impls && _lo.is_primitive_implemented_for_onednn(*fused_node)) {
                 auto eltw_in_size = peer_node->get_output_layout();
-                if (eltw_in_size.is_dynamic())
+                if (eltw_in_size.is_dynamic()
+                    // this whitelist condition is temporarily and to be relaxed soon.
+                    && !fused_node->is_type<fully_connected>())
                     return;
             }
             if (parent1.first->is_type<convolution>() && !conv_supports_fusings(parent1.first->as<convolution>()))

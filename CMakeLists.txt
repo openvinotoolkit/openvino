@@ -41,7 +41,10 @@ if(POLICY CMP0149)
     cmake_policy(SET CMP0149 NEW)
 endif()
 
-project(OpenVINO DESCRIPTION "OpenVINO toolkit")
+project(OpenVINO
+        DESCRIPTION "OpenVINO toolkit"
+        HOMEPAGE_URL "https://docs.openvino.ai/2024/home.html"
+        LANGUAGES C CXX)
 
 find_package(OpenVINODeveloperScripts REQUIRED
              PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
@@ -88,6 +91,9 @@ if(CMAKE_TOOLCHAIN_FILE)
 endif()
 if(NOT OV_LIBC_VERSION VERSION_EQUAL 0.0)
     message (STATUS "LIBC_VERSION .......................... " ${OV_LIBC_VERSION})
+endif()
+if(DEFINED OPENVINO_STDLIB)
+    message (STATUS "STDLIB ................................ " ${OPENVINO_STDLIB})
 endif()
 
 # remove file with exported targets to force its regeneration

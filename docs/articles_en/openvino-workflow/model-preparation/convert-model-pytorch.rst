@@ -7,7 +7,9 @@ Converting a PyTorch Model
                  PyTorch format to the OpenVINO Model.
 
 
-To convert a PyTorch model, use the ``openvino.convert_model`` function.
+You can download a PyTorch model from `PyTorch Hub <https://pytorch.org/hub/>`__ or
+`Hugging Face <https://huggingface.co/models>`__.
+To convert the model, use the ``openvino.convert_model`` function.
 
 Here is the simplest example of PyTorch model conversion using a model from ``torchvision``:
 

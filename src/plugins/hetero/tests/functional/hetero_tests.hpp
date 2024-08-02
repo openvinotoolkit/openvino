@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/iplugin.hpp"
 

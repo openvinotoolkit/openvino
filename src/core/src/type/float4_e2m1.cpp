@@ -7,6 +7,7 @@
 #include <cmath>
 #include <limits>
 
+#include "openvino/core/type/float_util.hpp"
 #include "openvino/reference/fake_convert.hpp"
 
 namespace ov {
@@ -28,13 +29,6 @@ static constexpr std::array<float, 16> f4e2m1_to_f32_lut{
 // clang-format on
 
 namespace {
-
-constexpr uint32_t three_bytes_shift = 24;
-
-union f32_t {
-    float value;
-    uint32_t bits;
-};
 
 constexpr uint8_t f4e2m1_e_size = 2;     // f4e2m1 exponent bit size
 constexpr uint8_t f4e2m1_e_mask = 0x06;  // f4e2m1 exponent bit mask
@@ -60,16 +54,16 @@ uint8_t f32_to_f4e2m1_bits(const float value) {
     constexpr uint32_t round_even = 0x00800000;  // value for half to even round for f4
     constexpr uint32_t round_odd = 0x01800000;   // value for an non-half to even round for f4
 
-    const auto input = f32_t{value};
-    auto f4_bits = static_cast<uint8_t>((input.bits & f32_s_mask) >> (three_bytes_shift + 4U));
+    const auto input = util::f32_to_u32_bits(value);
+    auto f4_bits = static_cast<uint8_t>((input & f32_s_mask) >> (three_bytes_shift + 4U));
 
-    uint32_t f32_e_field = input.bits & f32_e_mask;
+    uint32_t f32_e_field = input & f32_e_mask;
 
     if (f32_e_field == f32_e_mask) {
         f4_bits |= (f4e2m1_e_mask | f4e2m1_m_mask);
     } else if (f32_e_field != 0) {
         int32_t target_f_biased_exp = (f32_e_field >> f32_m_size) - (f32_e_bias - f4e2m1_e_bias);
-        uint32_t fractional = (input.bits & f32_m_mask) << (f32_e_size - f4e2m1_e_size - 4U);
+        uint32_t fractional = (input & f32_m_mask) << (f32_e_size - f4e2m1_e_size - 4U);
 
         // for normalized values round apply rounding change target fractional and biased exponent
         if ((fractional & round_half) == round_odd || (fractional & round_norm) != 0) {
@@ -89,7 +83,7 @@ uint8_t f32_to_f4e2m1_bits(const float value) {
             f4_bits |= (target_f_biased_exp << f4e2m1_m_size) | (fractional >> (three_bytes_shift));
         } else {
             // Restore the hidden 1 in target mantissa for subnormal calculation
-            fractional = f_m_hidden_one_mask | (input.bits & f32_m_mask) << (f32_e_size - f4e2m1_e_size - 4U);
+            fractional = f_m_hidden_one_mask | (input & f32_m_mask) << (f32_e_size - f4e2m1_e_size - 4U);
             // Will any bits be shifted off?
             int32_t shift = target_f_biased_exp < -(f4e2m1_e_max) ? 0 : (1U << (1 - target_f_biased_exp));
             uint32_t sticky = (fractional & (shift - 1)) ? 1 : 0;

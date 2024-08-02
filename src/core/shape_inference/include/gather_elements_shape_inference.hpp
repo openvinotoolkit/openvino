@@ -19,32 +19,25 @@ std::vector<TRShape> shape_infer(const GatherElements* op, const std::vector<T>&
     const auto& indices_pshape = input_shapes[1];
     auto data_rank = data_pshape.rank();
     auto indices_rank = indices_pshape.rank();
-    auto output_shapes = std::vector<TRShape>(1);
-    auto& output_shape = output_shapes[0];
+    auto output_shapes = std::vector<TRShape>();
 
-    int64_t axis = op->get_axis();
-    if (data_rank.is_static()) {
-        axis = ov::util::normalize_axis(op, axis, data_rank);
-    }
-
-    NODE_VALIDATION_CHECK(op, data_rank.is_dynamic() || data_rank.get_length() >= 1, "data rank must be >= 1.");
     NODE_VALIDATION_CHECK(op,
                           indices_rank.is_dynamic() || indices_rank.get_length() >= 1,
                           "indices rank must be >= 1.");
-
-    if (data_rank.is_static() && indices_rank.is_dynamic()) {
-        // output has the same rank of data
-        output_shape = data_pshape;
-        output_shape[axis] = DimType();
-        return output_shapes;
-    }
-
     if (data_rank.is_dynamic()) {
-        if (indices_rank.is_dynamic()) {
-            output_shape = PartialShape::dynamic();
-            return output_shapes;
-        }
-        output_shape = indices_pshape;
+        output_shapes.push_back(indices_pshape);
+        return output_shapes;
+    } else {
+        output_shapes.push_back(data_pshape);
+    }
+    auto& output_shape = output_shapes[0];
+
+    NODE_VALIDATION_CHECK(op, data_rank.get_length() >= 1, "data rank must be >= 1.");
+    const auto axis = ov::util::try_normalize_axis(op->get_axis(), data_rank, *op);
+
+    if (indices_rank.is_dynamic()) {
+        // output has the same rank of data
+        output_shape[axis] = DimType();
         return output_shapes;
     }
 
@@ -59,7 +52,6 @@ std::vector<TRShape> shape_infer(const GatherElements* op, const std::vector<T>&
     // if size of the current dimension of indices is unknown it will be retrieved from data
     // e.g., if data_shape = {4, 4, ?}, indices_shape = {1, ?, 5} and axis = 0
     // (and if intervals intersect) then output_pshape will be {1, 4, 5}
-    output_shape = data_pshape;
     output_shape[axis] = indices_pshape[axis];
     NODE_VALIDATION_CHECK(op,
                           output_shape.merge_into(output_shape, indices_pshape),

@@ -21,10 +21,21 @@ Use [Node.js Notebooks (REPL)](https://marketplace.visualstudio.com/items?itemNa
 VSCode extension to run these notebook samples
 
 - ./notebooks
-  - 001-hello-world.nnb
-  - 003-hello-segmentation.nnb
-  - 004-hello-detection.nnb
-  - 213-question-answering.nnb
+  - hello-world.nnb
+  - hello-segmentation.nnb
+  - hello-detection.nnb
+  - question-answering.nnb
+  - pose-estimation.nnb
+  - optical-character-recognition.nnb
+  - vision-background-removal.nnb
+
+## Live Sample
+
+You can run this sample in the browser; no installation is required.
+[Codesandbox](https://codesandbox.io/) is a free online service with limited resources. For optimal performance and more control,  it is recommended to run the sample locally.
+
+- [hello-classification-sample](https://codesandbox.io/p/devbox/openvino-node-hello-classification-sample-djl893)
+- optical-character-recognition-sample
 
 ## See Also
 
