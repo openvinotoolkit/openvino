@@ -148,8 +148,8 @@ size_t getFileSize(std::istream& stream) {
     log.debug("Read blob size: streamStart=%zu, streamEnd=%zu", streamStart, streamEnd);
 
     if (streamEnd < streamStart) {
-        OPENVINO_THROW("Invalid stream size: streamEnd(", streamEnd,
-                       ") is not larger than streamStart(", streamStart, ")!");
+        OPENVINO_THROW("Invalid stream size: streamEnd (", streamEnd,
+                       ") is not larger than streamStart (", streamStart, ")!");
     }
 
     return streamEnd - streamStart;
@@ -743,7 +743,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         if (!stream) {
             OPENVINO_THROW("Failed to read data from stream!");
         }
-        _logger.debug("Successfully read {} bytes into blob.", graphSize);
+        _logger.debug("Successfully read %zu bytes into blob.", graphSize);
 
         auto meta = compiler->parse(blob, localConfig);
         meta.name = "net" + std::to_string(_compiledModelLoadCounter++);
