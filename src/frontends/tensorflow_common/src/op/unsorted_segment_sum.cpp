@@ -50,7 +50,7 @@ OutputVector translate_unsorted_segment_sum_op(const NodeContext& node) {
     // to make indices 1D tensor
     // for example, data shape = [2, 3, 4] and segment_ids shape - [2, 3]
     // so they need adjustment to new data shape [6, 4] and segment_ids shape [6]
-    auto segment_ids_rank = compute_subgraph_scalar_rank(segment_ids, element::i64, true);
+    auto segment_ids_rank = compute_subgraph_scalar_rank(segment_ids, element::i64, false);
     // 1. segment_ids needs to be flatten
     segment_ids = make_shared<v1::Reshape>(segment_ids, const_minus_one_i64, false);
     // 2. flatten first (segment_ids_rank - 1) dimensions into one dimension
