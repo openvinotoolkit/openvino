@@ -52,10 +52,8 @@ Common
 * OpenVINO may now be used as a backend for vLLM, offering better CPU performance due to
   fully-connected layer optimization, fusing multiple fully-connected layers (MLP), U8 KV cache,
   and dynamic split fuse.
-* OpenVINO is now integrated with vLLM and offers better CPU performance with its serving, due
-  to fully connected layer optimization, fusing multiple fully-connected layers (MLP), U8 KV
-  cache, and dynamic split fuse.
-* Ubuntu 24.04 is now officially supported, which means OpenVINO is now validated on this system.
+* Ubuntu 24.04 is now officially supported, which means OpenVINO is now validated on this
+  system (preview support).
 * The following have been improved:
 
   * Increasing support for models like YoloV10 or PixArt-XL-2, thanks to enabling Squeeze and
@@ -270,11 +268,22 @@ OpenVINO pre-optimized models are now available on Hugging Face:
 
 
 
+Known Issues
+-----------------------------
 
+| **Component: OpenVINO.GenAI**
+| ID: 148308
+| Description:
+|   The OpenVINO.GenAI archive distribution doesn't include debug libraries for OpenVINO
+    Tokenizers and OpenVINO.GenAI.
 
-
-
-
+| **Component: GPU**
+| ID: 146283
+| Description:
+|   For some LLM models, longer prompts, such as several thousand tokens, may result in
+    decreased accuracy on the GPU plugin.
+| Workaround:
+|   It is recommended to run the model in the FP32 precision to avoid the issue.
 
 
 

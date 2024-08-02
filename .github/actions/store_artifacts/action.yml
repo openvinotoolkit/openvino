@@ -31,7 +31,7 @@ runs:
       id: copy_artifacts
       shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
       run: >-
-        python ${{ env.ACTION_PATH }}/store_artifacts.py
+        python3 ${{ env.ACTION_PATH }}/store_artifacts.py
         --storage_dir "${{ inputs.storage_dir }}" --storage_root "${{ inputs.storage_root }}"
         -a "${{ inputs.artifacts }}"
       env:
