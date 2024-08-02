@@ -64,14 +64,17 @@ Compiling models for NPU may take a while. By default, LLMPipeline for NPU is co
 
       .. code-block:: python
 
-         # Config here
+         plugin_config = { "PREFILL_CONFIG": { "USE_NPUW": "NO" }, "GENERATE_CONFIG": { "USE_NPUW": "NO" } }
+         pipe = ov_genai.LLMPipeline(model_path, "NPU", plugin_config)
 
    .. tab-item:: C++
       :sync: cpp
 
       .. code-block:: cpp
 
-         // Config here
+         std::map<std::string, std::string> cfg = { { "NPU_USE_NPUW", "NO" } };
+         ov::AnyMap plugin_config = { { "PREFILL_CONFIG", cfg }, { "GENERATE_CONFIG", cfg } };
+         ov::genai::LLMPipeline pipe(model_path, "NPU", plugin_config);
 
 
 Additional Resources
