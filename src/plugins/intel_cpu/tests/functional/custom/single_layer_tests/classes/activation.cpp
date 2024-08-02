@@ -207,7 +207,8 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
 #elif defined(OV_CPU_WITH_SHL)
     if ((activation_type == utils::ActivationTypes::Relu) ||
         (activation_type == utils::ActivationTypes::PReLu) ||
-        (activation_type == utils::ActivationTypes::Exp)) {
+        (activation_type == utils::ActivationTypes::Exp) ||
+        (activation_type == utils::ActivationTypes::Clamp)) {
         return "shl";
     } else {
         return "ref";
