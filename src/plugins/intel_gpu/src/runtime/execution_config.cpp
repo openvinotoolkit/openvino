@@ -195,7 +195,7 @@ void ExecutionConfig::apply_debug_options(const cldnn::device_info& info) {
     }
 
     GPU_DEBUG_IF(debug_config->enable_dynamic_quantize) {
-        set_property(ov::hint::dynamic_quantization_group_size(1048576));
+        set_property(ov::hint::dynamic_quantization_group_size(UINT64_MAX));
     }
 }
 

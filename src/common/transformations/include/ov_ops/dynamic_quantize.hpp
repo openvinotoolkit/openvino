@@ -22,16 +22,16 @@ public:
     /// \param data Input tensor with data
     /// \param group_size Group size for dynamic quantization
     /// \param dt_scale Data type for scale output
-    DynamicQuantize(const Output<Node>& data, size_t group_size, element::Type dt_scale);
+    DynamicQuantize(const Output<Node>& data, std::vector<size_t> group_size, element::Type dt_scale);
 
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
-    size_t get_group_size() { return m_group_size; };
-    static std::vector<ov::PartialShape> shape_infer(const DynamicQuantize* op, std::vector<ov::PartialShape> input_shapes);
+    std::vector<size_t> get_group_size() const { return m_group_size; };
+    static std::vector<ov::PartialShape> shape_infer(const DynamicQuantize* op, std::vector<ov::PartialShape> input_shapes, const std::vector<size_t> group_size);
 
 private:
-    size_t m_group_size;
+    std::vector<size_t> m_group_size;
     element::Type m_dt_scale;
 };
 

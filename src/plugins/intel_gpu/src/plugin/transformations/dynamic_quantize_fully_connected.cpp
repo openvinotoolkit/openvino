@@ -21,7 +21,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(size_t group_size) 
     using namespace ov::pass::pattern;
 
     // per-token quantization is supported
-    if (group_size != 1048576) {
+    if (group_size != UINT64_MAX) {
         GPU_DEBUG_TRACE << "Dynamic quantization is disabled " << group_size << std::endl;
         return;
     }
@@ -51,14 +51,18 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(size_t group_size) 
 
         auto weight_shape = m_fc->get_input_partial_shape(1);
         const size_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();
-        if (group_size != 1048576 &&
+        if (group_size != UINT64_MAX &&
             (group_size == 0 || (innermost_size % group_size != 0 && innermost_size > group_size))) {
             GPU_DEBUG_TRACE << "Dynamic quantization: shape is not aligned with group size " << innermost_size << " / " << group_size << std::endl;
             return false;
         }
 
+        auto rank = m_fc->get_input_partial_shape(0).size();
+        std::vector<uint64_t> shape_group_size(rank, 1);
+        shape_group_size.back() = group_size;
+        auto dyn_quan = std::make_shared<ov::op::internal::DynamicQuantize>(m_data, shape_group_size, element::f16);
+
         OutputVector fc_inputs;
-        auto dyn_quan = std::make_shared<ov::op::internal::DynamicQuantize>(m_data, group_size, element::f16);
         for (size_t i = 0; i < m_fc->get_input_size(); i++)
             fc_inputs.push_back(m_fc->get_input_node_shared_ptr(i));
         fc_inputs[0] = dyn_quan->output(0);

@@ -30,7 +30,10 @@ std::vector<layout> dynamic_quantize_inst::__calc_output_layouts(layout &act_lay
         act_layout.get<ShapeType>(),
     };
 
-    auto output_shapes = ov::op::internal::DynamicQuantize::shape_infer(&op, input_shapes);
+    std::vector<uint64_t> shape_group_size(act_layout.get<ShapeType>().size(), 1);
+    shape_group_size.back() = group_size;
+
+    auto output_shapes = ov::op::internal::DynamicQuantize::shape_infer(&op, input_shapes, shape_group_size);
 
     return { layout(output_shapes[0], data_types::i8, output_format), layout(output_shapes[1], data_types::f16, output_format) };
 }
@@ -41,7 +44,7 @@ template<typename ShapeType>
 std::vector<layout> dynamic_quantize_inst::calc_output_layouts(dynamic_quantize_node const& /*node*/, const kernel_impl_params& impl_param) {
     auto desc = impl_param.typed_desc<dynamic_quantize>();
     auto input_layout = impl_param.get_input_layout();
-    return __calc_output_layouts<ov::PartialShape>(input_layout, 0 /* TODO: handle group_size here */);
+    return __calc_output_layouts<ov::PartialShape>(input_layout, UINT64_MAX /* TODO: handle group_size here */);
 }
 
 template std::vector<layout> dynamic_quantize_inst::calc_output_layouts<ov::PartialShape>(dynamic_quantize_node const& node,
