@@ -25,7 +25,7 @@ file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
 file(GLOB GPU_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/../articles_en/assets/snippets/gpu/*.cpp")
 # add GPU snippets if OpenCL has been found
 if(TARGET OpenCL::OpenCL)
-    list(APPEND SOURCES ${GPU_SOURCES})
+    list(APPEND  SOURCES ${GPU_SOURCES})
 endif()
 
 # try to find VA libraries
@@ -87,7 +87,7 @@ if(OpenCV_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE opencv_core)
 endif()
 
-target_link_libraries(${TARGET_NAME} PRIVATE gtest gtest_main common_test_utils)
+target_link_libraries(${TARGET_NAME} PRIVATE common_test_utils)
 
 # ov_ncc_naming_style(FOR_TARGET "${TARGET_NAME}"
 #                     SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}"
