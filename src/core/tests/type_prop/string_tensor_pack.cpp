@@ -40,9 +40,9 @@ INSTANTIATE_TEST_SUITE_P(TypePropStringTensorPackTestSuite,
 
 using TypePropStringTensorPackV15Test = TypePropOpTest<op::v15::StringTensorPack>;
 
-TEST_F(TypePropStringTensorPackV15Test, default_constructor) {
-    const auto begins = std::make_shared<Parameter>(element::i64, PartialShape{3});
-    const auto ends = std::make_shared<Parameter>(element::i64, PartialShape{3});
+TEST_F(TypePropStringTensorPackV15Test, default_case) {
+    const auto begins = std::make_shared<Parameter>(element::i32, PartialShape{3});
+    const auto ends = std::make_shared<Parameter>(element::i32, PartialShape{3});
     const auto symbols = std::make_shared<Parameter>(element::u8, PartialShape{100});
     const auto op = make_op(begins, ends, symbols);
 
@@ -58,6 +58,15 @@ TEST_F(TypePropStringTensorPackV15Test, int64_indices) {
 
     EXPECT_EQ(op->get_output_element_type(0), element::string);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape{3});
+}
+
+TEST_F(TypePropStringTensorPackV15Test, incorrect_symbols_shape) {
+    const auto begins = std::make_shared<Parameter>(element::i32, PartialShape{2});
+    const auto ends = std::make_shared<Parameter>(element::i32, PartialShape{2});
+    const auto symbols = std::make_shared<Parameter>(element::u8, PartialShape{100, 3});
+    OV_EXPECT_THROW(std::ignore = make_op(begins, ends, symbols),
+                    NodeValidationFailure,
+                    HasSubstr("Symbols input must be 1D."));
 }
 
 TEST_F(TypePropStringTensorPackV15Test, begins_ends_shape_mismatch) {

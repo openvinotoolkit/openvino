@@ -17,11 +17,6 @@ StringTensorUnpack::StringTensorUnpack(const Output<Node>& data) : Op({data}) {
     constructor_validate_and_infer_types();
 }
 
-bool StringTensorUnpack::visit_attributes(ov::AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v15_StringTensorUnpack_visit_attributes);
-    return true;
-}
-
 void StringTensorUnpack::validate_and_infer_types() {
     OV_OP_SCOPE(v15_StringTensorUnpack_validate_and_infer_types);
 

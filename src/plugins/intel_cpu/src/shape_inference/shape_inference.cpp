@@ -404,8 +404,8 @@ using IStaticShapeInferFactory =
 template <>
 const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     // opset15
-    _OV_OP_SHAPE_INFER_MASK_REG(ov::op::v15::StringTensorUnpack, ShapeInferTA, util::bit::mask(0)),
-    _OV_OP_SHAPE_INFER_MASK_REG(ov::op::v15::StringTensorPack, ShapeInferTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(op::v15::StringTensorUnpack, ShapeInferTA, util::bit::mask(0)),
+    _OV_OP_SHAPE_INFER_MASK_REG(op::v15::StringTensorPack, ShapeInferTA, util::bit::mask(0, 1)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset15::EmbeddingBagOffsets, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(opset15::EmbeddingBagPacked, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(op::v15::Col2Im, ShapeInferTA, util::bit::mask(1, 2)),

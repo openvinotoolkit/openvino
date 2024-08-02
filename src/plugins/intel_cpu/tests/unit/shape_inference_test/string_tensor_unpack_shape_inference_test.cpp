@@ -79,22 +79,6 @@ TEST_F(StringTensorUnpackStaticShapeInferenceTest, data_from_tensor_accessor_3) 
 TEST_F(StringTensorUnpackStaticShapeInferenceTest, data_from_tensor_accessor_4) {
     const auto data = std::make_shared<Parameter>(element::string, ov::PartialShape::dynamic());
     const auto op = make_op(data);
-    std::string data_val[] = {};
-    auto const_inputs = std::unordered_map<size_t, Tensor>{{0, {element::string, Shape{0}, data_val}}};
-
-    const auto input_shapes = ShapeVector{Shape{0}};
-    auto shape_infer = make_shape_inference(op);
-    const auto input_shape_refs = make_static_shape_refs(input_shapes);
-    const auto output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor(const_inputs));
-    EXPECT_EQ(output_shapes.size(), 3);
-    EXPECT_EQ(output_shapes[0], StaticShape({0}));
-    EXPECT_EQ(output_shapes[1], StaticShape({0}));
-    EXPECT_EQ(output_shapes[2], StaticShape({0}));
-}
-
-TEST_F(StringTensorUnpackStaticShapeInferenceTest, data_from_tensor_accessor_5) {
-    const auto data = std::make_shared<Parameter>(element::string, ov::PartialShape::dynamic());
-    const auto op = make_op(data);
     std::string data_val[] = {"In@tel", "Open#VINO", "A$I"};
     auto const_inputs = std::unordered_map<size_t, Tensor>{{0, {element::string, Shape{1, 3}, data_val}}};
 

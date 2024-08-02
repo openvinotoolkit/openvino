@@ -14,10 +14,10 @@ using ov::op::v0::Constant;
 using ov::op::v0::Parameter;
 
 class StringTensorPackStaticTestSuite : public ::testing::TestWithParam<std::tuple<
-                                                              Shape,                        // begins/ends indices shape
+                                                              Shape,                         // begins/ends indices shape
                                                               std::vector<int32_t>,          // begins
                                                               std::vector<int32_t>,          // ends
-                                                              std::vector<uint8_t>          // symbols
+                                                              std::vector<uint8_t>           // symbols
                                                               >> {};
 
 TEST_P(StringTensorPackStaticTestSuite, StringTensorPackStaticShapeInference) {
@@ -202,4 +202,81 @@ TEST_F(StringTensorPackStaticShapeInferenceWithTensorAccessorTest, data_from_ten
     const auto output_shapes = *shape_infer->infer(input_shape_refs, make_tensor_accessor(const_inputs));
     EXPECT_EQ(output_shapes.size(), 1);
     EXPECT_EQ(output_shapes[0], StaticShape({2, 2}));
+}
+
+TEST_F(StringTensorPackStaticShapeInferenceWithTensorAccessorTest, indices_validation) {
+    const auto begins_param = std::make_shared<Parameter>(element::i32, ov::PartialShape::dynamic());
+    const auto ends_param = std::make_shared<Parameter>(element::i32, ov::PartialShape::dynamic());
+    const auto symbols_param = std::make_shared<Parameter>(element::u8, ov::PartialShape::dynamic());
+    const auto op = make_op(begins_param, ends_param, symbols_param);
+    uint8_t symbols[] = {0x31, 0x20, 0x34};
+    const auto input_shapes = ShapeVector{Shape{2, 2}, Shape{2, 2}, Shape{3}};
+    auto shape_infer = make_shape_inference(op);
+    const auto input_shape_refs = make_static_shape_refs(input_shapes);
+    {  // negative begins indices
+        int32_t begins[] = {-1, 1, 1, 2};
+        int32_t ends[] = {1, 1, 2, 3};
+        const auto const_inputs = std::unordered_map<size_t, Tensor>{
+            {0, {element::i32, Shape{2, 2}, begins}},
+            {1, {element::i32, Shape{2, 2}, ends}},
+            {2, {element::u8, Shape{3}, symbols}}};
+        OV_EXPECT_THROW(std::ignore = *shape_infer->infer(input_shape_refs, make_tensor_accessor(const_inputs)),
+                        NodeValidationFailure,
+                        testing::HasSubstr("Indices cannot be negative"));
+    }
+    {  // negative ends indices
+        int32_t begins[] = {1, 1, 1, 2};
+        int32_t ends[] = {-1, 1, 2, 3};
+        const auto const_inputs = std::unordered_map<size_t, Tensor>{
+            {0, {element::i32, Shape{2, 2}, begins}},
+            {1, {element::i32, Shape{2, 2}, ends}},
+            {2, {element::u8, Shape{3}, symbols}}};
+        OV_EXPECT_THROW(std::ignore = *shape_infer->infer(input_shape_refs, make_tensor_accessor(const_inputs)),
+                        NodeValidationFailure,
+                        testing::HasSubstr("Indices cannot be negative"));
+    }
+    {  // begins out of bounds
+        int32_t begins[] = {1, 1, 1, 3};
+        int32_t ends[] = {1, 1, 2, 3};
+        const auto const_inputs = std::unordered_map<size_t, Tensor>{
+            {0, {element::i32, Shape{2, 2}, begins}},
+            {1, {element::i32, Shape{2, 2}, ends}},
+            {2, {element::u8, Shape{3}, symbols}}};
+        OV_EXPECT_THROW(std::ignore = *shape_infer->infer(input_shape_refs, make_tensor_accessor(const_inputs)),
+                        NodeValidationFailure,
+                        testing::HasSubstr("The biggest index cannot be higher than the amount or characters in symbols input"));
+    }
+    {  // ends out of bounds
+        int32_t begins[] = {1, 1, 1, 2};
+        int32_t ends[] = {1, 1, 2, 4};
+        const auto const_inputs = std::unordered_map<size_t, Tensor>{
+            {0, {element::i32, Shape{2, 2}, begins}},
+            {1, {element::i32, Shape{2, 2}, ends}},
+            {2, {element::u8, Shape{3}, symbols}}};
+        OV_EXPECT_THROW(std::ignore = *shape_infer->infer(input_shape_refs, make_tensor_accessor(const_inputs)),
+                        NodeValidationFailure,
+                        testing::HasSubstr("The biggest index cannot be higher than the amount or characters in symbols input"));
+    }
+    {  // unsorted begins
+        int32_t begins[] = {1, 3, 1, 2};
+        int32_t ends[] = {1, 1, 2, 3};
+        const auto const_inputs = std::unordered_map<size_t, Tensor>{
+            {0, {element::i32, Shape{2, 2}, begins}},
+            {1, {element::i32, Shape{2, 2}, ends}},
+            {2, {element::u8, Shape{3}, symbols}}};
+        OV_EXPECT_THROW(std::ignore = *shape_infer->infer(input_shape_refs, make_tensor_accessor(const_inputs)),
+                        NodeValidationFailure,
+                        testing::HasSubstr("Indices must be in ascending order"));
+    }
+    {  // unsorted ends
+        int32_t begins[] = {1, 1, 1, 2};
+        int32_t ends[] = {1, 1, 5, 3};
+        const auto const_inputs = std::unordered_map<size_t, Tensor>{
+            {0, {element::i32, Shape{2, 2}, begins}},
+            {1, {element::i32, Shape{2, 2}, ends}},
+            {2, {element::u8, Shape{3}, symbols}}};
+        OV_EXPECT_THROW(std::ignore = *shape_infer->infer(input_shape_refs, make_tensor_accessor(const_inputs)),
+                        NodeValidationFailure,
+                        testing::HasSubstr("Indices must be in ascending order"));
+    }
 }

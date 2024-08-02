@@ -17,11 +17,6 @@ StringTensorPack::StringTensorPack(const Output<Node>& begins, const Output<Node
     constructor_validate_and_infer_types();
 }
 
-bool StringTensorPack::visit_attributes(ov::AttributeVisitor& visitor) {
-    OV_OP_SCOPE(v15_StringTensorPack_visit_attributes);
-    return true;
-}
-
 void StringTensorPack::validate_and_infer_types() {
     OV_OP_SCOPE(v15_StringTensorPack_validate_and_infer_types);
 
