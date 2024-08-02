@@ -116,7 +116,6 @@ namespace {
 /* CPU PARAMS */
 std::vector<CPUSpecificParams> getCpuInfoForDimsCount(const size_t dimsCount = 3) {
     std::vector<CPUSpecificParams> resCPUParams;
-#if !defined(OPENVINO_ARCH_RISCV64)
     const bool avx512_target = with_cpu_x86_avx512f();
 
     if (dimsCount == 5) {
@@ -132,7 +131,6 @@ std::vector<CPUSpecificParams> getCpuInfoForDimsCount(const size_t dimsCount = 3
         resCPUParams.push_back(CPUSpecificParams{{blocked_format}, {blocked_format}, {}, {}});
         resCPUParams.push_back(CPUSpecificParams{{acb}, {acb}, {}, {}});
     }
-#endif
 
     return filterCPUSpecificParams(resCPUParams);
 }

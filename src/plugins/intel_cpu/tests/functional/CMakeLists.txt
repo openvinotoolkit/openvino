@@ -39,11 +39,19 @@ endif()
 
 if(NOT RISCV64)
     list(APPEND EXCLUDED_SOURCE_PATHS
-         ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/riscv64)
-elseif(NOT OV_CPU_WITH_SHL)
+         ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/riscv64
+         ${CMAKE_CURRENT_SOURCE_DIR}/utils/riscv64)
+else()
     list(APPEND EXCLUDED_SOURCE_PATHS
-         ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/riscv64/shl)
+         ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/x64
+         ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/x64
+         ${CMAKE_CURRENT_SOURCE_DIR}/utils/x64)
+    if(NOT OV_CPU_WITH_SHL)
+        list(APPEND EXCLUDED_SOURCE_PATHS
+            ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/riscv64/shl)
+    endif()
 endif()
+
 if(NOT (ARM OR AARCH64))
     list(APPEND EXCLUDED_SOURCE_PATHS
          ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/arm
