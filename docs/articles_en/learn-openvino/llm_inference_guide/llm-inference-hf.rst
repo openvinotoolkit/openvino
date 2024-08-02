@@ -237,16 +237,15 @@ includes **Dynamic quantization** of activations of 4/8-bit quantized MatMuls an
   insignificant deviation in generation accuracy.  Quantization is performed in a group-wise
   manner, with configurable group size. It means that values in a group share quantization
   parameters. Larger group sizes lead to faster inference but lower accuracy. Recommended
-  group size values are ``32``, ``64``, or ``128``. To enable Dynamic quantization, use
-  the corresponding inference property as follows:
+  group size values are ``32``, ``64``, or ``128``. Dynamic quantization is enabled **by default**
+  on the CPU device. To disable dynamic quantization, change execution mode from the ``PERFORMANCE MODE``
+  to the ``ACCURACY``. More information on both modes are available in the
+  :ref:`Precision Control Guide <execution-mode>`
 
+  .. note::
 
-  .. code-block:: python
+     As of release 2024.3, dynamic quantization is not enabled for the BF16 inference.
 
-     model = OVModelForCausalLM.from_pretrained(
-         model_path,
-         ov_config={"DYNAMIC_QUANTIZATION_GROUP_SIZE": "32", "PERFORMANCE_HINT": "LATENCY"}
-     )
 
 * **KV-cache quantization** allows lowering the precision of Key and Value cache in LLMs.
   This helps reduce memory consumption during inference, improving latency and throughput.
