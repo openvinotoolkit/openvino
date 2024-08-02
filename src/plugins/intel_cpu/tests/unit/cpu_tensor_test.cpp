@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include <openvino/core/shape.hpp>
 #include <openvino/core/strides.hpp>
 #include <openvino/core/type/element_type.hpp>
+#include "memory_desc/blocked_memory_desc.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/partial_shape.hpp"
 

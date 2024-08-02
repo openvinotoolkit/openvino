@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 OutputVector translate_reverse_sequence_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"ReverseSequence"});
+    default_op_checks(node, 2, {"ReverseSequence", "REVERSE_SEQUENCE"});
     auto input = node.get_input(0);
     auto seq_lengths = node.get_input(1);
 

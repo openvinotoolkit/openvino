@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,8 +29,8 @@ struct SqueezeParams {
           m_output_shape(output_shape),
           m_input_type(input_type),
           m_output_type(output_type),
-          m_input_value(CreateTensor(input_type, input_value)),
-          m_expected_value(CreateTensor(output_type, expected_value)),
+          m_input_value(CreateTensor(input_shape, input_type, input_value)),
+          m_expected_value(CreateTensor(output_shape, output_type, expected_value)),
           m_axes_shape(axes_shape),
           m_axes_type(axes_type),
           m_axes_value(CreateTensor(axes_type, axes_value)),
@@ -47,8 +47,8 @@ struct SqueezeParams {
           m_output_shape(output_shape),
           m_input_type(input_type),
           m_output_type(output_type),
-          m_input_value(CreateTensor(input_type, input_value)),
-          m_expected_value(CreateTensor(input_type, expected_value)),
+          m_input_value(CreateTensor(input_shape, input_type, input_value)),
+          m_expected_value(CreateTensor(output_shape, input_type, expected_value)),
           m_axes_node(false) {}
 
     Shape m_input_shape;
@@ -116,6 +116,15 @@ std::vector<SqueezeParams> generateParamsForSqueeze() {
     using T2 = typename element_type_traits<Axes_T>::value_type;
 
     std::vector<SqueezeParams> params{
+        SqueezeParams(Shape{1, 4, 1, 1, 2},
+                      Shape{4, 1, 2},
+                      IO_T,
+                      IO_T,
+                      std::vector<T1>{1, 2, 3, 4, 5, 6, 7, 8},
+                      std::vector<T1>{1, 2, 3, 4, 5, 6, 7, 8},
+                      Shape{4},
+                      Axes_T,
+                      std::vector<T2>{0, 1, 3, -1}),
         SqueezeParams(Shape{1, 4, 1, 1, 2},
                       Shape{4, 1, 2},
                       IO_T,

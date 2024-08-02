@@ -9,7 +9,7 @@
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -22,7 +22,7 @@ public:
         const std::vector<int>& axis,
         const int64_t batch_dims,
         const ov::element::Type precisionBeforeDequantization,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantization,
+        const ov::builder::subgraph::DequantizationOperations& dequantization,
         const int opset_version);
 
     static std::shared_ptr<ov::Model> getOriginal(
@@ -42,12 +42,12 @@ public:
         const std::vector<int>& axis,
         const int64_t batch_dims,
         const ov::element::Type precisionBeforeDequantization,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+        const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
         const ov::element::Type precisionAfterOperation,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
+        const ov::builder::subgraph::DequantizationOperations& dequantizationAfter,
         const int opset_version);
 };
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

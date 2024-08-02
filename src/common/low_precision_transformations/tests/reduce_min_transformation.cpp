@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ namespace {
 using namespace testing;
 using namespace ov;
 using namespace ov::pass;
-using namespace ngraph::builder::subgraph;
+using namespace ov::builder::subgraph;
 
 class ReduceMinTransformation : public ReduceTransformation<ov::op::v1::ReduceMin> {
     void SetUp() override {

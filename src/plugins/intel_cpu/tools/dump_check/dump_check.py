@@ -1,12 +1,12 @@
 #!/usr/bin/python3
 
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.runtime import Core, Model, Tensor, PartialShape, Type
 from openvino.runtime import opset8 as opset
 from openvino.runtime.op import Constant, Parameter, tensor_iterator
-from openvino.runtime.passes import Manager
+from openvino.runtime.passes import Manager, Serialize
 from openvino.runtime.utils.types import get_dtype
 import openvino as ov
 import numpy as np
@@ -75,14 +75,14 @@ def fill_tensors_from_image(input, input_file):
 
 class IEB:
     precision_table = {
-        10:(np.float32, 4),
-        12:(np.int16, 2),
-        40:(np.uint8, 1),
-        50:(np.int8, 1),
-        70:(np.int32, 4),
-        74:(np.uint32, 4),
-        72:(np.int64, 8),
-        73:(np.uint64, 8)
+        5:(np.float32, 4),
+        9:(np.int16, 2),
+        14:(np.uint8, 1),
+        8:(np.int8, 1),
+        10:(np.int32, 4),
+        15:(np.uint32, 4),
+        11:(np.int64, 8),
+        17:(np.uint64, 8)
     }
 
     @classmethod
@@ -207,7 +207,7 @@ def dump_tensors(core, model, dump_dir = "./cpu_dump", dump_ports="OUT", device_
     xml_path = f"{base_name[-1]}.xml"
     bin_path = f"{base_name[-1]}.bin"
     pass_manager = Manager()
-    pass_manager.register_pass("Serialize", xml_path=xml_path, bin_path=bin_path)
+    pass_manager.register_pass(Serialize(path_to_xml=xml_path, path_to_bin=bin_path))
     pass_manager.run_passes(runtime_func)
     
     print(f"{device_target} Runtime model (exec_graph) is serialized to {xml_path}.")

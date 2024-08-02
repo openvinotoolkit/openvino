@@ -6,8 +6,9 @@
 
 #include <utility>
 
+#include "openvino/op/constant.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/opsets/opset10.hpp"
 #include "openvino/util/common_util.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -17,8 +18,8 @@ namespace transpose_sinking {
 namespace utils {
 
 struct TransposeInputsInfo {
-    std::shared_ptr<ov::opset10::Transpose> transpose;
-    std::shared_ptr<ov::opset10::Constant> transpose_const;
+    std::shared_ptr<ov::op::v1::Transpose> transpose;
+    std::shared_ptr<ov::op::v0::Constant> transpose_const;
     size_t input_idx;
 
     bool isEmpty() const {
@@ -27,12 +28,21 @@ struct TransposeInputsInfo {
 };
 
 /**
+ * @brief default function to check if we could sink found transpose
+ */
+bool if_transpose_sinkable_default(const std::shared_ptr<ov::op::v1::Transpose>& transpose,
+                                   const std::shared_ptr<ov::op::v0::Constant>& transpose_order);
+
+/**
  * @brief Finds node first input that is a transpose operation and returns filled TransposeInputsInfo
  * for it
  */
-TransposeInputsInfo GetFirstTransposeInput(const std::shared_ptr<ov::Node>&,
-                                           bool const_transpose_order,
-                                           const std::vector<size_t>& indices = {});
+TransposeInputsInfo GetFirstTransposeInput(
+    const std::shared_ptr<ov::Node>&,
+    const std::vector<size_t>& indices = {},
+    const std::function<bool(const std::shared_ptr<ov::op::v1::Transpose>& transpose,
+                             const std::shared_ptr<ov::op::v0::Constant>& transpose_order)>& =
+        if_transpose_sinkable_default);
 
 /**
  * @brief Checks if @arg has any input node that is a transpose operation
@@ -90,7 +100,7 @@ namespace sink_backward {
  */
 ov::NodeVector InsertTransposeBeforeNode(
     const std::shared_ptr<ov::Node>& main_node,
-    const std::shared_ptr<ov::opset10::Constant>& transpose_const,
+    const std::shared_ptr<ov::op::v0::Constant>& transpose_const,
     std::vector<size_t> input_indexes = {},
     std::function<std::shared_ptr<ov::Node>(const ov::Output<ov::Node>& node, size_t n_dims)> InsertUnsqueeze =
         InsertBroadcastUnsqueeze);
@@ -114,22 +124,22 @@ bool RemoveTransposeConsumers(const std::shared_ptr<ov::Node>& node);
  */
 ov::Output<ov::Node> ChangeValuesOrder(const ov::Output<ov::Node>& input,
                                        const ov::AxisVector& transpose_axis_order,
-                                       const std::shared_ptr<ov::opset10::Constant>& axis);
+                                       const std::shared_ptr<ov::op::v0::Constant>& axis);
 /**
  * @brief Inserts Gather operation which changes the order of values in @arg input
  * according to @arg transpose_axis_order along @arg axis.
  */
 Output<Node> ChangeAxes(const Output<Node>& input,
                         const AxisVector& transpose_axis_order,
-                        const std::shared_ptr<ov::opset10::Constant>& axis);
+                        const std::shared_ptr<ov::op::v0::Constant>& axis);
 
 /**
  * @brief Inserts Gather operation which changes the order of values in @arg input
  * according to @arg transpose_axis_order along @arg axis.
  */
 Output<Node> ChangeAxes(const Output<Node>& input,
-                        const std::shared_ptr<ov::opset10::Constant>& transpose_axis_order,
-                        const std::shared_ptr<ov::opset10::Constant>& axis);
+                        const std::shared_ptr<ov::op::v0::Constant>& transpose_axis_order,
+                        const std::shared_ptr<ov::op::v0::Constant>& axis);
 /**
  * @brief Returns the updated axes order for case when the initial axes order has more elements
  * than after TransposeSinking, e.g.:

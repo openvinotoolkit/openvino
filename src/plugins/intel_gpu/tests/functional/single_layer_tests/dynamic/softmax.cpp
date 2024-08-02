@@ -100,7 +100,11 @@ const std::vector<ov::test::InputShape> inputShapes4D = {
     {
         {{20, 100}, 12, {1, 400}, {1, 300}},
         {{30, 12, 10, 20}, {20, 12, 5, 40}}
-    }
+    },
+    { // Excessive upper bound case
+        {3, 8, {128, 16384}, {128, 16384}},
+        {{3, 8, 128, 128}}
+    },
 };
 
 const std::vector<int64_t> axis5D = {0, 1, 2, 4};

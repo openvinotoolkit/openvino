@@ -1,17 +1,31 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 if(WIN32)
-    set(PROGRAMFILES_ENV "ProgramFiles(X86)")
+    # CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION is only set when
+    # Visual Studio generators are used, but we need it
+    # when we use Ninja as well
+    if(NOT DEFINED CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION)
+        if(DEFINED ENV{WindowsSDKVersion})
+            string(REPLACE "\\" "" WINDOWS_SDK_VERSION $ENV{WindowsSDKVersion})
+            set(CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION ${WINDOWS_SDK_VERSION})
+            message(STATUS "Use ${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION} Windows SDK version")
+        else()
+          message(FATAL_ERROR "WindowsSDKVersion environment variable is not set,\
+can't find Windows SDK version. Try to use vcvarsall.bat script")
+        endif()
+    endif()
+
+    set(PROGRAMFILES_ENV "ProgramFiles\(X86\)")
 
     # check that PROGRAMFILES_ENV is defined, because in case of cross-compilation for Windows
     # we don't have such variable
-    if(DEFINED ENV{PROGRAMFILES_ENV})
+    if(DEFINED ENV{${PROGRAMFILES_ENV}})
         file(TO_CMAKE_PATH $ENV{${PROGRAMFILES_ENV}} PROGRAMFILES)
 
         set(WDK_PATHS "${PROGRAMFILES}/Windows Kits/10/bin/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/x64"
-                    "${PROGRAMFILES}/Windows Kits/10/bin/x64")
+                      "${PROGRAMFILES}/Windows Kits/10/bin/x64")
 
         message(STATUS "Trying to find apivalidator in: ")
         foreach(wdk_path IN LISTS WDK_PATHS)
@@ -19,9 +33,9 @@ if(WIN32)
         endforeach()
 
         find_host_program(ONECORE_API_VALIDATOR
-                        NAMES apivalidator
-                        PATHS ${WDK_PATHS}
-                        DOC "ApiValidator for OneCore compliance")
+                          NAMES apivalidator
+                          PATHS ${WDK_PATHS}
+                          DOC "ApiValidator for OneCore compliance")
 
         if(ONECORE_API_VALIDATOR)
             message(STATUS "Found apivalidator: ${ONECORE_API_VALIDATOR}")

@@ -1,10 +1,8 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/single_op/multinomial.hpp"
-
-#include "ov_models/builders.hpp"
 
 using namespace ov::test;
 
@@ -35,6 +33,7 @@ std::string MultinomialLayerTest::getTestCaseName(const testing::TestParamInfo<M
     } else {  // i64
         result << "num_samples=" << static_cast<long*>(num_samples.data())[0] << separator;
     }
+    result << "inType=" << probs.get_element_type() << separator;
     result << "convert_type=" << convert_type << separator;
     result << "replace=" << ov::test::utils::bool2str(with_replacement) << separator;
     result << "log=" << ov::test::utils::bool2str(log_probs) << separator;

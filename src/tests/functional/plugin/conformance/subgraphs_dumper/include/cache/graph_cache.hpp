@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include "matchers/subgraph/manager.hpp"
 #include "matchers/subgraph/fused_names.hpp"
 #include "matchers/subgraph/repeat_pattern.hpp"
+#include "matchers/subgraph/read_value_assign.hpp"
 
 namespace ov {
 namespace tools {
@@ -50,6 +51,7 @@ protected:
     GraphCache(const std::string& device = "") {
         ExtractorsManager::ExtractorsMap matchers = {
             { "repeat_pattern", RepeatPatternExtractor::Ptr(new RepeatPatternExtractor) },
+            { "read_value_assign", ReadValueAssignExtractor::Ptr(new ReadValueAssignExtractor) },
         };
         try {
             matchers.insert({ "fused_names", FusedNamesExtractor::Ptr(new FusedNamesExtractor(device)) });

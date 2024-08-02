@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,9 @@
 
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 op::v0::LRN::LRN(const Output<Node>& arg, double alpha, double beta, double bias, size_t size)

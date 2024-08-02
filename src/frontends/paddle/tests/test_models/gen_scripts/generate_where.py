@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -38,7 +38,7 @@ def where(name, test_x, test_y, test_cond):
             fetch_list=[out]
         )
 
-        saveModel(name, exe, feedkeys=['x', 'y', 'cond'], fetchlist=[out], inputs=[
+        saveModel(name, exe, feed_vars=[X_Node, Y_Node, Cond_Node], fetchlist=[out], inputs=[
                   test_x, test_y, test_cond], outputs=[outs[0]], target_dir=sys.argv[1])
 
 

@@ -39,7 +39,8 @@ struct shape_of_impl : public typed_primitive_impl<shape_of> {
     event::ptr execute_impl(const std::vector<event::ptr>& events, shape_of_inst& instance) override {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "shape_of::execute_impl");
         auto& stream = instance.get_network().get_stream();
-        auto ev = stream.create_user_event(false);
+
+        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
 
         auto output_mem_ptr = instance.output_memory_ptr();
 
@@ -59,9 +60,15 @@ struct shape_of_impl : public typed_primitive_impl<shape_of> {
             OPENVINO_THROW("[GPU] Couldn't execute shape_of operation: unsupported output data type (", output_dt , ")");
         }
 
-        ev->set();
+        if (pass_through_events) {
+            if (events.size() > 1) {
+                return stream.group_events(events);
+            } else if (events.size() == 1) {
+                return events[0];
+            }
+        }
 
-        return ev;
+        return stream.create_user_event(true);
     }
 
     void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 
 #include "mask_attribute.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/gelu.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -15,10 +16,10 @@
 #include "openvino/op/util/pad_base.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/reference/utils/coordinate_index.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 #include "openvino/util/log.hpp"
 #include "pruning.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace pass {
@@ -764,7 +765,11 @@ public:
             if (!concat_ptr) {
                 return false;
             }
-            auto axis = concat_ptr->get_concatenation_axis();
+            int64_t axis = -1;
+            if (concat_ptr->get_output_partial_shape(0).rank().is_static()) {
+                const auto rank = concat_ptr->get_output_partial_shape(0).rank().get_length();
+                axis = ov::util::normalize(concat_ptr->get_axis(), rank);
+            }
 
             auto inputs = concat_ptr->inputs();
             std::map<int64_t, ov::Mask::Ptr> input_masks;
@@ -1012,18 +1017,12 @@ struct ChannelsMap {
 /* Returns coordinate iterator through all values of given channel
  *  on unsquized_shape_dim dimension according to unsquized_shape shape.
  */
-OPENVINO_SUPPRESS_DEPRECATED_START
-static ov::CoordinateTransform get_channel_iter(const ov::Shape unsquized_shape,
-                                                const size_t unsquized_shape_dim,
-                                                const size_t channel) {
-    auto begin = ov::Coordinate(unsquized_shape.size(), 0);
-    auto end = ov::Coordinate(unsquized_shape);
-    begin[unsquized_shape_dim] = channel;
-    end[unsquized_shape_dim] = channel + 1;
-    ov::CoordinateTransform iter(unsquized_shape, begin, end);
-    return iter;
+static ov::CoordinateTransformBasic get_channel_iter(const ov::Shape& unsquized_shape,
+                                                     const size_t unsquized_shape_dim) {
+    auto iter_shape = unsquized_shape;
+    iter_shape[unsquized_shape_dim] = 1;
+    return ov::CoordinateTransformBasic{iter_shape};
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 /* Maps squzed_mask_dim mask dimension to vector of masks for unsquized_dims.
  *  Using dims_attrs and unsquized_shape for channel iteration.
@@ -1054,16 +1053,16 @@ static ChannelsMap map_channels(const std::set<uint64_t> squized_mask_dim,
                 ch %= dims_attrs[unsquized_dim].dim;
 
             // Start iterating through chanel
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            auto iter = get_channel_iter(unsquized_shape, unsquized_shift, ch);
-            for (const auto& coord : iter) {
-                const auto idx = iter.index(coord);
+            auto iter = get_channel_iter(unsquized_shape, unsquized_shift);
+            for (auto coord : iter) {
+                coord[unsquized_shift] = ch;
+                const auto idx = coordinate_index(coord, unsquized_shape);
                 if (squized_mask_dim_copy.find(idx) != squized_mask_dim_copy.end()) {
                     cur_ch_elems.insert(idx);
                     squized_mask_dim_copy.erase(idx);
                 }
             }
-            OPENVINO_SUPPRESS_DEPRECATED_END
+
             if (cur_ch_elems.size() !=
                 dims_attrs[unsquized_dim].elems_inner_dims * dims_attrs[unsquized_dim].elems_outer_dims) {
                 suspicious_elems.insert(cur_ch_elems.begin(), cur_ch_elems.end());
@@ -1245,11 +1244,11 @@ public:
                                 for (const auto out_dim : dims_map[in_dim]) {
                                     const auto unsquized_shift = out_dim - dims_map[in_dim][0];
                                     for (const auto ch : weights_mask_row->at(out_dim)) {
-                                        OPENVINO_SUPPRESS_DEPRECATED_START
-                                        auto iter = get_channel_iter(dims_shape[in_dim], unsquized_shift, ch);
-                                        for (const auto& coord : iter)
-                                            cur_mask->at(in_dim).insert(iter.index(coord));
-                                        OPENVINO_SUPPRESS_DEPRECATED_END
+                                        auto iter = get_channel_iter(dims_shape[in_dim], unsquized_shift);
+                                        for (auto coord : iter) {
+                                            coord[unsquized_shift] = ch;
+                                            cur_mask->at(in_dim).insert(coordinate_index(coord, dims_shape[in_dim]));
+                                        }
                                     }
                                 }
                             }
@@ -1318,11 +1317,11 @@ public:
                                 for (const auto in_dim : dims_map[out_dim]) {
                                     const auto unsquized_shift = in_dim - dims_map[out_dim][0];
                                     for (const auto ch : input_mask_row->at(in_dim)) {
-                                        OPENVINO_SUPPRESS_DEPRECATED_START
-                                        auto iter = get_channel_iter(dims_shape[out_dim], unsquized_shift, ch);
-                                        for (const auto& coord : iter)
-                                            cur_mask->at(out_dim).insert(iter.index(coord));
-                                        OPENVINO_SUPPRESS_DEPRECATED_END
+                                        auto iter = get_channel_iter(dims_shape[out_dim], unsquized_shift);
+                                        for (auto coord : iter) {
+                                            coord[unsquized_shift] = ch;
+                                            cur_mask->at(out_dim).insert(coordinate_index(coord, dims_shape[out_dim]));
+                                        }
                                     }
                                 }
                             }

@@ -5,6 +5,7 @@ on:
     - cron: '0 0 * * 3,6'
   workflow_dispatch:
   pull_request:
+  merge_group:
   push:
     branches:
       - master
@@ -15,6 +16,8 @@ concurrency:
   group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux-riscv
   cancel-in-progress: true
 
+permissions: read-all
+
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
@@ -23,7 +26,7 @@ jobs:
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           sparse-checkout: .github/actions/smart-ci
 
@@ -34,6 +37,7 @@ jobs:
           repository: ${{ github.repository }}
           pr: ${{ github.event.number }}
           commit_sha: ${{ github.sha }}
+          ref_name: ${{ github.ref_name }}
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
@@ -59,16 +63,21 @@ jobs:
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
       CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_master_release/.conan
-      CCACHE_DIR: /mount/caches/ccache/ubuntu22_riscv64_master_release
+      CCACHE_REMOTE_DIR: /mount/caches/ccache/ubuntu22_riscv64/${{ github.base_ref || github.ref_name }}
+      CCACHE_DIR: /__w/openvino/openvino/ccache
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
-      CCACHE_MAXSIZE: 50G
-    if: "!needs.smart_ci.outputs.skip_workflow"
+      CCACHE_MAXSIZE: 2G
+
+    if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
     steps:
+      - name: Set apt retries
+        run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
+
       - name: Install git
         run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates
 
       - name: Clone OpenVINO
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           path: 'openvino'
 
@@ -79,6 +88,20 @@ jobs:
       - name: System info
         uses: ./openvino/.github/actions/system_info
 
+      - name: Setup ccache
+        id: ccache_restore
+        uses: ./openvino/.github/actions/cache
+        with:
+          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cache-size: 10
+          max-cache-size: 50
+          cache-path: ${{ env.CCACHE_REMOTE_DIR }}
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-ccache
+
       - name: Init submodules for non-Conan dependencies
         run: |
           pushd ${OPENVINO_REPO}
@@ -86,8 +109,10 @@ jobs:
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/json
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gtest
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gflags
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/telemetry
             git submodule update --init -- ${OPENVINO_REPO}/src/plugins/intel_cpu
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/open_model_zoo
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/flatbuffers/flatbuffers
           popd
 
       #
@@ -101,14 +126,13 @@ jobs:
 
           # install compilers to build OpenVINO for RISC-V 64
           apt --assume-yes install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu
-          apt --assume-yes install gcc g++ python3-pip python3-venv python3-dev
+          apt --assume-yes install -yf gcc g++ python3-pip python3-venv python3-dev
           # generic dependencies
           apt --assume-yes install cmake ccache ninja-build fdupes patchelf
 
           python3 -m venv ${OPENVINO_BUILD_DIR}/env
           source ${OPENVINO_BUILD_DIR}/env/bin/activate
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
-          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
           python3 -m pip install conan
 
       - name: Install RISC-V native debian packages
@@ -158,6 +182,8 @@ jobs:
       #
       # Build
       #
+      - name: Clean ccache stats
+        run: ccache --zero-stats
 
       - name: CMake - Configure
         run: |
@@ -169,8 +195,6 @@ jobs:
             -DENABLE_INTEL_GPU=ON \
             -DENABLE_PYTHON=ON \
             -DENABLE_WHEEL=ON \
-            -DPYTHON_MODULE_EXTENSION=$(riscv64-linux-gnu-python3-config --extension-suffix) \
-            -DPYBIND11_PYTHON_EXECUTABLE_LAST=${OPENVINO_BUILD_DIR}/env/bin/python3.10 \
             -DENABLE_TESTS=ON \
             -DENABLE_PYTHON_PACKAGING=ON \
             -DENABLE_SYSTEM_PROTOBUF=ON \
@@ -207,6 +231,9 @@ jobs:
         env:
           CMAKE_TOOLCHAIN_FILE: ${{ env.OPENVINO_BUILD_DIR }}/dependencies/conan_toolchain.cmake
 
+      - name: Clean ccache
+        run: ccache --cleanup
+
   Overall_Status:
     name: ci/gha_overall_status_linux_riscv
     needs: [Smart_CI, Build]
@@ -216,7 +243,7 @@ jobs:
       - name: Check status of all jobs
         if: >-
           ${{
-            contains(needs.*.result, 'failure') || 
+            contains(needs.*.result, 'failure') ||
             contains(needs.*.result, 'cancelled')
           }}
         run: exit 1

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@ namespace {
 using ov::test::Mvn1LayerTest;
 using ov::test::Mvn6LayerTest;
 
-const std::vector<ngraph::AxisSet> emptyReductionAxes = {{}};
+const std::vector<ov::AxisSet> emptyReductionAxes = {{}};
 
 const std::vector<std::vector<ov::Shape>> inputShapes = {
     {{1, 32, 17}},

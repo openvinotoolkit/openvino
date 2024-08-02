@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -9,15 +9,15 @@ from common.utils.tf_utils import mix_array_with_value
 
 class TestMulNoNan(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x' in inputs_info
-        assert 'y' in inputs_info
-        x_shape = inputs_info['x']
-        y_shape = inputs_info['y']
+        assert 'x:0' in inputs_info
+        assert 'y:0' in inputs_info
+        x_shape = inputs_info['x:0']
+        y_shape = inputs_info['y:0']
         inputs_data = {}
-        inputs_data['x'] = np.random.randint(-10, 10, x_shape).astype(self.input_type)
-        inputs_data['x'] = mix_array_with_value(inputs_data['x'], np.inf)
-        inputs_data['x'] = mix_array_with_value(inputs_data['x'], np.nan)
-        inputs_data['y'] = np.random.randint(-10, 10, y_shape).astype(self.input_type) * \
+        inputs_data['x:0'] = np.random.randint(-10, 10, x_shape).astype(self.input_type)
+        inputs_data['x:0'] = mix_array_with_value(inputs_data['x:0'], np.inf)
+        inputs_data['x:0'] = mix_array_with_value(inputs_data['x:0'], np.nan)
+        inputs_data['y:0'] = np.random.randint(-10, 10, y_shape).astype(self.input_type) * \
                            np.random.choice([0.0], y_shape).astype(self.input_type)
         return inputs_data
 
@@ -38,10 +38,10 @@ class TestMulNoNan(CommonTFLayerTest):
     ]
 
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_mul_no_nan_basic(self, params, ie_device, precision, ir_version, temp_dir,
-                              use_new_frontend, use_old_api):
+                              use_legacy_frontend):
         self._test(*self.create_mul_no_nan_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_legacy_frontend=use_legacy_frontend)

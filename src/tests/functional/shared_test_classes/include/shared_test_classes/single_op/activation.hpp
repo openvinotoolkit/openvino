@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,6 +67,7 @@ static std::map<ActivationTypes, std::string> activationNames = {
         {ActivationTypes::GeluErf,               "GeluErf"},
         {ActivationTypes::GeluTanh,              "GeluTanh"},
         {ActivationTypes::SoftSign,              "SoftSign"},
+        {ActivationTypes::IsInf,                 "IsInf"},
 };
 
 typedef std::tuple<
@@ -82,11 +83,15 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<activationParams> &obj);
 
 protected:
+    //TO DO, to be removed after 125993
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void SetUp() override;
 };
 
 class ActivationParamLayerTest : public ActivationLayerTest {
 protected:
+    //TO DO, to be removed after 125993
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void SetUp() override;
 };
 }  // namespace test

@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vector>
 
-#include "single_layer_tests/softmax.hpp"
+#include "single_op_tests/softmax.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace ov::test::subgraph;

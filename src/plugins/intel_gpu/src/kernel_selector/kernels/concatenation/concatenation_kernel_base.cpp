@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,7 @@ int32_t ConcatenationKernelBase::GetConcatChannelIndex(const concatenation_param
     return DataTensor::Channelndex(params.outputs[0].GetLayout(), GetConcatChannel(params));
 }
 
-bool ConcatenationKernelBase::Validate(const Params& p, const optional_params&) const {
+bool ConcatenationKernelBase::Validate(const Params& p) const {
     if (p.GetType() != KernelType::CONCATENATION) {
         return false;
     }
@@ -129,18 +129,20 @@ void ConcatenationKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
             kernel.params.scalars[0] = s;
 
             auto concatChannelIndex = DataTensor::Channelndex(input.GetLayout(), GetConcatChannel(prim_params));
+            OPENVINO_ASSERT(concatChannelIndex >= 0, "concatChannelIndex shouldn't be negative");
             lastOffset += (uint32_t)input.GetDims()[concatChannelIndex].v;
         }
     };
 }
 
-KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
     const concatenation_params& orgParams = static_cast<const concatenation_params&>(params);
     KernelData kd = KernelData::Default<concatenation_params>(params, orgParams.inputs.size());
+    kd.needs_sub_kernels_sync = false;
     GetUpdateDispatchDataFunc(kd);
 
     bool is_dynamic = orgParams.has_dynamic_tensors();
@@ -162,7 +164,7 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
         auto& kernel = kd.kernels[i];
         DispatchData dispatchData = SetDefault(newParams);
         auto cldnnJit = GetJitConstants(newParams);
-        auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, params, options, i);
+        auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, params, i);
         auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
 
         kernel.code.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
@@ -180,7 +182,7 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
         s.v.u32 = lastOffset;
         kernel.params.scalars.push_back(s);
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});
-        auto concatChannelIndex = DataTensor::Channelndex(orgParams.inputs[i].GetLayout(), GetConcatChannel(orgParams));
+        size_t concatChannelIndex = (size_t)DataTensor::Channelndex(orgParams.inputs[i].GetLayout(), GetConcatChannel(orgParams));
         lastOffset += (uint32_t)input.GetDims()[concatChannelIndex].v;
     }
 

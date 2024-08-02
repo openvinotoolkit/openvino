@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,8 +68,8 @@ ParamsKey StridedSliceKernelRef::GetSupportedKey() const {
     return k;
 }
 
-bool StridedSliceKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::STRIDED_SLICE || o.GetType() != KernelType::STRIDED_SLICE) {
+bool StridedSliceKernelRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::STRIDED_SLICE) {
         return false;
     }
 
@@ -165,6 +165,38 @@ JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& 
         "NEW_AXIS_MODE",
         std::find(params.new_axis_mask.begin(), params.new_axis_mask.end(), 1) != params.new_axis_mask.end()));
 
+    std::vector<int> dims_indexes;
+    bool ellipsis_mode = std::find(params.ellipsis_mask.begin(), params.ellipsis_mask.end(), 1) != params.ellipsis_mask.end();
+    if (ellipsis_mode) {
+        size_t ellipsis_pos1 = 0;
+        for (size_t i = 0; i < params.ellipsis_mask.size(); i++) {
+            if (params.ellipsis_mask[i] == 1) {
+                ellipsis_pos1 = i;
+                break;
+            }
+        }
+
+        const size_t output_rank = params.outputs[0].Dimentions();
+        const size_t skip_dims_num = output_rank - params.ellipsis_mask.size() + 1;
+        int dim_counter = 0;
+
+        for (size_t i = 0; i < ellipsis_pos1; i++)
+            dims_indexes.push_back(dim_counter++);
+
+        for (size_t i = 0; i < skip_dims_num; i++)
+            dims_indexes.push_back(-1);
+
+        dim_counter++;
+        for (size_t i = 0; i < params.ellipsis_mask.size() - ellipsis_pos1 - 1; i++)
+            dims_indexes.push_back(dim_counter++);
+
+        OPENVINO_ASSERT(dims_indexes.size() == output_rank, "[GPU] Number of indexes is expected to match with output rank");
+    } else {
+        dims_indexes.resize(params.outputs[0].Dimentions());
+        std::iota(dims_indexes.begin(), dims_indexes.end(), 0);
+    }
+    makeJitConstForParam(jit, "DIM_IDX", dims_indexes);
+
     bool shrink_mode = std::find(params.shrink_axis_mask.begin(), params.shrink_axis_mask.end(), 1) != params.shrink_axis_mask.end();
     if (shrink_mode) {
         jit.AddConstant(MakeJitConstant("SHRINK_MODE", true));
@@ -216,8 +248,8 @@ void StridedSliceKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData StridedSliceKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData StridedSliceKernelRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -227,7 +259,7 @@ KernelsData StridedSliceKernelRef::GetKernelsData(const Params& params, const op
     assert(params.GetType() == KernelType::STRIDED_SLICE);
 
     auto dispatchData = SetDefault(newParams);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = GetJitConstants(newParams);
     auto input = newParams.inputs[0];
     auto input_dt = input.GetDType();
@@ -252,12 +284,12 @@ KernelsData StridedSliceKernelRef::GetKernelsData(const Params& params, const op
 
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
                      "", false, false, static_cast<int>(newParams.inputs.size()),
-                     0, 1, newParams.has_dynamic_tensors());
+                     0, 1, newParams.is_shape_agnostic);
 
     return {kd};
 }
 
-KernelsPriority StridedSliceKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority StridedSliceKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

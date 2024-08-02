@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,6 @@
 #include <unordered_map>
 
 #include "itt.hpp"
-#include "ngraph/pass/pass.hpp"
-#include "ngraph/util.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "openvino/util/env_util.hpp"
@@ -39,8 +37,7 @@ PerfCounters& perf_counters() {
 
 namespace {
 bool getenv_visualize_tracing() {
-    return ov::util::getenv_bool("NGRAPH_ENABLE_VISUALIZE_TRACING") ||
-           ov::util::getenv_bool("OV_ENABLE_VISUALIZE_TRACING");
+    return ov::util::getenv_bool("OV_ENABLE_VISUALIZE_TRACING");
 }
 }  // namespace
 
@@ -56,16 +53,52 @@ void ov::pass::Manager::set_per_pass_validation(bool new_state) {
     m_per_pass_validation = new_state;
 }
 
+namespace {
+class stopwatch {
+public:
+    void start() {
+        if (m_active == false) {
+            m_active = true;
+            m_start_time = m_clock.now();
+        }
+    }
+
+    void stop() {
+        if (m_active == true) {
+            auto end_time = m_clock.now();
+            m_last_time = end_time - m_start_time;
+            m_active = false;
+        }
+    }
+
+    std::chrono::nanoseconds get_timer_value() const {
+        if (m_active) {
+            return (m_clock.now() - m_start_time);
+        } else {
+            return m_last_time;
+        }
+    }
+
+    size_t get_milliseconds() const {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(get_timer_value()).count();
+    }
+
+private:
+    std::chrono::high_resolution_clock m_clock;
+    std::chrono::time_point<std::chrono::high_resolution_clock> m_start_time;
+    bool m_active = false;
+    std::chrono::nanoseconds m_last_time = std::chrono::high_resolution_clock::duration::zero();
+};
+}  // namespace
+
 bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "pass::Manager::run_passes");
 
-    static bool profile_enabled =
-        ov::util::getenv_bool("NGRAPH_PROFILE_PASS_ENABLE") || ov::util::getenv_bool("OV_PROFILE_PASS_ENABLE");
+    static bool profile_enabled = ov::util::getenv_bool("OV_PROFILE_PASS_ENABLE");
 
     size_t index = 0;
-    ngraph::stopwatch pass_timer;
-    ngraph::stopwatch overall_timer;
+    stopwatch pass_timer;
+    stopwatch overall_timer;
     overall_timer.start();
     bool pass_applied = false;
     bool function_changed = false;
@@ -108,15 +141,6 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
             } else {
                 pass_applied = function_pass->run_on_model(func);
             }
-        } else if (auto node_pass = dynamic_pointer_cast<ngraph::pass::NodePass>(pass)) {
-            if (node_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic()) {
-                OPENVINO_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
-                               << "model is dynamic. Skipping this transformation";
-                continue;
-            }
-            for (const shared_ptr<Node>& n : func->get_ops()) {
-                pass_applied |= node_pass->run_on_node(n);
-            }
         }
 
         if (m_visualize) {
@@ -144,7 +168,6 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
     if (profile_enabled) {
         cout << "passes done in " << overall_timer.get_milliseconds() << "ms\n";
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     return function_changed;
 }

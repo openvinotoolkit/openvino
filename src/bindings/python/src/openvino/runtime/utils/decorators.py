@@ -1,17 +1,24 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from functools import wraps
-from typing import Any, Callable
+from inspect import getfullargspec
+from typing import Any, Callable, List, Optional
 
 from openvino.runtime import Node, Output
 from openvino.runtime.utils.types import NodeInput, as_node, as_nodes
 
 
-def _set_node_friendly_name(node: Node, /, **kwargs: Any) -> Node:
+def _get_name(**kwargs: Any) -> Node:
     if "name" in kwargs:
-        node.friendly_name = kwargs["name"]
+        return kwargs["name"]
+    return None
+
+
+def _set_node_friendly_name(node: Node, *, name: Optional[str] = None) -> Node:
+    if name is not None:
+        node.friendly_name = name
     return node
 
 
@@ -21,7 +28,7 @@ def nameable_op(node_factory_function: Callable) -> Callable:
     @wraps(node_factory_function)
     def wrapper(*args: Any, **kwargs: Any) -> Node:
         node = node_factory_function(*args, **kwargs)
-        node = _set_node_friendly_name(node, **kwargs)
+        node = _set_node_friendly_name(node, name=_get_name(**kwargs))
         return node
 
     return wrapper
@@ -32,9 +39,9 @@ def unary_op(node_factory_function: Callable) -> Callable:
 
     @wraps(node_factory_function)
     def wrapper(input_value: NodeInput, *args: Any, **kwargs: Any) -> Node:
-        input_node = as_node(input_value)
+        input_node = as_node(input_value, name=_get_name(**kwargs))
         node = node_factory_function(input_node, *args, **kwargs)
-        node = _set_node_friendly_name(node, **kwargs)
+        node = _set_node_friendly_name(node, name=_get_name(**kwargs))
         return node
 
     return wrapper
@@ -45,9 +52,9 @@ def binary_op(node_factory_function: Callable) -> Callable:
 
     @wraps(node_factory_function)
     def wrapper(left: NodeInput, right: NodeInput, *args: Any, **kwargs: Any) -> Node:
-        left, right = as_nodes(left, right)
+        left, right = as_nodes(left, right, name=_get_name(**kwargs))
         node = node_factory_function(left, right, *args, **kwargs)
-        node = _set_node_friendly_name(node, **kwargs)
+        node = _set_node_friendly_name(node, name=_get_name(**kwargs))
         return node
 
     return wrapper

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,7 @@ TEST(type_prop, interpolate_v0_default_ctor) {
 
     EXPECT_EQ(interp->get_element_type(), element::f32);
     EXPECT_EQ(interp->get_shape(), (Shape{2, 2, 15, 30}));
-    EXPECT_THAT(get_shape_labels(interp->get_output_partial_shape(0)), Each(ov::no_label));
+    EXPECT_THAT(get_shape_symbols(interp->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TEST(type_prop, interpolate_v0_all_inputs_dynamic_rank) {
@@ -87,8 +87,8 @@ TEST(type_prop, interpolate_v0_target_shape_not_constant) {
 TEST(type_prop, interpolate_v0_target_shape_as_shape_of) {
     auto img_shape = PartialShape{{1, 2}, 10, 10, {5, 30}};
     auto out_shape = PartialShape{{2, 4}, -1};
-    set_shape_labels(img_shape, 10);
-    set_shape_labels(out_shape, 20);
+    auto img_symbols = set_shape_symbols(img_shape);
+    auto out_symbols = set_shape_symbols(out_shape);
 
     auto image = std::make_shared<ov::op::v0::Parameter>(element::f64, img_shape);
     auto target_shape =
@@ -102,7 +102,8 @@ TEST(type_prop, interpolate_v0_target_shape_as_shape_of) {
 
     EXPECT_EQ(interp->get_element_type(), element::f64);
     EXPECT_EQ(interp->get_output_partial_shape(0), PartialShape({{1, 2}, {2, 4}, 10, -1}));
-    EXPECT_THAT(get_shape_labels(interp->get_output_partial_shape(0)), ElementsAre(10, 20, 12, 21));
+    EXPECT_THAT(get_shape_symbols(interp->get_output_partial_shape(0)),
+                ElementsAre(img_symbols[0], out_symbols[0], img_symbols[2], out_symbols[1]));
 }
 
 // --- v4 ---
@@ -129,7 +130,7 @@ TEST(type_prop, interpolate_v4_default_ctor) {
 
     EXPECT_EQ(interp->get_element_type(), element::f32);
     EXPECT_EQ(interp->get_shape(), (Shape{2, 2, 15, 30}));
-    EXPECT_THAT(get_shape_labels(interp->get_output_partial_shape(0)), Each(ov::no_label));
+    EXPECT_THAT(get_shape_symbols(interp->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TEST(type_prop, interpolate_v4) {
@@ -151,12 +152,12 @@ TEST(type_prop, interpolate_v4) {
 
     EXPECT_EQ(interp->get_element_type(), element::f32);
     EXPECT_EQ(interp->get_shape(), (Shape{2, 2, 15, 30}));
-    EXPECT_THAT(get_shape_labels(interp->get_output_partial_shape(0)), Each(ov::no_label));
+    EXPECT_THAT(get_shape_symbols(interp->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TEST(type_prop, interpolate_v4_non_constant_axes_scales) {
     auto img_shape = PartialShape{2, 2, 30, 60};
-    set_shape_labels(img_shape, 10);
+    set_shape_symbols(img_shape);
 
     auto image = std::make_shared<ov::op::v0::Parameter>(element::f16, img_shape);
     auto target_shape = std::make_shared<ov::op::v0::Parameter>(element::i64, Shape{});
@@ -176,12 +177,12 @@ TEST(type_prop, interpolate_v4_non_constant_axes_scales) {
 
     EXPECT_EQ(interp->get_element_type(), element::f16);
     EXPECT_EQ(interp->get_output_partial_shape(0), PartialShape::dynamic(4));
-    EXPECT_THAT(get_shape_labels(interp->get_output_partial_shape(0)), Each(ov::no_label));
+    EXPECT_THAT(get_shape_symbols(interp->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TEST(type_prop, interpolate_v4_non_constant_axes_sizes) {
     auto img_shape = PartialShape{2, 2, 30, 60};
-    set_shape_labels(img_shape, 10);
+    set_shape_symbols(img_shape);
 
     auto image = std::make_shared<ov::op::v0::Parameter>(element::bf16, img_shape);
     auto target_shape = std::make_shared<ov::op::v0::Parameter>(element::i64, Shape{2});
@@ -202,7 +203,7 @@ TEST(type_prop, interpolate_v4_non_constant_axes_sizes) {
 
     EXPECT_EQ(interp->get_element_type(), element::bf16);
     EXPECT_EQ(interp->get_output_partial_shape(0), PartialShape::dynamic(4));
-    EXPECT_THAT(get_shape_labels(interp->get_output_partial_shape(0)), Each(ov::no_label));
+    EXPECT_THAT(get_shape_symbols(interp->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TEST(type_prop, interpolate_v4_img_dynamic_rank) {
@@ -228,7 +229,7 @@ TEST(type_prop, interpolate_v4_img_dynamic_rank) {
 
 TEST(type_prop, interpolate_v4_partial_static_rank) {
     auto img_shape = PartialShape{2, 2, -1, {5, 30}};
-    set_shape_labels(img_shape, 10);
+    auto symbols = set_shape_symbols(img_shape);
 
     auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, img_shape);
     auto target_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
@@ -248,13 +249,13 @@ TEST(type_prop, interpolate_v4_partial_static_rank) {
 
     EXPECT_EQ(interp->get_element_type(), element::f32);
     EXPECT_EQ(interp->get_output_partial_shape(0), PartialShape({2, 4, -1, {2, 15}}));
-    EXPECT_THAT(get_shape_labels(interp->get_output_partial_shape(0)),
-                ElementsAre(10, ov::no_label, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(interp->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], nullptr, nullptr, nullptr));
 }
 
 TEST(type_prop, interpolate_v4_img_intervals_use_scales) {
     auto img_shape = PartialShape{{1, 2}, -1, 10, {5, 30}};
-    set_shape_labels(img_shape, 10);
+    set_shape_symbols(img_shape);
 
     auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, img_shape);
     auto target_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{2});
@@ -274,14 +275,14 @@ TEST(type_prop, interpolate_v4_img_intervals_use_scales) {
 
     EXPECT_EQ(interp->get_element_type(), element::f32);
     EXPECT_EQ(interp->get_output_partial_shape(0), PartialShape({{2, 3}, {1, -1}, 5, {3, 16}}));
-    EXPECT_THAT(get_shape_labels(interp->get_output_partial_shape(0)), Each(ov::no_label));
+    EXPECT_THAT(get_shape_symbols(interp->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TEST(type_prop, interpolate_v4_use_sizes_as_shape_of) {
     auto img_shape = PartialShape{{1, 2}, 10, 10, {5, 30}};
     auto out_shape = PartialShape{{2, 4}, -1};
-    set_shape_labels(img_shape, 10);
-    set_shape_labels(out_shape, 20);
+    auto img_symbols = set_shape_symbols(img_shape);
+    auto out_symbols = set_shape_symbols(out_shape);
 
     auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, img_shape);
     auto target_shape =
@@ -302,12 +303,13 @@ TEST(type_prop, interpolate_v4_use_sizes_as_shape_of) {
 
     EXPECT_EQ(interp->get_element_type(), element::f32);
     EXPECT_EQ(interp->get_output_partial_shape(0), PartialShape({{1, 2}, -1, 10, {2, 4}}));
-    EXPECT_THAT(get_shape_labels(interp->get_output_partial_shape(0)), ElementsAre(10, 21, 12, 20));
+    EXPECT_THAT(get_shape_symbols(interp->get_output_partial_shape(0)),
+                ElementsAre(img_symbols[0], out_symbols[1], img_symbols[2], out_symbols[0]));
 }
 
 TEST(type_prop, interpolate_v4_use_scales_interval_shapes) {
     auto img_shape = PartialShape{2, 2, {12, 800}, {0, -1}, {24, -1}};
-    set_shape_labels(img_shape, 10);
+    auto symbols = set_shape_symbols(img_shape);
 
     auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, img_shape);
     auto target_shape = std::make_shared<ov::op::v0::Parameter>(element::i32, Shape{3});
@@ -327,8 +329,8 @@ TEST(type_prop, interpolate_v4_use_scales_interval_shapes) {
 
     EXPECT_EQ(interp->get_element_type(), element::f32);
     EXPECT_EQ(interp->get_output_partial_shape(0), PartialShape({2, 2, {6, 400}, -1, {3, -1}}));
-    EXPECT_THAT(get_shape_labels(interp->get_output_partial_shape(0)),
-                ElementsAre(10, 11, ov::no_label, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(interp->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], symbols[1], nullptr, nullptr, nullptr));
 }
 
 TEST(type_prop, interpolate_v4_target_shapes_gt_axes_number) {
@@ -485,8 +487,8 @@ TEST(type_prop, interpolate_v11_default_ctor) {
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
-    attrs.pads_begin = {1, 0, 0, 0};
-    attrs.pads_end = {0, 1, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{1, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 1, 0, 0};
 
     auto interp = std::make_shared<op::v11::Interpolate>();
     interp->set_arguments(OutputVector{image, scales, axes});
@@ -495,7 +497,7 @@ TEST(type_prop, interpolate_v11_default_ctor) {
 
     EXPECT_EQ(interp->get_element_type(), element::f32);
     EXPECT_EQ(interp->get_shape(), (Shape{2, 4, 6, 12}));
-    EXPECT_THAT(get_shape_labels(interp->get_output_partial_shape(0)), Each(ov::no_label));
+    EXPECT_THAT(get_shape_symbols(interp->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TEST(type_prop, interpolate_v11_scales) {
@@ -560,7 +562,7 @@ TEST(type_prop, interpolate_v11_sizes_all_inputs_dynamic_rank) {
 
 TEST(type_prop, interpolate_v11_intervals_with_scales_mode) {
     auto img_shape = PartialShape{{1, 3}, 3, {1, 10}, {10, -1}, {10, 20}};
-    set_shape_labels(img_shape, 10);
+    auto symbols = set_shape_symbols(img_shape);
 
     const auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, img_shape);
     const auto scales = ov::op::v0::Constant::create<float>(element::f32, Shape{3}, {2.0f, 3.0f, 1.0f});
@@ -573,13 +575,13 @@ TEST(type_prop, interpolate_v11_intervals_with_scales_mode) {
     auto interp = std::make_shared<ov::op::v11::Interpolate>(image, scales, axes, attrs);
 
     EXPECT_EQ(interp->get_output_partial_shape(0), PartialShape({{2, 4}, 6, {4, 22}, {33, -1}, {10, 20}}));
-    EXPECT_THAT(get_shape_labels(interp->get_output_partial_shape(0)),
-                ElementsAre(ov::no_label, ov::no_label, ov::no_label, ov::no_label, 14));
+    EXPECT_THAT(get_shape_symbols(interp->get_output_partial_shape(0)),
+                ElementsAre(nullptr, nullptr, nullptr, nullptr, symbols[4]));
 }
 
 TEST(type_prop, interpolate_v11_intervals_with_sizes_mode) {
     auto img_shape = PartialShape{{1, 3}, 3, {1, 10}, {10, -1}};
-    set_shape_labels(img_shape, 10);
+    auto symbols = set_shape_symbols(img_shape);
 
     const auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, img_shape);
     const auto sizes = ov::op::v0::Constant::create<float>(element::i32, Shape{2}, {200, 300});
@@ -592,14 +594,15 @@ TEST(type_prop, interpolate_v11_intervals_with_sizes_mode) {
     auto interp = std::make_shared<ov::op::v11::Interpolate>(image, sizes, axes, attrs);
 
     EXPECT_EQ(interp->get_output_partial_shape(0), PartialShape({{1, 3}, 3, 200, 300}));
-    EXPECT_THAT(get_shape_labels(interp->get_output_partial_shape(0)), ElementsAre(10, 11, ov::no_label, ov::no_label));
+    EXPECT_THAT(get_shape_symbols(interp->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], symbols[1], nullptr, nullptr));
 }
 
 TEST(type_prop, interpolate_v11_sizes_with_shapeof) {
     auto img_shape = PartialShape{{1, 3}, 3, {1, 10}, {10, -1}};
     auto sizes_shape = PartialShape{{12, 37}, {0, 21}};
-    set_shape_labels(img_shape, 10);
-    set_shape_labels(sizes_shape, 20);
+    auto img_symbols = set_shape_symbols(img_shape);
+    auto sizes_symbols = set_shape_symbols(sizes_shape);
 
     const auto image = std::make_shared<ov::op::v0::Parameter>(element::f32, img_shape);
     const auto param = std::make_shared<ov::op::v0::Parameter>(element::f32, sizes_shape);
@@ -608,17 +611,18 @@ TEST(type_prop, interpolate_v11_sizes_with_shapeof) {
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SIZES;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
     auto interp = std::make_shared<ov::op::v11::Interpolate>(image, sizes, axes, attrs);
 
     EXPECT_EQ(interp->get_output_partial_shape(0), (PartialShape{{1, 3}, {0, 21}, {12, 37}, {10, -1}}));
-    EXPECT_THAT(get_shape_labels(interp->get_output_partial_shape(0)), ElementsAre(10, 21, 20, 13));
+    EXPECT_THAT(get_shape_symbols(interp->get_output_partial_shape(0)),
+                ElementsAre(img_symbols[0], sizes_symbols[1], sizes_symbols[0], img_symbols[3]));
 }
 
 TEST(type_prop, interpolate_v11_non_constant_axes_scales) {
     auto img_shape = PartialShape{2, 2, 30, 60};
-    set_shape_labels(img_shape, 10);
+    set_shape_symbols(img_shape);
 
     auto image = std::make_shared<ov::op::v0::Parameter>(element::f16, img_shape);
     auto scales = ov::op::v0::Constant::create<float>(element::f32, Shape{2}, {0.5f, 0.5f});
@@ -626,13 +630,13 @@ TEST(type_prop, interpolate_v11_non_constant_axes_scales) {
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
     auto interp = std::make_shared<op::v11::Interpolate>(image, scales, axes, attrs);
 
     EXPECT_EQ(interp->get_element_type(), element::f16);
     EXPECT_EQ(interp->get_output_partial_shape(0), PartialShape::dynamic(4));
-    EXPECT_THAT(get_shape_labels(interp->get_output_partial_shape(0)), Each(ov::no_label));
+    EXPECT_THAT(get_shape_symbols(interp->get_output_partial_shape(0)), Each(nullptr));
 }
 
 TEST(type_prop, interpolate_v11_scales_incorrect_et) {
@@ -642,8 +646,8 @@ TEST(type_prop, interpolate_v11_scales_incorrect_et) {
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
 
     OV_EXPECT_THROW(auto interp = std::make_shared<ov::op::v11::Interpolate>(image, scales, axes, attrs),
                     ov::NodeValidationFailure,
@@ -657,9 +661,9 @@ TEST(type_prop, interpolate_v11_sizes_incorrect_et) {
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SIZES;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
-    ;
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
+
     OV_EXPECT_THROW(auto interp = std::make_shared<ov::op::v11::Interpolate>(image, sizes, axes, attrs),
                     ov::NodeValidationFailure,
                     HasSubstr("Sizes element type must be i32, i64, u32 or u64"));
@@ -671,8 +675,8 @@ TEST(type_prop, interpolate_v11_scales_incorrect_number) {
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
     OV_EXPECT_THROW(auto interp = std::make_shared<ov::op::v11::Interpolate>(image, scales, attrs),
                     ov::NodeValidationFailure,
                     HasSubstr("The number of elements in the 'scales' input does not match the number of axes"));
@@ -684,8 +688,8 @@ TEST(type_prop, interpolate_v11_sizes_incorrect_number) {
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SIZES;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
     OV_EXPECT_THROW(auto interp = std::make_shared<ov::op::v11::Interpolate>(image, sizes, attrs),
                     ov::NodeValidationFailure,
                     HasSubstr("The number of elements in the 'sizes' input does not match the number of axes"));
@@ -697,8 +701,8 @@ TEST(type_prop, interpolate_v11_scales_not_1d) {
 
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
 
     OV_EXPECT_THROW(std::ignore = std::make_shared<ov::op::v11::Interpolate>(
                         image,
@@ -724,8 +728,8 @@ TEST(type_prop, interpolate_v11_axes_not_1d) {
     ov::op::util::InterpolateBase::InterpolateAttrs attrs;
     attrs.shape_calculation_mode = ov::op::util::InterpolateBase::ShapeCalcMode::SCALES;
     attrs.mode = ov::op::util::InterpolateBase::InterpolateMode::NEAREST;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
+    attrs.pads_begin = std::vector<size_t>{0, 0, 0, 0};
+    attrs.pads_end = std::vector<size_t>{0, 0, 0, 0};
 
     OV_EXPECT_THROW(std::ignore = std::make_shared<ov::op::v11::Interpolate>(
                         image,

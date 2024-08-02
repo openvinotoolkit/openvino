@@ -11,7 +11,7 @@ Execution graph could be serialized using environment variable **OV_CPU_EXEC_GRA
 Possible serialization options:
 * cout\
 Serialize to console output.
-* \<path\>.xml\
+* \<path\>_index.xml\
 Serialize graph into .xml and .bin files. Can be opened using, for example, *netron* app.
 * **TBD**: \<path\>.dot\
 Serialize graph into .dot file. Can be inspected using, for example, *graphviz* tools.

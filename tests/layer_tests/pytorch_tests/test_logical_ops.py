@@ -53,6 +53,7 @@ class TestLogicalOp(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize("op_type", ["and", "or", "not", "xor"])
     @pytest.mark.parametrize("first_dtype", ["bool", "int32", 'int8', 'float32'])
     @pytest.mark.parametrize("second_dtype", ["bool", "int32", 'int8', 'float32'])

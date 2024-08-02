@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,6 +34,13 @@ static void CreateParameterOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
     // look at the expected color format of this input
     auto input_name = layer_type_name_ID(op);
     cldnn::layout input_layout(input_pshape, element_type, input_format);
+
+    bool query_mode = p.is_query_mode();
+    int64_t port_index = -1;
+    if (!query_mode) {
+        port_index = p.get_parameter_index(op);
+        OPENVINO_ASSERT(port_index != -1, "[GPU] Parameter port index for ", input_name, " not found");
+    }
 
     auto is_convert_color_type = [](const std::shared_ptr<ov::Node> &node) {
         return ov::is_type<ov::op::v8::NV12toRGB>(node) ||
@@ -84,14 +91,21 @@ static void CreateParameterOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
         input_layout.format = cldnn::format::nv12;
         input_layout.set_partial_shape({ 1, input_pshape[1], input_pshape[2], input_pshape[3] });
 
+        if (!query_mode) {
+            p.inputLayouts.insert({ port_index, input_layout });
+        }
+
         std::string suffix = "";
         std::vector<cldnn::input_info> surfaces_inputs;
         for (size_t i = 0; i < batch; ++i) {
             if (batch > 1)
                 suffix = "_" + std::to_string(i);
             std::string batched_name = input_name + suffix;
-            p.inputLayouts.insert({ op->get_friendly_name() + suffix, input_layout });
             p.add_primitive(*op, cldnn::input_layout(batched_name, input_layout));
+
+            if (!query_mode) {
+                p.inputPrimitiveIDs[port_index].emplace_back(batched_name);
+            }
 
             auto reorder_layout = input_layout;
             reorder_layout.format = cldnn::format::bfyx;
@@ -111,9 +125,13 @@ static void CreateParameterOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
             p.primitive_ids[input_name] = "reorder:" + input_name + ProgramBuilder::m_preProcessTag;
     } else {
         auto reorder_name = "reorder:" + input_name + ProgramBuilder::m_preProcessTag;
-        p.inputLayouts.insert({ op->get_friendly_name(), input_layout });
 
         p.add_primitive(*op, cldnn::input_layout(input_name, input_layout));
+
+        if (!query_mode) {
+            p.inputPrimitiveIDs[port_index] = { input_name };
+            p.inputLayouts.insert({ port_index, input_layout });
+        }
 
         if (connected_to_quantize(op)) {
             // Techically this reorder is not needed, but for some reason it impacts layout propagation logic

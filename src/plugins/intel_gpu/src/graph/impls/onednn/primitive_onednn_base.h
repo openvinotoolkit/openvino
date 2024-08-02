@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -116,8 +116,11 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                 ob << make_data(&_scratchpad_mode, sizeof(dnnl::scratchpad_mode));
             }
             {
-                dnnl::fpmath_mode _fmath_mode = _attrs->get_fpmath_mode();
+                dnnl::fpmath_mode _fmath_mode;
+                bool _apply_to_int;
+                _attrs->get_fpmath_mode(_fmath_mode, _apply_to_int);
                 ob << make_data(&_fmath_mode, sizeof(dnnl::fpmath_mode));
+                ob << _apply_to_int;
             }
             {
                 const dnnl::post_ops _post_ops = _attrs->get_post_ops();
@@ -218,8 +221,10 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
             }
             {
                 dnnl::fpmath_mode _fmath_mode = dnnl::fpmath_mode::any;
+                bool _apply_to_int = false;
                 ib >> make_data(&_fmath_mode, sizeof(dnnl::fpmath_mode));
-                _attrs->set_fpmath_mode(_fmath_mode);
+                ib >> _apply_to_int;
+                _attrs->set_fpmath_mode(_fmath_mode, _apply_to_int);
             }
             {
                 const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
@@ -322,8 +327,6 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
     }
 
 private:
-    using primitive_impl::get_arguments;
-
     std::string get_cache_directory(const ExecutionConfig& config) const {
         auto path = config.get_property(ov::cache_dir);
         if (path.empty()) {
@@ -484,6 +487,33 @@ protected:
         return args;
     }
 
+    virtual std::unordered_map<int, dnnl::memory> get_arguments(typed_primitive_inst<PType>& instance, kernel_arguments_data& mem_args) const {
+        std::unordered_map<int, dnnl::memory> args;
+        auto& engine = instance.get_network().get_engine();
+        auto dnnl_engine = engine.get_onednn_engine();
+
+        OPENVINO_ASSERT(mem_args.inputs.size() == 1);
+        OPENVINO_ASSERT(mem_args.outputs.size() == 1);
+        OPENVINO_ASSERT(_scratchpad_md.get_size() == 0);
+        OPENVINO_ASSERT(instance.get_fused_primitives_onednn().empty());
+
+        {
+            auto input = mem_args.inputs[0];
+            layout l = input->get_layout();
+            auto offset = onednn::get_offset(std::move(l), _pd.dnnl::primitive_desc_base::src_desc(0));
+            args.insert({DNNL_ARG_SRC, input->get_onednn_memory(_pd.dnnl::primitive_desc_base::src_desc(0), offset)});
+        }
+
+        {
+            auto output = mem_args.outputs[0];
+            layout l = output->get_layout();
+            auto offset = onednn::get_offset(std::move(l), _pd.dnnl::primitive_desc_base::dst_desc(0));
+            args.insert({DNNL_ARG_DST, output->get_onednn_memory(_pd.dnnl::primitive_desc_base::dst_desc(0), offset)});
+        }
+
+        return args;
+    }
+
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override { }
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
@@ -491,6 +521,14 @@ protected:
             return;
         uint32_t net_id = instance.get_network().get_id();
         _args[net_id] = get_arguments(instance);
+    }
+
+    void set_arguments_impl(typed_primitive_inst<PType>& instance, kernel_arguments_data& args) override {
+        if (instance.can_be_optimized()) {
+            return;
+        }
+
+        _args[instance.get_network().get_id()] = get_arguments(instance, args);
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& /* events */,
@@ -512,11 +550,8 @@ protected:
             try {
                 _prim.execute(stream.get_onednn_stream(), _args[net_id]);
             } catch (dnnl::error& err) {
-                /// WA: Force exit. Any opencl api call can be hang after CL_OUT_OF_RESOURCES.
-                if (err.status == dnnl_status_t::dnnl_out_of_memory) {
-                    ov::intel_gpu::ForceExit();
-                }
-                throw;    // rethrowing dnnl::error if not out_of_memory
+                auto err_code = err.status == dnnl_status_t::dnnl_out_of_memory ? CL_OUT_OF_RESOURCES : CL_INVALID_OPERATION;
+                ocl::rethrow_or_exit(err.what(), err_code, _engine->get_device_info());
             }
 
             if (_enable_profiling) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,9 +71,9 @@ TEST(type_prop, fake_convert_dynamic_shape) {
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape::dynamic()));
 }
 
-TEST(type_prop, fake_convert_label) {
+TEST(type_prop, fake_convert_symbol) {
     PartialShape data_shape{2, 1, Dimension::dynamic(), 6};
-    set_shape_labels(data_shape, 10);
+    auto symbols = set_shape_symbols(data_shape);
     const auto data = std::make_shared<Parameter>(element::f32, data_shape);
     const auto scale = std::make_shared<Parameter>(element::f32, PartialShape{});
     const auto shift = std::make_shared<Parameter>(element::f32, PartialShape{});
@@ -81,7 +81,7 @@ TEST(type_prop, fake_convert_label) {
     const auto op = std::make_shared<op::v13::FakeConvert>(data, scale, shift);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 1, Dimension::dynamic(), 6}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), testing::ElementsAre(10, 11, 12, 13));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)), symbols);
 }
 
 TEST(type_prop, fake_convert_example_0) {

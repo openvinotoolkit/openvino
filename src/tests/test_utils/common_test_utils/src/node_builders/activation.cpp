@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,7 @@
 #include "openvino/op/hard_sigmoid.hpp"
 #include "openvino/op/hsigmoid.hpp"
 #include "openvino/op/hswish.hpp"
+#include "openvino/op/is_inf.hpp"
 #include "openvino/op/log.hpp"
 #include "openvino/op/mish.hpp"
 #include "openvino/op/negative.hpp"
@@ -59,7 +60,7 @@ std::shared_ptr<ov::Node> make_activation(const ov::Output<Node>& in,
     case ov::test::utils::ActivationTypes::Relu:
         return std::make_shared<ov::op::v0::Relu>(in);
     case ov::test::utils::ActivationTypes::LeakyRelu: {
-        auto leaky_slope = std::make_shared<ov::op::v0::Constant>(ov::element::f32, in_shape, constants_value);
+        auto leaky_slope = std::make_shared<ov::op::v0::Constant>(type, in_shape, constants_value);
         return std::make_shared<ov::op::v0::PRelu>(in, leaky_slope);
     }
     case ov::test::utils::ActivationTypes::Exp:
@@ -119,7 +120,7 @@ std::shared_ptr<ov::Node> make_activation(const ov::Output<Node>& in,
     case ov::test::utils::ActivationTypes::Ceiling:
         return std::make_shared<ov::op::v0::Ceiling>(in);
     case ov::test::utils::ActivationTypes::PReLu: {
-        auto negative_slope = std::make_shared<ov::op::v0::Constant>(ov::element::f32, in_shape, constants_value);
+        auto negative_slope = std::make_shared<ov::op::v0::Constant>(type, in_shape, constants_value);
         return std::make_shared<ov::op::v0::PRelu>(in, negative_slope);
     }
     case ov::test::utils::ActivationTypes::Mish:
@@ -144,6 +145,8 @@ std::shared_ptr<ov::Node> make_activation(const ov::Output<Node>& in,
         return std::make_shared<ov::op::v7::Gelu>(in, ov::op::GeluApproximationMode::TANH);
     case ov::test::utils::ActivationTypes::SoftSign:
         return std::make_shared<ov::op::v9::SoftSign>(in);
+    case ov::test::utils::ActivationTypes::IsInf:
+        return std::make_shared<ov::op::v10::IsInf>(in);
     default:
         OPENVINO_THROW("Can't create layer for this activation type");
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ struct non_max_suppression_impl : typed_primitive_impl_ocl<non_max_suppression> 
     using parent = typed_primitive_impl_ocl<non_max_suppression>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::non_max_suppression_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::non_max_suppression_params, kernel_selector::non_max_suppression_optional_params>;
+    using kernel_params_t = kernel_selector::non_max_suppression_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::non_max_suppression_impl)
 
@@ -50,11 +50,11 @@ protected:
         for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
             args.outputs.push_back(instance.output_memory_ptr(i));
         }
-        // Legacy APIs using mutable inputs for multiple outputs
+        // // Legacy multi-output
         if (instance.has_second_output())
-            args.inputs.push_back(instance.second_output_mem());
+            args.outputs.push_back(instance.second_output_mem());
         if (instance.has_third_output())
-            args.inputs.push_back(instance.third_output_mem());
+            args.outputs.push_back(instance.third_output_mem());
 
         return args;
     }
@@ -63,8 +63,6 @@ public:
     static std::unique_ptr<primitive_impl> create(const non_max_suppression_node& arg, const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<non_max_suppression>();
         auto params = get_default_params<kernel_selector::non_max_suppression_params>(impl_param);
-        auto optional_params =
-            get_default_optional_params<kernel_selector::non_max_suppression_optional_params>(impl_param.get_program());
 
         const auto input_scores_idx = 1;
         params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[input_scores_idx]));
@@ -124,20 +122,18 @@ public:
             return offset;
         };
 
+        // Legacy multi-output
         if (arg.has_second_output()) {
-            params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[get_additional_output_node_idx(false)]));
-            params.has_second_output = true;
+            params.outputs.push_back(convert_data_tensor(impl_param.input_layouts[get_additional_output_node_idx(false)]));
         }
 
         if (arg.has_third_output()) {
-            params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[get_additional_output_node_idx(true)]));
-            params.has_third_output = true;
+            params.outputs.push_back(convert_data_tensor(impl_param.input_layouts[get_additional_output_node_idx(true)]));
         }
 
         if (arg.use_multiple_outputs()) {
             params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[1]));
             params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[2]));
-            params.use_multiple_outputs = true;
         }
 
         params.sort_result_descending = primitive->sort_result_descending;
@@ -160,7 +156,7 @@ public:
 
         params.set_dynamic_shape_offsets();
         auto& kernel_selector = kernel_selector::non_max_suppression_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(params);
 
         return make_unique<non_max_suppression_impl>(best_kernel);
     }

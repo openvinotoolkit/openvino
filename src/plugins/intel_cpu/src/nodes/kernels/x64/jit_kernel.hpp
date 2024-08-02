@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
-#include <cpu/x64/jit_generator.hpp>
-#include "emitters/x64/jit_load_store_emitters.hpp"
+#include "cpu/x64/jit_generator.hpp"
+#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #include <common/nstl.hpp>
 #include <type_traits>
 #include <functional>
@@ -699,6 +699,9 @@ private:
     internal::consts_table _consts;
     std::unordered_map<size_t, std::unique_ptr<jit_emitter>> _emitters;
 };
+
+template <>
+const Xbyak::Reg64& jit_kernel::reserve<Xbyak::Reg64>();
 
 template<typename T>
 void jit_kernel::copy(const Xbyak::Reg64& dst,

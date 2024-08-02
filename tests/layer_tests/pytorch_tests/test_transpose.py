@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -49,6 +49,30 @@ class TestTranspose(PytorchLayerTest):
     def test_transpose(self, dim0, dim1, op_type, ie_device, precision, ir_version):
         self._test(*self.create_model(dim0, dim1, op_type), ie_device, precision, ir_version, trace_model=True)
 
+
+class TestMoveDim(PytorchLayerTest):
+    def _prepare_input(self):
+        return (np.random.randn(2, 3, 4, 5).astype(np.float32),)
+
+    def create_model(self, dim0, dim1):
+        class aten_move_dim(torch.nn.Module):
+            def __init__(self, dim0, dim1):
+                super(aten_move_dim, self).__init__()
+                self.dim0 = dim0
+                self.dim1 = dim1
+
+            def forward(self, x):
+                return torch.movedim(x, self.dim0, self.dim1)
+
+        ref_net = None
+
+        return aten_move_dim(dim0, dim1), ref_net, f"aten::movedim"
+
+    @pytest.mark.parametrize(("dim0", "dim1"), [[0, 1], [-1, 0], [2, -2], [3, 1], [3, 3], [[1, 2], [3, 0]], [[-4, 1], [1, -1]], [[1, 3, 2], [0, 1, 2 ]]])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_move_dim(self, dim0, dim1, ie_device, precision, ir_version):
+        self._test(*self.create_model(dim0, dim1), ie_device, precision, ir_version, trace_model=True)
 
 class TestTSmall(PytorchLayerTest):
     def _prepare_input(self, num_dims=2, input_dtype="float32"):

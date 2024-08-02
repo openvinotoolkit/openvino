@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,12 +11,13 @@
 #include <utility>
 #include <vector>
 
+#include "itt.hpp"
+#include "openvino/util/log.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
-#include "itt.hpp"
 
 namespace ov {
 namespace pass {
@@ -32,7 +33,7 @@ ReshapeTransformation::ReshapeTransformation(const Params& params) : LayerTransf
     auto reshape_pattern = std::make_shared<pass::pattern::op::Or>(OutputVector{ reshape_pattern_const, reshape_pattern_nonconst });
     auto matcher = pattern::wrap_type<ov::opset1::Reshape>({ mul_m, reshape_pattern });
 
-    ov::graph_rewrite_callback callback = [=](pattern::Matcher& m) {
+    ov::graph_rewrite_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto op = m.get_match_root();
         if (transformation_callback(op)) {
             return false;
@@ -157,7 +158,9 @@ bool ReshapeTransformation::transform(TransformationContext& context, ov::pass::
 
     reshape = ov::as_type_ptr<ov::opset1::Reshape>(NetworkHelper::separateInStandaloneBranch(reshape, defaultPrecisions));
     reshapeDequantizationConstant(reshape, defaultPrecisions);
-    moveDequantizationAfter(context, reshape, NetworkHelper::getDequantization(reshape, defaultPrecisions, 0), false);
+    const auto newOperation = moveDequantizationAfter(context, reshape, NetworkHelper::getDequantization(reshape, defaultPrecisions, 0));
+
+    OPENVINO_DEBUG << "LPT: done: " << newOperation;
     return true;
 }
 

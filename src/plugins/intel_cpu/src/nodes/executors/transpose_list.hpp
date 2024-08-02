@@ -29,12 +29,12 @@ struct TransposeExecutorDesc {
 
 const std::vector<TransposeExecutorDesc>& getTransposeExecutorsList();
 
-class TransposeExecutorFactory : public ExecutorFactory {
+class TransposeExecutorFactory : public ExecutorFactoryLegacy {
 public:
 TransposeExecutorFactory(const TransposeParams& transposeParams,
                          const std::vector<MemoryDescPtr>& srcDescs,
                          const std::vector<MemoryDescPtr>& dstDescs,
-                         const ExecutorContext::CPtr context) : ExecutorFactory(context) {
+                         const ExecutorContext::CPtr context) : ExecutorFactoryLegacy(context) {
     for (auto& desc : getTransposeExecutorsList()) {
         if (desc.builder->isSupported(transposeParams, srcDescs, dstDescs)) {
             supportedDescs.push_back(desc);

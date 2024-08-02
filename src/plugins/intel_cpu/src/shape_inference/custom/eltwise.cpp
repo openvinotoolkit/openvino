@@ -1,15 +1,13 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "eltwise.hpp"
 #include "utils.hpp"
-#include "ie_ngraph_utils.hpp"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
-using namespace InferenceEngine;
 
 /**
  * Implements Eltwise shape inference algorithm. The algorithm is based on broadcasting all the input shapes

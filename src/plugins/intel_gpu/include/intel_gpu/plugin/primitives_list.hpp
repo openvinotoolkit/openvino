@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -97,7 +97,7 @@ REGISTER_FACTORY(v1, BatchToSpace);
 // REGISTER_FACTORY(v1, BinaryConvolution); Supported via BinaryConvolution->Convolution conversion
 REGISTER_FACTORY(v1, Broadcast);
 REGISTER_FACTORY(v1, ConvertLike);
-REGISTER_FACTORY(v1, Convolution);
+// REGISTER_FACTORY(v1, Convolution); Supported via Convolution->internal::Convolution conversion
 REGISTER_FACTORY(v1, ConvolutionBackpropData);
 REGISTER_FACTORY(v1, DeformableConvolution);
 REGISTER_FACTORY(v1, DeformablePSROIPooling);
@@ -108,7 +108,7 @@ REGISTER_FACTORY(v1, Gather);
 REGISTER_FACTORY(v1, GatherTree);
 REGISTER_FACTORY(v1, Greater);
 REGISTER_FACTORY(v1, GreaterEqual);
-REGISTER_FACTORY(v1, GroupConvolution);
+// REGISTER_FACTORY(v1, GroupConvolution);  Supported via GroupConvolution->internal::Convolution conversion
 REGISTER_FACTORY(v1, GroupConvolutionBackpropData);
 REGISTER_FACTORY(v1, Less);
 REGISTER_FACTORY(v1, LessEqual);
@@ -263,6 +263,10 @@ REGISTER_FACTORY(v12, ScatterElementsUpdate);
 
 // ------------------------------ Supported v13 ops ----------------------------- //
 REGISTER_FACTORY(v13, Multinomial);
+REGISTER_FACTORY(v13, ScaledDotProductAttention);
+
+// ------------------------------ Supported v14 ops ----------------------------- //
+REGISTER_FACTORY(v15, ROIAlignRotated);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
@@ -272,3 +276,14 @@ REGISTER_FACTORY(internal, MulticlassNmsIEInternal);
 REGISTER_FACTORY(internal, FullyConnected);
 REGISTER_FACTORY(internal, FullyConnectedCompressed);
 REGISTER_FACTORY(internal, RMS);
+REGISTER_FACTORY(internal, GatherCompressed);
+REGISTER_FACTORY(internal, KVCache);
+REGISTER_FACTORY(internal, ReadValue);
+REGISTER_FACTORY(internal, Gemm);
+REGISTER_FACTORY(internal, SwiGLU);
+REGISTER_FACTORY(internal, IndirectGemm);
+REGISTER_FACTORY(internal, Convolution);
+REGISTER_FACTORY(internal, Placeholder);
+REGISTER_FACTORY(internal, SDPA);
+REGISTER_FACTORY(internal, IndirectSDPA);
+REGISTER_FACTORY(internal, RoPE);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,21 +23,13 @@ struct extract_image_patches : public primitive_base<extract_image_patches> {
 
     extract_image_patches() : primitive_base("", {}) {}
 
-    /// @brief Constructs select primitive.
-    /// @param id This primitive id.
-    /// @param input Input primitive id containing input 4-D tensor.
-    /// @param sizes Vector with sizes.
-    /// @param strides Vector with strides.
-    /// @param rates Vector with rates.
-    /// @param auto_pad How the padding is calculated.
-    /// @param output_shape Tensor with shape of output layout
     extract_image_patches(const primitive_id& id,
                           const input_info& input,
-                          const std::vector<unsigned int>& sizes,
-                          const std::vector<unsigned int>& strides,
-                          const std::vector<unsigned int>& rates,
-                          const std::string& auto_pad,
-                          const tensor& output_shape,
+                          const ov::Shape& sizes,
+                          const ov::Strides& strides,
+                          const ov::Shape& rates,
+                          const ov::op::PadType& auto_pad,
+                          const tensor& output_shape = tensor{},
                           const padding& output_padding = padding())
         : primitive_base(id, {input}, {output_padding}),
           sizes(sizes),
@@ -47,13 +39,13 @@ struct extract_image_patches : public primitive_base<extract_image_patches> {
           output_shape(output_shape) {}
 
     /// @brief Vector with sizes
-    std::vector<unsigned int> sizes;
+    ov::Shape sizes;
     /// @brief Vector with strides
-    std::vector<unsigned int> strides;
+    ov::Strides strides;
     /// @brief Vector with rates
-    std::vector<unsigned int> rates;
+    ov::Shape rates;
     /// @brief Mode how the padding is calculated
-    std::string auto_pad;
+    ov::op::PadType auto_pad;
     /// @brief Shape of output layout
     tensor output_shape;
 
@@ -83,7 +75,7 @@ struct extract_image_patches : public primitive_base<extract_image_patches> {
         ob << sizes;
         ob << strides;
         ob << rates;
-        ob << auto_pad;
+        ob << make_data(&auto_pad, sizeof(ov::op::PadType));
         ob << output_shape;
     }
 
@@ -92,7 +84,7 @@ struct extract_image_patches : public primitive_base<extract_image_patches> {
         ib >> sizes;
         ib >> strides;
         ib >> rates;
-        ib >> auto_pad;
+        ib >> make_data(&auto_pad, sizeof(ov::op::PadType));
         ib >> output_shape;
     }
 };

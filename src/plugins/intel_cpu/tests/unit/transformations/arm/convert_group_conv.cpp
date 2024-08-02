@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,7 +67,7 @@ TEST(TransformationTests, CheckConvertGroupConvIsApplied) {
                                                                       ov::Strides{1});
             concat_inputs.push_back(conv);
         }
-        auto concat = std::make_shared<ov::opset8::Concat>(concat_inputs, 1);
+        auto concat = std::make_shared<ov::op::v0::Concat>(concat_inputs, 1);
         model_ref = std::make_shared<ov::Model>(ov::NodeVector{ concat }, ov::ParameterVector{ param });
     }
     auto res = compare_functions(model, model_ref);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,9 +54,9 @@ TEST_P(OVInferRequestWaitTests, canWaitWithotStartSsync) {
 
 TEST_P(OVInferRequestWaitTests, throwExceptionOnSetTensorAfterAsyncInfer) {
     auto&& config = configuration;
-    auto itConfig = config.find(CONFIG_KEY(CPU_THROUGHPUT_STREAMS));
+    auto itConfig = config.find(ov::num_streams.name());
     if (itConfig != config.end()) {
-        if (itConfig->second.as<std::string>() != "CPU_THROUGHPUT_AUTO") {
+        if (itConfig->second.as<ov::streams::Num>() != ov::streams::AUTO) {
             if (std::stoi(itConfig->second.as<std::string>()) == 0) {
                 GTEST_SKIP() << "Not applicable with disabled streams";
             }

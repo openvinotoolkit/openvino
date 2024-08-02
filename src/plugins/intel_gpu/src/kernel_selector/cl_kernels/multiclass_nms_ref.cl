@@ -19,13 +19,8 @@
 
 #define MAX_CANDIDATES_PER_BATCH NUM_BOXES
 
-#ifdef HAS_ROISNUM
-    #define GET_SELECTED_INDICES_INDEX(b, f, y, x) INPUT3_GET_INDEX(b, f, y, x)
-    #define GET_SELECTED_NUM_INDEX(b, f, y, x) INPUT4_GET_INDEX(b, f, y, x)
-#else
-    #define GET_SELECTED_INDICES_INDEX(b, f, y, x) INPUT2_GET_INDEX(b, f, y, x)
-    #define GET_SELECTED_NUM_INDEX(b, f, y, x) INPUT3_GET_INDEX(b, f, y, x)
-#endif
+#define GET_SELECTED_INDICES_INDEX(b, f, y, x) OUTPUT1_GET_INDEX(b, f, y, x)
+#define GET_SELECTED_NUM_INDEX(b, f, y, x) OUTPUT2_GET_INDEX(b, f, y, x)
 
 typedef struct __attribute__((__packed__)) {
     INPUT0_TYPE score;
@@ -321,11 +316,11 @@ inline uint FUNC(nms)(const __global INPUT0_TYPE* boxes,
 }
 
 inline uint FUNC(multiclass_nms)(const __global INPUT0_TYPE* boxes,
-                                                const __global INPUT0_TYPE* scores,
-                                                const uint num_boxes,
-                                                const uint num_previous_boxes,
-                                                const uint batch_idx,
-                                                __global BoxInfo* box_info) {
+                                 const __global INPUT0_TYPE* scores,
+                                 const uint num_boxes,
+                                 const uint num_previous_boxes,
+                                 const uint batch_idx,
+                                 __global BoxInfo* box_info) {
     uint detection_count = 0;
 
     for (uint class_idx = 0; class_idx < NUM_CLASSES; ++class_idx) {
@@ -357,10 +352,10 @@ KERNEL(multiclass_nms_ref_stage_0)(
 #ifdef HAS_ROISNUM
     const __global INPUT2_TYPE* roisnum,
 #endif
-    __global OUTPUT_INDICES_TYPE* selected_indices,
-    __global OUTPUT_INDICES_TYPE* selected_num,
     __global BoxInfo* box_info,
-    __global OUTPUT_TYPE* selected_outputs) {
+    __global OUTPUT_TYPE* selected_outputs,
+    __global OUTPUT1_TYPE* selected_indices,
+    __global OUTPUT2_TYPE* selected_num) {
 
     const uint batch_idx = get_global_id(0);
     const uint box_info_offset = batch_idx * MAX_CANDIDATES_PER_BATCH;
@@ -396,10 +391,10 @@ KERNEL(multiclass_nms_ref_stage_1)(
 #ifdef HAS_ROISNUM
     const __global INPUT2_TYPE* roisnum,
 #endif
-    __global OUTPUT_INDICES_TYPE* selected_indices,
-    __global OUTPUT_INDICES_TYPE* selected_num,
     __global BoxInfo* box_info,
-    __global OUTPUT_TYPE* selected_outputs) {
+    __global OUTPUT_TYPE* selected_outputs,
+    __global OUTPUT1_TYPE* selected_indices,
+    __global OUTPUT2_TYPE* selected_num) {
 
     // pack box_infos
     uint dst_offset = selected_num[GET_SELECTED_NUM_INDEX(0, 0, 0, 0)];
@@ -431,10 +426,10 @@ KERNEL(multiclass_nms_ref_stage_2)(
 #ifdef HAS_ROISNUM
     const __global INPUT2_TYPE* roisnum,
 #endif
-    __global OUTPUT_INDICES_TYPE* selected_indices,
-    __global OUTPUT_INDICES_TYPE* selected_num,
     __global BoxInfo* box_info,
-    __global OUTPUT_TYPE* selected_outputs) {
+    __global OUTPUT_TYPE* selected_outputs,
+    __global OUTPUT1_TYPE* selected_indices,
+    __global OUTPUT2_TYPE* selected_num) {
 
     // fill outputs
     const uint batch_idx = get_global_id(0);

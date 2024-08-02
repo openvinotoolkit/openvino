@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -49,6 +49,7 @@ OutputVector translate_convnd(const NodeContext& context) {
                                                       dilations,
                                                       pad_type);
     }
+    conv = context.mark_node(conv);
     if (!context.input_is_none(2)) {
         auto bias = context.get_input(2);
         auto bias_from_visible_context = context.get_input_from_visible_context(2);

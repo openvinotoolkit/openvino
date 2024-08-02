@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import sys
 import pytest
 import numpy as np
 
@@ -14,12 +15,14 @@ from tests.utils.helpers import (
 from openvino import Model, Shape, Core, Tensor, serialize
 from openvino.runtime import ConstOutput
 
+import openvino.properties as props
+
 
 def test_get_property(device):
     model = get_relu_model([1, 3, 32, 32])
     core = Core()
     compiled_model = core.compile_model(model, device, {})
-    network_name = compiled_model.get_property("NETWORK_NAME")
+    network_name = compiled_model.get_property(props.model_name)
     assert network_name == "test_model"
 
 
@@ -29,11 +32,15 @@ def test_get_runtime_model(device):
     assert isinstance(runtime_model, Model)
 
 
+@pytest.mark.skipif(
+    condition=sys.version_info >= (3, 12),
+    reason="Fails on any Linux platform with Python 3.12. Ticket CVS-133903",
+)
 def test_export_import(device):
     core = Core()
 
-    if "EXPORT_IMPORT" not in core.get_property(device, "OPTIMIZATION_CAPABILITIES"):
-        pytest.skip(f"{core.get_property(device, 'FULL_DEVICE_NAME')} plugin due-to export, import model API isn't implemented.")
+    if props.device.Capability.EXPORT_IMPORT not in core.get_property(device, props.device.capabilities):
+        pytest.skip(f"{core.get_property(device, props.device.full_name)} plugin due-to export, import model API isn't implemented.")
 
     compiled_model = generate_relu_compiled_model(device)
 
@@ -52,8 +59,8 @@ def test_export_import_advanced(device):
 
     core = Core()
 
-    if "EXPORT_IMPORT" not in core.get_property(device, "OPTIMIZATION_CAPABILITIES"):
-        pytest.skip(f"{core.get_property(device, 'FULL_DEVICE_NAME')} plugin due-to export, import model API isn't implemented.")
+    if props.device.Capability.EXPORT_IMPORT not in core.get_property(device, props.device.capabilities):
+        pytest.skip(f"{core.get_property(device, props.device.full_name)} plugin due-to export, import model API isn't implemented.")
 
     compiled_model = generate_relu_compiled_model(device)
 
@@ -213,7 +220,7 @@ def test_direct_infer(device, shared_flag):
     compiled_model, img = generate_model_and_image(device)
 
     tensor = Tensor(img)
-    res = compiled_model({"data": tensor}, shared_memory=shared_flag)
+    res = compiled_model({"data": tensor}, share_inputs=shared_flag)
     assert np.argmax(res[compiled_model.outputs[0]]) == 531
     ref = compiled_model.infer_new_request({"data": tensor})
     assert np.array_equal(ref[compiled_model.outputs[0]], res[compiled_model.outputs[0]])
@@ -235,3 +242,17 @@ def test_compiled_model_after_core_destroyed(request, tmp_path, device):
     del model
     # check compiled and infer request can work properly after core object is destroyed
     compiled([np.random.normal(size=list(input.shape)).astype(dtype=input.get_element_type().to_dtype()) for input in compiled.inputs])
+
+
+def test_compiled_model_from_buffer_in_memory(request, tmp_path, device):
+    core = Core()
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
+    model = get_relu_model()
+    serialize(model, xml_path, bin_path)
+    with open(bin_path, "rb") as f:
+        weights = f.read()
+    with open(xml_path, "r") as f:
+        xml = f.read()
+
+    compiled = core.compile_model(model=xml, weights=weights, device_name=device)
+    _ = compiled([np.random.normal(size=list(input.shape)).astype(dtype=input.get_element_type().to_dtype()) for input in compiled.inputs])

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.ops.ConvertLike import ConvertLike
@@ -12,7 +12,7 @@ from openvino.tools.mo.ops.pad import Pad
 class AttributedPadToPad(FrontReplacementPattern):
     """
     This transformation converts AttributedPad operation (begin/end paddings are specified as attribute) to Pad
-    operation (Inference Engine semantic).
+    operation (OpenVINO semantic).
     """
     enabled = True
 

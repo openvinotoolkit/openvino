@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 #
@@ -57,7 +57,7 @@ def prior_box(name: str, input_data, image_data, attrs: dict):
 
         # Save inputs in order of OpenVINO model, to facilite Fuzzy test,
         # which accepts inputs and outputs in this order as well.
-        saveModel(name, exe, feedkeys=['Input', 'Image'], fetchlist=[box, var],
+        saveModel(name, exe, feed_vars=[Input, Image], fetchlist=[box, var],
                   inputs=[input_data, image_data], outputs=outs, target_dir=sys.argv[1])
     return outs
 

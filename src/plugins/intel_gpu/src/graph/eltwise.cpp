@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "eltwise_inst.h"
@@ -94,7 +94,7 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node, kernel_impl_pa
     }
 
     if (node.has_fused_primitives()) {
-        output_layout.data_type = node.get_fused_output_layout().data_type;
+        output_layout.data_type = impl_param.get_output_element_type();
     }
 
     if (!desc->stride.empty()) {
@@ -128,7 +128,13 @@ std::vector<layout> eltwise_inst::calc_output_layouts(eltwise_node const& /*node
         for (size_t i = 0; i < desc->input_size(); i++) {
             input_shapes.push_back(impl_param.get_input_layout(i).get<ShapeType>());
         }
-        output_shapes = ov::op::eltwise_shape_infer(&op, input_shapes);
+
+        // Special handling for is_finite, is_nan, is_inf modes
+        if (input_shapes.size() == 1) {
+            output_shapes = input_shapes;
+        } else {
+            output_shapes = ov::op::eltwise_shape_infer(&op, input_shapes);
+        }
 
         if (input_layout.format == format::b_fs_zyx_fsv16)  // use optimized 5D
             out_format = format::b_fs_zyx_fsv16;
@@ -185,7 +191,7 @@ std::vector<layout> eltwise_inst::calc_output_layouts(eltwise_node const& /*node
     output_layout.data_type = desc->output_data_types[0].value_or(output_layout.data_type);
 
     if (impl_param.has_fused_primitives()) {
-        output_layout.data_type = impl_param.get_fused_output_layout().data_type;
+        output_layout.data_type = impl_param.get_output_element_type();
     }
 
     if (!desc->stride.empty()) {
@@ -376,10 +382,16 @@ eltwise_inst::typed_primitive_inst(network& network, eltwise_node const& node) :
                 }
             }
 
-            for (size_t d = 0; d < input0_pshape.size(); ++d) {
-                bool sizes_equal = input0_pshape[d] == input_pshape[d];
+            auto base_pshape = input0_pshape;
+            if (prim->broadcast_spec == ov::op::AutoBroadcastType::NUMPY &&
+                base_pshape.size() < input_pshape.size()) {
+                base_pshape.insert(base_pshape.begin(), input_pshape.size() - base_pshape.size(), 1);
+            }
+
+            for (size_t d = 0; d < base_pshape.size(); ++d) {
+                bool sizes_equal = base_pshape[d] == input_pshape[d];
                 bool broadcast =
-                    (input0_pshape[d] == 1 || input_pshape[d] == 1) && (input0_pshape[d] != 1 || input_pshape[d] != 1);
+                    (base_pshape[d] == 1 || input_pshape[d] == 1) && (base_pshape[d] != 1 || input_pshape[d] != 1);
                 CLDNN_ERROR_BOOL(node.id(),
                                  "Sizes equal or broadcast is possible",
                                  !(sizes_equal || broadcast),

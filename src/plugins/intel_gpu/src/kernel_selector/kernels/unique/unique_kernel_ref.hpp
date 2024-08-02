@@ -18,23 +18,16 @@ struct unique_count_params : base_params {
 };
 
 /**
- * UniqueCount reference kernel optional parameters.
- */
-struct unique_count_optional_params : optional_params {
-    unique_count_optional_params() : optional_params(KernelType::UNIQUE_COUNT) {}
-};
-
-/**
  * Reference kernel for UniqueCount.
  */
 class UniqueCountKernelRef : public KernelBaseOpenCL {
 public:
     UniqueCountKernelRef() : KernelBaseOpenCL{"unique_count_ref"} {}
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    bool Validate(const Params& params, const optional_params& options) const override;
+    bool Validate(const Params& params) const override;
     JitConstants GetJitConstants(const unique_count_params& kernel_params) const;
     static CommonDispatchData SetDefault(const unique_count_params& kernel_params);
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
@@ -51,23 +44,16 @@ struct unique_gather_params : base_params {
 };
 
 /**
- * UniqueGather reference kernel optional parameters.
- */
-struct unique_gather_optional_params : optional_params {
-    unique_gather_optional_params() : optional_params(KernelType::UNIQUE_GATHER) {}
-};
-
-/**
  * Reference kernel for UniqueGather.
  */
 class UniqueGatherKernelRef : public KernelBaseOpenCL {
 public:
     UniqueGatherKernelRef() : KernelBaseOpenCL{"unique_gather_ref"} {}
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    bool Validate(const Params& params, const optional_params& options) const override;
+    bool Validate(const Params& params) const override;
     JitConstants GetJitConstants(const unique_gather_params& kernel_params) const;
     static CommonDispatchData SetDefault(const unique_gather_params& kernel_params);
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -9,11 +9,11 @@ from common.tf_layer_test_class import CommonTFLayerTest
 
 class TestSwitchMerge(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
-        assert 'x' in inputs_info
-        x_shape = inputs_info['x']
+        assert 'x:0' in inputs_info
+        x_shape = inputs_info['x:0']
         inputs_data = {}
         rng = np.random.default_rng()
-        inputs_data['x'] = rng.integers(-10, 10, x_shape).astype(self.x_type)
+        inputs_data['x:0'] = rng.integers(-10, 10, x_shape).astype(self.x_type)
         return inputs_data
 
     def merge_eliminating_several_cond_flows_net(self, x_shape, x_type, cond_value):
@@ -55,11 +55,11 @@ class TestSwitchMerge(CommonTFLayerTest):
         np.float32, np.int32
     ])
     @pytest.mark.parametrize("params", test_data_basic)
-    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
     @pytest.mark.nightly
     def test_merge_eliminating_several_cond_flows(self, params, cond_value, x_type, ie_device, precision, ir_version,
                                                   temp_dir,
-                                                  use_new_frontend, use_old_api):
+                                                  use_legacy_frontend):
         self._test(*self.merge_eliminating_several_cond_flows_net(**params, cond_value=cond_value, x_type=x_type),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_legacy_frontend=use_legacy_frontend)

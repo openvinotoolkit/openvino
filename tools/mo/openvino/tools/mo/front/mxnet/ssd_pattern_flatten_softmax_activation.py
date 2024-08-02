@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.front.mxnet.ssd_pattern_remove_flatten import SsdPatternRemoveFlatten
@@ -30,7 +30,7 @@ class SsdPatternFlattenSoftmaxActivation(FrontReplacementSubgraph):
     def replace_sub_graph(self, graph: Graph, match: dict):
         """
         Need to find the pattern: SoftmaxActivation -> DetectionOutput
-        DetectionOutput in IE expects flattened input from SoftMax, that is why there is the need to add
+        DetectionOutput in OV expects flattened input from SoftMax, that is why there is the need to add
         Flatten layer
 
         Parameters

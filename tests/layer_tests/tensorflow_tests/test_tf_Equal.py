@@ -1,16 +1,18 @@
 # Copyright (C) 2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import platform
+
 import numpy as np
 import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
-from common.utils.tf_utils import permute_nchw_to_nhwc
-
-import logging
+from common.utils.tf_utils import run_in_jenkins
 
 # Testing operation Equal
 # Documentation: https://www.tensorflow.org/versions/r1.15/api_docs/python/tf/math/equal
+rng = np.random.default_rng()
+
 
 class TestTFEqual(CommonTFLayerTest):
     output_type = np.float32
@@ -38,13 +40,14 @@ class TestTFEqual(CommonTFLayerTest):
         return inputs_dict
 
     # ir_version - common parameter
-    # use_new_frontend - common parameter
+    # use_legacy_frontend - common parameter
     # x_shape - first argument, should be an array (shape)
     # output_type - type of operands (numpy types: int32, int64, float16, etc...), different types for operands are not suppoted by TF
     # y_shape - second argument, should be an array (shape). Might be None if y_value is passed
     # x_value - fills x_shape by chosen value, uses randint instead
     # y_value - if y_shape is None - uses y_value as scalar, otherwise fills y_shape by chosen value, uses randint instead
-    def create_tf_equal_net(self, ir_version, use_new_frontend, x_shape, output_type, y_shape = None, x_value = None, y_value = None):
+    def create_tf_equal_net(self, ir_version, use_legacy_frontend, x_shape, output_type, y_shape=None, x_value=None,
+                            y_value=None):
         self.x_value = x_value
         self.y_value = y_value
         self.output_type = output_type
@@ -55,11 +58,6 @@ class TestTFEqual(CommonTFLayerTest):
         with tf.compat.v1.Session() as sess:
             self.x_shape = x_shape.copy() if isinstance(x_shape, list) else x_shape
             self.y_shape = y_shape.copy() if isinstance(y_shape, list) else y_shape
-
-            if isinstance(x_shape, list):
-                self.x_shape = permute_nchw_to_nhwc(self.x_shape, use_new_frontend)
-            if isinstance(y_shape, list):
-                self.y_shape = permute_nchw_to_nhwc(self.y_shape, use_new_frontend)
 
             if self.output_type == np.float16:
                 x = tf.compat.v1.placeholder(tf.float16, self.x_shape, 'Input')
@@ -98,114 +96,165 @@ class TestTFEqual(CommonTFLayerTest):
 
     test_data_int32 = [
         pytest.param(
-            dict(x_shape=[2,3], y_shape=[2,3]),     #Comparing shapes with random values (verifies false and possible true)
-            marks=pytest.mark.precommit_tf_fe),
-        dict(x_shape=[2,3], y_value=2),             #Comparing shape with scalar value (verifies false and possible true)
-        dict(x_shape=[2,3], y_shape=[2,3],          #Comparing shapes with same values (verifies true statement)
+            dict(x_shape=[2, 3], y_shape=[2, 3]),
+            # Comparing shapes with random values (verifies false and possible true)
+            marks=pytest.mark.precommit),
+        dict(x_shape=[2, 3], y_value=2),  # Comparing shape with scalar value (verifies false and possible true)
+        dict(x_shape=[2, 3], y_shape=[2, 3],  # Comparing shapes with same values (verifies true statement)
              x_value=2, y_value=2),
-        dict(x_shape=[2,3], y_value=2,              #Comparing shape with scalar value (verifies true statement)
+        dict(x_shape=[2, 3], y_value=2,  # Comparing shape with scalar value (verifies true statement)
              x_value=2),
-        dict(x_shape=[2,3,2], y_shape=[2]),         #Comparing shapes with different dimensions, random values (false and possible true)
-        dict(x_shape=[1,2,3,4], y_shape=[1,2,3,4])  #Comparing shapes with different dimensions (more than 3, for case with nchw/nhcw), random values (false and possible true)
+        dict(x_shape=[2, 3, 2], y_shape=[2]),
+        # Comparing shapes with different dimensions, random values (false and possible true)
+        dict(x_shape=[1, 2, 3, 4], y_shape=[1, 2, 3, 4])
+        # Comparing shapes with different dimensions (more than 3, for case with nchw/nhcw), random values (false and possible true)
     ]
 
     @pytest.mark.parametrize("params", test_data_int32)
     @pytest.mark.nightly
-    def test_tf_equal_int32(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                    use_old_api):
+    def test_tf_equal_int32(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         self._test(*self.create_tf_equal_net(**params, ir_version=ir_version,
-                                             use_new_frontend=use_new_frontend, output_type=np.int32),
+                                             use_legacy_frontend=use_legacy_frontend, output_type=np.int32),
                    ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version, use_new_frontend=use_new_frontend,
-                   use_old_api=use_old_api, **params)
+                   temp_dir=temp_dir, ir_version=ir_version, use_legacy_frontend=use_legacy_frontend,
+                   **params)
 
     test_data_int64 = [
         pytest.param(
-            dict(x_shape=[2,3], y_shape=[2,3]),     #Comparing shapes with random values (verifies false and possible true)
-            marks=pytest.mark.precommit_tf_fe),
-        dict(x_shape=[2,3], y_value=2),             #Comparing shape with scalar value (verifies false and possible true)
-        dict(x_shape=[2,3], y_shape=[2,3],          #Comparing shapes with same values (verifies true statement)
+            dict(x_shape=[2, 3], y_shape=[2, 3]),
+            # Comparing shapes with random values (verifies false and possible true)
+            marks=pytest.mark.precommit),
+        dict(x_shape=[2, 3], y_value=2),  # Comparing shape with scalar value (verifies false and possible true)
+        dict(x_shape=[2, 3], y_shape=[2, 3],  # Comparing shapes with same values (verifies true statement)
              x_value=2, y_value=2),
-        dict(x_shape=[2,3], y_value=2,              #Comparing shape with scalar value (verifies true statement)
+        dict(x_shape=[2, 3], y_value=2,  # Comparing shape with scalar value (verifies true statement)
              x_value=2),
-        dict(x_shape=[2,3,2], y_shape=[2]),         #Comparing shapes with different dimensions, random values (false and possible true)
-        dict(x_shape=[1,2,3,4], y_shape=[1,2,3,4])  #Comparing shapes with different dimensions (more than 3, for case with nchw/nhcw), random values (false and possible true)
+        dict(x_shape=[2, 3, 2], y_shape=[2]),
+        # Comparing shapes with different dimensions, random values (false and possible true)
+        dict(x_shape=[1, 2, 3, 4], y_shape=[1, 2, 3, 4])
+        # Comparing shapes with different dimensions (more than 3, for case with nchw/nhcw), random values (false and possible true)
     ]
 
     @pytest.mark.parametrize("params", test_data_int64)
     @pytest.mark.nightly
-    def test_tf_equal_int64(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                    use_old_api):
+    def test_tf_equal_int64(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         self._test(*self.create_tf_equal_net(**params, ir_version=ir_version,
-                                             use_new_frontend=use_new_frontend, output_type=np.int64),
+                                             use_legacy_frontend=use_legacy_frontend, output_type=np.int64),
                    ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version, use_new_frontend=use_new_frontend,
-                   use_old_api=use_old_api, **params)
+                   temp_dir=temp_dir, ir_version=ir_version, use_legacy_frontend=use_legacy_frontend,
+                   **params)
 
     # Values for checking important corner cases for float values
     # expect:   false   false   false    false   false   false    true    false    true
-    x_corner = [1.    , 1.    , 1.     , np.nan, np.nan, np.nan , np.inf, np.inf , np.NINF]
+    x_corner = [1., 1., 1., np.nan, np.nan, np.nan, np.inf, np.inf, np.NINF]
     y_corner = [np.nan, np.inf, np.NINF, np.nan, np.inf, np.NINF, np.inf, np.NINF, np.NINF]
 
     test_data_float16 = [
         pytest.param(
-            dict(x_shape=[2,3], y_shape=[2,3]),     #Comparing shapes with different dimensions, random values (false and possible true)
-            marks=pytest.mark.precommit_tf_fe),
+            dict(x_shape=[2, 3], y_shape=[2, 3]),
+            # Comparing shapes with different dimensions, random values (false and possible true)
+            marks=pytest.mark.precommit),
         pytest.param(
-            dict(x_shape=[9], y_shape=[9],          #Comparing shapes which contains corner cases
-                 x_value = x_corner, y_value = y_corner),
-            marks=pytest.mark.xfail(reason="94234")),
-        dict(x_shape=[1,2,3,4], y_shape=[1,2,3,4])  #Comparing shapes with different dimensions (more than 3, for case with nchw/nhcw), random values (false and possible true)
+            dict(x_shape=[9], y_shape=[9],  # Comparing shapes which contains corner cases
+                 x_value=x_corner, y_value=y_corner),
+            marks=pytest.mark.special_xfail(args={"ie_device": "GPU"}, reason="94234")),
+        dict(x_shape=[1, 2, 3, 4], y_shape=[1, 2, 3, 4])
+        # Comparing shapes with different dimensions (more than 3, for case with nchw/nhcw), random values (false and possible true)
     ]
 
     @pytest.mark.parametrize("params", test_data_float16)
     @pytest.mark.nightly
-    def test_tf_equal_float16(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                    use_old_api):
+    def test_tf_equal_float16(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         self._test(*self.create_tf_equal_net(**params, ir_version=ir_version,
-                                             use_new_frontend=use_new_frontend, output_type=np.float16),
+                                             use_legacy_frontend=use_legacy_frontend, output_type=np.float16),
                    ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version, use_new_frontend=use_new_frontend,
-                   use_old_api=use_old_api, **params)
+                   temp_dir=temp_dir, ir_version=ir_version, use_legacy_frontend=use_legacy_frontend,
+                   **params)
 
     test_data_float32 = [
         pytest.param(
-            dict(x_shape=[2,3], y_shape=[2,3]),     #Comparing shapes with random values (verifies false and possible true)
-            marks=pytest.mark.precommit_tf_fe),
+            dict(x_shape=[2, 3], y_shape=[2, 3]),
+            # Comparing shapes with random values (verifies false and possible true)
+            marks=pytest.mark.precommit),
         pytest.param(
-            dict(x_shape=[9], y_shape=[9],          #Comparing shapes which contains corner cases
+            dict(x_shape=[9], y_shape=[9],  # Comparing shapes which contains corner cases
                  x_value=x_corner, y_value=y_corner),
-            marks=pytest.mark.xfail(reason="94234")),
-        dict(x_shape=[1,2,3,4], y_shape=[1,2,3,4])  #Comparing shapes with different dimensions (more than 3, for case with nchw/nhcw), random values (false and possible true)
+            marks=pytest.mark.special_xfail(args={"ie_device": "GPU"}, reason="94234")),
+        dict(x_shape=[1, 2, 3, 4], y_shape=[1, 2, 3, 4])
+        # Comparing shapes with different dimensions (more than 3, for case with nchw/nhcw), random values (false and possible true)
     ]
 
     @pytest.mark.parametrize("params", test_data_float32)
     @pytest.mark.nightly
-    def test_tf_equal_float32(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                    use_old_api):
+    def test_tf_equal_float32(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         self._test(*self.create_tf_equal_net(**params, ir_version=ir_version,
-                                             use_new_frontend=use_new_frontend, output_type=np.float32),
+                                             use_legacy_frontend=use_legacy_frontend, output_type=np.float32),
                    ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version, use_new_frontend=use_new_frontend,
-                   use_old_api=use_old_api, **params)
+                   temp_dir=temp_dir, ir_version=ir_version, use_legacy_frontend=use_legacy_frontend,
+                   **params)
 
     test_data_float64 = [
         pytest.param(
-            dict(x_shape=[2,3], y_shape=[2,3]),     #Comparing shapes with different dimensions, random values (false and possible true)
-            marks=pytest.mark.precommit_tf_fe),
+            dict(x_shape=[2, 3], y_shape=[2, 3]),
+            # Comparing shapes with different dimensions, random values (false and possible true)
+            marks=pytest.mark.precommit),
         pytest.param(
-            dict(x_shape=[9], y_shape=[9],          #Comparing shapes which contains corner cases
-                 x_value = x_corner, y_value = y_corner),
-            marks=pytest.mark.xfail(reason="94234")),
-        dict(x_shape=[1,2,3,4], y_shape=[1,2,3,4])  #Comparing shapes with different dimensions (more than 3, for case with nchw/nhcw), random values (false and possible true)
+            dict(x_shape=[9], y_shape=[9],  # Comparing shapes which contains corner cases
+                 x_value=x_corner, y_value=y_corner),
+            marks=pytest.mark.special_xfail(args={"ie_device": "GPU"}, reason="94234")),
+        dict(x_shape=[1, 2, 3, 4], y_shape=[1, 2, 3, 4])
+        # Comparing shapes with different dimensions (more than 3, for case with nchw/nhcw), random values (false and possible true)
     ]
 
     @pytest.mark.parametrize("params", test_data_float64)
     @pytest.mark.nightly
-    def test_tf_equal_float64(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                    use_old_api):
+    def test_tf_equal_float64(self, params, ie_device, precision, ir_version, temp_dir, use_legacy_frontend):
         self._test(*self.create_tf_equal_net(**params, ir_version=ir_version,
-                                             use_new_frontend=use_new_frontend, output_type=np.float64),
+                                             use_legacy_frontend=use_legacy_frontend, output_type=np.float64),
                    ie_device, precision,
-                   temp_dir=temp_dir, ir_version=ir_version, use_new_frontend=use_new_frontend,
-                   use_old_api=use_old_api, **params)
+                   temp_dir=temp_dir, ir_version=ir_version, use_legacy_frontend=use_legacy_frontend,
+                   **params)
+
+
+class TestEqualStr(CommonTFLayerTest):
+    def _prepare_input(self, inputs_info):
+        assert 'x:0' in inputs_info
+        assert 'y:0' in inputs_info
+        x_shape = inputs_info['x:0']
+        y_shape = inputs_info['y:0']
+        inputs_data = {}
+        strings_dictionary = ['UPPER<>CASE SENTENCE', 'lower case\n sentence', ' UppEr LoweR CAse SENtence \t\n',
+                              '  some sentence', 'another sentence HERE    ']
+        inputs_data['x:0'] = rng.choice(strings_dictionary, x_shape)
+        inputs_data['y:0'] = rng.choice(strings_dictionary, y_shape)
+        return inputs_data
+
+    def create_equal_net(self, x_shape, y_shape):
+        tf.compat.v1.reset_default_graph()
+        with tf.compat.v1.Session() as sess:
+            x = tf.compat.v1.placeholder(tf.string, x_shape, 'x')
+            y = tf.compat.v1.placeholder(tf.string, x_shape, 'y')
+            tf.raw_ops.Equal(x=x, y=y)
+            tf.compat.v1.global_variables_initializer()
+            tf_net = sess.graph_def
+
+        ref_net = None
+
+        return tf_net, ref_net
+
+    @pytest.mark.parametrize('x_shape', [[], [1], [5]])
+    @pytest.mark.parametrize('y_shape', [[], [1], [5]])
+    @pytest.mark.precommit
+    @pytest.mark.nightly
+    @pytest.mark.xfail(condition=platform.system() in ('Darwin', 'Linux') and platform.machine() in ['arm', 'armv7l',
+                                                                                                     'aarch64',
+                                                                                                     'arm64', 'ARM64'],
+                       reason='126314, 132699: Build tokenizers for ARM and MacOS')
+    def test_equal_str(self, x_shape, y_shape,
+                       ie_device, precision, ir_version, temp_dir,
+                       use_legacy_frontend):
+        if ie_device == 'GPU' or run_in_jenkins():
+            pytest.skip("operation extension is not supported on GPU")
+        self._test(*self.create_equal_net(x_shape=x_shape, y_shape=y_shape),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_legacy_frontend=use_legacy_frontend)

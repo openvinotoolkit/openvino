@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,5 +26,9 @@ std::shared_ptr<Node> op::v3::EmbeddingBagPackedSum::clone_with_new_inputs(const
     } else {
         OPENVINO_THROW("Incorrect number of arguments");
     }
+}
+bool op::v3::EmbeddingBagPackedSum::visit_attributes(AttributeVisitor& visitor) {
+    OV_OP_SCOPE(v3_EmbeddingBagPackedSum_visit_attributes);
+    return true;
 }
 }  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include <pybind11/pybind11.h>
@@ -19,6 +19,7 @@
 #include "pyopenvino/graph/node_factory.hpp"
 #include "pyopenvino/graph/node_input.hpp"
 #include "pyopenvino/graph/node_output.hpp"
+#include <pyopenvino/graph/op.hpp>
 #if defined(ENABLE_OV_ONNX_FRONTEND)
 #    include "pyopenvino/graph/onnx_import/onnx_import.hpp"
 #endif
@@ -30,6 +31,8 @@
 #include "pyopenvino/core/offline_transformations.hpp"
 #include "pyopenvino/core/profiling_info.hpp"
 #include "pyopenvino/core/properties/properties.hpp"
+#include "pyopenvino/core/remote_context.hpp"
+#include "pyopenvino/core/remote_tensor.hpp"
 #include "pyopenvino/core/tensor.hpp"
 #include "pyopenvino/core/variable_state.hpp"
 #include "pyopenvino/core/version.hpp"
@@ -50,6 +53,7 @@
 #include "pyopenvino/graph/ops/constant.hpp"
 #include "pyopenvino/graph/ops/if.hpp"
 #include "pyopenvino/graph/ops/loop.hpp"
+#include "pyopenvino/graph/ops/paged_attention_extension.hpp"
 #include "pyopenvino/graph/ops/parameter.hpp"
 #include "pyopenvino/graph/ops/result.hpp"
 #include "pyopenvino/graph/ops/tensor_iterator.hpp"
@@ -60,6 +64,7 @@
 #include "pyopenvino/graph/rt_map.hpp"
 #include "pyopenvino/graph/shape.hpp"
 #include "pyopenvino/graph/strides.hpp"
+#include "pyopenvino/graph/symbol.hpp"
 #include "pyopenvino/graph/types/regmodule_graph_types.hpp"
 #include "pyopenvino/graph/util.hpp"
 #include "pyopenvino/utils/utils.hpp"
@@ -120,6 +125,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
             This method serializes model "as-is" that means no weights compression is applied.
             It is recommended to use ov::save_model function instead of ov::serialize in all cases
             when it is not related to debugging.
+
             :param model: model which will be converted to IR representation
             :type model: openvino.runtime.Model
             :param xml_path: path where .xml file will be saved
@@ -128,6 +134,8 @@ PYBIND11_MODULE(_pyopenvino, m) {
                              the same name as for xml_path will be used by default.
             :type bin_path: Union[str, bytes, pathlib.Path]
             :param version: version of the generated IR (optional).
+            :type version: str
+
             Supported versions are:
             - "UNSPECIFIED" (default) : Use the latest or model version
             - "IR_V10" : v10 IR
@@ -180,6 +188,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
             This method saves a model to IR applying all necessary transformations that usually applied
             in model conversion flow provided by mo tool. Paricularly, floatting point weights are
             compressed to FP16, debug information in model nodes are cleaned up, etc.
+
             :param model: model which will be converted to IR representation
             :type model: openvino.runtime.Model
             :param output_model: path to output model file
@@ -209,11 +218,13 @@ PYBIND11_MODULE(_pyopenvino, m) {
 
     regclass_graph_PyRTMap(m);
     regmodule_graph_types(m);
+    regclass_graph_Symbol(m);     // Symbol must be registered before Dimension
     regclass_graph_Dimension(m);  // Dimension must be registered before PartialShape
     regclass_graph_Layout(m);
     regclass_graph_Shape(m);
     regclass_graph_PartialShape(m);
     regclass_graph_Node(m);
+    regclass_graph_Op(m);
     regclass_graph_Input(m);
     regclass_graph_NodeFactory(m);
     regclass_graph_Strides(m);
@@ -226,6 +237,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
     py::module m_op = m.def_submodule("op", "Package ngraph.impl.op that wraps ov::op");  // TODO(!)
     regclass_graph_op_Assign(m_op);
     regclass_graph_op_Constant(m_op);
+    regclass_graph_op_PagedAttentionExtension(m_op);
     regclass_graph_op_Parameter(m_op);
     regclass_graph_op_Result(m_op);
     regclass_graph_op_If(m_op);
@@ -257,6 +269,11 @@ PYBIND11_MODULE(_pyopenvino, m) {
     regclass_AsyncInferQueue(m);
     regclass_ProfilingInfo(m);
     regclass_Extension(m);
+
+    regclass_RemoteContext(m);
+    regclass_RemoteTensor(m);
+    regclass_VAContext(m);
+    regclass_VASurfaceTensor(m);
 
     // Properties and hints
     regmodule_properties(m);

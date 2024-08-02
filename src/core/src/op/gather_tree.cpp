@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 
 #include "gather_tree_shape_inference.hpp"
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 op::v1::GatherTree::GatherTree(const Output<Node>& step_ids,
@@ -51,7 +50,7 @@ void op::v1::GatherTree::validate_and_infer_types() {
                           "Element type of inputs must be numeric. Got: ",
                           result_et);
 
-    const auto output_shape = shape_infer(this, ov::util::get_node_input_partial_shapes(*this)).front();
-    set_output_type(0, result_et, output_shape);
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
+    set_output_type(0, result_et, output_shapes[0]);
 }
 }  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,13 +20,12 @@ OutputVector translate_erfc(const NodeContext& context) {
     // aten::erf(Tensor self) -> Tensor
     // aten::erf.out(Tensor self, Tensor(!a) out) -> Tensor(!a)
     num_inputs_check(context, 1, 2);
-    auto x = context.get_input(0);
+    auto x = get_input_with_floating_type(context, 0);
 
     // create 'ones' to use to calculate complementary of Erf output
     auto ones = context.mark_node(make_shared<v0::Constant>(element::f32, Shape{}, 1.0f))->output(0);
 
-    // align data types of input 'x' and ones
-    align_eltwise_input_types(context, x, ones);
+    ones = context.mark_node(std::make_shared<v1::ConvertLike>(ones, x));
 
     // apply Erf to the input tensor 'x'
     auto y = context.mark_node(make_shared<v0::Erf>(x));

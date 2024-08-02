@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API TSFuse;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TSFuse transformation eliminates 2 consecutive Transposes if they result in no changes to input
  * or fuses them to single Transpose if input gets changed
  */

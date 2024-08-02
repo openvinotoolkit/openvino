@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ static void CreateTransposeOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
     auto permutePrim = cldnn::permute(layerName,
                                       inputs[0],
                                       order);
-    permutePrim.output_data_types[0] = cldnn::element_type_to_data_type(op->get_output_element_type(0));
+    permutePrim.output_data_types = get_output_data_types(op);
     p.add_primitive(*op, permutePrim);
 }
 

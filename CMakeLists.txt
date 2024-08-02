@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -28,6 +28,19 @@ if(POLICY CMP0091)
     cmake_policy(SET CMP0091 NEW) # Enables use of MSVC_RUNTIME_LIBRARY
 endif()
 
+# Avoid warning about DOWNLOAD_EXTRACT_TIMESTAMP in CMake 3.24:
+if(POLICY CMP0135)
+    cmake_policy(SET CMP0135 NEW)
+endif()
+
+if(POLICY CMP0149)
+    # VS generator looks for most recent Windows SDK, ignoring
+    # CMAKE_SYSTEM_VERSION and allowing override by WindowsSDKVersion
+    # environment variable. New in 3.27. This is to allow override
+    # in the Windows CI builds.
+    cmake_policy(SET CMP0149 NEW)
+endif()
+
 project(OpenVINO DESCRIPTION "OpenVINO toolkit")
 
 find_package(OpenVINODeveloperScripts REQUIRED
@@ -46,6 +59,7 @@ endif()
 
 # resolving dependencies for the project
 message (STATUS "CMAKE_VERSION ......................... " ${CMAKE_VERSION})
+message (STATUS "CMAKE_CROSSCOMPILING .................. " ${CMAKE_CROSSCOMPILING})
 message (STATUS "OpenVINO_SOURCE_DIR ................... " ${OpenVINO_SOURCE_DIR})
 message (STATUS "OpenVINO_BINARY_DIR ................... " ${OpenVINO_BINARY_DIR})
 message (STATUS "CMAKE_GENERATOR ....................... " ${CMAKE_GENERATOR})
@@ -57,7 +71,7 @@ if(OV_GENERATOR_MULTI_CONFIG)
     string(REPLACE ";" " " config_types "${CMAKE_CONFIGURATION_TYPES}")
     message (STATUS "CMAKE_CONFIGURATION_TYPES ............. " ${config_types})
     unset(config_types)
-    if(CMAKE_GENERATOR MATCHES "^Ninja Multi-Config$")
+    if(CMAKE_GENERATOR STREQUAL "Ninja Multi-Config")
         message (STATUS "CMAKE_DEFAULT_BUILD_TYPE .............. " ${CMAKE_DEFAULT_BUILD_TYPE})
     endif()
 else()
@@ -72,18 +86,15 @@ endif()
 if(CMAKE_TOOLCHAIN_FILE)
     message (STATUS "CMAKE_TOOLCHAIN_FILE .................. " ${CMAKE_TOOLCHAIN_FILE})
 endif()
-if(NOT OV_GLIBC_VERSION VERSION_EQUAL 0.0)
-    message (STATUS "GLIBC_VERSION ......................... " ${OV_GLIBC_VERSION})
+if(NOT OV_LIBC_VERSION VERSION_EQUAL 0.0)
+    message (STATUS "LIBC_VERSION .......................... " ${OV_LIBC_VERSION})
 endif()
 
 # remove file with exported targets to force its regeneration
-file(REMOVE "${CMAKE_BINARY_DIR}/ngraphTargets.cmake")
-file(REMOVE "${CMAKE_BINARY_DIR}/InferenceEngineTargets.cmake")
 file(REMOVE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 
 # remove exported developer targets files to force its regeneration
 macro(ov_clean_developer_package_targets)
-    file(REMOVE "${CMAKE_BINARY_DIR}/inference_engine_developer_package_targets.cmake")
     file(REMOVE "${CMAKE_BINARY_DIR}/openvino_developer_package_targets.cmake")
     unset(_OPENVINO_DEVELOPER_PACKAGE_TARGETS CACHE)
     unset(openvino_installed_targets CACHE)

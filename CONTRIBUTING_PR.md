@@ -16,6 +16,7 @@
 * Follow the [OpenVINO code style guide](https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/coding_style.md).
 * Make your PRs small - each PR should address one issue. Remove all changes 
   unrelated to the PR.
+* [Link your Pull Request to an issue](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#manually-linking-a-pull-request-to-an-issue-using-the-pull-request-sidebar) if it addresses one.
 * Document your contribution! If your changes may impact how the user works with
   OpenVINO, provide the information in proper articles. You can do it yourself, 
   or contact one of OpenVINO documentation contributors to work together on
@@ -56,8 +57,8 @@ Regardless of the automated tests, you should ensure the quality of your changes
 
 ## Need Additional Help? Check these Articles
 
-* [How to create a fork](https://help.github.com/articles/fork-a-rep) 
+* [How to create a fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo) 
 * [Install Git](https://git-scm.com/book/en/v2/Getting-Started-First-Time-Git-Setup)
 * If you want to add a new sample, please have a look at the Guide for contributing
-  to C++/C/Python IE samples and add the license statement at the top of new files for
+  to C++/C/Python OV samples and add the license statement at the top of new files for
   C++ example, Python example.

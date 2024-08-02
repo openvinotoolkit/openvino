@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,7 @@
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/original_precision_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace testing;
@@ -344,6 +345,135 @@ TEST(TransformationTests, ConvertPrecision_Convert) {
     ASSERT_NO_THROW(check_rt_info(f));
     ASSERT_FALSE(has_type<element::Type_t::f16>(f));
     ASSERT_FALSE(has_type<element::Type_t::i64>(f));
+}
+
+TEST(TransformationTests, ConvertPrecision_Convert_clamp_1) {
+    //  Similar to const compression test CompressConstants_compress_to_f16_max_out_of_range_val
+    // fp16 out of range should be clamped to [fp16_min, fp16_max]
+    std::shared_ptr<Model> model(nullptr), model_ref(nullptr);
+    {
+        auto input = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 1000, 2});
+        auto const_node = opset10::Constant::create(element::f32, Shape{2}, {100000.0f, -100000.0f});
+        auto convert = std::make_shared<opset4::Convert>(const_node, element::f16);
+        auto add_1 = make_shared<opset10::Add>(input, convert);
+        model = std::make_shared<Model>(NodeVector{add_1}, ParameterVector{input});
+
+        pass::Manager manager;
+        static const precisions_map precisions = {{element::f32, element::f16}};
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<pass::ConvertPrecision>(precisions);
+        manager.run_passes(model);
+    }
+
+    {
+        auto max_fp16 = static_cast<float>(std::numeric_limits<ov::float16>::max());
+        auto input = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 1000, 2});
+        auto const_node = opset10::Constant::create(element::f16, Shape{2}, {max_fp16, -max_fp16});
+        auto add_1 = make_shared<opset10::Add>(input, const_node);
+
+        model_ref = std::make_shared<Model>(NodeVector{add_1}, ParameterVector{input});
+    }
+    ASSERT_NO_THROW(check_rt_info(model));
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::CONST_VALUES)
+                        .enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+    const auto res = fc.compare(model, model_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+TEST(TransformationTests, ConvertPrecision_Convert_clamp_2) {
+#else
+// Ticket: CVS-122397
+TEST(TransformationTests, DISABLED_ConvertPrecision_Convert_clamp_2) {
+#endif
+    //  Similar to const compression test CompressConstants_compress_to_f16_max_out_of_range_val
+    // fp16 out of range should be clamped to [fp16_min, fp16_max]
+    std::shared_ptr<Model> model(nullptr), model_ref(nullptr);
+    {
+        auto input = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1000, 2});
+        auto const_node_1 = opset10::Constant::create(element::i32, Shape{2}, {100000, -100000});
+        auto convert_f32 = std::make_shared<opset4::Convert>(const_node_1, element::f32);
+        auto const_node_2 = opset10::Constant::create(element::f32, Shape{1}, {1.0f});
+
+        auto add_1 = make_shared<opset10::Add>(convert_f32, const_node_2);
+        auto add_2 = make_shared<opset10::Add>(input, add_1);
+        model = std::make_shared<Model>(NodeVector{add_2}, ParameterVector{input});
+
+        pass::Manager manager;
+        static const precisions_map precisions = {{element::f32, element::f16}};
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<pass::ConvertPrecision>(precisions);
+        manager.register_pass<pass::ConstantFolding>();
+        manager.run_passes(model);
+    }
+
+    {
+        auto max_fp16 = static_cast<float>(std::numeric_limits<ov::float16>::max());
+        auto input = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 1000, 2});
+        auto const_node = opset10::Constant::create(element::f16, Shape{2}, {max_fp16, -max_fp16});
+        auto add_1 = make_shared<opset10::Add>(input, const_node);
+
+        model_ref = std::make_shared<Model>(NodeVector{add_1}, ParameterVector{input});
+    }
+
+    ASSERT_NO_THROW(check_rt_info(model));
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::CONST_VALUES)
+                        .enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+    const auto res = fc.compare(model, model_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+TEST(TransformationTests, ConvertPrecision_Convert_clamp_int32) {
+#else
+// Ticket: CVS-122397
+TEST(TransformationTests, DISABLED_ConvertPrecision_Convert_clamp_int32) {
+#endif
+    // int32 values will be converted to float16, but during CF evaluate is calculated in float32
+    // const_1[i32] -> convert_to_f16[f16] -> some_foldable_op[f16] -> ...
+    // cont_1_converted_to_f16[f16] -> some_foldable_op[f16] -> ...
+    // but during CF the subgraph above is evaluated in f32 and then again is cast to f16.
+    // therefore we should ensure that clamp still takes place if in intermediate calculation overflow happens
+
+    std::shared_ptr<Model> model(nullptr), model_ref(nullptr);
+    {
+        auto input = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1000, 2});
+        auto const_node_1 = opset10::Constant::create(element::i32, Shape{2}, {100000, -100000});
+        auto convert_f32 = std::make_shared<opset4::Convert>(const_node_1, element::f32);
+        auto const_node_2 = opset10::Constant::create(element::f32, Shape{1}, {1.0f});
+
+        auto add_1 = make_shared<opset10::Add>(convert_f32, const_node_2);
+        auto add_2 = make_shared<opset10::Add>(input, add_1);
+        model = std::make_shared<Model>(NodeVector{add_2}, ParameterVector{input});
+
+        pass::Manager manager;
+        static const precisions_map precisions = {{element::f32, element::f16}};
+        manager.register_pass<pass::InitNodeInfo>();
+        manager.register_pass<pass::ConvertPrecision>(precisions);
+        manager.register_pass<pass::ConstantFolding>();
+        manager.run_passes(model);
+    }
+
+    {
+        auto max_fp16 = static_cast<float>(std::numeric_limits<ov::float16>::max());
+        auto input = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 1000, 2});
+        auto const_node = opset10::Constant::create(element::f16, Shape{2}, {max_fp16, -max_fp16});
+        auto add_1 = make_shared<opset10::Add>(input, const_node);
+
+        model_ref = std::make_shared<Model>(NodeVector{add_1}, ParameterVector{input});
+    }
+
+    ASSERT_NO_THROW(check_rt_info(model));
+    const auto fc = FunctionsComparator::with_default()
+                        .enable(FunctionsComparator::PRECISIONS)
+                        .enable(FunctionsComparator::CONST_VALUES)
+                        .enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+    const auto res = fc.compare(model, model_ref);
+    ASSERT_TRUE(res.valid) << res.message;
 }
 
 TEST(TransformationTests, ConvertPrecision_ConvertElimination) {
@@ -2434,6 +2564,60 @@ TEST(TransformationTests, ConvertPrecision_assign_read_value_change_variable_typ
         auto some_value = opset10::Constant::create(element::f16, Shape{1}, {2});
         auto mul = make_shared<opset10::Multiply>(read_value, some_value);
         auto res = make_shared<opset10::Result>(mul);
+        auto assign = make_shared<opset10::Assign>(mul, variable);
+
+        model_ref = make_shared<Model>(ResultVector{res}, SinkVector{assign}, ParameterVector{input});
+    }
+
+    const FunctionsComparator func_comparator = FunctionsComparator::with_default();
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+TEST(TransformationTests, ConvertPrecision_assign_read_value_preserve_orig_types_as_rt_attribute) {
+    shared_ptr<Model> model, model_ref;
+    pass::Manager manager;
+
+    {
+        auto variable = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{ov::PartialShape{10, 10}, ov::element::f32, "variable_name"});
+
+        auto input = make_shared<opset10::Parameter>(element::f32, Shape{10, 10});
+        auto read_value = make_shared<opset10::ReadValue>(input, variable);
+
+        auto some_value = opset10::Constant::create(element::f32, Shape{1}, {2});
+        auto mul = make_shared<opset10::Multiply>(read_value, some_value);
+        auto res = make_shared<opset10::Result>(mul);
+        auto assign = make_shared<opset10::Assign>(mul, variable);
+
+        model = make_shared<Model>(ResultVector{res}, SinkVector{assign}, ParameterVector{input});
+
+        type_to_fuse_map empty_type_to_fuse_map = {};
+        bool keep_precision_sensitive_in_fp32 = true;
+        bool convert_input_output_precision = false;
+        bool store_original_precision_as_rt_attribute = true;
+        manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                      empty_type_to_fuse_map,
+                                                      keep_precision_sensitive_in_fp32,
+                                                      convert_input_output_precision,
+                                                      store_original_precision_as_rt_attribute);
+        manager.run_passes(model);
+        EXPECT_EQ(ov::get_original_precision(read_value), element::f32);
+        EXPECT_EQ(ov::get_original_precision(assign), element::f32);
+    }
+
+    {
+        auto variable = std::make_shared<ov::op::util::Variable>(
+            ov::op::util::VariableInfo{ov::PartialShape{10, 10}, ov::element::f16, "variable_name"});
+
+        auto input = make_shared<opset10::Parameter>(element::f32, Shape{10, 10});
+        auto convert_1 = make_shared<opset10::Convert>(input, element::f16);
+        auto read_value = make_shared<opset10::ReadValue>(convert_1, variable);
+
+        auto some_value = opset10::Constant::create(element::f16, Shape{1}, {2});
+        auto mul = make_shared<opset10::Multiply>(read_value, some_value);
+        auto convert_2 = make_shared<opset10::Convert>(mul, element::f32);
+        auto res = make_shared<opset10::Result>(convert_2);
         auto assign = make_shared<opset10::Assign>(mul, variable);
 
         model_ref = make_shared<Model>(ResultVector{res}, SinkVector{assign}, ParameterVector{input});

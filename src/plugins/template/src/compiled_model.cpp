@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -147,17 +147,17 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
         return decltype(ov::execution_devices)::value_type{get_plugin()->get_device_name() + "." +
                                                            std::to_string(m_cfg.device_id)};
     } else if (ov::optimal_number_of_infer_requests == name) {
-        unsigned int value = m_cfg.streams_executor_config._streams;
+        unsigned int value = m_cfg.streams;
         return decltype(ov::optimal_number_of_infer_requests)::value_type(value);
     } else if (ov::supported_properties == name) {
         auto ro_properties = default_ro_properties();
         auto rw_properties = default_rw_properties();
 
-        std::vector<ov::PropertyName> supported_properties;
+        auto supported_properties = decltype(ov::supported_properties)::value_type();
         supported_properties.reserve(ro_properties.size() + rw_properties.size());
         supported_properties.insert(supported_properties.end(), ro_properties.begin(), ro_properties.end());
         supported_properties.insert(supported_properties.end(), rw_properties.begin(), rw_properties.end());
-        return decltype(ov::supported_properties)::value_type(supported_properties);
+        return supported_properties;
     }
 
     return m_cfg.Get(name);

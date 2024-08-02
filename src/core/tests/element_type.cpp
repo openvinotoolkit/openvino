@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -67,8 +67,14 @@ TEST(element_type, from_string) {
     EXPECT_EQ(element::Type("U64"), element::u64);
     EXPECT_EQ(element::Type("nf4"), element::nf4);
     EXPECT_EQ(element::Type("NF4"), element::nf4);
+    EXPECT_EQ(element::Type("f8e4m3"), element::f8e4m3);
+    EXPECT_EQ(element::Type("F8E4M3"), element::f8e4m3);
+    EXPECT_EQ(element::Type("f8e5m2"), element::f8e5m2);
+    EXPECT_EQ(element::Type("F8E5M2"), element::f8e5m2);
     EXPECT_EQ(element::Type("string"), element::string);
     EXPECT_EQ(element::Type("STRING"), element::string);
+    EXPECT_EQ(element::Type("F4E2M1"), element::f4e2m1);
+    EXPECT_EQ(element::Type("F4E2M1"), element::f4e2m1);
 
     EXPECT_EQ(element::Type("undefined"), element::undefined);
     EXPECT_EQ(element::Type("UNSPECIFIED"), element::undefined);

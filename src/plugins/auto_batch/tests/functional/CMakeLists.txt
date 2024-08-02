@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -19,7 +19,7 @@ ov_add_test_target(
             openvino_auto_batch_plugin
         ADD_CPPLINT
         LABELS
-            OV UNIT AUTO_BATCH
+            OV AUTO_BATCH
 )
 
 ov_set_threading_interface_for(${TARGET_NAME})

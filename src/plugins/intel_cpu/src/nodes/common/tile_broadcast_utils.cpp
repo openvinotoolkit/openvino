@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,7 @@
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-using namespace InferenceEngine;
+
 
 namespace ov {
 namespace intel_cpu {
@@ -90,7 +90,7 @@ bool TileBroadcastCommon::canBeExecutedInNSPCLayout(VectorDims srcBlockedDims, V
     return optimizedDims.size() <= maxNDims;
 }
 
-std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node *node) {
+std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node *node, size_t outSize) {
     std::vector<NodeDesc> supportedPrimitiveDescriptors;
     auto precision = node->getOriginalInputPrecisionAtPort(0);
     auto dataType = DnnlExtensionUtils::ElementTypeToDataType(precision);
@@ -122,7 +122,7 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node *node)
         config.inConfs[2].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, node->getInputShapeAtPort(2)));
     }
 
-    config.outConfs.resize(node->getChildEdges().size());
+    config.outConfs.resize(outSize);
 
     auto pushDesc = [&](dnnl::memory::format_tag inFormat, dnnl::memory::format_tag outFormat) {
         config.inConfs[0].setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(node->getInputShapeAtPort(0), dataType, inFormat));
@@ -253,8 +253,8 @@ void TileBroadcastCommon::broadcastScalar(const char *srcData, char *dstData, si
 }
 
 void TileBroadcastCommon::optimizedExecute(const MemoryPtr& srcMemory, const MemoryPtr& dstMemory) {
-    auto srcData = reinterpret_cast<const char *>(srcMemory->getData());
-    auto dstData = reinterpret_cast<char *>(dstMemory->getData());
+    auto srcData = srcMemory->getDataAs<const char>();
+    auto dstData = dstMemory->getDataAs<char>();
 
     if (srcMemory->getStaticDims() == dstMemory->getStaticDims()) {
         const auto prc = dstMemory->getDesc().getPrecision();
@@ -266,7 +266,7 @@ void TileBroadcastCommon::optimizedExecute(const MemoryPtr& srcMemory, const Mem
         if (optimizedParams.dstStrides[0] == optimizedParams.dims[5] * optimizedParams.dstStrides[5]) {
             size_t data_size = optimizedParams.dstStrides[5];
             size_t elt_cnt = optimizedParams.dims[5];
-            auto srcData_i32 = reinterpret_cast<const int *>(srcMemory->getData());
+            auto srcData_i32 = srcMemory->getDataAs<const int>();
             if (data_size == 1) {
                 memset(dstData, srcData[0], elt_cnt);
             } else if (data_size == 4 && srcData_i32[0] == 0) {

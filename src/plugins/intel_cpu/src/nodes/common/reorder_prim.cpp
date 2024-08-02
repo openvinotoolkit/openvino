@@ -4,12 +4,12 @@
 
 #include "reorder_prim.h"
 
-#include <dnnl_extension_utils.h>
-#include <dnnl_types.h>
+#include "dnnl_extension_utils.h"
+#include "dnnl_types.h"
 
 #include <algorithm>
-#include <common/primitive_hashing_utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
+#include "common/primitive_hashing_utils.hpp"
+#include "cpu/x64/cpu_isa_traits.hpp"
 #include <memory>
 #include <string>
 

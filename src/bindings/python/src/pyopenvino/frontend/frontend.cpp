@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -165,13 +165,27 @@ void regclass_frontend_FrontEnd(py::module m) {
             )");
 
     fem.def("add_extension",
-            static_cast<void (FrontEnd::*)(const std::string& extension_path)>(&FrontEnd::add_extension),
+            static_cast<void (FrontEnd::*)(const std::vector<std::shared_ptr<ov::Extension>>& extension)>(
+                &FrontEnd::add_extension),
             R"(
+                Add extensions defined by objects inheriting from Extension 
+                used in order to extend capabilities of Frontend.
+
+                :param extension: Provided extension objects.
+                :type extension: List[Extension]
+            )");
+
+    fem.def(
+        "add_extension",
+        [](FrontEnd& self, const py::object& extension_path) {
+            return self.add_extension(Common::utils::convert_path_to_string(extension_path));
+        },
+        R"(
                 Add extension defined in external library indicated by a extension_path 
                 used in order to extend capabilities of Frontend.
 
                 :param extension_path: A path to extension.
-                :type extension_path: str
+                :type extension_path: str, Path
             )");
 
     fem.def("__repr__", [](const FrontEnd& self) -> std::string {

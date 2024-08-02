@@ -1,16 +1,17 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#define _USE_MATH_DEFINES
 #include "openvino/frontend/common/random_normal_helper.hpp"
 
-#include "ngraph/output_vector.hpp"
+#include <math.h>
+
+#include "openvino/core/node_vector.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/opsets/opset12.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
-#define _USE_MATH_DEFINES
-#include <math.h>
 
 namespace ov {
 namespace frontend {

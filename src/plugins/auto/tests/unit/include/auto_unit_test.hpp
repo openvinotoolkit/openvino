@@ -40,9 +40,6 @@ MATCHER_P(ComparePerfHint, perfHint, "Check if perf hint expects.") {
     return perfHint == arg_perfHint.as<std::string>();
 }
 
-#define IE_SET_METRIC(key, name, ...) \
-    typename ::InferenceEngine::Metrics::MetricType<::InferenceEngine::Metrics::key>::type name = __VA_ARGS__;
-
 #define RETURN_MOCK_VALUE(value)  \
     InvokeWithoutArgs([value]() { \
         return ov::Any(value);    \
@@ -66,6 +63,10 @@ namespace ov {
 namespace mock_auto_plugin {
 namespace tests {
 
+enum MODELTYPE {
+    STATIC = 0,
+    DYNAMIC = 1,
+};
 class BaseTest {
 public:
     std::shared_ptr<const ov::Model> model;
@@ -87,18 +88,23 @@ public:
 
     ov::Any optimalNum;
     virtual ~BaseTest();
-    BaseTest();
+    BaseTest(const MODELTYPE modelType = MODELTYPE::STATIC);
 
 protected:
     std::shared_ptr<ov::Model> create_model();
+    std::shared_ptr<ov::Model> create_dynamic_output_model();
 };
 // for auto unit tests which can covered by mock core, or need to test with gmock icore
 class AutoTest : public BaseTest {
 public:
     std::shared_ptr<NiceMock<ov::MockICore>> core;
-    AutoTest();
+    AutoTest(const MODELTYPE modelType = MODELTYPE::STATIC);
     ~AutoTest();
 };
 }  // namespace tests
 }  // namespace mock_auto_plugin
+
+ACTION_P(Throw, what) {
+    OPENVINO_THROW(what);
+}
 }  // namespace ov

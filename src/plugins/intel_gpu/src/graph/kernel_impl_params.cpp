@@ -3,14 +3,6 @@
 //
 
 #include "intel_gpu/graph/kernel_impl_params.hpp"
-#include "intel_gpu/graph/program.hpp"
-#include "intel_gpu/graph/serialization/polymorphic_serializer.hpp"
-#include "intel_gpu/graph/serialization/layout_serializer.hpp"
-#include "intel_gpu/graph/serialization/string_serializer.hpp"
-#include "intel_gpu/graph/serialization/vector_serializer.hpp"
-#include "intel_gpu/runtime/device_info.hpp"
-
-#include <string>
 #include <vector>
 
 namespace cldnn {

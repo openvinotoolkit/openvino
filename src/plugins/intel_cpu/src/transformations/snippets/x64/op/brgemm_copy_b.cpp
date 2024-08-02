@@ -5,7 +5,6 @@
 #include "snippets/itt.hpp"
 #include "snippets/utils.hpp"
 #include "snippets/op/buffer.hpp"
-
 #include "brgemm_copy_b.hpp"
 
 #include "utils/general_utils.h"
@@ -16,9 +15,8 @@ namespace intel_cpu {
 intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x, const element::Type src_type, const Type type,
                                     const size_t offset_in, const size_t offset_out0, const size_t offset_out1,
                                     std::vector<size_t> layout_input, const size_t blk_size_k, const size_t blk_size_n)
-    : snippets::op::MemoryAccess({x}, 1, type == Type::WithCompensations ? 2 : 1),
+    : snippets::modifier::MemoryAccess(1, type == Type::WithCompensations ? 2 : 1), op::Op({x}),
       m_type(type), m_src_type(src_type) {
-    m_brgemmVNNIFactor = 4 / m_src_type.size();
     set_output_size(type == Type::WithCompensations ? 2 : 1);
     set_input_port_descriptor({0, offset_in}, 0);
     set_output_port_descriptor({0, offset_out0}, 0);
@@ -27,14 +25,15 @@ intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x, const element::Type s
     }
     compute_block_size_values(blk_size_k, blk_size_n);
     custom_constructor_validate_and_infer_types(std::move(layout_input));
+    m_brgemmVNNIFactor = 4 / m_src_type.size();
+    m_inner_n_block = 16 * m_brgemmVNNIFactor;
 }
 
 intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x, const element::Type src_type, const Type type,
                                     const PortDescriptor& desc_in0, const PortDescriptor& desc_out0, const PortDescriptor& desc_out1,
                                     std::vector<size_t> layout_input, const size_t blk_size_k, const size_t blk_size_n)
-    : snippets::op::MemoryAccess({x}, 1, type == Type::WithCompensations ? 2 : 1),
+    : snippets::modifier::MemoryAccess(1, type == Type::WithCompensations ? 2 : 1), op::Op({x}),
       m_type(type), m_src_type(src_type) {
-    m_brgemmVNNIFactor = 4 / m_src_type.size();
     set_output_size(type == Type::WithCompensations ? 2 : 1);
     set_input_port_descriptor(desc_in0, 0);
     set_output_port_descriptor(desc_out0, 0);
@@ -43,12 +42,19 @@ intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x, const element::Type s
     }
     compute_block_size_values(blk_size_k, blk_size_n);
     custom_constructor_validate_and_infer_types(std::move(layout_input));
+    m_brgemmVNNIFactor = 4 / m_src_type.size();
+    m_inner_n_block = 16 * m_brgemmVNNIFactor;
 }
 
 bool BrgemmCopyB::visit_attributes(AttributeVisitor& visitor) {
     INTERNAL_OP_SCOPE(BrgemmRepack_visit_attributes);
     MemoryAccess::visit_attributes(visitor);
     visitor.on_attribute("src_type", m_src_type);
+    visitor.on_attribute("type", m_type);
+    visitor.on_attribute("K_blk", m_K_blk);
+    visitor.on_attribute("N_blk", m_N_blk);
+    visitor.on_attribute("inner_n_block", m_inner_n_block);
+    visitor.on_attribute("brgemmVNNIFactor", m_brgemmVNNIFactor);
     return true;
 }
 
@@ -92,15 +98,18 @@ void intel_cpu::BrgemmCopyB::compute_block_size_values(const size_t blk_size_k, 
     m_N_blk = blk_size_n != 0 ? blk_size_n : *input_shape.rbegin();
 }
 
-ov::Shape intel_cpu::BrgemmCopyB::get_data_repacking_shape(const ov::snippets::VectorDims& planar_dims) const {
-    const auto& N = *planar_dims.rbegin();
-    const auto& K = *(planar_dims.rbegin() + 1);
-    return ov::Shape{rnd_up(K, m_brgemmVNNIFactor), rnd_up(N, m_N_blk)};
+ov::Shape intel_cpu::BrgemmCopyB::get_repacking_buffer_shape() const {
+    // OneDNN implementation repacks data and always writes the result by m_brgemmVNNIFactor * m_inner_n_block blocks
+    // despite the actual size of the input data. Because of that we have to round-up the allocation shape to always have enough memory allocated.
+    // For the details, please see 'copy_4x64' and 'copy_2x32' implementations and usage in onednn/src/cpu/x64/matmul/brgemm_matmul_copy_utils.cpp
+    return ov::Shape{rnd_up(m_K_blk, m_brgemmVNNIFactor), rnd_up(m_N_blk, m_inner_n_block)};
 }
 
-ov::Shape intel_cpu::BrgemmCopyB::get_compensation_shape(const ov::snippets::VectorDims& planar_dims) const {
-    const auto& N = *planar_dims.rbegin();
-    return ov::Shape{rnd_up(N, m_N_blk)};
+ov::Shape intel_cpu::BrgemmCopyB::get_compensations_buffer_shape() const {
+    // Compensations are computed during repacking, so we need to round-up allocation shape according to m_inner_n_block
+    // because of OneDNN implementation nuances (as in get_repacking_buffer_shape).
+    // However, the compensations are computed by N dimension, so K dimension doesn't affect the compensations buffer
+    return ov::Shape{rnd_up(m_N_blk, m_inner_n_block)};
 }
 
 std::shared_ptr<Node> intel_cpu::BrgemmCopyB::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -133,6 +142,14 @@ ov::snippets::IShapeInferSnippets::Result BrgemmCopyB::ShapeInfer::infer(const s
     std::vector<ov::snippets::VectorDims> new_shapes(m_num_outs, planar_shape);
     return {new_shapes, ov::snippets::ShapeInferStatus::success};
 }
-
 } // namespace intel_cpu
+
+template <>
+EnumNames<intel_cpu::BrgemmCopyB::Type>& EnumNames<intel_cpu::BrgemmCopyB::Type>::get() {
+    static auto enum_names = EnumNames<intel_cpu::BrgemmCopyB::Type>(
+        "ov::intel_cpu::BrgemmCopyB::Type",
+        {{"only_repacking", intel_cpu::BrgemmCopyB::Type::OnlyRepacking},
+         {"with_compensations", intel_cpu::BrgemmCopyB::Type::WithCompensations}});
+    return enum_names;
+}
 } // namespace ov

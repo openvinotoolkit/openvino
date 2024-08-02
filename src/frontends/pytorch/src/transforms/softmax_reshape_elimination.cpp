@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,8 +30,8 @@ SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
             auto softmax = pattern_to_output[m_softmax].get_node_shared_ptr();
             auto reshape1 = pattern_to_output[m_reshape1].get_node_shared_ptr();
 
-            const auto input_shape = reshape0->get_input_partial_shape(0);
-            const auto output_shape = reshape1->get_output_partial_shape(0);
+            const auto& input_shape = reshape0->get_input_partial_shape(0);
+            const auto& output_shape = reshape1->get_output_partial_shape(0);
             if (input_shape.is_dynamic() || output_shape.is_dynamic() ||
                 input_shape.get_shape() != output_shape.get_shape())
                 return false;
@@ -39,9 +39,7 @@ SoftmaxReshapeElimination::SoftmaxReshapeElimination() {
             const auto softmax_rank = softmax->get_input_partial_shape(0).rank();
             int64_t axis = 0;
             if (const auto softmax_v8 = ov::as_type_ptr<const ov::op::v8::Softmax>(softmax)) {
-                OPENVINO_SUPPRESS_DEPRECATED_START
-                axis = ov::normalize_axis(softmax->get_friendly_name(), softmax_v8->get_axis(), softmax_rank);
-                OPENVINO_SUPPRESS_DEPRECATED_END
+                axis = ov::util::normalize_axis(softmax->get_friendly_name(), softmax_v8->get_axis(), softmax_rank);
             } else if (const auto softmax_v1 = ov::as_type_ptr<const ov::op::v1::Softmax>(softmax)) {
                 axis = softmax_v1->get_axis();
             } else {

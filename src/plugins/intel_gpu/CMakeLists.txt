@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -8,12 +8,21 @@ endif()
 
 set (TARGET_NAME "openvino_intel_gpu_plugin")
 
+if((CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG) AND CMAKE_CXX_STANDARD GREATER_EQUAL 20)
+    set(CMAKE_CXX_FLAGS "-Wno-error=deprecated ${CMAKE_CXX_FLAGS}")
+endif()
+
 if(CMAKE_COMPILER_IS_GNUCXX)
     ov_add_compiler_flags(-Wno-strict-aliasing)
 endif()
 
 if(OV_COMPILER_IS_CLANG)
-    ov_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
+    # -Wno-delete-non-abstract-non-virtual-dtor is support > clang 9.0
+        if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9.0)
+        ov_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
+    else()
+        ov_add_compiler_flags(-Wno-delete-non-virtual-dtor)
+    endif()
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -47,10 +56,6 @@ add_subdirectory(src/graph)
 
 file(GLOB_RECURSE PLUGIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_gpu/plugin/*.hpp)
 
-if(ENABLE_PROXY)
-    set(PLUGIN_DEFAULT_CONFIG "PROXY_CONFIGURATION_ALIAS:GPU;PROXY_CONFIGURATION_PRIORITY:0;PROXY_CONFIGURATION_INTERNAL_NAME:OCL_GPU")
-endif()
-
 ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "GPU"
               SOURCES ${PLUGIN_SOURCES}
@@ -71,8 +76,8 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 
 # Workaround to avoid warnings during LTO build
 if(CMAKE_COMPILER_IS_GNUCXX)
-  set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized"
-                                                  LINK_FLAGS_RELWITHDEBINFO "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized")
+  set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized -Wno-stringop-overflow"
+                                                  LINK_FLAGS_RELWITHDEBINFO "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized -Wno-stringop-overflow")
 endif()
 
 if(ENABLE_TESTS)

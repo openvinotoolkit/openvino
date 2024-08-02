@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,6 @@
 #include <sstream>
 #include <vector>
 #include <map>
-#include <ie_common.h>
 #include "pugixml.hpp"
 #include "intel_gpu/runtime/tensor.hpp"
 

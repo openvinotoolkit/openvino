@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,10 +9,8 @@
 #include "graph_iterator_proto_txt.hpp"
 #include "graph_iterator_saved_model.hpp"
 #include "helper_ops/internal_operation.hpp"
-#include "helper_transforms/block_lstm_replacer.hpp"
 #include "helper_transforms/const_to_result_remover.hpp"
 #include "helper_transforms/embedding_segments_feature_fusing.hpp"
-#include "helper_transforms/gru_block_cell_replacer.hpp"
 #include "helper_transforms/saved_model_unused_remover.hpp"
 #include "helper_transforms/tensor_array_v3_replacer.hpp"
 #include "input_model.hpp"
@@ -20,6 +18,7 @@
 #include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
+#include "openvino/frontend/tensorflow/variable.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/manager.hpp"
@@ -30,9 +29,11 @@
 #include "transformations/common_optimizations/remove_concat_zero_dim_input.hpp"
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "transformations/switch_merge_resolve.hpp"
 #include "transformations/transpose_sinking/ts_general.hpp"
+#include "transformations/uninitialized_variable_resolve.hpp"
 #include "translate_session.hpp"
 #include "utils.hpp"
 
@@ -72,6 +73,10 @@ void get_unsupported_operations_and_failures(const std::shared_ptr<Model>& model
                 continue;
             }
             unsupported_operations.insert(op_type);
+        } else if (const auto& variable = ov::as_type_ptr<Variable>(node)) {
+            auto op_type = variable->get_decoder()->get_op_type();
+            auto op_name = variable->get_name();
+            failures[op_type] = "Variable or resource `" + op_name + "` is not initialized, model is inconsistent";
         } else if (const auto& fw_node = ov::as_type_ptr<FrameworkNode>(node)) {
             auto op_type = fw_node->get_decoder()->get_op_type();
             auto fw_node_attrs = fw_node->get_attrs();
@@ -223,6 +228,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 graph_iterator->get_variables_index(),
                                                 graph_iterator->get_saved_model_input_names(),
                                                 graph_iterator->get_saved_model_output_names(),
+                                                graph_iterator->get_hash_table_keys_map(),
+                                                graph_iterator->get_hash_table_values_map(),
                                                 nullptr,
                                                 true);
         } else if (GraphIteratorMeta::is_supported(model_path)) {
@@ -232,6 +239,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 graph_iterator->get_variables_index(),
                                                 graph_iterator->get_metagraph_input_names(),
                                                 graph_iterator->get_metagraph_output_names(),
+                                                graph_iterator->get_hash_table_keys_map(),
+                                                graph_iterator->get_hash_table_values_map(),
                                                 nullptr,
                                                 true);
         } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
@@ -255,6 +264,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 nullptr,
                                                 nullptr,
                                                 nullptr,
+                                                HashTableKeysValuesMap{},
+                                                HashTableKeysValuesMap{},
                                                 graph_iterator->get_checkpoint_v1_reader(),
                                                 false);
         } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
@@ -265,6 +276,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 nullptr,
                                                 nullptr,
                                                 nullptr,
+                                                HashTableKeysValuesMap{},
+                                                HashTableKeysValuesMap{},
                                                 graph_iterator->get_checkpoint_v1_reader(),
                                                 false);
         }
@@ -277,6 +290,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 graph_iterator->get_variables_index(),
                                                 graph_iterator->get_saved_model_input_names(),
                                                 graph_iterator->get_saved_model_output_names(),
+                                                graph_iterator->get_hash_table_keys_map(),
+                                                graph_iterator->get_hash_table_values_map(),
                                                 nullptr,
                                                 true);
         }
@@ -297,6 +312,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 graph_iterator->get_variables_index(),
                                                 graph_iterator->get_saved_model_input_names(),
                                                 graph_iterator->get_saved_model_output_names(),
+                                                graph_iterator->get_hash_table_keys_map(),
+                                                graph_iterator->get_hash_table_values_map(),
                                                 nullptr,
                                                 true);
         } else if (GraphIteratorMeta::is_supported(model_path)) {
@@ -306,6 +323,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 graph_iterator->get_variables_index(),
                                                 graph_iterator->get_metagraph_input_names(),
                                                 graph_iterator->get_metagraph_output_names(),
+                                                graph_iterator->get_hash_table_keys_map(),
+                                                graph_iterator->get_hash_table_values_map(),
                                                 nullptr,
                                                 true);
         } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
@@ -329,6 +348,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 nullptr,
                                                 nullptr,
                                                 nullptr,
+                                                HashTableKeysValuesMap{},
+                                                HashTableKeysValuesMap{},
                                                 graph_iterator->get_checkpoint_v1_reader(),
                                                 false);
         } else if (GraphIteratorProtoTxt::is_supported(model_path)) {
@@ -339,6 +360,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 nullptr,
                                                 nullptr,
                                                 nullptr,
+                                                HashTableKeysValuesMap{},
+                                                HashTableKeysValuesMap{},
                                                 graph_iterator->get_checkpoint_v1_reader(),
                                                 false);
         }
@@ -351,6 +374,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                                 graph_iterator->get_variables_index(),
                                                 graph_iterator->get_saved_model_input_names(),
                                                 graph_iterator->get_saved_model_output_names(),
+                                                graph_iterator->get_hash_table_keys_map(),
+                                                graph_iterator->get_hash_table_values_map(),
                                                 nullptr,
                                                 true);
         }
@@ -374,6 +399,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
                                             nullptr,
                                             input_names_map,
                                             output_names_map,
+                                            HashTableKeysValuesMap{},
+                                            HashTableKeysValuesMap{},
                                             nullptr,
                                             false);
     }
@@ -394,11 +421,13 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
 
     std::stringstream exception_message;
     for (const auto& failure : failures) {
+        auto exception_str = "[TensorFlow Frontend] Internal error, conversion is failed for " + failure.first +
+                             " operation with a message:\n" + failure.second + "\n";
+        exception_message << exception_str;
         if (m_telemetry) {
-            // TODO: 105173 support anonymization of exception message in order to send to telemetry
+            m_telemetry->send_event("error_info",
+                                    ov::util::filter_lines_by_prefix(exception_str, "[TensorFlow Frontend] "));
         }
-        exception_message << "[TensorFlow Frontend] Internal error, conversion is failed for " + failure.first +
-                                 " operation with a message:\n" + failure.second + "\n";
     }
 
     if (m_telemetry) {
@@ -409,17 +438,40 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
     if (unsupported_operations.size() > 0) {
         exception_message << "[TensorFlow Frontend] Internal error, no translator found for operation(s): ";
         size_t counter = 0;
+        size_t tokenizer_counter = 0;
+        std::string unsupported_ops_from_tokenizers;
+        const auto& all_tokenizer_ops = ov::frontend::tensorflow::op::get_supported_ops_via_tokenizers();
         for (const auto& unsupported_operation : unsupported_operations) {
             if (counter > 0) {
                 exception_message << ", ";
             }
             exception_message << unsupported_operation;
             ++counter;
+
+            // collect a list of unconverted operations for which openvino-tokenizers provides conversion extensions
+            if (std::find(all_tokenizer_ops.begin(), all_tokenizer_ops.end(), unsupported_operation) !=
+                all_tokenizer_ops.end()) {
+                if (tokenizer_counter > 0) {
+                    unsupported_ops_from_tokenizers += ", ";
+                }
+                unsupported_ops_from_tokenizers += unsupported_operation;
+                ++tokenizer_counter;
+            }
         }
         exception_message
             << "\nTo facilitate the conversion of unsupported operations, refer to Frontend Extension "
                "documentation: "
                "https://docs.openvino.ai/latest/openvino_docs_Extensibility_UG_Frontend_Extensions.html \n";
+
+        // recommend to use openvino-tokenizers if some unconverted operations from tokenizers are met
+        if (unsupported_ops_from_tokenizers.size() > 0) {
+            exception_message
+                << "\nEncountered unconverted operation(s) for which openvino-tokenizers package "
+                   "provides conversion extension(s): "
+                << unsupported_ops_from_tokenizers
+                << ". Install OpenVINO Tokenizers, refer to the documentation: "
+                   "https://docs.openvino.ai/2024/learn-openvino/llm_inference_guide/ov-tokenizers.html \n";
+        }
     }
 
     bool is_conversion_successful = ((unsupported_operations.size() == 0) && (failures.size() == 0));
@@ -451,9 +503,12 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const ov::frontend::Input
     TranslateSession translate_session(model, translator_map, "TensorFlow_Frontend_IR");
     try {
         f = translate_session.get_converted_model();
-    } catch (const std::exception&) {
+    } catch (const std::exception& e) {
         if (m_telemetry) {
-            // TODO: 105173 support anonymization of exception message in order to send to telemetry
+            auto filtered_message = ov::util::filter_lines_by_prefix(e.what(), "[TensorFlow Frontend] ");
+            if (filtered_message.size() > 0) {
+                m_telemetry->send_event("error_info", filtered_message);
+            }
         }
         throw;
     }
@@ -474,9 +529,12 @@ std::shared_ptr<ov::Model> FrontEnd::decode(const ov::frontend::InputModel::Ptr&
     TranslateSession translate_session(model, translator_map, "TensorFlow_Frontend_IR");
     try {
         f = translate_session.get_converted_model();
-    } catch (const std::exception&) {
+    } catch (const std::exception& e) {
         if (m_telemetry) {
-            // TODO: 105173 support anonymization of exception message in order to send to telemetry
+            auto filtered_message = ov::util::filter_lines_by_prefix(e.what(), "[TensorFlow Frontend] ");
+            if (filtered_message.size() > 0) {
+                m_telemetry->send_event("error_info", filtered_message);
+            }
         }
         throw;
     }
@@ -499,10 +557,13 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     ov::pass::Manager manager;
+
+    // Mark quantized and f16/bf16 compressed constants to prevent CF for them,
+    // so that not extra memory is used for intermediate decompressed constants.
+    manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
     manager.register_pass<pass::SavedModelUnusedRemover>();
+    manager.register_pass<pass::UninitializedVariableResolver>();
     manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
-    manager.register_pass<pass::BlockLSTMReplacer>();
-    manager.register_pass<pass::GRUBlockCellReplacer>();
     manager.register_pass<pass::TensorArrayV3Replacer>();
     manager.register_pass<pass::ConstToResultRemover>();
     manager.register_pass<pass::SwitchMergeResolver>();
@@ -510,7 +571,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::pass::RemoveConcatZeroDimInput>();
     manager.register_pass<ov::pass::TransposeSinkingGeneral>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
-    manager.register_pass<ov::pass::ResolveNameCollisions>();
+    manager.register_pass<ov::pass::ResolveNameCollisions>(true);
     manager.run_passes(model);
 }
 
@@ -541,5 +602,9 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
                    std::dynamic_pointer_cast<ov::frontend::tensorflow::ConversionExtension>(extension)) {
         m_conversion_extensions.push_back(tensorflow_conv_ext);
         m_op_translators[tensorflow_conv_ext->get_op_type()] = tensorflow_conv_ext->get_converter();
+    } else if (auto op_base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(extension)) {
+        for (const auto& attached_ext : op_base_ext->get_attached_extensions()) {
+            add_extension(attached_ext);
+        }
     }
 }

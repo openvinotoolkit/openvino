@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -87,6 +87,10 @@ void CTCLossLayerTest::SetUp() {
 
     auto result = std::make_shared<ov::op::v0::Result>(ctc_loss);
     function = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "CTCLoss");
+
+    if (fp_type == ov::element::f16) {
+        abs_threshold = 9e-3;
+    }
 }
 }  // namespace test
 }  // namespace ov

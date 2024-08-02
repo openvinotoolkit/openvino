@@ -7,13 +7,12 @@
 #include "openvino/opsets/opset1.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "low_precision/network_helper.hpp"
-#include "ov_models/subgraph_builders.hpp"
 
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace builder {
 namespace subgraph {
 
@@ -50,15 +49,16 @@ std::shared_ptr<ov::Model> FuseFakeQuantizeFunction::getOriginal(
 namespace {
 std::shared_ptr<ov::opset1::Convolution> make_convolution(
     const ov::PartialShape& inputShape,
-    const ov::element::Type precisionBefore,
+    const ov::element::Type precisionData,
+    const ov::element::Type precisionWeights,
     const std::shared_ptr<Node>& parent,
     const size_t index) {
     const ov::Shape shape = inputShape.to_shape();
     const ov::Shape weightsShape({ shape[1], shape[1], 1ull, 1ull });
-    auto weightsConstant = std::make_shared<ov::op::v0::Constant>(ov::element::f32, weightsShape, std::vector<float>(9, 1.f));
+    auto weightsConstant = std::make_shared<ov::op::v0::Constant>(precisionWeights, weightsShape, std::vector<float>(9, 1.f));
     auto weights = makeFakeQuantize(
         weightsConstant,
-        precisionBefore,
+        precisionData,
         FakeQuantizeOnData(
             255,
             ov::Shape({ shape[1], 1ull, 1ull, 1ull }),
@@ -66,7 +66,7 @@ std::shared_ptr<ov::opset1::Convolution> make_convolution(
             { 1.28f, 1.28f, 1.28f },
             { -1.27f, -1.27f, -1.27f },
             { 1.28f, 1.28f, 1.28f },
-            precisionBefore));
+            precisionData));
 
     auto convolution = std::make_shared<ov::opset1::Convolution>(
         parent,
@@ -101,19 +101,16 @@ std::shared_ptr<ov::opset1::Convolution> make_convolution(
 
         auto fqOnDataCopy = fqOnData;
         fqOnDataCopy.outputHighValues = {255.f};
-        fqOnDataCopy.outputPrecision = fqOnData.outputPrecision == element::undefined ? ov::element::u8 : fqOnData.outputPrecision;
+        fqOnDataCopy.outputPrecision =
+            fqOnData.outputPrecision == ov::element::undefined ? ov::element::u8 : fqOnData.outputPrecision;
 
         std::shared_ptr<Node> lastNode = makeFakeQuantizeTypeRelaxed(lastDequantization, precisionFqOnData, fqOnDataCopy);
-        lastNode = makeDequantization(
-            lastNode,
-            {
-                lastNode->output(0).get_element_type() != element::f32 ?
-                    DequantizationOperations::Convert{element::f32} :
-                    DequantizationOperations::Convert{},
-                {},
-                {{0.01f},
-                precisionFqOnData}
-            });
+        lastNode = makeDequantization(lastNode,
+                                      {lastNode->output(0).get_element_type() != ov::element::f32
+                                           ? DequantizationOperations::Convert{ov::element::f32}
+                                           : DequantizationOperations::Convert{},
+                                       {},
+                                       {{0.01f}, precisionFqOnData}});
         lastNode->set_friendly_name("output");
 
         ov::ResultVector results{ std::make_shared<ov::opset1::Result>(lastNode) };
@@ -164,8 +161,8 @@ std::shared_ptr<ov::Model> FuseFakeQuantizeFunction::get(
     }
 
     ov::ResultVector results{
-        std::make_shared<ov::opset1::Result>(make_convolution(inputShape, precisionBefore, parent, 0)),
-        std::make_shared<ov::opset1::Result>(make_convolution(inputShape, precisionBefore, parent, 1))
+        std::make_shared<ov::opset1::Result>(make_convolution(inputShape, precisionBefore, precisionBefore, parent, 0)),
+        std::make_shared<ov::opset1::Result>(make_convolution(inputShape, precisionBefore, precisionBefore, parent, 1))
     };
     return std::make_shared<ov::Model>(results, ov::ParameterVector{ input }, "FuseFakeQuantizeFunction");
 }
@@ -206,4 +203,4 @@ std::shared_ptr<ov::Model> FuseFakeQuantizeFunction::get(
 
 }  // namespace subgraph
 }  // namespace builder
-}  // namespace ngraph
+}  // namespace ov

@@ -1,25 +1,22 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_ngraph_utils.hpp>
-#include "cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "openvino/runtime/itensor.hpp"
-#include "openvino/runtime/so_ptr.hpp"
-#include "utils/cpu_utils.hpp"
-#include "utils/general_utils.h"
 
-#include <blob_factory.hpp>
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "graph_context.h"
+#include "cpu_memory_desc.h"
+#include "memory_desc/empty_memory_desc.h"
+#include <cpu_memory.h>
+#include <vector>
 #include <cpu_memory.h>
 #include <dnnl_types.h>
-#include <limits>
 #include <numeric>
 #include <vector>
 
 using namespace dnnl;
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -30,6 +27,8 @@ DnnlMemoryDescPtr MemoryDescUtils::convertToDnnlMemoryDesc(const MemoryDescPtr &
         return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(cpuDesc->getPrecision(), cpuDesc->getShape(), cpuDesc->getBlockDims(),
                                                         cpuDesc->getOrder(), cpuDesc->getOffsetPadding(),
                                                         cpuDesc->getOffsetPaddingToData(), cpuDesc->getStrides()));
+    } else if (MemoryDescType::Empty == desc->getType()) {
+        return DnnlExtensionUtils::makeDescriptor(dnnl::memory::desc());
     } else if (MemoryDescType::Dnnl & desc->getType()) {
         return std::dynamic_pointer_cast<DnnlMemoryDesc>(desc);
     } else {
@@ -45,7 +44,7 @@ DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const Memo
         return DnnlBlockedMemoryDesc(cpuDesc->getPrecision(), cpuDesc->getShape(), cpuDesc->getBlockDims(), cpuDesc->getOrder(), cpuDesc->getOffsetPadding(),
                                      cpuDesc->getOffsetPaddingToData(), cpuDesc->getStrides());
     } else {
-        OPENVINO_THROW("Cannot convert MemoryDesc to DnnlMemoryDesc");
+        OPENVINO_THROW("Cannot convert MemoryDesc to DnnlBlockedMemoryDesc");
     }
 }
 
@@ -53,7 +52,7 @@ BlockedMemoryDescPtr MemoryDescUtils::convertToBlockedMemoryDesc(const MemoryDes
     if (desc->getType() & MemoryDescType::Blocked) {
         return std::dynamic_pointer_cast<BlockedMemoryDesc>(desc);
     } else {
-        OPENVINO_THROW("Can not convert unsupported memory descriptor");
+        OPENVINO_THROW("Cannot convert MemoryDesc to BlockedMemoryDesc");
     }
 }
 
@@ -98,89 +97,18 @@ CpuBlockedMemoryDescPtr MemoryDescUtils::generateCpuBlockedMemoryDesc(const ov::
         blk_strides);
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-DnnlBlockedMemoryDesc MemoryDescUtils::convertToDnnlBlockedMemoryDesc(const InferenceEngine::TensorDesc& desc) {
-    if (desc.getLayout() == InferenceEngine::Layout::ANY)
-        OPENVINO_THROW("Cannot convert InferenceEngine::TensorDesc with ANY layout to DnnlBlockedMemoryDesc");
-
-    const auto& blkDesc = desc.getBlockingDesc();
-    const auto& dims = desc.getDims();
-
-    auto strides = blkDesc.getStrides();
-    // for empty tensor case InferenceEngine::TensorDesc fill strides with non zero values before first 0 dims
-    // i.e. dims[1, 0, 2, 3] -> strides [0, 6, 3, 1]
-    if (std::any_of(dims.begin(), dims.end(), [](size_t dim){ return dim == 0; })) {
-        std::fill(strides.begin(), strides.end(), 0);
-    }
-
-    return DnnlBlockedMemoryDesc(InferenceEngine::details::convertPrecision(desc.getPrecision()),
-                                 Shape(desc.getDims()),
-                                 blkDesc.getBlockDims(),
-                                 blkDesc.getOrder(),
-                                 blkDesc.getOffsetPadding(),
-                                 blkDesc.getOffsetPaddingToData(),
-                                 strides);
-}
-
-InferenceEngine::Blob::Ptr MemoryDescUtils::interpretAsBlob(const IMemory& mem) {
-    // TODO [DS]: Rewrite when IE is moved to the new TensorDescriptor
-    auto& memDesc = mem.getDesc();
-    InferenceEngine::TensorDesc desc = convertToTensorDesc(memDesc);
-
-    desc = InferenceEngine::TensorDesc(desc.getPrecision(), memDesc.getShape().getStaticDims(), desc.getBlockingDesc());
-    return make_blob_with_precision(desc, mem.getData());
-}
-
-InferenceEngine::TensorDesc MemoryDescUtils::interpretAsBlobDesc(const IMemory& mem) {
-    auto& memDesc = mem.getDesc();
-    InferenceEngine::TensorDesc desc = convertToTensorDesc(memDesc);
-
-    return InferenceEngine::TensorDesc(desc.getPrecision(), memDesc.getShape().getStaticDims(), desc.getBlockingDesc());
-}
-
-InferenceEngine::TensorDesc MemoryDescUtils::convertToTensorDesc(const MemoryDesc& desc) {
-    if (auto blockingDesc = dynamic_cast<const BlockedMemoryDesc*>(&desc)) {
-        InferenceEngine::BlockingDesc blkDesc =
-            desc.getShape().hasZeroDims() ? InferenceEngine::BlockingDesc(blockingDesc->getBlockDims(),
-                                                                          blockingDesc->getOrder(),
-                                                                          blockingDesc->getOffsetPadding(),
-                                                                          blockingDesc->getOffsetPaddingToData())
-                                          : InferenceEngine::BlockingDesc(blockingDesc->getBlockDims(),
-                                                                          blockingDesc->getOrder(),
-                                                                          blockingDesc->getOffsetPadding(),
-                                                                          blockingDesc->getOffsetPaddingToData(),
-                                                                          blockingDesc->getStrides());
-        return InferenceEngine::TensorDesc(InferenceEngine::details::convertPrecision(blockingDesc->getPrecision()),
-                                           blockingDesc->getShape().getStaticDims(),
-                                           blkDesc);
-    } else {
-        OPENVINO_THROW("Cannot convert MemoryDesc to InferenceEngine::TensorDesc");
-    }
-}
-OPENVINO_SUPPRESS_DEPRECATED_END
-
-std::string MemoryDescUtils::dim2str(Dim dim) {
-    return dim == Shape::UNDEFINED_DIM ? "?" : std::to_string(dim);
-}
-
-std::string MemoryDescUtils::dims2str(const VectorDims& dims) {
-    std::stringstream output;
-    output << "{";
-
-    if (!dims.empty()) {
-        auto itr = dims.begin();
-        do {
-            output << dim2str(*itr);
-        } while (++itr != dims.end() && output << ", ");
-    }
-
-    output << "}";
-    return output.str();
-}
-
 std::shared_ptr<MemoryDesc> MemoryDescUtils::makeDummyDesc(const MemoryDesc &desc, Dim dummyVal) {
     auto dummyShape = makeDummyShape(desc.getShape(), dummyVal);
     return desc.cloneWithNewDims(dummyShape.getStaticDims());
+}
+
+std::shared_ptr<MemoryDesc> MemoryDescUtils::makeEmptyDesc() {
+    static auto emptyDesc = std::make_shared<EmptyMemoryDesc>();
+    return emptyDesc;
+}
+
+std::shared_ptr<IMemory> MemoryDescUtils::makeEmptyMemory(const GraphContext::CPtr context) {
+    return std::make_shared<StaticMemory>(context->getEngine(), makeEmptyDesc(), nullptr);
 }
 
 Shape MemoryDescUtils::makeDummyShape(const Shape &shape, Dim dummyVal) {

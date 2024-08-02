@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "cpu_blocked_memory_desc.h"
-#include <cpu_memory.h>
 #include "dnnl_blocked_memory_desc.h"
+#include "utils/general_utils.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -60,9 +60,6 @@ CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(ov::element::Type prc, const Shape& s
             }
         }
     } else {
-        if (shape.hasZeroDims() && std::any_of(strides.begin(), strides.end(), [](size_t stride) { return stride != 0; } )) {
-            OPENVINO_THROW("Can't create CpuBlockedMemoryDesc with zero dim, but with non zero strides");
-        }
         this->strides = strides;
     }
 

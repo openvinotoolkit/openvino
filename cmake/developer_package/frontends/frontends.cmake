@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -73,7 +73,7 @@ function(ov_generate_frontends_hpp)
         endif()
     endforeach()
 
-    # add dependency on header file generation for all inference_engine source files
+    # add dependency on header file generation for all openvino_frontend_common_obj source files
     set_source_files_properties(${all_sources} PROPERTIES OBJECT_DEPENDS ${ov_frontends_hpp})
 endfunction()
 
@@ -212,7 +212,7 @@ macro(ov_add_frontend)
     endif()
 
     # remove -Wmissing-declarations warning, because of frontends implementation specific
-    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
         target_compile_options(${TARGET_NAME} PRIVATE -Wno-missing-declarations)
     endif()
 
@@ -318,7 +318,7 @@ macro(ov_add_frontend)
 
             if(OV_FRONTEND_LINKABLE_FRONTEND)
                 set(export_set EXPORT OpenVINOTargets)
-                set(archive_dest ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${lib_component})
+                set(archive_dest ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR} COMPONENT ${dev_component} ${OV_CPACK_COMP_CORE_DEV_EXCLUDE_ALL})
                 set(namelink NAMELINK_COMPONENT ${dev_component})
             else()
                 set(namelink NAMELINK_SKIP)

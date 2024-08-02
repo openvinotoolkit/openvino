@@ -5,9 +5,8 @@
 #pragma once
 
 #include "cpu/x64/jit_generator.hpp"
-#include <dnnl_types.h>
-#include "ie_common.h"
 #include "utils/cpu_utils.hpp"
+#include "dnnl_types.h"
 #include <utility>
 
 namespace ov {

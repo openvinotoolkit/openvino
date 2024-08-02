@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -17,7 +18,6 @@
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/transpose_sinking/ts_utils.hpp"
 #include "transformations/utils/utils.hpp"
-#include "validation_util.hpp"
 
 using namespace ov;
 using namespace ov::pass::pattern;
@@ -104,10 +104,10 @@ bool squeeze_axes_to_shape(const Output<Node>& input_node,
 TSSqueezeForward::TSSqueezeForward() {
     MATCHER_SCOPE(TSSqueezeForward);
 
-    create_pattern<ov::op::v0::Squeeze, ov::op::v1::Reshape>(true, {0});
+    create_pattern<ov::op::v0::Squeeze, ov::op::v1::Reshape>({0});
 
-    auto sinking_transformation = [=](const std::shared_ptr<Node>& main_node,
-                                      const TransposeInputsInfo& transpose_info) -> bool {
+    auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
+                                                            const TransposeInputsInfo& transpose_info) -> bool {
         std::vector<size_t> non_negative_axes;
         std::shared_ptr<ov::op::v0::Constant> squeeze_axes;
         if (main_node->get_input_size() > 1) {
@@ -195,7 +195,7 @@ TSSqueezeBackward::TSSqueezeBackward() {
                                                                 return has_static_rank()(output);
                                                             });
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
 
         auto transpose = pattern_to_output.at(transpose_label);

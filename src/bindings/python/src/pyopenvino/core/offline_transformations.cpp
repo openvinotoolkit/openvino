@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,8 @@
 
 #include <compress_quantize_weights.hpp>
 #include <openvino/pass/make_stateful.hpp>
+#include <openvino/pass/sdpa_to_paged_attention.hpp>
 #include <openvino/pass/serialize.hpp>
-#include <pot_transformations.hpp>
 #include <pruning.hpp>
 #include <transformations/common_optimizations/compress_float_constants.hpp>
 #include <transformations/common_optimizations/fused_names_cleanup.hpp>
@@ -56,16 +56,6 @@ void regmodule_offline_transformations(py::module m) {
         py::arg("params_with_custom_types"));
 
     m_offline_transformations.def(
-        "apply_pot_transformations",
-        [](std::shared_ptr<ov::Model> model, std::string device) {
-            ov::pass::Manager manager;
-            manager.register_pass<ov::pass::POTTransformations>(std::move(device));
-            manager.run_passes(model);
-        },
-        py::arg("model"),
-        py::arg("device"));
-
-    m_offline_transformations.def(
         "apply_low_latency_transformation",
         [](std::shared_ptr<ov::Model> model, bool use_const_initializer = true) {
             ov::pass::Manager manager;
@@ -107,10 +97,8 @@ void regmodule_offline_transformations(py::module m) {
     m_offline_transformations.def(
         "compress_model_transformation",
         [](std::shared_ptr<ov::Model> model) {
-            ov::pass::Manager manager;
-            manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
-            manager.register_pass<ov::pass::CompressFloatConstants>();
-            manager.run_passes(model);
+            bool postponed = false;
+            return ov::pass::compress_model_to_f16(model, postponed);
         },
         py::arg("model"));
 
@@ -137,6 +125,15 @@ void regmodule_offline_transformations(py::module m) {
         [](std::shared_ptr<ov::Model> model) {
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::FusedNamesCleanup>();
+            manager.run_passes(model);
+        },
+        py::arg("model"));
+
+    m_offline_transformations.def(
+        "paged_attention_transformation",
+        [](std::shared_ptr<ov::Model> model) {
+            ov::pass::Manager manager;
+            manager.register_pass<ov::pass::SDPAToPagedAttention>();
             manager.run_passes(model);
         },
         py::arg("model"));

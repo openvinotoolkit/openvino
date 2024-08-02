@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/space_to_batch.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
@@ -62,7 +63,7 @@ void normalize_block_shape_pads_crops(const NodeContext& node,
 }
 
 OutputVector translate_space_to_batch_nd_op(const NodeContext& node) {
-    default_op_checks(node, 3, {"SpaceToBatchND"});
+    default_op_checks(node, 3, {"SpaceToBatchND", "SPACE_TO_BATCH_ND"});
     auto input = node.get_input(0);
     Output<Node> block_shape, pads_begin, pads_end;
 
@@ -73,7 +74,7 @@ OutputVector translate_space_to_batch_nd_op(const NodeContext& node) {
 }
 
 OutputVector translate_batch_to_space_nd_op(const NodeContext& node) {
-    default_op_checks(node, 3, {"BatchToSpaceND"});
+    default_op_checks(node, 3, {"BatchToSpaceND", "BATCH_TO_SPACE_ND"});
     auto input = node.get_input(0);
     Output<Node> block_shape, crops_begin, crops_end;
 

@@ -1,16 +1,14 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ie_blob.h>
 #include "cpu_shape.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/node_config.h"
 #include "weights_cache.hpp"
 
-#include <map>
 #include <memory>
 #include <vector>
 
@@ -58,7 +56,6 @@ public:
     void externalAllocate(WeightsSharing::Ptr weightsCache);
     void reuse(MemoryPtr ptr);
     void validate();
-    void drop();
 
     const std::shared_ptr<Node> getParent() const;
     const std::shared_ptr<Node> getChild() const;

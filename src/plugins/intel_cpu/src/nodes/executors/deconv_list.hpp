@@ -24,12 +24,12 @@ struct DeconvExecutorDesc {
 
 const std::vector<DeconvExecutorDesc>& getDeconvExecutorsList();
 
-class DeconvExecutorFactory : public ExecutorFactory {
+class DeconvExecutorFactory : public ExecutorFactoryLegacy {
 public:
     DeconvExecutorFactory(const DeconvAttrs& deconvAttrs,
                           const std::vector<MemoryDescPtr>& srcDescs,
                           const std::vector<MemoryDescPtr>& dstDescs,
-                          const ExecutorContext::CPtr context) : ExecutorFactory(context) {
+                          const ExecutorContext::CPtr context) : ExecutorFactoryLegacy(context) {
         for (auto& desc : getDeconvExecutorsList()) {
             if (desc.builder->isSupported(deconvAttrs, srcDescs, dstDescs)) {
                 supportedDescs.push_back(desc);

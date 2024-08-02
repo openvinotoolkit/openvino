@@ -15,7 +15,7 @@ generate_proposals_kernel_selector& generate_proposals_kernel_selector::Instance
     return instance_;
 }
 
-KernelsData generate_proposals_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
-    return GetNaiveBestKernel(params, options, KernelType::GENERATE_PROPOSALS);
+KernelsData generate_proposals_kernel_selector::GetBestKernels(const Params& params) const {
+    return GetNaiveBestKernel(params, KernelType::GENERATE_PROPOSALS);
 }
 }  // namespace kernel_selector

@@ -1,16 +1,16 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/reference/pad.hpp"
 #include "pad_shape_inference.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 op::util::PadBase::PadBase(const Output<Node>& arg,
@@ -150,9 +150,9 @@ bool op::util::PadBase::evaluate_upper(TensorVector& output_values) const {
     return have_node_inputs_bounds_set(this, 1, 2) && default_upper_bound_evaluator(this, output_values);
 }
 
-bool op::util::PadBase::evaluate_label(TensorLabelVector& output_labels) const {
-    OV_OP_SCOPE(util_PadBase_evaluate_label);
-    return ov::util::default_label_evaluator(this, output_labels);
+bool op::util::PadBase::evaluate_symbol(TensorSymbolVector& output_symbols) const {
+    OV_OP_SCOPE(util_PadBase_evaluate_symbol);
+    return ov::util::default_symbol_evaluator(this, output_symbols);
 }
 
 }  // namespace ov

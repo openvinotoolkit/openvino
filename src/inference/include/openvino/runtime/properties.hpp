@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -300,8 +300,6 @@ static constexpr Property<Priority> model_priority{"MODEL_PRIORITY"};
  * @ingroup ov_runtime_cpp_prop_api
  */
 enum class PerformanceMode {
-    UNDEFINED OPENVINO_ENUM_DEPRECATED("Please use actual value instead. Will be removed in 2024.0") =
-        -1,                     //!<  Undefined value, performance setting may vary from device to device
     LATENCY = 1,                //!<  Optimize for latency
     THROUGHPUT = 2,             //!<  Optimize for throughput
     CUMULATIVE_THROUGHPUT = 3,  //!<  Optimize for cumulative throughput
@@ -310,10 +308,6 @@ enum class PerformanceMode {
 /** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const PerformanceMode& performance_mode) {
     switch (performance_mode) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-    case PerformanceMode::UNDEFINED:
-        return os << "UNDEFINED";
-        OPENVINO_SUPPRESS_DEPRECATED_END
     case PerformanceMode::LATENCY:
         return os << "LATENCY";
     case PerformanceMode::THROUGHPUT:
@@ -334,10 +328,6 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
         performance_mode = PerformanceMode::THROUGHPUT;
     } else if (str == "CUMULATIVE_THROUGHPUT") {
         performance_mode = PerformanceMode::CUMULATIVE_THROUGHPUT;
-    } else if (str == "UNDEFINED") {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        performance_mode = PerformanceMode::UNDEFINED;
-        OPENVINO_SUPPRESS_DEPRECATED_END
     } else {
         OPENVINO_THROW("Unsupported performance mode: ", str);
     }
@@ -409,12 +399,74 @@ inline std::istream& operator>>(std::istream& is, SchedulingCoreType& core_type)
  */
 static constexpr Property<SchedulingCoreType> scheduling_core_type{"SCHEDULING_CORE_TYPE"};
 
+enum class ModelDistributionPolicy {
+    TENSOR_PARALLEL = 0,    // Distribute tensor to multiple sockets/devices during model compilation. At inference
+                            // time, sockets/devices process individual tensor in parallel.
+    PIPELINE_PARALLEL = 1,  // Distribute tensor to multiple sockets/devices during model compilation. At inference
+                            // time, sockets/devices process individual tensor one by one. And each socket/device
+                            // processes a portion of a different tensor in parallel.
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const ModelDistributionPolicy& stream_mode) {
+    switch (stream_mode) {
+    case ModelDistributionPolicy::TENSOR_PARALLEL:
+        return os << "TENSOR_PARALLEL";
+    case ModelDistributionPolicy::PIPELINE_PARALLEL:
+        return os << "PIPELINE_PARALLEL";
+    default:
+        OPENVINO_THROW("Unsupported model distribution policy!");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, ModelDistributionPolicy& stream_mode) {
+    std::string str;
+    is >> str;
+    if (str == "TENSOR_PARALLEL") {
+        stream_mode = ModelDistributionPolicy::TENSOR_PARALLEL;
+    } else if (str == "PIPELINE_PARALLEL") {
+        stream_mode = ModelDistributionPolicy::PIPELINE_PARALLEL;
+    } else {
+        OPENVINO_THROW("Unsupported model distribution policy: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
 /**
- * @brief This property allows CPU threads pinning during inference.
+ * @brief This property defines model distribution policy for inference with multiple sockets/devices.
+ * @ingroup ov_runtime_cpp_prop_api
+ * This property can be used to select model distribution policy between execution units (e.g. between CPU sockets/NUMA
+ * nodes or between different GPUs).
+ * -- TENSOR_PARALLEL   : Distribute tensor to multiple sockets/devices during model compilation. At inference time,
+ *                        sockets/devices process individual tensor in parallel.
+ * -- PIPELINE_PARALLEL : Distribute tensor to multiple sockets/devices during model compilation. At inference time,
+ *                        sockets/devices process individual tensor one by one. And each socket/device processes a
+ *                        portion of a different tensor in parallel.
+ *
+ * The following code is an example how TENSOR_PARALLEL or PIPELINE_PARALLEL model distribution policy might be enabled.
+ *
+ * @code
+ * ie.set_property(ov::hint::model_distribution_policy({ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL}));
+ * ie.set_property(ov::hint::model_distribution_policy({ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL}));
+ * @endcode
+ */
+static constexpr Property<std::set<ModelDistributionPolicy>> model_distribution_policy{"MODEL_DISTRIBUTION_POLICY"};
+
+/**
+ * @brief This property allows CPU pinning during inference.
  * @ingroup ov_runtime_cpp_prop_api
  *
- * Developer can use this property to use or not use CPU threads pinning during inference. If user does not explicitly
- * set value for this property, OpenVINO may choose any desired value based on internal logic.
+ * Developer can use this property to enable or disable CPU pinning during inference on Windows and Linux. MacOS
+ * does not support CPU pinning, and this property is always disabled. If user does not explicitly set value for
+ * this property, OpenVINO may choose any desired value based on internal logic.
+ *
+ * The following is an example of CPU fixed behavior on a hybrid CPU (8 performance cores and 16 efficiency cores).
+ * For stream with 4 threads on performance cores, if CPU pinning is enabled, each thread is bound to a specific
+ * performance core. If CPU pinning is disabled, OS will schedule 4 threads on performance cores only.
+ * For stream with 24 threads on all cores, if CPU pinning is enabled, each thread is bound to a specific
+ * performance core. If CPU pinning is disabled, OS will schedule 24 threads on both performance cores and efficiency
+ * cores.
  *
  * The following code is example to use this property.
  *
@@ -505,6 +557,26 @@ inline std::istream& operator>>(std::istream& is, ExecutionMode& mode) {
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<ExecutionMode> execution_mode{"EXECUTION_MODE_HINT"};
+
+/**
+ * @brief This property defines group size for dynamic quantization optimization
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Dynamic quantization optimization provides an ability to get performance benefit from int8 compute.
+ * In contrast with static quantization dynamic approach assumes activations are quantized during inference.
+ * Despite the fact dynamic quantization has some runtime overheads, it might provide better accuracy metrics.
+ * This property defines granularity (aka block size) for dynamic quantization algorithms. Lower group size values
+ * might result in better accuracy, but the drawback is worse performance. Group size equal 0 means dynamic
+ * quantization optimization is disabled.
+ */
+static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization_group_size{
+    "DYNAMIC_QUANTIZATION_GROUP_SIZE"};
+
+/**
+ * @brief Hint for device to use specified precision for kv cache compression
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<element::Type, PropertyMutability::RW> kv_cache_precision{"KV_CACHE_PRECISION"};
 
 }  // namespace hint
 
@@ -617,6 +689,50 @@ static constexpr Property<std::string> cache_dir{"CACHE_DIR"};
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<bool, PropertyMutability::RO> loaded_from_cache{"LOADED_FROM_CACHE"};
+
+/**
+ * @brief Enum to define possible cache mode
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+enum class CacheMode {
+    OPTIMIZE_SIZE = 0,   //!< smaller cache size
+    OPTIMIZE_SPEED = 1,  //!< faster loading time
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const CacheMode& mode) {
+    switch (mode) {
+    case CacheMode::OPTIMIZE_SIZE:
+        return os << "optimize_size";
+    case CacheMode::OPTIMIZE_SPEED:
+        return os << "optimize_speed";
+    default:
+        OPENVINO_THROW("Unsupported cache mode");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, CacheMode& mode) {
+    std::string str;
+    is >> str;
+    if (str == "OPTIMIZE_SIZE" || str == "optimize_size") {
+        mode = CacheMode::OPTIMIZE_SIZE;
+    } else if (str == "OPTIMIZE_SPEED" || str == "optimize_speed") {
+        mode = CacheMode::OPTIMIZE_SPEED;
+    } else {
+        OPENVINO_THROW("Unsupported cache mode: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Read-write property to select the cache mode between optimize_size and optimize_speed.
+ * If optimize_speed is selected(default), loading time will decrease but the cache file size will increase.
+ * If optimize_size is selected, smaller cache files will be created.
+ * This is only supported from GPU.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<CacheMode, PropertyMutability::RW> cache_mode{"CACHE_MODE"};
 
 /**
  * @brief Read-only property to provide information about a range for streams on platforms where streams are supported.
@@ -933,6 +1049,51 @@ static constexpr Property<Type, PropertyMutability::RO> type{"DEVICE_TYPE"};
 static constexpr Property<std::map<element::Type, float>, PropertyMutability::RO> gops{"DEVICE_GOPS"};
 
 /**
+ * @brief Structure to store PCI bus information of device (Domain/Bus/Device/Function)
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+struct PCIInfo {
+    /**
+     * @brief PCI domain ID
+     */
+    uint32_t domain;
+    /**
+     * @brief PCI bus ID
+     */
+    uint32_t bus;
+    /**
+     * @brief PCI device ID
+     */
+    uint32_t device;
+    /**
+     * @brief PCI function ID
+     */
+    uint32_t function;
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const PCIInfo& pci_info) {
+    return os << "{domain: " << pci_info.domain << " bus: " << pci_info.bus << " device: 0x" << std::hex
+              << pci_info.device << " function: " << std::dec << pci_info.function << "}";
+}
+
+inline std::istream& operator>>(std::istream& is, PCIInfo& pci_info) {
+    std::string delim;
+    if (!(is >> delim >> pci_info.domain >> delim >> pci_info.bus >> delim >> std::hex >> pci_info.device >> delim >>
+          std::dec >> pci_info.function)) {
+        OPENVINO_THROW("Could not deserialize PCIInfo. Invalid format!");
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Read-only property to get PCI bus information of device. See PCIInfo struct definition for details
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<PCIInfo, PropertyMutability::RO> pci_info{"DEVICE_PCI_INFO"};
+
+/**
  * @brief Read-only property to get a float of device thermal
  * @ingroup ov_runtime_cpp_prop_api
  */
@@ -1102,11 +1263,14 @@ inline std::istream& operator>>(std::istream& is, Affinity& affinity) {
 /** @endcond */
 
 /**
+ * @deprecated Use ov::hint::enable_cpu_pinning
  * @brief The name for setting CPU affinity per thread option.
  * @ingroup ov_runtime_cpp_prop_api
  * @note The setting is ignored, if the OpenVINO compiled with OpenMP and any affinity-related OpenMP's
  * environment variable is set (as affinity is configured explicitly)
  */
+OPENVINO_DEPRECATED(
+    "This property is deprecated and will be removed soon. Use ov::hint::enable_cpu_pinning instead of it.")
 static constexpr Property<Affinity> affinity{"AFFINITY"};
 
 /**
@@ -1114,4 +1278,5 @@ static constexpr Property<Affinity> affinity{"AFFINITY"};
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::vector<std::string>, PropertyMutability::RO> execution_devices{"EXECUTION_DEVICES"};
+
 }  // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,13 +13,13 @@ namespace LayerTestsDefinitions {
 
 class ReluTestValues {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     bool isSubtract;
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::PartialShape,
+    ov::element::Type,
+    ov::PartialShape,
     std::string,
     ReluTestValues> ReluTransformationParams;
 
@@ -28,7 +28,6 @@ class ReluTransformation :
     public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ReluTransformationParams>& obj);
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 
 protected:
     void SetUp() override;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ public:
     bool has_evaluate() const override;
     bool evaluate_lower(TensorVector& outputs) const override;
     bool evaluate_upper(TensorVector& outputs) const override;
-    bool evaluate_label(TensorLabelVector& output_labels) const override;
+    bool evaluate_symbol(TensorSymbolVector& output_symbols) const override;
 
 protected:
     ov::element::Type m_destination_type;

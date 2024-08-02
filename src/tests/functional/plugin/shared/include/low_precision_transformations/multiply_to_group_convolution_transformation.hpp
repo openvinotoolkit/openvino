@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 namespace LayerTestsDefinitions {
 
@@ -26,7 +26,7 @@ public:
 };
 
 typedef std::tuple <
-    element::Type,
+    ov::element::Type,
     PartialShape,
     std::string,
     MultiplyToGroupConvolutionTransformationParam> MultiplyToGroupConvolutionTransformationParams;
@@ -39,7 +39,7 @@ public:
 
 protected:
     void SetUp() override;
-    void Run() override;
+    void run() override;
 };
 
 }  // namespace LayerTestsDefinitions

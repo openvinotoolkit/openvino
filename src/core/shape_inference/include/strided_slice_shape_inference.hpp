@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,12 +61,12 @@ std::vector<TRShape> shape_infer(const StridedSlice* op,
     const auto begin = get_input_bounds<TRShape, int64_t>(op, 1, ta);
     const auto end = get_input_bounds<TRShape, int64_t>(op, 2, ta);
 
-    std::unique_ptr<std::vector<int64_t>> strides;
+    ov::optional<std::vector<int64_t>> strides;
     if (input_shapes.size() > 3) {
         strides = get_input_const_data_as<TRShape, int64_t>(op, 3, ta);
     } else if (begin) {
         // generate default strides
-        strides.reset(new std::vector<int64_t>(begin->size(), 1));
+        strides.emplace(begin->size(), 1);
     }
 
     // compute and check a number of axes for which begin, end, and strides are defined
@@ -108,10 +108,15 @@ std::vector<TRShape> shape_infer(const StridedSlice* op,
     AxisSet begin_mask = convert_mask_to_axis_set(op->get_begin_mask());
     AxisSet end_mask = convert_mask_to_axis_set(op->get_end_mask());
     AxisSet shrink_axis_mask = convert_mask_to_axis_set(op->get_shrink_axis_mask());
-    NODE_VALIDATION_CHECK(op,
-                          input_rank + new_axis_mask.size() >= static_cast<size_t>(number_axes),
-                          "Input rank plus number of new axis has to be at least the size of Lower "
-                          "and Upper bounds vector.");
+
+    // If ellipsis_mask is set, Lower and Upper bownd vectors can be less than input rank + number of new axes,
+    // because ellipsis adds missing dimensions, which can be missing in begin or end inputs
+    if (!ellipsis_mask.size()) {
+        NODE_VALIDATION_CHECK(op,
+                              input_rank + new_axis_mask.size() >= static_cast<size_t>(number_axes),
+                              "Input rank plus number of new axis has to be at least the size of Lower "
+                              "and Upper bounds vector.");
+    }
 
     auto& out = output_shapes.front();
     out.resize(0);

@@ -10,14 +10,14 @@
 
 namespace kernel_selector {
 
-KernelsData EyeKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData EyeKernelRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
     KernelData kernel_data = KernelData::Default<eye_params>(params);
     const eye_params& new_params = dynamic_cast<eye_params&>(*kernel_data.params.get());
-    auto dispatch_data = SetDefault(new_params, options);
-    auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params, options);
+    auto dispatch_data = SetDefault(new_params);
+    auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params);
     auto slice_specific_jit = GetJitConstants(new_params);
     auto jit = CreateJit(kernelName, slice_specific_jit, entry_point);
 
@@ -25,7 +25,7 @@ KernelsData EyeKernelRef::GetKernelsData(const Params& params, const optional_pa
     return {kernel_data};
 }
 
-KernelsPriority EyeKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority EyeKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
@@ -52,8 +52,8 @@ ParamsKey EyeKernelRef::GetSupportedKey() const {
     return k;
 }
 
-bool EyeKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::EYE || o.GetType() != KernelType::EYE) {
+bool EyeKernelRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::EYE) {
         return false;
     }
 
@@ -70,7 +70,7 @@ JitConstants EyeKernelRef::GetJitConstants(const eye_params& params) const {
     return jit;
 }
 
-CommonDispatchData EyeKernelRef::SetDefault(const eye_params& params, const optional_params&) const {
+CommonDispatchData EyeKernelRef::SetDefault(const eye_params& params) const {
     CommonDispatchData dispatchData;
     dispatchData.gws = {params.outputs[0].Batch().v,
                         params.outputs[0].Feature().v,

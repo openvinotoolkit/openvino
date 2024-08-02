@@ -1,7 +1,0 @@
--c ../../constraints.txt
-numpy
-pytest
-pytest-html
-tensorflow
-tensorflow-hub
-tensorflow-text

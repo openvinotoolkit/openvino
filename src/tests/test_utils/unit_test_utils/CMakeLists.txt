@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -18,7 +18,7 @@ ov_add_target(
         LINK_LIBRARIES
             PUBLIC
                 common_test_utils_s
-                inference_engine_s
+                openvino_runtime_s
                 gmock
         DEPENDENCIES
             mock_engine

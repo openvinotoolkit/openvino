@@ -2,23 +2,10 @@ name: Webassembly
 on:
   workflow_dispatch:
   pull_request:
-    paths-ignore:
-      - '**/docs/**'
-      - 'docs/**'
-      - '**/**.md'
-      - '**.md'
-      - '**/layer_tests_summary/**'
-      - '**/conformance/**'
+  merge_group:
   push:
-    paths-ignore:
-      - '**/docs/**'
-      - 'docs/**'
-      - '**/**.md'
-      - '**.md'
-      - '**/layer_tests_summary/**'
-      - '**/conformance/**'
     branches:
-      - master
+      # - master
       - 'releases/**'
 
 concurrency:
@@ -26,8 +13,35 @@ concurrency:
   group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-webassembly
   cancel-in-progress: true
 
+permissions: read-all
+
 jobs:
+  Smart_CI:
+    runs-on: ubuntu-latest
+    outputs:
+      affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
+    steps:
+      - name: checkout action
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        with:
+          sparse-checkout: .github/actions/smart-ci
+
+      - name: Get affected components
+        id: smart_ci
+        uses: ./.github/actions/smart-ci
+        with:
+          repository: ${{ github.repository }}
+          pr: ${{ github.event.number }}
+          commit_sha: ${{ github.sha }}
+          ref_name: ${{ github.ref_name }}
+          component_pattern: "category: (.*)"
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          skip_when_only_listed_labels_set: 'docs'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
+
   Build:
+    needs: Smart_CI
     defaults:
       run:
         shell: bash
@@ -41,23 +55,26 @@ jobs:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
+      SCCACHE_SERVER_PORT: 35555
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       SCCACHE_AZURE_KEY_PREFIX: webassembly_Release
+    if: "!needs.smart_ci.outputs.skip_workflow"
     steps:
       - name: Install git
         run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates
 
       - name: Clone OpenVINO
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           path: 'openvino'
           submodules: 'true'
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
+        uses: mozilla-actions/sccache-action@2e7f9ec7921547d4b46598398ca573513895d0bd # v0.0.4
         with:
-          version: "v0.5.4"
+          version: "v0.7.5"
 
       - name: emcmake cmake - configure
         run: |
@@ -76,3 +93,17 @@ jobs:
 
       - name: Show ccache stats
         run: ${SCCACHE_PATH} --show-stats
+
+  Overall_Status:
+    name: ci/gha_overall_status_webassembly
+    needs: [Smart_CI, Build]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check status of all jobs
+        if: >-
+          ${{
+            contains(needs.*.result, 'failure') ||
+            contains(needs.*.result, 'cancelled')
+          }}
+        run: exit 1

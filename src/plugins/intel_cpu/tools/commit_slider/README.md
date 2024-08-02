@@ -28,13 +28,25 @@ ccache >= *3.0*
 3. Replace `gitPath, buildPath` if your target is out of current **Openvino** repo. 
 4. Set `appCmd, appPath` (mandatory) regarding target application
 5. Set up `runConfig` (mandatory):
-5.1. `getCommitListCmd` - *git* command, returning commit list *if you don't want to set commit intervals with command args*
+5.1. `getCommitListCmd` - *git* command, returning commit list *if you don't want to set commit intervals with command args* or `explicitList` if you want to set up commits manually.
+Examples:
+```
+"commitList" : {
+    "getCommitListCmd" : "git log start_hash..end_hash --boundary --pretty=\"%h\""
+}
+```
+```
+"commitList" : {
+    "explicitList" : ["hash_1", "hash_2", ... , "hash_N"]
+}
+```
 5.2. `mode` = `{checkOutput|bmPerfMode|compareBlobs|<to_extend>}` - cryterion of commit comparation
-5.3. `traversal` `{firstFailedVersion|firstFixedVersion|allBreaks|<to_extend>}` - traversal rule
-5.4. `preprocess` if you need preparation before commit building `<add_details>`.
+5.3. `traversal` `{firstFailedVersion|firstFixedVersion|allBreaks|bruteForce|<to_extend>}` - traversal rule
+5.4. `preprocess` if you need preparation before commit building.
 5.5. Other fields depend on mode, for example, `stopPattern` for  `checkOutput` is *RegEx* pattern for application failed output.
 6. Setup environment variables via *envVars* field in a format:
 `[{"name" : "key1", "val" : "val1"}, {"name" : "key2", "val" : "val2"}]`
+7. setup [Prebuilded apps config](#pba).
 
 ## Run commit slider
 
@@ -129,6 +141,29 @@ To implement new `Traversal`, override `bypass(i1, i2, list, cfg, commitPath)` m
 2. define `def your_custom_pp(cfg): <...>` function with implementation of subprocess.
 3. add `"preprocess" : { "name" : your_custom_pp, <other parameters>` to `runConfig` and `{"tag" : "preprocess"}` to build command list.
 
+## <a name="pba"></a>Using of pre-builded apps
+
+'cachedPathConfig' option helps to speed up searching or to solve environment/building problems. There are two schemas: 'optional', which tunes bypass, if provided paths permit it and build commit in the other case. The aim is to increase performance and solve long-interval rebuilding issues (is to be implemented). 'Mandatory' supposes using only provided paths. Bypass is not impacted. Absent commits are marked as ignored (supposed to contain insignificant changes). Mostly intended for using with complex environment.
+
+1. add `cachedPathConfig` field to config
+2. set up `enable` and `scheme` fields
+3. define `cashMap`.
+4. `passCmdList` flag is true if commandList supposed to be ignored (no build is necessary)
+5. `changeAppPath` flag means, that cashed path substitutes `appPath`
+
+Example:
+```
+"cachedPathConfig": {
+    "enable" : true,
+    "scheme" : "mandatory",
+    "cashMap" : {
+        "hash_1_": "app/path/hash_1_",
+        "hash_2_": "app/path/hash_2_",
+        ..............................
+        "hash_N_": "app/path/hash_N_"
+    }
+}
+```
 
 ## <a name="ccl"></a>Custom command list
 The structure of build command is

@@ -31,7 +31,7 @@ static cldnn::condition::branch gen_branch(ProgramBuilder& p, const std::shared_
     config.set_property(ov::intel_gpu::max_dynamic_batch(1));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(op->is_dynamic() || p.use_new_shape_infer()));
 
-    ProgramBuilder prog(internal_body, p.get_engine(), config, false, false, p.get_task_executor(), p.get_compilation_context(), true);
+    ProgramBuilder prog(internal_body, p.get_engine(), config, false, p.get_task_executor(), p.get_compilation_context(), true);
     branch.inner_program = prog.get_compiled_program();
 
     auto& input_map = branch.input_map;

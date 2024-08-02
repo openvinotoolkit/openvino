@@ -7,15 +7,18 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "snippets/shape_types.hpp"
+#include "snippets/emitter.hpp"
 
 
 namespace ov {
 namespace snippets {
 namespace lowered {
 
+class LinearIRBuilder;
 class PortDescriptor;
 using PortDescriptorPtr = std::shared_ptr<PortDescriptor>;
 class PortDescriptor {
+    friend class LinearIRBuilder;
 public:
     // The structure with service values for scheduling parameters
     struct ServiceDimensions {
@@ -35,18 +38,21 @@ public:
     explicit PortDescriptor(const ov::Output<const ov::Node>& node,
                             VectorDims subtensor_shape = {},
                             std::vector<size_t> layout = {});
-    PortDescriptor(VectorDims shape, VectorDims subtensor_shape, std::vector<size_t> layout = {});
-    PortDescriptor() = default;
+    PortDescriptor(VectorDims shape, VectorDims subtensor_shape, std::vector<size_t> layout = {}, Reg reg = {});
+    PortDescriptor(VectorDimsPtr shape, VectorDims subtensor_shape, std::vector<size_t> layout = {}, Reg reg = {});
+    PortDescriptor();
 
-    const VectorDims& get_shape() const {return m_tensor_shape;}
+    const VectorDims& get_shape() const;
     const VectorDims& get_subtensor() const {return m_subtensor_shape;}
     const std::vector<size_t>& get_layout() const {return m_layout;}
-    size_t get_reg() const { return m_reg; }
+    const Reg& get_reg() const { return m_reg; }
 
-    void set_shape(const VectorDims& tensor) { m_tensor_shape = tensor; }
+    void set_shape(const VectorDims& tensor);
     void set_layout(const std::vector<size_t>& layout) { m_layout = layout; }
     void set_subtensor(const VectorDims& subtensor) { m_subtensor_shape = subtensor; }
-    void set_reg(size_t reg) { m_reg = reg; }
+    void set_reg(Reg reg) { m_reg = std::move(reg); }
+    void set_reg_type(RegType type) { m_reg.type = type; }
+    void set_reg_idx(size_t idx) { m_reg.idx = idx; }
 
     std::string serialize() const;
     bool empty() const { return m_layout.empty() && m_subtensor_shape.empty();}
@@ -58,13 +64,13 @@ public:
 private:
     void validate_arguments();
     /// \brief Original tensor shape
-    VectorDims m_tensor_shape{};
+    VectorDimsPtr m_tensor_shape = nullptr;
     /// \brief Order of dimensions: NCHW == {0, 1, 2, 3}, NHWC == {0, 2, 3, 1}, NCHW16c == {0, 1, 2, 3, 1}
     std::vector<size_t> m_layout{};
     /// \brief Minimal tensor size that could be processed in one call
     VectorDims m_subtensor_shape{};
     /// \brief The corresponding abstract/physical register
-    size_t m_reg = 0;
+    Reg m_reg { RegType::gpr, 0 };
 
     /// Notes:
     ///   - `m_tensor_shape` is dense shape which is controlled by expression outputs.
@@ -109,6 +115,17 @@ public:
     std::vector<PortDescriptorPtr> inputs{};
     std::vector<PortDescriptorPtr> outputs{};
 };
+
+template<typename T>
+void set_port_desc(const T& port, std::vector<size_t> subtensor) {
+    const auto& shape = port.get_shape();
+    for (size_t i = 1; i <= std::min(subtensor.size(), shape.size()); i++) {
+        auto& dim = subtensor[subtensor.size() - i];
+        if (dim != PortDescriptor::ServiceDimensions::FULL_DIM)
+            dim = std::min(dim, shape[shape.size() - i]);
+    }
+    PortDescriptorUtils::set_port_descriptor_ptr(port, std::make_shared<PortDescriptor>(shape, subtensor));
+}
 
 } // namespace lowered
 } // namespace snippets

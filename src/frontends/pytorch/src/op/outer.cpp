@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,9 +20,9 @@ OutputVector translate_outer(const NodeContext& context) {
     // aten::outer(Tensor self, Tensor vec2) -> Tensor
     // aten::outer.out(Tensor self, Tensor vec2, *, Tensor(a!) out) -> Tensor(a!)
     num_inputs_check(context, 2, 3);
-    auto vec1 = context.get_input(0);
-    auto vec2 = context.get_input(1);
-    align_eltwise_input_types(context, vec1, vec2, true);
+    Output<Node> vec1;
+    Output<Node> vec2;
+    std::tie(vec1, vec2) = get_inputs_with_promoted_types(context, 0, 1);
     auto const_zero = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
     auto const_minus_one = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
     vec1 = context.mark_node(std::make_shared<v0::Unsqueeze>(vec1, const_minus_one));

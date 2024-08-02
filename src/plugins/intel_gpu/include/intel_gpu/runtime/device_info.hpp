@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,6 +66,7 @@ struct device_info {
     bool supports_immad;                        ///< Does engine support int8 multi mad.
 
     bool supports_usm;                          ///< Does engine support unified shared memory.
+    bool has_separate_cache;                    ///< Does the target hardware has separate cache for usm_device and usm_host
 
     std::vector<size_t> supported_simd_sizes;   ///< List of SIMD sizes supported by current device and compiler
 

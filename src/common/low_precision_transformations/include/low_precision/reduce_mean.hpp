@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,12 +15,12 @@ namespace pass {
 namespace low_precision {
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ReduceMeanTransformation propagates dequantization operations through ReduceMean operation.
  *
  * For more details about the transformation, refer to
  * [ReduceMeanTransformation](@ref openvino_docs_OV_UG_lpt_ReduceMeanTransformation) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 class LP_TRANSFORMATIONS_API ReduceMeanTransformation : public ReduceBaseTransformation {
 public:

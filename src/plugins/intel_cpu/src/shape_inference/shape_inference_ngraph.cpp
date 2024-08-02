@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shape_inference_ngraph.hpp"
-#include <memory>
 #include "memory_accessor.hpp"
+
+#include <memory>
 
 using namespace ov::intel_cpu;
 

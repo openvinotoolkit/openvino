@@ -1,16 +1,14 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "swap_convert_transpose.hpp"
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "itt.hpp"
-
-NGRAPH_RTTI_DEFINITION(ov::intel_cpu::SwapConvertTranspose, "SwapConvertTranspose");
 
 ov::intel_cpu::SwapConvertTranspose::SwapConvertTranspose() {
     MATCHER_SCOPE(SwapConvertTranspose);

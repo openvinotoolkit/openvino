@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,16 +10,9 @@
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 #include "ov_lpt_models/common/fake_quantize_on_data.hpp"
 
-using namespace ngraph;
-
 namespace LayerTestsDefinitions {
 
-typedef std::tuple <
-    element::Type,
-    PartialShape,
-    std::string,
-    AxisSet,
-    bool> MVNTransformationParams;
+typedef std::tuple<ov::element::Type, ov::PartialShape, std::string, ov::AxisSet, bool> MVNTransformationParams;
 
 class MVNTransformation :
     public testing::WithParamInterface<MVNTransformationParams>,

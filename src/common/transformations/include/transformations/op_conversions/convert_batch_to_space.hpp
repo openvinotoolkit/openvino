@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API ConvertBatchToSpace;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ConvertBatchToSpace transformation decomposes BatchToSpace layer to Reshape->Transpose->Reshape->Crop.
  *
  * @param convert_by_elements - reduces the maximum number of dimensions that arise during the transformation

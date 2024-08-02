@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from contextlib import nullcontext as does_not_raise
@@ -8,6 +8,7 @@ import numpy as np
 import os
 import pytest
 import datetime
+import openvino.properties as props
 
 import openvino.runtime.opset13 as ops
 from openvino import (
@@ -88,7 +89,7 @@ def test_get_profiling_info(device):
     softmax = ops.softmax(param, 1, name="fc_out")
     model = Model([softmax], [param], "test_model")
 
-    core.set_property(device, {"PERF_COUNT": "YES"})
+    core.set_property(device, {props.enable_profiling: True})
     compiled_model = core.compile_model(model, device)
     img = generate_image()
     request = compiled_model.create_infer_request()
@@ -389,56 +390,6 @@ def test_get_compiled_model(device):
 
     assert isinstance(compiled_model_2, CompiledModel)
     assert np.allclose(ref[0], test[0])
-
-
-@pytest.mark.parametrize("data_type",
-                         [np.float32,
-                          np.int32,
-                          np.float16])
-@pytest.mark.parametrize("mode", ["set_init_memory_state", "reset_memory_state", "normal"])
-@pytest.mark.parametrize("input_shape", [[10], [10, 10], [10, 10, 10], [2, 10, 10, 10]])
-@pytest.mark.skipif(
-    os.environ.get("TEST_DEVICE", "CPU") != "CPU",
-    reason=f"Can't run test on device {os.environ.get('TEST_DEVICE', 'CPU')}, "
-    "Memory layers fully supported only on CPU",
-)
-def test_query_state_write_buffer(device, input_shape, data_type, mode):
-    core = Core()
-
-    from openvino import Tensor
-    from openvino.runtime.utils.types import get_dtype
-
-    model = generate_model_with_memory(input_shape, data_type)
-    model.validate_nodes_and_infer_types()
-    compiled_model = core.compile_model(model=model, device_name=device)
-    request = compiled_model.create_infer_request()
-    mem_states = request.query_state()
-    mem_state = mem_states[0]
-
-    assert mem_state.name == "var_id_667"
-    assert get_dtype(mem_state.state.element_type) == data_type
-
-    for i in range(1, 10):
-        if mode == "set_init_memory_state":
-            # create initial value
-            const_init = 5
-            init_array = np.full(input_shape, const_init, dtype=get_dtype(mem_state.state.element_type))
-            tensor = Tensor(init_array)
-            mem_state.state = tensor
-
-            res = request.infer({0: np.full(input_shape, 1, dtype=data_type)})
-            expected_res = np.full(input_shape, 1 + const_init, dtype=data_type)
-        elif mode == "reset_memory_state":
-            # reset initial state of ReadValue to zero
-            mem_state.reset()
-            res = request.infer({0: np.full(input_shape, 1, dtype=data_type)})
-            # always ones
-            expected_res = np.full(input_shape, 1, dtype=data_type)
-        else:
-            res = request.infer({0: np.full(input_shape, 1, dtype=data_type)})
-            expected_res = np.full(input_shape, i, dtype=data_type)
-
-        assert np.allclose(res[list(res)[0]], expected_res, atol=1e-6), f"Expected values: {expected_res} \n Actual values: {res} \n"
 
 
 @pytest.mark.parametrize("share_inputs", [True, False])

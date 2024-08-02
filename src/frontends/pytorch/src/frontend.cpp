@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,11 +16,11 @@
 #include "transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp"
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/op_conversions/convert_convertlike.hpp"
+#include "transformations/op_conversions/convert_convertpromotetypes.hpp"
 #include "transformations/resolve_names_collisions.hpp"
-#include "transforms.hpp"
-#include "transforms/align_types_removal.hpp"
 #include "transforms/append_list_unpack_replacer.hpp"
 #include "transforms/aten_cat_replacer.hpp"
 #include "transforms/aten_getitem_replacer.hpp"
@@ -38,10 +38,12 @@
 #include "transforms/prim_list_unpack_replacer.hpp"
 #include "transforms/prim_unpack_parameter_replacer.hpp"
 #include "transforms/quantized_node_remover.hpp"
+#include "transforms/remove_packing_ops.hpp"
 #include "transforms/reverseprop_resolver.hpp"
 #include "transforms/rfftn_complex_replacer.hpp"
 #include "transforms/softmax_reshape_elimination.hpp"
 #include "transforms/string_equality_replacer.hpp"
+#include "transforms/torchfx_gptq_pattern_replacer.hpp"
 #include "transforms/tuple_unpack_replacer.hpp"
 #include "transforms/u4_block_repack.hpp"
 #include "translate_session.hpp"
@@ -171,15 +173,25 @@ std::shared_ptr<Model> FrontEnd::decode(const InputModel::Ptr& model) const {
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     ov::pass::Manager manager;
 
+    // GPTQ transformations need to be executed before other passes
+    // Once the GPTQ patterns are modified by other transformations,
+    // they cannot be captured anymore
+    manager.register_pass<ov::frontend::pytorch::pass::GPTQDecompressionReplacer>();
+    manager.register_pass<ov::frontend::pytorch::pass::GPTQMultPatternReplacer>();
+
     // the following 2 transformations are needed for keypoint detectron2 models to work.
     // AtenIndexToSelect will be called twice
     manager.register_pass<ov::pass::ConvertConvertLike>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
 
+    // Mark quantized and f16/bf16 compressed constants to prevent CF for them,
+    // so that not extra memory is used for intermediate decompressed constants.
     manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
         element::TypeVector{element::u8, element::i8, element::u4, element::i4});
+    manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
     manager.register_pass<ov::pass::ConstantFolding>();
-    manager.register_pass<ov::frontend::pytorch::pass::AlignTypesRemoval>();
+
+    manager.register_pass<ov::pass::ConvertConvertPromoteTypes>();
     manager.register_pass<ov::pass::PushConstantToSubgraph>();
     manager.register_pass<ov::pass::UnrollIf>();
     manager.register_pass<ov::frontend::pytorch::pass::TupleUnpackInBodyReplacer>();
@@ -189,6 +201,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::PrimListUnpackReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenGetItemReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::ListConstructReplacer>();
+    // TODO: remove AtenIndexToSelect when problem with  dynamic input rank is gone.
     manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenIndexPutReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::PrimListConstructPadReplacer>();
@@ -207,14 +220,12 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::SoftmaxReshapeElimination>();
     manager.register_pass<ov::frontend::pytorch::pass::U4BlockRepack>();
     manager.register_pass<ov::frontend::pytorch::pass::ReversepropResolver>();
+    manager.register_pass<ov::frontend::pytorch::pass::MovePackThroughLstm>();
+    manager.register_pass<ov::frontend::pytorch::pass::RemovePackingOps>();
     manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
-    // Second pass of AlignTypesRemoval after all converting transformations
-    manager.register_pass<ov::frontend::pytorch::pass::AlignTypesRemoval>();
     manager.register_pass<ov::pass::ResolveNameCollisions>(true);
     manager.run_passes(model);
-
-    apply_pytorch_conversion_transforms(model);
 
     // Usually if nn.Module.forward is given as a source model for conversion, there is the first Parameter
     // that represents original `self` argument in forward(self, ...). `self` shouldn't play any role in model
@@ -249,6 +260,10 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         m_extensions.push_back(so_ext);
     } else if (const auto& telemetry = std::dynamic_pointer_cast<TelemetryExtension>(extension)) {
         m_telemetry = telemetry;
+    } else if (auto op_base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(extension)) {
+        for (const auto& attached_ext : op_base_ext->get_attached_extensions()) {
+            add_extension(attached_ext);
+        }
     }
 }
 
@@ -279,7 +294,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
 }
 
 std::map<std::string, CreatorFunction> FrontEnd::get_supported_ops(const ov::frontend::InputModel::Ptr& model) const {
-    std::map<std::string, CreatorFunction> supported_ops = get_supported_ops_fx();
+    std::map<std::string, CreatorFunction> supported_ops;
     if (std::dynamic_pointer_cast<pytorch::InputModel>(model)->decoder_type_name() == "fx")
         supported_ops = get_supported_ops_fx();
     else

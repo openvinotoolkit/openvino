@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,15 +12,15 @@
 namespace LayerTestsDefinitions {
 class FakeQuantizeTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fakequantize;
+    ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakequantize;
 
     std::string layerName;
     std::string expectedKernelType;
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::PartialShape,
+    ov::element::Type,
+    ov::PartialShape,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params,
     FakeQuantizeTransformationParam,
@@ -34,7 +34,7 @@ public:
 
 protected:
     void SetUp() override;
-    void Run() override;
+    void run() override;
 };
 
 }  // namespace LayerTestsDefinitions

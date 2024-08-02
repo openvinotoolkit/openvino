@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "openvino/c/ov_infer_request.h"
@@ -295,7 +295,7 @@ ov_status_e ov_infer_request_wait_for(ov_infer_request_t* infer_request, const i
     }
     CATCH_OV_EXCEPTIONS
 
-    return ret ? ov_status_e::OK : ov_status_e::UNEXPECTED;
+    return ret ? ov_status_e::OK : ov_status_e::RESULT_NOT_READY;
 }
 
 ov_status_e ov_infer_request_set_callback(ov_infer_request_t* infer_request, const ov_callback_t* callback) {

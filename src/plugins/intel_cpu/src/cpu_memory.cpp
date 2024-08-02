@@ -1,9 +1,17 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "cpu_memory.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
+#include <common/memory_desc_wrapper.hpp>
 #include "nodes/reorder.h"
+#include "utils/debug_capabilities.h"
+#if defined(__linux__)
+#    include <sys/syscall.h> /* Definition of SYS_* constants */
+#    include <unistd.h>
+#    include <cstring> /* strerror(errno) */
+#endif
 
 namespace ov {
 namespace intel_cpu {
@@ -60,6 +68,9 @@ Memory::Memory(const dnnl::engine& eng, MemoryDescPtr desc, const void* data, bo
     m_pMemDesc(desc),
     m_mgrHandle(std::make_shared<DnnlMemoryMngr>(make_unique<MemoryMngrWithReuse>()), this),
     dnnlMemHandle(this) {
+        if (desc->getPrecision() == element::string) {
+            OPENVINO_THROW("[CPU] Memory object cannot be created for string data.");
+        }
         create(m_pMemDesc, data, pads_zeroing);
     }
 
@@ -68,6 +79,9 @@ Memory::Memory(const dnnl::engine& eng, const MemoryDesc& desc, const void* data
 
 Memory::Memory(const dnnl::engine& eng, MemoryDescPtr desc, MemoryMngrPtr mngr) :
     m_eng(eng), m_pMemDesc(desc), m_mgrHandle(mngr, this), dnnlMemHandle(this) {
+        if (desc->getPrecision() == element::string) {
+            OPENVINO_THROW("[CPU] Memory object can't be created for string data.");
+        }
         bool memAllocated = m_mgrHandle->getRawPtr();
 
         create(desc, nullptr, !memAllocated);
@@ -78,7 +92,7 @@ Memory::Memory(const dnnl::engine& eng, const MemoryDesc& desc, MemoryMngrPtr mn
 
 size_t Memory::getSize() const {
     auto size = getDesc().getCurrentMemSize();
-    if (size  == MemoryDesc::UNDEFINED_SIZE) {
+    if (size == MemoryDesc::UNDEFINED_SIZE) {
         OPENVINO_THROW("Can't get memory size for undefined shape");
     }
     return size;
@@ -105,6 +119,9 @@ void Memory::create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
 }
 
 void Memory::load(const IMemory& src, bool ftz) const {
+    if (src.getDesc().getPrecision() == element::string) {
+        OPENVINO_THROW("[CPU] Memory object cannot load string data.");
+    }
     transferData(src, *this, ftz);
 }
 
@@ -115,6 +132,9 @@ void Memory::nullify() {
 }
 
 void Memory::redefineDesc(MemoryDescPtr desc) {
+    if (desc->getPrecision() == element::string) {
+        OPENVINO_THROW("[CPU] Memory object cannot accept a descriptor with a string type.");
+    }
     if (!desc->hasDefinedMaxSize()) {
         OPENVINO_THROW("Can not reset descriptor, memory upper bound is unknown.");
     }
@@ -215,6 +235,12 @@ bool MemoryMngrWithReuse::resize(size_t size) {
         m_useExternalStorage = false;
         m_data = decltype(m_data)(ptr, destroy);
         sizeChanged = true;
+
+        if (numa_node >= 0) {
+            if (!mbind_move(ptr, size, numa_node)) {
+                DEBUG_LOG("MemoryMngrWithReuse move_memory to node ", numa_node, " failed\n");
+            }
+        }
     }
     return sizeChanged;
 }
@@ -285,7 +311,6 @@ StringMemory::StringMemory(const dnnl::engine& engine, const MemoryDescPtr& desc
         return;
     }
 
-    m_size = m_mem_desc->getCurrentMemSize();
     const auto string_size = m_mem_desc->getShape().getElementsCount();
 
     if (data != nullptr) {
@@ -344,6 +369,14 @@ bool StringMemory::isAllocated() const noexcept {
     return false;
 }
 
+size_t StringMemory::getSize() const { // In bytes
+    auto size = getDesc().getCurrentMemSize();
+    if (size == MemoryDesc::UNDEFINED_SIZE) {
+        OPENVINO_THROW("Can't get memory size for undefined shape.");
+    }
+    return size;
+}
+
 MemoryMngrPtr StringMemory::getMemoryMngr() const {
     OPENVINO_THROW("Unexpected call of StringMemory::getMemoryMngr()");
 }
@@ -365,7 +398,11 @@ StringMemory::OvString* StringMemory::StringMemoryMngr::getStringPtr() const noe
 bool StringMemory::StringMemoryMngr::resize(size_t size) {
     bool sizeChanged = false;
     if (size > m_str_upper_bound) {
-        auto ptr = new OvString[size];
+        if (size > PTRDIFF_MAX) {
+            OPENVINO_THROW("Requested allocation size { ", size, " } exceeds PTRDIFF_MAX.");
+        }
+        auto ptr_size = static_cast<ptrdiff_t>(size); // WA for warning alloc-size-larger-than
+        auto ptr = new OvString[ptr_size];
         if (!ptr) {
             OPENVINO_THROW("Failed to allocate ", size, " bytes of memory");
         }
@@ -438,6 +475,9 @@ void DnnlMemoryMngr::notifyUpdate() {
 
 StaticMemory::StaticMemory(const dnnl::engine& eng, MemoryDescPtr desc, const void* data, bool pads_zeroing) :
     m_eng(eng), m_pMemDesc(desc) {
+    if (desc->getPrecision() == element::string) {
+        OPENVINO_THROW("[CPU] StaticMemory object cannot be created for string data.");
+    }
     if (!m_pMemDesc->isDefined()) {
         OPENVINO_THROW("Can not create StaticMemory object. The memory desc is undefined");
     }
@@ -504,6 +544,9 @@ void StaticMemory::redefineDesc(MemoryDescPtr desc) {
 }
 
 void StaticMemory::load(const IMemory& src, bool ftz) const {
+    if (src.getDesc().getPrecision() == element::string) {
+        OPENVINO_THROW("[CPU] StaticMemory cannot load string data.");
+    }
     transferData(src, *this, ftz);
 }
 
@@ -559,5 +602,67 @@ void StaticMemory::StaticMemoryMngr::registerMemory(Memory* memPtr) {
 void StaticMemory::StaticMemoryMngr::unregisterMemory(Memory* memPtr) {
     //do nothing
 }
+
+#if defined(__linux__)
+#    define MPOL_DEFAULT   0
+#    define MPOL_BIND      2
+#    define MPOL_MF_STRICT (1 << 0)
+#    define MPOL_MF_MOVE   (1 << 1)
+#if !defined(__NR_mbind) && defined(__x86_64__)
+#    define __NR_mbind 237
+#endif
+static long mbind(void* start,
+                  unsigned long len,
+                  int mode,
+                  const unsigned long* nmask,
+                  unsigned long maxnode,
+                  unsigned flags) {
+    return syscall(__NR_mbind, (long)start, len, mode, (long)nmask, maxnode, flags);
+}
+#endif
+
+#if defined(__linux__)
+bool mbind_move(void* data, size_t size, int targetNode) {
+    int realNode = ov::get_org_numa_id(targetNode);
+    auto pagesize = getpagesize();
+    auto page_count = (size + pagesize - 1) / pagesize;
+    char* pages = reinterpret_cast<char*>((((uintptr_t)data) & ~((uintptr_t)(pagesize - 1))));
+    unsigned long mask = 0;
+    unsigned flags = 0;
+    if (realNode < 0) {
+        // restore default policy
+        mask = -1;
+        flags = 0;
+    } else {
+        mask = 1ul << realNode;
+        flags = MPOL_MF_MOVE | MPOL_MF_STRICT;
+    }
+
+    auto rc = mbind(pages, page_count * pagesize, MPOL_BIND, &mask, sizeof(mask) * 8, flags);
+    if (rc < 0) {
+        DEBUG_LOG("mbind failed: ", strerror(errno));
+        return false;
+    }
+    return true;
+}
+#else
+bool mbind_move(void* data, size_t size, int targetNode) {
+    return false;
+}
+#endif
+
+bool mbind_move(const MemoryCPtr mem, int numaNodeID) {
+    void* data = mem->getData();
+    auto size = mem->getSize();
+    return mbind_move(data, size, numaNodeID);
+}
+
+bool mbind_move(const dnnl::memory mem, int numaNodeID) {
+    void* data = mem.get_data_handle();
+    auto desc = mem.get_desc();
+    auto size = desc.get_size();
+    return mbind_move(data, size, numaNodeID);
+}
+
 }   // namespace intel_cpu
 }   // namespace ov

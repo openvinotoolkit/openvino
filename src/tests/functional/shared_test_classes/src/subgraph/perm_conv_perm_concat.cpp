@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,8 @@
 
 #include "common_test_utils/data_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "ov_models/builders.hpp"
+#include "common_test_utils/node_builders/convolution.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 
 namespace ov {
 namespace test {
@@ -43,6 +44,10 @@ void PermConvPermConcat::SetUp() {
     std::tie(element_type, targetDevice, input_shape, kernel_shape, output_channels, additional_config) =
         this->GetParam();
 
+    if (element_type == ov::element::f32) {
+        abs_threshold = 1e-6;
+    }
+
     configuration.insert(additional_config.begin(), additional_config.end());
 
     const std::size_t input_dim = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<size_t>());
@@ -63,7 +68,7 @@ void PermConvPermConcat::SetUp() {
     auto conv_in_shape = permute_in->get_output_shape(0);
     auto conv_weights_size = output_channels * (conv_in_shape[1]) * kernel_shape[0] * kernel_shape[1];
     auto conv =
-        ngraph::builder::makeConvolution(permute_in,
+        ov::test::utils::make_convolution(permute_in,
                                          element_type,
                                          {kernel_shape[0], kernel_shape[1]},
                                          {1, 1},
@@ -81,16 +86,15 @@ void PermConvPermConcat::SetUp() {
     auto permute_out_shape = permute_out->get_output_shape(0);
 
     auto concat_const =
-        ngraph::builder::makeConstant(element_type,
-                                      {1, 1, 1, permute_out_shape[3]},
-                                      ov::test::utils::generate_float_numbers(permute_out_shape[3], -10, 10));
+        ov::op::v0::Constant::create(element_type, {1, 1, 1, permute_out_shape[3]},
+            ov::test::utils::generate_float_numbers(permute_out_shape[3], -10, 10));
 
     auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{permute_out, concat_const}, 2);
 
     auto reshape_out_pattern = std::make_shared<ov::op::v0::Constant>(
         ov::element::i64,
         ov::Shape{2},
-        InferenceEngine::SizeVector({1, (permute_out_shape[2] + 1) * permute_out_shape[3]}));
+        std::vector<size_t>({1, (permute_out_shape[2] + 1) * permute_out_shape[3]}));
     auto reshape_out = std::make_shared<ov::op::v1::Reshape>(concat, reshape_out_pattern, false);
 
     function = std::make_shared<ov::Model>(reshape_out, input_parameter, "perm_conv_perm_concat");

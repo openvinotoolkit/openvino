@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,7 +46,7 @@ protected:
         std::string layer_type;
         std::tie(precision, test_values, layer_type) = GetParam();
 
-        actualFunction = ngraph::builder::subgraph::MarkupBiasFunction::get(precision,
+        actualFunction = ov::builder::subgraph::MarkupBiasFunction::get(precision,
                                                                             test_values.input_shape,
                                                                             test_values.bias_shape,
                                                                             layer_type,

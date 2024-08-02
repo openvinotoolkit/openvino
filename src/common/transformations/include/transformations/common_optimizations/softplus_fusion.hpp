@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API SoftPlusFusion;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SoftPlusFusion transformation replaces group of
  * operations: log(exp(x) + 1) to SoftPlus op.
  */

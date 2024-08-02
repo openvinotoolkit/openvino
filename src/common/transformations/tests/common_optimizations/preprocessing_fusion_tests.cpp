@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,6 @@
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/serialize.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
 #include "transformations/common_optimizations/moc_transformations.hpp"
 #include "transformations/common_optimizations/ric_fusion.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"

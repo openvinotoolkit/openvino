@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -288,6 +288,8 @@ public:
     void load(cldnn::BinaryInputBuffer& ib);
     bool is_loaded_from_cache() const { return _loaded_from_cache; }
 
+    bool is_new_shape_infer() const { return new_shape_infer; }
+
 private:
     uint32_t prog_id = 0;
     engine& _engine;
@@ -306,9 +308,11 @@ private:
     // if subgraph can be optimized if it consists of only inputs and corresponding outputs
     bool _can_be_optimized;
     std::unique_ptr<ImplementationsCache> _impls_cache;
-    const size_t _impls_cache_capacity = 10000;
+    const size_t _impls_cache_capacity = 300;
     std::shared_ptr<ICompilationContext> _compilation_context;
     bool _loaded_from_cache = false;
+
+    bool new_shape_infer = false;
 
     std::map<primitive_id, std::shared_ptr<program_node>> nodes_map;
     std::list<primitive_id> optimized_out;

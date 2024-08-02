@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -8,7 +8,7 @@
 
 set(BUILD_SHARED_LIBS OFF)
 
-if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
     ov_add_compiler_flags(-Wno-all)
     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND CMAKE_COMPILER_IS_GNUCXX)
         ov_add_compiler_flags(-Wno-stringop-overflow)
@@ -23,6 +23,9 @@ set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests" FORCE)
 set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libs" FORCE)
 set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support" FORCE)
 set(ABSL_PROPAGATE_CXX_STD ON CACHE BOOL "Abseil protogate CXX standard to dependent targets" FORCE)
+
+# some projects define HAVE_ZLIB, which affects protobuf. Let's explicitly unset it
+unset(HAVE_ZLIB CACHE)
 
 # note: HOST_AARCH64 AND X86_64 are not handled for Apple explicitly, because it can work via Rosetta
 if(CMAKE_CROSSCOMPILING OR

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 
 #include "ctc_loss_shape_inference.hpp"
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 
 namespace ov {
 op::v4::CTCLoss::CTCLoss(const Output<Node>& logits,
@@ -60,8 +59,8 @@ void op::v4::CTCLoss::validate_and_infer_types() {
                               input_et);
     }
 
-    const auto output_shape = shape_infer(this, ov::util::get_node_input_partial_shapes(*this)).front();
-    set_output_type(0, logits_type, output_shape);
+    const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
+    set_output_type(0, logits_type, output_shapes[0]);
 }
 
 bool op::v4::CTCLoss::visit_attributes(AttributeVisitor& visitor) {

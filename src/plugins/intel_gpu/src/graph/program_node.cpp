@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,6 +33,21 @@
 
 using namespace cldnn;
 
+static size_t get_shape_data_size(const layout& l) {
+    if (l.is_static())
+        return 0;
+
+    size_t size = layout::max_rank(); // all dimenstions are stored
+    auto dynamic_pad = l.data_padding.get_dynamic_pad_dims().sizes(format::get_default_format(layout::max_rank()));
+    for (size_t j = 0; j < layout::max_rank(); ++j) {
+        if (dynamic_pad[j] == 1) {
+            size += 2; // lower + upper
+        }
+    }
+
+    return size;
+}
+
 thread_local size_t program_node::cur_id = 0;
 
 program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
@@ -45,7 +60,6 @@ program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
             output_layouts.push_back(output_layout);
             valid_output_layouts.push_back(false);
         }
-        add_memory_dependency(id());
     }
 }
 
@@ -71,6 +85,85 @@ void program_node::replace_dependency(size_t idx, std::pair<program_node*, int32
     dependencies[idx].first = new_dep.first;
     dependencies[idx].second = new_dep.second;
     new_dep.first->users.push_back(this);
+}
+
+std::vector<layout> const program_node::get_input_layouts() const {
+    std::vector<layout> layouts;
+    for (size_t i = 0; i < dependencies.size(); i++) {
+        layouts.push_back(get_input_layout(i));
+    }
+    return layouts;
+}
+
+const layout& program_node::get_input_layout(size_t idx) const {
+    const auto& d = get_dependency_with_port(idx);
+    return d.first->get_output_layout(true, d.second);
+}
+
+const ov::PartialShape& program_node::get_input_pshape(size_t idx) const {
+    return get_input_layout(idx).get_partial_shape();
+}
+
+ov::PartialShape program_node::get_output_pshape(size_t idx) const {
+    if (!is_valid_output_layout(idx))
+        return calc_output_layouts()[idx].get_partial_shape();
+    return get_output_layout(idx).get_partial_shape();
+}
+
+std::vector<layout> program_node::get_shape_info_input_layouts() const {
+    std::vector<layout> res;
+    for (size_t i = 0; i < get_dependencies().size(); i++) {
+        const auto& d = get_dependency_with_port(i);
+        res.push_back(d.first->get_output_layout(false, d.second));
+    }
+
+    return res;
+}
+
+std::map<size_t, size_t> program_node::get_input_port_to_shape_info_offset_map() const {
+    std::map<size_t, size_t> res;
+    size_t offset = 0;
+    const auto& deps = get_shape_info_input_layouts();
+    for (size_t i = 0; i < deps.size(); i++) {
+        res[i] = offset;
+        offset += get_shape_data_size(deps[i]);
+    }
+
+    return res;
+}
+
+std::map<size_t, size_t> program_node::get_output_port_to_shape_info_offset_map() const {
+    std::map<size_t, size_t> res;
+    size_t offset = get_total_shape_info_input_size();
+    for (size_t i = 0; i < output_layouts.size(); i++) {
+        res[i] = offset;
+        offset += get_shape_data_size(output_layouts[i]);
+    }
+
+    return res;
+}
+
+size_t program_node::get_total_shape_info_input_size() const {
+    size_t offset = 0;
+    const auto& deps = get_shape_info_input_layouts();
+    for (size_t i = 0; i < deps.size(); i++) {
+        offset += get_shape_data_size(deps[i]);
+    }
+
+    return offset;
+}
+
+size_t program_node::get_total_shape_info_output_size() const {
+    size_t offset = 0;
+    for (size_t i = 0; i < output_layouts.size(); i++) {
+        offset += get_shape_data_size(output_layouts[i]);
+    }
+
+    return offset;
+}
+
+size_t program_node::get_total_shape_info_size() const {
+    return get_total_shape_info_input_size() + get_total_shape_info_output_size();
 }
 
 void program_node::replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling) {
@@ -102,11 +195,11 @@ void program_node::remove_dependency(size_t idx) {
     dependencies.erase(dependencies.begin() + idx);
 }
 
-std::set<primitive_id> program_node::get_memory_dependencies() const { return memory_dependencies; }
+std::unordered_set<size_t> program_node::get_memory_dependencies() const { return memory_dependencies; }
 
-void program_node::add_memory_dependency(primitive_id prim) { memory_dependencies.insert(prim); }
+void program_node::add_memory_dependency(size_t prim) { memory_dependencies.insert(prim); }
 
-void program_node::add_memory_dependency(std::vector<primitive_id> prim_list) {
+void program_node::add_memory_dependency(std::vector<size_t> prim_list) {
     memory_dependencies.insert(prim_list.begin(), prim_list.end());
 }
 
@@ -248,15 +341,22 @@ size_t program_node::get_user_index(const program_node& node) const {
             idx++;
     }
 
-    OPENVINO_ASSERT(false, "Search invalid user node" + node.id() + " node");
+    OPENVINO_THROW("[GPU] Search invalid user node" + node.id() + " node");
 }
 
+int32_t program_node::get_dependency_output_port(const program_node& node) const {
+    for (size_t i = 0; i < dependencies.size(); ++i)
+        if (dependencies[i].first == &node)
+            return dependencies[i].second;
+
+    OPENVINO_THROW("[GPU] Search invalid dependency output port" + node.id() + " node");
+}
 size_t program_node::get_dependency_index(const program_node& node) const {
     for (size_t i = 0; i < dependencies.size(); ++i)
         if (dependencies[i].first == &node)
             return i;
 
-    OPENVINO_ASSERT(false, "Search invalid dependency node" + node.id() + " node");
+    OPENVINO_THROW("[GPU] Search invalid dependency node" + node.id() + " node");
 }
 
 bool program_node::is_detached(bool whole_branch) {
@@ -268,7 +368,7 @@ bool program_node::is_detached(bool whole_branch) {
 }
 
 layout program_node::calc_output_layout() const {
-    bool allow_new_shape_infer = get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+    bool allow_new_shape_infer = get_program().is_new_shape_infer();
     if (allow_new_shape_infer) {
         auto out_layouts = type()->calc_output_layouts(*this, *get_kernel_impl_params());
         if (!out_layouts.empty()) {
@@ -284,7 +384,7 @@ layout program_node::calc_output_layout() const {
 }
 
 std::vector<layout> program_node::calc_output_layouts() const {
-    bool allow_new_shape_infer = get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+    bool allow_new_shape_infer = get_program().is_new_shape_infer();
     if (allow_new_shape_infer) {
         auto out_layouts = type()->calc_output_layouts(*this, *get_kernel_impl_params());
         if (!out_layouts.empty())
@@ -294,7 +394,7 @@ std::vector<layout> program_node::calc_output_layouts() const {
     return {type()->calc_output_layout(*this, *get_kernel_impl_params())};
 }
 
-layout program_node::get_output_layout(bool invalidate_users_if_changed, size_t idx) {
+const layout& program_node::get_output_layout(bool invalidate_users_if_changed, size_t idx) {
     if (valid_output_layouts[idx])
         return output_layouts[idx];
 
@@ -303,14 +403,14 @@ layout program_node::get_output_layout(bool invalidate_users_if_changed, size_t 
     return output_layouts[idx];
 }
 
-layout program_node::get_output_layout(size_t idx) const {
+const layout& program_node::get_output_layout(size_t idx) const {
     if (!valid_output_layouts[idx])
         throw std::runtime_error("Output layout not calculated for " + id() + " node");
 
     return output_layouts[idx];
 }
 
-std::vector<layout> program_node::get_output_layouts(bool invalidate_users_if_changed) {
+const std::vector<layout>& program_node::get_output_layouts(bool invalidate_users_if_changed) {
     if (is_all_valid_output_layouts())
         return output_layouts;
 
@@ -319,7 +419,7 @@ std::vector<layout> program_node::get_output_layouts(bool invalidate_users_if_ch
     return output_layouts;
 }
 
-std::vector<layout> program_node::get_output_layouts() const {
+const std::vector<layout>& program_node::get_output_layouts() const {
     if (!is_all_valid_output_layouts()) {
         throw std::runtime_error("Output layouts not calculated for " + id() + " node");
     }
@@ -538,6 +638,7 @@ void program_node::add_dependant_shape_of_node(const program_node* node) {
 }
 
 void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
+    ob << unique_id;
     ob << valid_output_layouts;
     ob << output_layouts;
 
@@ -570,6 +671,7 @@ void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
     ob << constant;
     ob << data_flow;
     ob << in_shape_of_subgraph;
+    ob << runtime_skippable;
 
     ob << output;
     ob << user_mark;
@@ -674,6 +776,7 @@ void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
 }
 
 void program_node::load(cldnn::BinaryInputBuffer& ib) {
+    ib >> unique_id;
     ib >> valid_output_layouts;
     ib >> output_layouts;
 
@@ -734,6 +837,7 @@ void program_node::load(cldnn::BinaryInputBuffer& ib) {
     ib >> constant;
     ib >> data_flow;
     ib >> in_shape_of_subgraph;
+    ib >> runtime_skippable;
 
     ib >> output;
     ib >> user_mark;
@@ -1345,7 +1449,7 @@ void program_node::init_onednn_primitive_attributes() {
         auto& desc = cldnn_post_ops[idx];
         if (desc.is_type<activation>()) {
             auto fused_desc = desc.typed_desc<activation>();
-            bool allow_new_shape_infer = get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+            bool allow_new_shape_infer = get_program().is_new_shape_infer();
             if (fused_desc->activation_function == cldnn::activation_func::relu_negative_slope
                 && !fused_desc->additional_params_input.empty()) {
                 auto dep_idx = cldnn_post_ops[idx].outer_dep_start_idx;

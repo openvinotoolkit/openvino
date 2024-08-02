@@ -61,23 +61,6 @@ updates:
         dependency-type: "production"
     versioning-strategy: increase-if-necessary
 
-  # POT requirements
-  - package-ecosystem: pip
-    directory: "/tools/pot"
-    schedule:
-      interval: "daily"
-      time: "09:00"
-      timezone: "Asia/Dubai"
-    open-pull-requests-limit: 3
-    assignees:
-      - "AlexKoff88"
-      - "KodiaqQ"
-      - "jiwaszki"
-      - "p-wysocki"
-      - "akuporos"
-      - "rkazants"
-    versioning-strategy: increase-if-necessary
-
   #
   # Python Samples
   #

@@ -1,8 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "blocked_memory_desc.h"
+
+#include <unordered_set>
+
 #include "utils/general_utils.h"
 
 namespace ov {

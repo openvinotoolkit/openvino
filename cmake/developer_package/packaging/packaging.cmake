@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -41,10 +41,16 @@ endmacro()
 #
 function(ov_set_install_rpath TARGET_NAME lib_install_path)
     if(APPLE AND CPACK_GENERATOR MATCHES "^(7Z|TBZ2|TGZ|TXZ|TZ|TZST|ZIP)$" OR CPACK_GENERATOR STREQUAL "NPM")
+        if (APPLE)
+            set(RPATH_PREFIX "@loader_path")
+        else()
+            set(RPATH_PREFIX "$ORIGIN")
+        endif()
+
         unset(rpath_list)
         foreach(dependency_install_path IN LISTS ARGN)
             file(RELATIVE_PATH dependency_rpath "/${lib_install_path}" "/${dependency_install_path}")
-            set(dependency_rpath "@loader_path/${dependency_rpath}")
+            set(dependency_rpath "${RPATH_PREFIX}/${dependency_rpath}")
             list(APPEND rpath_list "${dependency_rpath}")
         endforeach()
 
@@ -67,7 +73,7 @@ endfunction()
 #
 # ov_cpack_add_component(NAME ...)
 #
-# Wraps original `cpack_add_component` and adds component to internal IE list
+# Wraps original `cpack_add_component` and adds component to internal OV list
 #
 function(ov_cpack_add_component name)
     if(NOT ${name} IN_LIST OV_CPACK_COMPONENTS_ALL)
@@ -117,6 +123,32 @@ function(ov_install_with_name file component)
 endfunction()
 
 #
+# checks that current OpenVINO versions has previous version in RPM / DEB conflicts
+#
+function(ov_check_conflicts_versions var_name)
+    set(ov_major ${OpenVINO_VERSION_MAJOR})
+    set(ov_minor ${OpenVINO_VERSION_MINOR})
+    set(ov_patch ${OpenVINO_VERSION_PATCH})
+
+    if(ov_patch EQUAL 0)
+        if(ov_minor EQUAL 0)
+            math(EXPR ov_major "${ov_major} - 1")
+        else()
+            math(EXPR ov_minor "${ov_minor} - 1")
+        endif()
+    else()
+        math(EXPR ov_patch "${ov_patch} - 1")
+    endif()
+
+    set(ov_prev_version "${ov_major}.${ov_minor}.${ov_patch}")
+
+    # perform check
+    if(NOT ov_prev_version IN_LIST ${var_name})
+        message(FATAL_ERROR "List ${var_name} (${${var_name}}) does not contain verison ${ov_prev_version}")
+    endif()
+endfunction()
+
+#
 # List of public OpenVINO components
 #
 
@@ -139,9 +171,10 @@ macro(ov_define_component_names)
     set(OV_CPACK_COMP_PYTHON_OPENVINO_PACKAGE "pyopenvino_package")
     set(OV_CPACK_COMP_PYTHON_WHEELS "python_wheels")
     set(OV_CPACK_COMP_OPENVINO_REQ_FILES "openvino_req_files")
+    # nodejs
+    set(OV_CPACK_COMP_NPM "ov_node_addon")
     # tools
     set(OV_CPACK_COMP_OPENVINO_DEV_REQ_FILES "openvino_dev_req_files")
-    set(OV_CPACK_COMP_DEPLOYMENT_MANAGER "deployment_manager")
     # scripts
     set(OV_CPACK_COMP_INSTALL_DEPENDENCIES "install_dependencies")
     set(OV_CPACK_COMP_SETUPVARS "setupvars")
@@ -179,6 +212,8 @@ elseif(CPACK_GENERATOR STREQUAL "RPM")
     include(packaging/rpm/rpm)
 elseif(CPACK_GENERATOR STREQUAL "NSIS")
     include(packaging/nsis)
+elseif(CPACK_GENERATOR STREQUAL "NPM")
+    include(packaging/npm)
 elseif(CPACK_GENERATOR MATCHES "^(CONDA-FORGE|BREW|CONAN|VCPKG)$")
     include(packaging/common-libraries)
 elseif(CPACK_GENERATOR MATCHES "^(7Z|TBZ2|TGZ|TXZ|TZ|TZST|ZIP)$")

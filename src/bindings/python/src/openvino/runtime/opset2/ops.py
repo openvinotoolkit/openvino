@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
@@ -60,7 +60,7 @@ def batch_to_space(
     """
     return _get_node_factory_opset2().create(
         "BatchToSpace",
-        as_nodes(data, block_shape, crops_begin, crops_end),
+        as_nodes(data, block_shape, crops_begin, crops_end, name=name),
     )
 
 
@@ -172,7 +172,7 @@ def roi_pooling(
     roi_shape = _deprecated_output_size_arg(output_roi, output_size)
     node = _get_node_factory_opset2().create(
         "ROIPooling",
-        as_nodes(input, coords),
+        as_nodes(input, coords, name=name),
         {
             "output_size": Shape(roi_shape),
             "output_roi": Shape(roi_shape),
@@ -212,5 +212,5 @@ def space_to_batch(
     """
     return _get_node_factory_opset2().create(
         "SpaceToBatch",
-        as_nodes(data, block_shape, pads_begin, pads_end),
+        as_nodes(data, block_shape, pads_begin, pads_end, name=name),
     )

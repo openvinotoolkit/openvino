@@ -1,47 +1,22 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
+
+#include "common.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <vector>
-#include <openvino/core/type/element_type.hpp>
 
-#include "common.hpp"
-
-namespace InferenceEngine {
+namespace ov {
 namespace Extensions {
 namespace Cpu {
 namespace XARCH {
 
 #if defined(HAVE_AVX2)
-inline __m256i get_mask(int N7) {
-    static __m256i mask[] = {
-        _mm256_set_epi32(0, 0, 0, 0, 0, 0, 0, 0),
-        _mm256_set_epi32(0, 0, 0, 0, 0, 0, 0, -1),
-        _mm256_set_epi32(0, 0, 0, 0, 0, 0, -1, -1),
-        _mm256_set_epi32(0, 0, 0, 0, 0, -1, -1, -1),
-        _mm256_set_epi32(0, 0, 0, 0, -1, -1, -1, -1),
-        _mm256_set_epi32(0, 0, 0, -1, -1, -1, -1, -1),
-        _mm256_set_epi32(0, 0, -1, -1, -1, -1, -1, -1),
-        _mm256_set_epi32(0, -1, -1, -1, -1, -1, -1, -1),
-        _mm256_set_epi32(-1, -1, -1, -1, -1, -1, -1, -1),
-    };
-    return _mm256_loadu_si256(&mask[N7]);
-}
-
-inline void hmax(__m256& x) {
-    __m256 y;                             // x:  0 1 2 3   4 5 6 7
-    y = _mm256_permute_ps(x, 0x39);       // y:  1 2 3 0   5 6 7 4
-    x = _mm256_max_ps(x, y);              // X:  01 12 23 30  45 56 67 74
-    y = _mm256_permute_ps(x, 0x4e);       // y:  23 30 01 12  67 74 45 56
-    x = _mm256_max_ps(x, y);              // x: 0123 x x x   4567 x x x
-    y = _mm256_permute2f128_ps(x, x, 1);  // y: 4567 x x x  0123 x x x
-    x = _mm256_max_ps(x, y);              // x: 01234567 x x x x x x x
-}
-
 inline void exp_ps_avx2(__m256& src) {
     static __m256 exp_ln_flt_min_f = _mm256_castsi256_ps(_mm256_set1_epi32(0xc2aeac50));  // log(FLT_MIN)
     static __m256 exp_ln_flt_max_f = _mm256_castsi256_ps(_mm256_set1_epi32(0x42b17218));  // log(FLT_MAX)
@@ -175,14 +150,16 @@ inline void scale_add_reduce_max(float* a, const float scale, const float* b, co
     }
 #endif
 }
-template <bool has_alibi, bool has_attn_mask, bool has_causal_mask>
+
+template <bool has_alibi, bool has_attn_mask, bool has_causal_mask, typename T>
 inline void scale_add2_reduce_max(float* a,
                                   float scale,
-                                  const float* alibi,
-                                  const float* attn_mask,
+                                  const float* alibi_lookup,
+                                  const T* attn_mask,
                                   const uint8_t* causal_mask,
                                   bool select_nfltmax_at_0,  // true:  0 in mask set -FLT_MAX
                                   size_t size,
+                                  float alibi_slope,
                                   float& max) {
 #if defined(HAVE_AVX512F)
     auto v_max = _mm512_set1_ps(std::numeric_limits<float>::lowest());
@@ -192,18 +169,19 @@ inline void scale_add2_reduce_max(float* a,
     auto v_zeroi32 = _mm512_setzero_epi32();
     auto v_nfltmax = _mm512_set1_ps(-FLT_MAX);
     auto kmask_xor = _cvtu32_mask16(select_nfltmax_at_0 ? 0xFFFF : 0);
+    auto v_alibi_slope = _mm512_set1_ps(alibi_slope);
     // process vector body
     while (i + vec_len_f32_avx512 <= size) {
         v_a = _mm512_loadu_ps(a + i);
         v_a = _mm512_mul_ps(v_a, v_scale);
 
         if (has_alibi) {
-            auto v_mask = _mm512_loadu_ps(alibi + i);
-            v_a = _mm512_add_ps(v_a, v_mask);
+            auto v_lookup = _mm512_loadu_ps(alibi_lookup + i);
+            v_a = _mm512_fmadd_ps(v_lookup, v_alibi_slope, v_a);
         }
 
         if (has_attn_mask) {
-            auto v_mask = _mm512_loadu_ps(attn_mask + i);
+            auto v_mask = mm512_uni_loadu_ps(attn_mask + i);
             v_a = _mm512_add_ps(v_a, v_mask);
         }
 
@@ -226,12 +204,12 @@ inline void scale_add2_reduce_max(float* a,
         v_a = _mm512_mul_ps(v_a, v_scale);
 
         if (has_alibi) {
-            auto v_mask = _mm512_maskz_loadu_ps(mask, alibi + i);
-            v_a = _mm512_add_ps(v_a, v_mask);
+            auto v_lookup = _mm512_maskz_loadu_ps(mask, alibi_lookup + i);
+            v_a = _mm512_fmadd_ps(v_lookup, v_alibi_slope, v_a);
         }
 
         if (has_attn_mask) {
-            auto v_mask = _mm512_maskz_loadu_ps(mask, attn_mask + i);
+            auto v_mask = mm512_uni_loadu_tail_ps(attn_mask + i, size - i);
             v_a = _mm512_add_ps(v_a, v_mask);
         }
 
@@ -254,6 +232,7 @@ inline void scale_add2_reduce_max(float* a,
     auto v_zeroi32 = _mm256_setzero_si256();
     auto v_mask_xor = _mm256_set1_epi32(select_nfltmax_at_0 ? -1 : 0);
     auto v_nfltmax = _mm256_set1_ps(-FLT_MAX);
+    auto v_alibi_slope = _mm256_set1_ps(alibi_slope);
     size_t i = 0;
     // process vector body
     while (i + vec_len_f32_avx2 <= size) {
@@ -261,12 +240,12 @@ inline void scale_add2_reduce_max(float* a,
         v_a = _mm256_mul_ps(v_a, v_scale);
 
         if (has_alibi) {
-            auto v_mask = _mm256_loadu_ps(alibi + i);
-            v_a = _mm256_add_ps(v_a, v_mask);
+            auto v_lookup = _mm256_loadu_ps(alibi_lookup + i);
+            v_a = _mm256_fmadd_ps(v_lookup, v_alibi_slope, v_a);
         }
 
         if (has_attn_mask) {
-            auto v_mask = _mm256_loadu_ps(attn_mask + i);
+            auto v_mask = mm256_uni_loadu_ps(attn_mask + i);
             v_a = _mm256_add_ps(v_a, v_mask);
         }
 
@@ -290,12 +269,12 @@ inline void scale_add2_reduce_max(float* a,
         v_a = _mm256_mul_ps(v_a, v_scale);
 
         if (has_alibi) {
-            auto v_mask = _mm256_maskload_ps(alibi + i, mask);
-            v_a = _mm256_add_ps(v_a, v_mask);
+            auto v_lookup = _mm256_maskload_ps(alibi_lookup + i, mask);
+            v_a = _mm256_fmadd_ps(v_lookup, v_alibi_slope, v_a);
         }
 
         if (has_attn_mask) {
-            auto v_mask = _mm256_maskload_ps(attn_mask + i, mask);
+            auto v_mask = mm256_uni_loadu_tail_ps(attn_mask + i, size - i);
             v_a = _mm256_add_ps(v_a, v_mask);
         }
 
@@ -316,8 +295,9 @@ inline void scale_add2_reduce_max(float* a,
 #else
     for (size_t i = 0; i < size; i++) {
         a[i] *= scale;
-        if (has_alibi)
-            a[i] += alibi[i];
+        if (has_alibi) {
+            a[i] += alibi_lookup[i] * alibi_slope;
+        }
 
         if (has_attn_mask)
             a[i] += attn_mask[i];
@@ -531,14 +511,27 @@ inline void attn_softmax_kernel(float* a,
                                 void* a_dst,
                                 float scale,
                                 float* alibi,
-                                float* attn_mask,
+                                void* attn_mask,
                                 uint8_t* causal_mask,
                                 bool select_nfltmax_at_0,
                                 size_t len,
                                 size_t total_size,
-                                ov::element::Type dst_precision) {
-    using func_type = void (*)(float*, float, const float*, const float*, const uint8_t*, bool, size_t, float&);
-    static func_type funcs[] = {
+                                ov::element::Type attn_mask_prec,
+                                ov::element::Type dst_precision,
+                                float alibi_slope = 0) {
+    using func_fp32_type = void (*)(float*, float, const float*, const float*, const uint8_t*, bool, size_t, float, float&);
+    using func_bf16_type = void (*)(float*, float, const float*, const ov::bfloat16*, const uint8_t*, bool, size_t, float, float&);
+    static constexpr func_fp32_type funcs_fp32[] = {
+        scale_add2_reduce_max<false, false, false>,
+        scale_add2_reduce_max<false, false, true>,
+        scale_add2_reduce_max<false, true, false>,
+        scale_add2_reduce_max<false, true, true>,
+        scale_add2_reduce_max<true, false, false>,
+        scale_add2_reduce_max<true, false, true>,
+        scale_add2_reduce_max<true, true, false>,
+        scale_add2_reduce_max<true, true, true>
+    };
+    static constexpr func_bf16_type funcs_bf16[] = {
         scale_add2_reduce_max<false, false, false>,
         scale_add2_reduce_max<false, false, true>,
         scale_add2_reduce_max<false, true, false>,
@@ -550,7 +543,11 @@ inline void attn_softmax_kernel(float* a,
     };
     int dispatch = (alibi ? 0b100 : 0) | (attn_mask ? 0b010 : 0) | (causal_mask ? 0b001 : 0);
     float max = std::numeric_limits<float>::lowest();
-    funcs[dispatch](a, scale, alibi, attn_mask, causal_mask, select_nfltmax_at_0, len, max);
+    if (attn_mask_prec == ov::element::f32) {
+        funcs_fp32[dispatch](a, scale, alibi, static_cast<const float*>(attn_mask), causal_mask, select_nfltmax_at_0, len, alibi_slope, max);
+    } else {
+        funcs_bf16[dispatch](a, scale, alibi, static_cast<const ov::bfloat16*>(attn_mask), causal_mask, select_nfltmax_at_0, len, alibi_slope, max);
+    }
 
     float sum = 0.0f;
     // exp sum
@@ -573,4 +570,4 @@ inline void attn_softmax_kernel(float* a,
 }  // namespace XARCH
 }  // namespace Cpu
 }  // namespace Extensions
-}  // namespace InferenceEngine
+}  // namespace ov

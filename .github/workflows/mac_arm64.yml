@@ -29,6 +29,8 @@ concurrency:
   group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-mac-arm64
   cancel-in-progress: true
 
+permissions: read-all
+
 env:
   PYTHON_VERSION: '3.11'
 
@@ -40,7 +42,7 @@ jobs:
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           sparse-checkout: .github/actions/smart-ci
 
@@ -51,6 +53,7 @@ jobs:
           repository: ${{ github.repository }}
           pr: ${{ github.event.number }}
           commit_sha: ${{ github.sha }}
+          ref_name: ${{ github.ref_name }}
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
@@ -72,17 +75,18 @@ jobs:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
       INSTALL_DIR: ${{ github.workspace }}/openvino_install
+      INSTALL_DIR_JS: ${{ github.workspace }}/openvino_install/js
       INSTALL_TEST_DIR: ${{ github.workspace }}/tests_install
       BUILD_DIR: ${{ github.workspace }}/build
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           path: 'openvino'
           submodules: 'true'
 
       - name: Clone OpenVINO Contrib
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: 'openvino_contrib'
@@ -112,10 +116,6 @@ jobs:
         run: |
           # For Python API
           python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/requirements.txt
-
-          # For running Python API tests
-          python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
 
           # For running ONNX frontend unit tests
           python3 -m pip install --force-reinstall -r ${{ env.OPENVINO_REPO }}/src/frontends/onnx/tests/requirements.txt
@@ -131,7 +131,7 @@ jobs:
       #
 
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@v1.2
+        uses: hendrikmuhs/ccache-action@c92f40bee50034e84c763e33b317c77adaa81c92 # v1.2.13
         with:
           max-size: "2000M"
           # Should save cache only if run in the master branch of the base repo
@@ -181,21 +181,30 @@ jobs:
       - name: Cmake & Build - OpenVINO Contrib
         run: |
           cmake \
-            -DBUILD_nvidia_plugin=OFF \
-            -DBUILD_java_api=OFF \
             -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" \
-            -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_CONTRIB_REPO }}/modules \
+            -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_CONTRIB_REPO }}/modules/custom_operations \
             -S ${{ env.OPENVINO_REPO }} \
             -B ${{ env.BUILD_DIR }}
           cmake --build ${{ env.BUILD_DIR }} --parallel --config ${{ env.CMAKE_BUILD_TYPE }}
 
+      - name: CMake configure, build and install - OpenVINO JS API
+        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+        run: |
+          cmake \
+            -DCPACK_GENERATOR=NPM \
+            -S ${{ env.OPENVINO_REPO }} \
+            -B ${{ env.BUILD_DIR }}
+
+          cmake --build ${{ env.BUILD_DIR }} --parallel
+
+          cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR_JS }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
       #
       # Upload build artifacts
       #
 
       - name: Upload openvino package
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
@@ -203,18 +212,44 @@ jobs:
 
       - name: Upload openvino tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
 
+      - name: Upload openvino js package
+        if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: openvino_js_package
+          path: ${{ env.INSTALL_DIR_JS }}
+          if-no-files-found: 'error'
+
   Samples:
-    needs: Build
+    needs: [ Build, Smart_CI ]
     uses: ./.github/workflows/job_samples_tests.yml
     with:
       runner: 'macos-13-xlarge'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+
+  JS_API:
+    name: OpenVINO JS API
+    needs: [ Build, Smart_CI ]
+    if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+    uses: ./.github/workflows/job_openvino_js.yml
+    with:
+      runner: 'macos-13-xlarge'
+
+  Openvino_tokenizers:
+    name: OpenVINO tokenizers extension
+    needs: [ Build, Smart_CI ]
+    uses: ./.github/workflows/job_tokenizers.yml
+    with:
+      runner: 'macos-13-xlarge'
+      shell: bash
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+    if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 
   CXX_Unit_Tests:
     name: C++ unit tests
@@ -230,6 +265,15 @@ jobs:
     uses: ./.github/workflows/job_python_unit_tests.yml
     with:
       runner: 'macos-13-xlarge'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+
+  TensorFlow_Layer_Tests:
+    name: TensorFlow Layer Tests
+    needs: [ Build, Smart_CI, Openvino_tokenizers ]
+    uses: ./.github/workflows/job_tensorflow_layer_tests.yml
+    with:
+      runner: 'macos-13-xlarge'
+      shell: bash
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
   CPU_Functional_Tests:

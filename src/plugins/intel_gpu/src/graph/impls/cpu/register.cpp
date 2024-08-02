@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,6 +28,8 @@ void register_implementations() {
     REGISTER_CPU(reorder);
     REGISTER_CPU(broadcast);
     REGISTER_CPU(tile);
+    REGISTER_CPU(select);
+    REGISTER_CPU(reduce);
 }
 
 }  // namespace cpu

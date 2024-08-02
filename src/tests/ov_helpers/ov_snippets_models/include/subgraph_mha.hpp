@@ -42,8 +42,9 @@ namespace snippets {
  */
 class MHAFunction : public SnippetsFunctionBase {
 public:
-    explicit MHAFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions, bool with_mul = true)
-        : SnippetsFunctionBase(inputShapes), with_mul(with_mul), precisions(precisions) {
+    explicit MHAFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions,
+                         bool with_mul = true, bool with_reshape = true)
+        : SnippetsFunctionBase(inputShapes), with_mul(with_mul), with_reshape(with_reshape), precisions(precisions) {
         OPENVINO_ASSERT(input_shapes.size() == 4, "Got invalid number of input shapes");
         OPENVINO_ASSERT(precisions.size() == 4, "Got invalid number of input precisions");
     }
@@ -51,8 +52,9 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
 
-    bool with_mul = true;
-    std::vector<ov::element::Type> precisions;
+    const bool with_mul = true;
+    const bool with_reshape = true;
+    const std::vector<ov::element::Type> precisions;
 };
 
 class MHASplitMFunction : public MHAFunction {
@@ -85,8 +87,9 @@ protected:
  */
 class MHAMatMul0TransposeFunction : public SnippetsFunctionBase {
 public:
-    explicit MHAMatMul0TransposeFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions)
-            : SnippetsFunctionBase(inputShapes), precisions(precisions) {
+    explicit MHAMatMul0TransposeFunction(const std::vector<PartialShape>& inputShapes, const std::vector<ov::element::Type>& precisions,
+                                         bool with_reshape = true)
+            : SnippetsFunctionBase(inputShapes), with_reshape(with_reshape), precisions(precisions) {
         OPENVINO_ASSERT(input_shapes.size() == 4, "Got invalid number of input shapes");
         OPENVINO_ASSERT(precisions.size() == 4, "Got invalid number of input precisions");
     }
@@ -94,7 +97,8 @@ protected:
     std::shared_ptr<ov::Model> initOriginal() const override;
     std::shared_ptr<ov::Model> initReference() const override;
 
-    std::vector<ov::element::Type> precisions;
+    const bool with_reshape = true;
+    const std::vector<ov::element::Type> precisions;
 };
 
 /* Graph:

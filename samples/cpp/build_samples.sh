@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # exit when any command fails
@@ -17,7 +17,7 @@ usage() {
     exit 1
 }
 
-samples_type="$(basename "$(dirname "$(realpath "${BASH_SOURCE[0]}")")")"
+samples_type="$(basename "$(dirname "$(realpath "${BASH_SOURCE:-$0}")")")"
 samples_build_dir="$HOME/openvino_${samples_type}_samples_build"
 sample_install_dir=""
 
@@ -55,7 +55,7 @@ error() {
 }
 trap 'error ${LINENO}' ERR
 
-SAMPLES_SOURCE_DIR="$( cd "$( dirname "$(realpath "${BASH_SOURCE[0]}")" )" && pwd )"
+SAMPLES_SOURCE_DIR="$( cd "$( dirname "$(realpath "${BASH_SOURCE:-$0}")" )" && pwd )"
 printf "\nSetting environment variables for building samples...\n"
 
 if [ -z "$INTEL_OPENVINO_DIR" ]; then

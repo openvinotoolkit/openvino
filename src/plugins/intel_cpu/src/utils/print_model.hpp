@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/pass/pass.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace pass {
@@ -136,8 +137,8 @@ std::string to_code(const std::vector<T>& values, bool no_braces = false, int ma
 }
 
 template <typename T = void>
-std::string to_code(std::shared_ptr<ov::op::v0::Constant> constop) {
-    bool no_braces = (constop->get_shape().size() == 0);
+std::string to_code(std::shared_ptr<ov::op::v0::Constant> constop, bool force_braces = false) {
+    bool no_braces = (constop->get_shape().size() == 0) && (!force_braces);
     auto ele_type = constop->get_element_type();
     if (ele_type == element::Type_t::f32) {
         return to_code(constop->get_vector<float>(), no_braces);
@@ -170,7 +171,7 @@ std::string to_code(std::shared_ptr<ov::op::v0::Constant> constop) {
     return ss.str();
 }
 
-class OstreamAttributeVisitor : public ngraph::AttributeVisitor {
+class OstreamAttributeVisitor : public ov::AttributeVisitor {
     std::ostream& os;
     const char* sep = "";
 
@@ -182,7 +183,7 @@ public:
         sep = ", ";
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
         if (auto a = ov::as_type<ov::AttributeAdapter<std::set<std::string>>>(&adapter)) {
             const auto& strset = a->get();
             std::vector<std::string> values(strset.begin(), strset.end());
@@ -202,40 +203,40 @@ public:
         }
     }
 
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<bool>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<bool>& adapter) override {
         append_attribute(name, to_code(adapter.get()));
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::string>& adapter) override {
         append_attribute(name, to_code(adapter.get()));
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<int64_t>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<int64_t>& adapter) override {
         append_attribute(name, to_code(adapter.get()));
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<double>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<double>& adapter) override {
         append_attribute(name, to_code(adapter.get()));
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<int32_t>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<int32_t>& adapter) override {
         append_attribute(name, to_code(adapter.get()));
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<float>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<float>& adapter) override {
         append_attribute(name, to_code(adapter.get()));
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int>>& adapter) override {
         append_attribute(name, to_code(adapter.get()));
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int64_t>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int64_t>>& adapter) override {
         append_attribute(name, to_code(adapter.get()));
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<uint64_t>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<uint64_t>>& adapter) override {
         append_attribute(name, to_code(adapter.get()));
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<float>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<float>>& adapter) override {
         append_attribute(name, to_code(adapter.get()));
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<std::string>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<std::string>>& adapter) override {
         append_attribute(name, to_code(adapter.get()));
     }
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
         append_attribute(name, "Model");
     }
 };
@@ -328,7 +329,7 @@ void dump_cpp_style(std::ostream& os, const std::shared_ptr<ov::Model>& model) {
 
         if (auto constop = std::dynamic_pointer_cast<op::v0::Constant>(op)) {
             os << "auto " << name << " = makeConst(" << to_code(op->get_output_element_type(0)) << ", "
-               << to_code(op->get_output_shape(0)) << ", " << to_code(constop) << ");" << std::endl;
+               << to_code(op->get_output_shape(0)) << ", " << to_code(constop, true) << ");" << std::endl;
         } else {
             os << "auto " << name << " = makeOP<" << type << ">({";
             // input args
@@ -401,6 +402,10 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
         if (m_file_name.empty())
             return false;
+
+        for (auto& node : model->get_ordered_ops()) {
+            ov::op::util::process_subgraph(*this, node);
+        }
 
         std::ofstream ofs(m_file_name);
         if (!ofs) {

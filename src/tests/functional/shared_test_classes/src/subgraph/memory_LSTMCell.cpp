@@ -1,18 +1,17 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/subgraph/memory_LSTMCell.hpp"
+
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
-#include "functional_test_utils/core_config.hpp"
 #include "common_test_utils/data_utils.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/pass/low_latency.hpp"
 #include "openvino/pass/manager.hpp"
-#include "ov_models/builders.hpp"
-
-using namespace ngraph;
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
@@ -61,11 +60,11 @@ void MemoryLSTMCellTest::SetUp() {
     ov::ParameterVector input_parameter{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(input_dims))};
     input_parameter[0]->set_friendly_name("Parameter_1");
 
-    auto input_add_const = ngraph::builder::makeConstant(element_type, input_dims, input_bias);
-    auto add = ov::test::utils::makeEltwise(input_parameter[0], input_add_const, ov::test::utils::EltwiseTypes::ADD);
+    auto input_add_const = ov::op::v0::Constant::create(element_type, input_dims, input_bias);
+    auto add = ov::test::utils::make_eltwise(input_parameter[0], input_add_const, ov::test::utils::EltwiseTypes::ADD);
 
-    auto input_mul_const = ngraph::builder::makeConstant(element_type, input_dims, input_weights);
-    auto mul = ov::test::utils::makeEltwise(add, input_mul_const, ov::test::utils::EltwiseTypes::MULTIPLY);
+    auto input_mul_const = ov::op::v0::Constant::create(element_type, input_dims, input_weights);
+    auto mul = ov::test::utils::make_eltwise(add, input_mul_const, ov::test::utils::EltwiseTypes::MULTIPLY);
 
     auto unsqueeze_input_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
     auto unsqueeze_input = std::make_shared<ov::op::v0::Unsqueeze>(mul, unsqueeze_input_const);
@@ -73,15 +72,15 @@ void MemoryLSTMCellTest::SetUp() {
     auto permute_in_params = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{3}, Shape{{1, 0, 2}});
     auto permute_in = std::make_shared<ov::op::v1::Transpose>(unsqueeze_input, permute_in_params);
 
-    auto cell_memory_constant = ngraph::builder::makeConstant<float>(element_type, cell_memory_dims, cell_memory_init);
-    auto var_cell =
-        std::make_shared<Variable>(VariableInfo{PartialShape(cell_memory_dims), element_type, "cell_state_1"});
-    auto var_hidden =
-        std::make_shared<Variable>(VariableInfo{PartialShape(cell_memory_dims), element_type, "hidden_state_1"});
+    auto cell_memory_constant = ov::op::v0::Constant::create(element_type, cell_memory_dims, cell_memory_init);
+    auto var_cell = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{PartialShape(cell_memory_dims), element_type, "cell_state_1"});
+    auto var_hidden = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{PartialShape(cell_memory_dims), element_type, "hidden_state_1"});
     auto cell_memory_read = std::make_shared<ov::op::v6::ReadValue>(cell_memory_constant, var_cell);
 
     auto hidden_memory_constant =
-        ngraph::builder::makeConstant<float>(element_type, hidden_memory_dims, hidden_memory_init);
+        ov::op::v0::Constant::create(element_type, hidden_memory_dims, hidden_memory_init);
     auto hidden_memory_read = std::make_shared<ov::op::v6::ReadValue>(hidden_memory_constant, var_hidden);
 
     // Body - inputs
@@ -92,10 +91,10 @@ void MemoryLSTMCellTest::SetUp() {
     auto squeeze_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
     auto squeeze = std::make_shared<ov::op::v0::Squeeze>(X, squeeze_const);
 
-    auto weightsNode = ngraph::builder::makeConstant<float>(element_type, {4 * hiddenSize, inputSize}, weights_vals);
+    auto weightsNode = ov::op::v0::Constant::create(element_type, {4 * hiddenSize, inputSize}, weights_vals);
     auto reccurrenceWeightsNode =
-        ngraph::builder::makeConstant<float>(element_type, {4 * hiddenSize, hiddenSize}, reccurrenceWeights_vals);
-    auto biasNode = ngraph::builder::makeConstant<float>(element_type, {4 * hiddenSize}, bias_vals);
+        ov::op::v0::Constant::create(element_type, {4 * hiddenSize, hiddenSize}, reccurrenceWeights_vals);
+    auto biasNode = ov::op::v0::Constant::create(element_type, {4 * hiddenSize}, bias_vals);
     auto lstm = std::make_shared<ov::op::v0::LSTMCell>(squeeze,
                                                        H_t,
                                                        C_t,
@@ -122,9 +121,6 @@ void MemoryLSTMCellTest::SetUp() {
     auto out_unsqueeze = tensor_iterator->get_iter_value(unsqueeze_o, -1);
     auto out_hidden = tensor_iterator->get_iter_value(H_o, -1);
     auto out_cell = tensor_iterator->get_iter_value(C_o, -1);
-
-    out_hidden.get_tensor().set_element_type(element_type);
-    out_cell.get_tensor().set_element_type(element_type);
 
     auto cell_memory_write = std::make_shared<ov::op::v6::Assign>(out_cell, var_cell);
     auto hidden_memory_write = std::make_shared<ov::op::v6::Assign>(out_hidden, var_hidden);
@@ -158,28 +154,28 @@ void MemoryLSTMCellTest::switch_to_friendly_model() {
     ov::ParameterVector input_parameter{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(input_dims))};
     input_parameter[0]->set_friendly_name("Parameter_1");
 
-    auto input_add_const = ngraph::builder::makeConstant(element_type, input_dims, input_bias);
-    auto add = ov::test::utils::makeEltwise(input_parameter[0], input_add_const, ov::test::utils::EltwiseTypes::ADD);
+    auto input_add_const = ov::op::v0::Constant::create(element_type, input_dims, input_bias);
+    auto add = ov::test::utils::make_eltwise(input_parameter[0], input_add_const, ov::test::utils::EltwiseTypes::ADD);
 
-    auto input_mul_const = ngraph::builder::makeConstant(element_type, input_dims, input_weights);
-    auto mul = ov::test::utils::makeEltwise(add, input_mul_const, ov::test::utils::EltwiseTypes::MULTIPLY);
+    auto input_mul_const = ov::op::v0::Constant::create(element_type, input_dims, input_weights);
+    auto mul = ov::test::utils::make_eltwise(add, input_mul_const, ov::test::utils::EltwiseTypes::MULTIPLY);
 
     auto unsqueeze_input_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
     auto unsqueeze_input = std::make_shared<ov::op::v0::Unsqueeze>(mul, unsqueeze_input_const);
 
-    auto cell_memory_constant = ngraph::builder::makeConstant<float>(element_type, cell_memory_dims, cell_memory_init);
+    auto cell_memory_constant = ov::op::v0::Constant::create(element_type, cell_memory_dims, cell_memory_init);
 
     auto hidden_memory_constant =
-        ngraph::builder::makeConstant<float>(element_type, hidden_memory_dims, hidden_memory_init);
+        ov::op::v0::Constant::create(element_type, hidden_memory_dims, hidden_memory_init);
 
     // Body - layers
     auto squeeze_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
     auto squeeze = std::make_shared<ov::op::v0::Squeeze>(unsqueeze_input, squeeze_const);
 
-    auto weightsNode = ngraph::builder::makeConstant<float>(element_type, {4 * hiddenSize, inputSize}, weights_vals);
+    auto weightsNode = ov::op::v0::Constant::create(element_type, {4 * hiddenSize, inputSize}, weights_vals);
     auto reccurrenceWeightsNode =
-        ngraph::builder::makeConstant<float>(element_type, {4 * hiddenSize, hiddenSize}, reccurrenceWeights_vals);
-    auto biasNode = ngraph::builder::makeConstant<float>(element_type, {4 * hiddenSize}, bias_vals);
+        ov::op::v0::Constant::create(element_type, {4 * hiddenSize, hiddenSize}, reccurrenceWeights_vals);
+    auto biasNode = ov::op::v0::Constant::create(element_type, {4 * hiddenSize}, bias_vals);
     auto lstm = std::make_shared<ov::op::v0::LSTMCell>(squeeze,
                                                        hidden_memory_constant,
                                                        cell_memory_constant,
@@ -214,11 +210,11 @@ void MemoryLSTMCellTest::create_pure_tensor_iterator_model() {
     ov::ParameterVector input_parameter{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(input_dims))};
     input_parameter[0]->set_friendly_name("Parameter_1");
 
-    auto input_add_const = ngraph::builder::makeConstant(element_type, input_dims, input_bias);
-    auto add = ov::test::utils::makeEltwise(input_parameter[0], input_add_const, ov::test::utils::EltwiseTypes::ADD);
+    auto input_add_const = ov::op::v0::Constant::create(element_type, input_dims, input_bias);
+    auto add = ov::test::utils::make_eltwise(input_parameter[0], input_add_const, ov::test::utils::EltwiseTypes::ADD);
 
-    auto input_mul_const = ngraph::builder::makeConstant(element_type, input_dims, input_weights);
-    auto mul = ov::test::utils::makeEltwise(add, input_mul_const, ov::test::utils::EltwiseTypes::MULTIPLY);
+    auto input_mul_const = ov::op::v0::Constant::create(element_type, input_dims, input_weights);
+    auto mul = ov::test::utils::make_eltwise(add, input_mul_const, ov::test::utils::EltwiseTypes::MULTIPLY);
 
     auto unsqueeze_input_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
     auto unsqueeze_input = std::make_shared<ov::op::v0::Unsqueeze>(mul, unsqueeze_input_const);
@@ -226,10 +222,10 @@ void MemoryLSTMCellTest::create_pure_tensor_iterator_model() {
     auto permute_in_params = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{3}, Shape{{1, 0, 2}});
     auto permute_in = std::make_shared<ov::op::v1::Transpose>(unsqueeze_input, permute_in_params);
 
-    auto cell_memory_constant = ngraph::builder::makeConstant<float>(element_type, cell_memory_dims, cell_memory_init);
+    auto cell_memory_constant = ov::op::v0::Constant::create(element_type, cell_memory_dims, cell_memory_init);
 
     auto hidden_memory_constant =
-        ngraph::builder::makeConstant<float>(element_type, hidden_memory_dims, hidden_memory_init);
+        ov::op::v0::Constant::create(element_type, hidden_memory_dims, hidden_memory_init);
 
     // Body - inputs
     auto X = std::make_shared<ov::op::v0::Parameter>(element_type, Shape{1, 1, inputSize});
@@ -241,10 +237,10 @@ void MemoryLSTMCellTest::create_pure_tensor_iterator_model() {
     auto squeeze_const = std::make_shared<ov::op::v0::Constant>(element::i64, Shape{1}, squeeze_axes);
     auto squeeze = std::make_shared<ov::op::v0::Squeeze>(X, squeeze_const);
 
-    auto weightsNode = ngraph::builder::makeConstant<float>(element_type, {4 * hiddenSize, inputSize}, weights_vals);
+    auto weightsNode = ov::op::v0::Constant::create(element_type, {4 * hiddenSize, inputSize}, weights_vals);
     auto reccurrenceWeightsNode =
-        ngraph::builder::makeConstant<float>(element_type, {4 * hiddenSize, hiddenSize}, reccurrenceWeights_vals);
-    auto biasNode = ngraph::builder::makeConstant<float>(element_type, {4 * hiddenSize}, bias_vals);
+        ov::op::v0::Constant::create(element_type, {4 * hiddenSize, hiddenSize}, reccurrenceWeights_vals);
+    auto biasNode = ov::op::v0::Constant::create(element_type, {4 * hiddenSize}, bias_vals);
     auto lstm = std::make_shared<ov::op::v0::LSTMCell>(squeeze,
                                                        H_t,
                                                        C_t,
@@ -272,9 +268,6 @@ void MemoryLSTMCellTest::create_pure_tensor_iterator_model() {
     auto out_unsqueeze = tensor_iterator->get_iter_value(unsqueeze_o, -1);
     auto out_hidden = tensor_iterator->get_iter_value(H_o, -1);
     auto out_cell = tensor_iterator->get_iter_value(C_o, -1);
-
-    out_hidden.get_tensor().set_element_type(element_type);
-    out_cell.get_tensor().set_element_type(element_type);
 
     auto final_reshape_pattern =
         std::make_shared<ov::op::v0::Constant>(element::i64, Shape{4}, std::vector<size_t>({1, 1, 1, hiddenSize}));
@@ -347,7 +340,7 @@ void MemoryLSTMCellTest::apply_low_latency() {
         pass::Manager manager;
         manager.register_pass<pass::LowLatency2>();
         manager.run_passes(function);
-        bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
+        bool ti_found = ov::test::utils::is_tensor_iterator_exist(function);
         EXPECT_EQ(ti_found, false);
         compile_model();
     }

@@ -12,7 +12,7 @@ namespace kernel_selector {
 
 namespace {
 
-CommonDispatchData SetDefault(const prior_box_params& params, const optional_params&) {
+CommonDispatchData SetDefault(const prior_box_params& params) {
     kernel_selector::CommonDispatchData dispatchData;
     dispatchData.gws = {params.width, params.height, 1};
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
@@ -20,16 +20,16 @@ CommonDispatchData SetDefault(const prior_box_params& params, const optional_par
 }
 }  // namespace
 
-KernelsData PriorBoxKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData PriorBoxKernelRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
     KernelData kernel_data = KernelData::Default<prior_box_params>(params);
     const prior_box_params& new_params = dynamic_cast<const prior_box_params&>(*kernel_data.params.get());
 
-    const auto dispatch_data = SetDefault(new_params, options);
-    const auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params, options);
+    const auto dispatch_data = SetDefault(new_params);
+    const auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params);
     const auto specific_jit = GetJitConstants(new_params);
     const auto jit = CreateJit(kernelName, specific_jit, entry_point);
     FillCLKernelData(kernel_data.kernels[0],
@@ -48,8 +48,7 @@ KernelsData PriorBoxKernelRef::GetKernelsData(const Params& params, const option
     return kernelsData;
 }
 
-KernelsPriority PriorBoxKernelRef::GetKernelsPriority(const Params& /*params*/,
-                                                      const optional_params& /*options*/) const {
+KernelsPriority PriorBoxKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
@@ -77,8 +76,8 @@ ParamsKey PriorBoxKernelRef::GetSupportedKey() const {
     return k;
 }
 
-bool PriorBoxKernelRef::Validate(const Params& params, const optional_params& optionalParams) const {
-    if (params.GetType() != KernelType::PRIOR_BOX || optionalParams.GetType() != KernelType::PRIOR_BOX) {
+bool PriorBoxKernelRef::Validate(const Params& params) const {
+    if (params.GetType() != KernelType::PRIOR_BOX) {
         return false;
     }
 

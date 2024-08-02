@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,11 +17,13 @@ namespace pass {
  *        Ticket: 113744
  * @ingroup snippets
  */
-class SetBrgemmCopyBBuffersShape: public snippets::lowered::pass::Pass {
+class SetBrgemmCopyBBuffersShape: public snippets::lowered::pass::RangedPass {
 public:
     SetBrgemmCopyBBuffersShape() = default;
     OPENVINO_RTTI("SetBrgemmCopyBBuffersShape", "Pass");
-    bool run(snippets::lowered::LinearIR& linear_ir) override;
+    bool run(snippets::lowered::LinearIR& linear_ir,
+             snippets::lowered::LinearIR::constExprIt begin,
+             snippets::lowered::LinearIR::constExprIt end) override;
 };
 
 }  // namespace pass

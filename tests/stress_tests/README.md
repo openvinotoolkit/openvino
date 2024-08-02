@@ -9,7 +9,7 @@ usage exceeds a pre-defined level.
 - StressMemLeaksTests ensure that the use cases does not increase memory levels
 when executing continuously.
 
-- StressUnitTests executing various Inference Engine use cases in parallel
+- StressUnitTests executing various OpenVINO use cases in parallel
 threads and processes.
 
 Each test refers to configuration files located in `<test dir>\.automation`

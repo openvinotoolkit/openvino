@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,16 +19,29 @@ namespace op {
 class Kernel : public ov::op::Op {
 public:
     OPENVINO_OP("Kernel", "SnippetsOpset");
-
-    Kernel(lowered::LinearIR region);
     Kernel() = default;
+    Kernel(lowered::LinearIR region);
 
-    lowered::LinearIR region;
+    static std::shared_ptr<Kernel> make_kernel(const lowered::LinearIR& region);
 
-    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
-        return std::make_shared<Kernel>(region);
-    }
+    std::shared_ptr<lowered::LinearIR> region;
     const void *compile_params = nullptr;
+};
+
+class KernelStatic : public Kernel {
+public:
+    OPENVINO_OP("KernelStatic", "SnippetsOpset", Kernel);
+    KernelStatic() = default;
+    KernelStatic(lowered::LinearIR region);
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
+};
+
+class KernelDynamic : public Kernel {
+public:
+    OPENVINO_OP("KernelDynamic", "SnippetsOpset", Kernel);
+    KernelDynamic() = default;
+    KernelDynamic(lowered::LinearIR region);
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 };
 
 } // namespace op

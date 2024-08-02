@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for ops added to openvino opset13."""
@@ -13,6 +13,7 @@ log = logging.getLogger(__name__)
 
 from openvino.runtime import Node, Shape, Type, Output
 from openvino.runtime.op import Constant, Result
+from openvino.runtime.opset1 import convert_like
 from openvino.runtime.opset_utils import _get_node_factory
 from openvino.runtime.utils.decorators import binary_op, nameable_op, unary_op
 from openvino.runtime.utils.types import (
@@ -20,6 +21,7 @@ from openvino.runtime.utils.types import (
     NodeInput,
     NumericType,
     as_nodes,
+    as_node,
 )
 
 _get_node_factory_opset13 = partial(_get_node_factory, "opset13")
@@ -145,7 +147,7 @@ def fake_convert(
         nodes.append(shift)
     return _get_node_factory_opset13().create(
         "FakeConvert",
-        as_nodes(*nodes),
+        as_nodes(*nodes, name=name),
         {"destination_type": destination_type},
     )
 
@@ -159,6 +161,7 @@ def multinomial(
     log_probs: bool,
     global_seed: int = 0,
     op_seed: int = 0,
+    name: Optional[str] = None,
 ) -> Node:
     """Return a node which generates a sequence of class indices sampled from the multinomial distribution.
 
@@ -170,14 +173,14 @@ def multinomial(
     :param log_probs: Flag that specifies whether *probs* should be treated as unnormalized log probabilities.
     :param global_seed: Specifies global seed value. Required to be a positive integer or 0.
     :param op_seed: Specifies operational seed value. Required to be a positive integer or 0.
+    :param name: The optional new name for output node.
 
     :return: The new node performing Multinomial operation.
     """
-    inputs = as_nodes(probs, num_samples)
+    inputs = as_nodes(probs, num_samples, name=name)
 
     if global_seed < 0:
-        raise RuntimeError(
-            f"global_seed should be positive or 0. Got: {global_seed}")
+        raise RuntimeError(f"global_seed should be positive or 0. Got: {global_seed}")
 
     if op_seed < 0:
         raise RuntimeError(f"op_seed should be positive or 0. Got: {op_seed}")
@@ -219,8 +222,7 @@ def nms_rotated(
     :param clockwise: Flag that specifies direction of the box rotation.
     :return: The new node which performs NMSRotated
     """
-    inputs = as_nodes(boxes, scores, max_output_boxes_per_class,
-                      iou_threshold, score_threshold)
+    inputs = as_nodes(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, name=name)
 
     attributes = {
         "sort_result_descending": sort_result_descending,
@@ -255,8 +257,13 @@ def scaled_dot_product_attention(
 
     :return: The new node performing Scaled Dot Product Attention operation.
     """
-    inputs = as_nodes(query, key, value, attention_mask) if attention_mask is not None else as_nodes(
-        query, key, value, scale)
+    inputs = as_nodes(query, key, value, name=name)
+    if attention_mask is not None:
+        inputs.append(as_node(attention_mask, name=name))
+    elif scale is not None:
+        inputs.append(as_node(convert_like(constant(np.array(0, np.int32)), inputs[0]), name=name))
+    if scale is not None:
+        inputs.append(as_node(scale, name=name))
 
     attributes = {
         "causal": causal,
@@ -292,6 +299,7 @@ def constant(
                           - dtype force conversion of data.
     :return: The Constant node initialized with provided data.
     """
+
     def display_shared_memory_warning(warning_message: str) -> None:
         if shared_memory:
             log.warning(f"{warning_message}. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.")
@@ -304,18 +312,10 @@ def constant(
     # Handle type casting, when dtype is not None:
     if dtype:
         # Expect packed data, use different constructor to handle it correctly:
-        if dtype in [Type.u1, Type.i4, Type.u4, Type.nf4]:
-            if not np.allclose(_value, 0):
-                raise RuntimeError(
-                    f"All values must be equal to 0 to initialize Constant with type of {dtype}. "
-                    "Please use `openvino.helpers` module and `pack_data`, `unpack_data` functions to fill this Constant's data.")
+        if dtype in [Type.u1, Type.i4, Type.u4, Type.nf4, Type.f4e2m1]:
             display_shared_memory_warning(f"Constant initialized with packed type of {dtype}")
             return Constant(dtype, Shape(_value.shape), _value.flatten().tolist())
         elif dtype in [Type.bf16]:
-            if not np.allclose(_value, 0):
-                raise RuntimeError(
-                    f"All values must be equal to 0 to initialize Constant with type of {dtype}. "
-                    "Please use `this_constant.data[:] = ...` to fill this Constant's data.")
             display_shared_memory_warning(f"Constant initialized with OpenVINO custom {dtype}")
             return Constant(dtype, Shape(_value.shape), _value.flatten().tolist())
         # General use-case for all other types:
@@ -348,3 +348,51 @@ def result(data: Union[Node, Output, NumericData], name: Optional[str] = None) -
     if isinstance(data, Node):
         return Result(data.output(0))
     return Result(data)
+
+
+@nameable_op
+def fake_quantize(
+    data: NodeInput,
+    input_low: NodeInput,
+    input_high: NodeInput,
+    output_low: NodeInput,
+    output_high: NodeInput,
+    levels: int,
+    auto_broadcast: str = "NUMPY",
+    name: Optional[str] = None,
+) -> Node:
+    r"""Perform an element-wise linear quantization on input data.
+
+    :param data:           The node with data tensor.
+    :param input_low:      The node with the minimum for input values.
+    :param input_high:     The node with the maximum for input values.
+    :param output_low:     The node with the minimum quantized value.
+    :param output_high:    The node with the maximum quantized value.
+    :param levels:         The number of quantization levels. Integer value.
+    :param auto_broadcast: The type of broadcasting specifies rules used for
+                           auto-broadcasting of input tensors.
+    :param name:           Optional name of the new node.
+    :return: New node with quantized value.
+
+    Input floating point values are quantized into a discrete set of floating point values.
+
+    .. code-block:: python
+
+        if x <= input_low:
+            output = output_low
+        if x > input_high:
+            output = output_high
+        else:
+            output = fake_quantize(output)
+
+    Fake quantize uses the following logic:
+
+    \f[ output =
+            \dfrac{round( \dfrac{data - input\_low}{(input\_high - input\_low)\cdot (levels-1)})}
+            {(levels-1)\cdot (output\_high - output\_low)} + output\_low \f]
+    """
+    return _get_node_factory_opset13().create(
+        "FakeQuantize",
+        as_nodes(data, input_low, input_high, output_low, output_high, name=name),
+        {"levels": levels, "auto_broadcast": auto_broadcast.upper()},
+    )

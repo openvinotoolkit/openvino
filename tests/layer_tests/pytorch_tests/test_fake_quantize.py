@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import platform
@@ -37,6 +37,7 @@ class TestFakeQuantizePerTensorAffine(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize(
         "scale, zero_point, quant_min, quant_max",
         [
@@ -51,6 +52,58 @@ class TestFakeQuantizePerTensorAffine(PytorchLayerTest):
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
     def test_fake_quantize_per_tensor_affine(
+        self, ie_device, precision, ir_version, scale, zero_point, quant_min, quant_max
+    ):
+        self._test(
+            *self.create_model(scale, zero_point, quant_min, quant_max),
+            ie_device,
+            precision,
+            ir_version,
+            freeze_model=False
+        )
+
+class TestFakeQuantizePerTensorAffineCacheMaskTensorQParams(PytorchLayerTest):
+    def _prepare_input(self):
+        return (np.random.randn(3, 2, 2).astype(np.float32),)
+
+    def create_model(self, scale, zero_point, quant_min, quant_max):
+        class _fake_quantize_per_tensor_affine_cachemask_tensor_qparams(torch.nn.Module):
+            def __init__(self, scale, zero_point, quant_min, quant_max):
+                super(_fake_quantize_per_tensor_affine_cachemask_tensor_qparams, self).__init__()
+                self.scale = torch.tensor(scale)
+                self.zero_point = torch.tensor(zero_point)
+                self.fake_quant_enabled = torch.tensor(1)
+                self.quant_min = quant_min
+                self.quant_max = quant_max
+
+            def forward(self, x):
+                return torch._fake_quantize_per_tensor_affine_cachemask_tensor_qparams(
+                    x, self.scale, self.zero_point, self.fake_quant_enabled, self.quant_min, self.quant_max
+                )
+
+        ref_net = None
+
+        return (
+            _fake_quantize_per_tensor_affine_cachemask_tensor_qparams(scale, zero_point, quant_min, quant_max),
+            ref_net,
+            "aten::_fake_quantize_per_tensor_affine_cachemask_tensor_qparams",
+        )
+
+    @pytest.mark.precommit_fx_backend
+    @pytest.mark.parametrize(
+        "scale, zero_point, quant_min, quant_max",
+        [
+            (1.0, 1, 0, 255),
+            (0.01, 0, 0, 255),
+            (-0.01, 0, 0, 255),
+            (0.5, 0, -128, 127),
+            (0.5, -1, -128, 127),
+            (1.0, 0, 0, 127),
+        ],
+    )
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
+    def test__fake_quantize_per_tensor_affine_cachemask_tensor_qparams(
         self, ie_device, precision, ir_version, scale, zero_point, quant_min, quant_max
     ):
         self._test(
@@ -91,6 +144,7 @@ class TestFakeQuantizePerChannelAffine(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize(
         "scale, zero_point, axis, quant_min, quant_max",
         [

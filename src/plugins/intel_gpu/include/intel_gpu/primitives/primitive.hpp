@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,6 +65,10 @@ struct input_info {
             }
         }
     };
+
+    bool is_valid() const {
+        return pid.compare("") != 0;
+    }
 
     void save(BinaryOutputBuffer& ob) const {
         ob << pid;
@@ -134,7 +138,7 @@ public:
     std::vector<input_info> dependencies() const {
         auto result = input;
         auto deps = get_dependencies();
-        for (auto& pid : deps) result.push_back({pid, 0});
+        for (auto& dep : deps) result.push_back(dep);
         return result;
     }
 
@@ -287,7 +291,7 @@ public:
     }
 
 protected:
-    virtual std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const { return {}; }
+    virtual std::vector<input_info> get_dependencies() const { return {}; }
     class condition;
     friend struct primitive_info;
 };

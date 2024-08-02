@@ -24,7 +24,7 @@ TEST(ONNXFeConvertException, exception_if_more_nodes_unsupported) {
     OV_EXPECT_THROW(
         convert_model("unsupported_ops/two_unsupported_nodes.onnx"),
         ov::AssertFailure,
-        testing::EndsWith("OpenVINO does not support the following ONNX operations: UnsupportedAbs, UnsupportedAdd\n"));
+        testing::EndsWith("OpenVINO does not support the following ONNX operations: UnsupportedAdd, UnsupportedAbs\n"));
 }
 
 TEST(ONNXFeConvertException, exception_if_onnx_validation_exception) {
@@ -60,5 +60,5 @@ TEST(ONNXFeConvertException, exception_if_both_unsupported_onnx_validation_excep
                     testing::HasSubstr("'stop' input is not a scalar"));
     OV_EXPECT_THROW(convert_model("unsupported_ops/unsupported_add_incorrect_dts_and_inst_norm_bad_scale.onnx"),
                     ov::AssertFailure,
-                    testing::EndsWith("only 'DCR' and 'CRD' modes are supported\n"));
+                    testing::HasSubstr("only 'DCR' and 'CRD' modes are supported\n"));
 }

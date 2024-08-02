@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 
 #include "detection_output_shape_inference.hpp"
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 
 // ------------------------------ V0 ------------------------------
 ov::op::v0::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,

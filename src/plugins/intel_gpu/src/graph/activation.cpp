@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,7 @@ layout activation_inst::calc_output_layout(activation_node const& node, kernel_i
     }
 
     if (impl_param.has_fused_primitives()) {
-        input_node_layout.data_type = impl_param.get_fused_output_layout().data_type;
+        input_node_layout.data_type = impl_param.get_output_element_type();
     }
 
     return input_node_layout;
@@ -60,7 +60,7 @@ std::string activation_inst::to_string(activation_node const& node) {
 }
 
 activation_inst::typed_primitive_inst(network& network, activation_node const& node) : parent(network, node) {
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = node.get_input_layout();
     auto output_layout = node.get_output_layout();
 
     CLDNN_ERROR_NOT_EQUAL(node.id(),

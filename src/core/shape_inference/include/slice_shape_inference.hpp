@@ -6,9 +6,9 @@
 
 #include <array>
 
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/slice.hpp"
 #include "slice_shape_inference_utils.hpp"
-#include "validation_util.hpp"
 
 namespace ov {
 namespace op {

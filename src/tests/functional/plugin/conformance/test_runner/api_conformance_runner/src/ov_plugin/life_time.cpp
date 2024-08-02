@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,10 +11,10 @@ using namespace ov::test::conformance;
 namespace {
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVHoldersTest,
-        ::testing::Values(targetDevice),
+        ::testing::Values(ov::test::utils::target_device),
         OVHoldersTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVHoldersTestOnImportedNetwork,
-        ::testing::Values(targetDevice),
+        ::testing::Values(ov::test::utils::target_device),
         OVHoldersTestOnImportedNetwork::getTestCaseName);
 }  // namespace

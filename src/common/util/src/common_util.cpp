@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,4 +47,16 @@ size_t ov::util::hash_combine(const std::vector<size_t>& list) {
         seed ^= v + 0x9e3779b9 + (seed << 6) + (seed >> 2);
     }
     return seed;
+}
+
+std::string ov::util::filter_lines_by_prefix(const std::string& str, const std::string& prefix) {
+    auto lines = ov::util::split(str, '\n');
+    std::stringstream res;
+    const char* const prefix_c = prefix.c_str();
+    for (auto line : lines) {
+        if (line.find(prefix_c) == 0) {
+            res << line + '\n';
+        }
+    }
+    return res.str();
 }

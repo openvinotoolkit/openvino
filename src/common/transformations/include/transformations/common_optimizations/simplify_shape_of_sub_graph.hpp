@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,12 +18,13 @@ class TRANSFORMATIONS_API GroupedGatherElimination;
 class TRANSFORMATIONS_API GatherNopElimination;
 class TRANSFORMATIONS_API SimplifyGatherShapeOf;
 class TRANSFORMATIONS_API SimplifySecondInputOfReshape;
+class TRANSFORMATIONS_API AbsSinking;
 
 }  // namespace pass
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief GroupedGatherElimination transformation replaces group of Gather
  * operations with the first Gather in this group and updated indices input
  * in case all Gathers in the group are consumed by the same Concat in incremental order.
@@ -35,7 +36,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SimplifyShapeOfSubGraph transformation runs specific optimizations of shape sub-graphs
  */
 class ov::pass::SimplifyShapeOfSubGraph : public ov::pass::ModelPass {
@@ -49,7 +50,7 @@ private:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief GatherNopElimination transformation optimizes out useless Gather operations
  */
 class ov::pass::GatherNopElimination : public ov::pass::MatcherPass {
@@ -59,7 +60,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SimplifyGatherShapeOf optimizes `gather->shapeof` into `shapeof->gather` for 0D indices.
  * Other cases into Concat of shapeof/gather(data) + shapeof(indices) transformation optimizes out
  * useless Gather operations
@@ -71,7 +72,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief SimplifySecondInputOfReshape optimizes `shapeof->gather` into zero values for
  * reshape pattern values if possible.
  */
@@ -79,4 +80,16 @@ class ov::pass::SimplifySecondInputOfReshape : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("SimplifySecondInputOfReshape", "0");
     SimplifySecondInputOfReshape();
+};
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief AbsSinking optimizes out the Abs which input is non negative. Has a special case for Concat -> Abs graph, it
+ * moves Abs up through Concat to its inputs, tries to constant fold new Abs ops. In case folding fails applies
+ * optimization to the leftover Abs ops
+ */
+class ov::pass::AbsSinking : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("AbsSinking", "0");
+    AbsSinking();
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 
 #include "common_test_utils/test_constants.hpp"
 
-using namespace SubgraphTestsDefinitions;
 using namespace ov::test;
 
 namespace {
@@ -22,6 +21,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Check,
                          ParameterResultSubgraphTest,
                          ::testing::Combine(::testing::ValuesIn(inputShapes),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
-                         ParameterResultSubgraphTestBase::getTestCaseName);
+                         ParameterResultSubgraphTest::getTestCaseName);
 
 }  // namespace

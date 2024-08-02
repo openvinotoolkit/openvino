@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ class TRANSFORMATIONS_API ReshapeSinkingMatMul;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief ReshapeSinkingMatMul transformation looks for MatMul followed by optional Add
  * surrounded with Reshape operations which are only needed to merge and unmerge dimensions
  * into MatMuls batch. In case of success upscales MatMul to work with multidimensional batch and updates

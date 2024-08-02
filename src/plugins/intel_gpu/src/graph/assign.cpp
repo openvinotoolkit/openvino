@@ -12,7 +12,7 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(assign)
 
 assign_inst::typed_primitive_inst(network& network, const assign_node& node) :
     parent{network, node, false},
-    memory_state::variable{node.get_primitive()->variable_id} {
+    memory_state::variable{node.get_primitive()->variable_id, node.get_primitive()->user_specified_type} {
 }
 
 layout assign_inst::calc_output_layout(const assign_node& node, kernel_impl_params const& impl_param) {

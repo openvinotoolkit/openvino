@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,9 +11,12 @@
 #include "snippets/lowered/pass/init_loops.hpp"
 #include "snippets/lowered/pass/insert_load_store.hpp"
 #include "snippets/lowered/pass/insert_loops.hpp"
-#include "snippets/lowered/pass/insert_tail_loop.hpp"
+#include "snippets/lowered/pass/insert_specific_iterations.hpp"
+#include "snippets/lowered/pass/iter_handler.hpp"
 #include "snippets/lowered/pass/optimize_loop_single_evaluation.hpp"
-#include "snippets/lowered/pass/validate_loops.hpp"
+#include "snippets/lowered/pass/validate_unified_loops.hpp"
+#include "snippets/lowered/pass/validate_expanded_loops.hpp"
+#include "snippets/lowered/pass/normalize_loop_ids.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 #include "subgraph_simple.hpp"
 
@@ -32,28 +35,44 @@ static void init_linear_ir(const std::vector<ov::PartialShape>& in_shapes, Linea
                                 [](const ExpressionPtr& expr) { return ov::is_type<ov::op::v1::Add>(expr->get_node()); });
     ASSERT_TRUE(expr_it != linear_ir.cend());
     const auto add = *expr_it;
-    const auto loop_entry_points = std::vector<ExpressionPort>{add->get_input_port(0), add->get_input_port(1)};
-    const auto loop_exit_points = std::vector<ExpressionPort>{add->get_output_port(0)};
+    const auto loop_input_ports = std::vector<ExpressionPort>{add->get_input_port(0), add->get_input_port(1)};
+    const auto loop_output_ports = std::vector<ExpressionPort>{add->get_output_port(0)};
     const auto loop_manager = linear_ir.get_loop_manager();
     const auto in_shape0 = in_shapes[0].get_shape();
     const auto in_shape1 = in_shapes[1].get_shape();
     const auto inner_wa = std::max(*in_shape0.rbegin(), *in_shape1.rbegin());
-    const auto inner_inc = vector_size;
+    const auto inner_inc = std::min(vector_size, inner_wa);
     const auto blocked_wa = block_size;
     const auto blocked_inc = 1;
     const auto outer_wa = std::max(*(in_shape0.rbegin() + 1), *(in_shape1.rbegin() + 1));
     const auto outer_inc = blocked_wa;
-    loop_manager->mark_loop(expr_it, std::next(expr_it), inner_wa, inner_inc, 0, loop_entry_points, loop_exit_points);
-    loop_manager->mark_loop(expr_it, std::next(expr_it), blocked_wa, blocked_inc, 1, loop_entry_points, loop_exit_points);
-    const auto loop_id = loop_manager->mark_loop(expr_it, std::next(expr_it), outer_wa, outer_inc, 1, loop_entry_points, loop_exit_points);
-    loop_manager->get_loop_info(loop_id)->set_outer_splited_loop(true);
+    loop_manager->mark_loop(expr_it, std::next(expr_it), inner_wa, inner_inc, 0, loop_input_ports, loop_output_ports);
+    loop_manager->mark_loop(expr_it, std::next(expr_it), blocked_wa, blocked_inc, 1, loop_input_ports, loop_output_ports, true, true);
+    const auto loop_id = loop_manager->mark_loop(expr_it, std::next(expr_it), outer_wa, outer_inc, 1, loop_input_ports, loop_output_ports);
+    const auto& outer_loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id);
+    const auto outer_tail_size = outer_wa % outer_inc;
+    if (outer_tail_size != 0) {
+        outer_loop_info->register_pass_to_handler<SpecificLoopIterType::LAST_ITER, pass::TransformInnerSplitLoop>(outer_tail_size);
+    }
 }
 
-static void init_pipeline(pass::PassPipeline& pass_pipeline) {
-    pass_pipeline.register_pass<pass::InsertLoadStore>(vector_size);
-    pass_pipeline.register_pass<pass::ValidateLoops>();
-    pass_pipeline.register_pass<pass::InitLoops>();
-    pass_pipeline.register_pass<pass::InsertLoops>();
+static void apply_transformations(LinearIR& linear_ir, const std::shared_ptr<pass::PassConfig>& config) {
+    const auto is_loop_decomp_disabled = config->is_disabled<pass::InsertSpecificIterations>();
+    if (is_loop_decomp_disabled) {
+        config->disable<pass::ValidateExpandedLoops>();
+    }
+
+    pass::PassPipeline pipeline(config);
+    pipeline.register_pass<pass::InsertLoadStore>(vector_size);
+    pipeline.register_pass<pass::ValidateUnifiedLoops>();
+    pipeline.register_pass<pass::InitLoops>();
+    pipeline.register_pass<pass::InsertLoops>();
+    pipeline.register_pass<pass::InsertSpecificIterations>();
+    pipeline.register_pass<pass::NormalizeLoopIDs>(!is_loop_decomp_disabled);
+    pipeline.register_pass<pass::ValidateExpandedLoops>();
+    pipeline.register_pass<pass::CleanupLoopOffsets>();
+    pipeline.register_pass<pass::OptimizeLoopSingleEvaluation>();
+    pipeline.run(linear_ir);
 }
 
 static void validate(const LinearIR& linear_ir, const ref_map& reference) {
@@ -77,9 +96,11 @@ TEST(Snippets_TailProcessingTransformation, BlockedWOTail_OriginalPtrShifts) {
     ov::Shape inputShape1 = {1, 2, 16, 20};
     init_linear_ir({inputShape0, inputShape1}, linear_ir, 4);
 
-    pass::PassPipeline pass_pipeline;
-    init_pipeline(pass_pipeline);
-    pass_pipeline.run(linear_ir);
+    auto config = std::make_shared<pass::PassConfig>();
+    config->disable<pass::CleanupLoopOffsets>();
+    config->disable<pass::InsertSpecificIterations>();
+    config->disable<pass::OptimizeLoopSingleEvaluation>();
+    apply_transformations(linear_ir, config);
 
     // [Inserted Loop number, [ptr_increments, final_offsets]
     std::map<size_t, std::pair<std::vector<int64_t>, std::vector<int64_t>>> reference;
@@ -96,10 +117,10 @@ TEST(Snippets_TailProcessingTransformation, BlockedWOTail_CleanUpPtrShifts) {
     ov::Shape inputShape1 = {1, 2, 16, 20};
     init_linear_ir({inputShape0, inputShape1}, linear_ir, 4);
 
-    pass::PassPipeline pass_pipeline;
-    init_pipeline(pass_pipeline);
-    pass_pipeline.register_pass<pass::CleanupLoopOffsets>();
-    pass_pipeline.run(linear_ir);
+    auto config = std::make_shared<pass::PassConfig>();
+    config->disable<pass::InsertSpecificIterations>();
+    config->disable<pass::OptimizeLoopSingleEvaluation>();
+    apply_transformations(linear_ir, config);
 
     // [Inserted Loop number, [ptr_increments, final_offsets]
     std::map<size_t, std::pair<std::vector<int64_t>, std::vector<int64_t>>> reference;
@@ -116,11 +137,9 @@ TEST(Snippets_TailProcessingTransformation, BlockedTail_OriginalPtrShifts) {
     ov::Shape inputShape1 = {1, 2, 18, 20};
     init_linear_ir({inputShape0, inputShape1}, linear_ir, 4);
 
-    pass::PassPipeline pass_pipeline;
-    init_pipeline(pass_pipeline);
-    pass_pipeline.register_pass<pass::InsertTailLoop>();
-    pass_pipeline.register_pass<pass::OptimizeLoopSingleEvaluation>();
-    pass_pipeline.run(linear_ir);
+    auto config = std::make_shared<pass::PassConfig>();
+    config->disable<pass::CleanupLoopOffsets>();
+    apply_transformations(linear_ir, config);
 
     // [Inserted Loop number, [ptr_increments, final_offsets]
     std::map<size_t, std::pair<std::vector<int64_t>, std::vector<int64_t>>> reference;
@@ -143,12 +162,7 @@ TEST(Snippets_TailProcessingTransformation, BlockedTail_CleanUpPtrShifts) {
     ov::Shape inputShape1 = {1, 2, 18, 20};
     init_linear_ir({inputShape0, inputShape1}, linear_ir, 4);
 
-    pass::PassPipeline pass_pipeline;
-    init_pipeline(pass_pipeline);
-    pass_pipeline.register_pass<pass::InsertTailLoop>();
-    pass_pipeline.register_pass<pass::CleanupLoopOffsets>();
-    pass_pipeline.register_pass<pass::OptimizeLoopSingleEvaluation>();
-    pass_pipeline.run(linear_ir);
+    apply_transformations(linear_ir, std::make_shared<pass::PassConfig>());
 
     // [Inserted Loop number, [ptr_increments, final_offsets]
     std::map<size_t, std::pair<std::vector<int64_t>, std::vector<int64_t>>> reference;

@@ -104,8 +104,8 @@ public:
         const auto primitive_hash = primitve->hash();
         const auto params_hash = prim_inst->get_impl_params()->hash();
 
-        ASSERT_EQ(primitive_hash, 93320679543770233UL);
-        ASSERT_EQ(params_hash, 1542578941420280552UL);
+        ASSERT_EQ(primitive_hash, 8439414674502129643UL);
+        ASSERT_EQ(params_hash, 9235751886952244871UL);
     }
 
     void test_gemm_basic(bool is_caching_test) {
@@ -127,8 +127,8 @@ public:
 
         const auto primitive_hash = primitve->hash();
         const auto params_hash = prim_inst->get_impl_params()->hash();
-        ASSERT_EQ(primitive_hash, 8009877756431655269UL);
-        ASSERT_EQ(params_hash, 12585836190897043350UL);
+        ASSERT_EQ(primitive_hash, 13388149315122571178UL);
+        ASSERT_EQ(params_hash, 2108356776161884759UL);
     }
 
     void test_permute_basic(bool is_caching_test) {
@@ -176,7 +176,7 @@ public:
         const auto params_hash = prim_inst->get_impl_params()->hash();
 
         ASSERT_EQ(primitive_hash, 16293979194373117693UL);
-        ASSERT_EQ(params_hash, 15950979219660866859UL);
+        ASSERT_EQ(params_hash, 4712165546063627148UL);
     }
 
     void test_reshape_basic(bool is_caching_test) {
@@ -255,7 +255,7 @@ public:
         const auto primitive_hash = primitve->hash();
         const auto params_hash = prim_inst->get_impl_params()->hash();
         ASSERT_EQ(primitive_hash, 4135863035456568493UL);
-        ASSERT_EQ(params_hash, 5990757629995899044UL);
+        ASSERT_EQ(params_hash, 11563701278302723583UL);
     }
 };
 

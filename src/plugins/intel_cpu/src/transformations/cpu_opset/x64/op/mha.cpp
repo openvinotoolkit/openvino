@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "mha.hpp"
 #include "transformations/itt.hpp"
-#include <openvino/opsets/opset3.hpp>
+#include "openvino/opsets/opset3.hpp"
 #include <matmul_shape_inference.hpp>
 
 ov::intel_cpu::MHANode::MHANode(const ov::Output<ov::Node> &in0,

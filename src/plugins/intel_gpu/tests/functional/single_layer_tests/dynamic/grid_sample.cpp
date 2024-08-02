@@ -99,7 +99,7 @@ protected:
 
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
-            ov::runtime::Tensor tensor;
+            ov::Tensor tensor;
             ov::test::utils::InputGenerateData in_data;
 
             if (funcInput.get_node()->get_friendly_name() == "data") {

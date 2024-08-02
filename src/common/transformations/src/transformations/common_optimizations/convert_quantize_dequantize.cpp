@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 
 #include "itt.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
@@ -16,7 +17,6 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
-#include "validation_util.hpp"
 
 // ConvertQuantizeDequantize converts Quantize/Dequantize pair to a single FakeQuantize.
 // Since Quantize is decomposed to FakeQuantize and Dequantize is decomposed to Subtract->Multiply,
@@ -81,7 +81,7 @@ ov::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
     auto scale_pattern = pass::pattern::any_input();
     auto mul_pattern = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>({sub_pattern, scale_pattern});
 
-    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
 
         if (transformation_callback(m.get_match_root())) {

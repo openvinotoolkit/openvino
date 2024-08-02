@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -326,8 +326,8 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
     JitDefinitions baseDefinitions = TensorBaseTJitConstant::GetDefinitions(_tensor);
 
     JitDefinitions definitions{};
-    DimensionAccessHelper dims(_tensor);
-    DimensionAccessHelper dims_padded(_tensor, true);
+    DimensionAccessHelperJit dims(_tensor);
+    DimensionAccessHelperJit dims_padded(_tensor, true);
     // shape_info layout
     // if only y has dynamic padding:
     // [dim_b, dim_f, dim_v, dim_u, dim_w, dim_z, dim_y, dim_x, pad_before_y, pad_after_y]
@@ -1573,7 +1573,8 @@ JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activa
                                         Datatype out_dt,
                                         const std::string& suffix,
                                         bool use_type_parameter,
-                                        bool disable_type_conversion) {
+                                        bool disable_type_conversion,
+                                        bool convert_input_to_output_dt) {
     JitConstants res = {};
     if (params.empty()) {
         return MakeActivationJitConstants({ActivationFunction::NONE, 0.f, 0.f}, out_dt,
@@ -1602,7 +1603,14 @@ JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activa
 
         if (i == 0) {
             activation_params = use_type_parameter ? "(jit_type, input, params)" : "(input, params)";
-            res_activation = "ACTIVATION_FUNC" + activation_suffix + activation_params;
+            if (convert_input_to_output_dt) {
+                // Convert the input to the output data type to fix that cl kernel build failed for an ambiguous issue of the fmax/fmin functions
+                // occurring by the different data types between input and output.
+                res_activation = "ACTIVATION_FUNC" + activation_suffix
+                                + "(" + (use_type_parameter? "jit_type, ":"") + "convert_" + toCLType(out_dt) + "(input), params)";
+            } else {
+                res_activation = "ACTIVATION_FUNC" + activation_suffix + activation_params;
+            }
         } else {
             res_activation = "ACTIVATION" + activation_suffix + "(" + (use_type_parameter ? "jit_type, " : "") +
                              res_activation + ", ACTIVATION_PARAMS" + activation_suffix + ")";
@@ -2113,7 +2121,7 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
     if (desc.GetType() == KernelType::ELTWISE &&
         conf.load_type == FusedOpsConfiguration::LoadType::LT_ALIGNED_READ &&
         ((input_tensor.SimpleLayout() && input_tensor.GetLayout() != orig_output_layout) || f_axis_broadcast) &&
-        (input_tensor.SameDimsSizes(prim_output) || f_axis_broadcast) &&
+        (!input_tensor.SimpleLayout() && (input_tensor.SameDimsSizes(prim_output) || f_axis_broadcast)) &&
         input_tensor.LogicalSize() != 1) {
         std::string sub_group_local_id_str = "get_sub_group_local_id";
         size_t found_sub = conf.bfzyx_idx_order[1].rfind(sub_group_local_id_str);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,10 +23,10 @@ using namespace ov::pass::transpose_sinking::utils;
 TSGatherForward::TSGatherForward() {
     MATCHER_SCOPE(TSGatherForward);
 
-    create_pattern<ov::op::v8::Gather>(true, {0});
+    create_pattern<ov::op::v8::Gather>({0});
 
-    auto sinking_transformation = [=](const std::shared_ptr<Node>& main_node,
-                                      const TransposeInputsInfo& transpose_info) -> bool {
+    auto sinking_transformation = [OV_CAPTURE_CPY_AND_THIS](const std::shared_ptr<Node>& main_node,
+                                                            const TransposeInputsInfo& transpose_info) -> bool {
         auto gather = as_type_ptr<ov::op::v8::Gather>(main_node);
         if (!gather) {
             return false;
@@ -158,7 +158,7 @@ TSGatherBackward::TSGatherBackward() {
                                                                 return has_static_rank()(output);
                                                             });
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
 
         auto transpose = as_type_ptr<ov::op::v1::Transpose>(pattern_to_output.at(transpose_label));
@@ -260,7 +260,11 @@ TSGatherBackward::TSGatherBackward() {
                 main_node->input(1).replace_source_output(squeeze->input_value(0));
             }
         }
+        std::vector<size_t> new_axes_val;
         if (!axes_val.empty()) {
+            for (size_t i = 0; i < axes_val.size(); ++i) {
+                new_axes_val.push_back(order_val[axes_val[i]]);
+            }
             order_val = GetOrderAfterReduction(axes_val, order_val);
         }
 
@@ -303,7 +307,7 @@ TSGatherBackward::TSGatherBackward() {
         RemoveTransposeConsumers(main_node);
         if (success) {
             auto target_inputs = main_node->get_output_target_inputs(0);
-            auto unsqueeze_axes = ov::op::v0::Constant::create(element::i32, {axes_val.size()}, axes_val);
+            auto unsqueeze_axes = ov::op::v0::Constant::create(element::i32, {new_axes_val.size()}, new_axes_val);
             auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(main_node, unsqueeze_axes);
             for (const auto& input : target_inputs) {
                 input.replace_source_output(unsqueeze);

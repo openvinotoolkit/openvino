@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,7 @@ OutputVector translate_eye(const NodeContext& context) {
         y = context.mark_node(std::make_shared<v0::Convert>(y, element::i32));
         dtype_id = 2;
     } else {
-        FRONT_END_OP_CONVERSION_CHECK(false, "Unsupported number of inputs: ", num_inputs, " for aten::eye");
+        PYTORCH_OP_CONVERSION_CHECK(false, "Unsupported number of inputs: ", num_inputs, " for aten::eye");
     }
     if (!context.input_is_none(dtype_id)) {
         dtype = convert_dtype(context.const_input<int64_t>(dtype_id));

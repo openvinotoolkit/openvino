@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -124,6 +124,15 @@ bool is_absolute_file_path(const std::string& path);
  * @throw runtime_error if any error occurred
  */
 void create_directory_recursive(const std::string& path);
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+/**
+ * @brief Interface function to create directorty recursively by given path
+ * @param path - path to file wide-string, can be relative to current working directory
+ * @throw runtime_error if any error occurred
+ */
+void create_directory_recursive(const std::wstring& path);
+#endif
 
 /**
  * @brief Interface function to check if directory exists for given path
@@ -354,6 +363,17 @@ void save_binary(const std::string& path, const char* binary, size_t bin_size);
  * @return Pointer to trimmed file name path.
  */
 const char* trim_file_name(const char* const fname);
+
+template <typename C>
+using enableIfSupportedChar =
+    typename std::enable_if<(std::is_same<C, char>::value || std::is_same<C, wchar_t>::value)>::type;
+
+template <typename C, typename = enableIfSupportedChar<C>>
+inline std::basic_string<C> make_path(const std::basic_string<C>& folder, const std::basic_string<C>& file) {
+    if (folder.empty())
+        return file;
+    return folder + ov::util::FileTraits<C>::file_separator + file;
+}
 
 }  // namespace util
 }  // namespace ov

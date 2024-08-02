@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2023 Intel Corporation
+ Copyright (C) 2018-2024 Intel Corporation
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -10,83 +10,122 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import json
 import os
+import numpy as np
+import pathlib
 import pytest
-import logging as log
-import sys
-from common.samples_common_test_class import SamplesCommonTestClass
-from common.samples_common_test_class import get_tests
+from common.samples_common_test_class import get_devices, get_cmd_output, prepend
+from openvino.runtime import opset8 as opset
+import openvino.runtime as ov
 
-log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
+def get_executable(sample_language):
+    executable = 'benchmark_app'
+    if sample_language == 'C++':
+        executable = pathlib.Path(os.environ['IE_APP_PATH'], 'benchmark_app').with_suffix('.exe' if os.name == 'nt' else '')
+        assert executable.exists()
+        return executable
+    return 'benchmark_app'
 
-test_data_fp32_async = get_tests \
-    (cmd_params={'i': [os.path.join('227x227', 'dog.bmp')],
-                 'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
-                 'batch': [1],
-                 'sample_type': ['C++', 'Python'],
-                 'd': ['CPU'],
-                 'api': ['async'],
-                 'nireq': ['4'],
-                 'niter': ['10'], },
-     use_device=['d']
-     )
-
-test_data_fp32_sync = get_tests \
-    (cmd_params={'i': [os.path.join('227x227', 'dog.bmp')],
-                 'm': [os.path.join('squeezenet1.1', 'FP32', 'squeezenet1.1.xml')],
-                 'batch': [1],
-                 'sample_type': ['C++', 'Python'],
-                 'd': ['CPU'],
-                 'niter': ['10'],
-                 'api': ['sync']},
-     use_device=['d']
-     )
+def create_random_4bit_bin_file(tmp_path, shape, name):
+    fullname = tmp_path / name
+    rs = np.random.RandomState(np.random.MT19937(np.random.SeedSequence(0)))
+    pack_shape = [x for x in shape]
+    pack_shape[-1] = pack_shape[-1]*4
+    rand_data = (rs.uniform(0, 15, list(pack_shape)) >= 7).astype(int).flatten()
+    raw_data = np.packbits(rand_data)
+    with open(fullname, "wb") as f:
+        f.write(raw_data)
 
 
+def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape=None, nstreams=None, layout=None, pin=None, cache=None, tmp_path=None, model='bvlcalexnet-12.onnx', inp='dog-224x224.bmp', batch='1', niter='10', tm=None):
+    output = get_cmd_output(
+        get_executable(sample_language),
+        *prepend(cache, inp, model, tmp_path),
+        *('-nstreams', nstreams) if nstreams else '',
+        *('-layout', layout) if layout else '',
+        *('-nireq', nireq) if nireq else '',
+        *('-shape', shape) if shape else '',
+        *('-data_shape', data_shape) if data_shape else '',
+        *('-hint', 'none') if nstreams or pin else '',
+        *('-pin', pin) if pin else '',
+        *('-api', api) if api else '',
+        *('-dump_config', tmp_path / 'conf.json') if tmp_path else '',
+        *('-exec_graph_path', tmp_path / 'exec_graph.xml') if tmp_path else '',
+        *('-b', batch) if batch else '',
+        *('-niter', niter) if niter else '10',
+        *('-t', tm) if tm else '',
+        '-d', device
+    )
+    assert 'FPS' in output
+    if tmp_path:
+        assert (tmp_path / 'exec_graph.xml').exists()
+        with (tmp_path / 'conf.json').open(encoding='utf-8') as file:
+            config_json = json.load(file)
+        if 'CPU' == device:
+            assert 'CPU' in config_json
+            assert not nstreams or config_json['CPU']['NUM_STREAMS'] == nstreams
+            assert (not pin
+                or pin == 'YES' and config_json['CPU']['AFFINITY'] == 'CORE'
+                or pin == 'NO' and config_json['CPU']['AFFINITY'] == 'NONE'
+                or pin == config_json['CPU']['AFFINITY'])
 
-class TestBenchmarkApp(SamplesCommonTestClass):
-    @classmethod
-    def setup_class(cls):
-        cls.sample_name = 'benchmark_app'
-        super().setup_class()
 
-    @pytest.mark.parametrize("param", test_data_fp32_async)
-    @pytest.mark.skip("Ticket: 106850")
-    def test_benchmark_app_sample_fp32_async(self, param):
-        _check_output(self, param)
-
-    @pytest.mark.parametrize("param", test_data_fp32_sync)
-    @pytest.mark.skip("Ticket: 106850")
-    def test_benchmark_app_fp32_sync(self, param):
-        _check_output(self, param)
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+def test_benchmark_app_help(sample_language):
+    get_cmd_output(get_executable(sample_language), '-h')
 
 
-def _check_output(self, param):
-    """
-    Benchmark_app has functional and accuracy testing.
-    For accuracy the test checks if 'FPS' 'Latency' in output. If both exist - the est passed
-    """
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+@pytest.mark.parametrize('api', ['sync', 'async'])
+@pytest.mark.parametrize('nireq', ['4', ''])
+@pytest.mark.parametrize('device', get_devices())
+def test_nireq(sample_language, api, nireq, device, cache, tmp_path):
+    verify(sample_language, device, api=api, nireq=nireq, cache=cache, tmp_path=tmp_path)
 
-    # Run _test function, that returns stdout or 0.
-    stdout = self._test(param)
-    if not stdout:
-        return 0
-    stdout = stdout.split('\n')
-    is_ok = False
-    flag = 0
-    for line in stdout:
-        if 'FPS' in line:
-            is_ok = True
-    if is_ok == False:
-        flag = 1
-        log.error("No FPS in output")
 
-    is_ok = False
-    for line in stdout:
-        if 'Latency' in line:
-            is_ok = True
-    if is_ok == False:
-        flag = 1
-        log.error("No Latency in output")
-    assert flag == 0, "Wrong output of this sample"
-    log.info('Accuracy passed')
+@pytest.mark.skipif('CPU' not in get_devices(), reason='affinity is a CPU property')
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+@pytest.mark.parametrize('pin', ['YES', 'NO', 'NUMA', 'HYBRID_AWARE'])
+def test_pin(sample_language, pin, cache, tmp_path):
+    verify(sample_language, 'CPU', pin=pin, nstreams='2', cache=cache, tmp_path=tmp_path)
+
+
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+@pytest.mark.parametrize('device', sorted({'CPU', 'GPU'} & set(get_devices())))  # Determenisitic order is required for --numprocesses
+def test_simple(sample_language, device, cache, tmp_path):
+    verify(sample_language, device, cache=cache, tmp_path=tmp_path)
+
+
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+@pytest.mark.parametrize('api', ['sync', 'async'])
+@pytest.mark.parametrize('device', get_devices())
+def test_api(sample_language, api, device, cache, tmp_path):
+    verify(sample_language, device, api=api, cache=cache, tmp_path=tmp_path)
+
+
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+@pytest.mark.parametrize('device', get_devices())
+def test_reshape(sample_language, device, cache, tmp_path):
+    verify(sample_language, device, shape='data_0[2,3,224,224]', cache=cache, tmp_path=tmp_path)
+
+
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+@pytest.mark.parametrize('device', get_devices())
+def test_dynamic_shape(sample_language, device, cache, tmp_path):
+    verify(sample_language, device, model='efficientnet-lite4-11-qdq.onnx',
+           shape='[?,224,224,3]', data_shape='[1,224,224,3][2,224,224,3]', layout='[NHWC]', cache=cache, tmp_path=tmp_path)
+
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+@pytest.mark.parametrize('device', ['CPU'])
+@pytest.mark.parametrize('inp', [None, 'random_4bit_data.bin'])
+def test_4bit_precision_input(sample_language, device, inp, cache, tmp_path):
+    inp_type = ov.Type.i4
+    inp_shape = [128] # only pass scalar.
+    input = opset.parameter(inp_shape, inp_type, name='in')
+    cvt = opset.convert(input, ov.Type.f32)
+    result = opset.result(cvt, name='cvt')
+    model_4bit = ov.Model([result], [input], 'model_with_4bit_input')
+    if inp != None and inp.endswith(".bin"):
+        create_random_4bit_bin_file(tmp_path, inp_shape, inp)
+    verify(sample_language, device, model=model_4bit, inp=inp, cache=cache, tmp_path=tmp_path, batch=None, tm='1')

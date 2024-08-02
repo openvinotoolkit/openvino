@@ -73,11 +73,9 @@ There is an example of `conditional_compilation_gen.h`:
 #define ov_pass_InitNodeInfo_run_on_function 1
 #define ov_pass_ConstantFolding_run_on_model 1
 #define ov_pass_SubtractFusion 1
-#define ov_pass_SharedShapeOf_run_on_function 1
 #define ov_pass_SimplifyShapeOfSubGraph_run_on_function 1
 #define ov_pass_PropagateNMSPath 1
 #define ov_pass_UselessStridedSliceEraser_run_on_function 1
-#define ov_pass_SharedStridedSliceEraser_run_on_function 1
 #define ov_pass_GroupedStridedSliceOptimizer_run_on_function 1
 #define ov_pass_StridedSliceOptimization_run_on_function 1
 #define ov_pass_EliminateConvert 1

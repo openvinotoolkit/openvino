@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -15,7 +15,7 @@ from openvino.test_utils import compare_functions
 from openvino.tools.ovc import ovc
 
 from common import constants
-from common.tf_layer_test_class import save_to_pb
+from common.utils.tf_utils import save_to_pb
 from common.utils.common_utils import shell
 
 

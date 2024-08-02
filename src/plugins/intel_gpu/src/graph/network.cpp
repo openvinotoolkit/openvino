@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,6 +34,7 @@
 #include "assign_inst.h"
 #include "read_value_inst.h"
 #include "reshape_inst.h"
+#include "kv_cache_inst.h"
 #include "program_helpers.h"
 #include "to_string_utils.h"
 #include "kernels_cache.hpp"
@@ -104,6 +105,9 @@ void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<p
                 if (a_info.cache_hit != b_info.cache_hit)
                     return a_info.cache_hit;
 
+                if (a_info.memalloc_info != b_info.memalloc_info)
+                    return a_info.memalloc_info.length() < b_info.memalloc_info.length();
+
                 size_t total_out_size_a = 0;
                 size_t total_out_size_b = 0;
                 for (auto& ol : a_info.output_layouts) {
@@ -123,9 +127,14 @@ void dump_perf_data_raw(std::string dump_path, const std::list<std::shared_ptr<p
                 std::string net_in_l_str = layouts_to_str(key.network_input_layouts);
                 std::string in_l_str = layouts_to_str(key.input_layouts);
                 std::string out_l_str = layouts_to_str(key.output_layouts);
+                std::string stage_suffix = "";
+                if (key.cache_hit)
+                    stage_suffix += " (cache_hit) ";
+                if (key.memalloc_info != "")
+                    stage_suffix += " (" + key.memalloc_info + ") ";
                 of << prim_id << ","
                 << inst->desc()->type_string() << ","
-                << key.stage << (key.cache_hit ? " (cache_hit)" : "") << ","
+                << key.stage << stage_suffix << ","
                 << net_in_l_str << ","
                 << in_l_str << ","
                 << out_l_str << ","
@@ -215,6 +224,66 @@ void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream, bool dump
     file_stream << buffer.str();
 }
 
+void unpack(cldnn::data_types type, uint8_t input, int8_t &v0, int8_t &v1) {
+    if (type == cldnn::data_types::i4) {
+        char s_bit = (input & 0x08);
+        char mask = s_bit > 0 ? 0xF0 : 0x00;
+        v0 = (input & 0x0F) | mask;
+
+        input >>= 4;
+        s_bit = (input & 0x08);
+        mask = s_bit > 0 ? 0xF0 : 0x00;
+        v1 = (input & 0x0F) | mask;
+    } else if (type == cldnn::data_types::u4) {
+        v0 = input & 0x0F;
+        v1 = input >> 4;
+    } else {
+        OPENVINO_ASSERT(false, "not supported unpacking");
+    }
+}
+
+void dump_i4u4(cldnn::data_types type, memory::ptr mem, stream& stream, std::ofstream& file_stream, bool dump_raw) {
+    auto&& size = mem->get_layout().get_tensor();
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    auto batch_size = std::max(std::min(debug_config->dump_layers_limit_batch, size.batch[0]), 1);
+    tensor tmp_size(size);
+    tmp_size.batch[0] = batch_size;
+    if (tmp_size == size) {
+        file_stream << "shape: " << size.to_string() << " ";
+        file_stream << "(count: " << size.count()
+                    << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format) << ")"
+                    << (dump_raw ? " raw data" : "") << std::endl;
+    } else {
+        file_stream << "shape: " << tmp_size.to_string() << " ";
+        file_stream << "(count: " << tmp_size.count()
+                    << ", original format: " << cldnn::fmt_to_str(mem->get_layout().format)
+                    << ", original shape: " << size.to_string() << ")"
+                    << (dump_raw ? " raw data" : "") << std::endl;
+    }
+
+    if (size.count() == 0) {
+        file_stream << "Empty buffer" << std::endl;
+        return;
+    }
+
+    mem_lock<uint8_t, mem_lock_type::read> lock(mem, stream);
+    auto mem_ptr = lock.data();
+    std::stringstream buffer;
+
+    if (dump_raw) {
+        for (size_t i = 0; i < lock.size(); ++i) {
+            int8_t v0, v1;
+            unpack(type, mem_ptr[i], v0, v1);
+            buffer << std::fixed << std::setprecision(6) << static_cast<int>(v0) << std::endl;
+            buffer << std::fixed << std::setprecision(6) << static_cast<int>(v1) << std::endl;
+        }
+    } else {
+        std::cout << __func__ << " supports raw dump only" << std::endl;
+    }
+    file_stream << buffer.str();
+}
+
 void log_memory_to_file(memory::ptr mem, layout data_layout, stream& stream, std::string layerName, bool dump_raw) {
     std::cout << "Dump " << (dump_raw ? "raw " : "") << layerName << std::endl;
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -242,6 +311,12 @@ void log_memory_to_file(memory::ptr mem, layout data_layout, stream& stream, std
         dump<int8_t>(actual_mem, stream, file_stream, dump_raw);
     else if (mem_dt == cldnn::data_types::u8)
         dump<uint8_t>(actual_mem, stream, file_stream, dump_raw);
+    else if (mem_dt == cldnn::data_types::u8)
+        dump<uint8_t>(actual_mem, stream, file_stream, dump_raw);
+    else if (mem_dt == cldnn::data_types::i4 || mem_dt == cldnn::data_types::u4)
+        dump_i4u4(mem_dt, actual_mem, stream, file_stream, dump_raw);
+    else
+        std::cout << "Dump for this data type is not supported: " << dt_to_str(mem_dt) << std::endl;
 }
 
 void wait_for_the_turn() {
@@ -358,6 +433,22 @@ network::network(program::ptr program, stream::ptr stream, uint16_t stream_id)
     : network(program, program->get_config(), stream, false, stream_id == 0) {}
 
 network::~network() {
+    GPU_DEBUG_IF(debug_configuration::get_instance()->host_time_profiling) {
+        if (host_exec_times.size() >= 2) {
+            double first = static_cast<double>(host_exec_times[0]);
+            double avg = static_cast<double>(std::accumulate(host_exec_times.begin() + 1, host_exec_times.end(), (size_t)0, std::plus<size_t>()));
+            avg /= (host_exec_times.size() - 1);
+            std::string resolution = " us";
+            if (avg > 1000.0) {
+                resolution = " ms";
+                avg /= 1000.0;
+                first /= 1000.0;
+            }
+            GPU_DEBUG_COUT << "Network[" << net_id << "] First infer host time: " << first << resolution << std::endl;
+            GPU_DEBUG_COUT << "Network[" << net_id << "] Infer avg host time: " << avg << resolution << std::endl;
+        }
+    }
+
     if (_program != nullptr)
         _program->cancel_compilation_context();
     _memory_pool->clear_pool_for_network(net_id);
@@ -413,8 +504,13 @@ void network::set_arguments() {
                 // In that case some_op is static and we may want to set arguments once,
                 // but dynamic optimized out reshape means that output buffer of reshape is unavailable
                 // and attempt to set args will fail.
+
+                // (dynamic) -> static optimizable reshape -> static optimizable reshape -> some_op
+                // In that case, it is a limit about second reshape.
                 auto prim = dep.first->get_impl_params()->desc;
-                if (dep.first->can_be_optimized() && (dep.first->is_dynamic() || prim->type == read_value::type_id()))
+                if (dep.first->can_be_optimized() && (dep.first->is_dynamic() ||
+                                                      dep.first->output_memory_ptr() == nullptr ||
+                                                      prim->type == read_value::type_id()))
                     can_set_args = false;
             }
 
@@ -520,13 +616,13 @@ void network::calculate_weights_cache_capacity() {
 }
 
 network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<primitive_inst>& p_inst) {
-    std::vector<std::shared_ptr<primitive_inst>> chain;
-    std::stack<std::shared_ptr<const primitive_inst>> candidates;
+    std::vector<primitive_inst*> chain;
+    std::stack<const primitive_inst*> candidates;
     auto& eng = get_engine();
     const auto& mem_orig = p_inst->output_memory();
 
-    auto add_mdata_chain = [&](std::shared_ptr<primitive_inst>& p_inst) {
-        auto mdata_ptr = std::dynamic_pointer_cast<mutable_data_inst>(p_inst);
+    auto add_mdata_chain = [&](primitive_inst* p_inst) {
+        auto mdata_ptr = dynamic_cast<mutable_data_inst*>(p_inst);
         if (!mdata_ptr)
             return;
         // special handling for mutable data, which can share
@@ -534,12 +630,12 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
         for (auto& dep : p_inst->dependencies()) {
             // check dependencies
             if (eng.is_the_same_buffer(mem_orig, dep.first->output_memory())) {
-                chain.push_back(std::const_pointer_cast<primitive_inst>(dep.first));
+                chain.push_back(const_cast<primitive_inst*>(dep.first));
             }
             // then second order dependencies
             for (auto& second_dep : dep.first->dependencies()) {
                 if (eng.is_the_same_buffer(mem_orig, second_dep.first->output_memory())) {
-                    chain.push_back(std::const_pointer_cast<primitive_inst>(second_dep.first));
+                    chain.push_back(const_cast<primitive_inst*>(second_dep.first));
                 }
             }
         }
@@ -547,7 +643,7 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
         //then users
         const auto& user_ids = mdata_ptr->get_user_ids();
         for (const auto& id : user_ids) {
-            auto usr_prim = get_primitive(id);
+            auto usr_prim = get_primitive(id).get();
             if (eng.is_the_same_buffer(mem_orig, usr_prim->output_memory())) {
                 chain.push_back(usr_prim);
             }
@@ -555,19 +651,21 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
     };
 
     if (p_inst->can_be_optimized()) {
-        candidates.push(p_inst);
+        candidates.push(p_inst.get());
     } else {
-        chain.push_back(p_inst);
+        chain.push_back(p_inst.get());
     }
-    add_mdata_chain(p_inst);
+    add_mdata_chain(p_inst.get());
 
     // find all dependencies that are 'optimized'
     while (!candidates.empty()) {
         auto cand = candidates.top();
         candidates.pop();
         const auto& mem_cand = cand->output_memory();
-        if (eng.is_the_same_buffer(mem_orig, mem_cand)) {
-            auto nc_cand = std::const_pointer_cast<primitive_inst>(cand);
+        // Add cand inst to the chain when cand's output is not allocated yet.
+        if (!p_inst->outputs_allocated()
+            || eng.is_the_same_buffer(mem_orig, mem_cand)) {
+            auto nc_cand = const_cast<primitive_inst*>(cand);
             chain.push_back(nc_cand);
             add_mdata_chain(nc_cand);
         }
@@ -576,11 +674,15 @@ network::output_chains_map::iterator network::add_output_chain(std::shared_ptr<p
             if (dep.first->can_be_optimized()) {
                 candidates.push(dep.first);
             } else {
-                const auto& mem_dep = dep.first->output_memory();
-                if (eng.is_the_same_buffer(mem_orig, mem_dep)) {
-                    auto nc_dep = std::const_pointer_cast<primitive_inst>(dep.first);
-                    chain.push_back(nc_dep);
-                    add_mdata_chain(nc_dep);
+                if (dep.first->outputs_allocated()) {
+                    const auto& mem_dep = dep.first->output_memory();
+                    // Add dep inst to the chain when dep's output is not allocated yet.
+                    if (!p_inst->outputs_allocated()
+                        || eng.is_the_same_buffer(mem_orig, mem_dep)) {
+                        auto nc_dep = const_cast<primitive_inst*>(dep.first);
+                        chain.push_back(nc_dep);
+                        add_mdata_chain(nc_dep);
+                    }
                 }
             }
         }
@@ -633,8 +735,6 @@ void cldnn::network::check_names() {
 }
 
 std::shared_ptr<primitive_inst> cldnn::network::find_primitive(const primitive_id& id) const {
-    std::shared_ptr<primitive_inst> ret;
-
     if (_primitives.find(id) != _primitives.end())
         return _primitives.at(id);
 
@@ -731,6 +831,10 @@ void network::allocate_primitives() {
     for (auto const& node : po) {
         if (node->can_be_optimized() && !node->is_dynamic()) {
             auto opt_inst = _primitives.at(node->id());
+            // build deps when prim_inst does not update dependencies yet.
+            if (!node->get_dependencies().empty() && opt_inst->dependencies().empty()) {
+                opt_inst->build_deps();
+            }
             opt_inst->update_output_memory();
         }
     }
@@ -782,6 +886,7 @@ void network::build_insts_deps() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("build_insts_deps");
     for (auto& inst : _primitives) {
         inst.second->build_deps();
+        inst.second->init_users();
         inst.second->configure_shape_of_dependencies();
     }
 }
@@ -826,7 +931,12 @@ void network::add_to_exec_order(const primitive_id& id) {
 }
 
 std::map<primitive_id, network_output> network::execute(const std::vector<event::ptr>& dependencies) {
+    auto start = std::chrono::high_resolution_clock::now();
     execute_impl(dependencies);
+    auto end = std::chrono::high_resolution_clock::now();
+
+    GPU_DEBUG_IF(debug_configuration::get_instance()->host_time_profiling)
+        host_exec_times.push_back(std::chrono::duration_cast<std::chrono::microseconds>(end - start).count());
 
     auto output_ids = get_output_ids();
     std::map<primitive_id, network_output> result;
@@ -836,22 +946,24 @@ std::map<primitive_id, network_output> network::execute(const std::vector<event:
     return result;
 }
 
-
 void network::execute_impl(const std::vector<event::ptr>& events) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "NetworkImpl::Execute");
     int64_t curr_iter = -1;
     GPU_DEBUG_GET_INSTANCE(debug_config);
 #ifdef GPU_DEBUG_CONFIG
-    curr_iter = iteration++;
+    curr_iter = iteration;
 #endif
 
     // Wait for previous execution completion
     reset_execution(false);
-    GPU_DEBUG_IF(debug_config->dump_runtime_memory_pool > 0) {
-        GPU_DEBUG_COUT << "----------------------------------------------" << std::endl;
-        GPU_DEBUG_COUT << "Start network execution (net_id : " << get_id() << ", iter :" << curr_iter << ")" << std::endl;
+    GPU_DEBUG_IF(debug_config->dump_memory_pool > 0) {
+        auto& iters = debug_config->dump_memory_pool_iters;
+        if (iters.empty() || iters.find(curr_iter) != iters.end()) {
+            GPU_DEBUG_COUT << "============================================================================" << std::endl;
+            GPU_DEBUG_COUT << "Start network execution (net_id : " << get_id() << ", iter :" << curr_iter << ")" << std::endl;
+        }
     } else {
-        GPU_DEBUG_TRACE << "----------------------------------------------" << std::endl;
+        GPU_DEBUG_TRACE << "============================================================================" << std::endl;
         GPU_DEBUG_TRACE << "Start network execution (net_id : " << get_id() << ", iter :" << curr_iter << ")" << std::endl;
     }
 
@@ -917,11 +1029,11 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         return std::to_string(iter) + "_";
     };
 
-    // This extra flush command is needed for dynamic models in case of out_of_order operating mode since
-    // it reduces `bubbles` number in pipeline and GPU's idle time by timely flushing new kernels to device.
-    // The freqency of flushing (16) is selected empirically, see details in tickets 116365, 116287.
+    // This extra flush command is needed for dynamic models in both cases of out_of_order / in_order operating mode
+    // since it reduces `bubbles` number in pipeline and GPU's idle time by timely flushing new kernels to device.
+    // The freqency of flushing (16) is selected empirically, see details in tickets 116365, 116287, 139931.
     const bool is_out_of_order_queue = get_stream().get_queue_type() == QueueTypes::out_of_order;
-    const bool needs_flushing = _is_dynamic && is_out_of_order_queue;
+    const bool needs_flushing = _is_dynamic;
     const size_t flush_frequency = needs_flushing ? 16 : 0;
     size_t executed_prims = 0;
 
@@ -964,16 +1076,18 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                     auto dump_file = debug_config->get_matched_from_filelist(files, "_src0__");
                     OPENVINO_ASSERT(dump_file.length() != 0, "Could not find expected pattern '_src[N]__' for binary dump input : " + layer_name);
 
-                    OPENVINO_ASSERT(files.size() == get_primitive(inst->id())->dependencies().size(), "Mis-match dump file count");
-
                     for (size_t i = 0; i < get_primitive(inst->id())->dependencies().size(); i++) {
                         auto dump_file = files[0];
                         if (files.size() > 1 || get_primitive(inst->id())->dependencies().size() != 1) {
                             std::string pattern = "_src" + std::to_string(i) + "__";
                             dump_file = debug_config->get_matched_from_filelist(files, pattern);
                         }
+                        if (dump_file.length() == 0) {
+                            GPU_DEBUG_COUT  << " Skip loading for  input(" << i << ") of " << layer_name << std::endl;
+                            continue;
+                        }
                         OPENVINO_ASSERT((dump_file.length() > 0), "Could not find expected pattern '_src[N]__' for binary dump input");
-                        GPU_DEBUG_COUT  << " Load binary dump : " << dump_file << " for input of " << layer_name << std::endl;
+                        GPU_DEBUG_COUT  << " Load binary dump : " << dump_file << " for input(" << i << ") of " << layer_name << std::endl;
 
                         std::vector<uint8_t> bin = ov::util::load_binary(dump_file);
                         OPENVINO_ASSERT(!bin.empty(), "Failure loading binary from OV_GPU_LoadDumpRawBinary : " + dump_file);
@@ -990,9 +1104,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         // Dump input buffers of 'inst'
         GPU_DEBUG_IF(debug_config->dump_layers_path.length() > 0) {
             const std::string layer_name = inst->id();
-            GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                std::cerr << inst->id() << std::endl;
-            }
 
             GPU_DEBUG_IF(debug_config->is_target_iteration(curr_iter) &&
                         debug_config->dump_layers_dst_only == 0 && debug_config->is_layer_for_dumping(layer_name)) {
@@ -1031,7 +1142,6 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
 
         execute_primitive(inst, events);
         executed_prims++;
-
         if (needs_flushing && executed_prims % flush_frequency == 0)
             get_stream().flush();
 
@@ -1160,9 +1270,72 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     // Deallocate events from the previos iteration
     _old_events.clear();
 
-    GPU_DEBUG_IF(debug_config->dump_runtime_memory_pool > 0) {
-        get_memory_pool().dump(get_id());
+    GPU_DEBUG_IF(debug_config->dump_memory_pool > 0) {
+        auto& iters = debug_config->dump_memory_pool_iters;
+        if (iters.empty() || iters.find(curr_iter) != iters.end()) {
+            dump_memory_pool(debug_config->dump_memory_pool_path, curr_iter);
+            GPU_DEBUG_COUT << "============================================================================" << std::endl;
+        }
     }
+
+#ifdef GPU_DEBUG_CONFIG
+    iteration++;
+#endif
+}
+
+void network::dump_memory_pool(std::string dump_path, int64_t curr_iter) {
+#ifdef GPU_DEBUG_CONFIG
+    get_memory_pool().dump(get_id(), curr_iter, dump_path);
+    auto get_constants_mem_size = [&](allocation_type type) -> size_t {
+        size_t mem_size = 0;
+        for (auto& prim : _primitives) {
+            if (prim.second->get_node().is_constant()) {
+                for (size_t i = 0; i < prim.second->outputs_memory_count(); i++) {
+                    if (prim.second->output_memory_ptr(i)->get_allocation_type() == type)
+                        mem_size += prim.second->output_memory_ptr(i)->size();
+                }
+            }
+        }
+        return mem_size;
+    };
+    auto get_variables_mem_size = [&](allocation_type type) -> size_t {
+        size_t mem_size = 0;
+        for (auto& var : get_variables()) {
+            if (var.second->get_memory()->get_allocation_type() == type)
+                mem_size += var.second->get_actual_mem_size();
+        }
+        return mem_size;
+    };
+    auto get_mb_size = [&](int64_t size) -> std::string {
+        if (size == 0) return "0 MB";
+        return std::to_string(static_cast<float>(size) / (1024 * 1024)) + " MB";
+    };
+    int64_t usm_host_const_mem_size     = get_constants_mem_size(allocation_type::usm_host);
+    int64_t usm_device_const_mem_size   = get_constants_mem_size(allocation_type::usm_device);
+    int64_t usm_host_var_mem_size       = get_variables_mem_size(allocation_type::usm_host);
+    int64_t usm_device_var_mem_size     = get_variables_mem_size(allocation_type::usm_device);
+    int64_t host_mem_size               = get_engine().get_used_device_memory(allocation_type::usm_host);
+    int64_t device_mem_size             = get_engine().get_used_device_memory(allocation_type::usm_device);
+    int64_t usm_host_mem_pool_size      = get_memory_pool().get_total_mem_pool_size(allocation_type::usm_host);
+    int64_t usm_host_etc_size           = host_mem_size - usm_host_mem_pool_size
+                                            - usm_host_const_mem_size - usm_host_var_mem_size;
+    int64_t usm_device_mem_pool_size    = get_memory_pool().get_total_mem_pool_size(allocation_type::usm_device);
+    int64_t usm_device_etc_size         = device_mem_size - usm_device_mem_pool_size
+                                            - usm_device_const_mem_size - usm_device_var_mem_size;
+    GPU_DEBUG_COUT << "------------------------------------------------------------------------" << std::endl;
+    GPU_DEBUG_COUT << "Memory statistics for (net_id:" << get_id() << ", iter:" << curr_iter << ")" << std::endl;
+    GPU_DEBUG_COUT << " Total host mem size     : " << get_mb_size(host_mem_size)               << std::endl;
+    GPU_DEBUG_COUT << " * Memory pool           : " << get_mb_size(usm_host_mem_pool_size)      << std::endl;
+    GPU_DEBUG_COUT << " * Constant              : " << get_mb_size(usm_host_const_mem_size)     << std::endl;
+    GPU_DEBUG_COUT << " * Variable              : " << get_mb_size(usm_host_var_mem_size)       << std::endl;
+    GPU_DEBUG_COUT << " * ETC                   : " << get_mb_size(usm_host_etc_size)           << std::endl;
+    GPU_DEBUG_COUT << " Total device mem size   : " << get_mb_size(device_mem_size)             << std::endl;
+    GPU_DEBUG_COUT << " * Memory pool           : " << get_mb_size(usm_device_mem_pool_size)    << std::endl;
+    GPU_DEBUG_COUT << " * Constant              : " << get_mb_size(usm_device_const_mem_size)   << std::endl;
+    GPU_DEBUG_COUT << " * Variable              : " << get_mb_size(usm_device_var_mem_size)     << std::endl;
+    GPU_DEBUG_COUT << " * ETC                   : " << get_mb_size(usm_device_etc_size)         << std::endl;
+    GPU_DEBUG_COUT << "------------------------------------------------------------------------" << std::endl;
+#endif
 }
 
 std::vector<primitive_id> network::get_input_ids() const {
@@ -1252,18 +1425,18 @@ std::shared_ptr<const primitive_inst> network::get_primitive(const primitive_id&
     return _primitives.at(id);
 }
 
-std::vector<std::shared_ptr<primitive_inst>> network::get_primitives(const std::vector<primitive_id>& ids) {
-    std::vector<std::shared_ptr<primitive_inst>> result(ids.size());
+std::vector<primitive_inst*> network::get_primitives(const std::vector<primitive_id>& ids) {
+    std::vector<primitive_inst*> result(ids.size());
     std::transform(std::begin(ids), std::end(ids), std::begin(result), [&](const primitive_id& id) {
-        return get_primitive(id);
+        return get_primitive(id).get();
     });
     return result;
 }
 
-std::vector<std::pair<std::shared_ptr<primitive_inst>, int>> network::get_primitives(const std::vector<std::pair<program_node*, int>>& nodes) {
-    std::vector<std::pair<std::shared_ptr<primitive_inst>, int>> result(nodes.size());
+std::vector<std::pair<primitive_inst*, int>> network::get_primitives(const std::vector<std::pair<program_node*, int>>& nodes) {
+    std::vector<std::pair<primitive_inst*, int>> result(nodes.size());
     std::transform(std::begin(nodes), std::end(nodes), std::begin(result), [&](const std::pair<program_node*, int>& node) {
-        return std::make_pair(get_primitive(node.first->id()), node.second);
+        return std::make_pair(get_primitive(node.first->id()).get(), node.second);
     });
     return result;
 }
@@ -1293,7 +1466,7 @@ void network::allocate_primitive_instance(program_node const& node) {
     std::function<bool(const program_node&)> is_mutable_input = [&is_mutable_input](const program_node& node) {
         for (auto& dep : node.get_dependencies()) {
             const auto dep_node = dep.first;
-            if (dep_node->is_type<input_layout>() || dep_node->is_type<mutable_data>() || dep_node->is_type<read_value>()) {
+            if (dep_node->is_type<input_layout>() || dep_node->is_type<mutable_data>() || (dep_node->is_type<read_value>() && !dep_node->can_be_optimized())) {
                 return true;
             }
             if (dep_node->can_be_optimized()) {
@@ -1326,8 +1499,12 @@ void network::allocate_primitive_instance(program_node const& node) {
         if (node.is_type<data>())
             _data_outputs.push_back(inst);
     }
+    if (node.is_type<kv_cache>()) {
+       kv_cache_ids.push_back(node.id());
+    }
     if (auto state_prim = std::dynamic_pointer_cast<memory_state::variable>(inst)) {
-        set_variables_state_info(state_prim->variable_id(), node.get_output_layout(0));
+        auto prim = inst->get_node().get_primitive();
+        set_variables_state_info(state_prim->variable_id(), node.get_output_layout(0), state_prim->get_user_specified_type(), prim.get());
     }
     if (node.is_constant())
         transfer_memory_to_device(inst, node);
@@ -1352,7 +1529,11 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
     if (!get_engine().supports_allocation(allocation_type::usm_device))
         return;
 
-    if (get_engine().get_device_info().dev_type != device_type::discrete_gpu)
+    if (!get_engine().get_device_info().has_separate_cache)
+        return;
+
+
+    if (node.is_shape_infer_dep())
         return;
 
     if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
@@ -1360,12 +1541,12 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
         auto device_mem = inst_mem.get_engine()->allocate_memory(inst_mem.get_layout(), allocation_type::usm_device, false);
         device_mem->copy_from(get_stream(), inst_mem);
         GPU_DEBUG_LOG << "[" << node.id() << ": constant]" << std::endl;
-        _memory_pool->release_memory(&inst_mem, node.id(), get_id());
+        _memory_pool->release_memory(&inst_mem, node.get_unique_id(), node.id(), get_id());
         instance->set_output_memory(device_mem);
     }
 }
 
-void network::set_variable(const std::string& name, const std::shared_ptr<ov::intel_gpu::VariableState>& variable) {
+void network::set_variable(const std::string& name, const std::shared_ptr<ov::intel_gpu::VariableStateBase>& variable) {
     GPU_DEBUG_TRACE_DETAIL << "Set variable " << name << " " << variable->get_layout().to_short_string() << std::endl;
     _variables_states[name] = variable;
 }
@@ -1374,11 +1555,12 @@ bool network::has_variable(const std::string &variable_id) const {
     return _variables_states.find(variable_id) != _variables_states.end();
 }
 
-ov::intel_gpu::VariableState& network::get_variable(const std::string &variable_id) const {
+ov::intel_gpu::VariableStateBase& network::get_variable(const std::string &variable_id) const {
     auto it = _variables_states.find(variable_id);
     OPENVINO_ASSERT(it != _variables_states.end(), "[GPU] ", variable_id, " variable not found");
     return *it->second;
 }
+
 const ov::intel_gpu::VariableStateInfo& network::get_variable_info(const std::string &variable_id) const {
     auto it = _variables_state_info.find(variable_id);
     OPENVINO_ASSERT(it != _variables_state_info.end(), "[GPU] ", variable_id, " variable info not found");
@@ -1393,8 +1575,14 @@ const ov::intel_gpu::VariablesInfoMap& network::get_variables_info() const {
     return _variables_state_info;
 }
 
-void network::set_variables_state_info(const std::string& variable_id, const layout& variable_layout) {
-    _variables_state_info.emplace(variable_id, ov::intel_gpu::VariableStateInfo{variable_id, variable_layout});
+void network::set_variables_state_info(const std::string& variable_id,
+                                       const layout& variable_layout,
+                                       ov::element::Type user_specified_type,
+                                       const primitive* p) {
+    _variables_state_info.emplace(variable_id, ov::intel_gpu::VariableStateInfo{variable_id, variable_layout, user_specified_type});
+
+    _variables_state_info.at(variable_id).m_primitives.insert(p);
 }
+
 
 }  // namespace cldnn

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ OutputVector NodeContext::as_constant() const {
     auto dtype = m_decoder->get_output_type(0);
     if (dtype.is<type::Str>()) {
         // Cannot represent string as Constant, creating FrameworkNode
-        auto str = m_decoder->as_string();
+        const auto& str = m_decoder->as_string();
         auto fw_node = std::make_shared<PtFrameworkNode>(m_decoder, OutputVector{});
         auto attrs = fw_node->get_attrs();
         attrs["string_value"] = str;
@@ -43,7 +43,6 @@ OutputVector NodeContext::as_constant() const {
     } else {
         auto c_outs = m_decoder->as_constant();
         FRONT_END_OP_CONVERSION_CHECK(c_outs.size() == 1, "Constant must have exactly one output.");
-        c_outs[0].get_node_shared_ptr()->set_friendly_name(m_decoder->get_output_debug_name(0));
         return c_outs;
     }
 }
@@ -110,7 +109,7 @@ Output<Node> NodeContext::get_tensor_from_model_or_create_input(size_t index) co
 }
 
 Output<Node> NodeContext::get_input_from_visible_context(size_t index) const {
-    FRONT_END_GENERAL_CHECK(index < get_input_size(), "Index is lower then number of inputs.");
+    FRONT_END_GENERAL_CHECK(index < get_input_size(), "Index ", index, " is lower then number of inputs.");
     auto input_tensor = get_input(static_cast<int>(index));
     auto input_node = input_tensor.get_node_shared_ptr();
     if (std::dynamic_pointer_cast<v0::Parameter>(input_node)) {
@@ -148,6 +147,34 @@ std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) const {
     return model;
 }
 
+OutputVector NodeContext::inputs() const {
+    OutputVector res;
+    for (size_t i = 0; i < m_decoder_inputs.size(); i++) {
+        auto input = m_decoder_inputs.at(i);
+        if (input == 0) {
+            // Case when input can be inlined (possible only for fx decoder)
+            if (m_decoder->is_input_inlined(i)) {
+                auto inlined_input = m_decoder->inlined_input(i);
+                FRONT_END_GENERAL_CHECK(inlined_input.size() == 1, "Incorrect inlined input with index:", i);
+                res.push_back(inlined_input[0]);
+            }
+        }
+        FRONT_END_GENERAL_CHECK(m_tensor_map->count(input), "No tensor corresponding input: ", input, " exist.");
+        res.push_back(m_tensor_map->at(input));
+    }
+    return res;
+}
+
+bool NodeContext::input_is_none(size_t index) const {
+    bool res = index >= m_inputs_is_none.size() || m_inputs_is_none.at(index);
+    if (!res) {
+        // check case when input is from outside body
+        auto input = get_input_from_visible_context(index);
+        res = is_none_node(input);
+    }
+    return res;
+}
+
 namespace {
 std::shared_ptr<v0::Constant> get_constant_at_input(const NodeContext& ctx, size_t index, bool allow_empty = true) {
     FRONT_END_GENERAL_CHECK(!ctx.input_is_none(index), "Input with index: ", index, " is none.");
@@ -157,9 +184,7 @@ std::shared_ptr<v0::Constant> get_constant_at_input(const NodeContext& ctx, size
             return {};
         input_val = concat_list_construct(input_val);
     }
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto constant = get_constant_from_source(input_val);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    auto constant = ov::util::get_constant_from_source(input_val);
     FRONT_END_GENERAL_CHECK(constant, "Input with index ", index, " cannot be interpreted as Constant: ", input_val);
     return constant;
 }

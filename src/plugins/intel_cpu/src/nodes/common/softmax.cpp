@@ -1,21 +1,20 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "softmax.h"
 
 #include "openvino/core/parallel.hpp"
-#include <cpu/x64/jit_generator.hpp>
-#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
-#include <onednn/dnnl.h>
+#include "cpu/x64/jit_generator.hpp"
+#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
+#include "onednn/dnnl.h"
 #include "utils/bfloat16.hpp"
-#include "emitters/x64/jit_bf16_emitters.hpp"
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 
 #include <algorithm>
 #include <cassert>
 #include <vector>
 
-using namespace InferenceEngine;
 using namespace dnnl;
 using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::cpu::x64;

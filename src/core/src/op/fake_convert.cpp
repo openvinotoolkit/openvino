@@ -14,8 +14,8 @@ namespace ov {
 namespace op {
 namespace v13 {
 namespace fake_convert_details {
-static const std::vector<std::string>& get_valid_types() {
-    static const std::vector<std::string> valid_types{"f8e4m3", "f8e5m2"};
+static const std::vector<ov::element::Type>& get_valid_types() {
+    static const std::vector<ov::element::Type> valid_types{ov::element::f8e4m3, ov::element::f8e5m2};
     return valid_types;
 }
 
@@ -24,7 +24,7 @@ struct Evaluate : element::NoAction<bool> {
     template <element::Type_t ET, class T = fundamental_type_for<ET>>
     static result_type visit(ov::TensorVector& outputs,
                              const ov::TensorVector& inputs,
-                             const std::string& destination_type) {
+                             const ov::element::Type& destination_type) {
         if (inputs.size() == 2) {  // Default shift
             reference::fake_convert<T>(inputs[0].data<const T>(),
                                        inputs[1].data<const T>(),
@@ -50,21 +50,36 @@ struct Evaluate : element::NoAction<bool> {
 FakeConvert::FakeConvert(const ov::Output<ov::Node>& data,
                          const ov::Output<ov::Node>& scale,
                          std::string destination_type)
+    : FakeConvert(data, scale, ov::element::Type(destination_type)) {}
+
+FakeConvert::FakeConvert(const ov::Output<ov::Node>& data,
+                         const ov::Output<ov::Node>& scale,
+                         const ov::Output<ov::Node>& shift,
+                         std::string destination_type)
+    : FakeConvert(data, scale, shift, ov::element::Type(destination_type)) {}
+
+FakeConvert::FakeConvert(const ov::Output<ov::Node>& data,
+                         const ov::Output<ov::Node>& scale,
+                         const ov::element::Type& destination_type)
     : Op({data, scale}),
-      m_destination_type(std::move(destination_type)) {
+      m_destination_type(destination_type) {
     constructor_validate_and_infer_types();
 }
 
 FakeConvert::FakeConvert(const ov::Output<ov::Node>& data,
                          const ov::Output<ov::Node>& scale,
                          const ov::Output<ov::Node>& shift,
-                         std::string destination_type)
+                         const ov::element::Type& destination_type)
     : Op({data, scale, shift}),
-      m_destination_type(std::move(destination_type)) {
+      m_destination_type(destination_type) {
     constructor_validate_and_infer_types();
 }
 
-const std::string& FakeConvert::get_destination_type() const {
+std::string FakeConvert::get_destination_type() const {
+    return m_destination_type.get_type_name();
+}
+
+const ov::element::Type& FakeConvert::get_destination_element_type() const {
     return m_destination_type;
 }
 
@@ -141,7 +156,7 @@ bool FakeConvert::evaluate(ov::TensorVector& outputs, const ov::TensorVector& in
                       inputs[0].get_element_type(),
                       outputs,
                       inputs,
-                      get_destination_type());
+                      get_destination_element_type());
 
     return true;
 }

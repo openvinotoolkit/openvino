@@ -1,17 +1,21 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "cache/multi_cache.h"
 #include "config.h"
 #include "dnnl_scratch_pad.h"
-#include "extension_mngr.h"
 #include "weights_cache.hpp"
 
 namespace ov {
 namespace intel_cpu {
+
+namespace node {
+class MemoryStatesRegister;
+} // namespace node
 
 class GraphContext {
 public:
@@ -19,23 +23,12 @@ public:
     typedef std::shared_ptr<const GraphContext> CPtr;
 
     GraphContext(const Config& config,
-                 ExtensionManager::Ptr extensionManager,
                  WeightsSharing::Ptr w_cache,
-                 bool isGraphQuantized)
-        : config(config),
-          extensionManager(extensionManager),
-          weightsCache(w_cache),
-          isGraphQuantizedFlag(isGraphQuantized) {
-        rtParamsCache = std::make_shared<MultiCache>(config.rtCacheCapacity);
-        rtScratchPad = std::make_shared<DnnlScratchPad>(getEngine());
-    }
+                 bool isGraphQuantized,
+                 ov::threading::IStreamsExecutor::Ptr streamExecutor = nullptr);
 
     const Config& getConfig() const {
         return config;
-    }
-
-    ExtensionManager::Ptr getExtensionManager() const {
-        return extensionManager;
     }
 
     WeightsSharing::Ptr getWeightsCache() const {
@@ -47,8 +40,16 @@ public:
         return rtParamsCache;
     }
 
-    DnnlScratchPadPtr getScratchPad() const {
-        return rtScratchPad;
+    DnnlScratchPadPtr getScratchPad(int subStreamID = 0) const {
+        if (subStreamID < 0)
+            subStreamID = 0;
+        if (subStreamID >= numNumaNodes - 1)
+            subStreamID = numNumaNodes - 1;
+        return rtScratchPads[subStreamID];
+    }
+
+    const std::vector<DnnlScratchPadPtr>& getScratchPads() const {
+        return rtScratchPads;
     }
 
     static const dnnl::engine& getEngine();
@@ -57,16 +58,37 @@ public:
         return isGraphQuantizedFlag;
     }
 
+    ov::threading::CPUStreamsExecutor::Ptr getCPUStreamExecutor() const {
+        return cpuStreamExecutor;
+    }
+
+    int getNumNumaNodes() const {
+        return numNumaNodes;
+    }
+
+    const std::shared_ptr<node::MemoryStatesRegister>& getMemoryStatesRegister() const {
+        return memoryStatesRegister;
+    }
+
 private:
     Config config;  // network-level config
 
-    ExtensionManager::Ptr extensionManager;
     WeightsSharing::Ptr weightsCache;         // per NUMA node caches for sharing weights data
 
     MultiCachePtr rtParamsCache;     // primitive cache
     DnnlScratchPadPtr rtScratchPad;  // scratch pad
 
     bool isGraphQuantizedFlag = false;
+
+    std::vector<DnnlScratchPadPtr> rtScratchPads;  // scratch pad (each sub-stream has its own copy)
+
+    ov::threading::IStreamsExecutor::Ptr streamExecutor;   // stream executor for current graph
+
+    ov::threading::CPUStreamsExecutor::Ptr cpuStreamExecutor;   // cpu stream executor for current graph
+
+    int numNumaNodes = 1;
+
+    std::shared_ptr<node::MemoryStatesRegister> memoryStatesRegister;
 };
 
 }  // namespace intel_cpu

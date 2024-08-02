@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
     using parent = typed_primitive_impl_ocl<reorder>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::reorder_kernel_selector;
-    using kernel_params_t = std::pair<kernel_selector::reorder_params, kernel_selector::reorder_optional_params>;
+    using kernel_params_t = kernel_selector::reorder_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::reorder_impl)
 
@@ -28,8 +28,12 @@ struct reorder_impl : typed_primitive_impl_ocl<reorder> {
         parent::load(ib);
         if (is_dynamic()) {
             auto& kernel_selector = kernel_selector_t::Instance();
-            auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
-            kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+            if (!_kernel_data.kernelName.empty()) {
+                auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
+                kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
+            } else {
+                GPU_DEBUG_TRACE_DETAIL << "Fail to update dispatch data because kernel name is empty" << std::endl;
+            }
         }
     }
 
@@ -54,7 +58,6 @@ public:
         const auto& primitive = impl_param.typed_desc<reorder>();
         auto&& output_layout = impl_param.get_output_layout();
         auto params = get_default_params<kernel_selector::reorder_params>(impl_param, is_shape_agnostic);
-        auto optional_params = get_default_optional_params<kernel_selector::reorder_optional_params>(impl_param.get_program());
 
         auto inputs_count = primitive->input.size();
         bool has_mean = !primitive->mean.empty();
@@ -112,12 +115,12 @@ public:
         params.winograd = impl_param.input_layouts[0].format.is_winograd() || output_layout.format.is_winograd();
         params.truncate = impl_param.typed_desc<reorder>()->truncate;
 
-        return {params, optional_params};
+        return params;
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
     }
 
     static std::unique_ptr<primitive_impl> create(const reorder_node& arg, const kernel_impl_params& impl_param) {
@@ -145,12 +148,11 @@ public:
 
         r_params.input = convert_weights_tensor(weights_params->get_input_layout(), weights_params->get_grouped());
         r_params.output = convert_weights_tensor(weights_params->get_output_layout());
-        r_params.layerID = impl_param.desc->id + "_reorder_weigths";
+        r_params.layerID = impl_param.desc->id + "_reorder_weights";
         r_params.uniqueID = std::to_string(impl_param.unique_id) + "_weight";
         r_params.rotate_180 = weights_params->should_be_transposed();
 
-        kernel_selector::reorder_optional_params optional_params;
-        auto best_kernel = kernel_selector.get_best_kernel(r_params, optional_params);
+        auto best_kernel = kernel_selector.get_best_kernel(r_params);
 
         return make_unique<reorder_impl>(best_kernel);
     }

@@ -1,31 +1,28 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/remarks.hpp"
-#include "snippets/itt.hpp"
+#include <cassert>
+#include <climits>
+#include <memory>
+#include <numeric>
+#include <string>
+#include <vector>
 
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/op/subgraph.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
+#include "snippets/pass/fq_decomposition.hpp"
+#include "snippets/pass/fuse_transpose_brgemm.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/transpose_decomposition.hpp"
-#include "snippets/pass/fuse_transpose_brgemm.hpp"
-#include "snippets/pass/fq_decomposition.hpp"
-#include "snippets/op/subgraph.hpp"
+#include "snippets/remarks.hpp"
 #include "snippets/utils.hpp"
-
-#include "openvino/opsets/opset1.hpp"
-#include "openvino/core/rt_info.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/op/util/attr_types.hpp"
-#include "openvino/core/validation_util.hpp"
-
-#include <memory>
-#include <vector>
-#include <cassert>
-#include <string>
-#include <numeric>
-#include <climits>
-
 
 namespace ov {
 namespace snippets {
@@ -62,8 +59,7 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
     };
     auto is_supported_transpose = [](const std::shared_ptr<const Node>& n) -> bool {
         const auto& transpose = as_type_ptr<const opset1::Transpose>(n);
-        const auto& out_shape = n->get_output_partial_shape(0);
-        if (transpose && out_shape.is_static()) {
+        if (transpose) {
             const auto parent = transpose->get_input_node_shared_ptr(0);
             const auto child = transpose->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
             auto is_brgemm_case = ov::is_type<opset1::MatMul>(parent) || ov::is_type<opset1::MatMul>(child);
@@ -146,9 +142,7 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
         int64_t axis = -1;
         const auto rank = n->get_input_partial_shape(0).rank();
         if (const auto softmax_v8 = ov::as_type_ptr<const ov::op::v8::Softmax>(n)) {
-            OPENVINO_SUPPRESS_DEPRECATED_START
-            axis = ov::normalize_axis(n->get_friendly_name(), softmax_v8->get_axis(), rank);
-            OPENVINO_SUPPRESS_DEPRECATED_END
+            axis = ov::util::normalize_axis(n->get_friendly_name(), softmax_v8->get_axis(), rank);
         } else if (const auto softmax_v1 = ov::as_type_ptr<const ov::op::v1::Softmax>(n)) {
             axis = softmax_v1->get_axis();
         } else {
@@ -167,6 +161,22 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
         return false;
     };
 
+    auto is_supported_reduce_op = [](const std::shared_ptr<const Node> &n) -> bool {
+        if (ov::is_type<const ov::op::v1::ReduceMax>(n) || ov::is_type<const ov::op::v1::ReduceSum>(n)) {
+            const auto& reduce_base = ov::as_type_ptr<const ov::op::util::ArithmeticReductionKeepDims>(n);
+            const auto& axis_constant = ov::as_type_ptr<const ov::op::v0::Constant>(n->get_input_node_shared_ptr(1));
+            const auto rank = n->get_input_partial_shape(0).rank();
+            if (rank.is_dynamic() || !reduce_base->get_keep_dims() || !axis_constant || shape_size(axis_constant->get_shape()) != 1)
+                return false;
+
+            const auto axis_value = axis_constant->cast_vector<int32_t>(1)[0];
+            const auto normalized_axis = ov::util::normalize_axis(n->get_friendly_name(), axis_value, rank);
+            // Note: Reduction only over the last dimension is currently supported
+            return normalized_axis == rank.get_length() - 1;
+        }
+        return false;
+    };
+
     return is_supported_fq_op(n) ||
            is_supported_unary_eltwise_op(n) ||
            is_supported_binary_eltwise_op(n) ||
@@ -174,20 +184,14 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
            is_supported_transpose(n) ||
            is_supported_softmax(n) ||
            is_supported_matmul(n) ||
-           is_supported_broadcast_op(n);
+           is_supported_broadcast_op(n) ||
+           is_supported_reduce_op(n);
 }
 
 auto has_supported_in_out(const std::shared_ptr<const Node> &n) -> bool {
-    auto supported = [&n](descriptor::Tensor& t) -> bool {
+    auto supported = [](descriptor::Tensor& t) -> bool {
         // TODO [122585] Need to add dynamic rank support
-        if (t.get_partial_shape().rank().is_dynamic())
-            return false;
-        // TODO [105804] int32 isn't supported in general because i32 emitters are required for bit-exact i32 calculations in some cases
-        //  So i32 is supported exclusively for transposes and broadcast
-        return TokenizeSnippets::get_supported_element_types().count(t.get_element_type()) != 0 ||
-                (t.get_element_type() == ov::element::i32 &&
-                        (ov::is_type<const opset1::Transpose>(n) ||
-                         ov::is_type<const opset1::Broadcast>(n)));
+        return t.get_partial_shape().rank().is_static();
     };
     const auto&  inputs = n->inputs();
     const auto&  outputs = n->outputs();
@@ -224,8 +228,11 @@ auto get_num_result_children(const std::shared_ptr<const Node> &node) -> size_t 
 } // namespace
 
 const std::set<ov::element::Type>& ov::snippets::pass::TokenizeSnippets::get_supported_element_types() {
-    static const std::set<ov::element::Type> supported_element_types =
-        { ov::element::f32, ov::element::bf16, ov::element::i8, ov::element::u8 };
+    static const std::set<ov::element::Type> supported_element_types = {ov::element::f32,
+                                                                        ov::element::bf16,
+                                                                        ov::element::f16,
+                                                                        ov::element::i8,
+                                                                        ov::element::u8};
     return supported_element_types;
 }
 
@@ -237,7 +244,7 @@ bool TokenizeSnippets::AppropriateForSubgraph(const std::shared_ptr<const Node> 
         snippets::op::Subgraph::check_broadcast(node);
 }
 
-TokenizeSnippets::TokenizeSnippets() {
+TokenizeSnippets::TokenizeSnippets(const SnippetsTokenization::Config& config) {
     MATCHER_SCOPE(TokenizeSnippets);
     enum continuation_strategy {
         reset,
@@ -254,7 +261,7 @@ TokenizeSnippets::TokenizeSnippets() {
                     ov::is_type<ov::op::v0::MatMul>(n) || ov::is_type<ov::op::v1::Transpose>(n))
                     && AppropriateForSubgraph(n);
         });
-    ov::graph_rewrite_callback callback = [&, strategy](ov::pass::pattern::Matcher &m) -> bool {
+    ov::graph_rewrite_callback callback = [=](ov::pass::pattern::Matcher &m) -> bool {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::CreateSubgraph_callback")
         auto node = m.get_match_root();
         if (transformation_callback(node)) {
@@ -592,11 +599,13 @@ TokenizeSnippets::TokenizeSnippets() {
         }
 
         // The each data node (Parameter (and non-Scalar Constants), Result, Buffers with the same ID) requires the own unique GPR.
-        // At the moment, CPU Plugin has limitation for GPR registers: there are only 12 available registers.
+        // At the moment, CPU Plugin has limitation for GPR registers: there are 12 available GPRs,
+        // and one of them must be reserved for runtime parameters, so only 11 can be used during kernel execution.
         // This limitation will be resolved once generator supports gprs spills [75622].
         // TODO [75567]: move this plugin-specific constraint to the plugin callback
         const auto unique_buffer_count = op::Subgraph::get_estimated_buffer_count(ops_for_buffer_count);
-        if (body_parameters.size() + body_results.size() + hidden_data_count + unique_buffer_count > 12) {
+        const size_t max_data_ptr_count = config.get_data_ptr_gpr_count();
+        if (body_parameters.size() + body_results.size() + hidden_data_count + unique_buffer_count > max_data_ptr_count) {
             const std::string message_reset = "new subgraph is created. Impossible to schedule subgraph with " +
             std::to_string(body_parameters.size()) + " inputs, " + std::to_string(body_results.size()) + " outputs and " +
             std::to_string(hidden_data_count) + " non-scalar constants and " + std::to_string(unique_buffer_count) + "buffers.";

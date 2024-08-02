@@ -1,6 +1,6 @@
 # CMake Options for Custom Compilation
 
-This document provides description and default values for CMake options that can be used to build a custom OpenVINO runtime using the open source version. For instructions on how to create a custom runtime from the prebuilt OpenVINO release package, refer to the [deployment manager] documentation. To understand all the dependencies when creating a custom runtime from the open source repository, refer to the [OpenVINO Runtime Introduction].
+This document provides description and default values for CMake options that can be used to build a custom OpenVINO runtime using the open source version. To understand all the dependencies when creating a custom runtime from the open source repository, refer to the [OpenVINO Runtime Introduction].
 
 ## Table of contents:
 
@@ -18,8 +18,6 @@ This document provides description and default values for CMake options that can
     * `ENABLE_INTEL_CPU` enables CPU plugin compilation:
         * `ON` is default for x86 platforms; `OFF`, otherwise.
     * `ENABLE_INTEL_GPU` enables Intel GPU plugin compilation:
-        * `ON` is default for x86 platforms; not available, otherwise.
-    * `ENABLE_INTEL_GNA` enables GNA plugin compilation:
         * `ON` is default for x86 platforms; not available, otherwise.
     * `ENABLE_HETERO` enables HETERO plugin build:
         * `ON` is default.
@@ -46,8 +44,6 @@ This document provides description and default values for CMake options that can
         * `ON` is default.
     * `ENABLE_OV_IR_FRONTEND` enables OpenVINO Intermediate Representation frontend plugin for OpenVINO Runtime:
         * `ON` is default.
-* `ENABLE_GAPI_PREPROCESSING` enables G-API preprocessing:
-    * `ON` is default.
 * `OPENVINO_EXTRA_MODULES` specifies path to add extra OpenVINO modules to the build.
     * See [OpenVINO Contrib] to add extra modules from.
 * `ENABLE_SAMPLES` enables OpenVINO Runtime samples build:
@@ -58,9 +54,6 @@ This document provides description and default values for CMake options that can
     * `ON` if requirements are satisfied (auto-discovered by CMake).
 * `ENABLE_TESTS` enables tests compilation:
     * `OFF` is default.
-* `ENABLE_IR_V7_READER` enables IR v7 reader:
-    * `ON` is default.
-    **Note:** must be turned `OFF` when building OpenVINO runtime as static
 * `ENABLE_DOCS` enables building the OpenVINO documentation:
     * `OFF` is on Debian (Ubuntu) OSes
     * `OFF` is in other cases.
@@ -110,7 +103,7 @@ This document provides description and default values for CMake options that can
 * `ENABLE_AVX512F` enables AVX512 optimizations:
     * `ON` is default for x86 platforms, not available for other platforms.
     * Affects only OpenVINO Runtime common part and preprocessing plugin, **does not affect the oneDNN library**
-* `ENABLE_PROFILING_ITT` enables profiling with [Intel ITT and VTune]. 
+* `ENABLE_PROFILING_ITT` enables profiling with [Intel ITT and VTune].
     * `OFF` is default, because it increases binary size.
 * `SELECTIVE_BUILD` enables [[Conditional compilation|ConditionalCompilation]] feature.
     * `OFF` is default.
@@ -136,7 +129,7 @@ cmake ...
 ```
 In this case OpenVINO CMake scripts take `TBBROOT` environment variable into account and provided TBB will be used.
 
-**Note:** if you are building TBB from source files, please install TBB after and use `TBBROOT` to point to installation root. 
+**Note:** if you are building TBB from source files, please install TBB after and use `TBBROOT` to point to installation root.
 **Note:** reference to oneTBB Note in [Options affecting binary size](#options-affecting-binary-size)
 
 ## Test capabilities
@@ -156,7 +149,6 @@ In this case OpenVINO CMake scripts take `TBBROOT` environment variable into acc
     * `ON` is default.
 * `ENABLE_CLANG_FORMAT` enables [Clang format] code style check:
     * `ON` is default.
-    * Used only for ngraph component.
 * `ENABLE_FASTER_BUILD` enables [precompiled headers] and [unity build] using CMake:
     * `OFF` is default.
 * `ENABLE_INTEGRITYCHECK` builds DLLs with [/INTEGRITYCHECK] flag:
@@ -190,8 +182,7 @@ In this case OpenVINO CMake scripts take `TBBROOT` environment variable into acc
 [pugixml]:https://pugixml.org/
 [ONNX]:https://onnx.ai/
 [protobuf]:https://github.com/protocolbuffers/protobuf
-[deployment manager]:https://docs.openvino.ai/2023.2/openvino_docs_install_guides_deployment_manager_tool.html
-[OpenVINO Runtime Introduction]:https://docs.openvino.ai/2023.2/openvino_docs_OV_UG_Integrate_OV_with_your_application.html
+[OpenVINO Runtime Introduction]:https://docs.openvino.ai/2024/openvino-workflow/running-inference/integrate-openvino-with-your-application.html
 [PDPD]:https://github.com/PaddlePaddle/Paddle
 [TensorFlow]:https://www.tensorflow.org/
 [TensorFlow Lite]:https://www.tensorflow.org/lite

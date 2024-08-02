@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # This is a LeakSanitizer (LSan) suppression file which provides a default
@@ -11,6 +11,12 @@ leak:__pthread_once_slow
 
 # memory leaks in graphics driver
 leak:libigdrcl.so
+
+# leaks in std
+leak:libstdc++
+leak:libstdc
+leak:libc
+leak:libc++
 
 # leaks from python packages used by tests
 leak:site-packages/scipy/
@@ -36,3 +42,10 @@ leak:libfontconfig.so
 # leak reported from python wrappers of 3rd parties 
 leak:_pywrap_tensorflow_internal.so
 leak:site-packages/google/protobuf
+
+# leaks from thirdparty libs
+leak:thirdparty/protobuf
+leak:thirdparty/protobuf/protobuf
+leak:thirdparty/gtest
+leak:thirdparty/tbb
+leak:libtbb.so

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -25,6 +25,9 @@ class _InferRequestWrapper(InferRequestBase):
         # Private memeber to store newly created shared memory data
         self._inputs_data = None
         super().__init__(other)
+
+    def _is_single_input(self) -> bool:
+        return len(self.input_tensors) == 1
 
 
 class OVDict(Mapping):

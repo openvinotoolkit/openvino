@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ layout concatenation_inst::calc_output_layout(concatenation_node const& node, ke
 
     auto output_dt = desc->output_data_types[0].value_or(input_layout.data_type);
     if (impl_param.has_fused_primitives()) {
-        output_dt = impl_param.get_fused_output_layout().data_type;
+        output_dt = impl_param.get_output_element_type();
     }
 
     auto axis_index = desc->axis;
@@ -52,7 +52,7 @@ std::vector<layout> concatenation_inst::calc_output_layouts(const concatenation_
 
     auto output_dt = desc->output_data_types[0].value_or(input_layout.data_type);
     if (impl_param.has_fused_primitives()) {
-        output_dt = impl_param.get_fused_output_layout().data_type;
+        output_dt = impl_param.get_output_element_type();
     }
     auto output_format = input_layout.format;
     for (size_t i = 0; i < desc->input.size(); ++i) {
@@ -69,7 +69,7 @@ std::vector<layout> concatenation_inst::calc_output_layouts(const concatenation_
     }
     ov::op::v0::Concat op;
     op.set_friendly_name(desc->id);
-    op.set_concatenation_axis(axis_index);
+    op.set_axis(axis_index);
     std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
     return { layout {output_shapes[0], output_dt, output_format} };
 }
@@ -106,7 +106,7 @@ std::string concatenation_inst::to_string(concatenation_node const& node) {
 concatenation_inst::typed_primitive_inst(network& network, concatenation_node const& node)
     : parent(network, node) {
     if (node.is_dynamic()) return;
-    auto input_layout = node.input().get_output_layout();
+    auto input_layout = node.get_input_layout();
 
     auto output_layout = node.get_output_layout();
 
@@ -150,7 +150,7 @@ concatenation_inst::typed_primitive_inst(network& network, concatenation_node co
 
     if (node.can_be_optimized()) {
         build_deps();
-        std::list<std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>>*> stack = {&_deps};
+        std::list<std::vector<std::pair<primitive_inst*, int32_t>>*> stack = {&_deps};
         while (!stack.empty()) {
             auto nodes_list = stack.front();
             stack.pop_front();

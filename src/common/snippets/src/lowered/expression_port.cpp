@@ -48,6 +48,11 @@ std::set<ExpressionPort> ExpressionPort::get_connected_ports() const {
     OPENVINO_THROW("ExpressionPort supports only Input and Output types");
 }
 
+void ExpressionPort::replace_input_port_connector(std::shared_ptr<PortConnector> to) const {
+    OPENVINO_ASSERT(m_type == Type::Input, "Only Input Expression ports can change the corresponding PortConnector!");
+    get_expr()->set_input_port_connector(m_port_index, std::move(to));
+}
+
 bool operator==(const ExpressionPort& lhs, const ExpressionPort& rhs) {
     if (&lhs == &rhs)
         return true;
@@ -60,6 +65,12 @@ bool operator!=(const ExpressionPort& lhs, const ExpressionPort& rhs) {
 bool operator<(const ExpressionPort& lhs, const ExpressionPort& rhs) {
     OPENVINO_ASSERT(lhs.get_type() == rhs.get_type(), "Incorrect ExpressionPort comparison");
     return (lhs.get_index() < rhs.get_index()) || (lhs.get_index() == rhs.get_index() && lhs.get_expr() < rhs.get_expr());
+}
+
+void replace_input_port_connectors(const std::set<ExpressionPort>& consumers, const std::shared_ptr<PortConnector>& to) {
+    for (const auto& consumer_input : consumers) {
+        consumer_input.replace_input_port_connector(to);
+    }
 }
 
 }// namespace lowered

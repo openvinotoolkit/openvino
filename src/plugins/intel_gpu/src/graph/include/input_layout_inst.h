@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,6 +27,11 @@ class typed_primitive_inst<input_layout> : public typed_primitive_inst_base<inpu
     using parent::parent;
 
 public:
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(input_layout_node const& /* node */, const kernel_impl_params& impl_param) {
+        return { impl_param.typed_desc<input_layout>()->layout };
+    }
+
     static layout calc_output_layout(input_layout_node const& node, kernel_impl_params const& impl_param) {
         return impl_param.typed_desc<input_layout>()->layout;
     }

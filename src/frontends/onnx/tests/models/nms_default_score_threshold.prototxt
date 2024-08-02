@@ -1,5 +1,5 @@
 ir_version: 6
-producer_name: "ONNX Frontend"
+producer_name: "OpenVINO ONNX Frontend"
 graph {
   node {
     output: "max_output_boxes"

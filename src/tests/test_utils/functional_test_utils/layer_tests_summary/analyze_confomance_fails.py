@@ -19,6 +19,7 @@ SW_PLUGINS = {'HETERO': '1', 'AUTO': '2', 'BATCH': '3', 'MULTI': '4'}
 
 logger = get_logger('AnalyzerConformanceLog')
 
+API_CONFORMANCE_SUFFIX = 'ov_api_conformance_tests'
 
 class AnalyzerConformanceLog:
     def __init__(self):
@@ -75,7 +76,7 @@ class AnalyzerConformanceLog:
                     extended_path = "\\\\?\\%s" % os.path.join(dest_path, LOGS_ZIP_NAME)
                 with zipfile.ZipFile(extended_path, "r") as zipObj:
                     for name in zipObj.namelist():
-                        if 'apiconformancetests' in name and 'logs' in name and self.status_folder_exists(name):
+                        if API_CONFORMANCE_SUFFIX in name and 'logs' in name and self.status_folder_exists(name):
                             zipObj.extract(name, dest_path)
                 logger.info(f'DONE')
 
@@ -91,7 +92,7 @@ class AnalyzerConformanceLog:
     def collect_tests_result(self, exclude_from_log):
         logger.info(f'Collecting results')
         for root, dirs, files in os.walk(self.local_log_dir, topdown=False):
-            if not 'apiconformancetests' in root or not 'logs' in root or\
+            if not API_CONFORMANCE_SUFFIX in root or not 'logs' in root or\
                not self.status_folder_exists(root):
                 continue
 
@@ -105,8 +106,8 @@ class AnalyzerConformanceLog:
                         lines = f.readlines()
 
                     path_components = os.path.normpath(extended_path).split(os.path.sep)
-                    # examle: /cpu_conformance_dlb_apiconformancetests_nightly/logs/passed/[hash].log
-                    retult_root_match = re.match(r'(\w*)_conformance_(dlb|omz)_apiconformancetests_.*', path_components[-4])
+                    # examle: /cpu_conformance_dlb_ov_api_conformancetests_tests_nightly/logs/passed/[hash].log
+                    retult_root_match = re.match(f'(\w*)_conformance_(dlb|omz)_{API_CONFORMANCE_SUFFIX}_.*', path_components[-4])
                     device = retult_root_match.group(1)
                     self.analyzed_hw_devices.add(device)
 
@@ -241,7 +242,11 @@ class AnalyzerConformanceLog:
             if worksheet.max_row <= 3:
                 workbook.remove(worksheet)
 
-        workbook.save(os.path.join(self.output_path, self.output_file_name))
+        if len(workbook.worksheets) > 0:
+            workbook.save(os.path.join(self.output_path, self.output_file_name))
+            logger.info(f'Exel file with results is created: {self.output_file_name}')
+        else:
+            logger.info(f'Excel file hasn`t created because there is no content. This means that no errors were detected or something went wrong during the analysis')
 
 
 if __name__ == '__main__':

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,11 +10,17 @@
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/elu.hpp"
+#include "openvino/op/hard_sigmoid.hpp"
 #include "openvino/op/is_finite.hpp"
 #include "openvino/op/is_inf.hpp"
+#include "openvino/op/is_nan.hpp"
+#include "openvino/op/log_softmax.hpp"
 #include "openvino/op/logical_not.hpp"
+#include "openvino/op/selu.hpp"
 #include "openvino/op/softplus.hpp"
+#include "openvino/op/swish.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -31,13 +37,19 @@ using namespace ov::pass::transpose_sinking::utils;
 namespace {
 
 using NodePtr = std::shared_ptr<ov::Node>;
-using NodePair = std::pair<NodePtr, NodePtr>;
+
+bool if_transpose_sinkable(const std::shared_ptr<ov::op::v1::Transpose>& transpose,
+                           const std::shared_ptr<ov::op::v0::Constant>& transpose_order) {
+    return static_cast<bool>(transpose);
+}
 
 }  // namespace
 
 TSUnaryForward::TSUnaryForward() {
     MATCHER_SCOPE(TSUnaryForward);
 
+    // We consider HardSigmoid, Swish, Selu, ConvertLike as unary ops
+    // and handle only 0th input of these ops.
     create_pattern<UnaryElementwiseArithmetic,
                    ov::op::v0::Clamp,
                    ov::op::v0::Elu,
@@ -51,7 +63,7 @@ TSUnaryForward::TSUnaryForward() {
                    ov::op::v4::Swish,
                    ov::op::v0::HardSigmoid,
                    ov::op::v5::LogSoftmax,
-                   ov::op::v1::ConvertLike>(true);
+                   ov::op::v1::ConvertLike>({0}, if_transpose_sinkable);
     auto ts_unary_sinking_function = [this](const std::shared_ptr<Node>& main_node,
                                             const utils::TransposeInputsInfo& transpose_info) -> bool {
         bool res = utils::sink_forward::UpdateInputTransposes(main_node, transpose_info, {0});
@@ -64,7 +76,7 @@ TSUnaryForward::TSUnaryForward() {
 }
 
 TSUnaryBackward::TSUnaryBackward() {
-    MATCHER_SCOPE(TSUnaryBackwardMultiConsumers);
+    MATCHER_SCOPE(TSUnaryBackward);
 
     auto unary_restrictions = [](const Output<Node>& output) -> bool {
         return CheckTransposeConsumers(output);
@@ -94,7 +106,7 @@ TSUnaryBackward::TSUnaryBackward() {
 
     auto transpose_label = wrap_type<ov::op::v1::Transpose>({unary_label, transpose_const_label});
 
-    ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
+    ov::matcher_pass_callback matcher_pass_callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose_const =
             as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());

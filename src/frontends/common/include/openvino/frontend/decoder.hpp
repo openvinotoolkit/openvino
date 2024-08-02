@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,6 +34,12 @@ struct List {
 struct Str {};
 
 struct PyNone {};
+
+struct PyScalar {
+    PyScalar() = default;
+    explicit PyScalar(const Any& _element_type) : element_type(_element_type) {}
+    Any element_type;
+};
 
 struct Optional;
 struct Dict;

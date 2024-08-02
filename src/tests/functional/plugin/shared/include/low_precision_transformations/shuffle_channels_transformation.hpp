@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace LayerTestsDefinitions {
 
 class ShuffleChannelsTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
     std::int64_t axis;
     std::int64_t group;
     std::string layerName;
@@ -22,8 +22,8 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::PartialShape,
+    ov::element::Type,
+    ov::PartialShape,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params,
     ShuffleChannelsTransformationParam
@@ -37,7 +37,7 @@ public:
 
 protected:
     void SetUp() override;
-    void Run() override;
+    void run() override;
 };
 
 }  // namespace LayerTestsDefinitions

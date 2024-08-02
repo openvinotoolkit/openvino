@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,9 +15,6 @@
 #include "functional_test_utils/summary/api_summary.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
-#include "ov_models/builders.hpp"
-#include "ov_models/subgraph_builders.hpp"
-#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/op/parameter.hpp"
 #include "common_test_utils/subgraph_builders/split_conv_concat.hpp"
@@ -51,7 +48,7 @@ static std::shared_ptr<ov::Model> simple_function_multiply(ov::element::Type typ
     res->set_friendly_name("res");
 
     // Create nGraph function
-    auto func = std::make_shared<ngraph::Function>(ngraph::ResultVector{res}, ngraph::ParameterVector{data});
+    auto func = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{data});
     func->set_friendly_name("function");
     return func;
 }
@@ -75,7 +72,7 @@ static std::shared_ptr<ov::Model> simple_function_relu(ov::element::Type type, s
 }
 
 ovModelGenerator CompileModelCacheTestBase::inputShapeWrapper(ovModelIS fun, std::vector<size_t> inputShape) {
-    return [fun, inputShape](ngraph::element::Type type, std::size_t batchSize) {
+    return [fun, inputShape](ov::element::Type type, std::size_t batchSize) {
         auto shape = inputShape;
         shape[0] = batchSize;
         return fun(shape, type);
@@ -132,7 +129,7 @@ std::vector<ovModelWithName> CompileModelCacheTestBase::getAnyTypeOnlyFunctions(
 
 std::vector<ovModelWithName> CompileModelCacheTestBase::getFloatingPointOnlyFunctions() {
     std::vector<ovModelWithName> res;
-    res.push_back(ovModelWithName { [](ngraph::element::Type type, size_t batchSize) {
+    res.push_back(ovModelWithName { [](ov::element::Type type, size_t batchSize) {
         return ov::test::utils::make_ti_with_lstm_cell(type, batchSize);
     }, "TIwithLSTMcell1"});
     return res;
@@ -175,7 +172,7 @@ std::string CompileModelCacheTestBase::getTestCaseName(testing::TestParamInfo<co
     auto batchSize = std::get<2>(param);
     auto deviceName = std::get<3>(param);
     std::replace(deviceName.begin(), deviceName.end(), ':', '.');
-    return funcName + "_" + ngraph::element::Type(precision).get_type_name() + "_batch" + std::to_string(batchSize) + "_" + deviceName;
+    return funcName + "_" + ov::element::Type(precision).get_type_name() + "_batch" + std::to_string(batchSize) + "_" + deviceName;
 }
 
 void CompileModelCacheTestBase::SetUp() {
@@ -206,6 +203,7 @@ void CompileModelCacheTestBase::TearDown() {
     } catch (...) {
        // do nothing
     }
+    ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
 }
 
@@ -244,23 +242,35 @@ void CompileModelCacheTestBase::run() {
         GTEST_FAIL() << "Can't compile network without cache for " << m_functionName << " with precision " << m_precision.get_type_name() << std::endl;
     }
     auto originalOutputs = get_plugin_outputs();
-
+    size_t blobCountInitial = -1;
+    size_t blobCountAfterwards = -1;
     for (int i = 0; i < 2; i++) {
         // Step 2: Load with cache. Export or import shall not throw
-        compiledModel = {}; // Destroy network object
-        inferRequest = {};
         {
             core->set_property(ov::cache_dir(m_cacheFolderName));
             ASSERT_NO_THROW(compiledModel = core->compile_model(function, targetDevice, configuration));
-            if (targetDevice.find("AUTO") == std::string::npos)
+            if (targetDevice.find("AUTO") == std::string::npos) {
                 // Apply check only for HW plugins
                 ASSERT_EQ(i != 0, compiledModel.get_property(ov::loaded_from_cache));
+            }
             generate_inputs(targetStaticShapes.front());
             ASSERT_NO_THROW(infer());
         }
-        // cache is created and reused
-        ASSERT_EQ(ov::test::utils::listFilesWithExt(m_cacheFolderName, "blob").size(), 1);
         compare(originalOutputs, get_plugin_outputs());
+        // Destroy objects here
+        // AUTO plugin will wait all HW plugins to finish compiling model
+        // No impact for HW plugins
+        compiledModel = {};
+        inferRequest = {};
+        if (i == 0) {
+            // blob count should be greater than 0 initially
+            blobCountInitial = ov::test::utils::listFilesWithExt(m_cacheFolderName, "blob").size();
+            ASSERT_GT(blobCountInitial, 0);
+        } else {
+            // cache is created and reused. Blob count should be same as it was first time
+            blobCountAfterwards = ov::test::utils::listFilesWithExt(m_cacheFolderName, "blob").size();
+            ASSERT_EQ(blobCountInitial, blobCountAfterwards);
+        }
     }
     if ((targetDevice.find("GPU") != std::string::npos)) {
 #if !defined(_WIN32) && !defined(_WIN64)
@@ -312,6 +322,7 @@ void CompileModelLoadFromFileTestBase::TearDown() {
     ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
     std::remove(m_cacheFolderName.c_str());
     core->set_property(ov::cache_dir());
+    ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
 }
 
@@ -331,6 +342,235 @@ void CompileModelLoadFromFileTestBase::run() {
 }
 
 TEST_P(CompileModelLoadFromFileTestBase, CanLoadFromFileWithoutException) {
+    run();
+}
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+TEST_P(CompileModelLoadFromFileTestBase, CanCreateCacheDirAndDumpBinariesUnicodePath) {
+    std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+    auto hash = std::hash<std::string>()(test_name);
+    std::stringstream ss;
+    ss << std::this_thread::get_id();
+    std::string cache_path = ov::test::utils::getCurrentWorkingDir() + ov::util::FileTraits<char>::file_separator +
+                             "compiledModel_" + std::to_string(hash) + "_" + ss.str() + "_" + GetTimestamp() + "_cache";
+    std::wstring postfix = L"_" + ov::test::utils::test_unicode_postfix_vector[0];
+    std::wstring cache_path_w = ov::util::string_to_wstring(cache_path) + postfix;
+    auto cache_path_mb = ov::util::wstring_to_string(cache_path_w);
+    std::wstring model_xml_path_w =
+        ov::util::string_to_wstring(cache_path_mb + ov::util::FileTraits<char>::file_separator + m_modelName);
+    std::wstring model_bin_path_w =
+        ov::util::string_to_wstring(cache_path_mb + ov::util::FileTraits<char>::file_separator + m_weightsName);
+
+    try {
+        ov::test::utils::createDirectory(cache_path_w);
+
+        // Copy IR files into unicode folder for read_model test
+        ov::test::utils::copyFile(m_modelName, model_xml_path_w);
+        ov::test::utils::copyFile(m_weightsName, model_bin_path_w);
+
+        // Set unicode folder as cache_dir
+        core->set_property(ov::cache_dir(cache_path_mb));
+        // Read model from unicode folder
+        auto model = core->read_model(ov::util::wstring_to_string(model_xml_path_w));
+
+        // Load model to target plugins
+        auto compiled_model = core->compile_model(model, targetDevice, configuration);
+        compiled_model = {};
+        model = {};
+        // Check that directory with cached model exists after loading network
+        ASSERT_TRUE(ov::util::directory_exists(cache_path_w)) << "Directory with cached kernels doesn't exist";
+        // Check that folder contains cache files and remove them
+        ASSERT_GT(ov::test::utils::removeFilesWithExt(cache_path_w, ov::util::string_to_wstring("blob")), 0);
+        ov::test::utils::removeFile(model_xml_path_w);
+        ov::test::utils::removeFile(model_bin_path_w);
+        // Remove directory and check that it doesn't exist anymore
+        ov::test::utils::removeDir(cache_path_w);
+        ASSERT_FALSE(ov::util::directory_exists(cache_path_w));
+    } catch (std::exception& ex) {
+        // Cleanup in case of any exception
+        if (ov::util::directory_exists(cache_path_w)) {
+            // Check that folder contains cache files and remove them
+            ASSERT_GT(ov::test::utils::removeFilesWithExt(cache_path_w, ov::util::string_to_wstring("blob")), 0);
+            ov::test::utils::removeFile(model_xml_path_w);
+            ov::test::utils::removeFile(model_bin_path_w);
+            ov::test::utils::removeDir(cache_path_w);
+        }
+        FAIL() << ex.what() << std::endl;
+    }
+}
+#endif
+
+std::string CompileModelCacheRuntimePropertiesTestBase::getTestCaseName(
+    testing::TestParamInfo<compileModelCacheRuntimePropertiesParams> obj) {
+    auto param = obj.param;
+    auto deviceName = std::get<0>(param);
+    auto configuration = std::get<1>(param);
+    std::ostringstream result;
+    std::replace(deviceName.begin(), deviceName.end(), ':', '.');
+    result << "device_name=" << deviceName << "_";
+    for (auto& iter : configuration) {
+        result << "_" << iter.first << "_" << iter.second.as<std::string>() << "_";
+    }
+    return result.str();
+}
+
+void CompileModelCacheRuntimePropertiesTestBase::SetUp() {
+    ovModelWithName funcPair;
+    std::tie(targetDevice, configuration) = GetParam();
+    target_device = targetDevice;
+    APIBaseTest::SetUp();
+    std::stringstream ss;
+    std::string filePrefix = ov::test::utils::generateTestFilePrefix();
+    ss << "testCache_" << filePrefix;
+    m_modelName = ss.str() + ".xml";
+    m_weightsName = ss.str() + ".bin";
+    for (auto& iter : configuration) {
+        ss << "_" << iter.first << "_" << iter.second.as<std::string>() << "_";
+    }
+    m_cacheFolderName = ss.str();
+    core->set_property(ov::cache_dir());
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
+    manager.run_passes(ov::test::utils::make_conv_pool_relu({1, 3, 227, 227}, ov::element::f32));
+}
+
+void CompileModelCacheRuntimePropertiesTestBase::TearDown() {
+    ov::test::utils::removeFilesWithExt(m_cacheFolderName, "blob");
+    ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
+    std::remove(m_cacheFolderName.c_str());
+    core->set_property(ov::cache_dir());
+    ov::test::utils::PluginCache::get().reset();
+    APIBaseTest::TearDown();
+}
+
+void CompileModelCacheRuntimePropertiesTestBase::run() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    if (!ov::util::contains(core->get_property(target_device, ov::internal::supported_properties),
+                            ov::internal::compiled_model_runtime_properties.name())) {
+        return;
+    }
+    m_compiled_model_runtime_properties =
+        core->get_property(target_device, ov::internal::compiled_model_runtime_properties);
+    core->set_property(ov::cache_dir(m_cacheFolderName));
+
+    // First compile model to generate model cache blob.
+    // Second compile model will load from model cache.
+    for (int i = 0; i < 2; i++) {
+        {
+            ASSERT_NO_THROW(compiledModel = core->compile_model(m_modelName, targetDevice, configuration));
+            ASSERT_EQ(i != 0, compiledModel.get_property(ov::loaded_from_cache));
+            ASSERT_NO_THROW(inferRequest = compiledModel.create_infer_request());
+            ASSERT_NO_THROW(inferRequest.infer());
+        }
+        // cache is created and reused
+        ASSERT_EQ(ov::test::utils::listFilesWithExt(m_cacheFolderName, "blob").size(), 1);
+        compiledModel = {};
+        inferRequest = {};
+    }
+
+    // Modify cache blob file's header information to trigger removing old cache and to create new cache blob files.
+    auto blobs = ov::test::utils::listFilesWithExt(m_cacheFolderName, "blob");
+    for (const auto& fileName : blobs) {
+        std::string content;
+        {
+            std::ifstream inp(fileName, std::ios_base::binary);
+            std::ostringstream ostr;
+            ostr << inp.rdbuf();
+            content = ostr.str();
+        }
+        auto index = content.find(m_compiled_model_runtime_properties.c_str());
+        ASSERT_EQ(index != std::string::npos, true);
+        auto pos = m_compiled_model_runtime_properties.find(":");
+        if (index != std::string::npos) {
+            m_compiled_model_runtime_properties.replace(pos + 1, 1, "x");
+        } else {
+            m_compiled_model_runtime_properties.replace(1, 1, "x");
+        }
+        content.replace(index, m_compiled_model_runtime_properties.size(), m_compiled_model_runtime_properties);
+        std::ofstream out(fileName, std::ios_base::binary);
+        out.write(content.c_str(), static_cast<std::streamsize>(content.size()));
+    }
+
+    // Third compile model to remove old cache blob and create new model cache blob file
+    // Fourth compile model will load from model cache.
+    for (int i = 0; i < 2; i++) {
+        {
+            ASSERT_NO_THROW(compiledModel = core->compile_model(m_modelName, targetDevice, configuration));
+            ASSERT_EQ(i != 0, compiledModel.get_property(ov::loaded_from_cache));
+            ASSERT_NO_THROW(inferRequest = compiledModel.create_infer_request());
+            ASSERT_NO_THROW(inferRequest.infer());
+        }
+        // old cache has been removed and new cache is created and reused
+        ASSERT_EQ(ov::test::utils::listFilesWithExt(m_cacheFolderName, "blob").size(), 1);
+        compiledModel = {};
+        inferRequest = {};
+    }
+}
+
+TEST_P(CompileModelCacheRuntimePropertiesTestBase, CanLoadFromFileWithoutException) {
+    run();
+}
+
+std::string CompileModelLoadFromCacheTest::getTestCaseName(
+    testing::TestParamInfo<CompileModelLoadFromCacheParams> obj) {
+    auto param = obj.param;
+    auto deviceName = std::get<0>(param);
+    auto configuration = std::get<1>(param);
+    std::ostringstream result;
+    std::replace(deviceName.begin(), deviceName.end(), ':', '.');
+    result << "device_name=" << deviceName << "_";
+    for (auto& iter : configuration) {
+        result << "_" << iter.first << "_" << iter.second.as<std::string>() << "_";
+    }
+    return result.str();
+}
+
+void CompileModelLoadFromCacheTest::SetUp() {
+    ovModelWithName funcPair;
+    std::tie(targetDevice, configuration) = GetParam();
+    target_device = targetDevice;
+    APIBaseTest::SetUp();
+    std::stringstream ss;
+    std::string filePrefix = ov::test::utils::generateTestFilePrefix();
+    ss << "testCache_" << filePrefix;
+    m_modelName = ss.str() + ".xml";
+    m_weightsName = ss.str() + ".bin";
+    for (auto& iter : configuration) {
+        ss << "_" << iter.first << "_" << iter.second.as<std::string>() << "_";
+    }
+    m_cacheFolderName = ss.str();
+    core->set_property(ov::cache_dir());
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
+    manager.run_passes(ov::test::utils::make_conv_pool_relu({1, 3, 227, 227}, ov::element::f32));
+}
+
+void CompileModelLoadFromCacheTest::TearDown() {
+    ov::test::utils::removeFilesWithExt(m_cacheFolderName, "blob");
+    ov::test::utils::removeFilesWithExt(m_cacheFolderName, "cl_cache");
+    ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
+    std::remove(m_cacheFolderName.c_str());
+    core->set_property(ov::cache_dir());
+    ov::test::utils::PluginCache::get().reset();
+    APIBaseTest::TearDown();
+}
+
+void CompileModelLoadFromCacheTest::run() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    core->set_property(ov::cache_dir(m_cacheFolderName));
+    compiledModel = core->compile_model(m_modelName, targetDevice, configuration);
+    EXPECT_EQ(false, compiledModel.get_property(ov::loaded_from_cache.name()).as<bool>());
+
+    std::stringstream strm;
+    compiledModel.export_model(strm);
+    ov::CompiledModel importedCompiledModel = core->import_model(strm, target_device, configuration);
+    EXPECT_EQ(false, importedCompiledModel.get_property(ov::loaded_from_cache.name()).as<bool>());
+
+    compiledModel = core->compile_model(m_modelName, targetDevice, configuration);
+    EXPECT_EQ(true, compiledModel.get_property(ov::loaded_from_cache.name()).as<bool>());
+}
+
+TEST_P(CompileModelLoadFromCacheTest, CanGetCorrectLoadedFromCacheProperty) {
     run();
 }
 
@@ -421,6 +661,7 @@ void CompileModelLoadFromMemoryTestBase::TearDown() {
     ov::test::utils::removeIRFiles(m_modelName, m_weightsName);
     std::remove(m_cacheFolderName.c_str());
     core->set_property(ov::cache_dir());
+    ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
     weights_vector.clear();
     if ((targetDevice.find("GPU") != std::string::npos)) {
@@ -532,6 +773,7 @@ void CompiledKernelsCacheTest::SetUp() {
 void CompiledKernelsCacheTest::TearDown() {
     std::remove(cache_path.c_str());
     core->set_property(ov::cache_dir());
+    ov::test::utils::PluginCache::get().reset();
     APIBaseTest::TearDown();
 }
 
@@ -542,7 +784,7 @@ TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinaries) {
         auto execNet = core->compile_model(function, targetDevice, configuration);
         execNet = {};
         // Check that directory with cached kernels exists after loading network
-        ASSERT_TRUE(ov::test::utils::directoryExists(cache_path)) << "Directory with cached kernels doesn't exist";
+        ASSERT_TRUE(ov::util::directory_exists(cache_path)) << "Directory with cached kernels doesn't exist";
         // Check that folder contains cache files and remove them
         for (auto& ext : m_extList) {
             // Check that folder contains cache files and remove them
@@ -550,10 +792,10 @@ TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinaries) {
         }
         // Remove directory and check that it doesn't exist anymore
         ASSERT_EQ(ov::test::utils::removeDir(cache_path), 0);
-        ASSERT_FALSE(ov::test::utils::directoryExists(cache_path));
+        ASSERT_FALSE(ov::util::directory_exists(cache_path));
     } catch (std::exception& ex) {
         // Cleanup in case of any exception
-        if (ov::test::utils::directoryExists(cache_path)) {
+        if (ov::util::directory_exists(cache_path)) {
             for (auto& ext : m_extList) {
                 // Check that folder contains cache files and remove them
                 ASSERT_GT(ov::test::utils::removeFilesWithExt(cache_path, ext), 0);
@@ -577,7 +819,7 @@ TEST_P(CompiledKernelsCacheTest, TwoNetworksWithSameModelCreatesSameCache) {
         }
 
         // Check that directory with cached kernels exists after loading network
-        ASSERT_TRUE(ov::test::utils::directoryExists(cache_path)) << "Directory with cached kernels doesn't exist";
+        ASSERT_TRUE(ov::util::directory_exists(cache_path)) << "Directory with cached kernels doesn't exist";
         // Load 2nd CNNNetwork
         auto execNet2 = core->compile_model(function, targetDevice, configuration);
         execNet2 = {};
@@ -592,10 +834,10 @@ TEST_P(CompiledKernelsCacheTest, TwoNetworksWithSameModelCreatesSameCache) {
 
         // Remove directory and check that it doesn't exist anymore
         ASSERT_EQ(ov::test::utils::removeDir(cache_path), 0);
-        ASSERT_FALSE(ov::test::utils::directoryExists(cache_path));
+        ASSERT_FALSE(ov::util::directory_exists(cache_path));
     } catch (std::exception& ex) {
         // Cleanup in case of any exception
-        if (ov::test::utils::directoryExists(cache_path)) {
+        if (ov::util::directory_exists(cache_path)) {
             for (auto& ext : m_extList) {
                 // Check that folder contains cache files and remove them
                 ASSERT_GE(ov::test::utils::removeFilesWithExt(cache_path, ext), 0);
@@ -621,7 +863,7 @@ TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnicodePath) {
             auto execNet = core->compile_model(function, targetDevice, configuration);
             execNet = {};
             // Check that directory with cached kernels exists after loading network
-            ASSERT_TRUE(ov::test::utils::directoryExists(cache_path_w)) << "Directory with cached kernels doesn't exist";
+            ASSERT_TRUE(ov::util::directory_exists(cache_path_w)) << "Directory with cached kernels doesn't exist";
             // Check that folder contains cache files and remove them
             for (auto& ext : m_extList) {
                 // Check that folder contains cache files and remove them
@@ -629,10 +871,10 @@ TEST_P(CompiledKernelsCacheTest, CanCreateCacheDirAndDumpBinariesUnicodePath) {
             }
             // Remove directory and check that it doesn't exist anymore
             ASSERT_EQ(ov::test::utils::removeDir(cache_path_w), 0);
-            ASSERT_FALSE(ov::test::utils::directoryExists(cache_path_w));
+            ASSERT_FALSE(ov::util::directory_exists(cache_path_w));
         } catch (std::exception& ex) {
             // Cleanup in case of any exception
-            if (ov::test::utils::directoryExists(cache_path_w)) {
+            if (ov::util::directory_exists(cache_path_w)) {
                 for (auto& ext : m_extList) {
                     // Check that folder contains cache files and remove them
                     ASSERT_GT(ov::test::utils::removeFilesWithExt(cache_path_w, ov::test::utils::stringToWString(ext)), 0);

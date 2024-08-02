@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ class TRANSFORMATIONS_API NopBroadcast;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Optimizes out Broadcast(data, Maximum(shape, ones)) if labels on data and shape are equal
  * Use case with data being empty should not be considered here since original graph has Maximum with ones
  */

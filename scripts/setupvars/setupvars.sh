@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 abs_path () {
@@ -10,7 +10,7 @@ abs_path () {
     pwd -P
 }
 
-SCRIPT_DIR="$(abs_path "${BASH_SOURCE[0]}")" >/dev/null 2>&1
+SCRIPT_DIR="$(abs_path "${BASH_SOURCE:-$0}")" >/dev/null 2>&1
 INSTALLDIR="${SCRIPT_DIR}"
 export INTEL_OPENVINO_DIR="$INSTALLDIR"
 
@@ -32,9 +32,9 @@ shift
 done
 
 if [ -e "$INSTALLDIR/runtime" ]; then
-    export InferenceEngine_DIR=$INSTALLDIR/runtime/cmake
-    export ngraph_DIR=$INSTALLDIR/runtime/cmake
     export OpenVINO_DIR=$INSTALLDIR/runtime/cmake
+    # If GenAI is installed, export it as well.
+    [ -f "$OpenVINO_DIR/OpenVINOGenAIConfig.cmake" ] && export OpenVINOGenAI_DIR=$OpenVINO_DIR
 
     system_type=$(/bin/ls "$INSTALLDIR/runtime/lib/")
     OV_PLUGINS_PATH=$INSTALLDIR/runtime/lib/$system_type

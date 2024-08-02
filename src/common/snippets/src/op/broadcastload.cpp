@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ namespace snippets {
 namespace op {
 
 BroadcastLoad::BroadcastLoad(const Output<Node>& x, ov::Dimension bcast_dimension, size_t offset)
-    : MemoryAccess({x}, std::set<size_t>{0}, std::set<size_t>{}), bcast_dimension(std::move(bcast_dimension)) {
+    : MemoryAccess(std::set<size_t>{0}, std::set<size_t>{}), Op({x}), bcast_dimension(std::move(bcast_dimension)) {
     set_input_port_descriptor({1, offset}, 0);
     constructor_validate_and_infer_types();
 }

@@ -21,7 +21,7 @@ class TRANSFORMATIONS_API TSBinaryBackward;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TSBinaryForward transformation sinks Transpose through BinaryElementwiseArithmetic,
  * BinaryElementwiseComparison, BinaryElementwiseLogical and PRelu operations in the forward direction.
  */
@@ -32,7 +32,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TSBinaryBackward transformation sinks Transpose through BinaryElementwiseArithmetic,
  * BinaryElementwiseComparison, BinaryElementwiseLogical and PRelu operations in the backward direction.
  */

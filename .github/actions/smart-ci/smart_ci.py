@@ -1,3 +1,6 @@
+# Copyright (C) 2024 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 import re
 import argparse
@@ -109,11 +112,26 @@ def get_changed_component_names(pr, all_possible_components: set, component_patt
     return components
 
 
+def get_changeset(gh_api, pr, target_branch, commit_sha):
+    """Returns changeset either from PR or commit"""
+    if pr:
+        return gh_api.pulls.list_files(pr)
+    if target_branch:
+        target_branch_head_commit = gh_api.repos.get_branch(target_branch).commit.sha
+        # In merge-queue branch all commits between head of target branch and head of current branch (commit_sha)
+        # contain changes added to queue earlier to be validated together. Getting all of them + changes from
+        # commit_sha below
+        changed_files = gh_api.repos.compare_commits(f'{target_branch_head_commit}...{commit_sha}').get('files', [])
+        return changed_files
+    raise ValueError(f'Either "pr" or "target_branch" parameter must be non-empty')
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description='Returns product components changed in a given PR or commit')
     parser.add_argument('--pr', type=int, required=False, help='PR number. If not set, --commit is used')
     parser.add_argument('-s', '--commit-sha', required=False, help='Commit SHA. If not set, --pr is used')
     parser.add_argument('-r', '--repo', help='GitHub repository')
+    parser.add_argument('-f', '--ref_name', required=False, help='GitHub ref name')
     parser.add_argument('-p', '--pattern', default=None, help='Pattern to extract component name from PR label. '
                                                               'If not set, any label is considered a component name')
     parser.add_argument('-c', '--components-config', default='.github/components.yml',
@@ -172,24 +190,33 @@ def main():
         component_name = component_name_from_label(label, args.pattern)
         all_possible_components.add(component_name if component_name else label)
 
-    no_match_files_changed = False
+    run_full_scope = False
     # For now, we don't want to apply smart ci rules for post-commits
     is_postcommit = not pr
-    if is_postcommit:
+
+    merge_queue_prefix = 'gh-readonly-queue/'
+    is_merge_queue = args.ref_name.startswith(merge_queue_prefix)
+    merge_queue_target_branch = re.findall(f'^{merge_queue_prefix}(.*)/', args.ref_name)[0] if is_merge_queue else None
+
+    if is_merge_queue:
+        logger.info(f"The run is a merge-queue run, executing full validation scope for all components, if "
+                    f"not all queued changes match patterns in 'skip-when-only-listed-files-changed'")
+        run_full_scope = True
+    elif is_postcommit:
         logger.info(f"The run is a post-commit run, executing full validation scope for all components")
+        run_full_scope = True
     else:
         no_match_files_changed = 'no-match-files' in [label.name for label in pr.labels]
         if no_match_files_changed:
             logger.info(f"There are changed files that don't match any pattern in labeler config, "
                         f"executing full validation scope for all components")
-
-    run_full_scope = is_postcommit or no_match_files_changed
+            run_full_scope = True
 
     # In post-commits - validate all components regardless of changeset
     # In pre-commits - validate only changed components with their dependencies
     all_defined_components = components_config.keys()
-    changed_component_names = set(all_defined_components) if run_full_scope else \
-        get_changed_component_names(pr, all_possible_components, args.pattern)
+    changed_by_pr = get_changed_component_names(pr, all_possible_components, args.pattern) if pr else None
+    changed_component_names = set(all_defined_components) if run_full_scope else changed_by_pr
 
     logger.info(f"changed_component_names: {changed_component_names}")
 
@@ -197,7 +224,7 @@ def main():
     affected_components = cfg.get_affected_components(changed_component_names)
 
     skip_workflow = False
-    if args.pr and not run_full_scope:
+    if is_merge_queue or (args.pr and not run_full_scope):
         if args.skip_when_only_listed_labels_set:
             excepted_labels = set(args.skip_when_only_listed_labels_set.split(','))
             excepted_labels_only = changed_component_names - excepted_labels == set()
@@ -205,7 +232,7 @@ def main():
 
         if not skip_workflow and args.skip_when_only_listed_files_changed:
             # To avoid spending extra API requests running step below only if necessary
-            changed_files = gh_api.pulls.list_files(args.pr)
+            changed_files = get_changeset(gh_api, args.pr, merge_queue_target_branch, args.commit_sha)
             patterns = set(args.skip_when_only_listed_files_changed.split(','))
 
             matched_files_only = all(any(fnmatch(f.filename, pattern) for pattern in patterns) for f in changed_files)
@@ -219,6 +246,12 @@ def main():
     # Syntactic sugar for easier use in GHA pipeline
     affected_components_output = {name: {s: True for s in scope} for name, scope in affected_components.items()}
     set_github_output("affected_components", json.dumps(affected_components_output))
+
+    # Components actually changed by a pull request are marked as True (if event is PR;
+    # otherwise all components considered changed).
+    changed_components_output = {name: True if not pr or name in changed_by_pr else False
+                                 for name in all_possible_components}
+    set_github_output("changed_components", json.dumps(changed_components_output))
 
 
 if __name__ == '__main__':

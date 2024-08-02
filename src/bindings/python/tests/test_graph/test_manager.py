@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -49,7 +49,7 @@ def test_constant_folding():
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-@pytest.fixture()
+@pytest.fixture
 def prepare_ir_paths(request, tmp_path):
     xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
 

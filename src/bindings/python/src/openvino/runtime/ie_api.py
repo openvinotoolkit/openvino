@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import Any, Iterable, Union, Optional, Dict
@@ -21,19 +21,6 @@ from openvino.runtime.utils.data_helpers import (
     _data_dispatch,
     tensor_from_file,
 )
-
-
-def _deprecated_memory_arg(shared_memory: bool, share_inputs: bool) -> bool:
-    if shared_memory is not None:
-        warnings.warn(
-            "`shared_memory` is deprecated and will be removed in 2024.0. "
-            "Value of `shared_memory` is going to override `share_inputs` value. "
-            "Please use only `share_inputs` explicitly.",
-            FutureWarning,
-            stacklevel=3,
-        )
-        return shared_memory
-    return share_inputs
 
 
 class Model(ModelBase):
@@ -71,7 +58,7 @@ class InferRequest(_InferRequestWrapper):
         share_inputs: bool = False,
         share_outputs: bool = False,
         *,
-        shared_memory: Any = None,
+        decode_strings: bool = True,
     ) -> OVDict:
         """Infers specified input(s) in synchronous mode.
 
@@ -108,7 +95,8 @@ class InferRequest(_InferRequestWrapper):
                               * `numpy.ndarray` which are not C contiguous and/or not writable (WRITEABLE flag is set to False)
                               * inputs which data types are mismatched from Infer Request's inputs
                               * inputs that should be in `BF16` data type
-                              * scalar inputs (i.e. `np.float_`/`int`/`float`)
+                              * scalar inputs (i.e. `np.float_`/`str`/`bytes`/`int`/`float`)
+                              * lists of simple data types (i.e. `str`/`bytes`/`int`/`float`)
                               Keeps Tensor inputs "as-is".
 
                               Note: Use with extra care, shared data can be modified during runtime!
@@ -125,34 +113,33 @@ class InferRequest(_InferRequestWrapper):
                               is connected to OpenVINO objects.
 
                               Note: Use with extra care, shared data can be modified or lost during runtime!
+                              Note: String/textual data will always be copied!
 
                               Default value: False
         :type share_outputs: bool, optional
-        :param shared_memory: Deprecated. Works like `share_inputs` mode.
+        :param decode_strings: Controls decoding outputs of textual based data.
 
-                              If not specified, function uses `share_inputs` value.
+                               If set to `True` string outputs will be returned as numpy arrays of `U` kind.
 
-                              Note: Will be removed in 2024.0 release!
-                              Note: This is keyword-only argument.
+                               If set to `False` string outputs will be returned as numpy arrays of `S` kind.
 
-                              Default value: None
-        :type shared_memory: bool, optional
+                               Default value: True
+        :type decode_strings: bool, optional, keyword-only
+
         :return: Dictionary of results from output tensors with port/int/str keys.
         :rtype: OVDict
         """
         return OVDict(super().infer(_data_dispatch(
             self,
             inputs,
-            is_shared=_deprecated_memory_arg(shared_memory, share_inputs),
-        ), share_outputs=share_outputs))
+            is_shared=share_inputs,
+        ), share_outputs=share_outputs, decode_strings=decode_strings))
 
     def start_async(
         self,
         inputs: Any = None,
         userdata: Any = None,
         share_inputs: bool = False,
-        *,
-        shared_memory: Any = None,
     ) -> None:
         """Starts inference of specified input(s) in asynchronous mode.
 
@@ -192,7 +179,8 @@ class InferRequest(_InferRequestWrapper):
                               * `numpy.ndarray` which are not C contiguous and/or not writable (WRITEABLE flag is set to False)
                               * inputs which data types are mismatched from Infer Request's inputs
                               * inputs that should be in `BF16` data type
-                              * scalar inputs (i.e. `np.float_`/`int`/`float`)
+                              * scalar inputs (i.e. `np.float_`/`str`/`bytes`/`int`/`float`)
+                              * lists of simple data types (i.e. `str`/`bytes`/`int`/`float`)
                               Keeps Tensor inputs "as-is".
 
                               Note: Use with extra care, shared data can be modified during runtime!
@@ -200,21 +188,12 @@ class InferRequest(_InferRequestWrapper):
 
                               Default value: False
         :type share_inputs: bool, optional
-        :param shared_memory: Deprecated. Works like `share_inputs` mode.
-
-                              If not specified, function uses `share_inputs` value.
-
-                              Note: Will be removed in 2024.0 release!
-                              Note: This is keyword-only argument.
-
-                              Default value: None
-        :type shared_memory: bool, optional
         """
         super().start_async(
             _data_dispatch(
                 self,
                 inputs,
-                is_shared=_deprecated_memory_arg(shared_memory, share_inputs),
+                is_shared=share_inputs,
             ),
             userdata,
         )
@@ -244,9 +223,10 @@ class CompiledModel(CompiledModelBase):
     multiple optimization transformations, then mapping to compute kernels.
     """
 
-    def __init__(self, other: CompiledModelBase) -> None:
+    def __init__(self, other: CompiledModelBase, weights: Optional[bytes] = None) -> None:
         # Private memeber to store already created InferRequest
         self._infer_request: Optional[InferRequest] = None
+        self._weights = weights
         super().__init__(other)
 
     def get_runtime_model(self) -> Model:
@@ -261,6 +241,28 @@ class CompiledModel(CompiledModelBase):
         :rtype: openvino.runtime.InferRequest
         """
         return InferRequest(super().create_infer_request())
+
+    def query_state(self) -> None:
+        """Gets state control interface for the underlaying infer request.
+
+        :return: List of VariableState objects.
+        :rtype: List[openvino.runtime.VariableState]
+        """
+        if self._infer_request is None:
+            self._infer_request = self.create_infer_request()
+
+        return self._infer_request.query_state()
+
+    def reset_state(self) -> None:
+        """Resets all internal variable states of the underlaying infer request.
+
+        Resets all internal variable states to a value specified as default for
+        the corresponding `ReadValue` node.
+        """
+        if self._infer_request is None:
+            self._infer_request = self.create_infer_request()
+
+        return self._infer_request.reset_state()
 
     def infer_new_request(self, inputs: Any = None) -> OVDict:
         """Infers specified input(s) in synchronous mode.
@@ -301,7 +303,7 @@ class CompiledModel(CompiledModelBase):
         share_inputs: bool = True,
         share_outputs: bool = False,
         *,
-        shared_memory: Any = None,
+        decode_strings: bool = True,
     ) -> OVDict:
         """Callable infer wrapper for CompiledModel.
 
@@ -346,7 +348,8 @@ class CompiledModel(CompiledModelBase):
                               * `numpy.ndarray` which are not C contiguous and/or not writable (WRITEABLE flag is set to False)
                               * inputs which data types are mismatched from Infer Request's inputs
                               * inputs that should be in `BF16` data type
-                              * scalar inputs (i.e. `np.float_`/`int`/`float`)
+                              * scalar inputs (i.e. `np.float_`/`str`/`bytes`/`int`/`float`)
+                              * lists of simple data types (i.e. `str`/`bytes`/`int`/`float`)
                               Keeps Tensor inputs "as-is".
 
                               Note: Use with extra care, shared data can be modified during runtime!
@@ -363,18 +366,19 @@ class CompiledModel(CompiledModelBase):
                               is connected to OpenVINO objects.
 
                               Note: Use with extra care, shared data can be modified or lost during runtime!
+                              Note: String/textual data will always be copied!
 
                               Default value: False
         :type share_outputs: bool, optional
-        :param shared_memory: Deprecated. Works like `share_inputs` mode.
+        :param decode_strings: Controls decoding outputs of textual based data.
 
-                              If not specified, function uses `share_inputs` value.
+                               If set to `True` string outputs will be returned as numpy arrays of `U` kind.
 
-                              Note: Will be removed in 2024.0 release!
-                              Note: This is keyword-only argument.
+                               If set to `False` string outputs will be returned as numpy arrays of `S` kind.
 
-                              Default value: None
-        :type shared_memory: bool, optional
+                               Default value: True
+        :type decode_strings: bool, optional, keyword-only
+
         :return: Dictionary of results from output tensors with port/int/str as keys.
         :rtype: OVDict
         """
@@ -383,8 +387,9 @@ class CompiledModel(CompiledModelBase):
 
         return self._infer_request.infer(
             inputs,
-            share_inputs=_deprecated_memory_arg(shared_memory, share_inputs),
+            share_inputs=share_inputs,
             share_outputs=share_outputs,
+            decode_strings=decode_strings,
         )
 
 
@@ -427,8 +432,6 @@ class AsyncInferQueue(AsyncInferQueueBase):
         inputs: Any = None,
         userdata: Any = None,
         share_inputs: bool = False,
-        *,
-        shared_memory: Any = None,
     ) -> None:
         """Run asynchronous inference using the next available InferRequest from the pool.
 
@@ -464,7 +467,8 @@ class AsyncInferQueue(AsyncInferQueueBase):
                               * `numpy.ndarray` which are not C contiguous and/or not writable (WRITEABLE flag is set to False)
                               * inputs which data types are mismatched from Infer Request's inputs
                               * inputs that should be in `BF16` data type
-                              * scalar inputs (i.e. `np.float_`/`int`/`float`)
+                              * scalar inputs (i.e. `np.float_`/`str`/`bytes`/`int`/`float`)
+                              * lists of simple data types (i.e. `str`/`bytes`/`int`/`float`)
                               Keeps Tensor inputs "as-is".
 
                               Note: Use with extra care, shared data can be modified during runtime!
@@ -472,21 +476,12 @@ class AsyncInferQueue(AsyncInferQueueBase):
 
                               Default value: False
         :type share_inputs: bool, optional
-        :param shared_memory: Deprecated. Works like `share_inputs` mode.
-
-                              If not specified, function uses `share_inputs` value.
-
-                              Note: Will be removed in 2024.0 release!
-                              Note: This is keyword-only argument.
-
-                              Default value: None
-        :type shared_memory: bool, optional
         """
         super().start_async(
             _data_dispatch(
                 self[self.get_idle_request_id()],
                 inputs,
-                is_shared=_deprecated_memory_arg(shared_memory, share_inputs),
+                is_shared=share_inputs,
             ),
             userdata,
         )
@@ -511,11 +506,14 @@ class Core(CoreBase):
         model: Union[Model, str, Path],
         device_name: Optional[str] = None,
         config: Optional[dict] = None,
+        *,
+        weights: Optional[bytes] = None
     ) -> CompiledModel:
         """Creates a compiled model.
 
         Creates a compiled model from a source Model object or
-        reads model and creates a compiled model from IR / ONNX / PDPD / TF and TFLite file.
+        reads model and creates a compiled model from IR / ONNX / PDPD / TF and TFLite file or
+        creates a compiled model from a IR xml and weights in memory.
         This can be more efficient than using read_model + compile_model(model_in_memory_object) flow,
         especially for cases when caching is enabled and cached model is available.
         If device_name is not specified, the default OpenVINO device will be selected by AUTO plugin.
@@ -531,17 +529,29 @@ class Core(CoreBase):
         :param config: Optional dict of pairs:
                        (property name, property value) relevant only for this load operation.
         :type config: dict, optional
+        :param weights: Optional. Weights of model in memory to be loaded to the model.
+        :type weights: bytes, optional, keyword-only
         :return: A compiled model.
         :rtype: openvino.runtime.CompiledModel
         """
-        if device_name is None:
+        if weights is None:
+            if device_name is None:
+                return CompiledModel(
+                    super().compile_model(model, {} if config is None else config),
+                )
             return CompiledModel(
-                super().compile_model(model, {} if config is None else config),
+                super().compile_model(model, device_name, {} if config is None else config),
             )
-
-        return CompiledModel(
-            super().compile_model(model, device_name, {} if config is None else config),
-        )
+        else:
+            if device_name is None:
+                return CompiledModel(
+                    super().compile_model(model, weights, {} if config is None else config),
+                    weights=weights,
+                )
+            return CompiledModel(
+                super().compile_model(model, weights, device_name, {} if config is None else config),
+                weights=weights,
+            )
 
     def import_model(
         self,

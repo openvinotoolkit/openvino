@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ std::string model_path(const char* model) {
 }  // namespace
 
 TEST(ONNXReader_ModelSupported, basic_model) {
-    // this model is a basic ONNX model taken from ngraph's unit test (add_abc.onnx)
+    // this model is a basic ONNX model taken from OpenVINO's unit test (add_abc.onnx)
     // it contains the minimum number of fields required to accept this file as a valid model
     EXPECT_NO_THROW(ov::Core{}.read_model(model_path("supported/basic.onnx")));
 }

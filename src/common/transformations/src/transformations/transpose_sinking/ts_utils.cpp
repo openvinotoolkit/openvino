@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,9 +68,22 @@ Output<Node> ChangeAxes(const Output<Node>& indices,
     return ChangeAxes(indices, data, axis);
 }
 
-TransposeInputsInfo GetFirstTransposeInput(const NodePtr& node,
-                                           bool const_transpose_order,
-                                           const std::vector<size_t>& indices) {
+bool if_transpose_sinkable_default(const std::shared_ptr<ov::op::v1::Transpose>& transpose,
+                                   const std::shared_ptr<ov::op::v0::Constant>& transpose_order) {
+    if (!transpose || !transpose_order)
+        return false;
+    const auto partial_shape_rank = transpose->get_input_partial_shape(0).rank();
+    const auto order = transpose_order->get_axis_vector_val();
+    if (partial_shape_rank.is_dynamic() && order.empty())
+        return false;
+    return true;
+}
+
+TransposeInputsInfo GetFirstTransposeInput(
+    const NodePtr& node,
+    const std::vector<size_t>& indices,
+    const std::function<bool(const std::shared_ptr<ov::op::v1::Transpose>& transpose,
+                             const std::shared_ptr<ov::op::v0::Constant>& transpose_order)>& if_transpose_sinkable) {
     auto indices_to_check = indices;
     if (indices.empty()) {
         indices_to_check.resize(node->get_input_size());
@@ -83,7 +96,7 @@ TransposeInputsInfo GetFirstTransposeInput(const NodePtr& node,
         if (!transpose_node)
             continue;
         auto constant_node = as_type_ptr<ov::op::v0::Constant>(transpose_node->input_value(1).get_node_shared_ptr());
-        if (const_transpose_order && !constant_node)
+        if (!if_transpose_sinkable(transpose_node, constant_node))
             continue;
         {
             TransposeInputsInfo input_info;
@@ -147,9 +160,11 @@ bool HasDynamicRankInput(const NodePtr& node) {
     return false;
 }
 
-ov::Rank::value_type GetMaxInputRank(const NodePtr& node) {
+ov::Rank::value_type GetMaxInputRank(const NodePtr& node, const std::vector<size_t>& input_indexes) {
     ov::Rank::value_type max_input_rank = 0;
-    for (auto& input_node : node->input_values()) {
+
+    for (const auto& idx : input_indexes) {
+        const auto& input_node = node->get_input_source_output(idx);
         const ov::Rank output_rank = input_node.get_partial_shape().rank();
         if (output_rank.is_dynamic())
             return -1;
@@ -185,6 +200,9 @@ AxisVector AlignTransposeOrder(const Output<Node>& output, const TransposeInputs
     }
     auto num_of_val = static_cast<int64_t>(shape_size(transpose_input_info.transpose_const->get_shape()));
     const auto rank = output.get_partial_shape().rank();
+    if (rank.is_dynamic()) {
+        return {};
+    }
     const auto rank_val = rank.get_length();
     AxisVector new_transpose_order;
     if (rank_val > num_of_val) {
@@ -213,7 +231,7 @@ bool UpdateInputTransposes(const NodePtr& main_node,
     if (transpose_input_info.isEmpty() || HasDynamicRankInput(main_node))
         return false;
 
-    const auto max_input_rank = GetMaxInputRank(main_node);
+    const auto max_input_rank = GetMaxInputRank(main_node, input_indexes);
     if (max_input_rank < 0)
         return false;
 
@@ -303,7 +321,7 @@ NodeVector InsertTransposeBeforeNode(const NodePtr& main_node,
 
     NodeVector new_nodes;
 
-    const auto max_input_rank = GetMaxInputRank(main_node);
+    const auto max_input_rank = GetMaxInputRank(main_node, input_indexes);
     if (max_input_rank < 0)
         return {};
 

@@ -14,8 +14,7 @@ struct unique_count_impl : typed_primitive_impl_ocl<unique_count> {
     using parent = typed_primitive_impl_ocl<unique_count>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::unique_count_kernel_selector;
-    using kernel_params_t =
-        std::pair<kernel_selector::unique_count_params, kernel_selector::unique_count_optional_params>;
+    using kernel_params_t = kernel_selector::unique_count_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::unique_count_impl)
 
@@ -35,18 +34,16 @@ struct unique_count_impl : typed_primitive_impl_ocl<unique_count> {
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<unique_count>();
         auto params = get_default_params<kernel_selector::unique_count_params>(impl_param, is_shape_agnostic);
-        auto optional_params =
-            get_default_optional_params<kernel_selector::unique_count_optional_params>(impl_param.get_program());
 
         params.flattened = primitive->flattened;
         params.axis = primitive->axis;
 
-        return {params, optional_params};
+        return params;
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
     }
 };
 
@@ -94,8 +91,7 @@ struct unique_gather_impl : typed_primitive_impl_ocl<unique_gather> {
     using parent = typed_primitive_impl_ocl<unique_gather>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::unique_gather_kernel_selector;
-    using kernel_params_t =
-        std::pair<kernel_selector::unique_gather_params, kernel_selector::unique_gather_optional_params>;
+    using kernel_params_t = kernel_selector::unique_gather_params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::unique_gather)
 
@@ -115,8 +111,6 @@ struct unique_gather_impl : typed_primitive_impl_ocl<unique_gather> {
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<unique_gather>();
         auto params = get_default_params<kernel_selector::unique_gather_params>(impl_param, is_shape_agnostic);
-        auto optional_params =
-            get_default_optional_params<kernel_selector::unique_gather_optional_params>(impl_param.get_program());
 
         params.flattened = primitive->flattened;
         params.axis = primitive->axis;
@@ -130,12 +124,12 @@ struct unique_gather_impl : typed_primitive_impl_ocl<unique_gather> {
             params.outputs.push_back(convert_data_tensor(impl_param.output_layouts.at(i)));
         }
 
-        return {params, optional_params};
+        return params;
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
         auto kernel_params = get_kernel_params(impl_param, true);
-        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        (_kernel_data.update_dispatch_data_func)(kernel_params, _kernel_data);
     }
 };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,9 +9,7 @@
 #include <vector>
 #include <memory>
 
-#include <ngraph/op/util/attr_types.hpp>
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "ov_models/builders.hpp"
 #include "common_test_utils/test_enums.hpp"
 
 namespace ov {

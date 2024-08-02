@@ -1,14 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include <string>
-#include <map>
 #include "kernels/x64/rdft_kernel.hpp"
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -17,6 +14,7 @@ namespace node {
 struct RDFTExecutor {
     public:
         RDFTExecutor(bool inverse) : isInverse(inverse) {}
+        virtual ~RDFTExecutor() = default;
         void execute(float* inputPtr, float* outputPtr,
                      const std::vector<std::vector<float>>& twiddles,
                      size_t rank, const std::vector<int>& axes,

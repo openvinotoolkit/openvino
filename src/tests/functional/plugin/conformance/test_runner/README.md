@@ -41,23 +41,30 @@ Run the following commands in the build directory:
    ```
 2. Build the targets:
    ```
-   make --jobs=$(nproc --all) subgraphsDumper
-   make --jobs=$(nproc --all) conformanceTests
+   make --jobs=$(nproc --all) ov_subgraphs_dumper
+   make --jobs=$(nproc --all) ov_op_conformance_tests
    make --jobs=$(nproc --all) ov_api_conformance_tests
    ```
 3. Build plugins to validate:
    ```
    make --jobs=$(nproc --all) lib_plugin_name
    ```
+4. Install python dependencies to use `run_conformance` script:
+   ```
+   cd /path/to/openvino/src/tests/test_utils/functional_test_utils/layer_tests_summary
+   pip3 install -r [requirements.txt](./../../../../../tests/test_utils/functional_test_utils/layer_tests_summary/requirements.txt)
+   ```
 
 ## How to run using [simple conformance runner](./../../../../../tests/test_utils/functional_test_utils/layer_tests_summary/run_conformance.py)
 
 There is a simple python runner to complete the whole conformance pipeline locally. Some steps could be excluded from the pipeline by command-line parameter configuration.
 
+>NOTE: Conformance reports `ov python api` WARNING in case of its absence. `ov python api` is not required to get a conformance results. It is a way to get HASHED conformance IR names after `ov_subgraphs_dumper` tool using (in case of `-s=1`).
+
 ### The conformance pipeline steps:
 
 1. (Optional: Applicable only for Opset Conformance suite) Download models/conformance IR via URL / copy archive to working directory / verify dirs / check list-files.
-2. (Optional: Applicable only for Opset Conformance suite) Run `SubgraphDumper` to extract graph from models or download the `conformance_ir` folder. (if `-s=1`)
+2. (Optional: Applicable only for Opset Conformance suite) Run `ov_subgraphs_dumper` to extract graph from models or download the `conformance_ir` folder. (if `-s=1`)
 3. Run conformance test executable files.
 4. Generate conformance reports.
 
@@ -87,7 +94,7 @@ The script has the following optional arguments:
 * `sm SPECIAL_MODE, --special_mode SPECIAL_MODE`
                         Specify shape mode (`static`, `dynamic` or ``) for Opset conformance or API scope type (`mandatory` or ``). Default value is ``
 *  `-e ENTITY, --entity ENTITY`
-                        Specify validation entity: `Inference`, `ImportExport` or `QueryModel` for `OP` or `ov`. Default value is `ov_compiled_model`, `ov_infer_request` or `ov_plugin` for `API`. Default value is ``(all)
+                        Specify validation entity: `Inference`, `ImportExport`, `QueryModel` or `OpImpl` for `OP` or `ov`. Default value is `ov_compiled_model`, `ov_infer_request` or `ov_plugin` for `API`. Default value is ``(all)
 * `p PARALLEL_DEVICES, --parallel_devices PARALLEL_DEVICES`
                         Parallel over HW devices. For example run tests over `GPU.0` and `GPU.1` in case when device are the same
 * `f EXPECTED_FAILURES, --expected_failures EXPECTED_FAILURES`
@@ -96,6 +103,10 @@ The script has the following optional arguments:
                         Overwrite expected failures list in case same failures were fixed
 * `-cache_path CACHE_PATH`
                         Path to the cache file with test_name list sorted by execution time as `.lst` file!
+* `-r DISABLE_RERUN, --disable_rerun DISABLE_RERUN`
+                        Disable re-run of interapted/lost tests. Default value is `False`
+* `--timeout TIMEOUT`
+                        Set a custom timeout per worker in s
 
 > **NOTE**: All arguments are optional and have default values to reproduce OMZ based Opset conformance results  on `CPU` in a default method.
 
@@ -140,7 +151,7 @@ The target is able to take the following command-line arguments:
 * `-h` prints target command-line options with description.
 * `--device` specifies target device.
 * `--input_folders` specifies the input folders with IRs or `.lst` file. It contains paths, separated by a comma `,`.
-* `--plugin_lib_name` is a name of a plugin library. The example is `openvino_intel_cpu_plugin`. Use only with unregistered in IE Core devices.
+* `--plugin_lib_name` is a name of a plugin library. The example is `openvino_intel_cpu_plugin`. Use only with unregistered in OV Core devices.
 * `--disable_test_config` allows ignoring all skipped tests with the exception of `DISABLED_` prefix using.
 * `--skip_config_path` allows specifying paths to files. It contains a list of regular expressions to skip tests. [Examples](./op_conformance_runner/skip_configs/skip_config_example.lst)
 * `--config_path` allows specifying the path to a file that contains plugin config. [Example](./op_conformance_runner/config/config_example.txt)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,17 +15,17 @@ namespace LayerTestsDefinitions {
 
 class ConvolutionTransformationParam {
 public:
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
     bool asymmetricQuantizationOnData;
-    ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+    ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     bool asymmetricQuantizationOnWeights;
     std::string layerName;
     std::string expectedKernelType;
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::Shape,
+    ov::element::Type,
+    ov::Shape,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params,
     ConvolutionTransformationParam
@@ -40,7 +40,7 @@ public:
 protected:
     void SetUp() override;
 
-    void Run() override;
+    void run() override;
 };
 
 }  // namespace LayerTestsDefinitions

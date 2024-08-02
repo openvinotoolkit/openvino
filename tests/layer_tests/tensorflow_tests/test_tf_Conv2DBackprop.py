@@ -17,8 +17,8 @@ class TestConv2DBackprop(CommonTFLayerTest):
     # input_strides - should be an array, defines strides of a sliding window to use
     # input_padding - should be a string, defines padding algorithm
     # ir_version - common parameter
-    # use_new_frontend - common parameter
-    def create_conv2dbackprop_placeholder_const_net(self, input_shape, input_filter, out_backprop, input_strides, input_padding, dilations, ir_version, use_new_frontend):
+    # use_legacy_frontend - common parameter
+    def create_conv2dbackprop_placeholder_const_net(self, input_shape, input_filter, out_backprop, input_strides, input_padding, dilations, ir_version, use_legacy_frontend):
         """
             TensorFlow net                               IR net
 
@@ -61,17 +61,17 @@ class TestConv2DBackprop(CommonTFLayerTest):
         dict(input_shape=[1, 10, 10, 3], input_filter=[2, 2, 3, 3], out_backprop=[1, 5, 5, 3], input_strides=[1, 2, 2, 1], input_padding='VALID', dilations=None),
         pytest.param(
             dict(input_shape=[1, 56, 56, 3], input_filter=[2, 3, 3, 3], out_backprop=[1, 28, 28, 3], input_strides=[1, 2, 2, 1], input_padding='SAME', dilations=None),
-            marks=pytest.mark.precommit_tf_fe),
+            marks=pytest.mark.precommit),
         pytest.param(
             dict(input_shape=[1, 64, 48, 3], input_filter=[3, 2, 3, 3], out_backprop=[1, 31, 24, 3], input_strides=[1, 2, 2, 1], input_padding='VALID', dilations=None),
-            marks=pytest.mark.precommit_tf_fe),
+            marks=pytest.mark.precommit),
     ]
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
     def test_conv2dbackprop_placeholder_const(self, params, ie_device, precision, ir_version, temp_dir,
-                                      use_new_frontend, use_old_api):
+                                      use_legacy_frontend):
         self._test(*self.create_conv2dbackprop_placeholder_const_net(**params, ir_version=ir_version,
-                                                          use_new_frontend=use_new_frontend),
+                                                          use_legacy_frontend=use_legacy_frontend),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
-                   use_new_frontend=use_new_frontend, use_old_api=use_old_api)
+                   use_legacy_frontend=use_legacy_frontend)

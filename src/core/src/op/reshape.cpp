@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 
 #include "bound_evaluate.hpp"
 #include "itt.hpp"
-#include "openvino/core/dimension_tracker.hpp"
+#include "openvino/core/dimension.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/reference/reshape.hpp"
@@ -62,10 +62,14 @@ bool Reshape::evaluate_reshape(TensorVector& outputs, const TensorVector& inputs
         outputs[0].set_shape(output_shape);
     }
 
-    ov::reference::reshape(static_cast<const char*>(inputs[0].data()),
-                           static_cast<char*>(outputs[0].data()),
-                           inputs[0].get_shape(),
-                           inputs[0].get_element_type().size());
+    if (inputs[0].get_element_type() == ov::element::string) {
+        ov::reference::reshape(inputs[0].data<std::string>(), outputs[0].data<std::string>(), inputs[0].get_shape());
+    } else {
+        ov::reference::reshape(static_cast<const char*>(inputs[0].data()),
+                               static_cast<char*>(outputs[0].data()),
+                               inputs[0].get_shape(),
+                               inputs[0].get_element_type().size());
+    }
     return true;
 }
 
@@ -88,8 +92,8 @@ bool Reshape::evaluate_upper(ov::TensorVector& output_values) const {
     return get_input_tensor(1).has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
 }
 
-bool Reshape::evaluate_label(TensorLabelVector& output_labels) const {
-    return get_input_tensor(1).has_and_set_bound() && default_label_evaluator(this, {0}, output_labels);
+bool Reshape::evaluate_symbol(TensorSymbolVector& output_symbols) const {
+    return get_input_tensor(1).has_and_set_bound() && default_symbol_evaluator(this, {0}, output_symbols);
 }
 
 bool Reshape::constant_fold(OutputVector& output_values, const OutputVector& inputs_values) {

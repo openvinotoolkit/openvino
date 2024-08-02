@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,12 +39,13 @@ Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& con
     : m_context(context)
     , m_config(config)
     , m_stream_id(stream_id) {
-    auto program_builder = std::make_shared<ProgramBuilder>(model, get_engine(), config, false, false);
+    auto program_builder = std::make_shared<ProgramBuilder>(model, get_engine(), config, false);
     m_config = program_builder->get_config();
 
     build(program_builder->get_compiled_program());
 
     primitiveIDs = program_builder->primitive_ids;
+    inputPrimitiveIDs = program_builder->inputPrimitiveIDs;
     prevPrimitiveIDs = program_builder->prevPrimitiveIDs;
     profilingIDs = program_builder->profiling_ids;
     perfMap = program_builder->perfMap;
@@ -67,6 +68,7 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context
 
     ib >> m_input_layouts;
     ib >> primitiveIDs;
+    ib >> inputPrimitiveIDs;
     ib >> prevPrimitiveIDs;
     ib >> profilingIDs;
     {
@@ -104,6 +106,7 @@ Graph::Graph(std::shared_ptr<Graph> graph, uint16_t stream_id)
         , m_config(graph->m_config)
         , m_stream_id(stream_id)
         , primitiveIDs(graph->primitiveIDs)
+        , inputPrimitiveIDs(graph->inputPrimitiveIDs)
         , prevPrimitiveIDs(graph->prevPrimitiveIDs)
         , perfMap(graph->perfMap)
         , profilingIDs(graph->profilingIDs)
@@ -164,7 +167,7 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
     ov::NodeVector nodes;
 
     // TODO: Adjust output layer names to be aligned with ov and add new ops
-    auto to_IE_type_name = [](const std::string& cldnn_name) -> std::string{
+    auto to_OV_type_name = [](const std::string& cldnn_name) -> std::string{
         static std::map<std::string, std::string> type_n2l {
                 { "activation", "Activation" },
                 { "arg_max_min", "ArgMax" },
@@ -185,9 +188,7 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "gemm", "Gemm" },
                 { "input_layout", "Input" },
                 { "lrn", "LRN" },
-                { "lstm", "LSTM" },
                 { "lstm_elt", "LSTM_Eltwise" },
-                { "lstm_gemm", "LSTM_Gemm" },
                 { "mvn", "MVN" },
                 { "normalize", "Normalize" },
                 { "permute", "Permute" },
@@ -197,6 +198,7 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "quantize", "Quantize" },
                 { "region_yolo", "RegionYolo" },
                 { "reorder", "Reorder" },
+                { "rope", "RoPE" },
                 { "reorg_yolo", "ReorgYolo" },
                 { "reshape", "Reshape" },
                 { "reverse_sequence", "ReverseSequence" },
@@ -204,7 +206,6 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "scale", "ScaleShift" },
                 { "shuffle_channels", "ShuffleChannels" },
                 { "softmax", "SoftMax" },
-                { "split", "Split" },
                 { "strided_slice", "StridedSlice" },
                 { "tile", "Tile" },
                 { "resample", "Resample" },
@@ -333,7 +334,7 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
 
         std::map<std::string, std::string> info;
         info[ov::exec_model_info::OUTPUT_PRECISIONS] = ov::element::Type(prim_info.output_layout.data_type).get_type_name();
-        info[ov::exec_model_info::LAYER_TYPE] = to_IE_type_name(prim_info.type_id);
+        info[ov::exec_model_info::LAYER_TYPE] = to_OV_type_name(prim_info.type_id);
         info[ov::exec_model_info::OUTPUT_LAYOUTS] = prim_info.layout_str;
         info[ov::exec_model_info::EXECUTION_ORDER] = std::to_string(prim_info.exec_id);
         info[ov::exec_model_info::IMPL_TYPE] = prim_info.kernel_id;
@@ -447,6 +448,7 @@ void Graph::export_model(cldnn::BinaryOutputBuffer &ob) {
 
     ob << m_input_layouts;
     ob << primitiveIDs;
+    ob << inputPrimitiveIDs;
     ob << prevPrimitiveIDs;
     ob << profilingIDs;
     {
@@ -742,29 +744,35 @@ std::shared_ptr<cldnn::network> Graph::get_network() const {
     return m_network;
 }
 
-std::string Graph::out_name_to_internal(std::string out_port_name) const {
-    auto networkOutputsIDs = get_network()->get_output_ids();
-    auto allPrimitiveIds = get_network()->get_all_primitives();
+std::vector<cldnn::primitive_id> Graph::input_port_index_to_internal(size_t input_port_index) const {
+    OPENVINO_ASSERT(inputPrimitiveIDs.count(input_port_index) != 0 && !inputPrimitiveIDs.at(input_port_index).empty(),
+                    "[GPU] Internal name of input primitive not found at index ", input_port_index);
+    return inputPrimitiveIDs.at(input_port_index);
+}
 
-    // Find correct output ID. Start with name stored in IR.
-    if (primitiveIDs.find(out_port_name) == primitiveIDs.end()) {
-        OPENVINO_THROW("output with name ", out_port_name, " was not found in primitiveIDs");
-    }
-    std::string outputID = primitiveIDs.at(out_port_name);
-    while (std::find(networkOutputsIDs.begin(), networkOutputsIDs.end(), outputID) == networkOutputsIDs.end()) {
-        // If current ID isn't found in cldnn network outputs, get previous primitive id and try again.
-        auto prim = allPrimitiveIds.find(outputID);
-        if (prim == allPrimitiveIds.end()) {
-            OPENVINO_THROW("Unknown primitive id ", outputID);
-        }
+std::string Graph::out_port_index_to_internal(size_t out_port_index) const {
+    const auto& networkOutputsIDs = get_network()->get_output_ids();
+    auto check_output = [&networkOutputsIDs](const cldnn::primitive_id& id) {
+        return std::find(networkOutputsIDs.begin(), networkOutputsIDs.end(), id) != networkOutputsIDs.end();
+    };
 
-        if (prevPrimitiveIDs.at(outputID).size() != 1 || prim->second != "_optimized_") {
-            OPENVINO_THROW("Unable to find parent for output primitive ", outputID);
-        }
-        outputID = prevPrimitiveIDs.at(outputID)[0];
+    OPENVINO_ASSERT(prevPrimitiveIDs.count(out_port_index) != 0,
+                    "[GPU] Internal name of output primitive not found for index ", out_port_index);
+    cldnn::primitive_id outputID = prevPrimitiveIDs.at(out_port_index);
+
+    if (check_output(outputID)) {
+        return outputID;
     }
 
-    return outputID;
+    OPENVINO_ASSERT(primitiveIDs.find(outputID) != primitiveIDs.end(),
+                    "[GPU] Output with name ", outputID, " was not found in primitiveIDs");
+    outputID = primitiveIDs.at(outputID);
+
+    if (check_output(outputID)) {
+        return outputID;
+    }
+
+    OPENVINO_THROW("[GPU] Unable to map output port index ", out_port_index, " to the internal primitive id");
 }
 
 }  // namespace intel_gpu

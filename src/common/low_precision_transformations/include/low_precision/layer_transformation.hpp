@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,16 +41,7 @@ namespace precision_set {
     LP_TRANSFORMATIONS_API const std::vector<element::Type>& get_int8_support();
     LP_TRANSFORMATIONS_API const std::vector<element::Type>& get_int8_int16_int32_support();
 } // namespace precision_set
-enum levels : size_t {
-    int4 = 16,
-    int4_narrow_range = 15,
-    int8 = 256,
-    int8_narrow_range = 255,
-    int16 = 65536,
-    int16_narrow_range = 65535,
-    int32 = size_t(4294967296),  // for ARM and ia32 platforms where this number bigger than size_t but never used
-    int32_narrow_range = 4294967295
-};
+
 class LP_TRANSFORMATIONS_API DataPrecision {
 public:
     DataPrecision() : precision(element::undefined), min(0.f), max(0.f), hasZeroPoint(false) {}
@@ -104,6 +95,7 @@ public:
         }
     }
 
+    // the lowest value (example, for signed symetric types: -max)
     static float getMinValue(const element::Type precision, const size_t levels) {
         switch (precision) {
             case element::u4:
@@ -143,6 +135,8 @@ public:
                 break;
             case element::f16:
                 return -1.0e15f;
+            case element::bf16:
+                return -3.38953139e38f;
             case element::f32:
                 return std::numeric_limits<float>::lowest();
             default:
@@ -181,6 +175,8 @@ public:
                 return 2147483648.f;  // 2147483648.f == 2147483647.f
             case element::f16:
                 return 1.0e15f;
+            case element::bf16:
+                return 3.38953139e38f;
             case element::f32:
                 return std::numeric_limits<float>::max();
             default:
@@ -243,7 +239,7 @@ inline std::ostream &operator << (std::ostream &os, const DataPrecision& value) 
 }
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief Base class for low precision transformation.
  */
 class LP_TRANSFORMATIONS_API LayerTransformation : public ov::pass::MatcherPass {
@@ -361,14 +357,13 @@ protected:
         TransformationContext &context,
         const std::shared_ptr<ov::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
-        const bool updatePrecision,
+        const bool updateOutputPrecision = true,
         const bool moveSubtract = true) const;
 
     std::shared_ptr<ov::Node> moveDequantizationBefore(
         TransformationContext& context,
         const std::shared_ptr<ov::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
-        const bool updatePrecision,
         const bool moveSubtract = true) const;
 
     bool updateOutput(

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -92,10 +92,19 @@ public:
         return m_target_element_type;
     }
 
+    const ColorFormat& color_format() const {
+        return m_color_format;
+    }
+
+    ColorFormat& color_format() {
+        return m_color_format;
+    }
+
 protected:
     Layout m_layout;
     Layout m_target_layout;
     element::Type m_target_element_type;
+    ColorFormat m_color_format = ColorFormat::UNDEFINED;
 };
 
 /// \brief Preprocessing context passed to each preprocessing operation.
@@ -126,18 +135,9 @@ public:
         return model_shape()[model_width_idx].get_length();
     }
 
-    const ColorFormat& color_format() const {
-        return m_color_format;
-    }
-
-    ColorFormat& color_format() {
-        return m_color_format;
-    }
-
 private:
     PartialShape m_model_shape;
     Layout m_model_layout;
-    ColorFormat m_color_format = ColorFormat::UNDEFINED;
 };
 
 using InternalPreprocessOp =
@@ -158,6 +158,10 @@ class PreStepsList {
 public:
     void add_scale_impl(const std::vector<float>& values);
     void add_mean_impl(const std::vector<float>& values);
+    void add_pad_impl(const std::vector<int>& pads_begin,
+                      const std::vector<int>& pads_end,
+                      const std::vector<float>& values,
+                      PaddingMode mode);
     void add_convert_impl(const element::Type& type);
     void add_crop_impl(const std::vector<int>& begin, const std::vector<int>& end);
     void add_resize_impl(ResizeAlgorithm alg, int dst_height, int dst_width);
@@ -219,6 +223,7 @@ public:
     void add_convert_impl(const element::Type& type);
     void add_convert_layout_impl(const Layout& layout);
     void add_convert_layout_impl(const std::vector<uint64_t>& dims);
+    void add_convert_color_impl(const ColorFormat& dst_format);
 
     const std::list<InternalPostprocessAction>& actions() const {
         return m_actions;
@@ -226,6 +231,9 @@ public:
     std::list<InternalPostprocessAction>& actions() {
         return m_actions;
     }
+
+private:
+    static std::tuple<Output<Node>, bool> reverse_channels(const Output<Node>& nodes, PostprocessingContext& context);
 
 private:
     std::list<InternalPostprocessAction> m_actions;

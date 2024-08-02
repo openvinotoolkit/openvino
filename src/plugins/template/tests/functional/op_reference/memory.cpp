@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/read_value.hpp"
@@ -29,15 +29,15 @@ struct ReadValueAssignParams {
           m_output_shape(output_shape),
           m_input_type(input_type),
           m_output_type(ouput_type),
-          m_input_data(CreateTensor(input_type, input_values)),
-          m_expected_data(CreateTensor(ouput_type, output_values)),
+          m_input_data(CreateTensor(input_shape, input_type, input_values)),
+          m_expected_data(CreateTensor(output_shape, ouput_type, output_values)),
           m_variable_id(variable_id) {}
     Shape m_input_shape;
     Shape m_output_shape;
     element::Type m_input_type;
     element::Type m_output_type;
-    runtime::Tensor m_input_data;
-    runtime::Tensor m_expected_data;
+    ov::Tensor m_input_data;
+    ov::Tensor m_expected_data;
     std::string m_variable_id;
 };
 
@@ -109,19 +109,23 @@ private:
 
 TEST_P(ReferenceReadValueAssignV3LayerTest, ReadValueAssignWithHardcodedRefs) {
     Exec();
-    const int COUNT_RUNS = 10;
-    for (int i = 0; i < COUNT_RUNS; ++i) {
-        Infer();
-        Validate();
+    if (executableNetwork) {
+        const int COUNT_RUNS = 10;
+        for (int i = 0; i < COUNT_RUNS; ++i) {
+            Infer();
+            Validate();
+        }
     }
 }
 
 TEST_P(ReferenceReadValueAssignV6LayerTest, ReadValueAssignWithHardcodedRefs) {
     Exec();
-    const int COUNT_RUNS = 10;
-    for (int i = 0; i < COUNT_RUNS; ++i) {
-        Infer();
-        Validate();
+    if (executableNetwork) {
+        const int COUNT_RUNS = 10;
+        for (int i = 0; i < COUNT_RUNS; ++i) {
+            Infer();
+            Validate();
+        }
     }
 }
 
@@ -245,8 +249,8 @@ struct MemoryTestParams {
     ov::Shape m_output_shape;
     ov::element::Type m_input_type;
     ov::element::Type m_output_type;
-    ov::runtime::Tensor m_input_data;
-    ov::runtime::Tensor m_expected_data;
+    ov::Tensor m_input_data;
+    ov::Tensor m_expected_data;
     std::vector<std::string> m_variable_id;
     size_t m_count_runs;
     size_t m_reset_on_run;
@@ -298,7 +302,7 @@ protected:
                                                                 i,
                                                                 1e-2f,
                                                                 -1.f,
-                                                                0);
+                                                                true);
         }
     }
 

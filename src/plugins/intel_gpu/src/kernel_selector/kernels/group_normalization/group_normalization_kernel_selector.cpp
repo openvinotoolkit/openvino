@@ -10,9 +10,8 @@ group_normalization_kernel_selector::group_normalization_kernel_selector() {
     Attach<GroupNormalizationKernelRef>();
 }
 
-KernelsData group_normalization_kernel_selector::GetBestKernels(const Params &params,
-                                                                const optional_params &options) const {
-    return GetNaiveBestKernel(params, options, KernelType::GROUP_NORMALIZATION);
+KernelsData group_normalization_kernel_selector::GetBestKernels(const Params &params) const {
+    return GetNaiveBestKernel(params, KernelType::GROUP_NORMALIZATION);
 }
 
 }  // namespace kernel_selector

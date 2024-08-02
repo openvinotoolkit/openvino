@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,15 +10,18 @@
 
 #include <string>
 
+#include "cpu_types.h"
 #include "onednn/dnnl.h"
-#include "memory_desc/cpu_memory_desc.h"
 #include "onednn/iml_type_mapper.h"
-#include <common/c_types_map.hpp>
+#include "openvino/core/type/element_type.hpp"
+#include "common/c_types_map.hpp"
 
 namespace ov {
 namespace intel_cpu {
 
 class DnnlMemoryDesc;
+class DnnlBlockedMemoryDesc;
+class Shape;
 
 class DnnlExtensionUtils {
 public:
@@ -97,7 +100,6 @@ public:
     static dnnl_primitive_desc_t clone_primitive_desc(const_dnnl_primitive_desc_t cprim_desc);
     static dnnl_memory_desc_t clone_desc(const_dnnl_memory_desc_t cdesc);
     static const char* query_pd_info(const_dnnl_primitive_desc_t pd);
-    static dnnl::algorithm convertToDnnlAlgorithm(Algorithm alg);
     static bool isUnarySupportedAsPostOp(Algorithm alg);
 };
 

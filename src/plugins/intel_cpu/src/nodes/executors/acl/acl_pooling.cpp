@@ -118,9 +118,15 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
     auto srcDims = srcDescs[0]->getShape().getStaticDims();
     auto dstDims = dstDescs[0]->getShape().getStaticDims();
 
-    TensorInfo srcTensorInfo = TensorInfo(shapeCast(srcDims), 1,
+    auto srcShape = shapeCast(srcDims);
+    auto dstShape = shapeCast(dstDims);
+    if (srcDescs[0]->hasLayoutType(LayoutType::nspc) && dstDescs[0]->hasLayoutType(LayoutType::nspc)) {
+        changeLayoutToNH_C({&srcShape, &dstShape});
+    }
+
+    TensorInfo srcTensorInfo = TensorInfo(srcShape, 1,
     precisionToAclDataType(srcDescs[0]->getPrecision()), getAclDataLayoutByMemoryDesc(srcDescs[0]));
-    TensorInfo dstTensorInfo = TensorInfo(shapeCast(dstDims), 1,
+    TensorInfo dstTensorInfo = TensorInfo(dstShape, 1,
     precisionToAclDataType(dstDescs[0]->getPrecision()), getAclDataLayoutByMemoryDesc(dstDescs[0]));
 
     srcTensor.allocator()->init(srcTensorInfo);
@@ -186,7 +192,7 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
             };
         }
     }
-    ifunc = exec_func();
+    configureThreadSafe([&] { ifunc = exec_func(); });
     return true;
 }
 

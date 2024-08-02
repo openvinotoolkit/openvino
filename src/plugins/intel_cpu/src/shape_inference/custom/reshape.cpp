@@ -1,12 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "reshape.hpp"
 #include <vector>
 #include "utils.hpp"
-#include "ie_ngraph_utils.hpp"
-#include <utils/general_utils.h>
+#include "utils/general_utils.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -84,29 +83,18 @@ Result SqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
                                                   ov::util::Cast<int64_t>());
             std::vector<int64_t> originOutPattern = outPattern;
             std::vector<bool> removeMask(inputShapeSize, false);
-            bool existError = false;
             for (size_t i = 0; i < outputPatternSize; i++) {
                 if (outPattern[i] < 0) {
                     outPattern[i] = inputShapeSize + outPattern[i];
                 }
-                if (outPattern[i] >= 0 && outPattern[i] < static_cast<int64_t>(inputShapeSize)) {
+                if (outPattern[i] >= 0 && outPattern[i] < static_cast<int64_t>(inputShapeSize) && inputShape[outPattern[i]] == 1) {
                     removeMask[outPattern[i]] = true;
-                } else {
-                    existError = true;
-                    break;
                 }
             }
             for (size_t i = 0; i < inputShapeSize; i++) {
                 if (!removeMask[i]) {
                     outputShape.push_back(inputShape[i]);
-                } else if (inputShape[i] != 1) {
-                    existError = true;
-                    break;
                 }
-            }
-            if (existError) {
-                OPENVINO_THROW("[cpu]squeeze: the shape of input data ", ov::intel_cpu::vec2str(inputShape),
-                        " conflicts with the squeeze pattern ", ov::intel_cpu::vec2str(originOutPattern));
             }
         } else {
             for (size_t i = 0; i < inputShapeSize; i++) {
@@ -190,4 +178,3 @@ ShapeInferPtr ReshapeShapeInferFactory::makeShapeInfer() const {
 } // namespace node
 } // namespace intel_cpu
 } // namespace ov
-

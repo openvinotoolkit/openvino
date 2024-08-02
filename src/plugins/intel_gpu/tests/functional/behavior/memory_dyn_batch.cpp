@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/infer_request.hpp"

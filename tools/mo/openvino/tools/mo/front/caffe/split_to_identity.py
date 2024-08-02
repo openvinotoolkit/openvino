@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.ops.identity import Identity
@@ -8,8 +8,8 @@ from openvino.tools.mo.graph.graph import Graph
 
 class SplitToIdentity(FrontReplacementOp):
     """
-    The Split layer in Caffe copies input blob to a number of output layers. The Split layer in Inference Engine divides
-    the input blob into several peaces. The Caffe Split layer is redundant because Inference Engine takes care of
+    The Split layer in Caffe copies input blob to a number of output layers. The Split layer in OpenVINO divides
+    the input blob into several peaces. The Caffe Split layer is redundant because OpenVINO takes care of
     creation of the intermediate blobs if it is necessary.
 
     The replacer changes the 'op' attribute of the node to 'Identity' and set all 'out' edge attributes to be 0. So the

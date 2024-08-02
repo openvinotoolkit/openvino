@@ -14,6 +14,7 @@ class engine;
 
 struct ShapePredictor {
 public:
+    using Ptr = std::shared_ptr<ShapePredictor>;
     ShapePredictor(const engine* engine, float buffers_preallocation_ratio)
         : _engine(engine)
         , _buffers_preallocation_ratio(buffers_preallocation_ratio) {
@@ -43,16 +44,20 @@ public:
 ///        ov::intel_gpu::buffers_preallocation_ratio property, it increases buffer size by
 ///        `_buffers_preallocation_ratio` value unconditionally.
 /// \param id Primitive id.
-/// \param current_shape Primitive's shape on current iteration.
-/// \param dt_size Primitive's data_type size.
+/// \param layout Primitive's layout on current iteration.
 /// \param can_reuse_buffer Specifies if current memory buffer is enough to store data.
 /// \return The result of shape size prediction as std::pair<bool, ov::Shape>, where the first element
 ///         says if shape is successfully predicted and can be preallocated, and the second element is ov::Shape itself.
     std::pair<bool, ov::Shape> predict_preallocation_shape(const std::string& id,
-                                                           const ov::Shape& current_shape,
-                                                           size_t dt_bitwidth,
-                                                           bool can_reuse_buffer);
+                                                           const cldnn::layout& layout,
+                                                           bool can_reuse_buffer,
+                                                           int32_t next_iters_prealloc_count = -1);
+
     bool can_preallocate(size_t desired_buffer_size);
+
+    void reset() {
+        _shapes_info.clear();
+    }
 
 private:
     void add_shape(const std::string& id, const ov::Shape& shape);
@@ -71,3 +76,9 @@ private:
 };
 
 }  // namespace cldnn
+
+namespace ov {
+namespace intel_gpu {
+using ShapePredictor = cldnn::ShapePredictor;
+}  // namespace intel_gpu
+}  // namespace ov

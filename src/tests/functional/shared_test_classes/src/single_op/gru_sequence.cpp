@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,13 +8,13 @@
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
 #include "openvino/pass/manager.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "ov_models/utils/ov_helpers.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 
 namespace ov {
 namespace test {
 using ov::test::utils::InputLayerType;
 using ov::test::utils::SequenceTestsMode;
-using ngraph::helpers::is_tensor_iterator_exist;
+using ov::test::utils::is_tensor_iterator_exist;
 
 std::string GRUSequenceTest::getTestCaseName(const testing::TestParamInfo<GRUSequenceParams> &obj) {
     std::vector<InputShape> shapes;
@@ -78,11 +78,10 @@ void GRUSequenceTest::SetUp() {
         inputDynamicShapes[1][0].is_static() ? inputDynamicShapes[1][0].get_length() :
         inputDynamicShapes.size() > 2 && inputDynamicShapes[2][0].is_static() ? inputDynamicShapes[2][0].get_length() :
         1lu;
-
+    max_seq_lengths = seq_lengths;
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]),
                                std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[1])};
-
     const auto& w_shape = ov::Shape{num_directions, 3 * hidden_size, input_size};
     const auto& r_shape = ov::Shape{num_directions, 3 * hidden_size, hidden_size};
     const auto& b_shape = ov::Shape{num_directions, (linear_before_reset ? 4 : 3) * hidden_size};
@@ -149,6 +148,22 @@ void GRUSequenceTest::SetUp() {
     } else {
         bool ti_found = is_tensor_iterator_exist(function);
         EXPECT_EQ(ti_found, false);
+    }
+}
+
+void GRUSequenceTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    inputs.clear();
+    const auto& func_inputs = function->inputs();
+    ov::test::utils::InputGenerateData in_data;
+
+    for (size_t i = 0; i < func_inputs.size(); ++i) {
+        ov::Tensor tensor;
+        if (i == 2) {
+            in_data.range = max_seq_lengths;
+        }
+
+        tensor = ov::test::utils::create_and_fill_tensor(func_inputs[i].get_element_type(), targetInputStaticShapes[i], in_data);
+        inputs.insert({func_inputs[i].get_node_shared_ptr(), tensor});
     }
 }
 } //  namespace test

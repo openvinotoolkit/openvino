@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ class TRANSFORMATIONS_API InitNodeInfo;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief InitNodeInfo transformation helps to set runtime info attributes in a single place.
  *
  * Every runtime info attribute that needs to be initialized should be registered

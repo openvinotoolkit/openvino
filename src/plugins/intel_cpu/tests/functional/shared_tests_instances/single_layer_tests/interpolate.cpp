@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,7 +60,7 @@ const std::vector<std::vector<size_t>> pads = {
 };
 
 const std::vector<bool> antialias = {
-// Not enabled in Inference Engine
+// Not enabled in OpenVINO
 //        true,
     false,
 };

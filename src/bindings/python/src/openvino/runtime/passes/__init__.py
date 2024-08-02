@@ -1,9 +1,9 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 # type: ignore
 # flake8: noqa
 
-from openvino._pyopenvino.passes import ModelPass, Matcher, MatcherPass, PassBase, WrapType, Or, AnyInput
+from openvino._pyopenvino.passes import ModelPass, Matcher, MatcherPass, PassBase, WrapType, Or, AnyInput, Optional
 from openvino._pyopenvino.passes import (
     consumers_count,
     has_static_dim,

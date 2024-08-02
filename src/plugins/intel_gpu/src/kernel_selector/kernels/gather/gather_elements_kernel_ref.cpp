@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -72,6 +72,23 @@ static inline std::vector<std::string> GetDefaultOrder(size_t size) {
     return default_order;
 }
 
+static inline std::string GetOrderString(const std::vector<std::string>& order) {
+    std::string order_str = order[0];
+    for (size_t i = 1; i < order.size(); i++)
+        order_str += ", " + order[i];
+
+    return order_str;
+}
+
+static std::string GetDataIndexOrder(const gather_elements_params& params, size_t axis) {
+    auto idx_order = GetDefaultOrder(params.outputs[0].GetDims().size());
+    auto index_macro = "indices[out_idx]";
+
+    idx_order[axis] = index_macro;
+
+    return GetOrderString(idx_order);
+}
+
 CommonDispatchData GatherElementsKernelRef::SetDefault(const gather_elements_params& params) const {
     CommonDispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
@@ -119,6 +136,7 @@ JitConstants GatherElementsKernelRef::GetJitConstants(const gather_elements_para
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     jit.AddConstant(MakeJitConstant("AXIS", GetGatherElementsChannelIndex(params)));
+    jit.AddConstant(MakeJitConstant("DATA_INDEX_ORDER", GetDataIndexOrder(params, GetGatherElementsChannelIndex(params))));
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order = GetDefaultOrder(params.inputs[0].GetDims().size());
@@ -129,8 +147,8 @@ JitConstants GatherElementsKernelRef::GetJitConstants(const gather_elements_para
     return jit;
 }
 
-bool GatherElementsKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::GATHER_ELEMENTS || o.GetType() != KernelType::GATHER_ELEMENTS) {
+bool GatherElementsKernelRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::GATHER_ELEMENTS) {
         return false;
     }
 
@@ -161,8 +179,8 @@ void GatherElementsKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData GatherElementsKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData GatherElementsKernelRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -171,18 +189,18 @@ KernelsData GatherElementsKernelRef::GetKernelsData(const Params& params, const 
 
     auto dispatchData = SetDefault(newParams);
     auto cldnn_jit = GetJitConstants(newParams);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     GetUpdateDispatchDataFunc(kd);
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     "", false, false, 2, GetFusedPrimitiveInputsCount(params), 1, newParams.has_dynamic_tensors());
+                     "", false, false, 2, GetFusedPrimitiveInputsCount(params), 1, newParams.is_shape_agnostic);
     return { kd };
 }
 
-KernelsPriority GatherElementsKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority GatherElementsKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

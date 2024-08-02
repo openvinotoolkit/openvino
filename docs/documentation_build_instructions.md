@@ -21,17 +21,22 @@ $ apt install -y doxygen graphviz texlive
 ```
 $ python3 -m venv env
 $ source env/bin/activate
+(env) $ pip install --upgrade setuptools pip
 (env) $ pip install -r docs/requirements.txt
 ```
 5. Install the sphinx theme
 ```
 (env) $ cd docs/openvino_sphinx_theme && python setup.py install && cd -
 ``````
-6. Create build folder:
+6. Install the custom sphinx sitemap
+```
+(env) $ pip install docs/openvino_custom_sphinx_sitemap
+``````
+7. Create build folder:
 ```
 (env) $ mkdir build && cd build
 ```
-7. Build documentation using these commands:
+8. Build documentation using these commands:
 ```
 (env) $ cmake .. -DENABLE_DOCS=ON
 (env) $ cmake --build . --target sphinx_docs

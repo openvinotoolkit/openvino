@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,28 +6,25 @@
 
 #include <numeric>
 
-#include "openvino/core/deprecated.hpp"
-OPENVINO_SUPPRESS_DEPRECATED_START
+#include "core/node.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/nms_rotated.hpp"
 
-#include "default_opset.hpp"
-#include "onnx_import/core/node.hpp"
-#include "openvino/core/node_vector.hpp"
-#include "openvino/opsets/opset13.hpp"
-
-namespace ngraph {
-namespace onnx_import {
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-inline OutputVector nms_rotated(const Node& node) {
+inline ov::OutputVector nms_rotated(const ov::frontend::onnx::Node& node) {
     auto iou_threshold = node.get_attribute_value<float>("iou_threshold");
     auto score_threshold = node.get_attribute_value<float>("score_threshold");
     auto max_output_boxes_per_class =
-        default_opset::Constant::create(element::i64, Shape{1}, {std::numeric_limits<int64_t>::max()});
-    auto iou_threshold_const = default_opset::Constant::create(element::f32, Shape{}, {iou_threshold});
-    auto score_threshold_const = default_opset::Constant::create(element::f32, Shape{}, {score_threshold});
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {std::numeric_limits<int64_t>::max()});
+    auto iou_threshold_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {iou_threshold});
+    auto score_threshold_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {score_threshold});
 
-    auto nms = std::make_shared<ov::opset13::NMSRotated>(node.get_ng_inputs().at(0),
-                                                         node.get_ng_inputs().at(1),
+    auto nms = std::make_shared<ov::op::v13::NMSRotated>(node.get_ov_inputs().at(0),
+                                                         node.get_ov_inputs().at(1),
                                                          max_output_boxes_per_class,
                                                          iou_threshold_const,
                                                          score_threshold_const,
@@ -37,6 +34,6 @@ inline OutputVector nms_rotated(const Node& node) {
 }
 }  // namespace set_1
 }  // namespace op
-}  // namespace onnx_import
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

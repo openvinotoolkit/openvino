@@ -1,10 +1,13 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "behavior/ov_infer_request/infer_request_dynamic.hpp"
 
 #include <vector>
+
+#include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
 
 using namespace ov::test::behavior;
 
@@ -22,12 +25,12 @@ std::shared_ptr<ov::Model> getFunction2() {
         std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i64, ov::Shape{}, std::vector<int64_t>{1});
     auto split = std::make_shared<ov::op::v1::Split>(params[0], split_axis_op, 2);
 
-    auto in2add = ngraph::builder::makeConstant(ngPrc, {1, 2, 1, 1}, std::vector<float>{}, true);
-    auto add = ngraph::builder::makeEltwise(split->output(0), in2add, ov::test::utils::EltwiseTypes::ADD);
+    auto in2add = ov::test::utils::make_constant(ngPrc, {1, 2, 1, 1});
+    auto add = ov::test::utils::make_eltwise(split->output(0), in2add, ov::test::utils::EltwiseTypes::ADD);
     auto relu1 = std::make_shared<ov::op::v0::Relu>(add);
 
-    auto in2mult = ngraph::builder::makeConstant(ngPrc, {1, 2, 1, 1}, std::vector<float>{}, true);
-    auto mult = ngraph::builder::makeEltwise(split->output(1), in2mult, ov::test::utils::EltwiseTypes::MULTIPLY);
+    auto in2mult = ov::test::utils::make_constant(ngPrc, {1, 2, 1, 1});
+    auto mult = ov::test::utils::make_eltwise(split->output(1), in2mult, ov::test::utils::EltwiseTypes::MULTIPLY);
     auto relu2 = std::make_shared<ov::op::v0::Relu>(mult);
 
     auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{relu1->output(0), relu2->output(0)}, 3);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@
 #include <bitset>
 #include <map>
 #include <mutex>
-#include <string>
 
 namespace ov {
 namespace intel_cpu {
@@ -39,14 +38,9 @@ struct Config {
         Disable,
     };
 
-    enum class LatencyThreadingMode {
-        PER_NUMA_NODE,
-        PER_SOCKET,
-        PER_PLATFORM,
-    };
-
     enum class ModelType {
         CNN,
+        LLM,
         Unknown
     };
 
@@ -56,6 +50,8 @@ struct Config {
     std::string dumpToDot = {};
     std::string device_id = {};
     float fcSparseWeiDecompressionRate = 1.0f;
+    uint64_t fcDynamicQuantizationGroupSize = 0;
+    ov::element::Type kvCachePrecision = ov::element::f16;
 #if defined(OPENVINO_ARCH_X86_64)
     size_t rtCacheCapacity = 5000ul;
 #else
@@ -63,14 +59,21 @@ struct Config {
     size_t rtCacheCapacity = 0ul;
 #endif
     ov::threading::IStreamsExecutor::Config streamExecutorConfig;
+    int streams = 1;
+    bool streamsChanged = false;
+    int threads = 0;
+    int threadsPerStream = 0;
+    ov::threading::IStreamsExecutor::ThreadBindingType threadBindingType = ov::threading::IStreamsExecutor::ThreadBindingType::NONE;
     ov::hint::PerformanceMode hintPerfMode = ov::hint::PerformanceMode::LATENCY;
+    bool changedHintPerfMode = false;
+    ov::log::Level logLevel = ov::log::Level::NO;
     uint32_t hintNumRequests = 0;
     bool enableCpuPinning = true;
     bool changedCpuPinning = false;
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
+    std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {};
     bool enableHyperThreading = true;
     bool changedHyperThreading = false;
-    Config::LatencyThreadingMode latencyThreadingMode = Config::LatencyThreadingMode::PER_SOCKET;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
 #else
@@ -94,8 +97,6 @@ struct Config {
     void updateProperties();
 
     std::map<std::string, std::string> _config;
-
-    bool isLegacyApi = false;
 
     int modelPreferThreads = -1;
     ModelType modelType = ModelType::Unknown;

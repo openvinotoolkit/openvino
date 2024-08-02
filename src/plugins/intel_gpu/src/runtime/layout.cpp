@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,12 +7,14 @@
 #include <list>
 #include <vector>
 #include <algorithm>
+#include "openvino/core/dimension.hpp"
+#include "openvino/core/partial_shape.hpp"
 
 namespace cldnn {
 static inline bool check_redundant_1d_along_feature(layout const& l1, layout const& l2);
 namespace {
 
-std::vector<int32_t> convert_dimensions(const std::vector<int32_t>& sizes, std::string in_order, std::string out_order) {
+std::vector<int32_t> convert_dimensions(const std::vector<int32_t>& sizes, const std::string& in_order, const std::string& out_order) {
     std::vector<int32_t> new_sizes(out_order.size(), {-1});
     for (size_t out_idx = 0; out_idx < out_order.size(); ++out_idx) {
         auto channel = out_order[out_idx];
@@ -171,7 +173,7 @@ std::vector<tensor::value_type> layout::get_ordered_dims() const {
 }
 
 std::vector<size_t> layout::get_dims_order() const {
-    return format::traits(format)._order;
+    return format.dims_order();
 }
 
 std::string layout::to_string() const {
@@ -231,7 +233,7 @@ bool layout::is_static() const {
     return !is_dynamic();
 }
 
-ov::PartialShape layout::get_partial_shape() const {
+const ov::PartialShape& layout::get_partial_shape() const {
     return size;
 }
 
@@ -365,16 +367,6 @@ size_t layout::get_linear_size() const {
     } else if (this->format == cldnn::format::os_is_yx_isa8_osv16_isv4 && (!(is_aligned_to(sizes[0], 16)) || !(is_aligned_to(sizes[1], 32)))) {
         sizes[0] = align_to(sizes[0], 16);
         sizes[1] = align_to(sizes[1], 32);
-    } else if (this->format == cldnn::format::os_is_yx_isa8_osv8_isv4_swizzled_by_4 && (!(is_aligned_to(sizes[0], 32)) || !(is_aligned_to(sizes[1], 32)))) {
-        sizes[0] = align_to(sizes[0], 32);
-        sizes[1] = align_to(sizes[1], 32);
-    } else if (this->format == cldnn::format::is_o32_yx_isv32_swizzled_by_4 && (!is_aligned_to(sizes[1], 32) || !(is_aligned_to(sizes[0], 32)))) {
-        sizes[0] = align_to(sizes[0], 32);
-        sizes[1] = align_to(sizes[1], 32);
-    } else if (this->format == cldnn::format::os_is_y_x8_osv8_isv4 || this->format == cldnn::format::os_is_y_x8_osv8_isv4_swizzled_by_4) {
-        sizes[1] = align_to(sizes[1], 4);
-        sizes[0] = align_to(sizes[0], 8);
-        sizes[2] = align_to(sizes[2], 8);
     } else if (this->format == cldnn::format::image_2d_rgba) {
         sizes[1] = 4;
     } else if (this->format == cldnn::format::gs_oi_yxs_gsv4_yxsv4 ||
@@ -394,10 +386,8 @@ size_t layout::get_linear_size() const {
     } else if (this->format == cldnn::format::i_yxs_os_yxsv2_osv16 || this->format == cldnn::format::gi_yxs_os_yxsv2_osv16) {
         sizes[3] = align_to(sizes[2] * sizes[3], 2);
         sizes[2] = 1;
-    } else if (this->format == cldnn::format::os_i_yxs_osv4_yxsv4) {
-        sizes[3] = align_to(sizes[2] * sizes[3], 4);
-        sizes[2] = 1;
     }
+
     size_t total = std::accumulate(
         sizes.begin(),
         sizes.end(),
@@ -456,7 +446,7 @@ bool layout::compatible(const layout& other) const {
 
     // TODO: Relax restrictions below
     if (blocks1 != blocks2 ||
-        (!blocks1.empty() && format::traits(l1.format)._order != format::traits(l2.format)._order))
+        (!blocks1.empty() && l1.format.dims_order() != l2.format.dims_order()))
         return false;
 
     if (check_format(format::b_fs_yx_fsv2) ||
@@ -506,27 +496,44 @@ bool layout::compatible(const layout& other) const {
 bool layout::identical(const layout& other) const {
     if (is_dynamic() || other.is_dynamic())
         return false;
-    return *this == other;
+    bool ret = (*this == other);
+    if (ret && this->format == cldnn::format::custom) {
+        ret &= (this->format.traits().block_sizes == other.format.traits().block_sizes);
+    }
+    return ret;
 }
 
-ov::PartialShape layout::transform(const ov::PartialShape& pshape, cldnn::format old_fmt, cldnn::format new_fmt) {
+ov::PartialShape layout::transform(const ov::PartialShape& pshape, const cldnn::format& old_fmt, const cldnn::format& new_fmt) {
     if (old_fmt == new_fmt) {
         return pshape;
     }
 
+    // shortcut for transform to max rank default fmt which is used in fill_shape_info_data to improve perf
+    if (format::is_default_format(old_fmt) && new_fmt == format::bfvuwzyx) {
+        ov::PartialShape res = pshape;
+        // This part is necessary because we treat 3D layouts as "bfy", not as "bfx".
+        if (res.size() == 3)
+            res.push_back(1);
+        size_t num_to_insert = layout::max_rank() - res.size();
+        size_t pos_to_insert = std::min<size_t>(res.size(), 2);
+        res.insert(res.begin() + pos_to_insert, num_to_insert, 1);
+
+        return res;
+    }
+
     int32_t default_size = -1;
-    auto shape = pshape.to_shape();
     std::vector<int32_t> dims;
-    for (auto dim : shape) {
-        dims.push_back(static_cast<int32_t>(dim));
+    dims.reserve(pshape.size());
+    for (auto dim : pshape) {
+        dims.push_back(static_cast<int32_t>(dim.get_length()));
     }
 
     const cldnn::format default_fmt = cldnn::format::bfvuwzyx;
     auto old_sizes = convert_dimensions(dims, old_fmt.order(), default_fmt.internal_order()); // convert to internal order (bfxyzwuv)
 
-    auto val_order = default_fmt.internal_order();
-    auto new_order = new_fmt.internal_order();
-    const auto& new_traits = format::traits(new_fmt);
+    const auto& val_order = default_fmt.internal_order();
+    const auto& new_order = new_fmt.internal_order();
+    const auto& new_traits = new_fmt.traits();
 
     std::vector<int32_t> new_sizes(old_sizes.size(), {default_size});
 
@@ -574,17 +581,22 @@ ov::PartialShape layout::transform(const ov::PartialShape& pshape, cldnn::format
             new_dims[idx] *= -1;
     }
 
-    ov::Shape new_shape(new_dims.begin(), new_dims.end());
-    return ov::PartialShape(new_shape);
+    ov::PartialShape res;
+    res.reserve(new_dims.size());
+    for (size_t i = 0; i < new_dims.size(); i++) {
+        res.push_back(ov::Dimension(new_dims[i]));
+    }
+    return res;
 }
 
 // Check a reorder is 1d along feature axis. Or feature size fits to inner block size of feature axis
 static inline bool check_redundant_1d_along_feature(layout const& l1, layout const& l2) {
     // No padding, double blocked format and different data_type
-    if (!l1.data_padding && !l2.data_padding && !format::is_multi_blocked(l1.format) && !format::is_multi_blocked(l2.format) &&
+    if ((l1.get_linear_size() == l2.get_linear_size()) && !l1.data_padding && !l2.data_padding &&
+        !format::is_multi_blocked(l1.format) && !format::is_multi_blocked(l2.format) &&
         l2.data_type == l1.data_type && l2.count() == l1.count()) {
-        auto l1_inner_blk = format::is_single_blocked(l1.format) ? format::traits(l1.format).block_sizes.at(0).second : 1;
-        auto l2_inner_blk = format::is_single_blocked(l2.format) ? format::traits(l2.format).block_sizes.at(0).second : 1;
+        auto l1_inner_blk = format::is_single_blocked(l1.format) ? l1.format.traits().block_sizes.at(0).second : 1;
+        auto l2_inner_blk = format::is_single_blocked(l2.format) ? l2.format.traits().block_sizes.at(0).second : 1;
         auto max_inner_blk = std::max(l1_inner_blk, l2_inner_blk);
         if (static_cast<size_t>(l2.feature()) == l1.count() && l2.feature() == l1.feature() &&
            (l2.feature() % max_inner_blk == 0)) {

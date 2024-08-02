@@ -21,7 +21,7 @@ class TRANSFORMATIONS_API TSGatherBackward;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TSGatherForward transformation sinks Transpose through Gather operations
  * in the forward direction.
  */
@@ -32,7 +32,7 @@ public:
 };
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief TSGatherBackward transformation sinks Transpose through Gather operation
  * in the backward direction.
  */

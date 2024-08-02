@@ -5,7 +5,6 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 

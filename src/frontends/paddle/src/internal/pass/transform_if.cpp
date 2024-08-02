@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,8 +16,8 @@ using namespace ov;
 using namespace ov::pass;
 using namespace ov::frontend::paddle::op::default_opset;
 
-// Transform Paddle "conditonal_block" to OpenVINO If op.
-// The contional_block only has "then" branch, while If op requires both "then" and "else" branch the same time.
+// Transform Paddle "conditional_block" to OpenVINO If op.
+// The conditional_block only has "then" branch, while If op requires both "then" and "else" branch the same time.
 // Thus a "pass-through" model is built on purpose for "else" branch with the same outputs as "then" branch.
 ov::frontend::paddle::pass::TransformIf::TransformIf(std::vector<std::shared_ptr<Model>> funcs) {
     const auto cond_label = pattern::wrap_type<ov::op::internal::ConditionalBlock>();
@@ -58,10 +58,10 @@ ov::frontend::paddle::pass::TransformIf::TransformIf(std::vector<std::shared_ptr
         if_node->set_else_body(else_branch);
 
         const auto then_branch_inputs_from_parent = conditional_block->get_inputs_from_parent();
-        NGRAPH_CHECK(then_branch_inputs_from_parent.size() == then_params.size(),
-                     "Number of inputs to 'then_branch' is invalid. Expected " +
-                         std::to_string(then_branch_inputs_from_parent.size()) + ", actual " +
-                         std::to_string(then_params.size()));
+        OPENVINO_ASSERT(then_branch_inputs_from_parent.size() == then_params.size(),
+                        "Number of inputs to 'then_branch' is invalid. Expected " +
+                            std::to_string(then_branch_inputs_from_parent.size()) + ", actual " +
+                            std::to_string(then_params.size()));
         auto then_param = then_params.cbegin();
         for (const auto& from_parent : then_branch_inputs_from_parent) {
             if_node->set_input(from_parent, *then_param, nullptr);

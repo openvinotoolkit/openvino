@@ -1,4 +1,4 @@
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -43,7 +43,7 @@ class TestKerasDepthwiseConv2D(CommonTF2LayerTest):
              data_format='channels_last',
              dilation_rate=(2, 2), activation=None, use_bias=False),
         dict(input_names=["x"], input_shapes=[[5, 16, 8, 4]], input_type=tf.float32,
-             kernel_size=(2, 2), strides=(3, 3), padding='same', depth_multiplier=54,
+             kernel_size=(2, 2), strides=(3, 3), padding='same', depth_multiplier=4,
              data_format='channels_first',
              dilation_rate=1, activation=None, use_bias=False),
     ]
@@ -51,11 +51,11 @@ class TestKerasDepthwiseConv2D(CommonTF2LayerTest):
     @pytest.mark.parametrize("params", test_data_format_padding)
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_keras_dconv2D_float32(self, params, ie_device, precision, ir_version, temp_dir, use_old_api,
-                                   use_new_frontend):
+    def test_keras_dconv2D_float32(self, params, ie_device, precision, ir_version, temp_dir,
+                                   use_legacy_frontend):
         self._test(*self.create_keras_dconv2D_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version, use_old_api=use_old_api,
-                   use_new_frontend=use_new_frontend, **params)
+                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
+                   use_legacy_frontend=use_legacy_frontend, **params)
 
     test_data_use_bias_true = [
         dict(input_names=["x"], input_shapes=[[5, 7, 3, 3]], input_type=tf.float32, kernel_size=1,
@@ -69,7 +69,7 @@ class TestKerasDepthwiseConv2D(CommonTF2LayerTest):
              data_format='channels_last',
              dilation_rate=(2, 2), activation=None, use_bias=True),
         dict(input_names=["x"], input_shapes=[[5, 16, 8, 4]], input_type=tf.float32,
-             kernel_size=(2, 2), strides=(3, 3), padding='same', depth_multiplier=54,
+             kernel_size=(2, 2), strides=(3, 3), padding='same', depth_multiplier=4,
              data_format='channels_first',
              dilation_rate=1, activation=None, use_bias=True),
     ]
@@ -78,10 +78,10 @@ class TestKerasDepthwiseConv2D(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_use_bias_float32(self, params, ie_device, precision, ir_version, temp_dir,
-                                    use_old_api, use_new_frontend):
+                                    use_legacy_frontend):
         self._test(*self.create_keras_dconv2D_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version, use_old_api=use_old_api,
-                   use_new_frontend=use_new_frontend, **params)
+                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
+                   use_legacy_frontend=use_legacy_frontend, **params)
 
     test_data_activations = [
         dict(input_names=["x"], input_shapes=[[5, 7, 16, 3]], input_type=tf.float32, kernel_size=1,
@@ -90,12 +90,12 @@ class TestKerasDepthwiseConv2D(CommonTF2LayerTest):
         dict(input_names=["x"], input_shapes=[[5, 16, 16, 4]], input_type=tf.float32,
              kernel_size=(3, 3), strides=(4, 4), padding='valid', depth_multiplier=2,
              data_format='channels_first', dilation_rate=1, activation='elu', use_bias=True),
-        pytest.param(dict(input_names=["x"], input_shapes=[[5, 8, 16, 4]], input_type=tf.float32,
-                          kernel_size=(2, 2), strides=1, padding='same', depth_multiplier=2,
-                          data_format='channels_last',
-                          dilation_rate=(2, 2), activation='linear', use_bias=True), marks=pytest.mark.precommit_tf_fe),
+        dict(input_names=["x"], input_shapes=[[5, 8, 16, 4]], input_type=tf.float32,
+             kernel_size=(2, 2), strides=1, padding='same', depth_multiplier=2,
+             data_format='channels_last',
+             dilation_rate=(2, 2), activation='linear', use_bias=True),
         dict(input_names=["x"], input_shapes=[[5, 16, 8, 4]], input_type=tf.float32,
-             kernel_size=(2, 2), strides=(3, 3), padding='same', depth_multiplier=54,
+             kernel_size=(2, 2), strides=(3, 3), padding='same', depth_multiplier=4,
              data_format='channels_first',
              dilation_rate=1, activation='tanh', use_bias=True),
     ]
@@ -104,7 +104,7 @@ class TestKerasDepthwiseConv2D(CommonTF2LayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_keras_activations_float32(self, params, ie_device, precision, ir_version, temp_dir,
-                                       use_old_api, use_new_frontend):
+                                       use_legacy_frontend):
         self._test(*self.create_keras_dconv2D_net(**params, ir_version=ir_version),
-                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version, use_old_api=use_old_api,
-                   use_new_frontend=use_new_frontend, **params)
+                   ie_device, precision, temp_dir=temp_dir, ir_version=ir_version,
+                   use_legacy_frontend=use_legacy_frontend, **params)

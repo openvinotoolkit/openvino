@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "edge.h"
 #include "node.h"
 #include "dnnl_extension_utils.h"
-#include "nodes/input.h"
+#include "openvino/util/pp.hpp"
 
 using namespace dnnl;
 namespace ov {
@@ -52,36 +52,46 @@ bool Edge::isDropped() const {
     return not_in_parent && not_in_child;
 }
 
-void Edge::drop() {
-    auto _drop_from = [&] (std::vector<EdgeWeakPtr> &list) {
-        auto myself = std::find_if(list.begin(), list.end(),
-                [&] (EdgeWeakPtr edge) { return edge.lock().get() == this; });
-
-        if (myself != list.end())
-            list.erase(myself);
-    };
-
-    _drop_from(getParent()->childEdges);
-    _drop_from(getChild()->parentEdges);
-}
-
 void Edge::collectConsumers(std::vector<NodePtr>& result) const {
-    if (!this->getChild()->getChildEdges().empty() && this->inPlace(LOOK_DOWN)) {
-        if (auto peerChildSPD = this->getChild()->getSelectedPrimitiveDescriptor()) {
+    auto add_result_node = [](std::vector<NodePtr>& result, const NodePtr& node) -> bool {
+        if (Type::ShapeOf == node->getType()) {
+            // ShapeOf doesn't actually read the data, it only reads shape
+            return false;
+        }
+        result.push_back(node);
+        return true;
+    };
+    auto childNode = this->getChild();
+    if (childNode->getChildEdges().empty()) {
+        add_result_node(result, childNode);
+        return;
+    }
+
+    if (this->inPlace(LOOK_DOWN)) {
+        if (auto peerChildSPD = childNode->getSelectedPrimitiveDescriptor()) {
             auto peerOutputNum = this->getOutputNum();
             auto peerInPlacePort = peerChildSPD->getConfig().inConfs[peerOutputNum].inPlace();
-            auto& vecChildEdges = this->getChild()->getChildEdgesAtPort(peerInPlacePort);
+            auto vecChildEdges = getChild()->getChildEdgesAtPort(peerInPlacePort);
             for (auto childEdge : vecChildEdges) {
                 childEdge->collectConsumers(result);
             }
         }
     } else {
-        auto childNode = this->getChild();
-        if (Type::ShapeOf == childNode->getType()) {
-            // ShapeOf doesn't actually read the data, it only reads shape
+        if (!add_result_node(result, childNode))
             return;
+
+        // collect consumers in case of an upstream in-place memory reference
+        if (auto peerChildSPD = childNode->getSelectedPrimitiveDescriptor()) {
+            auto&& conf = peerChildSPD->getConfig();
+            for (size_t i = 0; i < conf.outConfs.size(); i++) {
+                const auto peerOutInPlacePort = conf.outConfs[i].inPlace();
+                if (peerOutInPlacePort == this->getOutputNum()) {
+                    for (auto&& childEdge : childNode->getChildEdgesAtPort(i)) {
+                        childEdge->collectConsumers(result);
+                    }
+                }
+            }
         }
-        result.push_back(childNode);
     }
 }
 
@@ -255,7 +265,7 @@ void Edge::allocateCommon(const std::function<MemoryPtr(const MemoryDesc&)>& all
 }
 
 void Edge::allocate(const void* mem_ptr) {
-    auto allocateFunc = [=](const MemoryDesc& inputDesc) -> MemoryPtr {
+    auto allocateFunc = [OV_CAPTURE_CPY_AND_THIS](const MemoryDesc& inputDesc) -> MemoryPtr {
         auto parentPtr = getParent();
         return std::make_shared<Memory>(parentPtr->getEngine(), inputDesc, mem_ptr, false);  // no pads zeroing
     };
@@ -268,7 +278,7 @@ void Edge::allocate(MemoryMngrPtr memMngr) {
         OPENVINO_THROW("Unexpected: Memory manager ptr is NULL");
     }
 
-    auto allocateFunc = [=](const MemoryDesc& inputDesc) -> MemoryPtr {
+    auto allocateFunc = [OV_CAPTURE_CPY_AND_THIS](const MemoryDesc& inputDesc) -> MemoryPtr {
         auto parentPtr = getParent();
         return std::make_shared<Memory>(parentPtr->getEngine(), inputDesc, memMngr);
     };
@@ -458,6 +468,7 @@ void Edge::init() {
         changeStatus(Status::NeedAllocation);
     } else {
         if (Type::Input == edgePtr->getParent()->getType() &&
+            Type::MemoryInput != getParent()->getType() &&
             edgePtr->getParent()->isConstant() &&
             !edgePtr->getChild()->isConstant()) {
             changeStatus(Status::NeedAllocation);
@@ -500,7 +511,7 @@ EdgePtr Edge::getBaseEdge(int look) {
         }
         return next_ch_edge;
     } else if (parentInPlacePort >= 0 && (look & LOOK_UP)) {
-        return getParent()->getParentEdgesAtPort(parentInPlacePort)[0];
+        return getParent()->getParentEdgeAt(parentInPlacePort);
     }
 
     auto edgesForSamePort = getParent()->getChildEdgesAtPort(inputNum);

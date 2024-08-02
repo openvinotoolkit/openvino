@@ -1,14 +1,13 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
-#include <ie_system_conf.h>
 
-#include <common_test_utils/test_common.hpp>
-
+#include "common_test_utils/test_common.hpp"
 #include "cpu_map_scheduling.hpp"
 #include "cpu_streams_calculation.hpp"
+#include "openvino/runtime/system_conf.hpp"
 
 using namespace testing;
 using namespace ov;

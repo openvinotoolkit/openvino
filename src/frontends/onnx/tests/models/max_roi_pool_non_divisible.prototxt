@@ -1,0 +1,85 @@
+ir_version: 7
+graph {
+  node {
+    input: "data"
+    input: "rois"
+    output: "output"
+    op_type: "MaxRoiPool"
+    attribute {
+      name: "pooled_shape"
+      ints: 2
+      ints: 2
+      type: INTS
+    }
+    attribute {
+      name: "spatial_scale"
+      f: 1.0
+      type: FLOAT
+    }
+  }
+  name: "MaxRoiPoolTest"
+  input {
+    name: "data"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 5
+          }
+          dim {
+            dim_value: 5
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "rois"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 5
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "output"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 16
+}

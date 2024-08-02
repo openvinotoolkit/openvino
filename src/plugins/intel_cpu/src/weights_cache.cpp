@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "weights_cache.hpp"
+#include "openvino/runtime/system_conf.hpp"
 
-#include <ie_system_conf.h>
 #include <memory>
 
 namespace ov {

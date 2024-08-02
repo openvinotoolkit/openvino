@@ -1,18 +1,15 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "shape_inference.hpp"
 
-#include <ngraph/runtime/host_tensor.hpp>
 #include <openvino/core/node.hpp>
-#include <openvino/opsets/opset1.hpp>
 #include <openvino/opsets/opset10.hpp>
-#include <openvino/opsets/opset11.hpp>
 #include <openvino/opsets/opset12.hpp>
 #include <openvino/opsets/opset13.hpp>
+#include <openvino/opsets/opset14.hpp>
+#include <openvino/opsets/opset15.hpp>
 #include <openvino/opsets/opset2.hpp>
-#include <openvino/opsets/opset3.hpp>
-#include <openvino/opsets/opset4.hpp>
 #include <openvino/opsets/opset5.hpp>
 #include <openvino/opsets/opset6.hpp>
 #include <openvino/opsets/opset7.hpp>
@@ -26,6 +23,7 @@
 #include "augru_sequence_shape_inference.hpp"
 #include "avg_pool_shape_inference.hpp"
 #include "batch_to_space_shape_inference.hpp"
+#include "col2im_shape_inference.hpp"
 #include "binary_convolution_shape_inference.hpp"
 #include "broadcast_shape_inference.hpp"
 #include "bucketize_shape_inference.hpp"
@@ -65,6 +63,7 @@
 #include "gru_sequence_shape_inference.hpp"
 #include "i420_shape_inference.hpp"
 #include "interpolate_shape_inference.hpp"
+#include "inverse_shape_inference.hpp"
 #include "irdft_shape_inference.hpp"
 #include "lstm_cell_shape_inference.hpp"
 #include "lstm_sequence_shape_inference.hpp"
@@ -75,6 +74,10 @@
 #include "nms_shape_inference.hpp"
 #include "nv12_shape_inference.hpp"
 #include "one_hot_shape_inference.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset11.hpp"
+#include "openvino/opsets/opset3.hpp"
+#include "openvino/opsets/opset4.hpp"
 #include "pad_shape_inference.hpp"
 #include "prior_box_clustered_shape_inference.hpp"
 #include "prior_box_shape_inference.hpp"
@@ -89,11 +92,13 @@
 #include "reshape_shape_inference.hpp"
 #include "reverse_sequence_shape_inference.hpp"
 #include "reverse_shape_inference.hpp"
+#include "rms_norm_shape_inference.hpp"
 #include "rnn_cell_shape_inference.hpp"
 #include "rnn_sequence_shape_inference.hpp"
 #include "roi_align_shape_inference.hpp"
 #include "roi_pooling_shape_inference.hpp"
 #include "roll_shape_inference.hpp"
+#include "scaled_dot_product_attention_shape_inference.hpp"
 #include "scatter_elements_update_shape_inference.hpp"
 #include "scatter_nd_base_shape_inference.hpp"
 #include "select_shape_inference.hpp"
@@ -205,7 +210,7 @@ public:
         for (size_t i = 0; i < op->get_input_size(); ++i) {
             if (auto t = tensor_accessor(i)) {
                 new_inputs.push_back(
-                    std::make_shared<ov::opset1::Constant>(t.get_element_type(), t.get_shape(), t.data()));
+                    std::make_shared<ov::opset1::Constant>(t));
             } else if (dynamic_cast<ov::opset1::Constant*>(op->get_input_node_ptr(i))) {
                 new_inputs.push_back(op->get_input_node_ptr(i)->clone_with_new_inputs(ov::OutputVector{}));
             } else {
@@ -396,8 +401,15 @@ using IStaticShapeInferFactory =
 // To use other version of operators, explicitly specify operator with opset version namespace.
 template <>
 const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
+    // opset15
+    _OV_OP_SHAPE_INFER_MASK_REG(opset15::EmbeddingBagOffsets, ShapeInferTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(opset15::EmbeddingBagPacked, ShapeInferTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(op::v15::Col2Im, ShapeInferTA, util::bit::mask(1, 2)),
+    // opset14
+    _OV_OP_SHAPE_INFER_MASK_REG(opset14::Inverse, ShapeInferTA, util::bit::mask()),
     // opset13
     _OV_OP_SHAPE_INFER_MASK_REG(opset13::Multinomial, ShapeInferTA, util::bit::mask(1)),
+    _OV_OP_SHAPE_INFER_MASK_REG(opset13::ScaledDotProductAttention, ShapeInferTA, util::bit::mask(3, 5)),
     // opset12
     _OV_OP_SHAPE_INFER_MASK_REG(opset12::Pad, ShapeInferTA, util::bit::mask(1, 2)),
     _OV_OP_SHAPE_INFER_MASK_REG(opset12::ScatterElementsUpdate, ShapeInferTA, util::bit::mask(3)),
@@ -554,6 +566,7 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     //
     _OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::AUGRUCell, ShapeInferTA, util::bit::mask()),
     _OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::AUGRUSequence, ShapeInferTA, util::bit::mask()),
+    _OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::RMSNorm, ShapeInferTA, util::bit::mask(1)),
 };
 // clang-format on
 

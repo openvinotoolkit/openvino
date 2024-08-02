@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -21,6 +21,7 @@ file(GLOB_RECURSE SOURCES_MAIN
     "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/*.hpp"
     "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/*.cpp"
     "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/variable_state.cpp"
+    "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/multi_tensor_variable_state.cpp"
     "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/remote_context.cpp"
     "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/remote_tensor.cpp"
     "${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/usm_host_tensor.cpp"
@@ -56,20 +57,18 @@ ov_set_threading_interface_for(${TARGET_NAME})
 
 # Workaround to avoid warnings during LTO build
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized")
+    set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized -Wno-stringop-overflow")
 endif()
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph
-                                             inference_engine
                                              OpenCL::OpenCL
                                              gtest
                                              gtest_main
                                              gflags
                                              common_test_utils
                                              openvino::reference
-                                             inference_engine_transformations
                                              gmock)
 
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}

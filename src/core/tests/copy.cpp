@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -142,7 +142,7 @@ TEST(copy, concat) {
 
     ASSERT_TRUE(nullptr != new_node);
     ASSERT_TRUE(new_args == new_node->input_values());
-    ASSERT_TRUE(node_cast->get_concatenation_axis() == axis);
+    ASSERT_TRUE(node_cast->get_axis() == axis);
 }
 
 TEST(copy, constant) {

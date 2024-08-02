@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,7 @@ using namespace ov::test::conformance;
 
 INSTANTIATE_TEST_SUITE_P(ov_infer_request_mandatory, OVInferRequestCancellationTests,
         ::testing::Combine(
-            ::testing::Values(targetDevice),
-            ::testing::Values(pluginConfig)),
+            ::testing::Values(ov::test::utils::target_device),
+            ::testing::Values(ov::AnyMap({}))),
         OVInferRequestCancellationTests::getTestCaseName);
 }  // namespace

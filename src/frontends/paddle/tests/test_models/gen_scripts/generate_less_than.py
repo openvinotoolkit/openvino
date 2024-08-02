@@ -34,7 +34,7 @@ def less_than(name: str, x, y, data_type, cast_to_fp32=False):
             feed={'input_x': x, 'input_y': y},
             fetch_list=[out])
 
-        saveModel(name, exe, feedkeys=['input_x', 'input_y'], fetchlist=[out],
+        saveModel(name, exe, feed_vars=[node_x, node_y], fetchlist=[out],
                   inputs=[x, y], outputs=[outs[0]], target_dir=sys.argv[1])
 
     return outs[0]

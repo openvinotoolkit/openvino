@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ TRANSFORMATIONS_API void unmark_as_decompression(const std::shared_ptr<Node>& no
 TRANSFORMATIONS_API bool is_decompression(const std::shared_ptr<Node>& node);
 
 /**
- * @ingroup ie_runtime_attr_api
+ * @ingroup ov_runtime_attr_api
  * @brief Decompression class represents runtime info attribute that marks operation
  * as used as decompression for Compressed Only format.
  */

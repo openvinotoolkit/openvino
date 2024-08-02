@@ -27,24 +27,17 @@ struct grid_sample_params : public base_params {
 };
 
 /**
- * GridSample reference kernel optional parameters.
- */
-struct grid_sample_optional_params : public optional_params {
-    grid_sample_optional_params() : optional_params(KernelType::GRID_SAMPLE) {}
-};
-
-/**
  * Reference kernel for GridSample.
  */
 class GridSampleKernelRef : public KernelBaseOpenCL {
 public:
     GridSampleKernelRef() : KernelBaseOpenCL{"grid_sample_ref"} {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    bool Validate(const Params& params, const optional_params& options) const override;
+    bool Validate(const Params& params) const override;
     JitConstants GetJitConstants(const grid_sample_params& kernel_params) const;
 };
 

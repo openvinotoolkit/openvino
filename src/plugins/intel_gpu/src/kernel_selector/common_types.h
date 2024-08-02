@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@ namespace kernel_selector {
 enum class KernelType {
     UNKNOWN,
     ARG_MAX_MIN,
+    BEAM_TABLE_UPDATE,
     CONVOLUTION,
     DECONVOLUTION,
     DFT,
@@ -39,7 +40,6 @@ enum class KernelType {
     REGION_YOLO,
     REORG_YOLO,
     MVN,
-    LSTM_GEMM,
     LSTM_ELT,
     BORDER,
     TILE,
@@ -48,7 +48,6 @@ enum class KernelType {
     BUCKETIZE,
     GEMM,
     GRID_SAMPLE,
-    PYRAMID_ROI_ALIGN,
     CONTRACT,
     ONE_HOT,
     GATHER,
@@ -60,13 +59,12 @@ enum class KernelType {
     DEPTH_TO_SPACE,
     BATCH_TO_SPACE,
     SHAPE_OF,
+    SDPA,
     SHUFFLE_CHANNELS,
     SLICE,
     STRIDED_SLICE,
     REVERSE_SEQUENCE,
     QUANTIZE,
-    LSTM_DYNAMIC_INPUT,
-    LSTM_DYNAMIC_TIMELOOP,
     REDUCE,
     GATHER_TREE,
     SPACE_TO_DEPTH,
@@ -98,6 +96,8 @@ enum class KernelType {
     UNIQUE_COUNT,
     UNIQUE_GATHER,
     RMS,
+    SWIGLU,
+    ROPE
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

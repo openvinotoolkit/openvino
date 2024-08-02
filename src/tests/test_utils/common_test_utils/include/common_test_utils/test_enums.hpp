@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -121,7 +121,8 @@ enum ActivationTypes {
     RoundHalfAwayFromZero,
     GeluErf,
     GeluTanh,
-    SoftSign
+    SoftSign,
+    IsInf
 };
 
 enum MinMaxOpType {

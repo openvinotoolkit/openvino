@@ -1,21 +1,17 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include <ie_common.h>
-#include <node.h>
-#include "embedding_bag_sum.h"
-#include <string>
-#include <memory>
-#include <vector>
+#include "embedding_bag.h"
+#include "node.h"
 
 namespace ov {
 namespace intel_cpu {
 namespace node {
 
-class EmbeddingSegmentsSum : public Node, public EmbeddingBagSum {
+class EmbeddingSegmentsSum : public Node, public EmbeddingBag {
 public:
     EmbeddingSegmentsSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 

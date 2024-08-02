@@ -1,138 +1,150 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <limits>
 #include <algorithm>
-#include <string>
-#include <map>
-#include <vector>
-#include <cmath>
-#include <tuple>
 #include <cctype>
+#include <cmath>
+#include <limits>
+#include <map>
 #include <memory>
+#include <string>
+#include <tuple>
+#include <vector>
 
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
-
-#include "openvino/op/reduce_sum.hpp"
-#include "openvino/op/reduce_mean.hpp"
-#include "openvino/op/reduce_max.hpp"
-#include "openvino/op/rnn_cell.hpp"
-#include "openvino/op/gru_cell.hpp"
-#include "openvino/op/lstm_cell.hpp"
-#include "openvino/op/rnn_sequence.hpp"
-#include "openvino/op/gru_sequence.hpp"
-#include "openvino/op/lstm_sequence.hpp"
-#include "openvino/op/mvn.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/normalize_l2.hpp"
-#include "openvino/op/convolution.hpp"
-#include "openvino/op/group_conv.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/util/sub_graph_base.hpp"
-
-#include "openvino/pass/manager.hpp"
-#include "openvino/pass/constant_folding.hpp"
-#include "openvino/core/deprecated.hpp"
-#include "openvino/core/validation_util.hpp"
-
-#include "openvino/pass/visualize_tree.hpp"
-#include "transformations/einsum_decomposition.hpp"
-#include "transformations/convert_pooling_to_reduce.hpp"
-#include "transformations/decompose_reduce_for_false_keepdims.hpp"
-#include "transformations/convert_shapeof.hpp"
-
-#include "transformations/opset_conversions/convert_opset3_to_opset2.hpp"
-#include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
-
-#include "transformations/control_flow/unroll_tensor_iterator.hpp"
-#include "transformations/resolve_names_collisions.hpp"
-
-#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
-#include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
-#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
-#include "transformations/common_optimizations/common_optimizations.hpp"
-#include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
-#include "transformations/common_optimizations/broadcast_transition.hpp"
-#include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
-#include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
-#include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
-#include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
-#include "transformations/common_optimizations/transpose_sinking.hpp"
-#include "transformations/common_optimizations/softmax_fusion.hpp"
-#include "transformations/common_optimizations/mvn_fusion.hpp"
-
-#include "transformations/op_conversions/convert_depth_to_space.hpp"
-#include "transformations/op_conversions/convert_space_to_depth.hpp"
-#include "transformations/op_conversions/convert_gelu.hpp"
-#include "transformations/op_conversions/convert_mod.hpp"
-#include "transformations/op_conversions/convert_broadcast3.hpp"
-#include "transformations/op_conversions/reduce_l1_decomposition.hpp"
-#include "transformations/op_conversions/reduce_l2_decomposition.hpp"
-#include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
-#include "transformations/op_conversions/softplus_decomposition.hpp"
-#include "transformations/op_conversions/convert_space_to_batch.hpp"
-#include "transformations/op_conversions/convert_batch_to_space.hpp"
-#include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
-#include "transformations/op_conversions/convert_reduce_to_reshape.hpp"
-#include "transformations/op_conversions/convert_shuffle_channels3.hpp"
-#include "transformations/op_conversions/hswish_decomposition.hpp"
-#include "transformations/op_conversions/hsigmoid_decomposition.hpp"
-#include "transformations/op_conversions/log_softmax_decomposition.hpp"
-#include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
-#include "transformations/op_conversions/convert_subtract.hpp"
-#include "transformations/op_conversions/convert_ti_to_sequences.hpp"
-#include "transformations/op_conversions/gru_cell_decomposition.hpp"
-#include "transformations/op_conversions/lstm_cell_decomposition.hpp"
-#include "transformations/op_conversions/rnn_cell_decomposition.hpp"
-#include "transformations/op_conversions/mvn6_decomposition.hpp"
-#include "transformations/op_conversions/normalize_l2_decomposition.hpp"
-#include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
-#include "transformations/op_conversions/convert_previous_nms_to_nms_9.hpp"
-#include "transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp"
-#include "transformations/op_conversions/convert_nms_rotated_to_nms_ie_internal.hpp"
-#include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
-#include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
-#include "transformations/op_conversions/convert_gather_downgrade.hpp"
-#include "transformations/op_conversions/convert_gather_0d.hpp"
-#include "transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp"
-#include "transformations/op_conversions/convert_gp9_to_gp_ie_internal.hpp"
-#include "transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp"
-#include "transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp"
-#include "transformations/op_conversions/softmax_decomposition.hpp"
-#include "transformations/op_conversions/gelu7_downgrade.hpp"
-#include "transformations/op_conversions/convert_softmax_downgrade.hpp"
-#include "transformations/op_conversions/convert_prior_box_v8_to_v0.hpp"
-#include "transformations/op_conversions/convert_shapeof3.hpp"
-#include "transformations/op_conversions/convert_topk11_downgrade.hpp"
-#include "transformations/op_conversions/eye_decomposition.hpp"
-#include "transformations/op_conversions/convert_pad12_downgrade.hpp"
-#include "transformations/convert_precision.hpp"
-#include "transformations/init_node_info.hpp"
-#include "transformations/rt_info/fused_names_attribute.hpp"
-#include "transformations/rt_info/keep_const_precision.hpp"
-#include "transformations/smart_reshape/matmul_sr.hpp"
-
-#include "plugin/transformations/convert_matmul_to_fc.hpp"
-#include "plugin/transformations/move_fc_reshape_to_weights.hpp"
-#include "plugin/transformations/convert_fc_to_compressed.hpp"
-#include "plugin/transformations/rms_fusion.hpp"
-#include "plugin/transformations/binary_conv_to_conv.hpp"
-
-#include "transformations/low_precision/mark_dequantization_subgraph.hpp"
-#include "low_precision/pull_reshape_through_dequantization.hpp"
-#include "low_precision/pull_transpose_through_dequantization.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "low_precision/convolution.hpp"
 #include "low_precision/convolution_backprop_data.hpp"
 #include "low_precision/group_convolution.hpp"
 #include "low_precision/low_precision.hpp"
 #include "low_precision/mat_mul.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
-#include "low_precision/strided_slice.hpp"
 #include "low_precision/network_helper.hpp"
+#include "low_precision/pull_reshape_through_dequantization.hpp"
+#include "low_precision/pull_transpose_through_dequantization.hpp"
 #include "low_precision/recurrent_cell.hpp"
-
-#include "intel_gpu/runtime/itt.hpp"
+#include "low_precision/strided_slice.hpp"
+#include "openvino/core/deprecated.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/gru_cell.hpp"
+#include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/lstm_sequence.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/mvn.hpp"
+#include "openvino/op/normalize_l2.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/rnn_cell.hpp"
+#include "openvino/op/rnn_sequence.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/sub_graph_base.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/visualize_tree.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "plugin/transformations/binary_conv_to_conv.hpp"
+#include "plugin/transformations/clamp_fp16_output.hpp"
+#include "plugin/transformations/convert_fc_to_compressed.hpp"
+#include "plugin/transformations/convert_matmul_to_fc.hpp"
+#include "plugin/transformations/fc_convert_fusion.hpp"
+#include "plugin/transformations/kv_cache_fusion.hpp"
+#include "plugin/transformations/move_fc_reshape_to_weights.hpp"
+#include "plugin/transformations/bcast_and_pad_zp_buffers.hpp"
+#include "plugin/transformations/print_model_statistics.hpp"
+#include "plugin/transformations/swiglu_fusion.hpp"
+#include "plugin/transformations/transpose_fusion.hpp"
+#include "plugin/transformations/indirect_kv_cache.hpp"
+#include "plugin/transformations/convert_convolution.hpp"
+#include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
+#include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
+#include "transformations/common_optimizations/rms_fusion.hpp"
+#include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
+#include "transformations/common_optimizations/broadcast_transition.hpp"
+#include "transformations/common_optimizations/common_optimizations.hpp"
+#include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
+#include "transformations/common_optimizations/lstm_cell_fusion.hpp"
+#include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
+#include "transformations/common_optimizations/mvn_fusion.hpp"
+#include "transformations/common_optimizations/softmax_fusion.hpp"
+#include "transformations/common_optimizations/transpose_sinking.hpp"
+#include "transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp"
+#include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
+#include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
+#include "transformations/control_flow/unroll_tensor_iterator.hpp"
+#include "transformations/convert_pooling_to_reduce.hpp"
+#include "transformations/convert_precision.hpp"
+#include "transformations/convert_shapeof.hpp"
+#include "transformations/decompose_reduce_for_false_keepdims.hpp"
+#include "transformations/einsum_decomposition.hpp"
+#include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
+#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
+#include "transformations/init_node_info.hpp"
+#include "transformations/low_precision/mark_dequantization_subgraph.hpp"
+#include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
+#include "transformations/op_conversions/convert_batch_to_space.hpp"
+#include "transformations/op_conversions/convert_broadcast3.hpp"
+#include "transformations/op_conversions/convert_deformable_conv_v8_to_v1.hpp"
+#include "transformations/op_conversions/convert_depth_to_space.hpp"
+#include "transformations/op_conversions/convert_gather_0d.hpp"
+#include "transformations/op_conversions/convert_gather_downgrade.hpp"
+#include "transformations/op_conversions/convert_gelu.hpp"
+#include "transformations/op_conversions/convert_gather_to_compressed.hpp"
+#include "transformations/op_conversions/convert_gp9_to_gp_ie_internal.hpp"
+#include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
+#include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
+#include "transformations/op_conversions/convert_mod.hpp"
+#include "transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp"
+#include "transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp"
+#include "transformations/op_conversions/convert_nms_rotated_to_nms_ie_internal.hpp"
+#include "transformations/op_conversions/convert_pad12_downgrade.hpp"
+#include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
+#include "transformations/op_conversions/convert_previous_nms_to_nms_9.hpp"
+#include "transformations/op_conversions/convert_prior_box_v8_to_v0.hpp"
+#include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
+#include "transformations/op_conversions/convert_reduce_to_reshape.hpp"
+#include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
+#include "transformations/op_conversions/convert_shapeof3.hpp"
+#include "transformations/op_conversions/convert_shuffle_channels3.hpp"
+#include "transformations/op_conversions/convert_softmax_downgrade.hpp"
+#include "transformations/op_conversions/convert_space_to_batch.hpp"
+#include "transformations/op_conversions/convert_space_to_depth.hpp"
+#include "transformations/op_conversions/convert_subtract.hpp"
+#include "transformations/op_conversions/convert_ti_to_sequences.hpp"
+#include "transformations/op_conversions/convert_topk11_downgrade.hpp"
+#include "transformations/op_conversions/eye_decomposition.hpp"
+#include "transformations/op_conversions/gelu7_downgrade.hpp"
+#include "transformations/op_conversions/gru_cell_decomposition.hpp"
+#include "transformations/op_conversions/hsigmoid_decomposition.hpp"
+#include "transformations/op_conversions/hswish_decomposition.hpp"
+#include "transformations/op_conversions/log_softmax_decomposition.hpp"
+#include "transformations/op_conversions/lstm_cell_decomposition.hpp"
+#include "transformations/op_conversions/mvn6_decomposition.hpp"
+#include "transformations/op_conversions/normalize_l2_decomposition.hpp"
+#include "transformations/op_conversions/reduce_l1_decomposition.hpp"
+#include "transformations/op_conversions/reduce_l2_decomposition.hpp"
+#include "transformations/op_conversions/rnn_cell_decomposition.hpp"
+#include "transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp"
+#include "transformations/op_conversions/softmax_decomposition.hpp"
+#include "transformations/op_conversions/softplus_decomposition.hpp"
+#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
+#include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
+#include "transformations/opset_conversions/convert_opset3_to_opset2.hpp"
+#include "transformations/resolve_names_collisions.hpp"
+#include "transformations/rt_info/fused_names_attribute.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
+#include "transformations/smart_reshape/matmul_sr.hpp"
 
 namespace {
 template<typename T>
@@ -146,7 +158,7 @@ static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> n
     return false;
 }
 
-static bool is_non_decompression_multiply(const std::shared_ptr<const ov::Node> node) {
+static bool is_non_supported_decompression_op(const std::shared_ptr<const ov::Node> node) {
     auto get_single_consumer = [](const std::shared_ptr<const ov::Node> node) -> std::shared_ptr<ov::Node> {
         const auto consumers = node->get_output_target_inputs(0);
         if (consumers.size() != 1)
@@ -158,17 +170,17 @@ static bool is_non_decompression_multiply(const std::shared_ptr<const ov::Node> 
     if (!consumer)
         return true;
 
-    if (ov::is_type<ov::opset1::MatMul>(consumer)) {
+    if (ov::is_type<ov::opset1::MatMul>(consumer) || ov::is_type<ov::op::v8::Gather>(consumer)) {
         return false;
     } else if (ov::is_type<ov::opset1::Reshape>(consumer)) {
         consumer = get_single_consumer(consumer);
-        if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
+        if (consumer != nullptr && (ov::is_type<ov::opset1::MatMul>(consumer) || ov::is_type<ov::op::v8::Gather>(consumer))) {
             return false;
         }
     }
     if (consumer != nullptr && ov::is_type<ov::opset1::Convert>(consumer)) {
         consumer = get_single_consumer(consumer);
-        if (consumer != nullptr && ov::is_type<ov::opset1::MatMul>(consumer)) {
+        if (consumer != nullptr && (ov::is_type<ov::opset1::MatMul>(consumer) || ov::is_type<ov::op::v8::Gather>(consumer))) {
             return false;
         }
     }
@@ -184,6 +196,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
     const auto& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
+    const ov::element::TypeVector supported_woq_types = {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4};
     bool enableInt8;
     bool unroll_loop = config.get_property(ov::intel_gpu::enable_loop_unrolling);
     {
@@ -197,7 +210,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             ov::disable_keep_const_precision(node);
         }
 
-        enableInt8 = config.get_property(ov::intel_gpu::enable_lp_transformations) && ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
+        auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
+        enableInt8 = config.get_property(ov::intel_gpu::enable_lp_transformations) && is_model_quantized;
         if (enableInt8) {
             manager.register_pass<ov::pass::MarkDequantizationSubgraph>(
                 std::vector<ov::element::Type>{ ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4 });
@@ -274,18 +288,77 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return !is_type<ov::op::v0::MatMul>(next_node);
             });
 
-        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(ov::element::TypeVector{ov::element::u8, ov::element::u4, ov::element::i4}, true);
-        // Ignore nodes that are not related to FullyConnected and allow ConstantFolding to be applied to them
-        pass_config->set_callback<ov::pass::MarkDequantizationSubgraph>(is_non_decompression_multiply);
+        // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
+        // it expects to have the same data type for weights and zero points (apply it only for u8 data type, since other compression
+        // types are not supported by oneDNN)
+        manager.register_pass<ov::pass::MarkDequantizationSubgraph>(supported_woq_types, !device_info.supports_immad);
+
+        // Need to check if transformations work correctly for mixed models with both compression and quantization at the same time.
+        if (!is_model_quantized)
+            pass_config->set_callback<ov::pass::MarkDequantizationSubgraph>(is_non_supported_decompression_op);
 
         const bool keep_precision_sensitive_in_fp32_1 = true;
         const bool convert_input_output_precision = false;
+        const bool store_original_precision_as_rt_attribute = true;
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
                                                           empty_fuse_map,
                                                           keep_precision_sensitive_in_fp32_1,
-                                                          convert_input_output_precision);
+                                                          convert_input_output_precision,
+                                                          store_original_precision_as_rt_attribute);
 
         manager.register_pass<ov::pass::CommonOptimizations>();
+
+        pass_config->set_callback<ov::pass::ScaledDotProductAttentionDecomposition>([&](const std::shared_ptr<const ov::Node> node){
+            GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->enable_sdpa != -1) {
+                GPU_DEBUG_CODE(return cldnn::debug_configuration::get_instance()->enable_sdpa == 1);
+            }
+
+            if (!config.get_property(ov::intel_gpu::hint::enable_sdpa_optimization))
+                return false;
+
+            auto sdpa = std::dynamic_pointer_cast<const ov::op::v13::ScaledDotProductAttention>(node);
+            const auto& query_ps = sdpa->get_input_partial_shape(0);
+            const auto& key_ps = sdpa->get_input_partial_shape(1);
+            const auto& value_ps = sdpa->get_input_partial_shape(2);
+
+            // Known limitations:
+            // - The data type of SDPA should be fp16
+            if (sdpa->get_output_element_type(0) != ov::element::f16)
+                return false;
+
+            // - The number of dimensions for each input is expected to be 4
+            if (query_ps.size() != 4 || key_ps.size() != 4 || value_ps.size() != 4) {
+                return false;
+            }
+
+            // - The head size of all Q, K, and V inputs should be the same static value
+            if (query_ps[query_ps.size() - 1].is_dynamic() || key_ps[key_ps.size() - 1].is_dynamic() || value_ps[query_ps.size() - 1].is_dynamic()) {
+                return false;
+            }
+
+            if (query_ps[query_ps.size() - 1].get_length() != key_ps[key_ps.size() - 1].get_length() ||
+                query_ps[query_ps.size() - 1].get_length() != value_ps[query_ps.size() - 1].get_length()) {
+                return false;
+            }
+
+            // - Head size should be static dim
+            const auto head_size_dim = query_ps[query_ps.size() - 1];
+            if (head_size_dim.is_dynamic())
+                return false;
+
+            // - Head size should be 128 for any model type; or should be in the range of 64 to 256 for stateful LLMs because of performance reasons.
+            //   This limitations is recommended to prevent performance drop in models with small head size, such as SD,
+            //   until the SDPA operation is optimized for these cases
+            const auto optimal_subgroup_size = 16;
+            const auto head_size = query_ps[query_ps.size() - 1].get_length();
+            bool valid_head_size = head_size % optimal_subgroup_size == 0;
+            valid_head_size &= (head_size == 128) || (func->get_variables().size() > 0 && head_size >= 64 && head_size <= 256);
+            if (!valid_head_size) {
+                return false;
+            }
+
+            return true;
+        });
 
         manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
         manager.register_pass<ov::pass::TransposeSinking>();
@@ -436,6 +509,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return isCellPrimitiveSupported(node);
             });
 
+        pass_config->set_callback<ov::pass::LSTMCellFusion>(
+            [isCellPrimitiveSupported](const_node_ptr &node) -> bool {
+                return !isCellPrimitiveSupported(node);
+            });
+
         if (unroll_loop) {
             pass_config->set_callback<ov::pass::ConvertRNNSequenceToTensorIterator,
                     ov::pass::ConvertGRUSequenceToTensorIterator,
@@ -445,6 +523,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     });
         }
 
+        pass_config->set_callback<ov::pass::ConvertLoopToLSTMSequence,
+                                  ov::pass::FuseReverseLSTMSequence,
+                                  ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence>(
+                [isSequencePrimitiveSupported](const_node_ptr &node) -> bool {
+                    return !isSequencePrimitiveSupported(node);
+                });
 
         pass_config->set_callback<ov::pass::MVN6Decomposition>(
             [](const_node_ptr &node) -> bool {
@@ -453,9 +537,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     if (auto axes_node = dynamic_cast<ov::op::v0::Constant*>(mvn->get_input_node_ptr(1))) {
                         auto mvn_axes = axes_node->cast_vector<int64_t>();
                         auto out_rank = mvn->get_output_partial_shape(0).size();
-                        OPENVINO_SUPPRESS_DEPRECATED_START
-                        ov::normalize_axes(mvn.get(), out_rank, mvn_axes);
-                        OPENVINO_SUPPRESS_DEPRECATED_END
+                        ov::util::normalize_axes(mvn.get(), out_rank, mvn_axes);
 
                         std::sort(mvn_axes.begin(), mvn_axes.end());
 
@@ -513,7 +595,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         pass_config->enable<ov::pass::SoftmaxDecomposition>();
         pass_config->set_callback<ov::pass::SoftmaxDecomposition>(
-            [](const_node_ptr &node) -> bool {
+            [&](const_node_ptr &node) -> bool {
+                OPENVINO_ASSERT(node->input_value(0).get_partial_shape().rank().is_static(),
+                    node->get_friendly_name() + " has dynamic rank!");
                 return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
             });
 
@@ -684,14 +768,73 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
     {
         ov::pass::Manager manager;
+
+        // Other ops support eltwise fusions
+        const std::vector<DiscreteTypeInfo> allowed_data_movement_ops = {
+            ov::op::v1::Reshape::get_type_info_static(),
+            ov::op::v0::Squeeze::get_type_info_static(),
+            ov::op::v0::Unsqueeze::get_type_info_static(),
+            ov::op::v0::ShuffleChannels::get_type_info_static(),
+            ov::op::v7::Roll::get_type_info_static(),
+            ov::op::v0::ReverseSequence::get_type_info_static(),
+            ov::op::v1::Broadcast::get_type_info_static(),
+            ov::op::v3::Broadcast::get_type_info_static(),
+        };
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMov>(allowed_data_movement_ops);
+
+        manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>();
         manager.register_pass<ov::intel_gpu::MoveFCReshapeToWeights>();
-        manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>();
-        manager.register_pass<ov::intel_gpu::RMSFusion>();
+        manager.register_pass<ov::intel_gpu::ConvertFullyConnectedToFullyConnectedCompressed>(device_info.supports_immad);
+        if (device_info.supports_immad) {
+            // For OneDNN, ZP should not be folded for FC. But still, ZP should be folded for Gather.
+            // Therefore, run MarkDequantizationSubgraph again to fold ZP constant.
+            manager.register_pass<ov::pass::MarkDequantizationSubgraph>(supported_woq_types, true);
+            manager.register_pass<ov::pass::ConstantFolding>();
+        }
+        manager.register_pass<ov::pass::ConvertGatherToGatherCompressed>();
+        auto pass_config = manager.get_pass_config();
+        pass_config->set_callback<ov::pass::RMSFusion>([=](const_node_ptr& root) -> bool {
+            if (!root->get_input_node_ptr(0)->get_input_partial_shape(0).is_static()) {
+                return false;
+            }
+            const auto& gamma_shape = root->get_input_node_ptr(0)->get_input_partial_shape(0).to_shape();
+            const int32_t vec_size = 8;
+            return static_cast<int32_t>((gamma_shape.back() / vec_size)) > static_cast<int32_t>(device_info.max_work_group_size);
+        });
+
+        manager.register_pass<ov::pass::RMSFusion>();
+        manager.register_pass<ov::intel_gpu::KVCacheFusion>();
+        manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
+        manager.register_pass<ov::intel_gpu::TransposeFusion>();
+        if (device_info.supports_immad) {
+            manager.get_pass_config()->disable<ov::intel_gpu::TransposeMatMulMatcher>();
+            manager.get_pass_config()->disable<ov::intel_gpu::TransposeMatMulTransposeMatcher>();
+        }
+
+        if (!device_info.supports_immad) {
+            manager.register_pass<ov::intel_gpu::UnsqueezeBroadcastReshapeMatmulFusion>();
+        }
+        manager.register_pass<ov::intel_gpu::UnsqueezeBroadcastReshapeSDPAFusion>();
+
+        manager.register_pass<ov::intel_gpu::SwiGLUFusion>();
+        manager.register_pass<ov::intel_gpu::IndirectKVCache>();
+        manager.register_pass<ov::intel_gpu::ConvertConvolutionToInternal>();
+
+        const size_t zp_pad_size = device_info.supports_immad ? 16 : 32;
+        manager.register_pass<ov::intel_gpu::BroadcastAndPadZeroPointBuffers>(zp_pad_size);
+
+        manager.register_pass<ov::pass::RoPEFusion>();
+        pass_config->disable<ov::pass::RoPEFusionGPTJ>();
+        pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
+        pass_config->disable<ov::pass::RoPEShareCosSin>();
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation
         manager.register_pass<ov::pass::ResolveNameCollisions>(true);
+        GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->verbose >= 1) {
+            manager.register_pass<ov::intel_gpu::PrintModelStatistics>();
+        }
 
         manager.run_passes(func);
     }

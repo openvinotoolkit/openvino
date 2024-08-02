@@ -11,8 +11,6 @@
 namespace ov {
 namespace intel_cpu {
 
-using namespace InferenceEngine;
-
 class AclEltwiseExecutor : public EltwiseExecutor {
 public:
     explicit AclEltwiseExecutor(const ExecutorContext::CPtr context);

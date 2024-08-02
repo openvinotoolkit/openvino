@@ -14,18 +14,18 @@ namespace LayerTestsDefinitions {
 
 class GatherTransformationTestValues {
 public:
-    ngraph::PartialShape inputShape;
+    ov::PartialShape inputShape;
     std::vector<size_t> gatherIndicesShape;
     std::vector<int> gatherIndicesValues;
     std::vector<int> axis;
     int64_t batch_dims;
     ov::pass::low_precision::LayerTransformation::Params params;
-    ngraph::element::Type precisionBeforeFq;
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
+    ov::element::Type precisionBeforeFq;
+    ov::builder::subgraph::FakeQuantizeOnData fqOnData;
 };
 
 typedef std::tuple<
-    ngraph::element::Type,
+    ov::element::Type,
     std::string,
     GatherTransformationTestValues,
     int> GatherTransformationParams;

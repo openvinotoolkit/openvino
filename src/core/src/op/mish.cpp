@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,7 @@ void Mish::validate_and_infer_types() {
 
     const auto& data_batch_et = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
-                          data_batch_et.is_real(),
+                          data_batch_et.is_real() || data_batch_et.is_dynamic(),
                           "Element must be of floating point type, Got: ",
                           data_batch_et);
 
@@ -58,13 +58,16 @@ bool Mish::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     outputs[0].set_shape(in_shape);
 
     using namespace ov::element;
-    return IF_TYPE_OF(v4_Mish_evaluate,
-                      OV_PP_ET_LIST(f16, f32),
-                      mish::Evaluate,
-                      inputs[0].get_element_type(),
-                      inputs[0],
-                      outputs[0],
-                      shape_size(in_shape));
+    return IF_TYPE_OF_CONVERT_TENSORS(v4_Mish_evaluate,
+                                      this,
+                                      outputs,
+                                      inputs,
+                                      OV_PP_ET_LIST(f32),
+                                      mish::Evaluate,
+                                      inputs[0].get_element_type(),
+                                      inputs[0],
+                                      outputs[0],
+                                      shape_size(in_shape));
 }
 
 bool Mish::has_evaluate() const {

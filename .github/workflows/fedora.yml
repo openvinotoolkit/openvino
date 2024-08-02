@@ -2,15 +2,18 @@ name: Fedora (RHEL), Python 3.9
 on:
   workflow_dispatch:
   pull_request:
+  merge_group:
   push:
     branches:
-      - master
+      # - master
       - 'releases/**'
 
 concurrency:
   # github.ref is not unique in post-commit
   group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-fedora33
   cancel-in-progress: true
+
+permissions: read-all
 
 jobs:
   Smart_CI:
@@ -20,7 +23,7 @@ jobs:
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           sparse-checkout: .github/actions/smart-ci
 
@@ -31,6 +34,7 @@ jobs:
           repository: ${{ github.repository }}
           pr: ${{ github.event.number }}
           commit_sha: ${{ github.sha }}
+          ref_name: ${{ github.ref_name }}
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
@@ -53,6 +57,10 @@ jobs:
       CMAKE_GENERATOR: 'Ninja'
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
+      SCCACHE_SERVER_PORT: 35555
+      SCCACHE_ERROR_LOG: /__w/openvino/sccache_log.txt
+      SCCACHE_LOG: warn
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
@@ -65,7 +73,7 @@ jobs:
         run: yum update -y && yum install -y git
 
       - name: Clone OpenVINO
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
@@ -85,16 +93,15 @@ jobs:
         run: bash ${OPENVINO_REPO}/install_build_dependencies.sh
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
+        uses: mozilla-actions/sccache-action@2e7f9ec7921547d4b46598398ca573513895d0bd # v0.0.4
         with:
-          version: "v0.5.4"
+          version: "v0.7.5"
 
       - name: Install python dependencies
         run: |
           python3 -m pip install -U pip
           # For Python API: build and wheel packaging
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
-          python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
 
           # For running ONNX frontend unit tests
           python3 -m pip install --force-reinstall -r ${OPENVINO_REPO}/src/frontends/onnx/tests/requirements.txt
@@ -120,7 +127,6 @@ jobs:
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_TESTS=ON \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
-            -DENABLE_SYSTEM_TBB=ON \
             -DENABLE_SYSTEM_OPENCL=ON \
             -DENABLE_PYTHON_PACKAGING=ON \
             -DCPACK_GENERATOR=TGZ \
@@ -155,18 +161,27 @@ jobs:
 
       - name: Build RPM packages
         run: |
-          cmake -DCPACK_GENERATOR=RPM \
+          cmake -UTBB* \
+                -DCPACK_GENERATOR=RPM \
+                -DENABLE_SYSTEM_TBB=ON \
                 -DENABLE_TESTS=OFF \
                 ${BUILD_DIR}
           cmake --build ${BUILD_DIR} --parallel --target package --verbose
 
       #
-      # Upload build artifacts
+      # Upload build artifacts and logs
       #
+      - name: Upload build logs
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        if: always()
+        with:
+          name: build_logs
+          path: ${{ env.SCCACHE_ERROR_LOG }}
+          if-no-files-found: 'ignore'
 
       - name: Upload openvino package
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
@@ -174,7 +189,7 @@ jobs:
 
       - name: Upload openvino RPM packages
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: openvino_rpm_packages
           path: ${{ env.BUILD_DIR }}/*.rpm
@@ -182,7 +197,7 @@ jobs:
 
       - name: Upload openvino tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
@@ -202,7 +217,7 @@ jobs:
 
     steps:
       - name: Download OpenVINO RPM packages
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: openvino_rpm_packages
           path: ${{ env.RPM_PACKAGES_DIR }}
@@ -235,10 +250,10 @@ jobs:
           python3 /usr/share/openvino/samples/python/hello_query_device/hello_query_device.py
           python3 -c 'from openvino import Core; Core().get_property("CPU", "AVAILABLE_DEVICES")'
           python3 -c 'from openvino import Core; Core().get_property("GPU", "AVAILABLE_DEVICES")'
-          python3 -c 'from openvino import Core; Core().get_property("AUTO", "SUPPORTED_METRICS")'
-          python3 -c 'from openvino import Core; Core().get_property("MULTI", "SUPPORTED_METRICS")'
-          python3 -c 'from openvino import Core; Core().get_property("HETERO", "SUPPORTED_METRICS")'
-          python3 -c 'from openvino import Core; Core().get_property("BATCH", "SUPPORTED_METRICS")'
+          python3 -c 'from openvino import Core; Core().get_property("AUTO", "SUPPORTED_PROPERTIES")'
+          python3 -c 'from openvino import Core; Core().get_property("MULTI", "SUPPORTED_PROPERTIES")'
+          python3 -c 'from openvino import Core; Core().get_property("HETERO", "SUPPORTED_PROPERTIES")'
+          python3 -c 'from openvino import Core; Core().get_property("BATCH", "SUPPORTED_PROPERTIES")'
           python3 -c 'from openvino.frontend import FrontEndManager; assert len(FrontEndManager().get_available_front_ends()) == 6'
           benchmark_app --help
           ovc --help

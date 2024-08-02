@@ -2,15 +2,18 @@ name: Android ARM64 with vcpkg
 on:
   workflow_dispatch:
   pull_request:
+  merge_group:
   push:
     branches:
-      - master
+      # - master
       - 'releases/**'
 
 concurrency:
   # github.ref is not unique in post-commit
   group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-android-arm64-vcpkg
   cancel-in-progress: true
+
+permissions: read-all
 
 jobs:
   Smart_CI:
@@ -20,7 +23,7 @@ jobs:
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
     steps:
       - name: checkout action
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           sparse-checkout: .github/actions/smart-ci
 
@@ -31,6 +34,7 @@ jobs:
           repository: ${{ github.repository }}
           pr: ${{ github.event.number }}
           commit_sha: ${{ github.sha }}
+          ref_name: ${{ github.ref_name }}
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
@@ -53,6 +57,10 @@ jobs:
       CMAKE_GENERATOR: 'Ninja'
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
       CMAKE_C_COMPILER_LAUNCHER: sccache
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
+      SCCACHE_SERVER_PORT: 35555
+      SCCACHE_ERROR_LOG: /__w/openvino/sccache_log.txt
+      SCCACHE_LOG: warn
       OPENVINO_REPO: '/__w/openvino/openvino/openvino'
       VCPKG_ROOT: '/__w/openvino/openvino/vcpkg'
       BUILD_DIR: '/__w/openvino/openvino/build'
@@ -69,7 +77,7 @@ jobs:
         run: apt-get update && apt-get install --assume-yes --no-install-recommends git ca-certificates
 
       - name: Clone OpenVINO
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           path: 'openvino'
 
@@ -81,13 +89,14 @@ jobs:
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/json
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gtest
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gflags
-            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/open_model_zoo
           popd
 
       - name: Clone vcpkg
-        uses: actions/checkout@v4
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           repository: 'microsoft/vcpkg'
+          # Keep in sync with <root>/vcpkg.json <builtin-baseline>
+          ref: '7ba0ba7334c3346e7eee1e049ba85da193a8d821'
           path: 'vcpkg'
           fetch-depth: '0'
 
@@ -108,13 +117,13 @@ jobs:
           apt --assume-yes install ccache scons ninja-build build-essential python3-pip
 
           # vcpkg requires cmake 3.19 or later
-          python3 -m pip install -U pip cmake
+          python3 -m pip install -U pip cmake~=3.28.0
           # vcpkg's tool dependencies
           apt --assume-yes install curl zip unzip tar
           # vcpkg 'python3' port dependencies
           apt --assume-yes install autoconf libtool autoconf-archive
           # vcpkg tree of dependencies require extra packages
-          apt --assume-yes install pkg-config linux-libc-dev
+          apt --assume-yes install pkgconf linux-libc-dev
 
           # Install Android SDK, NDK and Tools
           apt -y --no-install-recommends install unzip wget default-jdk
@@ -123,9 +132,9 @@ jobs:
           echo "yes" | ./cmdline-tools/bin/sdkmanager --sdk_root=${ANDROID_TOOLS} --install "ndk-bundle" "platform-tools" "platforms;android-${{ env.ANDROID_SDK_VERSION }}"
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.3
+        uses: mozilla-actions/sccache-action@2e7f9ec7921547d4b46598398ca573513895d0bd # v0.0.4
         with:
-          version: "v0.5.4"
+          version: "v0.7.5"
 
       #
       # Build
@@ -170,6 +179,17 @@ jobs:
 
       - name: Show ccache stats
         run: ${SCCACHE_PATH} --show-stats
+
+      #
+      # Upload build logs
+      #
+      - name: Upload build logs
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        if: always()
+        with:
+          name: build_logs
+          path: ${{ env.SCCACHE_ERROR_LOG }}
+          if-no-files-found: 'ignore'
 
   Overall_Status:
     name: ci/gha_overall_status_android

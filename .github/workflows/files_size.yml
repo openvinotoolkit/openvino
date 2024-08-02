@@ -5,11 +5,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions: read-all
+
 jobs:
   Check_Files_Size:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
 
       - name: git ls-tree
         run: git ls-tree -r -t -l --full-name HEAD | sort -n -r -k 4

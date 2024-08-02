@@ -1,6 +1,6 @@
 @echo off
 
-:: Copyright (C) 2018-2023 Intel Corporation
+:: Copyright (C) 2018-2024 Intel Corporation
 :: SPDX-License-Identifier: Apache-2.0
 
 set SCRIPT_NAME=%~nx0
@@ -33,9 +33,11 @@ if exist "%INTEL_OPENVINO_DIR%\extras\opencv\setupvars.bat" (
 :opencv_done
 
 :: OpenVINO runtime
-set "InferenceEngine_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
-set "ngraph_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
 set "OpenVINO_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
+if exist "%OpenVINO_DIR%\OpenVINOGenAIConfig.cmake" (
+   :: If GenAI is installed, export it as well.
+   set OpenVINOGenAI_DIR=%OpenVINO_DIR%
+)
 set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Release;%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Debug;%OPENVINO_LIB_PATHS%"
 
 :: TBB

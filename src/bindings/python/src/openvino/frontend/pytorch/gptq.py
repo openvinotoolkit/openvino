@@ -1,5 +1,4 @@
-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 # flake8: noqa
@@ -33,7 +32,7 @@ def patched_forward(self, *args, **kwargs):
     x = args[0]
     dtype = x.dtype
     outshape = x.shape[:-1] + (self.width,)
-    x = x.view(-1, x.shape[-1])
+    x = x.contiguous().view(-1, x.shape[-1])
     groups = self.qzeros.shape[0]
     height = self.qweight.shape[0]
 

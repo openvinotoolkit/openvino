@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,6 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
-#include "openvino/core/dimension_tracker.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -87,16 +86,16 @@ TEST_F(TypePropTileTest, data_and_repeats_are_dynamic_rank) {
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape::dynamic());
 }
 
-TEST_F(TypePropTileTest, propagate_label_and_dynamic_value_no_repeats) {
+TEST_F(TypePropTileTest, propagate_symbol_and_dynamic_value_no_repeats) {
     auto p_shape = PartialShape{{2, 5}, 3};
-    set_shape_labels(p_shape, 1);
+    auto symbols = set_shape_symbols(p_shape);
 
     constexpr auto et = element::i64;
-    const auto labeled_param = std::make_shared<ov::op::v0::Parameter>(et, p_shape);
-    const auto labeled_shape_of = std::make_shared<op::v0::ShapeOf>(labeled_param);
+    const auto symboled_param = std::make_shared<ov::op::v0::Parameter>(et, p_shape);
+    const auto symboled_shape_of = std::make_shared<op::v0::ShapeOf>(symboled_param);
 
     const auto repeats = ov::op::v0::Constant::create(element::i32, Shape{1}, {1});
-    const auto op = make_op(labeled_shape_of, repeats);
+    const auto op = make_op(symboled_shape_of, repeats);
     const auto bc =
         std::make_shared<op::v3::Broadcast>(std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{1}),
                                             op,
@@ -104,19 +103,19 @@ TEST_F(TypePropTileTest, propagate_label_and_dynamic_value_no_repeats) {
 
     const auto& out_shape = bc->get_output_partial_shape(0);
     EXPECT_EQ(out_shape, p_shape);
-    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(1, 2));
+    EXPECT_THAT(get_shape_symbols(out_shape), ElementsAre(symbols[0], symbols[1]));
 }
 
-TEST_F(TypePropTileTest, propagate_label_and_dynamic_value) {
+TEST_F(TypePropTileTest, propagate_symbol_and_dynamic_value) {
     auto p_shape = PartialShape{{2, 5}, 3};
-    set_shape_labels(p_shape, 1);
+    auto symbols = set_shape_symbols(p_shape);
 
     constexpr auto et = element::i64;
-    const auto labeled_param = std::make_shared<ov::op::v0::Parameter>(et, p_shape);
-    const auto labeled_shape_of = std::make_shared<op::v0::ShapeOf>(labeled_param);
+    const auto symboled_param = std::make_shared<ov::op::v0::Parameter>(et, p_shape);
+    const auto symboled_shape_of = std::make_shared<op::v0::ShapeOf>(symboled_param);
 
     const auto repeats = ov::op::v0::Constant::create(element::i32, Shape{1}, {2});
-    const auto op = make_op(labeled_shape_of, repeats);
+    const auto op = make_op(symboled_shape_of, repeats);
     const auto bc =
         std::make_shared<op::v3::Broadcast>(std::make_shared<ov::op::v0::Parameter>(ov::element::i32, PartialShape{1}),
                                             op,
@@ -124,12 +123,12 @@ TEST_F(TypePropTileTest, propagate_label_and_dynamic_value) {
 
     const auto& out_shape = bc->get_output_partial_shape(0);
     EXPECT_EQ(out_shape, PartialShape({{2, 5}, 3, {2, 5}, 3}));
-    EXPECT_THAT(get_shape_labels(out_shape), ElementsAre(1, 2, 1, 2));
+    EXPECT_THAT(get_shape_symbols(out_shape), ElementsAre(symbols[0], symbols[1], symbols[0], symbols[1]));
 }
 
-TEST_F(TypePropTileTest, preserve_partial_values_and_labels) {
+TEST_F(TypePropTileTest, preserve_partial_values_and_symbols) {
     auto shape = PartialShape{1, {1, 2}, {-1, 3}, {2, -1}, -1};
-    set_shape_labels(shape, 20);
+    auto symbols = set_shape_symbols(shape);
     const auto p_repeats = std::make_shared<ov::op::v0::Parameter>(element::i64, shape);
     const auto shape_of_repeats = std::make_shared<op::v0::ShapeOf>(p_repeats);
 
@@ -138,8 +137,8 @@ TEST_F(TypePropTileTest, preserve_partial_values_and_labels) {
     const auto op = make_op(data, shape_of_repeats);
 
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({2, {2, 4}, {-1, 6}, -1, -1}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)),
-                ElementsAre(ov::no_label, ov::no_label, ov::no_label, 23, 24));
+    EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
+                ElementsAre(nullptr, nullptr, nullptr, symbols[3], symbols[4]));
 }
 
 TEST_F(TypePropTileTest, repeats_has_dynamic_shape) {
@@ -168,27 +167,27 @@ protected:
         std::tie(shape_in, repeats_val, exp_shape) = GetParam();
     }
 
-    ov::TensorLabel get_exp_labels() const {
-        auto labels = get_shape_labels(shape_in);
+    ov::TensorSymbol get_exp_symbols() const {
+        auto symbols = get_shape_symbols(shape_in);
 
-        if (!labels.empty()) {
+        if (!symbols.empty()) {
             auto repeats = repeats_val;
 
-            if (labels.size() > repeats.size()) {
-                repeats.insert(repeats.begin(), labels.size() - repeats.size(), 1);
+            if (symbols.size() > repeats.size()) {
+                repeats.insert(repeats.begin(), symbols.size() - repeats.size(), 1);
             } else {
-                labels.insert(labels.begin(), repeats.size() - labels.size(), ov::no_label);
+                symbols.insert(symbols.begin(), repeats.size() - symbols.size(), nullptr);
             }
 
-            std::transform(labels.begin(),
-                           labels.end(),
+            std::transform(symbols.begin(),
+                           symbols.end(),
                            repeats.begin(),
-                           labels.begin(),
-                           [](const ov::label_t label, const int64_t repeat) {
-                               return (label != ov::no_label && repeat == 1) ? label : ov::no_label;
+                           symbols.begin(),
+                           [](const shared_ptr<Symbol> symbol, const int64_t repeat) {
+                               return (symbol != nullptr && repeat == 1) ? symbol : nullptr;
                            });
         }
-        return labels;
+        return symbols;
     }
 
     PartialShape exp_shape;
@@ -236,8 +235,8 @@ TEST_P(TileTest, default_ctor) {
     EXPECT_EQ(op->get_output_partial_shape(0), exp_shape);
 }
 
-TEST_P(TileTest, propagate_shapes_and_labels) {
-    ASSERT_TRUE(shape_in.rank().is_static()) << "Cannot test labels propagation for dynamic rank.";
+TEST_P(TileTest, propagate_shapes_and_symbols) {
+    ASSERT_TRUE(shape_in.rank().is_static()) << "Cannot test symbols propagation for dynamic rank.";
 
     constexpr auto dt = element::f32;
     const auto data = make_shared<ov::op::v0::Parameter>(dt, shape_in);
@@ -248,5 +247,5 @@ TEST_P(TileTest, propagate_shapes_and_labels) {
     EXPECT_EQ(op->get_element_type(), dt);
     EXPECT_EQ(op->get_output_size(), 1);
     EXPECT_EQ(op->get_output_partial_shape(0), exp_shape);
-    EXPECT_EQ(get_shape_labels(op->get_output_partial_shape(0)), get_exp_labels());
+    EXPECT_EQ(get_shape_symbols(op->get_output_partial_shape(0)), get_exp_symbols());
 }

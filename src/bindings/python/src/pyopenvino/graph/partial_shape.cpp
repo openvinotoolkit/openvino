@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,30 @@ void regclass_graph_PartialShape(py::module m) {
     }));
     shape.def(py::init<const std::string&>(), py::arg("shape"));
 
-    shape.def_static("dynamic", &ov::PartialShape::dynamic, py::arg("rank") = ov::Dimension());
+    shape.def_static("dynamic",
+                     &ov::PartialShape::dynamic,
+                     py::arg("rank") = ov::Dimension(),
+                     R"(
+                       Construct a PartialShape with the given rank and all dimensions are dynamic.
+
+                       :param rank: The rank of the PartialShape. This is the number of dimensions in the shape.
+                       :type rank: openvino.Dimension
+                       :return: A PartialShape with the given rank (or undefined rank if not provided), and all dimensions are dynamic.
+                    )");
+
+    shape.def_static(
+        "dynamic",
+        [](int64_t rank) {
+            return ov::PartialShape::dynamic(ov::Dimension(rank));
+        },
+        py::arg("rank"),
+        R"(
+            Construct a PartialShape with the given rank and all dimensions are dynamic.
+
+            :param rank: The rank of the PartialShape. This is the number of dimensions in the shape.
+            :type rank: int
+            :return: A PartialShape with the given rank, and all dimensions are dynamic.
+        )");
 
     shape.def_property_readonly("is_dynamic",
                                 &ov::PartialShape::is_dynamic,
@@ -169,10 +192,23 @@ void regclass_graph_PartialShape(py::module m) {
         self[key] = d;
     });
 
-    shape.def("__getitem__", [](const ov::PartialShape& self, size_t key) {
+    shape.def("__getitem__", [](const ov::PartialShape& self, int64_t key) {
+        if (key < 0) {
+            key += self.size();
+        }
         return self[key];
     });
 
+    shape.def("__getitem__", [](const ov::PartialShape& self, py::slice& slice) {
+        size_t start, stop, step, slicelength;
+        if (!slice.compute(self.size(), &start, &stop, &step, &slicelength)) {
+            throw py::error_already_set();
+        }
+        ov::PartialShape result;
+        result.resize(slicelength);
+        Common::shape_helpers::get_slice(result, self, start, step, slicelength);
+        return result;
+    });
     shape.def(
         "__iter__",
         [](ov::PartialShape& self) {

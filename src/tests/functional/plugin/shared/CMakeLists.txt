@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -62,7 +62,6 @@ ov_add_target(
                 openvino::pugixml
                 common_test_utils
                 func_test_utils
-                ov_models
                 ov_lpt_models
                 sharedTestClasses
             PRIVATE
@@ -70,10 +69,6 @@ ov_add_target(
         DEPENDENCIES
             ${DEPENDENCIES}
 )
-
-if(ENABLE_GAPI_PREPROCESSING)
-    target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_GAPI_PREPROCESSING)
-endif()
 
 ov_build_target_faster(${TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp"

@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -29,6 +29,7 @@ class TestPermute(PytorchLayerTest):
     @pytest.mark.parametrize("order", [[0, 2, 3, 1], [0, 3, 1, 2]])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_permute(self, order, ie_device, precision, ir_version):
         self._test(*self.create_model(order), ie_device, precision, ir_version)
 
@@ -53,5 +54,7 @@ class TestPermuteList(PytorchLayerTest):
     @pytest.mark.parametrize("order", [[1, 3, 4, 2], [1, 4, 2, 3]])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_permute(self, order, ie_device, precision, ir_version):
-        self._test(*self.create_model(), ie_device, precision, ir_version, kwargs_to_prepare_input={"permute_shape": order})
+        self._test(*self.create_model(), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"permute_shape": order}, dynamic_shapes=ie_device != "GPU")

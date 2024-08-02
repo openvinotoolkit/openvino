@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "fully_connected_inst.h"
@@ -97,12 +97,12 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
     auto input_pshape = input_layout.get_partial_shape();
     auto weights_layout = *impl_param.weights_layout;
     auto weights_pshape = weights_layout.get_partial_shape();
-    auto output_type = input_layout.data_type;
-    if ((output_type == data_types::u8 || output_type == data_types::i8) && desc->output_data_types[0])
+    auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
+    if (data_type_traits::is_i8_u8(input_layout.data_type) && desc->output_data_types[0])
         output_type = *desc->output_data_types[0];
 
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
     }
 
     auto reshape_to_2d = [](const ov::PartialShape& shape, int64_t feature) {
@@ -139,12 +139,12 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
     auto input_layout = impl_param.get_input_layout();
     auto weights_layout = *impl_param.weights_layout;
 
-    auto output_type = input_layout.data_type;
-    if (data_type_traits::is_i8_u8(output_type) && desc->output_data_types[0])
+    auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
+    if (data_type_traits::is_i8_u8(input_layout.data_type) && desc->output_data_types[0])
         output_type = *desc->output_data_types[0];
 
     if (impl_param.has_fused_primitives()) {
-        output_type = impl_param.get_fused_output_layout().data_type;
+        output_type = impl_param.get_output_element_type();
     }
 
     ov::op::v0::MatMul op;
@@ -157,7 +157,7 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
     std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&op, input_shapes);
 
     bool is_static = input_layout.is_static() && weights_layout.is_static();
-    bool allow_new_shape_infer = impl_param.get_program().get_config().get_property(ov::intel_gpu::allow_new_shape_infer);
+    bool allow_new_shape_infer = impl_param.get_program().is_new_shape_infer();
     format::type output_format = is_static && !allow_new_shape_infer ? get_preferred_format(node, impl_param) :
                                               input_layout.format.value;
 
@@ -187,6 +187,11 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
     if (output_shape.size() == 3)
         can_apply_fake_alignment &= orig_output_layout.data_padding.lower_size().sizes()[1] == 0 &&
                                     orig_output_layout.data_padding.upper_size().sizes()[1] == 0;
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(debug_config->disable_fake_alignment) {
+        can_apply_fake_alignment = false;
+    }
 
     if (orig_input_layout.format == format::bfyx && orig_output_layout.format == format::bfyx && can_apply_fake_alignment) {
         auto updated_param = orig_impl_param;
@@ -223,6 +228,12 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
                                              orig_output_layout.data_type,
                                              orig_output_layout.format,
                                              orig_output_layout.data_padding);
+
+        GPU_DEBUG_TRACE_DETAIL << "Apply fake alignment: input(" << orig_input_layout.to_short_string() << " -> "
+                               << updated_param.input_layouts[0].to_short_string() << "), output("
+                               << orig_output_layout.to_short_string() << " -> "
+                               << updated_param.output_layouts[0].to_short_string() << ")\n";
+
         return updated_param;
     }
     return std::move(orig_impl_param);

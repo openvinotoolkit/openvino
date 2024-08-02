@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -136,7 +136,6 @@ bool normalize_framework_node(const std::shared_ptr<FrameworkNode>& node,
     return true;
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
 std::istream* variant_to_stream_ptr(const ov::Any& variant, std::fstream& fs, std::stringstream& ss) {
     if (variant.is<std::istream*>()) {
         return variant.as<std::istream*>();
@@ -161,7 +160,6 @@ std::istream* variant_to_stream_ptr(const ov::Any& variant, std::fstream& fs, st
 #endif
     return nullptr;
 }
-OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace
 
 FrontEnd::FrontEnd() : m_op_translators(paddle::get_supported_ops()) {}
@@ -561,12 +559,16 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
         m_op_translators[paddle_conv_ext->get_op_type()] = [=](const NodeContext& context) {
             return paddle_conv_ext->get_converter()(context);
         };
+    } else if (auto op_base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(extension)) {
+        for (const auto& attached_ext : op_base_ext->get_attached_extensions()) {
+            add_extension(attached_ext);
+        }
     }
 }
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     ov::pass::Manager manager;
-    manager.register_pass<ov::pass::ResolveNameCollisions>();
+    manager.register_pass<ov::pass::ResolveNameCollisions>(true);
     manager.run_passes(model);
 }
 

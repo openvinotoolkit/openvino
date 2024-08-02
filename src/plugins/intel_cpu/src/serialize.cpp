@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "serialize.h"
@@ -6,9 +6,8 @@
 #include <pugixml.hpp>
 
 #include "openvino/pass/serialize.hpp"
+#include "openvino/util/codec_xor.hpp"
 #include "transformations/utils/utils.hpp"
-
-using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
@@ -26,27 +25,10 @@ static void setInfo(pugi::xml_node& root, std::shared_ptr<ov::Model>& model) {
     }
 }
 
-ModelSerializer::ModelSerializer(std::ostream & ostream, ExtensionManager::Ptr extensionManager)
-    : _ostream(ostream)
-    , _extensionManager(extensionManager) {
-}
+ModelSerializer::ModelSerializer(std::ostream& ostream)
+    : _ostream(ostream) {}
 
 void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    auto getCustomOpSets = [this]() {
-        std::map<std::string, ngraph::OpSet> custom_opsets;
-
-        if (_extensionManager) {
-            auto extensions = _extensionManager->Extensions();
-            for (const auto& extension : extensions) {
-                auto opset = extension->getOpSets();
-                custom_opsets.insert(std::begin(opset), std::end(opset));
-            }
-        }
-
-        return custom_opsets;
-    };
-
     auto serializeInfo = [&](std::ostream& stream) {
         const std::string name = "cnndata";
         pugi::xml_document xml_doc;
@@ -60,9 +42,7 @@ void ModelSerializer::operator<<(const std::shared_ptr<ov::Model>& model) {
         xml_doc.save(stream);
     };
 
-    // Serialize to old representation in case of old API
-    ov::pass::StreamSerialize serializer(_ostream, getCustomOpSets(), serializeInfo);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    ov::pass::StreamSerialize serializer(_ostream, serializeInfo, ov::util::codec_xor);
     serializer.run_on_model(std::const_pointer_cast<ov::Model>(model->clone()));
 }
 
@@ -77,13 +57,27 @@ void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
     std::string xmlString;
     ov::Tensor dataBlob;
 
+    // get file size before seek content
+    // blob from cache may have other header, skip it
+    const size_t _pos = _istream.tellg();
+    _istream.seekg(0, _istream.end);
+    const size_t file_size = _istream.tellg();
+    _istream.seekg(_pos, _istream.beg);
+
     StreamSerialize::DataHeader hdr = {};
     _istream.read(reinterpret_cast<char*>(&hdr), sizeof hdr);
 
+    // check if model header contains valid data
+    bool isValidModel = (hdr.custom_data_offset == sizeof(hdr) + _pos) &&
+                        (hdr.custom_data_size == hdr.consts_offset - hdr.custom_data_offset) &&
+                        (hdr.consts_size == hdr.model_offset - hdr.consts_offset) &&
+                        (hdr.model_size = file_size - hdr.model_offset);
+    if (!isValidModel) {
+        OPENVINO_THROW("Failed to read CPU device xml header");
+    }
     // read model input/output precisions
     _istream.seekg(hdr.custom_data_offset);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
     pugi::xml_document xmlInOutDoc;
     if (hdr.custom_data_size > 0) {
         std::string xmlInOutString;
@@ -94,7 +88,6 @@ void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
             OPENVINO_THROW("NetworkNotRead: The inputs and outputs information is invalid.");
         }
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     // read blob content
     _istream.seekg(hdr.consts_offset);
@@ -107,6 +100,7 @@ void ModelDeserializer::operator>>(std::shared_ptr<ov::Model>& model) {
     _istream.seekg(hdr.model_offset);
     xmlString.resize(hdr.model_size);
     _istream.read(const_cast<char*>(xmlString.c_str()), hdr.model_size);
+    xmlString = ov::util::codec_xor(xmlString);
 
     model = _model_builder(xmlString, std::move(dataBlob));
 

@@ -34,7 +34,7 @@ def loop():
         exe = paddle.static.Executor(place=paddle.CPUPlace())
         res = exe.run(paddle.static.default_main_program(), feed={'x':x}, fetch_list=out)
 
-        saveModel('loop', exe, feedkeys=['x'], fetchlist=[out], inputs=[x], outputs=[res[0]], target_dir=sys.argv[1])
+        saveModel('loop', exe, feed_vars=[node_x], fetchlist=[out], inputs=[x], outputs=[res[0]], target_dir=sys.argv[1])
 
     return res
 
@@ -63,7 +63,7 @@ def loop_x():
         exe = paddle.static.Executor(place=paddle.CPUPlace())
         res = exe.run(paddle.static.default_main_program(), feed={'x':x}, fetch_list=out)
 
-        saveModel('loop_x', exe, feedkeys=['x'], fetchlist=[out], inputs=[x], outputs=[res[0]], target_dir=sys.argv[1])
+        saveModel('loop_x', exe, feed_vars=[node_x], fetchlist=[out], inputs=[x], outputs=[res[0]], target_dir=sys.argv[1])
 
     return res
 
@@ -93,7 +93,7 @@ def loop_t():
         exe = paddle.static.Executor(place=paddle.CPUPlace())
         res = exe.run(paddle.static.default_main_program(), feed={'x':x}, fetch_list=[out_i,out_t])
 
-        saveModel('loop_t', exe, feedkeys=['x'], fetchlist=[out_i,out_t], inputs=[x], outputs=res, target_dir=sys.argv[1])
+        saveModel('loop_t', exe, feed_vars=[node_x], fetchlist=[out_i,out_t], inputs=[x], outputs=res, target_dir=sys.argv[1])
 
     return res
 

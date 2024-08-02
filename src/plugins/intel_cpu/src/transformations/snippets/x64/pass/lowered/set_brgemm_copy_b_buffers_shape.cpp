@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,7 +10,9 @@
 
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 
-bool ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape::run(snippets::lowered::LinearIR& linear_ir) {
+bool ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape::run(snippets::lowered::LinearIR& linear_ir,
+                                                          snippets::lowered::LinearIR::constExprIt begin,
+                                                          snippets::lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::SetBrgemmCopyBBuffersShape")
 
     auto get_buffer_from_output = [](const snippets::lowered::ExpressionPtr& expr, const size_t out_idx) {
@@ -22,14 +24,15 @@ bool ov::intel_cpu::pass::SetBrgemmCopyBBuffersShape::run(snippets::lowered::Lin
     };
 
     bool modified = false;
-    for (const auto& expr : linear_ir) {
+    for (auto expr_it = begin; expr_it != end; ++expr_it) {
+        const auto& expr = *expr_it;
         if (auto copy_b = ov::as_type_ptr<ov::intel_cpu::BrgemmCopyB>(expr->get_node())) {
             const auto buffer = get_buffer_from_output(expr, 0);
-            const auto& out_desc = expr->get_output_port_descriptor(0);
-            buffer->set_allocation_shape(copy_b->get_data_repacking_shape(out_desc->get_shape()));
+            const auto buffer_shape = copy_b->get_repacking_buffer_shape();
+            buffer->set_allocation_size(ov::shape_size(buffer_shape));
             if (copy_b->is_with_compensations()) {
                 const auto compensations_buffer = get_buffer_from_output(expr, 1);
-                compensations_buffer->set_allocation_shape(copy_b->get_compensation_shape(out_desc->get_shape()));
+                compensations_buffer->set_allocation_size(ov::shape_size(copy_b->get_compensations_buffer_shape()));
             }
             modified = true;
         }

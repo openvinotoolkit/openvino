@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -80,8 +80,17 @@ macro(ov_find_package_tbb)
         # conan generates TBBConfig.cmake files, which follows cmake's
         # SameMajorVersion scheme, while TBB itself follows AnyNewerVersion one
         # see https://cmake.org/cmake/help/latest/module/CMakePackageConfigHelpers.html#generating-a-package-version-file
+        set(PKG_CONFIG_SEARCH ON)
         if(CMAKE_TOOLCHAIN_FILE MATCHES "conan_toolchain.cmake" OR CONAN_EXPORTED)
             set(_ov_minimal_tbb_version 2021.0)
+        elseif(LINUX AND AARCH64)
+            # CVS-126984: system TBB is not very stable on Linux ARM64
+            set(_ov_minimal_tbb_version 2021.0)
+            # on Ubuntu22.04, tbb2020 can be installed by "apt install libtbb2-dev",
+            # after installation, TBB_VERSION is missed in tbb.pc,
+            # so here skip pkg_search_module for tbb to avoid using TBB 2020
+            # that does not meet the minimun version number requirements.
+            set(PKG_CONFIG_SEARCH OFF)
         else()
             set(_ov_minimal_tbb_version 2017.0)
         endif()
@@ -113,7 +122,7 @@ macro(ov_find_package_tbb)
             unset(TBB_DIR)
 
             # try tbb.pc from system
-            if(ENABLE_SYSTEM_TBB AND PkgConfig_FOUND)
+            if(ENABLE_SYSTEM_TBB AND PkgConfig_FOUND AND PKG_CONFIG_SEARCH)
                 macro(_ov_pkg_config_tbb_unset)
                     # unset since it affects OpenVINOConfig.cmake.in
                     unset(tbb_FOUND)
@@ -265,7 +274,7 @@ function(ov_set_threading_interface_for TARGET_NAME)
         set(LINK_TYPE "PRIVATE")
         set(COMPILE_DEF_TYPE "PRIVATE")
     elseif(target_type STREQUAL "STATIC_LIBRARY")
-        # Affected libraries: inference_engine_s, openvino_gapi_preproc_s
+        # Affected libraries: openvino_runtime_s
         # they don't have TBB in public headers => PRIVATE
         set(LINK_TYPE "PRIVATE")
         set(COMPILE_DEF_TYPE "PUBLIC")
@@ -287,7 +296,7 @@ function(ov_set_threading_interface_for TARGET_NAME)
                 if(include_directories)
                     foreach(include_directory IN LISTS include_directories)
                         # cannot include /usr/include headers as SYSTEM
-                        if(NOT "${include_directory}" MATCHES "^/usr.*$")
+                        if(NOT "${include_directory}" MATCHES ".*/usr/include.*$")
                             target_include_directories(${TARGET_NAME} SYSTEM
                                 ${LINK_TYPE} $<BUILD_INTERFACE:${include_directory}>)
                         else()
@@ -305,12 +314,10 @@ function(ov_set_threading_interface_for TARGET_NAME)
         endif()
     endfunction()
 
-    set(IE_THREAD_DEFINE "IE_THREAD_SEQ")
     set(OV_THREAD_DEFINE "OV_THREAD_SEQ")
 
     if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
         if (TBB_FOUND)
-            set(IE_THREAD_DEFINE "IE_THREAD_TBB")
             set(OV_THREAD_DEFINE "OV_THREAD_TBB")
             _ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} TBB::tbb)
             target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} TBB_PREVIEW_WAITING_FOR_WORKERS=1)
@@ -354,10 +361,9 @@ function(ov_set_threading_interface_for TARGET_NAME)
         endif ()
 
         if (NOT OMP_LIBRARIES_RELEASE)
-            message(WARNING "Intel OpenMP not found. Intel OpenMP support will be disabled. ${IE_THREAD_DEFINE} is defined")
+            message(WARNING "Intel OpenMP not found. Intel OpenMP support will be disabled. ${OV_THREAD_DEFINE} is defined")
             set(THREADING "SEQ" PARENT_SCOPE)
         else ()
-            set(IE_THREAD_DEFINE "IE_THREAD_OMP")
             set(OV_THREAD_DEFINE "OV_THREAD_OMP")
 
             if (WIN32)
@@ -387,7 +393,6 @@ function(ov_set_threading_interface_for TARGET_NAME)
         endif ()
     endif ()
 
-    target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} -DIE_THREAD=${IE_THREAD_DEFINE})
     target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} -DOV_THREAD=${OV_THREAD_DEFINE})
 
     if (NOT THREADING STREQUAL "SEQ")
@@ -395,10 +400,3 @@ function(ov_set_threading_interface_for TARGET_NAME)
         _ov_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} Threads::Threads)
     endif()
 endfunction(ov_set_threading_interface_for)
-
-# deprecated
-
-function(set_ie_threading_interface_for TARGET_NAME)
-    message(WARNING "'set_ie_threading_interface_for' is deprecated. Please use 'ov_set_threading_interface_for' instead.")
-    ov_set_threading_interface_for(${TARGET_NAME})
-endfunction(set_ie_threading_interface_for)

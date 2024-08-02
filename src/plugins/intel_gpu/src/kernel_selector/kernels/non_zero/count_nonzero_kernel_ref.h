@@ -15,13 +15,6 @@ struct count_nonzero_params : public base_params {
     int32_t ov_input_rank = -1;
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// count_nonzero_optional_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct count_nonzero_optional_params : optional_params {
-    count_nonzero_optional_params() : optional_params(KernelType::COUNT_NONZERO) {}
-};
-
 class CountNonzeroKernelRef : public KernelBaseOpenCL {
 public:
     CountNonzeroKernelRef() : KernelBaseOpenCL("count_nonzero_ref") {}
@@ -33,13 +26,13 @@ public:
     };
 
     virtual DispatchData SetDefault(const count_nonzero_params& params) const;
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsData GetKernelsData(const Params& params) const override;
+    KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
-    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 
 protected:
-    bool Validate(const Params& p, const optional_params& op) const override;
+    bool Validate(const Params& pp) const override;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

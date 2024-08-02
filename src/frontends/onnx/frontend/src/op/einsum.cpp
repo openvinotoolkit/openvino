@@ -1,27 +1,26 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "op/einsum.hpp"
 
-#include "default_opset.hpp"
+#include "openvino/op/einsum.hpp"
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace ngraph {
-namespace onnx_import {
+using namespace ov::op;
+
+namespace ov {
+namespace frontend {
+namespace onnx {
 namespace op {
 namespace set_1 {
-OutputVector einsum(const Node& node) {
+ov::OutputVector einsum(const ov::frontend::onnx::Node& node) {
     const std::string& equation{node.get_attribute_value<std::string>("equation")};
 
-    return OutputVector{std::make_shared<default_opset::Einsum>(node.get_ng_inputs(), equation)};
+    return {std::make_shared<v7::Einsum>(node.get_ov_inputs(), equation)};
 }
 
 }  // namespace set_1
-
 }  // namespace op
-
-}  // namespace onnx_import
-
-}  // namespace ngraph
-OPENVINO_SUPPRESS_DEPRECATED_END
+}  // namespace onnx
+}  // namespace frontend
+}  // namespace ov

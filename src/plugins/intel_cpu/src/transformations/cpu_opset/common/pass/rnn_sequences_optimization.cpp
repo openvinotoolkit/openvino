@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "rnn_sequences_optimization.hpp"
 
-#include <openvino/opsets/opset1.hpp>
+#include "openvino/opsets/opset1.hpp"
 #include <openvino/opsets/opset5.hpp>
 #include <openvino/opsets/opset8.hpp>
 #include "openvino/pass/pattern/op/wrap_type.hpp"

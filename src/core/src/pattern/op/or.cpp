@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 bool ov::pass::pattern::op::Or::match_value(Matcher* matcher,
                                             const Output<Node>& pattern_value,
                                             const Output<Node>& graph_value) {
-    for (auto input_value : input_values()) {
+    for (const auto& input_value : input_values()) {
         auto saved = matcher->start_match();
         if (matcher->match_value(input_value, graph_value)) {
             auto& pattern_map = matcher->get_pattern_value_map();

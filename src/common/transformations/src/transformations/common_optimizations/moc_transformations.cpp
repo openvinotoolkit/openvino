@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,7 @@
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
 #include "transformations/common_optimizations/clamp_fusion.hpp"
+#include "transformations/common_optimizations/concat_to_broadcast.hpp"
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"
 #include "transformations/common_optimizations/conv_to_binary_conv.hpp"
 #include "transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp"
@@ -29,6 +30,7 @@
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 #include "transformations/common_optimizations/divide_fusion.hpp"
 #include "transformations/common_optimizations/eliminate_duplicate_ti_inputs.hpp"
+#include "transformations/common_optimizations/eliminate_loop_inputs_outputs.hpp"
 #include "transformations/common_optimizations/eliminate_unsqueeze_gather.hpp"
 #include "transformations/common_optimizations/fold_subgraph_empty_inputs.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
@@ -39,6 +41,7 @@
 #include "transformations/common_optimizations/hswish_fusion.hpp"
 #include "transformations/common_optimizations/leaky_relu_fusion.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
+#include "transformations/common_optimizations/lstm_cell_fusion.hpp"
 #include "transformations/common_optimizations/matmul_const_transposes_extraction.hpp"
 #include "transformations/common_optimizations/matmul_multiply_fusion.hpp"
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
@@ -80,6 +83,7 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/op_conversions/batch_norm_decomposition.hpp"
+#include "transformations/op_conversions/convert_convertpromotetypes.hpp"
 #include "transformations/op_conversions/convert_divide.hpp"
 #include "transformations/op_conversions/convert_negative.hpp"
 #include "transformations/op_conversions/convert_scatter_elements_to_scatter.hpp"
@@ -89,6 +93,15 @@
 #include "transformations/smart_reshape/lstm_states_broadcast.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
 #include "transformations/smart_reshape/reshape_sinking.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
+
+static ov::PartialShape prepare_dynamic_shape(const ov::PartialShape& shape) {
+    auto new_shape = ov::PartialShape::dynamic(shape.rank());
+    if (shape.rank().is_static())
+        for (size_t i = 0; i < shape.size(); ++i)
+            new_shape[i].set_symbol(shape[i].get_symbol());
+    return new_shape;
+}
 
 bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(MOCTransformations);
@@ -99,7 +112,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     if (!m_use_shapes) {
         for (auto&& param : f->get_parameters()) {
             input_shapes[param.get()] = param->get_partial_shape();
-            param->set_partial_shape(PartialShape::dynamic(param->get_partial_shape().rank()));
+            param->set_partial_shape(prepare_dynamic_shape(param->get_partial_shape()));
         }
         // After setting dynamic ranks into Parameters, the initializing subgraph of ReadValue operation might
         // also have a dynamic rank. The shape consistency check between this subgraph and Variable might fail.
@@ -107,7 +120,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
         for (const auto& variable : f->get_variables()) {
             const auto& var_info = variable->get_info();
             variable_shapes[variable.get()] = var_info.data_shape;
-            variable->update_data_shape(PartialShape::dynamic(var_info.data_shape.rank()));
+            variable->update_data_shape(prepare_dynamic_shape(var_info.data_shape));
         }
         f->validate_nodes_and_infer_types();
     }
@@ -132,6 +145,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     using namespace ov::pass;
     REGISTER_PASS(manager, EliminateScatterUpdate)
     REGISTER_PASS(manager, RemoveConcatZeroDimInput)
+    REGISTER_PASS(manager, EliminateLoopInputsOutputs);
     REGISTER_PASS(manager, Validate)
     // todo: ticket 96960
     // the order EliminateDuplicateTIInputs and RemoveMultiSubGraphOpDanglingParamsResults is important
@@ -171,8 +185,11 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, PullThroughReduce)
 
     // GRUCellFusion and SequenceFusion should be before NopElimination
+    REGISTER_PASS(manager, LSTMCellFusion)
     REGISTER_PASS(manager, GRUCellFusion)
     REGISTER_PASS(manager, SequenceFusion)
+
+    REGISTER_PASS(manager, ConcatToBroadcast);
 
     auto transpose_sinking = manager.register_pass<ov::pass::GraphRewrite>();
     ADD_MATCHER(transpose_sinking, TransposeSinking)
@@ -236,7 +253,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     ADD_MATCHER(decomp, ConvertDivideWithConstant)
     ADD_MATCHER(decomp, ConvertSubtractWithConstant)
     ADD_MATCHER(decomp, ConvertNegative)
-
+    ADD_MATCHER(decomp, ConvertConvertPromoteTypes)
     manager.register_pass<ov::pass::LinOpSequenceFusion>();
 
     auto multiply_fusions = manager.register_pass<ov::pass::GraphRewrite>();
@@ -264,7 +281,8 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, AlignEltwiseInputRanks)
     REGISTER_PASS(manager, SharedOpOptimization)
     REGISTER_PASS(manager, ConstantFolding)
-    REGISTER_PASS(manager, ResolveNameCollisions)
+    REGISTER_PASS(manager, SymbolicOptimizations)
+    REGISTER_PASS(manager, ResolveNameCollisions, true);
     manager.run_passes(f);
 
     if (!m_use_shapes) {

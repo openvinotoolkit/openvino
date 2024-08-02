@@ -1,4 +1,4 @@
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -31,19 +31,18 @@ class TestKerasRoll(CommonTF2LayerTest):
              input_type=tf.float16),
         dict(shift=[11, -8], axis=[-1, -2], input_names=["x1"], input_shapes=[[3, 4, 3, 1]],
              input_type=tf.int32),
-        pytest.param(dict(shift=[7, -2, 5], axis=[0, -1, -1], input_names=["x1"], input_shapes=[[5, 2, 3, 7]],
-                          input_type=tf.int64), marks=pytest.mark.precommit_tf_fe),
-        pytest.param(
-            dict(shift=[1, -2], axis=[0, 1], input_names=["x1"], input_shapes=[[2, 4, 3, 5]],
-                 input_type=tf.float32),
-            marks=pytest.mark.precommit)]
+        dict(shift=[7, -2, 5], axis=[0, -1, -1], input_names=["x1"], input_shapes=[[5, 2, 3, 7]],
+             input_type=tf.int64),
+        dict(shift=[1, -2], axis=[0, 1], input_names=["x1"], input_shapes=[[2, 4, 3, 5]],
+             input_type=tf.float32)]
 
     @pytest.mark.parametrize("params", test_data)
+    @pytest.mark.precommit
     @pytest.mark.nightly
-    def test_keras_roll(self, params, ie_device, precision, ir_version, temp_dir, use_old_api,
-                        use_new_frontend):
+    def test_keras_roll(self, params, ie_device, precision, ir_version, temp_dir,
+                        use_legacy_frontend):
         if ie_device == 'GPU':
             pytest.skip("Roll is not supported on GPU")
         self._test(*self.create_keras_roll_net(**params, ir_version=ir_version), ie_device,
-                   precision, temp_dir=temp_dir, ir_version=ir_version, use_old_api=use_old_api,
-                   use_new_frontend=use_new_frontend, **params)
+                   precision, temp_dir=temp_dir, ir_version=ir_version,
+                   use_legacy_frontend=use_legacy_frontend, **params)

@@ -2,23 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/pass/validate.hpp"
-
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/op/transpose.hpp"
+#include "snippets/itt.hpp"
 #include "snippets/op/convert_saturation.hpp"
 #include "snippets/op/convert_truncation.hpp"
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 #include "snippets/pass/fq_decomposition.hpp"
+#include "snippets/pass/validate.hpp"
 #include "snippets/utils.hpp"
-#include "snippets/itt.hpp"
-
-#include "openvino/op/fake_quantize.hpp"
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/matmul.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/softmax.hpp"
-#include "openvino/core/validation_util.hpp"
-
 
 namespace ov {
 namespace snippets {
@@ -62,9 +59,7 @@ bool Validate::is_supported_softmax(const std::shared_ptr<const ov::Node>& op) {
     const auto softmax_rank = op->get_input_partial_shape(0).rank();
     int64_t axis = 0;
     if (const auto softmax_v8 = ov::as_type_ptr<const ov::op::v8::Softmax>(op)) {
-        OPENVINO_SUPPRESS_DEPRECATED_START
-        axis = ov::normalize_axis(softmax_v8->get_friendly_name(), softmax_v8->get_axis(), softmax_rank);
-        OPENVINO_SUPPRESS_DEPRECATED_END
+        axis = ov::util::normalize_axis(softmax_v8->get_friendly_name(), softmax_v8->get_axis(), softmax_rank);
     } else if (const auto softmax_v1 = ov::as_type_ptr<const ov::op::v1::Softmax>(op)) {
         axis = softmax_v1->get_axis();
     } else {

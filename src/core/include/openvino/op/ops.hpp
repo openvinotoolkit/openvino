@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,10 +29,12 @@
 #include "openvino/op/bucketize.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/clamp.hpp"
+#include "openvino/op/col2im.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
+#include "openvino/op/convert_promote_types.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/cosh.hpp"
@@ -49,7 +51,9 @@
 #include "openvino/op/einsum.hpp"
 #include "openvino/op/elu.hpp"
 #include "openvino/op/embedding_segments_sum.hpp"
+#include "openvino/op/embeddingbag_offsets.hpp"
 #include "openvino/op/embeddingbag_offsets_sum.hpp"
+#include "openvino/op/embeddingbag_packed.hpp"
 #include "openvino/op/embeddingbag_packedsum.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/erf.hpp"
@@ -87,6 +91,7 @@
 #include "openvino/op/idft.hpp"
 #include "openvino/op/if.hpp"
 #include "openvino/op/interpolate.hpp"
+#include "openvino/op/inverse.hpp"
 #include "openvino/op/irdft.hpp"
 #include "openvino/op/is_finite.hpp"
 #include "openvino/op/is_inf.hpp"
@@ -154,6 +159,7 @@
 #include "openvino/op/rnn_cell.hpp"
 #include "openvino/op/rnn_sequence.hpp"
 #include "openvino/op/roi_align.hpp"
+#include "openvino/op/roi_align_rotated.hpp"
 #include "openvino/op/roi_pooling.hpp"
 #include "openvino/op/roll.hpp"
 #include "openvino/op/round.hpp"

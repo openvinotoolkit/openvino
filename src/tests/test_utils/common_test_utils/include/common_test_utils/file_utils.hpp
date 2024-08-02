@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -136,16 +136,6 @@ inline int removeDir(const std::string& path) {
     return rmdir(path.c_str());
 }
 
-inline bool directoryExists(const std::string& path) {
-    struct stat sb;
-
-    if (stat(path.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode)) {
-        return true;
-    }
-
-    return false;
-}
-
 inline int createDirectory(const std::string& dirPath) {
 #ifdef _WIN32
     return _mkdir(dirPath.c_str());
@@ -154,23 +144,15 @@ inline int createDirectory(const std::string& dirPath) {
 #endif
 }
 
-inline int createDirectoryRecursive(const std::string& dirPath) {
-    std::string copyDirPath = dirPath;
-    std::vector<std::string> nested_dir_names;
-    while (!directoryExists(copyDirPath)) {
-        auto pos = copyDirPath.rfind(FileSeparator);
-        nested_dir_names.push_back(copyDirPath.substr(pos, copyDirPath.length() - pos));
-        copyDirPath = copyDirPath.substr(0, pos);
-    }
-    while (!nested_dir_names.empty()) {
-        copyDirPath = copyDirPath + nested_dir_names.back();
-        if (createDirectory(copyDirPath) != 0) {
-            return -1;
-        }
-        nested_dir_names.pop_back();
-    }
-    return 0;
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+inline int createDirectory(const std::wstring& dirPath) {
+#    ifdef _WIN32
+    return _wmkdir(dirPath.c_str());
+#    else
+    return mkdir(ov::util::wstring_to_string(dirPath).c_str(), mode_t(0777));
+#    endif
 }
+#endif
 
 inline std::vector<std::string> splitStringByDelimiter(std::string paths, const std::string& delimiter = ",") {
     size_t delimiterPos;
@@ -185,6 +167,7 @@ inline std::vector<std::string> splitStringByDelimiter(std::string paths, const 
 
 std::string getModelFromTestModelZoo(const std::string& relModelPath);
 
+std::string getOpenvinoLibDirectory();
 std::string getExecutableDirectory();
 std::string getCurrentWorkingDir();
 std::string getRelativePath(const std::string& from, const std::string& to);

@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <map>
 
 #include "graph_iterator_proto.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "ov_tensorflow/saved_model.pb.h"
@@ -14,6 +15,8 @@
 namespace ov {
 namespace frontend {
 namespace tensorflow {
+
+using HashTableKeysValuesMap = std::unordered_map<std::string, std::shared_ptr<ov::op::v0::Constant>>;
 
 struct VIBlock;
 
@@ -140,7 +143,9 @@ public:
     /// \param[in] graph_def GraphDef object for analysis
     /// \param[out] variables_map Map of variables found in graph_def
     static void map_assignvariable(const std::shared_ptr<::tensorflow::GraphDef> graph_def,
-                                   std::map<std::string, std::string>& variables_map);
+                                   std::map<std::string, std::string>& variables_map,
+                                   HashTableKeysValuesMap& hash_table_keys_map,
+                                   HashTableKeysValuesMap& hash_table_values_map);
 
 private:
     /// \brief Reads block structure of .index file

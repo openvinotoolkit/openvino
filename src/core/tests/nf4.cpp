@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -89,8 +89,14 @@ void test_nf4_convert() {
     EXPECT_LE(max_diff, 0.001);
 }
 
-TEST(nf4, convert_float) {
+TEST(nf4, convert_from_float) {
     test_nf4_convert<float>();
+}
+
+TEST(nf4, convert_from_float16) {
     test_nf4_convert<ov::float16>();
+}
+
+TEST(nf4, convert_from_bfloat16) {
     test_nf4_convert<ov::bfloat16>();
 }

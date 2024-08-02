@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -22,14 +22,18 @@ function(build_docs)
 
     set(DOCS_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}")
     set(DOCS_SOURCE_DIR "${OpenVINO_SOURCE_DIR}/docs")
+    set(ARTICLES_EN_DIR "${OpenVINO_SOURCE_DIR}/docs/articles_en")
     set(SCRIPTS_DIR "${DOCS_SOURCE_DIR}/scripts")
 
     # Preprocessing scripts
     set(REMOVE_XML_SCRIPT "${SCRIPTS_DIR}/remove_xml.py")
     set(FILE_HELPER_SCRIPT "${SCRIPTS_DIR}/filehelper.py")
+    set(ARTICLES_HELPER_SCRIPT "${SCRIPTS_DIR}/articles_helper.py")
     set(COPY_IMAGES_SCRIPT "${SCRIPTS_DIR}/copy_images.py")
     set(DOXYGEN_MAPPING_SCRIPT "${SCRIPTS_DIR}/create_mapping.py")
+    set(DOCS_MAPPING_SCRIPT "${SCRIPTS_DIR}/create_doc_mapping.py")
     set(BREATHE_APIDOC_SCRIPT "${SCRIPTS_DIR}/apidoc.py")
+    set(OV_INSTALLATION_SCRIPT "${SCRIPTS_DIR}/install_appropriate_openvino_version.py")
 
     # Doxygen/Sphinx setup
     set(DOXYGEN_XML_OUTPUT "${DOCS_BUILD_DIR}/xml")
@@ -38,9 +42,9 @@ function(build_docs)
     set(SPHINX_OUTPUT "${DOCS_BUILD_DIR}/_build")
 
     list(APPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "STARTED preprocessing OpenVINO articles")
-    list(APPEND commands COMMAND ${Python3_EXECUTABLE} ${FILE_HELPER_SCRIPT}
+    list(APPEND commands COMMAND ${Python3_EXECUTABLE} ${ARTICLES_HELPER_SCRIPT}
         --filetype=rst
-        --input_dir=${OpenVINO_SOURCE_DIR}
+        --input_dir=${ARTICLES_EN_DIR}
         --output_dir=${SPHINX_SOURCE_DIR}
         --exclude_dir=${SPHINX_SOURCE_DIR})
     list(APPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "FINISHED preprocessing OpenVINO articles")
@@ -59,17 +63,19 @@ function(build_docs)
 
     if(${ENABLE_PYTHON_API})
         list(APPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "STARTED preprocessing OpenVINO Python API")
-        list(APPEND commands COMMAND ${Python3_EXECUTABLE} -m pip install openvino)
+        list(APPEND commands COMMAND ${Python3_EXECUTABLE} ${OV_INSTALLATION_SCRIPT}
+        --ov_dir=${SPHINX_SETUP_DIR}
+        --python=${Python3_EXECUTABLE})
         list(APPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "FINISHED preprocessing OpenVINO Python API")
     endif()
 
     if(${ENABLE_NOTEBOOKS})
         set(NBDOC_SCRIPT "${DOCS_SOURCE_DIR}/nbdoc/nbdoc.py")
-        list(APPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "STARTED preprocessing OpenVINO notebooks")
-        list(APPEND commands
+        list(PREPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "STARTED preprocessing OpenVINO notebooks")
+        list(PREPEND commands
             COMMAND ${Python3_EXECUTABLE} "${NBDOC_SCRIPT}" "${DOCS_SOURCE_DIR}/notebooks" "${SPHINX_SOURCE_DIR}/notebooks"
         )
-        list(APPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "FINISHED preprocessing OpenVINO notebooks")
+        list(PREPEND commands COMMAND ${CMAKE_COMMAND} -E cmake_echo_color --green "FINISHED preprocessing OpenVINO notebooks")
     endif()
 
     if(${ENABLE_OVMS})
@@ -105,6 +111,7 @@ function(build_docs)
                        POST_BUILD
                        COMMAND ${Python3_EXECUTABLE} ${COPY_IMAGES_SCRIPT} ${DOXYGEN_XML_OUTPUT} ${SPHINX_SOURCE_DIR}
                        COMMAND ${Python3_EXECUTABLE} ${DOXYGEN_MAPPING_SCRIPT} ${DOXYGEN_XML_OUTPUT} ${DOCS_BUILD_DIR} ${OpenVINO_SOURCE_DIR}/../
+                       COMMAND ${Python3_EXECUTABLE} ${DOCS_MAPPING_SCRIPT} ${DOCS_BUILD_DIR} ${ARTICLES_EN_DIR}
                        COMMAND ${CMAKE_COMMAND} -E copy_directory ${SPHINX_SETUP_DIR} ${SPHINX_SOURCE_DIR}
                        ${post_commands}
                        VERBATIM)

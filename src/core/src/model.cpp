@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,11 +8,12 @@
 #include <string>
 #include <unordered_map>
 
+#include "evaluator.hpp"
 #include "itt.hpp"
 #include "layout_utils.hpp"
-#include "ngraph/evaluator.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/meta_data.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/parameter.hpp"
@@ -219,11 +220,6 @@ void ov::Model::prerequirements(bool detect_variables, bool detect_parameters) {
 void ov::Model::validate_nodes_and_infer_types() const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "Model::validate_nodes_and_infer_types");
 
-    struct Counter {
-        int cnt_assign = 0;
-        int cnt_read_val = 0;
-    };
-    std::map<ov::op::util::Variable*, Counter> pair_checker;
     std::stringstream unregistered_parameters;
     std::stringstream unregistered_variables;
     std::unordered_set<const ov::descriptor::Tensor*> tensors;
@@ -245,12 +241,6 @@ void ov::Model::validate_nodes_and_infer_types() const {
         if (variable_op &&
             std::find(m_variables.begin(), m_variables.end(), variable_op->get_variable()) == m_variables.end())
             unregistered_variables << variable_op->get_variable_id() << std::endl;
-
-        if (const auto& assign = std::dynamic_pointer_cast<ov::op::util::AssignBase>(node)) {
-            pair_checker[assign->get_variable().get()].cnt_assign++;
-        } else if (const auto& read_value = std::dynamic_pointer_cast<ov::op::util::ReadValueBase>(node)) {
-            pair_checker[read_value->get_variable().get()].cnt_read_val++;
-        }
     }
 
     OPENVINO_ASSERT(unregistered_parameters.str().empty(),
@@ -260,13 +250,7 @@ void ov::Model::validate_nodes_and_infer_types() const {
     OPENVINO_ASSERT(unregistered_variables.str().empty(),
                     "Model references undeclared Variables: ",
                     unregistered_variables.str());
-    bool only_pairs =
-        std::all_of(pair_checker.begin(), pair_checker.end(), [](const std::pair<op::util::Variable*, Counter>& val) {
-            return val.second.cnt_assign == 1 && val.second.cnt_read_val == 1;
-        });
-    OPENVINO_ASSERT(only_pairs,
-                    "Model is incorrect. Assign and ReadValue operations must be in pairs on the "
-                    "network.");
+
     for (const auto& output : outputs()) {
         OPENVINO_ASSERT(ov::layout::utils::is_compatible(ov::layout::get_layout(output), output.get_partial_shape()),
                         "Result '",
@@ -443,7 +427,7 @@ void ov::Model::replace_parameter(size_t parameter_index, const shared_ptr<ov::o
 }
 
 void ov::Model::set_topological_sort(topological_sort_t sorter) {
-    m_topological_sorter = sorter;
+    m_topological_sorter = std::move(sorter);
     // reset topological nodes order cache as new sorter can have different behaviour
     m_shared_rt_info->set_use_topological_cache(false);
 }
@@ -486,61 +470,6 @@ int64_t ov::Model::get_result_index(const Output<const Node>& value) const {
     return -1;
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-namespace {
-ov::Tensor wrap_tensor(const ngraph::HostTensorPtr& t) {
-    const auto& et = t->get_element_type();
-    const auto& p_shape = t->get_partial_shape();
-
-    if (et.is_dynamic() || et == ov::element::undefined) {
-        return {};
-    } else if (p_shape.is_static()) {
-        return {et, p_shape.to_shape(), t->get_data_ptr()};
-    } else {
-        return {et, ov::Shape{0}};
-    }
-}
-
-ov::TensorVector wrap_tensors(const std::vector<ngraph::HostTensorPtr>& tensors) {
-    ov::TensorVector out;
-    out.reserve(tensors.size());
-    for (const auto& ht : tensors) {
-        out.push_back(wrap_tensor(ht));
-    }
-    return out;
-}
-
-void update_output_host_tensors(const std::vector<ngraph::HostTensorPtr>& output_values,
-                                const ov::TensorVector& outputs) {
-    OPENVINO_ASSERT(output_values.size() == outputs.size());
-    for (size_t i = 0; i < output_values.size(); ++i) {
-        auto& ht = output_values[i];
-        auto& t = outputs[i];
-        if (ht->get_partial_shape().is_dynamic()) {
-            ht->set_element_type(t.get_element_type());
-            ht->set_shape(t.get_shape());
-            std::memcpy(ht->get_data_ptr(), t.data(), t.get_byte_size());
-        }
-    }
-}
-}  // namespace
-
-bool ov::Model::evaluate(const HostTensorVector& output_tensors, const HostTensorVector& input_tensors) const {
-    ov::EvaluationContext evaluation_context;
-    return evaluate(output_tensors, input_tensors, evaluation_context);
-}
-
-bool ov::Model::evaluate(const HostTensorVector& output_tensors,
-                         const HostTensorVector& input_tensors,
-                         EvaluationContext& evaluation_context) const {
-    auto outputs = wrap_tensors(output_tensors);
-    auto inputs = wrap_tensors(input_tensors);
-    bool sts = evaluate(outputs, inputs, evaluation_context);
-    update_output_host_tensors(output_tensors, outputs);
-    return sts;
-}
-OPENVINO_SUPPRESS_DEPRECATED_END
-
 bool ov::Model::evaluate(ov::TensorVector& output_tensors, const ov::TensorVector& input_tensors) const {
     ov::EvaluationContext evaluation_context;
     return evaluate(output_tensors, input_tensors, evaluation_context);
@@ -576,8 +505,7 @@ bool ov::Model::evaluate(ov::TensorVector& output_tensors,
         outputs.push_back(m_sink);
     }
     // evaluate nodes
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    ngraph::Evaluator<ov::Tensor> evaluator({}, value_map);
+    Evaluator<Tensor> evaluator({}, value_map);
     evaluator.set_universal_handler(
         [&output_tensor_map, &evaluation_context](Node* node,
                                                   const ov::TensorVector& input_tensors) -> ov::TensorVector {
@@ -606,7 +534,6 @@ bool ov::Model::evaluate(ov::TensorVector& output_tensors,
     for (const auto& value : outputs) {
         evaluator.evaluate(value);
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
     for (size_t i = 0; i < m_results.size(); ++i) {
         auto result = m_results.at(i)->output(0);
         output_tensors.at(i) = output_tensor_map[result];
@@ -1001,9 +928,8 @@ ov::Output<ov::Node> ov::Model::add_output(const ov::Output<ov::Node>& port) {
 }
 
 std::shared_ptr<ov::Model> ov::Model::clone() const {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return ov::clone_model(*this);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    std::unordered_map<ov::Node*, std::shared_ptr<ov::Node>> node_map;
+    return ov::clone_ov_model(*this, node_map);
 }
 
 bool ov::Model::has_rt_info(const std::vector<std::string>& args) const {
@@ -1195,7 +1121,7 @@ void ov::set_batch(const std::shared_ptr<ov::Model>& f, ov::Dimension batch_size
         auto batch_idx = bs_util::get_batch(layout, pshape);
         auto new_shape = param->get_partial_shape();
         new_shape[batch_idx] = batch_size;
-        new_shapes_map[f->input(i)] = new_shape;
+        new_shapes_map[f->input(i)] = std::move(new_shape);
     }
     try {
         f->reshape(new_shapes_map);

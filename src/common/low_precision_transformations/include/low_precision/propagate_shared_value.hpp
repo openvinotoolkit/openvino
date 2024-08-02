@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,13 +27,13 @@ class LP_TRANSFORMATIONS_API PropagateSharedValue;
 }  // namespace ov
 
 /**
- * @ingroup ie_transformation_common_api
+ * @ingroup ov_transformation_common_api
  * @brief PropagateSharedValue transformation propagates shared value AttributeType attribute instances
  * through precision preserved operations.
  *
  * For more details about the transformation, refer to
  * [PropagateSharedValue](@ref openvino_docs_OV_UG_lpt_PropagateSharedValue) page
- * in the Inference Engine Developer Guide.
+ * in the OpenVINO Developer Guide.
  */
 template <class AttributeType>
 class ov::pass::low_precision::PropagateSharedValue : public ov::pass::ModelPass {
@@ -44,6 +44,9 @@ public:
         std::vector<std::shared_ptr<ov::Node>> nodes(f->get_ordered_ops());
         for (auto it = nodes.begin(); it != nodes.end(); it++) {
             const std::shared_ptr<Node> node = *it;
+
+            ov::op::util::process_subgraph(*this, node);
+
             if (ov::is_type<opset1::FakeQuantize>(node)) {
                 assert(node->get_output_size() == 1ul);
                 auto& outputRtInfo = node->output(0).get_rt_info();

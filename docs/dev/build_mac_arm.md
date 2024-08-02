@@ -33,14 +33,13 @@ The software was validated on:
   ```
 - (arm64 only) Product and samples dependencies:
   ```sh
-  % brew install tbb pugixml flatbuffers snappy protobuf nlohmann-json zlib gflags
+  % brew install tbb pugixml flatbuffers snappy protobuf
   ```
 - Additional `pip` dependencies to build OpenVINO Runtime Python API, Development tools (Model Optimizer, POT and others):
   ```sh
   % # update pip and setuptools to newer versions
   % python3 -m pip install -U pip
   % python3 -m pip install -r <openvino source tree>/src/bindings/python/requirements.txt
-  % python3 -m pip install -r <openvino source tree>/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
   ```
   Additional install requirements (after OpenVINO repo clone) in order to build OpenVINO Python API and Development tools as wheel packages:
   ```sh

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -156,6 +156,23 @@ TEST_F(AnyTests, AnyAsMapOfAnys) {
 
     ASSERT_EQ(refMap["testParamInt"].as<int>(), testInt);
     ASSERT_EQ(refMap["testParamString"].as<std::string>(), testString);
+}
+
+TEST_F(AnyTests, AnyAsSetOfAnys) {
+    std::set<std::string> refSet0;
+    std::set<int> refSet1;
+    refSet0.insert("test");
+    refSet1.insert(4);
+    Any s0 = refSet0;
+    Any s1 = refSet1;
+    bool isSet0 = s0.is<std::set<std::string>>();
+    bool isSet1 = s1.is<std::set<int>>();
+    ASSERT_TRUE(isSet0);
+    ASSERT_TRUE(isSet1);
+    auto testSet0 = s0.as<std::set<std::string>>();
+    auto testSet1 = s1.as<std::set<int>>();
+    ASSERT_NE(testSet0.count("test"), 0);
+    ASSERT_NE(testSet1.count(4), 0);
 }
 
 TEST_F(AnyTests, AnyAsMapOfMapOfAnys) {

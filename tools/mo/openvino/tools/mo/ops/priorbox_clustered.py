@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -44,7 +44,7 @@ class PriorBoxClusteredOp(Op):
     def backend_attrs(self):
         return [
             ('clip', lambda node: int(node.clip)),  # We need to convert this boolean attribute value to int to keep
-            # forward compatibility with IE 2021.2
+            # forward compatibility with OV 2021.2
             'img_h',
             'img_w',
             'step',

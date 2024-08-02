@@ -1,10 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "convert_to_swish_cpu.hpp"
 
-#include <openvino/opsets/opset4.hpp>
+#include "openvino/opsets/opset4.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"

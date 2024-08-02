@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from functools import singledispatch
@@ -13,6 +13,18 @@ from openvino.runtime.utils.data_helpers.wrappers import _InferRequestWrapper, O
 ContainerTypes = Union[dict, list, tuple, OVDict]
 ScalarTypes = Union[np.number, int, float]
 ValidKeys = Union[str, int, ConstOutput]
+
+
+def is_list_simple_type(input_list: list) -> bool:
+    for sublist in input_list:
+        if isinstance(sublist, list):
+            for element in sublist:
+                if not isinstance(element, (str, float, int, bytes)):
+                    return False
+        else:
+            if not isinstance(sublist, (str, float, int, bytes)):
+                return False
+    return True
 
 
 def get_request_tensor(
@@ -68,6 +80,9 @@ def _(
         tensor_shape = tuple(tensor.shape)
         if tensor_dtype == value.dtype and tensor_shape == value.shape:
             return Tensor(value, shared_memory=is_shared)
+        elif tensor.size == 0:
+            # the first infer request for dynamic input cannot reshape to 0 shape
+            return Tensor(value.astype(tensor_dtype).reshape((1)), shared_memory=False)
         else:
             return Tensor(value.astype(tensor_dtype).reshape(tensor_shape), shared_memory=False)
     # WA for FP16-->BF16 edge-case, always copy.
@@ -122,7 +137,7 @@ def _(
 def to_c_style(value: Any, is_shared: bool = False) -> Any:
     if not isinstance(value, np.ndarray):
         if hasattr(value, "__array__"):
-            return to_c_style(np.array(value, copy=False)) if is_shared else np.array(value, copy=True)
+            return to_c_style(np.array(value, copy=False), is_shared) if is_shared else np.array(value, copy=True)
         return value
     return value if value.flags["C_CONTIGUOUS"] else np.ascontiguousarray(value)
 
@@ -137,7 +152,7 @@ def normalize_arrays(
 ) -> Any:
     # Check the special case of the array-interface
     if hasattr(inputs, "__array__"):
-        return to_c_style(np.array(inputs, copy=False)) if is_shared else np.array(inputs, copy=True)
+        return to_c_style(np.array(inputs, copy=False), is_shared) if is_shared else np.array(inputs, copy=True)
     # Error should be raised if type does not match any dispatchers
     raise TypeError(f"Incompatible inputs of type: {type(inputs)}")
 
@@ -147,7 +162,7 @@ def _(
     inputs: dict,
     is_shared: bool = False,
 ) -> dict:
-    return {k: to_c_style(v) if is_shared else v for k, v in inputs.items()}
+    return {k: to_c_style(v, is_shared) if is_shared else v for k, v in inputs.items()}
 
 
 @normalize_arrays.register(OVDict)
@@ -155,7 +170,7 @@ def _(
     inputs: OVDict,
     is_shared: bool = False,
 ) -> dict:
-    return {i: to_c_style(v) if is_shared else v for i, (_, v) in enumerate(inputs.items())}
+    return {i: to_c_style(v, is_shared) if is_shared else v for i, (_, v) in enumerate(inputs.items())}
 
 
 @normalize_arrays.register(list)
@@ -164,7 +179,7 @@ def _(
     inputs: Union[list, tuple],
     is_shared: bool = False,
 ) -> dict:
-    return {i: to_c_style(v) if is_shared else v for i, v in enumerate(inputs)}
+    return {i: to_c_style(v, is_shared) if is_shared else v for i, v in enumerate(inputs)}
 
 
 @normalize_arrays.register(np.ndarray)
@@ -172,7 +187,7 @@ def _(
     inputs: dict,
     is_shared: bool = False,
 ) -> Any:
-    return to_c_style(inputs) if is_shared else inputs
+    return to_c_style(inputs, is_shared) if is_shared else inputs
 ###
 # End of array normalization.
 ###
@@ -198,14 +213,25 @@ def create_shared(
 
 
 @create_shared.register(dict)
-@create_shared.register(list)
 @create_shared.register(tuple)
 @create_shared.register(OVDict)
 def _(
-    inputs: ContainerTypes,
+    inputs: Union[dict, tuple, OVDict],
     request: _InferRequestWrapper,
 ) -> dict:
     request._inputs_data = normalize_arrays(inputs, is_shared=True)
+    return {k: value_to_tensor(v, request=request, is_shared=True, key=k) for k, v in request._inputs_data.items()}
+
+
+# Special override to perform list-related dispatch
+@create_shared.register(list)
+def _(
+    inputs: list,
+    request: _InferRequestWrapper,
+) -> dict:
+    # If list is passed to single input model and consists only of simple types
+    # i.e. str/bytes/float/int, wrap around it and pass into the dispatcher.
+    request._inputs_data = normalize_arrays([inputs] if request._is_single_input() and is_list_simple_type(inputs) else inputs, is_shared=True)
     return {k: value_to_tensor(v, request=request, is_shared=True, key=k) for k, v in request._inputs_data.items()}
 
 
@@ -348,14 +374,24 @@ def create_copied(
 
 
 @create_copied.register(dict)
-@create_copied.register(list)
 @create_copied.register(tuple)
 @create_copied.register(OVDict)
 def _(
-    inputs: ContainerTypes,
+    inputs: Union[dict, tuple, OVDict],
     request: _InferRequestWrapper,
 ) -> dict:
     return update_inputs(normalize_arrays(inputs, is_shared=False), request)
+
+
+# Special override to perform list-related dispatch
+@create_copied.register(list)
+def _(
+    inputs: list,
+    request: _InferRequestWrapper,
+) -> dict:
+    # If list is passed to single input model and consists only of simple types
+    # i.e. str/bytes/float/int, wrap around it and pass into the dispatcher.
+    return update_inputs(normalize_arrays([inputs] if request._is_single_input() and is_list_simple_type(inputs) else inputs, is_shared=False), request)
 
 
 @create_copied.register(np.ndarray)

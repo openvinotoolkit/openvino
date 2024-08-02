@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,9 +9,9 @@
 #include "common_test_utils/all_close_f.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_tools.hpp"
-#include "openvino/op/acosh.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/loop.hpp"
+#include "openvino/core/constant_fold_utils.hpp"
+#include "openvino/op/ops.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -3930,3 +3930,123 @@ TEST(constant_folding, parameter_with_unspecified_type_from_host_tensor) {
     auto model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param});
     EXPECT_NO_THROW(run_constant_folding(model));
 }
+
+TEST(constant_folding, sq_diff) {
+    auto const_0 = std::make_shared<ov::op::v0::Constant>(element::f32, ov::Shape{1}, std::vector<float>{4});
+    auto const_1 = std::make_shared<ov::op::v0::Constant>(element::f32, ov::Shape{1}, std::vector<float>{2});
+    auto sq_diff = std::make_shared<ov::op::v0::SquaredDifference>(const_0, const_1);
+    auto res = std::make_shared<ov::op::v0::Result>(sq_diff);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{});
+    auto ops = model->get_ops();
+    ASSERT_GT(ops.size(), 2);
+    EXPECT_NO_THROW(run_constant_folding(model));
+    ops = model->get_ordered_ops();
+    // constant + result
+    ASSERT_EQ(ops.size(), 2);
+    auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(ops.front());
+    ASSERT_NE(const_node, nullptr);
+    auto res_node = std::dynamic_pointer_cast<ov::op::v0::Result>(ops.back());
+    ASSERT_NE(res_node, nullptr);
+}
+
+class UnsupportedTypesTest : public testing::TestWithParam<element::Type> {};
+
+TEST_P(UnsupportedTypesTest, add_multiply) {
+    Shape shape_in{2, 4, 1};
+
+    const auto& type = GetParam();
+    auto param = make_shared<op::v0::Parameter>(type, shape_in);
+    auto c1 = op::v0::Constant::create(type, shape_in, {1});
+    auto c2 = op::v0::Constant::create(type, shape_in, {1});
+    auto add = make_shared<op::v1::Add>(c1, c2);
+    auto mul = make_shared<op::v1::Multiply>(param, add);
+    auto m = make_shared<Model>(mul, ParameterVector{param});
+
+    run_constant_folding(m);
+
+    EXPECT_EQ(m->get_ops().size(), 4);
+    EXPECT_EQ(count_ops_of_type<op::v1::Add>(m), 0);
+    EXPECT_EQ(count_ops_of_type<op::v1::Multiply>(m), 1);
+    EXPECT_EQ(count_ops_of_type<op::v0::Constant>(m), 1);
+    ASSERT_EQ(m->get_results().size(), 1);
+}
+
+TEST_P(UnsupportedTypesTest, convert_like) {
+    Shape shape_in{2, 4, 1};
+
+    const auto& type = GetParam();
+    auto param = make_shared<op::v0::Parameter>(type, shape_in);
+    auto param2 = make_shared<op::v0::Parameter>(element::f32, shape_in);
+    auto c1 = op::v0::Constant::create(type, shape_in, {1});
+    auto c2 = op::v0::Constant::create(type, shape_in, {1});
+    auto c3 = op::v0::Constant::create(element::i32, shape_in, {1});
+    auto add = make_shared<op::v1::Add>(c1, c2);
+    auto convert_like = make_shared<op::v1::ConvertLike>(c3, add);
+    auto convert_like2 = make_shared<op::v1::ConvertLike>(param2, add);
+    auto mul = make_shared<op::v1::Multiply>(convert_like, convert_like2);
+    auto m = make_shared<Model>(mul, ParameterVector{param, param2});
+
+    run_constant_folding(m);
+
+    EXPECT_EQ(m->get_ops().size(), 7);
+    EXPECT_EQ(count_ops_of_type<op::v1::Add>(m), 0);
+    EXPECT_EQ(count_ops_of_type<op::v1::ConvertLike>(m), 1);
+    EXPECT_EQ(count_ops_of_type<op::v1::Multiply>(m), 1);
+    EXPECT_EQ(count_ops_of_type<op::v0::Constant>(m), 2);
+    ASSERT_EQ(m->get_results().size(), 1);
+}
+
+TEST_P(UnsupportedTypesTest, type_relaxed) {
+    Shape shape_in{2, 4, 1};
+
+    const auto& type = GetParam();
+    auto cond = op::v0::Constant::create(element::boolean, shape_in, {1});
+    auto param = std::make_shared<op::v0::Parameter>(type, shape_in);
+    auto constant1 = op::v0::Constant::create(type, shape_in, {2});
+    auto then_value = std::make_shared<op::v0::Concat>(OutputVector{param, constant1}, 2);
+    auto constant2 = op::v0::Constant::create(type, shape_in, {3});
+    auto else_value = std::make_shared<op::v3::Broadcast>(
+        constant2,
+        op::v0::Constant::create(element::u64, Shape{shape_in.size()}, Shape{shape_in[0], shape_in[1], 2}));
+    auto select = make_shared<op::v1::Select>(cond, then_value, else_value);
+    auto type_relaxed = make_shared<op::TypeRelaxed<op::v1::Select>>(*select,
+                                                                     element::TypeVector{element::boolean},
+                                                                     element::TypeVector{});
+    auto m = make_shared<Model>(type_relaxed, ParameterVector{param});
+
+    run_constant_folding(m);
+
+    EXPECT_EQ(m->get_ops().size(), 7);
+    EXPECT_EQ(count_ops_of_type<op::v1::Select>(m), 1);
+    EXPECT_EQ(count_ops_of_type<op::v0::Constant>(m), 3);
+    EXPECT_EQ(count_ops_of_type<op::v3::Broadcast>(m), 0);
+    EXPECT_EQ(count_ops_of_type<op::v0::Concat>(m), 1);
+    ASSERT_EQ(m->get_results().size(), 1);
+}
+
+TEST_P(UnsupportedTypesTest, random_uniform) {
+    // Make sure that ConstantFolding with RandomUniform doesn't throw
+    const auto& type = GetParam();
+    auto shape = op::v0::Constant::create(element::i32, Shape{2}, {2, 3});
+    auto min_val = op::v0::Constant::create(type, Shape{}, {-1});
+    auto max_val = op::v0::Constant::create(type, Shape{}, {3});
+    auto random = std::make_shared<op::v8::RandomUniform>(shape, min_val, max_val, type);
+    auto m = make_shared<Model>(random, ParameterVector{});
+
+    EXPECT_NO_THROW(run_constant_folding(m));
+
+    EXPECT_EQ(m->get_ops().size(), 5);
+    // RandomUniform is not constantfolded
+    EXPECT_EQ(count_ops_of_type<op::v8::RandomUniform>(m), 1);
+    EXPECT_EQ(count_ops_of_type<op::v0::Constant>(m), 3);
+    ASSERT_EQ(m->get_results().size(), 1);
+}
+
+static std::string unsupported_types_test_case_name(const testing::TestParamInfo<element::Type>& info) {
+    return info.param.get_type_name();
+}
+
+INSTANTIATE_TEST_SUITE_P(constant_folding,
+                         UnsupportedTypesTest,
+                         testing::ValuesIn(ov::util::unsupported_types()),
+                         unsupported_types_test_case_name);

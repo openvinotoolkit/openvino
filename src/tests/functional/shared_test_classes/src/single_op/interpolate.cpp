@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -111,6 +111,10 @@ void InterpolateLayerTest::SetUp() {
     auto result = std::make_shared<ov::op::v0::Result>(interpolate);
 
     function = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "interpolate");
+
+    if (model_type == ov::element::f32) {
+        abs_threshold = 1e-6;
+    }
 }
 
 std::string Interpolate11LayerTest::getTestCaseName(const testing::TestParamInfo<InterpolateLayerTestParams>& obj) {

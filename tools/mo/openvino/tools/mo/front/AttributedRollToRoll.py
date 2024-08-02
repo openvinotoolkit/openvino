@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.ops.roll import Roll
@@ -10,7 +10,7 @@ from openvino.tools.mo.graph.graph import Graph, rename_nodes
 class AttributedRollToRoll(FrontReplacementPattern):
     """
     This transformation converts AttributedRoll operation (axes and shift are specified as attributes) to Roll
-    operation (Inference Engine semantic).
+    operation (OpenVINO semantic).
     """
     enabled = True
 

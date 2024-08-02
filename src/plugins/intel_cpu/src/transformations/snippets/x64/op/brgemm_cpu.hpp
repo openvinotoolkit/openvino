@@ -22,7 +22,7 @@ class BrgemmCPU : public snippets::op::Brgemm {
 public:
     OPENVINO_OP("BrgemmCPU", "SnippetsOpset", snippets::op::Brgemm);
 
-    enum Type {
+    enum class Type {
         Floating,          // f32|f32
         WithDataRepacking, // u8|i8 or bf16|bf16 (non-AMX system) - needs BrgemmCopyB on second input for data repacking
         WithCompensations, // i8|i8 (non-AMX system) - needs BrgemmCopyB for data repacking and compensations
@@ -32,34 +32,25 @@ public:
     BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Type type,
               const size_t offset_a = 0, const size_t offset_b = 0, const size_t offset_c = 0,
               std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {},
-              const size_t blk_size_m = 0, const size_t blk_size_k = 0, const size_t blk_size_n = 0, const float beta = 0.f);
+              const size_t blk_size_m = 0, const size_t blk_size_k = 0, const size_t blk_size_n = 0, const float beta = 1.f);
     BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<Node>& scratch, const Type type,
               const size_t offset_a = 0, const size_t offset_b = 0, const size_t offset_scratch = 0, const size_t offset_c = 0,
               std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {},
-              const size_t blk_size_m = 0, const size_t blk_size_k = 0, const size_t blk_size_n = 0, const float beta = 0.f);
+              const size_t blk_size_m = 0, const size_t blk_size_k = 0, const size_t blk_size_n = 0, const float beta = 1.f);
     BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Type type,
               const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_c,
               std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {},
-              const size_t blk_size_m = 0, const size_t blk_size_k = 0, const size_t blk_size_n = 0, const float beta = 0.f);
+              const size_t blk_size_m = 0, const size_t blk_size_k = 0, const size_t blk_size_n = 0, const float beta = 1.f);
     BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<Node>& scratch, const Type type,
               const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_scratch, const PortDescriptor& desc_c,
               std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {},
-              const size_t blk_size_m = 0, const size_t blk_size_k = 0, const size_t blk_size_n = 0, const float beta = 0.f);
+              const size_t blk_size_m = 0, const size_t blk_size_k = 0, const size_t blk_size_n = 0, const float beta = 1.f);
     BrgemmCPU() = default;
 
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     Type get_type() const { return m_type; }
-    size_t get_m_block_size() const { return m_M_blk; }
-    size_t get_k_block_size() const { return m_K_blk; }
-    size_t get_n_block_size() const { return m_N_blk; }
-    float get_beta() const { return m_beta; }
-
-    void set_m_block_size(size_t block_size) { m_M_blk = block_size; }
-    void set_k_block_size(size_t block_size) { m_K_blk = block_size; }
-    void set_n_block_size(size_t block_size) { m_N_blk = block_size; }
-    void set_beta(float beta) { m_beta = beta; }
 
     bool is_with_compensations() const { return m_type == Type::WithCompensations; }
     bool is_with_data_repacking() const { return m_type != Type::Floating; }
@@ -75,16 +66,17 @@ public:
 
 private:
     void custom_constructor_validate_and_infer_types(std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c);
-    void compute_block_size_values(const size_t blk_size_m, const size_t blk_size_k, const size_t blk_size_n);
-    void validate_with_scratchpad(const ov::Shape& shape_b) const;
+    void validate_with_scratchpad() const;
     void validate_inputs() const;
 
     Type m_type = Type::Floating;
-    size_t m_M_blk = 0;
-    size_t m_K_blk = 0;
-    size_t m_N_blk = 0;
-    float m_beta = 0.f;
 };
-
 } // namespace intel_cpu
+
+template <>
+class AttributeAdapter<intel_cpu::BrgemmCPU::Type> : public EnumAttributeAdapterBase<intel_cpu::BrgemmCPU::Type> {
+public:
+    AttributeAdapter(intel_cpu::BrgemmCPU::Type& value) : EnumAttributeAdapterBase<intel_cpu::BrgemmCPU::Type>(value) {}
+    OPENVINO_RTTI("AttributeAdapter<ov::intel_cpu::BrgemmCPU::Type>");
+};
 } // namespace ov

@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/reference/unique.hpp"
+#include "openvino/op/unique.hpp"
 
 #include "element_visitor.hpp"
 #include "itt.hpp"
-#include "openvino/op/unique.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "validation_util.hpp"
+#include "openvino/reference/unique.hpp"
 
 namespace ov {
 namespace {
@@ -142,7 +142,7 @@ void op::v10::Unique::validate_and_infer_types() {
 
             if (input_shape.rank().is_static()) {
                 const auto normalized_axis = ov::util::normalize_axis(this, axis, input_shape.rank());
-                const auto dim_at_axis = input_shape[normalized_axis];
+                const auto& dim_at_axis = input_shape[normalized_axis];
 
                 Dimension output_dim_at_axis;
                 Dimension rev_idx_size;

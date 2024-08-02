@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include "pyopenvino/core/infer_request.hpp"
@@ -14,14 +14,14 @@
 
 namespace py = pybind11;
 
-inline py::object run_sync_infer(InferRequestWrapper& self, bool share_outputs) {
+inline py::object run_sync_infer(InferRequestWrapper& self, bool share_outputs, bool decode_strings) {
     {
         py::gil_scoped_release release;
         *self.m_start_time = Time::now();
-        self.m_request.infer();
+        self.m_request->infer();
         *self.m_end_time = Time::now();
     }
-    return Common::outputs_to_dict(self, share_outputs);
+    return Common::outputs_to_dict(self, share_outputs, decode_strings);
 }
 
 void regclass_InferRequest(py::module m) {
@@ -38,7 +38,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "set_tensors",
         [](InferRequestWrapper& self, const py::dict& inputs) {
-            Common::set_request_tensors(self.m_request, inputs);
+            Common::set_request_tensors(*self.m_request, inputs);
         },
         py::arg("inputs"),
         R"(
@@ -51,7 +51,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "set_tensors",
         [](InferRequestWrapper& self, const std::string& tensor_name, const std::vector<ov::Tensor>& tensors) {
-            self.m_request.set_tensors(tensor_name, tensors);
+            self.m_request->set_tensors(tensor_name, tensors);
         },
         py::arg("tensor_name"),
         py::arg("tensors"),
@@ -73,7 +73,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "set_tensors",
         [](InferRequestWrapper& self, const ov::Output<const ov::Node>& port, const std::vector<ov::Tensor>& tensors) {
-            self.m_request.set_tensors(port, tensors);
+            self.m_request->set_tensors(port, tensors);
         },
         py::arg("port"),
         py::arg("tensors"),
@@ -100,7 +100,7 @@ void regclass_InferRequest(py::module m) {
         [](InferRequestWrapper& self, const py::dict& outputs) {
             auto outputs_map = Common::containers::cast_to_tensor_index_map(outputs);
             for (auto&& output : outputs_map) {
-                self.m_request.set_output_tensor(output.first, output.second);
+                self.m_request->set_output_tensor(output.first, output.second);
             }
         },
         py::arg("outputs"),
@@ -117,7 +117,7 @@ void regclass_InferRequest(py::module m) {
         [](InferRequestWrapper& self, const py::dict& inputs) {
             auto inputs_map = Common::containers::cast_to_tensor_index_map(inputs);
             for (auto&& input : inputs_map) {
-                self.m_request.set_input_tensor(input.first, input.second);
+                self.m_request->set_input_tensor(input.first, input.second);
             }
         },
         py::arg("inputs"),
@@ -131,7 +131,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "set_input_tensors",
         [](InferRequestWrapper& self, const std::vector<ov::Tensor>& tensors) {
-            self.m_request.set_input_tensors(tensors);
+            self.m_request->set_input_tensors(tensors);
         },
         py::arg("tensors"),
         R"(
@@ -148,7 +148,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "set_input_tensors",
         [](InferRequestWrapper& self, size_t idx, const std::vector<ov::Tensor>& tensors) {
-            self.m_request.set_input_tensors(idx, tensors);
+            self.m_request->set_input_tensors(idx, tensors);
         },
         py::arg("idx"),
         py::arg("tensors"),
@@ -167,12 +167,13 @@ void regclass_InferRequest(py::module m) {
     // Overload for single input, it will throw error if a model has more than one input.
     cls.def(
         "infer",
-        [](InferRequestWrapper& self, const ov::Tensor& inputs, bool share_outputs) {
-            self.m_request.set_input_tensor(inputs);
-            return run_sync_infer(self, share_outputs);
+        [](InferRequestWrapper& self, const ov::Tensor& inputs, bool share_outputs, bool decode_strings) {
+            self.m_request->set_input_tensor(inputs);
+            return run_sync_infer(self, share_outputs, decode_strings);
         },
         py::arg("inputs"),
         py::arg("share_outputs"),
+        py::arg("decode_strings"),
         R"(
             Infers specified input(s) in synchronous mode.
             Blocks all methods of InferRequest while request is running.
@@ -194,14 +195,15 @@ void regclass_InferRequest(py::module m) {
     // and values are always of type: ov::Tensor.
     cls.def(
         "infer",
-        [](InferRequestWrapper& self, const py::dict& inputs, bool share_outputs) {
+        [](InferRequestWrapper& self, const py::dict& inputs, bool share_outputs, bool decode_strings) {
             // Update inputs if there are any
-            Common::set_request_tensors(self.m_request, inputs);
+            Common::set_request_tensors(*self.m_request, inputs);
             // Call Infer function
-            return run_sync_infer(self, share_outputs);
+            return run_sync_infer(self, share_outputs, decode_strings);
         },
         py::arg("inputs"),
         py::arg("share_outputs"),
+        py::arg("decode_strings"),
         R"(
             Infers specified input(s) in synchronous mode.
             Blocks all methods of InferRequest while request is running.
@@ -220,7 +222,7 @@ void regclass_InferRequest(py::module m) {
         "start_async",
         [](InferRequestWrapper& self, const ov::Tensor& inputs, py::object& userdata) {
             // Update inputs if there are any
-            self.m_request.set_input_tensor(inputs);
+            self.m_request->set_input_tensor(inputs);
             if (!userdata.is(py::none())) {
                 if (self.m_user_callback_defined) {
                     self.m_userdata = userdata;
@@ -230,7 +232,7 @@ void regclass_InferRequest(py::module m) {
             }
             py::gil_scoped_release release;
             *self.m_start_time = Time::now();
-            self.m_request.start_async();
+            self.m_request->start_async();
         },
         py::arg("inputs"),
         py::arg("userdata"),
@@ -259,7 +261,7 @@ void regclass_InferRequest(py::module m) {
         "start_async",
         [](InferRequestWrapper& self, const py::dict& inputs, py::object& userdata) {
             // Update inputs if there are any
-            Common::set_request_tensors(self.m_request, inputs);
+            Common::set_request_tensors(*self.m_request, inputs);
             if (!userdata.is(py::none())) {
                 if (self.m_user_callback_defined) {
                     self.m_userdata = userdata;
@@ -269,7 +271,7 @@ void regclass_InferRequest(py::module m) {
             }
             py::gil_scoped_release release;
             *self.m_start_time = Time::now();
-            self.m_request.start_async();
+            self.m_request->start_async();
         },
         py::arg("inputs"),
         py::arg("userdata"),
@@ -291,7 +293,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "cancel",
         [](InferRequestWrapper& self) {
-            self.m_request.cancel();
+            self.m_request->cancel();
         },
         R"(
             Cancels inference request.
@@ -301,7 +303,7 @@ void regclass_InferRequest(py::module m) {
         "wait",
         [](InferRequestWrapper& self) {
             py::gil_scoped_release release;
-            self.m_request.wait();
+            self.m_request->wait();
         },
         R"(
             Waits for the result to become available. 
@@ -314,7 +316,7 @@ void regclass_InferRequest(py::module m) {
         "wait_for",
         [](InferRequestWrapper& self, const int timeout) {
             py::gil_scoped_release release;
-            return self.m_request.wait_for(std::chrono::milliseconds(timeout));
+            return self.m_request->wait_for(std::chrono::milliseconds(timeout));
         },
         py::arg("timeout"),
         R"(
@@ -335,7 +337,11 @@ void regclass_InferRequest(py::module m) {
         [](InferRequestWrapper& self, py::function callback, py::object& userdata) {
             self.m_userdata = userdata;
             self.m_user_callback_defined = true;
-            self.m_request.set_callback([&self, callback](std::exception_ptr exception_ptr) {
+
+            // need to acquire GIL before py::function deletion
+            auto callback_sp = Common::utils::wrap_pyfunction(std::move(callback));
+
+            self.m_request->set_callback([&self, callback_sp](std::exception_ptr exception_ptr) {
                 *self.m_end_time = Time::now();
                 try {
                     if (exception_ptr) {
@@ -346,7 +352,7 @@ void regclass_InferRequest(py::module m) {
                 }
                 // Acquire GIL, execute Python function
                 py::gil_scoped_acquire acquire;
-                callback(self.m_userdata);
+                (*callback_sp)(self.m_userdata);
             });
         },
         py::arg("callback"),
@@ -363,7 +369,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "get_tensor",
         [](InferRequestWrapper& self, const std::string& name) {
-            return self.m_request.get_tensor(name);
+            return self.m_request->get_tensor(name);
         },
         py::arg("name"),
         R"(
@@ -378,7 +384,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "get_tensor",
         [](InferRequestWrapper& self, const ov::Output<const ov::Node>& port) {
-            return self.m_request.get_tensor(port);
+            return self.m_request->get_tensor(port);
         },
         py::arg("port"),
         R"(
@@ -393,7 +399,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "get_tensor",
         [](InferRequestWrapper& self, const ov::Output<ov::Node>& port) {
-            return self.m_request.get_tensor(port);
+            return self.m_request->get_tensor(port);
         },
         py::arg("port"),
         R"(
@@ -408,7 +414,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "get_input_tensor",
         [](InferRequestWrapper& self, size_t idx) {
-            return self.m_request.get_input_tensor(idx);
+            return self.m_request->get_input_tensor(idx);
         },
         py::arg("index"),
         R"(
@@ -425,7 +431,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "get_input_tensor",
         [](InferRequestWrapper& self) {
-            return self.m_request.get_input_tensor();
+            return self.m_request->get_input_tensor();
         },
         R"(
             Gets input tensor of InferRequest.
@@ -438,7 +444,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "get_output_tensor",
         [](InferRequestWrapper& self, size_t idx) {
-            return self.m_request.get_output_tensor(idx);
+            return self.m_request->get_output_tensor(idx);
         },
         py::arg("index"),
         R"(
@@ -454,7 +460,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "get_output_tensor",
         [](InferRequestWrapper& self) {
-            return self.m_request.get_output_tensor();
+            return self.m_request->get_output_tensor();
         },
         R"(
             Gets output tensor of InferRequest.
@@ -467,7 +473,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "set_tensor",
         [](InferRequestWrapper& self, const std::string& name, const ov::Tensor& tensor) {
-            self.m_request.set_tensor(name, tensor);
+            self.m_request->set_tensor(name, tensor);
         },
         py::arg("name"),
         py::arg("tensor"),
@@ -484,7 +490,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "set_tensor",
         [](InferRequestWrapper& self, const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) {
-            self.m_request.set_tensor(port, tensor);
+            self.m_request->set_tensor(port, tensor);
         },
         py::arg("port"),
         py::arg("tensor"),
@@ -501,7 +507,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "set_tensor",
         [](InferRequestWrapper& self, const ov::Output<ov::Node>& port, const ov::Tensor& tensor) {
-            self.m_request.set_tensor(port, tensor);
+            self.m_request->set_tensor(port, tensor);
         },
         py::arg("port"),
         py::arg("tensor"),
@@ -518,7 +524,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "set_input_tensor",
         [](InferRequestWrapper& self, size_t idx, const ov::Tensor& tensor) {
-            self.m_request.set_input_tensor(idx, tensor);
+            self.m_request->set_input_tensor(idx, tensor);
         },
         py::arg("index"),
         py::arg("tensor"),
@@ -536,7 +542,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "set_input_tensor",
         [](InferRequestWrapper& self, const ov::Tensor& tensor) {
-            self.m_request.set_input_tensor(tensor);
+            self.m_request->set_input_tensor(tensor);
         },
         py::arg("tensor"),
         R"(
@@ -551,7 +557,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "set_output_tensor",
         [](InferRequestWrapper& self, size_t idx, const ov::Tensor& tensor) {
-            self.m_request.set_output_tensor(idx, tensor);
+            self.m_request->set_output_tensor(idx, tensor);
         },
         py::arg("index"),
         py::arg("tensor"),
@@ -568,7 +574,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "set_output_tensor",
         [](InferRequestWrapper& self, const ov::Tensor& tensor) {
-            self.m_request.set_output_tensor(tensor);
+            self.m_request->set_output_tensor(tensor);
         },
         py::arg("tensor"),
         R"(
@@ -583,7 +589,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "get_profiling_info",
         [](InferRequestWrapper& self) {
-            return self.m_request.get_profiling_info();
+            return self.m_request->get_profiling_info();
         },
         py::call_guard<py::gil_scoped_release>(),
         R"(
@@ -600,7 +606,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "query_state",
         [](InferRequestWrapper& self) {
-            return self.m_request.query_state();
+            return self.m_request->query_state();
         },
         py::call_guard<py::gil_scoped_release>(),
         R"(
@@ -613,9 +619,19 @@ void regclass_InferRequest(py::module m) {
         )");
 
     cls.def(
+        "reset_state",
+        [](InferRequestWrapper& self) {
+            return self.m_request->reset_state();
+        },
+        R"(
+            Resets all internal variable states for relevant infer request to
+            a value specified as default for the corresponding `ReadValue` node
+        )");
+
+    cls.def(
         "get_compiled_model",
         [](InferRequestWrapper& self) {
-            return self.m_request.get_compiled_model();
+            return self.m_request->get_compiled_model();
         },
         R"(
             Returns the compiled model.
@@ -657,30 +673,6 @@ void regclass_InferRequest(py::module m) {
             :rtype: List[openvino.runtime.ConstOutput]
         )");
 
-    cls.def_property_readonly(
-        "inputs",
-        [](InferRequestWrapper& self) {
-            Common::utils::deprecation_warning("inputs", "2024.0", "Please use 'input_tensors' property instead.");
-            return self.get_input_tensors();
-        },
-        R"(
-            Gets all input tensors of this InferRequest.
-            
-            :rtype: List[openvino.runtime.Tensor]
-            )");
-
-    cls.def_property_readonly(
-        "outputs",
-        [](InferRequestWrapper& self) {
-            Common::utils::deprecation_warning("outputs", "2024.0", "Please use 'output_tensors' property instead.");
-            return self.get_output_tensors();
-        },
-        R"(
-            Gets all output tensors of this InferRequest.
-            
-            :rtype: List[openvino.runtime.Tensor]
-            )");
-
     cls.def_property_readonly("input_tensors",
                               &InferRequestWrapper::get_input_tensors,
                               R"(
@@ -712,7 +704,7 @@ void regclass_InferRequest(py::module m) {
     cls.def_property_readonly(
         "profiling_info",
         [](InferRequestWrapper& self) {
-            return self.m_request.get_profiling_info();
+            return self.m_request->get_profiling_info();
         },
         py::call_guard<py::gil_scoped_release>(),
         R"(
@@ -728,10 +720,12 @@ void regclass_InferRequest(py::module m) {
     cls.def_property_readonly(
         "results",
         [](InferRequestWrapper& self) {
-            return Common::outputs_to_dict(self, false);
+            return Common::outputs_to_dict(self, false, true);
         },
         R"(
             Gets all outputs tensors of this InferRequest.
+
+            Note: All string-based data is decoded by default.
 
             :return: Dictionary of results from output tensors with ports as keys.
             :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]

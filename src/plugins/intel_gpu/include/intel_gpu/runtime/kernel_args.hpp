@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -66,10 +66,7 @@ struct argument_desc {
         SLOPE,
         INTERNAL_BUFFER,
         SCALAR,
-        RECURRENT,  // RNN/LSTM/GRU recurrent weights
-        HIDDEN,     // RNN/LSTM/GRU hidden input
         CELL,       // LSTM cell input
-        LSTM_PACK,  // LSTM packed output
         WEIGHTS_ZERO_POINTS,
         ACTIVATIONS_ZERO_POINTS,
         COMPENSATION,

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,10 +10,10 @@
 namespace ov {
 namespace intel_cpu {
 
-class Engine : public ov::IPlugin {
+class Plugin : public ov::IPlugin {
 public:
-    Engine();
-    ~Engine();
+    Plugin();
+    ~Plugin();
 
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                       const ov::AnyMap& properties) const override;
@@ -43,47 +43,21 @@ public:
         OPENVINO_THROW_NOT_IMPLEMENTED("Not Implemented get_default_context  is not supported by CPU plugin!");
     };
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    void add_extension(const std::shared_ptr<InferenceEngine::IExtension>& extension) override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
 private:
-    bool is_legacy_api() const;
-
     ov::Any get_ro_property(const std::string& name, const ov::AnyMap& options) const;
-    ov::Any get_metric_legacy(const std::string& name, const ov::AnyMap& options) const;
 
-    ov::Any get_property_legacy(const std::string& name, const ov::AnyMap& options) const;
-    void apply_performance_hints(ov::AnyMap &config, const std::shared_ptr<ov::Model>& model) const;
-    void get_performance_streams(Config &config, const std::shared_ptr<ov::Model>& model) const;
-    StreamCfg get_streams_num(ov::threading::IStreamsExecutor::ThreadBindingType thread_binding_type,
-                              int stream_mode,
-                              const bool enable_hyper_thread = true) const;
+    void get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const;
     void calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported = false) const;
 
     Config engConfig;
-    ExtensionManager::Ptr extensionManager = std::make_shared<ExtensionManager>();
     /* Explicily configured streams have higher priority than performance hints.
        So track if streams is set explicitly (not auto-configured) */
     bool streamsExplicitlySetForEngine = false;
     const std::string deviceFullName;
+    ov::AnyMap m_compiled_model_runtime_properties;
 
     std::shared_ptr<void> specialSetup;
-
-#if defined(OV_CPU_WITH_ACL)
-    struct SchedulerGuard {
-        SchedulerGuard();
-        ~SchedulerGuard();
-        static std::shared_ptr<SchedulerGuard> instance();
-        static std::mutex mutex;
-        // separate mutex for saving ACLScheduler state in destructor
-        mutable std::mutex dest_mutex;
-        static std::weak_ptr<SchedulerGuard> ptr;
-    };
-
-    std::shared_ptr<SchedulerGuard> scheduler_guard;
-#endif
 };
 
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

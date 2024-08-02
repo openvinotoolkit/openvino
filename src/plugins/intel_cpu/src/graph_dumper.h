@@ -1,12 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "cpp/ie_cnn_network.h"
 #include "graph.h"
-#include "utils/debug_capabilities.h"
 
 #include <memory>
 

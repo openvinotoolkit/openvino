@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/single_op/nms_rotated.hpp"
-#include "ov_models/builders.hpp"
+
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "openvino/op/nms_rotated.hpp"
 
@@ -83,11 +84,12 @@ void NmsRotatedOpTest::SetUp() {
     std::vector<std::shared_ptr<ov::Node>> inputs;
     const auto in_shape_1d = InputShape{{1}, {{1}}};
 
-#define CONST_CASE(P, S, H, L)                                                                                             \
-    case P:                                                                                                                \
-        inputs.push_back(ngraph::builder::makeConstant(P, S, std::vector<ov::element_type_traits<P>::value_type>{}, true,  \
-                            ov::element_type_traits<P>::value_type(H), ov::element_type_traits<P>::value_type(L)));        \
-        break;
+#define CONST_CASE(P, S, H, L)                                                                                          \
+    case P: {                                                                                                           \
+        auto start_from = ov::element_type_traits<P>::value_type(L);                                                    \
+        auto range = ov::element_type_traits<P>::value_type(H) - start_from;                                            \
+        inputs.push_back(ov::test::utils::make_constant(P, S, ov::test::utils::InputGenerateData(start_from, range)));  \
+        break; }
 
 #define CREATE_INPUT(C, P, S, N, H, L)                                                                                     \
     if (C) {                                                                                                               \

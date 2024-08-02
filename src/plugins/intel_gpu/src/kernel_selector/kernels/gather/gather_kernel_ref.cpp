@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,6 +40,8 @@ ParamsKey GatherKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::UINT4);
+    k.EnableInputDataType(Datatype::INT4);
 
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
@@ -238,13 +240,20 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
 
     jit.AddConstant(MakeJitConstant("DICTIONARY_INDEX_ORDER", GetDictionaryIndexOrder(params, GetGatherChannelIndex(params))));
     jit.AddConstant(MakeJitConstant("INDICES_INDEX_ORDER", GetIndicesIdxOrder(params, GetGatherChannelIndex(params), GetGatherBatchDim(params))));
-    if (params.support_neg_ind)
-        jit.AddConstant(MakeJitConstant("INDEX_DIM", GetGatherMaxIndexDim(params)));
 
-    if (!GetGatherIndexDim(params).is_dynamic)
+    bool dyn_gather_idx_dim = GetGatherIndexDim(params).is_dynamic;
+    if (params.support_neg_ind) {
+        if (!dyn_gather_idx_dim) {
+            jit.AddConstant(MakeJitConstant("INDEX_DIM", GetGatherMaxIndexDim(params)));
+        } else {
+            jit.AddConstant(MakeJitConstant("INDEX_DIM", "shape_info[" + std::to_string(GetGatherAxisIndexInShapeInfo(params)) + "]"));
+        }
+    }
+
+    if (!dyn_gather_idx_dim)
         jit.AddConstant(MakeJitConstant("AXIS_DIM", GetGatherMaxIndexDim(params)));
 
-    if (params.is_shape_agnostic)
+    if (params.is_shape_agnostic && params.inputs[0].is_dynamic())
         jit.AddConstant(MakeJitConstant("GATHER_AXIS_SHAPE_INFO_INDEX", GetGatherAxisIndexInShapeInfo(params)));
 
     if (!params.fused_ops.empty()) {
@@ -254,11 +263,47 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
+    if (params.compressed) {
+        jit.AddConstants({MakeJitConstant("COMPRESSED_WEIGHTS", 1)});
+        if (params.inputs[0].GetDType() == Datatype::INT8 || params.inputs[0].GetDType() == Datatype::UINT8) {
+            jit.AddConstants({MakeJitConstant("COMPRESSED_WEIGHTS_INT8", 1)});
+        } else if (params.inputs[0].GetDType() == Datatype::INT4 || params.inputs[0].GetDType() == Datatype::UINT4) {
+            jit.AddConstants({MakeJitConstant("COMPRESSED_WEIGHTS_INT4", 1)});
+        }
+
+        auto wt = params.inputs[0].GetDType();
+        if (wt == Datatype::UINT4) {
+            jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", WeightsType::UINT4, 2));
+        } else if (wt == Datatype::INT4) {
+            jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", WeightsType::INT4, 2));
+        }
+
+        const size_t scale_groups_num = params.decompression_scale.LogicalSize();
+        const size_t scale_group_size = params.inputs[0].LogicalSize() / scale_groups_num;
+        jit.AddConstants({MakeJitConstant("DECOMPRESSION_SCALE_TERM", 1)});
+        jit.AddConstants({MakeJitConstant("DECOMPRESSION_SCALE", params.decompression_scale)});
+        jit.AddConstants({MakeJitConstant("DECOMPRESSION_SCALE_GROUPS_NUM", scale_groups_num)});
+        jit.AddConstants({MakeJitConstant("DECOMPRESSION_SCALE_GROUP_SIZE", scale_group_size)});
+        if (params.has_decompression_zp) {
+            jit.AddConstants({MakeJitConstant("DECOMPRESSION_ZP_TERM", 1)});
+            if (params.scalar_zp) {
+                jit.AddConstants({MakeJitConstant("DECOMPRESSION_ZP_VALUE", params.zp_value)});
+                jit.AddConstants({MakeJitConstant("DECOMPRESSION_ZP_SCALAR", 1)});
+            } else {
+                const size_t zp_groups_num = params.decompression_zero_point.LogicalSize();
+                const size_t zp_group_size = params.inputs[0].LogicalSize() / zp_groups_num;
+                jit.AddConstants({MakeJitConstant("DECOMPRESSION_ZP", params.decompression_zero_point)});
+                jit.AddConstants({MakeJitConstant("DECOMPRESSION_ZP_GROUPS_NUM", zp_groups_num)});
+                jit.AddConstants({MakeJitConstant("DECOMPRESSION_ZP_GROUP_SIZE", zp_group_size)});
+            }
+        }
+    }
+
     return jit;
 }
 
-bool GatherKernelRef::Validate(const Params& p, const optional_params& o) const {
-    if (p.GetType() != KernelType::GATHER || o.GetType() != KernelType::GATHER) {
+bool GatherKernelRef::Validate(const Params& p) const {
+    if (p.GetType() != KernelType::GATHER) {
         return false;
     }
 
@@ -304,8 +349,8 @@ void GatherKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData GatherKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
+KernelsData GatherKernelRef::GetKernelsData(const Params& params) const {
+    if (!Validate(params)) {
         return {};
     }
 
@@ -313,13 +358,20 @@ KernelsData GatherKernelRef::GetKernelsData(const Params& params, const optional
     gather_params& newParams = *static_cast<gather_params*>(kd.params.get());
 
     auto dispatchData = SetDefault(newParams);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
 
     GetUpdateDispatchDataFunc(kd);
+
+    int inputs_count = 2;
+    if (newParams.compressed) {
+        inputs_count++;
+        if (newParams.has_decompression_zp && !newParams.scalar_zp)
+            inputs_count++;
+    }
 
     FillCLKernelData(kernel,
                      dispatchData,
@@ -330,15 +382,15 @@ KernelsData GatherKernelRef::GetKernelsData(const Params& params, const optional
                      "",
                      false,
                      false,
-                     2,
+                     inputs_count,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     newParams.has_dynamic_tensors());
+                     newParams.is_shape_agnostic);
 
     return {kd};
 }
 
-KernelsPriority GatherKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority GatherKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

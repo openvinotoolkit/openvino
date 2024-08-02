@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2023 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -22,7 +22,7 @@ endif()
 get_property(_OV_GENERATOR_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 if(_OV_GENERATOR_MULTI_CONFIG)
     list(APPEND ov_options CMAKE_CONFIGURATION_TYPES)
-    if(CMAKE_GENERATOR MATCHES "^Ninja Multi-Config$")
+    if(CMAKE_GENERATOR STREQUAL "Ninja Multi-Config")
         list(APPEND ov_options CMAKE_DEFAULT_BUILD_TYPE)
     endif()
 else()

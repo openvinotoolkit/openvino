@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@ namespace ov {
 namespace intel_cpu {
 
 using namespace arm_compute;
-using namespace InferenceEngine;
+
 
 bool ACLConvertExecutor::init(const ConvertParams& convertParams,
                               const MemoryDescPtr& srcDesc,
@@ -52,17 +52,20 @@ bool ACLConvertExecutor::init(const ConvertParams& convertParams,
 
     if (isCopyOp) {
         acl_copy = std::make_unique<NECopy>();
-        acl_copy->configure(&srcTensor, &dstTensor);
+        configureThreadSafe([&] { acl_copy->configure(&srcTensor, &dstTensor); });
     } else {
         acl_cast = std::make_unique<NECast>();
-        acl_cast->configure(&srcTensor, &dstTensor, ConvertPolicy::SATURATE);
+        configureThreadSafe([&] { acl_cast->configure(&srcTensor, &dstTensor, ConvertPolicy::SATURATE); });
     }
     return true;
 }
 
-void ACLConvertExecutor::exec(const MemoryCPtr& src, const MemoryPtr& dst) {
-    srcTensor.allocator()->import_memory(src->getData());
-    dstTensor.allocator()->import_memory(dst->getData());
+void ACLConvertExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
+    assert(src.size() == 1);
+    assert(dst.size() == 1);
+
+    srcTensor.allocator()->import_memory(src[0]->getData());
+    dstTensor.allocator()->import_memory(dst[0]->getData());
 
     if (isCopyOp) {
         acl_copy->run();

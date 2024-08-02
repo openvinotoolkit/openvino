@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_one_hot_op(const NodeContext& node) {
-    default_op_checks(node, 4, {"OneHot"});
+    default_op_checks(node, 4, {"OneHot", "ONE_HOT"});
     auto indices = node.get_input(0);
     auto depth = node.get_input(1);
     auto on_value = node.get_input(2);

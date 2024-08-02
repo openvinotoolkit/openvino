@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2023 Intel Corporation
+﻿// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,15 +41,26 @@ JitConstants ReorderKernelRef::GetJitConstants(const reorder_params& params) con
     if (params.surface_input)
         jit.AddConstant(MakeJitConstant("SURFACE_INPUT", true));
 
+    if (!params.fused_ops.empty()) {
+        std::vector<std::string> idx_order;
+        if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 4) {
+            idx_order = {"b", "f", "y", "x"};
+        } else if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
+            idx_order = {"b", "f", "z", "y", "x"};
+        }
+        FusedOpsConfiguration conf = {"", idx_order, "res", GetUnitType(params), 1};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+    }
+
     return jit;
 }
 
-KernelsData ReorderKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
+KernelsData ReorderKernelRef::GetKernelsData(const Params& params) const {
     const reorder_params& orgParams = static_cast<const reorder_params&>(params);
-    return GetCommonKernelsData(orgParams, options);
+    return GetCommonKernelsData(orgParams);
 }
 
-KernelsPriority ReorderKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+KernelsPriority ReorderKernelRef::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector
