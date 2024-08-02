@@ -10,6 +10,7 @@
 #include <openvino/core/any.hpp>
 #include <openvino/runtime/core.hpp>
 #include <pyopenvino/core/tensor.hpp>
+#include <random>
 
 #include "common.hpp"
 #include "pyopenvino/core/remote_context.hpp"
@@ -551,9 +552,12 @@ void regclass_Core(py::module m) {
                                      "`model_stream` must be an io.BytesIO object but " +
                                      (std::string)(py::repr(model_stream)) + "` provided");
             }
-            model_stream.attr("seek")(0);  // Always rewind stream!
-            const std::string filename = "model_stream.txt";
+            std::random_device rd;
+            std::mt19937 gen(rd());
+            std::uniform_int_distribution<> distr(1000, 9999);
+            std::string filename = "model_stream_" + std::to_string(distr(gen)) + ".txt";
             std::fstream _stream(filename, std::ios::out | std::ios::binary);
+            model_stream.attr("seek")(0);  // Always rewind stream!
             if (_stream.is_open()) {
                 const py::bytes data = model_stream.attr("read")();
                 // convert the Python bytes object to C++ string
