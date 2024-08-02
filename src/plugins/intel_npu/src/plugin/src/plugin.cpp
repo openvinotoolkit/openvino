@@ -136,16 +136,21 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
 
 size_t getFileSize(std::istream& stream) {
     auto log = Logger::global().clone("getFileSize");
+    if (!stream) {
+        OPENVINO_THROW("Stream is in bad status! Please check the passed stream status!");
+    }
 
     const size_t streamStart = stream.tellg();
     stream.seekg(0, std::ios_base::end);
     const size_t streamEnd = stream.tellg();
     stream.seekg(streamStart, std::ios_base::beg);
 
-    if (!stream) {
-        log.error("Stream is in bad status after tellg and seekg!");
-    }
     log.debug("Read blob size: streamStart=%zu, streamEnd=%zu", streamStart, streamEnd);
+
+    if (streamEnd < streamStart) {
+        OPENVINO_THROW("Invalid stream size: streamEnd(", streamEnd,
+                       ") is not larger than streamStart(", streamStart, ")!");
+    }
 
     return streamEnd - streamStart;
 }
@@ -732,14 +737,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         auto compiler = getCompiler(localConfig);
 
         auto graphSize = getFileSize(stream);
-        if (graphSize == 0) {
-            OPENVINO_THROW("Blob is empty");
-        }
+
         std::vector<uint8_t> blob(graphSize);
         stream.read(reinterpret_cast<char*>(blob.data()), graphSize);
         if (!stream) {
-            OPENVINO_THROW("Blob is in exceptional state after reading!");
+            OPENVINO_THROW("Failed to read data from stream!");
         }
+        _logger.debug("Successfully read {} bytes into blob.", graphSize);
 
         auto meta = compiler->parse(blob, localConfig);
         meta.name = "net" + std::to_string(_compiledModelLoadCounter++);
