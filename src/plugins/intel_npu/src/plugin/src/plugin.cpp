@@ -180,7 +180,6 @@ Plugin::Plugin()
     : _options(std::make_shared<OptionsDesc>()),
       _globalConfig(_options),
       _logger("NPUPlugin", Logger::global().level()) {
-    std::printf("test NPU PR checker\n");
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
     set_device_name("NPU");
 
