@@ -26,6 +26,7 @@ Advanced Matrix Extensions (AMX) on CPU do not support ``f32``). Also, I/O opera
 requires less memory due to the smaller tensor byte size. This guide will focus on how
 to control inference precision.
 
+.. _execution-mode:
 
 Execution Mode
 ##############
