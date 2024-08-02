@@ -217,14 +217,13 @@ std::shared_ptr<PtFrameworkNode> create_fw_node_with_exception(const NodeContext
                                                                bool skip_subgraphs = false) {
     auto fw_node = std::make_shared<PtFrameworkNode>(context.get_decoder(), inputs, num_outputs, false, skip_subgraphs);
     context.mark_node(fw_node);
-    auto attrs = fw_node->get_attrs();
-    std::string message(exception_message);
-    if (!message.empty()) {
-        message = "Exception happened during conversion of operation " + fw_node->get_friendly_name() +
-                  " with schema " + context.get_schema() + '\n' + message;
+    if (!exception_message.empty()) {
+        auto attrs = fw_node->get_attrs();
+        std::string message = "Exception happened during conversion of operation " + fw_node->get_friendly_name() +
+                              " with schema " + context.get_schema() + '\n' + exception_message;
+        attrs[PtFrameworkNode::failed_conversion_key] = std::move(message);
+        fw_node->set_attrs(attrs);
     }
-    attrs[PtFrameworkNode::failed_conversion_key] = message;
-    fw_node->set_attrs(attrs);
     return fw_node;
 }
 }  // namespace
@@ -537,7 +536,7 @@ void copy_runtime_info_and_name(const std::shared_ptr<Node>& from,
             } else {
                 unique_names.insert(new_name);
             }
-            op->set_friendly_name(new_name);
+            op->set_friendly_name(std::move(new_name));
         }
     }
     copy_runtime_info(from, to);

@@ -70,9 +70,10 @@ std::shared_ptr<ov::Model> TranslateSession::translate_graph(const ov::frontend:
 
     // process model rt_info
     auto rt_info = pytorch_model->get_decoder()->get_rt_info();
-    for (auto item : rt_info) {
+    for (const auto& item : rt_info) {
         model->set_rt_info(item.second, item.first);
     }
+    model->set_rt_info("decoder_type_name", pytorch_model->decoder_type_name());
 
     return model;
 }
@@ -356,7 +357,7 @@ void TranslateSession::encode_tensor_name(Output<Node> output,
     if (it != m_counter_map.end()) {
         auto& pair = it->second;
         auto new_name = name + '_' + std::to_string(++pair.first);
-        pair.second.set_names({new_name});
+        pair.second.set_names({std::move(new_name)});
         pair.second = output;
     } else {
         m_counter_map.emplace(tensor_idx, std::make_pair(0, output));

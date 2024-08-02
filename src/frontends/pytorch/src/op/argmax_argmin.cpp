@@ -56,7 +56,7 @@ OutputVector create_argmax_argmin_op(const NodeContext& context, TopKMode mode) 
             indices = context.mark_node(std::make_shared<v0::Squeeze>(indices, zero));
         }
     }
-    return {indices};
+    return {std::move(indices)};
 }
 
 };  // namespace

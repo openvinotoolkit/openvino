@@ -62,8 +62,8 @@ void NodeContext::mutate_input(size_t index, Output<Node> ov_output) const {
     m_mutated_tensors->insert(input_id);
 
     // Resolve aliases
-    auto back_input_id = input_id;
-    auto back_node_input = ov_output;
+    auto& back_input_id = input_id;
+    auto& back_node_input = ov_output;
     while (m_translate_session->m_may_be_alias.count(back_input_id)) {
         // Create node to reverseprop data. While loop is needed for the cases when alias to tensor point to another
         // alias to tensor. In that case we need to create a chain of reverseprop ops
@@ -93,7 +93,7 @@ void NodeContext::mutate_input(size_t index, Output<Node> ov_output) const {
     }
 }
 
-void NodeContext::add_tensor_to_context(size_t index, Output<Node> ov_output) const {
+void NodeContext::add_tensor_to_context(size_t index, const Output<Node>& ov_output) const {
 #ifdef ENABLE_OPENVINO_DEBUG
     if (m_tensor_map->count(index)) {
         OPENVINO_DEBUG("[ WARNING ] Current context has tensor ", index, ". Assuming mutated output.\n");
