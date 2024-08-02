@@ -470,7 +470,7 @@ bool crop_in_place_optimization::match(const program_node& node,
     for (auto user : node.get_users()) {
         // If the user node's output shape is already static, the padding
         // w/ dyn pad mask will not be propagated properly at runtime
-        if (node.is_dynamic() && !user->get_output_layout().is_dynamic())
+        if (node.is_dynamic() && !user->get_output_pshape().is_dynamic())
             return false;
         // do not optimize when next node is concatenation which is not output
         if (user->is_type<concatenation>() && !user->is_output())
@@ -484,10 +484,10 @@ bool crop_in_place_optimization::match(const program_node& node,
         if (node.is_dynamic() && (user->is_type<convolution>() || user->is_type<gemm>()))
             return false;
         if (user->is_type<reshape>()) {
-            // runtime buffer fusing is only handled when there is only one reshape user
-            if (node.is_dynamic() && node.get_users().size() != 1)
-                return false;
             auto& reshape_node = user->as<reshape>();
+            // runtime buffer fusing is only handled when there is only one reshape user and reshape mode is base
+            if (node.is_dynamic() && (node.get_users().size() != 1 || reshape_node.get_primitive()->mode != reshape::reshape_mode::base))
+                return false;
             if (can_reshape_be_optimized(reshape_node) &&
                 (!node.is_dynamic() || !reshape_node.is_runtime_propagatable_padding()))
                 return false;
@@ -498,6 +498,14 @@ bool crop_in_place_optimization::match(const program_node& node,
 
     // do not optimize crop, that must be calculated in propagate_constants
     if (node.is_constant())
+        return false;
+
+    // do not optimize variadic_split crop when either input1 or input2 is not constant.
+    // VariadicSplit ngraph shape infer requires value of axis(input1) and split_lengths(input2).
+    // And non_constant input1/input2 makes risky execution of runtime buffer fusing.
+    auto& crop_node = node.as<crop>();
+    if ((crop_node.get_primitive()->op_mode == cldnn::crop_ngraph_op_mode::variadic_split) &&
+        (!crop_node.get_dependency(1).is_constant() || !crop_node.get_dependency(2).is_constant()))
         return false;
 
     if (node.get_users().size() > 0) {
@@ -696,7 +704,7 @@ void prepare_buffer_fusing::run(program& p) {
         if (node->is_type<read_value>() || node->is_type<kv_cache>())
             return true;
 
-        if (node->is_type<reshape>() && is_dynamic && is_planar && no_pad && !node->is_output() && !node->has_fused_primitives()) {
+        if ((node->is_type<crop>() || node->is_type<reshape>()) && is_dynamic && is_planar && no_pad && !node->is_output() && !node->has_fused_primitives()) {
             return true;
         }
 
@@ -711,10 +719,53 @@ void prepare_buffer_fusing::run(program& p) {
                            concat_in_place_optimization>(p);
 
     // [2] Then try to optimize all crops
-    run_node_optimizations<crop_in_place_optimization>(p);
+    auto node_itr = p.get_processing_order().begin();
+    while (node_itr != p.get_processing_order().end()) {
+        auto& node = (*node_itr++);
+        if (!node->is_valid_output_layout())
+            continue;
+        if (!can_optimize(node))
+            continue;
+
+        program_helpers::do_for_types<crop>(*node, [](crop_node& node) {
+            auto pred_param = node.get_dependency(0).get_kernel_impl_params();
+            auto pred_layout = pred_param->get_output_layout();
+            if (!crop_in_place_optimization::match(node, *node.get_kernel_impl_params(), pred_layout))
+                return;
+
+            auto crop_layout = node.get_output_layout();
+            auto crop_params = node.get_kernel_impl_params();
+            if (!node.is_dynamic() && crop_in_place_optimization::can_crop_be_optimized_along_feature(crop_layout, pred_layout)) {
+                crop_in_place_optimization::update_in_place_crop_padding_along_feature(node,
+                                                                                       crop_layout,
+                                                                                       pred_layout,
+                                                                                       crop_params->input_offsets[0],
+                                                                                       node.get_primitive()->axis,
+                                                                                       false);
+            } else if (crop_in_place_optimization::can_crop_be_optimized_simple_data_format(crop_layout, pred_layout)) {
+                std::vector<layout> reshape_layouts;
+                if (node.get_users().front()->is_type<reshape>() && node.get_users().front()->as<reshape>().is_runtime_propagatable_padding()) {
+                    reshape_layouts.push_back(node.get_users().front()->get_output_layout());
+                }
+                crop_in_place_optimization::update_in_place_crop_padding_simple_data_format(crop_layout,
+                                                                                            pred_layout,
+                                                                                            reshape_layouts,
+                                                                                            crop_params->input_offsets[0],
+                                                                                            node.get_primitive()->axis,
+                                                                                            false);
+                if (reshape_layouts.size() > 0) {
+                    node.get_users().front()->set_output_layout(reshape_layouts[0]);
+                }
+            }
+            node.set_output_layout(crop_layout);
+            node.can_be_optimized(true);
+            propagate_padding_to_opt_out_users(node, node.get_output_layout().data_padding);
+            GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing] : " << node.id() << " can be optimized" << std::endl;
+        });
+    }
 
     // [3] Optimize all other primitives
-    auto node_itr = p.get_processing_order().begin();
+    node_itr = p.get_processing_order().begin();
     while (node_itr != p.get_processing_order().end()) {
         auto& node = (*node_itr++);
         if (!node->is_valid_output_layout())

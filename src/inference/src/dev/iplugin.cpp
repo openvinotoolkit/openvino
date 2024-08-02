@@ -104,7 +104,7 @@ std::unordered_set<std::string> ov::get_supported_nodes(
     m.run_passes(transformed_model);
 
     transform(transformed_model);
-    auto ops = transformed_model->get_ordered_ops();
+    const auto& ops = transformed_model->get_ordered_ops();
 
     NameSet supported;
     NameSet unsupported;
@@ -120,18 +120,18 @@ std::unordered_set<std::string> ov::get_supported_nodes(
     // Collect all operation names even there are no such names in original model
     std::map<std::string, std::shared_ptr<ov::Node>> transformed_model_op_map;
     std::map<std::string, std::string> fused_model_op_map;
-    for (auto&& op : ops) {
+    for (const auto& op : ops) {
         auto names = get_names_set(op);
         for (auto& name : names) {
             if (name != op->get_friendly_name())
                 fused_model_op_map[name] = op->get_friendly_name();
         }
-        transformed_model_op_map[op->get_friendly_name()] = op;
         if (is_node_supported(op)) {
             supported.insert(names.begin(), names.end());
         } else {
             unsupported.insert(names.begin(), names.end());
         }
+        transformed_model_op_map[op->get_friendly_name()] = op;
     }
 
     // If operation was fused into several operations where one is supported

@@ -14,7 +14,7 @@ namespace intel_cpu {
 struct BrgemmKernelConfig : public snippets::KernelExecutorBase::GenericConfig {
 public:
     BrgemmKernelConfig(const element::Type& in0_dtype, const element::Type& in1_dtype, float beta,
-                       bool is_with_amx, bool is_with_comp);
+                       bool is_with_amx, bool is_with_comp, dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
     BrgemmKernelConfig() = delete;
     bool is_completed() const override;
     size_t hash() const override { return m_hash; }
@@ -24,6 +24,7 @@ public:
         return std::unique_ptr<BrgemmKernelConfig>( new BrgemmKernelConfig(*this));
     }
     void update(dnnl_dim_t M, dnnl_dim_t N, dnnl_dim_t K, dnnl_dim_t LDA, dnnl_dim_t LDB, dnnl_dim_t LDC);
+    bool is_empty() const;
 
     dnnl_data_type_t get_dt_in0() const { return m_static_params->dt_in0; }
     dnnl_data_type_t get_dt_in1() const { return m_static_params->dt_in1; }
@@ -53,7 +54,7 @@ public:
 private:
     struct StaticParams {
         StaticParams(const element::Type& in0_dtype, const element::Type& in1_dtype, float beta,
-                     bool is_with_amx, bool is_with_comp);
+                     bool is_with_amx, bool is_with_comp, dnnl::impl::cpu::x64::cpu_isa_t primitive_isa);
         const dnnl_data_type_t dt_in0 {dnnl_f32}, dt_in1 {dnnl_f32};
         const float beta {0};
         const bool is_with_amx {false};
@@ -95,8 +96,31 @@ public:
 
 protected:
     std::shared_ptr<BrgemmCompiledKernel> compile_kernel(const BrgemmKernelConfig& c) const override;
-    void update_config(const ov::snippets::lowered::ExpressionPtr& expr, BrgemmKernelConfig& config) const override;
+    void update_config(const ov::snippets::lowered::ExpressionPtr& expr,
+                       const ov::snippets::lowered::LinearIRPtr& linear_ir,
+                       BrgemmKernelConfig& config) const override;
 };
 #define GET_OFF_BRGEMM_ARGS(field) offsetof(BrgemmKernelExecutor::call_args, field)
+
+#ifdef SNIPPETS_DEBUG_CAPS
+class BrgemmKernelReferenceExecutor : public BrgemmKernelExecutor {
+public:
+    BrgemmKernelReferenceExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, BrgemmKernelConfig config);
+    using BrgemmKernelExecutor::execute;
+protected:
+    std::shared_ptr<BrgemmCompiledKernel> compile_kernel(const BrgemmKernelConfig& c) const override;
+};
+struct brgemm_ref_kernel : public dnnl::impl::cpu::x64::brgemm_kernel_t {
+    brgemm_ref_kernel(BrgemmKernelConfig c);
+    void operator()(dnnl::impl::cpu::x64::brgemm_kernel_params_t *) const override;
+    dnnl_status_t create_kernel() override { return dnnl_status_t::dnnl_success; }
+    const dnnl::impl::cpu::x64::jit_generator *get_jit_generator() const override {
+        OV_CPU_JIT_EMITTER_THROW("get_jit_generator should not be called for reference kernel");
+        return nullptr;
+    }
+private:
+    BrgemmKernelConfig m_config;
+};
+#endif
 }   // namespace intel_cpu
 }   // namespace ov

@@ -91,6 +91,7 @@ size_t ReduceKey::hash() const {
     seed = hash_combine(seed, jcp.reduce_mode);
     seed = hash_combine(seed, jcp.fuse_low_precision);
     seed = hash_combine(seed, jcp.fuse_broadcast);
+    seed = hash_combine(seed, jcp.round_to_zero);
     seed = hash_combine(seed, jcp.src_dt);
     seed = hash_combine(seed, jcp.dst_dt);
     seed = get_post_op_hash(seed, *postOps.get());
@@ -101,16 +102,17 @@ size_t ReduceKey::hash() const {
 bool ReduceKey::operator==(const ReduceKey &rhs) const {
     return jcp.layout == rhs.jcp.layout && jcp.reduce_mode == rhs.jcp.reduce_mode &&
            jcp.fuse_low_precision == rhs.jcp.fuse_low_precision &&
+           jcp.fuse_broadcast == rhs.jcp.fuse_broadcast && jcp.round_to_zero == rhs.jcp.round_to_zero &&
            jcp.src_dt == rhs.jcp.src_dt && jcp.dst_dt == rhs.jcp.dst_dt && *postOps.get() == *rhs.postOps.get();
 }
 } // namespace
-
-#if defined(OPENVINO_ARCH_X86_64)
 
 // some utility functions
 static inline bool isFloatCompatible(memory::data_type type) {
     return memory::data_type::f32 == type || memory::data_type::bf16 == type || memory::data_type::f16 == type;
 }
+
+#if defined(OPENVINO_ARCH_X86_64)
 
 template <cpu_isa_t isa>
 struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_generator {
@@ -966,7 +968,7 @@ private:
     inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, memory::data_type dst_dt) {
         Xmm xmm_dst = Xmm(vmm_dst.getIdx());
         Ymm ymm_dst = Ymm(vmm_dst.getIdx());
-        if (!isFloatCompatible(jcp_.src_dt) && !support_intermediate_int) {
+        if (jcp_.round_to_zero && !support_intermediate_int) {
             uni_vroundps(vmm_dst, vmm_dst, 3); // rounding to zero
         }
         if (convert_f32_to_i32(dst_dt)) {
@@ -1020,7 +1022,7 @@ private:
     }
 
     inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, memory::data_type dst_dt) {
-        if (!isFloatCompatible(jcp_.src_dt) && !support_intermediate_int) {
+        if (jcp_.round_to_zero && !support_intermediate_int) {
             uni_vroundps(xmm_dst, xmm_dst, 3);
         }
         if (convert_f32_to_i32(dst_dt)) {
@@ -1522,7 +1524,7 @@ private:
         int depthwise_inj_idx = 0;
         int quantization_inj_idx = 0;
         int post_ops_data_offset = 0;
-        if (!isFloatCompatible(jcp_.src_dt)) {
+        if (jcp_.round_to_zero) {
             uni_vroundps(vmm_dst, vmm_dst, 3); // rounding to zero
         }
 
@@ -1656,7 +1658,7 @@ private:
         Xmm xmm_dst = Xmm(vmm_dst.getIdx());
         Ymm ymm_dst = Ymm(vmm_dst.getIdx());
         // If there is post ops fusing, necessary rounding has ready been done, no need to do it again.
-        if (!post_ops_fusing && !isFloatCompatible(jcp_.src_dt)) {
+        if (!post_ops_fusing && jcp_.round_to_zero) {
             uni_vroundps(vmm_dst, vmm_dst, 3);
         }
         if (!isFloatCompatible(dst_dt)) {
@@ -1710,7 +1712,7 @@ private:
     }
 
     inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, memory::data_type dst_dt) {
-        if (!post_ops_fusing && !isFloatCompatible(jcp_.src_dt)) {
+        if (!post_ops_fusing && jcp_.round_to_zero) {
             uni_vroundps(xmm_dst, xmm_dst, 3);
         }
         if (!isFloatCompatible(dst_dt)) {
@@ -1913,6 +1915,7 @@ Reduce::Reduce(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr con
         }
         set_use_aux_kernel = false;
         fuse_low_precision = false;
+        round_to_zero = false;
         vec_reduceDH_prc.clear();
         vec_reduceCDW_prc.clear();
         setJITBeyond5D();
@@ -1949,6 +1952,11 @@ void Reduce::initSupportedPrimitiveDescriptors() {
 
     input_prec = getOriginalInputPrecisionAtPort(REDUCE_DATA);
     output_prec = getOriginalOutputPrecisionAtPort(0);
+
+    if (!isFloatCompatible(DnnlExtensionUtils::ElementTypeToDataType(input_prec)) &&
+        !isFloatCompatible(DnnlExtensionUtils::ElementTypeToDataType(output_prec))) {
+        round_to_zero = true;
+    }
 
     jit_mode = canApplyJIT(input_prec, output_prec);
 
@@ -2194,6 +2202,7 @@ void Reduce::createPrimitive() {
     jcp.layout = layout;
     jcp.reduce_mode = getAlgorithm();
     jcp.fuse_low_precision = fuse_low_precision;
+    jcp.round_to_zero = round_to_zero;
 
 #if defined(OPENVINO_ARCH_X86_64)
     compile_post_kernel = true;
