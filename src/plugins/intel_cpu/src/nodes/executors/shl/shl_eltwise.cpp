@@ -93,12 +93,10 @@ bool ShlEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs,
     sess = ShlSession();
 
     for (size_t i = 0; i < srcDescs.size(); i++) {
-        srcTensors[i] = ShlTensor(sess, precisionToShlDataType(srcDescs[i]->getPrecision()), getShlDataLayoutByMemoryDesc(srcDescs[i]));
-        srcTensors[i] = srcTensors[i].cloneWithNewShape(srcDescs[i]->getShape().getStaticDims());
+        srcTensors[i] = ShlTensor(sess, precisionToShlDataType(srcDescs[i]->getPrecision()), getShlDataLayoutByMemoryDesc(srcDescs[i]), srcDescs[i]->getShape().getStaticDims());
     }
     for (size_t i = 0; i < dstDescs.size(); i++) {
-        dstTensors[i] = ShlTensor(sess, precisionToShlDataType(dstDescs[i]->getPrecision()), getShlDataLayoutByMemoryDesc(dstDescs[i]));
-        dstTensors[i] = dstTensors[i].cloneWithNewShape(dstDescs[i]->getShape().getStaticDims());
+        dstTensors[i] = ShlTensor(sess, precisionToShlDataType(dstDescs[i]->getPrecision()), getShlDataLayoutByMemoryDesc(dstDescs[i]), dstDescs[i]->getShape().getStaticDims());
     }
 
     std::function<int()> initFunc = nullptr;
