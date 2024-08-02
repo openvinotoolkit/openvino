@@ -63,6 +63,10 @@ JitConstants RoPEKernelBase::GetJitConstants(const rope_params& params, RoPEKern
         jit.AddConstant(MakeJitConstant("TRANSPOSED_INPUT0_BATCH_PITCH", "INPUT0_BATCH_PITCH"));
     }
 
+    if (!params.is_chatglm && (params.inputs[1].has_dynamic_pad() || params.inputs[2].has_dynamic_pad())) {
+        jit.AddConstant(MakeJitConstant("SIN_COS_HAVE_DYNAMIC_PADDINGS", true));
+    }
+
     if (params.is_qwen) {
         jit.AddConstant(MakeJitConstant("QWEN", true));
     } else if (params.is_chatglm) {
