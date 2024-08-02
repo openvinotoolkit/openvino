@@ -113,7 +113,7 @@ protected:
         out_fmt = onednn::convert_gemm_data_format(out_dims, out_l.format);
 
         if (in0_l.data_padding) {
-            dnnl::memory::dims in0_padded_dims = onednn::convert_gemm_tensor(in0_l.get_buffer_size(), rank, batched_dims_can_be_removed);
+            dnnl::memory::dims in0_padded_dims = onednn::convert_gemm_dims(in0_l.get_padded_dims(), rank, batched_dims_can_be_removed);
             in0_strides = onednn::get_strides(in0_padded_dims);
             if (prim->transpose_input0) {
                 std::swap(in0_strides[in0_strides.size() - 1], in0_strides[in0_strides.size() - 2]);
@@ -121,7 +121,7 @@ protected:
         }
 
         if (in1_l.data_padding) {
-            dnnl::memory::dims in1_padded_dims = onednn::convert_gemm_tensor(in1_l.get_buffer_size(), rank, batched_dims_can_be_removed);
+            dnnl::memory::dims in1_padded_dims = onednn::convert_gemm_dims(in1_l.get_padded_dims(), rank, batched_dims_can_be_removed);
             in1_strides = onednn::get_strides(in1_padded_dims);
             if (prim->transpose_input1)
                 std::swap(in1_strides[in1_strides.size() - 1], in1_strides[in1_strides.size() - 2]);

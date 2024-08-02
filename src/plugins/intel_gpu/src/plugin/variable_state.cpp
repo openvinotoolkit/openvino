@@ -107,7 +107,7 @@ void VariableState::update_device_buffer() {
 
     if (actual_size < m_layout.bytes_count()) {
         const auto alloc_type = m_context->get_engine().use_unified_shared_memory() ? cldnn::allocation_type::usm_device : cldnn::allocation_type::cl_mem;
-        const auto current_buf_size = m_layout.get_buffer_size().sizes();
+        const auto current_buf_size = m_layout.get_padded_dims();
         ov::Shape current_shape(current_buf_size.begin(), current_buf_size.end());
         const auto alloc_shape = predict_shape(m_name, cldnn::layout(current_shape, m_layout.data_type, m_layout.format), *m_shape_predictor);
         const auto alloc_layout = cldnn::layout(alloc_shape, m_layout.data_type, m_layout.format);

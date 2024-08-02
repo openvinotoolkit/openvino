@@ -224,9 +224,9 @@ TEST(stateful_model, check_dynamic_pad_for_kv_cache) {
     auto pad = tensor(0);
     pad.batch[0] = 1;
 
-    ASSERT_EQ(read_value_inst->get_output_layout(0).data_padding.get_dynamic_pad_dims(), pad);
-    ASSERT_EQ(gather_inst->get_output_layout(0).data_padding.get_dynamic_pad_dims(), pad);
-    ASSERT_EQ(kv_cache_inst->get_output_layout(0).data_padding.get_dynamic_pad_dims(), pad);
+    ASSERT_EQ(tensor(read_value_inst->get_output_layout(0).data_padding.get_dynamic_pad_dims(), 0), pad);
+    ASSERT_EQ(tensor(gather_inst->get_output_layout(0).data_padding.get_dynamic_pad_dims(), 0), pad);
+    ASSERT_EQ(tensor(kv_cache_inst->get_output_layout(0).data_padding.get_dynamic_pad_dims(), 0), pad);
 }
 
 }  // stateful_model_tests

@@ -897,8 +897,7 @@ public:
                 for (size_t fi = 0; fi < in_features[i]; ++fi) {
                     for (size_t yi = 0; yi < input_y; ++yi) {
                         for (size_t xi = 0; xi < input_x; ++xi) {
-                            auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
-                            auto in_offset = in_lay.get_linear_offset(coords);
+                            auto in_offset = in_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi), static_cast<int32_t>(xi), static_cast<int32_t>(yi), 0, 0});
 
                             data_flat[in_offset] = data[bi][fi][yi][xi];
                         }
@@ -936,8 +935,7 @@ public:
                 for (size_t fi = 0; fi < in_features[in_i]; fi++) {
                     for (size_t yi = 0; yi < input_y; yi++) {
                         for (size_t xi = 0; xi < input_x; xi++) {
-                            auto output_coords = tensor(batch(bi), feature(f_sum + fi), spatial(xi, yi, 0, 0));
-                            auto output_offset = out_mem->get_layout().get_linear_offset(output_coords);
+                            auto output_offset = out_mem->get_layout().get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(f_sum + fi), static_cast<int32_t>(xi), static_cast<int32_t>(yi), 0, 0});
 
                             auto ref_val = in_data[in_i][bi][fi][yi][xi];
                             auto actual_val = out_ptr[output_offset];
@@ -983,8 +981,7 @@ public:
                 for (size_t fi = 0; fi < in_feature; ++fi) {
                     for (size_t yi = 0; yi < input_y; ++yi) {
                         for (size_t xi = 0; xi < input_x[i]; ++xi) {
-                            auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
-                            auto in_offset = in_lay.get_linear_offset(coords);
+                            auto in_offset = in_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi), static_cast<int32_t>(xi), static_cast<int32_t>(yi), 0, 0});
 
                             data_flat[in_offset] = data[bi][fi][yi][xi];
                         }
@@ -1022,8 +1019,7 @@ public:
                     size_t x_sum = 0;
                     for (size_t in_i = 0; in_i < input_x.size(); in_i++) {
                         for (size_t xi = 0; xi < input_x[in_i]; xi++) {
-                            auto output_coords = tensor(batch(bi), feature(fi), spatial((x_sum + xi), yi, 0, 0));
-                            auto output_offset = out_mem->get_layout().get_linear_offset(output_coords);
+                            auto output_offset = out_mem->get_layout().get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi), static_cast<int32_t>(x_sum + xi), static_cast<int32_t>(yi), 0, 0});
 
                             auto ref_val = in_data[in_i][bi][fi][yi][xi];
                             auto actual_val = out_ptr[output_offset];
@@ -1132,8 +1128,7 @@ public:
                 for (size_t fi = 0; fi < in_features[i]; ++fi) {
                     for (size_t yi = 0; yi < input_y; ++yi) {
                         for (size_t xi = 0; xi < input_x; ++xi) {
-                            auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
-                            auto in_offset = in_lay.get_linear_offset(coords);
+                            auto in_offset = in_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi), static_cast<int32_t>(xi), static_cast<int32_t>(yi), 0, 0});
 
                             data_flat[in_offset] = data[bi][fi][yi][xi];
                         }
@@ -1159,8 +1154,7 @@ public:
         {
             cldnn::mem_lock<Type> weights_ptr(weights_mem, get_test_stream());
             for (size_t fi = 0; fi < output_f; ++fi) {
-                auto coords = tensor(batch(fi), feature(fi), spatial(0, 0, 0, 0));
-                auto offset = weights_lay.get_linear_offset(coords);
+                auto offset = weights_lay.get_linear_offset({static_cast<int32_t>(fi), static_cast<int32_t>(fi), 0, 0, 0, 0});
                 weights_ptr[offset] = static_cast<Type>(1.f);
             }
         }
@@ -1189,8 +1183,7 @@ public:
                 for (size_t fi = 0; fi < in_features[in_i]; fi++) {
                     for (size_t yi = 0; yi < input_y; yi++) {
                         for (size_t xi = 0; xi < input_x; xi++) {
-                            auto output_coords = tensor(batch(bi), feature(f_sum + fi), spatial(xi, yi, 0, 0));
-                            auto output_offset = out_mem->get_layout().get_linear_offset(output_coords);
+                            auto output_offset = out_mem->get_layout().get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(f_sum + fi), static_cast<int32_t>(xi), static_cast<int32_t>(yi), 0, 0});
 
                             auto ref_val = in_data[in_i][bi][fi][yi][xi];
                             auto actual_val = static_cast<Type>(out_ptr[output_offset]);
@@ -1272,8 +1265,7 @@ public:
                 for (size_t fi = 0; fi < in_features[i]; ++fi) {
                     for (size_t yi = 0; yi < input_y; ++yi) {
                         for (size_t xi = 0; xi < input_x; ++xi) {
-                            auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
-                            auto in_offset = in_lay.get_linear_offset(coords);
+                            auto in_offset = in_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi), static_cast<int32_t>(xi), static_cast<int32_t>(yi), 0, 0});
                             data_flat[in_offset] = data[bi][fi][yi][xi];
                         }
                     }
@@ -1299,8 +1291,7 @@ public:
         {
             cldnn::mem_lock<Type> weights_ptr(weights_mem, get_test_stream());
             for (size_t fi = 0; fi < output_f; ++fi) {
-                auto coords = tensor(batch(fi), feature(fi), spatial(0, 0, 0, 0));
-                auto offset = weights_lay.get_linear_offset(coords);
+                auto offset = weights_lay.get_linear_offset({static_cast<int32_t>(fi), static_cast<int32_t>(fi), 0, 0, 0, 0});
                 weights_ptr[offset] = static_cast<Type>(1.f);
             }
         }
@@ -1492,8 +1483,7 @@ public:
                 for (size_t fi = 0; fi < in_features[i]; ++fi) {
                     for (size_t yi = 0; yi < input_y; ++yi) {
                         for (size_t xi = 0; xi < input_x; ++xi) {
-                            auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
-                            auto in_offset = in_lay.get_linear_offset(coords);
+                            auto in_offset = in_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi), static_cast<int32_t>(xi), static_cast<int32_t>(yi), 0, 0});
                             data_flat[in_offset] = data[bi][fi][yi][xi];
                         }
                     }
@@ -1520,8 +1510,7 @@ public:
         {
             cldnn::mem_lock<Type> weights_ptr(weights_mem, stream);
             for (size_t fi = 0; fi < output_f; ++fi) {
-                auto coords = tensor(batch(fi), feature(fi), spatial(0, 0, 0, 0));
-                auto offset = weights_lay.get_linear_offset(coords);
+                auto offset = weights_lay.get_linear_offset({static_cast<int32_t>(fi), static_cast<int32_t>(fi), 0, 0, 0, 0});
                 weights_ptr[offset] = static_cast<Type>(1.f);
             }
         }
@@ -1656,8 +1645,7 @@ public:
                 for (size_t fi = 0; fi < output_f; ++fi) {
                     for (size_t yi = 0; yi < input_y; ++yi) {
                         for (size_t xi = 0; xi < input_x; ++xi) {
-                            auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
-                            auto in_offset = in_lay.get_linear_offset(coords);
+                            auto in_offset = in_lay.get_linear_offset({static_cast<int32_t>(bi), static_cast<int32_t>(fi), static_cast<int32_t>(xi), static_cast<int32_t>(yi), 0, 0});
                             data_flat[in_offset] = data[bi][fi][yi][xi];
                         }
                     }
@@ -1683,8 +1671,7 @@ public:
         {
             cldnn::mem_lock<Type> weights_ptr(weights_mem, stream);
             for (size_t fi = 0; fi < output_f; ++fi) {
-                auto coords = tensor(batch(fi), feature(fi), spatial(0, 0, 0, 0));
-                auto offset = weights_lay.get_linear_offset(coords);
+                auto offset = weights_lay.get_linear_offset({static_cast<int32_t>(fi), static_cast<int32_t>(fi), 0, 0, 0, 0});
                 weights_ptr[offset] = static_cast<Type>(1.f);
             }
         }

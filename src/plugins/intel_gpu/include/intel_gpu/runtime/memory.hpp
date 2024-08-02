@@ -71,7 +71,7 @@ struct memory {
             return true;
         }
 
-        if (l.data_padding.lower_size() != tensor(0) || l.data_padding.upper_size() != tensor(0)) {
+        if (l.data_padding) {
             return true;
         }
 

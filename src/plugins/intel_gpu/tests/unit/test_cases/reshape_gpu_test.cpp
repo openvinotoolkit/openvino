@@ -88,15 +88,15 @@ void generic_reshape_test(format fmt, tensor const& input_size, tensor const& re
 
     //output size should be equal to requested plus output padding
     ASSERT_TRUE(output->get_layout().get_tensor() == reshape_size);
-    ASSERT_TRUE(output->get_layout().get_buffer_size() == reshape_size.add(output_padd.lower_size()).add(output_padd.upper_size()));
+    ASSERT_TRUE(tensor(output->get_layout().get_padded_dims()) == reshape_size.add(tensor(output_padd.lower_size())).add(tensor(output_padd.upper_size())));
 
     {
         cldnn::mem_lock<const ElemType> output_ptr(output, get_test_stream());
         auto output_itr = output_ptr.begin();
 
         auto sizes = reshape_size.sizes(fmt);
-        auto lower = output_padd.lower_size().sizes(fmt);
-        auto upper = output_padd.upper_size().sizes(fmt);
+        auto lower = tensor(output_padd.lower_size()).sizes(fmt);
+        auto upper = tensor(output_padd.upper_size()).sizes(fmt);
         auto buffer_sizes = sizes;
         int32_t accum = 1;
         for (size_t i = 1; i <= sizes.size(); ++i) {

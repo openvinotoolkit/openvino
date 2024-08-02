@@ -39,7 +39,7 @@ TEST(prepare_padding, groupconv_with_output) {
     program_wrapper::apply_opt_pass<prepare_padding>(*prog, true);
     const auto& node = prog->get_node("reorder_input_conv");
     auto params = node.get_kernel_impl_params();
-    ASSERT_EQ(params->get_output_layout().data_padding.upper_size().spatial[2], 0);
+    ASSERT_EQ(params->get_output_layout().data_padding.upper_size()[2 + 2], 0);
 }
 
 TEST(prepare_padding, mvn_conv) {

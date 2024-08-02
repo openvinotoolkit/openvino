@@ -69,25 +69,20 @@ void prepare_padding::run(program& p) {
                 tensor::value_type pe_y = std::max<std::ptrdiff_t>(padding_end.size() >= 2 ? padding_end[padding_end.size() - 2] : 0, 0);
                 tensor::value_type pe_x = std::max<std::ptrdiff_t>(padding_end.size() >= 1 ? padding_end[padding_end.size() - 1] : 0, 0);
 
-                tensor pad_l = tensor(0);
-                tensor pad_u = tensor(0);
-                pad_l.spatial[0] = pb_x;
-                pad_l.spatial[1] = pb_y;
-                pad_l.spatial[2] = pb_z;
-
-                pad_u.spatial[0] = pe_x;
-                pad_u.spatial[1] = pe_y;
-                pad_u.spatial[2] = pe_z;
-
                 auto in_layout = prim_node.get_input_layout();
 
-                const auto& actual_lpad = in_layout.data_padding.lower_size();
-                const auto& actual_upad = in_layout.data_padding.upper_size();
+                auto needed_lpad = in_layout.data_padding.lower_size();
+                auto needed_upad = in_layout.data_padding.upper_size();
 
-                auto needed_lpad = tensor::max(pad_l, actual_lpad);
-                auto needed_upad = tensor::max(pad_u, actual_upad);
+                needed_lpad[2] = std::max(pb_x, needed_lpad[2]);   // spatial[0]
+                needed_lpad[3] = std::max(pb_y, needed_lpad[3]);
+                needed_lpad[4] = std::max(pb_z, needed_lpad[4]);
 
-                padding needed_padding(needed_lpad.sizes(), needed_upad.sizes());
+                needed_upad[2] = std::max(pe_x, needed_upad[2]);   // spatial[0]
+                needed_upad[3] = std::max(pe_y, needed_upad[3]);
+                needed_upad[4] = std::max(pe_z, needed_upad[4]);
+
+                padding needed_padding(needed_lpad, needed_upad);
 
                 add_required_padding(prim_node, needed_padding);
             } else if (node->is_type<deconvolution>()) {
