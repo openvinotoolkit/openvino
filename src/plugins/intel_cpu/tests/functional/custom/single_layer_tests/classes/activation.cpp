@@ -284,9 +284,7 @@ const std::vector<ov::element::Type>& netPrc() {
 /* ============= Activation (1D) ============= */
 const std::vector<CPUSpecificParams>& cpuParams3D() {
     static const std::vector<CPUSpecificParams> cpuParams3D {
-#if !defined(OV_CPU_WITH_SHL)
         CPUSpecificParams({nwc}, {nwc}, {}, {}),
-#endif
         CPUSpecificParams({ncw}, {ncw}, {}, {}),
     };
 
@@ -305,9 +303,7 @@ const std::vector<std::vector<ov::Shape>>& basic3D() {
 /* ============= Activation (2D) ============= */
 const std::vector<CPUSpecificParams>& cpuParams4D() {
     static const std::vector<CPUSpecificParams> cpuParams4D {
-#if !defined(OV_CPU_WITH_SHL)
         CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
-#endif
         CPUSpecificParams({nchw}, {nchw}, {}, {})
     };
 
@@ -326,9 +322,7 @@ const std::vector<std::vector<ov::Shape>>& basic4D() {
 /* ============= Activation (3D) ============= */
 const std::vector<CPUSpecificParams>& cpuParams5D() {
     static const std::vector<CPUSpecificParams> cpuParams5D {
-#if !defined(OV_CPU_WITH_SHL)
         CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),
-#endif
         CPUSpecificParams({ncdhw}, {ncdhw}, {}, {}),
     };
 

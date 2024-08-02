@@ -50,11 +50,6 @@ bool ConvertCPULayerTest::isInOutPrecisionSupported(ov::element::Type inPrc, ov:
         return false;
 #endif
 
-    // SHL only supports f32 for now
-#if defined(OPENVINO_ARCH_RISCV64)
-    if (!(inPrc == ov::element::f32 && outPrc == ov::element::f32))
-        return false;
-#endif
     return true;
 }
 
