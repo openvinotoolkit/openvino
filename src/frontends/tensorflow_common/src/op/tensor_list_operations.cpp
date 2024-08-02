@@ -240,7 +240,7 @@ OutputVector translate_tensor_list_concat_v2_op(const NodeContext& node) {
     out = make_shared<v0::Squeeze>(out, first_dim);
 
     set_node_name(node.get_name(), out.get_node_shared_ptr());
-    return {out};
+    return {std::move(out)};
 }
 
 }  // namespace op
