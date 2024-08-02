@@ -38,7 +38,7 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
     size_t input_idx = 4;
     const size_t INPUT_PORT_IDX = input_idx;
     std::string zp_name = op->get_has_zp() ? inputs[input_idx++].pid : "";
-    std::string activation_scale_name = op->get_has_activation_scale() ? inputs[input_idx++].pid : "";
+    auto activation_scale_input = op->get_has_activation_scale() ? inputs[input_idx++] : cldnn::input_info();
 
     float zp_value = 0.0f;
     bool has_scalar_zp = false;
@@ -57,7 +57,7 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
                                      bias_name,
                                      scale_name,
                                      has_scalar_zp && !supports_immad ? "" : zp_name,
-                                     {activation_scale_name, 1},
+                                     activation_scale_input,
                                      cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                      op->get_input_partial_shape(0).size(),
                                      op->get_input_partial_shape(1).size());
