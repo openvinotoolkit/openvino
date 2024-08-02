@@ -1944,7 +1944,7 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
             if (idx == prim_input) {
                 src_fmt = onednn::find_data_format(prim_desc.src_desc());
             } else if (idx == prim_weights) {
-                src_fmt = format::custom;
+                src_fmt = format::any;
             } else {  // Dep for fused post ops
                 src_fmt = onednn::find_data_format(prim_desc.dst_desc());
             }
