@@ -903,11 +903,6 @@ std::vector<std::string> disabledTestPatterns() {
                 ".*OVClassQueryModelTest.QueryModelWithInvalidDeviceIDThrows.*"
         });
 
-        // [Tracking number: E#116762]
-        _skipRegistry.addPatterns("softMaxDynamicTest4D_NPU3720 tests do not work with COMPILER_TYPE=DRIVER", {
-                ".*SoftMaxLayerTestNPU.CompareWithRef.*"
-        });
-
         // [Tracking number: E#109040]
 	_skipRegistry.addPatterns("CheckWrongGraphExtAndThrow tests do not work with COMPILER_TYPE=DRIVER", {
                 ".*DriverCompilerAdapterExpectedThrowNPU.CheckWrongGraphExtAndThrow.*"
