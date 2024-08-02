@@ -13,13 +13,17 @@ for more information on OpenVINO GenAI.
 
    .. code-block::
 
-      TBD
+      transformers==4.42.4
+      openvino==2024.2.0
+      openvino-tokenizers==2024.2.0
+      nncf==2.11.0
+      optimum-intel @ git+https://github.com/huggingface/optimum-intel.git@439d61f79cf55d5d0b28334f577b6ac3c5ced28f
 
    A chat-tuned TinyLlama model is used in this example. The following conversion & optimization settings are recommended when using NPU:
 
    .. code-block:: python
 
-      TBD
+      optimum-cli export openvino -m TinyLlama/TinyLlama-1.1B-Chat-v1.0 --weight-format int4_sym_g128 --ratio 1.0 TinyLlama
 
 2. Perform generation using the new GenAI API:
 
