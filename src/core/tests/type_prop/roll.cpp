@@ -48,7 +48,7 @@ TEST(type_prop, roll_incorrect_axis_test) {
         // Should have thrown, so fail if it didn't
         FAIL() << "Unexpected pass with invalid axes and shift.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter axis 2 out of the tensor rank range"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Axis 2 out of the tensor rank range"));
     } catch (...) {
         FAIL() << "Check failed for unexpected reason";
     }
@@ -64,7 +64,7 @@ TEST(type_prop, roll_incorrect_negative_axis_test) {
         // Should have thrown, so fail if it didn't
         FAIL() << "Unexpected pass with invalid axes and shift.";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Parameter axis -5 out of the tensor rank range"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Axis -5 out of the tensor rank range"));
     } catch (...) {
         FAIL() << "Check failed for unexpected reason";
     }
