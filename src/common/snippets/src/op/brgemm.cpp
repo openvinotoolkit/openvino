@@ -80,7 +80,6 @@ std::shared_ptr<Node> Brgemm::clone_with_new_inputs(const OutputVector& new_args
 }
 
 bool Brgemm::visit_attributes(AttributeVisitor& visitor) {
-    visitor.on_attribute("beta", m_beta);
     return MemoryAccess::visit_attributes(visitor);
 }
 

@@ -177,6 +177,8 @@ void RuntimeConfigurator::update_loop_info(const lowered::LinearIRPtr& linear_ir
         // If the specific iteration is not needed, we skip loop evaluation - set zero as work amount is enough
         if (!lowered::pass::InsertSpecificIterations::is_decomposed_loop_needed(current_unified_loop_info, decomposed_loop_type, current_work_amount)) {
             expanded_loop_info->set_work_amount(0);
+            if (expanded_loop_info->is_evaluate_once())
+                expanded_loop_info->set_increment(0);
             continue;
         }
 

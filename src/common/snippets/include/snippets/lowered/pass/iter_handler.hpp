@@ -80,24 +80,6 @@ public:
     std::shared_ptr<snippets::lowered::pass::PassBase> merge(const std::shared_ptr<snippets::lowered::pass::PassBase>& other) override;
 };
 
-/**
- * @interface SetBrgemmBeta
- * @brief The pass updates all CPUBrgemm nodes with a new beta value
- * @param m_beta - beta which must be set
- * @ingroup snippets
- */
-class SetBrgemmBeta : public snippets::lowered::pass::RangedPass {
-public:
-    SetBrgemmBeta(float beta);
-    OPENVINO_RTTI("SetBrgemmBeta", "RangedPass")
-    bool run(snippets::lowered::LinearIR& linear_ir,
-             snippets::lowered::LinearIR::constExprIt begin,
-             snippets::lowered::LinearIR::constExprIt end) override;
-    std::shared_ptr<snippets::lowered::pass::PassBase> merge(const std::shared_ptr<snippets::lowered::pass::PassBase>& other) override;
-
-private:
-    float m_beta = 0;
-};
 } // namespace pass
 } // namespace lowered
 } // namespace snippets

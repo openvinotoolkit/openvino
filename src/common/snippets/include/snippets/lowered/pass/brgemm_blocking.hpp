@@ -48,26 +48,30 @@ protected:
     static bool blocking_loop_exists(const snippets::lowered::LoopManagerPtr& loop_manager,
                                      const ov::snippets::lowered::ExpressionPtr& brgemm_expr);
 
-    static void mark_m_blocking(const snippets::lowered::LoopManagerPtr& loop_manager,
-                                snippets::lowered::LinearIR::constExprIt loop_begin,
-                                snippets::lowered::LinearIR::constExprIt loop_end,
-                                const std::vector<snippets::lowered::LoopPort>& entries,
-                                const std::vector<snippets::lowered::LoopPort>& exits,
-                                size_t block_size_m);
+    void mark_m_blocking(const snippets::lowered::LoopManagerPtr& loop_manager,
+                         snippets::lowered::LinearIR::constExprIt loop_begin,
+                         snippets::lowered::LinearIR::constExprIt loop_end,
+                         const std::vector<snippets::lowered::LoopPort>& entries,
+                         const std::vector<snippets::lowered::LoopPort>& exits,
+                         size_t block_size_m);
 
-    static void mark_n_blocking(const snippets::lowered::LoopManagerPtr& loop_manager,
-                                snippets::lowered::LinearIR::constExprIt loop_begin,
-                                snippets::lowered::LinearIR::constExprIt loop_end,
-                                const std::vector<snippets::lowered::LoopPort>& entries,
-                                const std::vector<snippets::lowered::LoopPort>& exits,
-                                size_t block_size_n);
+    void mark_n_blocking(const snippets::lowered::LoopManagerPtr& loop_manager,
+                         snippets::lowered::LinearIR::constExprIt loop_begin,
+                         snippets::lowered::LinearIR::constExprIt loop_end,
+                         const std::vector<snippets::lowered::LoopPort>& entries,
+                         const std::vector<snippets::lowered::LoopPort>& exits,
+                         size_t block_size_n);
 
-    static void mark_k_blocking(const snippets::lowered::LoopManagerPtr& loop_manager,
-                                snippets::lowered::LinearIR::constExprIt loop_begin,
-                                snippets::lowered::LinearIR::constExprIt loop_end,
-                                const std::vector<snippets::lowered::LoopPort>& entries,
-                                const std::vector<snippets::lowered::LoopPort>& exits,
-                                size_t block_size_k);
+    void mark_k_blocking(const snippets::lowered::LoopManagerPtr& loop_manager,
+                         snippets::lowered::LinearIR::constExprIt loop_begin,
+                         snippets::lowered::LinearIR::constExprIt loop_end,
+                         const std::vector<snippets::lowered::LoopPort>& entries,
+                         const std::vector<snippets::lowered::LoopPort>& exits,
+                         size_t block_size_k);
+
+    virtual SpecificIterationHandlers get_m_loop_handlers(size_t work_amount, size_t block_size) const;
+    virtual SpecificIterationHandlers get_n_loop_handlers(size_t work_amount, size_t block_size) const;
+    virtual SpecificIterationHandlers get_k_loop_handlers(size_t work_amount, size_t block_size) const;
 };
 
 /**

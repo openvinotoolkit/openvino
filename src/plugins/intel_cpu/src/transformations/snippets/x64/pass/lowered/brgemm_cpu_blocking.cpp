@@ -24,6 +24,13 @@ using namespace ov::intel_cpu::brgemm_utils;
 using namespace ov::snippets::lowered;
 using namespace ov::snippets::utils;
 
+bool BrgemmCPUBlocking::DummyPass::run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) {
+    return true;
+}
+std::shared_ptr<snippets::lowered::pass::PassBase> BrgemmCPUBlocking::DummyPass::merge(const std::shared_ptr<snippets::lowered::pass::PassBase>& other) {
+    return !other || ov::is_type<DummyPass>(other) ? std::make_shared<DummyPass>() : nullptr;
+}
+
 LinearIR::constExprIt BrgemmCPUBlocking::move_new_memory_buffer(LinearIR& linear_ir, const LinearIR::constExprIt& brgemm_it) {
     const auto& brgemm_expr = brgemm_it->get();
     const auto wsp_expr = brgemm_expr->get_input_port_connector(2)->get_source().get_expr();
@@ -59,6 +66,12 @@ std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(const 
     return blocking_params;
 }
 
+SpecificIterationHandlers BrgemmCPUBlocking::get_k_loop_handlers(size_t work_amount, size_t block_size) const {
+    SpecificIterationHandlers handlers = ov::snippets::lowered::pass::BrgemmBlockingBase::get_k_loop_handlers(work_amount, block_size);
+    handlers.register_pass<SpecificLoopIterType::FIRST_ITER, DummyPass>();
+    return handlers;
+}
+
 bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
                                             const LinearIR::constExprIt& brgemm_it,
                                             size_t m_block,
@@ -92,8 +105,6 @@ bool BrgemmCPUBlocking::mark_blocking_loops(LinearIR& linear_ir,
                                             LoopPort(copy_b_expr->get_input_port(0), true, 1)};
         const std::vector<LoopPort> exits{LoopPort(brgemm_expr->get_output_port(0), false)};
         mark_k_blocking(loop_manager, loop_begin, std::next(brgemm_it), entries, exits, k_block);
-    } else {
-        brgemm->set_beta(0.f);
     }
     if (!is_full_dim_value(n_block)) {
         const auto loop_begin = get_loop_begin_pos(linear_ir, brgemm_it, copy_b_expr);
