@@ -44,7 +44,7 @@ OutputVector translate_unsorted_segment_sum_op(const NodeContext& node) {
     auto const_minus_one_i64 = make_shared<v0::Constant>(element::i64, Shape{1}, -1);
     auto data_const_zero = create_same_type_const_scalar<float>(data, 0.0f);
 
-    auto data_shape = make_shared<v3::ShapeOf>(data, element::i64);
+    Output<Node> data_shape = make_shared<v3::ShapeOf>(data, element::i64);
 
     // adjust data and segment_ids inputs for ND indices
     // to make indices 1D tensor
@@ -66,6 +66,7 @@ OutputVector translate_unsorted_segment_sum_op(const NodeContext& node) {
     slice_shape = make_shared<v0::Concat>(OutputVector{const_one_i64, slice_shape}, 0);
     auto default_slice = make_shared<v3::Broadcast>(data_const_zero, slice_shape);
     // 2. update data with the default slice
+    data_shape = make_shared<v3::ShapeOf>(data, element::i64);
     data = make_shared<v0::Concat>(OutputVector{data, default_slice}, 0);
 
     // compute default index
