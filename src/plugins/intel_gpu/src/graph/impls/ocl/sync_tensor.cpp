@@ -89,6 +89,11 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
         printf("[printCLBuff] clbuf: %p \n", clbuf);
 
         cl_int err;
+        size_t main_buffer_size = 0;
+        err = clGetMemObjectInfo(clbuf, CL_MEM_SIZE, sizeof(main_buffer_size), &main_buffer_size, NULL);
+        CHECK_OCL_ERROR(err, "clGetMemObjectInfo - CL_MEM_SIZE failed");
+        printf("[ocl_to_lz] main_buffer_size: %ld \n", main_buffer_size);
+
         err = clEnqueueReadBuffer(cl_queue, clbuf, CL_TRUE, 0, size, resBuf.data(), 0, NULL, NULL);
         CHECK_OCL_ERROR_EXIT(err, "clEnqueueReadBuffer failed");
         clFinish(cl_queue);
@@ -192,6 +197,9 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
 
         std::vector<uint32_t> initBuf(elemCount, 0);
         int copy_idx = (w_rank + 1) % w_size;
+
+        size_t input_len = instance.input_memory(0).size();
+        printf("[sync_tensor_impl:%d] input_len: %ld \n", w_rank, input_len);
 
         size_t copy_len = instance.output_memory(copy_idx).size();
         printf("[sync_tensor_impl:%d] copy_len: %ld \n", w_rank, copy_len);

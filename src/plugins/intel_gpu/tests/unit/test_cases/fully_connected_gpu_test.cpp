@@ -1360,8 +1360,8 @@ public:
     void test_compressed_scale_zp_nobias_activation_large(bool is_caching_test) {
         std::cout << "[+] test_compressed_scale_zp_nobias_activation is_caching_test: " << is_caching_test << std::endl;
 
-        long unsigned int M = 8;
-        long unsigned int K = 4;
+        long unsigned int M = 900; // 8;
+        long unsigned int K = 400; // 4;
         long unsigned int N = 1024;
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ -1, static_cast<long int>(K) });
         uint8_t MAX_UINT8 = 255;

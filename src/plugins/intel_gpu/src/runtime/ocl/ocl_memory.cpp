@@ -36,7 +36,8 @@ static int get_cl_map_type(mem_lock_type type) {
 gpu_buffer::gpu_buffer(ocl_engine* engine,
                        const layout& layout)
     : lockable_gpu_mem(), memory(engine, layout, allocation_type::cl_mem, nullptr)
-    , _buffer(engine->get_cl_context(), CL_MEM_READ_WRITE, size()) {
+    , _buffer(engine->get_cl_context(), CL_MEM_READ_WRITE, size() < 8 * 1024 ? 8 * 1024 : size()) {
+    printf("[gpu_buffer] size(): %ld, < 8 * 1024 ? \n", size());
     m_mem_tracker = std::make_shared<MemoryTracker>(engine, _buffer.get(), layout.bytes_count(), allocation_type::cl_mem);
 }
 
