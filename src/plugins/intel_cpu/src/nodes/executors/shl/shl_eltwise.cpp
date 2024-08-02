@@ -25,6 +25,7 @@ bool ShlEltwiseExecutor::isEltwiseAlgorithmSupported(Algorithm algorithm) {
                           Algorithm::EltwiseMaximum,
                           Algorithm::EltwiseMinimum,
                           Algorithm::EltwiseExp,
+                          Algorithm::EltwiseClamp,
                           Algorithm::EltwiseRelu,
                           Algorithm::EltwisePrelu)) {
         return true;
@@ -165,6 +166,15 @@ bool ShlEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs,
         };
         shlExecFunc = [&]() {
             return csinn_exp(srcTensors[0].get(), dstTensors[0].get(), static_cast<csinn_siso_params*>(params->get()));
+        };
+        break;
+    case Algorithm::EltwiseClamp:
+        params = ov::intel_cpu::make_unique<ShlClipParams>(sess, shl_api, eltwiseAttrs.alpha, eltwiseAttrs.beta);
+        initFunc = [&]() {
+            return csinn_clip_init(srcTensors[0].get(), dstTensors[0].get(), static_cast<csinn_clip_params*>(params->get()));
+        };
+        shlExecFunc = [&]() {
+            return csinn_clip(srcTensors[0].get(), dstTensors[0].get(), static_cast<csinn_clip_params*>(params->get()));
         };
         break;
     case Algorithm::EltwiseRelu:

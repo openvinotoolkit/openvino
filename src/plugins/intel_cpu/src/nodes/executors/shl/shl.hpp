@@ -272,5 +272,33 @@ struct ShlPReluParams : public ShlParams<csinn_prelu_params*> {
     using ShlParams<csinn_prelu_params*>::ShlParams;
 };
 
+template <>
+struct ShlStructureTraits<csinn_clip_params*> {
+    static void destructor(csinn_clip_params* p) {
+        return csinn_free_params(p);
+    }
+};
+struct ShlClipParams : public ShlParams<csinn_clip_params*> {
+    using ShlParams<csinn_clip_params*>::ShlParams;
+
+    ShlClipParams(float min, float max) : ShlParams<csinn_clip_params*>() {
+        auto params = static_cast<csinn_clip_params*>(this->get());
+        params->min_value = min;
+        params->max_value = max;
+    }
+
+    ShlClipParams(const ShlSession& session, float min, float max) : ShlParams<csinn_clip_params*>(session) {
+        auto params = static_cast<csinn_clip_params*>(this->get());
+        params->min_value = min;
+        params->max_value = max;
+    }
+
+    ShlClipParams(const ShlSession& session, csinn_api_enum api, float min, float max) : ShlParams<csinn_clip_params*>(session, api) {
+        auto params = static_cast<csinn_clip_params*>(this->get());
+        params->min_value = min;
+        params->max_value = max;
+    }
+};
+
 }   // namespace intel_cpu
 }   // namespace ov
