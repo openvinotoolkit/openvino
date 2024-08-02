@@ -40,6 +40,36 @@ INSTANTIATE_TEST_SUITE_P(TypePropStringTensorPackTestSuite,
 
 using TypePropStringTensorPackV15Test = TypePropOpTest<op::v15::StringTensorPack>;
 
+TEST_F(TypePropStringTensorPackV15Test, begins_static_ends_dynamic) {
+    auto begins_shape = PartialShape{3};
+    auto ends_shape = PartialShape{Dimension::dynamic()};
+    auto begins_symbols = set_shape_symbols(begins_shape);
+    auto ends_symbols = set_shape_symbols(ends_shape);
+    const auto begins = std::make_shared<Parameter>(element::i32, begins_shape);
+    const auto ends = std::make_shared<Parameter>(element::i32, ends_shape);
+    const auto symbols = std::make_shared<Parameter>(element::u8, PartialShape{Dimension::dynamic()});
+    const auto op = make_op(begins, ends, symbols);
+
+    EXPECT_EQ(op->get_output_element_type(0), element::string);
+    EXPECT_EQ(op->get_output_partial_shape(0), begins_shape);
+    EXPECT_EQ(get_shape_symbols(op->get_output_partial_shape(0)), begins_symbols);
+}
+
+TEST_F(TypePropStringTensorPackV15Test, ends_static_begins_dynamic) {
+    auto begins_shape = PartialShape{Dimension::dynamic()};
+    auto ends_shape = PartialShape{5};
+    auto begins_symbols = set_shape_symbols(begins_shape);
+    auto ends_symbols = set_shape_symbols(ends_shape);
+    const auto begins = std::make_shared<Parameter>(element::i32, begins_shape);
+    const auto ends = std::make_shared<Parameter>(element::i32, ends_shape);
+    const auto symbols = std::make_shared<Parameter>(element::u8, PartialShape{Dimension::dynamic()});
+    const auto op = make_op(begins, ends, symbols);
+
+    EXPECT_EQ(op->get_output_element_type(0), element::string);
+    EXPECT_EQ(op->get_output_partial_shape(0), ends_shape);
+    EXPECT_EQ(get_shape_symbols(op->get_output_partial_shape(0)), ends_symbols);
+}
+
 TEST_F(TypePropStringTensorPackV15Test, default_case) {
     const auto begins = std::make_shared<Parameter>(element::i32, PartialShape{3});
     const auto ends = std::make_shared<Parameter>(element::i32, PartialShape{3});
