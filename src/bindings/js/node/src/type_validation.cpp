@@ -22,6 +22,7 @@ static const char UNKNOWN_STR[] = "unknown";
 namespace BindingTypename {
 static const char INT[] = "Integer";
 static const char MODEL[] = "Model";
+static const char NODE[] = "Node";
 static const char TENSOR[] = "Tensor";
 static const char BUFFER[] = "Buffer";
 }  // namespace BindingTypename
@@ -106,8 +107,15 @@ const char* get_attr_type<TensorWrap>() {
 }
 
 template <>
-bool validate_value<Napi::External<ov::Node>>(const Napi::Env& env, const Napi::Value& value) {
-    return value.isExternal();
+const char* get_attr_type<NodeWrap>() {
+    return BindingTypename::NODE;
+}
+
+template <>
+bool validate_value<NodeWrap>(const Napi::Env& env, const Napi::Value& value) {
+    const auto& prototype = env.GetInstanceData<AddonData>()->node;
+
+    return value.ToObject().InstanceOf(prototype.Value().As<Napi::Function>());
 }
 
 template <>

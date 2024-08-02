@@ -285,12 +285,12 @@ interface Model {
    */
   outputs: Output[];
   /**
-   * It gets the array of NodeWrap objects.
+   * It gets ops used in the mode.
    */
-  getOps(): NodeWrap[];
+  getOps(): Node[];
 }
 
-interface NodeWrap{
+interface Node{
   /**
    * It gets the name of the node.
    */

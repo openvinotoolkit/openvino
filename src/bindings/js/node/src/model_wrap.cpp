@@ -26,7 +26,7 @@ Napi::Function ModelWrap::get_class(Napi::Env env) {
                         InstanceMethod("setFriendlyName", &ModelWrap::set_friendly_name),
                         InstanceMethod("getFriendlyName", &ModelWrap::get_friendly_name),
                         InstanceMethod("getOutputShape", &ModelWrap::get_output_shape),
-                        InstanceMethod("getOps", &ModelWrap::get_ops)
+                        InstanceMethod("getOps", &ModelWrap::get_ops),
                         InstanceAccessor<&ModelWrap::get_inputs>("inputs"),
                         InstanceAccessor<&ModelWrap::get_outputs>("outputs")});
 }
@@ -176,13 +176,29 @@ Napi::Value ModelWrap::get_output_shape(const Napi::CallbackInfo& info) {
 
 Napi::Value ModelWrap::get_ops(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
-    std::vector<std::shared_ptr<ov::Node>> ops = _model->get_ops();
 
-    Napi::Array result = Napi::Array::New(env, ops.size());
-    for (size_t i = 0; i < ops.size(); ++i) {
-        Napi::Object nodeWrap = NodeWrap::get_class(env).New({Napi::External<std::shared_ptr<ov::Node>>::New(env, &ops[i])});
-        result[i] = nodeWrap;
+    if (!ov::js::validate<>(info)) {
+        reportError(env, "Invalid argument. Expected no arguments.");
+        return env.Undefined();
     }
 
-    return result;
+    try {
+        std::vector<std::shared_ptr<ov::Node>> ops = _model->get_ops();
+
+        Napi::Array result = Napi::Array::New(env, ops.size());
+
+        const auto& prototype = env.GetInstanceData<AddonData>()->node;
+        if (!prototype) {
+            OPENVINO_THROW("Invalid pointer to Node prototype.");
+        }
+
+        for (uint32_t i = 0; i < ops.size(); ++i) {
+            Napi::Object nodeWrap = prototype.New({Napi::External<std::shared_ptr<ov::Node>>::New(env, &ops[i])});
+            result[i] = nodeWrap;
+        }
+        return result;
+    } catch (const std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
+    }
 }

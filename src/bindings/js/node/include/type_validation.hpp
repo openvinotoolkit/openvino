@@ -6,6 +6,7 @@
 
 #include "node/include/addon.hpp"
 #include "node/include/model_wrap.hpp"
+#include "node/include/node_wrap.hpp"
 #include "node/include/tensor.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/util/common_util.hpp"
@@ -41,13 +42,16 @@ const char* get_attr_type<ModelWrap>();
 template <>
 const char* get_attr_type<TensorWrap>();
 
+template <>
+const char* get_attr_type<NodeWrap>();
+
 template <typename T>
 bool validate_value(const Napi::Env& env, const Napi::Value& arg) {
     OPENVINO_THROW("Validation for this type is not implemented!");
 };
 
 template <>
-bool validate_value<Napi::External<ov::Node>>(const Napi::Env& env, const Napi::Value& value);
+bool validate_value<NodeWrap>(const Napi::Env& env, const Napi::Value& value);
 
 template <>
 bool validate_value<Napi::String>(const Napi::Env& env, const Napi::Value& value);
@@ -92,6 +96,12 @@ struct InputParameters {
 
 template <typename... Ts>
 bool validate(const Napi::CallbackInfo& info) {
+
+    if constexpr (sizeof...(Ts) == 0) {
+        // Check if no arguments are expected
+        return info.Length() == 0;
+    }
+    
     return InputParameters<Ts...>::validate(info, std::index_sequence_for<Ts...>{});
 };
 

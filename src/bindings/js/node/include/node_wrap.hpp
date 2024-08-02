@@ -24,6 +24,6 @@ public:
     Napi::Value get_name(const Napi::CallbackInfo& info);
 
 private:
-    static Napi::FunctionReference constructor;
-    std::shared_ptr<ov::Node> node;
+    
+    std::shared_ptr<ov::Node> _node;
 };
