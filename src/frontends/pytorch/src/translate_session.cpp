@@ -313,11 +313,22 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
 OutputVector TranslateSession::convert_node(const NodeContext& context) {
     std::string exception;
     try {
-        auto it = m_translator_map.find(context.get_op_type());
+        const auto& op_type = context.get_op_type();
+        auto it = m_translator_map.find(op_type);
         if (it != m_translator_map.end()) {
             return it->second(context);
+        } else if (op_type.back() == '_') {
+            // inplace op case
+            std::string op_type_cut = op_type.substr(0, op_type.size() - 1);
+            auto it = m_translator_map.find(op_type_cut);
+            if (it != m_translator_map.end()) {
+                const auto& res = it->second(context);
+                FRONT_END_OP_CONVERSION_CHECK(res.size() == 1, "inplace op must have single output.");
+                context.mutate_input(0, res[0]);
+                return res;
+            }
         }
-        OPENVINO_DEBUG("No translator found for: ", context.get_op_type(), "\n");
+        OPENVINO_DEBUG("No translator found for: ", op_type, "\n");
     } catch (std::exception& e) {
         exception = e.what();
     } catch (...) {

@@ -65,27 +65,15 @@ void NodeContext::mutate_input(size_t index, Output<Node> ov_output) const {
     auto& back_input_id = input_id;
     auto& back_node_input = ov_output;
     while (m_translate_session->m_may_be_alias.count(back_input_id)) {
-        // Create node to reverseprop data. While loop is needed for the cases when alias to tensor point to another
+        // Create node to aliased data. While loop is needed for the cases when alias to tensor point to another
         // alias to tensor. In that case we need to create a chain of reverseprop ops
         auto& alias_info = m_translate_session->m_may_be_alias.at(back_input_id);
         size_t in_tensor = std::get<0>(alias_info);
         auto& node = std::get<1>(alias_info);
         auto& node_converted_output = std::get<2>(alias_info);
         auto reverseprop_node = m_translate_session->get_reverseprop_op(node, node_converted_output, back_node_input);
-
-        auto in_tensor_it = m_tensor_map->find(in_tensor);
-        if (in_tensor_it == m_tensor_map->end()) {
-            // Tensor is not found in the scope of this body, need to get it from internal context and mark mutated
-            OPENVINO_DEBUG("Couldn't find in the current body the initial aliased tensor: ",
-                           in_tensor,
-                           " for operation: ",
-                           node->get_op_type(),
-                           " creating new body input.");
-            get_tensor_from_model_or_create_input(in_tensor);
-            in_tensor_it = m_tensor_map->find(in_tensor);  // Find again after potential insertion
-        }
         m_translate_session->encode_tensor_name(reverseprop_node, in_tensor);
-        in_tensor_it->second = reverseprop_node;
+        (*m_tensor_map)[in_tensor] = reverseprop_node;
         m_mutated_tensors->insert(in_tensor);
         OPENVINO_DEBUG("Propagated back data from tensor:", back_input_id, " to tensor: ", in_tensor, "\n");
         back_input_id = in_tensor;
