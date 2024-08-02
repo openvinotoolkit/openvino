@@ -5,7 +5,7 @@
 #include "snippets/lowered/pass/define_buffer_clusters.hpp"
 
 #include "snippets/lowered/pass/set_buffer_reg_group.hpp"
-#include "snippets/pass/tokenization.hpp"
+#include "snippets/snippets_isa.hpp"
 #include "snippets/utils/utils.hpp"
 #include "snippets/itt.hpp"
 
@@ -230,7 +230,7 @@ int64_t DefineBufferClusters::get_buffer_finalization_offset(const ExpressionPtr
         return std::distance(loop_inputs.cbegin(), it);
     };
     int64_t final_offset = 0;
-    int64_t last_loop_exec_order = 0;
+    double last_loop_exec_order = -1 * std::numeric_limits<double>::max();
     const auto& buffer_outs = buffer_expr->get_output_port_connectors();
     for (const auto& buffer_out : buffer_outs) {
         const auto consumers = buffer_out->get_consumers();
@@ -238,7 +238,7 @@ int64_t DefineBufferClusters::get_buffer_finalization_offset(const ExpressionPtr
             const auto consumer_expr = consumer.get_expr();
             const auto loop_end = ov::as_type_ptr<ov::snippets::op::LoopEnd>(consumer_expr->get_node());
             if (loop_end && consumer_expr->get_loop_ids() == buffer_expr->get_loop_ids()) {
-                const auto loop_order = ov::snippets::pass::GetTopologicalOrder(loop_end);
+                const auto loop_order = consumer_expr->get_exec_num();
                 if (loop_order > last_loop_exec_order) {
                     const auto& loop_inputs = consumer_expr->get_input_port_connectors();
                     final_offset = loop_end->get_finalization_offsets()[index(loop_inputs, buffer_out)];

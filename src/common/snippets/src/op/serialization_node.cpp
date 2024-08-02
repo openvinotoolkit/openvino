@@ -111,9 +111,10 @@ bool SerializationNode::visit_attributes(AttributeVisitor &visitor) {
         visitor.on_attribute(s.first, s.second);
     for (auto& s : layouts)
         visitor.on_attribute(s.first, s.second);
-
     auto loop_ids = m_expr->get_loop_ids();
     visitor.on_attribute("loop_ids", loop_ids);
+    auto exec_num = m_expr->get_exec_num();
+    visitor.on_attribute("execution_number", exec_num);
     m_expr->get_node()->visit_attributes(visitor);
     return true;
 }
