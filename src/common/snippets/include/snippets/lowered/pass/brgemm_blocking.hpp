@@ -68,6 +68,13 @@ protected:
                                 const std::vector<snippets::lowered::LoopPort>& entries,
                                 const std::vector<snippets::lowered::LoopPort>& exits,
                                 size_t block_size_k);
+
+    static void mark_copyb_blocking(const snippets::lowered::LoopManagerPtr& loop_manager,
+                                    snippets::lowered::LinearIR::constExprIt loop_begin,
+                                    snippets::lowered::LinearIR::constExprIt loop_end,
+                                    const std::vector<snippets::lowered::LoopPort>& entries,
+                                    const std::vector<snippets::lowered::LoopPort>& exits,
+                                    size_t block_size_n);
 };
 
 /**

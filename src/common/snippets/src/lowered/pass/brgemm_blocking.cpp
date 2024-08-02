@@ -85,6 +85,18 @@ void BrgemmBlockingBase::mark_k_blocking(const snippets::lowered::LoopManagerPtr
     loop_manager->get_loop_info<UnifiedLoopInfo>(id)->set_handlers(handlers);
 }
 
+void BrgemmBlockingBase::mark_copyb_blocking(const snippets::lowered::LoopManagerPtr& loop_manager,
+                                         snippets::lowered::LinearIR::constExprIt loop_begin,
+                                         snippets::lowered::LinearIR::constExprIt loop_end,
+                                         const std::vector<snippets::lowered::LoopPort>& entries,
+                                         const std::vector<snippets::lowered::LoopPort>& exits,
+                                         size_t block_size_n) {
+    const auto planar_dims = ov::snippets::utils::get_planar_vdims(*entries[0].expr_port);
+    const auto n = *planar_dims.rbegin();
+    const auto id = loop_manager->mark_loop(loop_begin, loop_end, n, block_size_n, 0, entries, exits, false);
+    loop_manager->get_loop_info<UnifiedLoopInfo>(id)->set_handlers(get_default_blocking_loop_handlers(n, block_size_n));
+}
+
 std::tuple<size_t, size_t, size_t> BrgemmBlockingBase::get_blocking_params(const ov::snippets::lowered::ExpressionPtr& brgemm_expr) {
     const auto& in_0_desc = brgemm_expr->get_input_port_descriptor(0);
     const auto& in_1_desc = brgemm_expr->get_input_port_descriptor(1);
