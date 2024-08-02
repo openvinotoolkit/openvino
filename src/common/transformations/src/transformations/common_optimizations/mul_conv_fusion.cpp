@@ -19,6 +19,27 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+// Check for both per-channel and per-tensor cases
+static bool are_shapes_compatible(const ov::Shape& weights_shape, const ov::Shape& const_shape) {
+    if (const_shape.size() > weights_shape.size()) {
+        return false;
+    }
+
+    auto weights_shape_it = weights_shape.rbegin();
+    auto const_shape_it = const_shape.rbegin();
+
+    while (const_shape_it != const_shape.rend()) {
+        if (*const_shape_it != 1 && *const_shape_it != *weights_shape_it) {
+            return false;
+        }
+
+        ++weights_shape_it;
+        ++const_shape_it;
+    }
+
+    return true;
+}
+
 ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
     MATCHER_SCOPE(MultiplyConvolutionFusion);
     auto input_pattern = pattern::any_input();
@@ -41,11 +62,12 @@ ov::pass::MultiplyConvolutionFusion::MultiplyConvolutionFusion() {
 
         const auto& weights_shape = weights.get_shape();
         const auto& mul_const_shape = mul_const.get_shape();
-        // Check if mul_const if broadcastable to weights.
+
+        // Check if mul_const is broadcastable to weights.
         // Also if mul_const's rank matches weights rank and mul_const.shape[0] != 1
         // then we can't fuse the multiply, since first dimension in mul_const corresponds to
         // batch size, while first dimension in weights corresponds to output channel count
-        if (op::util::check_for_broadcast(weights_shape, mul_const_shape) ||
+        if (!are_shapes_compatible(weights_shape, mul_const_shape) ||
             (weights_shape.size() == mul_const_shape.size() && mul_const_shape[0] != 1)) {
             return false;
         }
