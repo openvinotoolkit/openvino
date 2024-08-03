@@ -5,6 +5,7 @@
 #include "openvino/runtime/iplugin.hpp"
 
 #include "openvino/op/convert.hpp"
+#include "openvino/op/ops.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/manager.hpp"
@@ -253,11 +254,44 @@ std::unordered_set<std::string> ov::get_supported_nodes(
         }
     }
 
+    auto get_matmul_size = [&](const NodePtr& op) {
+        int64_t op_size = 1;
+        for (auto& input : op->inputs()) {
+            const auto& node = get_input_node(input);
+            for (size_t shape_id = 0; shape_id < node->get_output_partial_shape(0).size(); shape_id++) {
+                if (!node->get_output_partial_shape(0)[shape_id].is_dynamic()) {
+                    int64_t len = node->get_output_partial_shape(0)[shape_id].get_length();
+                    if (len >= 1)
+                        op_size *= len;
+                }
+            }
+        }
+        return op_size;
+    };
+
+    bool model_has_matmul = false;
+    for (auto&& op : ops) {
+        if (ov::is_type<ov::op::v0::MatMul>(op)) {
+            model_has_matmul = true;
+        }
+    }
+
+    auto node_can_start_split = [&](const NodePtr& op) {
+        if (model_has_matmul) {
+            return ov::is_type<ov::op::v0::MatMul>(op);
+        } else {
+            return ov::op::util::is_constant(op);
+        }
+    };
+
     size_t total_ops_size = 0;
     for (auto&& op : ops) {
-        if (ov::op::util::is_constant(op)) {
-            const auto const_byte_size = op->get_element_type().size() * shape_size(op->get_shape());
-            total_ops_size += const_byte_size;
+        if (node_can_start_split(op)) {
+            if (model_has_matmul) {
+                total_ops_size += get_matmul_size(op);
+            } else {
+                total_ops_size += op->get_element_type().size() * shape_size(op->get_shape());
+            }
         }
     }
     // If there is no constant or supported nodes in the model, mark query_by_memory_control as false
@@ -300,9 +334,12 @@ std::unordered_set<std::string> ov::get_supported_nodes(
                             temp_pair_checker[assign->get_variable_id()]++;
                         }
                     }
-                    if (ov::op::util::is_constant(op) && !ready_split) {
-                        const auto const_byte_size = op->get_element_type().size() * shape_size(op->get_shape());
-                        total_size += const_byte_size;
+                    if (node_can_start_split(op) && !ready_split) {
+                        if (model_has_matmul) {
+                            total_size += get_matmul_size(op);
+                        } else {
+                            total_size += op->get_element_type().size() * shape_size(op->get_shape());
+                        }
                         // If the total size is 1.05 times larger than the user's requirement:
                         // - If has_min_graph = false, it means there is no nodes meets requirement, so need cancel
                         //   split and break
@@ -342,6 +379,21 @@ std::unordered_set<std::string> ov::get_supported_nodes(
                                 }
                             }
                         }
+                    }
+                }
+            }
+            // Filter the fused ops
+            for (auto& op : model->get_ordered_ops()) {
+                const auto& name = op->get_friendly_name();
+                if (removed_nodes.count(name)) {
+                    if (has_all_consumers_unsupported(supported, op) &&
+                        has_all_consumers_unsupported(removed_nodes, op)) {
+                        if (transformed_model_op_map.find(name) != transformed_model_op_map.end()) {
+                            remove_op_from_supported(transformed_model_op_map[name]);
+                        } else {
+                            remove_op_from_supported(op);
+                        }
+                        removed_nodes.erase(name);
                     }
                 }
             }
@@ -433,6 +485,20 @@ std::unordered_set<std::string> ov::get_supported_nodes(
                         }
                     }
                 }
+            }
+
+            for (auto& op : model->get_ordered_ops()) {
+                const auto& name = op->get_friendly_name();
+                if ((has_unsupported_source(supported, op, false, true) ||
+                     (ov::op::util::is_constant(op) && !has_users_supported(supported, op))) &&
+                    supported.count(name)) {
+                    remove_op_from_supported(op);
+                }
+            }
+
+            std::map<std::string, int> temp_pair_checker_2;
+            if (!check_variables(temp_pair_checker_2, supported)) {
+                continue;
             }
             // Calculate the data size that needs to be transmitted after the current model is split
             std::map<std::string, int> temp_pair_checker_2;
