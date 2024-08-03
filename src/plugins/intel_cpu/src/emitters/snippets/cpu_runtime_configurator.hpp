@@ -63,11 +63,10 @@ protected:
         void update_config(const std::shared_ptr<ov::snippets::RuntimeConfig>& config);
 
     private:
-        bool check_brgemms(const ov::snippets::lowered::LinearIRPtr& linear_ir);
-        static std::unordered_set<size_t> find_not_m_related_params(const ov::snippets::lowered::LinearIRPtr& linear_ir);
-        static std::unordered_set<ov::snippets::lowered::UnifiedLoopInfoPtr> find_loops_to_split(
-            const ov::snippets::lowered::LinearIRPtr& linear_ir,
-            const std::unordered_set<size_t>& params_to_skip);
+        static std::unordered_set<snippets::lowered::ExpressionPtr> find_applicable_brgemms(const ov::snippets::lowered::LinearIRPtr& linear_ir);
+        void init_non_m_related_params(const ov::snippets::lowered::LinearIRPtr& linear_ir,
+                                       const std::unordered_set<snippets::lowered::ExpressionPtr>& brgemms);
+        void init_loops_to_split(const ov::snippets::lowered::LinearIRPtr& linear_ir);
 
         std::unordered_set<ov::snippets::lowered::UnifiedLoopInfoPtr> loops_to_split{};
         std::unordered_set<size_t> not_m_related_params{};

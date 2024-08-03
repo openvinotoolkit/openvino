@@ -84,126 +84,19 @@ void CPURuntimeConfigurator::update_loop_args(const ov::snippets::lowered::Linea
     }
 }
 
-std::unordered_set<size_t> CPURuntimeConfigurator::ParallelWAOptimizer::find_not_m_related_params(
-    const ov::snippets::lowered::LinearIRPtr& linear_ir) {
-    using namespace ov::snippets::lowered;
-    auto is_brgemm = [](const ExpressionPtr& expr) {
-        return ov::is_type<ov::snippets::op::Brgemm>(expr->get_node());
-    };
-    std::unordered_set<ExpressionPtr> brgemms;
-    auto brgemm_it = std::find_if(linear_ir->begin(), linear_ir->end(), is_brgemm);
-    while (brgemm_it != linear_ir->end()) {
-        brgemms.insert(*brgemm_it);
-        brgemm_it = std::find_if(std::next(brgemm_it), linear_ir->end(), is_brgemm);
-    }
-
-    std::unordered_set<ExpressionPtr> visited;
-    std::unordered_set<size_t> res;
-    const auto& params = linear_ir->get_parameters();
-    for (const auto& brgemm : brgemms) {
-        // Find all parameters which are placed on B Brgemm inputs: these params must be skipped
-        std::deque<ExpressionPtr> exprs{brgemm->get_input_port_connector(1)->get_source().get_expr()};
-        while (!exprs.empty()) {
-            auto curr_expr = exprs.front();
-            exprs.pop_front();
-            if (ov::is_type<ov::op::v0::Parameter>(curr_expr->get_node())) {
-                auto found_param = std::find(params.begin(), params.end(), curr_expr);
-                OPENVINO_ASSERT(found_param != params.end(), "find_param didn't found parameter for expr");
-                res.insert(std::distance(params.begin(), found_param));
-            }
-
-            for (const auto& input_connector : curr_expr->get_input_port_connectors()) {
-                const auto& input_expr = input_connector->get_source().get_expr();
-                if (visited.count(input_expr))
-                    continue;
-                exprs.push_front(input_expr);
-                visited.insert(input_expr);
-            }
-        }
-    }
-    return res;
-}
-
-std::unordered_set<UnifiedLoopInfoPtr> CPURuntimeConfigurator::ParallelWAOptimizer::find_loops_to_split(
-    const ov::snippets::lowered::LinearIRPtr& linear_ir,
-    const std::unordered_set<size_t>& params_to_skip) {
-    std::unordered_set<UnifiedLoopInfoPtr> loops_to_split;
-    const auto& loop_manager = linear_ir->get_loop_manager();
-    // The idea is to traverse LIR down from the M dimension related parameters
-    // and find all the outermost loops: these loops will be split in runtime
-    std::unordered_set<ExpressionPtr> visited;
-    size_t i = 0;
-    for (const auto& param : linear_ir->get_parameters()) {
-        // Ops after non related params mustn't be traversed
-        if (params_to_skip.count(i++))
-            continue;
-
-        std::deque<ExpressionPtr> exprs{param};
-        while (!exprs.empty()) {
-            auto curr_expr = exprs.front();
-            exprs.pop_front();
-            const auto& loop_ids = curr_expr->get_loop_ids();
-            if (!loop_ids.empty()) {
-                const auto outermost_loop_idx = loop_ids[0];
-                const auto loop_info_to_add = loop_manager->get_loop_info<ExpandedLoopInfo>(outermost_loop_idx);
-                loops_to_split.insert(loop_info_to_add->get_unified_loop_info());
-            }
-
-            for (const auto& output_connector : curr_expr->get_output_port_connectors()) {
-                for (const auto& consumer : output_connector->get_consumers()) {
-                    const auto& consumer_expr = consumer.get_expr();
-                    if (visited.count(consumer_expr))
-                        continue;
-                    exprs.push_front(consumer_expr);
-                    visited.insert(consumer_expr);
-                }
-            }
-        }
-    }
-    return loops_to_split;
-}
-
-bool CPURuntimeConfigurator::ParallelWAOptimizer::check_brgemms(const ov::snippets::lowered::LinearIRPtr& linear_ir) {
-    auto is_brgemm = [](const ExpressionPtr& expr) {
-        return ov::is_type<ov::snippets::op::Brgemm>(expr->get_node());
-    };
-    auto brgemm_it = std::find_if(linear_ir->begin(), linear_ir->end(), is_brgemm);
-    std::unordered_set<ExpressionPtr> brgemms;
-    while (brgemm_it != linear_ir->end()) {
-        brgemms.insert(*brgemm_it);
-        brgemm_it = std::find_if(std::next(brgemm_it), linear_ir->end(), is_brgemm);
-    }
-    if (brgemms.empty())
-        return false;
-
-    const auto loop_manager = linear_ir->get_loop_manager();
-    for (const auto& brgemm : brgemms) {
-        const auto& loop_idces = brgemm->get_loop_ids();
-        if (loop_idces.empty())
-            return false;
-        const auto& outermost_loop_id = loop_idces[0];
-        const auto& outermost_loop = loop_manager->get_loop_info(outermost_loop_id);
-        // WA: the feature doesn't work in static case
-        if (!ov::snippets::utils::is_dynamic_value(outermost_loop->get_work_amount())) {
-            return false;
-        }
-        bool loop_by_m = true;
-        outermost_loop->iterate_through_ports([&loop_by_m](const LoopPort& port) {
-            if (port.is_incremented && port.dim_idx != 1)
-                loop_by_m = false;
-        });
-        if (!loop_by_m)
-            return false;
-    }
-    return true;
-}
-
 void CPURuntimeConfigurator::ParallelWAOptimizer::init(const ov::snippets::lowered::LinearIRPtr& linear_ir) {
-    if (linear_ir->get_config().m_enable_domain_optimization || !linear_ir->is_dynamic() || !check_brgemms(linear_ir))
+    if (linear_ir->get_config().m_enable_domain_optimization || !linear_ir->is_dynamic())
         return;
-    not_m_related_params = find_not_m_related_params(linear_ir);
-    loops_to_split = find_loops_to_split(linear_ir, not_m_related_params);
     concurrency = linear_ir->get_config().m_min_parallel_work_amount;
+
+    const auto brgemms = find_applicable_brgemms(linear_ir);
+    // Parallel WA optimization is Brgemm related
+    if (brgemms.empty())
+        return;
+
+    init_non_m_related_params(linear_ir, brgemms);
+    OPENVINO_ASSERT(!not_m_related_params.empty(), "not_m_related_params mustn't be empty after initialization");
+    init_loops_to_split(linear_ir);
 }
 
 bool CPURuntimeConfigurator::ParallelWAOptimizer::need_optimize(const ov::snippets::VectorDims& master_shape) {
@@ -219,12 +112,6 @@ void CPURuntimeConfigurator::ParallelWAOptimizer::update_split_loops_info(
             initialized_info[loop] = compute_runtime_params(loop);
         }
     }
-}
-
-void CPURuntimeConfigurator::ParallelWAOptimizer::update_config(const std::shared_ptr<ov::snippets::RuntimeConfig>& config) {
-    *++config->master_shape.rbegin() = new_m;
-    config->master_shape.insert(config->master_shape.cbegin() + config->master_shape.size() - 2, batch_m);
-    config->tensor_rank = std::max(config->master_shape.size(), CPURuntimeConfigurator::rank6D);
 }
 
 void CPURuntimeConfigurator::ParallelWAOptimizer::update_shapes(
@@ -252,6 +139,89 @@ void CPURuntimeConfigurator::ParallelWAOptimizer::update_layouts(
         const auto dim_idx =
             i < in_num ? ov::snippets::utils::get_input_dim_idx(original_layout, 1) : original_layout.size() - 2;
         layouts[i] = SplitDimensionM::get_updated_order(original_layout, dim_idx);
+    }
+}
+
+void CPURuntimeConfigurator::ParallelWAOptimizer::update_config(const std::shared_ptr<ov::snippets::RuntimeConfig>& config) {
+    *++config->master_shape.rbegin() = new_m;
+    config->master_shape.insert(config->master_shape.cbegin() + config->master_shape.size() - 2, batch_m);
+    config->tensor_rank = std::max(config->master_shape.size(), CPURuntimeConfigurator::rank6D);
+}
+
+std::unordered_set<snippets::lowered::ExpressionPtr> CPURuntimeConfigurator::ParallelWAOptimizer::find_applicable_brgemms(
+    const ov::snippets::lowered::LinearIRPtr& linear_ir) {
+    auto is_brgemm = [](const ExpressionPtr& expr) {
+        return ov::is_type<ov::snippets::op::Brgemm>(expr->get_node());
+    };
+    auto brgemm_it = std::find_if(linear_ir->begin(), linear_ir->end(), is_brgemm);
+    std::unordered_set<ExpressionPtr> brgemms;
+    while (brgemm_it != linear_ir->end()) {
+        brgemms.insert(*brgemm_it);
+        brgemm_it = std::find_if(std::next(brgemm_it), linear_ir->end(), is_brgemm);
+    }
+    const auto& loop_manager = linear_ir->get_loop_manager();
+    auto applicable_brgemm = [&loop_manager](const ExpressionPtr& expr) {
+        const auto& loop_idces = expr->get_loop_ids();
+        if (loop_idces.empty())
+            return false;
+        const auto& outermost_loop = loop_manager->get_loop_info(loop_idces[0]);
+        // WA: the feature doesn't work in static case
+        if (!ov::snippets::utils::is_dynamic_value(outermost_loop->get_work_amount()))
+            return false;
+        bool loop_by_m = true;
+        outermost_loop->iterate_through_ports([&loop_by_m](const LoopPort& port) {
+            if (port.is_incremented && port.dim_idx != 1)
+                loop_by_m = false;
+        });
+        return loop_by_m;
+    };
+    if (std::all_of(brgemms.begin(), brgemms.end(), applicable_brgemm))
+        return brgemms;
+    else
+        return {};
+}
+
+void CPURuntimeConfigurator::ParallelWAOptimizer::init_non_m_related_params(
+    const ov::snippets::lowered::LinearIRPtr& linear_ir,
+    const std::unordered_set<snippets::lowered::ExpressionPtr>& brgemms) {
+    const auto& params = linear_ir->get_parameters();
+    auto add_param = [&params, this](const ExpressionPtr& expr) {
+        if (ov::is_type<ov::op::v0::Parameter>(expr->get_node())) {
+            auto found_param = std::find(params.begin(), params.end(), expr);
+            OPENVINO_ASSERT(found_param != params.end(), "find_param didn't found parameter for expr");
+            not_m_related_params.insert(std::distance(params.begin(), found_param));
+        }
+    };
+
+    std::unordered_set<ExpressionPtr> visited;
+    for (const auto& brgemm : brgemms) {
+        const auto& brgemm_b_input = brgemm->get_input_port_connector(1)->get_source().get_expr();
+        ov::snippets::utils::visit_path(brgemm_b_input, visited, add_param, true);
+    }
+}
+
+void CPURuntimeConfigurator::ParallelWAOptimizer::init_loops_to_split(
+    const ov::snippets::lowered::LinearIRPtr& linear_ir) {
+    const auto loop_manager = linear_ir->get_loop_manager();
+
+    auto add_loops_to_split = [&loop_manager, this](const ExpressionPtr& expr) {
+        const auto& loop_ids = expr->get_loop_ids();
+        if (!loop_ids.empty()) {
+            const auto outermost_loop_idx = loop_ids[0];
+            const auto loop_info_to_add = loop_manager->get_loop_info<ExpandedLoopInfo>(outermost_loop_idx);
+            loops_to_split.insert(loop_info_to_add->get_unified_loop_info());
+        }
+    };
+
+    size_t i = 0;
+    std::unordered_set<ExpressionPtr> visited;
+    // The idea is to traverse LIR down from the M dimension related parameters
+    // and find all the outermost loops: these loops will be split in runtime
+    for (const auto& param : linear_ir->get_parameters()) {
+        // Ops after non related params mustn't be traversed
+        if (not_m_related_params.count(i++))
+            continue;
+        ov::snippets::utils::visit_path(param, visited, add_loops_to_split, false);
     }
 }
 
