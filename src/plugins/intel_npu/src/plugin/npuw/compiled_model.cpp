@@ -29,6 +29,7 @@
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "transformations/convert_precision.hpp"
 
 namespace {
 void split_properties(const ov::AnyMap& properties,
@@ -126,6 +127,9 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             LOG_VERB(r);
         }
     }
+
+    // FIXME: Find a better place to call this transformation
+    ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(model);
 
     auto partitioning = getPartitioning(model, m_cfg);
     m_total_stat.gflops = partitioning.total_gflops;
@@ -673,7 +677,7 @@ void ov::npuw::CompiledModel::implement_properties() {
     // ===============================================
     m_prop_to_opt = {{ov::supported_properties.name(),
                       {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) {
+                       [&](const ::intel_npu::Config&) -> std::vector<PropertyName>& {
                            return m_all_supported_props;
                        }}},
                      {ov::device::id.name(),
@@ -688,7 +692,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                        }}},
                      {ov::model_name.name(),
                       {ov::PropertyMutability::RO,
-                       [&](const ::intel_npu::Config&) {
+                       [&](const ::intel_npu::Config&) -> std::string& {
                            return m_name;
                        }}},
                      {ov::optimal_number_of_infer_requests.name(),
@@ -758,7 +762,11 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::submodel_device, NPUW_SUBMODEL_DEVICE),
                           BIND(npuw::partitioning::online::pipeline, NPUW_ONLINE_PIPELINE),
                           BIND(npuw::partitioning::online::min_size, NPUW_ONLINE_MIN_SIZE),
+                          BIND(npuw::partitioning::online::keep_blocks, NPUW_ONLINE_KEEP_BLOCKS),
+                          BIND(npuw::partitioning::online::keep_block_size, NPUW_ONLINE_KEEP_BLOCK_SIZE),
                           BIND(npuw::partitioning::online::avoid, NPUW_ONLINE_AVOID),
+                          BIND(npuw::partitioning::online::isolate, NPUW_ONLINE_ISOLATE),
+                          BIND(npuw::partitioning::online::nofold, NPUW_ONLINE_NO_FOLD),
                           BIND(npuw::partitioning::online::dump_plan, NPUW_ONLINE_DUMP_PLAN),
                           BIND(npuw::partitioning::plan, NPUW_PLAN),
                           BIND(npuw::partitioning::fold, NPUW_FOLD),

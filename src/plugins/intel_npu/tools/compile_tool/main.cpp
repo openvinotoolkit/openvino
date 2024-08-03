@@ -499,7 +499,7 @@ void reshape(ov::OutputVector inputs_info, InputsInfo& info_map, std::shared_ptr
                     info.partialShape = item.get_partial_shape();
                 }
             }
-            info_map[name] = info;
+            info_map[name] = std::move(info);
             info_maps.push_back(info_map);
         }
         std::map<std::string, ov::PartialShape> newShapes;
@@ -552,7 +552,7 @@ int main(int argc, char* argv[]) {
         InputsInfo info_map;
 
         std::cout << "Performing reshape" << std::endl;
-        reshape(inputs_info, info_map, model);
+        reshape(std::move(inputs_info), info_map, model);
 
         std::cout << "Configuring model pre & post processing" << std::endl;
         configurePrePostProcessing(model, FLAGS_ip, FLAGS_op, FLAGS_iop, FLAGS_il, FLAGS_ol, FLAGS_iol, FLAGS_iml,

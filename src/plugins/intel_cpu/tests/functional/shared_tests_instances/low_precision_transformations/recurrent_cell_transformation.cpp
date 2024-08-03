@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -92,6 +92,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, RecurrentCellTransformation,
         ::testing::ValuesIn(weights_shapes),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
+        ::testing::ValuesIn({ true, false }),
         ::testing::ValuesIn(params)),
     RecurrentCellTransformation::getTestCaseName);
 } // namespace testValues1
@@ -171,6 +172,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, RecurrentCellTransformation,
         ::testing::ValuesIn(weights_shapes),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
+        ::testing::ValuesIn({ true, false }),
         ::testing::ValuesIn(params)),
     RecurrentCellTransformation::getTestCaseName);
 } // namespace testValues2

@@ -57,7 +57,6 @@ In this tutorial we consider how to bring OpenVINO power into Magika.
 Prerequisites
 -------------
 
-
 .. code:: ipython3
 
     %pip install -q magika "openvino>=2024.1.0" "gradio>=4.19"
@@ -66,6 +65,7 @@ Prerequisites
 .. parsed-literal::
 
     ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+    openvino-dev 2024.2.0 requires openvino==2024.2.0, but you have openvino 2024.3.0.dev20240711 which is incompatible.
     tensorflow 2.12.0 requires numpy<1.24,>=1.22, but you have numpy 1.24.4 which is incompatible.
     Note: you may need to restart the kernel to use updated packages.
 

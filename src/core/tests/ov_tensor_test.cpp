@@ -936,6 +936,18 @@ INSTANTIATE_TEST_SUITE_P(copy_tests,
                                                               TestParams {
                                                                   ov::Shape{}, {},
                                                                   {1}, {}
+                                                              },
+                                                              TestParams{
+                                                                  ov::Shape{3,2,2}, {},
+                                                                  ov::Shape{5}, {}
+                                                              },
+                                                              TestParams{
+                                                                  ov::Shape{3,2,2}, ov::Strides{64,16,8},
+                                                                  ov::Shape{5,2}, {}
+                                                              },
+                                                              TestParams{
+                                                                  ov::Shape{3,2,2}, ov::Strides{64,16,8},
+                                                                  ov::Shape{3,4,3}, ov::Strides{128,24,8}
                                                               }
                                            )));
 

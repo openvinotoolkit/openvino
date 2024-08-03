@@ -87,8 +87,14 @@ void OperatorsBridge::register_operator_in_custom_domain(std::string name,
         register_operator(name, version, domain, fn);
     }
     if (!warning_mes.empty()) {
-        OPENVINO_WARN << "Operator: " << name << " since version: " << range.m_since
-                      << " until version: " << range.m_until << " registered with warning: " << warning_mes;
+        OPENVINO_WARN("Operator: ",
+                      name,
+                      " since version: ",
+                      range.m_since,
+                      " until version: ",
+                      range.m_until,
+                      " registered with warning: ",
+                      warning_mes);
     }
 }
 
@@ -105,26 +111,33 @@ void OperatorsBridge::register_operator(const std::string& name,
         m_map[domain][name].emplace(version, std::move(fn));
     } else {
         it->second = std::move(fn);
-        OPENVINO_WARN << "Overwriting existing operator: " << (domain.empty() ? "ai.onnx" : domain)
-                      << "." + name + ":" + std::to_string(version);
+        OPENVINO_WARN("Overwriting existing operator: ",
+                      (domain.empty() ? "ai.onnx" : domain),
+                      ".",
+                      name,
+                      ":",
+                      std::to_string(version));
     }
 }
 
 void OperatorsBridge::unregister_operator(const std::string& name, int64_t version, const std::string& domain) {
     auto domain_it = m_map.find(domain);
     if (domain_it == m_map.end()) {
-        OPENVINO_ERR << "unregister_operator: domain '" + domain + "' was not registered before";
+        OPENVINO_ERR("unregister_operator: domain '", domain, "' was not registered before");
         return;
     }
     auto name_it = domain_it->second.find(name);
     if (name_it == domain_it->second.end()) {
-        OPENVINO_ERR << "unregister_operator: operator '" + name + "' was not registered before";
+        OPENVINO_ERR("unregister_operator: operator '", name, "' was not registered before");
         return;
     }
     auto version_it = name_it->second.find(version);
     if (version_it == name_it->second.end()) {
-        OPENVINO_ERR << "unregister_operator: operator '" + name + "' with version " + std::to_string(version) +
-                            " was not registered before";
+        OPENVINO_ERR("unregister_operator: operator '",
+                     name,
+                     "' with version ",
+                     std::to_string(version),
+                     " was not registered before");
         return;
     }
     m_map[domain][name].erase(version_it);
@@ -141,12 +154,14 @@ OperatorSet OperatorsBridge::get_operator_set(const std::string& domain, int64_t
 
     const auto dm = m_map.find(domain);
     if (dm == std::end(m_map)) {
-        OPENVINO_DEBUG << "Domain '" << domain << "' not recognized by OpenVINO";
+        OPENVINO_DEBUG("Domain not recognized by OpenVINO");
         return result;
     }
     if (domain == "" && version > LATEST_SUPPORTED_ONNX_OPSET_VERSION) {
-        OPENVINO_WARN << "Currently ONNX operator set version: " << version
-                      << " is unsupported. Falling back to: " << LATEST_SUPPORTED_ONNX_OPSET_VERSION;
+        OPENVINO_WARN("Currently ONNX operator set version: ",
+                      version,
+                      " is unsupported. Falling back to: ",
+                      LATEST_SUPPORTED_ONNX_OPSET_VERSION);
     }
     for (const auto& op : dm->second) {
         const auto& it = find(version, op.second);
