@@ -235,6 +235,11 @@ interface Model {
    */
   getOutputSize(): number;
   /**
+   * It gets the element type of a specific output of the model.
+   * @param index The index of the output.
+   */
+  getOutputElementType(index: number): string;
+  /**
    * It gets the input of the model.
    * If a model has more than one input, this method throws an exception.
    */
