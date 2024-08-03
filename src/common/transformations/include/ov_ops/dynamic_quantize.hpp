@@ -27,8 +27,12 @@ public:
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
-    std::vector<size_t> get_group_sizes() const { return m_group_sizes; };
-    static std::vector<ov::PartialShape> shape_infer(const DynamicQuantize* op, std::vector<ov::PartialShape> input_shapes, const std::vector<size_t> group_sizes);
+    std::vector<size_t> get_group_sizes() const {
+            return m_group_sizes;
+    };
+    static std::vector<ov::PartialShape> shape_infer(const DynamicQuantize* op,
+                                                     std::vector<ov::PartialShape> input_shapes,
+                                                     const std::vector<size_t> group_sizes);
 
 private:
     std::vector<size_t> m_group_sizes;
@@ -36,6 +40,6 @@ private:
 };
 
 
-}   // namespace op
-}   // namespace intel_gpu
-}   // namespace ov
+}  // namespace op
+}  // namespace intel_gpu
+}  // namespace ov
