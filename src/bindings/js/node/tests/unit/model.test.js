@@ -113,30 +113,83 @@ describe('Model.getOutputSize()', () => {
   });
 });
 
-describe('Node.js Model.getOps()', () => {
-  it('should return array of Node operations', () => {
+describe("Node.js Model.getOps()", () => {
+  it("should return array of Node operations", () => {
     const result = model.getOps();
 
-    assert(Array.isArray(result), 'getOps should return an array');
-    assert(result.length > 0, 'getOps should return a non-empty array');
-    result.forEach(op => {
-      assert.strictEqual(typeof op.getName, 'function', 'each item should have getName method');
+    assert(Array.isArray(result), "getOps should return an array");
+    assert(result.length > 0, "getOps should return a non-empty array");
+    result.forEach((op) => {
+      assert.strictEqual(
+        typeof op.getName,
+        "function",
+        "each item should have getName method"
+      );
     });
   });
 
-  it('should return the expected operation', () => {
+  it("should return the expected operation", () => {
     const result = model.getOps();
 
-    const modelOperators = result.map(op => op.getName().split('_')[0]);
+    const modelOperators = result.map((op) => op.getName().split("_")[0]);
     const expectedOpsCount = 14;
-    const expectedOps = [
-      "Subtract",
-      "Transpose",
-    ];
+    const expectedOps = ["Subtract", "Transpose"];
 
-    assert.strictEqual(modelOperators.length, expectedOpsCount, `Expected ${expectedOpsCount} operations in the model`);
-    expectedOps.forEach(op => {
-      assert(modelOperators.includes(op), `Expected operation ${op} to be in the model`);
+    assert.strictEqual(
+      modelOperators.length,
+      expectedOpsCount,
+      `Expected ${expectedOpsCount} operations in the model`
+    );
+    expectedOps.forEach((op) => {
+      assert(
+        modelOperators.includes(op),
+        `Expected operation ${op} to be in the model`
+      );
     });
+  });
+});
+
+describe('Model.getOutputElementType()', () => {
+  it('should return a string for the element type ', () => {
+    const result = model.getOutputElementType(0);
+    assert.strictEqual(typeof result, 'string',
+      'getOutputElementType() should return a string');
+  });
+
+  it('should accept a single integer argument', () => {
+    assert.throws(() => {
+      model.getOutputElementType();
+    }, /'getOutputElementType' method called with incorrect parameters/,
+     'Should throw when called without arguments');
+
+    assert.throws(() => {
+      model.getOutputElementType('unexpected argument');
+    }, /'getOutputElementType' method called with incorrect parameters/,
+    'Should throw on non-number argument');
+
+    assert.throws(() => {
+      model.getOutputElementType(0, 1);
+    }, /'getOutputElementType' method called with incorrect parameters/,
+    'Should throw on multiple arguments');
+
+    assert.throws(() => {
+      model.getOutputElementType(3.14);
+    }, /'getOutputElementType' method called with incorrect parameters/,
+    'Should throw on non-integer number');
+  });
+
+  it('should return a valid element type for the default model', () => {
+    const elementType = model.getOutputElementType(0);
+    assert.ok(typeof elementType === 'string' && elementType.length > 0,
+      `Expected a non-empty string, got ${elementType}`);
+  });
+
+  it('should throw an error for out-of-range index', () => {
+    const outputSize = model.getOutputSize();
+    assert.throws(
+      () => { model.getOutputElementType(outputSize); },
+      /^Error: /,
+      'Should throw for out-of-range index'
+    );
   });
 });
