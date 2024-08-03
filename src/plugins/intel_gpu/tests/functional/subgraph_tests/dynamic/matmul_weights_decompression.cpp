@@ -383,10 +383,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan,
                                             ::testing::Values(ov::element::u4),
                                             ::testing::Values(ov::element::f16),
                                             ::testing::Values(false),
-                                            ::testing::Values(true),
+                                            ::testing::ValuesIn(add_decompression_sub),
                                             ::testing::Values(true),
                                             ::testing::Values(true),  // per_tensor_zp
-                                            ::testing::Values(1048576)),
+                                            ::testing::Values(UINT64_MAX)),
                          MatmulWeightsDecompression::get_test_case_name);
 
 } // namespace

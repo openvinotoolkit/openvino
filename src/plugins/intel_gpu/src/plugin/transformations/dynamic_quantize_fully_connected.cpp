@@ -5,6 +5,7 @@
 #include "dynamic_quantize_fully_connected.hpp"
 
 #include "intel_gpu/op/fully_connected_compressed.hpp"
+#include <intel_gpu/op/placeholder.hpp>
 #include "ov_ops/dynamic_quantize.hpp"
 
 #include "openvino/core/rt_info.hpp"
@@ -61,15 +62,14 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(size_t group_size) 
         std::vector<uint64_t> shape_group_size(rank, 1);
         shape_group_size.back() = group_size;
         auto dyn_quan = std::make_shared<ov::op::internal::DynamicQuantize>(m_data, shape_group_size, element::f16);
+        auto optional_w_zp = m_fc->get_input_size() > 4 ? m_fc->get_input_node_shared_ptr(4) : std::make_shared<ov::intel_gpu::op::Placeholder>();
 
-        OutputVector fc_inputs;
-        for (size_t i = 0; i < m_fc->get_input_size(); i++)
-            fc_inputs.push_back(m_fc->get_input_node_shared_ptr(i));
-        fc_inputs[0] = dyn_quan->output(0);
-        fc_inputs.push_back(dyn_quan->output(1));
-        auto new_fc = std::make_shared<op::FullyConnectedCompressed>(fc_inputs,
-                                                                     m_fc->get_has_zp(),
-                                                                     true,
+        auto new_fc = std::make_shared<op::FullyConnectedCompressed>(dyn_quan->output(0),
+                                                                     m_fc->get_input_node_shared_ptr(1),
+                                                                     m_fc->get_input_node_shared_ptr(2),
+                                                                     m_fc->get_input_node_shared_ptr(3),
+                                                                     optional_w_zp,
+                                                                     dyn_quan->output(1),
                                                                      m_fc->get_output_type());
         ov::replace_node(m_fc, new_fc);
 

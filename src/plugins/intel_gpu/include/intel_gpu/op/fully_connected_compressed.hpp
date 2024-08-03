@@ -19,30 +19,26 @@ public:
     FullyConnectedCompressed(const ov::Output<Node> &A,
                              const ov::Output<Node> &B,
                              const ov::Output<Node> &bias,
-                             const ov::Output<Node> &decompression_scale,
-                             const ov::Output<Node> &decompression_zero_point,
+                             const ov::Output<Node> &w_decompression_scale,
+                             const ov::Output<Node> &w_decompression_zero_point,
+                             const ov::Output<Node> &a_decompression_scale,
+                             const ov::element::Type output_type = ov::element::undefined);
+
+
+    FullyConnectedCompressed(const ov::Output<Node> &A,
+                             const ov::Output<Node> &B,
+                             const ov::Output<Node> &bias,
+                             const ov::Output<Node> &w_decompression_scale,
+                             const ov::Output<Node> &w_decompression_zero_point,
                              const ov::element::Type output_type = ov::element::undefined);
 
     FullyConnectedCompressed(const ov::Output<Node> &A,
                              const ov::Output<Node> &B,
                              const ov::Output<Node> &bias,
-                             const ov::Output<Node> &decompression_scale,
-                             const ov::element::Type output_type = ov::element::undefined);
-
-    FullyConnectedCompressed(const OutputVector& inputs,
-                             bool has_zp = true,
-                             bool has_activation_scale = false,
+                             const ov::Output<Node> &w_decompression_scale,
                              const ov::element::Type output_type = ov::element::undefined);
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
-
-    bool get_has_zp() const { return m_has_zp; }
-    bool get_has_activation_scale() const { return m_has_activation_scale; }
-
-
-protected:
-    bool m_has_zp;
-    bool m_has_activation_scale;
 };
 
 }   // namespace op

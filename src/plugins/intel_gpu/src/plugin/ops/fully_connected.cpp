@@ -36,14 +36,14 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
     auto bias_name = inputs[2].pid;
     auto scale_name = inputs[3].pid;
     size_t input_idx = 4;
-    const size_t INPUT_PORT_IDX = input_idx;
-    std::string zp_name = op->get_has_zp() ? inputs[input_idx++].pid : "";
-    auto activation_scale_input = op->get_has_activation_scale() ? inputs[input_idx++] : cldnn::input_info();
+    const size_t W_ZP_IDX = input_idx;
+    std::string zp_name = op->get_input_size() > input_idx ? inputs[input_idx++].pid : "";
+    auto activation_scale_input = op->get_input_size() > input_idx ? inputs[input_idx++] : cldnn::input_info();
 
     float zp_value = 0.0f;
     bool has_scalar_zp = false;
-    if (op->get_has_zp()) {
-        auto zp_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(INPUT_PORT_IDX));
+    if (zp_name.size() > 0) {
+        auto zp_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(W_ZP_IDX));
         if (zp_const && ov::shape_size(zp_const->get_output_shape(0)) == 1) {
             has_scalar_zp = true;
             zp_value = zp_const->cast_vector<float>()[0];
