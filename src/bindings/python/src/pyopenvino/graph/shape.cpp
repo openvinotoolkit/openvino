@@ -41,13 +41,16 @@ void regclass_graph_Shape(py::module m) {
         self[key] = d.get_length();
     });
     shape.def("__getitem__", [](const ov::Shape& v, int64_t key) {
+        // Normalize the key to support Python-style negative indexing
         if (key < 0) {
             key += v.size();
         }
-        if (key >= 0 && key < static_cast<int64_t>(v.size())) {
-            return v[key];
+        // Use at() for bounds checking to throw std::out_of_range if key is out of range
+        try {
+            return v.at(key); // This will automatically check the range
+        } catch (const std::out_of_range&) {
+            throw py::index_error("Index out of range");
         }
-        throw py::index_error("Index out of range");
     });
 
     auto compareShape = [](const ov::Shape& self, const auto& container) {
