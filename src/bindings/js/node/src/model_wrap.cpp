@@ -178,7 +178,6 @@ Napi::Value ModelWrap::get_output_shape(const Napi::CallbackInfo& info) {
 
 Napi::Value ModelWrap::get_ops(const Napi::CallbackInfo& info) {
     Napi::Env env = info.Env();
-spran180 marked this conversation as resolved.
 
     if (!ov::js::validate<>(info)) {
         reportError(env, "Invalid argument. Expected no arguments.");
