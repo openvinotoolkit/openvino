@@ -56,12 +56,11 @@ KERNEL (mvn_gpu_bfyx_opt)(
 
     lg_storage[in_data_set_idx] = my_sum;
 
-    barrier(CLK_LOCAL_MEM_FENCE);
     for (uint offset = workers_per_data_set / 2; offset > 0; offset /= 2) {
+        barrier(CLK_LOCAL_MEM_FENCE);
         if (in_data_set_idx < offset) {
             lg_storage[in_data_set_idx] += lg_storage[in_data_set_idx + offset];
 	}
-        barrier(CLK_LOCAL_MEM_FENCE);
     }
 
     if (in_data_set_idx == 0)
@@ -114,13 +113,11 @@ KERNEL (mvn_gpu_bfyx_opt)(
 
     lg_storage[in_data_set_idx] = my_variance;
 
-    barrier(CLK_LOCAL_MEM_FENCE);
-
     for (uint offset = workers_per_data_set / 2; offset > 0; offset /= 2) {
+        barrier(CLK_LOCAL_MEM_FENCE);
         if (in_data_set_idx < offset) {
             lg_storage[in_data_set_idx] += lg_storage[in_data_set_idx + offset];
 	}
-        barrier(CLK_LOCAL_MEM_FENCE);
     }
 
     if (in_data_set_idx == 0)
