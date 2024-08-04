@@ -138,8 +138,7 @@ OutputVector translate_reduce_window_sum(const NodeContext& context) {
     Output<Node> res = std::make_shared<v14::AvgPool>(input, strides, pads_begin, pads_end, kernel, false);
     res = std::make_shared<v1::Transpose>(res, output_transpose_order);
     auto kernel_size = std::accumulate(kernel.begin(), kernel.end(), 1, std::multiplies<size_t>());
-    Output<Node> kernel_size_constant =
-        std::make_shared<v0::Constant>(res.get_element_type(), Shape{}, std::vector<int64_t>{kernel_size});
+    Output<Node> kernel_size_constant = std::make_shared<v0::Constant>(res.get_element_type(), Shape{}, kernel_size);
     res = std::make_shared<v1::Multiply>(res, kernel_size_constant);
     return {res};
 }
