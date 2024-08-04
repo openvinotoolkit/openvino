@@ -1,6 +1,3 @@
-# Copyright (C) 2018-2024 Intel Corporation
-# SPDX-License-Identifier: Apache-2.0
-
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -52,6 +49,20 @@ class TestPack(CommonTFLayerTest):
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
 
+    test_data_negative_axis = [
+        dict(input_shape=[2, 4], input_num=2, axis=-1, input_type=np.float32),
+        dict(input_shape=[3, 1, 2], input_num=3, axis=-2, input_type=np.int32),
+    ]
+
+    @pytest.mark.parametrize("params", test_data_negative_axis)
+    @pytest.mark.precommit
+    @pytest.mark.nightly
+    def test_pack_negative_axis(self, params, ie_device, precision, ir_version, temp_dir,
+                                use_legacy_frontend):
+        self._test(*self.create_pack_net(**params),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_legacy_frontend=use_legacy_frontend)
+
 
 class TestComplexPack(CommonTFLayerTest):
     def _prepare_input(self, inputs_info):
@@ -70,6 +81,10 @@ class TestComplexPack(CommonTFLayerTest):
                 input_imag = tf.compat.v1.placeholder(tf.float32, input_shape, 'input' + str(ind) + '_imag')
                 inputs_real.append(input_real)
                 inputs_imag.append(input_imag)
+            if axis is not None:
+                tf.raw_ops.Pack(values=inputs_real + inputs_imag, axis=axis)
+            else:
+                tf.raw_ops.Pack(values=inputs_real + inputs_imag)
             tf.compat.v1.global_variables_initializer()
 
             tf_net = sess.graph_def
@@ -86,6 +101,20 @@ class TestComplexPack(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_complex_pack_basic(self, params, ie_device, precision, ir_version, temp_dir,
                                 use_legacy_frontend):
+        self._test(*self.create_complex_pack_net(**params),
+                   ie_device, precision, ir_version, temp_dir=temp_dir,
+                   use_legacy_frontend=use_legacy_frontend)
+
+    test_data_negative_axis = [
+        dict(input_shape=[2, 4], input_num=2, axis=-1),
+        dict(input_shape=[3, 1, 2], input_num=3, axis=-2),
+    ]
+
+    @pytest.mark.parametrize("params", test_data_negative_axis)
+    @pytest.mark.precommit
+    @pytest.mark.nightly
+    def test_complex_pack_negative_axis(self, params, ie_device, precision, ir_version, temp_dir,
+                                        use_legacy_frontend):
         self._test(*self.create_complex_pack_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
