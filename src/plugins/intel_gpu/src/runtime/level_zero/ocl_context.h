@@ -19,6 +19,11 @@ public:
     // oclContext(cl_device_id device);
     ~oclContext();
 
+    static oclContext& getInstance() {
+        static oclContext instance;
+        return instance;
+    }
+
     cl_device_id device() { return device_; }
     cl_context context() { return context_; }
     cl_command_queue queue() { return queue_; }

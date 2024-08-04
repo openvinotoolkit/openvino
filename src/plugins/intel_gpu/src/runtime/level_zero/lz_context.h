@@ -55,15 +55,19 @@ private:
     ze_device_handle_t findDevice(ze_driver_handle_t pDriver, ze_device_type_t type, uint32_t devIdx);
     void initTimeStamp();
     int readKernel();
-    int initKernel();
 
 public:
     lzContext(/* args */);
     ~lzContext();
 
+    static lzContext& getInstance() {
+        static lzContext instance;
+        return instance;
+    }
     ze_device_handle_t device() { return pDevice; }
 
     int initZe(int devIdx);
+    int initKernel(const char *spvFile, const char *funcName);
     void* createBuffer(size_t elem_count, int offset);
     void readBuffer(std::vector<uint32_t> &hostDst, void *devSrc, size_t size);
 

@@ -1360,16 +1360,19 @@ public:
     void test_compressed_scale_zp_nobias_activation_large(bool is_caching_test) {
         std::cout << "[+] test_compressed_scale_zp_nobias_activation is_caching_test: " << is_caching_test << std::endl;
 
-        long unsigned int M = 900; // 8;
+        long unsigned int M = 6; // 900; // 8;
         long unsigned int K = 400; // 4;
-        long unsigned int N = 1024;
+        long unsigned int N = 5120; // 1024;
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ -1, static_cast<long int>(K) });
         uint8_t MAX_UINT8 = 255;
         std::vector<uint8_t> weights_values(N * K, 1);
         printf("[test] weights_values \n");
-        for (long unsigned int i = 0; i < N * K; ++i) {
-            weights_values[i] = i % MAX_UINT8;
-            printf("%d ", weights_values[i]);
+        size_t count_weights = N * K;
+        for (long unsigned int i = 0; i < count_weights; ++i) {
+            if (i < 16 || i > count_weights - 16) {
+                weights_values[i] = i % MAX_UINT8;
+                printf("%d ", weights_values[i]);
+            }
         }
         printf("\n");
         auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{ N, K }, weights_values);
@@ -1396,8 +1399,11 @@ public:
                                                               input_generate);
         infer_request.set_input_tensor(tensor);
 
-        std::cout << "infer_request infer " << std::endl;
-        infer_request.infer();
+        // std::cout << "infer_request infer " << std::endl;
+        for (int i = 0; i < 48; ++i) {
+            std::cout << "infer_request infer i: " << i << std::endl;
+            infer_request.infer();
+        }
         const ov::Tensor& output_tensor = infer_request.get_output_tensor();
         size_t count = M * N;
         for (size_t i = 0; i < count; i++) {

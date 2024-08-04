@@ -5,13 +5,26 @@
 #include "ocl_context.h"
 
 oclContext::oclContext(/* args */) {
+    printf("Enter %s\n", __FUNCTION__);
 }
 
 oclContext::~oclContext() {
-    printf("Enter %s\n", __FUNCTION__);
+    printf("Exit %s\n", __FUNCTION__);
 
-    clReleaseCommandQueue(queue_);
-    clReleaseContext(context_);
+    cl_int err;
+    if (queue_) {
+        clReleaseCommandQueue(queue_);
+        CHECK_OCL_ERROR_EXIT(err, "clReleaseCommandQueue");
+        queue_ = nullptr;
+    }
+    if (context_) {
+        clReleaseContext(context_);
+        CHECK_OCL_ERROR_EXIT(err, "clReleaseContext");
+        context_ = nullptr;
+    }
+
+    device_ = nullptr;
+    platform_ = nullptr;
 }
 
 // device_idx for special platform, need to return platform too? TODO

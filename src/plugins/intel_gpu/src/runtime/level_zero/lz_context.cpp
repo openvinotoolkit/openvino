@@ -10,6 +10,34 @@ lzContext::lzContext() {
 
 lzContext::~lzContext() {
     printf("INFO: Enter %s \n", __FUNCTION__);
+    ze_result_t result;
+
+    if (timestampBuffer) {
+        result = zeMemFree(context, timestampBuffer);
+        CHECK_ZE_STATUS(result, "zeMemFree");
+        timestampBuffer = nullptr;
+    }
+
+    if (command_list) {
+        result = zeCommandListDestroy(command_list);
+        CHECK_ZE_STATUS(result, "zeCommandListDestroy");
+        command_list = nullptr;
+    }
+
+    if (command_queue) {
+        result = zeCommandQueueDestroy(command_queue);
+        CHECK_ZE_STATUS(result, "zeCommandQueueDestroy");
+        command_queue = nullptr;
+    }
+
+    if (context) {
+        result = zeContextDestroy(context);
+        CHECK_ZE_STATUS(result, "zeContextDestroy");
+        context = nullptr;
+    }
+
+    pDevice = nullptr;
+    pDriver = nullptr;
 }
 
 ze_device_handle_t lzContext::findDevice(ze_driver_handle_t pDriver, ze_device_type_t type, uint32_t devIdx) {
@@ -116,6 +144,7 @@ void lzContext::initTimeStamp() {
 }
 
 int lzContext::initZe(int devIdx) {
+    printf("[lzContext] initZe enter \n");
     ze_result_t result;
     // size_t size = 0;
     // size_t alignment = 0;
@@ -180,6 +209,7 @@ int lzContext::initZe(int devIdx) {
 
     initTimeStamp();
 
+    printf("[lzContext] initZe done \n");
     return 0;
 }
 
@@ -264,7 +294,12 @@ void queryP2P(ze_device_handle_t dev0, ze_device_handle_t dev1) {
     printf("%s, dev0 = %p, dev1 = %p, flags = %d, result = %d\n", __FUNCTION__, dev0, dev1, p2pProperties.flags, result);
 }
 
-int lzContext::initKernel() {
+int lzContext::initKernel(const char *spvFile, const char *funcName) {
+    printf("[lzContext] %s enter \n", __FUNCTION__);
+
+    kernelSpvFile = spvFile;
+    kernelFuncName = funcName;
+
     ze_result_t result;
     FILE *fp = nullptr;
     size_t nsize = 0;
@@ -304,6 +339,7 @@ int lzContext::initKernel() {
     result = zeKernelCreate(module, &function_desc, &function);
     CHECK_ZE_STATUS(result, "zeKernelCreate");
 
+    printf("[lzContext] %s done \n", __FUNCTION__);
     return 0;
 }
 
@@ -314,10 +350,10 @@ void lzContext::runKernel(const char *spvFile, const char *funcName, void *remot
     printf("[lz_kernel] elemCount: %ld, size: %d \n", elemCount, size);
     if (size < 1) return;
 
-    kernelSpvFile = spvFile;
-    kernelFuncName = funcName;
+    // kernelSpvFile = spvFile;
+    // kernelFuncName = funcName;
 
-    initKernel();
+    // initKernel();
 
     // set kernel arguments
     result = zeKernelSetArgumentValue(function, 0, sizeof(devBuf), &devBuf);

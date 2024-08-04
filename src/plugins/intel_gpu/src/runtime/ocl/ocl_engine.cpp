@@ -47,7 +47,7 @@ ocl_engine::ocl_engine(const device::ptr dev, runtime_types runtime_type)
     : engine(dev) {
     OPENVINO_ASSERT(runtime_type == runtime_types::ocl, "[GPU] Invalid runtime type specified for OCL engine. Only OCL runtime is supported");
 
-    std::cout << "[-->] ocl_engine::ocl_engine() " << std::endl;
+    // std::cout << "[-->] ocl_engine::ocl_engine() " << std::endl;
     auto casted = dynamic_cast<ocl_device*>(dev.get());
     OPENVINO_ASSERT(casted, "[GPU] Invalid device type passed to ocl engine");
     casted->get_device().getInfo(CL_DEVICE_EXTENSIONS, &_extensions);

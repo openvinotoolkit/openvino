@@ -1197,7 +1197,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
                         debug_str_for_bin_load += (filename + ",");
                     } else {
                         // Text dump
-                        std::cout << "[network.cpp] output_mem: " << output_mem << std::endl;
+                        // std::cout << "[network.cpp] output_mem: " << output_mem << std::endl;
                         log_memory_to_file(output_mem, inst->get_output_layout(i), get_stream(), name, debug_config->dump_layers_raw);
                     }
                 }
@@ -1491,7 +1491,7 @@ std::vector<std::pair<primitive_inst*, int>> network::get_primitives(const std::
 
 void network::execute_primitive(const std::shared_ptr<primitive_inst>& primitive,
                                 const std::vector<event::ptr>& events) {
-    std::cout << "[debug] network execute_primitive: " << primitive->id() << std::endl;
+    // std::cout << "[debug] network execute_primitive: " << primitive->id() << std::endl;
     event::ptr ev = primitive->execute(events);
 
     // Collect events under any of the following conditions:

@@ -10,7 +10,7 @@
 #include "runtime/level_zero/ocl_context.h"
 #include "runtime/level_zero/lz_context.h"
 #include "runtime/ocl/ocl_memory.hpp"
-
+#include <unistd.h>
 
 namespace cldnn {
 namespace ocl {
@@ -57,6 +57,9 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
     }
 
     void get_contexts(sync_tensor_inst& instance, oclContext& oclctx, lzContext& lzctx) {
+        if (oclctx.context()) return;
+
+        printf("[get_contexts] enter \n");
         auto cldnnDevice = instance.get_network().get_engine().get_device();
         auto oclDevice = std::dynamic_pointer_cast<ocl::ocl_device>(cldnnDevice);
         auto clDevice = oclDevice->get_device();
@@ -65,10 +68,16 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
 
         int device_idx = oclctx.get_device_idx(device_id);
 
-        std::cout << "[gpu_p2p] create oclctx " << std::endl;
+        std::cout << "[get_contexts] init oclctx " << std::endl;
         oclctx.init(device_idx);
-        std::cout << "[gpu_p2p] create lzContext " << std::endl;
+        std::cout << "[get_contexts] init lzContext " << std::endl;
         lzctx.initZe(device_idx);
+
+        char cwd[256];
+        getcwd(cwd, 256);
+        std::string file_path = std::string(cwd) + "/test_kernel_dg2.spv";
+        printf("[get_contexts] file_path: %s \n", file_path.c_str());
+        lzctx.initKernel(file_path.data(), "local_write_to_remote");
     }
 
     void* create_lz_buff(oclContext& oclctx, lzContext& lzctx, std::vector<uint32_t>& initBuf, const size_t elemCount, const int rank) {
@@ -92,7 +101,7 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
         size_t main_buffer_size = 0;
         err = clGetMemObjectInfo(clbuf, CL_MEM_SIZE, sizeof(main_buffer_size), &main_buffer_size, NULL);
         CHECK_OCL_ERROR(err, "clGetMemObjectInfo - CL_MEM_SIZE failed");
-        printf("[ocl_to_lz] main_buffer_size: %ld \n", main_buffer_size);
+        printf("[printCLBuff] main_buffer_size: %ld \n", main_buffer_size);
 
         err = clEnqueueReadBuffer(cl_queue, clbuf, CL_TRUE, 0, size, resBuf.data(), 0, NULL, NULL);
         CHECK_OCL_ERROR_EXIT(err, "clEnqueueReadBuffer failed");
@@ -103,8 +112,6 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
         for (size_t i = 0; i < size; i++) {
             if (i > 16 && i < size - 16) continue;
             printf("0x%x ", res_ptr[i]);
-            if (i && i % 16 == 0)
-                printf("\n");
         }
         printf("\n");
     }
@@ -120,8 +127,6 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
             if (i > 16 && i < size - 16) continue;
 
             printf("[0x%x] ", res_ptr[i]);
-            if (i && i % 16 == 0)
-                printf("\n");
         }
         printf("\n");
     }
@@ -143,13 +148,14 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
         uint64_t nativeHandle;
         err = clGetMemObjectInfo(clbuf, CL_MEM_ALLOCATION_HANDLE_INTEL, sizeof(nativeHandle), &nativeHandle, NULL);
         CHECK_OCL_ERROR(err, "clGetMemObjectInfo - CL_MEM_ALLOCATION_HANDLE_INTEL failed");
-        // printf("[ocl_to_lz] nativeHandle: %ld, 0x%lx \n", nativeHandle, nativeHandle);
+        printf("[ocl_to_lz] nativeHandle: %ld, 0x%lx \n", nativeHandle, nativeHandle);
         // std::cout << "[ocl_to_lz] convert nativeHandle to lz handle " << std::endl;
         void *lzptr = lzctx.createFromHandle(nativeHandle, size);
-        // printf("[ocl_to_lz] lzptr: %p \n", lzptr);
-        // lzctx.printBuffer(lzptr);
+        printf("[ocl_to_lz] lzptr: %p \n", lzptr);
+        lzctx.printBuffer(lzptr);
+
         printf("[ocl_to_lz:%d] print output lzptr\n", rank);
-        printLZBuff(lzctx, lzptr, size);
+        // printLZBuff(lzctx, lzptr, size);
 
         return lzptr;
     }
@@ -170,7 +176,7 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
         auto w_rank = instance.get_network().get_program()->get_config().subStreamExecConfig.get_rank()[0];
         auto w_size = instance.get_network().get_program()->get_config().get_context_for_tp().size();
         auto id = sub_mem_mgr->get_memory_id(w_rank);
-        printf("[sync_tensor_impl:%d] memory id: %d\n", w_rank, id);
+        // printf("[sync_tensor_impl:%d] memory id: %d\n", w_rank, id);
         sub_mem_mgr->set_memory_used(id, w_rank);
         while (true) {
             std::lock_guard<std::mutex> lock(sub_mem_mgr->_flagMutex);
@@ -191,7 +197,9 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
             uint32_t i;
         };
         oclContext oclctx;
+        // oclContext& oclctx = oclContext::getInstance();
         lzContext lzctx;
+        // lzContext& lzctx = lzContext::getInstance();
         const size_t elemCount = 1024 * 1024;
         get_contexts(instance, oclctx, lzctx);
 
@@ -337,7 +345,7 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
                 printLZBuff(lzctx, receive_buff, copy_len);
 
                 wait_list_remote[idx] = 0;
-                printf("[sync_tensor_impl:%d] wirte to local done, break \n", w_rank);
+                // printf("[sync_tensor_impl:%d] wirte to local done, break \n", w_rank);
                 break;
             }
         }
@@ -358,20 +366,21 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
     // void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
-        std::cout << "[sync_tensor_impl] get_kernel_params is_shape_agnostic: " << is_shape_agnostic << std::endl;
+        // std::cout << "[sync_tensor_impl] get_kernel_params is_shape_agnostic: " << is_shape_agnostic << std::endl;
         const auto& primitive = impl_param.typed_desc<sync_tensor>();
-        std::cout << "[sync_tensor_impl] get_kernel_params primitive id: " << primitive->id << std::endl;
+        // std::cout << "[sync_tensor_impl] get_kernel_params primitive id: " << primitive->id << std::endl;
         auto params = get_default_params<kernel_selector::sync_tensor_params>(impl_param, is_shape_agnostic);
 
-        size_t rank = impl_param.get_output_layout().get_rank();
-        std::cout << "[sync_tensor_impl] get_kernel_params rank: " << rank << std::endl;
+        // size_t rank = impl_param.get_output_layout().get_rank();
+        // std::cout << "[sync_tensor_impl] get_kernel_params rank: " << rank << std::endl;
+
         // params.dim = get_sync_tensor_dim(primitive->dimension, rank);
 
         return params;
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        std::cout << "[sync_tensor_impl] update_dispatch_data " << std::endl;
+        // std::cout << "[sync_tensor_impl] update_dispatch_data " << std::endl;
         // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
         if (_kernel_data.params == nullptr) {
             _kernel_data.params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true));
@@ -385,7 +394,7 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
 namespace detail {
 
 attach_sync_tensor_impl::attach_sync_tensor_impl() {
-    std::cout << "[sync_tensor_impl] attach_sync_tensor_impl" << std::endl;
+    // std::cout << "[sync_tensor_impl] attach_sync_tensor_impl" << std::endl;
     auto types = {
         data_types::f32,
         data_types::f16,
