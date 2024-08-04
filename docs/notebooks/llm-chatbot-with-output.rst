@@ -413,6 +413,19 @@ The available options are:
    significant improvements in various capabilities, including
    reasoning, mathematics, and coding. More details about model can be
    found in `model repository <https://huggingface.co/internlm>`__.
+-  **glm-4-9b-chat** - GLM-4-9B is the open-source version of the latest
+   generation of pre-trained models in the GLM-4 series launched by
+   Zhipu AI. In the evaluation of data sets in semantics, mathematics,
+   reasoning, code, and knowledge, GLM-4-9B and its human
+   preference-aligned version GLM-4-9B-Chat have shown superior
+   performance beyond Llama-3-8B. In addition to multi-round
+   conversations, GLM-4-9B-Chat also has advanced features such as web
+   browsing, code execution, custom tool calls (Function Call), and long
+   text reasoning (supporting up to 128K context). More details about
+   model can be found in `model
+   card <https://huggingface.co/THUDM/glm-4-9b-chat/blob/main/README_en.md>`__,
+   `technical report <https://arxiv.org/pdf/2406.12793>`__ and
+   `repository <https://github.com/THUDM/GLM-4>`__
 
 .. code:: ipython3
 
@@ -532,7 +545,7 @@ to make it
 `symmetric <https://github.com/openvinotoolkit/nncf/blob/develop/docs/compression_algorithms/Quantization.md#symmetric-quantization>`__
 you can add ``--sym``.
 
-For INT4 quantization you can also specify the following arguments:
+For INT4 quantization you can also specify the following arguments :
 
 - The ``--group-size`` parameter will define the group size to use for
   quantization, -1 it will results in per-column quantization.
@@ -765,7 +778,6 @@ We can now save floating point and compressed model variants
 .. parsed-literal::
 
    Let’s compare model size for different compression types
-
 
 .. code:: ipython3
 

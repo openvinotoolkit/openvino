@@ -34,6 +34,15 @@ Group::Group(const std::shared_ptr<ov::Node>& node,
     m_content.insert(node);
 }
 
+Group::Group(size_t gid,
+             ade::NodeHandle nh,
+             const std::shared_ptr<ade::Graph>& g,
+             const std::weak_ptr<Snapshot>& snapshot)
+    : m_nh(std::move(nh)),
+      m_id(gid),
+      m_graph(g),
+      m_snapshot(snapshot) {}
+
 // Include Parameters, Outputs, Converts, etc to content's layers for proper linking at the plugin level
 void Group::includeExtraLayers(detail::OVNodeSet& input_layers,
                                detail::OVNodeSet& output_layers,
@@ -91,7 +100,7 @@ ov::npuw::Group Group::toGroup() const {
     }
     g.gflops = 0.0001f;  // FIXME: calculate proper flops
 
-    if (m_repeated) {
+    if (m_repeated && !isNoFold()) {
         g.repeated_id = ov::npuw::online::util::repeated_id(m_repeated);
     }
 
@@ -113,6 +122,18 @@ std::shared_ptr<ov::Node> Group::getInitialNode() const {
     }
 
     return *(m_content.begin());
+}
+
+void Group::addInput(const std::shared_ptr<ov::Node>& node) {
+    m_input_layers.insert(node);
+}
+
+void Group::addOutput(const std::shared_ptr<ov::Node>& node) {
+    m_output_layers.insert(node);
+}
+
+void Group::addContent(const std::shared_ptr<ov::Node>& node) {
+    m_content.insert(node);
 }
 
 size_t Group::getId() const {
@@ -252,6 +273,7 @@ void Group::fuseInputs(const std::pair<Group::GPtr, Group::GPtr>& gptr_inputs) {
 }
 
 // This group takes extra info of other group (such as reptrack, avoids, etc)
+// FIXME: unify managing all those tags, e.g. via a map string->string
 void Group::takeFlags(const Group::GPtr& gptr_other) {
     // Update reptrack
     for (const auto& layer_to_track : gptr_other->m_reptrack) {
@@ -266,6 +288,10 @@ void Group::takeFlags(const Group::GPtr& gptr_other) {
     for (const auto& device : gptr_other->avoidedTargets()) {
         avoid(device);
     }
+    // Update nofold
+    m_nofold = gptr_other->isNoFold();
+    // Update isolate tag
+    m_isol_tag = gptr_other->isolatedTag();
 }
 
 // Check if there is indirect path from this to gptr_cons
@@ -309,8 +335,16 @@ void Group::freeze() {
     m_frozen = true;
 }
 
+void Group::noFold() {
+    m_nofold = true;
+}
+
 bool Group::isFrozen() const {
     return m_frozen;
+}
+
+bool Group::isNoFold() const {
+    return m_nofold;
 }
 
 const ov::npuw::online::detail::OVNodeSet& Group::getContent() const {
@@ -375,10 +409,32 @@ std::unordered_set<Interconnect> Group::interconnect(const Group::GPtr& gptr_pro
     return ics;
 }
 
+std::string Group::specialTags() const {
+    std::string tags = "";
+
+    if (m_nofold) {
+        tags += "nofold";
+    }
+
+    if (!m_isol_tag.empty()) {
+        tags += m_isol_tag;
+    }
+
+    return tags;
+}
+
 void Group::avoid(const std::string& device) {
     m_avoided_devices.insert(device);
 }
 
 const std::set<std::string>& Group::avoidedTargets() const {
     return m_avoided_devices;
+}
+
+void Group::isolate(const std::string& tag) {
+    m_isol_tag = tag;
+}
+
+const std::string& Group::isolatedTag() const {
+    return m_isol_tag;
 }

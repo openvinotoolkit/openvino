@@ -708,9 +708,9 @@ enum class WorkloadType {
 inline std::ostream& operator<<(std::ostream& os, const WorkloadType& mode) {
     switch (mode) {
     case WorkloadType::DEFAULT:
-        return os << "Default";
+        return os << "DEFAULT";
     case WorkloadType::EFFICIENT:
-        return os << "Efficient";
+        return os << "EFFICIENT";
     default:
         OPENVINO_THROW("Unsupported workload type");
     }
@@ -719,7 +719,9 @@ inline std::ostream& operator<<(std::ostream& os, const WorkloadType& mode) {
 inline std::istream& operator>>(std::istream& is, WorkloadType& mode) {
     std::string str;
     is >> str;
-    std::transform(str.begin(), str.end(), str.begin(), tolower);
+    std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) {
+        return std::tolower(c);
+    });
     if (str == "default") {
         mode = WorkloadType::DEFAULT;
     } else if (str == "efficient") {
@@ -940,7 +942,8 @@ struct Properties : public Property<std::map<std::string, std::map<std::string, 
     inline util::EnableIfAllStringAny<std::pair<std::string, Any>, Properties...> operator()(
         const std::string& device_name,
         Properties&&... configs) const {
-        return {name() + std::string("_") + device_name, AnyMap{std::pair<std::string, Any>{configs}...}};
+        return {name() + std::string("_") + device_name,
+                AnyMap{std::pair<std::string, Any>{std::forward<Properties>(configs)}...}};
     }
 };
 

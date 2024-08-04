@@ -1924,9 +1924,9 @@ TEST(scatter_update_gpu_fp32, output_padding) {
         topology.add(reorder("DictionaryReordered", input_info("InputDictionary"), target_format, data_types::f32));
         topology.add(reorder("TextReordered", input_info("InputText"), target_format, data_types::f32));
         topology.add(reorder("UpdatesReordered", input_info("InputUpdates"), target_format, data_types::f32));
-        topology.add(
-                scatter_update("scatter_update", input_info("DictionaryReordered"), input_info("TextReordered"), input_info("UpdatesReordered"), axis, output_padding)
-        );
+        auto scatter_upd = scatter_update("scatter_update", input_info("DictionaryReordered"), input_info("TextReordered"), input_info("UpdatesReordered"), axis);
+        scatter_upd.output_paddings = { output_padding };
+        topology.add(scatter_upd);
         topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, data_types::f32));
 
         network network(engine, topology, get_test_default_config(engine));
@@ -2017,12 +2017,12 @@ TEST(scatter_update_gpu_fp32, d8111_axisB_first_iteration_kernel_check) {
 
         // allocate new output memory
         layout out_l = network.get_output_memory("out")->get_layout();
-        //auto output_mem = engine.allocate_memory({data_types::f32, plain_2d_format, tensor{8, 1, 1, 1}}); 
+        //auto output_mem = engine.allocate_memory({data_types::f32, plain_2d_format, tensor{8, 1, 1, 1}});
         auto output_mem = engine.allocate_memory(out_l);
         set_values(output_mem, {
                 -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f
         });
-        
+
         network.set_output_memory("out", output_mem);
         auto outputs = network.execute();
 
