@@ -36,8 +36,7 @@ class TestLookupTableSizeOps(CommonTFLayerTest):
             import_hash_table = import_table_op(table_handle=hash_table, keys=all_keys,
                                                 values=all_values)
             with tf.control_dependencies([import_hash_table]):
-                size_table_op(table_handle=hash_table, keys=keys,
-                              name='LookupTableSize')
+                size_table_op(table_handle=hash_table, name='LookupTableSize')
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
