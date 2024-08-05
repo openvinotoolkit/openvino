@@ -1,6 +1,4 @@
-.. {#openvino_docs_install_guides_configurations_header}
-
-Additional Configurations For Hardware
+Additional Configurations
 ======================================
 
 
@@ -18,9 +16,8 @@ Additional Configurations For Hardware
    For NPU <configurations/configurations-intel-npu>
    GenAI Dependencies <configurations/genai-dependencies>
 
-For certain use cases, you may need to install additional software, to use the full
-potential of OpenVINO™. Check the following list for components for elements used in
-your workflow:
+For certain use cases, you may need to install additional software, to benefit from the full
+potential of OpenVINO™. Check the following list for components used in your workflow:
 
 | **GPU drivers**
 |   If you want to run inference on a GPU, make sure your GPU's drivers are properly installed.
@@ -35,7 +32,7 @@ your workflow:
     for details.
 
 | **OpenVINO GenAI Dependencies**
-|   OpenVINO GenAI is a new flavor of OpenVINO, aiming to simplify running inference of generative
+|   OpenVINO GenAI is a flavor of OpenVINO, aiming to simplify running generative
     AI models. For information on the dependencies required to use OpenVINO GenAI, see the
     :doc:`guide on OpenVINO GenAI Dependencies <configurations/genai-dependencies>`.
 
