@@ -34,7 +34,7 @@ runs:
       if: "!inputs.artifacts"
       shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
       run: >-
-        python ${{ env.ACTION_PATH }}/restore_artifacts.py
+        python3 ${{ env.ACTION_PATH }}/restore_artifacts.py
         -t "${{ env.GITHUB_WORKSPACE }}/${{ inputs.storage_dir }}"
         --storage_dir "${{ inputs.storage_dir }}" --storage_root "${{ inputs.storage_root }}"
         -s "${{ inputs.trigger_repo_sha || github.event.pull_request.head.sha || github.sha }}"
