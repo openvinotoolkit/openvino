@@ -13,6 +13,7 @@
 #include "reshape_inst.h"
 #include "arg_max_min_inst.h"
 #include "shape_of_inst.h"
+#include "select_inst.h"
 #include "condition_inst.h"
 #include "strided_slice_inst.h"
 #include <sstream>
@@ -33,6 +34,7 @@
 #include "prior_box_inst.h"
 #include "scatter_nd_update_inst.h"
 #include "gather_inst.h"
+#include "broadcast_inst.h"
 #include "loop_inst.h"
 #include "dft_inst.h"
 #include "to_string_utils.h"
@@ -428,10 +430,18 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
     bool allow_new_shape_infer = node.get_program().is_new_shape_infer();
     // Because mvn and concatenation kernel can work cross-layout, if reorder only performs type conversion,
     // fusing reorder to the previous node can be done even if it is a dynamic shape case
-    if ((prev.is_type<mvn>() || prev.is_type<concatenation>()) &&
+    if ((prev.is_type<mvn>() || prev.is_type<concatenation>() || prev.is_type<gather>() || prev.is_type<broadcast>() ||
+         prev.is_type<select>() || prev.is_type<eltwise>()) &&
         !prev.is_in_shape_of_subgraph() && node.is_type_conversion_only() &&
-        (format::is_simple_data_format(fmt_prev) && format::is_simple_data_format(fmt_next)))
+        (format::is_simple_data_format(fmt_prev) && format::is_simple_data_format(fmt_next)) &&
+        // If the prev node is backedge of the loop, the type will be changed by fusing reorder.
+        // We can void only that case if we can check whether the current node is backedge of the network.
+        // However no such handle is existing yet. (To be done in the future when we need to optimize out the type converting
+        // reorders in the body network)
+        !node.get_program().is_body_program() &&
+        prev.get_preferred_impl_type() != cldnn::impl_types::cpu) {
         return true;
+    }
 
     if (prev.is_dynamic() || (!node.get_users().empty() && node.get_users().front()->is_dynamic()))
         return false;
@@ -922,8 +932,10 @@ static bool is_node_for_onednn(fully_connected_node const& node) {
         if (!fc_prim->decompression_zero_point.empty()) {
             auto decompression_zp_idx = fc_prim->bias.empty() ? 3 : 4;
             auto decompression_zp_dt = node.get_input_layout(decompression_zp_idx).data_type;
-            if (weights_dt != decompression_zp_dt)
+            if ((weights_dt != ov::element::Type_t::u4 && weights_dt != ov::element::Type_t::u8) ||
+                (decompression_zp_dt != ov::element::Type_t::u8 && decompression_zp_dt != ov::element::Type_t::i8)) {
                 return false;
+            }
         }
     }
 
@@ -947,6 +959,9 @@ static bool is_node_for_onednn(fully_connected_node const& node) {
 
 static bool is_node_for_onednn(gemm_node const& node) {
     if (!layout_optimizer::are_data_types_suitable_for_onednn((program_node&)node))
+        return false;
+
+    if (node.get_primitive()->indirect_a || node.get_primitive()->indirect_b)
         return false;
 
     return true;
@@ -1554,12 +1569,15 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
                 }
             }
         }
+    } else if (node.is_type<non_max_suppression_gather>()) {
+        return impl_types::cpu;
     } else if (node.is_type<reorder>()) {
         if (!_optimization_attributes.use_onednn_impls)
             return impl_types::ocl;
 
         std::vector<format> onednn_optimized_fmt = {
             format::bfyx,
+            format::byxf,
             format::b_fs_zyx_fsv16,
             format::b_fs_yx_fsv16,
             format::b_fs_yx_fsv32,
@@ -1919,13 +1937,17 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
                 prim_input = node.get_dependency_index(node.as<convolution>().input());
             if (node.is_type<deconvolution>())
                 prim_input = node.get_dependency_index(node.as<deconvolution>().input());
+            size_t prim_weights = node.get_primitive()->input_size();
 
             // Note: did not handle attribute properly. especially for zero-point
             cldnn::format src_fmt = format::any;
-            if (idx == prim_input)
+            if (idx == prim_input) {
                 src_fmt = onednn::find_data_format(prim_desc.src_desc());
-            else  // Dep for fused post ops
+            } else if (idx == prim_weights) {
+                src_fmt = format::custom;
+            } else {  // Dep for fused post ops
                 src_fmt = onednn::find_data_format(prim_desc.dst_desc());
+            }
 
             // WA: shallow convolution needs to set input format by bfyx.
             //     onednn recommended byxf for input format. It will insert reorder before shallow conv.

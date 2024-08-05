@@ -11,21 +11,68 @@ namespace ov {
 namespace pass {
 namespace pattern {
 namespace op {
+namespace {
+constexpr bool node_value_true_predicate(const Output<Node>&) {
+    return true;
+}
+}  // namespace
+
+struct NodeValuePredicate {
+    bool operator()(const Output<Node>& value) const {
+        return pred(value.get_node_shared_ptr());
+    }
+
+    NodePredicate pred;
+};
+
+Pattern::Pattern(const OutputVector& patterns, ValuePredicate pred)
+    : Node(patterns),
+      m_predicate(pred ? std::move(pred) : node_value_true_predicate) {}
+
 // The symbols are required to be in cpp file to workaround RTTI issue on Android LLVM
 ValuePredicate Pattern::get_predicate() const {
     return m_predicate;
 }
+
 ValuePredicate as_value_predicate(NodePredicate pred) {
-    if (pred == nullptr) {
-        return [](const Output<Node>&) {
-            return true;
-        };
+    if (pred) {
+        return NodeValuePredicate{std::move(pred)};
     } else {
-        return [pred](const Output<Node>& value) {
-            return pred(value.get_node_shared_ptr());
-        };
+        return node_value_true_predicate;
     }
 }
+
+std::ostream& Pattern::write_type_description(std::ostream& out) const {
+    auto version = get_type_info().version_id;
+    if (version)
+        out << version << "::" << get_type_info().name;
+    else
+        out << get_type_info().name;
+
+    return out;
+}
+
+std::ostream& Pattern::write_description(std::ostream& out, uint32_t depth) const {
+    write_type_description(out);
+
+    if (depth > 0) {
+        out << " (";
+        std::string sep = "";
+        for (const auto& arg : input_values()) {
+            out << sep << arg;
+            sep = ", ";
+        }
+        out << ") -> (";
+        sep = "";
+        for (size_t i = 0; i < get_output_size(); i++) {
+            out << sep << get_output_element_type(i) << get_output_partial_shape(i);
+            sep = ", ";
+        }
+        out << ")";
+    }
+    return out;
+}
+
 }  // namespace op
 
 PatternMap as_pattern_map(const PatternValueMap& pattern_value_map) {

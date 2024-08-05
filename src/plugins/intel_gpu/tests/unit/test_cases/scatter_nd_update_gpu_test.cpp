@@ -4481,13 +4481,13 @@ TEST(scatter_nd_update_gpu, dynamic_padded_output) {
         8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f,
     });
 
+    auto scatter_nd_upd = scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2);
+    scatter_nd_upd.output_paddings = { padding({0, 0, 1, 1}) };
     topology topology;
     topology.add(input_layout("InputData", input1_layout));
     topology.add(input_layout("InputIndices", input2_layout));
     topology.add(input_layout("InputUpdates", input3_layout));
-    topology.add(
-        scatter_nd_update("scatter_nd_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), 2, padding({0, 0, 1, 1}))
-    );
+    topology.add(scatter_nd_upd);
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));

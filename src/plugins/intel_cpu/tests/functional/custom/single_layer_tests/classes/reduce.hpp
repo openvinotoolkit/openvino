@@ -56,6 +56,7 @@ const std::vector<ElementType>& inpOutPrc();
 const std::vector<std::map<std::string, ov::element::Type>> additionalConfig();
 const std::vector<std::map<std::string, ov::element::Type>> additionalConfigFP32();
 const std::vector<utils::ReductionType>& reductionTypesInt32();
+const std::vector<utils::ReductionType>& reductionTypesNativeInt32();
 
 }  // namespace Reduce
 }  // namespace test

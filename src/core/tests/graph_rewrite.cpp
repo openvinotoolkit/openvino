@@ -410,7 +410,7 @@ public:
              * 4. Some GraphRewrite facilities
              */
             auto cnt = consumers(node.get());
-            if (node.use_count() != cnt + 7) {
+            if (node.use_count() != cnt + 6) {
                 OPENVINO_THROW("Wrong number of consumers");
             }
 
@@ -440,5 +440,5 @@ TEST(GraphRewriteTest, nodes_use_count) {
     auto f = get_model();
     pass::Manager m;
     m.register_pass<CheckConsumers>();
-    ASSERT_NO_THROW(m.run_passes(f));
+    OV_ASSERT_NO_THROW(m.run_passes(f));
 }

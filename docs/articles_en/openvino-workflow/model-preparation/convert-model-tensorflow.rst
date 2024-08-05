@@ -163,7 +163,7 @@ There are three ways to store non-frozen TensorFlow models.
 2. **Checkpoint**. In this case, a model consists of two files: ``inference_graph.pb``
    (or ``inference_graph.pbtxt``) and ``checkpoint_file.ckpt``.
    If you do not have an inference graph file, refer to the
-   `Freezing Custom Models in Python <#Freezing-Custom-Models-in-Python>`__ section.
+   `Freezing Custom Models in Python <#freezing-custom-models-in-python>`__ section.
    To convert the model with the inference graph in ``.pb`` format, provide paths to both
    files as an argument for ``ovc`` or ``openvino.convert_model``:
 

@@ -58,7 +58,7 @@ TEST_P(QueryModelTest, QueryModelTestCase) {
     if (m_throw_exception) {
         ASSERT_ANY_THROW(m_plugin->query_model(m_model, m_properties));
     } else {
-        ASSERT_NO_THROW(m_plugin->query_model(m_model, m_properties));
+        OV_ASSERT_NO_THROW(m_plugin->query_model(m_model, m_properties));
     }
 }
 

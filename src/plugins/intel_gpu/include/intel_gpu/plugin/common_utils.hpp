@@ -6,6 +6,7 @@
 
 #include <ostream>
 #include <tuple>
+#include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/optionals.hpp"
@@ -79,14 +80,9 @@ bool data_types_are_supported(const ov::Node* node);
 using PrecisionMap = std::map<ov::element::Type_t, ov::element::Type>;
 
 std::vector<cldnn::optional_data_type> get_output_data_types(const ov::Node* op, PrecisionMap precision_map = {});
-std::vector<cldnn::padding> get_output_paddings(const ov::Node* op);
 
 inline std::vector<cldnn::optional_data_type> get_output_data_types(const std::shared_ptr<ov::Node>& op, PrecisionMap precision_map = {}) {
     return get_output_data_types(op.get(), precision_map);
-}
-
-inline std::vector<cldnn::padding> get_output_paddings(const std::shared_ptr<ov::Node>& op) {
-    return get_output_paddings(op.get());
 }
 
 inline ov::Shape get_tensor_shape(const ov::PartialShape& pshape) {
@@ -109,6 +105,26 @@ inline ov::Shape predict_shape(const std::string& name, const cldnn::layout layo
     }
 
     return layout.get_shape();
+}
+
+inline cldnn::memory::ptr allocate_memory_evenif_zero_bytes(cldnn::engine& _engine,
+                                                            const cldnn::layout& layout,
+                                                            cldnn::allocation_type type,
+                                                            bool reset = true) {
+    if (layout.bytes_count() == 0) {
+        auto non_zero_layout = cldnn::layout({1}, layout.data_type, layout.format);
+        auto res = _engine.allocate_memory(non_zero_layout, type, false);
+        return _engine.reinterpret_buffer(*res, layout);
+    } else {
+        return _engine.allocate_memory(layout, type, reset);
+    }
+}
+
+inline cldnn::memory::ptr allocate_memory_evenif_zero_bytes(cldnn::engine& _engine,
+                                                            const cldnn::layout& layout,
+                                                            bool reset = true) {
+    cldnn::allocation_type type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
+    return allocate_memory_evenif_zero_bytes(_engine, layout, type, reset);
 }
 
 /// WA: Force exit. Any opencl api call can be hang after CL_OUT_OF_RESOURCES.

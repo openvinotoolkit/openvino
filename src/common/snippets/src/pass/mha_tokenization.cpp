@@ -11,7 +11,7 @@
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 #include "snippets/pass/mha_tokenization.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -285,7 +285,7 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
         int64_t axis = 0;
         const auto rank = interm_op->get_input_partial_shape(0).rank();
         if (const auto softmax_v8 = ov::as_type_ptr<ov::op::v8::Softmax>(interm_op)) {
-            axis = ov::util::normalize_axis(interm_op->get_friendly_name(), softmax_v8->get_axis(), rank);
+            axis = ov::util::try_normalize_axis(softmax_v8->get_axis(), rank, *interm_op);
         } else if (const auto softmax_v1 = ov::as_type_ptr<ov::op::v1::Softmax>(interm_op)) {
             axis = softmax_v1->get_axis();
         } else {
@@ -468,13 +468,23 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const SnippetsToken
 
         /* ================================ */
 
-        /* ====== Subgraph creation ======= */
+        /* ======= Support checks ========= */
 
         // TODO [75567]: move this plugin-specific constraint to the plugin callback
         const auto last_node = ordered_ops.back();
         if (potential_body_params_count + last_node->get_output_size() + hidden_virtual_ports_count + uniqie_buffer_reg_group_count > 11) {
             return false;
         }
+
+        // If backend doesn't enable dynamic MHA tokenization, return false
+        if (!config.is_dynamic_mha_token_enabled()) {
+            if (std::any_of(ordered_ops.cbegin(), ordered_ops.cend(), [](const std::shared_ptr<ov::Node>& op) { return op->is_dynamic(); }))
+                return false;
+        }
+
+        /* ================================ */
+
+        /* ====== Subgraph creation ======= */
 
         ov::OutputVector body_inputs, subgraph_inputs;
         ov::ParameterVector body_parameters;

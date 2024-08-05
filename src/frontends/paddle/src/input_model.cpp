@@ -399,7 +399,10 @@ InputModel::InputModelImpl::InputModelImpl(const std::basic_string<T>& path,
     std::ifstream weights_stream;
     std::ifstream pb_stream(get_model_path<T>(path, &weights_stream).c_str(), std::ios::in | std::ifstream::binary);
 
-    FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Model file doesn't exist");
+    FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(),
+                            "Could not open the file: \"",
+                            util::path_to_string(path),
+                            '"');
     FRONT_END_GENERAL_CHECK(m_fw_ptr->ParseFromIstream(&pb_stream), "Model can't be parsed");
     // According to Paddle, the saved model has the framework version
     // For example Paddle 2.1.0 is encoded as 2001000. 0 means the latest framework.
@@ -610,6 +613,10 @@ int64_t InputModel::get_version() const {
 
 Place::Ptr InputModel::get_place_by_tensor_name(const std::string& tensorName) const {
     return _impl->get_place_by_tensor_name(tensorName);
+}
+
+Place::Ptr InputModel::get_place_by_input_index(size_t input_idx) const {
+    FRONT_END_NOT_IMPLEMENTED(get_place_by_input_index);
 }
 
 void InputModel::override_all_outputs(const std::vector<Place::Ptr>& outputs) {

@@ -121,12 +121,12 @@ void CTCLoss(const T* logits,
                     for (size_t pos = start; pos < end; pos++) {
                         newLogProb = prevLogProb;
                         for (size_t bl = start; bl < pos; bl++) {
-                            newLogProb += logProbabilities[bl].find(blankIndex)->second;
+                            newLogProb += logProbabilities[bl][blankIndex];
                         }
-                        newLogProb += logProbabilities[pos].find(targetD[targetIdx])->second;
+                        newLogProb += logProbabilities[pos][targetD[targetIdx]];
                         if (end == static_cast<size_t>(actualLogitLen)) {
                             for (size_t ble = pos + 1; ble < static_cast<size_t>(actualLogitLen); ble++) {
-                                newLogProb += logProbabilities[ble].find(blankIndex)->second;
+                                newLogProb += logProbabilities[ble][blankIndex];
                             }
                         }
                         findPaths(nextIdx, pos + 1, end + 1, newLogProb);
@@ -136,21 +136,21 @@ void CTCLoss(const T* logits,
                         newLogProb = prevLogProb;
                         size_t next_start = pos + 1;
                         for (size_t bl = start; bl < pos; bl++) {
-                            newLogProb += logProbabilities[bl].find(blankIndex)->second;
+                            newLogProb += logProbabilities[bl][blankIndex];
                         }
                         if (end == static_cast<size_t>(actualLogitLen)) {
                             for (int64_t ble = pos + 1; ble < actualLogitLen; ble++) {
-                                newLogProb += logProbabilities[ble].find(blankIndex)->second;
+                                newLogProb += logProbabilities[ble][blankIndex];
                             }
                         }
                         if (targetIdx < decodedTargetLen - 1 && targetD[targetIdx] == targetD[targetIdx + 1]) {
-                            newLogProb += logProbabilities[next_start++].find(blankIndex)->second;
+                            newLogProb += logProbabilities[next_start++][blankIndex];
                         }
                         for (int64_t bl = pos; bl >= st64; bl--) {
-                            newLogProb += logProbabilities[bl].find(targetD[targetIdx])->second;
+                            newLogProb += logProbabilities[bl][targetD[targetIdx]];
                             findPaths(nextIdx, next_start, end + 1, newLogProb);
                             if (bl > 0)
-                                newLogProb -= logProbabilities[bl - 1].find(blankIndex)->second;
+                                newLogProb -= logProbabilities[bl - 1][blankIndex];
                         }
                     }
                 }

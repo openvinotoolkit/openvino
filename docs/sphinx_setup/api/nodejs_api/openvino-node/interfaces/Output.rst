@@ -24,7 +24,7 @@ Properties
 .. rubric:: anyName
 
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -37,7 +37,7 @@ Properties
 
 .. rubric:: shape
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -53,7 +53,7 @@ Methods
 
 .. rubric:: getAnyName
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -66,7 +66,7 @@ Methods
 
 .. rubric:: getPartialShape
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -79,7 +79,7 @@ Methods
 
 .. rubric:: getShape
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 
@@ -92,7 +92,7 @@ Methods
 
 .. rubric:: toString
 
-.. container:: m-4
+*
 
    .. code-block:: ts
 

@@ -3,7 +3,6 @@
 //
 
 #include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/op/indirect_sdpa.hpp"
@@ -30,9 +29,15 @@ static void CreateScaledDotProductAttentionOp(ProgramBuilder& p, const std::shar
     auto layerName = layer_type_name_ID(op);
 
     bool is_causal = op->get_causal();
+    auto order = ov::op::internal::SDPA::default_order(op->get_output_partial_shape(0).size());
     auto sdpa_prim = cldnn::scaled_dot_product_attention(layerName,
                                                          inputs,
-                                                         is_causal);
+                                                         is_causal,
+                                                         -1,
+                                                         order,
+                                                         order,
+                                                         order,
+                                                         order);
 
     p.add_primitive(*op, sdpa_prim);
 }

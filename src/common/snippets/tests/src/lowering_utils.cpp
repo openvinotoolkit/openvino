@@ -82,7 +82,7 @@ void LoweringTests::TearDown() {
         model_ref = cloned_model;
     }
     manager.run_passes(model);
-    ASSERT_NO_THROW(check_rt_info(model));
+    OV_ASSERT_NO_THROW(check_rt_info(model));
 
     if (comparator.should_compare(FunctionsComparator::ACCURACY)) {
         auto acc_comparator = FunctionsComparator::no_default();

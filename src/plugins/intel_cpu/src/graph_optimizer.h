@@ -53,6 +53,7 @@ private:
     void RemoveConvertMemoryOutput(Graph &graph);
     void MatchSdpaKvCache(Graph &graph);
 
+    bool canBeInplaced(const NodePtr& parentNode, const NodePtr& childNode);
     // Method checks that after the sequential execution of Transpose and Reorder nodes,
     // the order of the elements in the memory (physical layout) will not change.
     bool checkAscendingFinalOrder(const VectorDims& transposeOrder,
