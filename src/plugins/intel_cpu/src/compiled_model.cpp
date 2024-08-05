@@ -138,16 +138,6 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 std::make_shared<CompiledModel>(model, plugin, sub_cfg, loaded_from_cache, m_sub_memory_manager));
         }
     }
-    // init sub stream threads of executor
-    // int sub_streams = m_cfg.streamExecutorConfig.get_sub_streams();
-    // if (sub_streams > 0 && stream_executor != nullptr) {
-    //     std::vector<Task> tasks;
-    //     tasks.resize(sub_streams);
-    //     for (auto&& task : tasks) {
-    //         task = [] {};
-    //     }
-    //     stream_executor->run_sub_stream_and_wait(tasks);
-    // }
 }
 
 CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {

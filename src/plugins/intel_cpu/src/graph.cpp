@@ -1433,14 +1433,14 @@ void Graph::ParalleMtNuma(size_t num_nodes,
         if (socket_id != static_cast<size_t>(cur_numa_id)) {
             size_t i0{0}, i1{0};
             splitter(num_nodes, num_nodes, socket_id, i0, i1);
-            executor->run_sub_stream(
-                [socket_id, i0, i1, &func, &nodes_remain]() {
-                    for (size_t i = i0; i < i1; i++) {
-                        func(socket_id, i);
-                        nodes_remain--;
-                    }
-                },
-                sub_stream_id);
+            // executor->run_sub_stream(
+            //     [socket_id, i0, i1, &func, &nodes_remain]() {
+            //         for (size_t i = i0; i < i1; i++) {
+            //             func(socket_id, i);
+            //             nodes_remain--;
+            //         }
+            //     },
+            //     sub_stream_id);
             sub_stream_id++;
         }
     }
