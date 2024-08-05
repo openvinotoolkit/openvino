@@ -825,8 +825,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 // Applicable for platforms with XMX only with limited set of supported transpose orders
                 auto input = get_single_non_const_dependency(node);
                 auto output = get_single_consumer(node);
-                if (input && output && ov::is_type<ov::op::v1::Transpose>(input)) {
-                    if (!ov::is_type<ov::op::v0::MatMul>(output) || !device_info.supports_immad)
+                if (input && ov::is_type<ov::op::v1::Transpose>(input)) {
+                    if (!ov::is_type<ov::op::v0::MatMul>(output) || !device_info.supports_immad || output == nullptr)
                         return true;
 
                     auto order_node = input->get_input_node_shared_ptr(1);
@@ -885,6 +885,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
         manager.register_pass<ov::intel_gpu::TransposeFusion>();
+        pass_config->set_callback<ov::intel_gpu::TransposeMatMulMatcher>(
+            [this](const_node_ptr& node) -> bool {
+                if (!node->is_dynamic() && !device_info.supports_immad)
+                    return true;
+
+                return false;
+            });
 
         if (!device_info.supports_immad) {
             manager.register_pass<ov::intel_gpu::UnsqueezeBroadcastReshapeMatmulFusion>();
