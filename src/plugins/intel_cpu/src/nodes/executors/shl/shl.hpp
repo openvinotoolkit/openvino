@@ -170,8 +170,10 @@ private:
 struct IShlParams {
 public:
     virtual ~IShlParams() = default;
-    virtual void reset(void* t) = 0;
     virtual void* get(bool allow_empty = false) const = 0;
+
+private:
+    virtual void reset(void* t) = 0;
     virtual void setAPI(csinn_api_enum api) = 0;
 };
 

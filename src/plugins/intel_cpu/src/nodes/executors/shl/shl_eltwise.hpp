@@ -1,10 +1,12 @@
+// Copyright (C) 2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+#pragma once
+
 #include "shl.hpp"
 #include "cpu_memory.h"
 #include "nodes/executors/eltwise.hpp"
 #include <functional>
-#include <tuple>
-#include <utility>
-#include <type_traits>
 
 namespace ov {
 namespace intel_cpu {

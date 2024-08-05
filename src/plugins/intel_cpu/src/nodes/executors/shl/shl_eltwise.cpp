@@ -1,3 +1,7 @@
+// Copyright (C) 2024 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include "shl_eltwise.hpp"
 #include "shl_utils.hpp"
 #include "csinn/csi_nn.h"
@@ -102,110 +106,109 @@ bool ShlEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs,
     std::function<int()> initFunc = nullptr;
     enum csinn_api_enum shl_api = CSINN_RVV;
     switch (shlEltwiseAttrs.algorithm) {
-    case Algorithm::EltwiseAdd:
-        params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, shl_api);
-        initFunc = [&]() {
-            return csinn_add_init(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
-        };
-        shlExecFunc = [&]() {
-            return csinn_add(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
-        };
-        break;
-    case Algorithm::EltwiseSubtract:
-        params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, shl_api);
-        initFunc = [&]() {
-            return csinn_sub_init(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
-        };
-        shlExecFunc = [&]() {
-            return csinn_sub(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
-        };
-        break;
-    case Algorithm::EltwiseMultiply:
-        params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, shl_api);
-        initFunc = [&]() {
-            return csinn_mul_init(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
-        };
-        shlExecFunc = [&]() {
-            return csinn_mul(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
-        };
-        break;
-    case Algorithm::EltwiseDivide:
-        params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, shl_api);
-        initFunc = [&]() {
-            return csinn_div_init(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
-        };
-        shlExecFunc = [&]() {
-            return csinn_div(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
-        };
-        break;
-    case Algorithm::EltwiseMaximum:
-        params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, shl_api);
-        initFunc = [&]() {
-            return csinn_maximum_init(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
-        };
-        shlExecFunc = [&]() {
-            return csinn_maximum(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
-        };
-        break;
-    case Algorithm::EltwiseMinimum:
-        params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, shl_api);
-        initFunc = [&]() {
-            return csinn_minimum_init(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
-        };
-        shlExecFunc = [&]() {
-            return csinn_minimum(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
-        };
-        break;
-        // return true;
-    case Algorithm::EltwiseExp:
-        params = ov::intel_cpu::make_unique<ShlSisoParams>(sess, shl_api);
-        initFunc = [&]() {
-            return csinn_exp_init(srcTensors[0].get(), dstTensors[0].get(), static_cast<csinn_siso_params*>(params->get()));
-        };
-        shlExecFunc = [&]() {
-            return csinn_exp(srcTensors[0].get(), dstTensors[0].get(), static_cast<csinn_siso_params*>(params->get()));
-        };
-        break;
-    case Algorithm::EltwiseClamp:
-        params = ov::intel_cpu::make_unique<ShlClipParams>(sess, shl_api, eltwiseAttrs.alpha, eltwiseAttrs.beta);
-        initFunc = [&]() {
-            return csinn_clip_init(srcTensors[0].get(), dstTensors[0].get(), static_cast<csinn_clip_params*>(params->get()));
-        };
-        shlExecFunc = [&]() {
-            return csinn_clip(srcTensors[0].get(), dstTensors[0].get(), static_cast<csinn_clip_params*>(params->get()));
-        };
-        break;
-    case Algorithm::EltwiseRelu:
-        if (shlEltwiseAttrs.alpha == 0) {
-            params = ov::intel_cpu::make_unique<ShlReluParams>(sess, shl_api);
+        case Algorithm::EltwiseAdd:
+            params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, shl_api);
             initFunc = [&]() {
-                return csinn_relu_init(srcTensors[0].get(), dstTensors[0].get(), static_cast<csinn_relu_params*>(params->get()));
+                return csinn_add_init(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
             };
             shlExecFunc = [&]() {
-                return csinn_relu(srcTensors[0].get(), dstTensors[0].get(), static_cast<csinn_relu_params*>(params->get()));
+                return csinn_add(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
             };
-        } else {
-            params = ov::intel_cpu::make_unique<ShlReluParams>(sess, shl_api, eltwiseAttrs.alpha);
+            break;
+        case Algorithm::EltwiseSubtract:
+            params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, shl_api);
             initFunc = [&]() {
-                return csinn_leaky_relu_init(srcTensors[0].get(), dstTensors[0].get(), static_cast<csinn_relu_params*>(params->get()));
+                return csinn_sub_init(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
             };
             shlExecFunc = [&]() {
-                return csinn_leaky_relu(srcTensors[0].get(), dstTensors[0].get(), static_cast<csinn_relu_params*>(params->get()));
+                return csinn_sub(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
             };
-        }
-        break;
-    case Algorithm::EltwisePrelu:
-        params = ov::intel_cpu::make_unique<ShlPReluParams>(sess, shl_api);
-        initFunc = [&]() {
-            return csinn_prelu_init(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_prelu_params*>(params->get()));
-        };
-        shlExecFunc = [&]() {
-            return csinn_prelu(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_prelu_params*>(params->get()));
-        };
-        break;
-    default:
-        OPENVINO_THROW("Unsupported operation type for SHL Eltwise executor: ",
-                       static_cast<int>(shlEltwiseAttrs.algorithm));
+            break;
+        case Algorithm::EltwiseMultiply:
+            params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, shl_api);
+            initFunc = [&]() {
+                return csinn_mul_init(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
+            };
+            shlExecFunc = [&]() {
+                return csinn_mul(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
+            };
+            break;
+        case Algorithm::EltwiseDivide:
+            params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, shl_api);
+            initFunc = [&]() {
+                return csinn_div_init(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
+            };
+            shlExecFunc = [&]() {
+                return csinn_div(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
+            };
+            break;
+        case Algorithm::EltwiseMaximum:
+            params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, shl_api);
+            initFunc = [&]() {
+                return csinn_maximum_init(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
+            };
+            shlExecFunc = [&]() {
+                return csinn_maximum(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
+            };
+            break;
+        case Algorithm::EltwiseMinimum:
+            params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, shl_api);
+            initFunc = [&]() {
+                return csinn_minimum_init(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
+            };
+            shlExecFunc = [&]() {
+                return csinn_minimum(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_diso_params*>(params->get()));
+            };
+            break;
+        case Algorithm::EltwiseExp:
+            params = ov::intel_cpu::make_unique<ShlSisoParams>(sess, shl_api);
+            initFunc = [&]() {
+                return csinn_exp_init(srcTensors[0].get(), dstTensors[0].get(), static_cast<csinn_siso_params*>(params->get()));
+            };
+            shlExecFunc = [&]() {
+                return csinn_exp(srcTensors[0].get(), dstTensors[0].get(), static_cast<csinn_siso_params*>(params->get()));
+            };
+            break;
+        case Algorithm::EltwiseClamp:
+            params = ov::intel_cpu::make_unique<ShlClipParams>(sess, shl_api, eltwiseAttrs.alpha, eltwiseAttrs.beta);
+            initFunc = [&]() {
+                return csinn_clip_init(srcTensors[0].get(), dstTensors[0].get(), static_cast<csinn_clip_params*>(params->get()));
+            };
+            shlExecFunc = [&]() {
+                return csinn_clip(srcTensors[0].get(), dstTensors[0].get(), static_cast<csinn_clip_params*>(params->get()));
+            };
+            break;
+        case Algorithm::EltwiseRelu:
+            if (shlEltwiseAttrs.alpha == 0) {
+                params = ov::intel_cpu::make_unique<ShlReluParams>(sess, shl_api);
+                initFunc = [&]() {
+                    return csinn_relu_init(srcTensors[0].get(), dstTensors[0].get(), static_cast<csinn_relu_params*>(params->get()));
+                };
+                shlExecFunc = [&]() {
+                    return csinn_relu(srcTensors[0].get(), dstTensors[0].get(), static_cast<csinn_relu_params*>(params->get()));
+                };
+            } else {
+                params = ov::intel_cpu::make_unique<ShlReluParams>(sess, shl_api, eltwiseAttrs.alpha);
+                initFunc = [&]() {
+                    return csinn_leaky_relu_init(srcTensors[0].get(), dstTensors[0].get(), static_cast<csinn_relu_params*>(params->get()));
+                };
+                shlExecFunc = [&]() {
+                    return csinn_leaky_relu(srcTensors[0].get(), dstTensors[0].get(), static_cast<csinn_relu_params*>(params->get()));
+                };
+            }
+            break;
+        case Algorithm::EltwisePrelu:
+            params = ov::intel_cpu::make_unique<ShlPReluParams>(sess, shl_api);
+            initFunc = [&]() {
+                return csinn_prelu_init(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_prelu_params*>(params->get()));
+            };
+            shlExecFunc = [&]() {
+                return csinn_prelu(srcTensors[0].get(), srcTensors[1].get(), dstTensors[0].get(), static_cast<csinn_prelu_params*>(params->get()));
+            };
+            break;
+        default:
+            OPENVINO_THROW("Unsupported operation type for SHL Eltwise executor: ",
+                        static_cast<int>(shlEltwiseAttrs.algorithm));
     }
 
     return initFunc != nullptr && initFunc() == CSINN_TRUE;
