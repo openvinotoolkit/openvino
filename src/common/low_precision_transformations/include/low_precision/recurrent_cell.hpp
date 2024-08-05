@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <memory>
+
 #include "low_precision/layer_transformation.hpp"
 
 namespace ov {
@@ -24,8 +26,6 @@ public:
 
 private:
     void propagate(TransformationContext& context, const std::shared_ptr<ov::Node> node);
-    std::shared_ptr<ov::Node> dequantization_X;
-    std::shared_ptr<ov::Node> dequantization_without_subtract_H_i8;
 };
 
 } // namespace low_precision

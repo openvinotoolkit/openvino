@@ -726,10 +726,10 @@ void Transformations::Lpt(const std::vector<ov::element::Type>& defaultPrecision
                     {{1}, {ov::element::i8}}
                 }),
             PrecisionsRestriction::create<ov::opset5::LSTMSequence>({
-                    {{0, 1}, {ov::element::u8, ov::element::i8}}
+                    {{0, 1}, {ov::element::u8}}
                 }),
             PrecisionsRestriction::create<ov::opset6::GRUSequence>({
-                    {{0, 1}, {ov::element::u8, ov::element::i8}}
+                    {{0, 1}, {ov::element::u8}}
                 }),
         });
 
