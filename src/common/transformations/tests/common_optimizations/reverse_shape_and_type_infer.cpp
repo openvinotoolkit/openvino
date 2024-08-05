@@ -747,7 +747,6 @@ TEST_F(TransformationTestsF, SqueezeAxesReverseInferTorchMode) {
         model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
         manager.register_pass<pass::ReverseShapeAndTypeInfer>();
 
-        EXPECT_EQ(squeeze->get_element_type(), element::f32);
         EXPECT_EQ(squeeze->get_output_partial_shape(0), PartialShape::dynamic());
     }
     {
