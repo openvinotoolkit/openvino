@@ -919,6 +919,10 @@ void GraphOptimizer::MergeConvertAndScaleShift(Graph& graph) {
 }
 
 void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
+#if defined(OV_CPU_WITH_SHL)
+    return;
+#endif
+
     // This optimization fuses Convert (fp16 -> bf16/fp32) on weights directly to FC input to allow precision conversion handling based on internal logic
     // (e.g. fuse conversion with weights reordering)
     auto& graphNodes = graph.GetNodes();
