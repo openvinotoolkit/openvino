@@ -1,7 +1,9 @@
-.. {#llm_inference}
-
 Run LLMs with Hugging Face and Optimum Intel
-=====================================================
+===============================================================================================
+
+.. meta::
+   :description: Learn how to use the native OpenVINO package to execute LLM models.
+
 
 The steps below show how to load and infer LLMs from
 `Hugging Face <https://huggingface.co/models>`__ using Optimum Intel. They also show how to
