@@ -110,7 +110,7 @@ public:
      */
     void set_work_amount_const(bool value);
 
-    /**
+/**
      * @brief Replace the current LoopPort `actual_port` with new `target_ports`
      * @param actual_port actual port
      * @param target_ports new ports. The ports order is important. Can contain `actual_port`
@@ -128,18 +128,15 @@ public:
      * @brief Iterates through all loop ports and call `caller` for each of them
      * @param caller - function that called for each loop port
      */
-    inline void iterate_through_ports(const std::function<void(LoopPort&)>& caller) {
-        std::for_each(m_input_ports.begin(), m_input_ports.end(), caller);
-        std::for_each(m_output_ports.begin(), m_output_ports.end(), caller);
-    }
-    /**
-     * @brief Iterates through all loop ports and call `caller` for each of them
-     * @param caller - function that called for each loop port
-     */
     inline void iterate_through_ports(const std::function<void(const LoopPort&)>& caller) const {
         std::for_each(m_input_ports.cbegin(), m_input_ports.cend(), caller);
         std::for_each(m_output_ports.cbegin(), m_output_ports.cend(), caller);
     }
+
+    /**
+     * @brief Sort Loop Ports according to the execution order of underlying expressions
+     */
+    virtual void sort_ports() = 0;
 
     // Note that get_type_info_static and get_type_info are needed to mimic OPENVINO_RTTI interface,
     // so the standard OPENVINO_RTTI(...) macros could be used in derived classes.
@@ -310,15 +307,9 @@ public:
     }
 
     /**
-     * @brief Reorder ALL input Loop Ports by `new_order`: `m_input_ports[new_order[i]] = m_input_ports[i]`
-     * @param new_order vector of new indexes
+     * @brief Sort Loop Ports according to the execution order of underlying expressions
      */
-    void reorder_input_ports(const std::vector<size_t>& new_order);
-    /**
-     * @brief Reorder ALL output Loop Ports by `new_order`: `m_output_ports[new_order[i]] = m_output_ports[i]`
-     * @param new_order vector of new indexes
-     */
-    void reorder_output_ports(const std::vector<size_t>& new_order);
+    void sort_ports() override;
 
     /**
      * @brief Replace the current LoopPort `actual_port` with new `target_ports`
@@ -334,15 +325,6 @@ public:
      */
     void replace_with_new_ports(const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports) override;
 
-    /**
-     * @brief Remove remove_ports and add add_ports to the current LoopPort.
-     *        This function removes ports directly and adds ports at the end of current LoopPort, caller is responsible to
-     *        sort the LoopPort after LoopPort being updated according to execution order of the expressions.
-     *        Note: all port in remove_ports and add_ports should have the same type.
-     * @param remove_ports need to be removed
-     * @param add_ports need to be added
-     */
-    void update_loop_ports(const std::vector<ExpressionPort>& remove_ports, const std::vector<ExpressionPort>& add_ports);
     /**
      * @brief Iterates through all LoopPortDesc and call `caller` for each of them
      * @param caller - function that called for each LoopPortDesc
@@ -388,28 +370,6 @@ private:
      * @param is_input true if descriptor is of input port. Otherwise, false - of output Loop port
      */
     void replace_with_cloned_descs(size_t actual_port_idx, size_t new_count, bool is_input);
-    /**
-     * @brief Validate the current state of UnifiedLoopInfo:
-     *         - Consistency of ports and descriptors
-     */
-    void validate() const;
-    /**
-     * @brief Remove the current LoopPort that contains ExpressionPort.
-     *        Note: If there is no LoopPort with ExpressionPort `ports`, does nothing.
-     *        This function removes ports directly, caller is responsible to sort the LoopPort after updated
-     *        according to execution order of the expressions.
-     *        Note: all port in ports should have the same type.
-     * @param ports need to be removed
-     */
-    void remove_loop_ports(const std::vector<ExpressionPort>& ports);
-    /**
-     * @brief Add ports to the current LoopPort.
-     *        This function adds ports in end of current LoopPort vector, caller is responsible to
-     *        sort the LoopPort after updated according to execution order of the expressions.
-     *        Note: all port in ports should have the same type.
-     * @param ports need to be added
-     */
-    void add_loop_ports(const std::vector<ExpressionPort>& ports);
 
     SpecificIterationHandlers m_handlers = {};
     std::vector<LoopPortDesc> m_input_port_descs = {};
@@ -430,7 +390,8 @@ public:
     ExpandedLoopInfo(size_t work_amount, size_t increment,
                      const std::vector<LoopPort>& entries, const std::vector<LoopPort>& exits,
                      std::vector<int64_t> ptr_increments, std::vector<int64_t> final_offsets, std::vector<int64_t> data_sizes,
-                     SpecificLoopIterType type, std::shared_ptr<UnifiedLoopInfo> unified_loop_info, bool is_wa_const = false);
+                     SpecificLoopIterType type, std::shared_ptr<UnifiedLoopInfo> unified_loop_info, bool is_wa_const = false,
+                     bool evaluate_once = false);
     /**
      * @brief Clone LoopInfo with new expressions
      * @param expr_map map of new and old expressions
@@ -474,7 +435,18 @@ public:
      * @return const ref of `m_data_sizes`
      */
     const std::vector<int64_t>& get_data_sizes() const;
+    /**
+     * @brief Returns True if the current Loop should be executed once
+     *        Otherwise, returns False
+     * @return `m_evaluance_once`
+     */
+    bool is_evaluate_once() const;
 
+    /**
+     * @brief Set value to `m_evaluance_once`
+     * @param value - new value of `m_evaluance_once`
+     */
+    void set_evaluate_once(bool value);
     /**
      * @brief Update `m_ptr_increments` using copy values from `new_values`.
      *        The count of new values must be equal to the count of current increments.
@@ -504,19 +476,20 @@ public:
      */
     void replace_with_new_ports(const ExpressionPort& actual_port, const std::vector<ExpressionPort>& target_ports) override;
 
-private:
     /**
-     * @brief Validate the current state of ExpandedLoopInfo:
-     *         - Consistency of ports and data pointer shift patameters
+     * @brief Sort Loop Ports according to the execution order of underlying expressions
      */
-    void validate() const;
+    void sort_ports() override;
 
+private:
     std::vector<int64_t> m_ptr_increments = {};
     std::vector<int64_t> m_finalization_offsets = {};
     std::vector<int64_t> m_data_sizes = {};
 
     const SpecificLoopIterType m_type = {};
     std::shared_ptr<UnifiedLoopInfo> m_unified_loop_info = {};
+
+    bool m_evaluate_once = false;
 };
 using ExpandedLoopInfoPtr = std::shared_ptr<ExpandedLoopInfo>;
 

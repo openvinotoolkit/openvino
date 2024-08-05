@@ -95,6 +95,9 @@ public:
 
     ValuePredicate get_predicate() const;
 
+    std::ostream& write_description(std::ostream& out, uint32_t depth) const override;
+    virtual std::ostream& write_type_description(std::ostream& out) const;
+
 protected:
     ValuePredicate m_predicate;
 };
