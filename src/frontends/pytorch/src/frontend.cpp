@@ -390,8 +390,8 @@ std::unordered_map<std::string, CreatorFunction> FrontEnd::get_supported_ops(
         supported_ops = get_supported_ops_fx();
     else
         supported_ops = get_supported_ops_ts();
-    for (const auto& translator : m_op_extension_translators) {
-        supported_ops.emplace(translator.first, translator.second);
+    for (const auto& ext : m_op_extension_translators) {
+        supported_ops[ext.first] = ext.second;
     }
     return supported_ops;
 }
