@@ -116,12 +116,11 @@ NPU Device Plugin
 OpenVINO Python API
 -----------------------------
 
-* visit_attributes is now available in custom operation implemented in Python, so you may pass
-  a dictionary of attributes, i.e. {"name1": value1, "name2": value2...}, instead of multiple
-  on_attribute methods (as in C++).
-* ReadValue or NodeFactory can now be used to benefit different use cases, for reduced code
-  complexity.
-* Kwargs overloading is now supported.
+* visit_attributes is now available for custom operation implemented in Python, enabling
+  serialization of operation attributes.
+* Python API is now extended with new methods for Model class, e.g. Model.get_sink_index, new
+  overloads for Model.get_result_index.
+
 
 OpenVINO Node.js API
 -----------------------------
