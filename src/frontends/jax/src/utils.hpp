@@ -4,7 +4,10 @@
 
 #pragma once
 
+#include <memory>
+
 #include "openvino/frontend/jax/node_context.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov {
 
@@ -46,6 +49,10 @@ template <typename T>
 OutputVector translate_1to1_match_2_inputs(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
     return {std::make_shared<T>(context.get_input(0), context.get_input(1))};
+}
+
+inline OutputVector skip_node(const NodeContext& context) {
+    return {context.get_input(0)};
 }
 
 }  // namespace op
