@@ -2,22 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/test_common.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
+#include "common_test_utils/test_common.hpp"
 #include "openvino/runtime/core.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "common_test_utils/subgraph_builders/split_multi_conv_concat.hpp"
 
-namespace {
-using ov::test::InputShape;
+namespace ov {
+namespace test {
 
-using OVDynamicBatchParams = std::tuple<
-    std::vector<InputShape>,                                 // dynamic and static case sizes
-    ov::element::Type,                                                 // Model type
-    std::string,                                                       // Device name
-    ov::AnyMap                                                         // Config
->;
+using OVDynamicBatchParams = std::tuple<std::vector<InputShape>,  // dynamic and static case sizes
+                                        ov::element::Type,        // Model type
+                                        std::string,              // Device name
+                                        ov::AnyMap                // Config
+                                        >;
 
 class OVDynamicBatchShape_Tests : public ::testing::WithParamInterface<OVDynamicBatchParams>,
                                   virtual public ov::test::SubgraphBaseTest {
@@ -32,7 +31,7 @@ public:
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : input_shapes) {
-            result << ov::test::utils::partialShape2str({ shape.first }) << "_";
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
         }
         result << "TS=";
         for (const auto& shape : input_shapes) {
@@ -67,8 +66,8 @@ protected:
         std::tie(input_shape, model_type, targetDevice, configuration) = this->GetParam();
 
         init_input_shapes(input_shape);
-        //TODO: think how we can switch between several input topologies in the future
-        //  function = ov::test::utils::make_split_conv_concat(input_shape.front().first.get_min_shape(), model_type);
+        // TODO: think how we can switch between several input topologies in the future
+        //   function = ov::test::utils::make_split_conv_concat(input_shape.front().first.get_min_shape(), model_type);
         function = ov::test::utils::make_split_multi_conv_concat(input_shape.front().first.get_min_shape(), model_type);
 
         //  make topology dynamic
@@ -112,24 +111,19 @@ TEST_P(OVDynamicBatchShape_Tests, InferDynamicBatchBound_cached) {
     }
 }
 
-auto config = []() {
-    return ov::AnyMap{};
-};
+auto hetero_config = ov::AnyMap{{ov::device::priorities.name(), ov::test::utils::DEVICE_GPU}};
 
 const std::vector<InputShape> input_shapes = {
-    { { {1, 19}, 4, 20, 20}, { {1, 4, 20, 20}, {7, 4, 20, 20}, {17, 4, 20, 20} } }
-};
+    {{{1, 19}, 4, 20, 20}, {{1, 4, 20, 20}, {7, 4, 20, 20}, {17, 4, 20, 20}}}};
 
-const std::vector<ov::element::Type> model_types = {
-    ov::element::f16,
-    ov::element::f32
-};
+const std::vector<ov::element::Type> model_types = {ov::element::f16, ov::element::f32};
 
-INSTANTIATE_TEST_SUITE_P(smoke_GPU_DynBatch, OVDynamicBatchShape_Tests,
-    ::testing::Combine(
-        ::testing::Values(input_shapes),
-        ::testing::ValuesIn(model_types),
-        ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::Values(config())),
-    OVDynamicBatchShape_Tests::getTestCaseName);
-}  // namespace
+INSTANTIATE_TEST_SUITE_P(nightly_GPU_DynBatchHetero,
+                         OVDynamicBatchShape_Tests,
+                         ::testing::Combine(::testing::Values(input_shapes),
+                                            ::testing::ValuesIn(model_types),
+                                            ::testing::Values(ov::test::utils::DEVICE_HETERO),
+                                            ::testing::Values(hetero_config)),
+                         OVDynamicBatchShape_Tests::getTestCaseName);
+}  // namespace test
+}  // namespace ov
