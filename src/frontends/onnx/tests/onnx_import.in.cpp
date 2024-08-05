@@ -1232,6 +1232,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_prod) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_prod_18) {
+    // TEMPLATE plugin has an issue with evaluation for reduceprod, CVS-148827
+    if (std::string("${BACKEND_NAME}") == std::string("INTERPRETER")) {
+        GTEST_SKIP();
+    }
+
     auto model = convert_model("reduce_prod_18.onnx");
 
     // input data shape (1, 1, 4, 4)
