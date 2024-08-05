@@ -4,15 +4,14 @@
 
 #pragma once
 
-#include "jit_generator.hpp"
-#include "openvino/core/except.hpp"
-
 #include <memory>
 #include <utility>
 #include <vector>
 
+#include "openvino/core/except.hpp"
+#include "openvino/reference/utils/jit_generator.hpp"
 namespace ov {
-namespace runtime {
+namespace reference {
 namespace jit {
 
 class RegistersPool {
@@ -21,25 +20,44 @@ public:
     using WeakPtr = std::weak_ptr<RegistersPool>;
     static constexpr int anyIdx = -1;
 
-    template<typename TReg>
+    template <typename TReg>
     class Reg {
         friend class RegistersPool;
+
     public:
         Reg() {}
-        Reg(const RegistersPool::Ptr& regPool) { initialize(regPool); }
-        Reg(const RegistersPool::Ptr& regPool, int requestedIdx) { initialize(regPool, requestedIdx); }
-        ~Reg() { release(); }
-        Reg& operator=(Reg&& other)  noexcept {
+        Reg(const RegistersPool::Ptr& regPool) {
+            initialize(regPool);
+        }
+        Reg(const RegistersPool::Ptr& regPool, int requestedIdx) {
+            initialize(regPool, requestedIdx);
+        }
+        ~Reg() {
+            release();
+        }
+        Reg& operator=(Reg&& other) noexcept {
             release();
             reg = other.reg;
             regPool = std::move(other.regPool);
             return *this;
         }
-        Reg(Reg&& other)  noexcept : reg(other.reg), regPool(std::move(other.regPool)) {}
-        operator TReg&() { ensureValid(); return reg; }
-        operator const TReg&() const { ensureValid(); return reg; }
-        operator Xbyak::RegExp() const { ensureValid(); return reg; }
-        int getIdx() const { ensureValid(); return reg.getIdx(); }
+        Reg(Reg&& other) noexcept : reg(other.reg), regPool(std::move(other.regPool)) {}
+        operator TReg&() {
+            ensureValid();
+            return reg;
+        }
+        operator const TReg&() const {
+            ensureValid();
+            return reg;
+        }
+        operator Xbyak::RegExp() const {
+            ensureValid();
+            return reg;
+        }
+        int getIdx() const {
+            ensureValid();
+            return reg.getIdx();
+        }
         friend Xbyak::RegExp operator+(const Reg& lhs, const Xbyak::RegExp& rhs) {
             lhs.ensureValid();
             return lhs.operator Xbyak::RegExp() + rhs;
@@ -50,7 +68,9 @@ public:
                 regPool.reset();
             }
         }
-        bool isInitialized() const { return !regPool.expired(); }
+        bool isInitialized() const {
+            return !regPool.expired();
+        }
 
     private:
         void ensureValid() const {
@@ -74,12 +94,12 @@ public:
         checkUniqueAndUpdate(false);
     }
 
-    template <ov::runtime::jit::cpu_isa_t isa>
+    template <ov::reference::jit::cpu_isa_t isa>
     static Ptr create(std::initializer_list<Xbyak::Reg> regsToExclude);
 
     static Ptr create(cpu_isa_t isa, std::initializer_list<Xbyak::Reg> regsToExclude);
 
-    template<typename TReg>
+    template <typename TReg>
     size_t countFree() const {
         if (std::is_base_of<Xbyak::Mmx, TReg>::value) {
             return simdSet.countUnused();
@@ -158,12 +178,17 @@ protected:
         std::vector<bool> isFreeIndexVector;
     };
 
-    virtual int getFreeOpmask(int requestedIdx) { OPENVINO_THROW("getFreeOpmask: The Opmask is not supported in current instruction set"); }
-    virtual void returnOpmaskToPool(int idx) { OPENVINO_THROW("returnOpmaskToPool: The Opmask is not supported in current instruction set"); }
-    virtual size_t countUnusedOpmask() const { OPENVINO_THROW("countUnusedOpmask: The Opmask is not supported in current instruction set"); }
+    virtual int getFreeOpmask(int requestedIdx) {
+        OPENVINO_THROW("getFreeOpmask: The Opmask is not supported in current instruction set");
+    }
+    virtual void returnOpmaskToPool(int idx) {
+        OPENVINO_THROW("returnOpmaskToPool: The Opmask is not supported in current instruction set");
+    }
+    virtual size_t countUnusedOpmask() const {
+        OPENVINO_THROW("countUnusedOpmask: The Opmask is not supported in current instruction set");
+    }
 
-    RegistersPool(int simdRegistersNumber)
-            : simdSet(simdRegistersNumber) {
+    RegistersPool(int simdRegistersNumber) : simdSet(simdRegistersNumber) {
         checkUniqueAndUpdate();
         generalSet.exclude(Xbyak::Reg64(Xbyak::Operand::RSP));
         generalSet.exclude(Xbyak::Reg64(Xbyak::Operand::RAX));
@@ -173,7 +198,7 @@ protected:
     }
 
     RegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude, int simdRegistersNumber)
-            : simdSet(simdRegistersNumber) {
+        : simdSet(simdRegistersNumber) {
         checkUniqueAndUpdate();
         for (auto& reg : regsToExclude) {
             if (reg.isXMM() || reg.isYMM() || reg.isZMM()) {
@@ -186,7 +211,7 @@ protected:
     }
 
 private:
-    template<typename TReg>
+    template <typename TReg>
     int getFree(int requestedIdx) {
         if (std::is_base_of<Xbyak::Mmx, TReg>::value) {
             auto idx = simdSet.getUnused(requestedIdx);
@@ -202,7 +227,7 @@ private:
         }
     }
 
-    template<typename TReg>
+    template <typename TReg>
     void returnToPool(const TReg& reg) {
         if (std::is_base_of<Xbyak::Mmx, TReg>::value) {
             simdSet.setAsUnused(reg.getIdx());
@@ -226,7 +251,7 @@ private:
         }
     }
 
-    PhysicalSet generalSet {16};
+    PhysicalSet generalSet{16};
     PhysicalSet simdSet;
 };
 
@@ -240,11 +265,11 @@ template <>
 class IsaRegistersPool<avx512_core> : public RegistersPool {
 public:
     IsaRegistersPool() : RegistersPool(32) {
-        opmaskSet.exclude(Xbyak::Opmask(0)); // the Opmask(0) has special meaning for some instructions, like gather instruction
+        opmaskSet.exclude(
+            Xbyak::Opmask(0));  // the Opmask(0) has special meaning for some instructions, like gather instruction
     }
 
-    IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude)
-        : RegistersPool(regsToExclude, 32) {
+    IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude) : RegistersPool(regsToExclude, 32) {
         for (auto& reg : regsToExclude) {
             if (reg.isOPMASK()) {
                 opmaskSet.exclude(reg);
@@ -267,7 +292,7 @@ public:
     }
 
 protected:
-    PhysicalSet opmaskSet {8};
+    PhysicalSet opmaskSet{8};
 };
 
 template <>
@@ -289,9 +314,10 @@ RegistersPool::Ptr RegistersPool::create(std::initializer_list<Xbyak::Reg> regsT
     return std::make_shared<IsaRegistersPool<isa>>(regsToExclude);
 }
 
-inline
-RegistersPool::Ptr RegistersPool::create(cpu_isa_t isa, std::initializer_list<Xbyak::Reg> regsToExclude) {
-#define ISA_SWITCH_CASE(isa) case isa: return std::make_shared<IsaRegistersPool<isa>>(regsToExclude);
+inline RegistersPool::Ptr RegistersPool::create(cpu_isa_t isa, std::initializer_list<Xbyak::Reg> regsToExclude) {
+#define ISA_SWITCH_CASE(isa) \
+    case isa:                \
+        return std::make_shared<IsaRegistersPool<isa>>(regsToExclude);
     switch (isa) {
         ISA_SWITCH_CASE(sse42)
         ISA_SWITCH_CASE(avx)
@@ -299,14 +325,14 @@ RegistersPool::Ptr RegistersPool::create(cpu_isa_t isa, std::initializer_list<Xb
         ISA_SWITCH_CASE(avx512_core)
         ISA_SWITCH_CASE(avx512_core_vnni)
         ISA_SWITCH_CASE(avx512_core_bf16)
-        case avx512_vpopcnt: return std::make_shared<IsaRegistersPool<avx512_core>>(regsToExclude);
-        default:
-            OPENVINO_THROW("Invalid isa argument in RegistersPool::create(): ", isa);
-        }
-    OPENVINO_THROW("Invalid isa argument in RegistersPool::create()");
+    case avx512_vpopcnt:
+        return std::make_shared<IsaRegistersPool<avx512_core>>(regsToExclude);
+    default:
+        OPENVINO_THROW("Invalid isa argument in RegistersPool::create(): ", isa);
+    }
 #undef ISA_SWITCH_CASE
 }
 
-} // namespace jit
-} // namespace runtime
-} // namespace ov
+}  // namespace jit
+}  // namespace reference
+}  // namespace ov
