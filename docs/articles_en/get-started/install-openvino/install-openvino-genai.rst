@@ -13,7 +13,7 @@ To see GenAI in action, check the Jupyter notebooks:
 
 The OpenVINO GenAI flavor is available for installation via PyPI and Archive distributions.
 Detailed guide on how to build OpenVINO GenAI is available in the
-`OpenVINO GenAI repository <https://github.com/openvinotoolkit/openvino.genai/blob/releases/2024/3/src/docs/BUILD.md>`__
+`OpenVINO GenAI repository <https://github.com/openvinotoolkit/openvino.genai/blob/releases/2024/3/src/docs/BUILD.md>`__.
 
 PyPI Installation
 ###############################

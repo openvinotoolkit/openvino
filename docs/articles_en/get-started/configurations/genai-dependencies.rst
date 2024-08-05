@@ -18,8 +18,8 @@ to cover a wider range of platforms. In the C++ archive distributions for Ubuntu
 is used instead. Mixing different ABIs is not possible as doing so will result in a link error.
 
 To try OpenVINO GenAI with different dependencies versions (which are **not** prebuilt packages
-as archives or python wheels), build OpenVINO GenAI library from the
-`source <https://github.com/openvinotoolkit/openvino.genai/blob/releases/2024/3/src/docs/BUILD.md#build-openvino-openvino-tokenizers-and-openvino-genai-from-source>`__.
+as archives or python wheels), build OpenVINO GenAI library from
+`Source <https://github.com/openvinotoolkit/openvino.genai/blob/releases/2024/3/src/docs/BUILD.md#build-openvino-openvino-tokenizers-and-openvino-genai-from-source>`__.
 
 Additional Resources
 #######################
