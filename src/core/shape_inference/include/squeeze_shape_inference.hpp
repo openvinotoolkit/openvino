@@ -71,14 +71,14 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
         NODE_VALIDATION_CHECK(op, false);
     }
 
-    auto torch_mode_predicate = [&op, &arg_shape, &unique_axes](){
+    auto torch_mode_predicate = [&op, &arg_shape, &unique_axes]() {
         int64_t i{-1};
 
         return op->get_pytorch_dynamic_rank() &&
-            std::any_of(arg_shape.cbegin(), arg_shape.cend(), [&unique_axes, &i](const DimType& d) {
-                            ++i;
-                            return d.is_dynamic() && d.compatible(1) && unique_axes->find(i) != unique_axes->end();
-                        });
+               std::any_of(arg_shape.cbegin(), arg_shape.cend(), [&unique_axes, &i](const DimType& d) {
+                   ++i;
+                   return d.is_dynamic() && d.compatible(1) && unique_axes->find(i) != unique_axes->end();
+               });
     };
 
     if (arg_rank.is_static() && (unique_axes != nullptr)) {
@@ -99,12 +99,11 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
                                  return !dim.compatible(1);
                              });
             }
-        } else if(torch_mode_predicate()) {
+        } else if (torch_mode_predicate()) {
             // we are unsure if dynamic dimensions would be equal to 1 or not, so we set dynamic output rank
             output_shape = PartialShape::dynamic();
             return output_shapes;
-        }
-        else {
+        } else {
             int64_t idx = 0;
             auto rm_axis_iter = unique_axes->cbegin();
             auto rm_axis_end = unique_axes->cend();
