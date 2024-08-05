@@ -1985,7 +1985,7 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
             node.set_preferred_input_fmt(idx, src_fmt);
 
             auto dst_fmt = onednn::find_data_format(prim_desc.dst_desc());
-                        // WA: b_fs_yx_fsv2 has dnnl::memory::format_tag::undef , so select byfx instead of b_fs_yx_fsv2.
+            // WA: b_fs_yx_fsv2 has dnnl::memory::format_tag::undef , so select byfx instead of b_fs_yx_fsv2.
             if (dst_fmt == format::b_fs_yx_fsv2)
                 dst_fmt = format::byxf;
             // Errata: Best impl for shallow input conv with zero-point ops is ocl:xe_lp.
