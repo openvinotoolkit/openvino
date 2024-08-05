@@ -38,7 +38,7 @@ runs:
       id: create_manifest
       shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
       run: >-
-        python ${{ env.ACTION_PATH }}/create_manifest.py
+        python3 ${{ env.ACTION_PATH }}/create_manifest.py
         --target_arch "${{ inputs.target_arch }}" --build_type "${{ inputs.build_type }}"
         --save_to "${{ inputs.save_to }}" --product_type "${{ inputs.product_type }}" -r "${{ inputs.repos }}"
       env:

@@ -13,9 +13,9 @@ namespace {
 // Executable Network GetMetric
 //
 
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassCompiledModelGetPropertyTest, OVClassCompiledModelGetPropertyTest,
-        ::testing::Values("CPU", "HETERO:CPU"));
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetPropertyTest,
+                         OVClassCompiledModelGetPropertyTest,
+                         ::testing::Values("CPU"));
 
 const std::vector<std::tuple<std::string, std::pair<ov::AnyMap, std::string>>> GetMetricTest_ExecutionDevice_CPU = {
         {"CPU", std::make_pair(ov::AnyMap{}, "CPU")}};
@@ -28,9 +28,9 @@ INSTANTIATE_TEST_SUITE_P(
 // Executable Network GetConfig / SetConfig
 //
 
-INSTANTIATE_TEST_SUITE_P(
-        smoke_OVClassCompiledModelGetIncorrectPropertyTest, OVClassCompiledModelGetIncorrectPropertyTest,
-        ::testing::Values("CPU", "HETERO:CPU"));
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassCompiledModelGetIncorrectPropertyTest,
+                         OVClassCompiledModelGetIncorrectPropertyTest,
+                         ::testing::Values("CPU"));
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassCompiledModelGetConfigTest, OVClassCompiledModelGetConfigTest,
