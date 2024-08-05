@@ -32,7 +32,6 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     bool is_dynamic() const override;
-
     bool get_pytorch_dynamic_rank() const;
 private:
     Output<Node> get_default_axes_input() const;
