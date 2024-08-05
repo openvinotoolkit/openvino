@@ -541,7 +541,7 @@ void Split::resolveInPlaceEdges(Edge::LOOK look) {
                     " Split node: ",
                     getName(),
                     " can not use inPlace memory with splitting on dynamic dimension");
-    auto baseMemMngr = getParentEdgeAt(inplaceInpIndx)->getMemory().getMemoryMngr();
+    auto baseMemBlock = getParentEdgeAt(inplaceInpIndx)->getMemory().getMemoryBlock();
     ptrdiff_t offset = 0;
     for (size_t i = 0; i < numberOfOutputs; ++i) {
         auto partDim = outputShapes[i].getDims()[axis];
@@ -560,8 +560,8 @@ void Split::resolveInPlaceEdges(Edge::LOOK look) {
             auto memDesc = selected_pd->getConfig().outConfs[i].getMemDesc();
             MemoryPtr newMem;
             if (partDim != 0) {
-                auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, baseDim, offset, partDim);
-                newMem = std::make_shared<Memory>(getEngine(), memDesc, memMngr);
+                auto memBlock = std::make_shared<PartitionedMemoryBlock>(baseMemBlock, baseDim, offset, partDim);
+                newMem = std::make_shared<Memory>(getEngine(), memDesc, memBlock);
             } else {
                 // empty tensor, no need to reference a part, default memory is enough
                 newMem = std::make_shared<Memory>(getEngine(), memDesc);

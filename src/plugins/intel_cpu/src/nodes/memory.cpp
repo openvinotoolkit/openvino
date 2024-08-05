@@ -59,8 +59,8 @@ public:
         OPENVINO_THROW("Unexpected call MemoryStub::load()");
     }
 
-    MemoryMngrPtr getMemoryMngr() const override {
-        OPENVINO_THROW("Unexpected call MemoryStub::getMemoryMngr()");
+    MemoryBlockPtr getMemoryBlock() const override {
+        OPENVINO_THROW("Unexpected call MemoryStub::getMemoryBlock()");
     }
 
     dnnl::memory getPrimitive() const override {
@@ -233,8 +233,8 @@ void MemoryOutput::resolveInPlaceEdges(Edge::LOOK look) {
         " Unexpected inplace resolve call to an allocated edge: ", parentEdge->name());
 
     auto memDesc = selected_pd->getConfig().inConfs.front().getMemDesc();
-    memMngr = std::make_shared<ProxyMemoryMngr>();
-    auto edgeMem = std::make_shared<Memory>(getEngine(), memDesc, memMngr);
+    memBlock = std::make_shared<ProxyMemoryBlock>();
+    auto edgeMem = std::make_shared<Memory>(getEngine(), memDesc, memBlock);
     parentEdge->reuse(edgeMem);
 }
 
@@ -251,13 +251,13 @@ void MemoryOutput::assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr& me
         getName(),
         " assigned state has null base mem desc ptr");
 
-    if (!memMngr) { return; } //nothing to do, edge memory isn't under control
+    if (!memBlock) { return; } //nothing to do, edge memory isn't under control
     auto inpDesc = getBaseMemDescAtInputPort(0);
 
     if (inpDesc->isCompatible(*extMemDesc)) {
-        memMngr->setMemMngrResize(assignedMem->getMemoryMngr());
+        memBlock->setMemBlockResize(assignedMem->getMemoryBlock());
     } else {
-        memMngr->reset();
+        memBlock->reset();
     }
 }
 
@@ -569,20 +569,20 @@ void MemoryInput::runDynamic(dnnl::stream strm) {
         getName(),
         " assigned state has null memory ptr");
 
-    // check whether we can share memory manager
+    // check whether we can share memory block
     const auto& stateDims = assignedMem->getStaticDims();
     const bool hasZeroDims = std::count(std::begin(stateDims), std::end(stateDims), 0) > 0;
     auto internDesc = getBaseMemDescAtOutputPort(0)->cloneWithNewDims(stateDims, hasZeroDims);
 
-    OPENVINO_ASSERT(memMngr,
+    OPENVINO_ASSERT(memBlock,
         "MemoryInput ",
         getName(),
-        " has uninitialized memory manager.");
+        " has uninitialized memory block.");
 
     if (internDesc->isCompatible(assignedMem->getDesc())) {
-        memMngr->setMemMngr(assignedMem->getMemoryMngr());
+        memBlock->setMemBlock(assignedMem->getMemoryBlock());
     } else {
-        memMngr->reset();
+        memBlock->reset();
     }
 
     const bool processInitGraph = needInitGraphProcessing();
@@ -619,15 +619,15 @@ void MemoryInput::runStatic(dnnl::stream strm) {
 
     auto internDesc = getBaseMemDescAtOutputPort(0);
 
-    OPENVINO_ASSERT(memMngr,
+    OPENVINO_ASSERT(memBlock,
         "MemoryInput ",
         getName(),
-        " has uninitialized memory manager.");
+        " has uninitialized memory block.");
 
     if (internDesc->isCompatible(assignedMem->getDesc())) {
-        memMngr->setMemMngr(assignedMem->getMemoryMngr());
+        memBlock->setMemBlock(assignedMem->getMemoryBlock());
     } else {
-        memMngr->reset();
+        memBlock->reset();
     }
 
     const auto processInitGraph = needInitGraphProcessing();
@@ -653,13 +653,13 @@ void MemoryInput::resolveInPlaceEdges(Edge::LOOK look) {
         " failed getSelectedPrimitiveDescriptor() call, preferable primitive descriptor is not set");
 
     auto memDesc = selected_pd->getConfig().outConfs.front().getMemDesc();
-    memMngr = std::make_shared<ProxyMemoryMngr>();
+    memBlock = std::make_shared<ProxyMemoryBlock>();
 
     for (auto&& edge : getChildEdgesAtPort(0)) { // always only one child port
         OPENVINO_ASSERT(one_of(edge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
             " Unexpected inplace resolve call to an allocated edge: ", edge->name());
 
-        auto edgeMem = std::make_shared<Memory>(getEngine(), memDesc, memMngr);
+        auto edgeMem = std::make_shared<Memory>(getEngine(), memDesc, memBlock);
         edge->reuse(edgeMem);
     }
 }

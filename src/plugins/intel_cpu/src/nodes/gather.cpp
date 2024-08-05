@@ -945,7 +945,7 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
                     "Gather node: ",
                     getName(),
                     " can not use inPlace memory with splitting on dynamic dimention");
-    auto baseMemMngr = getParentEdgeAt(inplaceInpIndx)->getMemory().getMemoryMngr();
+    auto baseMemBlock = getParentEdgeAt(inplaceInpIndx)->getMemory().getMemoryBlock();
     const auto index = constIndices.front();
     const ptrdiff_t offset = index < 0 ? baseDim + index : index;
     const auto& childEdges = getChildEdgesAtPort(outputPort);
@@ -956,8 +956,8 @@ void Gather::resolveInPlaceEdges(Edge::LOOK look) {
                         " with type ",
                         getTypeStr());
 
-        auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, baseDim, offset);
-        auto newMem = std::make_shared<Memory>(getEngine(), config.outConfs[outputPort].getMemDesc(), memMngr);
+        auto memBlock = std::make_shared<PartitionedMemoryBlock>(baseMemBlock, baseDim, offset);
+        auto newMem = std::make_shared<Memory>(getEngine(), config.outConfs[outputPort].getMemDesc(), memBlock);
 
         childEdge->reuse(newMem);
     }

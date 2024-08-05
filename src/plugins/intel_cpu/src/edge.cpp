@@ -273,14 +273,14 @@ void Edge::allocate(const void* mem_ptr) {
     allocateCommon(allocateFunc);
 }
 
-void Edge::allocate(MemoryMngrPtr memMngr) {
-    if (!memMngr) {
-        OPENVINO_THROW("Unexpected: Memory manager ptr is NULL");
+void Edge::allocate(MemoryBlockPtr memBlock) {
+    if (!memBlock) {
+        OPENVINO_THROW("Unexpected: Memory block ptr is NULL");
     }
 
     auto allocateFunc = [OV_CAPTURE_CPY_AND_THIS](const MemoryDesc& inputDesc) -> MemoryPtr {
         auto parentPtr = getParent();
-        return std::make_shared<Memory>(parentPtr->getEngine(), inputDesc, memMngr);
+        return std::make_shared<Memory>(parentPtr->getEngine(), inputDesc, memBlock);
     };
 
     allocateCommon(allocateFunc);

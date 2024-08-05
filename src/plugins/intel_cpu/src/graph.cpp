@@ -727,7 +727,7 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
 
             // Special allocation for string tensors
             if (edge->getDesc().getPrecision() == element::string && edge->getStatus() == Edge::Status::NeedAllocation) {
-                StringMemory::StringMemoryMngrPtr mngr;
+                StringMemory::StringMemoryBlockPtr memBlcok;
                 if (edge->getParent()->isConstant()) {
                     if (edge->getParent()->getType() == Type::Input) {
                         auto constNode = static_cast<node::Input *>(edge->getParent().get());
@@ -738,11 +738,11 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
                     auto stringMemory = dynamic_cast<StringMemory *>(edge->getMemoryPtr().get());
                     OPENVINO_ASSERT(stringMemory, "[CPU] Edge between nodes '",
                             edge->getParent()->getName(), "' and '", edge->getChild()->getName(), "' must have StringMemory.");
-                    mngr = stringMemory->getStringMemoryMngrPtr();
+                    memBlcok = stringMemory->getStringMemoryBlockPtr();
                 } else {
                     auto memory = std::make_shared<StringMemory>(getEngine(), edge->getDesc());
                     edge->reuse(memory);
-                    mngr = memory->getStringMemoryMngrPtr();
+                    memBlcok = memory->getStringMemoryBlockPtr();
                 }
                 for (auto& edge_c : cluster) {
                     if (edge_c == edge) {
@@ -750,7 +750,7 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
                     }
                     OPENVINO_ASSERT(edge_c->getDesc().getPrecision() == element::string, "All edges in the cluster must be string.");
                     if (edge_c->getStatus() == Edge::Status::NotAllocated) {
-                        auto memory = std::make_shared<StringMemory>(getEngine(), edge_c->getDesc(), mngr);
+                        auto memory = std::make_shared<StringMemory>(getEngine(), edge_c->getDesc(), memBlcok);
                         edge_c->reuse(memory);
                     } else {
                         OPENVINO_THROW("[CPU] String tensors allocation in the cluster. Edge between nodes '", edge_c->getParent()->getName(), "' and '",
@@ -868,23 +868,23 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
 
     //Process undefined boxes (dynamic shapes)
     if (!undefinedBoxes.empty()) {
-        // Use proxy memory manager for output edges
+        // Use proxy memory block for output edges
         for (const auto& box : undefinedBoxes) {
             for (auto& edge : edge_clusters[box.id]) {
                 const auto child = edge->getChild();
                 if (child->getType() == Type::Output &&
                     edge->getStatus() == Edge::Status::NeedAllocation) {
-                    auto proxyMemMngr =
-                        std::make_shared<ProxyMemoryMngr>();
-                    DEBUG_LOG("ProxyMemoryMngr ", proxyMemMngr, " ", this);
-                    edge->allocate(proxyMemMngr);
+                    auto proxyMemBlock =
+                        std::make_shared<ProxyMemoryBlock>();
+                    DEBUG_LOG("ProxyMemoryBlock ", proxyMemBlock, " ", this);
+                    edge->allocate(proxyMemBlock);
 
-                    // Store the output memory managers.
+                    // Store the output memory blocks.
                     // So that, the infer requests can be able to access them.
                     int count = 0;
                     for (auto &output : outputNodesMap) {
                         if (output.second == child) {
-                            outputNodesMemMngrMap[output.first] = proxyMemMngr;
+                            outputNodesMemBlocksMap[output.first] = proxyMemBlock;
                             count++;
                         }
                     }
@@ -941,12 +941,12 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
             }
         }
         for (auto& group : groups) {
-            auto grpMemMngr =
-                std::make_shared<DnnlMemoryMngr>(make_unique<MemoryMngrWithReuse>());
+            auto grpMemBlock =
+                std::make_shared<DnnlMemoryBlock>(make_unique<MemoryBlockWithReuse>());
             for (auto& box : group) {
                 for (auto& edge : edge_clusters[box.id]) {
                     if (edge->getStatus() == Edge::Status::NeedAllocation) {
-                        edge->allocate(grpMemMngr);
+                        edge->allocate(grpMemBlock);
                     }
                 }
             }
@@ -975,7 +975,7 @@ void Graph::AllocateWithReuse(const std::vector<size_t>& syncNodesInds) {
                     } else {
                         auto sharedEdge = edge->getSharedEdge();
                         auto sharedEdgeParent = sharedEdge->getParent();
-                        edge->allocate(sharedEdge->getMemoryPtr()->getMemoryMngr());
+                        edge->allocate(sharedEdge->getMemoryPtr()->getMemoryBlock());
                         DEBUG_LOG(*edge, " sharedEdge with ", *sharedEdge);
                     }
                 }
@@ -1021,7 +1021,7 @@ bool Graph::ProcessDynNodes() {
         return node->isDynamicNode();
     });
     // In case of dynamic shapes, tensors may be resized due to the shapes variations.
-    // If the input tensor is included to memory reuse, it means that its memory manager is shared with other tensors in the graph, which in turn may cause data
+    // If the input tensor is included to memory reuse, it means that its memory block is shared with other tensors in the graph, which in turn may cause data
     // loss when one of the tensors down the graph requests mem resize, while the input data have not been yet read by the consumers. To avoid such situations
     // we disable io mem reuse for the case of dynamic shapes.
     if (containsDynamicNodes) {

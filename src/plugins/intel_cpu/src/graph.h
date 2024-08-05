@@ -244,7 +244,7 @@ private:
     std::map<std::size_t, NodePtr> inputNodesMap;
     std::map<std::size_t, NodePtr> outputNodesMap;
 
-    std::unordered_map<std::size_t, ProxyMemoryMngrPtr> outputNodesMemMngrMap;
+    std::unordered_map<std::size_t, ProxyMemoryBlockPtr> outputNodesMemBlocksMap;
 
     // these node pointers (from graphNodes) are to avoid regular checking for
     // constantness of nodes in Infer methods and calls of

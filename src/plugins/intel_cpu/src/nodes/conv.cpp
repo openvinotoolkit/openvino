@@ -1531,7 +1531,7 @@ void Convolution::executeDynamicImpl(dnnl::stream strm) {
         const auto& sumInpMem = getParentEdgeAt(sumPortNum)->getMemory();
         auto inp1 = subgraph->getInput(1);
         auto inp1Mem = inp1->getDstMemoryAtPort(0);
-        inp1Mem->getMemoryMngr()->setExtBuff(sumInpMem.getData(), sumInpMem.getSize());
+        inp1Mem->getMemoryBlock()->setExtBuff(sumInpMem.getData(), sumInpMem.getSize());
 
         subgraph->infer();
 

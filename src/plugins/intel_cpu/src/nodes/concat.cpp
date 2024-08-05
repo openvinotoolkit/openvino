@@ -694,8 +694,8 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
     auto itr = std::find_if(edges.begin(), edges.end(), [](const EdgePtr& edge) { return edge->getStatus() == Edge::Status::Allocated; });
     OPENVINO_ASSERT(itr != edges.end(), " Could not find allocated child edge for concat node: " , getName());
 
-    auto baseMemMngr = (*itr)->getMemory().getMemoryMngr();
-    OPENVINO_ASSERT(baseMemMngr != nullptr, " NULL base memory manager in concat node: " , getName());
+    auto baseMemBlock = (*itr)->getMemory().getMemoryBlock();
+    OPENVINO_ASSERT(baseMemBlock != nullptr, " NULL base memory block in concat node: ", getName());
 
     ptrdiff_t offset = 0;
     for (size_t i = 0; i < numberOfInputs; ++i) {
@@ -714,8 +714,8 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
         auto memDesc = selected_pd->getConfig().inConfs[i].getMemDesc();
         MemoryPtr newMem;
         if (partDim != 0) {
-            auto memMngr = std::make_shared<PartitionedMemoryMngr>(baseMemMngr, baseDim, offset, partDim);
-            newMem = std::make_shared<Memory>(getEngine(), memDesc, memMngr);
+            auto memBlock = std::make_shared<PartitionedMemoryBlock>(baseMemBlock, baseDim, offset, partDim);
+            newMem = std::make_shared<Memory>(getEngine(), memDesc, memBlock);
         } else {
             // empty tensor, no need to reference a part, default memory is enough
             newMem = std::make_shared<Memory>(getEngine(), memDesc);

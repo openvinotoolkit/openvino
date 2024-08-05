@@ -270,9 +270,9 @@ void Deconvolution::createDnnlCompatibleWeights() {
                                      Shape(dnnlCompatibleWeiDims),
                                      blockedDims,
                                      order);
-    // Create the memory with the edge memory mgr. In the case of the weight memory changes when inference,
+    // Create the memory with the edge memory block. In the case of the weight memory changes when inference,
     // dnnlCompatibleWeights memory would be updated automatically via update inform mechanism.
-    dnnlCompatibleWeights = std::make_shared<Memory>(getEngine(), desc, blob->getMemoryMngr());
+    dnnlCompatibleWeights = std::make_shared<Memory>(getEngine(), desc, blob->getMemoryBlock());
 }
 
 bool Deconvolution::canBeExecutedInInt8() const {
