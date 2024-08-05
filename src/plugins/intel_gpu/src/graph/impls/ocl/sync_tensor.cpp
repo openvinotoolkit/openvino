@@ -77,7 +77,8 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
         getcwd(cwd, 256);
         std::string file_path = std::string(cwd) + "/test_kernel_dg2.spv";
         printf("[get_contexts] file_path: %s \n", file_path.c_str());
-        lzctx.initKernel(file_path.data(), "local_write_to_remote");
+        lzContext::readKernel(file_path.data(), "local_write_to_remote");
+        lzctx.initKernel();
     }
 
     void* create_lz_buff(oclContext& oclctx, lzContext& lzctx, std::vector<uint32_t>& initBuf, const size_t elemCount, const int rank) {

@@ -46,15 +46,15 @@ private:
     ze_event_handle_t kernelTsEvent = nullptr;
     void *timestampBuffer = nullptr;
 
-    const char *kernelSpvFile;
-    const char *kernelFuncName;
-    std::vector<char> kernelSpvBin;
+    static const char *kernelSpvFile;
+    static const char *kernelFuncName;
+    static std::vector<char> kernelSpvBin;
     ze_module_handle_t module = nullptr;
     ze_kernel_handle_t function = nullptr;
 
     ze_device_handle_t findDevice(ze_driver_handle_t pDriver, ze_device_type_t type, uint32_t devIdx);
     void initTimeStamp();
-    int readKernel();
+    // int readKernel();
 
 public:
     lzContext(/* args */);
@@ -64,10 +64,11 @@ public:
         static lzContext instance;
         return instance;
     }
+    static void readKernel(const char *spvFile, const char *funcName);
     ze_device_handle_t device() { return pDevice; }
 
     int initZe(int devIdx);
-    int initKernel(const char *spvFile, const char *funcName);
+    int initKernel();
     void* createBuffer(size_t elem_count, int offset);
     void readBuffer(std::vector<uint32_t> &hostDst, void *devSrc, size_t size);
 

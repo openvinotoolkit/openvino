@@ -40,6 +40,10 @@ lzContext::~lzContext() {
     pDriver = nullptr;
 }
 
+const char* lzContext::kernelSpvFile = nullptr;
+const char* lzContext::kernelFuncName = nullptr;
+std::vector<char> lzContext::kernelSpvBin;
+
 ze_device_handle_t lzContext::findDevice(ze_driver_handle_t pDriver, ze_device_type_t type, uint32_t devIdx) {
     // get all devices
     uint32_t deviceCount = 0;
@@ -294,31 +298,42 @@ void queryP2P(ze_device_handle_t dev0, ze_device_handle_t dev1) {
     printf("%s, dev0 = %p, dev1 = %p, flags = %d, result = %d\n", __FUNCTION__, dev0, dev1, p2pProperties.flags, result);
 }
 
-int lzContext::initKernel(const char *spvFile, const char *funcName) {
+void lzContext::readKernel(const char *spvFile, const char *funcName) {
     printf("[lzContext] %s enter \n", __FUNCTION__);
 
-    kernelSpvFile = spvFile;
-    kernelFuncName = funcName;
+    kernelSpvFile = const_cast<char*>(spvFile);
+    kernelFuncName = const_cast<char*>(funcName);
+    // static std::vector<char> kernelSpvBin;
+    static bool initialized = false;
+    printf("[lzContext] kernelFuncName: %s\n", kernelFuncName);
 
-    ze_result_t result;
-    FILE *fp = nullptr;
-    size_t nsize = 0;
-    fp = fopen(kernelSpvFile, "rb");
-    if (fp) {
-        fseek(fp, 0, SEEK_END);
-        nsize = (size_t)ftell(fp);
-        fseek(fp, 0, SEEK_SET);
+    if (!initialized) {
+        FILE *fp = nullptr;
+        size_t nsize = 0;
+        fp = fopen(kernelSpvFile, "rb");
+        if (fp) {
+            fseek(fp, 0, SEEK_END);
+            nsize = (size_t)ftell(fp);
+            fseek(fp, 0, SEEK_SET);
 
-        kernelSpvBin.resize(nsize + 1);
-        memset(kernelSpvBin.data(), 0, kernelSpvBin.size());
-        fread(kernelSpvBin.data(), sizeof(unsigned char), nsize, fp);
+            kernelSpvBin.resize(nsize + 1);
+            memset(kernelSpvBin.data(), 0, kernelSpvBin.size());
+            fread(kernelSpvBin.data(), sizeof(unsigned char), nsize, fp);
 
-        fclose(fp);
-    } else {
-        printf("ERROR: cannot open kernel spv file %s\n", kernelSpvFile);
-        exit(1);
+            fclose(fp);
+        } else {
+            printf("ERROR: cannot open kernel spv file %s\n", kernelSpvFile);
+            exit(1);
+        }
+
+        initialized = true;
     }
 
+    printf("[lzContext] %s done \n", __FUNCTION__);
+}
+
+int lzContext::initKernel() {
+    ze_result_t result;
     // Create module
     ze_module_desc_t module_desc = {};
     module_desc.stype = ZE_STRUCTURE_TYPE_MODULE_DESC;
@@ -339,7 +354,6 @@ int lzContext::initKernel(const char *spvFile, const char *funcName) {
     result = zeKernelCreate(module, &function_desc, &function);
     CHECK_ZE_STATUS(result, "zeKernelCreate");
 
-    printf("[lzContext] %s done \n", __FUNCTION__);
     return 0;
 }
 
