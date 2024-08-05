@@ -50,6 +50,7 @@
     #pragma clang diagnostic ignored "-Wunused-variable"
     #pragma clang diagnostic ignored "-Wunused-function"
     #pragma clang diagnostic ignored "-Wignored-qualifiers"
+    #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #elif defined __GNUC__
     #pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Wsign-compare"
@@ -57,6 +58,7 @@
     #pragma GCC diagnostic ignored "-Wunused-variable"
     #pragma GCC diagnostic ignored "-Wunused-function"
     #pragma GCC diagnostic ignored "-Wignored-qualifiers"
+    #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     #if __GNUC__ >= 8
     #pragma GCC diagnostic ignored "-Wcatch-value"
     #endif

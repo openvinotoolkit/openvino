@@ -69,7 +69,7 @@ TEST(TransformationTests, UnrollLoopGRUCell) {
         manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -153,7 +153,7 @@ TEST(TransformationTests, UnrollLoopRNNCell) {
         manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -240,7 +240,7 @@ TEST(TransformationTests, UnrollLoopLSTMCell) {
         manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -325,7 +325,7 @@ TEST(TransformationTests, UnrollLoopGRUCellSingleIteration) {
         manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -403,7 +403,7 @@ TEST(TransformationTests, UnrollLoopRNNCellSingleIteration) {
         manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
@@ -483,7 +483,7 @@ TEST(TransformationTests, UnrollLoopLSTMCellSingleIteration) {
         manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
-        ASSERT_NO_THROW(check_rt_info(f));
+        OV_ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {

@@ -23,6 +23,10 @@
 #    include "mlas/sgemm.hpp"
 #endif
 
+#ifdef OV_CPU_WITH_ACL
+#     include "kernels/acl/gemm_kernel.hpp"
+#endif
+
 #include "utils/plain_tensor.hpp"
 #include "kernels/scaled_attn/softmax.hpp"
 #include "kernels/scaled_attn/mha_single_token.hpp"
@@ -505,6 +509,147 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
     }
 };
 
+#ifdef OV_CPU_WITH_ACL
+template <>
+struct MHAKernel<ScaledDotProductAttention::KT_ACL, float> {
+    const GraphContext::CPtr context;
+    size_t m_block_size;
+
+    MHAKernel() = delete;
+    explicit MHAKernel(GraphContext::CPtr ctx): context(ctx) {
+        m_block_size = 512;
+        select_nfltmax_at_0 = false;
+    }
+
+    PlainTensor causal_mask;
+    bool select_nfltmax_at_0;  // set attn_score to -FLT_MAX when causal_mask[...] equal to this
+    void set_causal_mask(PlainTensor mask, bool _select_nfltmax_at_0) {
+        causal_mask = mask;
+        select_nfltmax_at_0 = _select_nfltmax_at_0;
+    }
+
+    // Q, K, V is ready, do attention
+    // query         [B, H, q_len, S]
+    // present_key   [B, H, kv_len, S]  stride of last dim maybe > 1
+    // present_value [B, H, kv_len, S]
+    // attention_mask [B, 1, q_len, kv_len]
+    // alibi
+    // output_emb    [B, L1, H*S]
+    void operator()(dnnl::stream strm,
+                    PlainTensor& query,
+                    PlainTensor& present_key,
+                    PlainTensor& present_value,
+                    const PlainTensor& alibi_mask,
+                    const PlainTensor& attention_mask,
+                    PlainTensor& output_emb,
+                    bool has_out_transpose,
+                    bool auto_causal,
+                    float d_scale = 0.0f) {
+        auto B = query.size(0);
+        auto H = query.size(1);
+        auto q_len = query.size(2);
+        auto head_size = query.size(3);
+        auto kv_len = present_key.size(2);
+        auto h_group_num = present_key.size(1);
+        size_t h_each_group_len = H / h_group_num;
+
+        if (d_scale == 0.0f)
+            d_scale = 1.0f / sqrt(head_size);
+        auto k_stride_s = present_key.stride(3);
+
+        auto m_blocks = (q_len + m_block_size - 1) / m_block_size;
+
+        parallel_for3d(B, H, m_blocks, [&](size_t b, size_t h, size_t m_blk) {
+            auto m_start = m_blk * m_block_size;
+            auto m_end = std::min(m_start + m_block_size, q_len);
+            auto m_cnt = m_end - m_start;
+
+            float* q_ptr = &query.at<float>({b, h, m_start, 0});
+            float* k_ptr = &present_key.at<float>({b, h / h_each_group_len, 0, 0});
+            float* v_ptr = &present_value.at<float>({b, h / h_each_group_len, 0, 0});
+
+            float* alibi_ptr = nullptr;
+            auto alibi_stride = 0;
+            if (alibi_mask) {
+                alibi_ptr = &alibi_mask.at<float>({b, h, 0, 0}, true);
+                if (alibi_mask.size(2) > 1)
+                    alibi_stride = alibi_mask.stride(2);
+            }
+            uint8_t* attn_mask_ptr = nullptr;
+            auto attn_mask_stride = 0;
+            if (attention_mask) {
+                attn_mask_ptr = reinterpret_cast<uint8_t*>(&attention_mask.at<float>({b, h, 0, 0}, true));
+                if (attention_mask.size(2) > 1)
+                    attn_mask_stride = attention_mask.stride(2) * sizeof(float);
+            }
+            uint8_t* cmask_ptr = nullptr;
+            auto cmask_stride = 0;
+            if (causal_mask) {
+                cmask_ptr = &causal_mask.at<uint8_t>({b, h, 0, 0}, true);
+                if (causal_mask.size(2) > 1)
+                    cmask_stride = causal_mask.stride(2);
+            }
+
+            arm_compute::Tensor qkTensor;
+            arm_compute::TensorInfo qkInfo;
+
+            bool b_transpose = false;
+            if (k_stride_s == 1)
+                b_transpose = true;
+            GemmKernel qk_gemm(m_cnt, head_size, kv_len, b_transpose);
+
+            arm_compute::Strides qStrides({query.stride_bytes(3), query.stride_bytes(2)});
+            arm_compute::Strides kStrides({present_key.stride_bytes(3), present_key.stride_bytes(2)});
+            qk_gemm.executeGemm(reinterpret_cast<void *>(q_ptr),
+                                reinterpret_cast<void *>(k_ptr),
+                                qkInfo,
+                                qkTensor,
+                                qStrides,
+                                kStrides);
+
+            auto qk = reinterpret_cast<float*>(qkTensor.buffer());
+
+
+            for (size_t m = m_start; m < m_end; m++) {
+                // apply attention mask & sofmax
+                auto ncausal = auto_causal ? (kv_len - q_len + m + 1) : kv_len;
+                attn_softmax(qk + (m - m_start) * kv_len,
+                             qk + (m - m_start) * kv_len,
+                             d_scale,
+                             alibi_ptr + m * alibi_stride,
+                             attn_mask_ptr + m * attn_mask_stride,
+                             cmask_ptr + m * cmask_stride,
+                             select_nfltmax_at_0,
+                             ncausal,
+                             kv_len,
+                             ov::element::f32,
+                             ov::element::f32);
+            }
+            arm_compute::TensorInfo outInfo;
+            arm_compute::Tensor outTensor;
+
+            auto out = has_out_transpose ? &output_emb.at<float>({b, m_start, h * head_size}) : &output_emb.at<float>({b, h, m_start});
+            auto strides = arm_compute::Strides({output_emb.stride_bytes(1), output_emb.stride_bytes(2)});
+            GemmKernel out_gemm(m_cnt, kv_len, head_size);
+
+            arm_compute::Strides vStrides({present_value.stride_bytes(3), present_value.stride_bytes(2)});
+            out_gemm.executeGemm(qkTensor.buffer(),
+                                 reinterpret_cast<void *>(v_ptr),
+                                 outInfo,
+                                 outTensor,
+                                 qkInfo.strides_in_bytes(),
+                                 vStrides,
+                                 nullptr,
+                                 1.0,
+                                 0.0,
+                                 &strides,
+                                 reinterpret_cast<void*>(out));
+            qkTensor.allocator()->free();
+        });
+    }
+};
+#endif
+
 #ifdef OV_CPU_WITH_MLAS
 template <>
 struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
@@ -935,7 +1080,9 @@ void ScaledDotProductAttention::createPrimitive() {
             executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(context);
 #endif
         } else {
-#ifdef OV_CPU_WITH_MLAS
+#ifdef OV_CPU_WITH_ACL
+            executor = std::make_shared<AttentionExecutor<KT_ACL, float>>(context);
+#elif defined(OV_CPU_WITH_MLAS)
             executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(context);
 #elif defined(OPENVINO_ARCH_X86_64)
             if (with_cpu_x86_avx512_core()) {

@@ -5,6 +5,8 @@
 #include <climits>
 
 #include "common_op_table.hpp"
+#include "helper_ops/tensor_list_ops.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -30,17 +32,72 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 namespace op {
+
+namespace {
+Output<Node> create_initial_tensor_list(const NodeContext& node,
+                                        const Output<Node>& num_elements,
+                                        const Output<Node>& element_shape,
+                                        const element::Type& element_dtype) {
+    // handle tensor elements of dynamic rank
+    if (element_shape.get_partial_shape().is_dynamic() || element_shape.get_shape().size() != 1 ||
+        element_dtype.is_dynamic()) {
+        auto tensor_list = make_shared<TensorList>(num_elements, ov::Rank::dynamic(), element_dtype);
+        return {tensor_list};
+    }
+
+    TENSORFLOW_OP_VALIDATION(node,
+                             element_shape.get_partial_shape().is_static(),
+                             "[TensorFlow Frontend] internal error: element_shape must be of static shape");
+
+    TENSORFLOW_OP_VALIDATION(node,
+                             element_shape.get_shape().size() == 1,
+                             "[TensorFlow Frontend] inconsistent model: element_shape is not 1D vector");
+
+    // create initial shape of elements
+    size_t element_rank = static_cast<size_t>(element_shape.get_shape()[0]);
+    auto initial_element_shape = make_shared<v0::Constant>(element::i32, Shape{element_rank}, 1);
+
+    auto initial_tensor_list_shape = make_shared<v0::Concat>(OutputVector{num_elements, initial_element_shape}, 0);
+    auto one_element = make_shared<v0::Constant>(element_dtype, Shape{}, 0);
+
+    // create initial container of tensors with zeros and a shape equal to [num_elements, 1, ..., 1]
+    auto initial_tensor_list = make_shared<v1::Broadcast>(one_element, initial_tensor_list_shape);
+
+    return initial_tensor_list;
+}
+}  // namespace
+
 OutputVector translate_tensor_list_reserve_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"TensorListReserve", "EmptyTensorList"});
+    default_op_checks(node, 2, {"TensorListReserve"});
+    auto element_shape = node.get_input(0);
+    // num_elements cannot be negative and define a number of elements in tensor list
+    // trying setting element by out-of-bound index leads to failure
+    auto num_elements = node.get_input(1);
     auto element_dtype = node.get_attribute<element::Type>("element_dtype");
 
-    // always reserve an empty constant of rank equal to two
-    // all tensor elements will be saved in the flatten form in the list
-    // because we want to cover a case of dynamic rank tensor list
-    // the real shape of the tensor elements will be restored by TensorListStack operations
-    auto empty_constant = make_shared<v0::Constant>(element_dtype, Shape{0, 0});
-    set_node_name(node.get_name(), empty_constant);
-    return {empty_constant};
+    // provide num_elements of a shape [1]
+    if (num_elements.get_partial_shape() != ov::PartialShape{1}) {
+        auto new_num_elements_shape = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
+        num_elements = make_shared<v1::Reshape>(num_elements, new_num_elements_shape, false);
+    }
+
+    auto initial_tensor_list = create_initial_tensor_list(node, num_elements, element_shape, element_dtype);
+
+    set_node_name(node.get_name(), initial_tensor_list.get_node_shared_ptr());
+    return {initial_tensor_list};
+}
+
+OutputVector translate_empty_tensor_list_op(const NodeContext& node) {
+    default_op_checks(node, 2, {"EmptyTensorList"});
+    auto element_shape = node.get_input(0);
+    auto element_dtype = node.get_attribute<element::Type>("element_dtype");
+
+    // a number of elements must be zero
+    auto num_elements = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
+    auto initial_tensor_list = create_initial_tensor_list(node, num_elements, element_shape, element_dtype);
+
+    set_node_name(node.get_name(), initial_tensor_list.get_node_shared_ptr());
+    return {initial_tensor_list};
 }
 
 OutputVector translate_tensor_list_from_tensor_op(const NodeContext& node) {
@@ -54,20 +111,9 @@ OutputVector translate_tensor_list_from_tensor_op(const NodeContext& node) {
 OutputVector translate_tensor_list_stack_op(const NodeContext& node) {
     default_op_checks(node, 2, {"TensorListStack"});
     auto input_handle = node.get_input(0);
-    auto element_shape = node.get_input(1);
 
-    // compute number of tensor elements in the list
-    Output<Node> num_elements = make_shared<v3::ShapeOf>(input_handle, element::i32);
-    auto zero_const = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
-    auto one_const = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
-    num_elements = make_shared<v8::Slice>(num_elements, zero_const, one_const, one_const);
-
-    // restore the real shape of tensor elements
-    auto new_shape = make_shared<v0::Concat>(OutputVector{num_elements, element_shape}, 0);
-    auto reshape = make_shared<v1::Reshape>(input_handle, new_shape, false);
-
-    set_node_name(node.get_name(), reshape);
-    return {reshape};
+    // nothing to do, the input tensor will simulate the tensor list
+    return {input_handle};
 }
 
 OutputVector translate_tensor_list_get_item_op(const NodeContext& node) {
@@ -77,16 +123,9 @@ OutputVector translate_tensor_list_get_item_op(const NodeContext& node) {
     auto element_shape = node.get_input(2);
     auto element_dtype = node.get_attribute<element::Type>("element_dtype");
 
-    // squeeze index tensor to have a scalar
-    index = make_shared<v0::Squeeze>(index);
-
-    // gather tensor element by the required position
-    auto gather_axis = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
-    Output<Node> tensor_element = make_shared<v8::Gather>(input_handle, index, gather_axis);
-    tensor_element = make_shared<v0::Convert>(tensor_element, element_dtype);
-
-    set_node_name(node.get_name(), tensor_element.get_node_shared_ptr());
-    return {tensor_element};
+    auto tensor_list_get_item = make_shared<TensorListGetItem>(input_handle, index, element_shape, element_dtype);
+    set_node_name(node.get_name(), tensor_list_get_item);
+    return {tensor_list_get_item};
 }
 
 OutputVector translate_tensor_list_set_item_op(const NodeContext& node) {
@@ -94,49 +133,10 @@ OutputVector translate_tensor_list_set_item_op(const NodeContext& node) {
     auto input_handle = node.get_input(0);
     auto index = node.get_input(1);
     auto item = node.get_input(2);
+    auto tensor_list_set_item = make_shared<TensorListSetItem>(input_handle, index, item);
 
-    // squeeze index tensor to have a scalar
-    index = make_shared<v0::Squeeze>(index);
-
-    // flatten item to be inserted since
-    // the tensor list saves elements in the flatten form
-    auto new_item_shape = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
-    item = make_shared<v1::Reshape>(item, new_item_shape, false);
-    auto item_shape = make_shared<v3::ShapeOf>(item, element::i32);
-
-    // reshape the tensor list to the shape [num_elements, -1]
-    // that is because in the first iteration we have empty constant of a shape [0,0]
-    auto minus_one = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
-    auto new_input_handle_shape = make_shared<v0::Concat>(OutputVector{minus_one, item_shape}, 0);
-    input_handle = make_shared<v1::Reshape>(input_handle, new_input_handle_shape, false);
-    input_handle = make_shared<v1::ConvertLike>(input_handle, item);
-
-    // compute the current length of the list
-    Output<Node> list_length = make_shared<v3::ShapeOf>(input_handle, element::i32);
-    auto zero_const = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
-    auto one_const = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
-    list_length = make_shared<v8::Slice>(list_length, zero_const, one_const, one_const);
-
-    // compute a size of the dummy tensor that serves to fill holes in the list
-    // if no tensor is inserted at this position
-    auto one_const_scalar = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
-    auto index_plus_one = make_shared<v1::Add>(index, one_const_scalar);
-    Output<Node> max_length = make_shared<v1::Maximum>(list_length, index_plus_one);
-    Output<Node> dummy_tensor_size = make_shared<v1::Subtract>(max_length, list_length);
-
-    // create dummy tensor and concatenate it
-    auto zero_element = create_same_type_const_scalar<int32_t>(item, 0);
-    auto dummy_tensor_shape = make_shared<v0::Concat>(OutputVector{dummy_tensor_size, item_shape}, 0);
-    auto dummy_tensor = make_shared<v3::Broadcast>(zero_element, dummy_tensor_shape);
-    input_handle = make_shared<v0::Concat>(OutputVector{input_handle, dummy_tensor}, 0);
-
-    // update the resulted tensor using ScatterUpdate
-    index = make_shared<v0::Unsqueeze>(index, zero_const);
-    item = make_shared<v0::Unsqueeze>(item, zero_const);
-    auto scatter_update = make_shared<v3::ScatterUpdate>(input_handle, index, item, zero_const);
-
-    set_node_name(node.get_name(), scatter_update);
-    return {scatter_update};
+    set_node_name(node.get_name(), tensor_list_set_item);
+    return {tensor_list_set_item};
 }
 
 OutputVector translate_tensor_list_push_back_op(const NodeContext& node) {
@@ -144,31 +144,10 @@ OutputVector translate_tensor_list_push_back_op(const NodeContext& node) {
     auto input_handle = node.get_input(0);
     auto tensor = node.get_input(1);
 
-    // flatten item to be inserted since
-    // the tensor list saves elements in the flatten form
-    // because we want to cover a case of dynamic rank tensor list
-    // the real shape of the tensor elements will be restored by TensorListStack operations
-    auto new_tensor_shape = make_shared<v0::Constant>(element::i32, Shape{1}, -1);
-    tensor = make_shared<v1::Reshape>(tensor, new_tensor_shape, false);
-    auto tensor_shape = make_shared<v3::ShapeOf>(tensor, element::i32);
+    auto tensor_list_push_back = make_shared<TensorListPushBack>(input_handle, tensor);
 
-    // reshape the tensor list to the shape [num_elements, -1]
-    // that is because in the first iteration we have empty constant of a shape [0,0]
-    Output<Node> num_elements = make_shared<v3::ShapeOf>(input_handle, element::i32);
-    auto zero_const = make_shared<v0::Constant>(element::i32, Shape{1}, 0);
-    auto one_const = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
-    num_elements = make_shared<v8::Slice>(num_elements, zero_const, one_const, one_const);
-    auto new_input_handle_shape = make_shared<v0::Concat>(OutputVector{num_elements, tensor_shape}, 0);
-    input_handle = make_shared<v1::Reshape>(input_handle, new_input_handle_shape, false);
-
-    // unsqueeze tensor to be inserted into the list
-    tensor = make_shared<v0::Unsqueeze>(tensor, zero_const);
-
-    // insert the tensor into the end
-    auto updated_list = make_shared<v0::Concat>(OutputVector{input_handle, tensor}, 0);
-
-    set_node_name(node.get_name(), updated_list);
-    return {updated_list};
+    set_node_name(node.get_name(), tensor_list_push_back);
+    return {tensor_list_push_back};
 }
 
 OutputVector translate_tensor_list_resize_op(const NodeContext& node) {
@@ -225,9 +204,11 @@ OutputVector translate_tensor_list_length_op(const NodeContext& node) {
 }
 
 OutputVector translate_tensor_list_concat_v2_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"TensorListConcatV2"});
+    // input tensor list (input_handle) is represented by a tensor
+    // that is a result of concatenation of tensor list elements (tensors)
+    // along unsqueezed zero dimension
+    default_op_checks(node, 3, {"TensorListConcatV2"});
     auto input_handle = node.get_input(0);
-    auto size = node.get_input(1);
 
     std::vector<int64_t> leading_dims;
     get_const_input(node, 2, &leading_dims);
@@ -236,22 +217,30 @@ OutputVector translate_tensor_list_concat_v2_op(const NodeContext& node) {
                              leading_dims.size() == 0,
                              "TensorListConcatV2 is not supported for non-empty leading_dims.");
 
-    TENSORFLOW_OP_VALIDATION(node,
-                             as_type_ptr<v0::Constant>(node.get_input(1).get_node_shared_ptr()),
-                             "TensorListConcatV2 is not supported with non-constant shape input");
+    // tensor list shape has at least two dimensions:
+    // 0-th dimension is auxiliary for elements concatenation
+    // 1-st dimension is by definition of TensorListConcatV2 operation
+    // along which elements will be concatenated
+    // insert auxiliary 2-nd dimension to avoid Slice to operate on out-of-bound start value
+    auto first_dim = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
+    auto two_dim = make_shared<v0::Constant>(element::i32, Shape{1}, 2);
+    input_handle = make_shared<v0::Unsqueeze>(input_handle, two_dim);
+    auto tensor_list_shape = make_shared<v3::ShapeOf>(input_handle, element::i64);
 
-    std::vector<int64_t> list_elememt_shape;
-    get_const_input(node, 1, &list_elememt_shape);
+    // compute new_shape after TensorListConcatV2
+    auto const_one = make_shared<v0::Constant>(ov::element::i32, Shape{1}, 1);
+    auto stop = make_shared<v0::Constant>(ov::element::i32, Shape{1}, numeric_limits<int>::max());
+    ov::Output<ov::Node> new_shape = make_shared<v8::Slice>(tensor_list_shape, two_dim, stop, const_one);
+    auto const_minus_one = make_shared<v0::Constant>(ov::element::i64, Shape{1}, -1);
+    new_shape = make_shared<v0::Concat>(ov::OutputVector{const_minus_one, new_shape}, 0);
 
-    list_elememt_shape[0] = list_elememt_shape[0] * input_handle.get_partial_shape()[0].get_max_length();
-    auto out = make_shared<v1::Reshape>(
-        input_handle,
-        make_shared<v0::Constant>(element::i64, Shape{list_elememt_shape.size()}, list_elememt_shape),
-        false);
+    ov::Output<ov::Node> out = make_shared<v1::Reshape>(input_handle, new_shape, false);
 
-    set_node_name(node.get_name(), out);
+    // do no forget about auxiliary dimension that became the first dimension
+    out = make_shared<v0::Squeeze>(out, first_dim);
 
-    return {out};
+    set_node_name(node.get_name(), out.get_node_shared_ptr());
+    return {std::move(out)};
 }
 
 }  // namespace op

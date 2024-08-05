@@ -83,6 +83,7 @@ public:
         return std::make_shared<T>(X, H_t, sequence_lengths, W, R, B, p.hidden_size.get_max_length(), p.direction);
     }
 
+    OPENVINO_SUPPRESS_DEPRECATED_START
     template <
         typename T = TOp,
         typename std::enable_if<std::is_same<T, v0::LSTMSequence>::value || std::is_same<T, v5::LSTMSequence>::value,
@@ -120,6 +121,7 @@ public:
         }
         return std::make_shared<T>(X, H_t, C_t, sequence_lengths, W, R, B, p.hidden_size.get_max_length(), p.direction);
     }
+    OPENVINO_SUPPRESS_DEPRECATED_END
 };
 
 TYPED_TEST_SUITE_P(RNNSeqBaseTest);
@@ -282,7 +284,9 @@ REGISTER_TYPED_TEST_SUITE_P(RNNSeqBaseTest,
                             interval_symbols_dims_shape_infer_REVERSE,
                             interval_symbols_dims_shape_infer_BIDIRECTIONAL);
 
+OPENVINO_SUPPRESS_DEPRECATED_START
 using RNNSeqBaseTypes = Types<op::v5::RNNSequence, op::v5::GRUSequence, op::v0::LSTMSequence, op::v5::LSTMSequence>;
+OPENVINO_SUPPRESS_DEPRECATED_END
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, RNNSeqBaseTest, RNNSeqBaseTypes);
 
 }  // namespace rnn_seq_test

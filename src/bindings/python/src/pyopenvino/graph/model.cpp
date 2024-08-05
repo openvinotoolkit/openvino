@@ -40,12 +40,23 @@ static void set_tensor_names(const ov::ParameterVector& parameters) {
     }
 }
 
-static ov::SinkVector cast_to_sink_vector(const std::vector<std::shared_ptr<ov::Node>>& nodes) {
+static std::shared_ptr<ov::Node> get_node_ptr(std::shared_ptr<ov::Node> node) {
+    return node;
+}
+
+static std::shared_ptr<ov::Node> get_node_ptr(const ov::Output<ov::Node>& output) {
+    return output.get_node_shared_ptr();
+}
+
+template <typename T>
+ov::SinkVector cast_to_sink_vector(const std::vector<T>& items) {
     ov::SinkVector sinks;
-    for (const auto& node : nodes) {
+    sinks.reserve(items.size());
+    for (const auto& item : items) {
+        const auto node = get_node_ptr(item);
         auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node);
-        OPENVINO_ASSERT(sink != nullptr, "Node {} is not instance of Sink");
-        sinks.push_back(sink);
+        OPENVINO_ASSERT(sink != nullptr, "Node " + node->get_name() + " is not instance of Sink");
+        sinks.push_back(std::move(sink));
     }
     return sinks;
 }
@@ -54,7 +65,7 @@ static std::vector<std::shared_ptr<ov::Node>> cast_to_node_vector(const ov::Sink
     std::vector<std::shared_ptr<ov::Node>> nodes;
     for (const auto& sink : sinks) {
         auto node = std::dynamic_pointer_cast<ov::Node>(sink);
-        OPENVINO_ASSERT(node != nullptr, "Sink {} is not instance of Node");
+        OPENVINO_ASSERT(node != nullptr, "Sink " + sink->get_name() + " is not instance of Node");
         nodes.push_back(node);
     }
     return nodes;
@@ -82,6 +93,62 @@ static void set_correct_variables_for_assign_ops(const std::shared_ptr<ov::Model
     for (const auto& var : variables_to_delete) {
         model->remove_variable(var);
     }
+}
+
+static ov::Output<ov::Node> output_from_handle(ov::Model& model, const py::handle& handle) {
+    if (py::isinstance<py::int_>(handle)) {
+        return model.input(handle.cast<size_t>());
+    } else if (py::isinstance<py::str>(handle)) {
+        return model.input(handle.cast<std::string>());
+    } else if (py::isinstance<ov::Output<ov::Node>>(handle)) {
+        return handle.cast<ov::Output<ov::Node>>();
+    } else {
+        throw py::type_error("Incorrect key type " + std::string(py::str(handle.get_type())) +
+                             " to reshape a model, expected keys as openvino.runtime.Output, int or str.");
+    }
+}
+
+static ov::PartialShape partial_shape_from_handle(const py::handle& handle) {
+    if (py::isinstance<ov::PartialShape>(handle)) {
+        return handle.cast<ov::PartialShape>();
+    } else if (py::isinstance<py::list>(handle) || py::isinstance<py::tuple>(handle)) {
+        return Common::partial_shape_from_list(handle.cast<py::list>());
+    } else if (py::isinstance<py::str>(handle)) {
+        return ov::PartialShape(handle.cast<std::string>());
+    } else {
+        throw py::type_error(
+            "Incorrect value type " + std::string(py::str(handle.get_type())) +
+            " to reshape a model, expected values as openvino.runtime.PartialShape, str, list or tuple.");
+    }
+}
+
+static std::string string_from_handle(const py::handle& handle) {
+    if (py::isinstance<py::str>(handle)) {
+        return handle.cast<std::string>();
+    } else {
+        throw py::type_error("Incorrect key type " + std::string(py::str(handle.get_type())) +
+                             " to reshape a model, expected values as str.");
+    }
+}
+
+static std::unordered_map<std::string, ov::PartialShape> get_variables_shapes(const py::dict& variables_shapes) {
+    std::unordered_map<std::string, ov::PartialShape> variables_shape_map;
+    for (const auto& item : variables_shapes) {
+        variables_shape_map.emplace(string_from_handle(item.first), partial_shape_from_handle(item.second));
+    }
+    return variables_shape_map;
+}
+
+template <typename T>
+static int64_t find_sink_position(const ov::SinkVector& sinks, const std::shared_ptr<T>& sink) {
+    int64_t pos = 0;
+    for (const auto& s : sinks) {
+        if (s == sink) {
+            return pos;
+        }
+        pos++;
+    };
+    return -1;
 }
 
 void regclass_graph_Model(py::module m) {
@@ -200,9 +267,124 @@ void regclass_graph_Model(py::module m) {
             :type results: List[openvino.runtime.Output]
             :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
             :type sinks: List[openvino.runtime.Node]
+            :param parameters: List of parameters.
+            :type parameters: List[op.Parameter]
             :param name: String to set as model's friendly name.
             :type name: str
             )");
+
+    model.def(py::init([](const ov::OutputVector& results,
+                          const ov::OutputVector& nodes,
+                          const ov::ParameterVector& parameters,
+                          const std::string& name) {
+                  set_tensor_names(parameters);
+                  const auto sinks = cast_to_sink_vector(nodes);
+                  auto model = std::make_shared<ov::Model>(results, sinks, parameters, name);
+                  set_correct_variables_for_assign_ops(model, sinks);
+                  return model;
+              }),
+              py::arg("results"),
+              py::arg("sinks"),
+              py::arg("parameters"),
+              py::arg("name") = "",
+              R"(
+            Create user-defined Model which is a representation of a model
+
+            :param results: List of outputs.
+            :type results: List[openvino.runtime.Output]
+            :param sinks: List of Output sink node handles.
+            :type sinks: List[openvino.runtime.Output]
+            :param parameters: List of parameters.
+            :type parameters: List[op.Parameter]
+            :param name: String to set as model's friendly name.
+            :type name: str
+            )");
+
+    model.def(py::init([](const ov::OutputVector& results,
+                          const ov::OutputVector& nodes,
+                          const ov::ParameterVector& parameters,
+                          const ov::op::util::VariableVector& variables,
+                          const std::string& name) {
+                  set_tensor_names(parameters);
+                  const auto sinks = cast_to_sink_vector(nodes);
+                  return std::make_shared<ov::Model>(results, sinks, parameters, variables, name);
+              }),
+              py::arg("results"),
+              py::arg("sinks"),
+              py::arg("parameters"),
+              py::arg("variables"),
+              py::arg("name") = "",
+              R"(
+            Create user-defined Model which is a representation of a model
+
+            :param results: List of outputs.
+            :type results: List[openvino.runtime.Output]
+            :param sinks: List of Output sink node handles.
+            :type sinks: List[openvino.runtime.Output]
+            :param parameters: List of parameters.
+            :type parameters: List[op.Parameter]
+            :param variables: List of variables.
+            :type variables: List[op.util.Variable]
+            :param name: String to set as model's friendly name.
+            :type name: str
+            )");
+
+    model.def(py::init([](const ov::ResultVector& results,
+                          const ov::OutputVector& nodes,
+                          const ov::ParameterVector& parameters,
+                          const std::string& name) {
+                  set_tensor_names(parameters);
+                  const auto sinks = cast_to_sink_vector(nodes);
+                  auto model = std::make_shared<ov::Model>(results, sinks, parameters, name);
+                  set_correct_variables_for_assign_ops(model, sinks);
+                  return model;
+              }),
+              py::arg("results"),
+              py::arg("sinks"),
+              py::arg("parameters"),
+              py::arg("name") = "",
+              R"(
+        Create user-defined Model which is a representation of a model
+
+        :param results: List of results.
+        :type results: List[op.Result]
+        :param sinks: List of Output sink node handles.
+        :type sinks: List[openvino.runtime.Output]
+        :param parameters: List of parameters.
+        :type parameters: List[op.Parameter]
+        :param name: String to set as model's friendly name.
+        :type name: str
+        )");
+
+    model.def(py::init([](const ov::ResultVector& results,
+                          const ov::OutputVector& nodes,
+                          const ov::ParameterVector& parameters,
+                          const ov::op::util::VariableVector& variables,
+                          const std::string& name) {
+                  set_tensor_names(parameters);
+                  const auto sinks = cast_to_sink_vector(nodes);
+                  return std::make_shared<ov::Model>(results, sinks, parameters, variables, name);
+              }),
+              py::arg("results"),
+              py::arg("sinks"),
+              py::arg("parameters"),
+              py::arg("variables"),
+              py::arg("name") = "",
+              R"(
+        Create user-defined Model which is a representation of a model
+
+        :param results: List of results.
+        :type results: List[op.Result]
+        :param sinks: List of Output sink node handles.
+        :type sinks: List[openvino.runtime.Output]
+        :param parameters: List of parameters.
+        :type parameters: List[op.Parameter]
+        :param variables: List of variables.
+        :type variables: List[op.util.Variable]
+        :param name: String to set as model's friendly name.
+        :type name: str
+        )");
+
     model.def(py::init([](const ov::ResultVector& results,
                           const std::vector<std::shared_ptr<ov::Node>>& nodes,
                           const ov::ParameterVector& parameters,
@@ -309,109 +491,186 @@ void regclass_graph_Model(py::module m) {
 
     model.def(
         "reshape",
-        [](ov::Model& self, const ov::PartialShape& partial_shape) {
-            self.reshape(partial_shape);
+        [](ov::Model& self, const ov::PartialShape& partial_shape, const py::dict& variables_shapes) {
+            const auto new_variable_shapes = get_variables_shapes(variables_shapes);
+            py::gil_scoped_release release;
+            self.reshape(partial_shape, new_variable_shapes);
         },
-        py::call_guard<py::gil_scoped_release>(),
         py::arg("partial_shape"),
+        py::arg("variables_shapes") = py::dict(),
         R"(
                 Reshape model input.
+
+                The allowed types of keys in the `variables_shapes` dictionary is `str`.
+                The allowed types of values in the `variables_shapes` are:
+
+                (1) `openvino.runtime.PartialShape`
+                (2) `list` consisting of dimensions
+                (3) `tuple` consisting of dimensions
+                (4) `str`, string representation of `openvino.runtime.PartialShape`
+
+                When list or tuple are used to describe dimensions, each dimension can be written in form:
+
+                (1) non-negative `int` which means static value for the dimension
+                (2) `[min, max]`, dynamic dimension where `min` specifies lower bound and `max` specifies upper bound;
+                the range includes both `min` and `max`; using `-1` for `min` or `max` means no known bound (3) `(min,
+                max)`, the same as above (4) `-1` is a dynamic dimension without known bounds (4)
+                `openvino.runtime.Dimension` (5) `str` using next syntax:
+                    '?' - to define fully dynamic dimension
+                    '1' - to define dimension which length is 1
+                    '1..10' - to define bounded dimension
+                    '..10' or '1..' to define dimension with only lower or only upper limit
 
                 GIL is released while running this function.
 
                 :param partial_shape: New shape.
                 :type partial_shape: openvino.runtime.PartialShape
+                :param variables_shapes: New shapes for variables
+                :type variables_shapes: Dict[keys, values]
                 :return : void
              )");
 
     model.def(
         "reshape",
-        [](ov::Model& self, const py::list& partial_shape) {
-            ov::PartialShape new_shape(Common::partial_shape_from_list(partial_shape));
+        [](ov::Model& self, const py::list& partial_shape, const py::dict& variables_shapes) {
+            const auto new_shape = Common::partial_shape_from_list(partial_shape);
+            const auto new_variables_shapes = get_variables_shapes(variables_shapes);
             py::gil_scoped_release release;
-            self.reshape(new_shape);
+            self.reshape(new_shape, new_variables_shapes);
         },
         py::arg("partial_shape"),
+        py::arg("variables_shapes") = py::dict(),
         R"(
                 Reshape model input.
+
+                The allowed types of keys in the `variables_shapes` dictionary is `str`.
+                The allowed types of values in the `variables_shapes` are:
+
+                (1) `openvino.runtime.PartialShape`
+                (2) `list` consisting of dimensions
+                (3) `tuple` consisting of dimensions
+                (4) `str`, string representation of `openvino.runtime.PartialShape`
+
+                When list or tuple are used to describe dimensions, each dimension can be written in form:
+
+                (1) non-negative `int` which means static value for the dimension
+                (2) `[min, max]`, dynamic dimension where `min` specifies lower bound and `max` specifies upper bound;
+                the range includes both `min` and `max`; using `-1` for `min` or `max` means no known bound (3) `(min,
+                max)`, the same as above (4) `-1` is a dynamic dimension without known bounds (4)
+                `openvino.runtime.Dimension` (5) `str` using next syntax:
+                    '?' - to define fully dynamic dimension
+                    '1' - to define dimension which length is 1
+                    '1..10' - to define bounded dimension
+                    '..10' or '1..' to define dimension with only lower or only upper limit
 
                 GIL is released while running this function.
 
                 :param partial_shape: New shape.
                 :type partial_shape: list
+                :param variables_shapes: New shapes for variables
+                :type variables_shapes: Dict[keys, values]
                 :return : void
              )");
 
     model.def(
         "reshape",
-        [](ov::Model& self, const py::tuple& partial_shape) {
-            ov::PartialShape new_shape(Common::partial_shape_from_list(partial_shape.cast<py::list>()));
+        [](ov::Model& self, const py::tuple& partial_shape, const py::dict& variables_shapes) {
+            const auto new_shape = Common::partial_shape_from_list(partial_shape.cast<py::list>());
+            const auto new_variables_shapes = get_variables_shapes(variables_shapes);
             py::gil_scoped_release release;
-            self.reshape(new_shape);
+            self.reshape(new_shape, new_variables_shapes);
         },
         py::arg("partial_shape"),
+        py::arg("variables_shapes") = py::dict(),
         R"(
                 Reshape model input.
+
+                The allowed types of keys in the `variables_shapes` dictionary is `str`.
+                The allowed types of values in the `variables_shapes` are:
+
+                (1) `openvino.runtime.PartialShape`
+                (2) `list` consisting of dimensions
+                (3) `tuple` consisting of dimensions
+                (4) `str`, string representation of `openvino.runtime.PartialShape`
+
+                When list or tuple are used to describe dimensions, each dimension can be written in form:
+
+                (1) non-negative `int` which means static value for the dimension
+                (2) `[min, max]`, dynamic dimension where `min` specifies lower bound and `max` specifies upper bound;
+                the range includes both `min` and `max`; using `-1` for `min` or `max` means no known bound (3) `(min,
+                max)`, the same as above (4) `-1` is a dynamic dimension without known bounds (4)
+                `openvino.runtime.Dimension` (5) `str` using next syntax:
+                    '?' - to define fully dynamic dimension
+                    '1' - to define dimension which length is 1
+                    '1..10' - to define bounded dimension
+                    '..10' or '1..' to define dimension with only lower or only upper limit
 
                 GIL is released while running this function.
 
                 :param partial_shape: New shape.
                 :type partial_shape: tuple
+                :param variables_shapes: New shapes for variables
+                :type variables_shapes: Dict[keys, values]
                 :return : void
              )");
 
     model.def(
         "reshape",
-        [](ov::Model& self, const std::string& partial_shape) {
-            self.reshape(ov::PartialShape(partial_shape));
+        [](ov::Model& self, const std::string& partial_shape, const py::dict& variables_shapes) {
+            const auto new_variables_shape = get_variables_shapes(variables_shapes);
+            py::gil_scoped_release release;
+            self.reshape(ov::PartialShape(partial_shape), new_variables_shape);
         },
-        py::call_guard<py::gil_scoped_release>(),
         py::arg("partial_shape"),
+        py::arg("variables_shapes") = py::dict(),
         R"(
                 Reshape model input.
+
+                The allowed types of keys in the `variables_shapes` dictionary is `str`.
+                The allowed types of values in the `variables_shapes` are:
+
+                (1) `openvino.runtime.PartialShape`
+                (2) `list` consisting of dimensions
+                (3) `tuple` consisting of dimensions
+                (4) `str`, string representation of `openvino.runtime.PartialShape`
+
+                When list or tuple are used to describe dimensions, each dimension can be written in form:
+
+                (1) non-negative `int` which means static value for the dimension
+                (2) `[min, max]`, dynamic dimension where `min` specifies lower bound and `max` specifies upper bound;
+                the range includes both `min` and `max`; using `-1` for `min` or `max` means no known bound (3) `(min,
+                max)`, the same as above (4) `-1` is a dynamic dimension without known bounds (4)
+                `openvino.runtime.Dimension` (5) `str` using next syntax:
+                    '?' - to define fully dynamic dimension
+                    '1' - to define dimension which length is 1
+                    '1..10' - to define bounded dimension
+                    '..10' or '1..' to define dimension with only lower or only upper limit
+
 
                 GIL is released while running this function.
 
                 :param partial_shape: New shape.
                 :type partial_shape: str
+                :param variables_shapes: New shapes for variables
+                :type variables_shapes: Dict[keys, values]
                 :return : void
              )");
 
     model.def(
         "reshape",
-        [](ov::Model& self, const py::dict& partial_shapes) {
+        [](ov::Model& self, const py::dict& partial_shapes, const py::dict& variables_shapes) {
             std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
             for (const auto& item : partial_shapes) {
-                std::pair<ov::Output<ov::Node>, ov::PartialShape> new_shape;
-                // check keys
-                if (py::isinstance<py::int_>(item.first)) {
-                    new_shape.first = self.input(item.first.cast<size_t>());
-                } else if (py::isinstance<py::str>(item.first)) {
-                    new_shape.first = self.input(item.first.cast<std::string>());
-                } else if (py::isinstance<ov::Output<ov::Node>>(item.first)) {
-                    new_shape.first = item.first.cast<ov::Output<ov::Node>>();
-                } else {
-                    throw py::type_error("Incorrect key type " + std::string(py::str(item.first.get_type())) +
-                                         " to reshape a model, expected keys as openvino.runtime.Output, int or str.");
-                }
-                // check values
-                if (py::isinstance<ov::PartialShape>(item.second)) {
-                    new_shape.second = item.second.cast<ov::PartialShape>();
-                } else if (py::isinstance<py::list>(item.second) || py::isinstance<py::tuple>(item.second)) {
-                    new_shape.second = Common::partial_shape_from_list(item.second.cast<py::list>());
-                } else if (py::isinstance<py::str>(item.second)) {
-                    new_shape.second = ov::PartialShape(item.second.cast<std::string>());
-                } else {
-                    throw py::type_error(
-                        "Incorrect value type " + std::string(py::str(item.second.get_type())) +
-                        " to reshape a model, expected values as openvino.runtime.PartialShape, str, list or tuple.");
-                }
-                new_shapes.insert(new_shape);
+                new_shapes.emplace_hint(new_shapes.end(),
+                                        output_from_handle(self, item.first),
+                                        partial_shape_from_handle(item.second));
             }
+            const auto new_variables_shapes = get_variables_shapes(variables_shapes);
             py::gil_scoped_release release;
-            self.reshape(new_shapes);
+            self.reshape(new_shapes, new_variables_shapes);
         },
         py::arg("partial_shapes"),
+        py::arg("variables_shapes") = py::dict(),
         R"( Reshape model inputs.
 
             The allowed types of keys in the `partial_shapes` dictionary are:
@@ -440,12 +699,34 @@ void regclass_graph_Model(py::module m) {
                 '1..10' - to define bounded dimension
                 '..10' or '1..' to define dimension with only lower or only upper limit
 
-            Reshape model input.
+            The allowed types of keys in the `variables_shapes` dictionary is `str`.
+            The allowed types of values in the `variables_shapes` are:
+
+            (1) `openvino.runtime.PartialShape`
+            (2) `list` consisting of dimensions
+            (3) `tuple` consisting of dimensions
+            (4) `str`, string representation of `openvino.runtime.PartialShape`
+
+            When list or tuple are used to describe dimensions, each dimension can be written in form:
+
+            (1) non-negative `int` which means static value for the dimension
+            (2) `[min, max]`, dynamic dimension where `min` specifies lower bound and `max` specifies upper bound;
+            the range includes both `min` and `max`; using `-1` for `min` or `max` means no known bound (3) `(min,
+            max)`, the same as above (4) `-1` is a dynamic dimension without known bounds (4)
+            `openvino.runtime.Dimension` (5) `str` using next syntax:
+                '?' - to define fully dynamic dimension
+                '1' - to define dimension which length is 1
+                '1..10' - to define bounded dimension
+                '..10' or '1..' to define dimension with only lower or only upper limit
+
+            Reshape model inputs.
 
             GIL is released while running this function.
 
             :param partial_shapes: New shapes.
             :type partial_shapes: Dict[keys, values]
+            :param variables_shapes: New shapes for variables
+            :type variables_shapes: Dict[keys, values]
         )");
 
     model.def("get_output_size",
@@ -588,6 +869,91 @@ void regclass_graph_Model(py::module m) {
                     :param value: Output containing Node
                     :type value: openvino.runtime.Output
                     :return: Index for value referencing it.
+                    :rtype: int
+                 )");
+    model.def(
+        "get_result_index",
+        [](const ov::Model& model, const ov::op::v0::Result& result) {
+            return model.get_result_index(result.get_default_output());
+        },
+        py::arg("result"),
+        R"(
+                Return index of result.
+
+                Return -1 if `result` not matched.
+
+                :param result: Result operation
+                :type result: op.Result
+                :return: Index for result referencing it.
+                :rtype: int
+             )");
+
+    model.def(
+        "get_sink_index",
+        [](ov::Model& self, const ov::Output<ov::Node>& value) -> int64_t {
+            auto node = value.get_node_shared_ptr();
+            if (ov::is_type<ov::op::v6::Assign>(node)) {
+                return find_sink_position(self.get_sinks(), std::dynamic_pointer_cast<ov::op::Sink>(node));
+            } else {
+                throw py::type_error("Incorrect argument type. Output sink node is expected as argument.");
+            }
+        },
+        py::arg("value"),
+        R"(
+                    Return index of sink.
+
+                    Return -1 if `value` not matched.
+
+                    :param value: Output sink node handle
+                    :type value: openvino.runtime.Output
+                    :return: Index of sink node referenced by output handle.
+                    :rtype: int
+                  )");
+
+    model.def(
+        "get_sink_index",
+        [](ov::Model& self, const ov::Output<const ov::Node>& value) -> int64_t {
+            auto node = value.get_node_shared_ptr();
+            if (ov::is_type<ov::op::v6::Assign>(node)) {
+                return find_sink_position(self.get_sinks(), std::dynamic_pointer_cast<const ov::op::Sink>(node));
+            } else {
+                throw py::type_error("Incorrect argument type. Output sink node is expected as argument.");
+            }
+        },
+        py::arg("value"),
+        R"(
+                    Return index of sink.
+
+                    Return -1 if `value` not matched.
+
+                    :param value: Output sink node handle
+                    :type value: openvino.runtime.Output
+                    :return: Index of sink node referenced by output handle.
+                    :rtype: int
+                  )");
+
+    model.def(
+        "get_sink_index",
+        [](ov::Model& self, const py::object& node) -> int64_t {
+            if (py::isinstance<ov::op::v6::Assign>(node)) {
+                auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node.cast<std::shared_ptr<ov::op::v6::Assign>>());
+                return find_sink_position(self.get_sinks(), sink);
+            } else if (py::isinstance<ov::Node>(node)) {
+                auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node.cast<std::shared_ptr<ov::Node>>());
+                return find_sink_position(self.get_sinks(), sink);
+            } else {
+                throw py::type_error("Incorrect argument type. Sink node is expected as argument.");
+            }
+        },
+        py::arg("sink"),
+        R"(
+                    Return index of sink node.
+
+                    Return -1 if `sink` not matched.
+
+                    :param sink: Sink node.
+                    :type sink: openvino.runtime.Node
+                    :return: Index of sink node.
                     :rtype: int
                  )");
 
@@ -835,9 +1201,9 @@ void regclass_graph_Model(py::module m) {
         [](ov::Model& self, py::list& sinks) {
             ov::SinkVector sinks_cpp;
             for (py::handle sink : sinks) {
-                auto sink_cpp =
-                    std::dynamic_pointer_cast<ov::op::Sink>(sink.cast<std::shared_ptr<ov::op::v6::Assign>>());
-                OPENVINO_ASSERT(sink_cpp != nullptr, "Assign {} is not instance of Sink");
+                const auto assign = sink.cast<std::shared_ptr<ov::op::v6::Assign>>();
+                auto sink_cpp = std::dynamic_pointer_cast<ov::op::Sink>(assign);
+                OPENVINO_ASSERT(sink_cpp != nullptr, "Assign " + assign->get_name() + " is not instance of Sink");
                 sinks_cpp.push_back(sink_cpp);
             }
             self.add_sinks(sinks_cpp);
@@ -963,10 +1329,7 @@ void regclass_graph_Model(py::module m) {
     });
 
     model.def("__copy__", [](ov::Model& self) {
-        auto error_message =
-            py::detail::c_str(std::string("cannot copy 'openvino.runtime.Model. Please, use deepcopy instead."));
-        PyErr_SetString(PyExc_TypeError, error_message);
-        throw py::error_already_set();
+        throw py::type_error("Cannot copy 'openvino.runtime.Model. Please, use deepcopy instead.");
     });
 
     model.def("get_rt_info",

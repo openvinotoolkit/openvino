@@ -65,5 +65,5 @@ Additional Resources
 - :doc:`Training-time Optimization <model-optimization-guide/compressing-models-during-training>`
 - :doc:`Weight Compression <model-optimization-guide/weight-compression>`
 - :doc:`Deployment optimization <running-inference/optimize-inference>`
-- `HuggingFace Optimum Intel <https://huggingface.co/docs/optimum/intel/optimization_ov>`__
+- `Hugging Face Optimum Intel <https://huggingface.co/docs/optimum/intel/optimization_ov>`__
 

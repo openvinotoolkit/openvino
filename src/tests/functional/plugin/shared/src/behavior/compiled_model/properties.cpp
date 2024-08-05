@@ -371,7 +371,7 @@ TEST_P(OVClassCompiledModelGetConfigTest, CanCompileModelWithCustomLocale) {
 
     ov::Core core = ov::test::utils::create_core();
 
-    ASSERT_NO_THROW(core.compile_model(simpleNetwork, target_device););
+    OV_ASSERT_NO_THROW(core.compile_model(simpleNetwork, target_device););
 
     setlocale(LC_ALL, prev.c_str());
 }

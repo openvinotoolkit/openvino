@@ -5,6 +5,7 @@
 #include "custom/single_layer_tests/classes/eltwise.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
+#include "utils/filter_cpu_info.hpp"
 
 using namespace CPUTestUtils;
 
@@ -28,6 +29,23 @@ const auto params_4D = ::testing::Combine(
         ::testing::Values(false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_MemOrder, EltwiseLayerCPUTest, params_4D, EltwiseLayerCPUTest::getTestCaseName);
+
+const auto params_4D_Snippets = ::testing::Combine(
+        ::testing::Combine(
+                ::testing::ValuesIn(static_shapes_to_test_representation(inShapes_4D())),
+                ::testing::ValuesIn(eltwiseOpTypesBinInpSnippets()),
+                ::testing::ValuesIn(secondaryInputTypes()),
+                ::testing::ValuesIn(opTypes()),
+                ::testing::ValuesIn(netType()),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::element::undefined),
+                ::testing::Values(ov::test::utils::DEVICE_CPU),
+                ::testing::Values(additional_config()[0])),
+        ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D())),
+        ::testing::Values(emptyFusingSpec),
+        ::testing::Values(true));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_MemOrder_Snippets, EltwiseLayerCPUTest, params_4D_Snippets, EltwiseLayerCPUTest::getTestCaseName);
 
 const auto params_4D_emptyCPUSpec = ::testing::Combine(
         ::testing::Combine(

@@ -440,6 +440,58 @@ attach_non_max_suppression_impl::attach_non_max_suppression_impl() {
 }
 
 }  // namespace detail
+
+struct non_max_suppression_gather_impl : typed_primitive_impl<non_max_suppression_gather> {
+    using parent = typed_primitive_impl<non_max_suppression_gather>;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::cpu::non_max_suppression_gather_impl)
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return make_unique<non_max_suppression_gather_impl>(*this);
+    }
+
+    non_max_suppression_gather_impl() : parent("non_max_suppression_gather_impl") {}
+
+    event::ptr execute_impl(const std::vector<event::ptr>& events, typed_primitive_inst<non_max_suppression_gather>& instance) override {
+        auto& stream = instance.get_network().get_stream();
+
+        const bool pass_through_events = (stream.get_queue_type() == QueueTypes::out_of_order) && instance.get_node().is_in_shape_of_subgraph();
+
+        if (!pass_through_events) {
+            for (auto e : events) {
+                e->wait();
+            }
+        }
+
+        if (pass_through_events) {
+            if (events.size() > 1) {
+                return stream.group_events(events);
+            } else if (events.size() == 1) {
+                return events[0];
+            }
+        }
+
+        return stream.create_user_event(true);
+    }
+
+    static std::unique_ptr<primitive_impl> create(const non_max_suppression_gather_node&, const kernel_impl_params&) {
+        return make_unique<non_max_suppression_gather_impl>();
+    }
+    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
+};
+
+namespace detail {
+
+attach_non_max_suppression_gather_impl::attach_non_max_suppression_gather_impl() {
+    implementation_map<non_max_suppression_gather>::add(impl_types::cpu, non_max_suppression_gather_impl::create, {
+        std::make_tuple(data_types::i32, format::bfyx),
+        std::make_tuple(data_types::f16, format::bfyx),
+        std::make_tuple(data_types::f32, format::bfyx),
+    });
+}
+
+}  // namespace detail
+
 }  // namespace cpu
 }  // namespace cldnn
 

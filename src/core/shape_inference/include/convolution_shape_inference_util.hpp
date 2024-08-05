@@ -20,13 +20,12 @@ constexpr size_t spatial_dim_offset = 2;
 /**
  * @brief Get num of spatial form convolution operator.
  *
- * Tries get value from operator member if is not deduced (has -1 value) then tries evaluate it from input shapes.
+ * Tries to get value from operator member, if not deduced (has -1 value) then tries evaluate it from input shapes.
  *
- * @tparam TConv       Convolution type (this function must be a friend of TConv to access private member).
- * @tparam TShape      Shape type.
- * @param op           Pointer to convolution operator.
- * @param data_shape   Input data shape.
- * @param flter_shape  Input filter shape.
+ * @tparam TShape   Shape type.
+ * @param data_shape    Input data shape.
+ * @param filter_shape  Input filter shape.
+ * @param filter_non_spatial_dims_count Number of non spatial dimensions in filter input
  * @return Value of spatial dimension number or infinite bound (-1) if cannot evaluate.
  */
 template <class TShape>
