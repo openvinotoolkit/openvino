@@ -101,7 +101,7 @@ void DnnlPostOpsComposerLegacy::appendEltwise(const dnnl::algorithm alg, float a
 }
 
 void DnnlPostOpsComposerLegacy::appendRoundHTE() {
-    appendEltwise(dnnl::algorithm::eltwise_round_half_to_even, 0, 0);
+    appendEltwise(dnnl::algorithm::eltwise_round, 0, 0);
 }
 
 bool DnnlPostOpsComposerLegacy::appendScale(const std::vector<float>& scale, bool isLastPostOp, bool allowBinary) {
