@@ -26,20 +26,16 @@ public:
 
     BrgemmCPU(const Output<Node>& A, const Output<Node>& B, BRGEMM_TYPE type,
               const size_t offset_a = 0, const size_t offset_b = 0, const size_t offset_c = 0,
-              std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {},
-              const float beta = 1.f);
+              std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {});
     BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<Node>& scratch, BRGEMM_TYPE type,
               const size_t offset_a = 0, const size_t offset_b = 0, const size_t offset_scratch = 0, const size_t offset_c = 0,
-              std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {},
-              const float beta = 1.f);
+              std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {});
     BrgemmCPU(const Output<Node>& A, const Output<Node>& B, BRGEMM_TYPE type,
               const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_c,
-              std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {},
-              const float beta = 1.f);
+              std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {});
     BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<Node>& scratch, BRGEMM_TYPE type,
               const PortDescriptor& desc_a, const PortDescriptor& desc_b, const PortDescriptor& desc_scratch, const PortDescriptor& desc_c,
-              std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {},
-              const float beta = 1.f);
+              std::vector<size_t> layout_a = {}, std::vector<size_t> layout_b = {}, std::vector<size_t> layout_c = {});
     BrgemmCPU() = default;
 
     void validate_and_infer_types() override;
