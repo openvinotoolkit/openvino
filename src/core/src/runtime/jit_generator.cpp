@@ -11,7 +11,7 @@
 #    endif
 #    include <xbyak/xbyak_util.h>
 
-#    include "openvino/reference/utils/jit_generator.hpp"
+#    include "openvino/runtime/jit_generator.hpp"
 #    include "openvino/core/type/bfloat16.hpp"
 #    include "openvino/core/type/float16.hpp"
 

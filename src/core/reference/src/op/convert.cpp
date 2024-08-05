@@ -5,7 +5,7 @@
 #include "openvino/reference/convert.hpp"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include "openvino/reference/utils/jit_generator.hpp"
+#    include "openvino/runtime/jit_generator.hpp"
 
 using namespace ov::runtime;
 #endif

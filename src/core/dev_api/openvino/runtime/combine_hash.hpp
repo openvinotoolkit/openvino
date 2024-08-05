@@ -9,6 +9,11 @@
 namespace ov {
 namespace runtime {
 
+/**
+ * @brief Computes the hash value for the input data
+ * @param src  A pointer to the input data
+ * @param size The length of the input data in bytes
+ */
 size_t combine_hash(const void* src, size_t size);
 
 }   // namespace runtime

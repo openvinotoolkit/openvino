@@ -303,7 +303,6 @@ RegistersPool::Ptr RegistersPool::create(cpu_isa_t isa, std::initializer_list<Xb
         default:
             OPENVINO_THROW("Invalid isa argument in RegistersPool::create(): ", isa);
         }
-    OPENVINO_THROW("Invalid isa argument in RegistersPool::create()");
 #undef ISA_SWITCH_CASE
 }
 
