@@ -28,7 +28,7 @@ static void CreateSoftmaxOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v8:
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    int64_t axis = ov::util::normalize_axis(op.get(), op->get_axis(), op->get_input_partial_shape(0).rank());
+    int64_t axis = ov::util::try_normalize_axis(op->get_axis(), op->get_input_partial_shape(0).rank(), *op);
 
     auto softmaxPrim = cldnn::softmax(layerName,
                                       inputs[0],
@@ -42,7 +42,7 @@ static void CreateLogSoftmaxOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     std::string layerName = layer_type_name_ID(op);
     std::string layerNameSoftmax = layer_type_name_ID(op) + "_softmax";
 
-    int64_t axis = ov::util::normalize_axis(op.get(), op->get_axis(), op->get_input_partial_shape(0).rank());
+    int64_t axis = ov::util::try_normalize_axis(op->get_axis(), op->get_input_partial_shape(0).rank(), *op);
 
     auto softmaxPrim = cldnn::softmax(layerNameSoftmax,
                                       inputs[0],

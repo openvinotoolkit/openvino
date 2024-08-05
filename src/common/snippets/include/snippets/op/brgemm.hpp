@@ -32,9 +32,6 @@ public:
     size_t get_offset_b() const { return get_input_offset(1); }
     size_t get_offset_c() const { return get_output_offset(0); }
 
-    float get_beta() const { return m_beta; }
-    void set_beta(float beta) { m_beta = beta; }
-
     static ov::element::Type get_output_type(const ov::element::Type& in_type0, const ov::element::Type& in_type1);
 
     void validate_and_infer_types() override;
@@ -48,7 +45,6 @@ protected:
     std::vector<ov::PartialShape> get_planar_input_shapes(const std::vector<ov::Input<ov::Node>>& inputs) const;
     ov::PartialShape infer_output_partial_shape(const std::vector<ov::PartialShape>& input_shapes) const;
     ov::PartialShape get_planar_output_shape(const ov::PartialShape& output_shape) const;
-    float m_beta = 0.f;
 
 private:
     void custom_constructor_validate_and_infer_types(std::vector<size_t> layout_a, std::vector<size_t> layout_b, std::vector<size_t> layout_c);

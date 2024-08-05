@@ -1485,7 +1485,7 @@ void primitive_inst::do_runtime_in_place_crop() {
                 u->update_shape_done_by_other = true;
 
                 const auto& crop_users = u->get_user_insts();
-                std::vector<layout> reshape_layouts;
+                std::pair<const program_node*, layout> user_info;
                 if (crop_users.front()->get_node().is_type<reshape>()) {
                     OPENVINO_ASSERT(crop_users.size() == 1, "[GPU] Expected number of reshape users is 1, but it is ", crop_users.size());
                     auto reshape_inst = crop_users.front();
@@ -1493,7 +1493,8 @@ void primitive_inst::do_runtime_in_place_crop() {
                         GPU_DEBUG_TRACE_DETAIL << "[In place crop] update shape for " << reshape_inst->id() << std::endl;
                         reshape_inst->update_shape();
                         reshape_inst->update_shape_done_by_other = true;
-                        reshape_layouts.push_back(reshape_inst->_impl_params->get_output_layout());
+                        user_info.first = &reshape_inst->get_node();
+                        user_info.second = reshape_inst->_impl_params->get_output_layout();
                     }
                 }
 
@@ -1510,11 +1511,10 @@ void primitive_inst::do_runtime_in_place_crop() {
                 if (crop_in_place_optimization::can_crop_be_optimized_along_feature(crop_layout, pred_layout)) {
                     crop_in_place_optimization::update_in_place_crop_padding_along_feature(u->get_node(), crop_layout, pred_layout, offsets, crop_axis, true);
                 } else if (crop_in_place_optimization::can_crop_be_optimized_simple_data_format(crop_layout, pred_layout)) {
-                    crop_in_place_optimization::update_in_place_crop_padding_simple_data_format(crop_layout, pred_layout, reshape_layouts,
-                                                                                                offsets, crop_axis, true);
-                    if (crop_users.front()->get_node().is_type<reshape>() && reshape_layouts.size() > 0) {
+                    crop_in_place_optimization::update_in_place_crop_padding_simple_data_format(crop_layout, pred_layout, user_info, offsets, crop_axis, true);
+                    if (user_info.first) {
                         auto reshape_inst = crop_users.front();
-                        reshape_inst->_impl_params->output_layouts[0] = reshape_layouts[0];
+                        reshape_inst->_impl_params->output_layouts[0] = user_info.second;
                         reshape_inst->set_shape_change();
                     }
                 } else {

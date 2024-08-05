@@ -26,7 +26,7 @@ static void CreateCumSumOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::
         OPENVINO_ASSERT(axes_constant != nullptr, "[GPU] Unsupported parameter nodes type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
         axis = axes_constant->cast_vector<int64_t>()[0];
     }
-    axis = ov::util::normalize_axis(op.get(), axis, op->get_input_partial_shape(0).rank());
+    axis = ov::util::try_normalize_axis(axis, op->get_input_partial_shape(0).rank(), *op);
 
     auto primitive = cldnn::cum_sum(layerName,
                                     inputs[0],

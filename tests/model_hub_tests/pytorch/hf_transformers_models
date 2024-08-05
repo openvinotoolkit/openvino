@@ -22,7 +22,6 @@ blip_2_vision_model,ZinengTang/clip_last_layer_removed
 blip-2,Salesforce/blip2-opt-2.7b:language_projection
 blip-2,Salesforce/blip2-opt-2.7b:qformer
 blip-2,Salesforce/blip2-opt-2.7b:vision_model
-bloom,bigscience/bloom-560m
 bort,stefan-it/bort-full
 bridgetower,regisss/bridgetower-newyorker-a100-8x
 bros,naver-clova-ocr/bros-base-uncased
@@ -79,6 +78,7 @@ fsmt,facebook/wmt19-en-ru,xfail,Trace error: Only tensors lists tuples of tensor
 funnel,funnel-transformer/small
 git,microsoft/git-large-coco,xfail,Trace error: We don't have an op for aten::full but it isn't a special case
 glpn,vinvino02/glpn-nyu
+gpt_bigcode,bigcode/tiny_starcoder_py
 gpt_neo,EleutherAI/gpt-neo-2.7B
 gpt2,openai-community/gpt2
 gptj,databricks/dolly-v1-6b
@@ -92,7 +92,7 @@ hubert,facebook/hubert-large-ls960-ft
 hybridbert,gokuls/bert_12_layer_model_v1
 ibert,DunnBC22/ibert-roberta-base-Abusive_Or_Threatening_Speech
 idefics,HuggingFaceM4/tiny-random-idefics,xfail,aten::einsum Different input dimensions indicated by the same labels for Einsum must be compatible
-imagegpt,hf-internal-testing/tiny-random-ImageGPTModel
+imagegpt,openai/imagegpt-small
 informer,huggingface/informer-tourism-monthly,xfail,Load error: mat1 and mat2 shapes cannot be multiplied
 instructblip,Salesforce/instructblip-vicuna-7b
 jukebox,openai/jukebox-1b-lyrics,xfail,Load error: Module [JukeboxModel] is missing the required "forward" function
@@ -109,7 +109,7 @@ levit,facebook/levit-128S,xfail,Trace error: Cannot insert a Tensor that require
 lilt,nielsr/lilt-xlm-roberta-base
 llama_with_landmark,Leooyii/Landmark_512_Slimpajama_1B
 longformer,allenai/longformer-base-4096
-longt5,pszemraj/long-t5-tglobal-base-16384-book-summary,xfail,Compile error: unsupported Einsum
+longt5,pszemraj/long-t5-tglobal-base-16384-book-summary,xfail,(CVS-148676) Compile error: unsupported Einsum
 luke,oshizo/sbert-jsnli-luke-japanese-base-lite
 lxmert,unc-nlp/lxmert-base-uncased
 m2m_100,facebook/nllb-200-distilled-600M
@@ -122,12 +122,12 @@ mbart,facebook/mbart-large-50-many-to-many-mmt
 mctct,speechbrain/m-ctc-t-large
 mega,Bingsu/mega-150m-arch,xfail,Trace error: Cannot insert a Tensor that requires grad as a constant
 megatron-bert,UFNLP/gatortron-base
-mgp-str,alibaba-damo/mgp-str-base,xfail,Compile error: unsupported Einsum
+mgp-str,alibaba-damo/mgp-str-base,xfail,(CVS-148676) Compile error: unsupported Einsum
 mobilebert,google/mobilebert-uncased
 mobilenet_v1,google/mobilenet_v1_0.75_192
 mobilenet_v2,google/mobilenet_v2_1.0_224
 mobilevit,apple/mobilevit-small
-mobilevitv2,apple/mobilevitv2-1.0-imagenet1k-256,xfail,Col2Im: Static shape inference lacks constant data on port 1
+mobilevitv2,apple/mobilevitv2-1.0-imagenet1k-256,xfail,(CVS-148673) Col2Im: Static shape inference lacks constant data on port 1
 mpnet,sentence-transformers/all-mpnet-base-v2
 mpt,team-lucid/mptk-1b
 mra,uw-madison/mra-base-512-4
@@ -159,7 +159,7 @@ prophetnet,microsoft/prophetnet-large-uncased-squad-qg
 pvt,Zetatech/pvt-tiny-224
 rag,facebook/rag-token-nq,xfail,Load error: Make sure that `context_input_ids` are passed if no `retriever` is set.
 realm,google/realm-orqa-nq-openqa,xfail,Load error: 'NoneType' object is not callable
-reformer,google/reformer-enwik8,xfail,Load error: index out of range in self
+reformer,google/reformer-enwik8,xfail,Trace error: _Map_base::at
 regnet,facebook/regnet-x-002
 rembert,google/rembert
 resnet,microsoft/resnet-50
@@ -198,6 +198,7 @@ tapas,google/tapas-base-finetuned-wtq
 tapex,nielsr/tapex-large
 time_series_transformer,huggingface/time-series-transformer-tourism-monthly
 timesformer,facebook/timesformer-base-finetuned-k400
+trajectory_transformer,CarlCochet/trajectory-transformer-halfcheetah-medium-v2
 transfo-xl,transfo-xl/transfo-xl-wt103,xfail,Load error: type_as() missing 1 required positional arguments: "other"
 tvlt,ZinengTang/tvlt-base,xfail,Load error: Matching task requires labels
 tvp,Intel/tvp-base,xfail,Load error: 'NoneType' object has no attribute 'dtype'

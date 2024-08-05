@@ -216,6 +216,19 @@ TRANSFORMATIONS_API bool shapes_equal_except_dynamic_expected_batch(const Partia
                                                                     const PartialShape& actual);
 
 /**
+ * \brief Traverses path starting from `node`, and calls "func" for each ov::Node.
+ *
+ * \param node  The node from which path is started.
+ * \param visited  Set of nodes which were visited.
+ * \param func  The function which is called for each visited node.
+ * \param skip_node_predicate  predicte to skip nodes.
+ */
+TRANSFORMATIONS_API void visit_path(ov::Node* node,
+                                    std::unordered_set<ov::Node*>& visited,
+                                    std::function<void(ov::Node*)> func,
+                                    std::function<bool(ov::Node*)> skip_node_predicate);
+
+/**
  * \brief Traverses a shapeOf subgraph starting from the node and not including the ShapeOf nodes,
  * and calls "func" for each ov::Node.
  *

@@ -476,7 +476,8 @@ class TestTransformersModel(TestTorchConvertModel):
                 example = {"past_values": torch.rand(1, model.config.context_length,
                                                      model.config.num_input_channels)}
             else:
-                example = (torch.randint(1, 1000, [1, 100]),)
+                vocab_size = getattr(model.config, "vocab_size", 1000)
+                example = (torch.randint(1, vocab_size, [1, 100]),)
         if len({"seamless_m4t", "whisper", "speech_to_text", "speech-encoder-decoder"}.intersection(mi.tags)):
             example["decoder_input_ids"] = torch.randint(0, 1000, [1, 20])
             example["decoder_attention_mask"] = torch.ones(

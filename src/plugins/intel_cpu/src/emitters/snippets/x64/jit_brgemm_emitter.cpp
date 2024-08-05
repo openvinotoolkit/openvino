@@ -28,9 +28,7 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h, cpu_isa_t isa,
     const auto& brg0Prc = brgemm_node->get_input_element_type(0);
     const auto& brg1Prc = brgemm_node->get_input_element_type(1);
     const auto brgemm_type = brgemm_node->get_type();
-    BrgemmKernelConfig kernel_config(brg0Prc, brg1Prc,
-                                     brgemm_node->get_beta(), with_amx(brgemm_type),
-                                     with_compensations(brgemm_type),
+    BrgemmKernelConfig kernel_config(brg0Prc, brg1Prc, with_amx(brgemm_type), with_compensations(brgemm_type),
                                      brgemm_utils::get_primitive_isa(brg0Prc, with_amx(brgemm_type)));
     m_kernel_executor = kernel_table->register_kernel<BrgemmKernelExecutor>(expr,
                                                                             compiled_kernel_cache,

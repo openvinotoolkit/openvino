@@ -8,6 +8,7 @@
 
 #include "core/tensor.hpp"
 #include "onnx_framework_node.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -278,6 +279,20 @@ bool collect_translation_exceptions(const std::shared_ptr<ov::Model>& partially_
     }
 
     return unsupported_operations->size() != 0 || failures->size() != 0;
+}
+
+int64_t normalize_axis(const std::string& description, const int64_t axis, const Rank& rank) {
+    const auto r = rank.get_length();
+    FRONT_END_GENERAL_CHECK(ov::util::is_axis_valid(axis, r),
+                            description,
+                            "Parameter axis ",
+                            axis,
+                            " out of tensor range [",
+                            -r,
+                            ", ",
+                            r == 0 ? 0 : r - 1,
+                            "]");
+    return ov::util::normalize(axis, r);
 }
 
 }  // namespace  common

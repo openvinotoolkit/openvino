@@ -181,6 +181,15 @@ inline uint32_t convert_float_seed(const float seed) {
     return *static_cast<const uint32_t*>(seed_ptr);
 }
 
+/// \brief Tries normalize axis against the rank.
+///
+/// Throws if rank is dynamic or, axis outside rank range [-rank, rank).
+///
+/// \param description  Additional description added to error message.
+/// \param axis         Axis value to be normalized.
+/// \param rank         Rank used for axis normalization.
+/// \return             Normalized axis value.
+int64_t normalize_axis(const std::string& description, const int64_t axis, const Rank& rank);
 }  // namespace  common
 }  // namespace onnx
 }  // namespace frontend

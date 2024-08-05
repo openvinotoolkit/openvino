@@ -27,7 +27,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(ProposalLayerTest).*)",
             // TODO: Issue: 54194
             R"(.*ActivationLayerTest.*SoftPlus.*)",
-            R"(.*Behavior.*InferRequestSetBlobByType.*Device=HETERO.*)",
             // TODO: Issue: 59586, NormalizeL2 output mismatch for empty axes case
             R"(.*NormalizeL2LayerTest.*axes=\(\).*)",
 
@@ -58,13 +57,10 @@ std::vector<std::string> disabledTestPatterns() {
             // Assign-3/ReadValue-3 does not have evaluate() methods; ref implementation does not save the value across the inferences.
             R"(smoke_MemoryTestV3.*)",
             // Issue: 90539
-            R"(smoke_AutoBatch_BehaviorTests/OVInferRequestIOTensorTest.InferStaticNetworkSetInputTensor/targetDevice=BATCH.*)",
             R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*CompareWithRefImpl.*)",
             // Issue: 119648
             R"(.*smoke_LPT/InterpolateTransformation.*)",
             R"(.*CachingSupportCase.*GPU.*CompileModelCacheTestBase.*CompareWithRefImpl.*)",
-            // unsupported metrics
-            R"(.*nightly_HeteroAutoBatchOVGetMetricPropsTest.*OVGetMetricPropsTest.*(FULL_DEVICE_NAME_with_DEVICE_ID|AVAILABLE_DEVICES|DEVICE_UUID|OPTIMIZATION_CAPABILITIES|MAX_BATCH_SIZE|DEVICE_GOPS|DEVICE_TYPE|RANGE_FOR_ASYNC_INFER_REQUESTS|RANGE_FOR_STREAMS).*)",
             // Issue: 111437
             R"(.*smoke_Deconv_2D_Dynamic_.*FP32/DeconvolutionLayerGPUTest.Inference.*)",
             R"(.*smoke_GroupDeconv_2D_Dynamic_.*FP32/GroupDeconvolutionLayerGPUTest.Inference.*)",

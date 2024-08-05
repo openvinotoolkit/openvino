@@ -57,12 +57,16 @@ KERNEL (mvn_gpu_bfyx_opt)(
     lg_storage[in_data_set_idx] = my_sum;
 
     barrier(CLK_LOCAL_MEM_FENCE);
+    for (uint offset = workers_per_data_set / 2; offset > 0; offset /= 2) {
+        if (in_data_set_idx < offset) {
+            lg_storage[in_data_set_idx] += lg_storage[in_data_set_idx + offset];
+	}
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+
     if (in_data_set_idx == 0)
     {
-        for (uint i=1; i<LWS; ++i)
-            my_sum += lg_storage[i];
-
-        lg_storage[0] = my_sum / data_set_size;
+        lg_storage[0] /= data_set_size;
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -111,12 +115,17 @@ KERNEL (mvn_gpu_bfyx_opt)(
     lg_storage[in_data_set_idx] = my_variance;
 
     barrier(CLK_LOCAL_MEM_FENCE);
+
+    for (uint offset = workers_per_data_set / 2; offset > 0; offset /= 2) {
+        if (in_data_set_idx < offset) {
+            lg_storage[in_data_set_idx] += lg_storage[in_data_set_idx + offset];
+	}
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+
     if (in_data_set_idx == 0)
     {
-        for (uint i=1; i<LWS; ++i)
-            my_variance += lg_storage[i];
-
-        my_variance /= data_set_size;
+        my_variance = lg_storage[0] / data_set_size;
 
 #   if defined EPS_OUTSIDE_SQRT
         lg_storage[0] = native_powr(native_sqrt(my_variance) + (float)EPSILON, -1.f);

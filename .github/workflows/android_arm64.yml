@@ -101,6 +101,9 @@ jobs:
         with:
           path: 'openvino'
 
+      - name: Get VCPKG version and put it into GitHub ENV
+        run: echo VCPKG_VERSION=$(cat ${OPENVINO_REPO}/vcpkg.json | python3 -c "import sys, json; print(json.load(sys.stdin)['builtin-baseline'])") >> $GITHUB_ENV
+
       - name: Init submodules for non vcpkg dependencies
         run: |
           pushd ${OPENVINO_REPO}
@@ -115,8 +118,7 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           repository: 'microsoft/vcpkg'
-          # Keep in sync with <root>/vcpkg.json <builtin-baseline>
-          ref: '7ba0ba7334c3346e7eee1e049ba85da193a8d821'
+          ref: ${{ env.VCPKG_VERSION }}
           path: 'vcpkg'
           fetch-depth: '0'
 

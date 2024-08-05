@@ -112,6 +112,9 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph) {
     ov::ParameterVector params;
     ov::NodeVector to_hold;
 
+    std::map<std::size_t, std::shared_ptr<op::v0::Parameter>> paramsMap;
+    std::map<std::size_t, std::shared_ptr<ov::op::v0::Result>> resultsMap;
+
     auto get_inputs = [&] (const NodePtr & node) {
         auto pr_edges = node->getParentEdges();
         ov::OutputVector inputs(pr_edges.size());
@@ -133,9 +136,11 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph) {
 
     auto create_ngraph_node = [&](const NodePtr &node) {
         bool is_input = false, is_output = false, should_be_hold = false;
+        size_t input_index = -1, output_index = -1;
         for (auto && kvp : graph.inputNodesMap) {
             if (kvp.second == node) {
                 is_input = true;
+                input_index = kvp.first;
                 break;
             }
         }
@@ -143,6 +148,7 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph) {
         for (auto && kvp : graph.outputNodesMap) {
             if (kvp.second == node) {
                 is_output = true;
+                output_index = kvp.first;
                 break;
             }
         }
@@ -159,10 +165,11 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph) {
             auto& desc = node->getChildEdgeAt(0)->getMemory().getDesc();
             auto param = std::make_shared<ov::op::v0::Parameter>(desc.getPrecision(), desc.getShape().toPartialShape());
             return_node = param;
-            params.push_back(param);
+            paramsMap[input_index] = param;
         } else if (is_output) {
-            results.emplace_back(std::make_shared<ov::op::v0::Result>(get_inputs(node).back()));
-            return_node = results.back();
+            auto result = std::make_shared<ov::op::v0::Result>(get_inputs(node).back());
+            resultsMap[output_index] = result;
+            return_node = result;
         } else {
             return_node = std::make_shared<ov::exec_model_info::ExecutionNode>(
                 get_inputs(node), node->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size());
@@ -190,6 +197,11 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph &graph) {
         nodes.emplace_back(create_ngraph_node(node));
         node2layer[node] = nodes.back();
     }
+
+    for (auto && kvp : paramsMap)
+        params.push_back(kvp.second);
+    for (auto && kvp : resultsMap)
+        results.push_back(kvp.second);
 
     auto holder = !results.empty() ? results[0] : std::make_shared<ov::op::v0::Result>();
     for (auto &node : to_hold) {

@@ -4,6 +4,7 @@
 
 #include "acl_interpolate.hpp"
 #include "acl_utils.hpp"
+#include "utils/debug_capabilities.h"
 
 static bool getIndices(const ov::intel_cpu::MemoryDescPtr &desc, int& index_h, int& index_w) {
     if (desc->hasLayoutType(ov::intel_cpu::LayoutType::ncsp)) {
@@ -27,7 +28,10 @@ bool ov::intel_cpu::ACLInterpolateExecutor::init(const InterpolateAttrs &interpo
     auto& out_shape = dstDescs[0]->getShape().getDims();
 
     int index_h, index_w;
-    if (!getIndices(dstDescs[0], index_h, index_w)) { return false; }
+    if (!getIndices(dstDescs[0], index_h, index_w)) {
+        DEBUG_LOG("ACL Interpolate unsupported layout: ", dstDescs[0]->serializeFormat());
+        return false;
+    }
 
     if ((aclInterpolateAttrs.coordTransMode == InterpolateCoordTransMode::pytorch_half_pixel && out_shape[index_h] > 1 && out_shape[index_w] > 1) ||
         aclInterpolateAttrs.coordTransMode == InterpolateCoordTransMode::half_pixel) {
@@ -43,6 +47,7 @@ bool ov::intel_cpu::ACLInterpolateExecutor::init(const InterpolateAttrs &interpo
             acl_policy = arm_compute::InterpolationPolicy::NEAREST_NEIGHBOR;
             break;
         default:
+            DEBUG_LOG("Unsupported interpolate mode: ", static_cast<int>(aclInterpolateAttrs.mode));
             return false;
     }
 
@@ -60,16 +65,19 @@ bool ov::intel_cpu::ACLInterpolateExecutor::init(const InterpolateAttrs &interpo
                                                  precisionToAclDataType(dstDescs[0]->getPrecision()),
                                                  getAclDataLayoutByMemoryDesc(dstDescs[0]));
 
-    if (!arm_compute::NEScale::validate(&srcTensorInfo,
-                                        &dstTensorInfo,
-                                        arm_compute::ScaleKernelInfo(acl_policy,
-                                                                     arm_compute::BorderMode::REPLICATE,
-                                                                     arm_compute::PixelValue(),
-                                                                     acl_coord,
-                                                                     false,
-                                                                     aclInterpolateAttrs.coordTransMode == InterpolateCoordTransMode::align_corners,
-                                                                     getAclDataLayoutByMemoryDesc(srcDescs[0]))))
+    arm_compute::Status status = arm_compute::NEScale::validate(&srcTensorInfo,
+                                                                &dstTensorInfo,
+                                                                arm_compute::ScaleKernelInfo(acl_policy,
+                                                                                arm_compute::BorderMode::REPLICATE,
+                                                                                arm_compute::PixelValue(),
+                                                                                acl_coord,
+                                                                                false,
+                                                                                aclInterpolateAttrs.coordTransMode == InterpolateCoordTransMode::align_corners,
+                                                                                getAclDataLayoutByMemoryDesc(srcDescs[0])));
+    if (!status) {
+        DEBUG_LOG("NEScale validation failed: ", status.error_description());
         return false;
+    }
 
     srcTensor.allocator()->init(srcTensorInfo);
     dstTensor.allocator()->init(dstTensorInfo);
@@ -117,23 +125,21 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupportedConfiguration(
     auto& coord_mode = interpolateAttrs.coordTransMode;
     auto& nearest_mode = interpolateAttrs.nearestMode;
 
-    if (coord_mode == InterpolateCoordTransMode::asymmetric &&
-        nearest_mode == InterpolateNearestMode::floor) {
-        return is_upsample;
-    }
-
     if (coord_mode == InterpolateCoordTransMode::align_corners &&
         nearest_mode == InterpolateNearestMode::round_prefer_ceil) {
+        DEBUG_LOG("InterpolateCoordTransMode::align_corners with InterpolateNearestMode::round_prefer_ceil supported");
         return true;
     }
 
     if (coord_mode == InterpolateCoordTransMode::half_pixel &&
         (nearest_mode == InterpolateNearestMode::simple || nearest_mode == InterpolateNearestMode::round_prefer_ceil)) {
+        DEBUG_LOG("InterpolateCoordTransMode half_pixel is not supported for InterpolateNearestMode simple and round_prefer_ceil");
         return false;
     }
 
     if (coord_mode == InterpolateCoordTransMode::asymmetric &&
         (nearest_mode == InterpolateNearestMode::simple || nearest_mode == InterpolateNearestMode::floor)) {
+        DEBUG_LOG("asymmetric && (simple || floor) mode with upsample: ", is_upsample);
         return is_upsample;
     }
 
@@ -142,6 +148,7 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupportedConfiguration(
         if (int_factor && coord_mode != InterpolateCoordTransMode::asymmetric &&
             (nearest_mode == InterpolateNearestMode::round_prefer_ceil
              || nearest_mode == InterpolateNearestMode::round_prefer_floor)) {
+            DEBUG_LOG("upsample && int_factor && !asymmetric && (round_prefer_ceil || round_prefer_floor) case is supported");
             return true;
         }
     } else if (scale_h < 1 && scale_w < 1) {
@@ -151,14 +158,18 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupportedConfiguration(
 
         if (int_factor && coord_mode != InterpolateCoordTransMode::align_corners &&
             nearest_mode == InterpolateNearestMode::simple) {
+            DEBUG_LOG("!upsample && int_factor && !align_corners && simple case is supported");
             return true;
         }
 
         if (int_factor && nearest_mode == InterpolateNearestMode::round_prefer_ceil &&
             ((out_shape[index_h] > 1 && out_shape[index_w] > 1) || coord_mode != InterpolateCoordTransMode::half_pixel)) {
+            DEBUG_LOG("!upsample && int_factor && round_prefer_ceil && (out_shape > 1 || half_pixel) case is supported");
             return true;
         }
     }
+    DEBUG_LOG("ACL Interpolate executor does not support such configuration: coord_mode=", static_cast<int>(coord_mode),
+              " nearest_mode=", static_cast<int>(nearest_mode), " upsample=", is_upsample, " scale_h=", scale_h, " scale_w=", scale_w);
     return false;
 }
 
@@ -166,6 +177,7 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupported(const ov::intel_c
                                                                const std::vector<MemoryDescPtr> &srcDescs,
                                                                const std::vector<MemoryDescPtr> &dstDescs) const {
     if (srcDescs[0]->getShape().getDims().size() != 4u) {
+        DEBUG_LOG("ACL Interpolate does not support src shape rank: ", srcDescs[0]->getShape().getDims().size());
         return false;
     }
 
@@ -174,27 +186,32 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupported(const ov::intel_c
 
     if (!std::all_of(pads_begin.begin(), pads_begin.end(), [](int i){return i == 0;}) ||
         !std::all_of(pads_end.begin(), pads_end.end(), [](int i){return i == 0;})) {
+        DEBUG_LOG("ACL Interpolate does not support padding");
         return false;
     }
 
     if (interpolateAttrs.antialias ||
         interpolateAttrs.coordTransMode == InterpolateCoordTransMode::tf_half_pixel_for_nn ||
         interpolateAttrs.nearestMode == InterpolateNearestMode::ceil) {
+        DEBUG_LOG("ACL Interpolate does not support antialias, tf_half_pixel_for_nn, ceil modes");
         return false;
     }
 
     if (interpolateAttrs.mode == InterpolateMode::cubic ||
         interpolateAttrs.mode == InterpolateMode::bilinear_pillow ||
         interpolateAttrs.mode == InterpolateMode::bicubic_pillow) {
+        DEBUG_LOG("ACL Interpolate does not support cubic, bilinear_pillow, bicubic_pillow modes");
         return false;
     }
 
     if (interpolateAttrs.mode == InterpolateMode::nearest &&
         !isSupportedConfiguration(interpolateAttrs, srcDescs, dstDescs)) {
+        DEBUG_LOG("ACL Interpolate isSupportedConfiguration method fails for nearest mode");
         return false;
     }
 
     if (interpolateAttrs.coordTransMode == InterpolateCoordTransMode::pytorch_half_pixel) {
+        DEBUG_LOG("ACL Interpolate does not support pytorch_half_pixel mode");
         return false;
     }
     return true;

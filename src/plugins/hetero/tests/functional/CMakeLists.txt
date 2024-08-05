@@ -20,7 +20,7 @@ ov_add_test_target(
                 $<TARGET_PROPERTY:openvino_hetero_plugin,SOURCE_DIR>/src
         ADD_CLANG_FORMAT
         LABELS
-            OV UNIT HETERO
+            OV HETERO
 )
 
 target_compile_definitions(${TARGET_NAME} PRIVATE CI_BUILD_NUMBER=\"mock_version\")

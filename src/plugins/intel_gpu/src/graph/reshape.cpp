@@ -51,6 +51,11 @@ padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_s
         update_pad_upper = pad_upper;
         update_pad_mask = pad_mask;
 
+        // Truncate to the actual rank (for shapes with a rank less than 4)
+        update_pad_lower.resize(rank);
+        update_pad_upper.resize(rank);
+        update_pad_mask.resize(rank);
+
         std::unordered_set<int64_t> tmp(axes.begin(), axes.end());
         std::vector<int64_t> unique_axes;
         const auto expanded_rank = rank + tmp.size();
@@ -61,13 +66,13 @@ padding propagate_padding(const layout& in_layout, const ov::PartialShape& out_s
         // Normalize then remove repeated axes after normalization.
         for (const auto& axis : axes) {
             if (static_cast<size_t>(axis) <= out_shape.size()) {
-                pad_lower.insert(std::next(std::begin(pad_lower), axis), 0);
-                pad_upper.insert(std::next(std::begin(pad_upper), axis), 0);
-                pad_mask.insert(std::next(std::begin(pad_mask), axis), 0);
+                update_pad_lower.insert(std::next(std::begin(update_pad_lower), axis), 0);
+                update_pad_upper.insert(std::next(std::begin(update_pad_upper), axis), 0);
+                update_pad_mask.insert(std::next(std::begin(update_pad_mask), axis), 0);
             } else {
-                pad_lower.push_back(0);
-                pad_upper.push_back(0);
-                pad_mask.push_back(0);
+                update_pad_lower.push_back(0);
+                update_pad_upper.push_back(0);
+                update_pad_mask.push_back(0);
             }
         }
     } else {
@@ -254,6 +259,7 @@ std::string reshape_inst::to_string(reshape_node const& node) {
     reshape_info.add("output pshape", desc->output_partial_shape);
     reshape_info.add("output pattern", desc->output_pattern);
     reshape_info.add("special zero", desc->special_zero);
+    reshape_info.add("reshape mode", desc->mode);
 
     node_info->add("reshape info", reshape_info);
     node_info->dump(primitive_description);

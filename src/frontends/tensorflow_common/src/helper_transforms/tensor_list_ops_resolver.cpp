@@ -325,14 +325,15 @@ ov::frontend::tensorflow::pass::TensorListPushBackReplacer::TensorListPushBackRe
         auto zero_const = rg.make<v0::Constant>(element::i32, Shape{1}, 0);
         auto one_const = rg.make<v0::Constant>(element::i32, Shape{1}, 1);
         num_elements = rg.make<v8::Slice>(num_elements, zero_const, one_const, one_const);
-        auto new_input_handle_shape = rg.make<v0::Concat>(OutputVector{num_elements, tensor_shape}, 0);
+        auto new_input_handle_shape =
+            rg.make<v0::Concat>(OutputVector{std::move(num_elements), std::move(tensor_shape)}, 0);
         input_handle = rg.make<v1::Broadcast>(input_handle, new_input_handle_shape);
 
         // unsqueeze tensor to be inserted into the list
         tensor = rg.make<v0::Unsqueeze>(tensor, zero_const);
 
         // insert the tensor into the end
-        auto updated_list = rg.make<v0::Concat>(OutputVector{input_handle, tensor}, 0);
+        auto updated_list = rg.make<v0::Concat>(OutputVector{std::move(input_handle), std::move(tensor)}, 0);
 
         updated_list->set_friendly_name(tensor_list_push_back->get_friendly_name());
         copy_runtime_info(tensor_list_push_back, rg.get());

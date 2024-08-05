@@ -32,8 +32,11 @@ public:
 
     bool is_runtime_propagatable_padding() const {
         auto prim = typed_desc();
-        if (prim->mode == reshape::reshape_mode::squeeze || prim->mode == reshape::reshape_mode::unsqueeze)
-            return true;
+        if (prim->mode == reshape::reshape_mode::squeeze || prim->mode == reshape::reshape_mode::unsqueeze) {
+            // For proper padding propagation we need to know output pattern at model loading stage
+            // in case of squeeze/unsqueeze mode
+            return prim->output_pattern.size() > 0;
+        }
 
         // TODO: This function is to limit condition to a specific case (crop + reshape) among cases for the base mode
         if (!input().is_type<crop>())
