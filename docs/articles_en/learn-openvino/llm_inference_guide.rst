@@ -1,5 +1,3 @@
-.. {#native_vs_hugging_face_api}
-
 Large Language Model Inference Guide
 ========================================
 
@@ -14,8 +12,8 @@ Large Language Model Inference Guide
    :hidden:
 
    Run LLMs with Optimum Intel <llm_inference_guide/llm-inference-hf>
-   Run LLMs with OpenVINO GenAI Flavor <llm_inference_guide/genai-guide>
-   Run LLMs with Base OpenVINO <llm_inference_guide/llm-inference-native-ov>
+   Run LLMs on OpenVINO GenAI Flavor <llm_inference_guide/genai-guide>
+   Run LLMs on Base OpenVINO <llm_inference_guide/llm-inference-native-ov>
    OpenVINO Tokenizers <llm_inference_guide/ov-tokenizers>
 
 Large Language Models (LLMs) like GPT are transformative deep learning networks capable of a
