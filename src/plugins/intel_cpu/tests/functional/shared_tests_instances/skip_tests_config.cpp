@@ -379,6 +379,12 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_RoPETest.*)");
 #endif
 
+#if defined(OPENVINO_ARCH_ARM64)
+    // Issue: 149216. For low precision model from original framework, Snippets PropagatePrecision should insert ConvertTruncation instead
+    // of ConvertSaturation when converting larger integer to smaller integer to align with c++ standard and ngraph reference.
+    retVector.emplace_back(R"(.*smoke_EltwiseChain_MergeConvert_int8/.*Op0=Prod.*Conversion=i8.*)");
+#endif
+
 #if defined(OPENVINO_ARCH_RISCV64)
     // object is not initialized
     retVector.emplace_back(R"(.*StaticLoopDynamicSubgraphCPUTest.smoke_StaticLoopWithDynSubgraph.*)");
