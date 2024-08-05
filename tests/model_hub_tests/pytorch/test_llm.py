@@ -195,30 +195,34 @@ class TestLLMModel(TestTorchConvertModel):
         self.run(model_name=name, model_link=type, ie_device=ie_device)
 
     @pytest.mark.parametrize("type,name", [
-        ("baichuan", "baichuan-inc/Baichuan2-7B-Base"),
-        pytest.param("chatglm", "THUDM/chatglm3-6b",
-                     marks=pytest.mark.xfail(reason="Accuracy validation failed")),
         ("falcon", "tiiuae/falcon-7b-instruct"),
-        ("gemma", "beomi/gemma-ko-7b"),
         ("gpt_neox", "EleutherAI/gpt-neox-20b"),
         ("gpt_neox", "togethercomputer/RedPajama-INCITE-7B-Instruct"),
         ("gpt_neox_japanese", "rinna/japanese-gpt-neox-3.6b"),
-        #pytest.param("gptj", "databricks/dolly-v1-6b",marks=pytest.mark.xfail(reason="prim::Constant")),
-        ("llama", "lmsys/vicuna-7b-v1.5"),
-        ("llama-2", "TheBloke/Llama-2-7B-GPTQ"),
-        pytest.param("llama-3.1", "hugging-quants/Meta-Llama-3.1-8B-Instruct-GPTQ-INT4",
-                     marks=pytest.mark.xfail(reason="Accuracy validation failed")),
-        pytest.param("mpt", "mosaicml/mpt-7b",
-                     marks=pytest.mark.xfail(reason="tuple index out of range")),
         ("opt", "facebook/opt-1.3b"),
-        ("persimmon", "adept/persimmon-8b-base"),
         ("phi", "microsoft/phi-2"),
         ("phi3", "microsoft/Phi-3-mini-4k-instruct"),
-        pytest.param("qwen", "TheBloke/Qwen-7B-Chat-GPTQ",
-                     marks=pytest.mark.xfail(reason="Accuracy validation failed")),
         ("qwen2", "Qwen/Qwen2-0.5B-Instruct"),
         ("stablelm", "stabilityai/stablelm-3b-4e1t"),
     ])
     @pytest.mark.nightly
     def test_convert_model_nightly(self, name, type, ie_device):
+        self.run(model_name=name, model_link=type, ie_device=ie_device)
+
+    # too big for nightly
+    @pytest.mark.parametrize("type,name", [
+        ("baichuan", "baichuan-inc/Baichuan2-7B-Base"),
+        pytest.param("chatglm", "THUDM/chatglm3-6b",
+                     marks=pytest.mark.xfail(reason="Accuracy validation failed")),
+        ("falcon", "tiiuae/falcon-7b-instruct"),
+        ("fuyu", "ybelkada/fuyu-8b-sharded"),
+        ("gemma", "beomi/gemma-ko-7b"),
+        ("gemma2", "SteelStorage/Tess-v2.5-Gemma-2-27B-alpha-st"),
+        ("llama", "togethercomputer/LLaMA-2-7B-32K"),
+        ("mistral", "HuggingFaceH4/zephyr-7b-beta"),
+        ("mpt", "mosaicml/mpt-7b"),
+        ("jais", "core42/jais-13b"),
+        ("persimmon", "adept/persimmon-8b-base"),
+    ])
+    def test_convert_model_very_large(self, name, type, ie_device):
         self.run(model_name=name, model_link=type, ie_device=ie_device)
