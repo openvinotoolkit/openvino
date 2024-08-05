@@ -78,18 +78,16 @@ std::vector<size_t> SplitDimensionM::get_updated_order(const std::vector<size_t>
     return new_order;
 }
 
-ov::snippets::VectorDims SplitDimensionM::reshape_m_dim(const ov::snippets::VectorDims& shape, size_t m_index, size_t batch_m_dim, size_t new_m_dim) {
+ov::snippets::VectorDims SplitDimensionM::reshape_m_dim(ov::snippets::VectorDims shape, size_t m_index, size_t batch_m_dim, size_t new_m_dim) {
     if (shape[m_index] == 1)
-        return unsqueeze_m_dim(shape, m_index);
-    auto new_shape = shape;
-    new_shape[m_index] = new_m_dim;
-    new_shape.insert(new_shape.begin() + m_index, batch_m_dim);
-    return new_shape;
+        return unsqueeze_m_dim(std::move(shape), m_index);
+    shape[m_index] = new_m_dim;
+    shape.insert(shape.begin() + m_index, batch_m_dim);
+    return shape;
 }
-ov::snippets::VectorDims SplitDimensionM::unsqueeze_m_dim(const ov::snippets::VectorDims& shape, size_t m_index) {
-    auto new_shape = shape;
-    new_shape.insert(new_shape.begin() + m_index, 1);
-    return new_shape;
+ov::snippets::VectorDims SplitDimensionM::unsqueeze_m_dim(ov::snippets::VectorDims shape, size_t m_index) {
+    shape.insert(shape.begin() + m_index, 1);
+    return shape;
 }
 
 std::shared_ptr<ov::op::v0::MatMul> SplitDimensionM::get_matmul(const std::shared_ptr<op::Subgraph>& subgraph) {

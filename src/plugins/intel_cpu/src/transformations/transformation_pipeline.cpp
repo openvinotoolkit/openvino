@@ -959,6 +959,9 @@ void Transformations::MainSnippets(void) {
             return false;
         if (in_type0 == ov::element::f32 && in_type1 == ov::element::f32 && one_of(inferencePrecision, element::f32, element::undefined))
             return true;
+        // Only FP32 dynamic MHA is supported
+        if (matmul->is_dynamic())
+            return false;
         // [114487] brgemm kernel in oneDNN requires brgemm_copy_b kernel if MatMul node has transposed_b=True
         // The current solution with ExtractExplicitMatMulTranspose pass is slower for non-f32 cases than using of brgemm_copy_b kernel
         if (matmul->get_transpose_a() || matmul->get_transpose_b())
@@ -983,12 +986,10 @@ void Transformations::MainSnippets(void) {
         return true;
     };
     auto is_unsupported_parallel_work_amount = [&](const std::shared_ptr<const ov::Node>& n, const ov::PartialShape& shape) {
-        ov::Dimension parallel_work_amount = 1;
-        for (auto it = shape.rbegin() + 2; it != shape.rend(); ++it)
-            parallel_work_amount *= *it;
-        // In dynamic scenario, it is impossible to decide at compilation stage whether parrallel work amount is supported
-        if (parallel_work_amount.is_dynamic())
+        // SplitDimensionM transformation doesn't support dynamic shapes, so M dim is split in runtime configurator
+        if (shape.is_dynamic())
             return false;
+        const auto parallel_work_amount = std::accumulate(shape.rbegin() + 2, shape.rend(), ov::Dimension(1), std::multiplies<ov::Dimension>());
         const auto is_unsupported_parallel_work_amount =
             static_cast<size_t>(parallel_work_amount.get_length()) < tokenization_config.get_concurrency() &&
             !ov::snippets::pass::SplitDimensionM::can_be_optimized(n, tokenization_config.get_concurrency());
