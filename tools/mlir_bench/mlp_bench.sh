@@ -10,18 +10,22 @@ die_syntax() {
   echo ""
   echo "  -t: Optional data type"
   echo "  -b: Optional baseline model"
+  echo "  -l: Optional number of layers (def:3)"
   echo "  -D: Set model shapes to dynamic"
   exit 1
 }
 
 # Cmd-line opts
-while getopts "t:b:D" arg; do
+while getopts "t:l:b:D" arg; do
   case ${arg} in
     t)
       DATA_TYPE=${OPTARG}
       ;;
     b)
       BASELINE_MODEL=${OPTARG}
+      ;;
+    l)
+      NUM_LAYERS=${OPTARG}
       ;;
     D)
       IS_DYNAMIC=true
@@ -32,6 +36,10 @@ while getopts "t:b:D" arg; do
       ;;
   esac
 done
+
+if [ ! $NUM_LAYERS ]; then
+  NUM_LAYERS=3
+fi
 
 OV_ROOT=$(git rev-parse --show-toplevel)
 BENCH_ROOT=$(realpath "${OV_ROOT}/tools/mlir_bench")
@@ -62,8 +70,10 @@ if [ "${BASELINE_MODEL}" ] && [ "${IS_DYNAMIC}" ]; then
 fi
 
 # Kernel config.
-LAYERS=( 1024 2048 4096 8192 )
-MINI_BATCHES=( 128 256 512 )
+#LAYERS=( 1024 2048 4096 8192 )
+#MINI_BATCHES=( 128 256 512 )
+LAYERS=( 1024 )
+MINI_BATCHES=( 256 )
 if [ ! "${DATA_TYPE}" ]; then
     DATA_TYPE="f32"
 fi
@@ -76,11 +86,16 @@ for MB in "${MINI_BATCHES[@]}"; do
     # Generate model.
     if [ "${BASELINE_MODEL}" ]; then
         # Enable baseline model flag.
-        MODEL_CONFIG=(-b="${BASELINE_MODEL}[${MB},${LAYER},${LAYER}]")
+        MODEL_CONFIG=(-b="${BASELINE_MODEL}[${MB},${LAYER},${LAYER}]x${NUM_LAYERS}")
     else
         # Generate default PyTorch MLP.
-        MODEL_CONFIG=(-l="linear[${MB},${LAYER},${LAYER}] relu[]")
+        LAYER_STRING="linear[${MB},${LAYER},${LAYER}] relu[]"
+        for i in $(seq ${NUM_LAYERS}); do
+          MODEL_STRING="${MODEL_STRING}${LAYER_STRING} "
+        done
+        MODEL_CONFIG=(-l="${MODEL_STRING}")
     fi
+    echo "MODEL_CONFIG=${MODEL_CONFIG}"
     GEN_FLAGS=(-t ${DATA_TYPE} -n ${MODEL_NAME})
     if [ "${IS_DYNAMIC}" ]; then
         GEN_FLAGS+=(--dynamic)

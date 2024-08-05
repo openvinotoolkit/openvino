@@ -115,6 +115,11 @@ def get_layer_sizes(layer_desc: str) -> list[int]:
     return [int(size) for size in filter(None, desc_sizes.split(','))]
 
 
+def get_layer_num_layers(layer_desc: str) -> int:
+    layers = layer_desc[layer_desc.find('x')+1:]
+    return int(layers)
+
+
 def parse_layer(layer_desc: str, type: str) -> nn.Module:
     layer = get_layer_name(layer_desc)
     sizes = get_layer_sizes(layer_desc)
@@ -169,22 +174,28 @@ def generate_ov_model(layers_desc: str, data_type: str, file_name: str,
 
 
 class BaselineMLP(nn.Module):
-    def __init__(self, sizes_mnk, type=None):
+    def __init__(self, sizes_mnk, type=None, layers=3):
         super(BaselineMLP, self).__init__()
         m = sizes_mnk[0]
         n = sizes_mnk[1]
         self.bias = torch.empty((m, n), dtype=type).data.fill_(0.01)
         self.relu = nn.ReLU()
+        self.layers = layers
     def forward(self, a, b):
-        c = torch.matmul(a, b)
-        c = torch.add(c, self.bias)
-        return self.relu(c)
+        for _ in range(0,self.layers):
+            c = torch.matmul(a, b)
+            c = torch.add(c, self.bias)
+            a = self.relu(c)
+        return a
 
 
 def baseline_MLP(model_desc: str, data_type: str, is_dynamic: bool) -> tuple[nn.Model, list]:
     sizes = get_layer_sizes(model_desc)
     assert len(sizes) == 3, "Invalid baseline MLP sizes"
-    mlp = BaselineMLP(sizes, get_torch_type(data_type))
+    layers = get_layer_num_layers(model_desc)
+    if (layers is None):
+        layers = 3 # Default to 3 layers
+    mlp = BaselineMLP(sizes, get_torch_type(data_type), layers)
     input_shapes = get_layer_inputs(model_desc, is_dynamic)
     m = input_shapes[0]
     n = input_shapes[1]
@@ -224,7 +235,7 @@ def main():
                         help='Name for exported XML model')
     parser.add_argument('-b', '--baseline', default=None, type=str.lower,
                         help='Baseline pre-made model - overrides layers. For example:\
-                                -b=mlp[32,64,16]')
+                                -b=mlp[32,64,16]x10')
     parser.add_argument('-p', '--print', action='store_true',
                         help='Compile and print the model')
     args = parser.parse_args()
