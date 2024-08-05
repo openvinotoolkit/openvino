@@ -472,7 +472,11 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple(PartialShape{1, 2, 3}, std::vector<int64_t>{}, PartialShape{2, 3}, true)));
 
 TEST_P(SqueezeAxesPyTorchDynamicRank, squeeze_axes_dynamic_rank_param) {
-    std::tie(p_shape, axes, exp_shape, pytorch_dynamic_rank) = GetParam();
+    const auto& params = GetParam();
+    p_shape = std::get<0>(params);
+    axes = std::get<1>(params);
+    exp_shape = std::get<2>(params);
+    pytorch_dynamic_rank = std::get<3>(params);
 
     auto param = make_shared<ov::op::v0::Parameter>(element::f32, p_shape);
     auto axes_node = make_shared<ov::op::v0::Constant>(element::u64, Shape{axes.size()}, axes);
@@ -480,4 +484,5 @@ TEST_P(SqueezeAxesPyTorchDynamicRank, squeeze_axes_dynamic_rank_param) {
 
     EXPECT_EQ(squeeze->get_element_type(), element::f32);
     EXPECT_EQ(squeeze->get_output_partial_shape(0), exp_shape);
+    EXPECT_EQ(squeeze->get_pytorch_dynamic_rank(), pytorch_dynamic_rank);
 }

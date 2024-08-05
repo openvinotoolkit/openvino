@@ -26,13 +26,13 @@ bool axes_has_and_set_bound(const Node& op) {
 
 Squeeze::Squeeze() : Op() {}
 
-Squeeze::Squeeze(const Output<Node>& data, const Output<Node>& axes, const bool torch)
+Squeeze::Squeeze(const Output<Node>& data, const Output<Node>& axes, const bool torch_mode)
     : Op({data, axes}),
-      m_pytorch_dynamic_rank{torch} {
+      m_pytorch_dynamic_rank{torch_mode} {
     constructor_validate_and_infer_types();
 }
 
-Squeeze::Squeeze(const Output<Node>& data, const bool torch) : Op({data}), m_pytorch_dynamic_rank{torch} {
+Squeeze::Squeeze(const Output<Node>& data, const bool torch_mode) : Op({data}), m_pytorch_dynamic_rank{torch_mode} {
     constructor_validate_and_infer_types();
 }
 
@@ -129,6 +129,11 @@ bool Squeeze::constant_fold(OutputVector& output_values, const OutputVector& inp
 bool Squeeze::is_dynamic() const {
     return get_output_partial_shape(0).is_dynamic();
 }
+
+bool Squeeze::get_pytorch_dynamic_rank() const {
+    return m_pytorch_dynamic_rank;
+}
+
 }  // namespace v0
 }  // namespace op
 }  // namespace ov
