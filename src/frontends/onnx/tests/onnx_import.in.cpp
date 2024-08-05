@@ -1239,7 +1239,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_prod_18) {
         ov::test::NDArray<uint8_t, 4>({{{{1, 1, 1, 1}, {1, 2, 3, 4}, {1, 1, 1, 1}, {2, 2, 2, 2}}}}).get_vector()};
 
     // output data shape (4)
-    auto expected_output = ov::test::NDArray<uint8_t, 1>({2,4,6,8}).get_vector();
+    auto expected_output = ov::test::NDArray<uint8_t, 1>({2, 4, 6, 8}).get_vector();
 
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_multiple_inputs(inputs);
