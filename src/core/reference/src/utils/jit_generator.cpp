@@ -11,9 +11,10 @@
 #    endif
 #    include <xbyak/xbyak_util.h>
 
-#    include "openvino/reference/utils/jit_generator.hpp"
+#    include "openvino/core/except.hpp"
 #    include "openvino/core/type/bfloat16.hpp"
 #    include "openvino/core/type/float16.hpp"
+#    include "openvino/reference/utils/jit_generator.hpp"
 
 namespace ov {
 namespace reference {
@@ -64,10 +65,18 @@ bool Generator::mayiuse(const cpu_isa_t cpu_isa) {
 bool Generator::is_x64() {
     return sizeof(void*) == 8;
 }
-Generator::Generator(void* code_ptr, size_t code_size)
+Generator::Generator(cpu_isa_t isa, void* code_ptr, size_t code_size)
     : Xbyak::CodeGenerator(code_size, code_ptr),
       size_of_abi_save_regs(num_abi_save_gpr_regs * rax.getBit() / 8 + xmm_to_preserve * xmm_len),
-      reg_EVEX_max_8b_offt(rbp) {}
+      reg_EVEX_max_8b_offt(rbp) {
+    if (isa == avx512_core) {
+        m_vlen = zmm_len;
+    } else if (isa == avx2) {
+        m_vlen = ymm_len;
+    } else {
+        OPENVINO_THROW("Unsupported isa: ", isa);
+    }
+}
 
 void Generator::preamble() {
     if (xmm_to_preserve) {
