@@ -117,7 +117,7 @@ VectorDims pshape_to_vdims(const PartialShape& pshape) {
     VectorDims result;
     result.reserve(pshape.size());
     for (const auto& d : pshape)
-        result.push_back(d.is_dynamic() ? get_dynamic_value<VectorDims::value_type>() : d.get_length());
+        result.push_back(dimension_to_size_t(d));
     // Note: PartialShape could be empty which designates scalar value. However, Scalars are represented as {1} in Snippets
     return result.empty() ? VectorDims {1} : result;
 }
@@ -188,6 +188,20 @@ VectorDims get_planar_vdims(const snippets::lowered::ExpressionPort& expr_port) 
 VectorDims get_preordered_vdims(const snippets::lowered::ExpressionPort& expr_port) {
     OPENVINO_ASSERT(expr_port.get_type() == snippets::lowered::ExpressionPort::Type::Output, "get_preordered_vdims expects Expression Output port");
     return get_preordered_vdims(expr_port.get_descriptor_ptr()->get_shape(), expr_port.get_descriptor_ptr()->get_layout());
+}
+
+VectorDims get_projected_subtensor(const snippets::lowered::ExpressionPort& expr_port) {
+    const auto& desc = expr_port.get_descriptor_ptr();
+    const auto shape = expr_port.get_type() == snippets::lowered::ExpressionPort::Type::Input
+                           ? get_planar_vdims(expr_port)
+                           : get_preordered_vdims(expr_port);
+    auto subtensor = desc->get_subtensor();
+    for (size_t i = 1; i <= std::min(subtensor.size(), shape.size()); i++) {
+        auto& dim = subtensor[subtensor.size() - i];
+        if (utils::is_full_dim_value(dim))
+            dim = shape[shape.size() - i];
+    }
+    return subtensor;
 }
 
 std::vector<lowered::ExpressionPtr> get_first_child_shape_infer_expr_seq(const lowered::ExpressionPtr& start_expr) {
