@@ -7,6 +7,8 @@ if(NOT ENABLE_INTEL_CPU)
 endif()
 
 set(TARGET_NAME "openvino_intel_cpu_plugin")
+# Redefine namespace for CPU to avoid conflict with gpu
+add_compile_definitions(dnnl=ov_cpu_dnnl)
 
 if((CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG) AND CMAKE_CXX_STANDARD GREATER_EQUAL 20)
     set(CMAKE_CXX_FLAGS "-Wno-error=deprecated ${CMAKE_CXX_FLAGS}")
