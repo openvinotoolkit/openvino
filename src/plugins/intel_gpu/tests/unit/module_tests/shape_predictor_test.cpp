@@ -27,9 +27,9 @@ TEST_P(shape_predictor_tests, prediction) {
     std::pair<bool, ov::Shape> result;
 
     for (auto& shape : in_shapes)
-        result = sp.predict_preallocation_shape(123, cldnn::layout(shape,
-                                                                   ov::element::f32,
-                                                                   cldnn::format::get_default_format(shape.size())),
+        result = sp.predict_preallocation_shape("dummy_name", cldnn::layout(shape,
+                                                                            ov::element::f32,
+                                                                            cldnn::format::get_default_format(shape.size())),
                                                 p.can_reuse_buffer);
 
     ASSERT_TRUE(result.first == !expected_predicted_shape.empty());
@@ -78,7 +78,9 @@ TEST_P(shape_predictor_tests_b_fs_yx_fsv16, prediction) {
     std::pair<bool, ov::Shape> result;
 
     for (auto& shape : in_shapes)
-        result = sp.predict_preallocation_shape(123, cldnn::layout(shape, ov::element::f32, cldnn::format::b_fs_yx_fsv16),
+        result = sp.predict_preallocation_shape("dummy_name", cldnn::layout(shape,
+                                                                            ov::element::f32,
+                                                                            cldnn::format::b_fs_yx_fsv16),
                                                 p.can_reuse_buffer);
 
     ASSERT_TRUE(result.first == !expected_predicted_shape.empty());

@@ -505,7 +505,7 @@ event::ptr primitive_inst::realloc_if_needed() {
                 _outputs[0] = variable.get_memory();
                 // To record shape predictor
                 for (size_t j = 0; j < _impl_params->output_layouts.size(); ++j)
-                    sp.predict_preallocation_shape(_node->get_unique_id(), _impl_params->output_layouts[j], true, j);
+                    sp.predict_preallocation_shape(id(), _impl_params->output_layouts[j], true, j);
                 GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("can_be_optimized");
                 return ev;
             } else if (_outputs[0] && variable.get_memory() && get_network().get_engine().is_the_same_buffer(*_outputs[0], *variable.get_memory())) {
@@ -674,9 +674,9 @@ event::ptr primitive_inst::realloc_if_needed() {
             auto shape_rank = updated_layouts[i].get_shape().size();
             auto seq_axis =
                 static_cast<int32_t>(desc->concat_axis >= 0 ? desc->concat_axis : shape_rank + desc->concat_axis);
-            prealloc_info = sp.predict_preallocation_shape(_node->get_unique_id(), updated_layouts[i], false, i, tmp_prealloc_count, seq_axis);
+            prealloc_info = sp.predict_preallocation_shape(id(), updated_layouts[i], false, i, tmp_prealloc_count, seq_axis);
         } else {
-            prealloc_info = sp.predict_preallocation_shape(_node->get_unique_id(), updated_layouts[i], can_reuse_buffer, i, tmp_prealloc_count);
+            prealloc_info = sp.predict_preallocation_shape(id(), updated_layouts[i], can_reuse_buffer, i, tmp_prealloc_count);
         }
         if (prealloc_info.first && sp.can_preallocate(ov::shape_size(prealloc_info.second) * (dt_sizes_in_B[i]))) {
             updated_params.output_layouts[i] = updated_layouts[i].clone_with_other_shape(prealloc_info.second);

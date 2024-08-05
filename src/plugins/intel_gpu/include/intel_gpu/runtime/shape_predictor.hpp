@@ -53,7 +53,7 @@ public:
     /// \return The result of shape size prediction as std::pair<bool, ov::Shape>, where
     ///         the first element says if shape is successfully predicted and can be preallocated, and the second
     ///         element is ov::Shape itself.
-    std::pair<bool, ov::Shape> predict_preallocation_shape(size_t unique_id,
+    std::pair<bool, ov::Shape> predict_preallocation_shape(const std::string& id,
                                                            const cldnn::layout& layout,
                                                            bool can_reuse_buffer,
                                                            const size_t out_idx = 0,
@@ -67,10 +67,10 @@ public:
     }
 
 private:
-    void add_shape(const std::pair<size_t, size_t>& id, const ov::Shape& shape);
+    void add_shape(const std::string& id, const ov::Shape& shape);
 
     static constexpr size_t _max_deque_size = 3;
-    std::map<std::pair<size_t, size_t>, std::deque<ov::Shape>> _shapes_info;
+    std::map<std::string, std::deque<ov::Shape>> _shapes_info;
     const engine* _engine;
 
     // Iterations mode preallocation

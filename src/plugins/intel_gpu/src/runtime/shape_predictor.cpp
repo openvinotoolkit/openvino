@@ -41,7 +41,7 @@ static ov::Shape operator-(const ov::Shape& s1, const ov::Shape& s2) {
     return result;
 }
 
-void ShapePredictor::add_shape(const std::pair<size_t, size_t>& id, const ov::Shape& shape) {
+void ShapePredictor::add_shape(const std::string& id, const ov::Shape& shape) {
     auto& shapes = _shapes_info[id];
     if (shapes.size() >= _max_deque_size)
         shapes.pop_front();
@@ -56,7 +56,7 @@ bool ShapePredictor::can_preallocate(size_t desired_buffer_size) {
     return device_mem_usage + desired_buffer_size < _engine->get_device_info().max_global_mem_size * memory_threshold;
 }
 
-std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(size_t unique_id,
+std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(const std::string& orig_id,
                                                                        const cldnn::layout& layout,
                                                                        bool can_reuse_buffer,
                                                                        const size_t out_idx,
@@ -68,7 +68,11 @@ std::pair<bool, ov::Shape> ShapePredictor::predict_preallocation_shape(size_t un
     const auto& current_shape = layout.get_shape();
     auto dt_bitwidth = ov::element::Type(layout.data_type).bitwidth();
 
-    std::pair<size_t, size_t> id_record = {unique_id, out_idx};
+    auto id_record = orig_id;
+    if (out_idx > 0) {
+        id_record += ("_out" + to_string(out_idx));
+    }
+
     add_shape(id_record, current_shape);
 
     // Save shape information and exit without pre-allocation suggestion if current

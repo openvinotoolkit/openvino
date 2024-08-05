@@ -107,9 +107,9 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
     std::vector<ShapeType> output_shapes;
     std::vector<ShapeType> input_shapes = {
         std::move(input0_shape),
-        std::move(begin_shape),
-        std::move(end_shape),
-        std::move(strides_shape)
+        begin_shape,
+        end_shape,
+        strides_shape
     };
 
     op.set_friendly_name(desc->id);
