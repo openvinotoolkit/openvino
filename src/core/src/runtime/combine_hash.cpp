@@ -8,10 +8,10 @@
 
 #include "openvino/core/visibility.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/reference/utils/combine_hash.hpp"
+#include "openvino/runtime/combine_hash.hpp"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include "openvino/reference/utils/registers_pool.hpp"
+#    include "openvino/runtime/registers_pool.hpp"
 #endif // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
 #include <cstring>
@@ -23,21 +23,21 @@ namespace runtime {
 namespace jit {
 
 #define GET_OFF(field) offsetof(CombineHashCallArgs, field)
-#define getReg64() RegistersPool::Reg<Xbyak::Reg64>(registersPool)
-#define getVmm()   RegistersPool::Reg<Vmm>(registersPool)
-#define getXmm()   RegistersPool::Reg<Xbyak::Xmm>(registersPool)
+#define getReg64() RegistersPool::Reg<Xbyak::Reg64>(registers_pool)
+#define getVmm()   RegistersPool::Reg<Vmm>(registers_pool)
+#define getXmm()   RegistersPool::Reg<Xbyak::Xmm>(registers_pool)
 
 struct CombineHashCompileParams {
 };
 
 struct CombineHashCallArgs {
-    const void* src_ptr;
-    void* dst_ptr;
-    uint64_t work_amount = 0lu;
+    const void* src_ptr   = nullptr;
+    void* dst_ptr         = nullptr;
+    uint64_t work_amount  = 0lu;
     uint64_t make_64_fold = 0lu;
 };
 
-typedef void (*fn_t)(const CombineHashCallArgs*);
+typedef void (*hash_kernel)(const CombineHashCallArgs*);
 
 template <cpu_isa_t isa>
 class CombineHash : public Generator {
@@ -63,7 +63,7 @@ public:
 
     void generate() {
         this->preamble();
-        registersPool = RegistersPool::create(isa, {rax, rcx, rsp, rdi, k0});
+        registers_pool = RegistersPool::create(isa, {rax, rcx, rsp, rdi, k0});
 
         r64_src = getReg64();
         r64_dst = getReg64();
@@ -80,15 +80,15 @@ public:
         restFold(v_dst);
         tailFold(v_dst);
 
-        registersPool.reset();
+        registers_pool.reset();
         this->postamble();
     }
 
-    static fn_t get() {
+    static hash_kernel get() {
         static const CombineHashCompileParams params;
         static CombineHash<isa> kernel(params);
 
-        return (fn_t)kernel.getCode();
+        return (hash_kernel)kernel.getCode();
     }
 
     void fillRestWorkMask(const Xbyak::Opmask& k_dst_mask,
@@ -107,7 +107,7 @@ public:
         kmovq(k_dst_mask, rOnes);
     }
 
-    void partialLoad(const Xbyak::Xmm&     xmm_dst,
+    void partial_load(const Xbyak::Xmm&     xmm_dst,
                      const Xbyak::Address& src_addr,
                      const Xbyak::Reg64&   r64_load_num) {
         Xbyak::Label l_partial, l_end;
@@ -130,7 +130,7 @@ public:
         L(l_end);
     }
 
-    void partialLoad(const Xbyak::Ymm&     ymm_dst,
+    void partial_load(const Xbyak::Ymm&     ymm_dst,
                      const Xbyak::Address& src_addr,
                      const Xbyak::Reg64&   r64_load_num) {
         Xbyak::Label l_xmm, l_partial, l_end;
@@ -187,7 +187,7 @@ private:
     bool is_vpclmulqdq = false;
 
     CombineHashCompileParams m_jcp;
-    RegistersPool::Ptr registersPool;
+    RegistersPool::Ptr registers_pool;
 
     RegistersPool::Reg<Xbyak::Reg64> r64_src;
     RegistersPool::Reg<Xbyak::Reg64> r64_dst;
@@ -263,7 +263,7 @@ void CombineHash<avx512_core>::initVectors() {
     auto xmm_dst = Xbyak::Xmm(v_dst.getIdx());
     auto xmm_shuf_mask = Xbyak::Xmm(v_shuf_mask.getIdx());
     auto xmm_aux = getXmm();
-    auto k_rest_mask = RegistersPool::Reg<Xbyak::Opmask>(registersPool);
+    auto k_rest_mask = RegistersPool::Reg<Xbyak::Opmask>(registers_pool);
     // Initial CRC
     mov(r64_aux, CRC_VAL);
     vpxorq(v_dst, v_dst, v_dst);
@@ -297,13 +297,13 @@ void CombineHash<isa>::initVectors() {
     auto xmm_dst = Xbyak::Xmm(v_dst.getIdx());
     auto xmm_shuf_mask = Xbyak::Xmm(v_shuf_mask.getIdx());
     auto xmm_aux = getXmm();
-    auto k_rest_mask = RegistersPool::Reg<Xbyak::Opmask>(registersPool);
+    auto k_rest_mask = RegistersPool::Reg<Xbyak::Opmask>(registers_pool);
     // Initial CRC
     mov(r64_aux, CRC_VAL);
     vpxorq(v_dst, v_dst, v_dst);
     vpinsrq(xmm_dst, xmm_dst, r64_aux, 0x1);
     // First xor with source
-    partialLoad(xmm_aux, ptr[r64_src], r64_work_amount);
+    partial_load(xmm_aux, ptr[r64_src], r64_work_amount);
     vpshufb(xmm_aux, xmm_aux, xmm_shuf_mask);
     vpxorq(xmm_dst, xmm_dst, xmm_aux);
     sub(r64_work_amount, xmm_len);
@@ -522,7 +522,7 @@ void CombineHash<avx512_core>::tailFold(const Vmm& v_dst) {
     auto xmm_aux = getXmm();
     auto xmm_aux_1 = getXmm();
     auto xmm_aux_2 = getXmm();
-    auto k_rest_mask = RegistersPool::Reg<Xbyak::Opmask>(registersPool);
+    auto k_rest_mask = RegistersPool::Reg<Xbyak::Opmask>(registers_pool);
 
     fillRestWorkMask(k_rest_mask, r64_work_amount);
 
@@ -591,7 +591,7 @@ const uint8_t CombineHash<isa>::SHUF_MASK[] = { 0b00001111, 0b00001110, 0b000011
 
 size_t combine_hash(const void* src, size_t size) {
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-    jit::fn_t kernel;
+    jit::hash_kernel kernel = nullptr;
 
     if (jit::Generator::mayiuse(jit::avx512_core)) {
         kernel = jit::CombineHash<jit::avx512_core>::get();
@@ -617,7 +617,6 @@ size_t combine_hash(const void* src, size_t size) {
                 }
                 uint64_t work_amount = (el_per_thread + start > size) ? size - start : el_per_thread;
 
-                size_t res = 0lu;
                 jit::CombineHashCallArgs args;
 
                 args.src_ptr = reinterpret_cast<const uint8_t *>(src) + start;
@@ -647,7 +646,7 @@ size_t combine_hash(const void* src, size_t size) {
 #endif // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
     constexpr auto cel_size = sizeof(size_t);
-    auto seed = static_cast<size_t>(size);
+    auto seed = size;
     const auto data = static_cast<const size_t*>(src);
     const auto d_end = std::next(data, size / cel_size);
     // The constant value used as a magic number has been
