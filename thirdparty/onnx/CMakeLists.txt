@@ -52,21 +52,6 @@ endif()
 # from onnx==1.13.1 it requires C++17 when compiling on Windows, and since onnx==1.16.0 on Linux
 target_compile_features(onnx PRIVATE cxx_std_17)
 
-# WA to allow build on Debian 9
-if(CMAKE_COMPILER_IS_GNUCXX AND LINUX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0)
-    file(READ onnx/onnx/common/file_utils.h CONTENT)
-    string(REPLACE "#include <filesystem>" "" CONTENT "${CONTENT}")
-    string(REPLACE "std::filesystem::path proto_u8_path = std::filesystem::u8path(proto_path);" "" CONTENT "${CONTENT}")
-    string(REPLACE "proto_u8_path" "proto_path" CONTENT "${CONTENT}")
-    file(WRITE onnx/onnx/common/file_utils.h "${CONTENT}")
-
-    file(READ onnx/onnx/defs/traditionalml/utils.h CONTENT)
-    string(REPLACE "const auto& [type, length]" "const std::pair<int, int>& type_length" CONTENT "${CONTENT}")
-    string(REPLACE "type !=" "type_length.first !=" CONTENT "${CONTENT}")
-    string(REPLACE "length !=" "type_length.second !=" CONTENT "${CONTENT}")
-    file(WRITE onnx/onnx/defs/traditionalml/utils.h "${CONTENT}")
-endif()
-
 ov_disable_all_warnings(onnx onnx_proto)
 
 # install
