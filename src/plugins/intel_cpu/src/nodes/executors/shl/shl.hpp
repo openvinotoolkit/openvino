@@ -171,10 +171,6 @@ struct IShlParams {
 public:
     virtual ~IShlParams() = default;
     virtual void* get(bool allow_empty = false) const = 0;
-
-private:
-    virtual void reset(void* t) = 0;
-    virtual void setAPI(csinn_api_enum api) = 0;
 };
 
 template <typename T, typename traits = ShlStructureTraits<T>>
@@ -195,15 +191,12 @@ struct ShlParams : public ShlStructure<T>, public IShlParams {
         setAPI(api);
     }
 
-    void reset(void* t) override {
-        this->ShlStructure<T, traits>::reset(static_cast<T>(t));
-    }
-
     void* get(bool allow_empty = false) const override {
         return this->ShlStructure<T, traits>::get(allow_empty);
     }
 
-    void setAPI(csinn_api_enum api) override {
+private:
+    void setAPI(csinn_api_enum api) {
         auto params = static_cast<typename std::remove_pointer<T>::type*>(this->get());
         params->base.api = api;
     }
