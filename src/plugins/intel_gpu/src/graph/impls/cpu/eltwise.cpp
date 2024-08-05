@@ -4,9 +4,7 @@
 
 #include "register.hpp"
 #include "eltwise_inst.h"
-#include "implementation_map.hpp"
-
-#include "intel_gpu/runtime/error_handler.hpp"
+#include "impls/registry/implementation_map.hpp"
 
 #include "openvino/op/add.hpp"
 #include "openvino/op/multiply.hpp"

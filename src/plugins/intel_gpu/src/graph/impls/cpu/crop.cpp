@@ -6,9 +6,7 @@
 
 #include "register.hpp"
 #include "crop_inst.h"
-#include "implementation_map.hpp"
-
-#include "intel_gpu/runtime/error_handler.hpp"
+#include "impls/registry/implementation_map.hpp"
 
 #include "openvino/op/slice.hpp"
 

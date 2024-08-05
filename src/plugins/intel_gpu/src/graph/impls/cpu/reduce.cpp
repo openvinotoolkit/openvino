@@ -4,7 +4,7 @@
 
 #include "register.hpp"
 #include "reduce_inst.h"
-#include "implementation_map.hpp"
+#include "impls/registry/implementation_map.hpp"
 
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_sum.hpp"
