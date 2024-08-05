@@ -96,8 +96,8 @@ def main():
         with open(storage / 'workflow_link.txt', 'w') as file:
             file.write(workflow_link)
 
-    storage_branch_dir = artifact_utils.get_storage_event_dir(args.storage_root, args.branch_name, args.event_name)
-    latest_artifacts_for_branch = storage_branch_dir / f"latest_{args.storage_dir}.txt"
+    latest_artifacts_for_branch = artifact_utils.get_latest_artifacts_link(args.storage_dir, args.storage_root,
+                                                                           args.branch_name, args.event_name)
     # Overwrite path to "latest" built artifacts only if a given commit is the head of a given branch
     if args.event_name != 'pull_request' and args.commit_sha == os.getenv('GITHUB_SHA'):
         # TODO: lock to avoid corruption in case of a parallel build (unlikely event for now, but still)

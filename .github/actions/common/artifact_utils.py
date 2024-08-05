@@ -40,3 +40,11 @@ def get_storage_dir(product_type: str, commit_hash: str, storage_root: str | Pat
     storage_event_dir = get_storage_event_dir(storage_root, branch_name, event_name, product_name)
     storage = storage_event_dir / commit_hash / product_type
     return storage
+
+
+def get_latest_artifacts_link(product_type: str, storage_root: str | Path, branch_name: str, event_name: str,
+                              product_name: str = 'dldt') -> Path:
+    """ Returns path to latest available artifacts for a given branch, event and product type """
+    storage_branch_dir = get_storage_event_dir(storage_root, branch_name, event_name, product_name)
+    latest_artifacts_for_branch = storage_branch_dir / f"latest_{product_type}.txt"
+    return Path(latest_artifacts_for_branch)

@@ -16,6 +16,9 @@ inputs:
   trigger_repo_sha:
     description: "Commit hash of a trigger repo. If not set - taken from github context"
     required: false
+  artifacts_key:
+    description: "A key under which to upload the artifacts to storage, product type by default"
+    required: false
 
 
 outputs:
@@ -50,6 +53,6 @@ runs:
       if: "!inputs.artifacts"
       uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
       with:
-        name: ${{ steps.restore.outputs.restored_artifacts_key }}
+        name: ${{ inputs.artifacts_key || steps.restore.outputs.restored_artifacts_key }}
         path: ${{ steps.restore.outputs.artifacts_workspace_path }}
         if-no-files-found: 'error'
