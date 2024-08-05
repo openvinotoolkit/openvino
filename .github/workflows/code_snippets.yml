@@ -51,5 +51,6 @@ jobs:
 
       - name: Build snippets Windows
         if: ${{ runner.os == 'Windows'}}
+        shell: pwsh
         run:  cmake --build build --target openvino_docs_snippets --parallel $ENV:NUMBER_OF_PROCESSORS
 
