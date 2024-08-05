@@ -7,15 +7,15 @@ GenAI installation from PyPi, the same versions of OpenVINO and OpenVINO Tokeniz
 are used (e.g. ``openvino==2024.3.0`` and ``openvino-tokenizers==2024.3.0.0`` are installed for
 ``openvino-genai==2024.3.0``).
 
-Trying to update any of the dependency packages might result in version incompatiblibty
-due to different Application Binary Interfaces (ABIs). This will result in errors while running
-OpenVINO GenAI. Having packages version in format ``<MAJOR>.<MINOR>.<PATCH>.<REVISION>``, only
-``<REVISION>`` part of the full version can be varied to ensure ABI compatibility, while changing
-``<MAJOR>``, ``<MINOR>`` or ``<PATCH>`` parts of the version might break ABI.
+Trying to update any of the dependency packages might result in a version incompatiblibty
+due to different Application Binary Interfaces (ABIs), which will result in errors while running
+OpenVINO GenAI. Having package version in the ``<MAJOR>.<MINOR>.<PATCH>.<REVISION>`` format, allows
+changing the ``<REVISION>`` portion of the full version to ensure ABI compatibility. Changing
+``<MAJOR>``, ``<MINOR>`` or ``<PATCH>`` part of the version may break ABI.
 
 GenAI, Tokenizers, and OpenVINO wheels for Linux on PyPI are compiled with ``_GLIBCXX_USE_CXX11_ABI=0``
-to cover a wider range of platforms. As for C++ archive distributions for Ubuntu, ``_GLIBCXX_USE_CXX11_ABI=1``
-is used for compiling. Mixing different ABIs is not possible because doing so results in a link error.
+to cover a wider range of platforms. In the C++ archive distributions for Ubuntu, ``_GLIBCXX_USE_CXX11_ABI=1``
+is used instead. Mixing different ABIs is not possible as doing so will result in a link error.
 
 To try OpenVINO GenAI with different dependencies versions (which are **not** prebuilt packages
 as archives or python wheels), build OpenVINO GenAI library from the
