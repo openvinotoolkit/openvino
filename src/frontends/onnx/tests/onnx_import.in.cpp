@@ -1231,6 +1231,27 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_prod) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_prod_18) {
+    // TEMPLATE plugin has an issue with evaluation for reduceprod, CVS-148827
+    if (std::string("${BACKEND_NAME}") == std::string("INTERPRETER")) {
+        GTEST_SKIP();
+    }
+
+    auto model = convert_model("reduce_prod_18.onnx");
+
+    // input data shape (1, 1, 4, 4)
+    std::vector<std::vector<uint8_t>> inputs{
+        ov::test::NDArray<uint8_t, 4>({{{{1, 1, 1, 1}, {1, 2, 3, 4}, {1, 1, 1, 1}, {2, 2, 2, 2}}}}).get_vector()};
+
+    // output data shape (4)
+    auto expected_output = ov::test::NDArray<uint8_t, 1>({2, 4, 6, 8}).get_vector();
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_multiple_inputs(inputs);
+    test_case.add_expected_output(expected_output);
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_reduce_sum) {
     auto model = convert_model("reduce_sum.onnx");
 

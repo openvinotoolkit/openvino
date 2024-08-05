@@ -242,6 +242,10 @@ ov::OutputVector reduce_min(const ov::frontend::onnx::Node& node) {
     return {make_ov_reduction_op<v1::ReduceMin>(node, node.get_ov_inputs().at(0), supported_types_v3)};
 }
 
+ov::OutputVector reduce_prod(const ov::frontend::onnx::Node& node) {
+    return {make_ov_reduction_op<v1::ReduceProd>(node, node.get_ov_inputs().at(0), supported_types_v2)};
+}
+
 ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
     return {onnx_reduce_sum_square(node, supported_types_v2)};
 }
@@ -251,6 +255,7 @@ static bool register_multiple_translators(void) {
     ONNX_OP_M("ReduceMax", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_max);
     ONNX_OP_M("ReduceMean", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_mean);
     ONNX_OP_M("ReduceMin", {13, 17}, ai_onnx::opset_13::reduce_min);
+    ONNX_OP_M("ReduceProd", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_prod);
     ONNX_OP_M("ReduceSum", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_sum);
     ONNX_OP_M("ReduceSumSquare", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_sum_square);
     return true;
@@ -282,6 +287,10 @@ ov::OutputVector reduce_log_sum(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v0::Log>(sum_node)};
 }
 
+ov::OutputVector reduce_prod(const ov::frontend::onnx::Node& node) {
+    return {make_ov_reduction_op<v1::ReduceProd>(node, node.get_ov_inputs().at(0), supported_types_v3, false)};
+}
+
 ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
     return {onnx_reduce_sum_square(node, supported_types_v2, false)};
 }
@@ -292,6 +301,7 @@ static bool register_multiple_translators(void) {
     ONNX_OP_M("ReduceMax", OPSET_RANGE(18, 19), ai_onnx::opset_18::reduce_max);
     ONNX_OP_M("ReduceMean", OPSET_SINCE(18), ai_onnx::opset_18::reduce_mean);
     ONNX_OP_M("ReduceMin", {18, 19}, ai_onnx::opset_18::reduce_min);
+    ONNX_OP_M("ReduceProd", OPSET_SINCE(18), ai_onnx::opset_18::reduce_prod);
     ONNX_OP_M("ReduceSumSquare", OPSET_SINCE(18), ai_onnx::opset_18::reduce_sum_square);
     return true;
 }
