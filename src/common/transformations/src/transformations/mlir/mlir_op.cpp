@@ -74,17 +74,19 @@ void prepareMLIRKernelWithoutWrapper(mlir::OwningOpRef<mlir::ModuleOp>& module, 
 
     switch (mode) {
 #ifdef TPP_MLIR
-        case ov::mlir::MLIR_MODE_TPP:
+        case ov::mlir::MLIR_MODE_TPP: {
             tpp::DefaultPipelineOptions defPipelineOpts;
             pm.addPass(tpp::createDefaultPipeline(defPipelineOpts));
             break;
+        }
 #endif
 #ifdef GRAPH_COMPILER
-        case ov::mlir::MLIR_MODE_GC:
+        case ov::mlir::MLIR_MODE_GC: {
             gc::populateCPUPipeline(pm);
             break;
+        }
 #endif
-        default:
+        default: {
             assert(ov::mlir::MLIR_MODE_DEFAULT);
             // Cleanup before bufferization.
             // Simplifies IR to allow better bufferization.
@@ -144,6 +146,7 @@ void prepareMLIRKernelWithoutWrapper(mlir::OwningOpRef<mlir::ModuleOp>& module, 
             pm.addPass(createConvertIndexToLLVMPass());
             // Convert remaining unrealized_casts (always needed).
             pm.addPass(createReconcileUnrealizedCastsPass());
+        }
     }
 
     auto result = pm.run(module.get());
