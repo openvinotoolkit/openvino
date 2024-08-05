@@ -74,7 +74,7 @@ const ov::Output<const ov::Node>& CompiledModel::input(size_t i) const {
         OPENVINO_ASSERT(i < _impl->inputs().size(),
                         "Cannot get input for index: ",
                         i,
-                        " outputs size is ",
+                        " inputs size is ",
                         _impl->inputs().size());
         return _impl->inputs().at(i);
     });
