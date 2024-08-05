@@ -20,32 +20,22 @@ static void validate_indices(const size_t input_index,
                              const std::vector<TShape>& input_shapes) {
     const auto& indices_shape = input_shapes[input_index];
     if (indices_shape.is_static()) {
-        const auto data = ov::op::get_input_const_data_as<TRShape, int64_t>(op, input_index, tensor_accessor);
-        if (data) {
+        if (const auto data = ov::op::get_input_const_data_as<TRShape, int64_t>(op, input_index, tensor_accessor)) {
             const auto element_count = data->size();
             if (element_count > 0) {
                 NODE_SHAPE_INFER_CHECK(op, input_shapes, (*data)[0] >= 0, "Indices cannot be negative.");
                 const auto& symbols_shape = input_shapes[2];
                 if (symbols_shape.is_static()) {
                     // ends indices are offset by 1
-                    const auto offset = input_index == 0 ? 0 : 1;
+                    const auto biggest_idx = symbols_shape[0].get_length() + (input_index == 0 ? 0 : 1);
                     NODE_SHAPE_INFER_CHECK(
                         op,
                         input_shapes,
-                        static_cast<unsigned long int>(data->back()) <
-                            static_cast<unsigned long int>(symbols_shape[0].get_length() + offset),
+                        ov::cmp::lt(data->back(), biggest_idx),
                         "The biggest index cannot be higher than the amount or characters in symbols input.");
                 }
-                if (element_count > 1) {
-                    bool indices_ascending = true;
-                    for (size_t i = 1; i < element_count; i++) {
-                        if ((*data)[i] < (*data)[i - 1]) {
-                            indices_ascending = false;
-                            break;
-                        }
-                    }
-                    NODE_SHAPE_INFER_CHECK(op, input_shapes, indices_ascending, "Indices must be in ascending order.");
-                }
+                const auto are_indices_ascending = std::is_sorted(data->begin(), data->end());
+                NODE_SHAPE_INFER_CHECK(op, input_shapes, are_indices_ascending, "Indices must be in ascending order.");
             }
         }
     }
@@ -65,16 +55,13 @@ std::vector<TRShape> shape_infer(const StringTensorPack* op,
     NODE_SHAPE_INFER_CHECK(op, input_shapes, symbols_shape.rank().compatible(1), "Symbols input must be 1D.");
 
     // begins_shape and ends_shape always have to match
-    TRShape output_shape;
-    if ((begins_shape.is_static() && ends_shape.is_static()) ||
-        (begins_shape.is_dynamic() && ends_shape.is_dynamic())) {
-        output_shape = begins_shape;
-    } else if (begins_shape.is_dynamic() && ends_shape.is_static()) {
-        output_shape = ends_shape;
-    } else if (ends_shape.is_dynamic() && begins_shape.is_static()) {
-        output_shape = begins_shape;
+    auto output_shapes = std::vector<TRShape>();
+    if (begins_shape.is_dynamic() && ends_shape.is_static()) {
+        output_shapes.push_back(ends_shape);
+    } else {
+        output_shapes.push_back(begins_shape);
     }
-    return {output_shape};
+    return {std::move(output_shapes)};
 }
 }  // namespace v15
 }  // namespace op

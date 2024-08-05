@@ -17,12 +17,10 @@ namespace util {
 static inline Tensor get_string_tensor(const Node* op, const ITensorAccessor& tensor_accessor) {
     if (auto t = tensor_accessor(0)) {
         return t;
+    } else if (const auto& constant = as_type_ptr<v0::Constant>(op->get_input_node_shared_ptr(0))) {
+        return constant->get_tensor_view();
     } else {
-        const auto& constant = as_type_ptr<opset1::Constant>(op->get_input_node_shared_ptr(0));
-        if (constant) {
-            return constant->get_tensor_view();
-        }
-        return ov::Tensor();
+        return {};
     }
 }
 }  // namespace util
@@ -34,8 +32,7 @@ std::vector<TRShape> shape_infer(const StringTensorUnpack* op,
     const auto& data_shape = input_shapes[0];
     auto output_shapes = std::vector<TRShape>{data_shape, data_shape};
     if (data_shape.is_static()) {
-        const auto string_data = util::get_string_tensor(op, tensor_accessor);
-        if (string_data) {
+        if (const auto string_data = util::get_string_tensor(op, tensor_accessor)) {
             const auto string_count = string_data.get_size();
             const auto tensor_data = string_data.data<std::string>();
             size_t total_length = 0;
