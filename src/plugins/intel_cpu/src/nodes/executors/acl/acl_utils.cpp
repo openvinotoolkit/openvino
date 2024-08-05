@@ -15,37 +15,48 @@ void configureThreadSafe(const std::function<void(void)>& config) {
     config();
 }
 
-arm_compute::ActivationLayerInfo getActivationLayerInfo(Algorithm algorithm,
-                                                        float alpha = 0.0,
-                                                        float beta  = 0.0,
-                                                        float gamma = 0.0) {
+bool getActivationLayerInfo(Algorithm algorithm,
+                            arm_compute::ActivationLayerInfo &activationLayerInfo,
+                            float alpha = 0.0,
+                            float beta  = 0.0,
+                            float gamma = 0.0) {
     switch (algorithm) {
         case Algorithm::EltwiseRelu:
             if (alpha == 0) {
-                return arm_compute::ActivationLayerInfo::ActivationFunction::RELU;
+                activationLayerInfo = arm_compute::ActivationLayerInfo::ActivationFunction::RELU;
             } else {
-                return {arm_compute::ActivationLayerInfo::ActivationFunction::LEAKY_RELU, alpha};
+                activationLayerInfo = {arm_compute::ActivationLayerInfo::ActivationFunction::LEAKY_RELU, alpha};
             }
+            return true;
         case Algorithm::EltwiseGeluErf:
-            return arm_compute::ActivationLayerInfo::ActivationFunction::GELU;
+            activationLayerInfo = arm_compute::ActivationLayerInfo::ActivationFunction::GELU;
+            return true;
         case Algorithm::EltwiseElu:
-            return {arm_compute::ActivationLayerInfo::ActivationFunction::ELU, alpha};
+            activationLayerInfo = {arm_compute::ActivationLayerInfo::ActivationFunction::ELU, alpha};
+            return true;
         case Algorithm::EltwiseTanh:
-            return {arm_compute::ActivationLayerInfo::ActivationFunction::TANH, 1.f, 1.f};
+            activationLayerInfo = {arm_compute::ActivationLayerInfo::ActivationFunction::TANH, 1.f, 1.f};
+            return true;
         case Algorithm::EltwiseSigmoid:
-            return arm_compute::ActivationLayerInfo::ActivationFunction::LOGISTIC;
+            activationLayerInfo = arm_compute::ActivationLayerInfo::ActivationFunction::LOGISTIC;
+            return true;
         case Algorithm::EltwiseSqrt:
-            return arm_compute::ActivationLayerInfo::ActivationFunction::SQRT;
+            activationLayerInfo = arm_compute::ActivationLayerInfo::ActivationFunction::SQRT;
+            return true;
         case Algorithm::EltwiseSoftRelu:
-            return arm_compute::ActivationLayerInfo::ActivationFunction::SOFT_RELU;
+            activationLayerInfo = arm_compute::ActivationLayerInfo::ActivationFunction::SOFT_RELU;
+            return true;
         case Algorithm::EltwiseClamp:
-            return {arm_compute::ActivationLayerInfo::ActivationFunction::LU_BOUNDED_RELU, beta, alpha};
+            activationLayerInfo = {arm_compute::ActivationLayerInfo::ActivationFunction::LU_BOUNDED_RELU, beta, alpha};
+            return true;
         case Algorithm::EltwiseSwish:
-            return {arm_compute::ActivationLayerInfo::ActivationFunction::SWISH, alpha};
+            activationLayerInfo = {arm_compute::ActivationLayerInfo::ActivationFunction::SWISH, alpha};
+            return true;
         case Algorithm::EltwiseHswish:
-            return arm_compute::ActivationLayerInfo::ActivationFunction::HARD_SWISH;
+            activationLayerInfo = arm_compute::ActivationLayerInfo::ActivationFunction::HARD_SWISH;
+            return true;
         default:
-            OPENVINO_THROW("Unsupported operation type for ACL Eltwise executor: ", static_cast<int>(algorithm));
+            return false;
     }
 }
 

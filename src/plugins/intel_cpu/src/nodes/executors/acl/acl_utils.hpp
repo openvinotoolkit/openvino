@@ -155,11 +155,14 @@ void configureThreadSafe(const std::function<void(void)>& config);
 /**
 * @brief get ARM Compute Library ActivationLayerInfo for Eltwise or PostOps.
 * @param algorithm activation function of openvino representation
+* @param activationLayerInfo returned activation function of ACL representation
 * @param alpha alpha coefficient for algorithm
 * @param beta beta coefficient for algorithm
 * @param gamma gamma coefficient for algorithm
 */
-arm_compute::ActivationLayerInfo getActivationLayerInfo(Algorithm algorithm, float alpha, float beta, float gamma);
+bool getActivationLayerInfo(Algorithm algorithm,
+                            arm_compute::ActivationLayerInfo &activationLayerInfo,
+                            float alpha, float beta, float gamma);
 
 }   // namespace intel_cpu
 }   // namespace ov

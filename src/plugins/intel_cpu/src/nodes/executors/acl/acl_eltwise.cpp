@@ -241,6 +241,18 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
         dstTensors[i].allocator()->init(dstTensorsInfo[i]);
     }
 
+    auto actFunc = [](const EltwiseAttrs& attrs) -> arm_compute::ActivationLayerInfo {
+        arm_compute::ActivationLayerInfo activationLayerInfo;
+        if (!getActivationLayerInfo(attrs.algorithm,
+                                    activationLayerInfo,
+                                    attrs.alpha,
+                                    attrs.beta,
+                                    attrs.gamma)) {
+            DEBUG_LOG("Eltwise algorithm ", algToString(attrs.algorithm), " is not supported");
+        }
+        return activationLayerInfo;
+    };
+
     std::function<std::unique_ptr<IFunction>(void)> exec_func;
     switch (aclEltwiseAttrs.algorithm) {
         case Algorithm::EltwiseAdd:
@@ -398,19 +410,11 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs &eltwiseAttrs, const std::vecto
         case Algorithm::EltwiseClamp:
         case Algorithm::EltwiseSwish:
         case Algorithm::EltwiseHswish:
-            if (!NEActivationLayer::validate(&srcTensorsInfo[0], &dstTensorsInfo[0],
-                                             getActivationLayerInfo(aclEltwiseAttrs.algorithm,
-                                                                    aclEltwiseAttrs.alpha,
-                                                                    aclEltwiseAttrs.beta,
-                                                                    aclEltwiseAttrs.gamma)))
+            if (!NEActivationLayer::validate(&srcTensorsInfo[0], &dstTensorsInfo[0], actFunc(aclEltwiseAttrs)))
                 return false;
-            exec_func = [this]() -> std::unique_ptr<IFunction> {
+            exec_func = [this, &actFunc]() -> std::unique_ptr<IFunction> {
                 auto acl_op = std::make_unique<NEActivationLayer>();
-                acl_op->configure(&srcTensors[0], &dstTensors[0],
-                                  getActivationLayerInfo(aclEltwiseAttrs.algorithm,
-                                                         aclEltwiseAttrs.alpha,
-                                                         aclEltwiseAttrs.beta,
-                                                         aclEltwiseAttrs.gamma));
+                acl_op->configure(&srcTensors[0], &dstTensors[0], actFunc(aclEltwiseAttrs));
                 return acl_op;
             };
             break;
