@@ -328,6 +328,12 @@ void CompiledModel::initialize_properties() {
           [](const Config& config) {
               return config.get<COMPILATION_MODE_PARAMS>();
           }}},
+        {ov::intel_npu::turbo.name(),
+         {isPropertySupported(ov::intel_npu::turbo.name()),
+          ov::PropertyMutability::RO,
+          [](const Config& config) {
+              return config.get<TURBO>();
+          }}},
         // NPU Private
         // =========
         {ov::intel_npu::tiles.name(),
