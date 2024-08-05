@@ -36,6 +36,7 @@
 #include "pyopenvino/core/tensor.hpp"
 #include "pyopenvino/core/variable_state.hpp"
 #include "pyopenvino/core/version.hpp"
+#include "pyopenvino/dev_api/dev_api.hpp"
 #include "pyopenvino/frontend/decoder.hpp"
 #include "pyopenvino/frontend/extension.hpp"
 #include "pyopenvino/frontend/frontend.hpp"
@@ -175,9 +176,9 @@ PYBIND11_MODULE(_pyopenvino, m) {
         [](std::shared_ptr<ov::Model>& model,
            const py::object& xml_path,
            bool compress_to_fp16) {
-           if (model == nullptr) {
-               throw py::attribute_error("'model' argument is required and cannot be None.");
-           }
+            if (model == nullptr) {
+                throw py::attribute_error("'model' argument is required and cannot be None.");
+            }
             ov::save_model(model,
                           Common::utils::convert_path_to_string(xml_path),
                           compress_to_fp16);
@@ -252,6 +253,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
     regmodule_graph_onnx_import(m);
 #endif
     regmodule_graph_op_util(m_op);
+    regmodule_dev_api(m);
     py::module m_preprocess =
         m.def_submodule("preprocess", "Package openvino.runtime.preprocess that wraps ov::preprocess");
     regclass_graph_PrePostProcessor(m_preprocess);
