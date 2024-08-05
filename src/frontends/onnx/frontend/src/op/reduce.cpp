@@ -273,7 +273,8 @@ ov::OutputVector reduce_l2(const Node& node) {
 
 ov::OutputVector reduce_log_sum_exp(const ov::frontend::onnx::Node& node) {
     const auto exp_node = std::make_shared<v0::Exp>(node.get_ov_inputs().at(0));
-    const ov::Output<ov::Node> sum_node = make_ov_reduction_op<v1::ReduceSum>(node, exp_node, supported_types_v3, false);
+    const ov::Output<ov::Node> sum_node =
+        make_ov_reduction_op<v1::ReduceSum>(node, exp_node, supported_types_v3, false);
     return {std::make_shared<v0::Log>(sum_node)};
 }
 
