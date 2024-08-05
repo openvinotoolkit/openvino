@@ -31,7 +31,6 @@ public:
 
     ~CompiledModel() {
         if (m_has_sub_compiled_models) {
-            std::cout << "[~CompiledModel] clear\n";
             m_sub_compiled_models.clear();
             m_sub_memory_manager->_memorys_table.clear();
         }
