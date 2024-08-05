@@ -19,8 +19,8 @@ static const std::unordered_map<int, ACLArgs> argConvert = {
     {ARG_DST,   ACL_DST},
 };
 
-using ACLMemoryTypes   = std::array<arm_compute::DataType,   ACLArgs::COUNT_OF_ARGS>;
-using ACLMemoryLayouts = std::array<arm_compute::DataLayout, ACLArgs::COUNT_OF_ARGS>;
+using ACLTypes   = std::array<arm_compute::DataType,   ACLArgs::COUNT_OF_ARGS>;
+using ACLLayouts = std::array<arm_compute::DataLayout, ACLArgs::COUNT_OF_ARGS>;
 
 static void initACLTensorParams(const MemoryPtr& memoryPtr,
                                 const ACLTensorAttrs& attrs,
@@ -38,10 +38,10 @@ static void initACLTensorParams(const MemoryPtr& memoryPtr,
     }
 }
 
-static ACLInfo initTensorInfo(const arm_compute::TensorShape& tensorShape,
+static std::shared_ptr<arm_compute::TensorInfo> initTensorInfo(const arm_compute::TensorShape& tensorShape,
                               const arm_compute::DataType& dataType,
                               const arm_compute::DataLayout& dataLayout) {
-    ACLInfo aclMemoryInfo = nullptr;
+    std::shared_ptr<arm_compute::TensorInfo> aclMemoryInfo = nullptr;
     if (dataType != arm_compute::DataType::UNKNOWN) {
         aclMemoryInfo = std::make_shared<arm_compute::TensorInfo>(
                 tensorShape, 1,
@@ -51,8 +51,8 @@ static ACLInfo initTensorInfo(const arm_compute::TensorShape& tensorShape,
     return aclMemoryInfo;
 }
 
-static ACLMemory initTensor(const ACLInfo& aclMemoryInfo) {
-    ACLMemory aclMemory = nullptr;
+static std::shared_ptr<arm_compute::Tensor> initTensor(const std::shared_ptr<arm_compute::TensorInfo>& aclMemoryInfo) {
+    std::shared_ptr<arm_compute::Tensor> aclMemory = nullptr;
     if (aclMemoryInfo) {
         aclMemory = std::make_shared<arm_compute::Tensor>();
         aclMemory->allocator()->init(*aclMemoryInfo);
@@ -68,9 +68,9 @@ ACLCommonExecutor::ACLCommonExecutor() {
 
 bool ACLCommonExecutor::update(const MemoryArgs &memory) {
     // Initialize ACL tensors params
-    ACLMemoryShapes  aclMemoryShapes;
-    ACLMemoryTypes   aclDataType{};
-    ACLMemoryLayouts aclDataLayout{};
+    ACLShapes  aclMemoryShapes;
+    ACLTypes   aclDataType{};
+    ACLLayouts aclDataLayout{};
     for (auto& cpu_mem_ptr : memory) {
         const ACLArgs index = argConvert.at(cpu_mem_ptr.first);
         initACLTensorParams(cpu_mem_ptr.second, aclTensorAttrs,
@@ -83,7 +83,7 @@ bool ACLCommonExecutor::update(const MemoryArgs &memory) {
     updateTensorsShapes(aclMemoryShapes);
 
     // Initialize arm_compute::TensorInfo objects
-    ACLMemoryInfo aclMemoryInfos;
+    ACLInfos aclMemoryInfos;
     for (int i = 0; i < ACLArgs::COUNT_OF_ARGS; i++) {
         aclMemoryInfos[i] = initTensorInfo(aclMemoryShapes[i], aclDataType[i], aclDataLayout[i]);
     }

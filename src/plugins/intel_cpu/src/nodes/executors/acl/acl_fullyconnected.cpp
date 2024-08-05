@@ -10,14 +10,45 @@
 #include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/implementation_utils.hpp"
 #include "nodes/common/cpu_convert.h"
+#include "memory_desc/cpu_memory_desc_utils.h"
 
 namespace ov {
 namespace intel_cpu {
 
+static VectorDims makeDummyInputDims(const Shape& inShape, const Shape& wShape) {
+    const auto& weightDims = wShape.getStaticDims();
+
+    auto inMinDims = inShape.getMinDims();
+    auto inMaxDims = inShape.getMaxDims();
+    inMinDims.back() = weightDims.back();
+    inMaxDims.back() = weightDims.back();
+
+    return MemoryDescUtils::makeDummyShape(Shape(inMinDims, inMaxDims)).getStaticDims();
+}
+
+static VectorDims makeDummyOutputDims(const VectorDims& inShape, const VectorDims& wShape, const size_t out_rank) {
+    size_t activationRank = inShape.size();
+    size_t channelRank = wShape.size() - 1;
+    // activation   weight    output_shape
+    // NCHW         CoCHW     NCo
+    // TNC          CoC       TNCo
+    // NC           CoC       NCo
+    VectorDims outputShape(out_rank, 1);
+    // set Co
+    outputShape.back() = wShape[0];
+    // set batch dims
+    size_t batchRank = activationRank - channelRank;
+    size_t startIdx = out_rank - batchRank - 1;
+    for (size_t i = 0; i < batchRank; i++) {
+        outputShape[i + startIdx] = inShape[i];
+    }
+
+    return outputShape;
+}
+
 static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
                                      const ExecutorContext::CPtr context,
                                      const FCAttrs &attrs,
-                                     const ACLTensorAttrs& aclTensorAttrs,
                                      const ACLFCAttrs& aclfcAttrs,
                                      const PostOps &postOps) {
     DEBUG_LOG("ACLFullyConnectedExecutor: prepack weights");
@@ -27,6 +58,7 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
 
     auto create = [&]() {
         MemoryPtr final_ptr = memory.at(ARG_WEI);
+        // Convert weights precision
         if (aclfcAttrs.isConvertedWeights) {
             MemoryArgs memoryArgs;
             memoryArgs[ARG_SRC_0] = memory.at(ARG_WEI);
@@ -49,6 +81,45 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
             }
             final_ptr = memoryArgs[ARG_DST];
         }
+        // Packed weights
+        {
+            arm_compute::WeightFormat expectedWeightFormat;
+            bool isNeededReorder;
+            {
+                MemoryArgs memoryArgs;
+                memoryArgs[ARG_BIAS]  = memory.at(ARG_BIAS);
+                memoryArgs[ARG_WEI]   = final_ptr;
+                if (memory.at(ARG_SRC_0)->getShape().isDynamic()) {
+                    const auto& inShape = memory.at(ARG_SRC_0)->getShape();
+                    const auto& wShape = final_ptr->getShape();
+                    const auto& inDymmyDims = makeDummyInputDims(inShape, wShape);
+                    const auto& outDymmyDims = makeDummyOutputDims(inDymmyDims, wShape.getStaticDims(), memory.at(ARG_DST)->getShape().getRank());
+                    memoryArgs[ARG_SRC_0] = std::make_shared<Memory>(context->getEngine(),
+                                                                     memory.at(ARG_SRC_0)->getDescPtr()->cloneWithNewDims(inDymmyDims));
+                    memoryArgs[ARG_DST] = std::make_shared<Memory>(context->getEngine(),
+                                                                   memory.at(ARG_DST)->getDescPtr()->cloneWithNewDims(outDymmyDims));
+                } else {
+                    memoryArgs[ARG_SRC_0] = memory.at(ARG_SRC_0);
+                    memoryArgs[ARG_DST]   = memory.at(ARG_DST);
+                }
+                auto aclWeightsRepack = std::make_shared<acl_fc_executor::ACLWeightFormatGenerator>(attrs, postOps, memoryArgs);
+                isNeededReorder = aclWeightsRepack->update(memoryArgs);
+                expectedWeightFormat = aclWeightsRepack->getOptImplWeightFormat();
+            }
+            if (isNeededReorder) {
+                MemoryArgs memoryArgs;
+                memoryArgs[ARG_SRC_0] = final_ptr;
+                memoryArgs[ARG_DST] = std::make_shared<Memory>(context->getEngine(),
+                                                               memoryArgs[ARG_SRC_0]->getDescPtr()->clone());
+                auto aclWeightsReorder = std::make_shared<acl_fc_executor::ACLWeightsReorder>(
+                        arm_compute::WeightFormat::OHWI, expectedWeightFormat);
+                if (aclWeightsReorder->update(memoryArgs)) {
+                    aclWeightsReorder->execute(memoryArgs);
+                    final_ptr = memoryArgs[ARG_DST];
+                }
+            }
+        }
+        // Transpose weights
         if (!aclfcAttrs.weightsNonTransposed) {
             auto reverse_weights_dims = memory.at(ARG_WEI)->getStaticDims();
             if (reverse_weights_dims.size() == 3) {
@@ -65,32 +136,6 @@ static MemoryPtr prepareWeightMemory(const MemoryArgs &memory,
             if (aclWeightsTranspose->update(memoryArgs)) {
                 aclWeightsTranspose->execute(memoryArgs);
                 final_ptr = memoryArgs[ARG_DST];
-            }
-        }
-        if (!memory.at(ARG_SRC)->getShape().isDynamic()) {
-            arm_compute::WeightFormat expectedWeightFormat;
-            bool isNeededReorder;
-            {
-                MemoryArgs memoryArgs;
-                memoryArgs[ARG_SRC_0] = memory.at(ARG_SRC_0);
-                memoryArgs[ARG_BIAS]  = memory.at(ARG_BIAS);
-                memoryArgs[ARG_WEI]   = final_ptr;
-                memoryArgs[ARG_DST]   = memory.at(ARG_DST);
-                auto aclWeightsRepack = std::make_shared<acl_fc_executor::ACLWeightFormatGenerator>(attrs, postOps, memoryArgs);
-                isNeededReorder = aclWeightsRepack->update(memoryArgs);
-                expectedWeightFormat = aclWeightsRepack->getOptImplWeightFormat();
-            }
-            if (isNeededReorder) {
-                MemoryArgs memoryArgs;
-                memoryArgs[ARG_SRC_0] = final_ptr;
-                memoryArgs[ARG_DST] = std::make_shared<Memory>(context->getEngine(),
-                                                               memoryArgs[ARG_SRC_0]->getDescPtr()->clone());
-                auto aclWeightsReorder = std::make_shared<acl_fc_executor::ACLWeightsReorder>(
-                        arm_compute::WeightFormat::OHWI, expectedWeightFormat);
-                if (aclWeightsReorder->update(memoryArgs)) {
-                    aclWeightsReorder->execute(memoryArgs);
-                    final_ptr = memoryArgs[ARG_DST];
-                }
             }
         }
         DEBUG_LOG("ACLFullyConnectedExecutor: cache miss, perform packing");
@@ -142,7 +187,7 @@ ACLFullyConnectedExecutor::ACLFullyConnectedExecutor(const FCAttrs &attrs,
                                                      const MemoryArgs &memory,
                                                      const ExecutorContext::CPtr context) {
     initFCAttrs(attrs, aclTensorAttrs, aclfcAttrs, memory, fullyConnectedLayerInfo, postOps);
-    packedWeights = prepareWeightMemory(memory, context, attrs, aclTensorAttrs, aclfcAttrs, postOps);
+    packedWeights = prepareWeightMemory(memory, context, attrs, aclfcAttrs, postOps);
 }
 
 bool ACLFullyConnectedExecutor::supports(const FCConfig &config) {
@@ -154,7 +199,7 @@ bool ACLFullyConnectedExecutor::supports(const FCConfig &config) {
     return true;
 }
 
-static void updateFCTensorsShapes(ACLMemoryShapes& aclMemoryShapes) {
+static void updateFCTensorsShapes(ACLShapes& aclMemoryShapes) {
     if (aclMemoryShapes[ACLArgs::ACL_WEI].num_dimensions() == 3U) {
         aclMemoryShapes[ACLArgs::ACL_WEI] = arm_compute::TensorShape(
                 {aclMemoryShapes[ACLArgs::ACL_WEI][0] * aclMemoryShapes[ACLArgs::ACL_WEI][1],
@@ -176,11 +221,11 @@ static void updateFCTensorsShapes(ACLMemoryShapes& aclMemoryShapes) {
     std::swap(aclMemoryShapes[ACLArgs::ACL_WEI][0], aclMemoryShapes[ACLArgs::ACL_WEI][1]);
 }
 
-void ACLFullyConnectedExecutor::updateTensorsShapes(ACLMemoryShapes& aclMemoryShapes) {
+void ACLFullyConnectedExecutor::updateTensorsShapes(ACLShapes& aclMemoryShapes) {
     updateFCTensorsShapes(aclMemoryShapes);
 }
 
-arm_compute::Status ACLFullyConnectedExecutor::validateTensorsInfo(const ACLMemoryInfo & aclMemoryInfos) {
+arm_compute::Status ACLFullyConnectedExecutor::validateTensorsInfo(const ACLInfos & aclMemoryInfos) {
     if (aclfcAttrs.isConvertedWeights) {
         aclMemoryInfos[ACLArgs::ACL_WEI]->set_data_type(aclMemoryInfos[ACLArgs::ACL_SRC_0]->data_type());
     }
@@ -193,7 +238,7 @@ arm_compute::Status ACLFullyConnectedExecutor::validateTensorsInfo(const ACLMemo
             weightsInfo);
 }
 
-ACLFunction ACLFullyConnectedExecutor::configureFunction(const ACLMemoryTensors & aclMemoryTensors) {
+ACLFunction ACLFullyConnectedExecutor::configureFunction(const ACLTensors & aclMemoryTensors) {
     auto neFC = std::make_unique<arm_compute::NEFullyConnectedLayer>();
     neFC->configure(
             aclMemoryTensors[ACLArgs::ACL_SRC_0].get(),
@@ -210,13 +255,13 @@ ACLFunction ACLFullyConnectedExecutor::configureFunction(const ACLMemoryTensors 
     return neFC;
 }
 
-arm_compute::Status acl_fc_executor::ACLWeightsConverter::validateTensorsInfo(const ACLMemoryInfo &aclMemoryInfos) {
+arm_compute::Status acl_fc_executor::ACLWeightsConverter::validateTensorsInfo(const ACLInfos &aclMemoryInfos) {
     return arm_compute::NECast::validate(aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
                                          aclMemoryInfos[ACLArgs::ACL_DST].get(),
                                          arm_compute::ConvertPolicy::SATURATE);
 }
 
-ACLFunction acl_fc_executor::ACLWeightsConverter::configureFunction(const ACLMemoryTensors &aclMemoryTensors) {
+ACLFunction acl_fc_executor::ACLWeightsConverter::configureFunction(const ACLTensors &aclMemoryTensors) {
     auto neCast = std::make_unique<arm_compute::NECast>();
     neCast->configure(aclMemoryTensors[ACLArgs::ACL_SRC_0].get(),
                       aclMemoryTensors[ACLArgs::ACL_DST].get(),
@@ -225,12 +270,12 @@ ACLFunction acl_fc_executor::ACLWeightsConverter::configureFunction(const ACLMem
 }
 
 
-arm_compute::Status acl_fc_executor::ACLWeightsTranspose::validateTensorsInfo(const ACLMemoryInfo &aclMemoryInfos) {
+arm_compute::Status acl_fc_executor::ACLWeightsTranspose::validateTensorsInfo(const ACLInfos &aclMemoryInfos) {
     return arm_compute::NETranspose::validate(aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
                                               aclMemoryInfos[ACLArgs::ACL_DST].get());
 }
 
-ACLFunction acl_fc_executor::ACLWeightsTranspose::configureFunction(const ACLMemoryTensors &aclMemoryTensors) {
+ACLFunction acl_fc_executor::ACLWeightsTranspose::configureFunction(const ACLTensors &aclMemoryTensors) {
     auto neTranspose = std::make_unique<arm_compute::NETranspose>();
     neTranspose->configure(aclMemoryTensors[ACLArgs::ACL_SRC_0].get(),
                            aclMemoryTensors[ACLArgs::ACL_DST].get());
@@ -243,11 +288,11 @@ acl_fc_executor::ACLWeightFormatGenerator::ACLWeightFormatGenerator(const FCAttr
     initFCAttrs(attrs, aclTensorAttrs, aclfcAttrs, memory, fullyConnectedLayerInfo, postOps);
 }
 
-void acl_fc_executor::ACLWeightFormatGenerator::updateTensorsShapes(ACLMemoryShapes &aclMemoryShapes) {
+void acl_fc_executor::ACLWeightFormatGenerator::updateTensorsShapes(ACLShapes &aclMemoryShapes) {
     updateFCTensorsShapes(aclMemoryShapes);
 }
 
-arm_compute::Status acl_fc_executor::ACLWeightFormatGenerator::validateTensorsInfo(const ACLMemoryInfo &aclMemoryInfos) {
+arm_compute::Status acl_fc_executor::ACLWeightFormatGenerator::validateTensorsInfo(const ACLInfos &aclMemoryInfos) {
     if (aclfcAttrs.isConvertedWeights) {
         aclMemoryInfos[ACLArgs::ACL_WEI]->set_data_type(aclMemoryInfos[ACLArgs::ACL_SRC_0]->data_type());
     }
@@ -261,11 +306,11 @@ arm_compute::Status acl_fc_executor::ACLWeightFormatGenerator::validateTensorsIn
             weightsInfo);
 }
 
-ACLFunction acl_fc_executor::ACLWeightFormatGenerator::configureFunction(const ACLMemoryTensors &aclMemoryTensors) {
+ACLFunction acl_fc_executor::ACLWeightFormatGenerator::configureFunction(const ACLTensors &aclMemoryTensors) {
     return std::make_unique<arm_compute::NEFullyConnectedLayer>();
 }
 
-arm_compute::Status acl_fc_executor::ACLWeightsReorder::validateTensorsInfo(const ACLMemoryInfo &aclMemoryInfos) {
+arm_compute::Status acl_fc_executor::ACLWeightsReorder::validateTensorsInfo(const ACLInfos &aclMemoryInfos) {
 #if defined(OPENVINO_ARCH_ARM64)
     return arm_compute::NEReorderLayer::validate(aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
                                                  aclMemoryInfos[ACLArgs::ACL_DST].get(),
@@ -277,7 +322,7 @@ arm_compute::Status acl_fc_executor::ACLWeightsReorder::validateTensorsInfo(cons
 #endif
 }
 
-ACLFunction acl_fc_executor::ACLWeightsReorder::configureFunction(const ACLMemoryTensors &aclMemoryTensors) {
+ACLFunction acl_fc_executor::ACLWeightsReorder::configureFunction(const ACLTensors &aclMemoryTensors) {
 #if defined(OPENVINO_ARCH_ARM64)
     auto neReorderLayer = std::make_unique<arm_compute::NEReorderLayer>();
     neReorderLayer->configure(aclMemoryTensors[ACLArgs::ACL_SRC_0].get(),

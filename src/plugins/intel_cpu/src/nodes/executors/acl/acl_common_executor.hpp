@@ -21,12 +21,10 @@ enum ACLArgs {
     COUNT_OF_ARGS
 };
 
-using ACLInfo          = std::shared_ptr<arm_compute::TensorInfo>;
-using ACLMemory        = std::shared_ptr<arm_compute::Tensor>;
-using ACLFunction      = std::unique_ptr<arm_compute::IFunction>;
-using ACLMemoryShapes  = std::array<arm_compute::TensorShape, ACLArgs::COUNT_OF_ARGS>;
-using ACLMemoryInfo    = std::array<ACLInfo, ACLArgs::COUNT_OF_ARGS>;
-using ACLMemoryTensors = std::array<ACLMemory, ACLArgs::COUNT_OF_ARGS>;
+using ACLFunction = std::unique_ptr<arm_compute::IFunction>;
+using ACLShapes   = std::array<arm_compute::TensorShape, ACLArgs::COUNT_OF_ARGS>;
+using ACLInfos    = std::array<std::shared_ptr<arm_compute::TensorInfo>, ACLArgs::COUNT_OF_ARGS>;
+using ACLTensors  = std::array<std::shared_ptr<arm_compute::Tensor>, ACLArgs::COUNT_OF_ARGS>;
 
 struct ACLTensorAttrs {
     bool hasLayoutTypeNHWC = false;
@@ -37,9 +35,9 @@ struct ACLTensorAttrs {
 class ACLCommonExecutor : public Executor {
 public:
     ACLCommonExecutor();
-    virtual void updateTensorsShapes(ACLMemoryShapes& aclMemoryShapes) = 0;
-    virtual arm_compute::Status validateTensorsInfo(const ACLMemoryInfo& aclMemoryInfos) = 0;
-    virtual ACLFunction configureFunction(const ACLMemoryTensors& aclMemoryTensors) = 0;
+    virtual void updateTensorsShapes(ACLShapes& aclMemoryShapes) = 0;
+    virtual arm_compute::Status validateTensorsInfo(const ACLInfos& aclMemoryInfos) = 0;
+    virtual ACLFunction configureFunction(const ACLTensors& aclMemoryTensors) = 0;
     impl_desc_type implType() const override {
         return impl_desc_type::acl;
     }
@@ -50,7 +48,7 @@ public:
 protected:
     ACLTensorAttrs aclTensorAttrs;
 private:
-    ACLMemoryTensors aclMemoryTensors;
+    ACLTensors aclMemoryTensors;
     ACLFunction iFunction = nullptr;
 };
 

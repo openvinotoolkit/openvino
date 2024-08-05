@@ -21,17 +21,17 @@ namespace acl_fc_executor {
 class ACLWeightsConverter : public ACLCommonExecutor {
 public:
     ACLWeightsConverter() = default;
-    void updateTensorsShapes(ACLMemoryShapes& aclMemoryShapes) override {}
-    arm_compute::Status validateTensorsInfo(const ACLMemoryInfo & aclMemoryInfos) override;
-    ACLFunction configureFunction(const ACLMemoryTensors & aclMemoryTensors) override;
+    void updateTensorsShapes(ACLShapes& aclMemoryShapes) override {}
+    arm_compute::Status validateTensorsInfo(const ACLInfos & aclMemoryInfos) override;
+    ACLFunction configureFunction(const ACLTensors & aclMemoryTensors) override;
 };
 
 class ACLWeightsTranspose : public ACLCommonExecutor {
 public:
     ACLWeightsTranspose() = default;
-    void updateTensorsShapes(ACLMemoryShapes& aclMemoryShapes) override {}
-    arm_compute::Status validateTensorsInfo(const ACLMemoryInfo & aclMemoryInfos) override;
-    ACLFunction configureFunction(const ACLMemoryTensors & aclMemoryTensors) override;
+    void updateTensorsShapes(ACLShapes& aclMemoryShapes) override {}
+    arm_compute::Status validateTensorsInfo(const ACLInfos & aclMemoryInfos) override;
+    ACLFunction configureFunction(const ACLTensors & aclMemoryTensors) override;
 };
 
 class ACLWeightFormatGenerator : public ACLCommonExecutor {
@@ -39,9 +39,9 @@ public:
     ACLWeightFormatGenerator(const FCAttrs& attrs,
                              const PostOps& postOps,
                              const MemoryArgs& memory);
-    void updateTensorsShapes(ACLMemoryShapes& aclMemoryShapes) override;
-    arm_compute::Status validateTensorsInfo(const ACLMemoryInfo & aclMemoryInfos) override;
-    ACLFunction configureFunction(const ACLMemoryTensors & aclMemoryTensors) override;
+    void updateTensorsShapes(ACLShapes& aclMemoryShapes) override;
+    arm_compute::Status validateTensorsInfo(const ACLInfos & aclMemoryInfos) override;
+    ACLFunction configureFunction(const ACLTensors & aclMemoryTensors) override;
     arm_compute::WeightFormat getOptImplWeightFormat() {
         return expectedWeightFormat;
     }
@@ -57,9 +57,9 @@ public:
     ACLWeightsReorder(arm_compute::WeightFormat inWeightFormat,
                       arm_compute::WeightFormat outWeightFormat)
                       : inWeightFormat(inWeightFormat), outWeightFormat(outWeightFormat) {}
-    void updateTensorsShapes(ACLMemoryShapes& aclMemoryShapes) override {}
-    arm_compute::Status validateTensorsInfo(const ACLMemoryInfo & aclMemoryInfos) override;
-    ACLFunction configureFunction(const ACLMemoryTensors & aclMemoryTensors) override;
+    void updateTensorsShapes(ACLShapes& aclMemoryShapes) override {}
+    arm_compute::Status validateTensorsInfo(const ACLInfos & aclMemoryInfos) override;
+    ACLFunction configureFunction(const ACLTensors & aclMemoryTensors) override;
 private:
     arm_compute::WeightFormat inWeightFormat;
     arm_compute::WeightFormat outWeightFormat;
@@ -76,11 +76,11 @@ public:
 
     static bool supports(const FCConfig& config);
 
-    void updateTensorsShapes(ACLMemoryShapes& aclMemoryShapes) override;
+    void updateTensorsShapes(ACLShapes& aclMemoryShapes) override;
 
-    arm_compute::Status validateTensorsInfo(const ACLMemoryInfo & aclMemoryInfos) override;
+    arm_compute::Status validateTensorsInfo(const ACLInfos & aclMemoryInfos) override;
 
-    ACLFunction configureFunction(const ACLMemoryTensors & aclMemoryTensors) override;
+    ACLFunction configureFunction(const ACLTensors & aclMemoryTensors) override;
 
 private:
     arm_compute::FullyConnectedLayerInfo fullyConnectedLayerInfo;
