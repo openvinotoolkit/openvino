@@ -10,11 +10,11 @@
 #include "ze_command_queue_npu_ext.h"
 #include "zero_utils.hpp"
 
-namespace {
 #ifdef _WIN32
+namespace {
 constexpr uint32_t WIN_DRIVER_NO_MCL_SUPPORT = 2688;
-#endif
 }  // namespace
+#endif
 
 namespace intel_npu {
 
