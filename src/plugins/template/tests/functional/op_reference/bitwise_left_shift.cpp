@@ -43,6 +43,25 @@ std::vector<RefBitwiseParams> generateBitwiseParams() {
             .expected({{10}, element::i8, std::vector<int8_t>{0, 0, 2, -2, 6, -6, 4, -4, -128, -128}}),
         Builder{}
             .opType(BitwiseTypes::BITWISE_LEFT_SHIFT)
+            .inputs({{{2, 5}, element::i64, std::vector<int64_t>{0, -0, 1, -1, 3, -3, 2, -2, 64, -64}},
+                     {{6, 1, 1}, element::i64, std::vector<int64_t>{0, 1, 2, 3, 8, 31}}})
+            .expected({{6, 2, 5},
+                       element::i64,
+                       std::vector<int64_t>{0,           0,          1,           -1,           3,
+                                            -3,          2,          -2,          64,           -64,
+                                            0,           0,          2,           -2,           6,
+                                            -6,          4,          -4,          128,          -128,
+                                            0,           0,          4,           -4,           12,
+                                            -12,         8,          -8,          256,          -256,
+                                            0,           0,          8,           -8,           24,
+                                            -24,         16,         -16,         512,          -512,
+                                            0,           0,          256,         -256,         768,
+                                            -768,        512,        -512,        16384,        -16384,
+                                            0,           0,          2147483648,  -2147483648,  6442450944,
+                                            -6442450944, 4294967296, -4294967296, 137438953472, -137438953472}}),
+
+        Builder{}
+            .opType(BitwiseTypes::BITWISE_LEFT_SHIFT)
             .inputs({{{2, 5}, element::i32, std::vector<int32_t>{0, -0, 1, -1, 3, -3, 2, -2, 64, -64}},
                      {{6, 1, 1}, element::i32, std::vector<int32_t>{0, 1, 2, 3, 8, 31}}})
             .expected(

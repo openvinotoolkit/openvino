@@ -43,6 +43,15 @@ std::vector<RefBitwiseParams> generateBitwiseParams() {
             .expected({{10}, element::i8, std::vector<int8_t>{0, 0, 0, -1, 1, -2, 1, -1, 32, -32}}),
         Builder{}
             .opType(BitwiseTypes::BITWISE_RIGHT_SHIFT)
+            .inputs({{{2, 5}, element::i64, std::vector<int64_t>{0, -0, 1, -1, 3, -3, 2, -2, 64, -64}},
+                     {{6, 1, 1}, element::i64, std::vector<int64_t>{0, 1, 2, 3, 8, 31}}})
+            .expected({{6, 2, 5},
+                       element::i64,
+                       std::vector<int64_t>{0, 0, 1, -1, 3, -3, 2, -2, 64, -64, 0, 0, 0, -1, 1, -2, 1, -1, 32, -32,
+                                            0, 0, 0, -1, 0, -1, 0, -1, 16, -16, 0, 0, 0, -1, 0, -1, 0, -1, 8,  -8,
+                                            0, 0, 0, -1, 0, -1, 0, -1, 0,  -1,  0, 0, 0, -1, 0, -1, 0, -1, 0,  -1}}),
+        Builder{}
+            .opType(BitwiseTypes::BITWISE_RIGHT_SHIFT)
             .inputs({{{2, 5}, element::i32, std::vector<int32_t>{0, -0, 1, -1, 3, -3, 2, -2, 64, -64}},
                      {{6, 1, 1}, element::i32, std::vector<int32_t>{0, 1, 2, 3, 8, 31}}})
             .expected({{6, 2, 5},
