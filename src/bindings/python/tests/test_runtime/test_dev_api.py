@@ -4,13 +4,15 @@
 
 from openvino.dev_api import evaluate_as_partial_shape, evaluate_both_bounds
 
+import pytest
 from openvino.runtime import Shape, PartialShape, Dimension, Type
 from openvino.runtime.op import Constant
 import openvino.runtime.opset13 as ops
 import numpy as np
 
 
-def construct_graph_with_partial_value():
+@pytest.fixture
+def graph_with_partial_value():
     bounds = [
         (-6, -6), (-5, -4), (-4, 0), (-4, 4), (-4, 3),
         (-3, 4), (0, 0), (0, 2), (1, 1), (1, 42),
@@ -35,8 +37,8 @@ def construct_graph_with_partial_value():
     return subtract
 
 
-def test_evaluate_both_bounds():
-    node = construct_graph_with_partial_value()
+def test_evaluate_both_bounds(graph_with_partial_value):
+    node = graph_with_partial_value
     lb, ub = evaluate_both_bounds(node.output(0))
     lower_bounds = [-6, -5, -4, -4, -4, -3, 0, 0, 1, 1]
     upper_bounds = [-6, -4, 0, 4, 3, 4, 0, 2, 1, 42]
@@ -45,7 +47,7 @@ def test_evaluate_both_bounds():
     assert np.equal(ub.data, upper_bounds).all()
 
 
-def test_evaluate_as_partial_shape():
-    node = ops.abs(construct_graph_with_partial_value())
+def test_evaluate_as_partial_shape(graph_with_partial_value):
+    node = ops.abs(graph_with_partial_value)
     output_value = PartialShape([])
     assert evaluate_as_partial_shape(node.output(0), output_value)
