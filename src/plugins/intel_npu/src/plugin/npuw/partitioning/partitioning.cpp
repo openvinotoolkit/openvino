@@ -1226,6 +1226,7 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
             HANDLE_CASE(u4, uint8_t);
             HANDLE_CASE(i32, int);
             HANDLE_CASE(i64, int64_t);
+            HANDLE_CASE(f16, uint16_t);
             HANDLE_CASE(f32, float);
 #undef HANDLE_CASE
         default:
@@ -1246,7 +1247,8 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
 
         if ((((proto_shape.size() == 0 || (proto_shape.size() == 1 && proto_shape[0] <= 10)) &&
               proto_node->output(0).get_element_type().is_integral()) ||
-             (proto_node->output(0).get_element_type() == ov::element::f32 &&
+             ((proto_node->output(0).get_element_type() == ov::element::f32 ||
+               proto_node->output(0).get_element_type() == ov::element::f16) &&
               std::accumulate(proto_shape.begin(), proto_shape.end(), size_t{1}, std::multiplies<std::size_t>()) ==
                   1)) &&
             std::all_of(instances.begin(), instances.end(), [&](const CTPtr& other_node) -> bool {
