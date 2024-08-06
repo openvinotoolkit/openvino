@@ -58,7 +58,7 @@ std::vector<ov::PartialShape> DynamicQuantize::shape_infer(const DynamicQuantize
             scale_shape[i] = 1;
         else {
             scale_shape[i] /= group_sizes[i];  // if group_size is larger than shape, scale_shape will be 1
-            scale_shape[i] = std::max(scale_shape[i].get_length(), 1L);
+            scale_shape[i] = std::max(static_cast<int>(scale_shape[i].get_length()), 1);
         }
     }
     out_shapes.push_back(scale_shape);
