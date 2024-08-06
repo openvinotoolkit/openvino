@@ -15,7 +15,7 @@ ParamsKey LSTMSeqKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableDifferentTypes();
-    k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
     k.EnableTensorOffset();
     k.EnableTensorPitches();

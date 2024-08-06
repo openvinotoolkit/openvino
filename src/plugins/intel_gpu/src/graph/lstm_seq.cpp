@@ -6,7 +6,6 @@
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
-#include "lstm_sequence_shape_inference.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(lstm_seq)
@@ -70,12 +69,5 @@ std::string lstm_seq_inst::to_string(lstm_seq_node const& node) {
     return primitive_description.str();
 }
 
-lstm_seq_inst::typed_primitive_inst(network& network, lstm_seq_node const& node) : parent(network, node) {
-    auto input_size = node.get_input_layout();
-    CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(),
-                                  "input format",
-                                  input_size.format.value,
-                                  "expected format",
-                                  format::bfyx);
-}
+lstm_seq_inst::typed_primitive_inst(network& network, lstm_seq_node const& node) : parent(network, node) {}
 }  // namespace cldnn
