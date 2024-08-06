@@ -87,8 +87,6 @@ if(OpenCV_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE opencv_core)
 endif()
 
-target_link_libraries(${TARGET_NAME} PRIVATE common_test_utils)
-
 # ov_ncc_naming_style(FOR_TARGET "${TARGET_NAME}"
 #                     SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}"
 #                     ADDITIONAL_INCLUDE_DIRECTORIES
