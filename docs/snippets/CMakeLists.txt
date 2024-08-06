@@ -18,12 +18,14 @@ endif()
 
 file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
                   "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
-                  "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c")
-file(GLOB GPU_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/gpu/*.cpp")
+                  "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c"
+                  "${CMAKE_CURRENT_SOURCE_DIR}/../articles_en/assets/snippets/*.cpp"
+                  "${CMAKE_CURRENT_SOURCE_DIR}/../articles_en/assets/snippets/*.c")
 
+file(GLOB GPU_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/../articles_en/assets/snippets/gpu/*.cpp")
 # add GPU snippets if OpenCL has been found
 if(TARGET OpenCL::OpenCL)
-    list(APPEND SOURCES ${GPU_SOURCES})
+    list(APPEND  SOURCES ${GPU_SOURCES})
 endif()
 
 # try to find VA libraries
@@ -38,7 +40,7 @@ endif()
 # remove OpenCV related sources
 find_package(OpenCV QUIET COMPONENTS core imgcodecs)
 if(NOT OpenCV_FOUND OR NOT OpenCV_VERSION VERSION_GREATER_EQUAL 3)
-    list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ShapeInference.cpp")
+    list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/../articles_en/assets/snippets/ShapeInference.cpp")
 endif()
 
 # requires mfxFrameSurface1 and MSS API

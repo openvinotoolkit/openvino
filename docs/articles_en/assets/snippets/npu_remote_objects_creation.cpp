@@ -42,7 +42,7 @@ int main() {
 
     {
         //! [wrap_dmabuf_fd]
-        int32_t fd_heap;  // create the DMA-BUF System Heap file descriptor
+        int32_t fd_heap = 0;  // create the DMA-BUF System Heap file descriptor
         auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, fd_heap);
         //! [wrap_dmabuf_fd]
     }
