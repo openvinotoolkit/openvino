@@ -328,8 +328,8 @@ void Concat::prepareParams() {
         return;
 
     const auto& dstMemPtr = getDstMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW("Destination memory didn't allocate.");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        OPENVINO_THROW("Destination memory is undefined.");
     auto dstMemDesc = dstMemPtr->getDescWithType<BlockedMemoryDesc>();
     if (getSelectedPrimitiveDescriptor() == nullptr)
         OPENVINO_THROW("Preferable primitive descriptor is not set.");
@@ -375,9 +375,9 @@ void Concat::prepareParams() {
     nelemTotal = 0;
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         const auto& srcMemPtr = getSrcMemoryAtPort(i);
-        if (!srcMemPtr || !srcMemPtr->isAllocated()) {
+        if (!srcMemPtr || !srcMemPtr->isDefined()) {
             auto parent = getParentEdgeAt(i)->getParent();
-            OPENVINO_THROW("Source memory from ", parent->getName(), " didn't allocate for node ", getName(), ".");
+            OPENVINO_THROW("Source memory from ", parent->getName(), " is undefined for node ", getName(), ".");
         }
 
         if (canExecRef) {

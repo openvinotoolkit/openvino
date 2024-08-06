@@ -23,10 +23,6 @@ class MemoryStub : public IMemory {
 public:
     MemoryStub(const dnnl::engine& eng, const MemoryDescPtr& pMemDesc) : m_eng(eng), m_pMemDesc(pMemDesc) {}
 
-    bool isAllocated() const noexcept override {
-       return true;
-    }
-
     const MemoryDesc& getDesc() const override {
         return *m_pMemDesc;
     }

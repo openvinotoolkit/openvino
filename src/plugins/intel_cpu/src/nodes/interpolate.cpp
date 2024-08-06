@@ -2249,27 +2249,27 @@ void Interpolate::prepareParams() {
     }
 
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate destination memory");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined destination memory");
 
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate input memory");
+    if (!srcMemPtr || !srcMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined input memory");
 
     if (shapeCalcMode == InterpolateShapeCalcMode::sizes) {
         auto tsMemPtr = getSrcMemoryAtPort(TARGET_SHAPE_ID);
-        if (!tsMemPtr || !tsMemPtr->isAllocated())
-            OPENVINO_THROW(errorPrefix, " did not allocate target shape memory");
+        if (!tsMemPtr || !tsMemPtr->isDefined())
+            OPENVINO_THROW(errorPrefix, " has undefined target shape memory");
     } else {
         auto scaleMemPtr = getSrcMemoryAtPort(get_scale_id());
-        if (!scaleMemPtr || !scaleMemPtr->isAllocated())
-            OPENVINO_THROW(errorPrefix, " did not allocate scales memory");
+        if (!scaleMemPtr || !scaleMemPtr->isDefined())
+            OPENVINO_THROW(errorPrefix, " has undefined scales memory");
     }
 
     if (isAxesSpecified) {
         auto axesMemPtr = getSrcMemoryAtPort(get_axis_id());
-        if (!axesMemPtr || !axesMemPtr->isAllocated())
-            OPENVINO_THROW(errorPrefix, " did not allocate axes memory");
+        if (!axesMemPtr || !axesMemPtr->isDefined())
+            OPENVINO_THROW(errorPrefix, " has undefined axes memory");
     }
 
     const NodeDesc *selected_pd = getSelectedPrimitiveDescriptor();
@@ -2365,10 +2365,10 @@ void Interpolate::prepareParams() {
 void Interpolate::createPrimitive() {
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate input memory");
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate destination memory");
+    if (!srcMemPtr || !srcMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined input memory");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined destination memory");
 
     if (dstMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
         interpAttrs.layout = InterpolateLayoutType::planar;

@@ -338,11 +338,11 @@ bool Gather::needPrepareParams() const {
 
 void Gather::prepareParams() {
     auto dataMemPtr = getSrcMemoryAtPort(GATHER_DATA);
-    if (!dataMemPtr || !dataMemPtr->isAllocated())
-        THROW_ERROR(" has not allocated input data memory.");
+    if (!dataMemPtr || !dataMemPtr->isDefined())
+        THROW_ERROR(" has undefined input data memory.");
     auto idxMemPtr = getSrcMemoryAtPort(GATHER_INDICES);
-    if (!idxMemPtr || !idxMemPtr->isAllocated())
-        THROW_ERROR(" has not allocated input indices memory.");
+    if (!idxMemPtr || !idxMemPtr->isDefined())
+        THROW_ERROR(" has undefined input indices memory.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR(" has unidentified preferable primitive descriptor.");
 

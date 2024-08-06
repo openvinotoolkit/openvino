@@ -162,8 +162,6 @@ class IMemory {
 public:
     virtual ~IMemory() = default;
 
-    virtual bool isAllocated() const noexcept = 0;
-
     virtual const MemoryDesc& getDesc() const = 0;
     virtual MemoryDescPtr getDescPtr() const = 0;
 
@@ -191,6 +189,15 @@ public:
 
     virtual MemoryBlockPtr getMemoryBlock() const = 0;
 
+    virtual void nullify() = 0;
+
+    bool isDefined() const noexcept {
+        if (auto desc = getDescPtr()) {
+            return desc->isDefined();
+        }
+        return false;
+    }
+
     //oneDNN specifics for backward compatibility
     virtual dnnl::memory getPrimitive() const = 0;
 
@@ -201,8 +208,6 @@ public:
     dnnl::memory::data_type getDataType() const {
         return DnnlExtensionUtils::ElementTypeToDataType(getDesc().getPrecision());
     }
-
-    virtual void nullify() = 0;
 
     template <typename T,
             typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
@@ -239,8 +244,6 @@ public:
 
     StaticMemory(Memory&&) = delete;
     StaticMemory& operator= (StaticMemory&&) = delete;
-
-    bool isAllocated() const noexcept override;
 
     const MemoryDesc& getDesc() const override;
     MemoryDescPtr getDescPtr() const override;
@@ -286,8 +289,6 @@ public:
     Memory& operator= (Memory&&) = delete;
 
     dnnl::memory getPrimitive() const override;
-
-    bool isAllocated() const noexcept override;
 
     const MemoryDesc& getDesc() const override {
         return *m_pMemDesc;
@@ -392,8 +393,6 @@ public:
 
     StringMemory(const dnnl::engine& engine, const MemoryDesc& desc, const StringMemoryBlockPtr& block)
         : StringMemory(engine, desc.clone(), block) {}
-
-    bool isAllocated() const noexcept override;
 
     const MemoryDesc& getDesc() const override {
         return *m_mem_desc;

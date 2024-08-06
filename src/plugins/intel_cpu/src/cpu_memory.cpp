@@ -184,22 +184,6 @@ dnnl::memory Memory::DnnlMemPrimHandle::getPrim() const {
     return m_prim;
 }
 
-bool Memory::isAllocated() const noexcept {
-    if (m_blockHandle->getRawPtr()) {
-        return true;
-    }
-    if (!m_pMemDesc) {
-        return false;
-    }
-    if (!(m_pMemDesc->isDefined())) {
-        return true;
-    }
-    if (m_pMemDesc->getCurrentMemSize() == 0) {
-        return true;
-    }
-    return false;
-}
-
 void* Memory::getData() const {
     void* data = getDataNoThrow();
     if (data == nullptr &&
@@ -304,22 +288,6 @@ void StringMemory::nullify() {
     if (data_ptr != nullptr) {
         std::fill(data_ptr, data_ptr + m_memoryBlock->getStrLen(), OvString());
     }
-}
-
-bool StringMemory::isAllocated() const noexcept {
-    if (getData()) {
-        return true;
-    }
-    if (!m_mem_desc) {
-        return false;
-    }
-    if (!(m_mem_desc->isDefined())) {
-        return true;
-    }
-    if (m_mem_desc->getCurrentMemSize() == 0) {
-        return true;
-    }
-    return false;
 }
 
 size_t StringMemory::getSize() const { // In bytes
@@ -460,10 +428,6 @@ StaticMemory::StaticMemory(const dnnl::engine& eng, MemoryDescPtr desc, const vo
 
 StaticMemory::StaticMemory(const dnnl::engine& eng, const MemoryDesc& desc, const void* data, bool pads_zeroing) :
     StaticMemory::StaticMemory(eng, desc.clone(), data, pads_zeroing) {}
-
-bool StaticMemory::isAllocated() const noexcept {
-    return 0 == m_size || getData() != nullptr;
-}
 
 const MemoryDesc& StaticMemory::getDesc() const {
     return *m_pMemDesc;

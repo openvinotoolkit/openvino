@@ -1496,7 +1496,7 @@ bool Node::isInputTensorAtPortEmpty(size_t port) const {
     auto edge = getParentEdgeAt(port);
     if (one_of(edge->getStatus(), Edge::Status::Allocated, Edge::Status::Validated)) {
         auto&& mem = edge->getMemory();
-        if (mem.isAllocated()) {
+        if (mem.isDefined()) {
             return mem.getShape().hasZeroDims();
         }
     }
@@ -1511,7 +1511,7 @@ bool Node::isOutputTensorAtPortEmpty(size_t port) const {
         return outputShapes[port].hasZeroDims();
     }
     auto&& mem = getChildEdgeAt(port)->getMemory();
-    if (mem.isAllocated()) {
+    if (mem.isDefined()) {
         return mem.getShape().hasZeroDims();
     }
     return false;

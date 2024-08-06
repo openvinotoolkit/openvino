@@ -234,8 +234,8 @@ bool Split::needPrepareParams() const {
 
 void Split::prepareParams() {
     const auto &srcMemPtr = getSrcMemoryAtPort(0);
-    if (!srcMemPtr || !srcMemPtr->isAllocated()) {
-        THROW_ERROR("has not allocated input memory");
+    if (!srcMemPtr || !srcMemPtr->isDefined()) {
+        THROW_ERROR("has undefined input memory");
     }
 
     if (!constSplitLengths) {
@@ -249,8 +249,8 @@ void Split::prepareParams() {
     std::vector<BlockedMemoryDescCPtr> outDescs;
     for (size_t port = 0; port < outputShapes.size(); ++port) {
         const auto &outMemPtr = this->getDstMemoryAtPort(port);
-        if (!outMemPtr || !outMemPtr->isAllocated()) {
-            THROW_ERROR("has not allocated destination memory");
+        if (!outMemPtr || !outMemPtr->isDefined()) {
+            THROW_ERROR("has undefined destination memory");
         }
 
         if (outMemPtr->getShape().hasZeroDims()) {

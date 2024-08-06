@@ -816,10 +816,10 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
 void ROIAlign::createPrimitive() {
     auto srcMemPtr = getSrcMemoryAtPort(0);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate input memory");
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " did not allocate destination memory");
+    if (!srcMemPtr || !srcMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined input memory");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined destination memory");
 
     if (!roi_align_kernel) {
         ROIAlignLayoutType selectedLayout = ROIAlignLayoutType::nspc;

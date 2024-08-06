@@ -2172,10 +2172,10 @@ void Reduce::createPrimitive() {
     }
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(REDUCE_DATA);
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " has not allocated destination memory.");
-    if (!srcMemPtr || !srcMemPtr->isAllocated())
-        OPENVINO_THROW(errorPrefix, " has not allocate input memory.");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined destination memory.");
+    if (!srcMemPtr || !srcMemPtr->isDefined())
+        OPENVINO_THROW(errorPrefix, " has undefined input memory.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
         OPENVINO_THROW(errorPrefix, " has nullable preferable primitive descriptor");
 

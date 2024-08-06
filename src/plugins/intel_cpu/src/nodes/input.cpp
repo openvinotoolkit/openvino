@@ -473,14 +473,14 @@ void Input::initSupportedPrimitiveDescriptors() {
 void Input::createPrimitive() {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto dstMemPtr = getDstMemoryAtPort(i);
-        if (!dstMemPtr || !dstMemPtr->isAllocated())
-            THROW_CPU_NODE_ERR("has unallocated memory object at port ", i,
+        if (!dstMemPtr || !dstMemPtr->isDefined())
+            THROW_CPU_NODE_ERR("has undefined memory object at port ", i,
                               " to node ", getChildEdgeAt(i)->getChild()->getName(), ".");
     }
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto srcMemPtr = getSrcMemoryAtPort(i);
-        if (!srcMemPtr || !srcMemPtr->isAllocated())
-            THROW_CPU_NODE_ERR("has unallocated memory object at port ", i,
+        if (!srcMemPtr || !srcMemPtr->isDefined())
+            THROW_CPU_NODE_ERR("has undefined memory object at port ", i,
                               " from node ", getParentEdgeAt(i)->getParent()->getName(), ".");
     }
 

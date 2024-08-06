@@ -501,12 +501,12 @@ void ROIPooling::prepareParams() {
     const auto& srcMemPtr0 = getSrcMemoryAtPort(0);
     const auto& srcMemPtr1 = getSrcMemoryAtPort(0);
     const auto& dstMemPtr = getDstMemoryAtPort(0);
-    if (!srcMemPtr0 || !srcMemPtr0->isAllocated())
-        OPENVINO_THROW("Input memory has not been allocated.");
-    if (!srcMemPtr1 || !srcMemPtr1->isAllocated())
-        OPENVINO_THROW("Input memory has not been allocated.");
-    if (!dstMemPtr || !dstMemPtr->isAllocated())
-        OPENVINO_THROW("Destination has not been allocated.");
+    if (!srcMemPtr0 || !srcMemPtr0->isDefined())
+        OPENVINO_THROW("Input memory is undefined.");
+    if (!srcMemPtr1 || !srcMemPtr1->isDefined())
+        OPENVINO_THROW("Input memory is undefined.");
+    if (!dstMemPtr || !dstMemPtr->isDefined())
+        OPENVINO_THROW("Destination is undefined.");
     if (getSelectedPrimitiveDescriptor() == nullptr)
         OPENVINO_THROW("Preferable primitive descriptor is not set.");
 
