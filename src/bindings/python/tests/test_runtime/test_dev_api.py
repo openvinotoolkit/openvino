@@ -7,6 +7,7 @@ from openvino.dev_api import evaluate_as_partial_shape, evaluate_both_bounds
 from openvino.runtime import Shape, PartialShape, Dimension, Type
 from openvino.runtime.op import Constant
 import openvino.runtime.opset13 as ops
+import numpy as np
 
 
 def construct_graph_with_partial_value():
@@ -32,6 +33,16 @@ def construct_graph_with_partial_value():
         Constant(Type.i64, Shape([len(subtrahend)]), subtrahend),
     )
     return subtract
+
+
+def test_evaluate_both_bounds():
+    node = construct_graph_with_partial_value()
+    lb, ub = evaluate_both_bounds(node.output(0))
+    lower_bounds = [-6, -5, -4, -4, -4, -3, 0, 0, 1, 1]
+    upper_bounds = [-6, -4, 0, 4, 3, 4, 0, 2, 1, 42]
+
+    assert np.equal(lb.data, lower_bounds).all()
+    assert np.equal(ub.data, upper_bounds).all()
 
 
 def test_evaluate_as_partial_shape():
