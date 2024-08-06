@@ -345,6 +345,8 @@ void Graph::InitGraph(bool optimize) {
     optimizer.ShareReorders(*this);
     RemoveDroppedNodes();
 
+    SortTopologically();
+
     ResolveComplexInplaceConflicts();
 
     optimizer.ApplyImplSpecificGraphOptimizations(*this);
@@ -1480,39 +1482,59 @@ void Graph::Infer(SyncInferRequest* request) {
 void Graph::SortTopologically() {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "Graph::SortTopologically");
 
-    auto sort = [](const std::vector<NodePtr>& nodes) {
-        std::unordered_set<NodePtr> visited;
-        visited.reserve(nodes.size());
+    // Set execIndex of all nodes to default invaild value
+    for (auto &node : graphNodes) {
+        node->execIndex = -1;
+    }
+
+    auto sort = [this](const std::vector<NodePtr>& nodes) {
         std::vector<NodePtr> sorted;
         sorted.reserve(nodes.size());
 
+        int execIndexCnt = -1;
+
         std::function<void(const NodePtr)> visit;
-        visit = [&visited, &sorted, &visit](const NodePtr node) {
-            const bool inserted = visited.insert(node).second;
-            if (!inserted)
+        visit = [&execIndexCnt, &sorted, &visit](const NodePtr node) {
+            if (node->execIndex >= 0)
                 return; // already visited
 
             if (!node->parallelWith.empty()) {
                 for (auto& n : node->parallelWith) {
-                    for (size_t i = 0; i < n->getChildEdges().size(); i++) {
-                        visit(n->getChildEdgeAt(i)->getChild());
+                    for (size_t i = 0; i < n->getParentEdges().size(); i++) {
+                        visit(n->getParentEdgeAt(i)->getParent());
                     }
                 }
 
-                // make sure parallel nodes are always enqueue together
+                // parallel nodes has same execIndex
+                // so they can provide correct start/end time point for
+                // their input and output memory object
+                ++execIndexCnt;
                 for (auto& n : node->parallelWith) {
-                    if (std::find(sorted.begin(), sorted.end(), n) == sorted.end()) {
-                        sorted.push_back(n);
-                    }
+                    sorted.push_back(n);
+                    n->execIndex = execIndexCnt;
                 }
             } else {
-                for (size_t i = 0; i < node->getChildEdges().size(); i++) {
-                    visit(node->getChildEdgeAt(i)->getChild());
+                for (size_t i = 0; i < node->getParentEdges().size(); i++) {
+                    visit(node->getParentEdgeAt(i)->getParent());
                 }
 
                 sorted.push_back(node);
+                node->execIndex = ++execIndexCnt;
             }
         };
+
+        // First execute MemoryInput because it will change the memory pointer of
+        // its sibling MemoryOutput. So execute first to avoid potential issue.
+        for (const auto& node : nodes) {
+            if (node->getType() == Type::MemoryInput) {
+                visit(node);
+            }
+        }
+
+        // Always start from output nodes
+        for (auto&& kvp : outputNodesMap) {
+            visit(kvp.second);
+        }
 
         for (const auto& node : nodes) {
             visit(node);
@@ -1521,25 +1543,7 @@ void Graph::SortTopologically() {
         return sorted;
     };
 
-    // as a first step sort in reversed topological order to avoid an insertion into the front of the vector
     graphNodes = sort(graphNodes);
-    // reverse to the actual topological order
-    std::reverse(graphNodes.begin(), graphNodes.end());
-    // number the nodes based on topological order
-    for (size_t i = 0; i < graphNodes.size(); i++) {
-        // parallel nodes has same execIndex
-        // so they can provide correct start/end time point for
-        // their input and output memory object
-        if (graphNodes[i]->parallelWith.size()) {
-            if (graphNodes[i]->parallelWith[0] == graphNodes[i]) {
-                for (auto& n : graphNodes[i]->parallelWith) {
-                    n->execIndex = static_cast<int>(i);
-                }
-            }
-            continue;
-        }
-        graphNodes[i]->execIndex = static_cast<int>(i);
-    }
 
     // Sort in / out child edges by port index
     // Make first N (N == port_num) edge indexes match with port index
@@ -1787,7 +1791,8 @@ void Graph::EnforceInferencePrecision() {
                         Type::RNNSeq,         // recurent nets
                         Type::MatMul,         // bert nets
                         Type::ROIPooling,     // object detection nets
-                        Type::Interpolate))   // super resolution nets
+                        Type::Interpolate,    // super resolution nets
+                        Type::PagedAttention))// page attention
                     continue;   // stop at significant nodes
             } else if (inferPrec == ov::element::f16) {
                 /* list of node types that must be forced to be executed in FP16 precision
@@ -1890,6 +1895,9 @@ void Graph::EnforceInferencePrecision() {
             // TODO: Incorrect subgraph is generated by ONNX FE + ticket 117861.
             const auto &child = node->getChildEdgeAt(i)->getChild();
             if (child->getType() == Type::Range && node->getType() == Type::Convert)
+                continue;
+            // skip second output of PagedAttention
+            if (node->getType() == Type::PagedAttention && (i != 0))
                 continue;
 
             DEBUG_LOG("#",
