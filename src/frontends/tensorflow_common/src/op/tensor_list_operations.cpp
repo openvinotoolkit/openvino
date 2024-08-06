@@ -204,9 +204,11 @@ OutputVector translate_tensor_list_length_op(const NodeContext& node) {
 }
 
 OutputVector translate_tensor_list_concat_v2_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"TensorListConcatV2"});
+    // input tensor list (input_handle) is represented by a tensor
+    // that is a result of concatenation of tensor list elements (tensors)
+    // along unsqueezed zero dimension
+    default_op_checks(node, 3, {"TensorListConcatV2"});
     auto input_handle = node.get_input(0);
-    auto size = node.get_input(1);
 
     std::vector<int64_t> leading_dims;
     get_const_input(node, 2, &leading_dims);
@@ -215,22 +217,30 @@ OutputVector translate_tensor_list_concat_v2_op(const NodeContext& node) {
                              leading_dims.size() == 0,
                              "TensorListConcatV2 is not supported for non-empty leading_dims.");
 
-    TENSORFLOW_OP_VALIDATION(node,
-                             as_type_ptr<v0::Constant>(node.get_input(1).get_node_shared_ptr()),
-                             "TensorListConcatV2 is not supported with non-constant shape input");
+    // tensor list shape has at least two dimensions:
+    // 0-th dimension is auxiliary for elements concatenation
+    // 1-st dimension is by definition of TensorListConcatV2 operation
+    // along which elements will be concatenated
+    // insert auxiliary 2-nd dimension to avoid Slice to operate on out-of-bound start value
+    auto first_dim = make_shared<v0::Constant>(element::i32, Shape{1}, 1);
+    auto two_dim = make_shared<v0::Constant>(element::i32, Shape{1}, 2);
+    input_handle = make_shared<v0::Unsqueeze>(input_handle, two_dim);
+    auto tensor_list_shape = make_shared<v3::ShapeOf>(input_handle, element::i64);
 
-    std::vector<int64_t> list_element_shape;
-    get_const_input(node, 1, &list_element_shape);
+    // compute new_shape after TensorListConcatV2
+    auto const_one = make_shared<v0::Constant>(ov::element::i32, Shape{1}, 1);
+    auto stop = make_shared<v0::Constant>(ov::element::i32, Shape{1}, numeric_limits<int>::max());
+    ov::Output<ov::Node> new_shape = make_shared<v8::Slice>(tensor_list_shape, two_dim, stop, const_one);
+    auto const_minus_one = make_shared<v0::Constant>(ov::element::i64, Shape{1}, -1);
+    new_shape = make_shared<v0::Concat>(ov::OutputVector{const_minus_one, new_shape}, 0);
 
-    list_element_shape[0] = list_element_shape[0] * input_handle.get_partial_shape()[0].get_max_length();
-    auto out = make_shared<v1::Reshape>(
-        input_handle,
-        make_shared<v0::Constant>(element::i64, Shape{list_element_shape.size()}, list_element_shape),
-        false);
+    ov::Output<ov::Node> out = make_shared<v1::Reshape>(input_handle, new_shape, false);
 
-    set_node_name(node.get_name(), out);
+    // do no forget about auxiliary dimension that became the first dimension
+    out = make_shared<v0::Squeeze>(out, first_dim);
 
-    return {out};
+    set_node_name(node.get_name(), out.get_node_shared_ptr());
+    return {std::move(out)};
 }
 
 }  // namespace op

@@ -8,8 +8,13 @@
 #include "nodes/input.h"
 #include "nodes/concat.h"
 #include "openvino/op/concat.hpp"
+#include "openvino/opsets/opset.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/scatter_nd_update.hpp"
+#include "openvino/op/constant.hpp"
 
 using namespace ov::intel_cpu;
 
@@ -85,4 +90,46 @@ TEST(ResolveEdgeConflictsCPUTest, smoke_Run_ResolveEdgeConflicts) {
     // Check whether reorder is inserted
     NodePtr expected_reorder = dummyNode2->getParentEdgeAt(0)->getParent();
     ASSERT_EQ(expected_reorder->getType(), Type::Reorder);
+}
+
+TEST(ResolveEdgeConflictsCPUTest2, smoke_Run_ResolveEdgeConflicts2) {
+    /*  create graph:
+                                                    Parameter
+                                                       |
+                                                    ShapeOf      Parameter
+        <*NOTE: Should insert reorder here>         /      \        /
+        <*NOTE: inplaced>               ScatterNDUpdate     ReduceProd
+                                           |                   |
+                                         Result              Result
+    */
+    Config conf;
+    conf.rtCacheCapacity = 100;
+    auto context = std::make_shared<GraphContext>(conf, nullptr, false);
+
+    std::unique_ptr<Graph> graph = std::unique_ptr<Graph>(new Graph());
+
+    const ov::element::Type_t testPrec = ov::element::Type_t::f32;
+    const ov::Shape testShape{1, 384};
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(testPrec, testShape),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::Type_t::i32, ov::Shape{})};
+    auto org_ShapeOf_386 = std::make_shared<ov::op::v3::ShapeOf>(params[0], ov::element::Type_t::i32);
+
+    auto org_ReduceProd_423 = std::make_shared<ov::op::v1::ReduceProd>(org_ShapeOf_386, params[1]);
+
+    auto org_Constant_387 = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32, ov::Shape{1, 1}, std::vector<int64_t>{1});
+    auto org_Constant_1 = std::make_shared<ov::op::v0::Constant>(ov::element::Type_t::i32, ov::Shape{1}, std::vector<int64_t>{1});
+    auto org_ScatterNDUpdate_411 = std::make_shared<ov::op::v3::ScatterNDUpdate>(org_ShapeOf_386, org_Constant_387, org_Constant_1);
+
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(org_ScatterNDUpdate_411),
+                             std::make_shared<ov::op::v0::Result>(org_ReduceProd_423)};
+
+    const auto model = std::make_shared<const ov::Model>(results, params, "test_graph");
+    graph->CreateGraph(model, context);
+    for (auto node : graph->GetNodes()) {
+        if (node->getType() == Type::ScatterNDUpdate) {
+            NodePtr expected_reorder = node->getParentEdgeAt(0)->getParent();
+            ASSERT_EQ(expected_reorder->getType(), Type::Reorder);
+            break;
+        }
+    }
 }
