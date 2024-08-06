@@ -17,10 +17,10 @@ DynamicQuantize::DynamicQuantize(const Output<Node>& data, std::vector<size_t> g
       m_group_sizes(group_sizes),
       m_dt_scale(dt_scale) {
     OPENVINO_ASSERT(data.get_partial_shape().rank() == group_sizes.size(),
-                        "FC input rank should be same as the rank of group_size ",
-                        data.get_tensor_ptr()->get_partial_shape().rank(),
-                        " / ",
-                        group_sizes.size());
+                    "FC input rank should be same as the rank of group_size ",
+                    data.get_tensor_ptr()->get_partial_shape().rank(),
+                    " / ",
+                    group_sizes.size());
     set_output_size(2);
     validate_and_infer_types();
 }
@@ -46,10 +46,10 @@ std::vector<ov::PartialShape> DynamicQuantize::shape_infer(const DynamicQuantize
 
     auto scale_shape = input_shapes[0];
     OPENVINO_ASSERT(scale_shape.size() == group_sizes.size(),
-                        "Scale_shape and group_size are supposed to have same rank: ",
-                        scale_shape.size(),
-                        " / ",
-                        group_sizes.size());
+                    "Scale_shape and group_size are supposed to have same rank: ",
+                    scale_shape.size(),
+                    " / ",
+                    group_sizes.size());
     for (size_t i = 0; i < scale_shape.size(); i++) {
         if (scale_shape[i].is_dynamic())
             continue;

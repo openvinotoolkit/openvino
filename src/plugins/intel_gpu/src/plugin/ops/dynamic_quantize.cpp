@@ -23,8 +23,7 @@ static void CreateDynamicQuantizeOp(ProgramBuilder& p, const std::shared_ptr<ov:
     auto prim = cldnn::dynamic_quantize(primitive_name,
                                 inputs[0],
                                 op->get_group_sizes().back(),
-                                get_output_data_types(op)
-                                );
+                                get_output_data_types(op));
     p.add_primitive(*op, prim);
 }
 

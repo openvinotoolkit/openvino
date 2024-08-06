@@ -28,7 +28,7 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
     std::vector<size_t> get_group_sizes() const {
-            return m_group_sizes;
+        return m_group_sizes;
     };
     static std::vector<ov::PartialShape> shape_infer(const DynamicQuantize* op,
                                                      std::vector<ov::PartialShape> input_shapes,
@@ -40,6 +40,6 @@ private:
 };
 
 
+}  // namespace internal
 }  // namespace op
-}  // namespace intel_gpu
 }  // namespace ov
