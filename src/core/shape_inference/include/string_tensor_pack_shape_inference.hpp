@@ -31,7 +31,7 @@ static void validate_indices(const size_t input_index,
                     NODE_SHAPE_INFER_CHECK(
                         op,
                         input_shapes,
-                        ov::cmp::lt(data->back(), biggest_idx),
+                        ov::cmp::le(data->back(), biggest_idx),
                         "The biggest index cannot be higher than the amount or characters in symbols input.");
                 }
                 const auto are_indices_ascending = std::is_sorted(data->begin(), data->end());
@@ -50,16 +50,22 @@ std::vector<TRShape> shape_infer(const StringTensorPack* op,
     util::validate_indices(1, tensor_accessor, op, input_shapes);
     const auto& begins_shape = input_shapes[0];
     const auto& ends_shape = input_shapes[1];
-    NODE_SHAPE_INFER_CHECK(op, input_shapes, begins_shape.compatible(ends_shape));
+    NODE_SHAPE_INFER_CHECK(op,
+                           input_shapes,
+                           begins_shape.compatible(ends_shape),
+                           "The shapes of begins and ends have to match.");
     const auto& symbols_shape = input_shapes[2];
     NODE_SHAPE_INFER_CHECK(op, input_shapes, symbols_shape.rank().compatible(1), "Symbols input must be 1D.");
 
-    // begins_shape and ends_shape always have to match
-    auto output_shapes = std::vector<TRShape>();
+    auto output_shapes = std::vector<TRShape>{begins_shape};
     if (begins_shape.is_dynamic() && ends_shape.is_static()) {
-        output_shapes.push_back(ends_shape);
-    } else {
-        output_shapes.push_back(begins_shape);
+        output_shapes[0] = ends_shape;
+    }
+    if (begins_shape.is_dynamic() && ends_shape.is_dynamic()) {
+        if (!TRShape::merge_into(output_shapes[0], ends_shape)) {
+            OPENVINO_THROW("Begins and ends shapes are not compatible.");
+        }
+        output_shapes[0] = ends_shape;
     }
     return {std::move(output_shapes)};
 }

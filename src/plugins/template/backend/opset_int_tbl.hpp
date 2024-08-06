@@ -169,6 +169,8 @@ _OPENVINO_OP_REG(ROIAlignRotated, ov::op::v15)
 _OPENVINO_OP_REG(EmbeddingBagOffsets, op::v15)
 _OPENVINO_OP_REG(EmbeddingBagPacked, op::v15)
 _OPENVINO_OP_REG(Col2Im, ov::op::v15)
+_OPENVINO_OP_REG(StringTensorUnpack, ov::op::v15)
+_OPENVINO_OP_REG(StringTensorPack, ov::op::v15)
 
 _OPENVINO_OP_REG(AUGRUCell, ov::op::internal)
 _OPENVINO_OP_REG(AUGRUSequence, ov::op::internal)
