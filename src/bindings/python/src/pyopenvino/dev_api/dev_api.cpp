@@ -10,13 +10,34 @@
 namespace py = pybind11;
 
 void regmodule_dev_api(py::module m) {
-    py::module m_dev_api = m.def_submodule("dev_api", "<TODO> Package that wraps openvino dev_api");
+    py::module m_dev = m.def_submodule("dev_api", "openvino.dev_api submodule");
 
-    m_dev_api.def("evaluate_as_partial_shape", []() {
-        py::print("evaluate_as_partial_shape func");
-    });
+    m_dev.def("evaluate_as_partial_shape",
+              &ov::util::evaluate_as_partial_shape,
+              py::arg("output"),
+              py::arg("pshape"),
+              R"(
+                    Evaluates lower and upper value estimations for the output tensor. 
+                    The estimation will be represented as a partial shape object, 
+                    using Dimension(min, max) for each element.
 
-    m_dev_api.def("evaluate_both_bounds", []() {
-        py::print("evaluate_both_bounds func");
-    });
+                    :param output: Node output pointing to the tensor for estimation.
+                    :type output: openvino.runtime.Output
+                    :param pshape: The resulting estimation will be stored in this PartialShape.
+                    :type pshape: openvino.PartialShape
+                    :return: True if estimation evaluation was successful, false otherwise.
+                    :rtype: bool
+                )");
+    m_dev.def("evaluate_both_bounds",
+              &ov::util::evaluate_both_bounds,
+              py::arg("output"),
+              R"(
+                    Evaluates lower and upper value estimations of the output tensor.
+                    It traverses the graph upwards to deduce the estimation.
+
+                    :param output: Node output pointing to the tensor for estimation.
+                    :type output: openvino.runtime.Output
+                    :return: Tensors representing the lower and upper bound value estimations.
+                    :rtype: tuple[openvino.runtime.Tensor, openvino.runtime.Tensor]
+                )");
 }
