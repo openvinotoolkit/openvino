@@ -92,12 +92,15 @@ KERNEL(rms_gpu_bfyx_opt)(
         slm_buf[get_sub_group_id()] = rms;
 
     barrier(CLK_LOCAL_MEM_FENCE);
-    if (in_data_idx == 0) {
-        for (uint i = 1; i < get_num_sub_groups(); ++i)
-        {
-            rms += slm_buf[i];
+    for (uint offset = get_num_sub_groups() / 2; offset > 0; offset /= 2) {
+        if (in_data_idx < offset) {
+            slm_buf[in_data_idx] += slm_buf[in_data_idx + offset];
         }
-        rms = rms / data_size;
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+
+    if (in_data_idx == 0) {
+        rms = slm_buf[0] / data_size;
         slm_buf[0] = native_powr(sqrt(rms + TO_ACCUMULATOR_TYPE(EPSILON)), -1);
     }
     barrier(CLK_LOCAL_MEM_FENCE);
