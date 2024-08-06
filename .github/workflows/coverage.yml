@@ -25,7 +25,7 @@ jobs:
 
 
       - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@c92f40bee50034e84c763e33b317c77adaa81c92 # v1.2.13
+        uses: hendrikmuhs/ccache-action@ed74d11c0b343532753ecead8a951bb09bb34bc9 # v1.2.14
         with:
           max-size: 50G
 
