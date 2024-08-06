@@ -10,28 +10,32 @@
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "npuw_private_properties.hpp"
 
 #include "mocks/mock_plugins.hpp"
 #include "mocks/register_in_ov.hpp"
+#include "models/model_generator.hpp"
 
 namespace ov {
 namespace npuw {
 namespace tests {
 
 class BehaviorTestsNPUW : public ::testing::Test {
-public:
+public:    
     ov::Core core;
     std::shared_ptr<MockNpuPlugin> npu_plugin;
     std::shared_ptr<MockCpuPlugin> cpu_plugin;
-    std::shared_ptr<ov::Model> model;
 
+    ov::AnyMap use_npuw_props;
+    std::shared_ptr<ov::Model> model;
+    ModelGenerator model_generator;
 
     void SetUp() override {
-        model = create_example_model();
         npu_plugin = std::make_shared<MockNpuPlugin>();
         npu_plugin->create_implementation();
         cpu_plugin = std::make_shared<MockCpuPlugin>();
         cpu_plugin->create_implementation();
+        use_npuw_props = ov::AnyMap{ov::intel_npu::use_npuw(true)};
     }
 
     // Make sure it is called after expectations are set!
