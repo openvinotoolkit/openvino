@@ -436,7 +436,8 @@ void lzContext::runKernel(const char *spvFile, const char *funcName, void *remot
               << "\tKernel Time: " << kernelDuration * timerResolution / 1000.0 << " us\n";
 
     double gpuKernelTime = kernelDuration * timerResolution / 1000.0;
-    double bandWidth = elemCount * sizeof(uint32_t) / (gpuKernelTime / 1e6) / 1e9;
+    // double bandWidth = elemCount * sizeof(uint32_t) / (gpuKernelTime / 1e6) / 1e9;
+    double bandWidth = size * sizeof(uint32_t) / (gpuKernelTime / 1e6) / 1e9;
     printf("#### gpuKernelTime = %f, elemCount = %ld, Bandwidth = %f GB/s\n", gpuKernelTime, elemCount, bandWidth);
 }
 

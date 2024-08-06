@@ -147,6 +147,12 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, sync_tensor_inst& instance) override {
+        // static std::vector<std::string, double> statistics;
+        auto end_impl = std::chrono::high_resolution_clock::now();
+        auto end_kernel = std::chrono::high_resolution_clock::now();
+        auto end_prepare = std::chrono::high_resolution_clock::now();
+        auto start_impl = std::chrono::high_resolution_clock::now();
+
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "sync_tensor::execute_impl");
         auto& stream = instance.get_network().get_stream();
 
@@ -240,6 +246,8 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
                         void* remote_receive_buf = sub_mem_mgr->_memorys_table[id][idx].receive_buf;
                         printf("[sync_tensor_impl:%d] remote_receive_buf: %p \n", w_rank, remote_receive_buf);
 
+                        end_prepare = std::chrono::high_resolution_clock::now();
+
                         // write level_zero buff to remote
                         int srcOffsetX = 0;
                         int srcOffsetY = 0;
@@ -250,6 +258,8 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
                         printf("[sync_tensor_impl:%d] runKernel \n", w_rank);
                         lzctx.runKernel("./test_kernel_dg2.spv", "local_write_to_remote", remote_receive_buf, local_send_buf,
                             copy_len, srcOffsetX, srcOffsetY, strideX, strideY, groud_width);
+
+                        end_kernel = std::chrono::high_resolution_clock::now();
 
                         wait_list[idx] = 0;
 
@@ -295,6 +305,18 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
                 return events[0];
             }
         }
+
+        end_impl = std::chrono::high_resolution_clock::now();
+
+        double duration_ms_prepare = std::chrono::duration<double, std::milli>(end_prepare - start_impl).count();
+        double duration_ms_kernel = std::chrono::duration<double, std::milli>(end_kernel - end_prepare).count();
+        double duration_ms_post = std::chrono::duration<double, std::milli>(end_impl - end_kernel).count();
+        double duration_ms_impl = std::chrono::duration<double, std::milli>(end_impl - start_impl).count();
+        // statistics.push_back({"impl": duration_ms})
+        printf("[sync_tensor_impl:%d] duration_ms_prepare: %f ms\n", w_rank, duration_ms_prepare);
+        printf("[sync_tensor_impl:%d] duration_ms_kernel: %f ms\n", w_rank, duration_ms_kernel);
+        printf("[sync_tensor_impl:%d] duration_ms_post: %f ms\n", w_rank, duration_ms_post);
+        printf("[sync_tensor_impl:%d] duration_ms_impl: %f ms\n", w_rank, duration_ms_impl);
         return stream.create_user_event(true);
     }
 
