@@ -21,12 +21,9 @@ namespace ov {
  */
 class MappedMemory {
 public:
-    virtual ~MappedMemory() = default;
-
     virtual char* data() noexcept = 0;
     virtual size_t size() const noexcept = 0;
-    virtual size_t get_offset() const = 0;
-    virtual void set_offset(size_t offset) = 0;
+    virtual ~MappedMemory() = default;
 };
 
 /**
@@ -52,5 +49,15 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::string& path);
 std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::wstring& path);
 
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+
+class MmapStreamBuffer final : public std::stringbuf {
+public:
+    MmapStreamBuffer(std::shared_ptr<ov::MappedMemory> mem) {
+        m_memory = mem;
+        this->basic_streambuf::pubsetbuf(mem->data(), mem->size());
+    }
+
+    std::shared_ptr<ov::MappedMemory> m_memory;
+};
 
 }  // namespace ov

@@ -29,10 +29,16 @@ std::shared_ptr<ov::Model> read_model(const std::string& modelPath,
                                       const std::vector<ov::Extension::Ptr>& extensions,
                                       bool enable_mmap);
 
+/**
+ * @brief Reads model
+ * @param model shared pointer to aligned buffer with IR.
+ * @param weights shared pointer to aligned buffer with weights.
+ * @param extensions vector with OpenVINO extensions
+ * @return Shared pointer to ov::Model
+ */
 std::shared_ptr<ov::Model> read_model(const std::shared_ptr<ov::AlignedBuffer>& model,
                                       const std::shared_ptr<ov::AlignedBuffer>& weights,
-                                      const std::vector<ov::Extension::Ptr>& extensions,
-                                      bool enable_mmap);
+                                      const std::vector<ov::Extension::Ptr>& extensions);
 
 /**
  * @brief Reads model
