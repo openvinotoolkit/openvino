@@ -7,8 +7,12 @@ from datetime import timezone
 from pathlib import Path
 import re
 import git
+import sys
 
 from manifest_manager import Manifest, Repository, Component
+
+sys.path.append(str(Path(__file__).parents[1]))
+from common import artifact_utils
 
 
 def parse_args():
@@ -115,7 +119,7 @@ def main():
     args = parse_args()
 
     event_name = args.event_name or os.getenv('GITHUB_EVENT_NAME')
-    event_type = 'pre_commit' if event_name == 'pull_request' else 'commit'
+    event_type = artifact_utils.get_event_type(event_name)
 
     repos = args.repos.split()
     manifest = generate_manifest(repos, args.product_type, event_type, args.build_type, args.target_arch)

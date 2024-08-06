@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
+from .constants import EventType
 
 
 def add_common_args(parser: argparse.ArgumentParser):
@@ -17,7 +18,7 @@ def add_common_args(parser: argparse.ArgumentParser):
 
 
 def get_event_type(event_name: str = os.getenv('GITHUB_EVENT_NAME')) -> str:
-    return 'pre_commit' if event_name == 'pull_request' else 'commit'
+    return EventType.pre_commit.value if event_name == 'pull_request' else EventType.commit.value
 
 
 def get_storage_event_dir(storage_root: str | Path, branch_name: str, event_name: str,
