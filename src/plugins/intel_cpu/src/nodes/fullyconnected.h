@@ -15,6 +15,7 @@
 #include "nodes/executors/executor_factory.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
+#include "openvino/core/except.hpp"
 #include "post_ops.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
 
@@ -70,6 +71,16 @@ public:
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
     bool canBeExecutedInInt8() const override;
+
+    bool canPrepInput(size_t idx) const override {
+        return idx == 1;
+    }
+
+    void prepInput(size_t idx, InputPrepType type) override {
+        OPENVINO_ASSERT(idx == 1, "Only weights input (1) can be preprocessed");
+        attrs.weightsPrepType = type;
+    }
+
     void keepWeightsNonTransposed(bool weightsNonTransposed) {
         this->attrs.weightsNonTransposed = weightsNonTransposed;
     }

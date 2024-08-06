@@ -5,6 +5,7 @@
 #pragma once
 
 #include <common/utils.hpp>
+#include <cstddef>
 #include <oneapi/dnnl/dnnl.hpp>
 #include "cpu_memory.h"
 #include "cpu_shape.h"
@@ -25,6 +26,7 @@
 #include "utils/debug_capabilities.h"
 #include "utils/bit_util.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/clone_original_blob.h"
 
 #include "graph_context.h"
 #include "nodes/executors/executor.hpp"
@@ -268,6 +270,22 @@ public:
     // must be called only after Graph::ResolveEdgeConflicts()
     virtual bool isExecutable() const {
         return !hasEmptyInputTensors();
+    }
+
+    /**
+     * Return true if a node can perform a preprocessing for an input \idx
+     */
+    virtual bool canPrepInput(size_t idx) const {
+        (void) idx;
+        return false;
+    }
+
+    /**
+     * Require a node to perform \type preprocessing for an input \idx
+     */
+    virtual void prepInput(size_t idx, InputPrepType type) {
+        (void) idx;
+        (void) type;
     }
 
     enum class ConstantType {
@@ -751,7 +769,9 @@ protected:
     virtual void prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx);
     void prepareMemory(dnnl::primitive_desc_iterator& itpd);
 
-    MemoryPtr prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryDescPtr srcWeightDesc = nullptr);
+    MemoryPtr prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc,
+                                  DnnlMemoryDescPtr srcWeightDesc = nullptr,
+                                  InputPrepType preprocessing = InputPrepType::None);
 
     bool isDynamic = false;
 

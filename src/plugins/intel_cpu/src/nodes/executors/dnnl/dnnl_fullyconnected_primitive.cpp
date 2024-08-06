@@ -432,7 +432,8 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
                                       weightsDesc,
                                       memory.at(ARG_WEI),
                                       context,
-                                      useDynamicQuantization);
+                                      useDynamicQuantization,
+                                      attrs.weightsPrepType);
 
     return std::make_shared<DnnlShapeAgnosticData>(postOpData);
 }

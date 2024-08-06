@@ -13,6 +13,7 @@
 #include "nodes/executors/executor.hpp"
 #include "nodes/reorder.h"
 #include "utils/cpu_utils.hpp"
+#include "utils/clone_original_blob.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -22,23 +23,28 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
                                const DnnlMemoryDescPtr dstWeightDesc,
                                const MemoryCPtr weightsMem,
                                const ExecutorContext::CPtr context,
-                               const bool needShiftSignedToUnsigned) {
+                               const bool needShiftSignedToUnsigned,
+                               const InputPrepType preprocessing) {
     const auto& eng = context->getEngine();
     const auto& format = dstWeightDesc->serializeFormat();
-
     const auto privateWeightCache = context->getPrivateWeighCache();
+
     OPENVINO_ASSERT(privateWeightCache, "privateWeightCache is nullptr");
-    if (privateWeightCache) {
-        auto itr = privateWeightCache->find(format);
-        if (privateWeightCache->end() != itr) {
-            return itr->second;
-        }
+
+    auto itr = privateWeightCache->find(format);
+    if (privateWeightCache->end() != itr) {
+        return itr->second;
     }
 
     auto create = [&]() {
         // https://oneapi-src.github.io/oneDNN/dev_guide_int8_computations.html?highlight=128#inputs-of-the-same-type-s8
         auto src_wdt = srcWeightDesc->getPrecision();
         auto dst_wdt = dstWeightDesc->getPrecision();
+
+        // if (cloneWeights) {
+        //     std::cout << "Cloning the weightsMem in scope of FC node" << "\n";
+        // }
+
         if (needShiftSignedToUnsigned && src_wdt.is_integral_number() && src_wdt.is_signed() &&
             dst_wdt.is_integral_number() && !dst_wdt.is_signed()) {
             assert(src_wdt.bitwidth() == dst_wdt.bitwidth());
@@ -72,7 +78,7 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr srcWeightDesc,
         Memory srcMemory{eng, srcWeightDesc, weightsMem->getData()};
         MemoryPtr _ptr = std::make_shared<Memory>(eng, dstWeightDesc);
         auto rtCache = context->getRuntimeCache();
-        node::Reorder::reorderData(srcMemory, *_ptr, rtCache);
+        node::Reorder::reorderData(srcMemory, *_ptr, rtCache, preprocessing == InputPrepType::FTZ);
 
         return _ptr;
     };

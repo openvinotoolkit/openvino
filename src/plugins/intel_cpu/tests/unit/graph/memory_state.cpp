@@ -86,7 +86,7 @@ TEST(MemStateGraphTest, smoke_Check_Memory_Modification_Guard) {
 
         auto input_node = std::make_shared<node::Input>(param, context);
         auto memory_input = std::make_shared<node::MemoryInput>(read, context);
-        auto first_dummy = std::make_shared<cpu_unit_test::DummyNode>(
+        auto first_dummy = std::make_shared<cpu_unit_test::GenericNode>(
             test_shape, test_prec,
             "first_dummy",
             "DummyNode",
@@ -96,7 +96,7 @@ TEST(MemStateGraphTest, smoke_Check_Memory_Modification_Guard) {
             true);
 
         auto memory_output = std::make_shared<node::MemoryOutput>(assign, context);
-        auto second_dummy = std::make_shared<cpu_unit_test::DummyNode>(
+        auto second_dummy = std::make_shared<cpu_unit_test::GenericNode>(
             test_shape, test_prec, "second_dummy", "DummyNode", context, LayoutType::ncsp, Edge::LOOK::LOOK_UP, true);
         auto softmax_node = std::make_shared<node::SoftMax>(softmax, context);
         auto output_node = std::make_shared<node::Input>(res, context);
@@ -285,7 +285,7 @@ TEST(MemStateGraphTest, smoke_ShapeOf_no_Inplace_Conflicts) {
 
     auto input_node = std::make_shared<node::Input>(param, context);
     auto memory_input = std::make_shared<node::MemoryInput>(read, context);
-    auto dummy = std::make_shared<cpu_unit_test::DummyNode>(
+    auto dummy = std::make_shared<cpu_unit_test::GenericNode>(
         test_shape, test_prec,
         "first_dummy",
         "DummyNode",

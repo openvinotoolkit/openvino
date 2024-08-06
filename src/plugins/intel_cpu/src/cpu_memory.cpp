@@ -27,41 +27,9 @@ BlockedMemoryDescPtr IMemory::getDescWithType<BlockedMemoryDesc, 0, 0>() const {
 }
 
 namespace {
-    inline void setSubnormalsToZero(float *data, size_t size) {
-        uint32_t *u32data = reinterpret_cast<uint32_t *>(data);
-        for (size_t i = 0; i < size; ++i) {
-            if ((u32data[i] & (0xFF << 23)) == 0) {
-                u32data[i] = 0;
-            }
-        }
-    }
-
     void transferData(const IMemory& src, const IMemory& dst, bool ftz) {
-        node::Reorder::reorderData(src, dst);
-
-        if (!ftz) {
-            return;
-        }
-        if (src.getDesc().getPrecision() != ov::element::f32 || dst.getDesc().getPrecision() == ov::element::bf16) {
-            return;
-        }
-        size_t offset = 0;
-        if (dst.getDesc().getType() & MemoryDescType::Dnnl) {
-            // here we can safely cast to DnnlMemoryDesc
-            auto dnnl_desc = dst.getDescWithType<DnnlMemoryDesc>();
-            auto desc = dnnl_desc->getDnnlDesc();
-            dnnl::impl::memory_desc_wrapper wrapper(desc.get());
-            offset = wrapper.offset0();
-            if (wrapper.is_wino_desc() || wrapper.is_rnn_packed_desc()) {
-                return;
-            }
-        }
-        // actual FTZ
-        auto* memData = static_cast<float*>(dst.getData());
-        memData += offset;
-        setSubnormalsToZero(memData, dst.getSize() / sizeof(float));
+        node::Reorder::reorderData(src, dst, nullptr, ftz);
     }
-
 }   // namespace
 
 Memory::Memory(const dnnl::engine& eng, MemoryDescPtr desc, const void* data, bool pads_zeroing) :

@@ -35,6 +35,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <common/primitive_desc.hpp>
 #include <common/primitive_desc_iface.hpp>
+#include "utils/clone_original_blob.h"
 
 using namespace dnnl;
 using namespace openvino;
@@ -1048,7 +1049,9 @@ void Node::prepareMemory(dnnl::primitive_desc_iterator& itpd) {
     Node::prepareMemory(intDescs);
 }
 
-MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryDescPtr srcWeightDesc) {
+MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc,
+                                    DnnlMemoryDescPtr srcWeightDesc,
+                                    InputPrepType preprocessing) {
     if (!getParentEdgeAt(1)->getParent()->isConstant())
         OPENVINO_THROW("Weight input is not const for node ", getName(), ".");
     auto edgeMem = getSrcMemoryAtPort(1);
@@ -1064,10 +1067,14 @@ MemoryPtr Node::prepareWeightMemory(DnnlMemoryDescPtr dstWeightDesc, DnnlMemoryD
 
     auto create = [&] () {
         Memory srcMemory{ getEngine(), srcWeightDesc, edgeMem->getData() };
-        MemoryPtr _ptr = std::make_shared<Memory>(getEngine(), dstWeightDesc);
-        node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache());
+        MemoryPtr weightsMem = std::make_shared<Memory>(getEngine(), dstWeightDesc);
 
-        return _ptr;
+        node::Reorder::reorderData(srcMemory,
+                                   *weightsMem,
+                                   context->getParamsCache(),
+                                   preprocessing == InputPrepType::FTZ);
+
+        return weightsMem;
     };
 
     MemoryPtr ptr;

@@ -19,6 +19,8 @@ struct FCAttrs {
     bool withBias = false;
     bool weightsNonTransposed = false;
     bool sparseWeights = false;
+    // @todo combine all the weights related attributes into some WeightsPreprocess structure
+    InputPrepType weightsPrepType = InputPrepType::None;
     // @todo only memory descriptors should be a part of attributes
     // actual memory should be passed into "execute" or "prepareMemory" calls
     std::vector<float> dequantizationScales;
