@@ -532,6 +532,15 @@ const char *dir_msg(direction_e dir) {
         return "backward";
 }
 
+static bool is_weights_dependency(program_node* predecessor, program_node* successor) {
+    bool is_weights_dep = false;
+    if (successor->is_type<convolution>() || successor->is_type<deconvolution>() || successor->is_type<fully_connected>()) {
+        size_t dep_idx = successor->get_dependency_index(*predecessor);
+        is_weights_dep = dep_idx == successor->get_primitive()->input_size();
+    }
+    return is_weights_dep;
+}
+
 // If there is layout mismatch between two layers, add reorder
 template <direction_e dir>
 void insert_reorders_in_dir(program& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf, layout_optimizer& lo, program_node* node) {
@@ -543,6 +552,9 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
             continue;
 
         if (fmt_map.count(next) > 0 && fmt_map.at(next) == fmt)
+            continue;
+
+        if (is_weights_dependency(node, next))
             continue;
 
         // We have three (potentially) conflicting information here for format
@@ -594,6 +606,9 @@ void insert_reorders_in_dir<direction_e::backwards>(program& p, const std::map<p
             continue;
 
         if (fmt_map.count(next.first) > 0 && fmt_map.at(next.first) == fmt)
+            continue;
+
+        if (is_weights_dependency(next.first, node))
             continue;
 
         // We have three (potentially) conflicting information here for format
