@@ -3449,7 +3449,10 @@ std::vector<LSTMSequenceV1Params> generateV1ParamsBF16() {
 
 std::vector<LSTMSequenceParams> generateCombinedParams() {
     const std::vector<std::vector<LSTMSequenceParams>> generatedParams{
+        generateParams<element::Type_t::f64>(),
         generateParams<element::Type_t::f32>(),
+        generateParamsBF16<element::Type_t::f16>(),
+        generateParamsBF16<element::Type_t::bf16>(),
     };
     std::vector<LSTMSequenceParams> combinedParams;
 

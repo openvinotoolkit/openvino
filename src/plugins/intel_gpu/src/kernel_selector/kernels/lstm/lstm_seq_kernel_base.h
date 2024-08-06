@@ -22,12 +22,6 @@ struct lstm_seq_params : public base_params {
     };
 
     lstm_seq_params() : base_params(KernelType::LSTM_SEQ) {}
-
-    DataTensor initial_hidden_state;
-    DataTensor initial_cell_state;
-    DataTensor sequence_lengths;
-    DataTensor WR;
-    DataTensor B;
     bool has_cell = false;
     order_type gate_order = offset_iofz;
     float clip = 0;

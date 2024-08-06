@@ -19,6 +19,7 @@ concatenation_kernel_selector::concatenation_kernel_selector() {
 }
 
 KernelsData concatenation_kernel_selector::GetBestKernels(const Params& params) const {
-    return GetNaiveBestKernel(params, KernelType::CONCATENATION);
+    auto a = GetNaiveBestKernel(params, KernelType::CONCATENATION);
+    return a;
 }
 }  // namespace kernel_selector

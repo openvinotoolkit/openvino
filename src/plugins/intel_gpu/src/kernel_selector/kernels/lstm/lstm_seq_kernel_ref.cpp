@@ -15,12 +15,13 @@ ParamsKey LSTMSeqKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableDifferentTypes();
-    k.EnableAllInputLayout();
+    k.EnableInputLayout(DataLayout::bfyx);
     k.EnableAllOutputLayout();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
     k.EnableLSTMSeqCell();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 

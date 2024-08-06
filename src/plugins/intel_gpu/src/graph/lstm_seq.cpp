@@ -6,6 +6,7 @@
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
+#include "lstm_sequence_shape_inference.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(lstm_seq)
@@ -16,30 +17,32 @@ layout lstm_seq_inst::calc_output_layout(lstm_seq_node const& node, kernel_impl_
 
 template<typename ShapeType>
 std::vector<layout> lstm_seq_inst::calc_output_layouts(lstm_seq_node const& node, kernel_impl_params const& impl_param) {
-    // input partial shape [batch, input_size (= hidden_size * 4)]
+    auto desc = impl_param.typed_desc<lstm_seq>();
+
+    std::vector<ShapeType> input_shapes;
+    for (size_t i = 0; i < desc->input.size(); ++i) {
+        auto input_shape = impl_param.get_input_layout(i).get<ShapeType>();
+        input_shapes.push_back(input_shape);
+    }
+
     auto input_layout_x = impl_param.get_input_layout(0);
     auto input_pshape_x = input_layout_x.get_partial_shape();
     auto input_layout_hidden = impl_param.get_input_layout(1);
     auto input_pshape_hidden = input_layout_hidden.get_partial_shape();
-    if (impl_param.desc->output_data_types.size() > 0) {
-        OPENVINO_ASSERT(static_cast<bool>(impl_param.desc->output_data_types[0]) == false, "Output data type forcing is not supported for lstm_seq_node!");
-    }
-    OPENVINO_ASSERT(input_pshape_x.rank().get_length() == 4, "input_layout rank should be 4 on dynamic shape.");
-
     int lstm_batch_size, lstm_seq_length, lstm_hidden_size;
-    if (input_pshape_x[input_pshape_x.size() - 3].is_static()) {
+    if (input_pshape_x[0].is_static()) {
         lstm_batch_size = input_pshape_x[0].get_length();
     } else {
         lstm_batch_size = -1;
     }
 
-    if (input_pshape_x[input_pshape_x.size() - 2].is_static()) {
+    if (input_pshape_x[1].is_static()) {
         lstm_seq_length = input_pshape_x[1].get_length();
     } else {
         lstm_seq_length = -1;
     }
 
-    if (input_pshape_hidden[input_pshape_hidden.size() - 1].is_static()) {
+    if (input_pshape_hidden[2].is_static()) {
         lstm_hidden_size = input_pshape_hidden[2].get_length();
     } else {
         lstm_hidden_size = -1;
@@ -73,7 +76,6 @@ lstm_seq_inst::typed_primitive_inst(network& network, lstm_seq_node const& node)
                                   "input format",
                                   input_size.format.value,
                                   "expected format",
-                                  format::bfyx,
-                                  format::fyxb);
+                                  format::bfyx);
 }
 }  // namespace cldnn

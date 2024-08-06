@@ -21,21 +21,20 @@ JitConstants LSTMSeqKernelBase::GetJitConstants(const lstm_seq_params& params) c
     if (params.input_forget) {
         jit.AddConstants({MakeJitConstant("INPUT_FORGET", true)});
     }
-    jit.AddConstants({MakeJitConstant("DIRECTION", params.direction)});
+    jit.AddConstants({MakeJitConstant("DIRECTION", static_cast<int>(params.direction))});
 
-    const auto& GEMMInput = params.inputs[1];
-    size_t size = GEMMInput.Y().v;
+    size_t size = params.inputs[1].Y().v;
     jit.AddConstants({
         MakeJitConstant("GEMM_OFFSET_I", params.GetOffsetIndexI() * size),
         MakeJitConstant("GEMM_OFFSET_O", params.GetOffsetIndexO() * size),
         MakeJitConstant("GEMM_OFFSET_F", params.GetOffsetIndexF() * size),
         MakeJitConstant("GEMM_OFFSET_Z", params.GetOffsetIndexZ() * size),
     });
-    jit.AddConstants({MakeJitConstant("BATCH_SIZE", GEMMInput.Batch().v)});
+    jit.AddConstants({MakeJitConstant("BATCH_SIZE", params.inputs[1].Batch().v)});
     jit.AddConstants({MakeJitConstant("MAX_SEQ_LENGTH", params.inputs[0].Feature().v)});
     jit.AddConstants({MakeJitConstant("INPUT_SIZE", params.inputs[0].Y().v)});
     jit.AddConstants({MakeJitConstant("HIDDEN_SIZE", params.inputs[1].Y().v)});
-    auto ftype = GetUnitType(params);
+    auto ftype = params.inputs[0].GetDType();
     // if ReLU activation present, we have to reset accumulator type for the kernel to FP32
     // to avoid possible overflows on FP16, since ReLU doesn't limit upper border of its result
     for (size_t i = 0; i < params.activations.size(); i++) {
@@ -49,7 +48,7 @@ JitConstants LSTMSeqKernelBase::GetJitConstants(const lstm_seq_params& params) c
     static const std::vector<std::string> asuffixes = {"_F", "_G", "_H", "_CLIP"};
     for (size_t i = 0; i < params.activations.size(); i++) {
         std::vector<base_activation_params> aparams = { params.activations[i] };
-        jit.Merge(MakeActivationJitConstants(aparams, ftype, asuffixes[i]));
+        jit.Merge(MakeActivationJitConstants(aparams, params.inputs[0].GetDType(), asuffixes[i]));
     }
 
     if (params.clip <= 0) {

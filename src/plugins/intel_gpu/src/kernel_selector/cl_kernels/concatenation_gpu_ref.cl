@@ -14,6 +14,7 @@ KERNEL(concatenation_gpu_ref)(__global INPUT0_TYPE* input,
 #endif
 )
 {
+    printf("oncat 1 \n");
     const uint d1 = (uint)get_global_id(0); // Y
     const uint d2 = (uint)get_global_id(1); // F
 #ifdef CHECK_FEATURES

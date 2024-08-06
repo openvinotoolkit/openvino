@@ -171,8 +171,8 @@ struct lstm_seq : public primitive_base<lstm_seq> {
              const input_info& W,
              const input_info& R,
              const input_info& B,
-             const primitive_id& second_output,
-             const primitive_id& third_output,
+             const primitive_id& out1_prim_id,
+             const primitive_id& out2_prim_id,
              const primitive_id& cell = "",
              const float clip = 0,
              const bool input_forget = 0,
@@ -182,10 +182,12 @@ struct lstm_seq : public primitive_base<lstm_seq> {
              const std::vector<activation_additional_params> activation_params = {},
              const lstm_weights_order offset_order = lstm_weights_order::iofz,
              const uint32_t direction = 0,
-             const padding& output_padding = padding())
-        : primitive_base(id, {x, initial_hidden_state, initial_cell_state, seq_lenghts, W, R, B}, {output_padding}, {}, 3),
-          second_output{second_output},
-          third_output{third_output},
+             const padding& output_padding = padding(),
+             const int num_outputs = 1)
+        : primitive_base(id, {x, initial_hidden_state, initial_cell_state, seq_lenghts, W, R, B, out1_prim_id, out2_prim_id}, {output_padding}, {}, \
+            num_outputs),
+          out1_prim_id(out1_prim_id),
+          out2_prim_id(out2_prim_id),
           cell(cell),
           clip(clip),
           input_forget(input_forget),
@@ -194,9 +196,38 @@ struct lstm_seq : public primitive_base<lstm_seq> {
           offset_order(offset_order),
           direction(direction) {}
 
-    primitive_id second_output;
-    primitive_id third_output;
+    lstm_seq(const primitive_id& id,
+             const input_info& x,
+             const input_info& initial_hidden_state,
+             const input_info& initial_cell_state,
+             const input_info& seq_lenghts,
+             const input_info& W,
+             const input_info& R,
+             const input_info& B,
+             const primitive_id& cell = "",
+             const float clip = 0,
+             const bool input_forget = 0,
+             const std::vector<activation_func> activations = {activation_func::logistic,
+                                                               activation_func::hyperbolic_tan,
+                                                               activation_func::hyperbolic_tan},
+             const std::vector<activation_additional_params> activation_params = {},
+             const lstm_weights_order offset_order = lstm_weights_order::iofz,
+             const uint32_t direction = 0,
+             const padding& output_padding = padding(),
+             const int num_outputs = 1)
+        : primitive_base(id, {x, initial_hidden_state, initial_cell_state, seq_lenghts, W, R, B}, {output_padding}, {}, \
+            num_outputs),
+          cell(cell),
+          clip(clip),
+          input_forget(input_forget),
+          activations(activations),
+          activation_params(activation_params),
+          offset_order(offset_order),
+          direction(direction) {}
+
     /// @brief Primitive id containing the initial value of the cell state data.
+    primitive_id out1_prim_id;
+    primitive_id out2_prim_id;
     primitive_id cell;
     /// @brief Cell clip threshold T. It is applied to the input of activations [-T, T]. No clip is applied if it is not specified.
     float clip;
@@ -213,6 +244,7 @@ struct lstm_seq : public primitive_base<lstm_seq> {
 
     size_t hash() const override {
         size_t seed = primitive::hash();
+        seed = hash_combine(seed, out1_prim_id);
         seed = hash_combine(seed, clip);
         seed = hash_combine(seed, input_forget);
         seed = hash_range(seed, activations.begin(), activations.end());
@@ -240,6 +272,8 @@ struct lstm_seq : public primitive_base<lstm_seq> {
 
         #define cmp_fields(name) name == rhs_casted.name
         return act_params_eq &&
+               cmp_fields(out1_prim_id) &&
+               cmp_fields(out2_prim_id) &&
                cmp_fields(clip) &&
                cmp_fields(input_forget) &&
                cmp_fields(activations) &&
@@ -251,6 +285,8 @@ struct lstm_seq : public primitive_base<lstm_seq> {
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<lstm_seq>::save(ob);
+        ob << out1_prim_id;
+        ob << out2_prim_id;
         ob << cell;
         ob << clip;
         ob << input_forget;
@@ -262,6 +298,8 @@ struct lstm_seq : public primitive_base<lstm_seq> {
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<lstm_seq>::load(ib);
+        ib >> out1_prim_id;
+        ib >> out2_prim_id;
         ib >> cell;
         ib >> clip;
         ib >> input_forget;
@@ -274,12 +312,8 @@ struct lstm_seq : public primitive_base<lstm_seq> {
 protected:
     std::vector<input_info> get_dependencies() const override {
         std::vector<input_info> ret;
-        /*
-        if (!cell.empty())
-            ret.push_back(cell);
-        */
-        ret.push_back(second_output);
-        ret.push_back(third_output);
+        //ret.push_back(input[input.size()-2].pid);
+        //ret.push_back(input[input.size()-1].pid);
         return ret;
     }
 };

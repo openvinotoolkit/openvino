@@ -21,6 +21,7 @@
 #include "shape_of_inst.h"
 #include "non_max_suppression_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
+#include "lstm_seq_inst.h"
 #include "border_inst.h"
 
 #include "pass_manager.h"
@@ -494,6 +495,8 @@ bool crop_in_place_optimization::match(const program_node& node,
         }
         if (user->is_type<experimental_detectron_roi_feature_extractor>() && user->get_dependency_index(node) == 0)
             return false;
+        if (user->is_type<lstm_seq>())
+            return false;
     }
 
     // do not optimize crop, that must be calculated in propagate_constants
@@ -700,7 +703,7 @@ void prepare_buffer_fusing::run(program& p) {
             return true;
         }
 
-        if (is_dynamic || node->is_output() || node->has_fused_primitives() || node->is_in_shape_of_subgraph()) {
+        if (is_dynamic || node->is_output() || node->has_fused_primitives() || node->is_in_shape_of_subgraph() || node->is_type<mutable_data>()) {
             return false;
         }
         return true;

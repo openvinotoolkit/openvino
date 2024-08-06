@@ -393,11 +393,15 @@ protected:
     };
 
     std::vector<IncorrectValue> incorrect_values_abs;
+    std::vector<IncorrectValue> correct_values_abs;
     double abs_threshold, rel_threshold, mvn_threshold, topk_threshold, mvn_results, topk_results;
     size_t tensor_size;
 
     void emplace_back(double in_actual_value, double in_expected_value, double in_threshold, size_t in_coordinate) {
         incorrect_values_abs.push_back(IncorrectValue(in_actual_value, in_expected_value, in_threshold, in_coordinate));
+    }
+    void emplace_back_good(double in_actual_value, double in_expected_value, double in_threshold, size_t in_coordinate) {
+        correct_values_abs.push_back(IncorrectValue(in_actual_value, in_expected_value, in_threshold, in_coordinate));
     }
 
 public:
@@ -419,6 +423,7 @@ public:
         const auto threshold = calculate_threshold(abs_threshold, rel_threshold, expected);
         mvn_results += equal(threshold, 0.f) ? diff : (diff / threshold);
         if (less_or_equal(diff, threshold)) {
+            emplace_back_good(actual, expected, threshold, coordinate);
             return true;
         }
         emplace_back(actual, expected, threshold, coordinate);
@@ -441,6 +446,10 @@ public:
                           << " Diff: " << std::fabs(val.expected_value - val.actual_value)
                           << " calculated_abs_threshold: " << val.threshold << " abs_threshold: " << abs_threshold
                           << " rel_threshold: " << rel_threshold << "\n";
+            }
+            for (auto val : correct_values_abs) {
+                std::cout << "\nOK: " << val.expected_value << " Actual: " << val.actual_value
+                          << " Coordinate: " << val.coordinate << "\n";
 #ifdef NDEBUG
                 break;
 #endif
