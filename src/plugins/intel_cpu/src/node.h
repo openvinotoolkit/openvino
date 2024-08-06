@@ -658,7 +658,6 @@ protected:
     std::vector <NodePtr> fusedWith;
     std::vector <NodePtr> mergedWith;
 
-    std::vector <NodePtr> parallelWith;
     int curNumaNode = -1;
 
     void toNumaNode(int numaID);
