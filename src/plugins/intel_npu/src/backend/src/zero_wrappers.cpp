@@ -63,12 +63,22 @@ CommandList::CommandList(const ze_device_handle_t& device_handle,
                          const ze_context_handle_t& context,
                          ze_graph_dditable_ext_curr_t* graph_ddi_table_ext,
                          const Config& config,
-                         const uint32_t& group_ordinal)
+                         const uint32_t& group_ordinal,
+                         bool mtci_is_supported)
     : _context(context),
       _graph_ddi_table_ext(graph_ddi_table_ext),
       _log("CommandList", config.get<LOG_LEVEL>()) {
-    ze_command_list_desc_t desc = {ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC, nullptr, group_ordinal, 0};
+    ze_mutable_command_list_exp_desc_t mutable_desc = {ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_LIST_EXP_DESC, nullptr, 0};
+    ze_command_list_desc_t desc = {ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC, &mutable_desc, group_ordinal, 0};
     zeroUtils::throwOnFail("zeCommandListCreate", zeCommandListCreate(_context, device_handle, &desc, &_handle));
+
+    if (mtci_is_supported) {
+        ze_mutable_command_id_exp_desc_t mutableCmdIdDesc = {ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_ID_EXP_DESC,
+                                                             nullptr,
+                                                             ZE_MUTABLE_COMMAND_EXP_FLAG_GRAPH_ARGUMENT};
+        zeroUtils::throwOnFail("zeCommandListGetNextCommandIdExp",
+                               zeCommandListGetNextCommandIdExp(_handle, &mutableCmdIdDesc, &_command_id));
+    }
 }
 void CommandList::reset() const {
     zeroUtils::throwOnFail("zeCommandListReset", zeCommandListReset(_handle));
@@ -104,6 +114,20 @@ CommandList::~CommandList() {
         _log.error("zeCommandListDestroy failed %#X", uint64_t(result));
     }
 }
+void CommandList::updateMutableCommandList(uint32_t arg_index, const void* arg_value) const {
+    ze_mutable_graph_argument_exp_desc_t desc = {ZE_STRUCTURE_TYPE_MUTABLE_GRAPH_ARGUMENT_EXP_DESC,
+                                                 nullptr,
+                                                 _command_id,
+                                                 arg_index,
+                                                 arg_value};
+
+    ze_mutable_commands_exp_desc_t mutable_commands_exp_desc_t = {ZE_STRUCTURE_TYPE_MUTABLE_COMMANDS_EXP_DESC,
+                                                                  &desc,
+                                                                  0};
+
+    zeroUtils::throwOnFail("zeCommandListUpdateMutableCommandsExp",
+                           zeCommandListUpdateMutableCommandsExp(_handle, &mutable_commands_exp_desc_t));
+}
 
 CommandQueue::CommandQueue(const ze_device_handle_t& device_handle,
                            const ze_context_handle_t& context,
@@ -116,6 +140,15 @@ CommandQueue::CommandQueue(const ze_device_handle_t& device_handle,
       _log("CommandQueue", config.get<LOG_LEVEL>()) {
     ze_command_queue_desc_t queue_desc =
         {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC, nullptr, group_ordinal, 0, 0, ZE_COMMAND_QUEUE_MODE_DEFAULT, priority};
+    if (config.has<TURBO>()) {
+        if (_command_queue_npu_dditable_ext != nullptr) {
+            bool turbo = config.get<TURBO>();
+            ze_command_queue_desc_npu_ext_t turbo_cfg = {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC_NPU_EXT, nullptr, turbo};
+            queue_desc.pNext = &turbo_cfg;
+        } else {
+            OPENVINO_THROW("Turbo is not supported by the current driver");
+        }
+    }
     zeroUtils::throwOnFail("zeCommandQueueCreate",
                            zeCommandQueueCreate(_context, device_handle, &queue_desc, &_handle));
 }

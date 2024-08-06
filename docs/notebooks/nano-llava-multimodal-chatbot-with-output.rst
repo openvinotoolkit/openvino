@@ -56,16 +56,16 @@ Prerequisites
 
     from huggingface_hub import snapshot_download
     from pathlib import Path
-    
+
     model_local_dir = Path("nanoLLaVA")
-    
+
     if not model_local_dir.exists():
         snapshot_download(repo_id="qnguyen3/nanoLLaVA", local_dir=model_local_dir)
-    
+
     modeling_file = model_local_dir / "modeling_llava_qwen2.py"
     orig_modeling_file = model_local_dir / f"orig_{modeling_file.name}"
-    
-    
+
+
     # model code depends from flash_attn package that may be problematic to load. Patch model code for avoiding import of this package
     if not orig_modeling_file.exists():
         modeling_file.rename(orig_modeling_file)
@@ -76,10 +76,10 @@ Prerequisites
         ("from flash_attn.bert_padding import index_first_axis, pad_input, unpad_input", ""),
         (' _flash_supports_window_size = "window_size" in list(inspect.signature(flash_attn_func).parameters)', "pass"),
     ]
-    
+
     for replace_pair in replacement_lines:
         content = content.replace(*replace_pair)
-    
+
     with modeling_file.open("w") as f:
         f.write(content)
 
@@ -99,19 +99,19 @@ Prerequisites
 
 .. parsed-literal::
 
-    merges.txt:   0%|          | 0.00/1.67M [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
-    config.json:   0%|          | 0.00/1.28k [00:00<?, ?B/s]
+    generation_config.json:   0%|          | 0.00/172 [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
     example_1.png:   0%|          | 0.00/200k [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    config.json:   0%|          | 0.00/1.28k [00:00<?, ?B/s]
 
 
 
@@ -129,12 +129,6 @@ Prerequisites
 
 .. parsed-literal::
 
-    generation_config.json:   0%|          | 0.00/172 [00:00<?, ?B/s]
-
-
-
-.. parsed-literal::
-
     added_tokens.json:   0%|          | 0.00/80.0 [00:00<?, ?B/s]
 
 
@@ -147,13 +141,13 @@ Prerequisites
 
 .. parsed-literal::
 
-    tokenizer_config.json:   0%|          | 0.00/1.32k [00:00<?, ?B/s]
+    special_tokens_map.json:   0%|          | 0.00/510 [00:00<?, ?B/s]
 
 
 
 .. parsed-literal::
 
-    special_tokens_map.json:   0%|          | 0.00/510 [00:00<?, ?B/s]
+    tokenizer_config.json:   0%|          | 0.00/1.32k [00:00<?, ?B/s]
 
 
 
@@ -166,6 +160,12 @@ Prerequisites
 .. parsed-literal::
 
     tokenizer.json:   0%|          | 0.00/7.03M [00:00<?, ?B/s]
+
+
+
+.. parsed-literal::
+
+    merges.txt:   0%|          | 0.00/1.67M [00:00<?, ?B/s]
 
 
 
@@ -190,20 +190,20 @@ previous step.
     from transformers import AutoModelForCausalLM, AutoTokenizer
     from PIL import Image
     import warnings
-    
+
     transformers.logging.set_verbosity_error()
     warnings.filterwarnings("ignore")
-    
+
     model = AutoModelForCausalLM.from_pretrained(model_local_dir, trust_remote_code=True)
     tokenizer = AutoTokenizer.from_pretrained(model_local_dir, trust_remote_code=True)
 
 
 .. parsed-literal::
 
-    2024-06-27 01:02:36.883651: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
-    2024-06-27 01:02:36.917268: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+    2024-07-13 01:15:06.266352: I tensorflow/core/util/port.cc:110] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+    2024-07-13 01:15:06.301452: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
     To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
-    2024-06-27 01:02:37.523024: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+    2024-07-13 01:15:06.954075: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 
 Run PyTorch Model Inference
@@ -215,12 +215,12 @@ Run PyTorch Model Inference
 
     import torch
     import requests
-    
+
     prompt = "Describe this image in detail"
-    
+
     messages = [{"role": "user", "content": f"<image>\n{prompt}"}]
     text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-    
+
     text_chunks = [tokenizer(chunk).input_ids for chunk in text.split("<image>")]
     input_ids = torch.tensor(text_chunks[0] + [-200] + text_chunks[1], dtype=torch.long).unsqueeze(0)
     url = "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/8bf7d9f2-018a-4498-bec4-55f17c273ecc"
@@ -244,16 +244,16 @@ Run PyTorch Model Inference
 .. code:: ipython3
 
     from transformers import TextStreamer
-    
+
     streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
-    
+
     output_ids = model.generate(input_ids, images=image_tensor, max_new_tokens=128, use_cache=True, streamer=streamer)
 
 
 .. parsed-literal::
 
-    The image features a white lama, with its fluffy woolly body covering most of the image, including the upper part of the image. The lama's face is predominantly white, and it has a black nose and two small black eyes. It also has a small white mouth and two small black ears. The lama's ears are quite cute, and it has its tongue out, which is pink and seems to be sticking out. The lama has a small black nose and a small black mouth, and it has a small black ear.
-    The lama's face is adorned with pink eyes and two black noses. The eyes are
+    This image captures a delightful scene featuring a white, fluffy lamb with a playful expression. The lamb is positioned towards the center of the image, its body filling most of the frame from left to right. The lamb has a charmingly expressive face, with a pair of black eyes that appear to be squinting slightly. It has a small, round, pink nose, and its ears are also pink, which contrasts with the rest of its white fur. The lamb's legs are white, and the lower part of its body is fluffy, adding to its adorable appearance.
+    The lamb's face is quite expressive, with its eyes looking down and
 
 
 Convert and Optimize model
@@ -334,14 +334,14 @@ compression instead of INT8 weight compression.
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     compression_mode = widgets.Dropdown(
         options=["INT4", "INT8"],
         value="INT4",
         description="Compression mode:",
         disabled=False,
     )
-    
+
     compression_mode
 
 
@@ -361,10 +361,10 @@ compression instead of INT8 weight compression.
     import openvino as ov
     import nncf
     from typing import Optional, Tuple
-    
+
     warnings.filterwarnings("ignore")
-    
-    
+
+
     def flattenize_inputs(inputs):
         """
         Helper function for making nested inputs flattens
@@ -378,8 +378,8 @@ compression instead of INT8 weight compression.
             else:
                 flatten_inputs.append(input_data)
         return flatten_inputs
-    
-    
+
+
     def cleanup_torchscript_cache():
         """
         Helper for removing cached model representation
@@ -387,8 +387,8 @@ compression instead of INT8 weight compression.
         torch._C._jit_clear_class_registry()
         torch.jit._recursive.concrete_type_store = torch.jit._recursive.ConcreteTypeStore()
         torch.jit._state._clear_class_state()
-    
-    
+
+
     def postprocess_converted_model(
         ov_model,
         example_input=None,
@@ -401,7 +401,7 @@ compression instead of INT8 weight compression.
         acording to requested specification
         """
         flatten_example_inputs = flattenize_inputs(example_input) if example_input else []
-    
+
         if input_names:
             for inp_name, m_input, input_data in zip(input_names, ov_model.inputs, flatten_example_inputs):
                 input_node = m_input.get_node()
@@ -413,7 +413,7 @@ compression instead of INT8 weight compression.
                         shape[k] = -1
                 input_node.set_partial_shape(ov.PartialShape(shape))
                 m_input.get_tensor().set_names({inp_name})
-    
+
         if output_names:
             for out, out_name in zip(ov_model.outputs, output_names):
                 out.get_tensor().set_names({out_name})
@@ -434,19 +434,19 @@ compression instead of INT8 weight compression.
     else:
         ov_out_path = Path("ov_nanollava/INT8_compressed_weights")
         llava_wc_parameters = dict(mode=nncf.CompressWeightsMode.INT8)
-    
+
     image_encoder_wc_parameters = dict(mode=nncf.CompressWeightsMode.INT8)
-    
+
     ov_out_path.mkdir(exist_ok=True, parents=True)
     model.config.save_pretrained(ov_out_path)
     vision_tower = model.get_vision_tower()
     if not vision_tower.is_loaded:
         vision_tower.load_model()
-    
+
     image_encoder_path = ov_out_path / "image_encoder.xml"
     token_embedding_model_path = ov_out_path / "token_embed.xml"
     model_path = ov_out_path / "llava_with_past.xml"
-    
+
     model.eval()
     model.config.use_cache = True
     model.config.torchscript = True
@@ -496,6 +496,7 @@ space.
 
 .. parsed-literal::
 
+    ['images']
     Applying weight compression to image encoder
     INFO:nncf:Statistics of the bitwidth distribution:
     ┍━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┑
@@ -556,6 +557,7 @@ will use it separately.
 
 .. parsed-literal::
 
+    ['input']
     Token Embedding model successfully converted
 
 
@@ -587,17 +589,17 @@ token prediction.
     if not model_path.exists():
         model.forward = super(type(model), model).forward
         example_input = {"attention_mask": torch.ones([2, 10], dtype=torch.int64), "position_ids": torch.tensor([[8, 9], [8, 9]], dtype=torch.int64)}
-    
+
         dynamic_shapes = {
             "input_embeds": {0: "batch_size", 1: "seq_len"},
             "attention_mask": {0: "batch_size", 1: "prev_seq_len + seq_len"},
             "position_ids": {0: "batch_size", 1: "seq_len"},
         }
         input_embeds = torch.zeros((2, 2, model.config.hidden_size))
-    
+
         input_names = ["attention_mask", "position_ids"]
         output_names = ["logits"]
-    
+
         past_key_values = []
         for i in range(model.config.num_hidden_layers):
             kv = [torch.randn([2, model.config.num_key_value_heads, 8, model.config.hidden_size // model.config.num_attention_heads]) for _ in range(2)]
@@ -606,7 +608,7 @@ token prediction.
             output_names.extend([f"present.{i}.key", f"present.{i}.value"])
             dynamic_shapes[input_names[-2]] = {0: "batch_size", 2: "seq_len"}
             dynamic_shapes[input_names[-1]] = {0: "batch_size", 2: "seq_len"}
-    
+
         example_input["past_key_values"] = past_key_values
         example_input["inputs_embeds"] = input_embeds
         input_names.append("inputs_embeds")
@@ -615,7 +617,7 @@ token prediction.
         ov_model = postprocess_converted_model(
             ov_model, example_input=example_input.values(), input_names=input_names, output_names=output_names, dynamic_shapes=dynamic_shapes
         )
-    
+
         if llava_wc_parameters is not None:
             print("Applying weight compression to second stage LLava model")
             ov_model = nncf.compress_weights(ov_model, **llava_wc_parameters)
@@ -623,7 +625,7 @@ token prediction.
         cleanup_torchscript_cache()
         del ov_model
         gc.collect()
-    
+
         print("LLaVA model successfully converted")
     del model
     gc.collect();
@@ -631,6 +633,7 @@ token prediction.
 
 .. parsed-literal::
 
+    ['attention_mask', 'position_ids', 'past_key_values', 'inputs_embeds']
     Applying weight compression to second stage LLava model
 
 
@@ -728,11 +731,11 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
     import torch
     from typing import Dict
     from functools import partial, reduce
-    
+
     IGNORE_INDEX = -100
     IMAGE_TOKEN_INDEX = -200
-    
-    
+
+
     class ImageProcessor:
         def __init__(
             self,
@@ -746,7 +749,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
         ):
             crop_size = crop_size if crop_size is not None else {"height": 384, "width": 384}
             crop_size = get_size_dict(crop_size, default_to_square=True, param_name="crop_size")
-    
+
             self.image_mean = image_mean
             self.image_std = image_std
             self.size = size
@@ -754,13 +757,13 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
             self.rescale_factor = rescale_factor
             self.data_format = data_format
             self.crop_size = crop_size
-    
+
         def preprocess(self, images, return_tensors):
             if isinstance(images, Image.Image):
                 images = [images]
             else:
                 assert isinstance(images, list)
-    
+
             transforms = [
                 convert_to_rgb,
                 to_numpy_array,
@@ -769,13 +772,13 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                 partial(normalize, mean=self.image_mean, std=self.image_std, data_format=self.data_format),
                 partial(to_channel_dimension_format, channel_dim=self.data_format, input_channel_dim=self.data_format),
             ]
-    
+
             images = reduce(lambda x, f: [*map(f, x)], transforms, images)
             data = {"pixel_values": images}
-    
+
             return BatchFeature(data=data, tensor_type=return_tensors)
-    
-    
+
+
     class OVLlavaQwen2ForCausalLM(GenerationMixin):
         def __init__(self, core, model_dir, device):
             self.image_encoder = core.compile_model(model_dir / "image_encoder.xml", device)
@@ -793,11 +796,12 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
             self.device = torch.device("cpu")
             self.num_pkv = 2
             self.image_processor = ImageProcessor()
-    
+            self._supports_cache_class = False
+
         def can_generate(self):
             """Returns True to validate the check that the model using `GenerationMixin.generate()` can indeed generate."""
             return True
-    
+
         def __call__(
             self,
             input_ids: torch.LongTensor,
@@ -808,7 +812,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
             **kwargs,
         ) -> CausalLMOutputWithPast:
             return self.forward(input_ids, images, attention_mask, position_ids, past_key_values)
-    
+
         def forward(
             self,
             input_ids: torch.LongTensor,
@@ -820,20 +824,20 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
         ) -> CausalLMOutputWithPast:
             """General inference method"""
             inputs = self.prepare_inputs_for_multimodal(input_ids, position_ids, attention_mask, past_key_values, images)
-    
+
             # Run inference
             self.request.start_async(inputs, share_inputs=True)
             self.request.wait()
-    
+
             logits = torch.from_numpy(self.request.get_tensor("logits").data)
-    
+
             # Tuple of length equal to : number of layer * number of past_key_value per decoder layer (2 corresponds to the self-attention layer)
             past_key_values = tuple(self.request.get_tensor(key).data for key in self.key_value_output_names)
             # Tuple of tuple of length `n_layers`, with each tuple of length equal to 2 (k/v of self-attention)
-    
+
             past_key_values = tuple(past_key_values[i : i + self.num_pkv] for i in range(0, len(past_key_values), self.num_pkv))
             return CausalLMOutputWithPast(logits=logits, past_key_values=past_key_values)
-    
+
         def prepare_inputs_for_multimodal(self, input_ids, position_ids, attention_mask, past_key_values, images):
             inputs = {}
             if past_key_values is None:
@@ -841,7 +845,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
             else:
                 past_key_values = tuple(past_key_value for pkv_per_layer in past_key_values for past_key_value in pkv_per_layer)
             inputs.update(zip(self.key_value_input_names, past_key_values))
-    
+
             if images is None or input_ids.shape[1] == 1:
                 target_shape = past_key_values[-1][-1].shape[-2] + 1 if past_key_values is not None else input_ids.shape[1]
                 attention_mask = torch.cat(
@@ -856,9 +860,9 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                 inputs["attention_mask"] = attention_mask.numpy()
                 inputs["position_ids"] = position_ids.numpy()
                 inputs["inputs_embeds"] = inputs_embeds
-    
+
                 return inputs
-    
+
             if type(images) is list or images.ndim == 5:
                 concat_images = torch.cat([image for image in images], dim=0)
                 image_features = self.encode_images(concat_images)
@@ -867,7 +871,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                 image_features = [x.flatten(0, 1).to(self.device) for x in image_features]
             else:
                 image_features = self.encode_images(images).to(self.device)
-    
+
             # Let's just add dummy tensors if they do not exist,
             # it is a headache to deal with None all the time.
             # But it is not ideal, and if you have a better idea,
@@ -882,11 +886,11 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                 position_ids = torch.arange(0, input_ids.shape[1], dtype=torch.long, device=input_ids.device)
             if labels is None:
                 labels = torch.full_like(input_ids, IGNORE_INDEX)
-    
+
             # remove the padding using attention_mask -- TODO: double check
             input_ids = [cur_input_ids[cur_attention_mask] for cur_input_ids, cur_attention_mask in zip(input_ids, attention_mask)]
             labels = [cur_labels[cur_attention_mask] for cur_labels, cur_attention_mask in zip(labels, attention_mask)]
-    
+
             new_input_embeds = []
             new_labels = []
             cur_image_idx = 0
@@ -900,7 +904,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                     new_labels.append(labels[batch_idx])
                     cur_image_idx += 1
                     continue
-    
+
                 image_token_indices = [-1] + torch.where(cur_input_ids == IMAGE_TOKEN_INDEX)[0].tolist() + [cur_input_ids.shape[0]]
                 cur_input_ids_noim = []
                 cur_labels = labels[batch_idx]
@@ -913,7 +917,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                 cur_input_embeds_no_im = torch.split(cur_input_embeds, split_sizes, dim=0)
                 cur_new_input_embeds = []
                 cur_new_labels = []
-    
+
                 for i in range(num_images + 1):
                     cur_new_input_embeds.append(cur_input_embeds_no_im[i])
                     cur_new_labels.append(cur_labels_noim[i])
@@ -922,28 +926,28 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                         cur_image_idx += 1
                         cur_new_input_embeds.append(cur_image_features)
                         cur_new_labels.append(torch.full((cur_image_features.shape[0],), IGNORE_INDEX, device=cur_labels.device, dtype=cur_labels.dtype))
-    
+
                 cur_new_input_embeds = torch.cat(cur_new_input_embeds)
                 cur_new_labels = torch.cat(cur_new_labels)
-    
+
                 new_input_embeds.append(cur_new_input_embeds)
                 new_labels.append(cur_new_labels)
-    
+
             # Truncate sequences to max length as image embeddings can make the sequence longer
             tokenizer_model_max_length = getattr(self.config, "tokenizer_model_max_length", None)
             if tokenizer_model_max_length is not None:
                 new_input_embeds = [x[:tokenizer_model_max_length] for x in new_input_embeds]
                 new_labels = [x[:tokenizer_model_max_length] for x in new_labels]
-    
+
             # Combine them
             max_len = max(x.shape[0] for x in new_input_embeds)
             batch_size = len(new_input_embeds)
-    
+
             new_input_embeds_padded = []
             new_labels_padded = torch.full((batch_size, max_len), IGNORE_INDEX, dtype=new_labels[0].dtype, device=new_labels[0].device)
             attention_mask = torch.zeros((batch_size, max_len), dtype=attention_mask.dtype, device=attention_mask.device)
             position_ids = torch.zeros((batch_size, max_len), dtype=position_ids.dtype, device=position_ids.device)
-    
+
             for i, (cur_new_embed, cur_new_labels) in enumerate(zip(new_input_embeds, new_labels)):
                 cur_len = cur_new_embed.shape[0]
                 if getattr(self.config, "tokenizer_padding_side", "right") == "left":
@@ -966,15 +970,15 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                         new_labels_padded[i, :cur_len] = cur_new_labels
                         attention_mask[i, :cur_len] = True
                         position_ids[i, :cur_len] = torch.arange(0, cur_len, dtype=position_ids.dtype, device=position_ids.device)
-    
+
             new_input_embeds = torch.stack(new_input_embeds_padded, dim=0)
             attention_mask = attention_mask.to(dtype=_attention_mask.dtype)
             inputs["inputs_embeds"] = new_input_embeds.numpy()
             inputs["attention_mask"] = attention_mask.numpy()
             inputs["position_ids"] = position_ids.numpy()
-    
+
             return inputs
-    
+
         def prepare_inputs_for_generation(self, input_ids, past_key_values=None, **kwargs):
             """
             This function is used during running GenerationMixin.generate for preparing model specific inputs for
@@ -995,17 +999,17 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                 "past_key_values": past_key_values,
                 "images": kwargs.get("images", None),
             }
-    
+
         def _reorder_cache(self, past_key_values: Tuple[Tuple[torch.Tensor]], beam_idx: torch.Tensor) -> Tuple[Tuple[torch.Tensor]]:
             """
             This function is used to re-order the `past_key_values` cache if [`~PreTrainedModel.beam_search`] or
             [`~PreTrainedModel.beam_sample`] is called.
             This is required to match `past_key_values` with the correct beam_idx at every generation step.
             """
-    
+
             # from transformers.models.gpt2.modeling_gpt2.GPT2LMHeadModel._reorder_cache
             return tuple(tuple(np.take(past_state, beam_idx, 0) for past_state in layer_past) for layer_past in past_key_values)
-    
+
         def _dummy_past_key_values(self, batch_size):
             pkv = []
             for input_name in self.key_value_input_names:
@@ -1014,12 +1018,12 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                 input_shape[0] = batch_size
                 input_shape[2] = 0
                 pkv.append(ov.Tensor(input_t.get_element_type(), input_shape.get_shape()))
-    
+
             return pkv
-    
+
         def encode_images(self, images):
             return torch.from_numpy(self.image_encoder(images)[0])
-    
+
         def expand2square(self, pil_img, background_color):
             width, height = pil_img.size
             if width == height:
@@ -1032,7 +1036,7 @@ documentation <https://huggingface.co/docs/transformers/main_classes/text_genera
                 result = Image.new(pil_img.mode, (height, height), background_color)
                 result.paste(pil_img, ((height - width) // 2, 0))
                 return result
-    
+
         def process_images(self, images, model_cfg):
             image_aspect_ratio = getattr(model_cfg, "image_aspect_ratio", None)
             new_images = []
@@ -1057,28 +1061,23 @@ Select device
 
 
 
-.. _select-device-1:
-
-Select device
-~~~~~~~~~~~~~
-
 .. code:: ipython3
 
     import ipywidgets as widgets
-    
+
     core = ov.Core()
-    
+
     support_devices = core.available_devices
     if "NPU" in support_devices:
         support_devices.remove("NPU")
-    
+
     device = widgets.Dropdown(
         options=support_devices + ["AUTO"],
         value="AUTO",
         description="Device:",
         disabled=False,
     )
-    
+
     device
 
 
@@ -1097,13 +1096,13 @@ Select device
 .. code:: ipython3
 
     streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
-    
+
     output_ids = ov_model.generate(input_ids, images=image_tensor, max_new_tokens=128, use_cache=True, streamer=streamer)
 
 
 .. parsed-literal::
 
-    The image features a white, fluffy lamb with a playful, cheerful expression. The lamb is positioned in the center of the image, and it appears to be in motion, as if it's running. The lamb's face is white and it has a cute, adorable expression. It has a pair of bright, pink eyes that are wide open, and it has a small, black nose. The lamb's ears are also white and pink, and they are quite large. The lamb's legs are white and fluffy, and it has a black hoof. The lamb's tail is also white and fluffy, and it appears to be curled up.
+    The image features a white, fluffy lamb with a playful expression. The lamb is positioned in the center of the image, and it appears to be in motion, as if it's running. The lamb's fur is fluffy and white, and it has a cute, adorable appearance. The lamb's eyes are wide open, and it has a big, black nose. The lamb's ears are also visible, and it has a cute, adorable expression. The lamb's mouth is open, and it seems to be smiling. The lamb's legs are also visible, and it appears to be in motion, as if it's running. The lamb
 
 
 Interactive demo
@@ -1118,7 +1117,7 @@ Interactive demo
     from transformers import TextIteratorStreamer, StoppingCriteria
     from threading import Thread
     import requests
-    
+
     example_image_urls = [
         (
             "https://github.com/openvinotoolkit/openvino_notebooks/assets/29454499/1d6a0188-5613-418d-a1fd-4560aae1d907",
@@ -1134,8 +1133,8 @@ Interactive demo
     for url, file_name in example_image_urls:
         if not Path(file_name).exists():
             Image.open(requests.get(url, stream=True).raw).save(file_name)
-    
-    
+
+
     class KeywordsStoppingCriteria(StoppingCriteria):
         def __init__(self, keywords, tokenizer, input_ids):
             self.keywords = keywords
@@ -1150,7 +1149,7 @@ Interactive demo
                 self.keyword_ids.append(torch.tensor(cur_keyword_ids))
             self.tokenizer = tokenizer
             self.start_len = input_ids.shape[1]
-    
+
         def call_for_batch(self, output_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
             offset = min(output_ids.shape[1] - self.start_len, self.max_keyword_len)
             self.keyword_ids = [keyword_id.to(output_ids.device) for keyword_id in self.keyword_ids]
@@ -1163,14 +1162,14 @@ Interactive demo
                 if keyword in outputs:
                     return True
             return False
-    
+
         def __call__(self, output_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
             outputs = []
             for i in range(output_ids.shape[0]):
                 outputs.append(self.call_for_batch(output_ids[i].unsqueeze(0), scores))
             return all(outputs)
-    
-    
+
+
     def bot_streaming(message, history):
         messages = []
         if message["files"]:
@@ -1179,7 +1178,7 @@ Interactive demo
             for _, hist in enumerate(history):
                 if isinstance(hist[0], tuple):
                     image = hist[0][0]
-    
+
         if len(history) > 0 and image is not None:
             messages.append({"role": "user", "content": f"<image>\n{history[1][0]}"})
             messages.append({"role": "assistant", "content": history[1][1]})
@@ -1200,7 +1199,7 @@ Interactive demo
             messages.append({"role": "user", "content": f"<image>\n{message['text']}"})
         elif len(history) == 0 and image is None:
             messages.append({"role": "user", "content": message["text"]})
-    
+
         print(messages)
         image = Image.open(image).convert("RGB")
         text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
@@ -1210,22 +1209,22 @@ Interactive demo
         keywords = [stop_str]
         stopping_criteria = KeywordsStoppingCriteria(keywords, tokenizer, input_ids)
         streamer = TextIteratorStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
-    
+
         image_tensor = ov_model.process_images([image], ov_model.config)
         generation_kwargs = dict(
             input_ids=input_ids, images=image_tensor, streamer=streamer, max_new_tokens=128, stopping_criteria=[stopping_criteria], temperature=0.01
         )
         thread = Thread(target=ov_model.generate, kwargs=generation_kwargs)
         thread.start()
-    
+
         buffer = ""
         for new_text in streamer:
             buffer += new_text
             generated_text_without_prompt = buffer[:]
             time.sleep(0.04)
             yield generated_text_without_prompt
-    
-    
+
+
     demo = gr.ChatInterface(
         fn=bot_streaming,
         title="🚀nanoLLaVA",
@@ -1239,7 +1238,7 @@ Interactive demo
         stop_btn="Stop Generation",
         multimodal=True,
     )
-    
+
     # if you are launching remotely, specify server_name and server_port
     # demo.launch(server_name='your server name', server_port='server port in int')
     # Read more in the docs: https://gradio.app/docs/
@@ -1252,7 +1251,7 @@ Interactive demo
 .. parsed-literal::
 
     Running on local URL:  http://127.0.0.1:7860
-    
+
     To create a public link, set `share=True` in `launch()`.
 
 

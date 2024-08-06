@@ -163,9 +163,9 @@ bool NPUBackends::isBatchingSupported() const {
     return false;
 }
 
-bool NPUBackends::isWorkloadTypeSupported() const {
+bool NPUBackends::isCommandQueueExtSupported() const {
     if (_backend != nullptr) {
-        return _backend->isWorkloadTypeSupported();
+        return _backend->isCommandQueueExtSupported();
     }
 
     return false;
@@ -204,6 +204,14 @@ void NPUBackends::registerOptions(OptionsDesc& options) const {
     if (_backend != nullptr) {
         _backend->registerOptions(options);
     }
+}
+
+void* NPUBackends::getContext() const {
+    if (_backend != nullptr) {
+        return _backend->getContext();
+    }
+
+    OPENVINO_THROW("No available backend");
 }
 
 // TODO config should be also specified to backends, to allow use logging in devices and all levels below

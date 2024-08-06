@@ -34,7 +34,7 @@ bool ZeroEngineBackend::isBatchingSupported() const {
     return _instance->getDriverExtVersion() >= ZE_GRAPH_EXT_VERSION_1_6;
 }
 
-bool ZeroEngineBackend::isWorkloadTypeSupported() const {
+bool ZeroEngineBackend::isCommandQueueExtSupported() const {
     return _instance->getCommandQueueDdiTable() != nullptr;
 }
 
@@ -63,6 +63,10 @@ const std::vector<std::string> ZeroEngineBackend::getDeviceNames() const {
     });
     _logger.debug("ZeroEngineBackend - getDeviceNames completed and returning result");
     return devicesNames;
+}
+
+void* ZeroEngineBackend::getContext() const {
+    return _instance->getContext();
 }
 
 }  // namespace intel_npu

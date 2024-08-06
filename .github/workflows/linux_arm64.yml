@@ -104,6 +104,9 @@ jobs:
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       SCCACHE_AZURE_KEY_PREFIX: 'ubuntu20_aarch64_Release'
       ONNX_RUNTIME_UTILS: /__w/openvino/openvino/openvino/src/frontends/onnx/tests/ci_utils/onnxruntime
+      ARTIFACTS_SHARE: "/mount/build-artifacts"
+      MANIFEST_PATH: '/__w/openvino/openvino/manifest.yml'
+      PRODUCT_TYPE: 'public_linux_ubuntu_20_04_arm64_release'
     if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
@@ -120,6 +123,18 @@ jobs:
           path: ${{ env.OPENVINO_CONTRIB_REPO }}
           submodules: 'true'
           ref: 'master'
+
+      - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
+        id: create_manifest
+        uses: ./openvino/.github/actions/create_manifest
+        with:
+          repos: |
+            ${{ env.OPENVINO_REPO }}
+            ${{ env.OPENVINO_CONTRIB_REPO }}
+          product_type: ${{ env.PRODUCT_TYPE }}
+          target_arch: 'aarch64'
+          build_type: 'release'
+          save_to: ${{ env.MANIFEST_PATH }}
 
       #
       # Print system info
@@ -167,7 +182,7 @@ jobs:
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
-            -DOV_CPU_AARCH64_USE_MULTI_ISA=OFF \
+            -DOV_CPU_AARCH64_USE_MULTI_ISA=ON \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
@@ -247,7 +262,7 @@ jobs:
       # Upload build artifacts and logs
       #
       - name: Upload build logs
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
         if: always()
         with:
           name: build_logs
@@ -256,7 +271,7 @@ jobs:
 
       - name: Upload openvino package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
@@ -264,7 +279,7 @@ jobs:
 
       - name: Upload openvino developer package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
         with:
           name: openvino_developer_package
           path: ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
@@ -272,7 +287,7 @@ jobs:
 
       - name: Upload openvino js package
         if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
         with:
           name: openvino_js_package
           path: ${{ env.INSTALL_DIR_JS }}
@@ -280,7 +295,7 @@ jobs:
 
       - name: Upload openvino debian packages
         if: ${{ 'false' }}
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
         with:
           name: openvino_debian_packages
           path: ${{ env.BUILD_DIR }}/*.deb
@@ -288,11 +303,24 @@ jobs:
 
       - name: Upload openvino tests package
         if: ${{ always() }}
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
           if-no-files-found: 'error'
+
+      - name: Store artifacts to a shared drive
+        id: store_artifacts
+        if: ${{ always() }}
+        uses: ./openvino/.github/actions/store_artifacts
+        with:
+          artifacts: |
+            ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+            ${{ env.BUILD_DIR }}/openvino_developer_package.tar.gz
+            ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+            ${{ env.MANIFEST_PATH }}
+          storage_dir: ${{ env.PRODUCT_TYPE }}
+          storage_root: ${{ env.ARTIFACTS_SHARE }}
 
   Debian_Packages:
     name: Debian Packages
@@ -401,7 +429,7 @@ jobs:
     with:
       runner: 'aks-linux-16-cores-arm'
       container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_arm64 }}"}'
-      event: ${{ github.event_name }}
+      model_scope: 'precommit'
 
   Overall_Status:
     name: ci/gha_overall_status_linux_arm64

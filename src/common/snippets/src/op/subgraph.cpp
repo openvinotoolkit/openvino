@@ -21,7 +21,7 @@
 #include "snippets/pass/gn_decomposition.hpp"
 
 #include "snippets/runtime_configurator.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/lowered/linear_ir.hpp"
@@ -472,7 +472,7 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     pipeline.run(*m_linear_ir);
 
 #ifdef SNIPPETS_DEBUG_CAPS
-    if (m_linear_ir->get_config().perf_count_mode != lowered::PerfCountMode::Disabled) {
+    if (m_linear_ir->get_config().debug_config.perf_count_mode != DebugCapsConfig::PerfCountMode::Disabled) {
         lowered::pass::InsertPerfCount perf_count_pass({});
         perf_count_pass.run(*m_linear_ir, m_linear_ir->cbegin(), m_linear_ir->cend());
     }
@@ -552,7 +552,7 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
         exec_table->replace_key_expression(expression_map.at(expr.get()), expr);
     // Some kernel executors might've been registered during code emission.
     //  We need to update them, so appropriate kernels will be compiled.
-    exec_table->update_state();
+    exec_table->update_state(m_linear_ir);
     return {std::move(lowering_result)};
 }
 
