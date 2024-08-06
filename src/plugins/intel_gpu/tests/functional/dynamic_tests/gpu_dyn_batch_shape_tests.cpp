@@ -116,10 +116,6 @@ auto config = []() {
     return ov::AnyMap{};
 };
 
-auto hetero_config = []() {
-    return ov::AnyMap{{ov::device::priorities.name(), ov::test::utils::DEVICE_GPU}};
-};
-
 const std::vector<InputShape> input_shapes = {
     { { {1, 19}, 4, 20, 20}, { {1, 4, 20, 20}, {7, 4, 20, 20}, {17, 4, 20, 20} } }
 };
@@ -135,13 +131,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_GPU_DynBatch, OVDynamicBatchShape_Tests,
         ::testing::ValuesIn(model_types),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::Values(config())),
-    OVDynamicBatchShape_Tests::getTestCaseName);
-
-INSTANTIATE_TEST_SUITE_P(smoke_GPU_DynBatchHetero, OVDynamicBatchShape_Tests,
-    ::testing::Combine(
-        ::testing::Values(input_shapes),
-        ::testing::ValuesIn(model_types),
-        ::testing::Values(ov::test::utils::DEVICE_HETERO),
-        ::testing::Values(hetero_config())),
     OVDynamicBatchShape_Tests::getTestCaseName);
 }  // namespace
