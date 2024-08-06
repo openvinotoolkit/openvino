@@ -107,9 +107,9 @@ void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
         new_scales.push_back(scale_iter != m.scale_remap.end() ? fcall._closure[scale_iter->second] : ov::Tensor());
         new_zerops.push_back(m.zero_points[i]);
     }
-    fcall._closure = new_closure;
-    fcall._scales = new_scales;
-    fcall._zerops = new_zerops;
+    fcall._closure = std::move(new_closure);
+    fcall._scales = std::move(new_scales);
+    fcall._zerops = std::move(new_zerops);
 }
 
 void finalize_remap(Function& fbody, const ClosureRemap& m) {
