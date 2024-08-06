@@ -169,6 +169,45 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         m_subrequests_gio.at(sub_idx).global_results[i] = out_idx;
     }
     // }}}
+
+    // Utilize weights bank if applicable
+    const auto weights_bank_prop = m_npuw_model->get_property("NPUW_WEIGHTS_BANK");
+    std::string weights_bank_opt = weights_bank_prop.template as<std::string>();
+    if (!weights_bank_opt.empty()) {
+        for (size_t i = 0; i < m_num_submodels; i++) {
+            LOG_INFO("Filling weights bank for Subgraph[" << i << "]...");
+            LOG_BLOCK();
+            auto& comp_model_desc = m_npuw_model->m_compiled_submodels[i];
+
+            if (!comp_model_desc.compiled_model || comp_model_desc.replaced_by) {
+                OPENVINO_THROW("FATAL: weights bank encountered folded submodel!");
+            }
+
+            // Get the weights bank
+            auto weights_bank = ov::npuw::weights_bank::WeightsBankManager::getInstance().getBank(weights_bank_opt, *comp_model_desc.device_it);
+
+            for (std::size_t cidx = 0u; cidx < comp_model_desc.closure.size(); cidx++) {
+                auto& closure = comp_model_desc.closure[cidx];
+
+                const auto closure_param_id = comp_model_desc.param_base + cidx;
+                auto& iport = comp_model_desc.compiled_model->inputs()[closure_param_id];
+                auto& request = m_subrequests[i];
+                auto clparam = request->get_tensor(iport);
+                if (closure.get_element_type() == clparam->get_element_type() &&
+                    (ov::element::u4 == clparam->get_element_type() ||
+                     ov::element::i4 == clparam->get_element_type())) {
+                    // No unpack required + utilize weights bank
+                    comp_model_desc.unpack_required = false;
+                    // FIXME: do we need to handle the strides?
+                    auto remote_tensor = weights_bank->getSharedTensor(clparam->get_element_type(), clparam->get_shape(), clparam->data());
+                    request->set_tensor(iport, ov::get_tensor_impl(closure));
+                } else {
+                    // Utilize unpack
+                    comp_model_desc.unpack_required = true;
+                }
+            }  // for(closure)
+        }
+    }
 }
 
 void ov::npuw::JustInferRequest::connect_subrequests() {
@@ -440,6 +479,11 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
 
 void ov::npuw::JustInferRequest::unpack_closure(std::size_t idx, RqPtr request) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+
+    if (comp_model_desc.unpack_required && !comp_model_desc.unpack_required.value()) {
+        // Already utilizing a remote tensor - do nothing
+        return;
+    }
 
     NPUW_ASSERT(comp_model_desc.replaced_by);
     const auto real_idx = comp_model_desc.replaced_by.value();

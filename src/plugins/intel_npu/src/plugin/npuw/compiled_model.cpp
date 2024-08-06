@@ -97,8 +97,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // Sort out weights sharing routine
     const std::string weights_bank_opt = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK>();
     if (!weights_bank_opt.empty()) {
-        if (!m_cfg.getString<::intel_npu::NPUW_DCOFF_TYPE>().empty()) {
-            OPENVINO_THROW("NPUW can't utilize NPUW_WEIGHTS_BANK property with NPUW_DCOFF_TYPE enabled!");
+        if (!m_cfg.getString<::intel_npu::NPUW_FOLD>().empty()) {
+            OPENVINO_THROW("NPUW can't utilize NPUW_WEIGHTS_BANK property with NPUW_FOLD enabled!");
         }
         if ("YES" != m_cfg.getString<::intel_npu::NPUW_CWAI>()) {
             OPENVINO_THROW("NPUW can't utilize NPUW_WEIGHTS_BANK property without NPUW_CWAI enabled!");

@@ -124,6 +124,8 @@ private:
         ov::SoPtr<ov::ICompiledModel> ref_compiled_model;
         bool switched_to_ref = false;
 
+        std::optional<bool> unpack_required = std::nullopt;
+
         // Metrics
         execution_stats stat;
     };

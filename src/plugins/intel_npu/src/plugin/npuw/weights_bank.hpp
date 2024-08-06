@@ -8,11 +8,11 @@
 #include <unordered_map>
 
 #include "openvino/openvino.hpp"
-// #include "openvino/runtime/itensor.hpp"
-// #include "openvino/runtime/iremote_context.hpp"
-// #include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/itensor.hpp"
+#include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/intel_npu/level_zero/level_zero.hpp"
-// #include "openvino/runtime/tensor.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include "plugin.hpp"
 
 namespace ov {
@@ -58,9 +58,12 @@ public:
 
             // need to allocate
             auto remote_tensor = m_remote_ctx->create_host_tensor(type, shape);
-            m_weights_bank[host_data_ptr] = std::make_shared<ov::Tensor>(ov::util::make_tensor(remote_tensor._ptr, remote_tensor._so));
+            m_weights_bank[host_data_ptr] = std::make_shared<ov::Tensor>(ov::make_tensor(remote_tensor));
             return m_weights_bank.at(host_data_ptr);
         }
+
+        // unreachable
+        return m_weights_bank.at(host_data_ptr);
     }
 
 private:
@@ -93,9 +96,8 @@ public:
         std::string bank_key = bank_name + device_name;
         if (m_weights_bank_map.count(bank_key) == 0) {
             m_weights_bank_map[bank_key] = std::make_shared<WeightBank>(device_name, m_plugin);
-        } else {
-            return m_weights_bank_map.at(bank_key).lock();
         }
+        return m_weights_bank_map.at(bank_key).lock();
     }
 
     void initPlugin(const std::shared_ptr<const ov::IPlugin>& plugin) {
