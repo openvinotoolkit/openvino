@@ -18,7 +18,9 @@ public:
     using cptr = const std::shared_ptr<SubMemoryManager>;
     struct MemoryInfo {
         void* send_buf;
+        void* receive_buf;
         std::shared_ptr<void> buf;
+        size_t MAX_COPY_LEN;
         bool flag;
         bool flag_written;
         bool last_used;
@@ -29,7 +31,9 @@ public:
          _num_sub_streams = num_sub_streams;
         MemoryInfo memory_info;
         memory_info.flag = false;
+        memory_info.flag_written = false;
         memory_info.last_used = false;
+        memory_info.MAX_COPY_LEN = 0;
         std::vector<MemoryInfo> memorys;
         memorys.assign(_num_sub_streams, memory_info);
         _memorys_table.assign(2, memorys);

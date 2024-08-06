@@ -12,7 +12,7 @@ private:
     cl_device_id device_ = nullptr;
     cl_context context_ = nullptr;
     cl_command_queue queue_ = nullptr;
-    uint32_t device_idx = -1;
+    int device_idx_ = -1;
 
 public:
     oclContext(/* args */);
@@ -25,10 +25,11 @@ public:
     }
 
     cl_device_id device() { return device_; }
+    int device_idx() { return device_idx_; }
     cl_context context() { return context_; }
     cl_command_queue queue() { return queue_; }
 
-    int get_device_idx(cl_device_id device_idx);
+    int get_device_idx(cl_device_id target_device_id);
     void init(int devIdx);
     void *initUSM(size_t elem_count, int offset);
     void readUSM(void *ptr, std::vector<uint32_t> &outBuf, size_t size);

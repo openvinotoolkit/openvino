@@ -55,6 +55,7 @@ int oclContext::get_device_idx(cl_device_id target_device_id) {
                 if (devices[i] == target_device_id) {
                     device_ = devices[i];
                     platform_ = platform;
+                    device_idx_ = i;
                     return i;
                 }
             }
