@@ -979,7 +979,7 @@ void Deconvolution::prepareParams() {
         auto it = primArgs.find(DNNL_ARG_WEIGHTS);
         if (it == primArgs.end() || !prevExecPtr ||
             !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
-            primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc(), wghDesc)->getPrimitive();
+            primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc(), wghDesc, weightsPrepType)->getPrimitive();
         }
     } else {
         // non-const weight will be reordered by executor on every exec

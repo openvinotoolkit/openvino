@@ -74,7 +74,7 @@ public:
     /// @param other other Tensor object
     Tensor(const Tensor& other) = default;
 
-    /// @brief Default copy assignment operator
+    /// @brief Defanult copy assignment operator
     /// @param other other Tensor object
     /// @return reference to the current object
     Tensor& operator=(const Tensor& other) = default;

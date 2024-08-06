@@ -57,13 +57,13 @@ TEST(ResolveEdgeConflictsCPUTest, smoke_Run_ResolveEdgeConflicts) {
     auto inputNode = std::make_shared<node::Input>(params[0], context);
     auto outputNode = std::make_shared<node::Input>(results[0], context);
     auto concatNode = std::make_shared<node::Concat>(concat, context);
-    auto dummyNode1 = std::make_shared<cpu_unit_test::DummyNode>(
+    auto dummyNode1 = std::make_shared<cpu_unit_test::GenericNode>(
         testShape, testPrec, "Dummy1", "DummyNode", context);
-    auto dummyNode2 = std::make_shared<cpu_unit_test::DummyNode>(
+    auto dummyNode2 = std::make_shared<cpu_unit_test::GenericNode>(
         testShape, testPrec, "Dummy2", "DummyNode", context);
-    auto dummyNode3 = std::make_shared<cpu_unit_test::DummyNode>(
+    auto dummyNode3 = std::make_shared<cpu_unit_test::GenericNode>(
         testShape, testPrec, "Dummy3", "DummyNode", context, LayoutType::ncsp, Edge::LOOK::LOOK_UP, true);
-    auto dummyNode4 = std::make_shared<cpu_unit_test::DummyNode>(
+    auto dummyNode4 = std::make_shared<cpu_unit_test::GenericNode>(
         testShape, testPrec, "Dummy4", "DummyNode", context, LayoutType::ncsp, 0, true);
 
     std::vector<NodePtr> graphNodes;
