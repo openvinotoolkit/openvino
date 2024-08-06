@@ -276,7 +276,6 @@ protected:
         }
 
         this->configuration.insert({ov::hint::dynamic_quantization_group_size(dyn_quan_group_size)});
-
     }
 
     void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {

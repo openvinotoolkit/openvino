@@ -24,8 +24,8 @@ struct dynamic_quantize : public primitive_base<dynamic_quantize> {
            const input_info& input,
            const size_t group_size,
            const std::vector<optional_data_type> data_types = {optional_data_type(data_types::f16), optional_data_type(data_types::i8)})
-           : primitive_base(id, {input}, 2, data_types)
-	   , group_size(group_size) {}
+           : primitive_base(id, {input}, 2, data_types),
+             group_size(group_size) {}
 
     size_t group_size = 0;
 
