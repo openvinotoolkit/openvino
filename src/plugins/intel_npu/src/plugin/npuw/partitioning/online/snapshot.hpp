@@ -33,6 +33,9 @@ public:
           m_node_to_prod_cons(std::make_shared<detail::OVNodeMap>()),
           m_node_to_gr(std::make_shared<detail::OVNodeToGroupMap>()) {}
 
+    // Simple passes
+    void singleGroup();
+
     // Initial OV model traversal to prepare initial groups of 1 layer each
     void buildGraph();
 
@@ -45,6 +48,9 @@ public:
     // Advanced passes for repeated blocks algorithm
     void repeatedBlocks();
     void earlyAvoids();
+    void earlyRegroup();
+    void markInternalCompute();
+    void resetExcludedRep();
 
     // Utility
     std::shared_ptr<ade::Graph> getGraph() const;
@@ -54,15 +60,21 @@ public:
     const detail::OVPortsMap& getPortsMap() const;
     const detail::OVNodeToGroupMapPtr& getNodeToGroupMap() const;
     const std::map<std::string, std::vector<std::set<std::string>>>& getMatches() const;
+    detail::GPtrSet getRepGroups(const std::shared_ptr<Group>& group) const;
     void repeat(detail::Pass&& pass);
     void setCtx(const PassContext& ctx);
 
 private:
     void identifyUniques();
     void mergeUniques();
+    void mergeTriangles();
     void cleanUpUniques();
+    void afterUniques();
     bool cleanUpUniquesImpl(const detail::GPtrSet& gset);
     std::shared_ptr<Repeated> tryGrowRepeatingGroups(const detail::GPtrSet& repeating_groups);
+    std::shared_ptr<Repeated> tryMergeTriangles(const detail::GPtrSet& repeating_groups);
+    std::shared_ptr<Repeated> tryMergeTriangles(const std::vector<std::shared_ptr<Group>>& prods,
+                                                const std::vector<std::vector<std::shared_ptr<Group>>>& conss);
     std::shared_ptr<Repeated> tryMergeRepeating(const std::vector<std::shared_ptr<Group>>& prods,
                                                 const std::vector<std::shared_ptr<Group>>& conss);
     std::unordered_map<std::shared_ptr<Repeated>, detail::GPtrSet> repeating() const;

@@ -5,7 +5,7 @@
 
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/op/subgraph.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 #include "transformations/utils/utils.hpp"
 #include "transformations/utils.hpp"

@@ -17,7 +17,11 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPUW_SUBMODEL_DEVICE>();
     desc.add<NPUW_ONLINE_PIPELINE>();
     desc.add<NPUW_ONLINE_AVOID>();
+    desc.add<NPUW_ONLINE_ISOLATE>();
+    desc.add<NPUW_ONLINE_NO_FOLD>();
     desc.add<NPUW_ONLINE_MIN_SIZE>();
+    desc.add<NPUW_ONLINE_KEEP_BLOCKS>();
+    desc.add<NPUW_ONLINE_KEEP_BLOCK_SIZE>();
     desc.add<NPUW_ONLINE_DUMP_PLAN>();
     desc.add<NPUW_PLAN>();
     desc.add<NPUW_FOLD>();
@@ -30,6 +34,7 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPUW_ACC_CHECK>();
     desc.add<NPUW_ACC_THRESH>();
     desc.add<NPUW_ACC_DEVICE>();
+    desc.add<NPUW_TRANSPOSE_WEIGHTS>();
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
     desc.add<NPUW_DUMP_FULL>();
     desc.add<NPUW_DUMP_SUBS>();

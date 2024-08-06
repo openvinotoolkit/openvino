@@ -156,7 +156,7 @@ struct COMPILATION_MODE_PARAMS final : OptionBase<COMPILATION_MODE_PARAMS, std::
     }
 
     static bool isPublic() {
-        return false;
+        return true;
     }
 };
 

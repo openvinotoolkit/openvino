@@ -40,12 +40,23 @@ static void set_tensor_names(const ov::ParameterVector& parameters) {
     }
 }
 
-static ov::SinkVector cast_to_sink_vector(const std::vector<std::shared_ptr<ov::Node>>& nodes) {
+static std::shared_ptr<ov::Node> get_node_ptr(std::shared_ptr<ov::Node> node) {
+    return node;
+}
+
+static std::shared_ptr<ov::Node> get_node_ptr(const ov::Output<ov::Node>& output) {
+    return output.get_node_shared_ptr();
+}
+
+template <typename T>
+ov::SinkVector cast_to_sink_vector(const std::vector<T>& items) {
     ov::SinkVector sinks;
-    for (const auto& node : nodes) {
+    sinks.reserve(items.size());
+    for (const auto& item : items) {
+        const auto node = get_node_ptr(item);
         auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node);
-        OPENVINO_ASSERT(sink != nullptr, "Node {} is not instance of Sink");
-        sinks.push_back(sink);
+        OPENVINO_ASSERT(sink != nullptr, "Node " + node->get_name() + " is not instance of Sink");
+        sinks.push_back(std::move(sink));
     }
     return sinks;
 }
@@ -54,7 +65,7 @@ static std::vector<std::shared_ptr<ov::Node>> cast_to_node_vector(const ov::Sink
     std::vector<std::shared_ptr<ov::Node>> nodes;
     for (const auto& sink : sinks) {
         auto node = std::dynamic_pointer_cast<ov::Node>(sink);
-        OPENVINO_ASSERT(node != nullptr, "Sink {} is not instance of Node");
+        OPENVINO_ASSERT(node != nullptr, "Sink " + sink->get_name() + " is not instance of Node");
         nodes.push_back(node);
     }
     return nodes;
@@ -126,6 +137,18 @@ static std::unordered_map<std::string, ov::PartialShape> get_variables_shapes(co
         variables_shape_map.emplace(string_from_handle(item.first), partial_shape_from_handle(item.second));
     }
     return variables_shape_map;
+}
+
+template <typename T>
+static int64_t find_sink_position(const ov::SinkVector& sinks, const std::shared_ptr<T>& sink) {
+    int64_t pos = 0;
+    for (const auto& s : sinks) {
+        if (s == sink) {
+            return pos;
+        }
+        pos++;
+    };
+    return -1;
 }
 
 void regclass_graph_Model(py::module m) {
@@ -244,9 +267,124 @@ void regclass_graph_Model(py::module m) {
             :type results: List[openvino.runtime.Output]
             :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
             :type sinks: List[openvino.runtime.Node]
+            :param parameters: List of parameters.
+            :type parameters: List[op.Parameter]
             :param name: String to set as model's friendly name.
             :type name: str
             )");
+
+    model.def(py::init([](const ov::OutputVector& results,
+                          const ov::OutputVector& nodes,
+                          const ov::ParameterVector& parameters,
+                          const std::string& name) {
+                  set_tensor_names(parameters);
+                  const auto sinks = cast_to_sink_vector(nodes);
+                  auto model = std::make_shared<ov::Model>(results, sinks, parameters, name);
+                  set_correct_variables_for_assign_ops(model, sinks);
+                  return model;
+              }),
+              py::arg("results"),
+              py::arg("sinks"),
+              py::arg("parameters"),
+              py::arg("name") = "",
+              R"(
+            Create user-defined Model which is a representation of a model
+
+            :param results: List of outputs.
+            :type results: List[openvino.runtime.Output]
+            :param sinks: List of Output sink node handles.
+            :type sinks: List[openvino.runtime.Output]
+            :param parameters: List of parameters.
+            :type parameters: List[op.Parameter]
+            :param name: String to set as model's friendly name.
+            :type name: str
+            )");
+
+    model.def(py::init([](const ov::OutputVector& results,
+                          const ov::OutputVector& nodes,
+                          const ov::ParameterVector& parameters,
+                          const ov::op::util::VariableVector& variables,
+                          const std::string& name) {
+                  set_tensor_names(parameters);
+                  const auto sinks = cast_to_sink_vector(nodes);
+                  return std::make_shared<ov::Model>(results, sinks, parameters, variables, name);
+              }),
+              py::arg("results"),
+              py::arg("sinks"),
+              py::arg("parameters"),
+              py::arg("variables"),
+              py::arg("name") = "",
+              R"(
+            Create user-defined Model which is a representation of a model
+
+            :param results: List of outputs.
+            :type results: List[openvino.runtime.Output]
+            :param sinks: List of Output sink node handles.
+            :type sinks: List[openvino.runtime.Output]
+            :param parameters: List of parameters.
+            :type parameters: List[op.Parameter]
+            :param variables: List of variables.
+            :type variables: List[op.util.Variable]
+            :param name: String to set as model's friendly name.
+            :type name: str
+            )");
+
+    model.def(py::init([](const ov::ResultVector& results,
+                          const ov::OutputVector& nodes,
+                          const ov::ParameterVector& parameters,
+                          const std::string& name) {
+                  set_tensor_names(parameters);
+                  const auto sinks = cast_to_sink_vector(nodes);
+                  auto model = std::make_shared<ov::Model>(results, sinks, parameters, name);
+                  set_correct_variables_for_assign_ops(model, sinks);
+                  return model;
+              }),
+              py::arg("results"),
+              py::arg("sinks"),
+              py::arg("parameters"),
+              py::arg("name") = "",
+              R"(
+        Create user-defined Model which is a representation of a model
+
+        :param results: List of results.
+        :type results: List[op.Result]
+        :param sinks: List of Output sink node handles.
+        :type sinks: List[openvino.runtime.Output]
+        :param parameters: List of parameters.
+        :type parameters: List[op.Parameter]
+        :param name: String to set as model's friendly name.
+        :type name: str
+        )");
+
+    model.def(py::init([](const ov::ResultVector& results,
+                          const ov::OutputVector& nodes,
+                          const ov::ParameterVector& parameters,
+                          const ov::op::util::VariableVector& variables,
+                          const std::string& name) {
+                  set_tensor_names(parameters);
+                  const auto sinks = cast_to_sink_vector(nodes);
+                  return std::make_shared<ov::Model>(results, sinks, parameters, variables, name);
+              }),
+              py::arg("results"),
+              py::arg("sinks"),
+              py::arg("parameters"),
+              py::arg("variables"),
+              py::arg("name") = "",
+              R"(
+        Create user-defined Model which is a representation of a model
+
+        :param results: List of results.
+        :type results: List[op.Result]
+        :param sinks: List of Output sink node handles.
+        :type sinks: List[openvino.runtime.Output]
+        :param parameters: List of parameters.
+        :type parameters: List[op.Parameter]
+        :param variables: List of variables.
+        :type variables: List[op.util.Variable]
+        :param name: String to set as model's friendly name.
+        :type name: str
+        )");
+
     model.def(py::init([](const ov::ResultVector& results,
                           const std::vector<std::shared_ptr<ov::Node>>& nodes,
                           const ov::ParameterVector& parameters,
@@ -750,6 +888,75 @@ void regclass_graph_Model(py::module m) {
                 :rtype: int
              )");
 
+    model.def(
+        "get_sink_index",
+        [](ov::Model& self, const ov::Output<ov::Node>& value) -> int64_t {
+            auto node = value.get_node_shared_ptr();
+            if (ov::is_type<ov::op::v6::Assign>(node)) {
+                return find_sink_position(self.get_sinks(), std::dynamic_pointer_cast<ov::op::Sink>(node));
+            } else {
+                throw py::type_error("Incorrect argument type. Output sink node is expected as argument.");
+            }
+        },
+        py::arg("value"),
+        R"(
+                    Return index of sink.
+
+                    Return -1 if `value` not matched.
+
+                    :param value: Output sink node handle
+                    :type value: openvino.runtime.Output
+                    :return: Index of sink node referenced by output handle.
+                    :rtype: int
+                  )");
+
+    model.def(
+        "get_sink_index",
+        [](ov::Model& self, const ov::Output<const ov::Node>& value) -> int64_t {
+            auto node = value.get_node_shared_ptr();
+            if (ov::is_type<ov::op::v6::Assign>(node)) {
+                return find_sink_position(self.get_sinks(), std::dynamic_pointer_cast<const ov::op::Sink>(node));
+            } else {
+                throw py::type_error("Incorrect argument type. Output sink node is expected as argument.");
+            }
+        },
+        py::arg("value"),
+        R"(
+                    Return index of sink.
+
+                    Return -1 if `value` not matched.
+
+                    :param value: Output sink node handle
+                    :type value: openvino.runtime.Output
+                    :return: Index of sink node referenced by output handle.
+                    :rtype: int
+                  )");
+
+    model.def(
+        "get_sink_index",
+        [](ov::Model& self, const py::object& node) -> int64_t {
+            if (py::isinstance<ov::op::v6::Assign>(node)) {
+                auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node.cast<std::shared_ptr<ov::op::v6::Assign>>());
+                return find_sink_position(self.get_sinks(), sink);
+            } else if (py::isinstance<ov::Node>(node)) {
+                auto sink = std::dynamic_pointer_cast<ov::op::Sink>(node.cast<std::shared_ptr<ov::Node>>());
+                return find_sink_position(self.get_sinks(), sink);
+            } else {
+                throw py::type_error("Incorrect argument type. Sink node is expected as argument.");
+            }
+        },
+        py::arg("sink"),
+        R"(
+                    Return index of sink node.
+
+                    Return -1 if `sink` not matched.
+
+                    :param sink: Sink node.
+                    :type sink: openvino.runtime.Node
+                    :return: Index of sink node.
+                    :rtype: int
+                 )");
+
     model.def("get_name",
               &ov::Model::get_name,
               R"(
@@ -994,9 +1201,9 @@ void regclass_graph_Model(py::module m) {
         [](ov::Model& self, py::list& sinks) {
             ov::SinkVector sinks_cpp;
             for (py::handle sink : sinks) {
-                auto sink_cpp =
-                    std::dynamic_pointer_cast<ov::op::Sink>(sink.cast<std::shared_ptr<ov::op::v6::Assign>>());
-                OPENVINO_ASSERT(sink_cpp != nullptr, "Assign {} is not instance of Sink");
+                const auto assign = sink.cast<std::shared_ptr<ov::op::v6::Assign>>();
+                auto sink_cpp = std::dynamic_pointer_cast<ov::op::Sink>(assign);
+                OPENVINO_ASSERT(sink_cpp != nullptr, "Assign " + assign->get_name() + " is not instance of Sink");
                 sinks_cpp.push_back(sink_cpp);
             }
             self.add_sinks(sinks_cpp);

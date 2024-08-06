@@ -28,7 +28,7 @@ OpenVINO offers the option of running automated inference with the following inf
 * :doc:`Automatic Batching <../../openvino-workflow/running-inference/inference-devices-and-modes/automatic-batching>` - automatically groups inference requests to improve
   device utilization.
 
-``
+
 
 Feature Support and API Coverage
 #################################

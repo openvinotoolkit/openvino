@@ -95,12 +95,21 @@ protected:
     DCOffMode m_dcoff_mode = DCOffMode::CAST_ONLY;
     ov::element::Type m_dcoff_type;
     DCOFFParamRef m_params_to;
+    bool m_transpose_weights = false;
 
     std::shared_ptr<ov::Node> paramA, constB, paramC, cvtA, cvtB, subtr, mulply;
     bool matcher_callback(ov::pass::pattern::Matcher& m);
 
 public:
     DCOFFPassBase(DCOffMode dcoff_mode, ov::element::Type dcoff_type, DCOFFParamRef pref);
+
+    void setTransposeWeights(bool transpose) {
+        m_transpose_weights = transpose;
+    }
+
+    bool getTransposeWeights() const {
+        return m_transpose_weights;
+    }
 
     virtual void build();
     virtual void reconnect_root(ov::pass::pattern::Matcher& m) = 0;
@@ -143,6 +152,14 @@ public:
     using Results = std::reference_wrapper<std::vector<CPtr>>;
 
     explicit CWAI2(Results scales);
+};
+
+class CWAI3 : public ov::pass::MatcherPass {
+public:
+    using CPtr = std::shared_ptr<ov::op::v0::Constant>;
+    using Results = std::reference_wrapper<std::vector<CPtr>>;
+
+    explicit CWAI3(Results scales);
 };
 
 }  // namespace SymmZP

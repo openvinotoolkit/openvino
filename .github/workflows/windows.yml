@@ -64,6 +64,9 @@ jobs:
       INSTALL_DIR_JS: "${{ github.workspace }}\\openvino_install\\js"
       INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
+      ARTIFACTS_SHARE: "C:\\mount\\build-artifacts"
+      MANIFEST_PATH: "${{ github.workspace }}\\manifest.yml"
+      PRODUCT_TYPE: 'public_windows_vs2019_release'
       # TODO: specify version of compiler here
     if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
 
@@ -81,6 +84,27 @@ jobs:
           path: 'openvino_contrib'
           ref: 'master'
 
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
+          should-setup-pip-paths: 'true'
+          self-hosted-runner: 'true'
+          show-cache-info: 'true'
+
+      - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
+        id: create_manifest
+        uses: ./openvino/.github/actions/create_manifest
+        with:
+          repos: |
+            ${{ env.OPENVINO_REPO }}
+            ${{ env.OPENVINO_CONTRIB_REPO }}
+          product_type: ${{ env.PRODUCT_TYPE }}
+          target_arch: 'intel64'
+          build_type: 'release'
+          save_to: ${{ env.MANIFEST_PATH }}
+
       #
       # Print system info
       #
@@ -91,15 +115,6 @@ jobs:
       #
       # Dependencies
       #
-
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: ./openvino/.github/actions/setup_python
-        with:
-          version: ${{ env.PYTHON_VERSION }}
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
-          self-hosted-runner: 'true'
-          show-cache-info: 'true'
 
       - name: Install python dependencies
         run: |
@@ -219,14 +234,14 @@ jobs:
       #
 
       - name: Upload openvino package
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.zip
           if-no-files-found: 'error'
 
       - name: Upload openvino tests package
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.zip
@@ -234,11 +249,23 @@ jobs:
 
       - name: Upload openvino js package
         if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
         with:
           name: openvino_js_package
           path: ${{ env.INSTALL_DIR_JS }}
           if-no-files-found: 'error'
+
+      - name: Store artifacts to a shared drive
+        id: store_artifacts
+        if: ${{ always() }}
+        uses: ./openvino/.github/actions/store_artifacts
+        with:
+          artifacts: |
+            ${{ env.BUILD_DIR }}/openvino_package.zip
+            ${{ env.BUILD_DIR }}/openvino_tests.zip
+            ${{ env.MANIFEST_PATH }}
+          storage_dir: ${{ env.PRODUCT_TYPE }}
+          storage_root: ${{ env.ARTIFACTS_SHARE }}
 
   Samples:
     needs: [ Build, Smart_CI ]
@@ -257,13 +284,13 @@ jobs:
 
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -339,6 +366,7 @@ jobs:
     env:
       OPENVINO_JS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js"
       OPENVINO_JS_LIBS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js\\node\\bin"
+      NODE_VERSION: 21
     if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
 
     steps:
@@ -350,28 +378,40 @@ jobs:
           path: 'openvino'
 
       - name: Download OpenVINO js package
-        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: openvino_js_package
           path: ${{ env.OPENVINO_JS_LIBS_DIR }}
 
-      - name: Setup Node
-        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
+      - name: Setup Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@1e60f620b9541d16bece96c5465dc8ee9832be0b # v4.0.3
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
 
-      - name: Configure OpenVINO JS
+      - name: Configure OpenVINO JS API
         working-directory: ${{ env.OPENVINO_JS_DIR }}/node
         run: npm i
 
-      - name: Test OpenVINO JS
+      - name: Test OpenVINO JS API
         working-directory: ${{ env.OPENVINO_JS_DIR }}/node
         run: npm test
 
-      - name: Test OpenVINO JS (cmd)
+      - name: Test OpenVINO JS API (cmd)
         shell: cmd
         working-directory: ${{ env.OPENVINO_JS_DIR }}/node
         run: call npm test
+
+      - name: Add msbuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: E2E of openvino-node package
+        working-directory: ${{ env.OPENVINO_JS_DIR }}/node
+        run: npm run test:e2e
+
+      - name: E2E of openvino-node package (cmd)
+        shell: cmd
+        working-directory: ${{ env.OPENVINO_JS_DIR }}/node
+        run: call npm run test:e2e
 
       - name: Create package dir
         working-directory: ${{ env.OPENVINO_JS_DIR }}
@@ -409,13 +449,13 @@ jobs:
 
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -567,7 +607,7 @@ jobs:
         run: python3 -m pytest -s ${{ env.INSTALL_TEST_DIR }}/ovc/unit_tests --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-OpenVinoConversion.xml
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
         if: ${{ !cancelled() }}
         with:
           name: test-results-python
@@ -597,13 +637,13 @@ jobs:
 
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -773,7 +813,7 @@ jobs:
           ${{ env.INSTALL_TEST_DIR }}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroFuncTests.xml --gtest_filter="*smoke*"
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
         if: ${{ !cancelled() }}
         with:
           name: test-results-cpp
@@ -797,13 +837,13 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -857,7 +897,7 @@ jobs:
           key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
         if: ${{ !cancelled() }}
         with:
           name: test-results-functional-cpu
