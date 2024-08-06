@@ -36,7 +36,8 @@ static void jit_convert_process(dnnl::impl::cpu::aarch64::jit_generator* h,
                     break;
                 case ov::element::i8:
                 case ov::element::u8:
-                    cvt_byte_to_i32<isa>(h, in_idxs, out_idxs, input_type.is_signed());
+                    cvt_byte_to_dbyte<isa>(h, in_idxs, out_idxs, input_type.is_signed());
+                    cvt_dbyte_to_i32<isa>(h, out_idxs, out_idxs, input_type.is_signed());
                     cvt_i32_to_f32<isa>(h, out_idxs, out_idxs);
                     break;
                 default:
@@ -56,7 +57,8 @@ static void jit_convert_process(dnnl::impl::cpu::aarch64::jit_generator* h,
                     break;
                 case ov::element::i8:
                 case ov::element::u8:
-                    cvt_byte_to_i32<isa>(h, in_idxs, out_idxs, input_type.is_signed());
+                    cvt_byte_to_dbyte<isa>(h, in_idxs, out_idxs, input_type.is_signed());
+                    cvt_dbyte_to_i32<isa>(h, out_idxs, out_idxs, input_type.is_signed());
                     break;
                 default:
                     OV_CPU_JIT_EMITTER_THROW("Unsupported input type: ", input_type.get_type_name());
@@ -75,9 +77,8 @@ static void jit_convert_process(dnnl::impl::cpu::aarch64::jit_generator* h,
                     break;
                 case ov::element::i8:
                 case ov::element::u8:
-                    cvt_byte_to_i32<isa>(h, in_idxs, out_idxs, input_type.is_signed());
-                    cvt_i32_to_f32<isa>(h, out_idxs, out_idxs);
-                    cvt_f32_to_f16<isa>(h, out_idxs, out_idxs);
+                    cvt_byte_to_dbyte<isa>(h, in_idxs, out_idxs, input_type.is_signed());
+                    cvt_dbyte_to_f16<isa>(h, out_idxs, out_idxs, input_type.is_signed());
                     break;
                 default:
                     OV_CPU_JIT_EMITTER_THROW("Unsupported input type: ", input_type.get_type_name());
@@ -88,20 +89,21 @@ static void jit_convert_process(dnnl::impl::cpu::aarch64::jit_generator* h,
             switch (input_type) {
                 case ov::element::f32:
                     cvt_f32_to_i32<isa>(h, in_idxs, out_idxs);
-                    cvt_i32_to_byte<isa>(h, out_idxs, out_idxs, output_type.is_signed(), is_saturated);
+                    cvt_i32_to_dbyte<isa>(h, out_idxs, out_idxs, output_type.is_signed(), is_saturated);
+                    cvt_dbyte_to_byte<isa>(h, out_idxs, out_idxs, output_type.is_signed(), is_saturated);
                     break;
                 case ov::element::i32:
-                    cvt_i32_to_byte<isa>(h, in_idxs, out_idxs, output_type.is_signed(), is_saturated);
+                    cvt_i32_to_dbyte<isa>(h, in_idxs, out_idxs, output_type.is_signed(), is_saturated);
+                    cvt_dbyte_to_byte<isa>(h, out_idxs, out_idxs, output_type.is_signed(), is_saturated);
                     break;
                 case ov::element::f16:
-                    cvt_f16_to_f32<isa>(h, in_idxs, out_idxs);
-                    cvt_f32_to_i32<isa>(h, out_idxs, out_idxs);
-                    cvt_i32_to_byte<isa>(h, out_idxs, out_idxs, output_type.is_signed(), is_saturated);
+                    cvt_f16_to_dbyte<isa>(h, in_idxs, out_idxs);
+                    cvt_dbyte_to_byte<isa>(h, out_idxs, out_idxs, output_type.is_signed(), is_saturated);
                     break;
                 case ov::element::i8:
                 case ov::element::u8:
-                    cvt_byte_to_i32<isa>(h, in_idxs, out_idxs, input_type.is_signed());
-                    cvt_i32_to_byte<isa>(h, out_idxs, out_idxs, output_type.is_signed(), is_saturated);
+                    cvt_byte_to_dbyte<isa>(h, in_idxs, out_idxs, input_type.is_signed());
+                    cvt_dbyte_to_byte<isa>(h, out_idxs, out_idxs, output_type.is_signed(), is_saturated);
                     break;
                 default:
                     OV_CPU_JIT_EMITTER_THROW("Unsupported input type: ", input_type.get_type_name());
