@@ -30,13 +30,13 @@ def traverse_graph(model_outputs):
     return node_types
 
 
-def run_test(model_id):
+def run_test(model_id, ie_device):
     model = OVModelForCausalLM.from_pretrained(model_id, export=True, trust_remote_code=True)
 
     with tempfile.NamedTemporaryFile(delete=True) as temp_file:
         os.environ['OV_ENABLE_PROFILE_PASS'] = temp_file.name
         core = ov.Core()
-        compiled = core.compile_model(model.model, 'CPU')
+        compiled = core.compile_model(model.model, ie_device)
         has_rope_fusion = False
         with open(temp_file.name, 'r') as f_in:
             for line in f_in:
@@ -60,4 +60,4 @@ def test_rope_precommit(tmp_path, model_name, model_link, mark, reason, ie_devic
         pytest.skip(reason)
     elif mark == 'xfail':
         pytest.xfail(reason)
-    run_test(model_name)
+    run_test(model_name, ie_device)
