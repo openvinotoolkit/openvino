@@ -68,6 +68,9 @@ class TestLookupTableSizeOps(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_lookup_table_size(self, hash_table_type, params, ie_device, precision, ir_version, temp_dir,
                                use_legacy_frontend):
+        keys_type = params['keys_type']
+        if ie_device == 'GPU' and keys_type == str:
+            pytest.skip("148921: Segmentation fault on GPU")
         self._test(*self.create_lookup_table_size_net(hash_table_type=hash_table_type, **params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_legacy_frontend=use_legacy_frontend)
