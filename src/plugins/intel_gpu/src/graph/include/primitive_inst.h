@@ -304,6 +304,10 @@ public:
 
     virtual int32_t get_prealloc_iter_num() { return -1; }
 
+    virtual kernel_impl_params get_fake_aligned_params(kernel_impl_params const& orig_impl_param) {
+        return std::move(orig_impl_param);
+    }
+
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
 
@@ -438,12 +442,7 @@ protected:
     }
 
     virtual bool need_reset_output_memory() const {
-        std::vector<std::pair<primitive_id, size_t>> users;
-        for (auto u : _node->get_users())
-            users.emplace_back(u->id(), u->get_dependency_index(*_node));
-
-        for (const auto& u : users) {
-            auto user_inst = _network.get_primitive(u.first);
+        for (const auto& user_inst : get_user_insts()) {
             // Check users of optimized_out inst, as the optimized out inst will not be able to
             // reset it's memory
             if (user_inst->can_be_optimized()) {
@@ -452,13 +451,11 @@ protected:
                 continue;
             }
 
-            if (user_inst->need_reset_input_memory(u.second))
+            if (user_inst->need_reset_input_memory(user_inst->get_node().get_dependency_index(*_node)))
                 return true;
         }
         return false;
     }
-
-    kernel_impl_params get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param);
 
     // This could be implemented via single map std::unordered_map<instrumentation::perf_counter_key, std::tuple<int64_t, size_t>>
     // but the overhead on using perf_counter_key as map key is too big, thus we use hash as map key
@@ -534,10 +531,6 @@ public:
 
     template<typename T>
     static std::vector<layout> calc_output_layouts(const typed_node& node, const kernel_impl_params& impl_param) { return {}; }
-
-    static kernel_impl_params get_fake_aligned_params(kernel_impl_params const& orig_impl_param) {
-        return std::move(orig_impl_param);
-    }
 
     typed_primitive_inst_base(network& network, typed_node const& node)
         : typed_primitive_inst_base(network, node, do_allocate_memory(node)) {}
