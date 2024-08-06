@@ -180,7 +180,7 @@ namespace ov {
 namespace util {
 namespace monitor {
 // not implemented
-class GpuPerformanceCounter::PerformanceCounterImpl {
+class NpuPerformanceCounter::PerformanceCounterImpl {
 public:
     std::map<std::string, double> get_load() {
         return {{"00000000", 0}};
