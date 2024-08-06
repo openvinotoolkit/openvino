@@ -179,11 +179,13 @@ void jit_load_emitter::emit_isa(const std::vector<size_t> &in_idxs, const std::v
             load_byte<isa>(in_idxs, src_prc_ == dst_prc_ ? out_idxs : aux_vec_idxs);
             switch (dst_prc_) {
                 case ov::element::f32:
-                    cvt_byte_to_i32<isa>(h, aux_vec_idxs, aux_vec_idxs, src_prc_.is_signed());
+                    cvt_byte_to_dbyte<isa>(h, aux_vec_idxs, aux_vec_idxs, src_prc_.is_signed());
+                    cvt_dbyte_to_i32<isa>(h, aux_vec_idxs, aux_vec_idxs, src_prc_.is_signed());
                     cvt_i32_to_f32<isa>(h, aux_vec_idxs, out_idxs);
                     break;
                 case ov::element::i32:
-                    cvt_byte_to_i32<isa>(h, aux_vec_idxs, out_idxs, src_prc_.is_signed());
+                    cvt_byte_to_dbyte<isa>(h, aux_vec_idxs, aux_vec_idxs, src_prc_.is_signed());
+                    cvt_dbyte_to_i32<isa>(h, aux_vec_idxs, out_idxs, src_prc_.is_signed());
                     break;
                 case ov::element::i8:
                 case ov::element::u8:
@@ -375,10 +377,12 @@ void jit_store_emitter::emit_isa(const std::vector<size_t> &in_idxs, const std::
             switch (src_prc_) {
                 case ov::element::f32:
                     cvt_f32_to_i32<isa>(h, in_idxs, aux_vec_idxs);
-                    cvt_i32_to_byte<isa>(h, aux_vec_idxs, aux_vec_idxs, dst_prc_.is_signed(), is_saturated_);
+                    cvt_i32_to_dbyte<isa>(h, aux_vec_idxs, aux_vec_idxs, dst_prc_.is_signed(), is_saturated_);
+                    cvt_dbyte_to_byte<isa>(h, aux_vec_idxs, aux_vec_idxs, dst_prc_.is_signed(), is_saturated_);
                     break;
                 case ov::element::i32:
-                    cvt_i32_to_byte<isa>(h, in_idxs, aux_vec_idxs, dst_prc_.is_signed(), is_saturated_);
+                    cvt_i32_to_dbyte<isa>(h, in_idxs, aux_vec_idxs, dst_prc_.is_signed(), is_saturated_);
+                    cvt_dbyte_to_byte<isa>(h, aux_vec_idxs, aux_vec_idxs, dst_prc_.is_signed(), is_saturated_);
                     break;
                 case ov::element::i8:
                 case ov::element::u8:
