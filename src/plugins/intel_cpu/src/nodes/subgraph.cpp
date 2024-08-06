@@ -556,11 +556,12 @@ void Subgraph::initBroadcastableInputs() {
     // These ops will be start points of DFS - need to go to Parameters and update `broadcastable_inputs_map`.
     // We iterates through all ops by execution order. So if we already analyzied some op in the input branch - skip this branch.
     // However, there some ops which can change `processing_dim_idx`:
-    // - Transpose has order which changes `processing_dim_idx`. But Transpose can be only before Parameters
+    // - Transpose has order which changes `processing_dim_idx`. But Transpose can be only after Parameters
     // - MatMul's first input doesn't affect output latest dimension - skip this branch.
     //   Also MatMul has `transposed_b` which changes `processing_dim_idx`
     broadcastable_inputs.clear();
     const auto& body = subgraph_attrs->snippet->body_ptr();
+    // Currently Broadcasting can be changed only if there are several Parameters in body
     if (body->get_parameters().size() < 2)
         return;
 
@@ -572,7 +573,8 @@ void Subgraph::initBroadcastableInputs() {
 
         size_t processing_dim_idx = 0;
 
-        // DFS
+        // We need to propagate `processing_dim_idx` from input of the current node to the parameter.
+        // To do it we use DFS
         std::stack<std::shared_ptr<ov::Node>> nodes_to_calculate;
         nodes_to_calculate.push(op);
         while (!nodes_to_calculate.empty()) {
