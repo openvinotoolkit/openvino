@@ -9,6 +9,7 @@ const { getModelPath } = require('./utils.js');
 const testXml = getModelPath().xml;
 const core = new ov.Core();
 const model = core.readModelSync(testXml);
+const clonedModel = model.clone();
 
 describe('Node.js Model.isDynamic()', () => {
   it('should return a boolean value indicating if the model is dynamic', () => {
@@ -154,6 +155,23 @@ describe('Model.getOutputElementType()', () => {
       () => { model.getOutputElementType(outputSize); },
       /^Error: /,
       'Should throw for out-of-range index'
+    );
+  });
+});
+
+describe('Model.clone()', () => {
+  it('should return an object of type model', () => {
+    assert.ok(clonedModel instanceof ov.Model, 'clone() should return a model');
+  });
+
+  it('should return a model that is a clone of the calling model', () => {
+    assert.deepStrictEqual(clonedModel, model, "Cloned Model should be exactly equal to the calling model");
+  });
+  
+  it('should not accept any arguments', () => {
+    assert.throws(
+      () => model.clone("Unexpected argument").then(),
+      /'clone' method called with incorrect parameters./
     );
   });
 });
