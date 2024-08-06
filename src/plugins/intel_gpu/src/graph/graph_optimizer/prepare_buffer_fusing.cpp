@@ -470,7 +470,7 @@ bool crop_in_place_optimization::match(const program_node& node,
     for (auto user : node.get_users()) {
         // If the user node's output shape is already static, the padding
         // w/ dyn pad mask will not be propagated properly at runtime
-        if (node.is_dynamic() && !user->get_output_layout().is_dynamic())
+        if (node.is_dynamic() && !user->get_output_pshape().is_dynamic())
             return false;
         // do not optimize when next node is concatenation which is not output
         if (user->is_type<concatenation>() && !user->is_output())
@@ -500,10 +500,24 @@ bool crop_in_place_optimization::match(const program_node& node,
     if (node.is_constant())
         return false;
 
+    // do not optimize variadic_split crop when either input1 or input2 is not constant.
+    // VariadicSplit ngraph shape infer requires value of axis(input1) and split_lengths(input2).
+    // And non_constant input1/input2 makes risky execution of runtime buffer fusing.
+    auto& crop_node = node.as<crop>();
+    if ((crop_node.get_primitive()->op_mode == cldnn::crop_ngraph_op_mode::variadic_split) &&
+        (!crop_node.get_dependency(1).is_constant() || !crop_node.get_dependency(2).is_constant()))
+        return false;
+
     if (node.get_users().size() > 0) {
         if (node.get_program().is_body_program() && node.get_dependency(0).is_type<lstm_elt>()) {
             return false;
         }
+
+        GPU_DEBUG_GET_INSTANCE(debug_config);
+        GPU_DEBUG_IF(debug_config->disable_runtime_buffer_fusing && node.is_dynamic()) {
+            return false;
+        }
+
         // optimization is available for cropping across depth(features) or batch
         // if output padding has defined padding across features already it wouldn't
         // work because it expect to have zeros in the padded area.
@@ -545,18 +559,22 @@ bool crop_in_place_optimization::optimize(crop_node& node) {
                                                    node.get_primitive()->axis,
                                                    false);
     } else if (can_crop_be_optimized_simple_data_format(crop_layout, input_layout)) {
-        std::vector<layout> reshape_layouts;
-        if (node.get_users().front()->is_type<reshape>() && node.get_users().front()->as<reshape>().is_runtime_propagatable_padding()) {
-            reshape_layouts.push_back(node.get_users().front()->get_output_layout());
+        std::pair<const program_node*, layout> user_info;
+        if (node.get_users().front()->is_type<reshape>()) {
+            auto& reshape_node = node.get_users().front()->as<reshape>();
+            if (reshape_node.is_runtime_propagatable_padding()) {
+                user_info.first = &reshape_node;
+                user_info.second = reshape_node.get_output_layout();
+            }
         }
         update_in_place_crop_padding_simple_data_format(crop_layout,
                                                         input_layout,
-                                                        reshape_layouts,
+                                                        user_info,
                                                         crop_params->input_offsets[0],
                                                         node.get_primitive()->axis,
                                                         false);
-        if (reshape_layouts.size() > 0) {
-            node.get_users().front()->set_output_layout(reshape_layouts[0]);
+        if (user_info.first) {
+            node.get_users().front()->set_output_layout(user_info.second);
         }
     }
     node.set_output_layout(crop_layout);
@@ -624,24 +642,51 @@ void crop_in_place_optimization::update_in_place_crop_padding_along_feature(cons
 
 void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format(layout& crop_layout,
                                                                                  layout& input_layout,
-                                                                                 std::vector<layout>& user_layouts,
+                                                                                 std::pair<const program_node*, layout>& user_info,
                                                                                  const tensor offsets,
                                                                                  size_t crop_axis,
                                                                                  bool is_runtime) {
-    auto crop_axis_legacy = crop_axis;
-    if (crop_axis_legacy >= 2) {
-        auto spatial_axis = crop_axis_legacy - 2;
-        // Default and minimum number of dimensions is 4
-        auto spatial_size = std::max<size_t>(crop_layout.get_partial_shape().size(), 4) - 2;
-        crop_axis_legacy = spatial_size - spatial_axis - 1 + 2;
-    }
+    auto convert_axis_to_legacy = [](size_t axis, size_t rank) {
+        auto axis_legacy = axis;
+        if (axis_legacy >= 2) {
+            auto spatial_axis = axis_legacy - 2;
+            // Default and minimum number of dimensions is 4
+            auto spatial_size = std::max<size_t>(rank, 4) - 2;
+            axis_legacy = spatial_size - spatial_axis - 1 + 2;
+        }
+
+        return axis_legacy;
+    };
+
+    auto crop_axis_legacy = convert_axis_to_legacy(crop_axis, crop_layout.get_partial_shape().size());
+
     // If it's build-time and node is dynamic, only dynamic padding is set first
     if ((crop_layout.is_dynamic() || input_layout.is_dynamic()) && !is_runtime) {
         auto dyn_pad_sizes = tensor(0).sizes();
         dyn_pad_sizes[crop_axis_legacy] = 1;
         crop_layout.data_padding.set_dynamic_pad(tensor(dyn_pad_sizes));
-        for (auto& user_layout : user_layouts) {
-            user_layout.data_padding.set_dynamic_pad(tensor(dyn_pad_sizes));
+
+        if (user_info.first && user_info.first->is_type<reshape>()) {
+            auto reshape_desc = user_info.first->as<reshape>().get_primitive();
+            auto reshape_mode = reshape_desc->mode;
+            if (reshape_mode == reshape::reshape_mode::base) {
+                user_info.second.data_padding.set_dynamic_pad(tensor(dyn_pad_sizes));
+            } else if (reshape_mode == reshape::reshape_mode::unsqueeze || reshape_mode == reshape::reshape_mode::squeeze) {
+                auto reshape_ps = user_info.second.get_partial_shape();
+                auto output_pattern = reshape_desc->output_pattern;
+
+                auto reshape_axis = crop_axis;
+                for (size_t i = 0; i < output_pattern.size(); i++) {
+                    if (output_pattern[i] <= static_cast<int64_t>(reshape_axis)) {
+                        reshape_axis += reshape_mode == reshape::reshape_mode::unsqueeze ? 1 : -1;
+                    }
+                }
+
+                auto dyn_pad_mask = tensor(0).sizes();
+                auto reshape_axis_legacy = convert_axis_to_legacy(reshape_axis, reshape_ps.size());
+                dyn_pad_mask[reshape_axis_legacy] = 1;
+                user_info.second.data_padding.set_dynamic_pad(tensor(dyn_pad_mask));
+            }
         }
         return;
     }
@@ -665,14 +710,40 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
         auto dyn_pad_sizes = lower_sizes;
         dyn_pad_sizes[crop_axis_legacy] = 1;
         crop_layout.data_padding = padding(lower_sizes, upper_sizes, 0.f, tensor(dyn_pad_sizes));
-        for (auto& user_layout : user_layouts) {
-            auto reshape_rank = user_layout.get_partial_shape().size();
-            auto reshape_last_dim = user_layout.get_partial_shape().to_shape()[reshape_rank - 1];
-            if (lower_sizes[crop_axis_legacy])
-                lower_sizes[crop_axis_legacy] /= reshape_last_dim;
-            if (upper_sizes[crop_axis_legacy])
-                upper_sizes[crop_axis_legacy] /= reshape_last_dim;
-            user_layout.data_padding = padding(lower_sizes, upper_sizes, 0.f, tensor(dyn_pad_sizes));
+        if (user_info.first) {
+            auto reshape_desc = user_info.first->as<reshape>().get_primitive();
+            auto reshape_mode = reshape_desc->mode;
+            if (reshape_mode == reshape::reshape_mode::base) {
+                auto reshape_rank = user_info.second.get_partial_shape().size();
+                auto reshape_last_dim = user_info.second.get_partial_shape().to_shape()[reshape_rank - 1];
+                if (lower_sizes[crop_axis_legacy])
+                    lower_sizes[crop_axis_legacy] /= reshape_last_dim;
+                if (upper_sizes[crop_axis_legacy])
+                    upper_sizes[crop_axis_legacy] /= reshape_last_dim;
+                user_info.second.data_padding = padding(lower_sizes, upper_sizes, 0.f, tensor(dyn_pad_sizes));
+            } else {
+                auto reshape_ps = user_info.second.get_partial_shape();
+                auto output_pattern = reshape_desc->output_pattern;
+
+                auto reshape_axis = crop_axis;
+                for (size_t i = 0; i < output_pattern.size(); i++) {
+                    if (output_pattern[i] <= static_cast<int64_t>(reshape_axis)) {
+                        reshape_axis += reshape_mode == reshape::reshape_mode::unsqueeze ? 1 : -1;
+                    }
+                }
+
+                const auto output_rank = std::max(reshape_ps.size(), static_cast<size_t>(4));
+                std::vector<int32_t> reshape_lower_sizes(output_rank, 0);
+                std::vector<int32_t> reshape_upper_sizes(output_rank, 0);
+                std::vector<int32_t> reshape_dyn_pad_mask(output_rank, 0);
+
+                const auto reshape_axis_legacy = convert_axis_to_legacy(reshape_axis, reshape_ps.size());
+                reshape_lower_sizes[reshape_axis_legacy] = lower_sizes[crop_axis_legacy];
+                reshape_upper_sizes[reshape_axis_legacy] = upper_sizes[crop_axis_legacy];
+                reshape_dyn_pad_mask[reshape_axis_legacy] = 1;
+
+                user_info.second.data_padding = padding(reshape_lower_sizes, reshape_upper_sizes, 0.f, tensor(reshape_dyn_pad_mask));
+            }
         }
     } else {
         crop_layout.data_padding = padding(lower_sizes, upper_sizes);
@@ -696,7 +767,7 @@ void prepare_buffer_fusing::run(program& p) {
         if (node->is_type<read_value>() || node->is_type<kv_cache>())
             return true;
 
-        if (node->is_type<reshape>() && is_dynamic && is_planar && no_pad && !node->is_output() && !node->has_fused_primitives()) {
+        if ((node->is_type<crop>() || node->is_type<reshape>()) && is_dynamic && is_planar && no_pad && !node->is_output() && !node->has_fused_primitives()) {
             return true;
         }
 
@@ -711,10 +782,58 @@ void prepare_buffer_fusing::run(program& p) {
                            concat_in_place_optimization>(p);
 
     // [2] Then try to optimize all crops
-    run_node_optimizations<crop_in_place_optimization>(p);
+    auto node_itr = p.get_processing_order().begin();
+    while (node_itr != p.get_processing_order().end()) {
+        auto& node = (*node_itr++);
+        if (!node->is_valid_output_layout())
+            continue;
+        if (!can_optimize(node))
+            continue;
+
+        program_helpers::do_for_types<crop>(*node, [](crop_node& node) {
+            auto pred_param = node.get_dependency(0).get_kernel_impl_params();
+            auto pred_layout = pred_param->get_output_layout();
+            if (!crop_in_place_optimization::match(node, *node.get_kernel_impl_params(), pred_layout))
+                return;
+
+            auto crop_layout = node.get_output_layout();
+            auto crop_params = node.get_kernel_impl_params();
+            if (!node.is_dynamic() && crop_in_place_optimization::can_crop_be_optimized_along_feature(crop_layout, pred_layout)) {
+                crop_in_place_optimization::update_in_place_crop_padding_along_feature(node,
+                                                                                       crop_layout,
+                                                                                       pred_layout,
+                                                                                       crop_params->input_offsets[0],
+                                                                                       node.get_primitive()->axis,
+                                                                                       false);
+            } else if (crop_in_place_optimization::can_crop_be_optimized_simple_data_format(crop_layout, pred_layout)) {
+                std::pair<const program_node*, layout> user_info;
+                std::vector<layout> reshape_layouts;
+                if (node.get_users().front()->is_type<reshape>()) {
+                    auto& reshape_node = node.get_users().front()->as<reshape>();
+                    if (reshape_node.is_runtime_propagatable_padding()) {
+                        user_info.first = &reshape_node;
+                        user_info.second = reshape_node.get_output_layout();
+                    }
+                }
+                crop_in_place_optimization::update_in_place_crop_padding_simple_data_format(crop_layout,
+                                                                                            pred_layout,
+                                                                                            user_info,
+                                                                                            crop_params->input_offsets[0],
+                                                                                            node.get_primitive()->axis,
+                                                                                            false);
+                if (user_info.first) {
+                    node.get_users().front()->set_output_layout(user_info.second);
+                }
+            }
+            node.set_output_layout(crop_layout);
+            node.can_be_optimized(true);
+            propagate_padding_to_opt_out_users(node, node.get_output_layout().data_padding);
+            GPU_DEBUG_TRACE_DETAIL << "[prepare_buffer_fusing] : " << node.id() << " can be optimized" << std::endl;
+        });
+    }
 
     // [3] Optimize all other primitives
-    auto node_itr = p.get_processing_order().begin();
+    node_itr = p.get_processing_order().begin();
     while (node_itr != p.get_processing_order().end()) {
         auto& node = (*node_itr++);
         if (!node->is_valid_output_layout())

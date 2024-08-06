@@ -338,9 +338,11 @@ void ZeroInferRequest::create_pipeline() {
 }
 
 void ZeroInferRequest::set_tensor_data(std::shared_ptr<ov::ITensor> tensor, const std::string& name, bool isParameter) {
+    OV_ITT_TASK_CHAIN(ZERO_SET_TENSOR, itt::domains::LevelZeroBackend, "set_tensor", "set_tensor_data");
     bool setTensorData = false;
     bool levelZeroTensorCreatedLocally = true;
 
+    OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "check_data_allocation");
     ze_memory_allocation_properties_t desc = {};
     desc.stype = ZE_STRUCTURE_TYPE_MEMORY_ALLOCATION_PROPERTIES;
     auto res = zeMemGetAllocProperties(_initStructs->getContext(), tensor->data(), &desc, nullptr);
@@ -367,6 +369,7 @@ void ZeroInferRequest::set_tensor_data(std::shared_ptr<ov::ITensor> tensor, cons
         // tensor
         if ((_tensorsData.find(name) != _tensorsData.end()) && !_tensorsData.at(name).levelZeroTensorCreatedLocally) {
             _logger.debug("ZeroInferRequest::set_tensor_data - create locally L0 tensor");
+            OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "allocate tensor");
 
             allocate_tensor(name,
                             isParameter ? _metadata.parameters.at(name) : _metadata.results.at(name),
@@ -393,6 +396,7 @@ void ZeroInferRequest::set_tensor_data(std::shared_ptr<ov::ITensor> tensor, cons
                 desc = _executor->outputs_desc_map().at(name);
             }
 
+            OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "updateCommandList");
             _pipeline->updateCommandList(_tensorsData[name], desc.idx, _batchSize);
         }
     }
@@ -401,6 +405,8 @@ void ZeroInferRequest::set_tensor_data(std::shared_ptr<ov::ITensor> tensor, cons
 void ZeroInferRequest::set_remote_tensor_data(std::shared_ptr<ZeroRemoteTensor> tensor,
                                               const std::string& name,
                                               bool isParameter) {
+    OV_ITT_TASK_CHAIN(ZERO_SET_REMOTE_TENSOR, itt::domains::LevelZeroBackend, "set_tensor", "set_remote_tensor_data");
+
     auto l0_context = reinterpret_cast<ze_context_handle_t>(
         extract_object(tensor->get_context()->get_property(), ov::intel_npu::l0_context));
     if (_initStructs->getContext() != l0_context) {
@@ -425,11 +431,13 @@ void ZeroInferRequest::set_remote_tensor_data(std::shared_ptr<ZeroRemoteTensor> 
             desc = _executor->outputs_desc_map().at(name);
         }
 
+        OV_ITT_TASK_NEXT(ZERO_SET_REMOTE_TENSOR, "updateCommandList");
         _pipeline->updateCommandList(_tensorsData[name], desc.idx, _batchSize);
     }
 }
 
 void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
+    OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "set_tensor");
     try {
         check_tensor(port, tensor);
     } catch (const ov::Exception& ex) {
@@ -456,6 +464,7 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
 }
 
 ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
+    OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "get_tensor");
     const std::string& nodeFriendlyName = port.get_node()->get_friendly_name();
 
     if (_allTensors.find(nodeFriendlyName) != _allTensors.end()) {
@@ -484,10 +493,11 @@ void ZeroInferRequest::infer() {
 
 void ZeroInferRequest::infer_async() {
     _logger.debug("InferRequest::infer_async started");
-    OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "infer_async");
+    OV_ITT_TASK_CHAIN(ZERO_INFER, itt::domains::LevelZeroBackend, "infer_async", "start");
 
     _executor->mutexLock();
     if (!_pipelineIsCreated) {
+        OV_ITT_TASK_NEXT(ZERO_INFER, "create_pipeline");
         create_pipeline();
 
         _pipelineIsCreated = true;
@@ -522,18 +532,20 @@ void ZeroInferRequest::infer_async() {
                 }
 
                 _logger.info("Tensor is not allocated in the current Level Zero context");
+                OV_ITT_TASK_NEXT(ZERO_INFER, "memcpy");
                 std::memcpy(copyData, data, inputTensor->get_byte_size());
             }
         }
     }
 
+    OV_ITT_TASK_NEXT(ZERO_INFER, "push");
     for (size_t i = 0; i < _batchSize; i++) {
         _pipeline->push(i);
     }
 }
 
 void ZeroInferRequest::get_result() {
-    OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "get_result");
+    OV_ITT_TASK_CHAIN(ZERO_RESULT, itt::domains::LevelZeroBackend, "get_result", "pull");
 
     for (size_t i = 0; i < _batchSize; i++) {
         _pipeline->pull(i);
@@ -577,11 +589,13 @@ void ZeroInferRequest::get_result() {
                 }
 
                 _logger.info("Tensor is not allocated in the current Level Zero context");
+                OV_ITT_TASK_NEXT(ZERO_RESULT, "memcpy");
                 std::memcpy(data, copyData, outputTensor->get_byte_size());
             }
         }
     }
 
+    OV_ITT_TASK_NEXT(ZERO_RESULT, "reset");
     for (size_t i = 0; i < _batchSize; i++) {
         _pipeline->reset(i);
     }

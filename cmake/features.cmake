@@ -51,6 +51,7 @@ else()
 endif()
 
 ov_dependent_option (ENABLE_INTEL_NPU "NPU plugin for OpenVINO runtime" ${ENABLE_INTEL_NPU_DEFAULT} "X86 OR X86_64;NOT APPLE" OFF)
+ov_dependent_option (ENABLE_INTEL_NPU_INTERNAL "NPU plugin internal components for OpenVINO runtime" ON "ENABLE_INTEL_NPU" OFF)
 
 ov_option (ENABLE_DEBUG_CAPS "enable OpenVINO debug capabilities at runtime" OFF)
 ov_dependent_option (ENABLE_NPU_DEBUG_CAPS "enable NPU debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS;ENABLE_INTEL_NPU" OFF)
@@ -92,10 +93,7 @@ else()
     set(THREADING_DEFAULT "TBB")
 endif()
 
-set(THREADING_OPTIONS "TBB" "TBB_AUTO" "SEQ")
-if(NOT APPLE)
-    list(APPEND THREADING_OPTIONS "OMP")
-endif()
+set(THREADING_OPTIONS "TBB" "TBB_AUTO" "SEQ" "OMP")
 
 set(THREADING "${THREADING_DEFAULT}" CACHE STRING "Threading")
 set_property(CACHE THREADING PROPERTY STRINGS ${THREADING_OPTIONS})

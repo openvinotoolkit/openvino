@@ -61,7 +61,8 @@ To enable model caching, the application must specify a folder to store the cach
 
 
 With this code, if the device specified by ``device_name`` supports import/export model capability,
-a cached blob is automatically created inside the ``/path/to/cache/dir`` folder.
+a cached blob (the ``.cl_cache`` and ``.blob`` file for GPU and CPU respectively) is automatically
+created inside the ``/path/to/cache/dir`` folder.
 If the device does not support the import/export capability, cache is not created and no error is thrown.
 
 Note that the first ``compile_model`` operation takes slightly longer, as the cache needs to be created -
