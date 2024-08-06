@@ -22,6 +22,7 @@ using namespace ov;
 using namespace ov::threading;
 
 #define INIT_VAL -100
+#define TP_CPU_LIMIT 32
 
 namespace ov {
 namespace intel_cpu {
@@ -101,17 +102,24 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                                  const std::vector<std::vector<int>>& one_proc_table,
                                  const int num_threads,
                                  const IStreamsExecutor::Config::StreamsMode sub_streams_model) {
+        stream_info[THREADS_PER_STREAM] = sub_streams_model == IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_NULL
+                                              ? num_threads
+                                              : std::min(TP_CPU_LIMIT, num_threads);
         if ((one_proc_info[PROC_NUMA_NODE_ID] < 0) || (one_proc_info[PROC_SOCKET_ID] < 0) ||
-            (((one_proc_info[MAIN_CORE_PROC] > 0) && (one_proc_info[MAIN_CORE_PROC] < num_threads)) ||
+            (((one_proc_info[MAIN_CORE_PROC] > 0) &&
+              (one_proc_info[MAIN_CORE_PROC] < stream_info[THREADS_PER_STREAM])) ||
              ((one_proc_info[MAIN_CORE_PROC] == 0) && (one_proc_info[EFFICIENT_CORE_PROC] > 0) &&
-              (one_proc_info[EFFICIENT_CORE_PROC] < num_threads)))) {
-            update_mix_stream_info(one_proc_info, one_proc_table, num_threads, sub_streams_model, ALL_PROC);
+              (one_proc_info[EFFICIENT_CORE_PROC] < stream_info[THREADS_PER_STREAM])))) {
+            update_mix_stream_info(one_proc_info,
+                                   one_proc_table,
+                                   stream_info[THREADS_PER_STREAM],
+                                   sub_streams_model,
+                                   ALL_PROC);
         } else {
             stream_info[PROC_TYPE] =
-                one_proc_info[MAIN_CORE_PROC] >= num_threads ? MAIN_CORE_PROC : EFFICIENT_CORE_PROC;
+                one_proc_info[MAIN_CORE_PROC] >= stream_info[THREADS_PER_STREAM] ? MAIN_CORE_PROC : EFFICIENT_CORE_PROC;
             stream_info[NUMBER_OF_STREAMS] =
                 sub_streams_model == IStreamsExecutor::Config::StreamsMode::SUB_STREAMS_NULL ? 1 : -1;
-            stream_info[THREADS_PER_STREAM] = num_threads;
             update_ids_method(one_proc_info);
             streams_info_table.push_back(stream_info);
         }
