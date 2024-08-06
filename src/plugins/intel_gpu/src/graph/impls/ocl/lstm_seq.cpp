@@ -26,7 +26,7 @@ struct lstm_seq_impl : typed_primitive_impl_ocl<lstm_seq> {
 
 protected:
     kernel_arguments_data get_arguments(const typed_primitive_inst<lstm_seq>& instance) const override {
-        kernel_arguments_data args;// = parent::get_arguments(instance);
+        kernel_arguments_data args;
         const int op_input_size = 7;
         for (size_t i = 0; i < op_input_size; i++) {
             args.inputs.push_back(instance.input_memory_ptr(i));
@@ -49,16 +49,6 @@ public:
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
         }
 
-        if (!primitive->cell.empty()) {
-            const auto& cell_idx = 1;
-            const auto& cell_layout = impl_param.input_layouts[cell_idx];
-            params.SetCell(convert_data_tensor(cell_layout));
-            // TODO: make a generic function to get the direction
-            if (cell_layout.spatial(1) > 1) {
-                params.cell_direction = primitive->direction;
-            }
-        }
-
         if (!primitive->activations.empty()) {
             auto a_sz = primitive->activations.size();
             auto param_sz = primitive->activation_params.size();
@@ -76,7 +66,6 @@ public:
 
         params.SetOffsetOrder(static_cast<int32_t>(primitive->offset_order));
         params.clip = primitive->clip;
-        params.input_forget = primitive->input_forget;
         params.direction = primitive->direction;
         //Legacy multi-output
 

@@ -149,17 +149,23 @@ protected:
 struct lstm_seq : public primitive_base<lstm_seq> {
     CLDNN_DECLARE_PRIMITIVE(lstm_seq)
 
-    lstm_seq() : primitive_base("", {}), clip(0), input_forget(0), offset_order(lstm_weights_order::iofz), direction(0) {}
+    lstm_seq() : primitive_base("", {}), clip(0), offset_order(lstm_weights_order::iofz), direction(0) {}
 
     using vec_activation = std::vector<activation_func>;
     using vec_activation_param = std::vector<activation_additional_params>;
 
-    /// @brief Constructs lstm layer.
+    /// @brief Constructs lstm seq layer.
     /// @param id This primitive id.
-    /// @param input input primitive id.
-    /// @param input cell Primitive id containing cell data. Provide empty string if using lstm without cell values.
+    /// @param input input x primitive id.
+    /// @param input input initial_hidden_state
+    /// @param input input initial_cell_state,
+    /// @param input input sequence_lenghts
+    /// @param input input W
+    /// @param input input R
+    /// @param input input B
+    /// @param input out1_prim_id - primitive for second output due to legacy
+    /// @param input out2_prim_id - primitive for third output
     /// @param clip Clip threshold. Provide 0 if using lstm without activations clip threshold.
-    /// @param input_forget Provide 0 if using lstm without coupled input-forget gates.
     /// @param offset_order. Order of the concatenated weights, recurrent, and bias. ONNX default is iofz [input, output, forget, block].
     /// @param direction default = 0, bidirectional = 1.
     lstm_seq(const primitive_id& id,
@@ -172,9 +178,7 @@ struct lstm_seq : public primitive_base<lstm_seq> {
              const input_info& B,
              const primitive_id& out1_prim_id,
              const primitive_id& out2_prim_id,
-             const primitive_id& cell = "",
              const float clip = 0,
-             const bool input_forget = 0,
              const std::vector<activation_func> activations = {activation_func::logistic,
                                                                activation_func::hyperbolic_tan,
                                                                activation_func::hyperbolic_tan},
@@ -186,9 +190,7 @@ struct lstm_seq : public primitive_base<lstm_seq> {
         : primitive_base(id, {x, initial_hidden_state, initial_cell_state, seq_lenghts, W, R, B, out1_prim_id, out2_prim_id}, num_outputs,  \
           {optional_data_type()}, {output_padding}),
           out2_prim_id(out2_prim_id),
-          cell(cell),
           clip(clip),
-          input_forget(input_forget),
           activations(activations),
           activation_params(activation_params),
           offset_order(offset_order),
@@ -202,9 +204,7 @@ struct lstm_seq : public primitive_base<lstm_seq> {
              const input_info& W,
              const input_info& R,
              const input_info& B,
-             const primitive_id& cell = "",
              const float clip = 0,
-             const bool input_forget = 0,
              const std::vector<activation_func> activations = {activation_func::logistic,
                                                                activation_func::hyperbolic_tan,
                                                                activation_func::hyperbolic_tan},
@@ -215,9 +215,7 @@ struct lstm_seq : public primitive_base<lstm_seq> {
              const int num_outputs = 1)
         : primitive_base(id, {x, initial_hidden_state, initial_cell_state, seq_lenghts, W, R, B}, num_outputs,  \
           {optional_data_type()}, {output_padding}),
-          cell(cell),
           clip(clip),
-          input_forget(input_forget),
           activations(activations),
           activation_params(activation_params),
           offset_order(offset_order),
@@ -226,11 +224,8 @@ struct lstm_seq : public primitive_base<lstm_seq> {
     /// @brief Primitive id containing the initial value of the cell state data.
     primitive_id out1_prim_id;
     primitive_id out2_prim_id;
-    primitive_id cell;
     /// @brief Cell clip threshold T. It is applied to the input of activations [-T, T]. No clip is applied if it is not specified.
     float clip;
-    /// @brief Couple the input and forget gates if input_forget is 1. Default is 0.
-    bool input_forget;
     /// @brief A list of 3 activation functions for the input, output, forget, cell, and hidden.
     std::vector<activation_func> activations;
     /// @brief Optional scaling values used by some activation functions. The values are consumed in the order of activation functions.
@@ -244,7 +239,6 @@ struct lstm_seq : public primitive_base<lstm_seq> {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, out1_prim_id);
         seed = hash_combine(seed, clip);
-        seed = hash_combine(seed, input_forget);
         seed = hash_range(seed, activations.begin(), activations.end());
         for (auto& act_param : activation_params) {
             seed = hash_combine(seed, act_param.a);
@@ -252,7 +246,6 @@ struct lstm_seq : public primitive_base<lstm_seq> {
         }
         seed = hash_combine(seed, offset_order);
         seed = hash_combine(seed, direction);
-        seed = hash_combine(seed, cell.empty());
         return seed;
     }
 
@@ -273,11 +266,9 @@ struct lstm_seq : public primitive_base<lstm_seq> {
                cmp_fields(out1_prim_id) &&
                cmp_fields(out2_prim_id) &&
                cmp_fields(clip) &&
-               cmp_fields(input_forget) &&
                cmp_fields(activations) &&
                cmp_fields(offset_order) &&
-               cmp_fields(direction) &&
-               cmp_fields(cell.empty());
+               cmp_fields(direction);
         #undef cmp_fields
     }
 
@@ -285,9 +276,7 @@ struct lstm_seq : public primitive_base<lstm_seq> {
         primitive_base<lstm_seq>::save(ob);
         ob << out1_prim_id;
         ob << out2_prim_id;
-        ob << cell;
         ob << clip;
-        ob << input_forget;
         ob << activations;
         ob << activation_params;
         ob << make_data(&offset_order, sizeof(lstm_weights_order));
@@ -298,9 +287,7 @@ struct lstm_seq : public primitive_base<lstm_seq> {
         primitive_base<lstm_seq>::load(ib);
         ib >> out1_prim_id;
         ib >> out2_prim_id;
-        ib >> cell;
         ib >> clip;
-        ib >> input_forget;
         ib >> activations;
         ib >> activation_params;
         ib >> make_data(&offset_order, sizeof(lstm_weights_order));

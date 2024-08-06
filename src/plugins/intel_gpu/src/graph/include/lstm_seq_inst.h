@@ -17,8 +17,6 @@ public:
     using parent::parent;
 
     program_node& input() const { return get_dependency(0); }
-    program_node& cell() const { return get_dependency(1); }
-    bool cell_term() const { return !get_primitive()->cell.empty(); }
     lstm_weights_order offset_order() const { return get_primitive()->offset_order; }
     float clip() const {
         float clip_val = get_primitive()->clip;
@@ -26,7 +24,6 @@ public:
             throw std::range_error("Clip value < 0");
         return clip_val;
     }
-    bool input_forget() const { return get_primitive()->input_forget; }
     int32_t direction() const { return get_primitive()->direction; }
 };
 
@@ -45,9 +42,6 @@ public:
 
 public:
     typed_primitive_inst(network& network, lstm_seq_node const& node);
-
-    memory::ptr cell_memory() const { return dep_memory_ptr(1); }
-    bool cell_term() const { return !get_typed_desc<lstm_seq>()->cell.empty(); }
     lstm_weights_order offset_order() const { return get_typed_desc<lstm_seq>()->offset_order; }
     float clip() const {
         float clip_val = get_typed_desc<lstm_seq>()->clip;
@@ -55,7 +49,6 @@ public:
             throw std::range_error("Clip value < 0");
         return clip_val;
     }
-    bool input_forget() const { return get_typed_desc<lstm_seq>()->input_forget; }
     uint32_t direction() const { return get_typed_desc<lstm_seq>()->direction; }
 };
 

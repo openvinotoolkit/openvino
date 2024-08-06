@@ -57,12 +57,10 @@ template std::vector<layout> lstm_seq_inst::calc_output_layouts<ov::PartialShape
 std::string lstm_seq_inst::to_string(lstm_seq_node const& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
-    auto cell_id = desc->cell;
 
     std::stringstream primitive_description;
 
     json_composite lstm_seq_info;
-    lstm_seq_info.add("cell id", cell_id);
     node_info->add("lstm seq info", lstm_seq_info);
     node_info->dump(primitive_description);
 

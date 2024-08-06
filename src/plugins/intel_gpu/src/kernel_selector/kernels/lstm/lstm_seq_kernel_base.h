@@ -22,12 +22,10 @@ struct lstm_seq_params : public base_params {
     };
 
     lstm_seq_params() : base_params(KernelType::LSTM_SEQ) {}
-    bool has_cell = false;
     order_type gate_order = offset_iofz;
     float clip = 0;
     bool input_forget = false;
     uint32_t direction = 0;
-    uint32_t cell_direction = 0;
 
     size_t GetOffsetIndex(order_type type, size_t idx) const {
         static const std::map<order_type, std::vector<size_t>> offset_map{{offset_iofz, {0, 1, 2, 3}},
@@ -44,15 +42,8 @@ struct lstm_seq_params : public base_params {
 
     void SetOffsetOrder(int32_t t) { gate_order = static_cast<order_type>(t); }
 
-    void SetCell(const DataTensor& v) {
-        has_cell = true;
-    }
-
     ParamsKey GetParamsKey() const override {
         ParamsKey k = base_params::GetParamsKey();
-        if (has_cell) {
-            k.EnableLSTMSeqCell();
-        }
         return k;
     }
 };

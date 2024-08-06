@@ -11,13 +11,6 @@ namespace kernel_selector {
 
 JitConstants LSTMSeqKernelBase::GetJitConstants(const lstm_seq_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
-
-    if (params.has_cell) {
-        jit.AddConstants({MakeJitConstant("CELL_TERM", true),
-                          MakeJitConstant("CELL_DIRECTION", params.cell_direction)});
-    } else {
-        jit.AddConstants({MakeJitConstant("CELL_TERM", false)});
-    }
     if (params.input_forget) {
         jit.AddConstants({MakeJitConstant("INPUT_FORGET", true)});
     }

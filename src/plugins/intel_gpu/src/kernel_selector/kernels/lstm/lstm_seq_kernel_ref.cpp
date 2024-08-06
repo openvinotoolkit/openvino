@@ -20,7 +20,6 @@ ParamsKey LSTMSeqKernelRef::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
-    k.EnableLSTMSeqCell();
     k.EnableDynamicShapesSupport();
     return k;
 }
