@@ -312,7 +312,7 @@ Plugin::Plugin()
               return _metrics->GetAvailableDevicesNames();
           }}},
         {ov::workload_type.name(),
-         {_backends->isWorkloadTypeSupported(),
+         {_backends->isCommandQueueExtSupported(),
           ov::PropertyMutability::RW,
           [](const Config& config) {
               return config.get<WORKLOAD_TYPE>();
@@ -452,6 +452,12 @@ Plugin::Plugin()
           ov::PropertyMutability::RW,
           [](const Config& config) {
               return config.get<COMPILATION_MODE_PARAMS>();
+          }}},
+        {ov::intel_npu::turbo.name(),
+         {_backends->isCommandQueueExtSupported(),
+          ov::PropertyMutability::RW,
+          [](const Config& config) {
+              return config.get<TURBO>();
           }}},
         // NPU Private
         // =========
