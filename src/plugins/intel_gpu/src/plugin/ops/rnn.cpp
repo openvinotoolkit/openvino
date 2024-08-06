@@ -241,7 +241,8 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
         int direction = op->get_direction() == ov::op::RecurrentSequenceDirection::REVERSE ? 1 : 0;
         cldnn::lstm_seq prim(layerName, inputs[0], inputs[1], \
             inputs[2], inputs[3], inputs[4], inputs[5], inputs[6], \
-            "", clip, 0, activations, activation_params, cldnn::lstm_weights_order::fizo, direction, cldnn::padding(), op->get_output_size() );
+            "", clip, 0, activations, activation_params, cldnn::lstm_weights_order::fizo, direction, cldnn::padding(), \
+            static_cast<int>(op->get_output_size()) );
         prim.output_data_types = get_output_data_types(op);
         p.add_primitive(*op, prim);
         return;

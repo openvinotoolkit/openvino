@@ -9,7 +9,7 @@
 namespace kernel_selector {
 class LSTMSeqKernelRef : public LSTMSeqKernelBase {
 public:
-    LSTMSeqKernelRef() : LSTMSeqKernelBase("lstm_seq_gpu_bfyx_ref") {}
+    LSTMSeqKernelRef() : LSTMSeqKernelBase("lstm_seq_ref") {}
     virtual ~LSTMSeqKernelRef() {}
 
     KernelsData GetKernelsData(const Params& params) const override;
