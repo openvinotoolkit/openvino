@@ -10,6 +10,12 @@
 #include "ze_command_queue_npu_ext.h"
 #include "zero_utils.hpp"
 
+#ifdef _WIN32
+namespace {
+constexpr uint32_t WIN_DRIVER_NO_MCL_SUPPORT = 2688;
+}  // namespace
+#endif
+
 namespace intel_npu {
 
 const ze_driver_uuid_t ZeroInitStructsHolder::uuid = ze_intel_npu_driver_uuid;
@@ -169,9 +175,15 @@ ZeroInitStructsHolder::ZeroInitStructsHolder() : log("NPUZeroInitStructsHolder",
         std::make_unique<ze_graph_dditable_ext_decorator>(graph_ddi_table_ext, driver_ext_version);
 
     // Query the mutable command list version
-    std::string mutable_comamnd_list_name;
-    log.debug("ZeroInitStructsHolder - tie output of queryMutableCommandListVersion");
-    mutable_command_list_version = queryMutableCommandListVersion(extProps, count);
+#ifdef _WIN32
+    // The 2688 Windows driver version doesn't support as expected the MutableCommandList feature
+    if (driver_properties.driverVersion != WIN_DRIVER_NO_MCL_SUPPORT) {
+#endif
+        log.debug("ZeroInitStructsHolder - tie output of queryMutableCommandListVersion");
+        mutable_command_list_version = queryMutableCommandListVersion(extProps, count);
+#ifdef _WIN32
+    }
+#endif
 
     log.debug("Mutable command list version %d.%d",
               ZE_MAJOR_VERSION(mutable_command_list_version),
