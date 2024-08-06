@@ -18,6 +18,8 @@ public:
               const dnnl::primitive_attr &attr) override;
     void exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) override;
     impl_desc_type implType() const override { return implDescType; };
+    static bool isSupported(ov::element::Type srcPrc, ov::element::Type dstPrc);
+
 protected:
     ConvertParams commonConvertParams;
     static const impl_desc_type implDescType = impl_desc_type::ref;

@@ -52,5 +52,7 @@ void cpu_convert(const void *srcPtr,
                  ov::element::Type dstPrc,
                  const size_t size);
 
+ bool is_supported_convert(ov::element::Type srcPrc, ov::element::Type dstPrc);
+
 }   // namespace intel_cpu
 }   // namespace ov

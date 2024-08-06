@@ -22,6 +22,13 @@ bool Convert::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
             errorMessage = "Only opset1 Convert operation is supported";
             return false;
         }
+
+        auto srcPrc = op->get_input_element_type(0);
+        auto dstPrc = op->get_output_element_type(0);
+        if (!CommonConvertExecutor::isSupported(srcPrc, dstPrc)) {
+            errorMessage = "cpu_convert can't convert from: " + srcPrc.to_string() + " precision to: " + dstPrc.to_string();
+            return false;
+        }
     } catch (...) {
         return false;
     }
