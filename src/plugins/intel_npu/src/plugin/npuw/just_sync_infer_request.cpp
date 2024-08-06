@@ -18,6 +18,7 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "plugin.hpp"
 #include "util.hpp"
+#include "weights_bank.hpp"
 
 ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
     : IBaseInferRequest(compiled_model) {

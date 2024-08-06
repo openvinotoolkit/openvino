@@ -20,6 +20,7 @@
 #include "openvino/util/common_util.hpp"
 #include "plugin.hpp"
 #include "util.hpp"
+#include "weights_bank.hpp"
 
 // required for get_properties_per_device()
 #include <intel_npu/al/config/config.hpp>
@@ -92,6 +93,18 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_name(model->get_friendly_name()),
       m_loaded_from_cache(false) {
     ::intel_npu::registerNPUWOptions(*m_options_desc);
+
+    // Sort out weights sharing routine
+    const std::string weights_bank_opt = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK>();
+    if (!weights_bank_opt.empty()) {
+        if (!m_cfg.getString<::intel_npu::NPUW_DCOFF_TYPE>().empty()) {
+            OPENVINO_THROW("NPUW can't utilize NPUW_WEIGHTS_BANK property with NPUW_DCOFF_TYPE enabled!");
+        }
+        if ("YES" != m_cfg.getString<::intel_npu::NPUW_CWAI>()) {
+            OPENVINO_THROW("NPUW can't utilize NPUW_WEIGHTS_BANK property without NPUW_CWAI enabled!");
+        }
+        ov::npuw::weights_bank::WeightsBankManager::getInstance().initPlugin(plugin);
+    }
 
     std::map<std::string, ov::Any> npuw_props;
     split_properties(properties, m_non_npuw_props, npuw_props);
@@ -768,6 +781,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::online::isolate, NPUW_ONLINE_ISOLATE),
                           BIND(npuw::partitioning::online::nofold, NPUW_ONLINE_NO_FOLD),
                           BIND(npuw::partitioning::online::dump_plan, NPUW_ONLINE_DUMP_PLAN),
+                          BIND(npuw::weights_bank, NPUW_WEIGHTS_BANK),
                           BIND(npuw::partitioning::plan, NPUW_PLAN),
                           BIND(npuw::partitioning::fold, NPUW_FOLD),
                           BIND(npuw::partitioning::cwai, NPUW_CWAI),

@@ -23,6 +23,7 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPUW_ONLINE_KEEP_BLOCKS>();
     desc.add<NPUW_ONLINE_KEEP_BLOCK_SIZE>();
     desc.add<NPUW_ONLINE_DUMP_PLAN>();
+    desc.add<NPUW_WEIGHTS_BANK>();
     desc.add<NPUW_PLAN>();
     desc.add<NPUW_FOLD>();
     desc.add<NPUW_CWAI>();

@@ -38,6 +38,7 @@ DEFINE_OPT(NPUW_ONLINE_MIN_SIZE, std::size_t, 10, npuw::partitioning::online::mi
 DEFINE_OPT(NPUW_ONLINE_KEEP_BLOCKS, std::size_t, 10, npuw::partitioning::online::keep_blocks, CompileTime);
 DEFINE_OPT(NPUW_ONLINE_KEEP_BLOCK_SIZE, std::size_t, 10, npuw::partitioning::online::keep_block_size, CompileTime);
 DEFINE_OPT(NPUW_ONLINE_DUMP_PLAN, std::string, "", npuw::partitioning::online::dump_plan, CompileTime);
+DEFINE_OPT(NPUW_WEIGHTS_BANK, std::string, "", npuw::weights_bank, CompileTime);
 DEFINE_OPT(NPUW_PLAN, std::string, "", npuw::partitioning::plan, CompileTime);
 DEFINE_OPT(NPUW_FOLD, bool, false, npuw::partitioning::fold, CompileTime);
 DEFINE_OPT(NPUW_CWAI, bool, false, npuw::partitioning::cwai, CompileTime);
