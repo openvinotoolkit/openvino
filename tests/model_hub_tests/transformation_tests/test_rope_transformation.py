@@ -36,7 +36,7 @@ def run_test(model_id):
     with tempfile.NamedTemporaryFile(delete=True) as temp_file:
         os.environ['OV_ENABLE_PROFILE_PASS'] = temp_file.name
         core = ov.Core()
-        core.compile_model(model.model, 'CPU')
+        compiled = core.compile_model(model.model, 'CPU')
         has_rope_fusion = False
         with open(temp_file.name, 'r') as f_in:
             for line in f_in:
@@ -44,7 +44,11 @@ def run_test(model_id):
                     has_rope_fusion = True
                     break
         if not has_rope_fusion:
-            pytest.fail('no ov::pass::RoPEFusion called')
+            pytest.fail('ov::pass::RoPEFusion was not executed')
+        ov_model = compiled.get_runtime_model()
+        type_names = (op.get_rt_info()["layerType"] for op in ov_model.get_ordered_ops())
+        if 'RoPE' not in type_names:
+            pytest.fail('RoPE operation not found in compiled model')
 
 
 @pytest.mark.precommit
