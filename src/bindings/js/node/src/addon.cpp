@@ -15,6 +15,7 @@
 #include "node/include/preprocess/preprocess.hpp"
 #include "node/include/tensor.hpp"
 #include "openvino/openvino.hpp"
+#include "node/include/node_wrap.hpp"
 
 void init_class(Napi::Env env,
                 Napi::Object exports,
@@ -40,6 +41,9 @@ Napi::Object init_module(Napi::Env env, Napi::Object exports) {
     init_class(env, exports, "Output", &Output<ov::Node>::get_class, addon_data->output);
     init_class(env, exports, "ConstOutput", &Output<const ov::Node>::get_class, addon_data->const_output);
     init_class(env, exports, "PartialShape", &PartialShapeWrap::get_class, addon_data->partial_shape);
+    
+    Napi::Function node_prototype = NodeWrap::get_class(env);
+    addon_data->node = Napi::Persistent(node_prototype);
 
     preprocess::init(env, exports);
     element::init(env, exports);
