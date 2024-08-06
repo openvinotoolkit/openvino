@@ -19,11 +19,11 @@ bool evaluate(const std::shared_ptr<ov::op::v15::BitwiseRightShift>& node,
     outputs[0].set_shape(infer_broadcast_shape(node.get(), inputs));
     using T = typename ov::element_type_traits<ET>::value_type;
     ov::reference::bitwise_left_shift(inputs[0].data<const T>(),
-                                       inputs[1].data<const T>(),
-                                       outputs[0].data<T>(),
-                                       inputs[0].get_shape(),
-                                       inputs[1].get_shape(),
-                                       node->get_autob());
+                                      inputs[1].data<const T>(),
+                                      outputs[0].data<T>(),
+                                      inputs[0].get_shape(),
+                                      inputs[1].get_shape(),
+                                      node->get_autob());
     return true;
 }
 

@@ -23,9 +23,94 @@ std::vector<RefBitwiseParams> generateBitwiseParams() {
             .expected({{10}, element::i32, std::vector<int32_t>{0, 0, 2, -2, 6, -6, 4, -4, 128, -128}}),
         Builder{}
             .opType(BitwiseTypes::BITWISE_LEFT_SHIFT)
+            .inputs({{{2, 5}, element::i32, std::vector<int32_t>{0, -0, 1, -1, 3, -3, 2, -2, 64, -64}},
+                     {{1, 1}, element::i32, std::vector<int32_t>{1}}})
+            .expected({{2, 5}, element::i32, std::vector<int32_t>{0, 0, 2, -2, 6, -6, 4, -4, 128, -128}}),
+        Builder{}
+            .opType(BitwiseTypes::BITWISE_LEFT_SHIFT)
+            .inputs({{{2, 5}, element::i32, std::vector<int32_t>{0, -0, 1, -1, 3, -3, 2, -2, 64, -64}},
+                     {{2, 1}, element::i32, std::vector<int32_t>{1, 2}}})
+            .expected({{2, 5}, element::i32, std::vector<int32_t>{0, 0, 2, -2, 6, -12, 8, -8, 256, -256}}),
+        Builder{}
+            .opType(BitwiseTypes::BITWISE_LEFT_SHIFT)
+            .inputs({{{1, 10}, element::i32, std::vector<int32_t>{0, -0, 1, -1, 3, -3, 2, -2, 64, -64}},
+                     {{1}, element::i32, std::vector<int32_t>{-1}}})
+            .expected({{1, 10}, element::i32, std::vector<int32_t>{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}}),
+        Builder{}
+            .opType(BitwiseTypes::BITWISE_LEFT_SHIFT)
             .inputs({{{10}, element::i8, std::vector<int8_t>{0, -0, 1, -1, 3, -3, 2, -2, 64, -64}},
                      {{1}, element::i8, std::vector<int8_t>{1}}})
             .expected({{10}, element::i8, std::vector<int8_t>{0, 0, 2, -2, 6, -6, 4, -4, -128, -128}}),
+        Builder{}
+            .opType(BitwiseTypes::BITWISE_LEFT_SHIFT)
+            .inputs({{{2, 5}, element::i32, std::vector<int32_t>{0, -0, 1, -1, 3, -3, 2, -2, 64, -64}},
+                     {{6, 1, 1}, element::i32, std::vector<int32_t>{0, 1, 2, 3, 8, 31}}})
+            .expected(
+                {{6, 2, 5},
+                 element::i32,
+                 std::vector<int32_t>{
+                     0,     0,      1,   -1,   3,           -3,          2,           -2,          64,  -64,  0,   0,
+                     2,     -2,     6,   -6,   4,           -4,          128,         -128,        0,   0,    4,   -4,
+                     12,    -12,    8,   -8,   256,         -256,        0,           0,           8,   -8,   24,  -24,
+                     16,    -16,    512, -512, 0,           0,           256,         -256,        768, -768, 512, -512,
+                     16384, -16384, 0,   0,    -2147483648, -2147483648, -2147483648, -2147483648, 0,   0,    0,   0}}),
+        Builder{}
+            .opType(BitwiseTypes::BITWISE_LEFT_SHIFT)
+            .inputs({{{2, 5}, element::i16, std::vector<int16_t>{0, -0, 1, -1, 3, -3, 2, -2, 64, -64}},
+                     {{6, 1, 1}, element::i16, std::vector<int16_t>{0, 1, 2, 3, 8, 15}}})
+            .expected({{6, 2, 5},
+                       element::i16,
+                       std::vector<int16_t>{
+                           0,    0,   1,    -1,    3,      -3,  2,  -2,     64,     -64,    0,      0, 2,   -2,   6,
+                           -6,   4,   -4,   128,   -128,   0,   0,  4,      -4,     12,     -12,    8, -8,  256,  -256,
+                           0,    0,   8,    -8,    24,     -24, 16, -16,    512,    -512,   0,      0, 256, -256, 768,
+                           -768, 512, -512, 16384, -16384, 0,   0,  -32768, -32768, -32768, -32768, 0, 0,   0,    0}}),
+        Builder{}
+            .opType(BitwiseTypes::BITWISE_LEFT_SHIFT)
+            .inputs({{{2, 5}, element::i8, std::vector<int8_t>{0, -0, 1, -1, 3, -3, 2, -2, 64, -64}},
+                     {{6, 1, 1}, element::i8, std::vector<int8_t>{0, 1, 2, 3, 4, 7}}})
+            .expected({{6, 2, 5},
+                       element::i8,
+                       std::vector<int8_t>{0,   0,  1,   -1,   3,    -3,  2,  -2,   64,   -64,  0,    0, 2,  -2,  6,
+                                           -6,  4,  -4,  -128, -128, 0,   0,  4,    -4,   12,   -12,  8, -8, 0,   0,
+                                           0,   0,  8,   -8,   24,   -24, 16, -16,  0,    0,    0,    0, 16, -16, 48,
+                                           -48, 32, -32, 0,    0,    0,   0,  -128, -128, -128, -128, 0, 0,  0,   0}}),
+        Builder{}
+            .opType(BitwiseTypes::BITWISE_LEFT_SHIFT)
+            .inputs({{{2, 6}, element::u8, std::vector<uint8_t>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 51, 64}},
+                     {{6, 1, 1}, element::u8, std::vector<uint8_t>{0, 1, 2, 3, 4, 7}}})
+            .expected({{6, 2, 6},
+                       element::u8,
+                       std::vector<uint8_t>{0,  1,   2,  3,   4,   5,   6,  7,   8,   9,   51,  64,  0,   2,  4,
+                                            6,  8,   10, 12,  14,  16,  18, 102, 128, 0,   4,   8,   12,  16, 20,
+                                            24, 28,  32, 36,  204, 0,   0,  8,   16,  24,  32,  40,  48,  56, 64,
+                                            72, 152, 0,  0,   16,  32,  48, 64,  80,  96,  112, 128, 144, 48, 0,
+                                            0,  128, 0,  128, 0,   128, 0,  128, 0,   128, 128, 0}}),
+        Builder{}
+            .opType(BitwiseTypes::BITWISE_LEFT_SHIFT)
+            .inputs({{{2, 6}, element::u16, std::vector<uint16_t>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 51, 64}},
+                     {{6, 1, 1}, element::u16, std::vector<uint16_t>{0, 1, 2, 3, 4, 7}}})
+            .expected(
+                {{6, 2, 6},
+                 element::u16,
+                 std::vector<uint16_t>{0,  1,   2,   3,   4,   5,   6,   7,   8,    9,    51,   64,  0,   2,   4,
+                                       6,  8,   10,  12,  14,  16,  18,  102, 128,  0,    4,    8,   12,  16,  20,
+                                       24, 28,  32,  36,  204, 256, 0,   8,   16,   24,   32,   40,  48,  56,  64,
+                                       72, 408, 512, 0,   16,  32,  48,  64,  80,   96,   112,  128, 144, 816, 1024,
+                                       0,  128, 256, 384, 512, 640, 768, 896, 1024, 1152, 6528, 8192}}),
+
+        Builder{}
+            .opType(BitwiseTypes::BITWISE_LEFT_SHIFT)
+            .inputs({{{2, 6}, element::u32, std::vector<uint32_t>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 51, 64}},
+                     {{6, 1, 1}, element::u32, std::vector<uint32_t>{0, 1, 2, 3, 4, 7}}})
+            .expected(
+                {{6, 2, 6},
+                 element::u32,
+                 std::vector<uint32_t>{0,  1,   2,   3,   4,   5,   6,   7,   8,    9,    51,   64,  0,   2,   4,
+                                       6,  8,   10,  12,  14,  16,  18,  102, 128,  0,    4,    8,   12,  16,  20,
+                                       24, 28,  32,  36,  204, 256, 0,   8,   16,   24,   32,   40,  48,  56,  64,
+                                       72, 408, 512, 0,   16,  32,  48,  64,  80,   96,   112,  128, 144, 816, 1024,
+                                       0,  128, 256, 384, 512, 640, 768, 896, 1024, 1152, 6528, 8192}}),
     };
     return bitwiseParams;
 }
