@@ -30,7 +30,7 @@ def traverse_graph(model_outputs):
     return node_types
 
 
-def run_pa(tmp_path, model_id, model_link, use_block_indices_inputs, use_score_outputs):
+def run_test(model_id):
     model = OVModelForCausalLM.from_pretrained(model_id, export=True, trust_remote_code=True)
 
     with tempfile.NamedTemporaryFile(delete=True) as temp_file:
@@ -56,4 +56,4 @@ def test_rope_precommit(tmp_path, model_name, model_link, mark, reason, ie_devic
         pytest.skip(reason)
     elif mark == 'xfail':
         pytest.xfail(reason)
-    run_pa(tmp_path, model_name, model_link, False, False)
+    run_test(model_name)
