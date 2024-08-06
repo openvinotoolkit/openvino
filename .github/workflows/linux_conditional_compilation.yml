@@ -186,7 +186,7 @@ jobs:
         run: ${INSTALL_DIR}/samples/c/build_samples.sh -i ${INSTALL_DIR} -b ${BUILD_DIR}/c_samples
 
       - name: Ctest - OpenVINO unit tests
-        run: ctest -C ${{ env.CMAKE_BUILD_TYPE }} --test-dir ${BUILD_DIR} --output-on-failure -VV -L UNIT -E serialize_op
+        run: ctest -C ${{ env.CMAKE_BUILD_TYPE }} --test-dir ${BUILD_DIR} --output-on-failure -VV -L UNIT -E "*.serialize_op*."
 
       - name: Perform code tracing via ITT collector
         run: |
