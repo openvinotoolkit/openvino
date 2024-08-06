@@ -141,6 +141,7 @@ public:
     int disable_primitive_fusing;                               // Disable primitive fusing
     int disable_fake_alignment;                                 // Disable fake alignment
     int enable_dynamic_quantize;                                // Enable Dynamic quantization for fully connected primitive
+    int disable_horizontal_fc_fusion;                           // Disable fc horizontal fusion
     std::set<int64_t> dump_iteration;                           // Dump n-th execution of network.
     std::vector<std::string> load_layers_raw_dump;              // List of layers to load dumped raw binary and filenames
     static const debug_configuration *get_instance();

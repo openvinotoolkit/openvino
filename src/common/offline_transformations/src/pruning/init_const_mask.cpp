@@ -29,9 +29,13 @@ ov::pass::InitConstMask::InitConstMask(const ov::AxisSet& dims,
 
         for (const auto& dim : dims) {
             if (dim >= shape.size()) {
-                OPENVINO_DEBUG << "[WARNING] Attempt to initialize masks on " << dim
-                               << " dimension which is out of shape " << shape << " for node ("
-                               << const_node->get_friendly_name() << ")";
+                OPENVINO_DEBUG("[WARNING] Attempt to initialize masks on ",
+                               dim,
+                               " dimension which is out of shape ",
+                               shape,
+                               " for node (",
+                               const_node->get_friendly_name(),
+                               ")");
                 continue;
             }
 
@@ -61,10 +65,11 @@ ov::pass::InitConstMask::InitConstMask(const ov::AxisSet& dims,
         setMask(const_node, mask);
 #ifdef ENABLE_OPENVINO_DEBUG
         setInitMask(const_node, mask);
-#endif
+
         if (!mask->all_dims_are_empty()) {
-            OPENVINO_DEBUG << "MASK (" << const_node->get_friendly_name() << ") " << *mask << std::endl;
+            OPENVINO_DEBUG("MASK (", const_node->get_friendly_name(), ") ", *mask, "\n");
         }
+#endif
 
         return false;
     };

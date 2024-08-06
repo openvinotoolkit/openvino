@@ -241,13 +241,5 @@ std::vector<cldnn::optional_data_type> get_output_data_types(const ov::Node* op,
     return output_data_types;
 }
 
-std::vector<cldnn::padding> get_output_paddings(const ov::Node* op) {
-    std::vector<cldnn::padding> output_paddings;
-    for (size_t i = 0; i < op->get_output_size(); i++) {
-        output_paddings.push_back(cldnn::padding());
-    }
-    return output_paddings;
-}
-
 }  // namespace intel_gpu
 }  // namespace ov

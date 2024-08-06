@@ -94,9 +94,6 @@ ov::pass::ConvertMaxPool14ToMaxPool8::ConvertMaxPool14ToMaxPool8() {
         std::shared_ptr<ov::op::v8::MaxPool> max_pool_v8;
         NodeRegistry node_registry;
         if (rounding_type_v14 == ov::op::RoundingType::CEIL_TORCH) {
-            if (max_pool_v14->is_dynamic()) {
-                return false;
-            }
             auto input = max_pool_v14->input_value(0);
             const auto strides = max_pool_v14->get_strides();
             const auto padding_begin = max_pool_v14->get_pads_begin();
@@ -140,7 +137,7 @@ ov::pass::ConvertMaxPool14ToMaxPool8::ConvertMaxPool14ToMaxPool8() {
             const auto selected_pads = node_registry.make<Select>(in_gt_out, padding_end_node, zero);
 
             // apply padding on input clear pads attribute
-            const auto pb = node_registry.make<Concat>(OutputVector{pads_remaining->output(0), padding_end_node}, 0);
+            const auto pb = node_registry.make<Concat>(OutputVector{pads_remaining->output(0), padding_begin_node}, 0);
             const auto pe = node_registry.make<Concat>(OutputVector{pads_remaining, selected_pads}, 0);
             auto minus_inf =
                 node_registry.make<Constant>(element::f32, Shape{}, -std::numeric_limits<float>::infinity());

@@ -4,6 +4,7 @@
 
 #include "pass_manager.h"
 #include "gather_inst.h"
+#include "non_max_suppression_inst.h"
 #include "permute_inst.h"
 #include "strided_slice_inst.h"
 #include "kv_cache_inst.h"
@@ -49,7 +50,8 @@ void mark_runtime_skippable_nodes::run(program& p) {
             auto impl_params = node.get_kernel_impl_params();
             if (node.is_output() ||
                 node.has_fused_primitives() ||
-                (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type))
+                (impl_params->get_input_layout(0).data_type != impl_params->get_output_layout().data_type) ||
+                impl_params->get_input_layout(0).has_dynamic_pad())
                 return;
 
             // TODO: For now, all permutes with dynamic shape are applied.

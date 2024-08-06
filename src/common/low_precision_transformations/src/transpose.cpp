@@ -93,7 +93,7 @@ bool TransposeTransformation::transform(TransformationContext& context, ov::pass
     transposeDequantizationConstant(transpose, defaultPrecisions);
     const auto newOperation = moveDequantizationAfter(context, transpose, NetworkHelper::getDequantization(transpose, defaultPrecisions, 0));
 
-    OPENVINO_DEBUG << "LPT: done: " << newOperation;
+    OPENVINO_DEBUG("LPT: done: ", newOperation);
     return true;
 }
 

@@ -36,8 +36,7 @@ using OpenVINO. Additionally, we will use
 `NNCF <https://github.com/openvinotoolkit/nncf>`__ for optimizing model
 in low precision.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
 
 -  `Prerequisites <#prerequisites>`__
 -  `Download PyTorch model <#download-pytorch-model>`__
@@ -60,7 +59,6 @@ Table of contents:
 
 Prerequisites
 -------------
-
 
 
 .. code:: ipython3

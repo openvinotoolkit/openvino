@@ -146,7 +146,7 @@ void Memory::redefineDesc(MemoryDescPtr desc) {
 void Memory::update() {
     if (dnnlMemHandle.isInit()) {
         auto prim = dnnlMemHandle.getPrim();
-        prim.set_data_handle_no_pads_proc(m_mgrHandle->getRawPtr());
+        prim.set_data_handle(m_mgrHandle->getRawPtr());
     }
 }
 
@@ -178,12 +178,8 @@ dnnl::memory Memory::DnnlMemPrimHandle::getPrim() const {
         //
         // ========================
         auto data = m_memObjPtr->getDataNoThrow();
-        auto pads_zeroing = m_memObjPtr->m_padsZeroing;
         if (data != nullptr) {
-            if (pads_zeroing)
-                m_prim.set_data_handle(data);
-            else
-                m_prim.set_data_handle_no_pads_proc(data);
+            m_prim.set_data_handle(data);
         }
     }
     return m_prim;
@@ -499,10 +495,7 @@ StaticMemory::StaticMemory(const dnnl::engine& eng, MemoryDescPtr desc, const vo
         m_prim = dnnl::memory(dnnl_desc->getDnnlDesc(), m_eng, DNNL_MEMORY_NONE);
         //
         // ========================
-        if (pads_zeroing)
-            m_prim.set_data_handle(m_pMemMngr->getRawPtr());
-        else
-            m_prim.set_data_handle_no_pads_proc(m_pMemMngr->getRawPtr());
+        m_prim.set_data_handle(m_pMemMngr->getRawPtr());
     }
     catch (const std::exception& exc) {
         dnnlErrorCtx = exc.what();

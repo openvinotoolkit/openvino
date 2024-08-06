@@ -873,9 +873,9 @@ public:
             if (pad_agnostic_types.count(op->get_auto_pad())) {
                 clone_op_and_fix_paddings<ov::opset1::BinaryConvolution, ov::CoordinateDiff>(op);
             }
-        } else if (auto op = ov::as_type<ov::opset1::AvgPool>(node)) {
+        } else if (auto op = ov::as_type<ov::op::util::AvgPoolBase>(node)) {
             if (pad_agnostic_types.count(op->get_auto_pad())) {
-                clone_op_and_fix_paddings<ov::opset1::AvgPool, ov::Shape>(op);
+                clone_op_and_fix_paddings<ov::op::util::AvgPoolBase, ov::Shape>(op);
             }
         } else if (auto op = ov::as_type<ov::op::util::MaxPoolBase>(node)) {
             if (pad_agnostic_types.count(op->get_auto_pad())) {
@@ -885,8 +885,35 @@ public:
     }
 };
 
+bool is_correct_tag_name(const std::string& name) {
+    if (name.length() == 0) {
+        return false;
+    }
+    if (!std::all_of(name.begin(), name.end(), [](const int c) {
+            return std::isalnum(c) || (c == '_') || (c == '-') || (c == '.');
+        })) {
+        return false;
+    }
+    if (std::isalpha(name[0]) == false && name[0] != '_') {
+        return false;
+    }
+    if (name.length() >= 3 && (name[0] == 'X' || name[0] == 'x') && (name[1] == 'M' || name[1] == 'm') &&
+        (name[2] == 'l' || name[2] == 'L')) {
+        return false;
+    }
+    return true;
+}
+
 void serialize_rt_info(pugi::xml_node& root, const std::string& name, const ov::Any& data) {
-    auto child = root.append_child(name.c_str());
+    pugi::xml_node child;
+    if (is_correct_tag_name(name)) {
+        child = root.append_child(name.c_str());
+    } else {
+        // Name may brake XML-naming specification, so better to store it as an attribute of typical
+        // node
+        child = root.append_child("info");
+        child.append_attribute("name").set_value(name.c_str());
+    }
     if (data.is<std::shared_ptr<ov::Meta>>()) {
         std::shared_ptr<ov::Meta> meta = data.as<std::shared_ptr<ov::Meta>>();
         ov::AnyMap& map = *meta;
@@ -1206,16 +1233,27 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     if (m_xmlFile && m_binFile) {
         serializeFunc(*m_xmlFile, *m_binFile, model, m_version);
     } else {
-        auto xmlDir = ov::util::get_directory(m_xmlPath);
-        if (xmlDir != m_xmlPath)
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+        const auto& xmlPath_ref = ov::util::string_to_wstring(m_xmlPath);
+        const auto& binPath_ref = ov::util::string_to_wstring(m_binPath);
+        std::string message_bin = "Can't open bin file.";
+        std::string message_xml = "Can't open xml file.";
+#else
+        const auto& xmlPath_ref = m_xmlPath;
+        const auto& binPath_ref = m_binPath;
+        std::string message_bin = "Can't open bin file: \"" + binPath_ref + "\"";
+        std::string message_xml = "Can't open xml file: \"" + xmlPath_ref + "\"";
+#endif
+        auto xmlDir = ov::util::get_directory(xmlPath_ref);
+        if (xmlDir != xmlPath_ref)
             ov::util::create_directory_recursive(xmlDir);
 
-        std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);
-        OPENVINO_ASSERT(bin_file, "Can't open bin file: \"" + m_binPath + "\"");
+        std::ofstream bin_file(binPath_ref, std::ios::out | std::ios::binary);
+        OPENVINO_ASSERT(bin_file, message_bin);
 
         // create xml file
-        std::ofstream xml_file(m_xmlPath, std::ios::out);
-        OPENVINO_ASSERT(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
+        std::ofstream xml_file(xmlPath_ref, std::ios::out);
+        OPENVINO_ASSERT(xml_file, message_xml);
 
         try {
             serializeFunc(xml_file, bin_file, model, m_version);

@@ -6,7 +6,7 @@
 
 #include "snippets/lowered/pass/iter_handler.hpp"
 #include "snippets/lowered/pass/propagate_subtensors.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 
 namespace ov {

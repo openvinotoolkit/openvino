@@ -19,6 +19,7 @@
 namespace ov {
 namespace npuw {
 namespace patterns {
+namespace avoid {
 
 namespace opp = ov::pass::pattern;
 
@@ -38,8 +39,7 @@ namespace opp = ov::pass::pattern;
 //                    :
 //                    V
 //
-RMSNormPattern::RMSNormPattern(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
-                               const std::string& avoid_device) {
+RMSNorm::RMSNorm(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& avoid_device) {
     auto power = opp::wrap_type<ov::op::v1::Power>({opp::any_input(), opp::any_input()});
     auto reduce = opp::wrap_type<ov::op::v1::ReduceMean>({power, opp::wrap_type<ov::op::v0::Constant>()});
     auto add = opp::wrap_type<ov::op::v1::Add>({reduce, opp::any_input()});
@@ -62,9 +62,10 @@ RMSNormPattern::RMSNormPattern(const std::shared_ptr<ov::npuw::online::Snapshot>
 
         return false;  // root hasn't changed
     };
-    register_matcher(std::make_shared<opp::Matcher>(sqrt, "TagRMSNorm"), callback);
+    register_matcher(std::make_shared<opp::Matcher>(sqrt, "TagRMSNormAvoid"), std::move(callback));
 }
 
+}  // namespace avoid
 }  // namespace patterns
 }  // namespace npuw
 }  // namespace ov

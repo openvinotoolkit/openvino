@@ -27,6 +27,8 @@
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 
+#include "fake_quantize.h"
+
 using namespace dnnl;
 using namespace ov::element;
 
@@ -221,6 +223,28 @@ void FullyConnected::executeDynamicImpl(dnnl::stream strm) {
 }
 
 bool FullyConnected::canFuse(const NodePtr& node) const {
+#if defined(OV_CPU_WITH_SHL)
+    return false;
+#endif
+    if (node->getType() == Type::FakeQuantize) {
+        auto* fq = dynamic_cast<FakeQuantize*>(node.get());
+        if (fq->getBroadcastingPolicy() != FakeQuantize::BroadcastingPolicy::PerTensor) {
+            const auto& dstShape = getOutputShapeAtPort(0);
+            auto dataRanks = dstShape.getRank();
+            // only per-OC or per-Tensor fakequantize can be postOps
+            if (fq->getAxis() != dataRanks - 1) {
+                DEBUG_LOG("reject FakeQuantize ",
+                          fq->getName(),
+                          "(axis=",
+                          fq->getAxis(),
+                          ") from fusing into ",
+                          getName(),
+                          " with dst shape ",
+                          dstShape);
+                return false;
+            }
+        }
+    }
     return canFuseSimpleOperation(node);
 }
 
@@ -236,6 +260,7 @@ const std::vector<impl_desc_type>& FullyConnected::getDefaultImplPriority() {
     static const std::vector<impl_desc_type> priorities = {
         impl_desc_type::unknown,
         impl_desc_type::acl,
+        impl_desc_type::shl,
         impl_desc_type::brgemm_sparse_avx512_amx,
         impl_desc_type::brgemm_avx512_amx,
         impl_desc_type::brgemm_avx512,

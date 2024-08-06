@@ -123,7 +123,7 @@ struct OptionParser<std::map<K, V>> final {
             OPENVINO_ASSERT(kv_delim_pos != std::string::npos);
             K key = OptionParser<K>::parse(std::string_view(item.substr(0, kv_delim_pos)));
             V value = OptionParser<V>::parse(std::string_view(item.substr(kv_delim_pos + 1)));
-            res[key] = value;
+            res[key] = std::move(value);
         });
         return res;
     }

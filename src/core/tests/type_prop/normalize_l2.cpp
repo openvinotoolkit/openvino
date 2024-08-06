@@ -4,6 +4,7 @@
 
 #include "openvino/op/normalize_l2.hpp"
 
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/constant.hpp"
 
@@ -40,7 +41,7 @@ TEST(type_prop, normalize_l2_axes_input_not_constant) {
     auto axes = make_shared<ov::op::v0::Parameter>(element::u64, Shape{1});
     float eps{1e-6f};
     auto eps_mode = op::EpsMode::ADD;
-    ASSERT_NO_THROW(auto op = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode));
+    OV_ASSERT_NO_THROW(auto op = make_shared<op::v0::NormalizeL2>(data, axes, eps, eps_mode));
 }
 
 TEST(type_prop, normalize_l2_invalid_axes_rank) {
@@ -73,7 +74,7 @@ TEST(type_prop, normalize_l2_axes_out_of_bounds) {
         // Should have thrown, so fail if it didn't
         FAIL() << "Invalid input tensor rank.";
     } catch (const ov::AssertFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("(axis_range_min <= axis) && (axis <= axis_range_max)"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Axis 4 out of the tensor rank range [-4, 3]"));
     } catch (...) {
         FAIL() << "Deduced type check failed for unexpected reason";
     }

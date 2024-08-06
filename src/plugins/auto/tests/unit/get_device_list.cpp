@@ -57,7 +57,7 @@ TEST_P(GetDeviceListTest, GetDeviceListTestWithExcludeList) {
         EXPECT_THROW(plugin->get_device_list({ov::device::priorities(priorityDevices)}), ov::Exception);
     } else {
         std::string result;
-        ASSERT_NO_THROW(result = plugin->get_device_list({ov::device::priorities(priorityDevices)}));
+        OV_ASSERT_NO_THROW(result = plugin->get_device_list({ov::device::priorities(priorityDevices)}));
         EXPECT_EQ(result, metaDevices);
     }
 }
@@ -81,7 +81,7 @@ TEST_P(GetDeviceListTestWithNotInteldGPU, GetDeviceListTestWithExcludeList) {
         EXPECT_THROW(plugin->get_device_list({ov::device::priorities(priorityDevices)}), ov::Exception);
     } else {
         std::string result;
-        ASSERT_NO_THROW(result = plugin->get_device_list({ov::device::priorities(priorityDevices)}));
+        OV_ASSERT_NO_THROW(result = plugin->get_device_list({ov::device::priorities(priorityDevices)}));
         EXPECT_EQ(result, metaDevices);
     }
 }
