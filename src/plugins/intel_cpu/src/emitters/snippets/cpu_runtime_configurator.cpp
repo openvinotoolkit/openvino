@@ -5,7 +5,6 @@
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 
 #include "snippets/lowered/loop_manager.hpp"
-#include "snippets/lowered/pass/init_loops.hpp"
 #include "snippets/utils/utils.hpp"
 
 namespace ov {
@@ -17,28 +16,13 @@ CPURuntimeConfigurator::CPURuntimeConfigurator() : ov::snippets::RuntimeConfigur
 }
 
 void CPURuntimeConfigurator::update(const ov::snippets::lowered::LinearIRCPtr& linear_ir) {
-    m_config->master_shape = linear_ir->get_master_shape();
-
-    ov::snippets::RuntimeConfigurator::LoopInfoRuntimeParamsMap initialized_info;
-    auto shapes = extract_shapes();
-    auto layouts = extract_layouts();
-    if (m_optimizer.need_optimize(m_config->master_shape)) {
-        m_optimizer.update(initialized_info, shapes, layouts, m_config, m_in_num);
-        // Note: since tensor_rank was changed by optimizer, need to adjust the updated rank accordingly to CPU specific
-        m_config->tensor_rank = std::max(m_config->tensor_rank, rank6D);
-    }
-
-    if (linear_ir->is_dynamic()) {
-        update_loop_info(linear_ir, initialized_info);
+    RuntimeConfigurator::update(linear_ir);
+    if (linear_ir->is_dynamic())
         update_loop_args(linear_ir);
-        // Update KernelExecutor Table should be before `update_buffer_scratchpad_size`
-        // because `ComputeAllocationSize` depends on subtensors which are updated in the table
-        get_kernel_executor_table()->update_state(linear_ir);
-        update_buffer_scratchpad_size(linear_ir);
-    }
+}
 
-    update_data_offsets(shapes, layouts);
-    m_latest_shapes = std::move(shapes);
+void CPURuntimeConfigurator::update_tensor_rank(const ov::snippets::VectorDims& master_shape) {
+    m_config->tensor_rank = std::max(master_shape.size(), rank6D);
 }
 
 void CPURuntimeConfigurator::init_tensor_rank(const ov::snippets::lowered::LinearIRCPtr& linear_ir) const {

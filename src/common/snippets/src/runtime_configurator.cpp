@@ -53,16 +53,23 @@ void RuntimeConfigurator::update(const lowered::LinearIRCPtr& linear_ir) {
     LoopInfoRuntimeParamsMap initialized_info;
     auto shapes = extract_shapes();
     auto layouts = extract_layouts();
-    if (m_optimizer.need_optimize(m_config->master_shape))
-        m_optimizer.update(initialized_info, shapes, layouts, m_config, m_in_num);
+    if (m_optimizer.optimize(m_config->master_shape, initialized_info, shapes, layouts, m_in_num))
+        update_tensor_rank(m_config->master_shape);
 
     if (linear_ir->is_dynamic()) {
         update_loop_info(linear_ir, initialized_info);
+        // Update KernelExecutor Table should be before `update_buffer_scratchpad_size`
+        // because `ComputeAllocationSize` depends on subtensors which are updated in the table
+        get_kernel_executor_table()->update_state(linear_ir);
         update_buffer_scratchpad_size(linear_ir);
     }
 
     update_data_offsets(shapes, layouts);
     m_latest_shapes = std::move(shapes);
+}
+
+void RuntimeConfigurator::update_tensor_rank(const ov::snippets::VectorDims& master_shape) {
+    m_config->tensor_rank = master_shape.size();
 }
 
 void RuntimeConfigurator::init_tensor_rank(const lowered::LinearIRCPtr& linear_ir) const {
@@ -263,14 +270,14 @@ void RuntimeConfigurator::update_data_offsets(const std::vector<VectorDims>& sha
     }
 }
 
-std::vector<VectorDims> RuntimeConfigurator::extract_shapes() {
+std::vector<VectorDims> RuntimeConfigurator::extract_shapes() const {
     std::vector<VectorDims> shapes(m_io_num);
     for (size_t i = 0; i < m_io_num; ++i)
         shapes[i] = m_io_descs[i]->get_shape();
     return shapes;
 }
 
-std::vector<std::vector<size_t>> RuntimeConfigurator::extract_layouts() {
+std::vector<std::vector<size_t>> RuntimeConfigurator::extract_layouts() const {
     std::vector<std::vector<size_t>> layouts(m_io_num);
     for (size_t i = 0; i < m_io_num; ++i)
         layouts[i] = m_io_descs[i]->get_layout();
@@ -304,69 +311,68 @@ void RuntimeConfigurator::ParallelWAOptimizer::init(const lowered::LinearIRCPtr&
                                                     size_t in_num) {
     if (linear_ir->get_config().m_enable_domain_optimization || !linear_ir->is_dynamic())
         return;
-    concurrency = linear_ir->get_config().m_min_parallel_work_amount;
 
     const auto brgemms = find_applicable_brgemms(linear_ir);
     // Parallel WA optimization is Brgemm related
     if (brgemms.empty())
         return;
 
-    init_non_m_related_params(linear_ir, brgemms);
-    OPENVINO_ASSERT(!not_m_related_params.empty(), "not_m_related_params mustn't be empty after initialization");
-    init_loops_to_split(linear_ir);
+    concurrency = linear_ir->get_config().m_min_parallel_work_amount;
+    unsqueezed_params = find_unsqueezed_params(linear_ir, brgemms);
+    OPENVINO_ASSERT(!unsqueezed_params.empty(), "unsqueezed_params mustn't be empty after initialization");
+    loops_to_split = find_loops_to_split(linear_ir, unsqueezed_params);
 
     m_dim_idces.resize(io_descs.size());
-    split_layouts.resize(io_descs.size());
+    optimized_layouts.resize(io_descs.size());
     for (size_t i = 0; i < io_descs.size(); ++i) {
         const auto& layout = io_descs[i]->get_layout();
         const auto dim_idx = i < in_num ? utils::get_input_dim_idx(layout, 1)
                                         : utils::get_output_dim_idx(layout, 1);
         m_dim_idces[i] = dim_idx;
-        split_layouts[i] = SplitDimensionM::get_updated_order(layout, i < in_num ? dim_idx : layout.size() - 2);
+        optimized_layouts[i] = SplitDimensionM::get_updated_order(layout, i < in_num ? dim_idx : layout.size() - 2);
     }
 }
 
-bool RuntimeConfigurator::ParallelWAOptimizer::need_optimize(const VectorDims& master_shape) {
-    return !loops_to_split.empty() && SplitDimensionM::split(master_shape, concurrency, batch_m, new_m);
-}
+bool RuntimeConfigurator::ParallelWAOptimizer::optimize(VectorDims& master_shape,
+                                                        RuntimeConfigurator::LoopInfoRuntimeParamsMap& map,
+                                                        std::vector<ov::snippets::VectorDims>& shapes,
+                                                        std::vector<std::vector<size_t>>& layouts,
+                                                        size_t in_num) {
+    size_t new_batch_dim, new_kernel_dim;
+    if (loops_to_split.empty() || !SplitDimensionM::split(master_shape, concurrency, new_batch_dim, new_kernel_dim))
+        return false;
 
-void RuntimeConfigurator::ParallelWAOptimizer::update(RuntimeConfigurator::LoopInfoRuntimeParamsMap& map,
-                                                      std::vector<VectorDims>& shapes,
-                                                      std::vector<std::vector<size_t>>& layouts,
-                                                      const std::shared_ptr<RuntimeConfig>& config,
-                                                      size_t in_num) {
-    update_split_loops_info(map);
-    update_shapes(shapes);
+    update_master_shape(master_shape, new_batch_dim, new_kernel_dim);
+    update_split_loops_info(map, new_kernel_dim);
+    update_shapes(shapes, new_batch_dim, new_kernel_dim);
     update_layouts(layouts);
-    update_config(config);
+    return true;
 }
 
-void RuntimeConfigurator::ParallelWAOptimizer::update_split_loops_info(LoopInfoRuntimeParamsMap& initialized_info) {
+void RuntimeConfigurator::ParallelWAOptimizer::update_master_shape(VectorDims& master_shape, size_t new_batch_dim, size_t new_kernel_dim) {
+    *++master_shape.rbegin() = new_kernel_dim;
+    master_shape.insert(master_shape.cbegin() + master_shape.size() - 2, new_batch_dim);
+}
+
+void RuntimeConfigurator::ParallelWAOptimizer::update_split_loops_info(LoopInfoRuntimeParamsMap& initialized_info, size_t new_kernel_dim) {
+    OPENVINO_ASSERT(initialized_info.empty(), "ParallelWAOptimizer::update_split_loops_info expects empty initialized_info map");
     for (const auto& loop : loops_to_split) {
-        if (initialized_info.count(loop) == 0) {
-            loop->set_work_amount(new_m);
-            lowered::pass::InitLoops::update_data_pointer_shifts(loop);
-            initialized_info[loop] = compute_runtime_params(loop);
-        }
+        loop->set_work_amount(new_kernel_dim);
+        lowered::pass::InitLoops::update_data_pointer_shifts(loop);
+        initialized_info[loop] = compute_runtime_params(loop);
     }
 }
 
-void RuntimeConfigurator::ParallelWAOptimizer::update_shapes(std::vector<VectorDims>& shapes) {
+void RuntimeConfigurator::ParallelWAOptimizer::update_shapes(std::vector<VectorDims>& shapes, size_t new_batch_dim, size_t new_kernel_dim) {
     for (size_t i = 0; i < m_dim_idces.size(); ++i) {
-        shapes[i] = not_m_related_params.count(i)
+        shapes[i] = unsqueezed_params.count(i)
                         ? SplitDimensionM::unsqueeze_m_dim(shapes[i], m_dim_idces[i])
-                        : SplitDimensionM::reshape_m_dim(shapes[i], m_dim_idces[i], batch_m, new_m);
+                        : SplitDimensionM::reshape_m_dim(shapes[i], m_dim_idces[i], new_batch_dim, new_kernel_dim);
     }
 }
 
 void RuntimeConfigurator::ParallelWAOptimizer::update_layouts(std::vector<std::vector<size_t>>& layouts) {
-    layouts = split_layouts;
-}
-
-void RuntimeConfigurator::ParallelWAOptimizer::update_config(const std::shared_ptr<RuntimeConfig>& config) {
-    *++config->master_shape.rbegin() = new_m;
-    config->master_shape.insert(config->master_shape.cbegin() + config->master_shape.size() - 2, batch_m);
-    config->tensor_rank = config->master_shape.size();
+    layouts = optimized_layouts;
 }
 
 std::unordered_set<ExpressionPtr> RuntimeConfigurator::ParallelWAOptimizer::find_applicable_brgemms(
@@ -381,12 +387,15 @@ std::unordered_set<ExpressionPtr> RuntimeConfigurator::ParallelWAOptimizer::find
         brgemm_it = std::find_if(std::next(brgemm_it), linear_ir->end(), is_brgemm);
     }
     const auto& loop_manager = linear_ir->get_loop_manager();
+    // Brgemm is applicable if it has dynamic loop by M
+    // The loop by M is necessary since only in this case we can regulate BrgemmExecutor parameters (via loop's work amount)
+    // Only dynamic loops are applicable since in static case LoopEnd expressions are not updated during code generation and compiled as is
+    // Ticket: 148805
     auto applicable_brgemm = [&loop_manager](const ExpressionPtr& expr) {
         const auto& loop_idces = expr->get_loop_ids();
         if (loop_idces.empty())
             return false;
         const auto& outermost_loop = loop_manager->get_loop_info(loop_idces[0]);
-        // WA: the feature doesn't work in static case
         if (!utils::is_dynamic_value(outermost_loop->get_work_amount()))
             return false;
         bool loop_by_m = true;
@@ -397,21 +406,19 @@ std::unordered_set<ExpressionPtr> RuntimeConfigurator::ParallelWAOptimizer::find
         return loop_by_m;
     };
     // Note: if at least one brgemm is inapplicable, the parallel work amount optimization can't be applied
-    if (std::all_of(brgemms.begin(), brgemms.end(), applicable_brgemm))
-        return brgemms;
-    else
-        return {};
+    return std::all_of(brgemms.begin(), brgemms.end(), applicable_brgemm) ? brgemms : std::unordered_set<ExpressionPtr>{};
 }
 
-void RuntimeConfigurator::ParallelWAOptimizer::init_non_m_related_params(
+std::unordered_set<size_t> RuntimeConfigurator::ParallelWAOptimizer::find_unsqueezed_params(
     const lowered::LinearIRCPtr& linear_ir,
     const std::unordered_set<ExpressionPtr>& brgemms) {
     const auto& params = linear_ir->get_parameters();
-    auto add_param = [&params, this](const ExpressionPtr& expr) {
+    std::unordered_set<size_t> unsqueezed_params;
+    auto add_param = [&params, &unsqueezed_params](const ExpressionPtr& expr) {
         if (ov::is_type<ov::op::v0::Parameter>(expr->get_node())) {
             auto found_param = std::find(params.begin(), params.end(), expr);
             OPENVINO_ASSERT(found_param != params.end(), "find_param didn't found parameter for expr");
-            not_m_related_params.insert(std::distance(params.begin(), found_param));
+            unsqueezed_params.insert(std::distance(params.begin(), found_param));
         }
     };
 
@@ -420,13 +427,16 @@ void RuntimeConfigurator::ParallelWAOptimizer::init_non_m_related_params(
         const auto& brgemm_b_input = brgemm->get_input_port_connector(1)->get_source().get_expr();
         utils::visit_path(brgemm_b_input, visited, add_param, true);
     }
+    return unsqueezed_params;
 }
 
-void RuntimeConfigurator::ParallelWAOptimizer::init_loops_to_split(
-    const lowered::LinearIRCPtr& linear_ir) {
+std::unordered_set<UnifiedLoopInfoPtr> RuntimeConfigurator::ParallelWAOptimizer::find_loops_to_split(
+    const lowered::LinearIRCPtr& linear_ir,
+    const std::unordered_set<size_t>& unsqueezed_params) {
     const auto loop_manager = linear_ir->get_loop_manager();
 
-    auto add_loops_to_split = [&loop_manager, this](const ExpressionPtr& expr) {
+    std::unordered_set<UnifiedLoopInfoPtr> loops_to_split;
+    auto add_loops_to_split = [&loop_manager, &loops_to_split](const ExpressionPtr& expr) {
         const auto& loop_ids = expr->get_loop_ids();
         if (!loop_ids.empty()) {
             const auto outermost_loop_idx = loop_ids[0];
@@ -441,10 +451,11 @@ void RuntimeConfigurator::ParallelWAOptimizer::init_loops_to_split(
     // and find all the outermost loops: these loops will be split in runtime
     for (const auto& param : linear_ir->get_parameters()) {
         // Ops after non related params mustn't be traversed
-        if (not_m_related_params.count(i++))
+        if (unsqueezed_params.count(i++))
             continue;
         utils::visit_path(param, visited, add_loops_to_split, false);
     }
+    return loops_to_split;
 }
 
 } // namespace snippets
