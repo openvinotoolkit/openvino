@@ -197,8 +197,7 @@ std::shared_ptr<ov::Model> read_model(const std::string& model,
 
 std::shared_ptr<ov::Model> read_model(const std::shared_ptr<AlignedBuffer>& model,
                                       const std::shared_ptr<AlignedBuffer>& weights,
-                                      const std::vector<ov::Extension::Ptr>& ov_exts,
-                                      bool frontendMode) {
+                                      const std::vector<ov::Extension::Ptr>& ov_exts) {
     // Try to load with FrontEndManager
     ov::frontend::FrontEndManager manager;
     ov::frontend::FrontEnd::Ptr FE;

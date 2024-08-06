@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <stdexcept>
+
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 
@@ -82,14 +84,6 @@ public:
         return m_size;
     }
 
-    void set_offset(size_t offset) override {
-        m_offset = offset;
-    }
-
-    size_t get_offset() const override {
-        return m_offset;
-    }
-
 private:
     void map(const std::string& path, HANDLE h) {
         if (h == INVALID_HANDLE_VALUE) {
@@ -129,8 +123,7 @@ private:
 
 private:
     void* m_data = nullptr;
-    size_t m_size = 0lu;
-    size_t m_offset = 0lu;
+    size_t m_size = 0;
     HandleHolder m_handle;
     HandleHolder m_mapping;
 };

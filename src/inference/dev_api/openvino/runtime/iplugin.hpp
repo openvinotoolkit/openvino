@@ -187,33 +187,6 @@ public:
                                                              const ov::AnyMap& properties) const = 0;
 
     /**
-     * @brief Creates a compiled model from a previously exported model file using plugin implementation
-     *        and removes OpenVINO Runtime magic and plugin name
-     * @param model_variant Reference to model object
-     * @param properties A ov::AnyMap of properties
-     * @return An Compiled model
-     */
-    virtual std::shared_ptr<ov::ICompiledModel> import_model(const ov::Any& model_variant,
-                                                             const ov::AnyMap& properties) const {
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-
-    /**
-     * @brief Creates a compiled model from a previously exported model using plugin implementation
-     *        and removes OpenVINO Runtime magic and plugin name
-     * @param model_variant Reference to model object
-     * @param context A pointer to plugin context derived from RemoteContext class used to
-     *        execute the network
-     * @param properties A ov::AnyMap of properties
-     * @return An Compiled model
-     */
-    virtual std::shared_ptr<ov::ICompiledModel> import_model(const ov::Any& model_variant,
-                                                             const ov::SoPtr<ov::IRemoteContext>& context,
-                                                             const ov::AnyMap& properties) const {
-        OPENVINO_NOT_IMPLEMENTED;
-    }
-
-    /**
      * @brief Queries a plugin about supported layers in model
      * @param model Model object to query.
      * @param properties Optional map of pairs: (property name, property value).

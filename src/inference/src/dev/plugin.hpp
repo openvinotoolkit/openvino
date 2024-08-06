@@ -59,13 +59,6 @@ public:
                                            const ov::SoPtr<ov::IRemoteContext>& context,
                                            const ov::AnyMap& config) const;
 
-    SoPtr<ov::ICompiledModel> import_model(const ov::Any& model_variant,
-                                           const ov::AnyMap& properties) const;
-
-    SoPtr<ov::ICompiledModel> import_model(const ov::Any& model_variant,
-                                           const ov::SoPtr<ov::IRemoteContext>& context,
-                                           const ov::AnyMap& properties) const;
-
     ov::SoPtr<ov::IRemoteContext> create_context(const AnyMap& params) const;
 
     ov::SoPtr<ov::IRemoteContext> get_default_context(const AnyMap& params) const;

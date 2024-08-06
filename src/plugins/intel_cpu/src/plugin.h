@@ -5,7 +5,6 @@
 #pragma once
 
 #include "compiled_model.h"
-#include "utils/serialize_base.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -34,16 +33,6 @@ public:
             "import_model with RemoteContext is not supported by CPU plugin!");
     };
 
-    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Any& model_variant,
-                                                     const ov::AnyMap& properties) const override;
-
-    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Any& model_variant,
-                                                     const ov::SoPtr<ov::IRemoteContext>& context,
-                                                     const ov::AnyMap& properties) const override {
-        OPENVINO_THROW_NOT_IMPLEMENTED(
-            "import_model with RemoteContext is not supported by CPU plugin!");
-    };
-
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override;
     ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override {
@@ -58,10 +47,6 @@ private:
 
     void get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model) const;
     void calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported = false) const;
-
-    std::shared_ptr<ov::ICompiledModel> handle_imported_model(
-        ModelDeserializerBase& deserializer,
-        const ov::AnyMap& properties) const;
 
     Config engConfig;
     /* Explicily configured streams have higher priority than performance hints.

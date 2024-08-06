@@ -255,8 +255,7 @@ public:
                                           bool frontend_mode = false) const override;
 
     std::shared_ptr<ov::Model> read_model(const std::shared_ptr<AlignedBuffer>& model,
-                                          const std::shared_ptr<AlignedBuffer>& weights,
-                                          bool frontend_mode = false) const override;
+                                          const std::shared_ptr<AlignedBuffer>& weights) const override;
 
     std::shared_ptr<ov::Model> read_model(const std::string& model_path, const std::string& bin_path) const override;
 
