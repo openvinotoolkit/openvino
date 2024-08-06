@@ -53,8 +53,10 @@ void RuntimeConfigurator::update(const lowered::LinearIRCPtr& linear_ir) {
     LoopInfoRuntimeParamsMap initialized_info;
     auto shapes = extract_shapes();
     auto layouts = extract_layouts();
-    if (m_optimizer.optimize(m_config->master_shape, initialized_info, shapes, layouts, m_in_num))
+    if (m_optimizer.enabled()) {
+        m_optimizer.optimize(m_config->master_shape, initialized_info, shapes, layouts, m_in_num);
         update_tensor_rank(m_config->master_shape);
+    }
 
     if (linear_ir->is_dynamic()) {
         update_loop_info(linear_ir, initialized_info);
@@ -318,6 +320,7 @@ void RuntimeConfigurator::ParallelWAOptimizer::init(const lowered::LinearIRCPtr&
         return;
 
     concurrency = linear_ir->get_config().m_min_parallel_work_amount;
+    // At the moment this optimization is Brgemm related so there must be `unsqueezed_params`
     unsqueezed_params = find_unsqueezed_params(linear_ir, brgemms);
     OPENVINO_ASSERT(!unsqueezed_params.empty(), "unsqueezed_params mustn't be empty after initialization");
     loops_to_split = find_loops_to_split(linear_ir, unsqueezed_params);
@@ -333,20 +336,23 @@ void RuntimeConfigurator::ParallelWAOptimizer::init(const lowered::LinearIRCPtr&
     }
 }
 
-bool RuntimeConfigurator::ParallelWAOptimizer::optimize(VectorDims& master_shape,
+bool RuntimeConfigurator::ParallelWAOptimizer::enabled() {
+    return !loops_to_split.empty();
+}
+
+void RuntimeConfigurator::ParallelWAOptimizer::optimize(VectorDims& master_shape,
                                                         RuntimeConfigurator::LoopInfoRuntimeParamsMap& map,
                                                         std::vector<ov::snippets::VectorDims>& shapes,
                                                         std::vector<std::vector<size_t>>& layouts,
                                                         size_t in_num) {
     size_t new_batch_dim, new_kernel_dim;
-    if (loops_to_split.empty() || !SplitDimensionM::split(master_shape, concurrency, new_batch_dim, new_kernel_dim))
-        return false;
+    if (!SplitDimensionM::split(master_shape, concurrency, new_batch_dim, new_kernel_dim))
+        return;
 
     update_master_shape(master_shape, new_batch_dim, new_kernel_dim);
     update_split_loops_info(map, new_kernel_dim);
     update_shapes(shapes, new_batch_dim, new_kernel_dim);
     update_layouts(layouts);
-    return true;
 }
 
 void RuntimeConfigurator::ParallelWAOptimizer::update_master_shape(VectorDims& master_shape, size_t new_batch_dim, size_t new_kernel_dim) {

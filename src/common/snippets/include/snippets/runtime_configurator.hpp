@@ -165,6 +165,12 @@ protected:
                   const std::vector<snippets::lowered::PortDescriptorPtr>& io_descs,
                   size_t in_num);
         /**
+         * @brief Checks if optimizer is enabled
+         * @todo Ticket 148891: when RuntimeConfigurator::update will be rewritten on PassPipeline, this method should be removed
+         * We will not just register ParallelWAOptimizer in case if it is not needed
+         */
+        bool enabled();
+        /**
          * @brief Checks if the current master shape can be optimized, and if yes, updates all the necessary runtime information
          * @param master_shape Master shape
          * @param map Loop info -> Runtime params map which will be passed in "update_loop_info"
@@ -174,7 +180,7 @@ protected:
          * @param in_num Number of inputs. It is needed to distinguish input and output shapes/layouts
          * @return status if the optimization is applied
          */
-        bool optimize(ov::snippets::VectorDims& master_shape,
+        void optimize(ov::snippets::VectorDims& master_shape,
                       ov::snippets::RuntimeConfigurator::LoopInfoRuntimeParamsMap& map,
                       std::vector<ov::snippets::VectorDims>& shapes,
                       std::vector<std::vector<size_t>>& layouts,
