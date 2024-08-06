@@ -6,7 +6,6 @@
 #include "openvino/op/split.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/op/lstm_cell.hpp"
-#include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/loop.hpp"
 
 #include "intel_gpu/plugin/common_utils.hpp"

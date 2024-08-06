@@ -7,6 +7,7 @@
 #include "lstm_seq_inst.h"
 #include "lstm/lstm_seq_kernel_selector.h"
 #include "lstm/lstm_seq_kernel_base.h"
+#include "openvino/op/lstm_sequence.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -26,13 +27,14 @@ struct lstm_seq_impl : typed_primitive_impl_ocl<lstm_seq> {
 protected:
     kernel_arguments_data get_arguments(const typed_primitive_inst<lstm_seq>& instance) const override {
         kernel_arguments_data args;// = parent::get_arguments(instance);
-        for (size_t i = 0; i < 7; i++) {
+        const int op_input_size = 7;
+        for (size_t i = 0; i < op_input_size; i++) {
             args.inputs.push_back(instance.input_memory_ptr(i));
         }
         for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
             args.outputs.push_back(instance.output_memory_ptr(i));
         }
-        if (instance.inputs_memory_count() > 7) {
+        if (instance.inputs_memory_count() > op_input_size) {
             args.outputs.push_back(instance.dep_memory_ptr(instance.desc()->input_size() - 2));
             args.outputs.push_back(instance.dep_memory_ptr(instance.desc()->input_size() - 1));
         }

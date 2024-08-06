@@ -312,8 +312,6 @@ struct lstm_seq : public primitive_base<lstm_seq> {
 protected:
     std::vector<input_info> get_dependencies() const override {
         std::vector<input_info> ret;
-        //ret.push_back(input[input.size()-2].pid);
-        //ret.push_back(input[input.size()-1].pid);
         return ret;
     }
 };

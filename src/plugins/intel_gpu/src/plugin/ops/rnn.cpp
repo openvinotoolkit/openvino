@@ -225,14 +225,8 @@ static void CreateLSTMCellOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v4
 
 static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v5::LSTMSequence>& op) {
     validate_inputs_count(op, {7});
-
     std::string layerName = layer_type_name_ID(op);
-
     auto inputs = p.GetInputInfo(op);
-    cldnn::input_info seq_lenghts = inputs[3];
-    cldnn::input_info weight = inputs[4];
-    cldnn::input_info recurrent = inputs[5];
-    cldnn::input_info bias = inputs[6];
     if (op->get_input_shape(2).size() != 3 || op->get_input_shape(3).size() != 1 \
         || op->get_input_shape(4).size() != 3 || op->get_input_shape(5).size() != 3 || op->get_input_shape(6).size() != 2)
         OPENVINO_THROW("Wrong input shapes for LSTMSequence op ", op->get_friendly_name());
@@ -246,7 +240,7 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     if (p.use_new_shape_infer()) {
         int direction = op->get_direction() == ov::op::RecurrentSequenceDirection::REVERSE ? 1 : 0;
         cldnn::lstm_seq prim(layerName, inputs[0], inputs[1], \
-            inputs[2], inputs[3], inputs[4], inputs[5], cldnn::input_info(bias), \
+            inputs[2], inputs[3], inputs[4], inputs[5], inputs[6], \
             "", clip, 0, activations, activation_params, cldnn::lstm_weights_order::fizo, direction, cldnn::padding(), op->get_output_size() );
         prim.output_paddings = get_output_paddings(op);
         prim.output_data_types = get_output_data_types(op);
@@ -272,10 +266,8 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     p.add_primitive(*op, mutable_prim_2);
     int direction = op->get_direction() == ov::op::RecurrentSequenceDirection::REVERSE ? 1 : 0;
     cldnn::lstm_seq prim(lstm_seq_id + ".out0", inputs[0], inputs[1], \
-        inputs[2], inputs[3], inputs[4], inputs[5], cldnn::input_info(bias), mutable_id_1, mutable_id_2, \
+        inputs[2], inputs[3], inputs[4], inputs[5], inputs[6], mutable_id_1, mutable_id_2, \
         "", clip, 0, activations, activation_params, cldnn::lstm_weights_order::fizo, direction);
-    //prim.output_data_types = get_output_data_types(op, {{ov::element::f32, ov::element::f16}});
-    //prim.out1_prim_id = f_id;
     p.add_primitive(*op, prim);
     p.add_primitive(*op, cldnn::mutable_data(lstm_seq_id + ".out1", {cldnn::input_info(lstm_seq_id + ".out0")}, shared_memories.front()));
     p.add_primitive(*op, cldnn::mutable_data(lstm_seq_id + ".out2", {cldnn::input_info(lstm_seq_id + ".out0")}, shared_memories.back()));
