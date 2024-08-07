@@ -31,7 +31,7 @@
 #include "gather_inst.h"
 #include "broadcast_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
-#include "implementation_map.hpp"
+#include "impls/registry/implementation_map.hpp"
 #include "graph_optimizer/prepare_buffer_fusing.h"
 
 #include "intel_gpu/plugin/common_utils.hpp"
@@ -39,7 +39,6 @@
 #include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/compilation_context.hpp"
 
@@ -1011,9 +1010,7 @@ bool primitive_inst::update_impl(bool use_async_compilation) {
                 if (!can_be_optimized())  {
                     if (!is_current_impl_dynamic)
                         _impl = std::move(_dynamic_impl);
-                    auto new_impl_params = _impl->canonicalize_shapes(*_impl_params);
-                    _impl->update_dispatch_data(new_impl_params);
-                    update_shape_info_tensor(new_impl_params);
+                    _impl->update(*this, *_impl_params);
                 }
             } else {
                 _impl = _node->type()->choose_impl(*_node, updated_params);

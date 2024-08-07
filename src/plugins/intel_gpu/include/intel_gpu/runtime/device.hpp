@@ -18,7 +18,7 @@ const uint32_t INTEL_VENDOR_ID = 0x8086;
 struct device {
 public:
     using ptr = std::shared_ptr<device>;
-    virtual device_info get_info() const = 0;
+    virtual const device_info& get_info() const = 0;
     virtual memory_capabilities get_mem_caps() const = 0;
 
     virtual bool is_same(const device::ptr other) = 0;

@@ -13,7 +13,7 @@
 #include "program_node.h"
 #include "primitive_inst.h"
 #include "intel_gpu/graph/network.hpp"
-#include "implementation_map.hpp"
+#include "impls/registry/implementation_map.hpp"
 
 #include <memory>
 #include <string>

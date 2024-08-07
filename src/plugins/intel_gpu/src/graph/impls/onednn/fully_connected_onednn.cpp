@@ -4,7 +4,7 @@
 
 #include "fully_connected_inst.h"
 #include "primitive_onednn_base.h"
-#include "implementation_map.hpp"
+#include "impls/registry/implementation_map.hpp"
 
 #include "impls/ocl/kernel_selector_helper.h"
 
