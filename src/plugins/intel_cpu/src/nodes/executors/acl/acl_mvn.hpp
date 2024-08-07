@@ -68,11 +68,6 @@ public:
             DEBUG_LOG("NEMeanStdDevNormalizationLayer supports normalize_variance=true only");
             return false;
         }
-        if (!mvnAttrs.initAcrossChannels_ &&
-            getAclDataLayoutByMemoryDesc(srcDescs[0]) == arm_compute::DataLayout::NHWC) {
-            DEBUG_LOG("initAcrossChannels = false is not supported by ACL for NHWC layout");
-            return false;
-        }
 
         return true;
     }

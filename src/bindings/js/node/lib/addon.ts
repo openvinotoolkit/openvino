@@ -215,6 +215,10 @@ interface CoreConstructor {
  */
 interface Model {
   /**
+   * It returns a cloned model.
+   */
+  clone(): Model;
+  /**
    * It gets the friendly name for a model. If a friendly name is not set
    * via {@link Model.setFriendlyName}, a unique model name is returned.
    * @returns A string with a friendly name of the model.
