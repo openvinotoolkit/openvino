@@ -13,7 +13,9 @@ namespace op {
 namespace v0 {
 namespace {
 template <typename T>
-bool apply_torch_mode(const Squeeze* const op, const std::unique_ptr<std::set<int64_t>>& unique_axes, const T& arg_shape) {
+bool apply_torch_mode(const Squeeze* const op,
+                      const std::unique_ptr<std::set<int64_t>>& unique_axes,
+                      const T& arg_shape) {
     using DimType = typename T::value_type;
     int64_t i{-1};
 
@@ -24,7 +26,7 @@ bool apply_torch_mode(const Squeeze* const op, const std::unique_ptr<std::set<in
                return d.is_dynamic() && d.compatible(1) && unique_axes->find(i) != unique_axes->end();
            });
 }
-}   // namespace
+}  // namespace
 
 /**
  * \brief Do Squeeze shape inference.
