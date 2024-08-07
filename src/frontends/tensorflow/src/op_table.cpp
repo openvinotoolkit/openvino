@@ -97,6 +97,7 @@ TF_OP_CONVERTER(translate_iterator_get_next_op);
 TF_OP_CONVERTER(translate_iterator_op);
 TF_OP_CONVERTER(translate_lookup_table_import_op);
 TF_OP_CONVERTER(translate_lookup_table_find_op);
+TF_OP_CONVERTER(translate_lookup_table_size_op);
 TF_OP_CONVERTER(translate_loop_cond_op);
 TF_OP_CONVERTER(translate_merge_op);
 TF_OP_CONVERTER(translate_mergev2checkpoint_op);
@@ -205,6 +206,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         // Separate translators:
         {"AddN", CreatorFunction(translate_add_n_op)},
         {"AdjustContrastv2", CreatorFunction(translate_adjust_contrast_op)},
+        {"AdjustHue", CreatorFunction(translate_adjust_hue_op)},
+        {"AdjustSaturation", CreatorFunction(translate_adjust_saturation_op)},
         {"Angle", CreatorFunction(translate_angle_op)},
         {"ArgMax", CreatorFunction(translate_arg_max_op)},
         {"ArgMin", CreatorFunction(translate_arg_min_op)},
@@ -245,7 +248,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"DynamicPartition", CreatorFunction(translate_dynamic_partition_op)},
         {"Einsum", CreatorFunction(translate_einsum_op)},
         {"Elu", CreatorFunction(translate_elu_op)},
-        {"EmptyTensorList", CreatorFunction(translate_tensor_list_reserve_op)},
+        {"EmptyTensorList", CreatorFunction(translate_empty_tensor_list_op)},
         {"EnsureShape", CreatorFunction(translate_identity_op)},
         {"ExpandDims", CreatorFunction(translate_expand_dims_op)},
         {"ExtractImagePatches", CreatorFunction(translate_extract_image_patches_op)},
@@ -269,6 +272,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"Addons>GatherTree", CreatorFunction(translate_gather_tree_op)},
         {"HashTable", CreatorFunction(translate_hash_table_op)},
         {"HashTableV2", CreatorFunction(translate_hash_table_op)},
+        {"HSVToRGB", CreatorFunction(translate_hsv_to_rgb_op)},
         {"Identity", CreatorFunction(translate_identity_op)},
         {"IdentityN", CreatorFunction(translate_identity_n_op)},
         {"Inv", CreatorFunction(translate_inv_op)},
@@ -298,6 +302,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"LookupTableImportV2", CreatorFunction(translate_lookup_table_import_op)},
         {"LookupTableInsert", CreatorFunction(translate_no_op)},
         {"LookupTableInsertV2", CreatorFunction(translate_no_op)},
+        {"LookupTableSize", CreatorFunction(translate_lookup_table_size_op)},
+        {"LookupTableSizeV2", CreatorFunction(translate_lookup_table_size_op)},
         {"LRN", CreatorFunction(translate_lrn_op)},
         {"MatMul", CreatorFunction(translate_mat_mul_op)},
         {"MatrixBandPart", CreatorFunction(translate_matrix_band_part_op)},

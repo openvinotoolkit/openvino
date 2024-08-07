@@ -78,13 +78,17 @@ ov::mock_auto_plugin::tests::BaseTest::BaseTest(const MODELTYPE modelType) {
     ON_CALL(*mockIExeNetActual.get(), outputs()).WillByDefault(ReturnRefOfCopy(model->outputs()));
     inferReqInternal = std::make_shared<ov::mock_auto_plugin::MockISyncInferRequest>(mockIExeNet);
 
-    ON_CALL(*mockIExeNet.get(), create_sync_infer_request()).WillByDefault(Return(inferReqInternal));
+    ON_CALL(*mockIExeNet.get(), create_sync_infer_request()).WillByDefault([this]() {
+        return inferReqInternal;
+    });
     optimalNum = (uint32_t)1;
     ON_CALL(*mockIExeNet.get(), get_property(StrEq(ov::optimal_number_of_infer_requests.name())))
         .WillByDefault(Return(optimalNum));
     inferReqInternalActual = std::make_shared<ov::mock_auto_plugin::MockISyncInferRequest>(mockIExeNetActual);
 
-    ON_CALL(*mockIExeNetActual.get(), create_sync_infer_request()).WillByDefault(Return(inferReqInternalActual));
+    ON_CALL(*mockIExeNetActual.get(), create_sync_infer_request()).WillByDefault([this]() {
+        return inferReqInternalActual;
+    });
     ON_CALL(*mockIExeNetActual.get(), get_property(StrEq(ov::optimal_number_of_infer_requests.name())))
         .WillByDefault(Return(optimalNum));
     ON_CALL(*mockIExeNet.get(), create_infer_request()).WillByDefault([this]() {
@@ -138,6 +142,7 @@ ov::mock_auto_plugin::tests::BaseTest::~BaseTest() {
     inferReqInternalActual.reset();
     mock_plugin_cpu.reset();
     mock_plugin_gpu.reset();
+    plugin->get_executor_manager()->clear();
     plugin.reset();
 }
 

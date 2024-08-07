@@ -17,6 +17,8 @@ on:
         type: string
         required: true
 
+permissions: read-all
+
 jobs:
   ONNX_Runtime:
     name: ONNX Runtime Integration
@@ -41,7 +43,7 @@ jobs:
       ONNX_RUNTIME_BUILD_DIR: ${{ github.workspace }}/onnxruntime/build
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}

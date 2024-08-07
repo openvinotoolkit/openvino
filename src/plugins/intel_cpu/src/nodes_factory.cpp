@@ -7,6 +7,7 @@
 #include "nodes/bin_conv.h"
 #include "nodes/broadcast.h"
 #include "nodes/bucketize.h"
+#include "nodes/col2im.h"
 #include "nodes/color_convert.h"
 #include "nodes/concat.h"
 #include "nodes/conv.h"
@@ -43,6 +44,8 @@
 #include "nodes/if.h"
 #include "nodes/input.h"
 #include "nodes/interaction.h"
+#include "nodes/llm_mlp.h"
+#include "nodes/qkv_proj.h"
 #include "nodes/interpolate.h"
 #include "nodes/inverse.hpp"
 #include "nodes/log_softmax.h"
@@ -158,6 +161,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(Math, Type::Math);
     INTEL_CPU_NODE(MultiClassNms, Type::MulticlassNms);
     INTEL_CPU_NODE(Convert, Type::Convert);
+    INTEL_CPU_NODE(Col2Im, Type::Col2Im);
     INTEL_CPU_NODE(ColorConvert, Type::ColorConvert);
     INTEL_CPU_NODE(EmbeddingBagOffset, Type::EmbeddingBagOffsetsSum);
     INTEL_CPU_NODE(EmbeddingBagOffset, Type::EmbeddingBagOffsets);
@@ -205,12 +209,14 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(RDFT, Type::RDFT);
     INTEL_CPU_NODE(ExtractImagePatches, Type::ExtractImagePatches);
     INTEL_CPU_NODE(Subgraph, Type::Subgraph);
+    INTEL_CPU_NODE(ScaledDotProductAttention, Type::ScaledDotProductAttention);
 #if defined(OPENVINO_ARCH_X86_64)
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
     INTEL_CPU_NODE(GridSample, Type::GridSample);
     INTEL_CPU_NODE(Interaction, Type::Interaction);
+    INTEL_CPU_NODE(LLMMLP, Type::LLMMLP);
+    INTEL_CPU_NODE(QKVProjection, Type::QKVProjection);
     INTEL_CPU_NODE(MHA, Type::MHA);
-    INTEL_CPU_NODE(ScaledDotProductAttention, Type::ScaledDotProductAttention);
     INTEL_CPU_NODE(PagedAttention, Type::PagedAttention);
 #endif
 }

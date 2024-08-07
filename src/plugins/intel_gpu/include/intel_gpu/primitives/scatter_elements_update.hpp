@@ -30,9 +30,8 @@ struct scatter_elements_update : public primitive_base<scatter_elements_update> 
                             const input_info& idupd,
                             const int64_t axis,
                             const ScatterElementsUpdateOp::Reduction mode = ScatterElementsUpdateOp::Reduction::NONE,
-                            const bool use_init_val = true,
-                            const padding& output_padding = padding())
-        : primitive_base(id, {data, idx, idupd}, {output_padding}), axis(axis), mode(mode), use_init_val(use_init_val) {}
+                            const bool use_init_val = true)
+        : primitive_base(id, {data, idx, idupd}), axis(axis), mode(mode), use_init_val(use_init_val) {}
 
     /// @brief ScatterElementsUpdate axis
     int64_t axis{0};

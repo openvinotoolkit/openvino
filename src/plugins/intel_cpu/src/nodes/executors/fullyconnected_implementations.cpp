@@ -26,6 +26,10 @@
 #include "ov_optional.hpp"
 #include "utils/cpp/maybe_unused.hpp"
 
+#if defined(OV_CPU_WITH_SHL)
+#    include "nodes/executors/shl/shl_fullyconnected.hpp"
+#endif
+
 namespace ov {
 namespace intel_cpu {
 
@@ -58,13 +62,13 @@ static const TypeMapping dnnlFCTypeMapping {
     {{_f16, _bf16, _any, _any | _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
     // quantization configuration
     // int8 inner_product does not support f16 output and bias
-    {{_u8 | _i8, _i8, _any, _f16},                            pt(bypass(), bypass(), just<f32>(), just<f32>())},
-    {{_u8 | _i8, _i8, _any & ~_f16, _u8 | _i8 | _i32 | _bf16 | _f32}, pt(bypass(), bypass(), bypass(), use<3>())},
+    {{_u8 | _i8, _i8, _u8 | _i8 | _i32 | _bf16 | _f32 | _undefined, _u8 | _i8 | _i32 | _bf16 | _f32}, pt(bypass(), bypass(), bypass(),  bypass())},
+    {{_u8 | _i8, _i8, _any, _any}, pt(bypass(), bypass(), just<f32>(), just<f32>())},
     // compresses int weights (@todo more strict requrements for output precision?)
-    {{_bf16, _u8 | _i8 | _nf4 | _u4 | _i4, _any, _any},       pt(bypass(), bypass(), use<0>(), use<0>()),
+    {{_bf16, _u8 | _i8 | _nf4 | _u4 | _i4 | _f4e2m1, _any, _any},       pt(bypass(), bypass(), use<0>(), use<0>()),
      Require<dnnl::impl::cpu::x64::avx512_core_bf16>()}, // Ticket 122347
-    {{_bf16, _u8 | _i8 | _nf4 | _u4 | _i4, _any, _any},       pt(just<f32>(), bypass(), just<f32>(), just<f32>())},
-    {{_f32,  _u8 | _i8 | _nf4 | _u4 | _i4, _any, _any},       pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_bf16, _u8 | _i8 | _nf4 | _u4 | _i4 | _f4e2m1, _any, _any},       pt(just<f32>(), bypass(), just<f32>(), just<f32>())},
+    {{_f32,  _u8 | _i8 | _nf4 | _u4 | _i4 | _f4e2m1, _any, _any},       pt(bypass(), bypass(), use<0>(), use<0>())},
     // @todo should we fallback to FPXX instead of _f32?
     {{_any, _any, _any, _any},                                pt(just<f32>(), just<f32>(), just<f32>(), just<f32>())},
     // @todo explicitly cover configuration limitations for oneDNN on ARM
@@ -301,6 +305,36 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                     context,
                     false);
             })
+        OV_CPU_INSTANCE_SHL(
+            "fullyconnected_shl",
+            ExecutorType::Shl,
+            OperationType::FullyConnected,
+            ShapeTolerance::Agnostic,
+            // supports
+            [](const FCConfig& config) -> bool {
+                VERIFY(noPostOps(config), UNSUPPORTED_POST_OPS);
+                VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
+                VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
+                VERIFY(everyone_is(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
+
+                return ShlFCExecutor::supports(config);
+            },
+            // requiresFallback
+            [](const FCConfig& config) -> ov::optional<executor::Config<FCAttrs>> {
+                return {};
+            },
+            // acceptsShapes
+            [](const MemoryArgs& memory) -> bool {
+                return true;
+            },
+            // create
+            [](const FCAttrs& attrs,
+               const PostOps& postOps,
+               const MemoryArgs& memory,
+               const ExecutorContext::CPtr context) {
+                return std::make_shared<ShlFCExecutor>(attrs, postOps, memory, context);
+            }
+        )
         OV_CPU_INSTANCE_DNNL(
             "fullyconnected_dnnl",
             ExecutorType::Dnnl,

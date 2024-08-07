@@ -80,17 +80,17 @@ public:
             auto b_mask = getMask(m_b);
 
             if (!a_mask && !b_mask) {
-                OPENVINO_DEBUG << "No mask for any input of " << m_matmul.get_node()->get_friendly_name() << "\n";
+                OPENVINO_DEBUG("No mask for any input of ", m_matmul.get_node()->get_friendly_name(), "\n");
                 return false;
             }
             if (!b_mask) {
-                OPENVINO_DEBUG << "No mask for input b of " << m_matmul.get_node()->get_friendly_name() << "\n";
+                OPENVINO_DEBUG("No mask for input b of ", m_matmul.get_node()->get_friendly_name(), "\n");
                 return false;
             }
 
             const auto matmul_range = m_matmul.get_shape().size();
             if (matmul_range < 2) {
-                OPENVINO_DEBUG << "Matmul operation with rank = 1 is not supported by pruning algo by now\n";
+                OPENVINO_DEBUG("Matmul operation with rank = 1 is not supported by pruning algo by now\n");
                 return false;
             }
 
@@ -218,7 +218,7 @@ public:
             // Weights mask for convolution should be initialized in the InitMasks pass (and propagate after it).
             // If mask isn't initialized - this weights (and hence all convolution) can't be pruned for some reason.
             if (!weights_mask) {
-                OPENVINO_DEBUG << "No weights mask for " << m_output.get_node()->get_friendly_name() << "\n";
+                OPENVINO_DEBUG("No weights mask for ", m_output.get_node()->get_friendly_name(), "\n");
                 return false;
             }
             auto weights_mask_row = weights_mask.get();
@@ -311,8 +311,9 @@ public:
                     weights_mask = std::make_shared<ov::Mask>(weights_shape.size());
                     setMask(m_weights, weights_mask);
                 } else {
-                    OPENVINO_DEBUG << "GroupConvolution: No weights mask and weights aren't constant for "
-                                   << *m_output.get_node() << "\n";
+                    OPENVINO_DEBUG("GroupConvolution: No weights mask and weights aren't constant for ",
+                                   *m_output.get_node(),
+                                   "\n");
                     return false;
                 }
             }
@@ -401,7 +402,7 @@ public:
 
             const auto constant = ov::util::get_constant_from_source(m_shape.get_node_shared_ptr());
             if (!constant) {
-                OPENVINO_DEBUG << "Can't get constant from source node " << m_shape.get_node()->get_friendly_name();
+                OPENVINO_DEBUG("Can't get constant from source node ", m_shape.get_node()->get_friendly_name());
                 return false;
             }
             auto input_mask_row = input_mask.get();
@@ -479,8 +480,9 @@ public:
                 return false;
 
             if (m_output.get_node_shared_ptr()->get_autob() != op::AutoBroadcastType::NUMPY) {
-                OPENVINO_DEBUG << "Can't propagate mask through " << m_output.get_node()->get_friendly_name()
-                               << " because node is using unsupported broadcast mode." << std::endl;
+                OPENVINO_DEBUG("Can't propagate mask through ",
+                               m_output.get_node()->get_friendly_name(),
+                               " because node is using unsupported broadcast mode.\n");
                 return false;
             }
             // Case when input masks should be united instead of intersection
@@ -541,8 +543,9 @@ public:
 
             // Prevent case when input_shape and weights_shape both has broadcasted dims
             if (input_shape_broadcasted_dims.size() && weights_shape_broadcasted_dims.size()) {
-                OPENVINO_DEBUG << "Can't propagate mask through " << m_output.get_node()->get_friendly_name()
-                               << " because both input shapes contains broadcasted dims." << std::endl;
+                OPENVINO_DEBUG("Can't propagate mask through ",
+                               m_output.get_node()->get_friendly_name(),
+                               " because both input shapes contains broadcasted dims.\n");
                 return false;
             }
 
@@ -562,14 +565,14 @@ public:
             }
 
             if (!input_mask) {
-                OPENVINO_DEBUG << "No input mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
+                OPENVINO_DEBUG("No input mask for: ", m_output.get_node()->get_friendly_name(), "\n");
                 return false;
             }
             if (!weights_mask) {
                 // Set dummy mask to weight input in case this input has no mask
                 // and has broadcastable dimentions
                 if (!weights_shape_broadcasted_dims.size()) {
-                    OPENVINO_DEBUG << "No weights mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
+                    OPENVINO_DEBUG("No weights mask for: ", m_output.get_node()->get_friendly_name(), "\n");
                     return false;
                 }
                 weights_mask = std::make_shared<ov::Mask>(m_weights.get_partial_shape().rank().get_length());
@@ -664,7 +667,7 @@ public:
 
             // Input mask is the only source of pruning in FQ
             if (!input_mask) {
-                OPENVINO_DEBUG << "FakeQuantize: No input mask for " << *m_output.get_node() << "\n";
+                OPENVINO_DEBUG("FakeQuantize: No input mask for ", *m_output.get_node(), "\n");
                 return false;
             }
 
@@ -765,7 +768,11 @@ public:
             if (!concat_ptr) {
                 return false;
             }
-            auto axis = concat_ptr->get_concatenation_axis();
+            int64_t axis = -1;
+            if (concat_ptr->get_output_partial_shape(0).rank().is_static()) {
+                const auto rank = concat_ptr->get_output_partial_shape(0).rank().get_length();
+                axis = ov::util::normalize(concat_ptr->get_axis(), rank);
+            }
 
             auto inputs = concat_ptr->inputs();
             std::map<int64_t, ov::Mask::Ptr> input_masks;
@@ -1131,9 +1138,11 @@ public:
             if (!constant) {
                 constant = ov::util::get_constant_from_source(m_weights.get_node_shared_ptr());
                 if (!constant) {
-                    OPENVINO_DEBUG << "Can't process reshape node " << m_output.get_node()->get_friendly_name()
-                                   << " with no constant node " << m_weights.get_node()->get_friendly_name()
-                                   << " as shape input.";
+                    OPENVINO_DEBUG("Can't process reshape node ",
+                                   m_output.get_node()->get_friendly_name(),
+                                   " with no constant node ",
+                                   m_weights.get_node()->get_friendly_name(),
+                                   " as shape input.");
                     return false;
                 }
             }
@@ -1376,19 +1385,21 @@ public:
 
             const auto input_order_node = ov::util::get_constant_from_source(m_weights.get_node_shared_ptr());
             if (!input_order_node) {
-                OPENVINO_DEBUG << "Can't process transpose node " << m_output.get_node()->get_friendly_name()
-                               << " with no constant node " << m_weights.get_node()->get_friendly_name()
-                               << " as input_order input.";
+                OPENVINO_DEBUG("Can't process transpose node ",
+                               m_output.get_node()->get_friendly_name(),
+                               " with no constant node ",
+                               m_weights.get_node()->get_friendly_name(),
+                               " as input_order input.");
                 return false;
             }
 
             const auto input_mask = getMask(m_input);
             if (!input_mask) {
-                OPENVINO_DEBUG << "No input mask for: " << m_output.get_node()->get_friendly_name() << std::endl;
+                OPENVINO_DEBUG("No input mask for: ", m_output.get_node()->get_friendly_name(), "\n");
                 return false;
             }
             if (static_cast<int64_t>(input_mask->size()) != m_output.get_partial_shape().rank().get_length()) {
-                OPENVINO_DEBUG << "Transpose which change tensor rank is not supported yet.";
+                OPENVINO_DEBUG("Transpose which change tensor rank is not supported yet.");
                 return false;
             }
 
@@ -1617,8 +1628,11 @@ public:
 
                     // Invalidate current mask and its parent masks
                     output_mask->apply_callback(input_mask);
-                    OPENVINO_DEBUG << "Invalidate masks for " << *input.get_node() << " because " << node
-                                   << " is in scope of stop ops.\n";
+                    OPENVINO_DEBUG("Invalidate masks for ",
+                                   *input.get_node(),
+                                   " because ",
+                                   node,
+                                   " is in scope of stop ops.\n");
                     any_input_with_masks = true;
                 }
             }

@@ -12,7 +12,6 @@ using TFLiteConvertModelTest = FrontEndConvertModelTest;
 
 static const std::vector<std::string> models{
     std::string("2in_2out/2in_2out.tflite"),
-    std::string("downloads/pose_detector.tflite"),
 };
 
 INSTANTIATE_TEST_SUITE_P(TFLiteConvertModelTest,

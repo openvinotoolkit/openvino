@@ -14,8 +14,8 @@ The PyTorch U\ :math:`^2`-Net model is converted to OpenVINO IR format.
 The model source is available
 `here <https://github.com/xuebinqin/U-2-Net>`__.
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Preparation <#preparation>`__
 
@@ -53,7 +53,7 @@ Install requirements
     import platform
 
     %pip install -q "openvino>=2023.1.0"
-    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch>=2.1" opencv-python-headless
+    %pip install -q --extra-index-url https://download.pytorch.org/whl/cpu "torch>=2.1" opencv-python
     %pip install -q "gdown<4.6.4"
 
     if platform.system() != "Windows":
@@ -64,13 +64,9 @@ Install requirements
 
 .. parsed-literal::
 
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
-    DEPRECATION: pytorch-lightning 1.6.5 has a non-standard dependency specifier torch>=1.8.*. pip 24.1 will enforce this behaviour change. A possible replacement is to upgrade to a newer version of pytorch-lightning or contact the author to suggest that they release a version with a conforming dependency specifiers. Discussion can be found at https://github.com/pypa/pip/issues/12063
     Note: you may need to restart the kernel to use updated packages.
 
 
@@ -188,11 +184,13 @@ next cell loads the model and the pre-trained weights.
     Downloading...
     From: https://drive.google.com/uc?id=1W8E4FHIlTVstfRkYmNOjbr0VDXTZm0jD
     To: <_io.BufferedWriter name='model/u2net_lite/u2net_lite.pth'>
-    100%|██████████| 4.68M/4.68M [00:00<00:00, 29.1MB/s]
+    100%|██████████| 4.68M/4.68M [00:00<00:00, 34.0MB/s]
 
 .. parsed-literal::
 
     Model weights have been downloaded to model/u2net_lite/u2net_lite.pth
+
+
 
 
 
@@ -237,8 +235,13 @@ OpenVINO IR format. Executing the following command may take a while.
 
 .. parsed-literal::
 
-    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-681/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/nn/functional.py:3782: UserWarning: nn.functional.upsample is deprecated. Use nn.functional.interpolate instead.
+    /opt/home/k8sworker/ci-ai/cibuilds/ov-notebook/OVNotebookOps-727/.workspace/scm/ov-notebook/.venv/lib/python3.8/site-packages/torch/nn/functional.py:3782: UserWarning: nn.functional.upsample is deprecated. Use nn.functional.interpolate instead.
       warnings.warn("nn.functional.upsample is deprecated. Use nn.functional.interpolate instead.")
+
+
+.. parsed-literal::
+
+    ['x']
 
 
 Load and Pre-Process Input Image
@@ -334,7 +337,7 @@ Load the OpenVINO IR model to OpenVINO Runtime and do inference.
 
 .. parsed-literal::
 
-    Inference finished. Inference time: 0.109 seconds, FPS: 9.20.
+    Inference finished. Inference time: 0.119 seconds, FPS: 8.43.
 
 
 Visualize Results

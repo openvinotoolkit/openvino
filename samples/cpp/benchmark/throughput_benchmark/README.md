@@ -10,14 +10,12 @@ For more detailed information on how this sample works, check the dedicated [art
 
 | Options                     | Values                                                                                                                         |
 | ----------------------------| -------------------------------------------------------------------------------------------------------------------------------|
-| Validated Models            | [alexnet](https://docs.openvino.ai/nightly/omz_models_model_alexnet.html),                                                     |
-|                             | [googlenet-v1](https://docs.openvino.ai/nightly/omz_models_model_googlenet_v1.html),                                           |
-|                             | [yolo-v3-tf](https://docs.openvino.ai/nightly/omz_models_model_yolo_v3_tf.html),                                               |
-|                             | [face-detection-](https://docs.openvino.ai/nightly/omz_models_model_face_detection_0200.html)                                  |
+| Validated Models            | [yolo-v3-tf](https://docs.openvino.ai/2024/omz_models_model_yolo_v3_tf.html),                                                  |
+|                             | [face-detection-](https://docs.openvino.ai/2024/omz_models_model_face_detection_0200.html)                                     |
 | Model Format                | OpenVINO™ toolkit Intermediate Representation                                                                                  |
 |                             | (\*.xml + \*.bin), ONNX (\*.onnx)                                                                                              |
-| Supported devices           | [All](https://docs.openvino.ai/2024/about-openvino/compatibility-and-support/supported-devices.html)                            |
-| Other language realization  | [Python](https://docs.openvino.ai/2024/learn-openvino/openvino-samples/throughput-benchmark.html)                                            |
+| Supported devices           | [All](https://docs.openvino.ai/2024/about-openvino/compatibility-and-support/supported-devices.html)                           |
+| Other language realization  | [Python](https://docs.openvino.ai/2024/learn-openvino/openvino-samples/throughput-benchmark.html)                              |
 
 The following C++ API is used in the application:
 

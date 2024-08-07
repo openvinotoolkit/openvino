@@ -154,7 +154,7 @@ OutputVector translate_if(const NodeContext& context) {
             then_body->add_results({new_result});
             then_body->validate_nodes_and_infer_types();
             extra_then_body_results[output_idx] = new_result;
-            OPENVINO_DEBUG << "Modified then body: " << if_node << '\n';
+            OPENVINO_DEBUG("Modified then body: ", if_node, "\n");
         } else if (!extra_else_body_results.count(output_idx)) {
             // Need to add Parameter->Result construction in else body
             std::shared_ptr<v0::Parameter> new_parameter;

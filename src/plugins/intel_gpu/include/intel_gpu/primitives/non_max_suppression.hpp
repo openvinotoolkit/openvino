@@ -54,7 +54,7 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
                         const primitive_id& second_output = primitive_id(),
                         const primitive_id& third_output = primitive_id(),
                         const size_t num_outputs = 1)
-        : primitive_base(id, {boxes_positions, boxes_score}, {padding()}, {optional_data_type()}, num_outputs)
+        : primitive_base(id, {boxes_positions, boxes_score}, num_outputs, {optional_data_type()})
         , selected_indices_num(selected_indices_num)
         , center_point_box(center_point_box)
         , sort_result_descending(sort_result_descending)
@@ -154,6 +154,33 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
         ib >> second_output;
         ib >> third_output;
         ib >> make_data(&rotation, sizeof(rotation));
+    }
+};
+
+struct non_max_suppression_gather : primitive_base<non_max_suppression_gather> {
+    CLDNN_DECLARE_PRIMITIVE(non_max_suppression_gather)
+
+    non_max_suppression_gather() : primitive_base("", {}) {}
+
+    /// @brief Constructs non_max_suppression_gather primitive.
+    /// @param id This primitive id.
+    /// @param inputs Input primitives ids.
+    non_max_suppression_gather(const primitive_id& id,
+                  const std::vector<input_info>& inputs,
+                  const size_t num_outputs = 1)
+        : primitive_base(id, inputs, num_outputs, {optional_data_type()}) {}
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs)) {
+            return false;
+        }
+
+        return true;
     }
 };
 }  // namespace cldnn

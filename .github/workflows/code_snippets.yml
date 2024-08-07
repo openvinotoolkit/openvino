@@ -16,6 +16,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions: read-all
+
 jobs:
   Build:
     strategy:
@@ -25,12 +27,12 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Clone OpenVINO
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           submodules: 'true'
 
       - name: Install OpenCL
-        uses: awalsh128/cache-apt-pkgs-action@v1.4.2
+        uses: awalsh128/cache-apt-pkgs-action@a6c3917cc929dd0345bfb2d3feaf9101823370ad # v1.4.2
         if: runner.os == 'Linux'
         with:
           packages: ocl-icd-opencl-dev opencl-headers
@@ -44,4 +46,11 @@ jobs:
         run: cmake -DCMAKE_BUILD_TYPE=Release -DTHREADING=SEQ -B build
 
       - name: Build snippets
-        run:  cmake --build build --target openvino_docs_snippets --parallel
+        if: ${{ runner.os == 'Linux' || runner.os == 'macOS'}}
+        run:  cmake --build build --target openvino_docs_snippets --parallel $(nproc)
+
+      - name: Build snippets Windows
+        if: ${{ runner.os == 'Windows'}}
+        shell: pwsh
+        run:  cmake --build build --target openvino_docs_snippets --parallel $ENV:NUMBER_OF_PROCESSORS
+

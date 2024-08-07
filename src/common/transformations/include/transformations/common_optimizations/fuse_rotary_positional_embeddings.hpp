@@ -18,7 +18,6 @@ class TRANSFORMATIONS_API RoPEFusionQwen;
 class TRANSFORMATIONS_API RoPEFusionIOSlicing;
 class TRANSFORMATIONS_API RoPEFusionPreprocess;
 class TRANSFORMATIONS_API RoPEFusionCosSinPreprocess;
-class TRANSFORMATIONS_API EliminateStridedSlice;
 class TRANSFORMATIONS_API RoPEShareCosSin;
 
 }  // namespace pass
@@ -64,12 +63,6 @@ class ov::pass::RoPEFusionCosSinPreprocess : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("RoPEFusionCosSinPreprocess", "0");
     RoPEFusionCosSinPreprocess();
-};
-
-class ov::pass::EliminateStridedSlice : public ov::pass::MatcherPass {
-public:
-    OPENVINO_RTTI("EliminateStridedSlice", "0");
-    EliminateStridedSlice();
 };
 
 class ov::pass::RoPEShareCosSin : public ov::pass::MatcherPass {

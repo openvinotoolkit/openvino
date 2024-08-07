@@ -25,14 +25,12 @@ class TransformationTestValues {
 public:
     class Actual {
     public:
-        ov::element::Type precisionBefore;
         ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData1;
         ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData2;
     };
 
     class Expected {
     public:
-        ov::element::Type precisionBefore;
         ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData1;
         ov::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData2;
         ov::builder::subgraph::DequantizationOperations dequantizationOperations2;
@@ -44,17 +42,28 @@ public:
     Expected expected;
 };
 
+typedef std::tuple<
+    ov::element::Type,
+    TransformationTestValues
+> EliminateFakeQuantizeTransformationParams;
+
 class EliminateFakeQuantizeTransformation : public LayerTransformation,
-                                            public testing::WithParamInterface<TransformationTestValues> {
+                                            public testing::WithParamInterface<EliminateFakeQuantizeTransformationParams> {
 public:
     void SetUp() override {
-        const TransformationTestValues testValues = GetParam();
+        const ov::element::Type execPrecision = std::get<0>(GetParam());
+        TransformationTestValues testValues = std::get<1>(GetParam());
+
+        if (!testValues.expected.dequantizationOperations2.multiply.empty()) {
+            testValues.expected.dequantizationOperations2.multiply.outPrecision = execPrecision;
+        }
 
         actualFunction = ov::builder::subgraph::FuseFakeQuantizeFunction::get(testValues.inputShape,
-                                                                                  testValues.actual.precisionBefore,
-                                                                                  testValues.actual.fakeQuantizeOnData1,
-                                                                                  testValues.actual.fakeQuantizeOnData2,
-                                                                                  {});
+                                                                              execPrecision,
+                                                                              testValues.actual.fakeQuantizeOnData1,
+                                                                              testValues.actual.fakeQuantizeOnData2,
+                                                                              {});
+
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ov::pass::low_precision::FakeQuantizeDecompositionTransformation, ov::op::v0::FakeQuantize>(
             testValues.params);
@@ -67,20 +76,28 @@ public:
 
         referenceFunction =
             ov::builder::subgraph::FuseFakeQuantizeFunction::get(testValues.inputShape,
-                                                                     testValues.expected.precisionBefore,
-                                                                     testValues.expected.fakeQuantizeOnData1,
-                                                                     testValues.expected.fakeQuantizeOnData2,
-                                                                     testValues.expected.dequantizationOperations2);
+                                                                 execPrecision,
+                                                                 testValues.expected.fakeQuantizeOnData1,
+                                                                 testValues.expected.fakeQuantizeOnData2,
+                                                                 testValues.expected.dequantizationOperations2);
+
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<TransformationTestValues> obj) {
-        const TransformationTestValues testValues = obj.param;
+    static std::string getTestCaseName(testing::TestParamInfo<EliminateFakeQuantizeTransformationParams> obj) {
+        const ov::element::Type execPrecision = std::get<0>(obj.param);
+        TransformationTestValues testValues = std::get<1>(obj.param);
+
+        if (!testValues.expected.dequantizationOperations2.multiply.empty()) {
+            testValues.expected.dequantizationOperations2.multiply.outPrecision = execPrecision;
+        }
 
         std::ostringstream result;
         result << testValues.inputShape << "_" << testValues.params.updatePrecisions << "_"
-               << testValues.actual.precisionBefore << "_" << testValues.actual.fakeQuantizeOnData1 << "_"
-               << testValues.actual.fakeQuantizeOnData2 << "_" << testValues.expected.precisionBefore << "_"
-               << testValues.expected.fakeQuantizeOnData1 << "_" << testValues.expected.fakeQuantizeOnData2 << "_"
+               << execPrecision << "_"
+               << testValues.actual.fakeQuantizeOnData1 << "_"
+               << testValues.actual.fakeQuantizeOnData2 << "_"
+               << testValues.expected.fakeQuantizeOnData1 << "_"
+               << testValues.expected.fakeQuantizeOnData2 << "_"
                << testValues.expected.dequantizationOperations2;
         return result.str();
     }
@@ -100,12 +117,10 @@ const std::vector<TransformationTestValues> testValues = {
         {1, 3, 16, 16},
         TestTransformationParams(true, {ov::element::u8}, {ov::element::i8}),
         {
-            element::f32,
             {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
             {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}}
         },
         {
-            element::f32,
             {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, element::u8},
             {},
             { ov::element::f32, {}, {{0.01f}, ov::element::f32, {}} }
@@ -115,12 +130,10 @@ const std::vector<TransformationTestValues> testValues = {
         {1, 3, 16, 16},
         TestTransformationParams(true, {ov::element::u8}, {ov::element::i8}),
         {
-            element::f32,
             {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
             {256ul, {}, {0.f}, {2.549f}, {0.f}, {2.55f}}
         },
         {
-            element::f32,
             {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, element::u8},
             {},
             { ov::element::f32, {}, {{0.01f}, ov::element::f32, {}} }
@@ -130,29 +143,12 @@ const std::vector<TransformationTestValues> testValues = {
         {1, 3, 16, 16},
         TestTransformationParams(true, {ov::element::u8}, {ov::element::i8}),
         {
-            element::f32,
             {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
             {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f / 2.f}}
         },
         {
-            element::f32,
             {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, element::u8},
             {},
-            { ov::element::f32, {}, {{0.005f}, ov::element::f32, {}} }
-        }
-    },
-    {
-        {1, 3, 16, 16},
-        TestTransformationParams(true, {ov::element::u8}, {ov::element::i8}),
-        {
-            element::f32,
-            {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
-            {256ul, {}, {0.f}, {2.55f / 2.f}, {0.f}, {2.55f / 2.f}}
-        },
-        {
-            element::f32,
-            {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, element::u8},
-            {256ul, {}, {0.f}, {127.5f}, {0.f}, {255.f}, element::u8},
             { ov::element::f32, {}, {{0.005f}, ov::element::f32, {}} }
         }
     }
@@ -161,7 +157,34 @@ const std::vector<TransformationTestValues> testValues = {
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT,
                          EliminateFakeQuantizeTransformation,
-                         ::testing::ValuesIn(testValues),
+                         ::testing::Combine(
+                             ::testing::ValuesIn({ov::element::f32, ov::element::bf16}),
+                             ::testing::ValuesIn(testValues)),
+                         EliminateFakeQuantizeTransformation::getTestCaseName);
+
+// clang-format off
+const std::vector<TransformationTestValues> testValuesDiffFq = {
+    {
+        {1, 3, 16, 16},
+        TestTransformationParams(true, {ov::element::u8}, {ov::element::i8}),
+        {
+            {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
+            {256ul, {}, {0.f}, {2.55f / 2.f}, {0.f}, {2.55f / 2.f}}
+        },
+        {
+            {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, element::u8},
+            {256ul, {}, {0.f}, {127.5f}, {0.f}, {255.f}, element::u8},
+            { ov::element::f32, {}, {{0.005f}, ov::element::f32, {}} }
+        }
+    }
+};
+// clang-format on
+
+INSTANTIATE_TEST_SUITE_P(smoke_LPT_DiffFq,
+                         EliminateFakeQuantizeTransformation,
+                         ::testing::Combine(
+                             ::testing::ValuesIn({ov::element::f32}),
+                             ::testing::ValuesIn(testValuesDiffFq)),
                          EliminateFakeQuantizeTransformation::getTestCaseName);
 
 }  // namespace

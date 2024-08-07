@@ -171,8 +171,8 @@ if (m->match(node->output(0))) {
 bool openvino_api_examples(std::shared_ptr<ov::Node> node) {
 {
 // ! [ov:ports_example]
-// Let's suppose that node is opset8::Convolution operation
-// as we know opset8::Convolution has two input ports (data, weights) and one output port
+// Let's suppose that node is of ov::op::v0::Convolution type.
+// As we know ov::op::v0::Convolution has two input ports (data, weights) and one output port.
 ov::Input<ov::Node> data = node->input(0);
 ov::Input<ov::Node> weights = node->input(1);
 ov::Output<ov::Node> output = node->output(0);
@@ -181,7 +181,7 @@ ov::Output<ov::Node> output = node->output(0);
 auto pshape = data.get_partial_shape();
 auto el_type = data.get_element_type();
 
-// Getting parent for input port
+// Getting parent for input port i.e. Output mapped by the input
 ov::Output<ov::Node> parent_output;
 parent_output = data.get_source_output();
 
@@ -216,15 +216,15 @@ return true;
 
 // ! [ov:replace_node]
 bool ov_replace_node(std::shared_ptr<ov::Node> node) {
-    // Step 1. Verify that node has opset8::Negative type
-    auto neg = std::dynamic_pointer_cast<ov::opset8::Negative>(node);
+    // Step 1. Verify that node is of type ov::op::v0::Negative
+    auto neg = std::dynamic_pointer_cast<ov::op::v0::Negative>(node);
     if (!neg) {
         return false;
     }
 
-    // Step 2. Create opset8::Multiply operation where the first input is negative operation input and second as Constant with -1 value
-    auto mul = std::make_shared<ov::opset8::Multiply>(neg->input_value(0),
-                                                      ov::opset8::Constant::create(neg->get_element_type(), ov::Shape{1}, {-1}));
+    // Step 2. Create ov::op::v1::Multiply operation with the first input being the output going into Negative and second as Constant with -1 value
+    auto mul = std::make_shared<ov::op::v1::Multiply>(neg->input_value(0),
+                                                      ov::op::v0::Constant::create(neg->get_element_type(), ov::Shape{1}, {-1}));
 
     mul->set_friendly_name(neg->get_friendly_name());
     ov::copy_runtime_info(neg, mul);
@@ -233,18 +233,18 @@ bool ov_replace_node(std::shared_ptr<ov::Node> node) {
     ov::replace_node(neg, mul);
     return true;
 
-    // Step 4. Negative operation will be removed automatically because all consumers was moved to Multiply operation
+    // Step 4. Negative operation will be removed automatically because all consumers were moved to Multiply operation
 }
 // ! [ov:replace_node]
 
 bool ov_manual_replace_node(std::shared_ptr<ov::Node> node) {
-auto neg = std::dynamic_pointer_cast<ov::opset8::Negative>(node);
+auto neg = std::dynamic_pointer_cast<ov::op::v0::Negative>(node);
 if (!neg) {
     return false;
 }
 
-auto mul = std::make_shared<ov::opset8::Multiply>(neg->input_value(0),
-                                                  ov::opset8::Constant::create(neg->get_element_type(), ov::Shape{1}, {-1}));
+auto mul = std::make_shared<ov::op::v1::Multiply>(neg->input_value(0),
+                                                  ov::op::v0::Constant::create(neg->get_element_type(), ov::Shape{1}, {-1}));
 
 mul->set_friendly_name(neg->get_friendly_name());
 ov::copy_runtime_info(neg, mul);
@@ -262,8 +262,8 @@ void insert_example(std::shared_ptr<ov::Node> node) {
     // Get all consumers for node
     auto consumers = node->output(0).get_target_inputs();
 
-    // Step 2. Create new node. Let it be opset8::Relu.
-    auto new_node = std::make_shared<ov::opset8::Relu>(node);
+    // Step 2. Create new node ov::op::v0::Relu.
+    auto new_node = std::make_shared<ov::op::v0::Relu>(node);
 
     // Step 3. Reconnect all consumers to new_node
     for (auto input : consumers) {
@@ -277,7 +277,7 @@ void insert_example_with_copy(std::shared_ptr<ov::Node> node) {
     // Make a node copy
     auto node_copy = node->clone_with_new_inputs(node->input_values());
     // Create new node
-    auto new_node = std::make_shared<ov::opset8::Relu>(node_copy);
+    auto new_node = std::make_shared<ov::op::v0::Relu>(node_copy);
     ov::replace_node(node, new_node);
 }
 // ! [ov:insert_node_with_copy]
@@ -290,12 +290,12 @@ bool success = ov::replace_output_update_name(node->output(0), node->input_value
 }
 
 void replace_friendly_name() {
-auto div = std::make_shared<ov::opset8::Divide>();
+auto div = std::make_shared<ov::op::v1::Divide>();
 // ! [ov:replace_friendly_name]
 // Replace Div operation with Power and Multiply sub-graph and set original friendly name to Multiply operation
-auto pow = std::make_shared<ov::opset8::Power>(div->input(1).get_source_output(),
+auto pow = std::make_shared<ov::op::v1::Power>(div->input(1).get_source_output(),
                                                ov::op::v0::Constant::create(div->get_input_element_type(1), ov::Shape{1}, {-1}));
-auto mul = std::make_shared<ov::opset8::Multiply>(div->input(0).get_source_output(), pow);
+auto mul = std::make_shared<ov::op::v1::Multiply>(div->input(0).get_source_output(), pow);
 mul->set_friendly_name(div->get_friendly_name());
 ov::replace_node(div, mul);
 // ! [ov:replace_friendly_name]
@@ -304,10 +304,10 @@ ov::replace_node(div, mul);
 void constant_subgraph() {
 // ! [ov:constant_subgraph]
 // After ConstantFolding pass Power will be replaced with Constant
-auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1});
-auto pow = std::make_shared<ov::opset8::Power>(ov::opset8::Constant::create(ov::element::f32, ov::Shape{1}, {2}),
-                                               ov::opset8::Constant::create(ov::element::f32, ov::Shape{1}, {3}));
-auto mul = std::make_shared<ov::opset8::Multiply>(input /* not constant input */, pow);
+auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+auto pow = std::make_shared<ov::op::v1::Power>(ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {2}),
+                                               ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {3}));
+auto mul = std::make_shared<ov::op::v1::Multiply>(input /* not constant input */, pow);
 // ! [ov:constant_subgraph]
 }
 

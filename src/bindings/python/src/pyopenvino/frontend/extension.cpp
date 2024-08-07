@@ -30,19 +30,26 @@ void regclass_frontend_TelemetryExtension(py::module m) {
                         py::function& send_event,
                         py::function& send_error,
                         py::function& send_stack_trace) {
+        auto send_event_sp = Common::utils::wrap_pyfunction(send_event);
+        auto send_error_sp = Common::utils::wrap_pyfunction(send_error);
+        auto send_stack_trace_sp = Common::utils::wrap_pyfunction(send_stack_trace);
+
         return std::make_shared<TelemetryExtension>(
             event_category,
-            [send_event](const std::string& category, const std::string& action, const std::string& label, int value) {
+            [send_event_sp](const std::string& category,
+                            const std::string& action,
+                            const std::string& label,
+                            int value) {
                 py::gil_scoped_acquire acquire;
-                send_event(category, action, label, value);
+                (*send_event_sp)(category, action, label, value);
             },
-            [send_error](const std::string& category, const std::string& error_message) {
+            [send_error_sp](const std::string& category, const std::string& error_message) {
                 py::gil_scoped_acquire acquire;
-                send_error(category, error_message);
+                (*send_error_sp)(category, error_message);
             },
-            [send_stack_trace](const std::string& category, const std::string& error_message) {
+            [send_stack_trace_sp](const std::string& category, const std::string& error_message) {
                 py::gil_scoped_acquire acquire;
-                send_stack_trace(category, error_message);
+                (*send_stack_trace_sp)(category, error_message);
             });
     }));
 

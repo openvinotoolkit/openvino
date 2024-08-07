@@ -115,14 +115,14 @@ bool DnnlFCPrimitive::useWeightsDecompressionImpl(const ov::element::Type inputT
                                                   const ov::element::Type weightsType,
                                                   const ov::intel_cpu::Config::ModelType modelType) {
     if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
-        if (one_of(inputType, f32, bf16) && one_of(weightsType, u8, i8, nf4, u4, i4))
+        if (one_of(inputType, f32, bf16) && one_of(weightsType, u8, i8, nf4, u4, i4, f4e2m1))
             return true;
 
         if (modelType == ov::intel_cpu::Config::ModelType::LLM) {
             // f16c kernel saves memory footprint with additional decompression computational overhead
             // which is only meaningful on LLM with small batch-size.
             // TODO: fall-back to use f32 weights on large batch-size
-            if (inputType == f32 && weightsType == f16)
+            if (inputType == f32 && one_of(weightsType, f16, bf16))
                 return true;
         }
     }
@@ -148,6 +148,11 @@ bool DnnlFCPrimitive::useDynamicQuantizationImpl(size_t dqGroupSize, const Memor
         return false;
 
     if (zpPtr && !one_of(zpPtr->getDesc().getPrecision(), ov::element::u8, ov::element::u4, ov::element::undefined))
+        return false;
+
+    // TODO: heuristic: disable avx2 asymmetric
+    bool is_asymmetric_weights = one_of(weightsDesc->getPrecision(), ov::element::u8, ov::element::u4);
+    if (is_asymmetric_weights && !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_vnni))
         return false;
 
     const size_t simdWidth = 16;
@@ -207,8 +212,13 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
                                 !memory.at(ARG_BIAS)->getDesc().empty(),
                                 outputDataType);
 
-    if (attrs.decompressionMultiplyPtr)
-        dnnlpoc.appendDecompressionScales(attrs.decompressionMultiplyPtr, !attrs.weightsNonTransposed);
+    if (attrs.decompressionMultiplyPtr) {
+        auto dstPrc = attrs.decompressionMultiplyPtr->getPrecision();
+        if (dstPrc != f8e8m0 || useDynamicQuantization)
+            dstPrc = ov::element::f32;
+
+        dnnlpoc.appendDecompressionScales(attrs.decompressionMultiplyPtr, !attrs.weightsNonTransposed, dstPrc);
+    }
     if (attrs.decompressionSubtractPtr) {
         auto dstPrc = useDynamicQuantization ? ov::element::u8 : ov::element::f32;
         dnnlpoc.appendDecompressionZeroPoints(attrs.decompressionSubtractPtr, !attrs.weightsNonTransposed, dstPrc);

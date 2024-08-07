@@ -83,7 +83,7 @@ TEST(TransformationTests, AutoBatch_FindBatch_Transpose_and_Convolution) {
     m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::pass::FindBatch>();
     m.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
 
     const auto& shape = data->get_partial_shape();
     ASSERT_TRUE(!shape[0].get_symbol()) << shape;
@@ -118,7 +118,7 @@ TEST(TransformationTests, AutoBatch_LabelPropagation_Convolution_Reshape) {
     m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::pass::FindBatch>();
     m.run_passes(model);
-    ASSERT_NO_THROW(check_rt_info(model));
+    OV_ASSERT_NO_THROW(check_rt_info(model));
 
     const auto& shape = data->get_partial_shape();
     ASSERT_TRUE(shape[0].get_symbol()) << shape;
@@ -144,7 +144,7 @@ TEST(TransformationTests, AutoBatch_FindBatch_SingleMultiply) {
     m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::pass::FindBatch>();
     m.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
 
     const auto& shape = data->get_partial_shape();
     ASSERT_TRUE(shape[0].get_symbol()) << shape;
@@ -174,7 +174,7 @@ TEST(TransformationTests, AutoBatch_FindBatch_Two_Outputs) {
     m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::pass::FindBatch>();
     m.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
 
     const auto& shape = data->get_partial_shape();
     ASSERT_TRUE(shape[0].get_symbol()) << shape;
@@ -204,7 +204,7 @@ TEST(TransformationTests, AutoBatch_FindBatch_TwoOutputsReversed) {
     m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::pass::FindBatch>();
     m.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
 
     const auto& shape = data->get_partial_shape();
     ASSERT_TRUE(shape[0].get_symbol()) << shape;
@@ -238,7 +238,7 @@ TEST(TransformationTests, AutoBatch_FindBatch_IndependentBranchesConcated) {
     m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::pass::FindBatch>();
     m.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
 
     const auto& shape = data->get_partial_shape();
     ASSERT_TRUE(shape[0].get_symbol()) << shape;
@@ -271,7 +271,7 @@ TEST(TransformationTests, AutoBatch_FindBatch_TwoConvNetwork) {
     m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::pass::FindBatch>();
     m.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
 
     const auto& shape = data->get_partial_shape();
     ASSERT_TRUE(shape[0].get_symbol()) << shape;
@@ -299,7 +299,7 @@ TEST(TransformationTests, AutoBatch_FindBatch_NegativeTracking) {
     m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::pass::FindBatch>(false, false);
     m.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
 
     const auto& shape = data->get_partial_shape();
     ASSERT_TRUE(shape[0].get_symbol()) << shape;
@@ -319,7 +319,7 @@ TEST(TransformationTests, AutoBatch_FindBatch_AutoBatch_LabelPropagation_DO_deta
     m.register_pass<ov::pass::InitNodeInfo>();
     m.register_pass<ov::pass::FindBatch>(true);
     m.run_passes(f);
-    ASSERT_NO_THROW(check_rt_info(f));
+    OV_ASSERT_NO_THROW(check_rt_info(f));
 
     const auto& shape = data->get_partial_shape();
     ASSERT_TRUE(shape[0].get_symbol()) << shape;

@@ -180,8 +180,7 @@ def multinomial(
     inputs = as_nodes(probs, num_samples, name=name)
 
     if global_seed < 0:
-        raise RuntimeError(
-            f"global_seed should be positive or 0. Got: {global_seed}")
+        raise RuntimeError(f"global_seed should be positive or 0. Got: {global_seed}")
 
     if op_seed < 0:
         raise RuntimeError(f"op_seed should be positive or 0. Got: {op_seed}")
@@ -223,8 +222,7 @@ def nms_rotated(
     :param clockwise: Flag that specifies direction of the box rotation.
     :return: The new node which performs NMSRotated
     """
-    inputs = as_nodes(boxes, scores, max_output_boxes_per_class,
-                      iou_threshold, score_threshold, name=name)
+    inputs = as_nodes(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, name=name)
 
     attributes = {
         "sort_result_descending": sort_result_descending,
@@ -301,6 +299,7 @@ def constant(
                           - dtype force conversion of data.
     :return: The Constant node initialized with provided data.
     """
+
     def display_shared_memory_warning(warning_message: str) -> None:
         if shared_memory:
             log.warning(f"{warning_message}. Memory sharing is disabled by default. Set shared_memory=False to hide this warning.")
@@ -313,10 +312,10 @@ def constant(
     # Handle type casting, when dtype is not None:
     if dtype:
         # Expect packed data, use different constructor to handle it correctly:
-        if dtype in [Type.u1, Type.i4, Type.u4, Type.nf4]:
+        if dtype in [Type.u1, Type.i4, Type.u4, Type.nf4, Type.f4e2m1]:
             display_shared_memory_warning(f"Constant initialized with packed type of {dtype}")
             return Constant(dtype, Shape(_value.shape), _value.flatten().tolist())
-        elif dtype in [Type.bf16]:
+        elif dtype in [Type.bf16, Type.f8e8m0, Type.f8e4m3, Type.f8e5m2]:
             display_shared_memory_warning(f"Constant initialized with OpenVINO custom {dtype}")
             return Constant(dtype, Shape(_value.shape), _value.flatten().tolist())
         # General use-case for all other types:

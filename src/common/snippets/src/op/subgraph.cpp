@@ -21,7 +21,7 @@
 #include "snippets/pass/gn_decomposition.hpp"
 
 #include "snippets/runtime_configurator.hpp"
-#include "snippets/utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/lowered/linear_ir.hpp"
@@ -54,6 +54,7 @@
 #include "snippets/lowered/pass/normalize_loop_ids.hpp"
 #include "snippets/lowered/pass/validate_expanded_loops.hpp"
 #include "snippets/lowered/pass/set_load_store_scalar.hpp"
+#include "snippets/lowered/pass/extract_loop_invariants.hpp"
 
 #include "transformations/utils/utils.hpp"
 
@@ -454,11 +455,12 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     pipeline.register_pass<lowered::pass::FuseLoops>();
     pipeline.register_pass<lowered::pass::SplitLoops>();
     pipeline.register_pass<lowered::pass::MoveResultOutOfLoop>();
-    pipeline.register_pass<lowered::pass::InsertBuffers>(static_cast<int32_t>(loop_depth));
+    pipeline.register_pass<lowered::pass::InsertBuffers>();
     pipeline.register_pass<lowered::pass::InsertLoadStore>(vector_size);
     pipeline.register_pass<lowered::pass::MoveScalarToConsumer>();
     pipeline.register_pass<lowered::pass::InsertBroadcastMove>();
     pipeline.register_pass<lowered::pass::LoadMoveBroadcastToBroadcastLoad>();
+    pipeline.register_pass<lowered::pass::ExtractLoopInvariants>();
     pipeline.register_pass<lowered::pass::ValidateShapes>();
     pipeline.register_pass<lowered::pass::ValidateUnifiedLoops>();
     pipeline.register_pass<lowered::pass::InitLoops>();
@@ -470,7 +472,7 @@ void Subgraph::control_flow_transformations(size_t min_parallel_work_amount, siz
     pipeline.run(*m_linear_ir);
 
 #ifdef SNIPPETS_DEBUG_CAPS
-    if (m_linear_ir->get_config().perf_count_mode != lowered::PerfCountMode::Disabled) {
+    if (m_linear_ir->get_config().debug_config.perf_count_mode != DebugCapsConfig::PerfCountMode::Disabled) {
         lowered::pass::InsertPerfCount perf_count_pass({});
         perf_count_pass.run(*m_linear_ir, m_linear_ir->cbegin(), m_linear_ir->cend());
     }
@@ -530,7 +532,8 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
     // actual code emission
     // Note: to not corrupt the lowered linear IR for the shape-dependent passes, we have to make a copy
     OPENVINO_ASSERT(m_linear_ir, "Attempt to call generate, when linear IR was not initialized");
-    auto linear_ir = *lowered::LinearIRBuilder().clone(m_linear_ir);
+    ov::snippets::lowered::ExpressionMap expression_map;
+    auto linear_ir = *lowered::LinearIRBuilder().clone(m_linear_ir, expression_map);
 
     if (is_dynamic()) {
         ov::snippets::lowered::pass::PassPipeline shape_dependent_pipeline;
@@ -541,14 +544,21 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
     }
 
     auto lowering_result = m_generator->generate(linear_ir, compile_params);
-
+    // Some kernel executors might've been registered during code emission.
+    //  We need to update them, so appropriate kernels will be compiled.
+    const auto& exec_table = get_runtime_configurator()->get_kernel_executor_table();
+    exec_table->update_state(m_linear_ir);
     return {std::move(lowering_result)};
 }
 
-const std::shared_ptr<RuntimeConfig>& Subgraph::update_runtime_config() const {
+const std::shared_ptr<RuntimeConfigurator>& Subgraph::get_runtime_configurator() const {
     OPENVINO_ASSERT(m_generator, "Generator has not been inited!");
+    return m_generator->get_target_machine()->get_runtime_configurator();
+}
+
+const std::shared_ptr<RuntimeConfig>& Subgraph::update_runtime_config() const {
     OPENVINO_ASSERT(m_linear_ir, "LoweredLinearIR has not been inited!");
-    return m_generator->get_target_machine()->get_runtime_configurator()->get_updated_config(m_linear_ir);
+    return get_runtime_configurator()->get_updated_config(m_linear_ir);
 }
 
 void Subgraph::print() const {

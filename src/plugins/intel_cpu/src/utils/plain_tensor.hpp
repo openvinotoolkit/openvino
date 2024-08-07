@@ -119,6 +119,10 @@ struct PlainTensor {
         return m_strides[i];
     }
 
+    size_t stride_bytes(int i) const {
+        return stride(i) * m_element_size;
+    }
+
     template<typename T>
     std::vector<T> get_strides() const {
         std::vector<T> strides(m_rank);

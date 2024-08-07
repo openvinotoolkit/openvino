@@ -349,7 +349,7 @@ void PreStepsList::add_convert_layout_impl(const Layout& layout) {
             auto perm_constant =
                 op::v0::Constant::create<int64_t>(element::i64, Shape{permutation.size()}, permutation);
             auto transpose = std::make_shared<op::v1::Transpose>(node, perm_constant);
-            context.layout() = dst_layout;  // Update context's current layout
+            context.layout() = std::move(dst_layout);  // Update context's current layout
             // return false to avoid excess function revalidations as layout conversion
             // doesn't require shape or type propagation.
             return std::make_tuple(std::vector<Output<Node>>{transpose}, false);
@@ -552,7 +552,7 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
                                                                  ov::Strides(weights_shape.size() - 2, 1));
 
                 if (is_converted) {
-                    // Round values according to OpenCV rule before converting to integral values
+                    // Roundp values according to OpenCV rule before converting to integral values
                     auto round_val =
                         std::make_shared<ov::op::v5::Round>(node, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
                     node = std::make_shared<op::v0::Convert>(round_val, elem_type);
@@ -565,7 +565,7 @@ void PreStepsList::add_convert_color_impl(const ColorFormat& dst_format) {
                     node = std::make_shared<op::v1::Transpose>(node, perm_constant);
                 }
                 context.color_format() = dst_format;
-                return std::make_tuple(std::vector<Output<Node>>{node}, true);
+                return std::make_tuple(std::vector<Output<Node>>{std::move(node)}, true);
             }
             if (context.color_format() == ColorFormat::RGBX) {
                 if (dst_format == ColorFormat::RGB) {
@@ -722,7 +722,7 @@ void PostStepsList::add_convert_layout_impl(const Layout& layout) {
             auto perm_constant =
                 op::v0::Constant::create<int64_t>(element::i64, Shape{permutation.size()}, permutation);
             auto transpose = std::make_shared<op::v1::Transpose>(node, perm_constant);
-            context.layout() = dst_layout;  // Update context's current layout
+            context.layout() = std::move(dst_layout);  // Update context's current layout
             return std::make_tuple(Output<Node>(transpose), true);
         },
         "convert layout " + layout.to_string());

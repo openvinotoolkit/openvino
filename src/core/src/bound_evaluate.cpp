@@ -299,15 +299,15 @@ bool ov::could_propagate(const Output<Node>& output, std::vector<Node*>& result)
     return status;
 }
 
-ov::Tensor ov::evaluate_lower_bound(const Output<Node>& output) {
+ov::Tensor ov::util::evaluate_lower_bound(const Output<Node>& output) {
     return evaluate_bound(output, false);
 }
 
-ov::Tensor ov::evaluate_upper_bound(const Output<Node>& output) {
+ov::Tensor ov::util::evaluate_upper_bound(const Output<Node>& output) {
     return evaluate_bound(output, true);
 }
 
-std::pair<ov::Tensor, ov::Tensor> ov::evaluate_both_bounds(const Output<Node>& output) {
+std::pair<ov::Tensor, ov::Tensor> ov::util::evaluate_both_bounds(const Output<Node>& output) {
     const auto& output_tensor = output.get_tensor();
     if (output_tensor.get_lower_value() && output_tensor.get_upper_value())
         return {output_tensor.get_lower_value(), output_tensor.get_upper_value()};
@@ -381,10 +381,10 @@ bool ov::interval_bound_evaluator(const Node* node,
     OPENVINO_ASSERT(node->get_input_size() == 2);
 
     const auto num_of_outputs = node->get_output_size();
-    auto low_0 = ov::evaluate_lower_bound(node->get_input_source_output(0));
-    auto low_1 = ov::evaluate_lower_bound(node->get_input_source_output(1));
-    auto up_0 = ov::evaluate_upper_bound(node->get_input_source_output(0));
-    auto up_1 = ov::evaluate_upper_bound(node->get_input_source_output(1));
+    auto low_0 = ov::util::evaluate_lower_bound(node->get_input_source_output(0));
+    auto low_1 = ov::util::evaluate_lower_bound(node->get_input_source_output(1));
+    auto up_0 = ov::util::evaluate_upper_bound(node->get_input_source_output(0));
+    auto up_1 = ov::util::evaluate_upper_bound(node->get_input_source_output(1));
     if (!low_0 || !low_1 || !up_0 || !up_1)
         return false;
 
@@ -534,7 +534,7 @@ bool ov::has_and_set_equal_bounds(const Output<Node>& source) {
     if (op::util::is_constant(source.get_node_shared_ptr()))
         return true;
 
-    auto bounds = ov::evaluate_both_bounds(source);
+    auto bounds = ov::util::evaluate_both_bounds(source);
     return are_same_tensor(bounds.first, bounds.second);
 }
 

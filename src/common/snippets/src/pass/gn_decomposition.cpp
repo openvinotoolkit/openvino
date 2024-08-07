@@ -38,6 +38,7 @@ GNDecomposition::GNDecomposition() {
         // reshape [N, C, spatial] to [N, group, 1, (C / group) * spatial]
         const auto orig_shape = group_norm_node->get_input_partial_shape(0).to_shape();
         size_t orig_rank = orig_shape.size();
+        OPENVINO_ASSERT(orig_rank >= 2, "First input rank for group normalization op should be greater than 1");
         size_t group_rank = 4;
         size_t c_in_group = orig_shape[1] / num_groups;
         size_t spatial_dim = 1;

@@ -10,6 +10,7 @@ import openvino.runtime as ov
 import pytest
 import tensorflow as tf
 from openvino.runtime import PartialShape, Model, Dimension
+from openvino.test_utils import compare_functions
 
 from common import constants
 from common.layer_test_class import CommonLayerTest
@@ -1287,3 +1288,37 @@ class TestInputTensorName(unittest.TestCase):
 
         assert ov_model.inputs[0].get_names() == {"x:0"}
         assert ov_model.inputs[1].get_names() == {"y:0"}
+
+
+class TestUnicodePathsTF(unittest.TestCase):
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_unicode_paths(self):
+        test_directory = os.path.dirname(os.path.realpath(__file__))
+        with tempfile.TemporaryDirectory(dir=test_directory, prefix=r"晚安_путь_к_файлу") as temp_dir:
+            model, model_ref, _ = create_tf_graph_def(None)
+
+            try:
+                model_path = save_to_pb(model, temp_dir)
+            except:
+                return
+
+            assert os.path.exists(model_path), "Could not create a directory with unicode path."
+
+            from openvino import convert_model, save_model, Core
+            res_model = convert_model(model_path)
+            flag, msg = compare_functions(res_model, model_ref, False)
+            assert flag, msg
+
+            save_model(res_model, model_path + ".xml")
+            res_model_after_saving = Core().read_model(model_path + ".xml")
+            flag, msg = compare_functions(res_model_after_saving, model_ref, False)
+            assert flag, msg
+
+            from openvino.frontend import FrontEndManager
+            fm = FrontEndManager()
+            fe = fm.load_by_framework("tf")
+
+            assert fe.supported(model_path)
+
+            del res_model_after_saving

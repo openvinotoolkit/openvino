@@ -83,18 +83,7 @@ protected:
 
 TEST_P(InferRequestPropertiesTest, canSetExclusiveAsyncRequests) {
     ASSERT_EQ(0ul, ov::threading::executor_manager()->get_executors_number());
-    ASSERT_NO_THROW(createInferRequestWithConfig());
-    if (target_device.find(ov::test::utils::DEVICE_AUTO) == std::string::npos &&
-        target_device.find(ov::test::utils::DEVICE_MULTI) == std::string::npos &&
-        target_device.find(ov::test::utils::DEVICE_HETERO) == std::string::npos &&
-        target_device.find(ov::test::utils::DEVICE_BATCH) == std::string::npos) {
-        ASSERT_EQ(streamExecutorNumber, ov::threading::executor_manager()->get_executors_number());
-    }
-}
-
-TEST_P(InferRequestPropertiesTest, withoutExclusiveAsyncRequests) {
-    ASSERT_EQ(0ul, ov::threading::executor_manager()->get_executors_number());
-    ASSERT_NO_THROW(createInferRequestWithConfig());
+    OV_ASSERT_NO_THROW(createInferRequestWithConfig());
     if (target_device.find(ov::test::utils::DEVICE_AUTO) == std::string::npos &&
         target_device.find(ov::test::utils::DEVICE_MULTI) == std::string::npos &&
         target_device.find(ov::test::utils::DEVICE_HETERO) == std::string::npos &&
@@ -116,12 +105,12 @@ TEST_P(InferRequestPropertiesTest, ReusableCPUStreamsExecutor) {
             target_device.find(ov::test::utils::DEVICE_MULTI) == std::string::npos &&
             target_device.find(ov::test::utils::DEVICE_HETERO) == std::string::npos &&
             target_device.find(ov::test::utils::DEVICE_BATCH) == std::string::npos) {
-            ASSERT_NO_THROW(core->set_property(target_device, config));
+            OV_ASSERT_NO_THROW(core->set_property(target_device, config));
         }
         // Load CNNNetwork to target plugins
         execNet = core->compile_model(function, target_device, config);
         auto req = execNet.create_infer_request();
-        if (target_device == ov::test::utils::DEVICE_KEEMBAY) {
+        if (target_device == ov::test::utils::DEVICE_NPU) {
             ASSERT_EQ(1u, ov::threading::executor_manager()->get_executors_number());
             ASSERT_EQ(0u, ov::threading::executor_manager()->get_idle_cpu_streams_executors_number());
         } else if ((target_device == ov::test::utils::DEVICE_AUTO) ||

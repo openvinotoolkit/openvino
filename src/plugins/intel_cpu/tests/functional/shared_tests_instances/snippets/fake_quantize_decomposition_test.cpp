@@ -20,6 +20,13 @@ const std::vector<TestValues> testValuesDecompositionScalars = {
         1.f,
         {{}, {}, {}, {}},
     },
+    {
+        ov::element::f16,
+        ov::Shape{1, 3, 16, 16},
+        ov::element::f16,
+        1.f,
+        {{}, {}, {}, {}},
+    },
 };
 const std::vector<TestValues> testValuesDecompositionPerChannel = {
     {
@@ -30,9 +37,26 @@ const std::vector<TestValues> testValuesDecompositionPerChannel = {
         {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
     },
     {
+        ov::element::f16,
+        ov::Shape{1, 3, 16, 16},
+        ov::element::f16,
+        1.f,
+        {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
+    },
+};
+
+const std::vector<TestValues> testValuesDecompositionPerChannelInput = {
+    {
         ov::element::f32,
         ov::Shape{1, 3, 16, 16},
         ov::element::f32,
+        1.f,
+        {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}},
+    },
+        {
+        ov::element::f16,
+        ov::Shape{1, 3, 16, 16},
+        ov::element::f16,
         1.f,
         {{1, 3, 1, 1}, {1, 3, 1, 1}, {}, {}},
     },
@@ -58,7 +82,7 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_FQDecomposition_PerChannel,
     FakeQuantizeDecompositionTest,
     ::testing::Combine(
-        ::testing::Values(testValuesDecompositionPerChannel[0]),
+        ::testing::ValuesIn(testValuesDecompositionPerChannel),
         ::testing::ValuesIn(operations),
         // reorder (nChw[16|8]c) + MaxPool + reorder(nChw[16|8]c) x6 + Subgraph + reorder(nchw)
         ::testing::Values(std::pair<size_t, size_t>{10, 1}),
@@ -69,7 +93,7 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_FQDecomposition_PerChannel_Input,
     FakeQuantizeDecompositionTest,
     ::testing::Combine(
-        ::testing::Values(testValuesDecompositionPerChannel[1]),
+        ::testing::ValuesIn(testValuesDecompositionPerChannelInput),
         ::testing::ValuesIn(operations),
         // reorder (nChw[16|8]c) + MaxPool + reorder(nChw[16|8]c) x4 + Subgraph + reorder(nchw)
         ::testing::Values(std::pair<size_t, size_t>{8, 1}),

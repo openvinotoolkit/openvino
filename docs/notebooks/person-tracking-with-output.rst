@@ -93,8 +93,8 @@ realtime tracking,” in ICIP, 2016, pp. 3464–3468.
 
 .. |deepsort| image:: https://user-images.githubusercontent.com/91237924/221744683-0042eff8-2c41-43b8-b3ad-b5929bafb60b.png
 
-Table of contents:
-^^^^^^^^^^^^^^^^^^
+**Table of contents:**
+
 
 -  `Imports <#imports>`__
 -  `Download the Model <#download-the-model>`__
@@ -367,9 +367,9 @@ Data Processing
 Data Processing includes data preprocess and postprocess functions.
 
 - Data preprocess function is used to change the layout and shape of input
-data, according to requirement of the network input format.
+  data, according to requirement of the network input format.
 - Data postprocess function is used to extract the useful information from
-network’s original output and visualize it.
+  network’s original output and visualize it.
 
 .. code:: ipython3
 

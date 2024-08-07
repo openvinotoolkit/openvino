@@ -170,8 +170,8 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
 kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_params const& orig_impl_param) {
     // fc_tiled_opt kernel is optimized for row shape aligned by 8.
     // Thus, use fake aligned shape at kernel execution for better performance.
-    auto orig_input_layout = orig_impl_param.get_input_layout();
-    auto orig_output_layout = orig_impl_param.get_output_layout();
+    const auto& orig_input_layout = orig_impl_param.get_input_layout();
+    const auto& orig_output_layout = orig_impl_param.get_output_layout();
     OPENVINO_ASSERT(orig_input_layout.is_static() && orig_output_layout.is_static(),
                     "in/out layouts should be static for fake alignment!");
 
@@ -188,15 +188,29 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         can_apply_fake_alignment &= orig_output_layout.data_padding.lower_size().sizes()[1] == 0 &&
                                     orig_output_layout.data_padding.upper_size().sizes()[1] == 0;
 
+    for (auto& fused_desc : orig_impl_param.fused_desc) {
+        if (fused_desc.has_outer_dep()) {
+            auto fused_op_input_layout = orig_impl_param.input_layouts[fused_desc.outer_dep_start_idx];
+            // Check fused desc's input is still dynamic, then do not fake alignment
+            if (fused_op_input_layout.is_dynamic()) {
+                can_apply_fake_alignment = false;
+                break;
+            }
+            // Check fused desc's input has full tensor, then do not fake alignment
+            if (orig_output_layout.get_shape() == fused_op_input_layout.get_shape()) {
+                can_apply_fake_alignment = false;
+                break;
+            }
+        }
+    }
+
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(debug_config->disable_fake_alignment) {
         can_apply_fake_alignment = false;
     }
 
     if (orig_input_layout.format == format::bfyx && orig_output_layout.format == format::bfyx && can_apply_fake_alignment) {
-        auto updated_param = orig_impl_param;
-
-        auto batch_size = std::accumulate(input_shape.begin(),
+         auto batch_size = std::accumulate(input_shape.begin(),
                                           input_shape.end() - 1,
                                           size_t{1},
                                           std::multiplies<size_t>());
@@ -220,14 +234,19 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         input_shape[0] = align_to(batch_size, fake_align_base);
         output_shape[0] = align_to(batch_size, fake_align_base);
 
-        updated_param.input_layouts[0] = layout(ov::PartialShape(input_shape),
-                                                orig_input_layout.data_type,
-                                                orig_input_layout.format,
-                                                orig_input_layout.data_padding);
-        updated_param.output_layouts[0] = layout(ov::PartialShape(output_shape),
-                                             orig_output_layout.data_type,
-                                             orig_output_layout.format,
-                                             orig_output_layout.data_padding);
+        const auto &dev_info = orig_impl_param.get_program().get_engine().get_device_info();
+
+        // The target HW of this patch is limited because of performance concern
+        if (dev_info.supports_immad && dev_info.dev_type == device_type::integrated_gpu) {
+            // Check whether the input node has enough space for output data. Otherwise, fake alignment is not possible due to page fault
+            // i.e. predecessor node was supposed be increased already
+            if (orig_input_layout.is_static() && dep_memory(0).count() < ov::shape_size(input_shape)) {
+               return std::move(orig_impl_param);
+            }
+        }
+        auto updated_param = orig_impl_param;
+        updated_param.input_layouts[0] = orig_input_layout.clone_with_other_shape(input_shape);
+        updated_param.output_layouts[0] = orig_output_layout.clone_with_other_shape(output_shape);
 
         GPU_DEBUG_TRACE_DETAIL << "Apply fake alignment: input(" << orig_input_layout.to_short_string() << " -> "
                                << updated_param.input_layouts[0].to_short_string() << "), output("

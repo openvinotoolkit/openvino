@@ -503,7 +503,7 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
         auto& dep = fc_node.get_dependency(dep_id);
         auto target_layout = dep.get_output_layout();
         target_layout.format = format::fbyx;
-        auto reorder_prim = std::make_shared<reorder>(dep.id() + "_reorder", dep.id(), target_layout);
+        auto reorder_prim = std::make_shared<reorder>(dep.id() + "_reorder_" + fc_node.id(), dep.id(), target_layout);
         p.add_intermediate(reorder_prim, fc_node, dep_id, true);
         fc_node.get_dependency(dep_id).recalc_output_layout(false);
     };

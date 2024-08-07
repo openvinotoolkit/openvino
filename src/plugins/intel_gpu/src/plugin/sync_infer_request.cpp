@@ -34,12 +34,12 @@ namespace {
 inline bool can_use_usm_host(const cldnn::engine& engine) {
     auto can_use_usm = engine.use_unified_shared_memory();
 
-    // WA: Disable USM host memory for infer request`s tensors for PVC as
-    // it has performance issues in case of host <-> device data transfers inside kernels
-    // Use unsupported SIMD8 as unique attribute of PVC
-    auto supported_simd_sizes = engine.get_device_info().supported_simd_sizes;
-    if (std::find(supported_simd_sizes.begin(), supported_simd_sizes.end(), 8) == supported_simd_sizes.end())
+    if (engine.get_device_info().gfx_ver.major == 12 && engine.get_device_info().gfx_ver.minor == 60) {
+        // WA: Disable USM host memory for infer request`s tensors for PVC as
+        // it has performance issues in case of host <-> device data transfers inside kernels
+        GPU_DEBUG_TRACE << "Do not use usm_host for performance issue" << std::endl;
         can_use_usm = false;
+    }
 
     return can_use_usm;
 }
@@ -164,7 +164,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
         user_tensors[port_index] = { tensor._ptr, new_tensor_owner };
 
         // We need to properly handle PLUGIN -> USER ownership change to prevent invalid PLUGIN's ush_host buffer sharing,
-        // so remove plugin's tensor to reallocate it in prepare_input() mehtod
+        // so remove plugin's tensor to reallocate it in prepare_input() method
         if (current_tensor_owner == TensorOwner::PLUGIN && new_tensor_owner == TensorOwner::USER) {
             if (plugin_tensors.count(port_index) && std::dynamic_pointer_cast<RemoteTensorImpl>(plugin_tensors[port_index].ptr)->is_shared())
                 plugin_tensors.erase(plugin_tensors.find(port_index));
@@ -243,6 +243,9 @@ void SyncInferRequest::wait_notify() {
 }
 
 void SyncInferRequest::enqueue() {
+    int64_t network_enqueue_time = 0;
+    auto enqueue_start = std::chrono::high_resolution_clock::now();
+
     // set input and output memory from request blob maps
     // into the network object primitives
     std::vector<cldnn::event::ptr> dependencies;
@@ -279,7 +282,10 @@ void SyncInferRequest::enqueue() {
     network->set_shape_predictor(m_shape_predictor);
 
     m_internal_outputs.clear();
+
+    auto network_enqueue_start = std::chrono::high_resolution_clock::now();
     m_internal_outputs = network->execute(dependencies);
+    auto network_enqueue_end = std::chrono::high_resolution_clock::now();
 
     // If dump layers path is set, only runs first inference.
     GPU_DEBUG_GET_INSTANCE(debug_config);
@@ -287,19 +293,42 @@ void SyncInferRequest::enqueue() {
         GPU_DEBUG_INFO << "Only run first inference to dump layers." << std::endl;
         exit(0);
     }
+
+    auto enqueue_end = std::chrono::high_resolution_clock::now();
+    GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->host_time_profiling) {
+        network_enqueue_time = std::chrono::duration_cast<std::chrono::microseconds>(network_enqueue_end - network_enqueue_start).count();
+
+        const uint64_t total_time = std::chrono::duration_cast<std::chrono::microseconds>(enqueue_end - enqueue_start).count();
+        const uint64_t inputs_processing = total_time - network_enqueue_time;
+
+        HostTimeProfilingEntry entry;
+        entry.inputs_processing = inputs_processing;
+        entry.enqueue = network_enqueue_time;
+
+        m_graph->host_exec_times.push_back(entry);
+    }
 }
 
 void SyncInferRequest::wait() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::wait");
     OPENVINO_ASSERT(!m_internal_outputs.empty(), "[GPU] Inference was not started!\n");
 
+    int64_t sync_total_time = 0;
+    auto wait_start = std::chrono::high_resolution_clock::now();
+
     auto& network = *m_graph->get_network();
 
     // wait for completion & collect outputs as requested by the model
     // for in_order_queue, it is enough to call finish only once
     bool do_sync_per_output = (network.get_stream().get_queue_type() == QueueTypes::in_order) ? false : true;
-    if (!do_sync_per_output)
+    if (!do_sync_per_output) {
+        auto sync_start = std::chrono::high_resolution_clock::now();
         network.get_stream().finish();
+        auto sync_end = std::chrono::high_resolution_clock::now();
+
+        GPU_DEBUG_IF(true)
+            sync_total_time = std::chrono::duration_cast<std::chrono::microseconds>(sync_end - sync_start).count();
+    }
 
     std::vector<cldnn::event::ptr> copy_events;
 
@@ -307,7 +336,14 @@ void SyncInferRequest::wait() {
         size_t port_idx = it.first;
         const auto& port = it.second;
         cldnn::primitive_id internal_name = m_output_names_map.at(port_idx);
-        auto output_memory = m_internal_outputs.at(internal_name).get_memory(do_sync_per_output);
+
+        auto sync_start = std::chrono::high_resolution_clock::now();
+        cldnn::memory::ptr output_memory = m_internal_outputs.at(internal_name).get_memory(do_sync_per_output);
+        auto sync_end = std::chrono::high_resolution_clock::now();
+        GPU_DEBUG_IF(do_sync_per_output) {
+            sync_total_time += std::chrono::duration_cast<std::chrono::microseconds>(sync_end - sync_start).count();
+        }
+
         auto output_layout = m_internal_outputs.at(internal_name).get_layout();
 
         if (output_memory) {
@@ -420,6 +456,17 @@ void SyncInferRequest::wait() {
     // finally collect profiling info
     if (m_enable_profiling) {
         m_graph->update_profiling_info();
+    }
+
+    auto wait_end = std::chrono::high_resolution_clock::now();
+    GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->host_time_profiling) {
+        auto& exec_time_info = m_graph->host_exec_times.back();
+
+        const uint64_t total_time = std::chrono::duration_cast<std::chrono::microseconds>(wait_end - wait_start).count();
+        const uint64_t outputs_processing_time = total_time - sync_total_time;
+
+        exec_time_info.wait = sync_total_time;
+        exec_time_info.outputs_processing = outputs_processing_time;
     }
 }
 
@@ -661,7 +708,8 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
     bool is_remote = remote_ptr != nullptr;
     bool is_usm_host_tensor = usm_host_ptr != nullptr;
 
-    GPU_DEBUG_TRACE_DETAIL << "Prepare input for " << internal_name << " ( is_remote ? " << is_remote << ")" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "Prepare input for " << internal_name
+            << " ( is_remote ? " << is_remote << ", is_usm_host_tensor ? " << is_usm_host_tensor << ")" << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "    port shape       : " << pshape.to_string() << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "    user_tensor shape: " << user_tensor->get_shape().to_string() << std::endl;
 

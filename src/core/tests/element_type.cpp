@@ -73,6 +73,10 @@ TEST(element_type, from_string) {
     EXPECT_EQ(element::Type("F8E5M2"), element::f8e5m2);
     EXPECT_EQ(element::Type("string"), element::string);
     EXPECT_EQ(element::Type("STRING"), element::string);
+    EXPECT_EQ(element::Type("f4e2m1"), element::f4e2m1);
+    EXPECT_EQ(element::Type("F4E2M1"), element::f4e2m1);
+    EXPECT_EQ(element::Type("f8e8m0"), element::f8e8m0);
+    EXPECT_EQ(element::Type("F8E8M0"), element::f8e8m0);
 
     EXPECT_EQ(element::Type("undefined"), element::undefined);
     EXPECT_EQ(element::Type("UNSPECIFIED"), element::undefined);

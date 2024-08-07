@@ -5,7 +5,7 @@
 #include "impls/onednn/utils.hpp"
 #include "reorder_inst.h"
 #include "primitive_onednn_base.h"
-#include "implementation_map.hpp"
+#include "impls/registry/implementation_map.hpp"
 
 #include "kernel_selector_common.h"
 
@@ -103,8 +103,10 @@ public:
         ib >> prim_cache;
 
         _scratchpad_md = _pd.scratchpad_desc();
-
-        _prim = dnnl::reorder(_pd, prim_cache);
+        if (prim_cache.size() > 0)
+            _prim = dnnl::reorder(_pd, prim_cache);
+        else
+            _prim = dnnl::reorder(_pd);
 #endif
     }
 
@@ -116,7 +118,7 @@ public:
         } else {
             auto& engine = impl_params.prog->get_engine();
             auto& config = impl_params.prog->get_config();
-            auto attr = arg.get_onednn_primitive_attributes();
+            auto attr = impl_params.attrs_onednn;
             auto prim_desc = get_reorder_primitive_descriptor(impl_params, *attr);
             return cldnn::make_unique<reorder_onednn>(engine, config, attr, *prim_desc);
         }

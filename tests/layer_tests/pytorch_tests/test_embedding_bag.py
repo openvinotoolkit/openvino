@@ -14,7 +14,7 @@ class TestEmbeddingBag1dOffsets(PytorchLayerTest):
 
         indices = np.array([2, 2, 2, 2, 4, 3, 2, 9]).astype(indicies_dtype)
         weights = np.random.randn(10, 10).astype(np.float32)
-        offsets = np.array([0, 4]).astype(indicies_dtype)
+        offsets = np.array([0, 4, 4]).astype(indicies_dtype)
         if per_sample_weights:
             per_sample_weights = np.random.randn(*indices.shape).astype(np.float32)
             return (indices, weights, offsets, per_sample_weights)

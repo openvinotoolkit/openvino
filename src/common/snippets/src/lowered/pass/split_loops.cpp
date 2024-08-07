@@ -26,7 +26,9 @@ bool SplitLoops::can_be_split(const UnifiedLoopInfoPtr& loop_to_split, const Uni
     const bool equal_dim_idxes = current_dim_idx != LoopInfo::UNDEFINED_DIM_IDX && current_dim_idx == parent_dim_idx;
     const bool only_main_body = handlers.get_passes<SpecificLoopIterType::FIRST_ITER>().empty() &&
                                 handlers.get_passes<SpecificLoopIterType::LAST_ITER>().empty();
-    return loop_to_split->get_work_amount() == loop_to_fuse->get_work_amount() &&
+    // TODO [141735] : At the moment Splitted loops are not supported in dynamic case
+    const auto are_static = !loop_to_split->is_dynamic() && !loop_to_fuse->is_dynamic();
+    return are_static && loop_to_split->get_work_amount() == loop_to_fuse->get_work_amount() &&
            loop_to_split->get_increment() != loop_to_fuse->get_increment() && equal_dim_idxes && only_main_body;
 }
 
@@ -70,6 +72,9 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
             if (FuseLoops::can_be_fused(upper_loop, lower_loop) && can_be_split(loop_to_split, loop_to_fuse)) {
                 loop_was_split = true;
                 loop_to_split->set_work_amount(loop_to_fuse->get_increment());
+                // Since the loop has work amount equal to increment of outer loop, not broadcasted dimension,
+                // we should set `work_amount_const = true` to avoid rewriting in common loop intiialization passes (for example, `InitLoops`)
+                loop_to_split->set_work_amount_const(true);
 
                 const auto& loop_to_split_id = split_parent ? parent_loop_id : loop_id;
                 const auto loop_bounds = LoopManager::get_loop_bounds(linear_ir, loop_to_split_id,

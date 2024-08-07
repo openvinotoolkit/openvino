@@ -26,7 +26,6 @@ public:
     bool run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) override;
 private:
     static void insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_manager, size_t loop_id);
-    static bool is_loop_dynamic(const UnifiedLoopInfoPtr& loop_info);
 };
 
 } // namespace pass

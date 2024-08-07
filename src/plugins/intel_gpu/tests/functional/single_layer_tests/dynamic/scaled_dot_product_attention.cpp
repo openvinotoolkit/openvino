@@ -25,8 +25,7 @@ typedef std::tuple<ov::element::Type,                // netPrecision
                    std::vector<InputShape>,          // shape
                    bool,                             // is_causal
                    bool,                             // has_attn
-                   bool,                             // has_scale
-                   std::string                       // targetDevice
+                   bool                              // has_scale
                    > ScaledAttnGPUTestParams;
 
 class ScaledAttnLayerGPUTest : public testing::WithParamInterface<ScaledAttnGPUTestParams>,
@@ -48,8 +47,7 @@ std::string ScaledAttnLayerGPUTest::getTestCaseName(const testing::TestParamInfo
     bool is_causal;
     bool has_attn;
     bool has_scale;
-    std::string targetDevice;
-    std::tie(inType, inputShapes, is_causal, has_attn, has_scale, targetDevice) = obj.param;
+    std::tie(inType, inputShapes, is_causal, has_attn, has_scale) = obj.param;
 
     std::ostringstream result;
     result << "netPRC=" << inType << "_";
@@ -67,7 +65,6 @@ std::string ScaledAttnLayerGPUTest::getTestCaseName(const testing::TestParamInfo
     result << "is_causal=" << is_causal << "_";
     result << "has_attn=" << has_attn << "_";
     result << "has_scale=" << has_scale << "_";
-    result << "trgDev=" << targetDevice;
 
     return result.str();
 }
@@ -75,7 +72,10 @@ std::string ScaledAttnLayerGPUTest::getTestCaseName(const testing::TestParamInfo
 void ScaledAttnLayerGPUTest::SetUp() {
     ov::element::Type inType;
     std::vector<InputShape> inputShapes;
-    std::tie(inType, inputShapes, is_causal, has_attn, has_scale, targetDevice) = this->GetParam();
+
+    targetDevice = ov::test::utils::DEVICE_GPU;
+
+    std::tie(inType, inputShapes, is_causal, has_attn, has_scale) = this->GetParam();
 
     init_input_shapes(inputShapes);
     ov::ParameterVector inputParams;
@@ -106,21 +106,9 @@ void ScaledAttnLayerGPUTest::SetUp() {
         }
     }
 
-    // Add artificial read/value operations to the model to trigger the enabling of the SDPA operation
-    auto read_key = std::make_shared<ov::op::v3::ReadValue>(inputParams.at(1), "v0");
-    auto assign_key = std::make_shared<ov::op::v3::Assign>(read_key, "v0");
-
-    auto read_value = std::make_shared<ov::op::v3::ReadValue>(inputParams.at(2), "v0");
-    auto assign_value = std::make_shared<ov::op::v3::Assign>(read_value, "v0");
-
     ov::OutputVector inputs;
     for (size_t i = 0; i < inputParams.size(); i++) {
-        if (i == 1)
-            inputs.push_back(read_key);
-        else if (i == 2)
-            inputs.push_back(read_value);
-        else
-            inputs.push_back(inputParams[i]);
+        inputs.push_back(inputParams[i]);
     }
 
     auto sdp = std::make_shared<ov::opset13::ScaledDotProductAttention>(inputs, is_causal);
@@ -128,7 +116,7 @@ void ScaledAttnLayerGPUTest::SetUp() {
 
     auto output = std::make_shared<ov::op::v0::Result>(sdp->output(0));
 
-    function = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::SinkVector{assign_key, assign_value}, inputParams, "sdpa_model");
+    function = std::make_shared<ov::Model>(ov::OutputVector{output}, inputParams, "sdpa_model");
 
     functionRefs = function->clone();
     ov::pass::Manager manager;
@@ -137,11 +125,8 @@ void ScaledAttnLayerGPUTest::SetUp() {
     manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
     manager.run_passes(functionRefs);
 
-    // Enable SDPA
-    configuration.insert(ov::intel_gpu::hint::enable_sdpa_optimization(true));
-
     auto it = std::find_if(inputShapes[1].second.begin(), inputShapes[1].second.end(), [&](const ov::Shape& shape){
-        return shape[2] >= 384;
+        return shape[2] >= 384 || shape[3] >= 128;
     });
 
     bool has_long_seq = it != inputShapes[1].second.end();
@@ -181,13 +166,26 @@ TEST_P(ScaledAttnLayerGPUTest, CompareWithRefs) {
     bool is_causal;
     bool has_attn;
     bool has_scale;
-    std::string targetDevice;
-    std::tie(inType, inputShapes, is_causal, has_attn, has_scale, targetDevice) = this->GetParam();
+    std::tie(inType, inputShapes, is_causal, has_attn, has_scale) = this->GetParam();
     run();
 }
 
 const std::vector<std::vector<InputShape>> shapes{
     // normal case, shapes of q,k,v are same
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 128},
+            {ov::Shape{1, 8, 100, 128}, ov::Shape{1, 8, 1, 128}, ov::Shape{2, 8, 10, 128}}}
+        },
+        // kv shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 128},
+            {ov::Shape{1, 8, 100, 128}, ov::Shape{1, 8, 1, 128}, ov::Shape{2, 8, 10, 128}}}
+        },
+        // attn shape: [B, 1, -1, L0+L1]
+        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, -1},
+            {ov::Shape{1, 1, 100, 100}, ov::Shape{1, 1, 1, 1}, ov::Shape{2, 1, 10, 10}}}
+        },
+    },
     {
         // q shape
         {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
@@ -204,31 +202,46 @@ const std::vector<std::vector<InputShape>> shapes{
     },
     {
         // q shape
-        {ov::test::InputShape{ov::PartialShape{-1, 5, -1, 64},
-            {ov::Shape{2, 5, 100, 64}, ov::Shape{2, 5, 1, 64}, ov::Shape{2, 5, 384, 64}}}
+        {ov::test::InputShape{ov::PartialShape{-1, 5, -1, 128},
+            {ov::Shape{2, 5, 100, 128}, ov::Shape{2, 5, 1, 128}, ov::Shape{2, 5, 387, 128}}}
         },
         // kv shape
-        {ov::test::InputShape{ov::PartialShape{-1, 5, -1, 64},
-            {ov::Shape{2, 5, 100, 64}, ov::Shape{2, 5, 1, 64}, ov::Shape{2, 5, 384, 64}}}
+        {ov::test::InputShape{ov::PartialShape{-1, 5, -1, 128},
+            {ov::Shape{2, 5, 100, 128}, ov::Shape{2, 5, 1, 128}, ov::Shape{2, 5, 387, 128}}}
         },
         // attn shape: [B, 1, -1, L0+L1]
         {ov::test::InputShape{ov::PartialShape{-1, 1, -1, -1},
-            {ov::Shape{1, 1, 100, 100}, ov::Shape{1, 1, 1, 1}, ov::Shape{2, 1, 384, 384}}}
+            {ov::Shape{1, 1, 100, 100}, ov::Shape{1, 1, 1, 1}, ov::Shape{2, 1, 387, 387}}}
         },
     },
     // heads number of kv is 1, attn mask: [B, H, L1, L0+L1]
     {
         // q shape
-        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 64},
-            {ov::Shape{1, 8, 100, 64}, ov::Shape{1, 8, 1, 64}, ov::Shape{2, 8, 10, 64}}}
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 128},
+            {ov::Shape{1, 8, 100, 128}, ov::Shape{1, 8, 1, 128}, ov::Shape{2, 8, 10, 128}}}
         },
         // kv shape
-        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, 64},
-            {ov::Shape{1, 1, 100, 64}, ov::Shape{1, 1, 1, 64}, ov::Shape{2, 1, 10, 64}}}
+        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, 128},
+            {ov::Shape{1, 1, 100, 128}, ov::Shape{1, 1, 1, 128}, ov::Shape{2, 1, 10, 128}}}
         },
         // attn shape
         {ov::test::InputShape{ov::PartialShape{-1, 8, -1, -1},
             {ov::Shape{1, 8, 100, 100}, ov::Shape{1, 8, 1, 1}, ov::Shape{2, 8, 10, 10}}}
+        },
+    },
+    // large head size
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 256},
+            {ov::Shape{1, 8, 7, 256}, ov::Shape{1, 8, 1, 256}, ov::Shape{2, 8, 10, 256}}}
+        },
+        // kv shape
+        {ov::test::InputShape{ov::PartialShape{-1, 8, -1, 256},
+            {ov::Shape{1, 8, 7, 256}, ov::Shape{1, 8, 1, 256}, ov::Shape{2, 8, 10, 256}}}
+        },
+        // attn shape: [B, 1, -1, L0+L1]
+        {ov::test::InputShape{ov::PartialShape{-1, 1, -1, -1},
+            {ov::Shape{1, 1, 7, 7}, ov::Shape{1, 1, 1, 1}, ov::Shape{2, 1, 10, 10}}}
         },
     },
 };
@@ -237,8 +250,7 @@ const auto params = testing::Combine(testing::Values(ov::element::f16 /*, ov::el
                                                  testing::ValuesIn(shapes),
                                                  testing::Values(true, false),
                                                  testing::Values(true, false),
-                                                 testing::Values(true, false),
-                                                 testing::Values(ov::test::utils::DEVICE_GPU));
+                                                 testing::Values(true, false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttn_GPU,
                          ScaledAttnLayerGPUTest,

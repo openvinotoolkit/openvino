@@ -24,6 +24,9 @@
 #include "openvino/op/hard_sigmoid.hpp"
 #include "openvino/op/hsigmoid.hpp"
 #include "openvino/op/hswish.hpp"
+#include "openvino/op/is_finite.hpp"
+#include "openvino/op/is_inf.hpp"
+#include "openvino/op/is_nan.hpp"
 #include "openvino/op/log.hpp"
 #include "openvino/op/mish.hpp"
 #include "openvino/op/negative.hpp"
@@ -144,6 +147,12 @@ std::shared_ptr<ov::Node> make_activation(const ov::Output<Node>& in,
         return std::make_shared<ov::op::v7::Gelu>(in, ov::op::GeluApproximationMode::TANH);
     case ov::test::utils::ActivationTypes::SoftSign:
         return std::make_shared<ov::op::v9::SoftSign>(in);
+    case ov::test::utils::ActivationTypes::IsFinite:
+        return std::make_shared<ov::op::v10::IsFinite>(in);
+    case ov::test::utils::ActivationTypes::IsInf:
+        return std::make_shared<ov::op::v10::IsInf>(in);
+    case ov::test::utils::ActivationTypes::IsNaN:
+        return std::make_shared<ov::op::v10::IsNaN>(in);
     default:
         OPENVINO_THROW("Can't create layer for this activation type");
     }

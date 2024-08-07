@@ -47,12 +47,10 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
         SHAPE_INFER_PREDEFINED(op::HorizonMax, HorizonOpShapeInfer),
         SHAPE_INFER_PREDEFINED(op::HorizonSum, HorizonOpShapeInfer),
         //
-        SHAPE_INFER_PREDEFINED(op::LoopBeginStatic, SingleElementShapeInfer),
-        SHAPE_INFER_PREDEFINED(op::LoopBeginDynamic, SingleElementShapeInfer),
+        SHAPE_INFER_PREDEFINED(op::LoopBegin, SingleElementShapeInfer),
         SHAPE_INFER_PREDEFINED(op::Scalar, SingleElementShapeInfer),
         SHAPE_INFER_PREDEFINED(op::VectorBuffer, SingleElementShapeInfer),
-        SHAPE_INFER_PREDEFINED(op::LoopEndStatic, EmptyShapeInfer),
-        SHAPE_INFER_PREDEFINED(op::LoopEndDynamic, EmptyShapeInfer),
+        SHAPE_INFER_PREDEFINED(op::LoopEnd, EmptyShapeInfer),
 #ifdef SNIPPETS_DEBUG_CAPS
         SHAPE_INFER_PREDEFINED(op::PerfCountBegin, EmptyShapeInfer),
         SHAPE_INFER_PREDEFINED(op::PerfCountEnd, EmptyShapeInfer),
