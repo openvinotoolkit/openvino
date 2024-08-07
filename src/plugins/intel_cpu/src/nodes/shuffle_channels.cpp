@@ -128,10 +128,10 @@ void ShuffleChannels::initSupportedPrimitiveDescriptors() {
 void ShuffleChannels::createPrimitive() {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isDefined())
-        THROW_SHCH_ERROR("has undefined destination memory");
-    if (!srcMemPtr || !srcMemPtr->isDefined())
-        THROW_SHCH_ERROR("has undefined input memory");
+    if (!dstMemPtr)
+        THROW_SHCH_ERROR("has null destination memory");
+    if (!srcMemPtr)
+        THROW_SHCH_ERROR("has null input memory");
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_SHCH_ERROR("has unidentified preferable primitive descriptor");
 

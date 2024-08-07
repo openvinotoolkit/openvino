@@ -166,10 +166,10 @@ void SpaceToDepth::initSupportedPrimitiveDescriptors() {
 void SpaceToDepth::createPrimitive() {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isDefined())
-        THROW_ERROR("has undefined destination memory");
-    if (!srcMemPtr || !srcMemPtr->isDefined())
-        THROW_ERROR("has undefined input memory");
+    if (!dstMemPtr)
+        THROW_ERROR("has null destination memory");
+    if (!srcMemPtr)
+        THROW_ERROR("has null input memory");
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR("has unidentified preferable primitive descriptor");
 
