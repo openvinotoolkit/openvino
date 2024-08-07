@@ -3,6 +3,7 @@
 //
 #pragma once
 
+#include "openvino/core/except.hpp"
 #include "openvino/core/extension.hpp"
 #include "openvino/core/visibility.hpp"
 #include "openvino/util/file_util.hpp"
@@ -41,6 +42,9 @@ inline std::string resolve_extension_path(const std::string& path) {
 
 inline std::vector<Extension::Ptr> load_extensions(const std::string& path) {
     const std::string resolved_path = resolve_extension_path(path);
+#if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__)
+    OPENVINO_ASSERT(!fs::is_symlink(resolved_path), "Cannot load symlink path:\"" + resolved_path + "\".");
+#endif
     auto so = ov::util::load_shared_object(resolved_path.c_str());
     using CreateFunction = void(std::vector<Extension::Ptr>&);
     std::vector<Extension::Ptr> extensions;

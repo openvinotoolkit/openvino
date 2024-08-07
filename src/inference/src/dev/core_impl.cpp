@@ -332,6 +332,10 @@ bool ov::CoreImpl::is_proxy_device(const std::string& dev_name) const {
 }
 
 void ov::CoreImpl::register_plugin_in_registry_unsafe(const std::string& device_name, PluginDescriptor& desc) {
+#if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__)
+    OPENVINO_ASSERT(!fs::is_symlink(ov::util::from_file_path(desc.libraryLocation)),
+                    "Cannot registe plugin with symlink path:\"" + ov::util::from_file_path(desc.libraryLocation) + "\".");
+#endif
 #ifdef PROXY_PLUGIN_ENABLED
     // Update proxy plugin config
     const auto& fill_config = [](ov::AnyMap& defaultConfig, const ov::AnyMap& config, const std::string& dev_name) {
