@@ -32,7 +32,7 @@ namespace {
 bool evaluate(TensorVector& outputs, const TensorVector& inputs) {
     using namespace ov::element;
     return IF_TYPE_OF(bitshift_evaluate,
-                      OV_PP_ET_LIST(i16, i32, u8, u16),
+                      OV_PP_ET_LIST(i8, i16, i32, i64, u8, u16, u32, u64),
                       right_shift::Evaluate,
                       inputs[0].get_element_type(),
                       inputs[0],
