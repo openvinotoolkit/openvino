@@ -151,8 +151,8 @@ bool ocl_events::get_profiling_info_impl(std::list<instrumentation::profiling_in
 
         try {
             be = downcast<ocl_event>(_events[i].get());
-        } catch (ov::Exception const &err) {
-            GPU_DEBUG_LOG << "WARNING: failed to downcast event to ocl_event" << std::endl;
+        } catch (const ov::Exception &err) {
+            GPU_DEBUG_LOG << "WARNING: failed to downcast event to ocl_event - " << err.what() << std::endl;
             continue;
         }
 
