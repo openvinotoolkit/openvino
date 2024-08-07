@@ -232,6 +232,12 @@ bool Split::needPrepareParams() const {
     return needShapeInfer();
 }
 
+void Split::createPrimitive() {
+    if (outputShapesDefined()) {
+        Node::createPrimitive();
+    }
+}
+
 void Split::prepareParams() {
     const auto &srcMemPtr = getSrcMemoryAtPort(0);
     if (!srcMemPtr || !srcMemPtr->isDefined()) {
