@@ -2229,9 +2229,10 @@ TEST(reduce_f32_fw_gpu, large_buffer) {
 
     layout in_l = { sz_8gb, data_types::f32, format::bfyx };
 
+    auto config = get_test_default_config(*engine);
     topology topology(input_layout("input", in_l),
                       reduce("reduce", input_info("input"), reduce_mode::mean, {2}, true));
-    network network(*engine, topology, get_test_default_config(*engine));
+    network network(*engine, topology, config);
     auto input = network.get_output_memory("input");
     {
         mem_lock<float, mem_lock_type::write> l(input, get_test_stream());
