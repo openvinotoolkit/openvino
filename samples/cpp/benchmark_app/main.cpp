@@ -533,6 +533,7 @@ int main(int argc, char* argv[]) {
         ov::AnyMap device_config = {};
         if (result != config.end())
             device_config = result->second;
+        FLAGS_b = 5000;
         size_t batchSize = FLAGS_b;
         ov::element::Type type = ov::element::undefined;
         std::string topology_name = "";
