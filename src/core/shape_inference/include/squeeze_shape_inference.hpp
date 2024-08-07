@@ -11,6 +11,20 @@
 namespace ov {
 namespace op {
 namespace v0 {
+namespace {
+template <typename T>
+bool apply_torch_mode(const Squeeze* const op, const std::unique_ptr<std::set<int64_t>>& unique_axes, const T& arg_shape) {
+    using DimType = typename T::value_type;
+    int64_t i{-1};
+
+    return op->get_pytorch_dynamic_rank() &&
+           std::any_of(arg_shape.cbegin(), arg_shape.cend(), [&unique_axes, &i](const DimType& d) {
+               ++i;
+               // Squeeze result with dynamic rank if 1 is in range of selected dynamic dimension.
+               return d.is_dynamic() && d.compatible(1) && unique_axes->find(i) != unique_axes->end();
+           });
+}
+}   // namespace
 
 /**
  * \brief Do Squeeze shape inference.
@@ -71,17 +85,9 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
         NODE_VALIDATION_CHECK(op, false);
     }
 
-    auto torch_mode_predicate = [&op, &arg_shape, &unique_axes]() {
-        int64_t i{-1};
-
-        return op->get_pytorch_dynamic_rank() &&
-               std::any_of(arg_shape.cbegin(), arg_shape.cend(), [&unique_axes, &i](const DimType& d) {
-                   ++i;
-                   return d.is_dynamic() && d.compatible(1) && unique_axes->find(i) != unique_axes->end();
-               });
-    };
-
-    if (arg_rank.is_static() && (unique_axes != nullptr)) {
+    if (!arg_rank.is_static() || (unique_axes == nullptr) || apply_torch_mode(op, unique_axes, arg_shape)) {
+        output_shape = PartialShape::dynamic();
+    } else {
         output_shape.resize(0);
         if (unique_axes->empty()) {
             // if only first input provided or axes are empty remove all dimensions equal to 1.
@@ -99,10 +105,6 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
                                  return !dim.compatible(1);
                              });
             }
-        } else if (torch_mode_predicate()) {
-            // we are unsure if dynamic dimensions would be equal to 1 or not, so we set dynamic output rank
-            output_shape = PartialShape::dynamic();
-            return output_shapes;
         } else {
             int64_t idx = 0;
             auto rm_axis_iter = unique_axes->cbegin();
@@ -124,9 +126,8 @@ std::vector<TRShape> shape_infer(const Squeeze* op,
                          std::back_inserter(output_shape),
                          not_squeezable_at_axis);
         }
-    } else {
-        output_shape = PartialShape::dynamic();
     }
+
     return output_shapes;
 }
 }  // namespace v0

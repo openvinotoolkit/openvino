@@ -11,6 +11,9 @@ namespace op {
 namespace v0 {
 /// \brief Squeeze operation.
 ///
+/// \param torch_mode Shape inference result with dynamic rank if selected axis has 1 is in range of its dynamic
+/// dimension. The solution mimics the PyTorch approach.
+///
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API Squeeze : public Op {
 public:
@@ -33,6 +36,7 @@ public:
 
     bool is_dynamic() const override;
     bool get_pytorch_dynamic_rank() const;
+
 private:
     Output<Node> get_default_axes_input() const;
     bool m_pytorch_dynamic_rank{};
