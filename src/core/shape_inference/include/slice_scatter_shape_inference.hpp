@@ -18,6 +18,7 @@ template <class T, class TRShape = result_shape_t<T>>
 std::vector<TRShape> shape_infer(const SliceScatter* op,
                                  const std::vector<T>& input_shapes,
                                  const ITensorAccessor& ta = make_tensor_accessor()) {
+    using DimType = typename T::value_type;
     const auto& num_of_inputs = input_shapes.size();
 
     NODE_VALIDATION_CHECK(op,
@@ -70,7 +71,7 @@ std::vector<TRShape> shape_infer(const SliceScatter* op,
     const auto stop = get_input_bounds<TRShape, int64_t>(op, 3, ta);
     const auto steps = get_input_const_data_as<TRShape, int64_t>(op, 4, ta);
     if (step_shape.is_static() && steps) {
-        for (size_t i = 0; i < step_shape[0].get_length(); i++) {
+        for (typename DimType::value_type i = 0; i < step_shape[0].get_length(); i++) {
             NODE_VALIDATION_CHECK(op, (*steps)[i] != 0, "SliceScatter step values must be non-zero.");
         }
     }
@@ -82,7 +83,7 @@ std::vector<TRShape> shape_infer(const SliceScatter* op,
             "SliceScatter `axes` input must have compatible shape with `start`, `stop`, `step` inputs.");
         auto axes = get_input_const_data_as<TRShape, int64_t>(op, 5, ta);
         if (axes && data_rank.is_static()) {
-            ov::util::normalize_axes(op, data_rank.get_length(), *axes);
+            ov::util::try_normalize_axes(*axes, data_rank, *op);
             axes_map.add(*axes);
             NODE_VALIDATION_CHECK(op, axes_map.is_valid, "SliceScatter values in `axes` input must be unique.");
         }
@@ -90,7 +91,6 @@ std::vector<TRShape> shape_infer(const SliceScatter* op,
         axes_map.generate_n(start->size());
     }
     auto axis_it = axes_map.m.cbegin();
-    using DimType = typename T::value_type;
 
     if (output_shape.rank().is_static()) {
         auto expected_updates_shape = output_shape;
