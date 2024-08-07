@@ -49,8 +49,11 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
         for (auto& user : input_b->get_users()) {
             if (user != matmul && ov::is_type<ov::op::v0::MatMul>(user) && ov::is_type<ov::op::v0::Convert>(input_b)) {
                 auto other_matmul = std::dynamic_pointer_cast<ov::op::v0::MatMul>(user);
-                if (input_b == other_matmul->get_input_node_shared_ptr(0) || fc_input_b == fc_input_a)
+                // Transpose for input_b generates invalid input for other sibling matmul
+                if (input_b == other_matmul->get_input_node_shared_ptr(0) || fc_input_b == fc_input_a ||
+                    (input_b == other_matmul->get_input_node_shared_ptr(1) && matmul->get_transpose_b() != other_matmul->get_transpose_b())) {
                     return false;
+                }
             }
         }
 
