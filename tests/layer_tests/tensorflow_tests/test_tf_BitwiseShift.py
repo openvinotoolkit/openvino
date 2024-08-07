@@ -18,8 +18,10 @@ op_type_to_tf = {
 def generate_input(in_shape, in_type, is_rhs=False):
     # Note: Type conversion to i32 in CPU, can lead to mismatch for values out of i32 range
     if is_rhs:
-        return rng.integers(0, iinfo.bits, x_shape).astype(x_type)
-    return rng.integers(iinfo.min, iinfo.max/2, x_shape).astype(x_type)
+        return rng.integers(0, np.iinfo(in_type).bits/2, in_shape).astype(in_type)
+    if np.issubdtype(in_type, np.signedinteger):
+        return rng.integers(-100, 100, in_shape).astype(in_type)
+    return rng.integers(0, 200, in_shape).astype(in_type)
 
 
 class TestBitwise(CommonTFLayerTest):
