@@ -8,10 +8,10 @@
 #include <unordered_map>
 
 #include "openvino/openvino.hpp"
-#include "openvino/runtime/itensor.hpp"
-#include "openvino/runtime/iremote_context.hpp"
-#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/intel_npu/level_zero/level_zero.hpp"
+#include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/itensor.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "plugin.hpp"
 
@@ -21,7 +21,9 @@ namespace weights_bank {
 
 class WeightBank {
 public:
-    WeightBank(const std::string& device_name, const std::shared_ptr<const ov::IPlugin>& plugin) : m_device_name(device_name), m_plugin(plugin) {
+    WeightBank(const std::string& device_name, const std::shared_ptr<const ov::IPlugin>& plugin)
+        : m_device_name(device_name),
+          m_plugin(plugin) {
         if (m_device_name != "CPU" && m_device_name != "NPU") {
             OPENVINO_THROW("NPUW doesn't support ", m_device_name, " device for weights sharing!");
         }
@@ -31,21 +33,21 @@ public:
     }
 
     ov::SoPtr<ov::Tensor> getSharedTensor(const ov::element::Type& type, const ov::Shape& shape, void* host_data_ptr) {
-        if(!host_data_ptr) {
+        if (!host_data_ptr) {
             OPENVINO_THROW("Fatal: nullptr in weights bank allocation!");
         }
 
         std::lock_guard<std::mutex> guard(m_mutex);
 
         // no special allocation needed
-        if (m_weights_bank.count(host_data_ptr) > 0) { 
+        if (m_weights_bank.count(host_data_ptr) > 0) {
             return m_weights_bank.at(host_data_ptr);
         }
 
         // need to allocate first
         if (m_device_name == "CPU") {
             m_weights_bank[host_data_ptr] = std::make_shared<ov::Tensor>(type, shape, host_data_ptr);
-        } else { // m_device_name == "NPU"
+        } else {  // m_device_name == "NPU"
             auto remote_tensor = m_remote_ctx->create_host_tensor(type, shape);
             m_weights_bank[host_data_ptr] = std::make_shared<ov::Tensor>(ov::make_tensor(remote_tensor));
         }
@@ -62,12 +64,9 @@ private:
     std::mutex m_mutex;
 };
 
-
-class WeightsBankManager
-{
+class WeightsBankManager {
 public:
-    static WeightsBankManager& getInstance()
-    {
+    static WeightsBankManager& getInstance() {
         static WeightsBankManager instance;
         return instance;
     }
@@ -99,6 +98,6 @@ private:
     std::shared_ptr<const ov::IPlugin> m_plugin = nullptr;
 };
 
-} // namespace weights_bank
-} // namespace npuw
-} // namespace ov
+}  // namespace weights_bank
+}  // namespace npuw
+}  // namespace ov
