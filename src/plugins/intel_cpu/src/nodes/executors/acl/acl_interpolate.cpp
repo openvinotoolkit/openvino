@@ -11,6 +11,7 @@ bool ov::intel_cpu::ACLInterpolateExecutor::init(const InterpolateAttrs &interpo
                                                  const std::vector <MemoryDescPtr> &dstDescs,
                                                  const dnnl::primitive_attr &attr) {
     aclInterpolateAttrs = interpolateAttrs;
+    InterpolateExecutor::init(aclInterpolateAttrs, srcDescs, dstDescs, attr);
     acl_coord = arm_compute::SamplingPolicy::TOP_LEFT;
     auto& out_shape = dstDescs[0]->getShape().getDims();
 
