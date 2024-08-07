@@ -169,6 +169,40 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         m_subrequests_gio.at(sub_idx).global_results[i] = out_idx;
     }
     // }}}
+
+    // Fill weights bank if applicable
+    if (!m_npuw_model->m_weights_bank_name.empty()) {
+        // FIXME: mostly copied from unpack_closure()
+        for (size_t i = 0; i < m_num_submodels; i++) {
+            LOG_INFO("Filling weights bank for Subgraph[" << i << "]...");
+            LOG_BLOCK();
+            auto& comp_model_desc = m_npuw_model->m_compiled_submodels[i];
+
+            if (!comp_model_desc.compiled_model || (comp_model_desc.replaced_by && comp_model_desc.replaced_by != i)) {
+                OPENVINO_THROW("FATAL: weights bank encountered folded submodel!");
+            }
+
+            auto weights_bank = ov::npuw::weights::bank(m_npuw_model->m_weights_bank_name, *comp_model_desc.device_it);
+            auto& request = m_subrequests[i];
+
+            for (std::size_t cidx = 0u; cidx < comp_model_desc.closure.size(); cidx++) {
+                auto& closure = comp_model_desc.closure[cidx];
+
+                const auto closure_param_id = comp_model_desc.param_base + cidx;
+                auto& iport = comp_model_desc.compiled_model->inputs()[closure_param_id];
+                auto clparam = request->get_tensor(iport);
+                if (closure.get_element_type() == clparam->get_element_type()) {
+                    // No unpack required + utilize weights bank
+                    comp_model_desc.unpack_required[cidx] = false;
+                    closure = weights_bank->get(closure);
+                } else {
+                    // Utilize unpack
+                    comp_model_desc.unpack_required[cidx] = true;
+                }
+            }  // for(closure)
+            LOG_INFO("DONE");
+        }
+    }
 }
 
 void ov::npuw::JustInferRequest::connect_subrequests() {
@@ -454,24 +488,14 @@ void ov::npuw::JustInferRequest::unpack_closure(std::size_t idx, RqPtr request) 
         const auto closure_param_id = comp_model_desc.param_base + cidx;
         auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
         auto clparam = request->get_tensor(iport);
-        if (closure.get_element_type() != clparam->get_element_type()) {
+        if (comp_model_desc.unpack_required[cidx] && closure.get_element_type() != clparam->get_element_type()) {
             // Remember where the unpack is required
             closure_unpack_required.push_back(cidx);
         } else {
-            // Utilize weights bank if applicable
-            if (!m_npuw_model->m_weights_bank_name.empty()) {
-                auto weights_bank =
-                    ov::npuw::weights_bank::WeightsBankManager::getInstance().getBank(m_npuw_model->m_weights_bank_name,
-                                                                                      *comp_model_desc.device_it);
-                auto remote_tensor =
-                    weights_bank->getSharedTensor(closure.get_element_type(), closure.get_shape(), closure.data());
-                request->set_tensor(iport, ov::get_tensor_impl(*remote_tensor._ptr.get()));
-            } else {
-                // Easy case, just set one to another. Copy_to is also possible
-                // and even may be preferrable for some devices, like this:
-                // ```ov::get_tensor_impl(closure)->copy_to(clparam._ptr);'''
-                request->set_tensor(iport, ov::get_tensor_impl(closure));
-            }
+            // Easy case, just set one to another. Copy_to is also possible
+            // and even may be preferrable for some devices, like this:
+            // ```ov::get_tensor_impl(closure)->copy_to(clparam._ptr);'''
+            request->set_tensor(iport, ov::get_tensor_impl(closure));
         }
     }  // for(closure)
        // m_ms_unpack += ov::npuw::perf::ms_to_run([&](){

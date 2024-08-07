@@ -117,13 +117,14 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     const std::string weights_bank_opt = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK>();
     if (!weights_bank_opt.empty()) {
         if (m_cfg.get<::intel_npu::NPUW_FOLD>()) {
-            OPENVINO_THROW("NPUW can't utilize NPUW_WEIGHTS_BANK property with NPUW_FOLD enabled!");
+            LOG_WARN("NPUW can't utilize NPUW_WEIGHTS_BANK property with NPUW_FOLD enabled!"
+                     << " Disabling weights bank usage.");
+        } else if ("YES" != m_cfg.getString<::intel_npu::NPUW_CWAI>()) {
+            LOG_WARN("NPUW can't utilize NPUW_WEIGHTS_BANK property without NPUW_CWAI enabled! "
+                     << " Disabling weights bank usage.");
+        } else {
+            m_weights_bank_name = weights_bank_opt;
         }
-        if ("YES" != m_cfg.getString<::intel_npu::NPUW_CWAI>()) {
-            OPENVINO_THROW("NPUW can't utilize NPUW_WEIGHTS_BANK property without NPUW_CWAI enabled!");
-        }
-        ov::npuw::weights_bank::WeightsBankManager::getInstance().initPlugin(plugin);
-        m_weights_bank_name = weights_bank_opt;
     }
 
     LOG_VERB("*** Original model ***");
@@ -285,6 +286,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             m_compiled_submodels[id].closure = subgraph._closure;
             m_compiled_submodels[id].scales = subgraph._scales;
             m_compiled_submodels[id].zerops = subgraph._zerops;
+            // Assume unpack to be required until specified otherwise
+            m_compiled_submodels[id].unpack_required = std::vector<bool>(m_compiled_submodels[id].closure.size(), true);
         }  // if(!funcall)
 
         if (!m_compiled_submodels[id].model && !m_compiled_submodels[id].replaced_by) {

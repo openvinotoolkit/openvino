@@ -119,12 +119,11 @@ private:
         std::vector<ov::Tensor> closure;
         std::vector<ov::Tensor> scales;
         std::vector<ov::Tensor> zerops;
+        std::vector<bool> unpack_required;
 
         // FIXME: Take it out of structure
         ov::SoPtr<ov::ICompiledModel> ref_compiled_model;
         bool switched_to_ref = false;
-
-        std::optional<bool> unpack_required = std::nullopt;
 
         // Metrics
         execution_stats stat;
