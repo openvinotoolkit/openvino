@@ -16,6 +16,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/meta_data.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/opsets/opset1.hpp"
@@ -1385,7 +1386,7 @@ static uint64_t hash_combine(uint64_t seed, const T& a) {
 }
 
 class OstreamHashWrapper final : public std::streambuf {
-    uint64_t m_res = 0;
+    uint64_t m_res = 0lu;
 
 public:
     uint64_t getResult() const {
@@ -1393,18 +1394,19 @@ public:
     }
 
     std::streamsize xsputn(const char* s, std::streamsize n) override {
-        auto* intS = (const std::streamsize*)s;
-        std::streamsize n64 = n / static_cast<std::streamsize>(sizeof(std::streamsize));
-        std::streamsize i = 0;
-        // Using 64-bit values executes much faster than char
-        while (i++ < n64) {
-            m_res += *(intS++);
-        }
+        // Reinterpret data as uint32_t and accumulate in uint64_t to avoid overflow fluctuations in parallel_sum.
+        auto* int_sum = reinterpret_cast<const uint32_t*>(s);
+        const uint64_t n32 = n / sizeof(uint32_t);
 
-        std::streamsize rest = n % static_cast<std::streamsize>(sizeof(std::streamsize));
-        for (i = 0; i < rest; i++) {
+        m_res += parallel_sum(n32, uint64_t(0lu), [&](size_t k) -> uint32_t {
+            return int_sum[k];
+        });
+
+        const uint64_t rest = n % sizeof(uint32_t);
+        for (uint64_t i = 0lu; i < rest; i++) {
             m_res += s[n - rest + i];
         }
+
         return n;
     }
 };

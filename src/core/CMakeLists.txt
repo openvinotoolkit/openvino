@@ -89,6 +89,8 @@ ov_build_target_faster(openvino_core_obj
 
 ov_add_version_defines(src/version.cpp openvino_core_obj)
 
+ov_set_threading_interface_for(openvino_core_obj)
+
 target_link_libraries(openvino_core_obj PRIVATE openvino::reference openvino::util
                                          openvino::pugixml openvino::shape_inference openvino::core::dev)
 
