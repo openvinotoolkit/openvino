@@ -57,7 +57,7 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
     }
 
     void get_contexts(sync_tensor_inst& instance, oclContext& oclctx, lzContext& lzctx) {
-        printf("[get_contexts] enter \n");
+        // printf("[get_contexts] enter \n");
 
         int device_idx = oclctx.device_idx();
         if (device_idx == -1) {
@@ -184,7 +184,7 @@ struct sync_tensor_impl : public typed_primitive_impl_ocl<sync_tensor> {
         //     }
         // }
 
-        static oclContext oclctx;
+        oclContext oclctx;
         // oclContext& oclctx = oclContext::getInstance();
         lzContext lzctx;
         // lzContext& lzctx = lzContext::getInstance();
