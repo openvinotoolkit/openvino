@@ -72,14 +72,14 @@ struct OPENVINO_API TensorExtension {
     /**
      * @brief The hasher of shared pointer Tensor descriptor.
      */
-    struct Hasher {
+    struct OPENVINO_API Hasher {
         size_t operator()(const std::shared_ptr<Tensor>& tensor) const;
     };
 
     /**
      * @brief The comparator of shared pointer Tensor descriptor.
      */
-    struct Equal {
+    struct OPENVINO_API Equal {
         bool operator()(const std::shared_ptr<Tensor>& lhs, const std::shared_ptr<Tensor>& rhs) const;
     };
 };
