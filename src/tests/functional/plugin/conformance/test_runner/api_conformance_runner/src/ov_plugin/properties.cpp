@@ -91,7 +91,8 @@ INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckChangePropComplieModleGetPr
 INSTANTIATE_TEST_SUITE_P(ov_plugin_mandatory, OVCheckChangePropComplieModleGetPropTests_InferencePrecision,
         ::testing::Combine(
                 ::testing::Values(ov::test::utils::target_device),
-                ::testing::Values(ov::AnyMap({}))),
+                ::testing::Values(ov::AnyMap({})),
+                ::testing::Values(true)),
         OVCheckChangePropComplieModleGetPropTests_InferencePrecision::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(ov_plugin, OVCheckMetricsPropsTests_ModelDependceProps,

@@ -104,6 +104,49 @@ void OVPropertiesTestsWithCompileModelProps::TearDown() {
     APIBaseTest::TearDown();
 }
 
+std::string OVCheckChangePropComplieModleGetPropTests_InferencePrecision::getTestCaseName(testing::TestParamInfo<PropertiesParamsforMandatory> obj) {
+    std::string target_device;
+    AnyMap properties;
+    bool is_mandatory;
+    std::tie(target_device, properties, is_mandatory) = obj.param;
+    std::replace(target_device.begin(), target_device.end(), ':', '.');
+    std::ostringstream result;
+    result << "target_device=" << target_device << "_";
+    if (!properties.empty()) {
+        result << "properties=" << util::join(util::split(util::to_string(properties), ' '), "_");
+    }
+    return result.str();
+}
+
+void OVCheckChangePropComplieModleGetPropTests_InferencePrecision::SetUp() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    std::string temp_device;
+    std::tie(temp_device, properties, is_mandatory) = this->GetParam();
+
+    std::string::size_type pos = temp_device.find(":", 0);
+    if (pos != std::string::npos) {
+        target_device = temp_device.substr(0, pos);
+        for (auto& it : compileModelProperties) {
+            OPENVINO_ASSERT(it.first == ov::device::priorities.name(),
+                            "there is already ov::device::priorities() in compileModelProperties");
+        }
+        compileModelProperties.insert(ov::device::priorities(temp_device.substr(++pos, std::string::npos)));
+    } else {
+        target_device = temp_device;
+    }
+
+    model = ov::test::utils::make_split_concat();
+
+    APIBaseTest::SetUp();
+}
+
+void OVCheckChangePropComplieModleGetPropTests_InferencePrecision::TearDown() {
+    if (!properties.empty()) {
+        utils::PluginCache::get().reset();
+    }
+    APIBaseTest::TearDown();
+}
+
 TEST_P(OVPropertiesTests, SetCorrectProperties) {
     core->get_versions(target_device);
     OV_ASSERT_NO_THROW(core->set_property(target_device, properties));
@@ -516,6 +559,9 @@ TEST_P(OVCheckChangePropComplieModleGetPropTests_DEVICE_ID, ChangeCorrectDeviceP
 }
 
 TEST_P(OVCheckChangePropComplieModleGetPropTests_InferencePrecision, ChangeCorrectProperties) {
+    if (is_mandatory == true) {
+        return;
+    }
     std::vector<ov::PropertyName> supported_properties;
     OV_ASSERT_NO_THROW(supported_properties = core->get_property(target_device, ov::supported_properties));
     auto supported = util::contains(supported_properties, ov::hint::inference_precision);
