@@ -1943,10 +1943,14 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
             if (idx == prim_input) {
                 src_fmt = onednn::find_data_format(prim_desc.src_desc());
             } else if (idx == prim_weights) {
-                src_fmt = format::custom;
+                src_fmt = format::any;
             } else {  // Dep for fused post ops
                 src_fmt = onednn::find_data_format(prim_desc.dst_desc());
             }
+
+            // WA: Avoid b_fs_yx_fsv2 because Onednn tag aBcd2b is not declared.
+            if (src_fmt == format::b_fs_yx_fsv2)
+                src_fmt = format::byxf;
 
             // WA: shallow convolution needs to set input format by bfyx.
             //     onednn recommended byxf for input format. It will insert reorder before shallow conv.
@@ -1980,6 +1984,9 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
             node.set_preferred_input_fmt(idx, src_fmt);
 
             auto dst_fmt = onednn::find_data_format(prim_desc.dst_desc());
+            // WA: Avoid b_fs_yx_fsv2 because Onednn tag aBcd2b is not declared.
+            if (dst_fmt == format::b_fs_yx_fsv2)
+                dst_fmt = format::byxf;
             // Errata: Best impl for shallow input conv with zero-point ops is ocl:xe_lp.
             if (node.is_type<convolution>() && src_fmt == format::bfyx) {
                 auto& conv = node.as<convolution>();
