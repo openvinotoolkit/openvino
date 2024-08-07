@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pyopenvino/dev_api/dev_api.hpp"
+#include "pyopenvino/experimental/experimental.hpp"
 
 #include "../dev_api/openvino/core/bound_evaluation_util.hpp"
 #include "../dev_api/openvino/core/validation_util.hpp"
 
 namespace py = pybind11;
 
-void regmodule_dev_api(py::module m) {
-    py::module m_dev = m.def_submodule("dev_api", "openvino.dev_api submodule");
+void regmodule_experimental(py::module m) {
+    py::module m_dev = m.def_submodule("experimental", "openvino.experimental submodule");
 
     m_dev.def("evaluate_as_partial_shape",
               &ov::util::evaluate_as_partial_shape,

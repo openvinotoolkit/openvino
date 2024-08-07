@@ -8,4 +8,4 @@
 
 namespace py = pybind11;
 
-void regmodule_dev_api(py::module m);
+void regmodule_experimental(py::module m);

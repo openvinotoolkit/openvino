@@ -2,7 +2,7 @@
 # Copyright (C) 2018-2024 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from openvino.dev_api import evaluate_as_partial_shape, evaluate_both_bounds
+from openvino.experimental import evaluate_as_partial_shape, evaluate_both_bounds
 
 import pytest
 from openvino.runtime import Shape, PartialShape, Dimension, Type
