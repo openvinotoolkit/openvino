@@ -87,7 +87,7 @@ std::vector<TRShape> shape_infer(const Col2Im* op,
             idx++;
             output_shape[idx] = (*output_size_val)[1];
             const size_t L_idx = is_batched ? 2 : 1;
-            if (data_shape.rank().is_static() && data_shape[L_idx].is_static()) {
+            if (data_shape.rank().is_static() && data_shape[L_idx].is_static() && (*output_size_val).is_static()) {
                 constexpr size_t spatial_dims = 2;
 
                 const auto& pads_begin = op->get_pads_begin();
