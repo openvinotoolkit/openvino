@@ -108,6 +108,6 @@ Compiling models for NPU may take a while. By default, LLMPipeline for NPU is co
 Additional Resources
 ####################
 
-* :doc:`NPU Device <../../openvino-workflow/running-inference/inference-devices-and-modes/npu-device.rst>`
+* :doc:`NPU Device <../../openvino-workflow/running-inference/inference-devices-and-modes/npu-device>`
 * `OpenVINO GenAI Repo <https://github.com/openvinotoolkit/openvino.genai>`__
 * `Neural Network Compression Framework <https://github.com/openvinotoolkit/nncf>`__
