@@ -12,8 +12,8 @@
 namespace cldnn {
 namespace ocl {
 
-struct lstm_seq_impl : typed_primitive_impl_ocl<lstm_seq> {
-    using parent = typed_primitive_impl_ocl<lstm_seq>;
+struct lstm_seq_impl : typed_primitive_impl_ocl<rnn_seq> {
+    using parent = typed_primitive_impl_ocl<rnn_seq>;
     using parent::parent;
     using kernel_selector_t = kernel_selector::lstm_seq_kernel_selector;
     using kernel_params_t = kernel_selector::lstm_seq_params;
@@ -25,7 +25,7 @@ struct lstm_seq_impl : typed_primitive_impl_ocl<lstm_seq> {
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<lstm_seq>& instance) const override {
+    kernel_arguments_data get_arguments(const typed_primitive_inst<rnn_seq>& instance) const override {
         kernel_arguments_data args;
         const int op_input_size = 7;
         for (size_t i = 0; i < op_input_size; i++) {
@@ -43,7 +43,7 @@ protected:
 
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
-        const auto& primitive = impl_param.typed_desc<lstm_seq>();
+        const auto& primitive = impl_param.typed_desc<rnn_seq>();
         auto params = get_default_params<kernel_selector::lstm_seq_params>(impl_param);
         for (size_t i = 1; i < impl_param.input_layouts.size(); ++i) {
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
@@ -91,7 +91,7 @@ public:
 namespace detail {
 
 attach_lstm_seq_impl::attach_lstm_seq_impl() {
-    implementation_map<lstm_seq>::add(impl_types::ocl, typed_primitive_impl_ocl<lstm_seq>::create<lstm_seq_impl>, {
+    implementation_map<rnn_seq>::add(impl_types::ocl, typed_primitive_impl_ocl<rnn_seq>::create<lstm_seq_impl>, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::f32, format::fyxb),
@@ -104,4 +104,4 @@ attach_lstm_seq_impl::attach_lstm_seq_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::lstm_seq_impl)
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::lstm_seq)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::rnn_seq)

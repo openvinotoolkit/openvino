@@ -25,48 +25,63 @@ enum class lstm_weights_order {
     fizo
 };
 
-struct lstm_elt : public primitive_base<lstm_elt> {
-    CLDNN_DECLARE_PRIMITIVE(lstm_elt)
+struct rnn_seq : public primitive_base<rnn_seq> {
+    CLDNN_DECLARE_PRIMITIVE(rnn_seq)
 
-    lstm_elt() : primitive_base("", {}), clip(0), input_forget(0), offset_order(lstm_weights_order::iofz), direction(0) {}
+    rnn_seq() : primitive_base("", {}), clip(0), offset_order(lstm_weights_order::iofz), direction(0) {}
 
     using vec_activation = std::vector<activation_func>;
     using vec_activation_param = std::vector<activation_additional_params>;
 
-    /// @brief Constructs lstm layer.
+    /// @brief Constructs lstm seq layer.
     /// @param id This primitive id.
-    /// @param input input primitive id.
-    /// @param input cell Primitive id containing cell data. Provide empty string if using lstm without cell values.
+    /// @param input input x primitive id.
+    /// @param input input initial_hidden_state
+    /// @param input input initial_cell_state //when no initial_cell_state please add default input_info
+    /// @param input input sequence_lenghts
+    /// @param input input W
+    /// @param input input R
+    /// @param input input B
+    /// @param input out1_prim_id - primitive for second output due to legacy
+    /// @param input out2_prim_id - primitive for third output
     /// @param clip Clip threshold. Provide 0 if using lstm without activations clip threshold.
-    /// @param input_forget Provide 0 if using lstm without coupled input-forget gates.
     /// @param offset_order. Order of the concatenated weights, recurrent, and bias. ONNX default is iofz [input, output, forget, block].
     /// @param direction default = 0, bidirectional = 1.
-    lstm_elt(const primitive_id& id,
-             const input_info& input,
-             const primitive_id& cell = "",
+    rnn_seq(const primitive_id& id,
+             const input_info& x,
+             const input_info& initial_hidden_state,
+             const input_info& initial_cell_state,
+             const input_info& seq_lenghts,
+             const input_info& W,
+             const input_info& R,
+             const input_info& B,
+             const primitive_id& out1_prim_id = "",
+             const primitive_id& out2_prim_id = "",
              const float clip = 0,
-             const bool input_forget = 0,
              const std::vector<activation_func> activations = {activation_func::logistic,
                                                                activation_func::hyperbolic_tan,
                                                                activation_func::hyperbolic_tan},
              const std::vector<activation_additional_params> activation_params = {},
              const lstm_weights_order offset_order = lstm_weights_order::iofz,
-             const uint32_t direction = 0)
-        : primitive_base(id, {input}),
-          cell(cell),
+             const uint32_t direction = 0,
+             const padding& output_padding = padding(),
+             const int num_outputs = 1)
+        : primitive_base(id, \
+            filter_empty_id({x, initial_hidden_state, initial_cell_state, seq_lenghts, W, R, B, input_info(out1_prim_id), input_info(out2_prim_id)}), \
+             num_outputs, {optional_data_type()}, {output_padding}),
+          out1_prim_id(out1_prim_id),
+          out2_prim_id(out2_prim_id),
           clip(clip),
-          input_forget(input_forget),
           activations(activations),
           activation_params(activation_params),
           offset_order(offset_order),
           direction(direction) {}
 
     /// @brief Primitive id containing the initial value of the cell state data.
-    primitive_id cell;
+    primitive_id out1_prim_id;
+    primitive_id out2_prim_id;
     /// @brief Cell clip threshold T. It is applied to the input of activations [-T, T]. No clip is applied if it is not specified.
     float clip;
-    /// @brief Couple the input and forget gates if input_forget is 1. Default is 0.
-    bool input_forget;
     /// @brief A list of 3 activation functions for the input, output, forget, cell, and hidden.
     std::vector<activation_func> activations;
     /// @brief Optional scaling values used by some activation functions. The values are consumed in the order of activation functions.
@@ -78,8 +93,8 @@ struct lstm_elt : public primitive_base<lstm_elt> {
 
     size_t hash() const override {
         size_t seed = primitive::hash();
+        seed = hash_combine(seed, out1_prim_id);
         seed = hash_combine(seed, clip);
-        seed = hash_combine(seed, input_forget);
         seed = hash_range(seed, activations.begin(), activations.end());
         for (auto& act_param : activation_params) {
             seed = hash_combine(seed, act_param.a);
@@ -87,7 +102,6 @@ struct lstm_elt : public primitive_base<lstm_elt> {
         }
         seed = hash_combine(seed, offset_order);
         seed = hash_combine(seed, direction);
-        seed = hash_combine(seed, cell.empty());
         return seed;
     }
 
@@ -95,7 +109,7 @@ struct lstm_elt : public primitive_base<lstm_elt> {
         if (!compare_common_params(rhs))
             return false;
 
-        auto rhs_casted = downcast<const lstm_elt>(rhs);
+        auto rhs_casted = downcast<const rnn_seq>(rhs);
 
         bool act_params_eq = activation_params.size() == rhs_casted.activation_params.size();
         for (size_t i = 0; i < activation_params.size(); ++i) {
@@ -105,20 +119,20 @@ struct lstm_elt : public primitive_base<lstm_elt> {
 
         #define cmp_fields(name) name == rhs_casted.name
         return act_params_eq &&
+               cmp_fields(out1_prim_id) &&
+               cmp_fields(out2_prim_id) &&
                cmp_fields(clip) &&
-               cmp_fields(input_forget) &&
                cmp_fields(activations) &&
                cmp_fields(offset_order) &&
-               cmp_fields(direction) &&
-               cmp_fields(cell.empty());
+               cmp_fields(direction);
         #undef cmp_fields
     }
 
     void save(BinaryOutputBuffer& ob) const override {
-        primitive_base<lstm_elt>::save(ob);
-        ob << cell;
+        primitive_base<rnn_seq>::save(ob);
+        ob << out1_prim_id;
+        ob << out2_prim_id;
         ob << clip;
-        ob << input_forget;
         ob << activations;
         ob << activation_params;
         ob << make_data(&offset_order, sizeof(lstm_weights_order));
@@ -126,10 +140,10 @@ struct lstm_elt : public primitive_base<lstm_elt> {
     }
 
     void load(BinaryInputBuffer& ib) override {
-        primitive_base<lstm_elt>::load(ib);
-        ib >> cell;
+        primitive_base<rnn_seq>::load(ib);
+        ib >> out1_prim_id;
+        ib >> out2_prim_id;
         ib >> clip;
-        ib >> input_forget;
         ib >> activations;
         ib >> activation_params;
         ib >> make_data(&offset_order, sizeof(lstm_weights_order));
@@ -139,11 +153,16 @@ struct lstm_elt : public primitive_base<lstm_elt> {
 protected:
     std::vector<input_info> get_dependencies() const override {
         std::vector<input_info> ret;
-        if (!cell.empty())
-            ret.push_back(cell);
         return ret;
     }
+    std::vector<input_info> filter_empty_id(std::vector<input_info> inputs_info) {
+        std::vector<input_info> out;
+        for (const auto& input_info : inputs_info) {
+            if (!input_info.pid.empty()) {
+                out.emplace_back(input_info);
+            }
+        }
+        return out;
+    }
 };
-
-
-}  // namespace cldnn
+} //namespace cldnn

@@ -8,7 +8,7 @@
 #include <string>
 
 namespace cldnn {
-GPU_DEFINE_PRIMITIVE_TYPE_ID(lstm_seq)
+GPU_DEFINE_PRIMITIVE_TYPE_ID(rnn_seq)
 
 layout lstm_seq_inst::calc_output_layout(lstm_seq_node const& node, kernel_impl_params const& impl_param) {
     return lstm_seq_inst::calc_output_layouts<ov::PartialShape>(node, impl_param)[0];
@@ -16,7 +16,7 @@ layout lstm_seq_inst::calc_output_layout(lstm_seq_node const& node, kernel_impl_
 
 template<typename ShapeType>
 std::vector<layout> lstm_seq_inst::calc_output_layouts(lstm_seq_node const& node, kernel_impl_params const& impl_param) {
-    auto desc = impl_param.typed_desc<lstm_seq>();
+    auto desc = impl_param.typed_desc<rnn_seq>();
 
     std::vector<ShapeType> input_shapes;
     for (size_t i = 0; i < desc->input.size(); ++i) {

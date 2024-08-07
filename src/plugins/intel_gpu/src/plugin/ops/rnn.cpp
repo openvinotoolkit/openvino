@@ -239,8 +239,8 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
 
     if (p.use_new_shape_infer()) {
         int direction = op->get_direction() == ov::op::RecurrentSequenceDirection::REVERSE ? 1 : 0;
-        cldnn::lstm_seq prim(layerName, inputs[0], inputs[1], \
-            inputs[2], inputs[3], inputs[4], inputs[5], inputs[6], \
+        cldnn::rnn_seq prim(layerName, inputs[0], inputs[1], \
+            inputs[2], inputs[3], inputs[4], inputs[5], inputs[6], "", "", \
             clip, activations, activation_params, cldnn::lstm_weights_order::fizo, direction, cldnn::padding(), \
             static_cast<int>(op->get_output_size()) );
         prim.output_data_types = get_output_data_types(op);
@@ -263,7 +263,7 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     const cldnn::mutable_data mutable_prim_2{mutable_id_2, shared_memories.back()};
     p.add_primitive(*op, mutable_prim_2);
     int direction = op->get_direction() == ov::op::RecurrentSequenceDirection::REVERSE ? 1 : 0;
-    cldnn::lstm_seq prim(lstm_seq_id + ".out0", inputs[0], inputs[1], \
+    cldnn::rnn_seq prim(lstm_seq_id + ".out0", inputs[0], inputs[1], \
         inputs[2], inputs[3], inputs[4], inputs[5], inputs[6], mutable_id_1, mutable_id_2, \
         clip, activations, activation_params, cldnn::lstm_weights_order::fizo, direction);
     p.add_primitive(*op, prim);
