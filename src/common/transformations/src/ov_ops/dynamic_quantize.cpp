@@ -3,6 +3,7 @@
 //
 
 #include "ov_ops/dynamic_quantize.hpp"
+
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/variadic_split.hpp"

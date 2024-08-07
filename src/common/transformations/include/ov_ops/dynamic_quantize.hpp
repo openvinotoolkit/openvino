@@ -39,7 +39,6 @@ private:
     element::Type m_dt_scale;
 };
 
-
 }  // namespace internal
 }  // namespace op
 }  // namespace ov
