@@ -9,3 +9,4 @@
 using Type = ::testing::Types<ov::op::v15::BitwiseRightShift>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_bitwise_right_shift, BitwiseOperator, Type);
+INSTANTIATE_TYPED_TEST_SUITE_P(type_prop_bitwise_right_shift, BitwiseOperatorNotBoolean, Type);

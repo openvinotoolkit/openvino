@@ -5,6 +5,7 @@
 
 #include "itt.hpp"
 #include "openvino/op/op.hpp"
+#include "openvino/op/util/elementwise_args.hpp"
 #include "openvino/reference/bitwise_right_shift.hpp"
 #include "utils.hpp"
 
@@ -31,7 +32,7 @@ namespace {
 bool evaluate(TensorVector& outputs, const TensorVector& inputs) {
     using namespace ov::element;
     return IF_TYPE_OF(bitshift_evaluate,
-                      OV_PP_ET_LIST(i8, i16, i32, i64, u8, u16, u32, u64),
+                      OV_PP_ET_LIST(i16, i32, u8, u16),
                       right_shift::Evaluate,
                       inputs[0].get_element_type(),
                       inputs[0],
@@ -61,6 +62,19 @@ bool BitwiseRightShift::evaluate(TensorVector& outputs, const TensorVector& inpu
 
     outputs[0].set_shape(infer_broadcast_shape(this, inputs));
     return right_shift::evaluate(outputs, inputs);
+}
+
+void BitwiseRightShift::validate_and_infer_types() {
+    OV_OP_SCOPE(v15_BitwiseRightShift_validate_and_infer_types);
+    auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this);
+    const auto& args_et = std::get<0>(args_et_pshape);
+    const auto& args_pshape = std::get<1>(args_et_pshape);
+
+    NODE_VALIDATION_CHECK(this,
+                          args_et.is_dynamic() || args_et.is_integral_number(),
+                          "The element type of the input tensor must be integer number.");
+
+    set_output_type(0, args_et, args_pshape);
 }
 
 bool BitwiseRightShift::has_evaluate() const {

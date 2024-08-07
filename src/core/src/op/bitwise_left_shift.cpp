@@ -6,6 +6,7 @@
 
 #include "itt.hpp"
 #include "openvino/op/op.hpp"
+#include "openvino/op/util/elementwise_args.hpp"
 #include "openvino/reference/bitwise_left_shift.hpp"
 #include "utils.hpp"
 
@@ -53,6 +54,19 @@ std::shared_ptr<Node> BitwiseLeftShift::clone_with_new_inputs(const OutputVector
     OV_OP_SCOPE(v15_BitwiseLeftShift_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<BitwiseLeftShift>(new_args[0], new_args[1], get_autob());
+}
+
+void BitwiseLeftShift::validate_and_infer_types() {
+    OV_OP_SCOPE(v15_BitwiseLeftShift_validate_and_infer_types);
+    auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this);
+    const auto& args_et = std::get<0>(args_et_pshape);
+    const auto& args_pshape = std::get<1>(args_et_pshape);
+
+    NODE_VALIDATION_CHECK(this,
+                          args_et.is_dynamic() || args_et.is_integral_number(),
+                          "The element type of the input tensor must be integer number.");
+
+    set_output_type(0, args_et, args_pshape);
 }
 
 bool BitwiseLeftShift::evaluate(TensorVector& outputs, const TensorVector& inputs) const {

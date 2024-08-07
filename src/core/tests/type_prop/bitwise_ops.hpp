@@ -970,3 +970,18 @@ TYPED_TEST_P(BitwiseOperatorBoolean, incompatible_element_types_f32) {
 }
 
 REGISTER_TYPED_TEST_SUITE_P(BitwiseOperatorBoolean, default_constructor_boolean, incompatible_element_types_f32);
+
+template <class TOp>
+class BitwiseOperatorNotBoolean : public BitwiseOperator<TOp> {};
+TYPED_TEST_SUITE_P(BitwiseOperatorNotBoolean);
+
+TYPED_TEST_P(BitwiseOperatorNotBoolean, incompatible_element_types_boolean) {
+    auto lhs = std::make_shared<Parameter>(element::boolean, Shape{2, 2, 3, 3});
+    auto rhs = std::make_shared<Parameter>(element::boolean, Shape{2, 2, 3, 3});
+
+    OV_EXPECT_THROW(std::ignore = this->make_op(lhs, rhs),
+                    NodeValidationFailure,
+                    HasSubstr("The element type of the input tensor must be integer number"));
+}
+
+REGISTER_TYPED_TEST_SUITE_P(BitwiseOperatorNotBoolean, incompatible_element_types_boolean);
