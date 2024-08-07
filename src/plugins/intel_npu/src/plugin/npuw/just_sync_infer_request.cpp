@@ -179,7 +179,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             LOG_BLOCK();
             auto& comp_model_desc = m_npuw_model->m_compiled_submodels[i];
 
-            if (!comp_model_desc.compiled_model || comp_model_desc.replaced_by) {
+            if (!comp_model_desc.compiled_model || (comp_model_desc.replaced_by && comp_model_desc.replaced_by != i)) {
                 OPENVINO_THROW("FATAL: weights bank encountered folded submodel!");
             }
 
@@ -206,6 +206,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
                     comp_model_desc.unpack_required = true;
                 }
             }  // for(closure)
+            LOG_INFO("DONE");
         }
     }
 }

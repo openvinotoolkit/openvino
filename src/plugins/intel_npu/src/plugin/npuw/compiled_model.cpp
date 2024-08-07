@@ -94,18 +94,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_loaded_from_cache(false) {
     ::intel_npu::registerNPUWOptions(*m_options_desc);
 
-    // Sort out weights sharing routine
-    const std::string weights_bank_opt = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK>();
-    if (!weights_bank_opt.empty()) {
-        if (!m_cfg.getString<::intel_npu::NPUW_FOLD>().empty()) {
-            OPENVINO_THROW("NPUW can't utilize NPUW_WEIGHTS_BANK property with NPUW_FOLD enabled!");
-        }
-        if ("YES" != m_cfg.getString<::intel_npu::NPUW_CWAI>()) {
-            OPENVINO_THROW("NPUW can't utilize NPUW_WEIGHTS_BANK property without NPUW_CWAI enabled!");
-        }
-        ov::npuw::weights_bank::WeightsBankManager::getInstance().initPlugin(plugin);
-    }
-
     std::map<std::string, ov::Any> npuw_props;
     split_properties(properties, m_non_npuw_props, npuw_props);
 
@@ -123,6 +111,18 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         m_acc_check = metrics::NRMSE(threshold_opt);
         m_ref_device = m_cfg.getString<::intel_npu::NPUW_ACC_DEVICE>();
         LOG_INFO("Accuracy check is enabled.");
+    }
+
+    // Sort out weights sharing routine
+    const std::string weights_bank_opt = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK>();
+    if (!weights_bank_opt.empty()) {
+        if (m_cfg.get<::intel_npu::NPUW_FOLD>()) {
+            OPENVINO_THROW("NPUW can't utilize NPUW_WEIGHTS_BANK property with NPUW_FOLD enabled!");
+        }
+        if ("YES" != m_cfg.getString<::intel_npu::NPUW_CWAI>()) {
+            OPENVINO_THROW("NPUW can't utilize NPUW_WEIGHTS_BANK property without NPUW_CWAI enabled!");
+        }
+        ov::npuw::weights_bank::WeightsBankManager::getInstance().initPlugin(plugin);
     }
 
     LOG_VERB("*** Original model ***");

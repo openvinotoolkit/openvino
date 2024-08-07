@@ -22,17 +22,19 @@ namespace weights_bank {
 class WeightBank {
 public:
     WeightBank(const std::string& device_name, const std::shared_ptr<const ov::IPlugin>& plugin) : m_device_name(device_name), m_plugin(plugin) {
-        if (m_device_name != "CPU" || m_device_name != "NPU") {
+        if (m_device_name != "CPU" && m_device_name != "NPU") {
             OPENVINO_THROW("NPUW doesn't support ", m_device_name, " device for weights sharing!");
         }
         if (m_device_name == "NPU" && !m_remote_ctx) {
             m_remote_ctx = m_plugin->get_core()->get_default_context("NPU")._ptr;
-            //auto& zeroContext = static_cast<ov::intel_npu::level_zero::ZeroContext&>(*m_remote_ctx.get());
         }
     }
 
     ov::SoPtr<ov::Tensor> getSharedTensor(const ov::element::Type& type, const ov::Shape& shape, void* host_data_ptr) {
-        // lock the mutex
+        if(!host_data_ptr) {
+            OPENVINO_THROW("Fatal: nullptr in weights bank allocation!");
+        }
+
         std::lock_guard<std::mutex> guard(m_mutex);
 
         // no special allocation needed
@@ -42,27 +44,12 @@ public:
 
         // need to allocate first
         if (m_device_name == "CPU") {
-            // already allocated
-            if (m_weights_bank.count(host_data_ptr) != 0) {
-                return m_weights_bank.at(host_data_ptr);
-            }
-
-            // need to allocate
             m_weights_bank[host_data_ptr] = std::make_shared<ov::Tensor>(type, shape, host_data_ptr);
-            return m_weights_bank.at(host_data_ptr);
         } else { // m_device_name == "NPU"
-            // already allocated
-            if (m_weights_bank.count(host_data_ptr) != 0) {
-                return m_weights_bank.at(host_data_ptr);
-            }
-
-            // need to allocate
             auto remote_tensor = m_remote_ctx->create_host_tensor(type, shape);
             m_weights_bank[host_data_ptr] = std::make_shared<ov::Tensor>(ov::make_tensor(remote_tensor));
-            return m_weights_bank.at(host_data_ptr);
         }
 
-        // unreachable
         return m_weights_bank.at(host_data_ptr);
     }
 
@@ -97,7 +84,7 @@ public:
         if (m_weights_bank_map.count(bank_key) == 0) {
             m_weights_bank_map[bank_key] = std::make_shared<WeightBank>(device_name, m_plugin);
         }
-        return m_weights_bank_map.at(bank_key).lock();
+        return m_weights_bank_map.at(bank_key);
     }
 
     void initPlugin(const std::shared_ptr<const ov::IPlugin>& plugin) {
@@ -108,7 +95,7 @@ public:
 
 private:
     // Data
-    std::unordered_map<std::string, std::weak_ptr<WeightBank>> m_weights_bank_map;
+    std::unordered_map<std::string, std::shared_ptr<WeightBank>> m_weights_bank_map;
     std::shared_ptr<const ov::IPlugin> m_plugin = nullptr;
 };
 
