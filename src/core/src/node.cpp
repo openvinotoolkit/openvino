@@ -472,8 +472,8 @@ ov::descriptor::Tensor& ov::Node::get_output_tensor(size_t i) const {
 
 ov::descriptor::Tensor& ov::Node::get_input_tensor(size_t i) const {
     OPENVINO_ASSERT(i < m_inputs.size(), idx_txt, i, out_of_range_txt);
-    descriptor::Input input = m_inputs[i];
-    return input.get_tensor();
+    auto& input = m_inputs[i];
+    return input.get_output().get_tensor();
 }
 
 size_t ov::Node::get_input_size() const {
