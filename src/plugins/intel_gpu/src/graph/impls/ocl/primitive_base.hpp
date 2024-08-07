@@ -13,6 +13,8 @@
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/graph/program.hpp"
 
+#include "runtime/ocl/ocl_kernel.hpp"
+
 #include "primitive_inst.h"
 #include "kernel_selector_helper.h"
 #include "register.hpp"

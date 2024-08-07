@@ -378,6 +378,20 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
                     cl_kernel kern = k.get();
                     cl_context context = cl_build_engine.get_cl_context().get();
                     kernel::ptr kernel = kernels_factory::create(_engine, context, kern, entry_point);
+
+#ifdef GPU_DEBUG_CONFIG
+                    GPU_DEBUG_IF(cldnn::debug_configuration::get_instance()->check_kernels_properties >= 1) {
+                        auto kernel_properties = kernel->get_properties();
+
+                        if (kernel_properties.spill_mem_size > 0 || kernel_properties.private_mem_size > 0) {
+                            GPU_DEBUG_COUT << "WARNING: Detected extra private memory usage or spill for " << entry_point << " "
+                                           << "kernel with properties: " << kernel_properties.to_string() << "\n";
+                        } else {
+                            GPU_DEBUG_TRACE_DETAIL << "Create kernel " << entry_point << " with properties: " << kernel_properties.to_string() << "\n";
+                        }
+                    }
+#endif
+
                     auto& params = iter->second.first;
                     auto kernel_part_idx = iter->second.second;
                     if (compiled_kernels.find(params) != compiled_kernels.end()) {

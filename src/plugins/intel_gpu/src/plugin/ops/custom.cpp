@@ -4,12 +4,14 @@
 
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/op/constant.hpp"
 
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/simple_math.hpp"
 #include "intel_gpu/primitives/custom_gpu_primitive.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/paged_attention.hpp"
 
 namespace ov {
 namespace intel_gpu {
@@ -99,6 +101,150 @@ public:
 protected:
     std::map<std::string, std::string> m_values;
 };
+
+template <typename T>
+T convert_to(const std::string &str) {
+    std::istringstream ss(str);
+    T res;
+    ss >> res;
+    return res;
+}
+
+template <>
+std::string convert_to(const std::string &str) {
+    return str;
+}
+
+void CreatePagedAttention(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op) {
+    validate_inputs_count(op, {13});
+    auto inputs = p.GetInputInfo(op);
+    auto prim = cldnn::paged_attention(layer_type_name_ID(op), inputs);
+
+    // These parameters should be obtained from PA inputs, but currently inputs have fully dynamic shapes
+    // query_shape = [batch_size, seq_len, heads_num * head_size]
+    // const auto query_shape = query_layout.get_shape();
+    // key_cache_shape = [num_blocks, kv_heads_num, head_size / x_size, block_size, x_size]
+    // const auto key_cache_shape = key_cache_layout.get_shape();
+    // value_cache_shape = [num_blocks, kv_heads_num, head_size, block_size]
+    // const auto value_cache_shape = value_cache_layout.get_shape();
+    // const size_t hidden_size = query_shape[2];
+    // const size_t kv_heads_num = value_cache_shape[1];
+    // const size_t head_size = value_cache_shape[2];
+    // const size_t heads_num = hidden_size / head_size;
+    // const size_t block_size = value_cache_shape[3];
+    // const size_t x_size = key_cache_shape[4];
+
+    prim.head_size = 128;
+    prim.heads_num = 32;
+    prim.kv_heads_num = 32;
+    prim.block_size = 16;
+    prim.x_block_size = 8;
+
+    if (const auto env_var = std::getenv("PA_HEAD_SIZE")) {
+        prim.head_size = convert_to<size_t>(env_var);
+    }
+
+    if (const auto env_var = std::getenv("PA_HEADS_NUM")) {
+        prim.heads_num = convert_to<size_t>(env_var);
+    }
+
+    if (const auto env_var = std::getenv("PA_KV_HEADS_NUM")) {
+        prim.kv_heads_num = convert_to<size_t>(env_var);
+    }
+
+    if (const auto env_var = std::getenv("PA_BLOCK_SIZE")) {
+        prim.block_size = convert_to<size_t>(env_var);
+    }
+
+    if (const auto env_var = std::getenv("PA_X_BLOCK_SIZE")) {
+        prim.x_block_size = convert_to<size_t>(env_var);
+    }
+
+    auto key_cache_ps = op->get_input_partial_shape(3);
+    prim.head_size = key_cache_ps[2].get_length();
+    prim.heads_num = key_cache_ps[1].get_length();
+    prim.kv_heads_num = key_cache_ps[1].get_length();
+
+    std::shared_ptr<ov::op::v0::Constant> scale_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->get_input_node_shared_ptr(9));
+    OPENVINO_ASSERT(scale_const != nullptr);
+    OPENVINO_ASSERT(ov::shape_size(scale_const->get_output_shape(0)) == 1);
+
+    prim.scale_val = scale_const->cast_vector<float>()[0];
+
+    // Q - f16:bfyx:?x768:nopad
+    // K - f16:bfyx:?x768:nopad
+    // V - f16:bfyx:?x768:nopad
+    // key_cache - f16:bfyx:?x12x?x64:nopad
+    // value_cache - f16:bfyx:?x12x?x64:nopad
+
+    // past_lens - i32:bfyx:?:nopad
+    // subsequence_begins - i32:bfyx:?:nopad
+    // block_indices - i32:bfyx:?:nopad
+    // block_indices_begins - i32:bfyx:?:nopad
+    // scale - f16:bfyx::nopad
+
+    // sliding_window - i32:bfyx::nopad
+    // alibi_slopes - f16:bfyx:0:nopad
+    // max_context_len - i32:bfyx::nopad
+
+
+    // update shape dep [0] : reshape:Reshape_8733 was: f16:bfyx:?x768:nopad now: f16:bfyx:87x768:nopad
+    // update shape dep [1] : reshape:Reshape_8737 was: f16:bfyx:?x768:nopad now: f16:bfyx:87x768:nopad
+    // update shape dep [2] : reshape:Reshape_8739 was: f16:bfyx:?x768:nopad now: f16:bfyx:87x768:nopad
+    // update shape dep [3] : parameter:key_cache.0 was: f16:bfyx:?x12x?x64:nopad now: f16:bfyx:3640x12x32x64:nopad
+    // update shape dep [4] : parameter:value_cache.0 was: f16:bfyx:?x12x?x64:nopad now: f16:bfyx:3640x12x32x64:nopad
+
+    // update shape dep [5] : parameter:past_lens was: i32:bfyx:?:nopad now: i32:bfyx:2:nopad
+    // update shape dep [6] : parameter:subsequence_begins was: i32:bfyx:?:nopad now: i32:bfyx:3:nopad
+    // update shape dep [7] : parameter:block_indices was: i32:bfyx:?:nopad now: i32:bfyx:4:nopad
+    // update shape dep [8] : parameter:block_indices_begins was: i32:bfyx:?:nopad now: i32:bfyx:3:nopad
+
+
+
+    // Test with 2 prompts: 81 and 6 tokens
+    // update shape dep [0] : reshape:Reshape_8733 was: f16:bfyx:?x768:nopad now: f16:bfyx:87x768:nopad
+    // update shape dep [1] : reshape:Reshape_8737 was: f16:bfyx:?x768:nopad now: f16:bfyx:87x768:nopad
+    // update shape dep [2] : reshape:Reshape_8739 was: f16:bfyx:?x768:nopad now: f16:bfyx:87x768:nopad
+    // update shape dep [3] : parameter:key_cache.0 was: f16:bfyx:?x12x?x64:nopad now: f16:bfyx:3640x12x32x64:nopad
+    // update shape dep [4] : parameter:value_cache.0 was: f16:bfyx:?x12x?x64:nopad now: f16:bfyx:3640x12x32x64:nopad
+    // update shape dep [5] : parameter:past_lens was: i32:bfyx:?:nopad now: i32:bfyx:2:nopad
+    // update shape dep [6] : parameter:subsequence_begins was: i32:bfyx:?:nopad now: i32:bfyx:3:nopad
+    // update shape dep [7] : parameter:block_indices was: i32:bfyx:?:nopad now: i32:bfyx:4:nopad
+    // update shape dep [8] : parameter:block_indices_begins was: i32:bfyx:?:nopad now: i32:bfyx:3:nopad
+    // Input #5:  Array (len=2) content: 0, 0,
+    // Input #6:  Array (len=3) content: 0, 81, 87,
+    // Input #7:  Array (len=4) content: 3639, 3638, 3637, 3636,
+    // Input #8:  Array (len=3) content: 0, 3, 4,  <= ranges of block_indices: 1st prompt uses: block_indices[0],
+    // block_indices[1], block_indices[2] blocks; 2nd block_indices[3]
+    // Input #12: Array (len=1) content: 81,
+    // GWS should be: (96 + 16) / 16 = 7
+    // Additional input for Q:  i32:bfyx:7:nopad with content {0, 16, 32, 48, 64, 80, 81, 87}
+    // Additional input for KV: i32:bfyx:7:nopad with content {0,  0,  0,  0,  0,  0,  1,  1}
+
+
+
+    // Test with 4 prompts:
+    // 1st infer context lens: 81, 6, 31, 33
+    // sdpa kernel block_size = 16
+    // GWS calculation?
+    // Input0 size: 151x768
+    // Input5 size: 4
+    // GWS should be: (96 + 16 + 32 + 48) / 16 = 12
+
+    // Additional input: i32:bfyx:12:nopad with content {}
+
+
+    prim.num_outputs = op->get_output_size();
+    prim.output_data_types = get_output_data_types(op);
+    prim.output_paddings = get_output_paddings(op);
+
+    GPU_DEBUG_TRACE_DETAIL << "PA op->get_output_size(): " << op->get_output_size() << "\n";
+    GPU_DEBUG_TRACE_DETAIL << "PA op->get_input_size(): " << op->get_input_size() << "\n";
+
+    OPENVINO_ASSERT(prim.num_outputs == 1, "[GPU] Unexpected outputs number");
+
+    p.add_primitive(*op, prim);
+}
 
 void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, CustomLayerPtr customLayer) {
     auto inputs = p.GetInputInfo(op);

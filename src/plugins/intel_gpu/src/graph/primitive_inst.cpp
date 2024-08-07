@@ -29,6 +29,7 @@
 #include "read_value_inst.h"
 #include "kv_cache_inst.h"
 #include "condition_inst.h"
+#include "paged_attention_inst.h"
 #include "gather_inst.h"
 #include "broadcast_inst.h"
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
@@ -391,6 +392,22 @@ void primitive_inst::update_shape() {
     std::vector<event::ptr> dependencies_events;
     auto queue_type = get_network().get_stream().get_queue_type();
     bool has_runtime_deps = false;
+
+    auto print_arr = [&](std::vector<size_t> vec, size_t max_len) {
+        std::stringstream ss;
+        for (size_t i = 0; i < std::min(max_len, vec.size()); i++) {
+            ss << vec[i] << ", ";
+        }
+        GPU_DEBUG_TRACE_DETAIL << "Array shape_infer_deps (len=" << vec.size() << ") content: " << ss.str() << "\n";
+    };
+
+
+    if (get_node().is_type<paged_attention>()) {
+        auto shape_infer_deps = _node->get_shape_infer_dependencies();
+        print_arr(shape_infer_deps, shape_infer_deps.size());
+    }
+
+
     for (auto& i : _node->get_shape_infer_dependencies()) {
         // Some primitives may have flexible count of deps (e.g. reshape), thus allow skipping some deps
         if (memory_deps.count(i) > 0 || i >= _node->get_dependencies().size()) {
@@ -406,6 +423,11 @@ void primitive_inst::update_shape() {
 
         auto dep_mem = dep->output_memory_ptr(dep_port);
         memory_deps.insert({i, dep_mem});
+
+        // Ignore shape_infer dependency for input_layout dependency type for paged attention
+        if (get_node().is_type<paged_attention>() && dep->get_node().is_type<input_layout>())
+            continue;
+
         if (!get_node().is_type<shape_of>() && !dep->get_node().is_in_shape_of_subgraph()) {
             has_runtime_deps = true;
 
@@ -428,6 +450,42 @@ void primitive_inst::update_shape() {
     }
 
     _impl_params->memory_deps = memory_deps;
+
+    if (get_node().is_type<paged_attention>()) {
+        auto& constant_mem = _impl_params->memory_deps;
+        const auto past_lens_mem = constant_mem.at(5);
+        mem_lock<int32_t, mem_lock_type::read> past_lens_mem_lock(past_lens_mem, _network.get_stream());
+
+        const auto subsequence_begins_mem = constant_mem.at(6);
+        mem_lock<int32_t, mem_lock_type::read> subsequence_begins_mem_lock(subsequence_begins_mem, _network.get_stream());
+
+        const auto block_indices_mem = constant_mem.at(7);
+        mem_lock<int32_t, mem_lock_type::read> block_indices_mem_lock(block_indices_mem, _network.get_stream());
+
+        const auto block_indices_begins_mem = constant_mem.at(8);
+        mem_lock<int32_t, mem_lock_type::read> block_indices_begins_mem_lock(block_indices_begins_mem, _network.get_stream());
+
+        const auto max_len_mem = constant_mem.at(12);
+        mem_lock<int32_t, mem_lock_type::read> max_len_mem_lock(max_len_mem, _network.get_stream());
+
+        const auto scale_mem = constant_mem.at(9);
+        mem_lock<ov::float16, mem_lock_type::read> scale_mem_lock(scale_mem, _network.get_stream());
+
+        auto print_arr = [&](cldnn::mem_lock<int32_t, cldnn::mem_lock_type::read>& vec, size_t max_len, std::string name) {
+            std::stringstream ss;
+            for (size_t i = 0; i < std::min(max_len, vec.size()); i++) {
+                ss << vec[i] << ", ";
+            }
+            GPU_DEBUG_TRACE_DETAIL << name << " (len=" << vec.size() << ") content: " << ss.str() << "\n";
+        };
+
+        print_arr(past_lens_mem_lock, past_lens_mem_lock.size(), "past_lens");
+        print_arr(subsequence_begins_mem_lock, subsequence_begins_mem_lock.size(), "subsequence_begins");
+        print_arr(block_indices_mem_lock, block_indices_mem_lock.size(), "block_indices");
+        print_arr(block_indices_begins_mem_lock, block_indices_begins_mem_lock.size(), "block_indices_begins");
+        print_arr(max_len_mem_lock, max_len_mem_lock.size(), "max_len");
+        GPU_DEBUG_TRACE_DETAIL << "Scale is " << scale_mem_lock[0] << " " << scale_mem->get_layout().to_short_string() << "\n";
+    }
 
     auto update_output_layout = [&](layout& layout, size_t idx) {
         if (!_node->is_type<reshape>() || (!_node->get_input_layout(0).has_dynamic_pad() && !_node->can_be_optimized())) {
@@ -1915,10 +1973,13 @@ memory::ptr primitive_inst::allocate_internal_buffer(size_t idx, bool reset) {
     }
     // allocate intermediate memory for the updated layout of buffer
     auto layout = ibuf_layouts[idx];
-    GPU_DEBUG_LOG << "[" << _node->id() << ": internal buf " << idx << "]" << std::endl;
     auto alloc_type = allocation_type::unknown;
+    const auto& lockable_buffers_indexes = _impl->get_lockable_internal_buffers();
+    auto need_lockable_allocation = lockable_buffers_indexes.find(idx) != lockable_buffers_indexes.end();
+    GPU_DEBUG_LOG << "[" << _node->id() << ": internal buf " << idx << "] " << layout.to_short_string() << " " << need_lockable_allocation
+                  << " lockable_buffers_size=" << lockable_buffers_indexes.size() << std::endl;
     if ((int64_t)available_device_mem_size - (int64_t)layout.bytes_count() >= 0 &&
-        (input_device_mem || _node->get_preferred_impl_type() == impl_types::onednn)) {
+        (input_device_mem || _node->get_preferred_impl_type() == impl_types::onednn) && !need_lockable_allocation) {
         // scratchpad memory type enforces to device mem.
         GPU_DEBUG_LOG << " input is device mem and available device mem size (" << available_device_mem_size
                       << ") > requested memory (" << layout.bytes_count() << " )" << std::endl;

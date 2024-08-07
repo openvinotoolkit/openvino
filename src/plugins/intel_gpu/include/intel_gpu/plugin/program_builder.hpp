@@ -178,6 +178,7 @@ private:
     void CreateSingleLayerPrimitive(const std::shared_ptr<ov::Node>& op);
 };
 
+void CreatePagedAttention(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op);
 void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& node, CustomLayerPtr customLayer);
 void CreateUnaryEltwiseOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& node,
                           cldnn::activation_func func, cldnn::activation_additional_params params);
