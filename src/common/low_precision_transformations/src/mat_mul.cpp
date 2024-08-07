@@ -177,8 +177,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ov::pass::p
 
     updateOutput(context, newMultiply, newMatMul);
 
-    // TODO: debug only
-    ov::mark_as_bias(newMultiply);
+    handleDequantization(newMultiply);
 
     OPENVINO_DEBUG("LPT: done: ", newMatMul);
     return true;

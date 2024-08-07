@@ -16,13 +16,19 @@ public:
     bool transposeB;
 };
 
+class Activation {
+public:
+    bool exist;
+    std::string originalLayersNames;
+};
+
 typedef std::tuple<
     ov::element::Type,
     MatMulShapes,
     std::string,
     ov::pass::low_precision::LayerTransformation::Params,
     ov::element::Type,
-    bool,
+    Activation,
     std::string> FullyConnectedTransformationParams;
 
 namespace LayerTestsDefinitions {

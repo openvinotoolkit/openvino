@@ -116,7 +116,6 @@
 #include "transformations/cpu_opset/convert_to_cpu_specific_opset.hpp"
 #if defined(OPENVINO_ARCH_ARM64)
 #include "transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp"
-#include "transformations/cpu_opset/arm/pass/mat_mul_decomposition.hpp"
 #else
 #include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
 #endif
@@ -866,9 +865,6 @@ void Transformations::PostLpt() {
     // Should be before Snippets pipeline because Ngram pattern contains eltwise nodes that can be tokenized by Snippets.
     auto symbolic_pipeline = CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::SymbolicOptimizations, false);
     symbolic_pipeline->get_manager()->register_pass<NgramFusion>();
-
-    // TODO: not necessary
-    //CPU_REGISTER_PASS_ARM64(postLPTPassManager, ov::intel_cpu::MatMulDecomposition);
 
     postLPTPassManager.run_passes(model);
 }

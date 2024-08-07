@@ -20,7 +20,6 @@
 #include "low_precision/align_quantization_intervals.hpp"
 #include "low_precision/fake_quantize_decomposition.hpp"
 #include "low_precision/markup_bias.hpp"
-#include "low_precision/markup_dequantization_fuse.hpp"
 #include "low_precision/markup_precisions.hpp"
 #include "low_precision/markup_can_be_quantized.hpp"
 #include "low_precision/markup_avg_pool_precision_preserved.hpp"
@@ -53,7 +52,11 @@
 #include "low_precision/fake_quantize.hpp"
 #include "low_precision/group_convolution.hpp"
 #include "low_precision/interpolate.hpp"
+#ifdef OPENVINO_ARCH_ARM64
+#include "low_precision/mat_mul_with_dequantization.hpp"
+#else
 #include "low_precision/mat_mul.hpp"
+#endif
 #include "low_precision/max_pool.hpp"
 #include "low_precision/multiply_partial.hpp"
 #include "low_precision/mvn.hpp"
@@ -209,8 +212,6 @@ bool ov::pass::low_precision::MarkupOptimizations::run_on_model(const std::share
         markup.register_pass<low_precision::AlignQuantizationParameters>(params.defaultPrecisions);
     }
     markup.register_pass<low_precision::MarkupBias>();
-    // TODO: debug only
-    markup.register_pass<low_precision::MarkupDequantizationFuse>();
     markup.run_passes(f);
     return false;
 }
@@ -254,7 +255,11 @@ bool ov::pass::low_precision::LowPrecision::run_on_model(const std::shared_ptr<o
     ADD_MATCHER(common, FakeQuantizeTransformation, params)
     ADD_MATCHER(common, InterpolateTransformation, params)
     ADD_MATCHER(common, GroupConvolutionTransformation, params)
+#ifdef OPENVINO_ARCH_ARM64
+    ADD_MATCHER(common, MatMulWithDequantizationTransformation, params)
+#else
     ADD_MATCHER(common, MatMulTransformation, params)
+#endif
     ADD_MATCHER(common, MaxPoolTransformation, params)
     ADD_MATCHER(common, MultiplyPartialTransformation, params)
     ADD_MATCHER(common, MVNTransformation, params)
