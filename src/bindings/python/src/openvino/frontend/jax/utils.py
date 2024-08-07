@@ -9,6 +9,7 @@ import numpy as np
 import jax.numpy as jnp
 
 from openvino.runtime import op, Type as OVType, Shape, OVAny
+from openvino.frontend.jax.passes import filter_element, filter_ivalue, filter_param
 
 numpy_to_ov_type_map = {
     np.float32: OVType.f32,
@@ -69,6 +70,18 @@ def get_type_from_py_type(value):
         return OVType.i64
     return OVType.dynamic
 
+def get_type_from_np_type(value):
+    for np_dtype, ov_type in numpy_to_ov_type_map.items():
+        if isinstance(value, np_dtype):
+            return ov_type
+    return None
+
+def _get_ov_type_from_value(value):
+    ov_type = get_type_from_np_type(value)
+    if ov_type is None:
+        ov_type = get_type_from_py_type(value)
+    return ov_type
+
 def get_ov_type_for_value(value):
     if isinstance(value, (jax.core.Var, jax.core.Literal)):
         if value.aval.dtype in jax_to_ov_type_map:
@@ -108,14 +121,26 @@ def ivalue_to_constant(ivalue, shared_memory=True):
     '''
     Convert a python object to an openvino constant.
     '''
-    ov_type = get_type_from_py_type(ivalue)
+    ivalue = filter_ivalue(ivalue)
+    ov_type = _get_ov_type_from_value(ivalue)
     if ov_type.is_static():
         return op.Constant(ov_type, Shape([]), [ivalue]).outputs()
-
     if isinstance(ivalue, (list, tuple)):
         assert len(ivalue) > 0, "Can't deduce type for empty list"
-        ov_type = get_type_from_py_type(ivalue[0])
-        assert ov_type.is_static(), "Can't deduce type for list"
+        if isinstance(ivalue[0], (list, tuple)):
+            second_len = len(ivalue[0])
+            flattened_ivalue = []
+            for value in ivalue:
+                assert isinstance(value, (list, tuple)), "Can't deduce type for a list with both list and basic types."
+                assert len(value) == second_len or len(value) == 0, "Can't deduce type for nested list with different lengths."
+                flattened_ivalue.extend([filter_element(item) for item in value])
+            flattened_ivalue = [item for sublist in ivalue for item in sublist]
+            ov_type = _get_ov_type_from_value(flattened_ivalue[0])
+            assert ov_type.is_static(), f"Can't deduce type {flattened_ivalue[0].__class__} for list"
+            return op.Constant(ov_type, Shape([len(ivalue), second_len]), flattened_ivalue).outputs()
+        ivalue = [filter_element(item) for item in ivalue]
+        ov_type = _get_ov_type_from_value(ivalue[0])
+        assert ov_type.is_static(), f"Can't deduce type {ivalue[0].__class__} for list"
         return op.Constant(ov_type, Shape([len(ivalue)]), ivalue).outputs()
 
     if isinstance(ivalue, (jax.Array, np.ndarray)):
@@ -125,5 +150,11 @@ def ivalue_to_constant(ivalue, shared_memory=True):
     if ov_dtype_value is not None:
         return op.Constant(OVType.i64, Shape([]), [ov_type_to_int_map[ov_dtype_value]]).outputs()
     
-    print(f"[WARNING][JAX FE] Cannot get constant from value {ivalue}")
     return None
+
+def param_to_constants(primitive: str, param_name: str, jaxpr, shared_memory=True):
+    processed_params = filter_param(primitive, param_name, jaxpr)
+    
+    for k, v in processed_params.items():
+        processed_params[k] = ivalue_to_constant(v, shared_memory=shared_memory)
+    return processed_params
