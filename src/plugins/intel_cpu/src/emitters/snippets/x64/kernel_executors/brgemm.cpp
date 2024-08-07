@@ -184,7 +184,7 @@ float BrgemmKernelExecutor::get_beta(const ov::snippets::lowered::LoopManagerPtr
     return 0;
 }
 void BrgemmKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
-                                         const ov::snippets::lowered::LinearIRPtr& linear_ir,
+                                         const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                          BrgemmKernelConfig& config) const {
     const auto& input_pds = expr->get_input_port_descriptors();
     const auto& output_pds = expr->get_output_port_descriptors();
