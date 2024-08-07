@@ -10,26 +10,6 @@ import openvino as ov
 import tempfile
 
 
-def traverse_graph_recursive(node, visited, node_types):
-    node_id = node.get_friendly_name()
-    if node_id in visited:
-        return
-    visited.add(node_id)
-
-    node_types.add(node.get_type_name())
-
-    for node_input in node.input_values():
-        traverse_graph_recursive(node_input.get_node(), visited, node_types)
-
-
-def traverse_graph(model_outputs):
-    node_types = set()
-    visited = set()
-    for model_output in model_outputs:
-        traverse_graph_recursive(model_output.get_node(), visited, node_types)
-    return node_types
-
-
 def run_test(model_id, ie_device):
     model = OVModelForCausalLM.from_pretrained(model_id, export=True, trust_remote_code=True)
 
