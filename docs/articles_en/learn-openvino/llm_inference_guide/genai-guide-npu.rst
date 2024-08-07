@@ -10,7 +10,7 @@ flavor. Please refer to
 for more information on OpenVINO GenAI.
 
 Export an LLM model via Hugging Face Optimum-Intel
-###################
+##################################################
 
 1. Install the correct components for exporting model:
    .. code-block:: text
@@ -34,7 +34,7 @@ Export an LLM model via Hugging Face Optimum-Intel
       optimum-cli export openvino -m TinyLlama/TinyLlama-1.1B-Chat-v1.0 --weight-format int4 --sym --group-size 128 --ratio 1.0 TinyLlama
 
 Run the generation by using OpenVINO GenAI
-###################
+##########################################
 
 1. Install the correct components for running the model on NPU via OpenVINO GenAI:
    .. code-block:: text
