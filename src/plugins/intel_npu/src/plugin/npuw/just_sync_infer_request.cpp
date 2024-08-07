@@ -187,23 +187,22 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             auto weights_bank =
                 ov::npuw::weights_bank::WeightsBankManager::getInstance().getBank(weights_bank_opt,
                                                                                   *comp_model_desc.device_it);
+            auto& request = m_subrequests[i];
 
             for (std::size_t cidx = 0u; cidx < comp_model_desc.closure.size(); cidx++) {
                 auto& closure = comp_model_desc.closure[cidx];
 
                 const auto closure_param_id = comp_model_desc.param_base + cidx;
                 auto& iport = comp_model_desc.compiled_model->inputs()[closure_param_id];
-                auto& request = m_subrequests[i];
                 auto clparam = request->get_tensor(iport);
                 if (closure.get_element_type() == clparam->get_element_type() &&
                     (ov::element::u4 == clparam->get_element_type() ||
                      ov::element::i4 == clparam->get_element_type())) {
                     // No unpack required + utilize weights bank
                     comp_model_desc.unpack_required = false;
-                    // FIXME: do we need to handle the strides?
-                    auto remote_tensor = weights_bank->getSharedTensor(clparam->get_element_type(),
-                                                                       clparam->get_shape(),
-                                                                       clparam->data());
+                    auto remote_tensor = weights_bank->getSharedTensor(closure.get_element_type(),
+                                                                       closure.get_shape(),
+                                                                       closure.data());
                     request->set_tensor(iport, ov::get_tensor_impl(*remote_tensor._ptr.get()));
                 } else {
                     // Utilize unpack
