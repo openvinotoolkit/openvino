@@ -123,6 +123,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             OPENVINO_THROW("NPUW can't utilize NPUW_WEIGHTS_BANK property without NPUW_CWAI enabled!");
         }
         ov::npuw::weights_bank::WeightsBankManager::getInstance().initPlugin(plugin);
+        m_weights_bank_name = weights_bank_opt;
     }
 
     LOG_VERB("*** Original model ***");

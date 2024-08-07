@@ -135,6 +135,8 @@ private:
     std::string m_ref_device;
 
     execution_stats m_total_stat;
+
+    std::string m_weights_bank_name = "";
 };
 }  // namespace npuw
 }  // namespace ov
