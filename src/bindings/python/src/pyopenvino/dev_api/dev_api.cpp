@@ -23,8 +23,8 @@ void regmodule_dev_api(py::module m) {
 
                     :param output: Node output pointing to the tensor for estimation.
                     :type output: openvino.runtime.Output
-                    :param pshape: The resulting estimation will be stored in this PartialShape.
-                    :type pshape: openvino.PartialShape
+                    :param partial_shape: The resulting estimation will be stored in this PartialShape.
+                    :type partial_shape: openvino.PartialShape
                     :return: True if estimation evaluation was successful, false otherwise.
                     :rtype: bool
                 )");
@@ -38,6 +38,6 @@ void regmodule_dev_api(py::module m) {
                     :param output: Node output pointing to the tensor for estimation.
                     :type output: openvino.runtime.Output
                     :return: Tensors representing the lower and upper bound value estimations.
-                    :rtype: tuple[openvino.runtime.Tensor, openvino.runtime.Tensor]
+                    :rtype: Tuple[openvino.Tensor, openvino.Tensor]
                 )");
 }
