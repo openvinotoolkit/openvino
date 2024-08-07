@@ -31,7 +31,7 @@ namespace {
 bool evaluate(TensorVector& outputs, const TensorVector& inputs) {
     using namespace ov::element;
     return IF_TYPE_OF(bitshift_evaluate,
-                      OV_PP_ET_LIST(i8, i16, i32, i64, u8, u16, u32),
+                      OV_PP_ET_LIST(i8, i16, i32, i64, u8, u16, u32, u64),
                       right_shift::Evaluate,
                       inputs[0].get_element_type(),
                       inputs[0],
@@ -65,9 +65,21 @@ bool BitwiseRightShift::evaluate(TensorVector& outputs, const TensorVector& inpu
 
 bool BitwiseRightShift::has_evaluate() const {
     OV_OP_SCOPE(v15_BitwiseRightShift_has_evaluate);
-    return true;
+    switch (get_input_element_type(0)) {
+    case element::i8:
+    case element::i16:
+    case element::i32:
+    case element::i64:
+    case element::u8:
+    case element::u16:
+    case element::u32:
+    case element::u64:
+        return true;
+    default:
+        return false;
+    }
+    return false;
 }
-
 }  // namespace v15
 }  // namespace op
 }  // namespace ov

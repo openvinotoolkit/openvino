@@ -105,6 +105,15 @@ std::vector<RefBitwiseParams> generateBitwiseParams() {
                                                                       1, 1, 2, 2, 12, 16, 0, 0,  0,  0, 0,  0,  0, 0, 1,
                                                                       1, 6, 8, 0, 0,  0,  0, 0,  0,  0, 0,  0,  0, 3, 4,
                                                                       0, 0, 0, 0, 0,  0,  0, 0,  0,  0, 0,  0}}),
+        Builder{}
+            .opType(BitwiseTypes::BITWISE_RIGHT_SHIFT)
+            .inputs({{{2, 6}, element::u64, std::vector<uint64_t>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 51, 64}},
+                     {{6, 1, 1}, element::u64, std::vector<uint64_t>{0, 1, 2, 3, 8, 63}}})
+            .expected({{6, 2, 6}, element::u64, std::vector<uint64_t>{0, 1, 2, 3, 4,  5,  6, 7,  8,  9, 51, 64, 0, 0, 1,
+                                                                      1, 2, 2, 3, 3,  4,  4, 25, 32, 0, 0,  0,  0, 1, 1,
+                                                                      1, 1, 2, 2, 12, 16, 0, 0,  0,  0, 0,  0,  0, 0, 1,
+                                                                      1, 6, 8, 0, 0,  0,  0, 0,  0,  0, 0,  0,  0, 0, 0,
+                                                                      0, 0, 0, 0, 0,  0,  0, 0,  0,  0, 0,  0}}),
     };
     return bitwiseParams;
 }
